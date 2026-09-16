@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ceb{
     AuxExemplarCharacters{"[c f j ñ q v x z]"}
     ExemplarCharacters{"[a b d e g h i k l m n o p r s t u w y]"}
@@ -458,7 +458,7 @@ ceb{
                         "Hunyo",
                         "Hulyo",
                         "Agosto",
-                        "Septiyembre",
+                        "Septyembre",
                         "Oktubre",
                         "Nobyembre",
                         "Disyembre",
@@ -478,6 +478,20 @@ ceb{
                         "O",
                         "N",
                         "D",
+                    }
+                    wide{
+                        "Enero",
+                        "Pebrero",
+                        "Marso",
+                        "Abril",
+                        "Mayo",
+                        "Hunyo",
+                        "Hulyo",
+                        "Agosto",
+                        "Septyembre",
+                        "Oktubre",
+                        "Nobyembre",
+                        "Disyembre",
                     }
                 }
             }
@@ -520,6 +534,12 @@ ceb{
         minute{
             dn{"minuto"}
         }
+        minute-narrow{
+            dn{"min"}
+        }
+        minute-short{
+            dn{"min."}
+        }
         month{
             dn{"buwan"}
             relative{
@@ -536,6 +556,9 @@ ceb{
         }
         second{
             dn{"segundo"}
+        }
+        second-narrow{
+            dn{"seg"}
         }
         second-short{
             dn{"seg."}

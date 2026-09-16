@@ -96,10 +96,10 @@ class DataProtectionClipboardBrowserTest : public InProcessBrowserTest {
     // This permission is required to use `readText()` without user input.
     content::PermissionController* permission_controller =
         rfh()->GetBrowserContext()->GetPermissionController();
-    SetPermissionControllerOverrideForDevTools(
-        permission_controller, url::Origin::Create(url()),
-        blink::PermissionType::CLIPBOARD_READ_WRITE,
-        blink::mojom::PermissionStatus::GRANTED);
+    url::Origin origin = url::Origin::Create(url());
+    SetPermissionControllerOverride(permission_controller, origin, origin,
+                                    blink::PermissionType::CLIPBOARD_READ_WRITE,
+                                    blink::mojom::PermissionStatus::GRANTED);
     base::RunLoop().RunUntilIdle();
   }
 };

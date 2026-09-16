@@ -94,17 +94,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Conversions.AggregatableKeysPerSource" units="keys"
-    expires_after="2026-02-04">
-  <owner>linnan@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Measures the number of aggregation keys provided in attribution source
-    registration headers. Recorded once for each source registration header when
-    parsed from the attributionsrc response.
-  </summary>
-</histogram>
-
 <histogram name="Conversions.AggregatableReport.AssembleReportStatus"
     enum="ConversionAssembleAggregatableReportStatus"
     expires_after="2026-02-22">
@@ -149,7 +138,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Conversions.AggregatableReport.ExtraReportDelayForSuccessfulSend"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>tquintanilla@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -162,7 +151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.AggregatableReport.FilteredTriggerDataPercentage"
-    units="%" expires_after="2026-01-25">
+    units="%" expires_after="2026-03-29">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -380,7 +369,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.ClearDataTime" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>csharrison@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -600,18 +589,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Conversions.FiltersPerFilterData" units="filters"
-    expires_after="2026-02-04">
-  <owner>linnan@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Measures filter sizes in source and trigger registrations. This includes
-    filter data in source, top-level trigger, event-level and aggregatable
-    trigger data. Recorded once for each filter data when parsed from the
-    attributionsrc response.
-  </summary>
-</histogram>
-
 <histogram name="Conversions.GetAllDataKeysTime" units="ms"
     expires_after="2026-02-22">
   <owner>linnan@chromium.org</owner>
@@ -648,7 +625,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.HeadersSize.Register{Type}" units="bytes"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>tquintanilla@chromium.org</owner>
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
@@ -722,30 +699,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Conversions.LegacyEventReportWindow" enum="Boolean"
-    expires_after="2025-12-14">
-  <owner>apaseltiner@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Records whether a source registration contains a legacy event_report_window
-    field, regardless of whether that field or any other field has an error. See
-    https://wicg.github.io/attribution-reporting-api/#source-registration-json-key-event_report_window.
-  </summary>
-</histogram>
-
-<histogram name="Conversions.MaybeCreateAndStoreReportTime" units="ms"
-    expires_after="2025-11-16">
-  <owner>apaseltiner@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Records the time it took AttributionResolverImpl::MaybeCreateAndStoreReport
-    to run: that is, the complete attribution algorithm, covering both
-    event-level and aggregatable reports, regardless of the result.
-  </summary>
-</histogram>
-
 <histogram name="Conversions.NamedBudgetsPer{Type}Registration"
-    units="named_budgets" expires_after="2026-01-25">
+    units="named_budgets" expires_after="2026-03-29">
   <owner>tquintanilla@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -759,7 +714,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.NavigationDataHostStatus3"
-    enum="ConversionNavigationDataHostStatus" expires_after="2026-01-25">
+    enum="ConversionNavigationDataHostStatus" expires_after="2026-03-29">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -824,7 +779,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Conversions.NumDataHostsRegisteredOnClientBounce.{Interaction}.{Duration}"
-    units="data hosts" expires_after="2026-01-18">
+    units="data hosts" expires_after="2026-03-22">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -848,7 +803,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.NumTriggerStates" units="states"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>tquintanilla@chromium.org</owner>
   <owner>apaseltiner@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
@@ -926,7 +881,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.OsRegistrationsSkipBufferRegistrationsSize"
-    units="count" expires_after="2026-01-25">
+    units="count" expires_after="2026-03-29">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -1172,7 +1127,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.Storage.ClearDataWithFilterDuration" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>csharrison@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -1198,7 +1153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Conversions.Storage.FindMatchingSourceTime" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>apaseltiner@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -1331,18 +1286,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Conversions.TriggerDataMatchingModulusSameInputOutput"
-    units="bool" expires_after="2026-02-09">
-  <owner>tquintanilla@chromium.org</owner>
-  <owner>apaseltiner@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    When a chosen source for attribution contains the trigger data matching mode
-    `modulus`, measures whether the passed trigger data equals the source's
-    chosen trigger data. Recorded when creating an event-level report.
-  </summary>
-</histogram>
-
 <histogram name="Conversions.TriggerDataMatchingRegistration"
     enum="ConversionTriggerDataMatching" expires_after="2026-02-09">
   <owner>tquintanilla@chromium.org</owner>
@@ -1411,18 +1354,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Conversions.ValuesPerFilter" units="values"
-    expires_after="2026-01-25">
-  <owner>linnan@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Measures the number of values in a filter. This includes filter data in
-    source, top-level trigger, event-level and aggregatable trigger data.
-    Recorded once for each filter in the filter data when parsed from the
-    attributionsrc response.
-  </summary>
-</histogram>
-
 <histogram name="Conversions.VerboseDebugReport.HttpResponseOrNetErrorCode"
     enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-03-01">
   <owner>linnan@chromium.org</owner>
@@ -1459,21 +1390,6 @@ chromium-metrics-reviews@google.com.
   </summary>
   <token key="ContextType"
       variants="AttributionReportingAggregatableContextType"/>
-</histogram>
-
-<histogram name="Conversions.{ReportType}.NetworkConnectionTypeOnFailure2"
-    enum="NetworkConnectionType" expires_after="2026-02-22">
-  <owner>linnan@chromium.org</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Records the network connection type in the event that the report failed to
-    be sent due to network issues. Recorded for each report sending attempt that
-    failed.
-  </summary>
-  <token key="ReportType">
-    <variant name="AggregatableReport"/>
-    <variant name="EventLevelReport"/>
-  </token>
 </histogram>
 
 <histogram name="Conversions.{ReportType}.ReportBodySize" units="bytes"

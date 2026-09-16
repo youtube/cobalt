@@ -17,7 +17,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/install_tracker.h"
+#include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -35,8 +35,10 @@
 #include "extensions/browser/extension_prefs_observer.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_prefs_helper.h"
+#include "extensions/browser/install_tracker.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/pref_types.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
@@ -44,6 +46,8 @@
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_info.h"
 #include "testing/gmock/include/gmock/gmock.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using base::Time;
 using extensions::mojom::APIPermissionID;
@@ -75,7 +79,7 @@ void ExtensionPrefsTest::TearDown() {
   // Shutdown the InstallTracker early, which is a dependency on some
   // ExtensionPrefTests (and depends on PrefService being available in
   // shutdown).
-  InstallTracker::Get(prefs_.profile())->Shutdown();
+  InstallTrackerFactory::GetForBrowserContext(prefs_.profile())->Shutdown();
 
   // Reset ExtensionPrefs, and re-verify.
   prefs_.ResetPrefRegistry();
@@ -462,7 +466,7 @@ class ExtensionPrefsDelayedInstallInfo : public ExtensionPrefsTest {
     manifest.Set(manifest_keys::kManifestVersion, 2);
     base::FilePath path =
         prefs_.extensions_dir().AppendASCII(base::NumberToString(num));
-    std::string errors;
+    std::u16string errors;
     scoped_refptr<Extension> extension =
         Extension::Create(path, ManifestLocation::kInternal, manifest,
                           Extension::NO_FLAGS, id, &errors);
@@ -586,7 +590,7 @@ class ExtensionPrefsFinishDelayedInstallInfo : public ExtensionPrefsTest {
     manifest.SetByDottedPath(manifest_keys::kBackgroundScripts,
                              std::move(scripts));
     base::FilePath path = prefs_.extensions_dir().AppendASCII("test_0.2");
-    std::string errors;
+    std::u16string errors;
     scoped_refptr<Extension> new_extension =
         Extension::Create(path, ManifestLocation::kInternal, manifest,
                           Extension::NO_FLAGS, id_, &errors);
@@ -812,7 +816,7 @@ TEST_F(ExtensionPrefsFlags, ExtensionPrefsFlags) {}
 
 PrefsPrepopulatedTestBase::PrefsPrepopulatedTestBase() {
   base::Value::Dict simple_dict;
-  std::string error;
+  std::u16string error;
 
   simple_dict.Set(manifest_keys::kVersion, "1.0.0.0");
   simple_dict.Set(manifest_keys::kManifestVersion, 2);

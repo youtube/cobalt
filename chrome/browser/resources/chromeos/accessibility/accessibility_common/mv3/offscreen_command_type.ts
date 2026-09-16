@@ -20,6 +20,8 @@ export enum OffscreenCommandType {
   FACEGAZE_WEBCAM_INITIALIZE = 'FacegazeWebCamInitialize',
   FACEGAZE_WEBCAM_STOP = 'FacegazeWebCamStop',
   // Test-only:
+  FACEGAZE_CREATE_FACE_LANDMARKER_FOR_TEST =
+      'FacegazeCreateFaceLandmarkerForTest',
   FACEGAZE_MOCK_NO_CAMERA_FOR_TEST = 'FacegazeMockNoCameraForTest',
   FACEGAZE_MOCK_TIMEOUT_FOR_TEST = 'FacegazeMockTimeoutForTest',
   FACEGAZE_MOCK_RUN_LATEST_TIMEOUT_FOR_TEST = 'FacegazeRunLatestTimeoutForTest',
@@ -27,6 +29,7 @@ export enum OffscreenCommandType {
   FACEGAZE_GET_CAMERA_RETRIES_FOR_TEST = 'FacegazeGetCameraRetriesForTest',
   FACEGAZE_SET_CAMERA_RETRIES_FOR_TEST = 'FacegazeSetCameraRetriesForTest',
   FACEGAZE_HAS_FACE_LANDMARKER_FOR_TEST = 'FacegazeHasFaceLandmarkerForTest',
+  FACEGAZE_WEBCAM_STOP_FOR_TEST = 'FacegazeWebCamStopForTest',
 
   // From offscreen document to service worker:
   FACEGAZE_SW_INSTALL_ASSETS = 'FacegazeSwInstallAssets',

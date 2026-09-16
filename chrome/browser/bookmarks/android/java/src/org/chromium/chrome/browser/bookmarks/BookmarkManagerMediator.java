@@ -557,6 +557,9 @@ class BookmarkManagerMediator
         mBookmarkUndoController.destroy();
         mBookmarkQueryHandler.destroy();
         mCallbackController.destroy();
+        if (mBatchUploadCardCoordinator != null) {
+            mBatchUploadCardCoordinator.destroy();
+        }
 
         mBookmarkUiPrefs.removeObserver(mBookmarkUiPrefsObserver);
 
@@ -1576,7 +1579,7 @@ class BookmarkManagerMediator
         ModelList listItems =
                 createListMenuModelList(entry, model.get(BookmarkManagerProperties.LOCATION));
         ListMenu.Delegate delegate =
-                item -> {
+                (item, view) -> {
                     int textId = item.get(ListMenuItemProperties.TITLE_ID);
                     if (textId == R.string.bookmark_item_select) {
                         mSelectionDelegate.toggleSelectionForItem(bookmarkId);

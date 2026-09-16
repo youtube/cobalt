@@ -674,6 +674,24 @@ DEF_SHIFT_BINOP(Int32ShiftRight, sarl)
 DEF_SHIFT_BINOP(Int32ShiftRightLogical, shrl)
 #undef DEF_SHIFT_BINOP
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ incl(ToRegister(value_input()));
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ decl(ToRegister(value_input()));
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineSameAsFirst(this);
@@ -944,7 +962,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void Float64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -959,6 +976,7 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

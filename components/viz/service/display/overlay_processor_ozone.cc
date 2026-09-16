@@ -17,13 +17,11 @@
 #include "build/chromecast_buildflags.h"
 #include "components/viz/common/buildflags.h"
 #include "components/viz/common/features.h"
-#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/service/display/overlay_strategy_fullscreen.h"
 #include "components/viz/service/display/overlay_strategy_single_on_top.h"
 #include "components/viz/service/display/overlay_strategy_underlay.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
@@ -78,26 +76,6 @@ gfx::ColorSpace GetColorSpaceForOzone(SharedImageFormat format,
   }
 #endif
   return orig_color_space;
-}
-
-// TODO(weiliangc): When difference between primary plane and non-primary plane
-// can be internalized, merge these two helper functions.
-void ConvertToOzoneOverlaySurface(
-    const OverlayProcessorInterface::OutputSurfaceOverlayPlane& primary_plane,
-    ui::OverlaySurfaceCandidate* ozone_candidate) {
-  ozone_candidate->transform = primary_plane.transform;
-  ozone_candidate->format = primary_plane.format;
-  ozone_candidate->color_space = GetColorSpaceForOzone(
-      ozone_candidate->format, /*orig_color_space=*/primary_plane.color_space);
-  ozone_candidate->display_rect = primary_plane.display_rect;
-  ozone_candidate->crop_rect = primary_plane.uv_rect;
-  ozone_candidate->clip_rect.reset();
-  ozone_candidate->is_opaque = !primary_plane.enable_blending;
-  ozone_candidate->opacity = primary_plane.opacity;
-  ozone_candidate->plane_z_order = 0;
-  ozone_candidate->buffer_size = primary_plane.resource_size;
-  ozone_candidate->priority_hint = primary_plane.priority_hint;
-  ozone_candidate->rounded_corners = primary_plane.rounded_corners;
 }
 
 void ConvertToOzoneOverlaySurface(
@@ -300,7 +278,7 @@ void OverlayProcessorOzone::NotifyOverlayPromotion(
 }
 
 void OverlayProcessorOzone::CheckOverlaySupportImpl(
-    const OverlayProcessorInterface::OutputSurfaceOverlayPlane* primary_plane,
+    const std::optional<OverlayCandidate>& primary_plane,
     OverlayCandidateList* surfaces) {
   MaybeObserveHardwareCapabilities();
 
@@ -519,6 +497,15 @@ void OverlayProcessorOzone::OnSwapBuffersComplete(gfx::SwapResult swap_result) {
   }
 }
 
+void OverlayProcessorOzone::InsertPrimaryPlane(
+    OverlayCandidate primary_plane,
+    OverlayCandidateList& candidates) {
+  // Ozone DRM needs the primary plane as the first overlay when overlay
+  // testing.
+  const auto insert_positon = candidates.begin();
+  candidates.insert(insert_positon, std::move(primary_plane));
+}
+
 bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     ui::OverlaySurfaceCandidate* candidate,
     const gpu::Mailbox& mailbox,
@@ -539,8 +526,7 @@ bool OverlayProcessorOzone::SetNativePixmapForCandidate(
 
   if (is_primary &&
       (candidate->buffer_size != native_pixmap->GetBufferSize() ||
-       candidate->format !=
-           GetSharedImageFormat(native_pixmap->GetBufferFormat()))) {
+       candidate->format != native_pixmap->GetSharedImageFormat())) {
     // If |mailbox| corresponds to the last submitted primary plane, its
     // parameters may not match those of the current candidate due to a
     // reshape. If the size and format don't match, skip this candidate for

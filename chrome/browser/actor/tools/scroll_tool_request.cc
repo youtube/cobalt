@@ -4,8 +4,11 @@
 
 #include "chrome/browser/actor/tools/scroll_tool_request.h"
 
+#include <optional>
+
 #include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/actor/actor_utils.h"
 
 namespace actor {
 
@@ -29,7 +32,8 @@ std::string ScrollToolRequest::JournalEvent() const {
   return "Scroll";
 }
 
-mojom::ToolActionPtr ScrollToolRequest::ToMojoToolAction() const {
+mojom::ToolActionPtr ScrollToolRequest::ToMojoToolAction(
+    content::RenderFrameHost& frame) const {
   auto scroll = mojom::ScrollAction::New();
 
   switch (direction_) {

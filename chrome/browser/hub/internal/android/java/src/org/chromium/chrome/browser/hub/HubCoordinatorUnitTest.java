@@ -36,6 +36,7 @@ import org.robolectric.ParameterizedRobolectricTestRunner.Parameter;
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameters;
 import org.robolectric.shadows.ShadowLooper;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
@@ -50,7 +51,6 @@ import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.TestActivity;
-import org.chromium.ui.util.XrUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -116,7 +116,7 @@ public class HubCoordinatorUnitTest {
 
     @Before
     public void setUp() {
-        XrUtils.setXrDeviceForTesting(mIsXrDevice);
+        DeviceInfo.setIsXrForTesting(mIsXrDevice);
 
         TrackerFactory.setTrackerForTests(mTracker);
         mReferenceButtonDataSupplier.set(mReferenceButtonData);
@@ -132,6 +132,8 @@ public class HubCoordinatorUnitTest {
                 .thenReturn(mReferenceButtonDataSupplier);
         when(mTabSwitcherPane.getHubSearchEnabledStateSupplier())
                 .thenReturn(mRegularHubSearchEnabledStateSupplier);
+        when(mTabSwitcherPane.getHubSearchBoxVisibilitySupplier())
+                .thenReturn(new ObservableSupplierImpl<>());
         when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
         when(mIncognitoTabSwitcherPane.getColorScheme()).thenReturn(HubColorScheme.INCOGNITO);
         when(mIncognitoTabSwitcherPane.getHandleBackPressChangedSupplier())
@@ -142,6 +144,8 @@ public class HubCoordinatorUnitTest {
                 .thenReturn(mReferenceButtonDataSupplier);
         when(mIncognitoTabSwitcherPane.getHubSearchEnabledStateSupplier())
                 .thenReturn(mIncognitoHubSearchEnabledStateSupplier);
+        when(mIncognitoTabSwitcherPane.getHubSearchBoxVisibilitySupplier())
+                .thenReturn(new ObservableSupplierImpl<>());
         when(mTab.getId()).thenReturn(TAB_ID);
         when(mTab.isIncognito()).thenReturn(false);
         when(mHubLayoutController.getPreviousLayoutTypeSupplier())

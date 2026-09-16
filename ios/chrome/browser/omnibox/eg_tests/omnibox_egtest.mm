@@ -12,6 +12,7 @@
 #import "base/test/ios/wait_util.h"
 #import "build/build_config.h"
 #import "components/feature_engagement/public/feature_constants.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/edit_menu_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
@@ -269,11 +270,13 @@ void FocusFakebox() {
     [ChromeEarlGrey clearBrowsingHistory];
   }
 
-  [ChromeEarlGrey setBoolValue:NO forLocalStatePref:prefs::kBottomOmnibox];
+  [ChromeEarlGrey setBoolValue:NO
+             forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
 }
 
 - (void)tearDownHelper {
-  [ChromeEarlGrey setBoolValue:NO forLocalStatePref:prefs::kBottomOmnibox];
+  [ChromeEarlGrey setBoolValue:NO
+             forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
   [super tearDownHelper];
 }
 
@@ -459,11 +462,13 @@ void FocusFakebox() {
   // Clear the pasteboard in case there is a URL copied.
   [ChromeEarlGrey clearPasteboard];
 
-  [ChromeEarlGrey setBoolValue:NO forLocalStatePref:prefs::kBottomOmnibox];
+  [ChromeEarlGrey setBoolValue:NO
+             forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
 }
 
 - (void)tearDownHelper {
-  [ChromeEarlGrey setBoolValue:NO forLocalStatePref:prefs::kBottomOmnibox];
+  [ChromeEarlGrey setBoolValue:NO
+             forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
   [super tearDownHelper];
 }
 
@@ -501,10 +506,16 @@ void FocusFakebox() {
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       assertWithMatcher:chrome_test_util::LocationViewContainingText(
-                            _URL1.host())];
+                            _URL1.GetHost())];
 }
 
 - (void)testCopyPaste {
+#if !TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/449210011): Re-enable the test on iPad device.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iPad.");
+  }
+#endif
   [self openPage1];
 
   // Long pressing should allow copying.

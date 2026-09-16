@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 gsw{
     zoneStrings{
         "Africa:Accra"{
@@ -201,9 +201,6 @@ gsw{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uschgorod"}
-        }
         "Europe:Vienna"{
             ec{"Wien"}
         }
@@ -212,9 +209,6 @@ gsw{
         }
         "Europe:Warsaw"{
             ec{"Warschau"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Saporischja"}
         }
         "Europe:Zurich"{
             ec{"Züri"}

@@ -60,7 +60,6 @@ class VisitedLinkWriter;
 namespace android_webview {
 
 class AwBrowserContextIoThreadHandle;
-class AwContentsOriginMatcher;
 class AwFormDatabaseService;
 class AwQuotaManagerBridge;
 class CookieManager;
@@ -155,7 +154,7 @@ class AwBrowserContext : public content::BrowserContext,
       override;
   std::unique_ptr<content::ZoomLevelDelegate> CreateZoomLevelDelegate(
       const base::FilePath& partition_path) override;
-  net::HttpRequestHeaders GetExtraHeadersForUrl(const GURL& url) override;
+  std::string GetExtraHeadersForUrl(const GURL& url) override;
 
   // visitedlink::VisitedLinkDelegate implementation.
   void RebuildTable(const scoped_refptr<URLEnumerator>& enumerator) override;
@@ -187,8 +186,6 @@ class AwBrowserContext : public content::BrowserContext,
   base::android::ScopedJavaLocalRef<jobject> GetJavaBrowserContext();
 
   void ClearPersistentOriginTrialStorageForTesting(JNIEnv* env);
-
-  scoped_refptr<AwContentsOriginMatcher> service_worker_xrw_allowlist_matcher();
 
   void SetExtraHeadersForUrl(const GURL& url, const std::string& headers);
 
@@ -289,11 +286,9 @@ class AwBrowserContext : public content::BrowserContext,
   AwFileSystemAccessPermissionContext fsa_permission_context_;
   SimpleFactoryKey simple_factory_key_;
 
-  scoped_refptr<AwContentsOriginMatcher> service_worker_xrw_allowlist_matcher_;
-
   // Map of extra headers for specific URLs supplied through the loadUrl(String,
   // Map) API.
-  std::map<std::string, net::HttpRequestHeaders> extra_headers_for_urls_;
+  std::map<std::string, std::string> extra_headers_for_urls_;
 
   base::android::ScopedJavaGlobalRef<jobject> obj_;
 

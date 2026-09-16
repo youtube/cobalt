@@ -5,6 +5,7 @@
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
     "assert_types": [["--assert-types"]],
+    "wasm_assert_types": [["--wasm-assert-types", "--no-liftoff"]],
     "code_serializer": [["--cache=code"]],
     "default": [[]],
     "future": [["--future"]],
@@ -257,11 +258,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
+    "wasm_assert_types": ["--liftoff-only", "--wasm-dynamic-tiering"],
     "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
-    "--turboshaft-assert-types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining",
-        "--no-turboshaft-assert-types"
-    ],
 }
 
 # Flags that lead to a contradiction under certain build variables.
@@ -316,8 +314,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
     "!has_maglev": ["--maglev"],
     "!has_turbofan": kIncompatibleFlagsForNoTurbofan,
-    "has_jitless": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "lite_mode": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+    "has_jitless": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"] + ["--no-jitless"],
+    "lite_mode": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"] + ["--no-jitless"],
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",

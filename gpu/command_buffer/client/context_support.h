@@ -14,8 +14,6 @@
 #include "ui/gfx/gpu_fence_handle.h"
 #include "ui/gfx/overlay_transform.h"
 
-class GrDirectContext;
-
 namespace gfx {
 class GpuFence;
 }
@@ -58,27 +56,9 @@ class ContextSupport {
   virtual void SetAggressivelyFreeResources(
       bool aggressively_free_resources) = 0;
 
-  // Returns an ID that can be used to globally identify the share group that
-  // this context's resources belong to.
-  virtual uint64_t ShareGroupTracingGUID() const = 0;
-
   // Sets a callback to be run when an error occurs.
   virtual void SetErrorMessageCallback(
       base::RepeatingCallback<void(const char*, int32_t)> callback) = 0;
-
-  // Allows locking a GPU discardable texture from any thread. Any successful
-  // call to ThreadSafeShallowLockDiscardableTexture must be paired with a
-  // later call to CompleteLockDiscardableTexureOnContextThread.
-  virtual bool ThreadSafeShallowLockDiscardableTexture(uint32_t texture_id) = 0;
-
-  // Must be called on the context's thread, only following a successful call
-  // to ThreadSafeShallowLockDiscardableTexture.
-  virtual void CompleteLockDiscardableTexureOnContextThread(
-      uint32_t texture_id) = 0;
-
-  // Checks if a discardable handle is deleted. For use in tracing code.
-  virtual bool ThreadsafeDiscardableTextureIsDeletedForTracing(
-      uint32_t texture_id) = 0;
 
   // Access to transfer cache functionality for OOP raster. Only
   // ThreadsafeLockTransferCacheEntry can be accessed without holding the
@@ -118,19 +98,6 @@ class ContextSupport {
   // RasterInterface::ScheduleImageDecode() will succeed.
   virtual bool CanDecodeWithHardwareAcceleration(
       const cc::ImageHeaderMetadata* image_metadata) const = 0;
-
-  // Returns true if the context provider automatically manages calls to
-  // GrDirectContext::resetContext under the hood to prevent GL state
-  // synchronization problems between the GLES2 interface and skia.
-  virtual bool HasGrContextSupport() const = 0;
-
-  // Sets the GrDirectContext that is to receive resetContext signals when the
-  // GL state is modified via direct calls to the GLES2 interface.
-  virtual void SetGrContext(GrDirectContext* gr) = 0;
-
-  virtual void WillCallGLFromSkia() = 0;
-
-  virtual void DidCallGLFromSkia() = 0;
 
  protected:
   ContextSupport() = default;

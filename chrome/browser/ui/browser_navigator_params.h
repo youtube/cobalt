@@ -75,26 +75,13 @@ struct NavigateParams {
 #if BUILDFLAG(IS_ANDROID)
   explicit NavigateParams(
       std::unique_ptr<content::WebContents> contents_to_insert);
-#else
-  // Deprecated. Use the constructor that takes a |BrowserWindowInterface|
-  // if possible.
-  // TODO(http://crbug.com/443062679): Delete this.
-  NavigateParams(Browser* browser,
-                 const GURL& a_url,
-                 ui::PageTransition a_transition);
-
-  // Deprecated. Use the constructor that takes a |BrowserWindowInterface|
-  // if possible.
-  // TODO(http://crbug.com/443062679): Delete this.
-  NavigateParams(Browser* browser,
-                 std::unique_ptr<content::WebContents> contents_to_insert);
 #endif
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
-  NavigateParams(BrowserWindowInterface* a_bwi,
+  NavigateParams(BrowserWindowInterface* a_browser,
                  const GURL& a_url,
                  ui::PageTransition a_transition);
-  NavigateParams(BrowserWindowInterface* a_bwi,
+  NavigateParams(BrowserWindowInterface* a_browser,
                  std::unique_ptr<content::WebContents> contents_to_insert);
 #endif
 
@@ -292,19 +279,10 @@ struct NavigateParams {
   //       that its window can assume responsibility for the Browser's lifetime
   //       (Browser objects are deleted when the user closes a visible browser
   //       window).
-  // Note: (crbug.com/443062679) When possible, prefer this over browser.
-  raw_ptr<BrowserWindowInterface> browser_window_interface = nullptr;
+  raw_ptr<BrowserWindowInterface, AcrossTasksDanglingUntriaged> browser;
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-  // The BrowserWindowInterface on non-Android platforms.
-  // Please see the |browser_window_interface| field for documentation.
-  //
-  // Note: Please don't use this if you can use |browser_window_interface|.
-  //
-  // TODO(http://crbug.com/443062679): Delete this.
-  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser = nullptr;
-
   // The group the caller would like the tab to be added to.
   std::optional<tab_groups::TabGroupId> group;
 

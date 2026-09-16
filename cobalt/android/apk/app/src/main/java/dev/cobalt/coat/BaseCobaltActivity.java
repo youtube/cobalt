@@ -82,6 +82,11 @@ public abstract class BaseCobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    BaseStarboardBridge bridge = getStarboardBridge();
+    if (bridge != null) {
+      bridge.onActivityCreate(this);
+    }
+
     // Record the application start timestamp.
     mTimeInNanoseconds = System.nanoTime();
 
@@ -107,8 +112,17 @@ public abstract class BaseCobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
+    try {
+      super.onDestroy();
+    } catch (Throwable t) {
+      Log.e(TAG, "Error in super.onDestroy()", t);
+      throw t;
+    } finally {
+      BaseStarboardBridge bridge = getStarboardBridge();
+      if (bridge != null) {
+        bridge.onActivityDestroy(this);
+      }
+    }
   }
 
   @Override
@@ -198,12 +212,20 @@ public abstract class BaseCobaltActivity extends Activity {
     }
   }
 
+  /**
+   * Returns true if compiled for release (i.e. 'gold' build; false for 'qa'). Subclasses may
+   * override this (e.g. to allow dev args on dogfood builds).
+   */
   protected boolean isReleaseBuild() {
-    return BaseStarboardBridge.isReleaseBuild();
+    return CobaltBuildInfo.IS_RELEASE_BUILD;
   }
 
+  /**
+   * Returns true if compiled for development (i.e. 'devel' or 'debug' build; false for 'qa' and
+   * 'gold'). Subclasses may override this.
+   */
   protected boolean isDevelopmentBuild() {
-    return BaseStarboardBridge.isDevelopmentBuild();
+    return !CobaltBuildInfo.IS_OFFICIAL_BUILD;
   }
 
   @Override

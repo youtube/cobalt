@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/feature_list.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/companion/text_finder/text_finder_manager.h"
 #include "chrome/browser/companion/text_finder/text_highlighter_manager.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
 #include "chrome/browser/ui/lens/lens_help_menu_utils.h"
+#include "chrome/browser/ui/lens/lens_media_link_handler.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_web_view.h"
 #include "chrome/browser/ui/lens/lens_overlay_url_builder.h"
@@ -41,6 +43,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/media_session.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -104,7 +107,7 @@ bool IsSiteTrusted(const GURL& url) {
   return false;
 }
 
-SidePanelUI* GetSidePanelUI(LensOverlayController* controller) {
+SidePanelUI* GetSidePanelUI(LensSearchController* controller) {
   return controller->GetTabInterface()
       ->GetBrowserWindowInterface()
       ->GetFeatures()
@@ -167,7 +170,7 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
 
   state_ = State::kOpeningSidePanel;
   RegisterEntry();
-  GetSidePanelUI(GetLensOverlayController())
+  GetSidePanelUI(GetLensSearchController())
       ->Show(SidePanelEntry::Id::kLensOverlayResults);
   GetLensOverlayController()->NotifyResultsPanelOpened();
 
@@ -180,10 +183,6 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
                                 ->GetFeatures()
                                 .side_panel_coordinator();
   CHECK(side_panel_coordinator_);
-
-  // Focus the web contents when created, so that hotkey presses (i.e. escape)
-  // are handled.
-  GetSidePanelWebContents()->Focus();
 }
 
 void LensOverlaySidePanelCoordinator::RecordAndShowSidePanelErrorPage() {
@@ -246,8 +245,8 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleTextDirectives(
     if (lens::IsValidSearchResultsUrl(nav_url)) {
       auto page_url_text_query = lens::ExtractTextQueryParameterValue(page_url);
       auto nav_url_text_query = lens::ExtractTextQueryParameterValue(nav_url);
-      if (page_url.host() != nav_url.host() ||
-          page_url.path() != nav_url.path() ||
+      if (page_url.GetHost() != nav_url.GetHost() ||
+          page_url.GetPath() != nav_url.GetPath() ||
           page_url_text_query != nav_url_text_query) {
         lens::RecordHandleTextDirectiveResult(
             lens::LensOverlayTextDirectiveResult::kOpenedInNewTab);
@@ -260,7 +259,7 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleTextDirectives(
 
     // Nav url should have a text fragment.
     auto text_fragments =
-        shared_highlighting::ExtractTextFragments(nav_url.ref());
+        shared_highlighting::ExtractTextFragments(nav_url.GetRef());
 
     // Create and attach a `TextFinderManager` to the primary page.
     content::Page& page = lens_search_controller_->GetTabInterface()
@@ -278,10 +277,27 @@ bool LensOverlaySidePanelCoordinator::MaybeHandleTextDirectives(
   return false;
 }
 
+bool LensOverlaySidePanelCoordinator::MaybeHandleContextualMediaLink(
+    const GURL& nav_url) {
+  // Exit early if the feature is disabled or the overlay is showing.
+  if (!lens::features::IsLensVideoCitationsEnabled() ||
+      GetLensOverlayController()->IsOverlayShowing()) {
+    return false;
+  }
+
+  return lens::LensMediaLinkHandler(
+             lens_search_controller_->GetTabInterface()->GetContents())
+      .MaybeReplaceNavigation(nav_url);
+}
+
 bool LensOverlaySidePanelCoordinator::IsEntryShowing() {
-  return GetSidePanelUI(GetLensOverlayController())
-      ->IsSidePanelEntryShowing(
-          SidePanelEntry::Key(SidePanelEntry::Id::kLensOverlayResults));
+  auto* side_panel_ui = GetSidePanelUI(GetLensSearchController());
+  if (!side_panel_ui) {
+    return false;
+  }
+
+  return side_panel_ui->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kLensOverlayResults));
 }
 
 void LensOverlaySidePanelCoordinator::NotifyNewQueryLoaded(std::string query,
@@ -610,6 +626,7 @@ void LensOverlaySidePanelCoordinator::BindSidePanel(
   side_panel_receiver_.Bind(std::move(receiver));
   side_panel_page_.Bind(std::move(page));
 
+  SetIsOverlayShowing(GetLensOverlayController()->IsOverlayShowing());
   if (pending_side_panel_url_.has_value()) {
     side_panel_page_->LoadResultsInFrame(*pending_side_panel_url_);
     pending_side_panel_url_.reset();
@@ -733,6 +750,14 @@ void LensOverlaySidePanelCoordinator::AimResultsChanged(bool on_aim) {
   }
 }
 
+void LensOverlaySidePanelCoordinator::SetIsOverlayShowing(bool is_showing) {
+  if (base::FeatureList::IsEnabled(
+          lens::features::kLensSearchReinvocationAffordance) &&
+      side_panel_page_) {
+    side_panel_page_->SetIsOverlayShowing(is_showing);
+  }
+}
+
 void LensOverlaySidePanelCoordinator::FocusResultsFrame() {
   if (side_panel_page_) {
     side_panel_page_->FocusResultsFrame();
@@ -831,6 +856,9 @@ void LensOverlaySidePanelCoordinator::DidOpenRequestedURL(
 
 void LensOverlaySidePanelCoordinator::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
+  // Focus the web contents immediately, so that hotkey presses (i.e. escape)
+  // are handled.
+  GetSidePanelWebContents()->Focus();
   SetSidePanelIsOffline(net::NetworkChangeNotifier::IsOffline());
 
   const GURL& nav_url = navigation_handle->GetURL();
@@ -871,6 +899,12 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
     // be a citation that should be rendered as text highlights in the current
     // tab.
     if (MaybeHandleTextDirectives(nav_url)) {
+      return;
+    }
+
+    // If the contextual media link is enabled, cross-origin navigations could
+    // be a video that should be played in the current tab.
+    if (MaybeHandleContextualMediaLink(nav_url)) {
       return;
     }
 
@@ -915,6 +949,9 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
     return;
   }
   SetSidePanelIsLoadingResults(true);
+  // Notify the Composebox Controller that a new navigation has started so the
+  // AIM handshake is no longer established.
+  GetLensComposeboxController()->ResetAimHandshake();
 }
 
 void LensOverlaySidePanelCoordinator::DOMContentLoaded(
@@ -973,14 +1010,14 @@ bool LensOverlaySidePanelCoordinator::ShouldHandleTextDirectives(
   // search URL with a text fragment then it needs custom handling to open in a
   // new tab rather than in the side panel. This ignores the ref and query
   // attributes.
-  if ((page_url.host() != nav_url.host() ||
-       page_url.path() != nav_url.path()) &&
+  if ((page_url.GetHost() != nav_url.GetHost() ||
+       page_url.GetPath() != nav_url.GetPath()) &&
       !lens::IsValidSearchResultsUrl(nav_url)) {
     return false;
   }
 
   auto text_fragments =
-      shared_highlighting::ExtractTextFragments(nav_url.ref());
+      shared_highlighting::ExtractTextFragments(nav_url.GetRef());
   // If the url that is being navigated to does not have a text directive, then
   // it cannot be handled.
   return !text_fragments.empty();
@@ -1001,9 +1038,9 @@ bool LensOverlaySidePanelCoordinator::ShouldHandlePDFViewportChange(
   // Handle the PDF hash change if the URL being navigated to is the same as the
   // URL loaded in the main tab. The URL being navigated to should also contain
   // a fragment with viewport parameters that will be parsed in the extension.
-  return !nav_url.ref().empty() && page_url.host() == nav_url.host() &&
-         page_url.path() == nav_url.path() &&
-         page_url.query() == nav_url.query();
+  return !nav_url.GetRef().empty() && page_url.GetHost() == nav_url.GetHost() &&
+         page_url.GetPath() == nav_url.GetPath() &&
+         page_url.GetQuery() == nav_url.GetQuery();
 }
 
 void LensOverlaySidePanelCoordinator::OnTextFinderLookupComplete(
@@ -1133,7 +1170,8 @@ LensOverlaySidePanelCoordinator::CreateLensOverlayResultsView(
 
 GURL LensOverlaySidePanelCoordinator::GetSidePanelNewTabUrl() {
   return lens::GetSidePanelNewTabUrl(
-      side_panel_new_tab_url_, GetLensOverlayController()->GetVsridForNewTab());
+      side_panel_new_tab_url_,
+      GetLensOverlayQueryController()->GetVsridForNewTab());
 }
 
 void LensOverlaySidePanelCoordinator::ShowToast(std::string message) {

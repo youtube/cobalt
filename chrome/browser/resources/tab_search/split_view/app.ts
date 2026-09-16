@@ -11,7 +11,7 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {SelectableLazyListElement} from '../selectable_lazy_list.js';
-import {normalizeURL, TabData, TabItemType} from '../tab_data.js';
+import {getDisplayHostnameForUrl, normalizeURL, TabData, TabItemType} from '../tab_data.js';
 import type {ProfileData, Tab, TabsRemovedInfo, TabUpdateInfo} from '../tab_search.mojom-webui.js';
 import type {TabSearchApiProxy} from '../tab_search_api_proxy.js';
 import {TabSearchApiProxyImpl} from '../tab_search_api_proxy.js';
@@ -183,6 +183,10 @@ export class SplitNewTabPageAppElement extends CrLitElement {
   }
 
   private sortTabs_() {
+    // If no tabs are eligible for selection, redirect to the regular NTP.
+    if (this.allEligibleTabs_.length === 0) {
+      this.redirectToNtp_();
+    }
     this.allEligibleTabs_.sort((a, b) => {
       const tabA = a.tab as Tab;
       const tabB = b.tab as Tab;
@@ -206,8 +210,9 @@ export class SplitNewTabPageAppElement extends CrLitElement {
 
   private getTabData_(tab: Tab, inActiveWindow: boolean, type: TabItemType):
       TabData {
-    const tabData =
-        new TabData(tab, type, new URL(normalizeURL(tab.url.url)).hostname);
+    const displayUrl =
+        getDisplayHostnameForUrl(new URL(normalizeURL(tab.url.url)));
+    const tabData = new TabData(tab, type, displayUrl);
 
     if (type === TabItemType.OPEN_TAB) {
       tabData.inActiveWindow = inActiveWindow;

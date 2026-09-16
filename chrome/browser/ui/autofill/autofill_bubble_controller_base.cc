@@ -8,7 +8,6 @@
 #include "chrome/browser/ui/autofill/bubble_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "components/autofill/core/common/autofill_clock.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -22,26 +21,28 @@ AutofillBubbleControllerBase::AutofillBubbleControllerBase(
     : content::WebContentsObserver(web_contents) {}
 
 AutofillBubbleControllerBase::~AutofillBubbleControllerBase() {
-  HideBubble(/*show_next_bubble=*/false);
+  if (IsShowingBubble()) {
+    bubble_view_->Hide();
+    bubble_view_ = nullptr;
+  }
 }
 
 void AutofillBubbleControllerBase::OnVisibilityChanged(
     content::Visibility visibility) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (IsBubbleManagerEnabled()) {
     // BubbleManager will handle the effects of tab changes.
     return;
   }
 
   if (visibility == content::Visibility::HIDDEN) {
-    HideBubble(/*show_next_bubble=*/false);
+    HideBubble(/*initiated_by_bubble_manager=*/false);
   }
 }
 
 void AutofillBubbleControllerBase::WebContentsDestroyed() {
   if (IsShowingBubble()) {
     bubble_view_->Hide();
-    ResetBubbleViewAndInformBubbleManager(/*show_next_bubble=*/false);
+    bubble_view_ = nullptr;
   }
 }
 
@@ -57,16 +58,24 @@ void AutofillBubbleControllerBase::UpdatePageActionIcon() {
 }
 
 void AutofillBubbleControllerBase::ShowBubble() {
+  was_bubble_shown_ = true;
   UpdatePageActionIcon();
   DoShowBubble();
   UpdatePageActionIcon();
 }
 
-void AutofillBubbleControllerBase::HideBubble(bool show_next_bubble) {
+void AutofillBubbleControllerBase::HideBubble(
+    bool initiated_by_bubble_manager) {
   if (IsShowingBubble()) {
+    bubble_hide_initiated_by_bubble_manager_ = initiated_by_bubble_manager;
     bubble_view_->Hide();
-    ResetBubbleViewAndInformBubbleManager(show_next_bubble);
+    ResetBubbleViewAndInformBubbleManager();
   }
+  bubble_hide_initiated_by_bubble_manager_ = false;
+}
+
+bool AutofillBubbleControllerBase::CanBeReshown() const {
+  return true;
 }
 
 bool AutofillBubbleControllerBase::IsShowingBubble() const {
@@ -81,8 +90,7 @@ bool AutofillBubbleControllerBase::MaySetUpBubble() {
 #if BUILDFLAG(IS_ANDROID)
   return true;
 #else  // BUILDFLAG(IS_ANDROID)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (!IsBubbleManagerEnabled()) {
     return true;
   }
 
@@ -93,8 +101,7 @@ bool AutofillBubbleControllerBase::MaySetUpBubble() {
 
 void AutofillBubbleControllerBase::QueueOrShowBubble(bool force_show) {
 #if !BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (IsBubbleManagerEnabled()) {
     if (auto* manager = BubbleManager::GetForWebContents(web_contents())) {
       manager->RequestShowController(*this, force_show);
     }
@@ -110,8 +117,7 @@ void AutofillBubbleControllerBase::SetBubbleView(
   bubble_view_ = &bubble_view;
 }
 
-void AutofillBubbleControllerBase::ResetBubbleViewAndInformBubbleManager(
-    bool show_next_bubble) {
+void AutofillBubbleControllerBase::ResetBubbleViewAndInformBubbleManager() {
 #if !BUILDFLAG(IS_ANDROID)
   const bool was_showing = IsShowingBubble();
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -122,8 +128,8 @@ void AutofillBubbleControllerBase::ResetBubbleViewAndInformBubbleManager(
   if (was_showing && base::FeatureList::IsEnabled(
                          features::kAutofillShowBubblesBasedOnPriorities)) {
     if (auto* manager = BubbleManager::GetForWebContents(web_contents())) {
-      manager->OnBubbleHiddenByController(
-          *this, /*show_next_bubble=*/show_next_bubble);
+      manager->OnBubbleHiddenByController(*this,
+                                          allow_bubble_manager_to_show_next_);
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)

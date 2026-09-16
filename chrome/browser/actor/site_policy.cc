@@ -97,10 +97,10 @@ bool IsHostInAllowList(const std::vector<std::string_view>& allowlist,
                        const GURL& url,
                        bool include_subdomains) {
   if (!include_subdomains) {
-    return base::Contains(allowlist, url.host_piece());
+    return base::Contains(allowlist, url.host());
   }
 
-  std::string host = url.host();
+  std::string host = url.GetHost();
   while (!host.empty()) {
     if (base::Contains(allowlist, host)) {
       return true;

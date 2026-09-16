@@ -26,6 +26,7 @@
 #include "api/video/video_frame_type.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "common_video/h264/h264_common.h"
@@ -435,6 +436,34 @@ TEST(FrameEncodeMetadataWriterTest, SetsIsSteadyStateRefreshFrame) {
   encode_timer.OnEncodeStarted(refresh_frame);
   encode_timer.FillMetadataAndTimingInfo(0, &image);
   EXPECT_TRUE(image.IsSteadyStateRefreshFrame());
+}
+
+TEST(FrameEncodeMetadataWriterTest, KeyFramesAreNotMarkedAsSteadyStateRefresh) {
+  EncodedImage image;
+  const int64_t kTimestampMs = 123456;
+  FakeEncodedImageCallback sink;
+
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
+  encode_timer.OnEncoderInit(VideoCodec());
+  // Any non-zero bitrate needed to be set before the first frame.
+  VideoBitrateAllocation bitrate_allocation;
+  bitrate_allocation.SetBitrate(0, 0, 500000);
+  encode_timer.OnSetRates(bitrate_allocation, 30);
+
+  image.SetRtpTimestamp(static_cast<uint32_t>(kTimestampMs * 90));
+
+  VideoFrame::UpdateRect empty_update_rect;
+  empty_update_rect.MakeEmptyUpdate();
+  VideoFrame refresh_frame = VideoFrame::Builder()
+                                 .set_timestamp_ms(kTimestampMs)
+                                 .set_rtp_timestamp(kTimestampMs * 90)
+                                 .set_update_rect(empty_update_rect)
+                                 .set_video_frame_buffer(kFrameBuffer)
+                                 .build();
+  encode_timer.OnEncodeStarted(refresh_frame);
+  image.SetFrameType(VideoFrameType::kVideoFrameKey);
+  encode_timer.FillMetadataAndTimingInfo(0, &image);
+  EXPECT_FALSE(image.IsSteadyStateRefreshFrame());
 }
 
 TEST(FrameEncodeMetadataWriterTest, CopiesPacketInfos) {

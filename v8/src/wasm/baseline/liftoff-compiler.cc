@@ -790,7 +790,6 @@ class LiftoffCompiler {
         dead_breakpoint_(options.dead_breakpoint),
         handlers_(zone),
         max_steps_(options.max_steps),
-        detect_nondeterminism_(options.detect_nondeterminism),
         deopt_info_bytecode_offset_(options.deopt_info_bytecode_offset),
         deopt_location_kind_(options.deopt_location_kind) {
     // We often see huge numbers of traps per function, so pre-reserve some
@@ -798,7 +797,6 @@ class LiftoffCompiler {
     // modern modules, as of 2022-06-03.
     out_of_line_code_.reserve(128);
 
-    DCHECK(options.is_initialized());
     // If there are no breakpoints, both pointers should be nullptr.
     DCHECK_IMPLIES(
         next_breakpoint_ptr_ == next_breakpoint_end_,
@@ -2015,6 +2013,12 @@ class LiftoffCompiler {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
   }
 
+  void ResumeHandler(FullDecoder* decoder, Value* cont,
+                     const BranchDepthImmediate& br_imm) {
+    // "Resume" bails out before this can be reached.
+    UNREACHABLE();
+  }
+
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,
@@ -2293,16 +2297,6 @@ class LiftoffCompiler {
                               ? __ GetUnusedRegister(result_rc, {src}, {})
                               : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        // TODO(irezvov): Add NaN detection for F16.
-        CheckS128Nan(dst, pinned, result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -2567,8 +2561,6 @@ class LiftoffCompiler {
                                 : __ GetUnusedRegister(result_rc, pinned);
 
       CallEmitFn(fnImm, dst, lhs, imm);
-      static_assert(result_kind != kF32 && result_kind != kF64,
-                    "Unhandled nondeterminism for fuzzing.");
       __ PushRegister(result_kind, dst);
     } else {
       // The RHS was not an immediate.
@@ -2591,15 +2583,6 @@ class LiftoffCompiler {
     if (swap_lhs_rhs) std::swap(lhs, rhs);
 
     CallEmitFn(fn, dst, lhs, rhs);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        CheckS128Nan(dst, pinned, result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -3250,6 +3233,9 @@ class LiftoffCompiler {
                                                           &base, &offset);
         __ LoadTaggedPointer(base, base, offset, 0);
         __ PushRegister(kind, LiftoffRegister(base));
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, false, decoder->position());
+        }
         return;
       }
 
@@ -3263,6 +3249,9 @@ class LiftoffCompiler {
                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                imm.global->offset));
       __ PushRegister(kind, LiftoffRegister(value));
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, false, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;
@@ -3296,6 +3285,10 @@ class LiftoffCompiler {
         GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
                                                           &base, &offset);
         __ StoreTaggedPointer(base, offset, 0, value, pinned);
+
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, true, decoder->position());
+        }
         return;
       }
 
@@ -3309,6 +3302,10 @@ class LiftoffCompiler {
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
                             value, pinned);
+
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, true, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;
@@ -4588,16 +4585,6 @@ class LiftoffCompiler {
                  LiftoffRegister src2, LiftoffRegister src3,
                  ExtraArgs... extra_args) {
     CallEmitFn(fn, dst, src1, src2, src3, extra_args...);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        CheckS128Nan(dst, LiftoffRegList{src1, src2, src3, dst},
-                     result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -4686,10 +4673,6 @@ class LiftoffCompiler {
       GenerateCCallWithStackBuffer(&dst, kVoid, kS128,
                                    {VarState{kS128, src, 0}}, ext_ref());
     }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4711,10 +4694,6 @@ class LiftoffCompiler {
           &dst, kVoid, kS128,
           {VarState{kS128, src1, 0}, VarState{kS128, src2, 0}}, ext_ref());
     }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4727,10 +4706,6 @@ class LiftoffCompiler {
     RegClass dst_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned_inner{dst};
-      CheckS128Nan(dst, pinned_inner, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4750,10 +4725,6 @@ class LiftoffCompiler {
           {VarState{kS128, src1, 0}, VarState{kS128, src2, 0},
            VarState{kS128, src3, 0}},
           ext_ref());
-    }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned_inner{dst};
-      CheckS128Nan(dst, pinned_inner, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
   }
@@ -9768,9 +9739,7 @@ class LiftoffCompiler {
                             : compiler::kWasmFunction);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-    // One slot would be enough for call_direct, but would make index
-    // computations much more complicated.
-    size_t vector_slot = encountered_call_instructions_.size() * 2;
+    int vector_slot = NextFeedbackVectorSlot();
     if (v8_flags.wasm_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
@@ -9819,9 +9788,9 @@ class LiftoffCompiler {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset,
                 kIntPtrKind);
-        __ IncrementSmi(vector,
-                        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                            static_cast<int>(vector_slot)));
+        __ IncrementSmi(
+            vector,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(vector_slot));
         // Warning: {vector} may be clobbered by {IncrementSmi}!
       }
       // A direct call within this module just gets the current instance.
@@ -10013,24 +9982,30 @@ class LiftoffCompiler {
       // isolates / processes) the canonical signature ID is a static integer.
       CanonicalTypeIndex canonical_sig_id =
           decoder->module_->canonical_sig_id(imm.sig_imm.index);
+      // Register both traps first and get their labels in a second step,
+      // otherwise the second trap can invalidate the first OolTrapLabel by
+      // growing the vector of ool code.
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+      OolTrapLabel null_func =
+          OolTrapLabel(asm_, out_of_line_code_.end()[-2].label.get());
       OolTrapLabel sig_mismatch =
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+          OolTrapLabel(asm_, out_of_line_code_.end()[-1].label.get());
       __ DropValues(1);
 
       if (!needs_type_check) {
         DCHECK(needs_null_check);
         // Only check for -1 (nulled table entry).
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                               real_sig_id.gp_reg(), -1, sig_mismatch.frozen());
+        __ emit_i32_cond_jumpi(kEqual, null_func.label(), real_sig_id.gp_reg(),
+                               -1, null_func.frozen());
       } else if (!decoder->module_->type(imm.sig_imm.index).is_final) {
         Label success_label;
+        if (needs_null_check) {
+          __ emit_i32_cond_jumpi(kEqual, null_func.label(),
+                                 real_sig_id.gp_reg(), -1, null_func.frozen());
+        }
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
                                canonical_sig_id.index, sig_mismatch.frozen());
-        if (needs_null_check) {
-          __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                                 real_sig_id.gp_reg(), -1,
-                                 sig_mismatch.frozen());
-        }
         ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
             real_rtt.gp_reg(), kRootRegister,
@@ -10125,14 +10100,7 @@ class LiftoffCompiler {
                 kRef);
         VarState vector_var{kRef, vector.reg(), 0};
 
-        // A constant `uint32_t` is sufficient for the vector slot index.
-        // The number of call instructions (and hence feedback vector slots) is
-        // capped by the number of instructions, which is capped by the maximum
-        // function body size.
-        static_assert(kV8MaxWasmFunctionSize <
-                      std::numeric_limits<uint32_t>::max() / 2);
-        uint32_t vector_slot =
-            static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
+        int vector_slot = NextFeedbackVectorSlot();
         encountered_call_instructions_.push_back(
             FunctionTypeFeedback::kCallIndirect);
         VarState index_var(kI32, vector_slot, 0);
@@ -10270,14 +10238,7 @@ class LiftoffCompiler {
 
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
-      // A constant `uint32_t` is sufficient for the vector slot index.
-      // The number of call instructions (and hence feedback vector slots) is
-      // capped by the number of instructions, which is capped by the maximum
-      // function body size.
-      static_assert(kV8MaxWasmFunctionSize <
-                    std::numeric_limits<uint32_t>::max() / 2);
-      uint32_t vector_slot =
-          static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
+      int vector_slot = NextFeedbackVectorSlot();
       encountered_call_instructions_.push_back(FunctionTypeFeedback::kCallRef);
       VarState index_var(kI32, vector_slot, 0);
 
@@ -10562,27 +10523,6 @@ class LiftoffCompiler {
     __ FinishCall(sig, call_descriptor);
   }
 
-  void CheckNan(LiftoffRegister src, LiftoffRegList pinned, ValueKind kind) {
-    DCHECK(kind == ValueKind::kF32 || kind == ValueKind::kF64);
-    auto nondeterminism_addr = __ GetUnusedRegister(kGpReg, pinned);
-    __ LoadConstant(nondeterminism_addr,
-                    WasmValue::ForUintPtr(WasmEngine::GetNondeterminismAddr()));
-    __ emit_store_nonzero_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
-  }
-
-  void CheckS128Nan(LiftoffRegister dst, LiftoffRegList pinned,
-                    ValueKind lane_kind) {
-    RegClass rc = reg_class_for(kS128);
-    LiftoffRegister tmp_gp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister tmp_s128 = pinned.set(__ GetUnusedRegister(rc, pinned));
-    LiftoffRegister nondeterminism_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(nondeterminism_addr,
-                    WasmValue::ForUintPtr(WasmEngine::GetNondeterminismAddr()));
-    __ emit_s128_store_nonzero_if_nan(nondeterminism_addr.gp(), dst,
-                                      tmp_gp.gp(), tmp_s128, lane_kind);
-  }
-
   void ArrayFillImpl(FullDecoder* decoder, LiftoffRegList pinned,
                      LiftoffRegister obj, LiftoffRegister index,
                      LiftoffRegister value, LiftoffRegister length,
@@ -10627,6 +10567,20 @@ class LiftoffCompiler {
     if (for_debugging_) {
       DefineSafepoint(protected_instruction_pc);
     }
+  }
+
+  int NextFeedbackVectorSlot() {
+    // A constant `int` is sufficient for the vector slot index.
+    // The number of call instructions (and hence feedback vector slots) is
+    // capped by the number of instructions, which is capped by the maximum
+    // function body size.
+    static_assert(kV8MaxWasmFunctionSize *
+                          FeedbackConstants::kSlotsPerInstruction +
+                      FeedbackConstants::kHeaderSlots <
+                  static_cast<size_t>(std::numeric_limits<int>::max()));
+    return static_cast<int>(encountered_call_instructions_.size() *
+                                FeedbackConstants::kSlotsPerInstruction +
+                            FeedbackConstants::kHeaderSlots);
   }
 
   bool has_outstanding_op() const {
@@ -10776,8 +10730,6 @@ class LiftoffCompiler {
   // Pointer to information passed from the fuzzer. The pointer will be
   // embedded in generated code, which will update the value at runtime.
   int32_t* const max_steps_;
-  // Whether to track nondeterminism at runtime; used by differential fuzzers.
-  const bool detect_nondeterminism_;
 
   // Information for deopt'ed code.
   const uint32_t deopt_info_bytecode_offset_;
@@ -10815,7 +10767,6 @@ std::unique_ptr<AssemblerBuffer> NewLiftoffAssemblerBuffer(int func_body_size) {
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body,
     const LiftoffOptions& compiler_options) {
-  DCHECK(compiler_options.is_initialized());
   // Liftoff does not validate the code, so that should have run before.
   DCHECK(env->module->function_was_validated(compiler_options.func_index));
   base::TimeTicks start_time;
@@ -10868,17 +10819,27 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
 
-  if (auto* counters = compiler_options.counters) {
-    // Check that the histogram for the bailout reasons has the correct size.
-    DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
-    DCHECK_EQ(kNumBailoutReasons - 1,
-              counters->liftoff_bailout_reasons()->max());
-    DCHECK_EQ(kNumBailoutReasons,
-              counters->liftoff_bailout_reasons()->num_buckets());
-    // Register the bailout reason (can also be {kSuccess}).
-    counters->liftoff_bailout_reasons()->AddSample(
-        static_cast<int>(compiler->bailout_reason()));
+  // Statically check that the "liftoff_bailout_reasons" histogram configuration
+  // matches what we expect according to kNumBailoutReasons.
+  constexpr int kCheckedHistograms = ([]() {
+    int checked_histograms = 0;
+#define HR(name, caption, min, max, num_buckets)                        \
+  if constexpr (std::string_view(#name) == "liftoff_bailout_reasons") { \
+    checked_histograms += 1;                                            \
+    CHECK_EQ(0, min);                                                   \
+    CHECK_EQ(kNumBailoutReasons - 1, max);                              \
+    CHECK_EQ(kNumBailoutReasons, num_buckets);                          \
   }
+    HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+    return checked_histograms;
+  })();
+  static_assert(kCheckedHistograms == 1);
+
+  // Register the bailout reason (can also be {kSuccess}).
+  compiler_options.counter_updates->AddSample(
+      &Counters::liftoff_bailout_reasons,
+      static_cast<int>(compiler->bailout_reason()));
 
   if (compiler->did_bailout()) return WasmCompilationResult{};
 
@@ -10944,10 +10905,9 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
       &debug_sidetable_builder,
-      LiftoffOptions{}
-          .set_func_index(code->index())
-          .set_for_debugging(code->for_debugging())
-          .set_breakpoints(breakpoints),
+      LiftoffOptions{.func_index = code->index(),
+                     .for_debugging = code->for_debugging(),
+                     .breakpoints = breakpoints},
       nullptr);
   decoder.Decode();
   DCHECK(decoder.ok());

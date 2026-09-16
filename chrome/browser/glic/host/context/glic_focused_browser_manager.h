@@ -33,7 +33,8 @@ class GlicFocusedBrowserManager : public GlicFocusedBrowserManagerInterface,
                                   public views::WidgetObserver,
                                   public GlicWindowController::StateObserver {
  public:
-  explicit GlicFocusedBrowserManager(GlicWindowController* window_controller);
+  explicit GlicFocusedBrowserManager(
+      GlicWindowControllerInterface* window_controller);
   ~GlicFocusedBrowserManager() override;
 
   GlicFocusedBrowserManager(const GlicFocusedBrowserManager&) = delete;
@@ -78,6 +79,10 @@ class GlicFocusedBrowserManager : public GlicFocusedBrowserManagerInterface,
       const mojom::PanelState&,
       const GlicWindowController::PanelStateContext& context) override;
 
+  // Sets whether the manager is in testing mode. When in testing mode, logic
+  // for determining the active browser is modified to be more deterministic.
+  static void SetTestingModeForTesting(bool testing_mode);
+
  private:
   // Tracks the state of the focused browser and candidate focused browser.
   struct FocusedBrowserState {
@@ -118,7 +123,7 @@ class GlicFocusedBrowserManager : public GlicFocusedBrowserManagerInterface,
   void OnBrowserBecameInactive(BrowserWindowInterface* browser_interface);
   void OnGlicWindowActivationChanged(bool active);
 
-  raw_ref<GlicWindowController> window_controller_;
+  raw_ref<GlicWindowControllerInterface> window_controller_;
 
   BrowserState browser_state_;
 

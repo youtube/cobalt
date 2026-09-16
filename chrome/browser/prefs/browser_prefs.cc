@@ -107,7 +107,7 @@
 #include "components/browsing_data/core/pref_names.h"
 #include "components/certificate_transparency/pref_names.h"
 #include "components/collaboration/public/pref_names.h"
-#include "components/commerce/core/pref_names.h"
+#include "components/commerce/core/prefs.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
@@ -115,6 +115,7 @@
 #include "components/domain_reliability/domain_reliability_prefs.h"
 #include "components/embedder_support/origin_trials/origin_trial_prefs.h"
 #include "components/enterprise/browser/identifiers/identifiers_prefs.h"
+#include "components/enterprise/browser/promotion/promotion_prefs.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/feature_engagement/public/pref_names.h"
@@ -135,6 +136,7 @@
 #include "components/ntp_tiles/custom_links_manager_impl.h"
 #include "components/ntp_tiles/enterprise/enterprise_shortcuts_manager_impl.h"
 #include "components/ntp_tiles/most_visited_sites.h"
+#include "components/ntp_tiles/pref_names.h"
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/document_provider.h"
@@ -165,6 +167,7 @@
 #include "components/regional_capabilities/regional_capabilities_prefs.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/safety_check/safety_check_prefs.h"
 #include "components/saved_tab_groups/public/pref_names.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
 #include "components/search_engines/template_url_prepopulate_data.h"
@@ -188,6 +191,7 @@
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_prefs.h"
 #include "components/sync_device_info/device_info_prefs.h"
+#include "components/sync_preferences/cross_device_pref_tracker/prefs/cross_device_pref_registry.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_sessions/session_sync_prefs.h"
 #include "components/tpcd/metadata/browser/prefs.h"
@@ -458,7 +462,6 @@
 #include "chromeos/ash/components/settings/device_settings_cache.h"
 #include "chromeos/ash/components/timezone/timezone_resolver.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
-#include "chromeos/ash/services/assistant/public/cpp/assistant_prefs.h"
 #include "chromeos/ash/services/auth_factor_config/auth_factor_config.h"
 #include "chromeos/ash/services/bluetooth_config/bluetooth_power_controller_impl.h"
 #include "chromeos/ash/services/bluetooth_config/device_name_manager_impl.h"
@@ -1160,8 +1163,21 @@ constexpr char kObsoleteUpmAutoExportCsvNeedsDeletion[] =
 constexpr char kGaiaCookieLastListAccountsData[] =
     "gaia_cookie.last_list_accounts_data";
 
+// Deprecated 09/2025.
+constexpr char kLensOverlayEduActionChipShownCount[] =
+    "lens.edu_action_chip.shown_count";
+
 constexpr char kRendererCodeIntegrityEnabledNeedsDeletion[] =
     "renderer_code_integrity_enabled";
+
+// Deprecated 10/2025.
+constexpr char kSessionRestoreTurnOffFromRestartInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_restart_infobar_times_shown";
+
+constexpr char kSessionRestoreTurnOffFromSessionInfoBarTimesShown[] =
+    "browser.session_restore_turn_off_from_session_infobar_times_shown";
+
+constexpr char kSessionRestorePrefChanged[] = "session.restore_pref_changed";
 
 // Register local state used only for migration (clearing or moving to a new
 // key).
@@ -1684,6 +1700,20 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 09/2025.
   registry->RegisterStringPref(kGaiaCookieLastListAccountsData, std::string());
+
+  // Deprecated 09/2025.
+  registry->RegisterIntegerPref(kLensOverlayEduActionChipShownCount, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterIntegerPref(
+      kSessionRestoreTurnOffFromRestartInfoBarTimesShown, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterIntegerPref(
+      kSessionRestoreTurnOffFromSessionInfoBarTimesShown, 0);
+
+  // Deprecated 10/2025.
+  registry->RegisterBooleanPref(kSessionRestorePrefChanged, false);
 }
 
 }  // namespace
@@ -2020,9 +2050,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   chrome_browser_net::NetErrorTabHelper::RegisterProfilePrefs(registry);
   chrome_prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
-  commerce::RegisterPrefs(registry);
+  commerce::RegisterProfilePrefs(registry);
+  cross_device::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
+  enterprise_promotion::RegisterProfilePrefs(registry);
   enterprise_reporting::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   DownloadPrefs::RegisterProfilePrefs(registry);
@@ -2089,6 +2121,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   safe_browsing::file_type::RegisterProfilePrefs(registry);
 #endif
   safe_browsing::RegisterProfilePrefs(registry);
+  safety_check::prefs::RegisterProfilePrefs(registry);
   SearchPrefetchService::RegisterProfilePrefs(registry);
   blocked_content::SafeBrowsingTriggeredPopupBlocker::RegisterProfilePrefs(
       registry);
@@ -2416,6 +2449,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(
       prefs::kManagedLocalNetworkAccessRestrictionsEnabled, false);
 
+  registry->RegisterBooleanPref(
+      prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut, false);
+
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kVirtualKeyboardResizesLayoutByDefault,
                                 false);
@@ -2448,6 +2484,14 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   // the policies logic is implemented.
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
+
+  registry->RegisterBooleanPref(
+      ntp_tiles::prefs::kTabResumptionHomeModuleEnabled, true);
+
+  registry->RegisterBooleanPref(ntp_tiles::prefs::kMagicStackHomeModuleEnabled,
+                                true);
+
+  registry->RegisterBooleanPref(ntp_tiles::prefs::kTipsHomeModuleEnabled, true);
 }
 
 void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -2623,6 +2667,11 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   // Added 09/2025
   local_state->ClearPref(kRendererCodeIntegrityEnabledNeedsDeletion);
 
+  // Added 10/2025
+#if !BUILDFLAG(IS_ANDROID)
+  local_state->ClearPref(prefs::kDefaultBrowserFirstShownTime);
+#endif
+
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
 
@@ -2647,6 +2696,11 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // BEGIN_MIGRATE_OBSOLETE_PROFILE_PREFS
   // Please don't delete the preceding line. It is used by PRESUBMIT.py.
+
+  // Added 10/2025.
+  profile_prefs->ClearPref(kSessionRestoreTurnOffFromRestartInfoBarTimesShown);
+  profile_prefs->ClearPref(kSessionRestoreTurnOffFromSessionInfoBarTimesShown);
+  profile_prefs->ClearPref(kSessionRestorePrefChanged);
 
   // Added 05/2025.
   profile_prefs->ClearPref(kPrivacySandboxFakeNoticePromptShownTimeSync);
@@ -3039,6 +3093,11 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 09/2025.
   PageColorsController::MigrateObsoleteProfilePrefs(profile_prefs);
   profile_prefs->ClearPref(kGaiaCookieLastListAccountsData);
+
+  // Added 09/2025.
+  profile_prefs->ClearPref(kLensOverlayEduActionChipShownCount);
+
+  SigninPrefs(*profile_prefs).MigrateObsoleteSigninPrefs();
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

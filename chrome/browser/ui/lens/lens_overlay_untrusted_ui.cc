@@ -323,7 +323,6 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "forceHideEllipsis",
       lens::features::GetVisualSelectionUpdatesHideCsbEllipsis());
-  html_source->AddBoolean("queryAutocompleteOnEmptyInput", true);
   html_source->AddBoolean(
     "enableThumbnailSizingTweaks",
     lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
@@ -331,7 +330,7 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   // Determine if the cursor tooltip should appear.
   Profile* profile = Profile::FromWebUI(web_ui);
   int lens_overlay_start_count =
-      profile->GetPrefs()->GetInteger(prefs::kLensOverlayStartCount);
+      profile->GetPrefs()->GetInteger(::prefs::kLensOverlayStartCount);
   html_source->AddBoolean(
       "canShowTooltipFromPrefs",
       lens_overlay_start_count <= kNumTimesToShowCursorTooltips);
@@ -357,8 +356,7 @@ void LensOverlayUntrustedUI::BindInterface(
 
   auto handler = std::make_unique<LensSearchboxHandler>(
       std::move(receiver), Profile::FromWebUI(web_ui()),
-      web_ui()->GetWebContents(),
-      /*metrics_reporter=*/nullptr, /*lens_searchbox_client=*/controller);
+      web_ui()->GetWebContents(), /*lens_searchbox_client=*/controller);
   controller->SetContextualSearchboxHandler(std::move(handler));
 }
 

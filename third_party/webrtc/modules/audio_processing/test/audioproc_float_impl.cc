@@ -28,8 +28,9 @@
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio/echo_canceller3_config.h"
-#include "api/audio/echo_canceller3_factory.h"
 #include "api/audio/echo_detector_creator.h"
+#include "api/audio/neural_residual_echo_estimator.h"
+#include "api/audio/neural_residual_echo_estimator_creator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -40,6 +41,7 @@
 #include "modules/audio_processing/test/echo_canceller3_config_json.h"
 #include "modules/audio_processing/test/wav_based_simulator.h"
 #include "rtc_base/checks.h"
+#include "third_party/tflite/src/tensorflow/lite/kernels/register.h"
 
 constexpr int kParameterNotSpecifiedValue = -10000;
 
@@ -337,6 +339,12 @@ ABSL_FLAG(std::string,
           "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enable/"
           " will assign the group Enable to field trial WebRTC-FooFeature.");
 
+ABSL_FLAG(std::string,
+          ree_model,
+          "",
+          "When running with a neural residual echo estimator, the path to the "
+          "model binary.");
+
 namespace webrtc {
 namespace test {
 namespace {
@@ -534,6 +542,8 @@ SimulationSettings CreateSettings() {
 
   SetSettingIfSpecified(absl::GetFlag(FLAGS_init_to_process),
                         &settings.init_to_process);
+  SetSettingIfSpecified(absl::GetFlag(FLAGS_ree_model),
+                        &settings.neural_echo_residual_estimator_model);
 
   return settings;
 }
@@ -780,28 +790,34 @@ EchoCanceller3Config ReadAec3ConfigFromJsonFile(absl::string_view filename) {
 
 void SetDependencies(const SimulationSettings& settings,
                      BuiltinAudioProcessingBuilder& builder) {
-  // Create and set an EchoCanceller3Factory if needed.
-  if (settings.use_aec && *settings.use_aec) {
-    EchoCanceller3Config cfg;
-    if (settings.aec_settings_filename) {
-      if (settings.use_verbose_logging) {
-        std::cout << "Reading AEC Parameters from JSON input." << std::endl;
-      }
-      cfg = ReadAec3ConfigFromJsonFile(*settings.aec_settings_filename);
+  EchoCanceller3Config aec3_config;
+  if (settings.aec_settings_filename) {
+    if (settings.use_verbose_logging) {
+      std::cout << "Reading AEC Parameters from JSON input." << std::endl;
     }
+    aec3_config = ReadAec3ConfigFromJsonFile(*settings.aec_settings_filename);
+  }
 
-    if (settings.linear_aec_output_filename) {
-      cfg.filter.export_linear_aec_output = true;
+  if (settings.linear_aec_output_filename) {
+    aec3_config.filter.export_linear_aec_output = true;
+  }
+
+  if (settings.print_aec_parameter_values) {
+    if (!settings.use_quiet_output) {
+      std::cout << "AEC settings:" << std::endl;
     }
+    std::cout << Aec3ConfigToJsonString(aec3_config) << std::endl;
+  }
+  builder.SetEchoCancellerConfig(
+      aec3_config, /*echo_canceller_multichannel_config=*/std::nullopt);
 
-    if (settings.print_aec_parameter_values) {
-      if (!settings.use_quiet_output) {
-        std::cout << "AEC settings:" << std::endl;
-      }
-      std::cout << Aec3ConfigToJsonString(cfg) << std::endl;
-    }
-
-    builder.SetEchoControlFactory(std::make_unique<EchoCanceller3Factory>(cfg));
+  if (settings.neural_echo_residual_estimator_model) {
+    tflite::ops::builtin::BuiltinOpResolver op_resolver;
+    std::unique_ptr<NeuralResidualEchoEstimator> estimator =
+        CreateNeuralResidualEchoEstimator(
+            *settings.neural_echo_residual_estimator_model, &op_resolver);
+    RTC_CHECK(estimator);
+    builder.SetNeuralResidualEchoEstimator(std::move(estimator));
   }
 
   if (settings.use_ed && *settings.use_ed) {

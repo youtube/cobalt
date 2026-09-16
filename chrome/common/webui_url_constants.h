@@ -54,6 +54,7 @@ inline constexpr char kChromeUIAppsWithDeprecationDialogURL[] =
     "chrome://apps?showDeletionDialog=";
 inline constexpr char kChromeUIAppsWithForceInstalledDeprecationDialogURL[] =
     "chrome://apps?showForceInstallDialog=";
+inline constexpr char kChromeUIAutofillPath[] = "/autofill";
 inline constexpr char kChromeUIAutofillInternalsHost[] = "autofill-internals";
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 inline constexpr char kChromeUIBatchUploadHost[] = "batch-upload";
@@ -299,6 +300,9 @@ inline constexpr char kChromeUISystemInfoHost[] = "system";
 inline constexpr char kChromeUITermsHost[] = "terms";
 inline constexpr char kChromeUITermsURL[] = "chrome://terms/";
 inline constexpr char kChromeUIThemeHost[] = "theme";
+inline constexpr char kChromeUIReloadButtonURL[] =
+    "chrome://reload-button.top-chrome";
+inline constexpr char kChromeUIReloadButtonHost[] = "reload-button.top-chrome";
 inline constexpr char kChromeUIThemeURL[] = "chrome://theme/";
 inline constexpr char kChromeUITopChromeDomain[] = "top-chrome";
 inline constexpr char kChromeUITranslateInternalsHost[] = "translate-internals";
@@ -407,6 +411,7 @@ inline constexpr char kChromeUIWebuiBrowserHost[] = "webui-browser";
 inline constexpr char kChromeUIWebuiBrowserURL[] = "chrome://webui-browser/";
 inline constexpr char kChromeUIWebUIJsErrorHost[] = "webuijserror";
 inline constexpr char kChromeUIWebUIJsErrorURL[] = "chrome://webuijserror/";
+inline constexpr char kChromeUIYourSavedInfoPath[] = "/yourSavedInfo";
 inline constexpr char kCookiesSubPagePath[] = "/cookies";
 inline constexpr char kTrackingProtectionSubPagePath[] = "/trackingProtection";
 #endif  // BUILDFLAG(IS_ANDROID)

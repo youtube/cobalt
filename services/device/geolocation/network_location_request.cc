@@ -300,7 +300,8 @@ void NetworkLocationRequest::OnRequestComplete(
     DVLOG(1) << "NetworkLocationRequest::OnRequestComplete() : "
                 "Parsing response "
              << *data;
-    auto response_result = base::JSONReader::ReadAndReturnValueWithError(*data);
+    auto response_result = base::JSONReader::ReadAndReturnValueWithError(
+        *data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     if (!response_result.has_value()) {
       LOG(WARNING) << "NetworkLocationRequest::OnRequestComplete() : "
                       "JSONReader failed : "
@@ -348,7 +349,7 @@ struct AccessPointLess {
 GURL FormRequestURL(const std::string& api_key) {
   GURL url(kNetworkLocationBaseUrl);
   if (!api_key.empty()) {
-    std::string query(url.query());
+    std::string query(url.GetQuery());
     if (!query.empty())
       query += "&";
     query += "key=" + base::EscapeQueryParamValue(api_key, true);

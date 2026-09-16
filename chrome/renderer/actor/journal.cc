@@ -62,7 +62,7 @@ void Journal::Bind(mojo::PendingAssociatedRemote<mojom::JournalClient> client) {
   client_.reset_on_disconnect();
 }
 
-void Journal::Log(int32_t task_id,
+void Journal::Log(TaskId task_id,
                   std::string_view event,
                   std::vector<mojom::JournalDetailsPtr> details) {
   ACTOR_LOG() << event << ": " << details;
@@ -121,6 +121,11 @@ void Journal::AddEndEvent(base::PassKey<Journal> pass_key,
 
 void Journal::SendLogBuffer() {
   last_log_buffer_send_ = base::TimeTicks::Now();
+
+  if (log_buffer_.empty()) {
+    return;
+  }
+
   if (client_) {
     client_->AddEntriesToJournal(std::move(log_buffer_));
   } else {

@@ -18,11 +18,11 @@
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor/task_id.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -141,7 +141,8 @@ class ExecutionEngine : public ToolDelegate {
 
   static std::string StateToString(State state);
 
-  bool ShouldGateNavigation(content::NavigationHandle& navigation_handle);
+  bool ShouldGateNavigation(content::NavigationHandle& navigation_handle,
+                            UserConfirmationDialogCallback callback);
 
   void AddObserver(StateObserver* observer);
 
@@ -198,6 +199,11 @@ class ExecutionEngine : public ToolDelegate {
   // It is an error to call this when an action is not in progress.
   size_t InProgressActionIndex() const;
   const ToolRequest& GetInProgressAction() const;
+
+  void OnPromptToConfirmNavigationDecision(
+      url::Origin navigation_origin,
+      UserConfirmationDialogCallback callback,
+      webui::mojom::UserConfirmationDialogResponsePtr response);
 
   State state_ = State::kInit;
 

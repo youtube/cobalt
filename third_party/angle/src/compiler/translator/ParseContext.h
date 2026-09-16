@@ -26,6 +26,20 @@ struct TMatrixFields
     int col;
 };
 
+struct ClipCullDistanceInfo
+{
+    // Whether the size is specified by redeclaring the built-in
+    uint32_t size = 0;
+    // What is the maximum constant index used with this built-in
+    int32_t maxIndex = -1;
+    // Whether any non-constant indices were used with this built-in
+    bool hasNonConstIndex = false;
+    // Whether .length() has been called on this built-in
+    bool hasArrayLengthMethodCall = false;
+    // A location to associate with post-parse errors
+    TSourceLoc firstEncounter = kNoSourceLoc;
+};
+
 //
 // The following are extra variables needed during parsing, grouped together so
 // they can be passed to the parser without needing a global.
@@ -242,6 +256,12 @@ class TParseContext : angle::NonCopyable
                                          const ImmutableString &identifier,
                                          TIntermTyped *initializer,
                                          const TSourceLoc &loc);
+
+    void onLoopConditionBegin();
+    void onLoopConditionEnd(TIntermNode *condition);
+    void onLoopContinueEnd(TIntermNode *statement);
+    void onDoLoopBegin();
+    void onDoLoopConditionBegin();
     TIntermNode *addLoop(TLoopType type,
                          TIntermNode *init,
                          TIntermNode *cond,
@@ -251,6 +271,10 @@ class TParseContext : angle::NonCopyable
 
     // For "if" test nodes. There are three children: a condition, a true path, and a false path.
     // The two paths are in TIntermNodePair code.
+    void onIfTrueBlockBegin(TIntermTyped *cond, const TSourceLoc &loc);
+    void onIfTrueBlockEnd();
+    void onIfFalseBlockBegin();
+    void onIfFalseBlockEnd();
     TIntermNode *addIfElse(TIntermTyped *cond, TIntermNodePair code, const TSourceLoc &loc);
 
     void addFullySpecifiedType(TPublicType *typeSpecifier);
@@ -348,6 +372,7 @@ class TParseContext : angle::NonCopyable
     void parseParameterQualifier(const TSourceLoc &line,
                                  const TTypeQualifierBuilder &typeQualifierBuilder,
                                  TPublicType &type);
+    void addParameter(TFunction *function, TParameter *param);
 
     TIntermTyped *addIndexExpression(TIntermTyped *baseExpression,
                                      const TSourceLoc &location,
@@ -461,7 +486,10 @@ class TParseContext : angle::NonCopyable
                             TIntermTyped *left,
                             TIntermTyped *right,
                             const TSourceLoc &loc);
+    void onShortCircuitAndBegin(TIntermTyped *left, const TSourceLoc &loc);
+    void onShortCircuitOrBegin(TIntermTyped *left, const TSourceLoc &loc);
 
+    void onCommaLeftHandSideParsed(TIntermTyped *left);
     TIntermTyped *addComma(TIntermTyped *left, TIntermTyped *right, const TSourceLoc &loc);
 
     TIntermBranch *addBranch(TOperator op, const TSourceLoc &loc);
@@ -481,10 +509,27 @@ class TParseContext : angle::NonCopyable
     // has the arguments.
     TIntermTyped *addFunctionCallOrMethod(TFunctionLookup *fnCall, const TSourceLoc &loc);
 
+    void onTernaryConditionParsed(TIntermTyped *cond, const TSourceLoc &line);
+    void onTernaryTrueExpressionParsed(TIntermTyped *trueExpression, const TSourceLoc &line);
     TIntermTyped *addTernarySelection(TIntermTyped *cond,
                                       TIntermTyped *trueExpression,
                                       TIntermTyped *falseExpression,
                                       const TSourceLoc &line);
+
+    uint32_t getClipDistanceArraySize() const
+    {
+        return mClipDistanceInfo.size > 0 ? mClipDistanceInfo.size : mClipDistanceInfo.maxIndex + 1;
+    }
+    uint32_t getCullDistanceArraySize() const
+    {
+        return mCullDistanceInfo.size > 0 ? mCullDistanceInfo.size : mCullDistanceInfo.maxIndex + 1;
+    }
+    bool isClipDistanceRedeclared() const { return mClipDistanceInfo.size > 0; }
+    bool isCullDistanceRedeclared() const { return mCullDistanceInfo.size > 0; }
+    bool isClipDistanceUsed() const
+    {
+        return mClipDistanceInfo.maxIndex >= 0 || mClipDistanceInfo.hasNonConstIndex;
+    }
 
     int getGeometryShaderMaxVertices() const { return mGeometryShaderMaxVertices; }
     int getGeometryShaderInvocations() const
@@ -517,11 +562,6 @@ class TParseContext : angle::NonCopyable
         return mTessEvaluationShaderInputPointType;
     }
 
-    const TVector<TType *> &getDeferredArrayTypesToSize() const
-    {
-        return mDeferredArrayTypesToSize;
-    }
-
     void markShaderHasPrecise() { mHasAnyPreciseType = true; }
     bool hasAnyPreciseType() const { return mHasAnyPreciseType; }
     AdvancedBlendEquations getAdvancedBlendEquations() const { return mAdvancedBlendEquations; }
@@ -530,6 +570,11 @@ class TParseContext : angle::NonCopyable
 
     size_t getMaxExpressionComplexity() const { return mMaxExpressionComplexity; }
     size_t getMaxStatementDepth() const { return mMaxStatementDepth; }
+
+    // Pop the side effect of a statement when it's discarded, like when ; is encountered.
+    void endStatementWithValue(TIntermNode *statement);
+
+    bool postParseChecks();
 
     const ShCompileOptions &getCompileOptions() const { return mCompileOptions; }
 
@@ -548,7 +593,7 @@ class TParseContext : angle::NonCopyable
     // Note that there may be tests in AtomicCounter_test that will need to be updated as well.
     constexpr static size_t kAtomicCounterArrayStride = 4;
 
-    void markStaticReadIfSymbol(TIntermNode *node);
+    void markStaticUseIfSymbol(TIntermNode *node);
 
     // Returns a clamped index. If it prints out an error message, the token is "[]".
     int checkIndexLessThan(bool outOfRangeIndexIsError,
@@ -692,6 +737,8 @@ class TParseContext : angle::NonCopyable
     bool parseTessControlShaderOutputLayoutQualifier(const TTypeQualifier &typeQualifier);
     bool parseTessEvaluationShaderInputLayoutQualifier(const TTypeQualifier &typeQualifier);
 
+    void sizeUnsizedArrayTypes(uint32_t arraySize);
+
     // Certain operations become illegal only iff the shader declares pixel local storage uniforms.
     enum class PLSIllegalOperations
     {
@@ -779,6 +826,12 @@ class TParseContext : angle::NonCopyable
     int mMinProgramTextureGatherOffset;
     int mMaxProgramTextureGatherOffset;
 
+    // keep track of clip/cull distance redeclaration, accessed indices, etc so that gl_ClipDistance
+    // and gl_CullDistance can be validated and sized at the end of compilation.
+    int mMaxCombinedClipAndCullDistances;
+    ClipCullDistanceInfo mClipDistanceInfo;
+    ClipCullDistanceInfo mCullDistanceInfo;
+
     // keep track of local group size declared in layout. It should be declared only once.
     bool mComputeShaderLocalSizeDeclared;
     sh::WorkGroupSize mComputeShaderLocalSize;
@@ -795,11 +848,22 @@ class TParseContext : angle::NonCopyable
     int mMaxShaderStorageBufferBindings;
     int mMaxPixelLocalStoragePlanes;
 
+    // keeps track of whether any of the built-ins that can be redeclared (see
+    // IsRedeclarableBuiltIn()) has been marked as invariant/precise before the possible
+    // redeclaration.
+    //
+    // If redeclared after being marked as invariant/precise, a compile error is generated.
+    // The GLSL spec does not explicitly call this out as invalid, but it's not a useful sequence
+    // of statements (invariant/precise could have been directly specified on the redeclaration),
+    // and there are no known users.
+    TUnorderedMap<TQualifier, bool> mBuiltInQualified;
+
     // keeps track whether we are declaring / defining a function
     bool mDeclaringFunction;
 
     // keeps track whether we are declaring / defining the function main().
     bool mDeclaringMain;
+    bool mIsMainDeclared;
 
     // Track the state of each atomic counter binding.
     std::map<int, AtomicCounterBindingState> mAtomicCounterBindingStates;

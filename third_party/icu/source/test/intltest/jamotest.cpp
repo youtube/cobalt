@@ -69,14 +69,14 @@ JamoTest::TestJamo() {
     UErrorCode status = U_ZERO_ERROR;
     Transliterator* latinJamo = Transliterator::createInstance("Latin-Jamo", UTRANS_FORWARD, parseError, status);
 
-    if (latinJamo == 0 || U_FAILURE(status)) {
+    if (latinJamo == nullptr || U_FAILURE(status)) {
         dataerrln("FAIL: createInstance() returned 0 - %s", u_errorName(status));
         return;
     }
 
     Transliterator* jamoLatin = latinJamo->createInverse(status);
 
-    if (jamoLatin == 0) {
+    if (jamoLatin == nullptr) {
         delete latinJamo;
         errln("FAIL: createInverse() returned 0");
         return;
@@ -154,7 +154,7 @@ JamoTest::TestJamo() {
  * latin and back.
  */
 void JamoTest::TestPiecemeal() {
-    UnicodeString hangul; hangul.append((char16_t)0xBC0F);
+    UnicodeString hangul; hangul.append(static_cast<char16_t>(0xBC0F));
     UnicodeString jamo = nameToJamo("(Mi)(I)(Cf)");
     UnicodeString latin("mic");
     UnicodeString latin2("mich");
@@ -163,7 +163,7 @@ void JamoTest::TestPiecemeal() {
     UErrorCode status = U_ZERO_ERROR;
 
     t = Transliterator::createInstance("NFD", UTRANS_FORWARD, status); // was Hangul-Jamo
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         dataerrln("FAIL: createInstance failed");
         return;
     }
@@ -171,7 +171,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("NFC", UTRANS_FORWARD, status); // was Jamo-Hangul
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -179,7 +179,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Latin-Jamo", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         dataerrln("FAIL: createInstance failed - %s", u_errorName(status));
         return;
     }
@@ -187,7 +187,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Jamo-Latin", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -195,7 +195,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Hangul-Latin", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -203,7 +203,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Latin-Hangul", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -211,7 +211,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Hangul-Latin; Latin-Jamo", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -219,7 +219,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Jamo-Latin; Latin-Hangul", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -227,7 +227,7 @@ void JamoTest::TestPiecemeal() {
     delete t;
 
     t = Transliterator::createInstance("Hangul-Latin; Latin-Hangul", UTRANS_FORWARD, status);
-    if (U_FAILURE(status) || t == 0) {
+    if (U_FAILURE(status) || t == nullptr) {
         errln("FAIL: createInstance failed");
         return;
     }
@@ -376,7 +376,7 @@ JamoTest::TestRealText() {
     UErrorCode status = U_ZERO_ERROR;
     Transliterator* latinJamo = Transliterator::createInstance("Latin-Jamo", UTRANS_FORWARD, parseError, status);
     Transliterator* jamoHangul = Transliterator::createInstance("NFC(NFD)", UTRANS_FORWARD, parseError, status);
-    if (latinJamo == 0 || jamoHangul == 0 || U_FAILURE(status)) {
+    if (latinJamo == nullptr || jamoHangul == nullptr || U_FAILURE(status)) {
         delete latinJamo;
         delete jamoHangul;
         dataerrln("FAIL: createInstance returned nullptr - %s", u_errorName(status));
@@ -384,7 +384,7 @@ JamoTest::TestRealText() {
     }
     Transliterator* jamoLatin = latinJamo->createInverse(status);
     Transliterator* hangulJamo = jamoHangul->createInverse(status);
-    if (jamoLatin == 0 || hangulJamo == 0) {
+    if (jamoLatin == nullptr || hangulJamo == nullptr) {
         errln("FAIL: createInverse returned nullptr");
         delete latinJamo;
         delete jamoLatin;
@@ -417,7 +417,7 @@ JamoTest::TestRealText() {
             buf.remove(0);
             buf.append("FAIL: ");
             if (hangul2 != hangulX) {
-                buf.append((UnicodeString)"(Weird: " + hangulX + " != " + hangul2 + ")");
+                buf.append(UnicodeString("(Weird: ") + hangulX + " != " + hangul2 + ")");
             }
             // The Hangul-Jamo conversion is not usually the
             // bug here, so we hide it from display.
@@ -431,9 +431,9 @@ JamoTest::TestRealText() {
         }
     }
     if (errors != 0) {
-        errln((UnicodeString)"Test word failures: " + errors + " out of " + total);
+        errln(UnicodeString("Test word failures: ") + errors + " out of " + total);
     } else {
-        logln((UnicodeString)"All " + total + " test words passed");
+        logln(UnicodeString("All ") + total + " test words passed");
     }
 
     delete latinJamo;
@@ -529,7 +529,7 @@ const char* JamoTest::JAMO_NAMES_RULES =
  */
 UnicodeString
 JamoTest::nameToJamo(const UnicodeString& input) { 
-    if (NAME_JAMO == 0) {
+    if (NAME_JAMO == nullptr) {
         errln("Failed to create NAME_JAMO");
         return input;   /* failure! */
     }
@@ -544,7 +544,7 @@ JamoTest::nameToJamo(const UnicodeString& input) {
  */
 UnicodeString
 JamoTest::jamoToName(const UnicodeString& input) {
-    if (NAME_JAMO == 0) {
+    if (NAME_JAMO == nullptr) {
         errln("Failed to create NAME_JAMO");
         return input;   /* failure! */
     }

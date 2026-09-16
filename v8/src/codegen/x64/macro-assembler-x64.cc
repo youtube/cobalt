@@ -464,13 +464,9 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // catch stores of Smis and read-only objects.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -1222,6 +1218,15 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 }
 #endif  // V8_IS_TSAN
 
+void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
+                                                   Label* dest) {
+#if V8_STATIC_ROOTS_BOOL
+  // Quick check for Read-only and small Smi values.
+  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
                                  SmiCheck smi_check, ReadOnlyCheck ro_check,
@@ -1262,13 +1267,9 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // young generation.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     // Skip barrier if writing a smi.
@@ -3734,11 +3735,17 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  // Check that using a 32-bit shift is valid for any valid code pointer.
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
-                (kMaxInt >> 4));
-  shll(target, Immediate(4));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
+
   // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
   addq(target, kScratchRegister);
 
@@ -3776,11 +3783,18 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  // Check that using a 32-bit shift is valid for any valid code pointer.
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
-                (kMaxInt >> 4));
-  shll(target, Immediate(4));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  static_assert(kNumClearedHighBits == 9);
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
+
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
@@ -4681,10 +4695,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   // Receiver is located on top of the stack if we have a frame (usually a
@@ -4695,8 +4708,10 @@ void MacroAssembler::CallDebugOnFunctionCall(
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
-  SmiTag(expected_parameter_count_or_dispatch_handle);
-  Push(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
+  Push(dispatch_handle);
 
   SmiTag(actual_parameter_count);
   Push(actual_parameter_count);
@@ -4715,8 +4730,7 @@ void MacroAssembler::CallDebugOnFunctionCall(
   }
   Pop(actual_parameter_count);
   SmiUntag(actual_parameter_count);
-  Pop(expected_parameter_count_or_dispatch_handle);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
+  Pop(dispatch_handle);
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {

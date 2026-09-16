@@ -754,7 +754,8 @@ AXObject* AXNodeObject::ActiveDescendant() const {
       // TODO(accessibility): as a simplification, just expose the active
       // descendant of a <select size=1> at all times, like we do for other
       // active descendant situations,
-      return select->PopupIsVisible() || select->IsFocusedElementInDocument()
+      return !select->IsMultiple() && (select->PopupIsVisible() ||
+                                       select->IsFocusedElementInDocument())
                  ? AXObjectCache().Get(select->OptionToBeShown())
                  : nullptr;
     }
@@ -1222,13 +1223,36 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
   return kDefaultBehavior;
 }
 
+bool AXNodeObject::ComputeIsIgnoredAsInsideInactiveScrollMarkerTab() {
+  Node* node = GetNode();
+  if (!node || !RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled()) {
+    return false;
+  }
+  if (node->IsCarouselPseudoElement()) {
+    // The carousel pseudo-elements should never be ignored.
+    return false;
+  }
+  if (IsOriginatingElementForInactiveScrollMarkerInTabsMode(node)) {
+    return true;
+  }
+  if (!ParentObject()) {
+    return false;
+  }
+  // As soon as one of the ancestors is the originating element for
+  // ::scroll-marker in tabs mode, we know this node is inside the originating
+  // element for ::scroll-marker in tabs mode, so we just propagate this info
+  // down to the children.
+  return ParentObject()
+      ->InsideOriginatingElementForInactiveScrollMarkerInTabsMode();
+}
+
 bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
   Node* node = GetNode();
 
-  // Originating element should be ignored in AX tree, if the ::scroll-marker
-  // is in tabs mode and not active.
-  if (RuntimeEnabledFeatures::CSSScrollMarkerGroupModesEnabled() &&
-      IsOriginatingElementForInactiveScrollMarkerInTabsMode(node)) {
+  // Everything (besides carousel pseudo-elements) inside and including the
+  // originating element of the
+  // ::scroll-marker is in tabs mode should be ignored in AX tree.
+  if (InsideOriginatingElementForInactiveScrollMarkerInTabsMode()) {
     if (ignored_reasons) {
       ignored_reasons->push_back(IgnoredReason(kAXInactiveCarouselTabContent));
     }
@@ -2433,7 +2457,7 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
   }
 
   if (auto* select_element = DynamicTo<HTMLSelectElement>(*GetNode())) {
-    if (select_element->UsesMenuList() && !select_element->IsMultiple()) {
+    if (select_element->UsesMenuList()) {
       return ax::mojom::blink::Role::kComboBoxSelect;
     } else {
       return ax::mojom::blink::Role::kListBox;
@@ -2449,8 +2473,7 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
 
   if (auto* option = DynamicTo<HTMLOptionElement>(*GetNode())) {
     HTMLSelectElement* select_element = option->OwnerSelectElement();
-    if (select_element && select_element->UsesMenuList() &&
-        !select_element->IsMultiple()) {
+    if (select_element && select_element->UsesMenuList()) {
       return ax::mojom::blink::Role::kMenuListOption;
     } else {
       return ax::mojom::blink::Role::kListBoxOption;

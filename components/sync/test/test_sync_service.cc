@@ -225,22 +225,41 @@ SyncService::TransportState TestSyncService::GetTransportState() const {
 
 SyncService::UserActionableError TestSyncService::GetUserActionableError()
     const {
-  if (GetTransportState() == TransportState::PAUSED) {
+#if !BUILDFLAG(IS_IOS)
+  if (HasSyncConsent()) {
+    if (!user_settings_.IsInitialSyncFeatureSetupComplete()) {
+      return UserActionableError::kNeedsSettingsConfirmation;
+    }
+    // RequiresClientUpgrade() is unrecoverable, but is treated separately
+    // below.
+    if (HasUnrecoverableError() && !RequiresClientUpgrade()) {
+      return UserActionableError::kUnrecoverableError;
+    }
+  }
+#endif  // !BUILDFLAG(IS_IOS)
+
+  if (GetAuthError().state() != GoogleServiceAuthError::NONE) {
     return UserActionableError::kSignInNeedsUpdate;
+  }
+  if (RequiresClientUpgrade()) {
+    return UserActionableError::kNeedsClientUpgrade;
   }
   if (user_settings_.IsPassphraseRequiredForPreferredDataTypes()) {
     return UserActionableError::kNeedsPassphrase;
   }
-  if (user_settings_.IsTrustedVaultKeyRequired()) {
-    return UserActionableError::kNeedsTrustedVaultKeyForEverything;
-  }
   if (user_settings_.IsTrustedVaultKeyRequiredForPreferredDataTypes()) {
-    return UserActionableError::kNeedsTrustedVaultKeyForPasswords;
+    return user_settings_.IsEncryptEverythingEnabled()
+               ? UserActionableError::kNeedsTrustedVaultKeyForEverything
+               : UserActionableError::kNeedsTrustedVaultKeyForPasswords;
   }
   if (user_settings_.IsTrustedVaultRecoverabilityDegraded()) {
-    return UserActionableError::
-        kTrustedVaultRecoverabilityDegradedForEverything;
+    return user_settings_.IsEncryptEverythingEnabled()
+               ? UserActionableError::
+                     kTrustedVaultRecoverabilityDegradedForEverything
+               : UserActionableError::
+                     kTrustedVaultRecoverabilityDegradedForPasswords;
   }
+
   return UserActionableError::kNone;
 }
 
@@ -327,9 +346,10 @@ DataTypeSet TestSyncService::GetTypesWithPendingDownloadForInitialSync() const {
 
 void TestSyncService::OnDataTypeRequestsSyncStartup(DataType type) {}
 
-void TestSyncService::TriggerRefresh(const DataTypeSet& types) {
+void TestSyncService::TriggerRefresh(TriggerRefreshSource source,
+                                     const DataTypeSet& types) {
   if (trigger_refresh_cb_) {
-    trigger_refresh_cb_.Run(types);
+    trigger_refresh_cb_.Run(source, types);
   }
 }
 
@@ -466,8 +486,8 @@ void TestSyncService::SelectTypeAndMigrateLocalDataItemsWhenActive(
     std::vector<LocalDataItemModel::DataId> items) {}
 
 void TestSyncService::SetTriggerRefreshCallback(
-    const base::RepeatingCallback<void(syncer::DataTypeSet)>&
-        trigger_refresh_cb) {
+    const base::RepeatingCallback<
+        void(TriggerRefreshSource, const DataTypeSet&)>& trigger_refresh_cb) {
   trigger_refresh_cb_ = trigger_refresh_cb;
 }
 

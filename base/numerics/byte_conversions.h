@@ -44,7 +44,7 @@ inline constexpr To BitCast(const From& from) {
 // TODO(pkasting): Once C++23 is available, replace with std::byteswap.
 template <class T>
   requires(std::is_integral_v<T>)
-inline constexpr T ByteSwap(T value) {
+[[nodiscard]] inline constexpr T ByteSwap(T value) {
   return internal::SwapBytes(value);
 }
 

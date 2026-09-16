@@ -1,18 +1,18 @@
 Name: icu
 URL: https://github.com/unicode-org/icu
-Version: 74-2
-CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:74.2
+Version: 77-1
+CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:77.1
 License: MIT
 License File: LICENSE
 Security Critical: yes
 Shipped: yes
 
 Description:
-This directory contains the source code of ICU 74.2 for C/C++.
+This directory contains the source code of ICU 77.1 for C/C++.
 
 A. How to update ICU
 
-1. Run "scripts/update.sh <version>" (e.g. 74-2).
+1. Run "scripts/update.sh <version>" (e.g. 77-1).
    This will download ICU from the upstream git repository.
    It does preserve Chrome-specific build files and
    converter files. (see section C)
@@ -145,12 +145,11 @@ them when updating ICU.
     old version from ICU69-1.
   - rules/word_ja.txt (used only on Android)
     Added for Japanese-specific word-breaking without the C+J dictionary.
-  - rules/{root,zh,zh_Hant}.txt
-    a. Use line_normal by default.
-    b. Drop local patches we used to have for the following issues. They'll
-       be dealt with in the upstream (Unicode/CLDR).
-       http://unicode.org/cldr/trac/ticket/6557
-       http://unicode.org/cldr/trac/ticket/4200 (http://crbug.com/39779)
+  - rules/{zh,zh_Hant}.txt
+    Drop local patches we used to have for the following issues. They'll
+    be dealt with in the upstream (Unicode/CLDR).
+    http://unicode.org/cldr/trac/ticket/6557
+    http://unicode.org/cldr/trac/ticket/4200 (http://crbug.com/39779)
 
 3. Add {an,ku,tg,wa}.txt to source/data/{locale,lang}
    with the minimal locale data necessary for spellchecker and
@@ -161,13 +160,8 @@ D. Local Modifications
 1. Applied locale data patches from Google obtained by diff'ing
    the upstream copy and Google's internal copy for source/data
 
-  - patches/locale_google.patch:
-    * Google's internal ICU locale changes
-    * Simpler region names for Hong Kong and Macau in all locales
-    * Currency signs in ru and uk locales (do not include 'tr' locale changes)
-    * AM/PM, midnight, noon formatting for a few Indian locales
-    * Timezone name changes in Korean and Chinese locales
-    * Default digit for Arabic locale is European digits.
+  - patches/chromium-data.patch: Google's internal ICU locale changes, exported
+    for use in Chromium.
 
   - patches/locale1.patch: Minor fixes for Korean
 
@@ -178,16 +172,16 @@ D. Local Modifications
     or discarded as necessary.
 
 2. Breakiterator patches
-  - patches/wordbrk.patch for word.txt, word_POSIX.txt, and word_fi_sv.txt
-    a. Move full stops (U+002E, U+FF0E) from MidNumLet to MidNum so that
-       FQDN labels can be split at '.'
-    b. Move fullwidth digits (U+FF10 - U+FF19) from Ideographic to Numeric.
-       See http://unicode.org/cldr/trac/ticket/6555
-    c. Restore pre-ICU 72 behavior of breaking at '@'. The new upstream behavior
-       of not breaking at '@' interacted badly with the local change to break at
-       '.' (D.2.a above): although not breaking at '@' is intended to not break
-       within e-mail addresses, this is not possible with Chromium's
-       break-at-'.' behavior.
+
+  - patches/line_normal.patch for word.txt
+    Use line_normal by default.
+
+  - patches/lstm.patch for word.txt
+    Remove the lstm block for Thai and Burmese.
+
+  - patches/wordbrk.patch
+    Move full stops (U+002E, U+FF0E) from MidNumLet to MidNum so that FQDN
+    labels can be split at '.'
 
   - patches/khmer-dictbe.patch
     Adjust parameters to use a smaller Khmer dictionary (khmerdict.txt).
@@ -263,44 +257,7 @@ D. Local Modifications
   - https://bugs.chromium.org/p/chromium/issues/detail?id=1473422
   - https://unicode-org.atlassian.net/browse/ICU-22541
 
-11. Patch source/common/locid.cpp to resolve crashes in DecimalFormatting.
-    patches/locid.patch
-  - https://issues.chromium.org/issues/333453962
-
-12. Patch source/common/messagepattern.ccp/.h to resolve stack overflow.
-    patches/limit_message_pattern.patch
-  - https://issues.chromium.org/343280855
-  - https://unicode-org.atlassian.net/browse/ICU-22798
-
-13. Patch source/common/ubidiwrt.cpp to resolve a bidi buffer overflow.
-    patches/bidi_buffer_overflow.patch
-  - https://issues.chromium.org/u/1/issues/345352978
-  - https://unicode-org.atlassian.net/browse/ICU-22768
-
-14. Patch source/tools/pkgdata/pkgdata.cpp to remove a format-overflow warning.
-    patches/remove_format_overflow_warning.patch
-  - https://unicode-org.atlassian.net/browse/ICU-21589
-  - https://issues.chromium.org/u/1/issues/345352978
-
-15. Patch source/i18n/japancal.cpp to fix an extended year int32 overflow.
-    patches/ja_extended_year_overflow.patch
-  - https://issues.chromium.org/u/1/issues/345352978
-  - https://unicode-org.atlassian.net/browse/ICU-22730
-
-16. Patch an icu:calendar integer overflow by propagating error.
-    patch/propagate_error_avoid_overflow.patch
-  - https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=68895
-  - https://issues.chromium.org/u/1/issues/345352978
-  - https://unicode-org.atlassian.net/browse/ICU-22730
-
-17. Patch UnicodeString to fix heap-buffer-overflow .
-    patches/unicode_string.patch
-  - https://unicode-org.atlassian.net/browse/ICU-23060
-  - https://g-issues.chromium.org/issues/393989622
-  - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3416.diff
-  - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3420.diff
-
-18. Patch unnecessary uses of the virtual keyword.
+11. Patch unnecessary uses of the virtual keyword.
     patches/unnecessary_virtual_specifier.patch
   - https://issues.chromium.org/issues/403236787
   - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3489.diff

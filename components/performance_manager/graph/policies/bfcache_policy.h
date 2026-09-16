@@ -15,7 +15,7 @@ namespace performance_manager::policies {
 
 // Policies that automatically flush the BFCache of pages when the system is
 // under memory pressure.
-class BFCachePolicy : public GraphOwned {
+class BFCachePolicy : public GraphOwned, public base::MemoryPressureListener {
  public:
   BFCachePolicy();
   BFCachePolicy(const BFCachePolicy&) = delete;
@@ -29,17 +29,17 @@ class BFCachePolicy : public GraphOwned {
   void OnTakenFromGraph(Graph* graph) override;
 
  protected:
-  using MemoryPressureLevel = base::MemoryPressureListener::MemoryPressureLevel;
-
   // Try to flush the BFCache associated with |page_node|. This will be a no-op
   // if there's a pending navigation.
-  virtual void MaybeFlushBFCache(const PageNode* page_node,
-                                 MemoryPressureLevel memory_pressure_level);
+  virtual void MaybeFlushBFCache(
+      const PageNode* page_node,
+      base::MemoryPressureLevel memory_pressure_level);
 
  private:
-  void OnMemoryPressure(MemoryPressureLevel new_level);
+  void OnMemoryPressure(base::MemoryPressureLevel new_level) override;
 
-  base::MemoryPressureListener memory_pressure_listener_;
+  base::MemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 };
 
 }  // namespace performance_manager::policies

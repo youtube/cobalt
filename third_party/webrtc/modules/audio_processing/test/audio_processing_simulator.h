@@ -158,6 +158,7 @@ struct SimulationSettings {
   std::optional<int> dump_start_frame;
   std::optional<int> dump_end_frame;
   std::optional<int> init_to_process;
+  std::optional<std::string> neural_echo_residual_estimator_model;
 };
 
 // Provides common functionality for performing audioprocessing simulations.

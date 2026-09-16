@@ -174,15 +174,13 @@ void OptimizationGuideKeyedService::BindModelBroker(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
     return;
   }
-  optimization_guide_global_state_->service_controller().BindBroker(
-      std::move(receiver));
+  GetGlobalState().BindBroker(std::move(receiver));
 }
 
 std::unique_ptr<optimization_guide::ModelBrokerClient>
 OptimizationGuideKeyedService::CreateModelBrokerClient() {
   mojo::PendingRemote<optimization_guide::mojom::ModelBroker> remote;
-  optimization_guide_global_state_->service_controller().BindBroker(
-      remote.InitWithNewPipeAndPassReceiver());
+  GetGlobalState().BindBroker(remote.InitWithNewPipeAndPassReceiver());
   return std::make_unique<optimization_guide::ModelBrokerClient>(
       std::move(remote), optimization_guide::CreateSessionArgs(
                              optimization_guide_logger_->GetWeakPtr(), {}));
@@ -260,8 +258,6 @@ void OptimizationGuideKeyedService::Initialize() {
             : nullptr;
     hint_store = hint_store_ ? hint_store_->AsWeakPtr() : nullptr;
   }
-  optimization_guide_global_state_ =
-      optimization_guide::OptimizationGuideGlobalState::CreateOrGet();
 
   optimization_guide_logger_ = OptimizationGuideLogger::GetInstance();
   DCHECK(optimization_guide_logger_);
@@ -331,10 +327,8 @@ void OptimizationGuideKeyedService::InitializeModelExecution(Profile* profile) {
       service_controller;
   if (base::FeatureList::IsEnabled(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
-    service_controller =
-        optimization_guide_global_state_->service_controller().GetWeakPtr();
-    on_device_asset_manager_ =
-        optimization_guide_global_state_->CreateAssetManager(this);
+    service_controller = GetGlobalState().GetServiceControllerWeakPtr();
+    on_device_asset_manager_ = GetGlobalState().CreateAssetManager(this);
   }
 
   model_execution_manager_ =
@@ -379,9 +373,10 @@ void OptimizationGuideKeyedService::OnNavigationFinish(
 void OptimizationGuideKeyedService::AddObserverForOptimizationTargetModel(
     optimization_guide::proto::OptimizationTarget optimization_target,
     const std::optional<optimization_guide::proto::Any>& model_metadata,
+    scoped_refptr<base::SequencedTaskRunner> model_task_runner,
     optimization_guide::OptimizationTargetModelObserver* observer) {
   GetPredictionManager()->AddObserverForOptimizationTargetModel(
-      optimization_target, model_metadata, observer);
+      optimization_target, model_metadata, model_task_runner, observer);
 }
 
 void OptimizationGuideKeyedService::RemoveObserverForOptimizationTargetModel(
@@ -482,22 +477,16 @@ void OptimizationGuideKeyedService::ExecuteModel(
 void OptimizationGuideKeyedService::AddOnDeviceModelAvailabilityChangeObserver(
     optimization_guide::ModelBasedCapabilityKey feature,
     optimization_guide::OnDeviceModelAvailabilityObserver* observer) {
-  if (!optimization_guide_global_state_) {
-    return;
-  }
-  optimization_guide_global_state_->service_controller()
-      .AddOnDeviceModelAvailabilityChangeObserver(feature, observer);
+  GetGlobalState().AddOnDeviceModelAvailabilityChangeObserver(feature,
+                                                              observer);
 }
 
 void OptimizationGuideKeyedService::
     RemoveOnDeviceModelAvailabilityChangeObserver(
         optimization_guide::ModelBasedCapabilityKey feature,
         optimization_guide::OnDeviceModelAvailabilityObserver* observer) {
-  if (!optimization_guide_global_state_) {
-    return;
-  }
-  optimization_guide_global_state_->service_controller()
-      .RemoveOnDeviceModelAvailabilityChangeObserver(feature, observer);
+  GetGlobalState().RemoveOnDeviceModelAvailabilityChangeObserver(feature,
+                                                                 observer);
 }
 
 on_device_model::Capabilities
@@ -521,6 +510,14 @@ void OptimizationGuideKeyedService::AddHintForTesting(
     optimization_guide::proto::OptimizationType optimization_type,
     const std::optional<optimization_guide::OptimizationMetadata>& metadata) {
   hints_manager_->AddHintForTesting(url, optimization_type, metadata);
+}
+
+void OptimizationGuideKeyedService::AddHintWithMultipleOptimizationsForTesting(
+    const GURL& url,
+    const std::vector<optimization_guide::proto::OptimizationType>&
+        optimization_types) {
+  hints_manager_->AddHintWithMultipleOptimizationsForTesting(  // IN-TEST
+      url, optimization_types);
 }
 
 void OptimizationGuideKeyedService::AddOnDemandHintForTesting(
@@ -723,8 +720,7 @@ OptimizationGuideKeyedService::GetFeatureMetadata(
 
 void OptimizationGuideKeyedService::EnsurePerformanceClassAvailable(
     base::OnceClosure complete) {
-  optimization_guide_global_state_->EnsurePerformanceClassAvailable(
-      std::move(complete));
+  GetGlobalState().EnsurePerformanceClassAvailable(std::move(complete));
 }
 
 void OptimizationGuideKeyedService::FinishGetOnDeviceModelEligibility(
@@ -743,9 +739,6 @@ void OptimizationGuideKeyedService::FinishGetOnDeviceModelEligibility(
 }
 
 on_device_model::Capabilities
-OptimizationGuideKeyedService::GetPossibleOnDeviceCapabilities() const {
-  if (!optimization_guide_global_state_) {
-    return {};
-  }
-  return optimization_guide_global_state_->GetPossibleOnDeviceCapabilities();
+OptimizationGuideKeyedService::GetPossibleOnDeviceCapabilities() {
+  return GetGlobalState().GetPossibleOnDeviceCapabilities();
 }

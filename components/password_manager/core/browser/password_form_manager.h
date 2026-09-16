@@ -311,6 +311,10 @@ class PasswordFormManager : public PasswordFormManagerForUI,
   void AddObserver(PasswordFormManagerObserver* observer);
   void RemoveObserver(PasswordFormManagerObserver* observer);
 
+  // Informs `password_save_manager_` that it should store actor login
+  // permission when building pending credentials.
+  void SetShouldStoreActorLoginPermission();
+
  protected:
   // Constructor for Credentials API.
   PasswordFormManager(
@@ -517,9 +521,6 @@ class PasswordFormManager : public PasswordFormManagerForUI,
   // Stores if Save() was called when FormFetcher was in WAITING state.
   // In that case we should schedule a Save() call, when FormFecher is ready.
   bool should_schedule_save_for_later_ = false;
-
-  // A password field that is used for generation.
-  autofill::FieldRendererId generation_element_;
 
   // For generating timing metrics on retrieving server-side predictions.
   std::unique_ptr<base::ElapsedTimer> server_side_predictions_timer_;

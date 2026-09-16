@@ -1,6 +1,5 @@
 # accessibility
 evliu@google.com
-mschillaci@google.com
 # account_manager
 sinhak@chromium.org
 # android
@@ -326,7 +325,6 @@ drubery@chromium.org
 thefrog@chromium.org
 xinghuilu@chromium.org
 # payment
-rouslan@chromium.org
 smcgruer@chromium.org
 # performance_controls
 agale@chromium.org
@@ -495,6 +493,8 @@ hcyang@google.com
 schenney@chromium.org
 # web_rtc
 kron@chromium.org
+# windows
+koretadaniel@chromium.org
 # xr
 alcooper@chromium.org
 # Custom: not in any subdirectory

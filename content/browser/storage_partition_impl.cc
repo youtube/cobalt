@@ -1511,6 +1511,8 @@ void StoragePartitionImpl::Initialize(
   // "enable_otr_profiles" feature parameter is true.
   if (base::FeatureList::IsEnabled(
           features::kCookieDeprecationFacilitatedTesting) &&
+      base::FeatureList::IsEnabled(
+          features::kCookieDeprecationFacilitatedTestingLabels) &&
       (!is_in_memory() ||
        features::kCookieDeprecationFacilitatedTestingEnableOTRProfiles.Get())) {
     cookie_deprecation_label_manager_ =
@@ -2255,8 +2257,8 @@ void StoragePartitionImpl::OnAuthRequired(
           const GURL& last_committed_url = rfh->GetLastCommittedURL();
           if (rfh->LoadedWithCacheControlNoStoreHeader() &&
               auth_info.challenger ==
-                  url::SchemeHostPort(last_committed_url.scheme(),
-                                      last_committed_url.host(),
+                  url::SchemeHostPort(last_committed_url.GetScheme(),
+                                      last_committed_url.GetHost(),
                                       last_committed_url.IntPort())) {
             BackForwardCacheCanStoreDocumentResult flattened_reasons;
             flattened_reasons.No(BackForwardCacheMetrics::NotRestoredReason::
@@ -2312,11 +2314,6 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
 
   // Currently requesting the Local Network Access permission is restricted to
   // subresource requests and subframe navigation requests.
-  // TODO(crbug.com/404887285): Denying permission for a subframe navigation
-  // results in an error page with text that isn't quite true anymore: "The
-  // connection is blocked because it was initiated by a public page to connect
-  // to devices or servers on your private network. Reload this page to allow
-  // the connection." The last sentence should be removed.
 
   // Handle document (Case 1) and navigation (Case 2) contexts.
   if (context.navigation_or_document()) {
@@ -2349,6 +2346,9 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
           // Get the document that initiated the navigation. Can be nullptr if
           // the initiator has gone away, in which case we should just block the
           // navigation.
+          //
+          // TODO(crbug.com/450007796): Figure out why this sometimes returns
+          // the parent frame instead of the iframe that is being navigated.
           RenderFrameHost* initiating_rfh =
               request->GetInitiatorFrameToken().has_value()
                   ? RenderFrameHost::FromFrameToken(
@@ -2356,11 +2356,13 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
                             request->GetInitiatorProcessId(),
                             request->GetInitiatorFrameToken().value()))
                   : nullptr;
-          // We additionally check that the initiator is a frame ancestor of the
-          // frame that is navigating, so that we don't try to pop up a
-          // permission prompt on a different tab/window than the one where the
-          // navigation is occurring.
-          RenderFrameHostImpl* current_frame = request->GetParentFrame();
+
+          // We additionally check that the initiator is the current frame or a
+          // frame ancestor of the frame that is navigating, so that we don't
+          // try to pop up a permission prompt on a different tab/window than
+          // the one where the navigation is occurring.
+          RenderFrameHostImpl* current_frame =
+              request->frame_tree_node()->current_frame_host();
           while (current_frame) {
             if (current_frame == initiating_rfh) {
               rfh = initiating_rfh;
@@ -3397,8 +3399,8 @@ void StoragePartitionImpl::ClearDataForOrigin(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(initialized_);
   CookieDeletionFilterPtr deletion_filter = CookieDeletionFilter::New();
-  if (!storage_origin.host().empty()) {
-    deletion_filter->host_name = storage_origin.host();
+  if (!storage_origin.GetHost().empty()) {
+    deletion_filter->host_name = storage_origin.GetHost();
   }
   // Construct a |BrowsingDataFilterBuilder| instead of just passing a storage
   // key based on the origin directly. This is needed to be able to delete the

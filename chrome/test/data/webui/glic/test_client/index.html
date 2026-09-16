@@ -163,6 +163,17 @@ found in the LICENSE file.
     width: 300px;
     margin-left: 4px;
   }
+
+  #additionalContextResult {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  #additionalContextResult > img {
+    max-width: 100%;
+    height: auto;
+  }
 </style>
 <div id="pageHeader">
   <h1>Test Web Client</h1>
@@ -533,6 +544,12 @@ found in the LICENSE file.
       <button id="executeAction">Perform Actions</button>
     </div>
     <span id="actionStatus"></span>
+    <div id="credentialSelection" style="display: none">
+      <label for="selectCredential">Select credential:</label>
+      <select id="selectCredential"></select>
+      <button id="credentialOnce">Allow once</button>
+      <button id="credentialAlways">Allow always</button>
+    </div>
   </div>
   <div class="section" id="multiTabSection">
     <h1>Multi-Tab</h1>
@@ -571,8 +588,14 @@ found in the LICENSE file.
     <button id="mqlsClientIdBtn">Get and log ID</button>
   </div>
   <div class="section">
+    <h1>Additional Context</h1>
+    <div id="additionalContextResult">
+    </div>
+  </div>
+  <div class="section">
     <h1>Conversations</h1>
     <label>Conversation ID: <input id="conversationIdInput" type="text" /></label>
+    <label>Conversation Title: <input id="conversationTitleInput" type="text" /></label>
     <button id="switchConversationBtn">Switch Conversation</button>
     <button id="registerConversationBtn">Register Conversation</button>
     <br />

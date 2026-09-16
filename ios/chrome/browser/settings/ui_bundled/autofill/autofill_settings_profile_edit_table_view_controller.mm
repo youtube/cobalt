@@ -74,10 +74,17 @@ const CGFloat kSymbolSize = 22;
     _userEmail = userEmail;
     _editIncompleteProfileForAccountView = NO;
     _migrationToAccountSectionWasClicked = NO;
-    autofill::AutofillProfile::RecordType type = [_delegate accountRecordType];
-    _showEditButtonAsCell =
-        (type == autofill::AutofillProfile::RecordType::kAccountHome ||
-         type == autofill::AutofillProfile::RecordType::kAccountWork);
+    switch ([_delegate accountRecordType]) {
+      case autofill::AutofillProfile::RecordType::kAccountHome:
+      case autofill::AutofillProfile::RecordType::kAccountWork:
+      case autofill::AutofillProfile::RecordType::kAccountNameEmail:
+        _showEditButtonAsCell = YES;
+        break;
+      case autofill::AutofillProfile::RecordType::kAccount:
+      case autofill::AutofillProfile::RecordType::kLocalOrSyncable:
+        _showEditButtonAsCell = NO;
+        break;
+    }
   }
 
   return self;
@@ -134,18 +141,14 @@ const CGFloat kSymbolSize = 22;
 
   TableViewModel* model = self.tableViewModel;
   if (_showMigrateToAccountSection) {
-    AutofillProfileDetailsSectionIdentifier section =
-        AutofillProfileDetailsSectionIdentifierFields;
-    if (base::FeatureList::IsEnabled(
-            kAutofillDynamicallyLoadsFieldsForAddressInput)) {
-      section = AutofillProfileDetailsSectionIdentifierMigrationButton;
-      [model addSectionWithIdentifier:
-                 AutofillProfileDetailsSectionIdentifierMigrationButton];
-    }
+    [model addSectionWithIdentifier:
+               AutofillProfileDetailsSectionIdentifierMigrationButton];
     [model addItem:[self migrateToAccountRecommendationItem]
-        toSectionWithIdentifier:section];
+        toSectionWithIdentifier:
+            AutofillProfileDetailsSectionIdentifierMigrationButton];
     [model addItem:[self migrateToAccountButtonItem]
-        toSectionWithIdentifier:section];
+        toSectionWithIdentifier:
+            AutofillProfileDetailsSectionIdentifierMigrationButton];
   }
 
   if (_showEditButtonAsCell) {
@@ -256,20 +259,26 @@ const CGFloat kSymbolSize = 22;
     return;
   }
   if (itemType == AutofillProfileDetailsItemTypeEdit) {
-    autofill::AutofillProfile::RecordType type = [_delegate accountRecordType];
-    if (type == autofill::AutofillProfile::RecordType::kAccountHome) {
-      OpenNewTabCommand* command = [OpenNewTabCommand
-          commandWithURLFromChrome:GURL(kGoogleMyAccountHomeAddressURL)];
-      [self.applicationHandler closePresentedViewsAndOpenURL:command];
-      return;
+    std::string URL;
+    switch ([_delegate accountRecordType]) {
+      case autofill::AutofillProfile::RecordType::kAccountHome:
+        URL = kGoogleMyAccountHomeAddressURL;
+        break;
+      case autofill::AutofillProfile::RecordType::kAccountWork:
+        URL = kGoogleMyAccountWorkAddressURL;
+        break;
+      case autofill::AutofillProfile::RecordType::kAccountNameEmail:
+        URL = kGoogleAccountNameEmailAddressEditURL;
+        break;
+      case autofill::AutofillProfile::RecordType::kAccount:
+      case autofill::AutofillProfile::RecordType::kLocalOrSyncable:
+        NOTREACHED();
     }
 
-    if (type == autofill::AutofillProfile::RecordType::kAccountWork) {
-      OpenNewTabCommand* command = [OpenNewTabCommand
-          commandWithURLFromChrome:GURL(kGoogleMyAccountWorkAddressURL)];
-      [self.applicationHandler closePresentedViewsAndOpenURL:command];
-      return;
-    }
+    OpenNewTabCommand* command =
+        [OpenNewTabCommand commandWithURLFromChrome:GURL(URL)];
+    [self.applicationHandler closePresentedViewsAndOpenURL:command];
+    return;
   }
   [self.handler didSelectRowAtIndexPath:indexPath];
 }
@@ -356,42 +365,11 @@ const CGFloat kSymbolSize = 22;
 
 // Removes the migrate button section from the view.
 - (void)removeMigrateButton:(void (^)(BOOL finished))onCompletion {
-  __weak AutofillSettingsProfileEditTableViewController* weakSelf = self;
   [self
       performBatchTableViewUpdates:^{
-        TableViewModel* model = weakSelf.tableViewModel;
-        if (base::FeatureList::IsEnabled(
-                kAutofillDynamicallyLoadsFieldsForAddressInput)) {
-          [self removeSectionWithIdentifier:
-                    AutofillProfileDetailsSectionIdentifierMigrationButton
-                           withRowAnimation:UITableViewRowAnimationFade];
-        } else {
-          NSIndexPath* indexPathForMigrateRecommendationItem = [model
-              indexPathForItemType:
-                  AutofillProfileDetailsItemTypeMigrateToAccountRecommendation
-                 sectionIdentifier:
-                     AutofillProfileDetailsSectionIdentifierFields];
-          NSIndexPath* indexPathForMigrateButton =
-              [model indexPathForItemType:
-                         AutofillProfileDetailsItemTypeMigrateToAccountButton
-                        sectionIdentifier:
-                            AutofillProfileDetailsSectionIdentifierFields];
-
-          [model removeItemWithType:
-                     AutofillProfileDetailsItemTypeMigrateToAccountRecommendation
-              fromSectionWithIdentifier:
-                  AutofillProfileDetailsSectionIdentifierFields];
-          [model removeItemWithType:
-                     AutofillProfileDetailsItemTypeMigrateToAccountButton
-              fromSectionWithIdentifier:
-                  AutofillProfileDetailsSectionIdentifierFields];
-
-          [weakSelf.tableView
-              deleteRowsAtIndexPaths:@[
-                indexPathForMigrateRecommendationItem, indexPathForMigrateButton
-              ]
-                    withRowAnimation:UITableViewRowAnimationAutomatic];
-        }
+        [self removeSectionWithIdentifier:
+                  AutofillProfileDetailsSectionIdentifierMigrationButton
+                         withRowAnimation:UITableViewRowAnimationFade];
       }
                         completion:onCompletion];
   _showMigrateToAccountSection = NO;

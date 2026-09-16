@@ -72,8 +72,7 @@ public class TileRenderer {
     private @Nullable Profile mProfile;
 
     @LayoutRes private final int mTileLayoutResId;
-    private final float mTileWidthDp;
-    private final float mDividerWidthDp;
+    private final float mTileWidth;
 
     private class LargeIconCallbackImpl implements LargeIconBridge.LargeIconCallback {
         private final WeakReference<Tile> mTile;
@@ -152,8 +151,7 @@ public class TileRenderer {
         mMinIconSize = Math.min(mDesiredIconSize, minIconSize);
 
         mTileLayoutResId = getTileLayoutResId();
-        mTileWidthDp = res.getDimension(getTileWidthDimenResId());
-        mDividerWidthDp = res.getDimension(R.dimen.tile_view_divider_width);
+        mTileWidth = res.getDimension(getTileWidthDimenResId());
 
         int iconColor = mContext.getColor(R.color.default_favicon_background_color);
         int iconTextSize = res.getDimensionPixelSize(R.dimen.tile_view_icon_text_size);
@@ -214,7 +212,7 @@ public class TileRenderer {
                 if (prevTile != null
                         && (prevTile.getData().source == TileSource.CUSTOM_LINKS)
                                 != (tile.getData().source == TileSource.CUSTOM_LINKS)) {
-                    parent.addNonTileViewWithWidth(buildDivider(parent), mDividerWidthDp);
+                    parent.addDivider(buildDivider(parent));
                 }
                 parent.addTile(tileView);
                 if (focusedUrl != null && focusedUrl.equals(tile.getUrl().getSpec())) {
@@ -230,7 +228,7 @@ public class TileRenderer {
 
             if (shouldShowAddNewButton(sectionTiles)) {
                 TileView addCustomLinksButton = buildAddCustomLinksButton(parent, setupDelegate);
-                parent.addNonTileViewWithWidth(addCustomLinksButton, mTileWidthDp);
+                parent.addUiView(addCustomLinksButton, mTileWidth);
             }
         }
     }
@@ -378,6 +376,9 @@ public class TileRenderer {
                     RecordUserAction.record("Suggestions.Button.AddItem");
                     setupDelegate.getCustomTileModificationDelegate().add();
                 });
+        // Allow "Add new" title translation to wrap to second line. We change max lines instead of
+        // lines to avoid (clickable) blank line appearing at bottom if the title fits in one line.
+        tileView.setTitleMaxLines(2);
         // Prevent Custom Tile swap key from  propagating (i.e., suppress scrolls) to make the
         // button's behavior more similar to Custom Tiles.
         tileView.setOnKeyListener(

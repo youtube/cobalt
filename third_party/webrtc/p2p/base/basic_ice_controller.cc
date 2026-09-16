@@ -117,7 +117,7 @@ void BasicIceController::OnConnectionDestroyed(const Connection* connection) {
 }
 
 bool BasicIceController::HasPingableConnection() const {
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  Timestamp now = env_.clock().CurrentTime();
   return absl::c_any_of(connections_, [this, now](const Connection* c) {
     return IsPingable(c, now);
   });
@@ -138,8 +138,7 @@ IceControllerInterface::PingResult BasicIceController::GetConnectionToPing(
                                 : strong_ping_interval();
 
   const Connection* conn = nullptr;
-  if (Connection::AlignTime(env_.clock().CurrentTime()) >=
-      last_ping_sent + ping_interval) {
+  if (env_.clock().CurrentTime() >= last_ping_sent + ping_interval) {
     conn = FindNextPingableConnection();
   }
   return PingResult(conn, std::min(ping_interval, check_receiving_interval()));
@@ -153,7 +152,7 @@ void BasicIceController::MarkConnectionPinged(const Connection* conn) {
 
 // Returns the next pingable connection to ping.
 const Connection* BasicIceController::FindNextPingableConnection() {
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  Timestamp now = env_.clock().CurrentTime();
 
   // Rule 1: Selected connection takes priority over non-selected ones.
   if (selected_connection_ && selected_connection_->connected() &&
@@ -453,7 +452,7 @@ BasicIceController::HandleInitialSelectDampening(
     return {.connection = new_connection};
   }
 
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  Timestamp now = env_.clock().CurrentTime();
   int64_t max_delay = 0;
   if (new_connection->LastPingReceived() > Timestamp::Zero() &&
       field_trials_->initial_select_dampening_ping_received.has_value()) {
@@ -520,11 +519,11 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
   // TODO: bugs.webrtc.org/42223979 - consider switching threshold to
   // Timestamp type, but beware of subtracting that may lead to negative
   // Timestamp that DCHECKs
-  std::optional<int64_t> receiving_unchanged_threshold =
-      Connection::AlignTime(env_.clock().CurrentTime()).ms() -
+  int64_t receiving_unchanged_threshold_ms =
+      env_.clock().CurrentTime().ms() -
       config_.receiving_switching_delay_or_default().ms();
   int cmp = CompareConnections(selected_connection_, new_connection,
-                               receiving_unchanged_threshold,
+                               receiving_unchanged_threshold_ms,
                                &missed_receiving_unchanged_threshold);
 
   std::optional<IceRecheckEvent> recheck_event;

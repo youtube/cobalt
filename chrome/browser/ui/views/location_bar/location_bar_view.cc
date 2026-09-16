@@ -48,7 +48,11 @@
 #include "chrome/browser/ui/content_settings/content_setting_bubble_model.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
+#include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -103,10 +107,7 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/omnibox_client.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
-#include "components/omnibox/browser/omnibox_popup_view.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_text_util.h"
 #include "components/omnibox/browser/vector_icons.h"
@@ -770,7 +771,7 @@ void LocationBarView::Layout(PassKey) {
   } else if (ShouldShowKeywordBubble()) {
     // Otherwise, if in keyword mode, adjust indentation to align the icon and
     // the text with the suggestion icons & texts.
-    icon_left += 9;  /*icon_indent_keyword_mode*/
+    icon_left += 9; /*icon_indent_keyword_mode*/
     icon_left += omnibox_feature_configs::AdjustOmniboxIndent()
                      .Get()
                      .input_icon_indent_offset;
@@ -1386,13 +1387,21 @@ void LocationBarView::RefreshPageActionIconViews() {
 }
 
 void LocationBarView::RefreshAiModePageActionIconView() {
+  if (IsPageActionMigrated(PageActionIconType::kAiMode)) {
+    auto* aim_page_action_controller =
+        omnibox::AiModePageActionController::From(browser_);
+    if (aim_page_action_controller) {
+      aim_page_action_controller->UpdatePageAction();
+    }
+    return;
+  }
+
   PageActionIconView* aim_icon_view =
       page_action_icon_controller_->GetIconView(PageActionIconType::kAiMode);
   if (aim_icon_view) {
     aim_icon_view->Update();
   }
 }
-
 
 void LocationBarView::RefreshPageActionContainerViewAndIconsVisibility(
     bool should_hide_page_actions) {

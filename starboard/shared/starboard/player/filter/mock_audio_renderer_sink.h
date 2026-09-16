@@ -33,18 +33,14 @@ class MockAudioRendererSink : public AudioRendererSink {
                           int* min_frames_per_append));
   MOCK_CONST_METHOD1(IsAudioSampleTypeSupported,
                      bool(SbMediaAudioSampleType audio_sample_type));
-  MOCK_CONST_METHOD1(
-      IsAudioFrameStorageTypeSupported,
-      bool(SbMediaAudioFrameStorageType audio_frame_storage_type));
   MOCK_CONST_METHOD1(GetNearestSupportedSampleFrequency,
                      int(int sampling_frequency_hz));
   MOCK_CONST_METHOD0(HasStarted, bool());
-  MOCK_METHOD8(Start,
+  MOCK_METHOD7(Start,
                void(int64_t media_start_time,
                     int channels,
                     int sampling_frequency_hz,
                     SbMediaAudioSampleType audio_sample_type,
-                    SbMediaAudioFrameStorageType audio_frame_storage_type,
                     SbAudioSinkFrameBuffers frame_buffers,
                     int frames_per_channel,
                     RenderCallback* render_callback));

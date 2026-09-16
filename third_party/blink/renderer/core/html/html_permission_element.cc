@@ -246,7 +246,6 @@ V8PermissionState::Enum PermissionStatusToV8Enum(MojoPermissionStatus status) {
     case MojoPermissionStatus::ASK:
       return V8PermissionState::Enum::kPrompt;
     case MojoPermissionStatus::DENIED:
-    case MojoPermissionStatus::UNSATISFIED_OPTIONS:
       return V8PermissionState::Enum::kDenied;
   }
   NOTREACHED();
@@ -586,7 +585,7 @@ uint16_t HTMLPermissionElement::GetTranslatedMessageID(
       .value_or(message_id);
 }
 
-void HTMLPermissionElement::UpdateText() {
+void HTMLPermissionElement::UpdateAppearance() {
   bool permission_granted;
   PermissionName permission_name;
   wtf_size_t permission_count;
@@ -604,16 +603,10 @@ void HTMLPermissionElement::UpdateText() {
     permission_name = permission_status_map_.begin()->key;
     permission_count = permission_status_map_.size();
   }
-  if (RuntimeEnabledFeatures::PermissionElementIconEnabled(
-          GetDocument().GetExecutionContext())) {
-    GetTaskRunner()->PostTask(
-        FROM_HERE,
-        BindOnce(&HTMLPermissionIconElement::SetIcon,
-                 WrapWeakPersistent(permission_internal_icon_.Get()),
-                 permission_count == 1 ? permission_name
-                                       : PermissionName::VIDEO_CAPTURE,
-                 is_precise_location_));
-  }
+
+  UpdateIcon(permission_count == 1 ? permission_name
+                                   : PermissionName::VIDEO_CAPTURE);
+
   AtomicString language_string = ComputeInheritedLanguage().LowerASCII();
 
   uint16_t untranslated_message_id =
@@ -628,10 +621,22 @@ void HTMLPermissionElement::UpdateText() {
       GetLocale().QueryString(translated_message_id));
 }
 
+void HTMLPermissionElement::UpdateIcon(
+    PermissionName permnission,
+    HTMLPermissionIconElement::VisualState visual_state) {
+  if (!RuntimeEnabledFeatures::PermissionElementIconEnabled(
+          GetDocument().GetExecutionContext())) {
+    return;
+  }
+
+  permission_internal_icon_->SetIcon(permnission, is_precise_location_,
+                                     visual_state);
+}
+
 void HTMLPermissionElement::UpdatePermissionStatusAndAppearance() {
   UpdatePermissionStatus();
   PseudoStateChanged(CSSSelector::kPseudoPermissionGranted);
-  UpdateText();
+  UpdateAppearance();
 }
 
 mojom::blink::EmbeddedPermissionRequestDescriptorPtr
@@ -808,7 +813,7 @@ void HTMLPermissionElement::EnsureUnregisterPageEmbeddedPermissionControl() {
 }
 
 void HTMLPermissionElement::LangAttributeChanged() {
-  UpdateText();
+  UpdateAppearance();
   HTMLElement::LangAttributeChanged();
 }
 
@@ -827,7 +832,7 @@ void HTMLPermissionElement::AttributeChanged(
     }
 
     is_precise_location_ = true;
-    UpdateText();
+    UpdateAppearance();
   }
 
   HTMLElement::AttributeChanged(params);
@@ -1010,18 +1015,27 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
   }
 
   // The radius is adjusted to be at most the hardcoded percentage.
-  builder.SetBorderTopLeftRadius(AdjustedPercentBoundedRadius(
-      builder.BorderTopLeftRadius(), kDefaultMaxPercentRadiusWidth,
-      kDefaultMaxPercentRadiusHeight));
-  builder.SetBorderTopRightRadius(AdjustedPercentBoundedRadius(
-      builder.BorderTopRightRadius(), kDefaultMaxPercentRadiusWidth,
-      kDefaultMaxPercentRadiusHeight));
-  builder.SetBorderBottomLeftRadius(AdjustedPercentBoundedRadius(
-      builder.BorderBottomLeftRadius(), kDefaultMaxPercentRadiusWidth,
-      kDefaultMaxPercentRadiusHeight));
-  builder.SetBorderBottomRightRadius(AdjustedPercentBoundedRadius(
-      builder.BorderBottomRightRadius(), kDefaultMaxPercentRadiusWidth,
-      kDefaultMaxPercentRadiusHeight));
+  // However if all border radius are identical there is no need as it will
+  // result in a "pill"-shape which is desired behavior. Applying these
+  // restrictions would prevent this behavior.
+  if (builder.BorderTopLeftRadius() != builder.BorderTopRightRadius() ||
+      builder.BorderTopLeftRadius() != builder.BorderBottomLeftRadius() ||
+      builder.BorderTopLeftRadius() != builder.BorderBottomRightRadius() ||
+      builder.BorderTopLeftRadius().Height() !=
+          builder.BorderTopLeftRadius().Width()) {
+    builder.SetBorderTopLeftRadius(AdjustedPercentBoundedRadius(
+        builder.BorderTopLeftRadius(), kDefaultMaxPercentRadiusWidth,
+        kDefaultMaxPercentRadiusHeight));
+    builder.SetBorderTopRightRadius(AdjustedPercentBoundedRadius(
+        builder.BorderTopRightRadius(), kDefaultMaxPercentRadiusWidth,
+        kDefaultMaxPercentRadiusHeight));
+    builder.SetBorderBottomLeftRadius(AdjustedPercentBoundedRadius(
+        builder.BorderBottomLeftRadius(), kDefaultMaxPercentRadiusWidth,
+        kDefaultMaxPercentRadiusHeight));
+    builder.SetBorderBottomRightRadius(AdjustedPercentBoundedRadius(
+        builder.BorderBottomRightRadius(), kDefaultMaxPercentRadiusWidth,
+        kDefaultMaxPercentRadiusHeight));
+  }
 
   // The base `text-decoration` property must be reset for each `<permission>`
   // element. This prevents any `text-decoration` from a parent element from

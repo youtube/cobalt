@@ -538,7 +538,7 @@ void StyleRule::TraceAfterDispatch(blink::Visitor* visitor) const {
   const CSSSelector* current = SelectorArray();
   do {
     visitor->Trace(*current);
-  } while (!(UNSAFE_TODO(current++))->IsLastInSelectorList());
+  } while (!(UNSAFE_TODO(current++))->IsLastInSelectorListForOilpan());
 
   StyleRuleBase::TraceAfterDispatch(visitor);
 }
@@ -892,6 +892,7 @@ StyleRulePageMargin::StyleRulePageMargin(CSSAtRuleID id,
 StyleRulePageMargin::StyleRulePageMargin(
     const StyleRulePageMargin& page_margin_rule)
     : StyleRuleBase(page_margin_rule),
+      id_(page_margin_rule.id_),
       properties_(page_margin_rule.properties_->MutableCopy()) {}
 
 MutableCSSPropertyValueSet& StyleRulePageMargin::MutableProperties() {
@@ -990,12 +991,17 @@ void StyleRuleContainer::TraceAfterDispatch(blink::Visitor* visitor) const {
 }
 
 StyleRuleRoute::StyleRuleRoute(const String& name,
+                               RoutePreposition preposition,
                                HeapVector<Member<StyleRuleBase>> child_rules)
-    : StyleRuleCondition(kRoute, std::move(child_rules)), name_(name) {}
+    : StyleRuleCondition(kRoute, std::move(child_rules)),
+      name_(name),
+      preposition_(preposition) {}
 
 StyleRuleRoute::StyleRuleRoute(const StyleRuleRoute& other,
                                HeapVector<Member<StyleRuleBase>> child_rules)
-    : StyleRuleCondition(kRoute, std::move(child_rules)), name_(other.name_) {}
+    : StyleRuleCondition(kRoute, std::move(child_rules)),
+      name_(other.name_),
+      preposition_(other.preposition_) {}
 
 StyleRuleStartingStyle::StyleRuleStartingStyle(
     HeapVector<Member<StyleRuleBase>> rules)

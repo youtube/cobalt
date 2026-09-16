@@ -170,7 +170,9 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
       blink::mojom::MediaStreamRequestResult* request_result,
       blink::mojom::StreamDevices& devices_result,
       bool request_audio,
-      bool expect_result = true) {
+      bool expect_result = true,
+      bool expect_picker = true,
+      std::optional<content::MediaStreamRequest> request = std::nullopt) {
     SetTestFlags({{.expect_screens = true,
                    .expect_windows = true,
                    .expect_tabs = true,
@@ -178,7 +180,9 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
                    .expect_audio = request_audio,
                    .picker_result = response}});
 
-    content::MediaStreamRequest request = MakeRequest(request_audio);
+    if (!request.has_value()) {
+      request = MakeRequest(request_audio);
+    }
 
     base::RunLoop wait_loop;
     content::MediaResponseCallback callback;
@@ -191,19 +195,19 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
       callback = mock_callback.Get();
     }
 
-    access_handler_->HandleRequest(web_contents(), request, std::move(callback),
-                                   nullptr /* extension */);
+    access_handler_->HandleRequest(
+        web_contents(), *request, std::move(callback), nullptr /* extension */);
     if (expect_result) {
       wait_loop.Run();
     } else {
       wait_loop.RunUntilIdle();
     }
 
-    EXPECT_TRUE(test_flags_[0].picker_created);
+    EXPECT_EQ(test_flags_[0].picker_created, expect_picker);
 
     picker_factory_ = nullptr;
     access_handler_.reset();
-    EXPECT_TRUE(test_flags_[0].picker_deleted);
+    EXPECT_EQ(test_flags_[0].picker_deleted, expect_picker);
   }
 
   void NotifyWebContentsDestroyed() {
@@ -375,6 +379,68 @@ TEST_F(DisplayMediaAccessHandlerTest, OverMaxLengthDomainRejected) {
                                          content::DesktopMediaID::kFakeId),
                  &result, devices, false /* request_audio */);
   EXPECT_EQ(blink::mojom::MediaStreamRequestResult::INVALID_STATE, result);
+}
+
+class DisplayMediaAccessHandlerActiveRfhTest
+    : public DisplayMediaAccessHandlerTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  DisplayMediaAccessHandlerActiveRfhTest() : active_rfh_(GetParam()) {}
+  ~DisplayMediaAccessHandlerActiveRfhTest() override = default;
+
+  void SetUp() override {
+    DisplayMediaAccessHandlerTest::SetUp();
+    Navigate("https://a.com");
+  }
+
+  void Navigate(const std::string& url) {
+    std::unique_ptr<content::NavigationSimulator> navigation =
+        content::NavigationSimulator::CreateBrowserInitiated(GURL(url),
+                                                             web_contents());
+    navigation->Commit();
+  }
+
+  void DeactivateMainRfh() {
+    // Cross-origin navigation will deactivate the previous RFH.
+    Navigate("https://b.com");
+  }
+
+ protected:
+  const bool active_rfh_;
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         DisplayMediaAccessHandlerActiveRfhTest,
+                         testing::Bool());
+
+TEST_P(DisplayMediaAccessHandlerActiveRfhTest, ProcessRequest) {
+  blink::mojom::MediaStreamRequestResult result;
+  blink::mojom::StreamDevices devices;
+  const content::DesktopMediaID media_id(
+      content::DesktopMediaID::TYPE_WEB_CONTENTS,
+      content::DesktopMediaID::kNullId, GetWebContentsMediaCaptureId());
+
+  // Lock in the RFH for use after deactivation. (If `!active_rfh_`; otherwise
+  // it stays active.)
+  const bool request_audio = false;
+  content::MediaStreamRequest request = MakeRequest(request_audio);
+  request.render_process_id =
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
+  request.render_frame_id =
+      web_contents()->GetPrimaryMainFrame()->GetRoutingID();
+
+  if (!active_rfh_) {
+    DeactivateMainRfh();
+  }
+
+  ProcessRequest(media_id, &result, devices, request_audio,
+                 /*expect_result=*/true, /*expect_picker=*/active_rfh_,
+                 request);
+
+  EXPECT_EQ(result,
+            active_rfh_
+                ? blink::mojom::MediaStreamRequestResult::OK
+                : blink::mojom::MediaStreamRequestResult::INVALID_STATE);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1021,13 +1087,8 @@ TEST_P(DisplayMediaAccessHandlerTestWithMonitorTypeSurfaces,
 
 #if BUILDFLAG(IS_WIN)
 class DisplayMediaAccessHandlerWindowAudioCaptureWinTest
-    : public base::test::WithFeatureOverride,
-      public DisplayMediaAccessHandlerTest {
- public:
-  DisplayMediaAccessHandlerWindowAudioCaptureWinTest()
-      : base::test::WithFeatureOverride(features::kApplicationAudioCaptureWin) {
-  }
-};
+    : public DisplayMediaAccessHandlerTest,
+      public testing::WithParamInterface<content::DesktopMediaID::AudioType> {};
 
 TEST_P(DisplayMediaAccessHandlerWindowAudioCaptureWinTest, ValidWindowId) {
   blink::mojom::MediaStreamRequestResult result;
@@ -1039,25 +1100,32 @@ TEST_P(DisplayMediaAccessHandlerWindowAudioCaptureWinTest, ValidWindowId) {
   EXPECT_TRUE(window.Create(
       base::BindLambdaForTesting([&](UINT message, WPARAM wparam, LPARAM lparam,
                                      LRESULT* result) { return true; })));
-  ProcessRequest(
-      content::DesktopMediaID(content::DesktopMediaID::TYPE_WINDOW,
-                              reinterpret_cast<intptr_t>(window.hwnd()),
-                              true /* audio_share */),
-      &result, devices, true /* request_audio */);
+
+  const bool audio_share =
+      GetParam() != content::DesktopMediaID::AudioType::kNone;
+  content::DesktopMediaID fake_id(content::DesktopMediaID::TYPE_WINDOW,
+                                  reinterpret_cast<intptr_t>(window.hwnd()),
+                                  audio_share);
+  fake_id.window_audio_type = GetParam();
+  ProcessRequest(fake_id, &result, devices, audio_share);
 
   EXPECT_EQ(blink::mojom::MediaStreamRequestResult::OK, result);
-  EXPECT_EQ(2u, blink::CountDevices(devices));
+
+  // If the audio type is `kNone`, we should not get an audio device.
+  if (GetParam() == content::DesktopMediaID::AudioType::kNone) {
+    EXPECT_EQ(1u, blink::CountDevices(devices));
+  } else {
+    EXPECT_EQ(2u, blink::CountDevices(devices));
+    EXPECT_EQ(blink::mojom::MediaStreamType::DISPLAY_AUDIO_CAPTURE,
+              devices.audio_device.value().type);
+  }
 
   EXPECT_EQ(blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE,
             devices.video_device.value().type);
   EXPECT_TRUE(devices.video_device.value().display_media_info);
 
-  EXPECT_EQ(blink::mojom::MediaStreamType::DISPLAY_AUDIO_CAPTURE,
-            devices.audio_device.value().type);
-
-  if (IsParamFeatureEnabled()) {
+  if (GetParam() == content::DesktopMediaID::AudioType::kApplication) {
     EXPECT_TRUE(devices.audio_device.value().input.IsValid());
-
     // Unit tests are executed in a child process that also use the same
     // executable image (unit_tests.exe) unless the --single-process flag is
     // passed. Therefore, the application process ID should match either the
@@ -1071,7 +1139,8 @@ TEST_P(DisplayMediaAccessHandlerWindowAudioCaptureWinTest, ValidWindowId) {
                                    base::Process::Current().Handle())));
 
     EXPECT_EQ("Application Audio", devices.audio_device->name);
-  } else {
+  } else if (GetParam() == content::DesktopMediaID::AudioType::kSystem) {
+    // System audio device ID and name are constant.
     EXPECT_EQ("loopback", devices.audio_device->id);
     EXPECT_EQ("System Audio", devices.audio_device->name);
   }
@@ -1080,25 +1149,44 @@ TEST_P(DisplayMediaAccessHandlerWindowAudioCaptureWinTest, ValidWindowId) {
 TEST_P(DisplayMediaAccessHandlerWindowAudioCaptureWinTest, InvalidWindowId) {
   blink::mojom::MediaStreamRequestResult result;
   blink::mojom::StreamDevices devices;
-  ProcessRequest(content::DesktopMediaID(content::DesktopMediaID::TYPE_WINDOW,
-                                         content::DesktopMediaID::kFakeId,
-                                         true /* audio_share */),
-                 &result, devices, true /* request_audio */);
+  const bool audio_share =
+      GetParam() != content::DesktopMediaID::AudioType::kNone;
+  content::DesktopMediaID fake_id(content::DesktopMediaID::TYPE_WINDOW,
+                                  content::DesktopMediaID::kFakeId,
+                                  audio_share);
+  fake_id.window_audio_type = GetParam();
+  ProcessRequest(fake_id, &result, devices, audio_share);
 
   EXPECT_EQ(blink::mojom::MediaStreamRequestResult::OK, result);
-  if (IsParamFeatureEnabled()) {
-    // If the feature is enabled but the window ID is invalid, audio should not
-    // be captured.
+  // If the window ID is invalid, window audio should not be captured.
+  if (!audio_share ||
+      GetParam() == content::DesktopMediaID::AudioType::kApplication) {
     EXPECT_EQ(1u, blink::CountDevices(devices));
   } else {
     EXPECT_EQ(2u, blink::CountDevices(devices));
   }
+
   EXPECT_EQ(blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE,
             devices.video_device.value().type);
   EXPECT_TRUE(devices.video_device.value().display_media_info);
 }
 
-INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
-    DisplayMediaAccessHandlerWindowAudioCaptureWinTest);
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    DisplayMediaAccessHandlerWindowAudioCaptureWinTest,
+    testing::Values(content::DesktopMediaID::AudioType::kNone,
+                    content::DesktopMediaID::AudioType::kSystem,
+                    content::DesktopMediaID::AudioType::kApplication),
+    [](const testing::TestParamInfo<content::DesktopMediaID::AudioType>& info) {
+      switch (info.param) {
+        case content::DesktopMediaID::AudioType::kNone:
+          return "NoAudio";
+        case content::DesktopMediaID::AudioType::kSystem:
+          return "SystemAudio";
+        case content::DesktopMediaID::AudioType::kApplication:
+          return "ApplicationAudio";
+      }
+      NOTREACHED();
+    });
 
 #endif  // BUILDFLAG(IS_WIN)

@@ -29,6 +29,7 @@
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/result_codes.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_frame_navigation_observer.h"
@@ -180,6 +181,59 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   EXPECT_EQ(frame_metadata.meta_tags(2).content(), "val");
 
   actor_keyed_service()->StopTask(task_id, /*success=*/true);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
+                       RequestTabObservationSkipCrashedMainFrame) {
+  TaskId task_id = actor_keyed_service()->CreateTask();
+
+  // Crash the main frame.
+  {
+    auto* main_frame_proc = web_contents()->GetPrimaryMainFrame()->GetProcess();
+    content::RenderProcessHostWatcher crashed_obs(
+        main_frame_proc,
+        content::RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+    main_frame_proc->Shutdown(content::RESULT_CODE_KILLED);
+    crashed_obs.Wait();
+  }
+
+  TestFuture<ActorKeyedService::TabObservationResult> future;
+  actor_keyed_service()->RequestTabObservation(*active_tab(), task_id,
+                                               future.GetCallback());
+
+  const ActorKeyedService::TabObservationResult& result = future.Get();
+  ASSERT_FALSE(result.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
+                       RequestTabObservationSkipAsyncObservationInformation) {
+  TaskId task_id = actor_keyed_service()->CreateTask();
+  // Navigate the active tab to a new page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_https_test_server().GetURL("/actor/blank.html")));
+
+  actor::ActorTask* task = actor_keyed_service()->GetTask(task_id);
+  TestFuture<mojom::ActionResultPtr> add_tab_future;
+  task->AddTab(browser()->GetActiveTabInterface()->GetHandle(),
+               add_tab_future.GetCallback());
+  auto add_tab_result = add_tab_future.Take();
+  ASSERT_TRUE(add_tab_result);
+
+  TestFuture<std::unique_ptr<optimization_guide::proto::ActionsResult>,
+             std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>>
+      future;
+  actor::BuildActionsResultWithObservations(
+      *browser()->profile(), base::TimeTicks::Now(),
+      mojom::ActionResultCode::kOk, std::nullopt,
+      std::vector<actor::ActionResultWithLatencyInfo>(), *task, true,
+      future.GetCallback());
+  auto [actions_result, _] = future.Take();
+  ASSERT_TRUE(actions_result);
+  EXPECT_EQ(actions_result->action_result(),
+            static_cast<int32_t>(mojom::ActionResultCode::kOk));
+  EXPECT_EQ(actions_result->tabs_size(), 1);
+  EXPECT_FALSE(actions_result->tabs()[0].has_annotated_page_content());
+  EXPECT_FALSE(actions_result->tabs()[0].has_screenshot());
 }
 
 }  // namespace

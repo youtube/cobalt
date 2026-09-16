@@ -36,6 +36,7 @@
 #include "google_apis/gaia/oauth2_id_token_decoder.h"
 #include "google_apis/gaia/oauth_multilogin_result.h"
 #include "net/base/isolation_info.h"
+#include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -50,7 +51,8 @@ constexpr char kJsonContentType[] = "application/json;charset=UTF-8";
 
 std::unique_ptr<const GaiaAuthConsumer::ClientOAuthResult>
 ExtractOAuth2TokenPairResponse(const std::string& data) {
-  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(data);
+  std::optional<base::Value::Dict> dict =
+      base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return nullptr;
   }
@@ -94,7 +96,8 @@ GetTokenRevocationStatusFromResponseData(const std::string& data,
   if (response_code == net::HTTP_INTERNAL_SERVER_ERROR)
     return GaiaAuthConsumer::TokenRevocationStatus::kServerError;
 
-  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(data);
+  std::optional<base::Value::Dict> dict =
+      base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return GaiaAuthConsumer::TokenRevocationStatus::kUnknownError;
   }
@@ -112,7 +115,8 @@ GetTokenRevocationStatusFromResponseData(const std::string& data,
 }
 
 base::Value::Dict ParseJSONDict(const std::string& data) {
-  return base::JSONReader::ReadDict(data).value_or(base::Value::Dict());
+  return base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+      .value_or(base::Value::Dict());
 }
 
 GaiaAuthConsumer::ReAuthProofTokenStatus ErrorMessageToReAuthProofTokenStatus(
@@ -476,7 +480,8 @@ void GaiaAuthFetcher::StartOAuthMultilogin(
     gaia::MultiloginMode mode,
     const std::vector<gaia::MultiloginAccountAuthCredentials>& accounts,
     const std::string& external_cc_result,
-    OAuthMultiloginResult::CookieDecryptor cookie_decryptor) {
+    OAuthMultiloginResult::CookieDecryptor cookie_decryptor,
+    bool enable_oaml_cookie_binding) {
   DCHECK(!fetch_pending_) << "Tried to fetch two things at once!";
 
   UMA_HISTOGRAM_COUNTS_100("Signin.Multilogin.NumberOfAccounts",
@@ -502,17 +507,21 @@ void GaiaAuthFetcher::StartOAuthMultilogin(
         "MultiBearer " + base::JoinString(authorization_header_parts, ","));
   }
 
-  std::string source_string = base::EscapeUrlEncodedData(source_, true);
-  std::string parameters = base::StringPrintf(
-      "?source=%s&reuseCookies=%i", source_string.c_str(),
+  GURL url = oauth_multilogin_gurl_;
+  url = net::AppendQueryParameter(url, "source", source_);
+  url = net::AppendQueryParameter(
+      url, "reuseCookies",
       mode == gaia::MultiloginMode::MULTILOGIN_PRESERVE_COOKIE_ACCOUNTS_ORDER
-          ? 1
-          : 0);
+          ? "1"
+          : "0");
   if (!external_cc_result.empty()) {
-    base::StringAppendF(
-        &parameters, "&externalCcResult=%s",
-        base::EscapeUrlEncodedData(external_cc_result, true).c_str());
+    url =
+        net::AppendQueryParameter(url, "externalCcResult", external_cc_result);
   }
+  if (enable_oaml_cookie_binding) {
+    url = net::AppendQueryParameter(url, "oaml_cookie_binding", "1");
+  }
+
   oauth_multilogin_cookie_decryptor_ = std::move(cookie_decryptor);
 
   net::NetworkTrafficAnnotationTag traffic_annotation =
@@ -543,9 +552,9 @@ void GaiaAuthFetcher::StartOAuthMultilogin(
             }
           }
         })");
+
   CreateAndStartGaiaFetcher(" ",  // Non-empty to force a POST
-                            kFormEncodedContentType, headers,
-                            oauth_multilogin_gurl_.Resolve(parameters),
+                            kFormEncodedContentType, headers, url,
                             network::mojom::CredentialsMode::kInclude,
                             traffic_annotation);
 }

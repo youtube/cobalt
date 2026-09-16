@@ -75,7 +75,15 @@ enum class OAuthConsumerId {
   kNearbyPresenceServerClient = 60,
   kCryptAuthClient = 61,
   kAmbientMode = 62,
-  kMaxValue = kAmbientMode,
+  kProfileDownloader = 63,
+  kDataSharingAndroid = 64,
+  kExtensionsIdentityAPI = 65,
+  kManta = 66,
+  kChromeMemex = 67,
+  kDevtoolsAida = 68,
+  kChromeOsBabelOrca = 69,
+  kChromeOsBocaSchoolToolsAuth = 70,
+  kMaxValue = kChromeOsBocaSchoolToolsAuth,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

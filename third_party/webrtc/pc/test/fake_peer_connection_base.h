@@ -47,7 +47,6 @@
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "call/call.h"
 #include "call/payload_type_picker.h"
 #include "p2p/base/port.h"
@@ -405,10 +404,6 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   void DestroyDataChannelTransport(RTCError error) override {}
 
   const FieldTrialsView& trials() const override { return field_trials_; }
-
-  NetworkControllerInterface* GetNetworkController() override {
-    return nullptr;
-  }
 
   PayloadTypePicker& payload_type_picker() override {
     return payload_type_picker_;

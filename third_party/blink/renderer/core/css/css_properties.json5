@@ -822,6 +822,17 @@
       default: false,
       valid_type: "bool",
     },
+
+    // - highlight_style_comes_from_originating_element: true
+    //
+    // ::highlight pseudo styles have different inheritance rules, where almost
+    // all properties (even non-inherited ones) come from the parent style.
+    // A couple of styles and fields are different in that they come from the
+    // originating element's style instead, and those are marked as 'true' here.
+    highlight_style_comes_from_originating_element: {
+      default: false,
+      valid_type: "bool",
+    },
   },
 
   // Members in the data objects should appear in the same order as in the
@@ -1043,19 +1054,6 @@
       type_name: "HeapVector<Member<StyleTriggerAttachmentVector>>",
       include_paths: ["third_party/blink/renderer/core/style/style_trigger_attachment.h"],
       default_value: "{ nullptr }",
-      separator: ",",
-      valid_for_marker: true,
-      runtime_flag: "AnimationTrigger",
-    },
-    {
-      name: "timeline-trigger-behavior",
-      property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal", "InitialValue"],
-      style_builder_template: "animation",
-      style_builder_template_args: {
-        attribute: "TimelineTriggerBehavior",
-      },
-      keywords: ["once", "repeat", "alternate", "state"],
-      typedom_types: ["Keyword"],
       separator: ",",
       valid_for_marker: true,
       runtime_flag: "AnimationTrigger",
@@ -1714,6 +1712,7 @@
       default_value: "auto",
       computable: false,
       valid_for_permission_element: true,
+      highlight_style_comes_from_originating_element: true,
     },
     {
       name: "field-sizing",
@@ -1790,6 +1789,7 @@
       // the font.
       supports_incremental_style: false,
       invalidate: ["layout", "paint"],
+      highlight_style_comes_from_originating_element: true,
     },
     {
       name: "-webkit-writing-mode",
@@ -2947,7 +2947,6 @@
       keywords: ["none", "strict", "content", "size", "layout", "style", "paint", "inline-size", "block-size", "view-transition"],
       typedom_types: ["Keyword"],
       computable: false,
-      valid_for_permission_element: true,
       invalidate: ["layout"],
     },
     {
@@ -3731,7 +3730,6 @@
       default_value: "auto",
       invalidate: [],
       affected_by_all: false,
-      runtime_flag: "CSSInert",
     },
     {
       name: "interpolate-size",
@@ -3871,6 +3869,9 @@
       valid_for_page_context: true,
       affected_by_zoom: true,
       invalidate: ["layout", "paint"],
+      // The font and line height are necessary to correctly resolve font relative
+      // units.
+      highlight_style_comes_from_originating_element: true,
     },
     {
       name: "list-style-image",
@@ -4098,8 +4099,6 @@
       runtime_flag: "CSSMasonryLayout",
     },
     {
-      // TODO(crbug.com/343257585): We might need to alter the spec's grammar to accept
-      // normal | <length-percentage>. With normal, we use `1em` for tolerance size.
       name: "item-tolerance",
       include_paths: ["third_party/blink/renderer/core/style/item_tolerance.h"],
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
@@ -4937,7 +4936,6 @@
       default_value: "visible",
       typedom_types: ["Keyword"],
       computable: false,
-      valid_for_permission_element: true,
       invalidate: ["layout"],
     },
     {
@@ -9017,9 +9015,8 @@
       name: "timeline-trigger",
       longhands: [
         "timeline-trigger-name", "timeline-trigger-source",
-        "timeline-trigger-behavior", "timeline-trigger-range-start",
-        "timeline-trigger-range-end", "timeline-trigger-exit-range-start",
-        "timeline-trigger-exit-range-end",
+        "timeline-trigger-range-start", "timeline-trigger-range-end",
+        "timeline-trigger-exit-range-start", "timeline-trigger-exit-range-end",
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       supports_incremental_style: false,

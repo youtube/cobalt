@@ -58,7 +58,6 @@ static_library("login") {
     "//chrome/browser/ash/login/oobe_quick_start",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ash/tpm",
-    "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui/ash/keyboard",
     "//chromeos/ash/components/audio",
     "//chromeos/ash/components/dbus/session_manager",
@@ -121,6 +120,7 @@ static_library("login") {
     "//chrome/browser/ash/policy/handlers",
     "//chrome/browser/ash/policy/remote_commands/crd",
     "//chrome/browser/ash/system",
+    "//chrome/browser/certificate_provider",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/safe_browsing",
@@ -142,7 +142,6 @@ static_library("login") {
     "//chromeos/ash/components/login/login_state",
     "//chromeos/ash/components/network",
     "//chromeos/ash/components/osauth/public",
-    "//chromeos/ash/components/settings",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/timezone",
     "//components/captive_portal/core",
@@ -219,6 +218,7 @@ static_library("test_support") {
   deps = [
     "//chrome/browser/ui",
     "//chrome/browser/ui/webui/ash/login",
+    "//chrome/test:test_support",
     "//components/session_manager/core",
     "//components/session_manager/core:test_support",
   ]

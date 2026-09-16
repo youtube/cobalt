@@ -4,8 +4,11 @@
 
 #import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 
+#import "components/ntp_tiles/pref_names.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
 #import "components/policy/core/common/policy_pref_names.h"
+#import "components/safety_check/safety_check_pref_names.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_prefs.h"
@@ -39,31 +42,6 @@ class BrowserPrefsTest : public PlatformTest {
   sync_preferences::TestingPrefServiceSyncable pref_service_;
 };
 
-// Check that the migration of a pref from profile prefService to
-// localState prefService is performed correctly.
-TEST_F(BrowserPrefsTest, VerifyProfilePrefsMigration) {
-  // Simulate registering a value different from default in profile prefService.
-  pref_service_.SetBoolean(
-      password_manager::prefs::kCredentialProviderEnabledOnStartup, true);
-
-  EXPECT_EQ(pref_service_.GetBoolean(
-                password_manager::prefs::kCredentialProviderEnabledOnStartup),
-            true);
-  EXPECT_EQ(local_state()->GetBoolean(
-                password_manager::prefs::kCredentialProviderEnabledOnStartup),
-            false);
-
-  MigrateObsoleteProfilePrefs(&pref_service_);
-
-  // Verify that the prefs were migrated successfully.
-  EXPECT_EQ(pref_service_.GetBoolean(
-                password_manager::prefs::kCredentialProviderEnabledOnStartup),
-            false);
-  EXPECT_EQ(local_state()->GetBoolean(
-                password_manager::prefs::kCredentialProviderEnabledOnStartup),
-            true);
-}
-
 // Check that the migration of a pref from localState prefService to
 // profile prefService is performed correctly.
 TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
@@ -92,6 +70,27 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
   local_state()->SetInteger(prefs::kNTPLensEntryPointNewBadgeShownCount, 3);
   local_state()->SetInteger(prefs::kNTPHomeCustomizationNewBadgeImpressionCount,
                             99);
+
+  // Set the old Safety Check module pref value to test its migration to the new
+  // name.
+  pref_service_.SetBoolean(
+      prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, false);
+
+  // Set the old Tab Resumption module pref value to test its migration to the
+  // new name.
+  pref_service_.SetBoolean(
+      prefs::kHomeCustomizationMagicStackTabResumptionEnabled, false);
+
+  // Set the old Magic Stack Tips module pref value to test its migration to
+  // the new name.
+  pref_service_.SetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled,
+                           false);
+  // Set the old Magic Stack module pref value to test its migration to
+  // the new name.
+  pref_service_.SetBoolean(prefs::kHomeCustomizationMagicStackEnabled, false);
+
+  // Bottom omnibox position
+  local_state()->SetBoolean(prefs::kBottomOmnibox, true);
 
   // Verify initial state before migration.
 
@@ -149,6 +148,39 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
   EXPECT_EQ(local_state()->GetInteger(
                 prefs::kNTPHomeCustomizationNewBadgeImpressionCount),
             99);
+
+  EXPECT_FALSE(pref_service_.GetBoolean(
+      prefs::kHomeCustomizationMagicStackSafetyCheckEnabled));
+  EXPECT_TRUE(
+      pref_service_
+          .FindPreference(safety_check::prefs::kSafetyCheckHomeModuleEnabled)
+          ->IsDefaultValue());
+
+  EXPECT_FALSE(pref_service_.GetBoolean(
+      prefs::kHomeCustomizationMagicStackTabResumptionEnabled));
+  EXPECT_TRUE(
+      pref_service_
+          .FindPreference(ntp_tiles::prefs::kTabResumptionHomeModuleEnabled)
+          ->IsDefaultValue());
+
+  EXPECT_FALSE(
+      pref_service_.GetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled));
+  EXPECT_TRUE(
+      pref_service_.FindPreference(ntp_tiles::prefs::kTipsHomeModuleEnabled)
+          ->IsDefaultValue());
+
+  EXPECT_FALSE(
+      pref_service_.GetBoolean(prefs::kHomeCustomizationMagicStackEnabled));
+  EXPECT_TRUE(
+      pref_service_
+          .FindPreference(ntp_tiles::prefs::kMagicStackHomeModuleEnabled)
+          ->IsDefaultValue());
+
+  // Check bottom omnibox position.
+  EXPECT_TRUE(local_state()->GetBoolean(prefs::kBottomOmnibox));
+  EXPECT_TRUE(local_state()
+                  ->FindPreference(omnibox::kIsOmniboxInBottomPosition)
+                  ->IsDefaultValue());
 
   // Perform migration
   MigrateObsoleteLocalStatePrefs(local_state());
@@ -210,6 +242,46 @@ TEST_F(BrowserPrefsTest, VerifyLocalStatePrefsMigration) {
   EXPECT_EQ(local_state()->GetInteger(
                 prefs::kNTPHomeCustomizationNewBadgeImpressionCount),
             0);
+
+  EXPECT_TRUE(
+      pref_service_
+          .FindPreference(prefs::kHomeCustomizationMagicStackSafetyCheckEnabled)
+          ->IsDefaultValue());
+  // The new pref `safety_check::prefs::kSafetyCheckHomeModuleEnabled` should
+  // now be false (the migrated value).
+  EXPECT_FALSE(pref_service_.GetBoolean(
+      safety_check::prefs::kSafetyCheckHomeModuleEnabled));
+
+  EXPECT_TRUE(pref_service_
+                  .FindPreference(
+                      prefs::kHomeCustomizationMagicStackTabResumptionEnabled)
+                  ->IsDefaultValue());
+  // The new pref `ntp_tiles::prefs::kTabResumptionHomeModuleEnabled` should
+  // now be false (the migrated value).
+  EXPECT_FALSE(pref_service_.GetBoolean(
+      ntp_tiles::prefs::kTabResumptionHomeModuleEnabled));
+
+  EXPECT_TRUE(
+      pref_service_
+          .FindPreference(prefs::kHomeCustomizationMagicStackTipsEnabled)
+          ->IsDefaultValue());
+  // The new pref `ntp_tiles::prefs::kTipsHomeModuleEnabled` should
+  // now be false (the migrated value).
+  EXPECT_FALSE(
+      pref_service_.GetBoolean(ntp_tiles::prefs::kTipsHomeModuleEnabled));
+
+  EXPECT_TRUE(
+      pref_service_.FindPreference(prefs::kHomeCustomizationMagicStackEnabled)
+          ->IsDefaultValue());
+  // The new pref `ntp_tiles::prefs::kMagicStackHomeModuleEnabled` should
+  // now be false (the migrated value).
+  EXPECT_FALSE(
+      pref_service_.GetBoolean(ntp_tiles::prefs::kMagicStackHomeModuleEnabled));
+
+  // Check bottom omnibox position.
+  EXPECT_TRUE(
+      local_state()->FindPreference(prefs::kBottomOmnibox)->IsDefaultValue());
+  EXPECT_TRUE(local_state()->GetBoolean(omnibox::kIsOmniboxInBottomPosition));
 }
 
 TEST_F(BrowserPrefsTest, VerifyUserDefaultsToProfilePrefsMigration) {

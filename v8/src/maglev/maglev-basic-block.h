@@ -166,6 +166,11 @@ class BasicBlock {
     return state()->predecessor_count();
   }
 
+  bool IsUnreachable() const {
+    if (has_state()) return state()->IsUnreachable();
+    return predecessor_ == nullptr && id_ != 0;
+  }
+
   BasicBlock* predecessor_at(int i) const {
     DCHECK(has_state());
     return state_->predecessor_at(i);
@@ -257,6 +262,7 @@ class BasicBlock {
   bool is_exception_handler_block() const {
     return has_state() && state_->is_exception_handler();
   }
+  bool is_inline() const { return has_state() && state_->is_inline(); }
 
   // If the basic block is an empty (unnecessary) block containing only an
   // unconditional jump to the successor block, return the successor block.
@@ -279,6 +285,24 @@ class BasicBlock {
       current = next;
     }
     return current;
+  }
+
+  void RemovePredecessorFollowing(ControlNode* control) {
+    ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
+      if (!succ->has_state()) {
+        succ->set_predecessor(nullptr);
+        return;
+      }
+      if (succ->is_loop() && succ->backedge_predecessor() == this) {
+        succ->state()->TurnLoopIntoRegularBlock();
+        return;
+      }
+      for (int i = succ->predecessor_count() - 1; i >= 0; i--) {
+        if (succ->predecessor_at(i) == this) {
+          succ->state()->RemovePredecessorAt(i);
+        }
+      }
+    });
   }
 
   bool is_deferred() const { return deferred_; }

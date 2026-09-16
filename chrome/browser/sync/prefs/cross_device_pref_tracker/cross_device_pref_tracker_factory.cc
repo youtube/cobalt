@@ -11,6 +11,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/prefs/cross_device_pref_tracker/chrome_cross_device_pref_provider.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker_impl.h"
 #include "components/sync_preferences/features.h"
 
@@ -21,14 +22,29 @@
 #include "chrome/browser/sync/android/jni_headers/CrossDevicePrefTrackerFactory_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+namespace {
+
+// Helper function to determine ProfileSelections based on the feature flag.
+ProfileSelections BuildCrossDevicePrefTrackerProfileSelections() {
+  if (!base::FeatureList::IsEnabled(
+          sync_preferences::features::kEnableCrossDevicePrefTracker)) {
+    return ProfileSelections::BuildNoProfilesSelected();
+  }
+
+  return ProfileSelections::Builder()
+      .WithRegular(ProfileSelection::kOriginalOnly)
+      .WithAshInternals(ProfileSelection::kNone)
+      .Build();
+}
+
+}  // namespace
+
 CrossDevicePrefTrackerFactory::CrossDevicePrefTrackerFactory()
     : ProfileKeyedServiceFactory(
           "CrossDevicePrefTracker",
-          ProfileSelections::Builder()
-              .WithRegular(ProfileSelection::kOriginalOnly)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {
+          BuildCrossDevicePrefTrackerProfileSelections()) {
   DependsOn(DeviceInfoSyncServiceFactory::GetInstance());
+  DependsOn(SyncServiceFactory::GetInstance());
 }
 
 CrossDevicePrefTrackerFactory::~CrossDevicePrefTrackerFactory() = default;
@@ -49,17 +65,12 @@ CrossDevicePrefTrackerFactory* CrossDevicePrefTrackerFactory::GetInstance() {
 std::unique_ptr<KeyedService>
 CrossDevicePrefTrackerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (!base::FeatureList::IsEnabled(
-          sync_preferences::features::kEnableCrossDevicePrefTracker)) {
-    return nullptr;
-  }
-
   Profile* profile = Profile::FromBrowserContext(context);
   auto pref_provider = std::make_unique<ChromeCrossDevicePrefProvider>();
   return std::make_unique<sync_preferences::CrossDevicePrefTrackerImpl>(
       profile->GetPrefs(), g_browser_process->local_state(),
       DeviceInfoSyncServiceFactory::GetForProfile(profile),
-      std::move(pref_provider));
+      SyncServiceFactory::GetForProfile(profile), std::move(pref_provider));
 }
 
 #if BUILDFLAG(IS_ANDROID)

@@ -2604,8 +2604,8 @@ void Element::setScrollLeft(double new_left) {
     }
     scrollable_area->SetScrollOffset(end_offset,
                                      mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto,
-                                     cc::ScrollSourceType::kAbsoluteScroll);
+                                     cc::ScrollSourceType::kAbsoluteScroll,
+                                     mojom::blink::ScrollBehavior::kAuto);
   }
 }
 
@@ -2663,8 +2663,8 @@ void Element::setScrollTop(double new_top) {
 
     scrollable_area->SetScrollOffset(end_offset,
                                      mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto,
-                                     cc::ScrollSourceType::kAbsoluteScroll);
+                                     cc::ScrollSourceType::kAbsoluteScroll,
+                                     mojom::blink::ScrollBehavior::kAuto);
   }
 }
 
@@ -2767,13 +2767,6 @@ ScriptPromise<IDLUndefined> Element::scrollTo(
   }
   SetScrollOffset(scroll_to_options);
   return CreateScrollResolvedPromise(script_state);
-}
-
-bool Element::SetScrollOffset(const ScrollOffset& offset) {
-  ScrollToOptions* scroll_to_options = ScrollToOptions::Create();
-  scroll_to_options->setLeft(offset.x());
-  scroll_to_options->setTop(offset.y());
-  return SetScrollOffset(scroll_to_options);
 }
 
 bool Element::SetScrollOffset(const ScrollToOptions* scroll_to_options) {
@@ -2919,8 +2912,8 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
   }
 
   return scrollable_area->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kAbsoluteScroll);
+      new_offset, mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
 bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
@@ -2958,8 +2951,8 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   return viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_position),
-      mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kRelativeScroll);
+      mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior);
 }
 
 bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
@@ -2998,8 +2991,8 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
   return viewport->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
-      cc::ScrollSourceType::kAbsoluteScroll);
+      new_offset, mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
 gfx::Rect Element::BoundsInWidget() const {
@@ -4066,7 +4059,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   SetIsCanvasOrInCanvasSubtree(false);
 
   if (ElementRareDataVector* data = GetElementRareData()) {
-    data->ClearFocusgroupFlags();
+    data->ClearFocusgroupData();
     data->ClearRestyleFlags();
 
     if (!GetDocument().StatePreservingAtomicMoveInProgress()) {
@@ -4789,8 +4782,7 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
 
     if (RuntimeEnabledFeatures::HTMLInterestForInterestHintPseudoEnabled(
-            GetExecutionContext()) &&
-        InterestForElement()) {
+            GetExecutionContext())) {
       UpdatePseudoElement(kPseudoIdInterestHint, child_change,
                           child_recalc_context);
     }
@@ -6628,16 +6620,27 @@ CustomElementRegistry* Element::customElementRegistry() const {
   // we'll take the naive approach and assume an element using its tree
   // scope's registry if not explicitly set.
   if (const ElementRareDataVector* data = GetElementRareData()) {
-    if (auto* registry = data->GetCustomElementRegistry()) {
-      return registry;
+    if (data->HasCustomElementRegistrySet()) {
+      return data->GetCustomElementRegistry();
     }
   }
 
   return GetTreeScope().customElementRegistry();
 }
 
-void Element::SetCustomElementRegistry(CustomElementRegistry* registry) {
-  EnsureElementRareData().SetCustomElementRegistry(registry);
+void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
+                                       bool explicitly_set) {
+  DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
+  // If the registry is the same as the tree scope's registry, we typically
+  // can clear the registry field in rare data and have the registry implicitly
+  // inferred to save memory. We can disable this optimization behavior by
+  // "explicitly_set" flag so we can ensure the registry is retained in
+  // scenarios like cross document/scope adoption.
+  if (registry == GetTreeScope().customElementRegistry() && !explicitly_set) {
+    EnsureElementRareData().ClearCustomElementRegistry();
+  } else {
+    EnsureElementRareData().SetCustomElementRegistry(registry);
+  }
 }
 
 void Element::SetIsValue(const AtomicString& is_value) {
@@ -6780,7 +6783,7 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
       shadow_root_init_dict->customElementRegistry();
   auto* registry = scoped_registry
                        ? shadow_root_init_dict->customElementRegistry()
-                       : customElementRegistry();
+                       : GetTreeScope().customElementRegistry();
   // 2-2. If registry's "is scoped" is false and registry is not this's node
   // document's custom element registry, then throw a "NotSupportedError"
   // DOMException.
@@ -9330,8 +9333,8 @@ void Element::CancelSelectionAfterLayout() {
 
 bool Element::ShouldUpdateBackdropPseudoElement(
     const StyleRecalcChange change) {
-  PseudoElement* element = GetPseudoElement(
-      PseudoId::kPseudoIdBackdrop, /* view_transition_name */ g_null_atom);
+  PseudoElement* element = GetPseudoElement(PseudoId::kPseudoIdBackdrop,
+                                            /* pseudo_argument */ g_null_atom);
   bool generate_pseudo = CanGeneratePseudoElement(PseudoId::kPseudoIdBackdrop);
 
   if (element) {
@@ -9368,15 +9371,15 @@ void Element::UpdateBackdropPseudoElement(
 }
 
 void Element::ApplyPendingBackdropPseudoElementUpdate() {
-  PseudoElement* element = GetPseudoElement(
-      PseudoId::kPseudoIdBackdrop, /* view_transition_name */ g_null_atom);
+  PseudoElement* element = GetPseudoElement(PseudoId::kPseudoIdBackdrop,
+                                            /* pseudo_argument */ g_null_atom);
 
   if (!element && CanGeneratePseudoElement(PseudoId::kPseudoIdBackdrop)) {
     element = PseudoElement::Create(this, PseudoId::kPseudoIdBackdrop,
-                                    /* view_transition_name */ g_null_atom);
-    EnsureElementRareData().SetPseudoElement(
-        PseudoId::kPseudoIdBackdrop, element,
-        /* view_transition_name */ g_null_atom);
+                                    /* pseudo_argument */ g_null_atom);
+    EnsureElementRareData().SetPseudoElement(PseudoId::kPseudoIdBackdrop,
+                                             element,
+                                             /* pseudo_argument */ g_null_atom);
     element->InsertedInto(*this);
     GetDocument().AddToTopLayer(element, this);
   }
@@ -9501,9 +9504,8 @@ void Element::UpdateFirstLetterPseudoElement(
 }
 
 void Element::ClearPseudoElement(PseudoId pseudo_id,
-                                 const AtomicString& view_transition_name) {
-  GetElementRareData()->SetPseudoElement(pseudo_id, nullptr,
-                                         view_transition_name);
+                                 const AtomicString& pseudo_argument) {
+  GetElementRareData()->SetPseudoElement(pseudo_id, nullptr, pseudo_argument);
   GetDocument().GetStyleEngine().PseudoElementRemoved(*this);
 }
 
@@ -9560,11 +9562,11 @@ PseudoElement* Element::UpdatePseudoElement(
     PseudoId pseudo_id,
     const StyleRecalcChange change,
     const StyleRecalcContext& style_recalc_context,
-    const AtomicString& view_transition_name) {
-  PseudoElement* element = GetPseudoElement(pseudo_id, view_transition_name);
+    const AtomicString& pseudo_argument) {
+  PseudoElement* element = GetPseudoElement(pseudo_id, pseudo_argument);
   if (!element) {
     if ((element = CreatePseudoElementIfNeeded(pseudo_id, style_recalc_context,
-                                               view_transition_name))) {
+                                               pseudo_argument))) {
       // ::before and ::after can have a nested ::marker
       element->CreatePseudoElementIfNeeded(kPseudoIdMarker,
                                            style_recalc_context);
@@ -9603,7 +9605,7 @@ PseudoElement* Element::UpdatePseudoElement(
       }
     }
     if (!generate_pseudo) {
-      ClearPseudoElement(pseudo_id, view_transition_name);
+      ClearPseudoElement(pseudo_id, pseudo_argument);
       element = nullptr;
     }
   }
@@ -9614,7 +9616,7 @@ PseudoElement* Element::UpdatePseudoElement(
 PseudoElement* Element::CreatePseudoElementIfNeeded(
     PseudoId pseudo_id,
     const StyleRecalcContext& style_recalc_context,
-    const AtomicString& view_transition_name) {
+    const AtomicString& pseudo_argument) {
   if (!CanGeneratePseudoElement(pseudo_id)) {
     return nullptr;
   }
@@ -9630,7 +9632,7 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
   }
 
   PseudoElement* pseudo_element =
-      PseudoElement::Create(this, pseudo_id, view_transition_name);
+      PseudoElement::Create(this, pseudo_id, pseudo_argument);
   if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
     if (!pseudo_element) {
       // TODO(crbug.com/405117185): Replace with DCHECK(pseudo_element) once we
@@ -9639,14 +9641,13 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
     }
   }
   EnsureElementRareData().SetPseudoElement(pseudo_id, pseudo_element,
-                                           view_transition_name);
+                                           pseudo_argument);
   pseudo_element->InsertedInto(*this);
 
   const ComputedStyle* pseudo_style =
       pseudo_element->StyleForLayoutObject(style_recalc_context);
   if (!PseudoElementLayoutObjectIsNeeded(pseudo_id, pseudo_style, this)) {
-    GetElementRareData()->SetPseudoElement(pseudo_id, nullptr,
-                                           view_transition_name);
+    GetElementRareData()->SetPseudoElement(pseudo_id, nullptr, pseudo_argument);
     // If the content property is relying on attr() we should add the
     // originating element's ComputedStyle to the pseudo-element style cache, so
     // that when attribute value changes it will force style invalidation.
@@ -9672,6 +9673,14 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
     }
   }
 
+  // Since we just styled a new pseudo element, we have to inform its potential
+  // display lock context of this. This might force-unlock the element due to
+  // any number of constraints (no containment, wrong layout type, etc).
+  if (DisplayLockContext* display_lock_context =
+          pseudo_element->GetDisplayLockContext()) {
+    display_lock_context->DidStyleSelf();
+  }
+
   probe::PseudoElementCreated(pseudo_element);
 
   return pseudo_element;
@@ -9692,16 +9701,21 @@ void Element::DetachPseudoElement(PseudoId pseudo_id,
 
 PseudoElement* Element::GetPseudoElement(
     PseudoId pseudo_id,
-    const AtomicString& view_transition_name) const {
+    const AtomicString& pseudo_argument) const {
   if (ElementRareDataVector* data = GetElementRareData()) {
-    return data->GetPseudoElement(pseudo_id, view_transition_name);
+    return data->GetPseudoElement(pseudo_id, pseudo_argument);
   }
   return nullptr;
 }
 
 CSSPseudoElement* Element::pseudo(const AtomicString& type) {
   PseudoId pseudo_id = CSSPseudoElement::ConvertTypeToSupportedPseudoId(type);
-  if (pseudo_id == kPseudoIdInvalid) {
+  return EnsureCSSPseudoElement(pseudo_id);
+}
+
+CSSPseudoElement* Element::EnsureCSSPseudoElement(PseudoId pseudo_id) {
+  DCHECK(RuntimeEnabledFeatures::CSSPseudoElementInterfaceEnabled());
+  if (!CSSPseudoElement::IsSupportedTypeForCSSPseudoElement(pseudo_id)) {
     return nullptr;
   }
   EnsureElementRareData();
@@ -9734,10 +9748,9 @@ bool Element::HasScrollButtonOrMarkerGroupPseudos() const {
 
 Element* Element::GetStyledPseudoElement(
     PseudoId pseudo_id,
-    const AtomicString& view_transition_name) const {
+    const AtomicString& pseudo_argument) const {
   if (!IsTransitionPseudoElement(pseudo_id)) {
-    if (PseudoElement* result =
-            GetPseudoElement(pseudo_id, view_transition_name)) {
+    if (PseudoElement* result = GetPseudoElement(pseudo_id, pseudo_argument)) {
       return result;
     }
     const AtomicString& pseudo_string =
@@ -9779,27 +9792,27 @@ Element* Element::GetStyledPseudoElement(
 
   auto* container_pseudo =
       To<ViewTransitionTransitionElement>(transition_pseudo)
-          ->FindViewTransitionGroupPseudoElement(view_transition_name);
+          ->FindViewTransitionGroupPseudoElement(pseudo_argument);
   if (!container_pseudo || pseudo_id == kPseudoIdViewTransitionGroup) {
     return container_pseudo;
   }
 
   if (pseudo_id == kPseudoIdViewTransitionGroupChildren) {
-    return container_pseudo->GetPseudoElement(pseudo_id, view_transition_name);
+    return container_pseudo->GetPseudoElement(pseudo_id, pseudo_argument);
   }
 
   auto* wrapper_pseudo = container_pseudo->GetPseudoElement(
-      kPseudoIdViewTransitionImagePair, view_transition_name);
+      kPseudoIdViewTransitionImagePair, pseudo_argument);
   if (!wrapper_pseudo || pseudo_id == kPseudoIdViewTransitionImagePair) {
     return wrapper_pseudo;
   }
 
-  return wrapper_pseudo->GetPseudoElement(pseudo_id, view_transition_name);
+  return wrapper_pseudo->GetPseudoElement(pseudo_id, pseudo_argument);
 }
 
 LayoutObject* Element::PseudoElementLayoutObject(PseudoId pseudo_id) const {
-  if (Element* element = GetStyledPseudoElement(
-          pseudo_id, /*view_transition_name*/ g_null_atom)) {
+  if (Element* element =
+          GetStyledPseudoElement(pseudo_id, /*pseudo_argument*/ g_null_atom)) {
     return element->GetLayoutObject();
   }
   return nullptr;
@@ -9817,10 +9830,6 @@ bool Element::PseudoElementStylesAffectCounters() const {
 
   if (rare_data->PseudoElementStylesAffectCounters()) {
     return true;
-  }
-
-  if (!style->HasAnyPseudoElementStyles()) {
-    return false;
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
@@ -10074,6 +10083,9 @@ bool Element::CanGeneratePseudoElement(PseudoId pseudo_id) const {
     if (!is_option_in_appearance_base_select(this) && !checkable_menu_item) {
       return false;
     }
+  }
+  if (pseudo_id == kPseudoIdInterestHint && !InterestForElement()) {
+    return false;
   }
   if (const ComputedStyle* style = GetComputedStyle()) {
     if (IsDocumentElement()) {
@@ -10483,7 +10495,7 @@ inline void Element::UpdateFocusgroup(const AtomicString& input) {
     shadow_root->SetHasFocusgroupAttributeOnDescendant(true);
   }
 
-  EnsureElementRareData().SetFocusgroupFlags(
+  EnsureElementRareData().SetFocusgroupData(
       focusgroup::ParseFocusgroup(this, input));
 }
 
@@ -10500,7 +10512,8 @@ void Element::UpdateFocusgroupInShadowRootIfNeeded() {
   Element* ancestor = this;
   bool has_focusgroup_ancestor = false;
   while (ancestor) {
-    if (ancestor->GetFocusgroupFlags() != FocusgroupFlags::kNone) {
+    if (ancestor->GetFocusgroupData().behavior !=
+        FocusgroupBehavior::kNoBehavior) {
       has_focusgroup_ancestor = true;
       break;
     }
@@ -11504,6 +11517,28 @@ void Element::ScheduleInterestLostTask() {
       base::Seconds(hide_delay_seconds)));
 }
 
+Element* Element::InterestForElement() const {
+  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
+          GetDocument().GetExecutionContext())) {
+    return nullptr;
+  }
+  Element* target =
+      GetElementAttributeResolvingReferenceTarget(html_names::kInterestforAttr);
+  if (!target) {
+    return nullptr;
+  }
+  // An interest invoker relationship isn't valid if the source or target
+  // element aren't in a TreeScope.
+  if (!IsInTreeScope() || !target->IsInTreeScope()) {
+    return nullptr;
+  }
+  // Check element-specific preconditions.
+  if (!IsValidInterestInvoker(*target)) {
+    return nullptr;
+  }
+  return target;
+}
+
 Element* Element::SourceInterestInvoker() const {
   if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
     return nullptr;
@@ -11538,15 +11573,27 @@ Element::InterestState Element::GetInterestState() {
 }
 
 namespace {
-Element* NestedSourceInterestInvoker(Element& starting_target) {
+
+void AllSourceInterestInvokersRecursive(
+    Element& target,
+    HeapLinkedHashSet<Member<Element>>& sources) {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
-  for (Element* target = &starting_target; target;
-       target = target->parentElement()) {
-    if (Element* upstream = target->SourceInterestInvoker()) {
-      return upstream;
-    }
+  if (Element* upstream = target.SourceInterestInvoker();
+      upstream && !sources.Contains(upstream)) {
+    DCHECK_NE(&target, upstream);
+    sources.insert(upstream);
+    AllSourceInterestInvokersRecursive(*upstream, sources);
   }
-  return nullptr;
+  if (Element* parent = target.parentElement();
+      parent && !sources.Contains(parent)) {
+    AllSourceInterestInvokersRecursive(*parent, sources);
+  }
+}
+
+HeapLinkedHashSet<Member<Element>> AllSourceInterestInvokers(Element& target) {
+  HeapLinkedHashSet<Member<Element>> sources;
+  AllSourceInterestInvokersRecursive(target, sources);
+  return sources;
 }
 
 }  // namespace
@@ -11596,8 +11643,7 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
     if (invoker_data) [[unlikely]] {
       invoker_data->CancelInterestLostTask();
     }
-    for (Element* upstream = upstream_invoker; upstream;
-         upstream = NestedSourceInterestInvoker(*upstream)) {
+    for (Member<Element> upstream : AllSourceInterestInvokers(*this)) {
       upstream->GetInvokerData()->CancelInterestLostTask();
     }
     if (auto* target = InterestForElement();
@@ -11620,23 +11666,10 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
         ScheduleInterestLostTask();
       }
     }
-    for (Element* upstream = upstream_invoker; upstream;
-         upstream = NestedSourceInterestInvoker(*upstream)) {
+    for (Member<Element> upstream : AllSourceInterestInvokers(*this)) {
       // This is the target of an interest invoker, which was just de-hovered or
-      // blurred. There are two possibilities:
-      // 1. The upstream invoker is either not an ancestor of this target
-      //    element, or it, too, lost hover/focus. In either case, we need to
-      //    cancel any InterestGained tasks, and schedule an InterestLost task.
-      // 2. The upstream invoker is an ancestor of this target element, we're
-      //    handling a de-hover (not a keyboard blur), and the upstream invoker
-      //    is still hovered. I.e. we moved the mouse off of the target popover
-      //    and back into a descendant of the invoker. In this case, since
-      //    SetFocused() will never be called on the actual invoker, we should
-      //    be careful not to schedule the interestlost task.
-      upstream->GetInvokerData()->CancelInterestGainedTask();
-      if (source == InterestSource::kBlur || !upstream->IsHovered()) {
-        upstream->ScheduleInterestLostTask();
-      }
+      // blurred. Schedule an InterestLost task.
+      upstream->ScheduleInterestLostTask();
     }
   }
 }
@@ -11861,15 +11894,30 @@ bool Element::IsInertRoot() const {
   return FastHasAttribute(html_names::kInertAttr) && IsHTMLElement();
 }
 
-FocusgroupFlags Element::GetFocusgroupFlags() const {
+FocusgroupData Element::GetFocusgroupData() const {
   ExecutionContext* context = GetExecutionContext();
   if (!RuntimeEnabledFeatures::FocusgroupEnabled(context)) {
-    return FocusgroupFlags::kNone;
+    return {};
   }
   if (const ElementRareDataVector* data = GetElementRareData()) {
-    return data->GetFocusgroupFlags();
+    return data->GetFocusgroupData();
   }
-  return FocusgroupFlags::kNone;
+  return {};
+}
+
+Element* Element::FocusgroupLastFocused() const {
+  // It only makes sense to check this on a focusgroup.
+  DCHECK(IsActualFocusgroup(GetFocusgroupData()));
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetFocusgroupLastFocused();
+  }
+  return nullptr;
+}
+
+void Element::SetFocusgroupLastFocused(Element* element) {
+  // It only makes sense to set this on a focusgroup.
+  DCHECK(IsActualFocusgroup(GetFocusgroupData()));
+  EnsureElementRareData().SetFocusgroupLastFocused(element);
 }
 
 bool Element::checkVisibility(CheckVisibilityOptions* options) const {

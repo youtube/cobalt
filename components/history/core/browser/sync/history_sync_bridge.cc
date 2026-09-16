@@ -747,8 +747,7 @@ std::unique_ptr<syncer::DataBatch> HistorySyncBridge::GetAllDataForDebugging() {
 std::string HistorySyncBridge::GetClientTag(
     const syncer::EntityData& entity_data) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(entity_data.specifics.has_history())
-      << "EntityData does not have history specifics.";
+  CHECK(entity_data.specifics.has_history());
 
   const sync_pb::HistorySpecifics& history = entity_data.specifics.history();
   return base::NumberToString(history.visit_time_windows_epoch_micros());
@@ -757,12 +756,20 @@ std::string HistorySyncBridge::GetClientTag(
 std::string HistorySyncBridge::GetStorageKey(
     const syncer::EntityData& entity_data) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(entity_data.specifics.has_history())
-      << "EntityData does not have history specifics.";
+  CHECK(entity_data.specifics.has_history());
 
   const sync_pb::HistorySpecifics& history = entity_data.specifics.history();
   return HistorySyncMetadataDatabase::StorageKeyFromMicrosSinceWindowsEpoch(
       history.visit_time_windows_epoch_micros());
+}
+
+bool HistorySyncBridge::IsEntityDataValid(
+    const syncer::EntityData& entity_data) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(entity_data.specifics.has_history());
+
+  const sync_pb::HistorySpecifics& history = entity_data.specifics.history();
+  return history.visit_time_windows_epoch_micros() > 0;
 }
 
 syncer::ConflictResolution HistorySyncBridge::ResolveConflict(
@@ -816,7 +823,8 @@ void HistorySyncBridge::OnURLsModified(HistoryBackend* history_backend,
 
   for (const URLRow& url_row : changed_urls) {
     VisitRow visit_row;
-    if (history_backend_->GetMostRecentVisitForURL(url_row.id(), &visit_row) &&
+    if (history_backend_->GetMostRecentVisitForURL(
+            url_row.id(), &visit_row, VisitQuery404sPolicy::kInclude404s) &&
         visit_row.originator_cache_guid.empty()) {
       // It's the URL corresponding to a local visit - probably the title got
       // updated.
@@ -1152,9 +1160,12 @@ bool HistorySyncBridge::AddEntityInBackend(
     referring_visit_id = added_visit_id;
 
     // If the sending client supports syncing its clusters, add the appropriate
-    // details to history.
+    // details to history. 404s shouldn't make their way into clusters in
+    // general, but if they do, that's a mistake we don't want to replicate on
+    // sync.
     DCHECK(!specifics.originator_cache_guid().empty());
-    if (specifics.originator_cluster_id() > 0) {
+    if (specifics.originator_cluster_id() > 0 &&
+        specifics.http_response_code() != 404) {
       // Populate the visit to a synced cluster.
       history::ClusterVisit cluster_visit;
       cluster_visit.annotated_visit.visit_row = visit_row;

@@ -23,9 +23,10 @@
 #include "chrome/common/extensions/api/tabs.h"
 #include "components/tab_groups/tab_group_color.h"  // nogncheck
 #include "components/tab_groups/tab_group_id.h"     // nogncheck
-#include "extensions/common/features/feature.h"
 #include "extensions/common/mojom/context_type.mojom-forward.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class Browser;
 class BrowserWindowInterface;
@@ -81,8 +82,7 @@ class ExtensionTabUtil {
       "Browser windows not allowed.";
 #endif  // !BUILDFLAG(IS_ANDROID)
   static constexpr char kCannotNavigateToDevtools[] =
-      "Cannot navigate to a devtools:// page without either the devtools or "
-      "debugger permission.";
+      "Cannot navigate to a devtools:// page.";
 #if !BUILDFLAG(IS_ANDROID)
   static constexpr char kLockedFullscreenModeNewTabError[] =
       "You cannot create new tabs while in locked fullscreen mode.";
@@ -364,7 +364,8 @@ class ExtensionTabUtil {
   // Open the extension's options page. Returns true if an options page was
   // successfully opened (though it may not necessarily *load*, e.g. if the
   // URL does not exist).
-  static bool OpenOptionsPage(const Extension* extension, Browser* browser);
+  static bool OpenOptionsPage(const Extension* extension,
+                              BrowserWindowInterface* browser);
 
   // Returns true if the given Browser can report tabs to extensions.
   // Example of Browsers which don't support tabs include apps and devtools.

@@ -16,20 +16,16 @@ import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.IntDef;
-import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.BottomOverscrollHandler;
 import org.chromium.chrome.browser.gesturenav.HistoryNavigationCoordinator;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -40,11 +36,7 @@ import org.chromium.third_party.android.swiperefresh.SwipeRefreshLayout;
 import org.chromium.ui.OverscrollAction;
 import org.chromium.ui.OverscrollRefreshHandler;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
-import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.WindowAndroid;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 
 /**
  * An overscroll handler implemented in terms a modified version of the Android compat library's
@@ -77,35 +69,6 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
     // Max allowed duration of the refresh animation after a refresh signal,
     // guarding against cases where the page reload fails or takes too long.
     private static final int MAX_REFRESH_ANIMATION_DURATION_MS = 7500;
-
-    /**
-     * Enum for "Android.EdgeToEdge.OverscrollFromBottom.BottomControlsStatus", demonstrate the
-     * current status for the bottom browser controls. These values are persisted to logs. Entries
-     * should not be renumbered and numeric values should never be reused.
-     */
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef({
-        BottomControlsStatus.HEIGHT_ZERO,
-        BottomControlsStatus.HIDDEN,
-        BottomControlsStatus.VISIBLE_FULL_HEIGHT,
-        BottomControlsStatus.VISIBLE_PARTIAL_HEIGHT,
-        BottomControlsStatus.NUM_TOTAL
-    })
-    @interface BottomControlsStatus {
-        /** Controls has a height of 0. */
-        int HEIGHT_ZERO = 0;
-
-        /** Controls has height > 0, and it's hidden */
-        int HIDDEN = 1;
-
-        /** Controls has height > 0 and is fully visible. */
-        int VISIBLE_FULL_HEIGHT = 2;
-
-        /** Controls has height > 0 and is partially visible (e.g. showing its min Height) */
-        int VISIBLE_PARTIAL_HEIGHT = 3;
-
-        int NUM_TOTAL = 4;
-    }
 
     private @OverscrollAction int mSwipeType;
 
@@ -145,7 +108,7 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
 
     // Handles overscroll PULL_FROM_BOTTOM_EDGE. This is used to track the browser controls
     // state.
-    private @Nullable BrowserControlsStateProvider mBrowserControls;
+    private @Nullable BottomOverscrollHandler mBottomOverscrollHandler;
 
     public static SwipeRefreshHandler from(Tab tab) {
         return SwipeRefreshHandler.from(tab, DEFAULT_SWIPE_REFRESH_LAYOUT_CREATOR);
@@ -258,7 +221,7 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
         detachSwipeRefreshLayoutIfNecessary();
         mContainerView = null;
         mNavigationCoordinator = null;
-        mBrowserControls = null;
+        mBottomOverscrollHandler = null;
         setEnabled(false);
     }
 
@@ -286,7 +249,7 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
     public boolean start(
             @OverscrollAction int type, @BackGestureEventSwipeEdge int initiatingEdge) {
         mSwipeType = type;
-        if (type == OverscrollAction.PULL_TO_REFRESH && isRefreshOnOverscrollSupported()) {
+        if (type == OverscrollAction.PULL_TO_REFRESH) {
             if (mSwipeRefreshLayout == null) initSwipeRefreshLayout(mTab.getContext());
             assumeNonNull(mSwipeRefreshLayout);
             attachSwipeRefreshLayoutIfNecessary();
@@ -300,8 +263,8 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
                 return navigable;
             }
         } else if (type == OverscrollAction.PULL_FROM_BOTTOM_EDGE) {
-            if (mBrowserControls != null) {
-                recordEdgeToEdgeOverscrollFromBottom(mBrowserControls);
+            if (mBottomOverscrollHandler != null) {
+                return mBottomOverscrollHandler.start();
             }
         }
 
@@ -314,13 +277,9 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
         mNavigationCoordinator = navigationHandler;
     }
 
-    /**
-     * Sets {@link BrowserControlsStateProvider} instance to provide browser controls heights.
-     *
-     * @param browserControlsStateProvider browser controls instance.
-     */
-    public void setBrowserControls(BrowserControlsStateProvider browserControlsStateProvider) {
-        mBrowserControls = browserControlsStateProvider;
+    /** Sets {@link BottomOverscrollHandler} instance to handle pull from bottom edge. */
+    public void setBottomOverscrollHandler(BottomOverscrollHandler bottomOverscrollHandler) {
+        mBottomOverscrollHandler = bottomOverscrollHandler;
     }
 
     @Override
@@ -331,6 +290,8 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
             mSwipeRefreshLayout.pull(yDelta);
         } else if (mSwipeType == OverscrollAction.HISTORY_NAVIGATION) {
             if (mNavigationCoordinator != null) mNavigationCoordinator.pull(xDelta, yDelta);
+        } else if (mSwipeType == OverscrollAction.PULL_FROM_BOTTOM_EDGE) {
+            if (mBottomOverscrollHandler != null) mBottomOverscrollHandler.pull(yDelta);
         }
         TraceEvent.end("SwipeRefreshHandler.pull");
     }
@@ -343,6 +304,10 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
             mSwipeRefreshLayout.release(allowRefresh);
         } else if (mSwipeType == OverscrollAction.HISTORY_NAVIGATION) {
             if (mNavigationCoordinator != null) mNavigationCoordinator.release(allowRefresh);
+        } else if (mSwipeType == OverscrollAction.PULL_FROM_BOTTOM_EDGE) {
+            if (mBottomOverscrollHandler != null) {
+                mBottomOverscrollHandler.release(allowRefresh);
+            }
         }
         TraceEvent.end("SwipeRefreshHandler.release");
     }
@@ -352,6 +317,7 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
         cancelStopRefreshingRunnable();
         if (mSwipeRefreshLayout != null) mSwipeRefreshLayout.reset();
         if (mNavigationCoordinator != null) mNavigationCoordinator.reset();
+        if (mBottomOverscrollHandler != null) mBottomOverscrollHandler.reset();
     }
 
     @Override
@@ -402,53 +368,6 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
         cancelDetachLayoutRunnable();
         if (mSwipeRefreshLayout.getParent() != null) {
             assumeNonNull(mContainerView).removeView(mSwipeRefreshLayout);
-        }
-    }
-
-    /**
-     * Record histogram "Android.OverscrollFromBottom.BottomControlsStatus" based on the current
-     * browser controls status.
-     */
-    @VisibleForTesting
-    static void recordEdgeToEdgeOverscrollFromBottom(BrowserControlsStateProvider browserControls) {
-        @BottomControlsStatus int sample;
-        if (browserControls.getBottomControlsHeight() == 0) {
-            sample = BottomControlsStatus.HEIGHT_ZERO;
-        } else if (browserControls.getBottomControlOffset() == 0) {
-            sample = BottomControlsStatus.VISIBLE_FULL_HEIGHT;
-        } else if (browserControls.getBottomControlOffset()
-                == browserControls.getBottomControlsHeight()) {
-            sample = BottomControlsStatus.HIDDEN;
-        } else {
-            sample = BottomControlsStatus.VISIBLE_PARTIAL_HEIGHT;
-        }
-
-        RecordHistogram.recordEnumeratedHistogram(
-                "Android.OverscrollFromBottom.BottomControlsStatus",
-                sample,
-                BottomControlsStatus.NUM_TOTAL);
-    }
-
-    /**
-     * Checks to see if page refresh on overscroll is supported Wrapped so we can stub behavior in
-     * tests.
-     *
-     * <p>Currently, overscroll to refresh is disabled if a precision pointer device is attached.
-     * For example, this will disable it for touch screen when a mouse is attaached. However
-     * long-term, the plan is to selectively enable for things such as touchscreen only.
-     *
-     * <p>TODO(crbug.com/412465463): enable overscroll refresh for touch even when precision pointer
-     * is attached
-     *
-     * @return true if page refresh on overscroll is supported.
-     */
-    @VisibleForTesting
-    boolean isRefreshOnOverscrollSupported() {
-        // TODO(https://crbug.com/422413654) Remove this after long-term fix
-        if (DeviceInfo.isDesktop()) {
-            return !DeviceInput.supportsPrecisionPointer();
-        } else {
-            return true;
         }
     }
 }

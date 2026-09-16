@@ -185,9 +185,9 @@ rust_static_library("font_format_check") {
   sources = [ crate_root ]
   cxx_bindings = [ crate_root ]
   deps = [
-    "//third_party/rust/font_types/v0_9:lib",
-    "//third_party/rust/read_fonts/v0_34:lib",
-    "//third_party/rust/skrifa/v0_36:lib",
+    "//third_party/rust/font_types/v0_10:lib",
+    "//third_party/rust/read_fonts/v0_35:lib",
+    "//third_party/rust/skrifa/v0_37:lib",
   ]
 }
 
@@ -236,7 +236,6 @@ group("blink_platform_public_deps") {
     "//third_party/blink/renderer/platform/network:make_generated",
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/boringssl",
-    "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/ots",
     "//ui/gfx/animation/keyframe",
@@ -758,8 +757,6 @@ component("platform") {
     "fonts/segmented_font_data.h",
     "fonts/shaping/caching_word_shape_iterator.cc",
     "fonts/shaping/caching_word_shape_iterator.h",
-    "fonts/shaping/caching_word_shaper.cc",
-    "fonts/shaping/caching_word_shaper.h",
     "fonts/shaping/case_mapping_harfbuzz_buffer_filler.cc",
     "fonts/shaping/case_mapping_harfbuzz_buffer_filler.h",
     "fonts/shaping/font_features.cc",
@@ -792,8 +789,6 @@ component("platform") {
     "fonts/shaping/shape_result.h",
     "fonts/shaping/shape_result_bloberizer.cc",
     "fonts/shaping/shape_result_bloberizer.h",
-    "fonts/shaping/shape_result_buffer.cc",
-    "fonts/shaping/shape_result_buffer.h",
     "fonts/shaping/shape_result_cursor.cc",
     "fonts/shaping/shape_result_cursor.h",
     "fonts/shaping/shape_result_run.h",
@@ -827,7 +822,6 @@ component("platform") {
     "fonts/text_fragment_paint_info.h",
     "fonts/text_rendering_mode.cc",
     "fonts/text_rendering_mode.h",
-    "fonts/text_run_paint_info.h",
     "fonts/typesetting_features.cc",
     "fonts/typesetting_features.h",
     "fonts/unicode_range_set.cc",
@@ -1068,8 +1062,13 @@ component("platform") {
     "graphics/gpu/webgraphics_shared_image_interface_provider_impl.h",
     "graphics/gpu/xr_frame_transport.cc",
     "graphics/gpu/xr_frame_transport.h",
+    "graphics/gpu/xr_frame_transport_delegate.h",
+    "graphics/gpu/xr_gpu_frame_transport_delegate.cc",
+    "graphics/gpu/xr_gpu_frame_transport_delegate.h",
     "graphics/gpu/xr_webgl_drawing_buffer.cc",
     "graphics/gpu/xr_webgl_drawing_buffer.h",
+    "graphics/gpu/xr_webgl_frame_transport_delegate.cc",
+    "graphics/gpu/xr_webgl_frame_transport_delegate.h",
     "graphics/gradient.cc",
     "graphics/gradient.h",
     "graphics/gradient_generated_image.cc",
@@ -1815,6 +1814,7 @@ component("platform") {
     "//cc",
     "//cc/ipc",
     "//cc/mojo_embedder",
+    "//components/input",
     "//components/language_detection/content/common",
     "//components/language_detection/content/common:common_blink",
     "//components/language_detection/content/renderer",
@@ -2265,7 +2265,6 @@ source_set("blink_platform_unittests_sources") {
     "fonts/palette_interpolation_test.cc",
     "fonts/plain_text_node_test.cc",
     "fonts/script_run_iterator_test.cc",
-    "fonts/shaping/caching_word_shaper_test.cc",
     "fonts/shaping/font_features_test.cc",
     "fonts/shaping/frame_shape_cache_test.cc",
     "fonts/shaping/han_kerning_test.cc",
@@ -2351,6 +2350,7 @@ source_set("blink_platform_unittests_sources") {
     "json/json_values_test.cc",
     "media/web_audio_source_provider_impl_test.cc",
     "mediastream/audio_service_audio_processor_proxy_test.cc",
+    "mediastream/media_stream_audio_level_calculator_unittest.cc",
     "mediastream/media_stream_audio_test.cc",
     "mediastream/transferred_media_stream_component_test.cc",
     "mediastream/webrtc_uma_histograms_test.cc",
@@ -2498,7 +2498,8 @@ source_set("blink_platform_unittests_sources") {
     "//base/test:test_support",
     "//cc",
     "//cc:test_support",
-    "//components/viz/common:shared_image_format",
+    "//components/input",
+    "//components/viz/common/resources:shared_image_format",
     "//gin",
     "//media:test_support",
     "//media/capture/mojom:video_capture",
@@ -2920,7 +2921,6 @@ fuzzer_test("blink_png_decoder_fuzzer") {
     ":blink_fuzzer_test_support",
     ":blink_image_decoder_fuzzer_test_support",
     ":platform",
-    "//third_party/libpng",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/png.dict"
   seed_corpuses = [

@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.widget;
 
+import static org.chromium.components.browser_ui.widget.containment.ContainmentUiUtils.parseContainmentAttributes;
+
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
@@ -23,7 +25,8 @@ import android.widget.TextView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItem;
+import org.chromium.components.browser_ui.widget.containment.ContainmentUiUtils;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.widget.ChromeImageView;
 
@@ -63,7 +66,9 @@ import java.util.List;
  */
 @NullMarked
 public class RadioButtonWithDescription extends RelativeLayout
-        implements OnClickListener, CustomStyledContainer {
+        implements OnClickListener, ContainmentItem {
+    private final int mBackgroundStyle;
+
     /** Interface to listen to radio button changes. */
     public interface ButtonCheckedStateChangedListener {
         /**
@@ -102,6 +107,10 @@ public class RadioButtonWithDescription extends RelativeLayout
         setViewsInternal();
 
         if (attrs != null) applyAttributes(attrs);
+
+        ContainmentUiUtils.ContainmentAttributes containmentAttributes =
+                parseContainmentAttributes(context, attrs);
+        mBackgroundStyle = containmentAttributes.backgroundStyle;
 
         setMinimumHeight(getResources().getDimensionPixelSize(R.dimen.min_touch_target_size));
 
@@ -415,5 +424,10 @@ public class RadioButtonWithDescription extends RelativeLayout
     @Override
     protected void dispatchRestoreInstanceState(SparseArray<Parcelable> container) {
         dispatchThawSelfOnly(container);
+    }
+
+    @Override
+    public @BackgroundStyle int getCustomBackgroundStyle() {
+        return mBackgroundStyle;
     }
 }

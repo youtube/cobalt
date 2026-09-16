@@ -5,8 +5,6 @@
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
-#include "base/threading/platform_thread.h"
-#include "base/time/time.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -44,6 +42,7 @@ constexpr char kSharedWorkerHtmlPath[] =
 constexpr char kServiceWorkerHtmlPath[] =
     "/local_network_access/fetch-from-service-worker-as-public-address.html";
 
+// TODO(crbug.com/406991278): refactor to use LocalNetworkAccessBrowserTestBase
 class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
  public:
   using WebFeature = blink::mojom::WebFeature;
@@ -178,60 +177,6 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, FetchAcceptPermission) {
                                    https_server().GetURL("b.com", kLnaPath))));
 }
 
-IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, IframeDenyPermission) {
-  ASSERT_TRUE(content::NavigateToURL(
-      web_contents(),
-      https_server().GetURL(
-          "a.com",
-          "/local_network_access/no-favicon-treat-as-public-address.html")));
-
-  // Enable auto-denial of LNA permission request.
-  bubble_factory()->set_response_type(
-      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
-
-  GURL iframe_url = https_server().GetURL("b.com", kLnaPath);
-  content::TestNavigationManager nav_manager(web_contents(), iframe_url);
-  std::string_view script_template = R"(
-    const child = document.createElement("iframe");
-    child.src = $1;
-    document.body.appendChild(child);
-  )";
-  EXPECT_THAT(content::EvalJs(web_contents(),
-                              content::JsReplace(script_template, iframe_url)),
-              content::EvalJsResult::IsOk());
-  ASSERT_TRUE(nav_manager.WaitForNavigationFinished());
-
-  // Check that the child iframe failed to fetch.
-  EXPECT_FALSE(nav_manager.was_successful());
-}
-
-IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, IframeAcceptPermission) {
-  ASSERT_TRUE(content::NavigateToURL(
-      web_contents(),
-      https_server().GetURL(
-          "a.com",
-          "/local_network_access/no-favicon-treat-as-public-address.html")));
-
-  // Enable auto-accept of LNA permission request.
-  bubble_factory()->set_response_type(
-      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
-
-  GURL iframe_url = https_server().GetURL("b.com", kLnaPath);
-  content::TestNavigationManager nav_manager(web_contents(), iframe_url);
-  std::string_view script_template = R"(
-    const child = document.createElement("iframe");
-    child.src = $1;
-    document.body.appendChild(child);
-  )";
-  EXPECT_THAT(content::EvalJs(web_contents(),
-                              content::JsReplace(script_template, iframe_url)),
-              content::EvalJsResult::IsOk());
-  ASSERT_TRUE(nav_manager.WaitForNavigationFinished());
-
-  // Check that the child iframe was successfully fetched.
-  EXPECT_TRUE(nav_manager.was_successful());
-}
-
 // Tests that a script tag that is included in the main page HTML (and thus
 // load blocking) correctly triggers the LNA permission prompt.
 // Regression test for crbug.com/439876402.
@@ -246,7 +191,7 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
   https_server.RegisterRequestHandler(base::BindLambdaForTesting(
       [](const net::test_server::HttpRequest& request)
           -> std::unique_ptr<net::test_server::HttpResponse> {
-        if (request.GetURL().path() == "/html") {
+        if (request.GetURL().GetPath() == "/html") {
           auto http_response =
               std::make_unique<net::test_server::BasicHttpResponse>();
           http_response->set_code(net::HTTP_OK);
@@ -255,10 +200,10 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
                                          "treat-as-public-address");
           http_response->set_content(content::JsReplace(
               "<html><head><script src=$1 defer></script></head></html>",
-              request.GetURL().query()));
+              request.GetURL().GetQuery()));
           return std::move(http_response);
         }
-        if (request.GetURL().path() == "/script") {
+        if (request.GetURL().GetPath() == "/script") {
           auto http_response =
               std::make_unique<net::test_server::BasicHttpResponse>();
           http_response->set_code(net::HTTP_OK);
@@ -445,7 +390,7 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
-                       CheckSecurityStatePolicySet) {
+                       CheckEnterprisePolicyEnableLNA) {
   policy::PolicyMap policies;
   SetPolicy(&policies, policy::key::kLocalNetworkAccessRestrictionsEnabled,
             std::optional<base::Value>(true));
@@ -467,6 +412,32 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
                   content::JsReplace("fetch($1).then(response => response.ok)",
                                      https_server().GetURL("b.com", kLnaPath))),
               content::EvalJsResult::IsError());
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
+                       CheckEnterprisePolicyOptOut) {
+  policy::PolicyMap policies;
+  SetPolicy(&policies,
+            policy::key::kLocalNetworkAccessRestrictionsTemporaryOptOut,
+            std::optional<base::Value>(true));
+  UpdateProviderPolicy(policies);
+
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/local_network_access/no-favicon-treat-as-public-address.html")));
+
+  // Enable auto-denial of LNA permission request.
+  bubble_factory()->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+
+  // Expect LNA fetch to succeed.
+  ASSERT_EQ(true,
+            content::EvalJs(
+                web_contents(),
+                content::JsReplace("fetch($1).then(response => response.ok)",
+                                   https_server().GetURL("b.com", kLnaPath))));
 }
 
 IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,

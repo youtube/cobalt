@@ -419,6 +419,14 @@ class TrackNamespace {
             length_ + element.length() <= kMaxFullTrackNameSize);
   }
   void AddElement(absl::string_view element);
+  bool PopElement() {
+    if (tuple_.size() == 1) {
+      return false;
+    }
+    length_ -= tuple_.back().length();
+    tuple_.pop_back();
+    return true;
+  }
   std::string ToString() const;
   // Returns the number of elements in the tuple.
   size_t number_of_elements() const { return tuple_.size(); }
@@ -526,6 +534,25 @@ struct Location {
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const Location& sequence) {
     absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
+  }
+};
+
+// A tuple uniquely identifying a WebTransport data stream associated with a
+// subscription. By convention, if a DataStreamIndex is necessary for a datagram
+// track, `subgroup` is set to zero.
+struct DataStreamIndex {
+  uint64_t group = 0;
+  uint64_t subgroup = 0;
+
+  DataStreamIndex() = default;
+  DataStreamIndex(uint64_t group, uint64_t subgroup)
+      : group(group), subgroup(subgroup) {}
+
+  auto operator<=>(const DataStreamIndex&) const = default;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const DataStreamIndex& index) {
+    return H::combine(std::move(h), index.group, index.subgroup);
   }
 };
 

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sr_Latn_BA{
     Currencies{
         BAM{
@@ -21,11 +21,6 @@ sr_Latn_BA{
         }
     }
     CurrencyPlurals{
-        BAM{
-            few{"bosanskohercegovačke konvertibilne marke"}
-            one{"bosanskohercegovačka konvertibilna marka"}
-            other{"bosanskohercegovačkih konvertibilnih maraka"}
-        }
         BYN{
             few{"bjeloruske rublje"}
             one{"bjeloruska rublja"}

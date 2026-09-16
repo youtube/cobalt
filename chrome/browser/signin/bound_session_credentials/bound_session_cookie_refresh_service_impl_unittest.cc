@@ -99,8 +99,8 @@ MATCHER(IsThrottlerParams, "") {
 
   GURL scope_url =
       bound_session_credentials::GetBoundSessionScope(bound_session_params);
-  return throttler_params->domain == scope_url.host_piece() &&
-         throttler_params->path == scope_url.path_piece();
+  return throttler_params->domain == scope_url.host() &&
+         throttler_params->path == scope_url.path();
 }
 
 class FakeBoundSessionCookieController : public BoundSessionCookieController {
@@ -295,7 +295,7 @@ MATCHER_P2(IsBoundSessionRegistrationFetcher,
            has_started,
            "") {
   auto get_registration_path = [](const auto& fetcher) {
-    return fetcher->params().registration_endpoint().path_piece();
+    return fetcher->params().registration_endpoint().path();
   };
   auto fetcher_has_started = [](const auto& fetcher) {
     return fetcher->HasStarted();
@@ -345,7 +345,7 @@ bound_session_credentials::Credential CreateCookieCredential(
   bound_session_credentials::CookieCredential* cookie_credential =
       credential.mutable_cookie_credential();
   cookie_credential->set_name(cookie_name);
-  cookie_credential->set_domain(base::StrCat({".", domain.host_piece()}));
+  cookie_credential->set_domain(base::StrCat({".", domain.host()}));
   cookie_credential->set_path("/");
   return credential;
 }
@@ -641,9 +641,9 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest,
       bound_session_throttler_params =
           service->GetBoundSessionThrottlerParams();
   ASSERT_EQ(bound_session_throttler_params.size(), 1U);
-  EXPECT_EQ(bound_session_throttler_params[0]->domain, kTestGoogleURL.host());
-  EXPECT_EQ(bound_session_throttler_params[0]->path,
-            kTestGoogleURL.path_piece());
+  EXPECT_EQ(bound_session_throttler_params[0]->domain,
+            kTestGoogleURL.GetHost());
+  EXPECT_EQ(bound_session_throttler_params[0]->path, kTestGoogleURL.path());
 }
 
 TEST_F(BoundSessionCookieRefreshServiceImplTest,
@@ -1096,8 +1096,9 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest, ClearMatchingData) {
                                base::flat_set<std::string>(
                                    {k1PSIDTSCookieName, k3PSIDTSCookieName})))
       .Times(1);
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
-                  url::Origin::Create(kTestGoogleURL));
+  ClearOriginData(
+      content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS,
+      url::Origin::Create(kTestGoogleURL));
   VerifyNoBoundSession();
   VerifySessionTerminationTriggerRecorded(
       SessionTerminationTrigger::kCookiesCleared);
@@ -1110,7 +1111,7 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest,
   auto params = CreateTestBoundSessionParams();
   service->RegisterNewBoundSession(params);
 
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_CACHE_STORAGE,
+  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
                   url::Origin::Create(kTestGoogleURL));
   VerifyBoundSession(params);
   histogram_tester().ExpectTotalCount(
@@ -1124,8 +1125,9 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest,
   auto params = CreateTestBoundSessionParams();
   service->RegisterNewBoundSession(params);
 
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
-                  url::Origin::Create(GURL("https://example.org")));
+  ClearOriginData(
+      content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS,
+      url::Origin::Create(GURL("https://example.org")));
   VerifyBoundSession(params);
   histogram_tester().ExpectTotalCount(
       "Signin.BoundSessionCredentials.SessionTerminationTrigger", 0);
@@ -1138,8 +1140,9 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest,
   auto params = CreateTestBoundSessionParams();
   service->RegisterNewBoundSession(params);
 
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
-                  url::Origin::Create(GURL("https://accounts.google.com")));
+  ClearOriginData(
+      content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS,
+      url::Origin::Create(GURL("https://accounts.google.com")));
   VerifyBoundSession(params);
   histogram_tester().ExpectTotalCount(
       "Signin.BoundSessionCredentials.SessionTerminationTrigger", 0);
@@ -1152,10 +1155,10 @@ TEST_F(BoundSessionCookieRefreshServiceImplTest,
   auto params = CreateTestBoundSessionParams();
   service->RegisterNewBoundSession(params);
 
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
-                  url::Origin::Create(kTestGoogleURL),
-                  base::Time::Now() - base::Seconds(5),
-                  base::Time::Now() - base::Seconds(3));
+  ClearOriginData(
+      content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS,
+      url::Origin::Create(kTestGoogleURL), base::Time::Now() - base::Seconds(5),
+      base::Time::Now() - base::Seconds(3));
   VerifyBoundSession(params);
   histogram_tester().ExpectTotalCount(
       "Signin.BoundSessionCredentials.SessionTerminationTrigger", 0);
@@ -1766,8 +1769,9 @@ TEST_F(BoundSessionCookieRefreshServiceImplMultiSessionTest,
               OnBoundSessionTerminated(
                   kTestGoogleURL, base::flat_set<std::string>({"cookieC"})))
       .WillOnce([this] { PruneDestroyedControllers(); });
-  ClearOriginData(content::StoragePartition::REMOVE_DATA_MASK_COOKIES,
-                  url::Origin::Create(kTestGoogleURL));
+  ClearOriginData(
+      content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS,
+      url::Origin::Create(kTestGoogleURL));
   // all_params[0] and all_params[1] should have been terminated.
   VerifyBoundSessions({all_params[2]});
   histogram_tester().ExpectUniqueSample(

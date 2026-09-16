@@ -28,10 +28,12 @@ import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITE
 import static org.chromium.ui.listmenu.ListSectionDividerProperties.COLOR_ID;
 
 import android.app.Activity;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.ListView;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
@@ -94,6 +96,7 @@ import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.widget.RectProvider;
 import org.chromium.url.GURL;
 
 import java.lang.ref.WeakReference;
@@ -519,6 +522,26 @@ public class TabContextMenuCoordinatorUnitTest {
     @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testAddToGroupSubmenu_fallbackTabGroupName() {
+        when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn("");
+        MultiWindowUtils.setInstanceCountForTesting(1);
+        mSavedTabGroup.title = "";
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID));
+
+        assertEquals("Number of items in the list menu is incorrect", 5, modelList.size());
+
+        // List item 1
+        verifyAddToGroupSubmenuForTabOutsideOfGroup(modelList, "1 tab", 1);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    @SuppressWarnings("DirectInvocationOnMock")
+    public void testAddToGroupSubmenu_fallbackTabGroupName_incognito() {
+        setupWithIncognito(true);
+        initializeCoordinator();
         when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn("");
         MultiWindowUtils.setInstanceCountForTesting(1);
         mSavedTabGroup.title = "";
@@ -1373,5 +1396,42 @@ public class TabContextMenuCoordinatorUnitTest {
             if (i < items.size() - 1) modelListContents.append(", ");
         }
         return modelListContents.toString();
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testSubmenuSelection() {
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID));
+        mTabContextMenuCoordinator.showMenu(
+                new RectProvider(new Rect(0, 0, 100, 100)), List.of(TAB_ID));
+
+        // Click into "Add to group" submenu.
+        var addToGroupItem = modelList.get(0);
+        addToGroupItem.model.get(CLICK_LISTENER).onClick(mView);
+
+        // Verify that the top item of the submenu is selected.
+        ListView listView =
+                mTabContextMenuCoordinator
+                        .getContentViewForTesting()
+                        .findViewById(R.id.tab_group_action_menu_list);
+        assertEquals(
+                "Expected 1st item to be selected after navigating into submenu",
+                0,
+                listView.getSelectedItemPosition());
+
+        // Click back to parent menu.
+        var headerItem = modelList.get(0);
+        headerItem.model.get(CLICK_LISTENER).onClick(mView);
+
+        // Verify that the top item of the parent menu is selected.
+        assertEquals(
+                "Expected 1st item to be selected after navigating out of submenu",
+                0,
+                listView.getSelectedItemPosition());
+
+        mTabContextMenuCoordinator.destroyMenuForTesting();
     }
 }

@@ -4,6 +4,7 @@
 package org.chromium.chrome.browser.toolbar;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.toolbar.settings.AddressBarPreference.computeToolbarPositionAndSource;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -37,12 +38,12 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.chrome.browser.toolbar.top.ToolbarLayout;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.KeyboardVisibilityDelegate.KeyboardVisibilityListener;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -94,6 +95,11 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         int getLayerOffsetPx();
     }
 
+    // LINT.IfChange(TipsPrefNames)
+    // Whether the bottom omnibox was ever used.
+    public static final String BOTTOM_OMNIBOX_EVER_USED_PREF = "omnibox.bottom_omnibox_ever_used";
+    // LINT.ThenChange(//components/omnibox/browser/omnibox_pref_names.h:TipsPrefNames)
+
     // User-configured, or, otherwise, default Toolbar placement; may be null, if target placement
     // has not been determined yet. Prefer `isToolbarConfiguredToShowOnTop()` call when querying
     // intended placement.
@@ -115,6 +121,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private final ObservableSupplier<Integer> mControlContainerTranslationSupplier;
     private final ObservableSupplier<Integer> mControlContainerHeightSupplier;
     private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
+    private final ObservableSupplier<Profile> mProfileSupplier;
     private final Handler mHandler;
     @LayerVisibility private int mLayerVisibility;
     private int mControlContainerHeight;
@@ -127,8 +134,8 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private final Callback<Boolean> mIsFormFieldFocusedObserver;
     private final Callback<Boolean> mIsFindInPageShowingObserver;
     private final KeyboardVisibilityListener mKeyboardVisibilityListener;
-    private final Callback<Integer> mKeyboardAccessoryToolbarCallback;
-    private final Callback<Integer> mKeyboardAccessoryProgressBarCallback;
+    private final Callback<Integer> mKeyboardHeightToolbarCallback;
+    private final Callback<Integer> mKeyboardHeightProgressBarCallback;
     private final KeyboardVisibilityListener mKeyboardVisibilityViewOffsetCallback;
     private final Callback<Boolean> mFormFieldViewOffsetCallback;
     private final Callback<Integer> mControlContainerTranslationCallback;
@@ -139,6 +146,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private int mTopInset;
 
     ObservableSupplierImpl<@ControlsPosition Integer> mCurrentPosition;
+    private final ObservableSupplier<Integer> mKeyboardHeightSupplier;
     private final int mHairlineHeight;
 
     /**
@@ -166,6 +174,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
      *     meaning that the height should no longer be overridden.
      * @param topInsetCoordinatorSupplier Supplier of the {@link TopInsetCoordinator}.
      * @param controlsPosition Supplier to update whenever toolbar position changes.
+     * @param profileSupplier Supplier of the currently applicable profile.
      */
     public ToolbarPositionController(
             BrowserControlsSizer browserControlsSizer,
@@ -187,7 +196,9 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
             Handler handler,
             Context context,
-            ObservableSupplierImpl<@ControlsPosition Integer> controlsPosition) {
+            ObservableSupplierImpl<@ControlsPosition Integer> controlsPosition,
+            ObservableSupplier<Profile> profileSupplier,
+            ObservableSupplier<Integer> keyboardHeightSupplier) {
         mBrowserControlsSizer = browserControlsSizer;
         mIsNtpWithFakeboxShowingSupplier = isNtpWithFakeboxShowingSupplier;
         mIsTabSwitcherFinishedShowingSupplier = isTabSwitcherFinishedShowingSupplier;
@@ -205,7 +216,9 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mControlContainerHeightSupplier = controlContainerHeightSupplier;
         mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
         mCurrentPosition = controlsPosition;
+        mKeyboardHeightSupplier = keyboardHeightSupplier;
         mCurrentPosition.set(mBrowserControlsSizer.getControlsPosition());
+        mProfileSupplier = profileSupplier;
 
         mHairlineHeight =
                 context.getResources().getDimensionPixelSize(R.dimen.toolbar_hairline_height);
@@ -309,9 +322,9 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mBottomControlsStacker.addLayer(mBottomToolbarLayer);
         mBottomControlsStacker.addLayer(mProgressBarLayer);
 
-        mKeyboardAccessoryToolbarCallback =
+        mKeyboardHeightToolbarCallback =
                 (height) -> updateViewOffset(mBottomToolbarLayer, mControlContainer.getView());
-        mKeyboardAccessoryProgressBarCallback =
+        mKeyboardHeightProgressBarCallback =
                 (height) -> updateViewOffset(mProgressBarLayer, mToolbarProgressBarContainer);
         mKeyboardVisibilityViewOffsetCallback =
                 (showing) -> updateViewOffset(mBottomToolbarLayer, mControlContainer.getView());
@@ -323,12 +336,14 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mControlContainerHeightSupplier.addSyncObserverAndCallIfNonNull(
                 mControlContainerHeightCallback);
 
-        mKeyboardAccessoryHeightSupplier.addObserver(mKeyboardAccessoryToolbarCallback);
-        mKeyboardAccessoryHeightSupplier.addObserver(mKeyboardAccessoryProgressBarCallback);
+        mKeyboardAccessoryHeightSupplier.addObserver(mKeyboardHeightToolbarCallback);
+        mKeyboardAccessoryHeightSupplier.addObserver(mKeyboardHeightProgressBarCallback);
         mKeyboardVisibilityDelegate.addKeyboardVisibilityListener(
                 mKeyboardVisibilityViewOffsetCallback);
         mIsFormFieldFocusedSupplier.addObserver(mFormFieldViewOffsetCallback);
         mControlContainerTranslationSupplier.addObserver(mControlContainerTranslationCallback);
+        mKeyboardHeightSupplier.addObserver(mKeyboardHeightToolbarCallback);
+        mKeyboardHeightSupplier.addObserver(mKeyboardHeightProgressBarCallback);
 
         var topInsetCoordinator = mTopInsetCoordinatorSupplier.get();
         if (topInsetCoordinator != null) {
@@ -350,8 +365,10 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mIsFindInPageShowingSupplier.removeObserver(mIsFindInPageShowingObserver);
         mKeyboardVisibilityDelegate.removeKeyboardVisibilityListener(mKeyboardVisibilityListener);
         mSharedPreferences.unregisterOnSharedPreferenceChangeListener(this);
-        mKeyboardAccessoryHeightSupplier.removeObserver(mKeyboardAccessoryToolbarCallback);
-        mKeyboardAccessoryHeightSupplier.removeObserver(mKeyboardAccessoryProgressBarCallback);
+        mKeyboardAccessoryHeightSupplier.removeObserver(mKeyboardHeightToolbarCallback);
+        mKeyboardAccessoryHeightSupplier.removeObserver(mKeyboardHeightProgressBarCallback);
+        mKeyboardHeightSupplier.removeObserver(mKeyboardHeightToolbarCallback);
+        mKeyboardHeightSupplier.removeObserver(mKeyboardHeightProgressBarCallback);
         mKeyboardVisibilityDelegate.removeKeyboardVisibilityListener(
                 mKeyboardVisibilityViewOffsetCallback);
         mIsFormFieldFocusedSupplier.removeObserver(mFormFieldViewOffsetCallback);
@@ -551,6 +568,11 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
                 newControlsPosition == ControlsPosition.BOTTOM ? mHairlineHeight : 0;
         toolbarLayoutParams.bottomMargin =
                 newControlsPosition == ControlsPosition.BOTTOM ? 0 : mHairlineHeight;
+
+        // Set that the bottom omnibox has been used at least once now.
+        if (newControlsPosition == ControlsPosition.BOTTOM && mProfileSupplier.get() != null) {
+            UserPrefs.get(mProfileSupplier.get()).setBoolean(BOTTOM_OMNIBOX_EVER_USED_PREF, true);
+        }
     }
 
     @VisibleForTesting
@@ -567,7 +589,8 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         boolean allowBottomAnchoredFocusedOmnibox =
                 ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled();
         boolean forceBottomForFocusedOmnibox =
-                OmniboxFeatures.sOmniboxMultimodalInput.isEnabled() && isOmniboxFocused;
+                ChromeFeatureList.sAndroidBottomToolbarV2ForceBottomForFocusedOmnibox.getValue()
+                        && isOmniboxFocused;
         @ControlsPosition int newControlsPosition;
         if (!forceBottomForFocusedOmnibox
                 && (ntpShowing
@@ -588,11 +611,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         } else if (prefStateChanged) {
             // Animate when the pref changes via the long press menu, but not if it was changed via
             // the settings UI.
-            int positionAndSource =
-                    ChromeSharedPreferences.getInstance()
-                            .readInt(
-                                    ChromePreferenceKeys.TOOLBAR_TOP_ANCHORED,
-                                    ToolbarPositionAndSource.UNDEFINED);
+            int positionAndSource = computeToolbarPositionAndSource();
             boolean animate =
                     positionAndSource == ToolbarPositionAndSource.TOP_LONG_PRESS
                             || positionAndSource == ToolbarPositionAndSource.BOTTOM_LONG_PRESS;

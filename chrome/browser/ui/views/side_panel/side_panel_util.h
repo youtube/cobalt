@@ -18,6 +18,10 @@ class Browser;
 class SidePanelRegistry;
 class SidePanelContentProxy;
 
+namespace actions {
+class ActionItem;
+}  // namespace actions
+
 namespace views {
 class View;
 }  // namespace views
@@ -35,6 +39,9 @@ class SidePanelUtil {
   static SidePanelContentProxy* GetSidePanelContentProxy(
       views::View* content_view);
 
+  static actions::ActionItem* GetActionItem(Browser* browser,
+                                            SidePanelEntryKey entry_key);
+
   static void RecordNewTabButtonClicked(SidePanelEntry::Id id);
   static void RecordSidePanelOpen(std::optional<SidePanelOpenTrigger> trigger);
   static void RecordSidePanelShowOrChangeEntryTrigger(
@@ -51,7 +58,6 @@ class SidePanelUtil {
       Browser* browser,
       SidePanelEntry::Id id,
       std::optional<SidePanelOpenTrigger> trigger);
-  static void RecordComboboxShown();
   static void RecordPinnedButtonClicked(SidePanelEntry::Id id, bool is_pinned);
   static void RecordSidePanelAnimationMetrics(
       base::TimeDelta largest_step_time);

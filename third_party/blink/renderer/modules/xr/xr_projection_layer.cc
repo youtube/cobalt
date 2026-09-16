@@ -9,8 +9,16 @@
 
 namespace blink {
 
-XRProjectionLayer::XRProjectionLayer(XRGraphicsBinding* binding)
-    : XRCompositionLayer(binding) {}
+XRProjectionLayer::XRProjectionLayer(XRGraphicsBinding* binding,
+                                     XRLayerDrawingContext* drawing_context)
+    : XRCompositionLayer(binding, drawing_context) {
+  // Ensure correct viewports are sent to the runtime on the first frame.
+  SetModified(true);
+}
+
+XRLayerType XRProjectionLayer::LayerType() const {
+  return XRLayerType::kProjectionLayer;
+}
 
 bool XRProjectionLayer::ignoreDepthValues() const {
   return ignore_depth_values_;

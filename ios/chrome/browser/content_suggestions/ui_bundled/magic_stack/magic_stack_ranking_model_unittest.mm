@@ -23,6 +23,7 @@
 #import "components/image_fetcher/core/image_data_fetcher.h"
 #import "components/ntp_tiles/icon_cacher.h"
 #import "components/ntp_tiles/most_visited_sites.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/segmentation_platform/embedder/home_modules/constants.h"
 #import "components/segmentation_platform/embedder/home_modules/tips_manager/constants.h"
 #import "components/segmentation_platform/public/constants.h"
@@ -53,7 +54,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_helper_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_magic_stack_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_magic_stack_mediator.h"
 #import "ios/chrome/browser/default_browser/model/utils_test_support.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_cache_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
@@ -269,7 +270,7 @@ class MagicStackRankingModelTest : public PlatformTest {
 
     // Necessary set up for kIOSSetUpList.
     GetProfile()->GetPrefs()->SetBoolean(
-        prefs::kHomeCustomizationMagicStackSetUpListEnabled, true);
+        ntp_tiles::prefs::kTipsHomeModuleEnabled, true);
     ClearDefaultBrowserPromoData();
     WriteFirstRunSentinel();
 
@@ -675,6 +676,7 @@ TEST_F(MagicStackRankingModelTest, TestEphemeralModelDidGetCardToShow) {
       static_cast<commerce::MockShoppingService*>(
           commerce::ShoppingServiceFactory::GetForProfile(GetProfile()));
   shopping_service->SetIsShoppingListEligible(true);
+  shopping_service->SetGetAllSubscriptionsCallbackValue({});
 
   FakeMagicStackRankingModelDelegate* delegate_ =
       [[FakeMagicStackRankingModelDelegate alloc] init];

@@ -38,12 +38,12 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.WindowAndroid;
@@ -173,9 +173,9 @@ public class StatusBarColorController
         mOverviewColorSupplier = overviewColorSupplier;
 
         mStandardDefaultThemeColor =
-                SurfaceColorUpdateUtils.getDefaultThemeColor(context, /* isIncognito= */ false);
+                ChromeColors.getDefaultThemeColor(context, /* isIncognito= */ false);
         mIncognitoDefaultThemeColor =
-                SurfaceColorUpdateUtils.getDefaultThemeColor(context, /* isIncognito= */ true);
+                ChromeColors.getDefaultThemeColor(context, /* isIncognito= */ true);
         var ntpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
         mBackgroundColorForNtp =
                 supportEdgeToEdge
@@ -190,8 +190,7 @@ public class StatusBarColorController
         mIncognitoActiveOmniboxColor = context.getColor(R.color.omnibox_dropdown_bg_incognito);
         // TODO(b/41494931): Share code with ToolbarPhone#getToolbarDefaultColor().
         mStandardScrolledOmniboxColor =
-                SurfaceColorUpdateUtils.getOmniboxBackgroundColor(
-                        context, /* isIncognito= */ false);
+                ContextCompat.getColor(context, R.color.toolbar_text_box_bg_color);
         mIncognitoScrolledOmniboxColor = context.getColor(R.color.omnibox_scrolled_bg_incognito);
 
         mStatusBarColorTabObserver =
@@ -297,7 +296,7 @@ public class StatusBarColorController
                             updateStatusBarColor();
                         }
                     };
-            ntpCustomizationConfigManager.addListener(mHomepageStateListener);
+            ntpCustomizationConfigManager.addListener(mHomepageStateListener, context);
         }
     }
 

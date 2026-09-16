@@ -232,6 +232,7 @@ android_resources("webview_instrumentation_apk_resources") {
     "shell/res/raw/resource_icon.png",
     "shell/res/values/config.xml",
     "shell/res/values/strings.xml",
+    "shell/res/xml/network_security_config.xml",
     "shell/res/xml/provider_paths.xml",
   ]
 }
@@ -531,6 +532,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/PostMessageTest.java",
     "../javatests/src/org/chromium/android_webview/test/ProfileExtraHeadersTest.java",
     "../javatests/src/org/chromium/android_webview/test/RenderProcessGoneHelper.java",
+    "../javatests/src/org/chromium/android_webview/test/RendererLibraryPrefetchModeTest.java",
     "../javatests/src/org/chromium/android_webview/test/RendererProcessMetricsProviderTest.java",
     "../javatests/src/org/chromium/android_webview/test/SafeBrowsingSafeModeTest.java",
     "../javatests/src/org/chromium/android_webview/test/SafeBrowsingTest.java",
@@ -556,7 +558,6 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/WebViewAsynchronousFindApisTest.java",
     "../javatests/src/org/chromium/android_webview/test/WebViewFindApisTestRule.java",
     "../javatests/src/org/chromium/android_webview/test/WebViewModalDialogOverrideTest.java",
-    "../javatests/src/org/chromium/android_webview/test/XRWOriginTrialTest.java",
     "../javatests/src/org/chromium/android_webview/test/common/services/ServiceConnectionDelayRecorderTest.java",
     "../javatests/src/org/chromium/android_webview/test/common/variations/VariationsUtilsTest.java",
     "../javatests/src/org/chromium/android_webview/test/component_updater/EmbeddedComponentLoaderTest.java",

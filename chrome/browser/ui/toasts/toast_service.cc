@@ -261,13 +261,11 @@ void ToastService::RegisterToasts(
             .Build());
   }
 
-  if (toast_features::IsEnabled(toast_features::kPinnedTabToastOnClose)) {
-    toast_registry_->RegisterToast(
-        ToastId::kClosePinnedTab,
-        ToastSpecification::Builder(kKeepIcon, IDS_CLOSE_PINNED_TAB_TOAST_BODY)
-            .SetToastAsActionable()
-            .Build());
-  }
+  toast_registry_->RegisterToast(
+      ToastId::kClosePinnedTab,
+      ToastSpecification::Builder(kKeepIcon, IDS_CLOSE_PINNED_TAB_TOAST_BODY)
+          .SetToastAsActionable()
+          .Build());
 
   if (features::kGlicActorUiToast.Get()) {
     toast_registry_->RegisterToast(
@@ -292,5 +290,11 @@ void ToastService::RegisterToasts(
                                },
                                base::Unretained(browser_window_interface)))
           .AddGlobalScoped()
+          .Build());
+
+  toast_registry_->RegisterToast(
+      ToastId::kEmailVerified,
+      ToastSpecification::Builder(vector_icons::kEmailIcon, IDS_EMAIL_VERIFIED)
+          .AddCloseButton()
           .Build());
 }  // RegisterToasts() end.

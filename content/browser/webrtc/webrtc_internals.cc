@@ -229,11 +229,12 @@ void WebRTCInternals::OnPeerConnectionUpdated(GlobalRenderFrameHostId frame_id,
   if (it == peer_connection_data().end())
     return;
 
-  if (type == "iceconnectionstatechange") {
-    if (value == "connected" || value == "checking" || value == "completed") {
+  if (type == "oniceconnectionstatechange") {
+    if (value == "\"connected\"" || value == "\"checking\"" ||
+        value == "\"completed\"") {
       MaybeMarkPeerConnectionAsConnected(*it);
-    } else if (value == "failed" || value == "disconnected" ||
-               value == "closed" || value == "new") {
+    } else if (value == "\"failed\"" || value == "\"disconnected\"" ||
+               value == "\"closed\"" || value == "\"new\"") {
       MaybeMarkPeerConnectionAsNotConnected(*it);
     }
   } else if (type == "close") {

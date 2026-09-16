@@ -171,7 +171,8 @@ SkBitmap CreateRgbBitmap(const SkBitmap& bgr_bitmap) {
 
 // Converts a JSON string array to a vector.
 std::vector<std::string> JSONArrayToVector(const std::string& json_array) {
-  std::optional<base::Value> json_value = base::JSONReader::Read(json_array);
+  std::optional<base::Value> json_value =
+      base::JSONReader::Read(json_array, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 
   if (!json_value) {
     return {};
@@ -201,6 +202,86 @@ LensOverlayController* GetLensOverlayControllerFromTabInterface(
 }
 
 }  // namespace
+
+class LensOverlayController::UnderlyingWebContentsObserver
+    : public content::WebContentsObserver {
+ public:
+  UnderlyingWebContentsObserver(content::WebContents* web_contents,
+                                LensOverlayController* lens_overlay_controller)
+      : content::WebContentsObserver(web_contents),
+        lens_overlay_controller_(lens_overlay_controller) {}
+
+  ~UnderlyingWebContentsObserver() override = default;
+
+  UnderlyingWebContentsObserver(const UnderlyingWebContentsObserver&) = delete;
+  UnderlyingWebContentsObserver& operator=(
+      const UnderlyingWebContentsObserver&) = delete;
+
+  // content::WebContentsObserver
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override {
+    // If the overlay is off, check if we should display IPH.
+    if (lens_overlay_controller_->state() == State::kOff) {
+      // Only check IPH eligibility if the navigation changed the primary page.
+      if (base::FeatureList::IsEnabled(
+              feature_engagement::kIPHLensOverlayFeature) &&
+          navigation_handle->IsInPrimaryMainFrame() &&
+          !navigation_handle->IsSameDocument() &&
+          navigation_handle->HasCommitted()) {
+        lens_overlay_controller_->MaybeShowDelayedTutorialIPH(
+            navigation_handle->GetURL());
+      }
+      return;
+    }
+
+    // If the overlay is open, check if we should close it.
+    bool is_user_reload =
+        navigation_handle->GetReloadType() != content::ReloadType::NONE &&
+        !navigation_handle->IsRendererInitiated();
+    // We don't need to close if:
+    //   1) The navigation is not for the main page.
+    //   2) The navigation hasn't been committed yet.
+    //   3) The URL did not change and the navigation wasn't the user reloading
+    //      the page.
+    if (!navigation_handle->IsInPrimaryMainFrame() ||
+        !navigation_handle->HasCommitted() ||
+        (navigation_handle->GetPreviousPrimaryMainFrameURL() ==
+             navigation_handle->GetURL() &&
+         !is_user_reload)) {
+      return;
+    }
+    if (lens_overlay_controller_->state() == State::kHidden) {
+      lens_overlay_controller_->UpdateNavigationMetrics();
+      lens_overlay_controller_->NotifyPageContentUpdated();
+      return;
+    }
+
+    // If the page changes, only the overlay needs to be hidden, possibly
+    // leaving the side panel open. The search controller will handle whether
+    // the side panel should stay open or the entire session should terminate.
+    lens_overlay_controller_->lens_search_controller_->HideOverlay(
+        lens::LensOverlayDismissalSource::kPageChanged);
+    return;
+  }
+
+  void PrimaryMainFrameRenderProcessGone(
+      base::TerminationStatus status) override {
+    // Exit early if the overlay is off or already closing.
+    if (lens_overlay_controller_->state() == State::kOff ||
+        lens_overlay_controller_->IsOverlayClosing()) {
+      return;
+    }
+
+    lens_overlay_controller_->lens_search_controller_->CloseLensSync(
+        status == base::TERMINATION_STATUS_NORMAL_TERMINATION
+            ? lens::LensOverlayDismissalSource::kPageRendererClosedNormally
+            : lens::LensOverlayDismissalSource::
+                  kPageRendererClosedUnexpectedly);
+  }
+
+ private:
+  raw_ptr<LensOverlayController> lens_overlay_controller_;
+};
 
 LensOverlayController::LensOverlayController(
     tabs::TabInterface* tab,
@@ -268,6 +349,15 @@ void LensOverlayController::TriggerOverlayFadeOutAnimation(
 
 void LensOverlayController::CloseUI(
     lens::LensOverlayDismissalSource dismissal_source) {
+  // Notify the query controller to loose references to this classes data before
+  // it gets cleaned up to prevent dangling ptrs. This needs to be done even
+  // when the overlay state is kOff because the overlay may have been used for
+  // contextual suggestions.
+  if (lens_overlay_query_controller_) {
+    lens_overlay_query_controller_->ResetPageContentData();
+  }
+  lens_overlay_query_controller_ = nullptr;
+
   if (state_ == State::kOff) {
     return;
   }
@@ -276,11 +366,6 @@ void LensOverlayController::CloseUI(
 
   // Closes preselection toast if it exists.
   ClosePreselectionBubble();
-
-  // Notify the query controller to loose references to this classes data before
-  // it gets cleaned up to prevent dangling ptrs.
-  lens_overlay_query_controller_->ResetPageContentData();
-  lens_overlay_query_controller_ = nullptr;
 
   // A permission prompt may be suspended if the overlay was showing when the
   // permission was queued. Restore the suspended prompt if possible.
@@ -347,6 +432,7 @@ void LensOverlayController::CloseUI(
 
   lens_selection_type_ = lens::UNKNOWN_SELECTION_TYPE;
 
+  NotifyIsOverlayShowing(false);
   state_ = State::kOff;
 
   // Update the entrypoints now that the controller is closed.
@@ -359,7 +445,8 @@ const std::u16string LensOverlayController::GetFilenameForURL(const GURL& url) {
     return u"screenshot.png";
   }
 
-  return base::ASCIIToUTF16(base::StrCat({"screenshot_", url.host(), ".png"}));
+  return base::ASCIIToUTF16(
+      base::StrCat({"screenshot_", url.GetHost(), ".png"}));
 }
 
 void LensOverlayController::BindOverlay(
@@ -467,6 +554,11 @@ bool LensOverlayController::IsOverlayShowing() const {
 
 bool LensOverlayController::IsOverlayActive() const {
   return IsOverlayShowing() || state_ == State::kHidden;
+}
+
+bool LensOverlayController::HasRegionSelection() const {
+  return initialization_data_ &&
+         !initialization_data_->selected_region_.is_null();
 }
 
 bool LensOverlayController::IsOverlayInitializing() {
@@ -763,6 +855,10 @@ const std::string& LensOverlayController::GetThumbnailForTesting() {
   return GetLensSearchboxController()->GetThumbnail();
 }
 
+void LensOverlayController::ClearRegionSelectionForTesting() {
+  ClearRegionSelection();
+}
+
 void LensOverlayController::OnTextModifiedForTesting() {
   GetLensSearchboxController()->OnTextModified();
 }
@@ -801,18 +897,6 @@ void LensOverlayController::ShowUI(
     return;
   }
 
-  if (state_ == State::kHidden) {
-    ShowOverlay();
-    state_ = side_panel_coordinator_->IsSidePanelShowing()
-                 ? State::kOverlayAndResults
-                 : State::kOverlay;
-    if (!pending_region_) {
-      ShowPreselectionBubble();
-    }
-    UpdateEntryPointsState();
-    return;
-  }
-
   // The UI should only show if the tab is in the foreground or if the tab web
   // contents is not in a crash state.
   if (!tab_->IsActivated() || tab_->GetContents()->IsCrashed()) {
@@ -838,7 +922,7 @@ void LensOverlayController::ShowUI(
   // Grab reference to the side panel coordinator it not already done so.
   if (!results_side_panel_coordinator_) {
     results_side_panel_coordinator_ =
-        lens_search_controller_->lens_overlay_side_panel_coordinator();
+        GetLensOverlaySidePanelCoordinator();
   }
 
   Profile* profile =
@@ -903,9 +987,10 @@ void LensOverlayController::ShowUI(
 
   // This should be the last thing called in ShowUI, so if something goes wrong
   // in capturing the screenshot, the state gets cleaned up correctly.
-  if (side_panel_coordinator_->IsSidePanelShowing()) {
-    // Close the currently opened side panel synchronously. Postpone the
-    // screenshot for a fixed time to allow reflow.
+  if (side_panel_coordinator_->IsSidePanelShowing() &&
+      !results_side_panel_coordinator_->IsEntryShowing()) {
+    // Close the currently opened side panel synchronously if it's not the Lens
+    // panel. Postpone the screenshot for a fixed time to allow reflow.
     state_ = State::kClosingOpenedSidePanel;
     side_panel_coordinator_->Close(/*suppress_animations=*/true);
     base::SingleThreadTaskRunner::GetCurrentDefault()
@@ -976,6 +1061,19 @@ void LensOverlayController::IssueTextSearchRequestInner(
     // when a contextual request is made but the overlay is not shown.
     lens_overlay_query_controller_ = lens_overlay_query_controller;
     CHECK(lens_overlay_query_controller_);
+
+    // If the contextualization controller was already initialized then
+    // there is no need to call `StartContextualization` again.
+    if (GetContextualizationController()->IsActive()) {
+      GetContextualizationController()->TryUpdatePageContextualization(
+          base::BindOnce(
+              &LensOverlayController::OnPageContextUpdatedForSuggestion,
+              weak_factory_.GetWeakPtr(), query_start_time, query_text,
+              additional_query_parameters, match_type,
+              is_zero_prefix_suggestion, invocation_source));
+      return;
+    }
+
     GetContextualizationController()->StartContextualization(
         invocation_source,
         base::BindOnce(
@@ -1263,179 +1361,6 @@ LensOverlayController::OverlayInitializationData::OverlayInitializationData(
 LensOverlayController::OverlayInitializationData::~OverlayInitializationData() =
     default;
 
-class LensOverlayController::UnderlyingWebContentsObserver
-    : public content::WebContentsObserver {
- public:
-  UnderlyingWebContentsObserver(content::WebContents* web_contents,
-                                LensOverlayController* lens_overlay_controller)
-      : content::WebContentsObserver(web_contents),
-        lens_overlay_controller_(lens_overlay_controller) {}
-
-  ~UnderlyingWebContentsObserver() override = default;
-
-  UnderlyingWebContentsObserver(const UnderlyingWebContentsObserver&) = delete;
-  UnderlyingWebContentsObserver& operator=(
-      const UnderlyingWebContentsObserver&) = delete;
-
-  // content::WebContentsObserver
-  void DidFinishNavigation(
-      content::NavigationHandle* navigation_handle) override {
-    // If the overlay is off, check if we should display IPH.
-    if (lens_overlay_controller_->state() == State::kOff) {
-      // Only check IPH eligibility if the navigation changed the primary page.
-      if (base::FeatureList::IsEnabled(
-              feature_engagement::kIPHLensOverlayFeature) &&
-          navigation_handle->IsInPrimaryMainFrame() &&
-          !navigation_handle->IsSameDocument() &&
-          navigation_handle->HasCommitted()) {
-        lens_overlay_controller_->MaybeShowDelayedTutorialIPH(
-            navigation_handle->GetURL());
-      }
-      return;
-    }
-
-    // If the overlay is open, check if we should close it.
-    bool is_user_reload =
-        navigation_handle->GetReloadType() != content::ReloadType::NONE &&
-        !navigation_handle->IsRendererInitiated();
-    // We don't need to close if:
-    //   1) The navigation is not for the main page.
-    //   2) The navigation hasn't been committed yet.
-    //   3) The URL did not change and the navigation wasn't the user reloading
-    //      the page.
-    if (!navigation_handle->IsInPrimaryMainFrame() ||
-        !navigation_handle->HasCommitted() ||
-        (navigation_handle->GetPreviousPrimaryMainFrameURL() ==
-             navigation_handle->GetURL() &&
-         !is_user_reload)) {
-      return;
-    }
-    if (lens_overlay_controller_->state() == State::kHidden) {
-      lens_overlay_controller_->UpdateNavigationMetrics();
-      lens_overlay_controller_->NotifyPageContentUpdated();
-      return;
-    }
-
-    // If the page changes, only the overlay needs to be hidden, possibly
-    // leaving the side panel open. The search controller will handle whether
-    // the side panel should stay open or the entire session should terminate.
-    lens_overlay_controller_->lens_search_controller_->HideOverlay(
-        lens::LensOverlayDismissalSource::kPageChanged);
-    return;
-  }
-
-  void PrimaryMainFrameRenderProcessGone(
-      base::TerminationStatus status) override {
-    // Exit early if the overlay is off or already closing.
-    if (lens_overlay_controller_->state() == State::kOff ||
-        lens_overlay_controller_->IsOverlayClosing()) {
-      return;
-    }
-
-    lens_overlay_controller_->lens_search_controller_->CloseLensSync(
-        status == base::TERMINATION_STATUS_NORMAL_TERMINATION
-            ? lens::LensOverlayDismissalSource::kPageRendererClosedNormally
-            : lens::LensOverlayDismissalSource::
-                  kPageRendererClosedUnexpectedly);
-  }
-
- private:
-  raw_ptr<LensOverlayController> lens_overlay_controller_;
-};
-
-void LensOverlayController::FetchViewportImageBoundingBoxes(
-    std::optional<base::TimeTicks> bounding_box_start_time,
-    const SkBitmap& bitmap) {
-  content::RenderFrameHost* render_frame_host =
-      tab_->GetContents()->GetPrimaryMainFrame();
-  mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> chrome_render_frame;
-  render_frame_host->GetRemoteAssociatedInterfaces()->GetInterface(
-      &chrome_render_frame);
-  // Bind the InterfacePtr into the callback so that it's kept alive until
-  // there's either a connection error or a response.
-  auto* frame = chrome_render_frame.get();
-
-  frame->RequestBoundsHintForAllImages(base::BindOnce(
-      &LensOverlayController::GetPdfCurrentPage, weak_factory_.GetWeakPtr(),
-      std::move(chrome_render_frame), ++screenshot_attempt_id_, bitmap,
-      std::make_optional<base::TimeTicks>(base::TimeTicks::Now())));
-
-  if (bounding_box_start_time.has_value()) {
-    lens::RecordTimeToScreenshot(base::TimeTicks::Now() -
-                                 bounding_box_start_time.value());
-  }
-}
-
-void LensOverlayController::GetPdfCurrentPage(
-    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
-        chrome_render_frame,
-    int attempt_id,
-    const SkBitmap& bitmap,
-    std::optional<base::TimeTicks> bounding_box_start_time,
-    const std::vector<gfx::Rect>& bounds) {
-  if (bounding_box_start_time.has_value()) {
-    lens::RecordTimeToFetchBoundingBoxes(base::TimeTicks::Now() -
-                                         bounding_box_start_time.value());
-  }
-#if BUILDFLAG(ENABLE_PDF)
-  pdf::PDFDocumentHelper* pdf_helper =
-      pdf::PDFDocumentHelper::MaybeGetForWebContents(tab_->GetContents());
-  if (pdf_helper) {
-    pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
-        &LensOverlayController::DidCaptureScreenshot,
-        weak_factory_.GetWeakPtr(), std::move(chrome_render_frame), attempt_id,
-        bitmap, bounds,
-        std::make_optional<base::TimeTicks>(base::TimeTicks::Now())));
-    return;
-  }
-#endif  // BUILDFLAG(ENABLE_PDF)
-
-  DidCaptureScreenshot(std::move(chrome_render_frame), attempt_id, bitmap,
-                       bounds, /*pdf_current_page=*/std::nullopt,
-                       /*pdf_page_start_time=*/std::nullopt);
-}
-
-void LensOverlayController::DidCaptureScreenshot(
-    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
-        chrome_render_frame,
-    int attempt_id,
-    const SkBitmap& bitmap,
-    const std::vector<gfx::Rect>& all_bounds,
-    std::optional<base::TimeTicks> pdf_page_start_time,
-    std::optional<uint32_t> pdf_current_page) {
-  if (pdf_page_start_time.has_value()) {
-    lens::RecordTimeToFetchPdfPage(base::TimeTicks::Now() -
-                                   pdf_page_start_time.value());
-  }
-  // While capturing a screenshot the overlay was cancelled. Do nothing.
-  if (state_ == State::kOff || IsOverlayClosing()) {
-    return;
-  }
-
-  // An id mismatch implies this is not the most recent screenshot attempt.
-  if (screenshot_attempt_id_ != attempt_id) {
-    return;
-  }
-
-  // The documentation for CopyFromSurface claims that the copy can fail, but
-  // without providing information about how this can happen.
-  // Supposedly IsSurfaceAvailableForCopy() should guard against this case, but
-  // this is a multi-process, multi-threaded environment so there may be a
-  // TOCTTOU race condition.
-  if (bitmap.drawsNothing()) {
-    lens_search_controller_->CloseLensSync(
-        lens::LensOverlayDismissalSource::kErrorScreenshotCreationFailed);
-    return;
-  }
-
-  // The following two methods happen async to parallelize the two bottlenecks
-  // in our invocation flow.
-  CreateInitializationData(bitmap, all_bounds, pdf_current_page);
-  ShowOverlay();
-
-  state_ = State::kStartingWebUI;
-}
-
 void LensOverlayController::CreateInitializationData(
     const SkBitmap& screenshot,
     const std::vector<gfx::Rect>& all_bounds,
@@ -1586,6 +1511,7 @@ void LensOverlayController::ShowOverlay() {
   auto* contents_web_view = tab_->GetBrowserWindowInterface()->GetWebView();
   CHECK(contents_web_view);
 
+  NotifyIsOverlayShowing(true);
   // If the view already exists, we just need to reshow it.
   if (overlay_view_) {
     // Restore the state to show the overlay.
@@ -1669,15 +1595,14 @@ void LensOverlayController::MaybeHideSharedOverlayView() {
 }
 
 void LensOverlayController::MaybeOpenSidePanel() {
-  results_side_panel_coordinator_->RegisterEntryAndShow();
+  GetLensOverlaySidePanelCoordinator()
+      ->RegisterEntryAndShow();
 }
 
 void LensOverlayController::InitializeOverlay(
     std::unique_ptr<OverlayInitializationData> initialization_data) {
   // Initialization data is ready.
   if (initialization_data) {
-    // Confirm initialization_data has not already been assigned.
-    CHECK(!initialization_data_);
     initialization_data_ = std::move(initialization_data);
   }
 
@@ -1721,16 +1646,22 @@ void LensOverlayController::InitializeOverlay(
             live_page_widget_host);
   }
 
-  state_ = State::kOverlay;
+  const bool is_side_panel_open =
+      GetLensOverlaySidePanelCoordinator()
+          ->IsEntryShowing();
+  // TODO(crbug.com/450638028): Stop using kOverlayAndResults now that overlay
+  // controller should be separated from the side panel.
+  state_ = is_side_panel_open ? State::kOverlayAndResults : State::kOverlay;
   lens_search_controller_->NotifyOverlayOpened();
 
   // Update the entry points state to ensure that the entry points are disabled
   // now that the overlay is showing.
   UpdateEntryPointsState();
 
-  // Only start the query flow again if we don't already have a full image
-  // response, unless the early start query flow optimization is enabled.
-  if (!initialization_data_->has_full_image_response()) {
+  // Only start the query flow again if there is no full image response and the
+  // side panel is not open. The side panel being open indicates that a full
+  // image response could have been received and not passed to the overlay.
+  if (lens_overlay_query_controller_->IsOff()) {
     if (!GetContextualizationController()->GetCurrentPageContextEligibility()) {
       initialization_data_->initial_screenshot_ = SkBitmap();
       initialization_data_->page_url_ = GURL();
@@ -2125,13 +2056,8 @@ void LensOverlayController::RenderProcessExited(
 void LensOverlayController::TabForegrounded(tabs::TabInterface* tab) {
   // Ignore the event if the overlay is not backgrounded.
   if (state_ != State::kBackground) {
-    // TODO(crbug.com/404941800): This is a temporary DCHECK. This should be a
-    // CHECK and the if statement above should be removed once the root cause
-    // causing the CHECK(state_ == State::kBackground) to fail is found and
-    // fixed.
-    DCHECK(state_ == State::kBackground)
-        << "State should be kBackground but is instead "
-        << static_cast<int>(state_);
+    // If the side panel is open without the overlay, exit early to avoid
+    // showing the overlay.
     return;
   }
 
@@ -2493,10 +2419,12 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
   }
 
   // If this a search query from the side panel search box with the overlay
-  // showing, keep the state as kOverlayAndResults. Else, we are in our
-  // contextual flow and the state needs to stay as State::kHidden.
-  state_ = state_ == State::kOverlayAndResults ? State::kOverlayAndResults
-                                               : State::kHidden;
+  // showing, keep the state as kOverlayAndResults. Else, the session is in
+  // a straight to SRP flow and the state is either kHidden or kOff depending
+  // on whether the overlay was open before the searchbox query was issued.
+  if (state_ != State::kOverlayAndResults) {
+    state_ = overlay_view_ ? State::kHidden : State::kOff;
+  }
 
   // The searchbox text is set once the URL loads in the results frame, however,
   // adding it here allows the user to see the text query in the searchbox while
@@ -2574,9 +2502,11 @@ void LensOverlayController::HandleStartQueryResponse(
 void LensOverlayController::HandleInteractionURLResponse(
     lens::proto::LensOverlayUrlResponse response) {
   MaybeOpenSidePanel();
-  results_side_panel_coordinator_->SetLatestPageUrlWithResponse(
+  auto* results_side_panel_coordinator =
+      GetLensOverlaySidePanelCoordinator();
+  results_side_panel_coordinator->SetLatestPageUrlWithResponse(
       GURL(response.page_url()));
-  results_side_panel_coordinator_->LoadURLInResultsFrame(GURL(response.url()));
+  results_side_panel_coordinator->LoadURLInResultsFrame(GURL(response.url()));
 }
 
 void LensOverlayController::HandleInteractionResponse(
@@ -2640,6 +2570,8 @@ void LensOverlayController::HideOverlay() {
   }
   SetLiveBlur(false);
   HidePreselectionBubble();
+
+  NotifyIsOverlayShowing(false);
 }
 
 void LensOverlayController::HideOverlayAndMaybeSetHiddenState() {
@@ -2649,9 +2581,22 @@ void LensOverlayController::HideOverlayAndMaybeSetHiddenState() {
   }
 
   // If the side panel is open, set the overlay state to kHidden.
-  if (results_side_panel_coordinator_->IsSidePanelBound()) {
+  if (state_ == State::kOverlayAndResults) {
     state_ = State::kHidden;
   }
+}
+
+void LensOverlayController::ReshowOverlay() {
+  // The overlay must be in the kHidden state to be restored properly.
+  CHECK(state_ == State::kHidden);
+
+  // Clear any previous selections to ensure a clean state.
+  ClearAllSelections();
+
+  // Update the page contextualization.
+  GetContextualizationController()->TryUpdatePageContextualization(
+      base::BindOnce(&LensOverlayController::ReshowOverlayPart2,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void LensOverlayController::MaybeLaunchSurvey() {
@@ -2802,7 +2747,7 @@ bool LensOverlayController::IsUrlEligibleForTutorialIPH(const GURL& url) {
   // the block matcher. If it does contain blocked words in its path, return
   // false to prevent the IPH from being shown.
   if (page_path_block_matcher_ && !page_path_block_matcher_->IsEmpty() &&
-      page_path_block_matcher_->Match(url.path(), &matches)) {
+      page_path_block_matcher_->Match(url.GetPath(), &matches)) {
     return false;
   }
 
@@ -2817,7 +2762,7 @@ bool LensOverlayController::IsUrlEligibleForTutorialIPH(const GURL& url) {
   // Finally, check if the URL matches any of the allowed patterns. If it
   // doesn't, return false to prevent the IPH from being shown.
   if (page_path_allow_matcher_ && !page_path_allow_matcher_->IsEmpty() &&
-      !page_path_allow_matcher_->Match(url.path(), &matches)) {
+      !page_path_allow_matcher_->Match(url.GetPath(), &matches)) {
     return false;
   }
 
@@ -2862,6 +2807,12 @@ void LensOverlayController::UpdateEntryPointsState() {
           /*hide_toolbar_entrypoint=*/false);
 }
 
+void LensOverlayController::NotifyIsOverlayShowing(bool is_showing) {
+  if (results_side_panel_coordinator_) {
+    results_side_panel_coordinator_->SetIsOverlayShowing(is_showing);
+  }
+}
+
 void LensOverlayController::OnPdfPartialPageTextRetrieved(
     std::vector<std::u16string> pdf_pages_text) {
   initialization_data_->pdf_pages_text_ = std::move(pdf_pages_text);
@@ -2892,7 +2843,7 @@ void LensOverlayController::OnPageContextUpdatedForSuggestion(
   // side panel.
   if (!results_side_panel_coordinator_) {
     results_side_panel_coordinator_ =
-        lens_search_controller_->lens_overlay_side_panel_coordinator();
+        GetLensOverlaySidePanelCoordinator();
   }
 
   CHECK(lens_overlay_query_controller_);
@@ -2936,9 +2887,46 @@ void LensOverlayController::OnScreenshotTaken(
   state_ = State::kStartingWebUI;
 }
 
+void LensOverlayController::ReshowOverlayPart2() {
+  // Create the new RGB bitmap asynchronously to prevent the main thread from
+  // blocking on the encoding.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::TaskPriority::USER_BLOCKING},
+      base::BindOnce(&CreateRgbBitmap,
+                     GetContextualizationController()->viewport_screenshot()),
+      base::BindOnce(&LensOverlayController::ReshowOverlayPart3,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void LensOverlayController::ReshowOverlayPart3(const SkBitmap& rgb_screenshot) {
+  if (state_ == State::kOff || IsOverlayClosing()) {
+    return;
+  }
+
+  if (rgb_screenshot.drawsNothing()) {
+    lens_search_controller_->CloseLensSync(
+        lens::LensOverlayDismissalSource::kErrorScreenshotEncodingFailed);
+    return;
+  }
+  CHECK(initialization_data_);
+  initialization_data_->initial_rgb_screenshot_ = rgb_screenshot;
+  CHECK(page_);
+  page_->ScreenshotDataReceived(rgb_screenshot);
+
+  state_ = side_panel_coordinator_->IsSidePanelShowing()
+               ? State::kOverlayAndResults
+               : State::kOverlay;
+  ShowOverlay();
+}
+
 lens::LensSearchboxController*
 LensOverlayController::GetLensSearchboxController() {
   return lens_search_controller_->lens_searchbox_controller();
+}
+
+lens::LensOverlaySidePanelCoordinator*
+LensOverlayController::GetLensOverlaySidePanelCoordinator() {
+  return lens_search_controller_->lens_overlay_side_panel_coordinator();
 }
 
 lens::LensSearchContextualizationController*

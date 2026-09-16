@@ -23,7 +23,6 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/payments/offer_notification_options.h"
 #include "components/autofill/core/common/autofill_clock.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/strings/grit/components_strings.h"
@@ -123,7 +122,7 @@ bool OfferNotificationBubbleControllerImpl::IsIconVisible() const {
 
 void OfferNotificationBubbleControllerImpl::OnBubbleClosed(
     PaymentsUiClosedReason closed_reason) {
-  ResetBubbleViewAndInformBubbleManager(/*show_next_bubble=*/true);
+  ResetBubbleViewAndInformBubbleManager();
   promo_code_button_clicked_ = false;
   UpdatePageActionIcon();
 }
@@ -148,22 +147,21 @@ void OfferNotificationBubbleControllerImpl::ShowOfferNotificationIfApplicable(
 
   // Hides the old bubble. Sets bubble_state_ to show icon here since we are
   // going to show another bubble anyway.
-  HideBubbleAndClearTimestamp(/*should_show_icon=*/true,
-                              /*show_next_bubble=*/true);
+  HideBubbleAndClearTimestamp(/*should_show_icon=*/true);
 
   SetupOfferNotification(offer, card);
 
   if (options.show_notification_automatically) {
     QueueOrShowBubble();
   } else {
-    HideBubbleAndClearTimestamp(/*should_show_icon=*/true,
-                                /*show_next_bubble=*/true);
+    HideBubbleAndClearTimestamp(/*should_show_icon=*/true);
   }
 }
 
 void OfferNotificationBubbleControllerImpl::SetupOfferNotification(
     AutofillOfferData offer,
     const CreditCard* card) {
+  was_bubble_shown_ = false;
   offer_ = std::move(offer);
 
   DCHECK(IsIconVisible());
@@ -186,14 +184,12 @@ void OfferNotificationBubbleControllerImpl::ReshowBubble() {
 }
 
 void OfferNotificationBubbleControllerImpl::DismissNotification() {
-  HideBubbleAndClearTimestamp(/*should_show_icon=*/false,
-                              /*show_next_bubble=*/true);
+  HideBubbleAndClearTimestamp(/*should_show_icon=*/false);
 }
 
 void OfferNotificationBubbleControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (IsBubbleManagerEnabled()) {
     if (visibility == content::Visibility::HIDDEN) {
       if (bubble_state_ != BubbleState::kShowingIcon) {
         bubble_state_ = BubbleState::kHidden;
@@ -209,8 +205,7 @@ void OfferNotificationBubbleControllerImpl::OnVisibilityChanged(
       bubble_state_ == BubbleState::kShowingIconAndBubble) {
     QueueOrShowBubble();
   } else if (visibility == content::Visibility::HIDDEN) {
-    HideBubbleAndClearTimestamp(bubble_state_ == BubbleState::kShowingIcon,
-                                /*show_next_bubble=*/false);
+    HideBubbleAndClearTimestamp(bubble_state_ == BubbleState::kShowingIcon);
   }
   UpdatePageAction();
 }
@@ -270,13 +265,12 @@ bool OfferNotificationBubbleControllerImpl::IsWebContentsActive() {
 }
 
 void OfferNotificationBubbleControllerImpl::HideBubbleAndClearTimestamp(
-    bool should_show_icon,
-    bool show_next_bubble) {
+    bool should_show_icon) {
   bubble_state_ =
       should_show_icon ? BubbleState::kShowingIcon : BubbleState::kHidden;
   UpdatePageAction();
   UpdatePageActionIcon();
-  HideBubble(show_next_bubble);
+  HideBubble(/*initiated_by_bubble_manager=*/false);
   bubble_shown_timestamp_ = std::nullopt;
 }
 

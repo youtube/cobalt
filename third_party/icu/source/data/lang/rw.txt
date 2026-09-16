@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 rw{
     Languages{
         af{"Ikinyafurikaneri"}
@@ -78,7 +78,7 @@ rw{
         pt_PT{"Inyeporutigali (Igiporutigali)"}
         ro{"Ikinyarumaniya"}
         ru{"Ikirusiya"}
-        rw{"Kinyarwanda"}
+        rw{"Ikinyarwanda"}
         sa{"Igisansikiri"}
         sd{"Igisindi"}
         sh{"Inyeseribiya na Korowasiya"}
@@ -108,5 +108,8 @@ rw{
         xh{"Inyehawusa"}
         yi{"Inyeyidishi"}
         zu{"Inyezulu"}
+    }
+    Scripts{
+        Latn{"Latin"}
     }
 }

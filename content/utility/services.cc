@@ -110,11 +110,7 @@ extern sandbox::TargetServices* g_utility_target_services;
 #endif
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
-#if BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
-#include "services/accessibility/os_accessibility_service.h"  // nogncheck
-#else  // BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
 #include "services/accessibility/browser_accessibility_service.h"  // nogncheck
-#endif  // BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
 #include "services/accessibility/public/mojom/accessibility_service.mojom.h"  // nogncheck
 #include "ui/accessibility/accessibility_features.h"
 #endif  // BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
@@ -293,11 +289,7 @@ auto RunDataDecoder(
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 auto RunAccessibilityService(
     mojo::PendingReceiver<ax::mojom::AccessibilityService> receiver) {
-#if BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
-  return std::make_unique<ax::OSAccessibilityService>(std::move(receiver));
-#else   // BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
   return std::make_unique<ax::BrowserAccessibilityService>(std::move(receiver));
-#endif  // BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
 }
 #endif  // BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 
@@ -396,7 +388,7 @@ auto RunOOPArcVideoAcceleratorFactoryService(
 auto RunOOPVideoDecoderFactoryProcessService(
     mojo::PendingReceiver<media::mojom::VideoDecoderFactoryProcess> receiver) {
   return std::make_unique<media::OOPVideoDecoderFactoryProcessService>(
-      std::move(receiver));
+      std::move(receiver), ChildProcess::current()->io_task_runner());
 }
 
 auto RunVideoEncodeAcceleratorProviderFactory(
@@ -422,10 +414,6 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
   // loop of type IO that can get notified when pipes have data.
   services.Add(RunNetworkService);
 
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-  services.Add(RunOOPVideoDecoderFactoryProcessService);
-#endif
-
   // Add new IO-thread services above this line.
   GetContentClient()->utility()->RegisterIOThreadServices(services);
 }
@@ -447,6 +435,10 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
   services.Add(RunVideoEffects);
+#endif
+
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+  services.Add(RunOOPVideoDecoderFactoryProcessService);
 #endif
 
 #if !BUILDFLAG(IS_COBALT)

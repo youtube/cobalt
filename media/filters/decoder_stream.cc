@@ -764,9 +764,9 @@ void DecoderStream<StreamType>::ReadFromDemuxerStream() {
       perfetto::Track::FromPointer(this));
   pending_demuxer_read_ = true;
   uint32_t buffer_read_count = 1;
-  // Do not batch with software video decoder.
-  if (IsPlatformDecoder() &&
-      base::FeatureList::IsEnabled(kVideoDecodeBatching)) {
+  // Do not batch with software video decoder. Experiments showed this uses an
+  // excessive amount of memory.
+  if (IsPlatformDecoder()) {
     buffer_read_count = GetMaxDecodeRequests() - pending_decode_requests_;
   }
   {
@@ -812,7 +812,7 @@ void DecoderStream<StreamType>::OnBuffersReady(
         // Save valid buffers to be consumed by the new decoder.
         // |pending_buffers_| is copied to |fallback_buffers_| in
         // OnDecoderSelected().
-        for (auto buffer : buffers) {
+        for (const auto& buffer : buffers) {
           pending_buffers_.push_back(std::move(buffer));
         }
         buffers.clear();
@@ -940,7 +940,7 @@ void DecoderStream<StreamType>::OnBuffersReady(
     ReportEncryptionType(buffers[0]);
   }
 
-  for (auto buffer : buffers) {
+  for (const auto& buffer : buffers) {
     Decode(std::move(buffer));
   }
   buffers.clear();

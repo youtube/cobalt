@@ -39,13 +39,6 @@ enum class NTPMIAEntrypointVariation {
 
 #pragma mark - Feature declarations
 
-// Feature flag to enable static resource serving for the Discover feed.
-// TODO(crbug.com/40246814): Remove this.
-BASE_DECLARE_FEATURE(kEnableDiscoverFeedStaticResourceServing);
-
-// Feature flag to enable discofeed endpoint for the Discover feed.
-BASE_DECLARE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint);
-
 // Feature flag to fix the NTP view hierarchy if it is broken before applying
 // constraints.
 // TODO(crbug.com/40799579): Remove this when it is fixed.
@@ -61,9 +54,6 @@ BASE_DECLARE_FEATURE(kOverrideFeedSettings);
 
 // Feature flag to enable sending discover feedback to an updated target
 BASE_DECLARE_FEATURE(kWebFeedFeedbackReroute);
-
-// Feature flag to enable signed out user view demotion.
-BASE_DECLARE_FEATURE(kEnableSignedOutViewDemotion);
 
 // Feature flag to enable ghost cards on the iPad feeds.
 BASE_DECLARE_FEATURE(kEnableiPadFeedGhostCards);
@@ -135,14 +125,10 @@ bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service);
 // YES if discover feedback is going to be sent to the updated target.
 bool IsWebFeedFeedbackRerouteEnabled();
 
-// YES if the signed out user view demotion is enabled.
-bool IsSignedOutViewDemotionEnabled();
-
 // Whether ghost cards are enabled on the iPad feeds.
 bool IsiPadFeedGhostCardsEnabled();
 
 // YES if the NTP and feed header elements should be re-positioned as described.
-bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine);
 bool ShouldEnlargeLogoAndFakebox();
 
 // If feed header should be deprecated, retrieve the value for `param_name` for

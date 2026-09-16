@@ -11,6 +11,7 @@ import android.webkit.WebView;
 
 import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.webview.chromium.CallbackConverter;
@@ -19,6 +20,7 @@ import com.android.webview.chromium.SharedStatics;
 import com.android.webview.chromium.SharedTracingControllerAdapter;
 import com.android.webview.chromium.WebViewChromiumAwInit;
 import com.android.webview.chromium.WebViewChromiumAwInit.CallSite;
+import com.android.webview.chromium.WebViewChromiumAwInit.WebViewStartUpDiagnostics;
 import com.android.webview.chromium.WebkitToSharedGlueConverter;
 
 import org.chromium.android_webview.AwProxyController;
@@ -37,6 +39,8 @@ import java.lang.reflect.InvocationHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /** Support library glue version of WebViewChromiumFactoryProvider. */
 public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundaryInterface {
@@ -94,7 +98,6 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                 Features.ENTERPRISE_AUTHENTICATION_APP_LINK_POLICY,
                 Features.GET_COOKIE_INFO,
                 Features.WEB_MESSAGE_ARRAY_BUFFER,
-                Features.REQUESTED_WITH_HEADER_ALLOW_LIST,
                 Features.IMAGE_DRAG_DROP,
                 Features.USER_AGENT_METADATA,
                 Features.MULTI_PROFILE,
@@ -122,6 +125,10 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                 Features.PRECONNECT,
                 Features.HYPERLINK_CONTEXT_MENU_ITEMS + Features.DEV_SUFFIX,
                 Features.ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS + Features.DEV_SUFFIX,
+                Features.PAGE_IS_PRERENDERING,
+                Features.CUSTOM_REQUEST_HEADERS,
+                Features.RENDERER_LIBRARY_PREFETCH_MODE + Features.DEV_SUFFIX,
+                Features.ASYNC_WEBVIEW_STARTUP_V2 + Features.DEV_SUFFIX,
                 // Add new features above. New features must include `+ Features.DEV_SUFFIX`
                 // when they're initially added (this can be removed in a future CL). The final
                 // feature should have a trailing comma for cleaner diffs.
@@ -292,6 +299,11 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
         ApiCall.BACK_FORWARD_CACHE_SETTINGS_GET_MAX_PAGES_IN_CACHE,
         ApiCall.PRECONNECT,
         ApiCall.SET_HYPERLINK_CONTEXT_MENU_ITEMS,
+        ApiCall.PAGE_IS_PRERENDERING,
+        ApiCall.ADD_ORIGIN_MATCHED_HEADER,
+        ApiCall.GET_ORIGIN_MATCHED_HEADERS,
+        ApiCall.SET_RENDERER_LIBRARY_PREFETCH_MODE,
+        ApiCall.GET_RENDERER_LIBRARY_PREFETCH_MODE,
         // Add new constants above. The final constant should have a trailing comma for cleaner
         // diffs.
         ApiCall.COUNT, // Added to suppress WrongConstant in #recordApiCall
@@ -365,10 +377,10 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
         int WEB_MESSAGE_PAYLOAD_GET_TYPE = 65;
         int WEB_MESSAGE_PAYLOAD_GET_AS_STRING = 66;
         int WEB_MESSAGE_PAYLOAD_GET_AS_ARRAY_BUFFER = 67;
-        int WEB_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 68;
-        int WEB_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 69;
-        int SERVICE_WORKER_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 70;
-        int SERVICE_WORKER_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 71;
+        @Deprecated int WEB_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 68;
+        @Deprecated int WEB_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 69;
+        @Deprecated int SERVICE_WORKER_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 70;
+        @Deprecated int SERVICE_WORKER_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 71;
         int GET_IMAGE_DRAG_DROP_IMPLEMENTATION = 72;
         @Deprecated int RESTRICT_SENSITIVE_WEB_CONTENT = 73;
         int JS_REPLY_POST_MESSAGE_WITH_PAYLOAD = 74;
@@ -461,9 +473,14 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
         int BACK_FORWARD_CACHE_SETTINGS_GET_MAX_PAGES_IN_CACHE = 158;
         int PRECONNECT = 159;
         int SET_HYPERLINK_CONTEXT_MENU_ITEMS = 160;
+        int PAGE_IS_PRERENDERING = 161;
+        int ADD_ORIGIN_MATCHED_HEADER = 162;
+        int GET_ORIGIN_MATCHED_HEADERS = 163;
+        int SET_RENDERER_LIBRARY_PREFETCH_MODE = 164;
+        int GET_RENDERER_LIBRARY_PREFETCH_MODE = 165;
 
         // Remember to update AndroidXWebkitApiCall in enums.xml when adding new values here
-        int COUNT = 161;
+        int COUNT = 166;
     }
 
     // LINT.ThenChange(/tools/metrics/histograms/metadata/android/enums.xml:AndroidXWebkitApiCall)
@@ -526,7 +543,7 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
     private static class StaticsAdapter implements StaticsBoundaryInterface {
         private final SharedStatics mSharedStatics;
 
-        public StaticsAdapter(SharedStatics sharedStatics) {
+        StaticsAdapter(SharedStatics sharedStatics) {
             mSharedStatics = sharedStatics;
         }
 
@@ -604,6 +621,26 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                     TraceEvent.scoped("WebView.APICall.AndroidX.SET_DEFAULT_TRAFFICSTATS_UID")) {
                 recordApiCall(ApiCall.SET_DEFAULT_TRAFFICSTATS_UID);
                 mSharedStatics.setDefaultTrafficStatsUid(uid);
+            }
+        }
+
+        @Override
+        public void setRendererLibraryPrefetchMode(int mode) {
+            try (TraceEvent event =
+                    TraceEvent.scoped(
+                            "WebView.APICall.AndroidX.SET_RENDERER_LIBRARY_PREFETCH_MODE")) {
+                recordApiCall(ApiCall.SET_RENDERER_LIBRARY_PREFETCH_MODE);
+                mSharedStatics.setRendererLibraryPrefetchMode(mode);
+            }
+        }
+
+        @Override
+        public int getRendererLibraryPrefetchMode() {
+            try (TraceEvent event =
+                    TraceEvent.scoped(
+                            "WebView.APICall.AndroidX.GET_RENDERER_LIBRARY_PREFETCH_MODE")) {
+                recordApiCall(ApiCall.GET_RENDERER_LIBRARY_PREFETCH_MODE);
+                return mSharedStatics.getRendererLibraryPrefetchMode();
             }
         }
     }
@@ -714,6 +751,94 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                 }
 
                 return mProfileStore;
+            }
+        }
+    }
+
+    @Override
+    public void startUpWebView(
+            @NonNull Consumer<BiConsumer<@StartUpConfigField Integer, Object>> config,
+            @NonNull Consumer<Consumer<BiConsumer<@StartUpResultField Integer, Object>>> onSuccess,
+            @NonNull Consumer<Consumer<BiConsumer<@StartupErrorType Integer, Object>>> onFailure) {
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.START_UP_WEBVIEW")) {
+            recordApiCall(ApiCall.START_UP_WEBVIEW);
+
+            StartUpConfig startUpConfig = new StartUpConfig(config);
+
+            WebViewChromiumAwInit.WebViewStartUpCallback chromiumCallback =
+                    result -> handleStartupResult(onSuccess, result);
+
+            mAwInit.startUpWebView(
+                    chromiumCallback,
+                    startUpConfig.mShouldRunUiThreadStartUpTasks,
+                    startUpConfig.mProfileNamesToLoad);
+        }
+    }
+
+    private static void handleStartupResult(
+            Consumer<Consumer<BiConsumer<@StartUpResultField Integer, Object>>> callbackProvider,
+            WebViewStartUpDiagnostics result) {
+        // This is the "resultStream" consumer that we pass to the caller.
+        // Its job is to receive the final result-handling BiConsumer.
+        Consumer<BiConsumer<@StartUpResultField Integer, Object>> resultStream =
+                (finalResultHandler) -> {
+                    // Once we have the final handler, stream the results.
+                    finalResultHandler.accept(
+                            StartUpResultField.TOTAL_TIME_UI_THREAD_MILLIS,
+                            result.getTotalTimeUiThreadChromiumInitMillis());
+                    finalResultHandler.accept(
+                            StartUpResultField.MAX_TIME_PER_TASK_UI_THREAD_MILLIS,
+                            result.getMaxTimePerTaskUiThreadChromiumInitMillis());
+
+                    Throwable syncLoc = result.getSynchronousChromiumInitLocationOrNull();
+                    if (syncLoc != null) {
+                        finalResultHandler.accept(
+                                StartUpResultField.BLOCKING_START_UP_LOCATION, syncLoc);
+                    }
+
+                    Throwable providerLoc = result.getProviderInitOnMainLooperLocationOrNull();
+                    if (providerLoc != null) {
+                        finalResultHandler.accept(
+                                StartUpResultField.BLOCKING_START_UP_LOCATION, providerLoc);
+                    }
+
+                    Throwable asyncLoc = result.getAsynchronousChromiumInitLocationOrNull();
+                    if (asyncLoc != null) {
+                        finalResultHandler.accept(
+                                StartUpResultField.ASYNC_START_UP_LOCATION, List.of(asyncLoc));
+                    }
+                };
+
+        callbackProvider.accept(resultStream);
+    }
+
+    private static class StartUpConfig implements BiConsumer<@StartUpConfigField Integer, Object> {
+        private boolean mShouldRunUiThreadStartUpTasks = true;
+        private @Nullable Set<String> mProfileNamesToLoad;
+
+        public StartUpConfig(Consumer<BiConsumer<@StartUpConfigField Integer, Object>> consumer) {
+            consumer.accept(this);
+        }
+
+        @Override
+        public void accept(@StartUpConfigField Integer key, Object value) {
+            switch (key) {
+                case StartUpConfigField.BACKGROUND_EXECUTOR:
+                    // We don't use this value yet.
+                    break;
+                case StartUpConfigField.UI_THREAD_START_UP_TASKS:
+                    mShouldRunUiThreadStartUpTasks = (boolean) value;
+                    break;
+                case StartUpConfigField.PROFILE_NAMES_TO_LOAD:
+                    mProfileNamesToLoad = (Set<String>) value;
+                    break;
+                default:
+                    if (key < 0) {
+                        throw new UnsupportedOperationException(
+                                "The current WebView version doesn't support this config: " + key);
+                    }
+                    // If we get here then it means that there's an optional operation that the
+                    // current WebView version doesn't support and it's safe to ignore.
             }
         }
     }

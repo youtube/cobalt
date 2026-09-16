@@ -39,16 +39,16 @@ class CORE_EXPORT ContainerQueryParser {
                                const ExecutionContext*) const override {
       return true;
     }
+    bool IsAllowedWithValue(const AtomicString& feature) const override {
+      return true;
+    }
     bool IsCaseSensitive(const AtomicString& feature) const override {
       // TODO(crbug.com/40217044): non-custom properties are case-insensitive.
       return true;
     }
     bool SupportsRange() const override { return false; }
     bool SupportsStyleRange() const override { return true; }
-    bool SupportsElementDependent() const override {
-      return RuntimeEnabledFeatures::
-          CSSSiblingFunctionsInContainerQueriesEnabled();
-    }
+    bool SupportsElementDependent() const override { return true; }
   };
 
  private:

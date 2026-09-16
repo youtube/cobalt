@@ -181,6 +181,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) final;
   void StoreRootRelative(int32_t offset, Register value) final;
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
   // only guaranteed to be correct as long as the scratch register
@@ -359,6 +362,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                                       Register value,
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
+
+  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+      Register object, Register value, SaveFPRegsMode fp_mode);
+  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                 Register value);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -712,14 +720,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Move(FPURegister dst, uint64_t src);
 
   // AddOverflow_d sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void AddOverflow_d(Register dst, Register left, const Operand& right,
                      Register overflow);
   // SubOverflow_d sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void SubOverflow_d(Register dst, Register left, const Operand& right,
                      Register overflow);
-  // MulOverflow_{w/d} set overflow register to zero if no overflow occured
+  // MulOverflow_{w/d} set overflow register to zero if no overflow occurred
   void MulOverflow_w(Register dst, Register left, const Operand& right,
                      Register overflow);
   void MulOverflow_d(Register dst, Register left, const Operand& right,

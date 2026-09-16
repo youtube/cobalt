@@ -7,7 +7,9 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/version_info/version_info.h"
+#include "chrome/browser/glic/fre/glic_fre_page_handler.h"
 #include "chrome/browser/glic/glic_net_log.h"
 #include "chrome/browser/glic/host/auth_controller.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
@@ -32,6 +34,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/webui/webui_allowlist.h"
 #include "ui/webui/webui_util.h"
@@ -86,6 +89,13 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
 
   // Add localized strings.
   source->AddLocalizedStrings(kStrings);
+
+  // Add parameterized admin notice string.
+  source->AddString("disabledByAdminNoticeWithLink",
+                    l10n_util::GetStringFUTF16(
+                        IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_WITH_LINK,
+                        base::UTF8ToUTF16(features::kGlicCaaLinkUrl.Get()),
+                        base::UTF8ToUTF16(features::kGlicCaaLinkText.Get())));
 
   // Register auto-granted permissions.
   auto* allowlist = WebUIAllowlist::GetOrCreate(browser_context);
@@ -158,6 +168,17 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   source->AddBoolean("enableWebClientUnresponsiveMetrics",
                      base::FeatureList::IsEnabled(
                          features::kGlicWebClientUnresponsiveMetrics));
+  std::string admin_blocked_redirect_patterns;
+  if (base::FeatureList::IsEnabled(features::kGlicCaaGuestError)) {
+    admin_blocked_redirect_patterns = command_line->GetSwitchValueASCII(
+        ::switches::kGlicAdminRedirectPatterns);
+    if (admin_blocked_redirect_patterns.empty()) {
+      admin_blocked_redirect_patterns =
+          features::kGlicCaaGuestRedirectPatterns.Get();
+    }
+  }
+  source->AddString("adminBlockedRedirectPatterns",
+                    admin_blocked_redirect_patterns);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(GlicUI)
@@ -170,11 +191,23 @@ void GlicUI::BindInterface(
   page_factory_receiver_.Bind(std::move(receiver));
 }
 
+void GlicUI::BindInterface(
+    mojo::PendingReceiver<glic::mojom::FrePageHandlerFactory> receiver) {
+  fre_page_factory_receiver_.reset();
+  fre_page_factory_receiver_.Bind(std::move(receiver));
+}
+
 void GlicUI::CreatePageHandler(
     mojo::PendingReceiver<glic::mojom::PageHandler> receiver,
     mojo::PendingRemote<glic::mojom::Page> page) {
   page_handler_ = std::make_unique<GlicPageHandler>(
       web_ui()->GetWebContents(), std::move(receiver), std::move(page));
+}
+
+void GlicUI::CreatePageHandler(
+    mojo::PendingReceiver<glic::mojom::FrePageHandler> fre_receiver) {
+  fre_page_handler_ = std::make_unique<GlicFrePageHandler>(
+      web_ui()->GetWebContents(), std::move(fre_receiver));
 }
 
 }  // namespace glic

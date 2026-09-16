@@ -5,10 +5,13 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_WIN_H_
 #define CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_WIN_H_
 
+#include <array>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/win/scoped_gdi_object.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+#include "chrome/browser/ui/views/frame/opaque_browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/windows_caption_button.h"
 #include "chrome/browser/ui/views/tab_icon_view.h"
 #include "chrome/browser/ui/views/tab_icon_view_model.h"
@@ -41,6 +44,8 @@ class BrowserFrameViewWin : public BrowserFrameView, public TabIconViewModel {
   void UpdateThrobber(bool running) override;
   gfx::Size GetMinimumSize() const override;
   void WindowControlsOverlayEnabledChanged() override;
+  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                               views::Label& window_title_label) const override;
 
   // views::FrameView:
   gfx::Rect GetBoundsForClientView() const override;
@@ -85,9 +90,14 @@ class BrowserFrameViewWin : public BrowserFrameView, public TabIconViewModel {
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
   void Layout(PassKey) override;
+  void AddedToWidget() override;
+  void OnDeviceScaleFactorChanged(float old_device_scale_factor,
+                                  float new_device_scale_factor) override;
 
  private:
   friend class BrowserCaptionButtonContainer;
+
+  class CaptionButtonMetrics;
 
   // Describes the type of titlebar that a window might have; used to query
   // whether specific elements may be present.
@@ -184,6 +194,9 @@ class BrowserFrameViewWin : public BrowserFrameView, public TabIconViewModel {
           base::BindRepeating(&BrowserFrameViewWin::TabletModeChanged,
                               base::Unretained(this)));
 
+  // Tracks information about caption button location, size, etc.
+  std::unique_ptr<CaptionButtonMetrics> caption_button_metrics_;
+
   // Whether or not the window throbber is currently animating.
   bool throbber_running_ = false;
 
@@ -191,8 +204,22 @@ class BrowserFrameViewWin : public BrowserFrameView, public TabIconViewModel {
   int throbber_frame_ = 0;
 
   static const int kThrobberIconCount = 24;
-  static HICON throbber_icons_[kThrobberIconCount];
+  static std::array<HICON, kThrobberIconCount> throbber_icons_;
   static void InitThrobberIcons();
+};
+
+// Specialization of OpaqueBrowserFrameView for Windows.
+class OpaqueBrowserFrameViewWin : public OpaqueBrowserFrameView {
+  METADATA_HEADER(OpaqueBrowserFrameViewWin, OpaqueBrowserFrameView)
+ public:
+  OpaqueBrowserFrameViewWin(BrowserWidget* widget,
+                            BrowserView* browser_view,
+                            OpaqueBrowserFrameViewLayout* layout);
+  ~OpaqueBrowserFrameViewWin() override;
+
+  // OpaqueBrowserFrameView:
+  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                               views::Label& window_title_label) const override;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_WIN_H_

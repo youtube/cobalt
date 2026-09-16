@@ -4,7 +4,6 @@
 
 package org.chromium.components.browser_ui.accessibility;
 
-import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
@@ -19,35 +18,17 @@ import com.google.android.material.slider.Slider;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
-import org.chromium.components.browser_ui.widget.containment.ContainedLinearLayout;
-import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItem;
 
 /** Custom preference for the page zoom section of Accessibility Settings. */
 @NullMarked
-public class PageZoomSliderPreference extends PageZoomPreference implements CustomStyledContainer {
+public class PageZoomSliderPreference extends PageZoomPreference implements ContainmentItem {
     private @Nullable Slider mSlider;
     private @Nullable Slider mTextSizeContrastSlider;
 
     public PageZoomSliderPreference(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         setLayoutResource(R.layout.page_zoom_preference);
-    }
-
-    @Override
-    public void onBindViewHolder(PreferenceViewHolder holder) {
-        super.onBindViewHolder(holder);
-        ((ContainedLinearLayout) assertNonNull(holder.findViewById(R.id.page_zoom_section)))
-                .setBackgroundStyle(BackgroundStyle.CARD);
-        ((ContainedLinearLayout)
-                        assertNonNull(holder.findViewById(R.id.text_size_contrast_section)))
-                .setBackgroundStyle(BackgroundStyle.CARD);
-        ContainedLinearLayout previewSection =
-                ((ContainedLinearLayout) assertNonNull(holder.findViewById(R.id.preview_section)));
-        previewSection.setBackgroundStyle(BackgroundStyle.CARD);
-        // TODO(crbug.com/439911511): Set background color directly in the layout
-        previewSection.setCustomBackgroundColor(
-                SemanticColorUtils.getColorSurfaceContainerHighest(getContext()));
     }
 
     @Override

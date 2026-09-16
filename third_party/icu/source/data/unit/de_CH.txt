@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 de_CH{
     units{
         area{
@@ -87,7 +87,7 @@ de_CH{
             }
             jigger{
                 dnam{"Schuss"}
-                one{"Schuss"}
+                one{"{0} Schuss"}
                 other{"{0} Schuss"}
             }
             pinch{

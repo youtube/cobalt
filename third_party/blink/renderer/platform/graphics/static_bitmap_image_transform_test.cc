@@ -24,8 +24,6 @@ class StaticBitmapImageTransformTest : public ::testing::Test {
     test_sii_ = base::MakeRefCounted<gpu::TestSharedImageInterface>();
     SharedGpuContext::Reset();
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
-    test_context_provider_->UnboundTestRasterInterface()->set_gpu_rasterization(
-        true);
     InitializeSharedGpuContextRaster(test_context_provider_.get());
   }
 
@@ -40,8 +38,8 @@ class StaticBitmapImageTransformTest : public ::testing::Test {
          "CanvasResourceRaster"},
         gpu::kNullSurfaceHandle);
     return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-        std::move(client_si), test_sii_->GenUnverifiedSyncToken(), 0,
-        alpha_type, SharedGpuContext::ContextProviderWrapper(),
+        std::move(client_si), test_sii_->GenUnverifiedSyncToken(), alpha_type,
+        SharedGpuContext::ContextProviderWrapper(),
         base::PlatformThread::CurrentRef(),
         base::MakeRefCounted<base::NullTaskRunner>(), base::DoNothing());
   }

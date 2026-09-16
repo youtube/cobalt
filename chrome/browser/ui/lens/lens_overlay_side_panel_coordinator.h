@@ -127,6 +127,11 @@ class LensOverlaySidePanelCoordinator
     return lens_search_controller_->lens_overlay_controller();
   }
 
+  // Return the LensOverlayQueryController that is part of this tab.
+  LensOverlayQueryController* GetLensOverlayQueryController() {
+    return lens_search_controller_->lens_overlay_query_controller();
+  }
+
   // Return the LensSearchboxController that is part of this tab.
   LensSearchboxController* GetLensSearchboxController() {
     return lens_search_controller_->lens_searchbox_controller();
@@ -142,6 +147,12 @@ class LensOverlaySidePanelCoordinator
   // `nav_url` refers to the URL that the side panel was set to navigate to. It
   // is compared to the URL of the current open tab.
   bool MaybeHandleTextDirectives(const GURL& nav_url);
+
+  // Handles seeking videos on the main browser window based on navigations from
+  // the side panel. Returns true if handled, false otherwise. `nav_url` refers
+  // to the URL that the side panel was set to navigate to. It is compared to
+  // the URL of the current open tab.
+  bool MaybeHandleContextualMediaLink(const GURL& nav_url);
 
   // Whether the lens overlay entry is currently the active entry in the side
   // panel UI.
@@ -190,6 +201,9 @@ class LensOverlaySidePanelCoordinator
   // (`file://`). This is used to determine whether to scroll in the main tab or
   // open a new tab.
   void SetLatestPageUrlWithResponse(const GURL& url);
+
+  // Sets whether the lens overlay is showing in the side panel WebUI.
+  virtual void SetIsOverlayShowing(bool is_showing);
 
   // Internal state machine. States are mutually exclusive. Exposed for testing.
   enum class State {

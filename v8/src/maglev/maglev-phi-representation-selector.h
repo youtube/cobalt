@@ -30,7 +30,9 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kTruncateCheckedNumberOrOddballToInt32:
     case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
     case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kCheckedNumberToFloat64:
     case Opcode::kUncheckedNumberOrOddballToFloat64:
+    case Opcode::kUncheckedNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
       return true;
     default:
@@ -107,8 +109,7 @@ class MaglevPhiRepresentationSelector {
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
                           const HoistTypeList& hoist_untagging);
   template <class NodeT>
-  ValueNode* GetReplacementForPhiInputConversion(ValueNode* conversion_node,
-                                                 Phi* phi,
+  ValueNode* GetReplacementForPhiInputConversion(ValueNode* input, Phi* phi,
                                                  uint32_t input_index);
 
   // Since this pass changes the representation of Phis, it makes some untagging

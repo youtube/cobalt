@@ -127,7 +127,8 @@ std::optional<PreflightRequiredReason> NeedsPreflight(
 }
 
 base::Value::Dict NetLogCorsURLLoaderStartParams(
-    const ResourceRequest& request) {
+    const ResourceRequest& request,
+    net::NetLogCaptureMode capture_mode) {
   std::string cors_preflight_policy;
   switch (request.cors_preflight_policy) {
     case mojom::CorsPreflightPolicy::kConsiderPreflight:
@@ -139,7 +140,7 @@ base::Value::Dict NetLogCorsURLLoaderStartParams(
   }
 
   return base::Value::Dict()
-      .Set("url", request.url.possibly_invalid_spec())
+      .Set("url", SanitizeUrlForNetLog(request.url, capture_mode))
       .Set("method", request.method)
       .Set("headers", net::NetLogStringValue(request.headers.ToString()))
       .Set("is_revalidating", request.is_revalidating)
@@ -421,7 +422,10 @@ void CorsURLLoader::Start() {
   last_response_url_ = request_.url;
 
   net_log_.BeginEvent(net::NetLogEventType::CORS_REQUEST,
-                      [&] { return NetLogCorsURLLoaderStartParams(request_); });
+                      [&](net::NetLogCaptureMode capture_mode) {
+                        return NetLogCorsURLLoaderStartParams(request_,
+                                                              capture_mode);
+                      });
   StartRequest();
 }
 
@@ -899,7 +903,7 @@ void CorsURLLoader::StartRequest() {
            mojom::PrivateNetworkAccessPreflightResult::kNone);
 
   if (fetch_cors_flag_ && !skip_cors_enabled_scheme_check_ &&
-      !base::Contains(url::GetCorsEnabledSchemes(), request_.url.scheme())) {
+      !base::Contains(url::GetCorsEnabledSchemes(), request_.url.GetScheme())) {
     HandleComplete(URLLoaderCompletionStatus(
         CorsErrorStatus(mojom::CorsError::kCorsDisabledScheme)));
     return;
@@ -1113,7 +1117,7 @@ std::optional<URLLoaderCompletionStatus> CorsURLLoader::ConvertPreflightResult(
 
   if (*reason == PreflightRequiredReason::kPrivateNetworkAccess) {
     pna_preflight_result_ = mojom::PrivateNetworkAccessPreflightResult::kError;
-    result.error_code = net::ERR_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_CHECKS;
+    result.error_code = net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS;
   }
 
   return result;

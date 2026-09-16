@@ -33,9 +33,6 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
     bool operator==(const PhaseAndTime& other) const {
       return phase == other.phase && time == other.time;
     }
-    bool operator!=(const PhaseAndTime& other) const {
-      return !(*this == other);
-    }
   };
 
   AnimationTimeline(Document*);
@@ -182,6 +179,8 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
   scoped_refptr<cc::AnimationTimeline> compositor_timeline_;
 
   std::optional<PhaseAndTime> last_current_phase_and_time_;
+
+  bool in_trigger_attachments_update_ = false;
 
   // Whether or not to update the trigger at the next opportunity to do so.
   // This could because the |last_current_phase_and_time_| changed or because a

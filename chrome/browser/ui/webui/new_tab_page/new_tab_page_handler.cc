@@ -42,6 +42,7 @@
 #include "chrome/browser/new_tab_page/modules/new_tab_page_modules.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/new_tab_page/promos/promo_service_factory.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/promos/promos_pref_names.h"
@@ -347,7 +348,8 @@ new_tab_page::mojom::PromoPtr MakePromo(const PromoData& data) {
   // of a larger JSON initially decoded using the data decoder utility in the
   // PromoService to base::Value. The middle-slot promo part is then reencoded
   // from base::Value to a JSON string stored in |data.middle_slot_json|.
-  auto middle_slot = base::JSONReader::Read(data.middle_slot_json);
+  auto middle_slot = base::JSONReader::Read(
+      data.middle_slot_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!middle_slot.has_value()) {
     return nullptr;
   }
@@ -479,6 +481,8 @@ NewTabPageHandler::NewTabPageHandler(
               GURL(chrome::kChromeUINewTabPageURL),
               ntp_navigation_start_time),
       promo_service_(PromoServiceFactory::GetForProfile(profile)),
+      microsoft_auth_service_(
+          MicrosoftAuthServiceFactory::GetForProfile(profile)),
       interaction_module_id_trigger_dict_(
           MakeModuleInteractionTriggerIdDictionary()),
       browser_window_changed_subscription_(
@@ -509,7 +513,6 @@ NewTabPageHandler::NewTabPageHandler(
     }
   }
 
-  microsoft_auth_service_ = MicrosoftAuthServiceFactory::GetForProfile(profile);
   if (microsoft_auth_service_) {
     microsoft_auth_service_->AddObserver(this);
   }
@@ -1212,7 +1215,8 @@ void NewTabPageHandler::OnLogFetchResult(OnDoodleImageRenderedCallback callback,
     std::move(callback).Run("", std::nullopt, "");
     return;
   }
-  auto value = base::JSONReader::Read(body->substr(4));
+  auto value = base::JSONReader::Read(body->substr(4),
+                                      base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value.has_value()) {
     std::move(callback).Run("", std::nullopt, "");
     return;

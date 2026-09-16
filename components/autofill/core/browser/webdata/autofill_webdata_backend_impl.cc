@@ -385,13 +385,17 @@ WebDatabase::State AutofillWebDataBackendImpl::AddAutofillProfile(
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
 
+  std::optional<AutofillProfile> db_profile =
+      table->GetAutofillProfile(profile.guid());
+  if (!db_profile) {
+    return WebDatabase::COMMIT_NOT_NEEDED;
+  }
   // Notify observers.
   // The `db_profile` is not guaranteed to be equivalent to `profile`, since the
   // database might perform operations like `FinalizeAfterImport()`. Notify
   // observers with `db_profile`.
-  AutofillProfile db_profile = *table->GetAutofillProfile(profile.guid());
   AutofillProfileChange change(AutofillProfileChange::ADD, profile.guid(),
-                               std::move(db_profile));
+                               std::move(*db_profile));
   for (auto& db_observer : db_observer_list_)
     db_observer.AutofillProfileChanged(change);
 
@@ -422,13 +426,17 @@ WebDatabase::State AutofillWebDataBackendImpl::UpdateAutofillProfile(
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
 
+  std::optional<AutofillProfile> db_profile =
+      table->GetAutofillProfile(profile.guid());
+  if (!db_profile) {
+    return WebDatabase::COMMIT_NOT_NEEDED;
+  }
   // Notify observers.
   // The `db_profile` is not guaranteed to be equivalent to `profile`, since the
   // database might perform operations like `FinalizeAfterImport()`. Notify
   // observers with `db_profile`.
-  AutofillProfile db_profile = *table->GetAutofillProfile(profile.guid());
   AutofillProfileChange change(AutofillProfileChange::UPDATE, profile.guid(),
-                               std::move(db_profile));
+                               std::move(*db_profile));
   for (auto& db_observer : db_observer_list_)
     db_observer.AutofillProfileChanged(change);
 
@@ -489,18 +497,23 @@ WebDatabase::State AutofillWebDataBackendImpl::AddOrUpdateEntityInstance(
     WebDatabase* db) {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   EntityTable* table = EntityTable::FromWebDatabase(db);
+  EntityInstance::EntityId guid = entity.guid();
+  EntityInstanceChange::Type change_type = table->EntityInstanceExists(guid)
+                                               ? EntityInstanceChange::UPDATE
+                                               : EntityInstanceChange::ADD;
+
   if (!table->AddOrUpdateEntityInstance(entity)) {
     ReportResult(Result::kAddOrUpdateEntityInstance_Failure);
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
-  // TODO(crbug.com/441736370): Notify web_data observers of ADD and UPDATE
-  // events.
-  EntityInstance::EntityId guid = entity.guid();
+
+  EntityInstanceChange change(change_type, std::move(guid), std::move(entity));
+  for (auto& db_observer : db_observer_list_) {
+    db_observer.EntityInstanceChanged(change);
+  }
+
   ui_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(on_success),
-                     EntityInstanceChange(EntityInstanceChange::UPDATE,
-                                          std::move(guid), std::move(entity))));
+      FROM_HERE, base::BindOnce(std::move(on_success), std::move(change)));
   ReportResult(Result::kAddOrUpdateEntityInstance_Success);
   return WebDatabase::COMMIT_NEEDED;
 }

@@ -265,7 +265,8 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
   void SetLegalMessage(const std::string& message_json,
                        SaveCreditCardOptions options =
                            SaveCreditCardOptions().with_show_prompt()) {
-    std::optional<base::Value> value(base::JSONReader::Read(message_json));
+    std::optional<base::Value> value(base::JSONReader::Read(
+        message_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS));
     ASSERT_TRUE(value);
     ASSERT_TRUE(value->is_dict());
     LegalMessageLines legal_message_lines;
@@ -773,7 +774,13 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_ShowIconOnly) {
       SaveCardPromptOffer::kNotShownMaxStrikesReached, 1);
 }
 
-TEST_P(SaveCardBubbleLoggingTest, Metrics_SaveButton) {
+// TODO(https://crbug.com/448030345): Flaky on Linux ASan
+#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+#define MAYBE_Metrics_SaveButton DISABLED_Metrics_SaveButton
+#else
+#define MAYBE_Metrics_SaveButton Metrics_SaveButton
+#endif
+TEST_P(SaveCardBubbleLoggingTest, MAYBE_Metrics_SaveButton) {
   base::HistogramTester histogram_tester;
   TriggerFlow();
   controller()->OnSaveButton({});
@@ -790,7 +797,13 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_SaveButton) {
       autofill_metrics::LegacySaveCardPromptResult::kAccepted, 1);
 }
 
-TEST_P(SaveCardBubbleLoggingTest, Metrics_CancelButton) {
+// TODO(https://crbug.com/448030345): Flaky on Linux ASan
+#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+#define MAYBE_Metrics_CancelButton DISABLED_Metrics_CancelButton
+#else
+#define MAYBE_Metrics_CancelButton Metrics_CancleButton
+#endif
+TEST_P(SaveCardBubbleLoggingTest, MAYBE_Metrics_CancelButton) {
   base::HistogramTester histogram_tester;
   TriggerFlow();
   CloseBubble(PaymentsUiClosedReason::kCancelled);
@@ -800,7 +813,13 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_CancelButton) {
       autofill_metrics::LegacySaveCardPromptResult::kCancelled, 1);
 }
 
-TEST_P(SaveCardBubbleLoggingTest, Metrics_Closed) {
+// TODO(https://crbug.com/448030345): Flaky on Linux ASan
+#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+#define MAYBE_Metrics_Closed DISABLED_Metrics_Closed
+#else
+#define MAYBE_Metrics_Closed Metrics_Closed
+#endif
+TEST_P(SaveCardBubbleLoggingTest, MAYBE_Metrics_Closed) {
   base::HistogramTester histogram_tester;
   TriggerFlow();
   CloseBubble(PaymentsUiClosedReason::kClosed);

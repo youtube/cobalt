@@ -34,12 +34,14 @@ class COMPONENT_EXPORT(COMPONENTS_DBUS) Variant {
 
   ~Variant();
 
+  bool operator==(const Variant& other) const;
+
   // Create a new Variant that wraps the given `value`, which is consumed.
   // The `Signature` template parameter is a required string literal that
   // must match the D-Bus signature of `value`. This is intended to prevent
   // ambiguity if `value` is a literal like "42", so an explicit type is
   // required.
-  template <internal::StringLiteral Signature>
+  template <SignatureLiteral Signature>
   static Variant Wrap(internal::ParseDBusSignature<Signature> value) {
     return WrapImpl(std::move(value));
   }
@@ -48,13 +50,13 @@ class COMPONENT_EXPORT(COMPONENTS_DBUS) Variant {
   // variant is empty or if the contained type does not match the requested
   // type. The variant is reset to an empty state after Take().
   template <typename T>
-    requires internal::IsSupportedDBusType<T>
+    requires IsSupportedDBusType<T>
   std::optional<T> Take() && {
     auto consumed_state = std::move(state_);
     state_.emplace<std::monostate>();
     std::string signature = std::move(signature_);
 
-    if (signature != internal::GetDBusTypeSignature<T>()) {
+    if (signature != GetDBusTypeSignature<T>()) {
       return std::nullopt;
     }
 
@@ -139,7 +141,7 @@ class COMPONENT_EXPORT(COMPONENTS_DBUS) Variant {
   static Variant WrapImpl(T&& value) {
     Variant v;
     using DecayedT = std::decay_t<T>;
-    v.signature_ = internal::GetDBusTypeSignature<DecayedT>();
+    v.signature_ = GetDBusTypeSignature<DecayedT>();
 
     if constexpr (std::is_same_v<DecayedT, Variant>) {
       v.state_.emplace<NestedVariant>(

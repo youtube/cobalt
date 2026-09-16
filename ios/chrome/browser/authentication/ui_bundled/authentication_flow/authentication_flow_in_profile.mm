@@ -113,8 +113,7 @@ enum class AuthenticationFlowInProfileState {
 
 - (void)startSignInWithCompletion:
     (signin_ui::SigninCompletionCallback)completion {
-  CHECK_EQ(_state, AuthenticationFlowInProfileState::kBegin,
-           base::NotFatalUntil::M138);
+  CHECK_EQ(_state, AuthenticationFlowInProfileState::kBegin);
   CHECK(!_signInCompletion) << "startSignInWithCompletion was called twice.";
   CHECK(completion);
   _selfRetainer = self;
@@ -303,9 +302,8 @@ enum class AuthenticationFlowInProfileState {
       IdentityManagerFactory::GetForProfile(profile);
   std::vector<CoreAccountInfo> accountsInProfile =
       identityManager->GetAccountsWithRefreshTokens();
-  BOOL isValidIdentityInProfile =
-      base::Contains(accountsInProfile, GaiaId(_identityToSignIn.gaiaID),
-                     &CoreAccountInfo::gaia);
+  BOOL isValidIdentityInProfile = base::Contains(
+      accountsInProfile, _identityToSignIn.gaiaId, &CoreAccountInfo::gaia);
   if (!isValidIdentityInProfile) {
     [self handleAuthenticationError:ios::provider::
                                         CreateMissingIdentitySigninError()];
@@ -321,8 +319,7 @@ enum class AuthenticationFlowInProfileState {
                 currentProfile:profile];
     _didSignIn = YES;
   } else {
-    CHECK([currentIdentity isEqual:_identityToSignIn],
-          base::NotFatalUntil::M138);
+    CHECK([currentIdentity isEqual:_identityToSignIn]);
   }
   [self continueFlow];
 }
@@ -431,7 +428,7 @@ enum class AuthenticationFlowInProfileState {
   _accountSwitchingBatchClosureRunner.RunAndReset();
   // Clean up asynchronously to ensure that `self` does not die while
   // the flow is running.
-  CHECK([NSThread isMainThread], base::NotFatalUntil::M138);
+  CHECK([NSThread isMainThread]);
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_selfRetainer = nil;
   });
@@ -441,8 +438,7 @@ enum class AuthenticationFlowInProfileState {
 #pragma mark - AuthenticationFlowPerformerDelegate
 
 - (void)didSignOutForAccountSwitch {
-  CHECK_EQ(AuthenticationFlowInProfileState::kSignOutIfNeeded, _state,
-           base::NotFatalUntil::M138);
+  CHECK_EQ(AuthenticationFlowInProfileState::kSignOutIfNeeded, _state);
   [self continueFlow];
 }
 
@@ -461,7 +457,7 @@ enum class AuthenticationFlowInProfileState {
                          userAffiliationIDs:
                              (NSArray<NSString*>*)userAffiliationIDs {
   CHECK_EQ(AuthenticationFlowInProfileState::kRegisterForUserPolicyIfNeeded,
-           _state, base::NotFatalUntil::M138);
+           _state);
   _dmToken = dmToken;
   _clientID = clientID;
   _userAffiliationIDs = userAffiliationIDs;

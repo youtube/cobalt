@@ -1,0 +1,264 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+/**
+ * @fileoverview
+ * 'settings-your-saved-info-page' is the entry point for users to see
+ * and manage their saved info.
+ */
+import './account_card_element.js';
+import './category_reference_card.js';
+import '/shared/settings/prefs/prefs.js';
+
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+
+import type {AutofillManagerProxy, PersonalDataChangedListener} from '../autofill_page/autofill_manager_proxy.js';
+import {AutofillManagerImpl} from '../autofill_page/autofill_manager_proxy.js';
+import {PasswordManagerImpl, PasswordManagerPage} from '../autofill_page/password_manager_proxy.js';
+import {PaymentsManagerImpl} from '../autofill_page/payments_manager_proxy.js';
+import type {PaymentsManagerProxy} from '../autofill_page/payments_manager_proxy.js';
+import {loadTimeData} from '../i18n_setup.js';
+import {routes} from '../route.js';
+import {Router} from '../router.js';
+import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
+
+import type {ChipData} from './category_reference_card.js';
+import {SavedInfoHandlerImpl} from './saved_info_handler_proxy.js';
+import {getTemplate} from './your_saved_info_page.html.js';
+
+const SettingsYourSavedInfoPageElementBase = WebUiListenerMixin(
+    SettingsViewMixin(PrefsMixin(I18nMixin(PolymerElement))));
+
+export class SettingsYourSavedInfoPageElement extends
+    SettingsYourSavedInfoPageElementBase {
+  static get is() {
+    return 'settings-your-saved-info-page';
+  }
+
+  static get template() {
+    return getTemplate();
+  }
+
+  static get properties() {
+    return {
+      prefs: Object,
+      /**
+       * The data for the Passwords reference card.
+       */
+      passwordsCardData_: {
+        type: Array,
+        computed: 'computePasswordsCardData_(passwordsCount, passkeysCount)',
+      },
+
+      /**
+       * The data for the Payment methods reference card.
+       */
+      paymentsCardData_: {
+        type: Array,
+        value: () => {
+          return [{
+            label: loadTimeData.getString('addPaymentMethodCreditOrDebitCard'),
+            icon: 'settings20:credit-card',
+          }];
+        },
+      },
+
+      passwordsCount: Number,
+      passkeysCount: Number,
+      addressesCount: Number,
+      creditCardsCount: Number,
+      ibansCount: Number,
+      payOverTimeIssuersCount: Number,
+    };
+  }
+
+  declare prefs: {[key: string]: any};
+  declare private passwordsCardData_: ChipData[];
+  declare private paymentsCardData_: ChipData[];
+  declare passwordsCount: number|undefined;
+  declare passkeysCount: number|undefined;
+  declare addressesCount: number|undefined;
+  declare creditCardsCount: number|undefined;
+  declare ibansCount: number|undefined;
+  declare payOverTimeIssuersCount: number|undefined;
+
+  private paymentsManager_: PaymentsManagerProxy =
+      PaymentsManagerImpl.getInstance();
+  private autofillManager_: AutofillManagerProxy =
+      AutofillManagerImpl.getInstance();
+  private setPersonalDataListener_: PersonalDataChangedListener|null = null;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.setupDataTypeCounters();
+  }
+
+  private setupDataTypeCounters() {
+    // Password and passkey counts.
+    const setPasswordCount =
+      (count: { passwordCount: number, passkeyCount: number }) => {
+        this.passwordsCount = count.passwordCount;
+        this.passkeysCount = count.passkeyCount;
+      };
+    this.addWebUiListener('password-count-changed', setPasswordCount);
+    SavedInfoHandlerImpl.getInstance().getPasswordCount().then(
+      setPasswordCount);
+
+    // Addresses: Request initial data.
+    const setAddressesListener =
+      (addresses: chrome.autofillPrivate.AddressEntry[]) => {
+        this.addressesCount = addresses.length;
+      };
+    this.autofillManager_.getAddressList().then(setAddressesListener);
+
+    // Payments: Request initial data.
+    const setCreditCardsListener =
+      (creditCards: chrome.autofillPrivate.CreditCardEntry[]) => {
+      this.creditCardsCount = creditCards.length;
+    };
+    const setIbansListener = (ibans: chrome.autofillPrivate.IbanEntry[]) => {
+      this.ibansCount = ibans.length;
+    };
+    const setPayOverTimeListener =
+      (payOverTimeIssuers: chrome.autofillPrivate.PayOverTimeIssuerEntry[]) => {
+      this.payOverTimeIssuersCount = payOverTimeIssuers.length;
+    };
+    this.paymentsManager_.getCreditCardList().then(setCreditCardsListener);
+    this.paymentsManager_.getIbanList().then(setIbansListener);
+    this.paymentsManager_.getPayOverTimeIssuerList().then(
+      setPayOverTimeListener);
+
+    // Addresses and Payments: Listen for changes.
+    const setPersonalDataListener: PersonalDataChangedListener =
+      (addresses: chrome.autofillPrivate.AddressEntry[],
+        creditCards: chrome.autofillPrivate.CreditCardEntry[],
+        ibans: chrome.autofillPrivate.IbanEntry[],
+        payOverTimeIssuers: chrome.autofillPrivate.PayOverTimeIssuerEntry[],
+        _accountInfo?: chrome.autofillPrivate.AccountInfo) => {
+        this.addressesCount = addresses.length;
+        this.creditCardsCount = creditCards.length;
+        this.ibansCount = ibans.length;
+        this.payOverTimeIssuersCount = payOverTimeIssuers.length;
+      };
+    this.setPersonalDataListener_ = setPersonalDataListener;
+    this.autofillManager_.setPersonalDataManagerListener(
+      setPersonalDataListener);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+
+    if (this.setPersonalDataListener_) {
+      this.autofillManager_.removePersonalDataManagerListener(
+          this.setPersonalDataListener_);
+      this.setPersonalDataListener_ = null;
+    }
+  }
+
+  // SettingsViewMixin implementation.
+  override getFocusConfig() {
+    const map = new Map();
+    if (routes.PAYMENTS) {
+      map.set(routes.PAYMENTS.path, '#paymentManagerButton');
+    }
+    if (routes.ADDRESSES) {
+      map.set(routes.ADDRESSES.path, '#addressesManagerButton');
+    }
+
+    return map;
+  }
+
+  // SettingsViewMixin implementation.
+  override getAssociatedControlFor(childViewId: string): HTMLElement {
+    const ids = [
+      'addresses',
+      // <if expr="is_win or is_macosx">
+      'passkeys',
+      // </if>
+      'payments',
+    ];
+    assert(ids.includes(childViewId));
+
+    let triggerId: string|null = null;
+    switch (childViewId) {
+      case 'addresses':
+        triggerId = 'addressesManagerButton';
+        break;
+      // <if expr="is_win or is_macosx">
+      case 'passkeys':
+        triggerId = 'passwordManagerButton';
+        break;
+      // </if>
+      case 'payments':
+        triggerId = 'paymentManagerButton';
+        break;
+      default:
+        break;
+    }
+
+    assert(triggerId);
+
+    const control =
+        this.shadowRoot!.querySelector<HTMLElement>(`#${triggerId}`);
+    assert(control);
+    return control;
+  }
+
+  private computePasswordsCardData_(): ChipData[] {
+    return [
+      {
+        label: this.i18n('passwords'),
+        icon: 'cr20:password',
+        counter: this.passwordsCount,
+      },
+      {label: 'Passkeys', icon: 'cr:security', counter: this.passkeysCount},
+    ];
+  }
+
+  /**
+   * Shows the manage payment methods sub page.
+   */
+  private onPaymentManagerClick_() {
+    Router.getInstance().navigateTo(routes.PAYMENTS);
+  }
+
+  /**
+   * Shows Password Manager page.
+   */
+  private onPasswordManagerExternalLinkClick_() {
+    PasswordManagerImpl.getInstance().recordPasswordsPageAccessInSettings();
+    PasswordManagerImpl.getInstance().showPasswordManager(
+        PasswordManagerPage.PASSWORDS);
+  }
+
+  /**
+   * Opens Wallet page in a new tab.
+   */
+  private onGoogleWalletExternalLinkClick_() {
+    OpenWindowProxyImpl.getInstance().openUrl(
+        loadTimeData.getString('googleWalletUrl'));
+  }
+
+  /**
+   * Opens Google Account page in a new tab.
+   */
+  private onGoogleAccountExternalLinkClick_() {
+    OpenWindowProxyImpl.getInstance().openUrl(
+        loadTimeData.getString('googleAccountUrl'));
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'settings-your-saved-info-page': SettingsYourSavedInfoPageElement;
+  }
+}
+
+customElements.define(
+    SettingsYourSavedInfoPageElement.is, SettingsYourSavedInfoPageElement);

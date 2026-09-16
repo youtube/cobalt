@@ -51,6 +51,9 @@ namespace views {
 class View;
 class ViewTracker;
 }  // namespace views
+namespace viz {
+struct CopyOutputBitmapWithMetadata;
+}  // namespace viz
 namespace tabs {
 class TabModel;
 }
@@ -65,6 +68,7 @@ class TabStripScrollSession;
 class WindowFinder;
 class TabStripScrollSession;
 struct DetachedTabCollection;
+struct DetachedTab;
 
 // `TabDragDelegate` is an interface that may be implemented to facilitate
 // custom behavior beyond the tabstrip.
@@ -388,7 +392,8 @@ class TabDragController : public views::WidgetObserver,
   //
   // `window_scale` is the scale of the window that `thumbnail` was captured
   // from.
-  void OnTabThumbnailAvailable(float window_scale, const SkBitmap& thumbnail);
+  void OnTabThumbnailAvailable(float window_scale,
+                               const viz::CopyOutputBitmapWithMetadata& result);
 
   // Starts a regular drag and drop session as a fallback if RunMoveLoop() is
   // not supported and no drag session is currently running. `context` is used
@@ -423,7 +428,7 @@ class TabDragController : public views::WidgetObserver,
   void AttachToNewContext(
       TabDragContext* attached_context,
       std::unique_ptr<TabDragController> controller,
-      std::vector<std::variant<std::unique_ptr<tabs::TabModel>,
+      std::vector<std::variant<std::unique_ptr<DetachedTab>,
                                std::unique_ptr<DetachedTabCollection>>>
           owned_tabs_and_collections);
 
@@ -436,7 +441,7 @@ class TabDragController : public views::WidgetObserver,
   // `attached_context_` currently owns a controller. Otherwise returns
   // nullptr.
   std::tuple<std::unique_ptr<TabDragController>,
-             std::vector<std::variant<std::unique_ptr<tabs::TabModel>,
+             std::vector<std::variant<std::unique_ptr<DetachedTab>,
                                       std::unique_ptr<DetachedTabCollection>>>>
   Detach(ReleaseCapture release_capture);
 

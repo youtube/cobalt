@@ -9,6 +9,8 @@ source_set("coordinator") {
   ]
   deps = [
     "//base",
+    "//components/ntp_tiles:pref_names",
+    "//components/prefs/ios",
     "//ios/chrome/browser/content_suggestions/ui_bundled:public",
     "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public:features",
     "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/ui",

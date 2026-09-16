@@ -41,7 +41,6 @@
 #include "content/public/common/content_features.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
-#include "sandbox/policy/features.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -137,6 +136,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   feature_overrides.EnableFeature(
       blink::features::kAndroidDesktopWebPrefsLargeDisplays);
 
+  // Enables the caret browsing a11y feature - can use arrow keys to navigate
+  // through web pages.
+  // TODO(crbug.com/369139090): Remove when rollout is complete
+  feature_overrides.EnableFeature(features::kAndroidCaretBrowsing);
+
   // If enabled, render processes associated only with tabs in unfocused windows
   // will be downgraded to "vis" priority, rather than remaining at "fg". This
   // will allow tabs in unfocused windows to be prioritized for OOM kill in
@@ -184,10 +188,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
       chrome::android::kLockTopControlsOnLargeTablets);
   feature_overrides.EnableFeature(
       chrome::android::kLockTopControlsOnLargeTabletsV2);
-  // TODO(crbug.com/445446479): Remove when rollout is complete to all form
-  // factors.
-  feature_overrides.EnableFeature(
-      sandbox::policy::features::kAndroidGpuSandbox);
   // Bypass the WebAudio output buffer, to reduce audio latency.
   // TODO(crbug.com/436988695): Remove when the long term solution is
   // implemented.
@@ -224,6 +224,19 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/445475304): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(feed::kAndroidOpenIncognitoAsWindow);
   feature_overrides.EnableFeature(chrome::android::kTabStripIncognitoMigration);
+  // TODO(crbug.com/427242080): Remove when tablet rollout is complete.
+  feature_overrides.EnableFeature(
+      chrome::android::kAndroidPinnedTabsTabletTabStrip);
+  // TODO(crbug.com/433879656): Remove when this feature on LFF device is
+  // stable.
+  feature_overrides.EnableFeature(features::kFluidResize);
+
+  // Three flags are required for the bookmarks bar feature.
+  // TODO(crbug.com/430059235): Remove once feature is launched to 100% on all
+  // form factors.
+  feature_overrides.EnableFeature(chrome::android::kAndroidBookmarkBar);
+  feature_overrides.EnableFeature(chrome::android::kAndroidAppearanceSettings);
+  feature_overrides.EnableFeature(chrome::android::kTopControlsRefactor);
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,
   // or to a finch trial that enables it for all form factors.

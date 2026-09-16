@@ -147,8 +147,7 @@ DEF_TEST(pathbuilder_addRect, reporter) {
             REPORTER_ASSERT(reporter, closed);
             REPORTER_ASSERT(reporter, dir == dir2);
 
-            SkPath p;
-            p.addRect(r, dir, i);
+            SkPath p = SkPath::Rect(r, dir, i);
             REPORTER_ASSERT(reporter, p == bp);
 
             // do it again, after the detach
@@ -211,8 +210,7 @@ DEF_TEST(pathbuilder_addOval, reporter) {
     for (auto dir : {SkPathDirection::kCW, SkPathDirection::kCCW}) {
         for (int i = 0; i < 4; ++i) {
             auto bp = SkPathBuilder().addOval(r, dir, i).detach();
-            SkPath p;
-            p.addOval(r, dir, i);
+            SkPath p = SkPath::Oval(r, dir, i);
             REPORTER_ASSERT(reporter, is_eq(p, bp));
 
             SkRect bounds;
@@ -222,8 +220,7 @@ DEF_TEST(pathbuilder_addOval, reporter) {
             REPORTER_ASSERT(reporter, bp.isConvex());
         }
         auto bp = SkPathBuilder().addOval(r, dir).detach();
-        SkPath p;
-        p.addOval(r, dir);
+        SkPath p = SkPath::Oval(r, dir);
         REPORTER_ASSERT(reporter, is_eq(p, bp));
 
         // test negative case -- can't have any other segments
@@ -243,13 +240,11 @@ DEF_TEST(pathbuilder_addRRect, reporter) {
             b.addRRect(rr, dir, i);
             auto bp = b.detach();
 
-            SkPath p;
-            p.addRRect(rr, dir, i);
+            SkPath p = SkPath::RRect(rr, dir, i);
             REPORTER_ASSERT(reporter, is_eq(p, bp));
         }
         auto bp = SkPathBuilder().addRRect(rr, dir).detach();
-        SkPath p;
-        p.addRRect(rr, dir);
+        SkPath p = SkPath::RRect(rr, dir);
         REPORTER_ASSERT(reporter, is_eq(p, bp));
 
         // test negative case -- can't have any other segments
@@ -509,14 +504,23 @@ static void test_addPath_convexity(skiatest::Reporter* reporter) {
     };
 
     for (auto e : expectations) {
+        SkPath path;
 #ifndef SK_HIDE_PATH_EDIT_METHODS
-        auto path = path_add(e.fStartWithMove, e.fMode);
+        path = path_add(e.fStartWithMove, e.fMode);
         REPORTER_ASSERT(reporter, path.isConvex() == e.fShouldBeConvex);
 #endif
-
         path = builder_add(e.fStartWithMove, e.fMode);
         REPORTER_ASSERT(reporter, path.isConvex() == e.fShouldBeConvex);
     }
+
+    SkPathBuilder pb;
+    REPORTER_ASSERT(reporter, pb.snapshot().isConvex());
+    // Appending to empty preserves convexity.
+    pb.addPath(circle);
+    REPORTER_ASSERT(reporter, pb.snapshot().isConvex());
+    // Appending to non-empty should clear convexity.
+    pb.addPath(circle);
+    REPORTER_ASSERT(reporter, !pb.snapshot().isConvex());
 }
 
 DEF_TEST(pathbuilder_addPath, reporter) {
@@ -579,6 +583,7 @@ DEF_TEST(pathbuilder_addpath_crbug_1153516, r) {
  *  either the classic mutable apis, or via SkPathBuilder (SkPath::Polygon uses builder).
  */
 DEF_TEST(pathbuilder_lastmoveindex, reporter) {
+#ifndef SK_HIDE_PATH_EDIT_METHODS
     const SkPoint pts[] = {
         {0, 1}, {2, 3}, {4, 5},
     };
@@ -606,6 +611,7 @@ DEF_TEST(pathbuilder_lastmoveindex, reporter) {
             REPORTER_ASSERT(reporter, b_last == expected);
         }
     }
+#endif
 }
 
 static void assertIsMoveTo(skiatest::Reporter* reporter, SkPathPriv::RangeIter* iter,
@@ -830,7 +836,7 @@ DEF_TEST(SkPathBuilder_transform, reporter) {
 }
 
 DEF_TEST(SkPathBuilder_Path_arcTo, reporter) {
-
+#ifndef SK_HIDE_PATH_EDIT_METHODS
     auto check_both_methods = [reporter](const SkRect& r, float start, float sweep) {
         SkPath path;
         path.arcTo(r, start, sweep, true);
@@ -855,6 +861,7 @@ DEF_TEST(SkPathBuilder_Path_arcTo, reporter) {
         sweep = rand.nextSScalar1() * 1000;
         check_both_methods(r, start, sweep);
     }
+#endif
 }
 
 DEF_TEST(SkPathBuilder_cleaning, reporter) {
@@ -1002,4 +1009,89 @@ DEF_TEST(SkPathBuilder_rMoveTo, reporter) {
     iter = p.iter();//SkPathRaw::Iter(p.points(), p.verbs(), {} /* no conics */);
     //  PathIter, for compat, is snuffing out trailing moves
     check_done_and_reset(reporter, &p, &iter);
+}
+
+const SkPathFillType gFillTypes[] = {
+    SkPathFillType::kWinding,
+    SkPathFillType::kEvenOdd,
+    SkPathFillType::kInverseWinding,
+    SkPathFillType::kInverseEvenOdd,
+};
+
+DEF_TEST(SkPathBuilder_equality, reporter) {
+    auto check_filltype_eq = [reporter](const SkPathBuilder& a) {
+        SkPathBuilder copy = a;
+        REPORTER_ASSERT(reporter, a == copy);
+
+        for (auto ft : gFillTypes) {
+            if (ft != a.fillType()) {
+                copy.setFillType(ft);
+                REPORTER_ASSERT(reporter, a != copy);
+            }
+        }
+    };
+
+
+    SkPathBuilder a, b;
+
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    a.moveTo(0, 0);
+    REPORTER_ASSERT(reporter, a != b);
+    b.moveTo(0, 0);
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    b.close();
+    REPORTER_ASSERT(reporter, a != b);
+    a.close();
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    auto set_segments = [](SkPathBuilder& bu) {
+        bu.reset()
+          .moveTo(1, 2)
+          .lineTo(3, 4)
+          .quadTo(5, 6, 7, 8)
+          .conicTo(9, 10, 11, 12, 0.5f)
+          .cubicTo(13, 14, 15, 16, 17, 18)
+          .close();
+    };
+    set_segments(a);
+    set_segments(b);
+    REPORTER_ASSERT(reporter, a == b);
+    check_filltype_eq(a);
+
+    // mutate point value, but not verb sequence
+    a.setLastPt(-1, -2);
+    REPORTER_ASSERT(reporter, a != b);
+    check_filltype_eq(a);
+}
+
+DEF_TEST(SkPathBuilder_dump, reporter) {
+    SkPathBuilder builder;
+    builder.moveTo(1, 2)
+            .lineTo(3, 4)
+            .quadTo(5, 6, 7, 8)
+            .conicTo(9, 10, 11, 12, 0.5f)
+            .cubicTo(13, 14, 15, 16, 17, 18)
+            .close()
+            .moveTo(1, 2)
+            .lineTo(3, 4);
+
+    SkString str = builder.dumpToString();
+
+    const char expected[] =
+        "SkPathBuilder(SkPathFillType::kWinding)\n"
+        ".moveTo(1, 2)\n"
+        ".lineTo(3, 4)\n"
+        ".quadTo(5, 6, 7, 8)\n"
+        ".conicTo(9, 10, 11, 12, 0.5f)\n"
+        ".cubicTo(13, 14, 15, 16, 17, 18)\n"
+        ".close()\n"
+        ".moveTo(1, 2)\n"
+        ".lineTo(3, 4)\n";
+
+    REPORTER_ASSERT(reporter, str.equals(expected));
 }

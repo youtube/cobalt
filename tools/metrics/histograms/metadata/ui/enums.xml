@@ -41,6 +41,8 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="User selected the Customize Chrome Side Panel lab"/>
 </enum>
 
+<!-- LINT.IfChange(ContextMenuOptionDesktop) -->
+
 <enum name="ContextMenuOptionDesktop">
   <summary>The item selected from a context menu on Desktop.</summary>
   <int value="0" label="Open in new tab"/>
@@ -76,7 +78,10 @@ chromium-metrics-reviews@google.com.
   <int value="29" label="Search web for... in new tab"/>
   <int value="30" label="Open link in preview"/>
   <int value="31" label="Open link in split view"/>
+  <int value="32" label="Create image with Gemini in Chrome"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:ContextMenuOptionDesktop) -->
 
 <enum name="DefaultBrowserInfoBarUserInteraction">
   <int value="0" label="Accept">
@@ -118,6 +123,8 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_delegate.h:PinInfoBarUserInteraction) -->
+
+<!-- LINT.IfChange(RenderViewContextMenuItem) -->
 
 <enum name="RenderViewContextMenuItem">
   <int value="0" label="IDC_CONTENT_CONTEXT_CUSTOM_FIRST"/>
@@ -301,7 +308,10 @@ chromium-metrics-reviews@google.com.
   <int value="154" label="IDC_CONTENT_CONTEXT_RELOAD_GLIC"/>
   <int value="155" label="IDC_CONTENT_CONTEXT_CLOSE_GLIC"/>
   <int value="156" label="IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW"/>
+  <int value="157" label="IDC_CONTENT_CONTEXT_GLICSHAREIMAGE"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
 
 <enum name="ShapeRunFallback">
   <int value="0" label="FAILED">Finding a fallback font failed.</int>
@@ -509,6 +519,7 @@ chromium-metrics-reviews@google.com.
   <int value="60238454" label="/content/ads"/>
   <int value="91791837" label="/content/localFonts"/>
   <int value="104900992" label="/content/insecureContent"/>
+  <int value="111607686" label="/yourSavedInfo"/>
   <int value="223791833" label="/help/about"/>
   <int value="254445609" label="/content/filesystem"/>
   <int value="273561147" label="/autofill"/>
@@ -613,6 +624,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1949142440" label="chrome://smb-credentials-dialog/"/>
   <int value="-1941995226" label="chrome://attribution-internals/"/>
   <int value="-1911971715" label="chrome://history/"/>
+  <int value="-1905481895" label="chrome://reload-button.top-chrome/"/>
   <int value="-1899361569" label="chrome-untrusted://eche-app/"/>
   <int value="-1887206190" label="chrome://nfc-debug/"/>
   <int value="-1877210733" label="chrome-untrusted://privacy-sandbox-dialog/"/>
@@ -1073,6 +1085,8 @@ chromium-metrics-reviews@google.com.
   <int value="94" label="Open glic"/>
   <int value="95" label="Find Extensions"/>
   <int value="96" label="Show signin page"/>
+  <int value="97" label="Open recent tabs from other devices"/>
+  <int value="98" label="Trigger installed app update dialog"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/ui/toolbar/app_menu_model.h:AppMenuAction) -->

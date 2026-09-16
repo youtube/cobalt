@@ -234,7 +234,7 @@ void HTMLSelectElement::UpdateUsesMenuList() {
       uses_menu_list_ =
           FastHasAttribute(html_names::kSizeAttr) ? size_ == 1 : false;
     } else {
-      uses_menu_list_ = size_ == 1;
+      uses_menu_list_ = size_ <= 1;
     }
     return;
   }
@@ -1353,6 +1353,12 @@ void HTMLSelectElement::SelectOptionByAccessKey(HTMLOptionElement* option) {
     SelectOption(option, flags);
   }
   option->SetDirty(true);
+
+  // Whether the option was selected or de-selected, we need to set it as the
+  // active descendant by calling SetListBoxActiveSelection here. Otherwise,
+  // screen readers will unexpectedly move their cursor to another option.
+  select_type_->SetListBoxActiveSelection(option);
+
   select_type_->ListBoxOnChange();
   select_type_->ScrollToSelection();
 }
@@ -1598,6 +1604,7 @@ void HTMLSelectElement::ChangeRendering() {
   if (UsesMenuList() != old_uses_menu_list) {
     select_type_->WillBeDestroyed();
     select_type_ = SelectType::Create(*this);
+    PseudoStateChanged(CSSSelector::kPseudoListBox);
   }
   if (!InActiveDocument())
     return;

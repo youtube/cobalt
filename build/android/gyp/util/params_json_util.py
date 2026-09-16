@@ -126,8 +126,12 @@ def _topological_walk(top, deps_func):
 def _filter_deps(deps, restrict_to_resource_types=False):
   """Filters dependencies based on their type."""
   if restrict_to_resource_types:
-    # Root types are never is_resource_type().
-    keep_func = lambda x: x.is_resource_type() or x.is_group()
+    # Consider groups that set input_jars_paths() as java targets. This
+    # prevents such groups from contributing to the classpath when they are
+    # depended on via resource deps. Admittedly, a bit of a hack...
+    keep_func = lambda x: x.is_resource_type() or (x.is_group() and not x.get(
+        'input_jars_paths'))
+
   else:
     keep_func = lambda x: not x.is_root_type()
 
@@ -434,7 +438,7 @@ class ParamsJson(dict):
     """Returns True if the target requires the Android platform."""
     if self.type.startswith('android') or self.type == 'dist_aar':
       return True
-    return self.is_resource_type or self.get('requires_android', False)
+    return self.is_resource_type() or self.get('requires_android', False)
 
   def supports_android(self):
     """Returns True if the target supports the Android platform."""
@@ -455,7 +459,7 @@ class ParamsJson(dict):
 
   @functools.cache  # pylint: disable=method-cache-max-size-none
   def deps(self):
-    """Returns all dependencies, from both deps and public_deps."""
+    """Returns deps + resolved public_deps."""
     deps = DepsList(self._direct_deps())
     deps += self._cached_direct_public_deps()
     deps += _filter_deps(_collect_public_deps(deps),

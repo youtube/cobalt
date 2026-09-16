@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 bs_Cyrl{
     %%Parent{"root"}
     Countries{
@@ -147,6 +147,7 @@ bs_Cyrl{
         IL{"Израел"}
         IM{"Острво Мен"}
         IN{"Индија"}
+        IO{"Британска територија у Индијском океану"}
         IQ{"Ирак"}
         IR{"Иран"}
         IS{"Исланд"}

@@ -148,6 +148,7 @@ luci.gitiles_poller(
         "chromium.swangle",
         "chromium.updater",
         "chromium.enterprise_companion",
+        "crossbench",
     ],
 ) for name, title in (
     ("main", "{} Main Console".format(settings.project_title)),
@@ -198,6 +199,7 @@ consoles.console_view(
 ) for name, category, short_name in (
     ("fuchsia-arm64-rel-ready", "p/chrome|arm64", "rel-ready"),
     ("fuchsia-arm64-nest-sd", "p/chrome|official", "nest-arm"),
+    ("fuchsia-arm64-nest-sd-perf", "p/chrome|official", "nest-arm-perf"),
     ("fuchsia-ava-astro", "hardware|ava", "ast"),
     ("fuchsia-ava-nelson", "hardware|ava", "nsn"),
     ("fuchsia-ava-sherlock", "hardware|ava", "sher"),
@@ -251,8 +253,10 @@ exec("./ci/chromium.linux.star")
 exec("./ci/chromium.mac.star")
 exec("./ci/chromium.memory.star")
 exec("./ci/chromium.memory.fyi.star")
+exec("./ci/chromium.prompt_eval.star")
 exec("./ci/chromium.rust.star")
 exec("./ci/chromium.swangle.star")
 exec("./ci/chromium.updater.star")
 exec("./ci/chromium.win.star")
+exec("./ci/crossbench.star")
 exec("./ci/metadata.exporter.star")

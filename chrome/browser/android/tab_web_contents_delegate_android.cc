@@ -193,9 +193,9 @@ bool TabWebContentsDelegateAndroid::ShouldFocusLocationBarByDefault(
     GURL url = entry->GetURL();
     GURL virtual_url = entry->GetVirtualURL();
     if ((url.SchemeIs(browser_ui::kChromeUINativeScheme) &&
-         url.host_piece() == chrome::kChromeUINewTabHost) ||
+         url.host() == chrome::kChromeUINewTabHost) ||
         (virtual_url.SchemeIs(browser_ui::kChromeUINativeScheme) &&
-         virtual_url.host_piece() == chrome::kChromeUINewTabHost)) {
+         virtual_url.host() == chrome::kChromeUINewTabHost)) {
       return true;
     }
   }
@@ -398,9 +398,10 @@ WebContents* TabWebContentsDelegateAndroid::AddNewContents(
     ScopedJavaLocalRef<jobject> jwindow_features =
         JNI_TabWebContentsDelegateAndroidImpl_CreateJavaWindowFeatures(
             env, window_features);
-
+    ScopedJavaLocalRef<jobject> jurl =
+        url::GURLAndroid::FromNativeGURL(env, target_url);
     handled = Java_TabWebContentsDelegateAndroidImpl_addNewContents(
-        env, obj, jsource, jnew_contents, static_cast<jint>(disposition),
+        env, obj, jsource, jnew_contents, jurl, static_cast<jint>(disposition),
         jwindow_features, user_gesture);
   }
 

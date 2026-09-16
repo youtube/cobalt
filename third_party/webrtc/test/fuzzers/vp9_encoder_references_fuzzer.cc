@@ -597,7 +597,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
           }
           bool drop = false;
           // Never drop keyframe.
-          if (frame_types[0] != VideoFrameType::kVideoFrameKey) {
+          if ((state.pkt.data.frame.flags & VPX_FRAME_IS_KEY) == 0) {
             switch (state.frame_drop.framedrop_mode) {
               case FULL_SUPERFRAME_DROP:
                 drop = encode_spatial_layers == 0;

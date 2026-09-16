@@ -446,7 +446,6 @@ BASE_EXPORT ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
 //
 // Create a new directory. If prefix is provided, the new directory name is in
 // the format of prefixyyyy.
-// NOTE: prefix is ignored in the POSIX implementation.
 // If success, return true and output the full path of the directory created.
 //
 // For Windows, this directory is usually created in a secure location if the
@@ -454,7 +453,7 @@ BASE_EXPORT ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
 // insecure, since low privilege users can get the path of folders under %TEMP%
 // after creation and are able to create subfolders and files within these
 // folders which can lead to privilege escalation.
-BASE_EXPORT bool CreateNewTempDirectory(const FilePath::StringType& prefix,
+BASE_EXPORT bool CreateNewTempDirectory(FilePath::StringViewType prefix,
                                         FilePath* new_temp_path);
 
 // Create a directory within another directory.

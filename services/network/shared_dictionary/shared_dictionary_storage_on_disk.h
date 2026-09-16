@@ -27,19 +27,24 @@
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
 
+namespace url_pattern {
+class SimpleUrlPatternMatcher;
+}
+
 namespace network {
 
 class SharedDictionaryCache;
 class SharedDictionaryManagerOnDisk;
-class SimpleUrlPatternMatcher;
 
 // A SharedDictionaryStorage which is managed by SharedDictionaryManagerOnDisk.
-class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage {
+class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage,
+                                      public base::MemoryPressureListener {
  public:
   class WrappedDictionaryInfo : public net::SharedDictionaryInfo {
    public:
-    WrappedDictionaryInfo(net::SharedDictionaryInfo info,
-                          std::unique_ptr<SimpleUrlPatternMatcher> matcher);
+    WrappedDictionaryInfo(
+        net::SharedDictionaryInfo info,
+        std::unique_ptr<url_pattern::SimpleUrlPatternMatcher> matcher);
     ~WrappedDictionaryInfo();
     WrappedDictionaryInfo(const WrappedDictionaryInfo&) = delete;
     WrappedDictionaryInfo& operator=(const WrappedDictionaryInfo&) = delete;
@@ -49,10 +54,12 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage {
     const std::set<mojom::RequestDestination>& match_dest() const {
       return match_dest_;
     }
-    const SimpleUrlPatternMatcher* matcher() const { return matcher_.get(); }
+    const url_pattern::SimpleUrlPatternMatcher* matcher() const {
+      return matcher_.get();
+    }
 
    private:
-    std::unique_ptr<SimpleUrlPatternMatcher> matcher_;
+    std::unique_ptr<url_pattern::SimpleUrlPatternMatcher> matcher_;
     std::set<mojom::RequestDestination> match_dest_;
   };
 
@@ -86,14 +93,15 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage {
       override;
   base::expected<scoped_refptr<SharedDictionaryWriter>,
                  mojom::SharedDictionaryError>
-  CreateWriter(const GURL& url,
-               base::Time last_fetch_time,
-               base::Time response_time,
-               base::TimeDelta expiration,
-               const std::string& match,
-               const std::set<mojom::RequestDestination>& match_dest,
-               const std::string& id,
-               std::unique_ptr<SimpleUrlPatternMatcher> matcher) override;
+  CreateWriter(
+      const GURL& url,
+      base::Time last_fetch_time,
+      base::Time response_time,
+      base::TimeDelta expiration,
+      const std::string& match,
+      const std::set<mojom::RequestDestination>& match_dest,
+      const std::string& id,
+      std::unique_ptr<url_pattern::SimpleUrlPatternMatcher> matcher) override;
   bool UpdateLastFetchTimeIfAlreadyRegistered(
       const GURL& url,
       base::Time response_time,
@@ -118,13 +126,13 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage {
 
   void OnDatabaseRead(
       net::SQLitePersistentSharedDictionaryStore::DictionaryListOrError result);
-  void OnDictionaryWritten(std::unique_ptr<SimpleUrlPatternMatcher> matcher,
-                           net::SharedDictionaryInfo info);
+  void OnDictionaryWritten(
+      std::unique_ptr<url_pattern::SimpleUrlPatternMatcher> matcher,
+      net::SharedDictionaryInfo info);
   void OnSharedDictionaryDeleted(
       const base::UnguessableToken& disk_cache_key_token);
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 
   const std::map<
       url::SchemeHostPort,
@@ -147,9 +155,10 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage {
   std::map<base::UnguessableToken, raw_ptr<net::SharedDictionary>>
       dictionaries_;
 
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
-  base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level_ =
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
+  base::MemoryPressureLevel memory_pressure_level_ =
+      base::MEMORY_PRESSURE_LEVEL_NONE;
 
   bool get_dictionary_called_ = false;
   bool is_metadata_ready_ = false;

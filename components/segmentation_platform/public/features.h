@@ -48,6 +48,15 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformDeviceSwitcher);
 // Feature flag for enabling tab grouping action feature.
 BASE_DECLARE_FEATURE(kContextualPageActionTabGrouping);
 
+// Feature flag for enabling tab group throttling.
+BASE_DECLARE_FEATURE(kContextualPageActionTabGroupThrottling);
+
+extern const base::FeatureParam<bool>
+    kContextualPageActionTabGroupParamThrottleOnNewTab;
+
+extern const base::FeatureParam<bool>
+    kContextualPageActionTabGroupParamShowWhenNotClickedInLastDay;
+
 // Feature flag for enabling shopping user segment feature.
 BASE_DECLARE_FEATURE(kShoppingUserSegmentFeature);
 
@@ -196,12 +205,18 @@ extern const base::FeatureParam<int> kMaxAppBundlePromoImpressions;
 // device to have the card be shown.
 extern const base::FeatureParam<int> kMaxAppBundleAppsInstalled;
 
+// Whether the App Bundle promo module should be shown in the Magic Stack.
+bool IsAppBundlePromoEphemeralCardEnabled();
+
 // Feature flag to enable the ephemeral Default Browser card in the Magic Stack
 // on iOS.
 BASE_DECLARE_FEATURE(kDefaultBrowserMagicStackIos);
 // The maximum number impressions for `kDefaultBrowserMagicStackIos` before the
 // card should be hidden.
 extern const base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions;
+
+// Whether the Default Browser promo module should be shown in the Magic Stack.
+bool IsDefaultBrowserMagicStackEnabled();
 
 // Feature flag for enabling the tips notifications ranker.
 BASE_DECLARE_FEATURE(kAndroidTipsNotifications);

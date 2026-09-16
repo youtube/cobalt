@@ -92,6 +92,7 @@ static void doTailTest(void);
 
 static void testBracketOverflow(void);
 static void TestExplicitLevel0(void);
+static void testUBidiWriteReorderedBufferOverflow(void);
 
 /* new BIDI API */
 static void testReorderingMode(void);
@@ -141,6 +142,7 @@ addComplexTest(TestNode** root) {
     addTest(root, testContext, "complex/bidi/testContext");
     addTest(root, testBracketOverflow, "complex/bidi/TestBracketOverflow");
     addTest(root, TestExplicitLevel0, "complex/bidi/TestExplicitLevel0");
+    addTest(root, testUBidiWriteReorderedBufferOverflow, "complex/bidi/writeReorderedBufferOverflow");
 
     addTest(root, doArabicShapingTest, "complex/arabic-shaping/ArabicShapingTest");
     addTest(root, doLamAlefSpecialVLTRArabicShapingTest, "complex/arabic-shaping/lamalef");
@@ -4539,8 +4541,7 @@ overrideBidiClass(const void *context, UChar32 c) {
           DEF,   DEF,   DEF,   LRO,     B,   RLO,    BN,   DEF  /* 78-7F */
     };
     static const int nEntries = UPRV_LENGTHOF(customClasses);
-    const char *dummy = context;        /* just to avoid a compiler warning */
-    dummy++;
+    (void)context;        /* just to avoid a compiler warning */
 
     return c >= nEntries ? U_BIDI_CLASS_DEFAULT : customClasses[c];
 }
@@ -4729,6 +4730,7 @@ checkMaps(UBiDi *pBiDi, int32_t stringIndex, const char *src, const char *dest,
                 );
         testOK = false;
     }
+    memset(getIndexMap, 0, sizeof(getIndexMap));
     for (i = 0; i < srcLen; i++) {
         idx = ubidi_getVisualIndex(pBiDi, i, &rc);
         assertSuccessful("ubidi_getVisualIndex", &rc);
@@ -4937,6 +4939,23 @@ testBracketOverflow(void) {
         log_err("setPara failed with heavily nested brackets - %s", u_errorName(status));
     }
 
+    ubidi_close(bidi);
+}
+
+/* ICU-22768 */
+static void
+testUBidiWriteReorderedBufferOverflow (void) {
+    UErrorCode status = U_ZERO_ERROR;
+    UBiDi* bidi;
+    bidi = ubidi_open();
+    ubidi_setInverse(bidi, true);
+    static const UChar text[1] = { 0x2067 };
+    ubidi_setPara(bidi, text, 1, UBIDI_DEFAULT_RTL, NULL, &status);
+    UChar dest[MAXLEN];
+    uint16_t opt = UBIDI_REMOVE_BIDI_CONTROLS |
+        UBIDI_INSERT_LRM_FOR_NUMERIC |
+        UBIDI_OUTPUT_REVERSE;
+    ubidi_writeReordered(bidi, dest, MAXLEN, opt, &status);
     ubidi_close(bidi);
 }
 

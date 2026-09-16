@@ -119,7 +119,7 @@
 #include "ui/base/ime/win/tsf_input_scope.h"
 #include "ui/base/win/hidden_window.h"
 #include "ui/display/win/screen_win.h"
-#include "ui/gfx/gdi_util.h"
+#include "ui/gfx/win/gdi_util.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_LINUX)
@@ -1029,7 +1029,8 @@ uint32_t RenderWidgetHostViewAura::GetCaptureSequenceNumber() const {
 void RenderWidgetHostViewAura::CopyFromSurface(
     const gfx::Rect& src_subrect,
     const gfx::Size& dst_size,
-    base::OnceCallback<void(const SkBitmap&)> callback) {
+    base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+        callback) {
   base::WeakPtr<RenderWidgetHostImpl> popup_host;
   base::WeakPtr<DelegatedFrameHost> popup_frame_host;
   if (popup_child_host_view_) {
@@ -2375,7 +2376,7 @@ void RenderWidgetHostViewAura::OnStartStylusWriting() {
   handwriting_controller->OnStartStylusWriting(
       base::BindRepeating(&RenderWidgetHostViewAura::OnFocusHandwritingTarget,
                           weak_ptr_factory_.GetWeakPtr()),
-      last_stylus_handwriting_properties_.value(), *this);
+      last_stylus_handwriting_properties_.value());
   last_stylus_handwriting_properties_.reset();
 }
 
@@ -2417,11 +2418,9 @@ void RenderWidgetHostViewAura::OnEditElementFocusedForStylusWriting(
   UpdateProximateCharacterBounds(
       focus_result ? std::move(focus_result->proximate_bounds) : nullptr);
 
-  if (focus_result) {
-    handwriting_controller->OnFocusHandled(*this);
-  } else {
-    handwriting_controller->OnFocusFailed(*this);
-  }
+  UMA_HISTOGRAM_BOOLEAN("Stylus.Handwriting.TSFFocus", !!focus_result);
+  focus_result ? handwriting_controller->OnFocusHandled()
+               : handwriting_controller->OnFocusFailed();
 }
 
 void RenderWidgetHostViewAura::OnFocusHandwritingTarget(

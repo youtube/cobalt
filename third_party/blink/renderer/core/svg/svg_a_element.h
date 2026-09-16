@@ -38,11 +38,11 @@ class CORE_EXPORT SVGAElement final : public SVGGraphicsElement,
 
   explicit SVGAElement(Document&);
 
-  Element* InterestForElement() const override;
+  bool IsValidInterestInvoker(Element& target) const override;
 
   void Trace(Visitor*) const override;
 
-  bool HasRel(uint32_t relation) const;
+  uint32_t GetLinkRelations() const { return link_relations_; }
   DOMTokenList& relList() const { return *rel_list_; }
 
  private:

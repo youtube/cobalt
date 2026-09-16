@@ -12,12 +12,12 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_util.h"
 #include "chrome/browser/apps/app_service/app_install/app_install_service.h"
-#include "chrome/browser/apps/app_service/instance_registry_updater.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics_service.h"
 #include "chrome/browser/apps/app_service/metrics/app_service_metrics.h"
@@ -27,8 +27,6 @@
 #include "chrome/browser/apps/app_service/publisher.h"
 #include "chrome/browser/apps/app_service/publisher_host_factory.h"
 #include "chrome/browser/apps/app_service/uninstall_dialog.h"
-#include "chrome/browser/apps/browser_instance/browser_app_instance_registry.h"
-#include "chrome/browser/apps/browser_instance/browser_app_instance_tracker.h"
 #include "chrome/browser/ash/app_restore/full_restore_service.h"
 #include "chrome/browser/ash/app_restore/full_restore_service_factory.h"
 #include "chrome/browser/ash/child_accounts/child_user_service.h"
@@ -51,14 +49,20 @@
 #include "components/services/app_service/public/cpp/app_registry_cache_wrapper.h"
 #include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/cpp/icon_effects.h"
+#include "components/services/app_service/public/cpp/intent_filter.h"
+#include "components/services/app_service/public/cpp/intent_filter_util.h"
+#include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/services/app_service/public/cpp/package_id.h"
 #include "components/services/app_service/public/cpp/preferred_apps_impl.h"
 #include "components/services/app_service/public/cpp/preferred_apps_list.h"
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
+#include "components/webapps/isolated_web_apps/scheme.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/grit/extensions_browser_resources.h"
+#include "third_party/blink/public/common/custom_handlers/protocol_handler_utils.h"
+#include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 
 namespace {
 constexpr int32_t kAppDialogIconSize = 48;
@@ -174,16 +178,6 @@ apps::AppPlatformMetricsService*
 AppServiceProxyAsh::AppPlatformMetricsService() {
   return app_platform_metrics_service_ ? app_platform_metrics_service_.get()
                                        : nullptr;
-}
-
-apps::BrowserAppInstanceTracker*
-AppServiceProxyAsh::BrowserAppInstanceTracker() {
-  return nullptr;
-}
-
-apps::BrowserAppInstanceRegistry*
-AppServiceProxyAsh::BrowserAppInstanceRegistry() {
-  return nullptr;
 }
 
 apps::AppInstallService& AppServiceProxyAsh::AppInstallService() {
@@ -479,6 +473,37 @@ void AppServiceProxyAsh::SetAppLocale(const std::string& app_id,
   }
 }
 
+void AppServiceProxyAsh::SetProtocolLinkPreference(
+    std::string_view app_id,
+    std::string_view protocol_scheme) {
+  CHECK(!app_id.empty());
+  CHECK(protocol_scheme != url::kHttpScheme &&
+        protocol_scheme != url::kHttpsScheme);
+
+  AppRegistryCache().ForOneApp(app_id, [&](const AppUpdate& app) {
+    if (!apps_util::IsInstalled(app.Readiness()) ||
+        app.AppType() != AppType::kWeb) {
+      return;
+    }
+    CHECK(blink::IsValidCustomHandlerScheme(
+        protocol_scheme,
+        (app.PublisherId().starts_with(webapps::kIsolatedAppScheme)
+             ? blink::ProtocolHandlerSecurityLevel::kIsolatedAppFeatures
+             : blink::ProtocolHandlerSecurityLevel::kStrict)));
+    auto intent = std::make_unique<apps::Intent>(
+        apps_util::kIntentActionView,
+        GURL(base::StrCat({protocol_scheme, url::kStandardSchemeSeparator})));
+    // Web apps are generally supposed to only have one matching filter for the
+    // protocol scheme (scheme + kIntentActionView).
+    for (auto& filter : app.IntentFilters()) {
+      if (intent->MatchFilter(filter)) {
+        preferred_apps_impl_->SetProtocolLinkPreference(app.AppId(),
+                                                        std::move(filter));
+      }
+    }
+  });
+}
+
 void AppServiceProxyAsh::Shutdown() {
   app_platform_metrics_service_.reset();
 
@@ -710,6 +735,25 @@ void AppServiceProxyAsh::OnAppUpdate(const apps::AppUpdate& update) {
       (update.ReadinessChanged() &&
        !apps_util::IsInstalled(update.Readiness()))) {
     pending_pause_requests_.MaybeRemoveApp(update.AppId());
+  }
+
+  // Remove protocol links preferences that are no longer handled by this app
+  // (if any); we do this by comparing the negative delta between intents
+  // handled by `update.State()` and `update.Delta()`.
+  if (update.State() && update.Delta() && update.IntentFiltersChanged() &&
+      update.State()->intent_filters && update.Delta()->intent_filters) {
+    IntentFilters removed_protocol_link_filters;
+    for (const auto& filter : *update.State()->intent_filters) {
+      if (!apps_util::IsSupportedLinkForApp(update.AppId(), filter) &&
+          !Contains(*update.Delta()->intent_filters, filter)) {
+        removed_protocol_link_filters.push_back(filter->Clone());
+      }
+    }
+
+    if (!removed_protocol_link_filters.empty()) {
+      preferred_apps_impl_->RemoveProtocolLinkFilters(
+          update.AppId(), std::move(removed_protocol_link_filters));
+    }
   }
 }
 

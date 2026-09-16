@@ -513,50 +513,34 @@ fn write_discriminant(out: &mut OutFile, repr: Atom, discriminant: Discriminant)
     }
 }
 
+fn write_binary_bitwise_op(out: &mut OutFile, op: &str, enm: &Enum) {
+    let enum_name = &enm.name.cxx;
+    writeln!(
+        out,
+        "inline {enum_name} operator{op}({enum_name} lhs, {enum_name} rhs) {{",
+    );
+    write!(out, "  return static_cast<{enum_name}>(static_cast<");
+    write_atom(out, enm.repr.atom);
+    write!(out, ">(lhs) {op} static_cast<");
+    write_atom(out, enm.repr.atom);
+    writeln!(out, ">(rhs));");
+    writeln!(out, "}}");
+}
+
 fn write_enum_operators(out: &mut OutFile, enm: &Enum) {
     if derive::contains(&enm.derives, Trait::BitAnd) {
         out.next_section();
-        writeln!(
-            out,
-            "inline {} operator&({} lhs, {} rhs) {{",
-            enm.name.cxx, enm.name.cxx, enm.name.cxx,
-        );
-        write!(out, "  return static_cast<{}>(static_cast<", enm.name.cxx);
-        write_atom(out, enm.repr.atom);
-        write!(out, ">(lhs) & static_cast<");
-        write_atom(out, enm.repr.atom);
-        writeln!(out, ">(rhs));");
-        writeln!(out, "}}");
+        write_binary_bitwise_op(out, "&", enm);
     }
 
     if derive::contains(&enm.derives, Trait::BitOr) {
         out.next_section();
-        writeln!(
-            out,
-            "inline {} operator|({} lhs, {} rhs) {{",
-            enm.name.cxx, enm.name.cxx, enm.name.cxx,
-        );
-        write!(out, "  return static_cast<{}>(static_cast<", enm.name.cxx);
-        write_atom(out, enm.repr.atom);
-        write!(out, ">(lhs) | static_cast<");
-        write_atom(out, enm.repr.atom);
-        writeln!(out, ">(rhs));");
-        writeln!(out, "}}");
+        write_binary_bitwise_op(out, "|", enm);
     }
 
     if derive::contains(&enm.derives, Trait::BitXor) {
         out.next_section();
-        writeln!(
-            out,
-            "inline {} operator^({} lhs, {} rhs) {{",
-            enm.name.cxx, enm.name.cxx, enm.name.cxx,
-        );
-        write!(out, "  return static_cast<{}>(static_cast<", enm.name.cxx);
-        write_atom(out, enm.repr.atom);
-        write!(out, ">(lhs) ^ static_cast<");
-        write_atom(out, enm.repr.atom);
-        writeln!(out, ">(rhs));");
-        writeln!(out, "}}");
+        write_binary_bitwise_op(out, "^", enm);
     }
 }
 
@@ -2123,6 +2107,7 @@ fn write_cxx_vector(out: &mut OutFile, key: &NamedImplKey) {
     out.include.cstddef = true;
     out.include.utility = true;
     out.builtin.destroy = true;
+    out.builtin.vector = true;
     out.pragma.dollar_in_identifier = true;
     out.pragma.missing_declarations = true;
 
@@ -2165,10 +2150,14 @@ fn write_cxx_vector(out: &mut OutFile, key: &NamedImplKey) {
     begin_function_definition(out);
     writeln!(
         out,
-        "void cxxbridge1$std$vector${}$reserve(::std::vector<{}> *s, ::std::size_t new_cap) noexcept {{",
+        "bool cxxbridge1$std$vector${}$reserve(::std::vector<{}> *s, ::std::size_t new_cap) noexcept {{",
         instance, inner,
     );
-    writeln!(out, "  s->reserve(new_cap);");
+    writeln!(
+        out,
+        "  return ::rust::if_move_constructible<{}>::reserve(*s, new_cap);",
+        inner,
+    );
     writeln!(out, "}}");
 
     if out.types.is_maybe_trivial(element) {

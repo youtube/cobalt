@@ -26,6 +26,8 @@ class BrowserViewLayoutDelegateImplBase : public BrowserViewLayoutDelegate {
   bool ShouldDrawTabStrip() const override;
   bool GetBorderlessModeEnabled() const override;
   int GetTopInsetInBrowserView() const override;
+  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                               views::Label& window_title_label) const override;
   bool IsToolbarVisible() const override;
   bool IsBookmarkBarVisible() const override;
   bool IsContentsSeparatorEnabled() const override;
@@ -75,11 +77,10 @@ class BrowserViewLayoutDelegateImplOld
 
 // The new implementation of the layout delegate; uses new BrowserLayoutParams
 // API.
-class BrowserViewLayoutDelegateImplNew
-    : public BrowserViewLayoutDelegateImplBase {
+class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegateImplBase {
  public:
-  explicit BrowserViewLayoutDelegateImplNew(BrowserView& browser_view);
-  ~BrowserViewLayoutDelegateImplNew() override;
+  explicit BrowserViewLayoutDelegateImpl(BrowserView& browser_view);
+  ~BrowserViewLayoutDelegateImpl() override;
 
   gfx::Rect GetBoundsForTabStripRegionInBrowserView() const override;
   gfx::Rect GetBoundsForToolbarInVerticalTabBrowserView() const override;

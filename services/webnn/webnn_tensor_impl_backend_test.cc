@@ -8,7 +8,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -36,6 +35,7 @@
 #include "services/webnn/dml/tensor_impl_dml.h"
 #include "services/webnn/dml/test_base.h"
 #include "services/webnn/dml/utils.h"
+#include "ui/gfx/win/d3d_shared_fence.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
@@ -71,7 +71,7 @@ class BadMessageTestHelper {
 };
 
 struct CreateContextSuccess {
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   blink::WebNNContextToken webnn_context_handle;
 };
 
@@ -131,7 +131,6 @@ class WebNNTensorImplBackendTest : public testing::Test {
   CreateWebNNContext();
 
   base::test::ScopedFeatureList scoped_feature_list_;
-  base::test::TaskEnvironment task_environment_;
   WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
@@ -164,7 +163,6 @@ class WebNNTensorImplBackendTest : public testing::Test {
   CreateWebNNContext();
 
   base::test::ScopedFeatureList scoped_feature_list_;
-  base::test::TaskEnvironment task_environment_;
   WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
@@ -186,7 +184,7 @@ WebNNTensorImplBackendTest::CreateWebNNContext() {
       create_context_future.GetCallback());
   auto create_context_result = create_context_future.Take();
   if (create_context_result->is_success()) {
-    mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+    mojo::Remote<mojom::WebNNContext> webnn_context_remote;
     webnn_context_remote.Bind(
         std::move(create_context_result->get_success()->context_remote));
     return CreateContextSuccess{
@@ -198,9 +196,8 @@ WebNNTensorImplBackendTest::CreateWebNNContext() {
 }
 
 base::expected<CreateTensorSuccess, webnn::mojom::Error::Code>
-CreateWebNNTensor(
-    mojo::AssociatedRemote<mojom::WebNNContext>& webnn_context_remote,
-    mojom::TensorInfoPtr tensor_info) {
+CreateWebNNTensor(mojo::Remote<mojom::WebNNContext>& webnn_context_remote,
+                  mojom::TensorInfoPtr tensor_info) {
   base::test::TestFuture<mojom::CreateTensorResultPtr> create_tensor_future;
   webnn_context_remote->CreateTensor(std::move(tensor_info),
                                      mojo_base::BigBuffer(0),
@@ -227,7 +224,7 @@ bool IsBufferDataEqual(const mojo_base::BigBuffer& a,
 TEST_F(WebNNTensorImplBackendTest, CreateTensorImplTest) {
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -257,7 +254,7 @@ TEST_F(WebNNTensorImplBackendTest, CreateTensorImplTest) {
 TEST_F(WebNNTensorImplBackendTest, CreateTensorImplManyTest) {
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -296,7 +293,7 @@ TEST_F(WebNNTensorImplBackendTest, MAYBE_CreateTooLargeTensorTest) {
 
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -325,7 +322,7 @@ TEST_F(WebNNTensorImplBackendTest, MAYBE_CreateTooLargeTensorTest) {
 TEST_F(WebNNTensorImplBackendTest, WriteTensorImplTest) {
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -369,7 +366,7 @@ TEST_F(WebNNTensorImplBackendTest, WriteTensorImplTest) {
 TEST_F(WebNNTensorImplBackendTest, WriteTensorImplTooLargeTest) {
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -406,7 +403,7 @@ TEST_F(WebNNTensorImplBackendTest, WriteTensorImplTooLargeTest) {
 TEST_F(WebNNTensorImplBackendTest, CreateContextImplManyTest) {
   BadMessageTestHelper bad_message_helper;
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote_1;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote_1;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_1_result = CreateWebNNContext();
   if (!context_1_result.has_value() &&
@@ -419,7 +416,7 @@ TEST_F(WebNNTensorImplBackendTest, CreateContextImplManyTest) {
 
   EXPECT_TRUE(webnn_context_remote_1.is_bound());
 
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote_2;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote_2;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_2_result = CreateWebNNContext();
   if (!context_2_result.has_value() &&
@@ -440,7 +437,7 @@ TEST_F(WebNNTensorImplBackendTest, ContextImplSyncToken) {
   BadMessageTestHelper bad_message_helper;
 
   blink::WebNNContextToken webnn_context_handle;
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
   if (!context_result.has_value() &&
@@ -502,7 +499,7 @@ class WebNNTensorImplDmlBackendTest : public WebNNTensorImplBackendTest {
     ASSERT_TRUE(webnn_context_remote_.is_bound());
   }
 
-  base::WeakPtr<native::d3d12::WebNNTensor> GetWebNNTensor(
+  base::WeakPtr<dml::TensorImplDml> GetWebNNTensor(
       const blink::WebNNTensorToken& webnn_tensor_handle) const {
     base::optional_ref<WebNNContextImpl> context_impl =
         webnn_test_environment_.context_provider()
@@ -513,7 +510,7 @@ class WebNNTensorImplDmlBackendTest : public WebNNTensorImplBackendTest {
   }
 
  protected:
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote_;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote_;
   blink::WebNNContextToken webnn_context_handle_;
 };
 
@@ -556,11 +553,11 @@ TEST_F(WebNNTensorImplDmlBackendTest, EndAccessWebNNTwiceTest) {
 
   webnn_context_remote_.FlushForTesting();
 
-  base::WeakPtr<native::d3d12::WebNNTensor> webnn_tensor =
+  base::WeakPtr<dml::TensorImplDml> webnn_tensor =
       GetWebNNTensor(webnn_tensor_handle);
   ASSERT_TRUE(webnn_tensor);
 
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_1 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_1 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_1);
 
@@ -572,7 +569,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, EndAccessWebNNTwiceTest) {
       webnn_fence_to_wait_for_1->GetD3D12Fence(),
       webnn_fence_to_wait_for_1->GetFenceValue()));
 
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_2 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_2 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_2);
 
@@ -609,7 +606,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, UsageAfterBeginAccessWebNNTest) {
 
   webnn_context_remote_.FlushForTesting();
 
-  base::WeakPtr<native::d3d12::WebNNTensor> webnn_tensor =
+  base::WeakPtr<dml::TensorImplDml> webnn_tensor =
       GetWebNNTensor(webnn_tensor_handle);
   ASSERT_TRUE(webnn_tensor);
 
@@ -620,7 +617,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, UsageAfterBeginAccessWebNNTest) {
   webnn_tensor_remote->WriteTensor(mojo_base::BigBuffer(input_data));
   webnn_tensor_remote.FlushForTesting();
 
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for);
 
@@ -699,7 +696,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, MAYBE_AccessOnDifferentQueueTest) {
   UNSAFE_BUFFERS(WriteTensorData(
       base::span(input_data.data(), input_data.size()), upload_buffer.Get()));
 
-  base::WeakPtr<native::d3d12::WebNNTensor> webnn_tensor =
+  base::WeakPtr<dml::TensorImplDml> webnn_tensor =
       GetWebNNTensor(webnn_tensor_handle);
   ASSERT_TRUE(webnn_tensor);
 
@@ -722,7 +719,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, MAYBE_AccessOnDifferentQueueTest) {
   // 13.    Signal
   // 14.         |----------> Wait
 
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_1 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_1 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_1);
 
@@ -755,7 +752,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, MAYBE_AccessOnDifferentQueueTest) {
   }
 
   // Step 8. Simulate more external queue use with new data.
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_2 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_2 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_2);
 
@@ -827,13 +824,13 @@ TEST_F(WebNNTensorImplDmlBackendTest, NoWebNNQueueAccessInBetweenTest) {
       dml::CommandQueue::Create(adapter_->d3d12_device());
   ASSERT_NE(command_queue, nullptr);
 
-  base::WeakPtr<native::d3d12::WebNNTensor> webnn_tensor =
+  base::WeakPtr<dml::TensorImplDml> webnn_tensor =
       GetWebNNTensor(webnn_tensor_handle);
   ASSERT_TRUE(webnn_tensor);
 
   // End access without any WebNN work prior returns WebNN's submission
   // fence which should be completed.
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_1 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_1 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_1);
 
@@ -850,7 +847,7 @@ TEST_F(WebNNTensorImplDmlBackendTest, NoWebNNQueueAccessInBetweenTest) {
 
   // Calling end access again, with no WebNN work, should
   // return the last fence without WebNN calling wait on it.
-  std::unique_ptr<native::d3d12::WebNNSharedFence> webnn_fence_to_wait_for_2 =
+  scoped_refptr<gfx::D3DSharedFence> webnn_fence_to_wait_for_2 =
       webnn_tensor->EndAccessWebNN();
   ASSERT_TRUE(webnn_fence_to_wait_for_2);
 

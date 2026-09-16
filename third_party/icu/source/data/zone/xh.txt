@@ -1,28 +1,16 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 xh{
     zoneStrings{
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
         "America:Cancun"{
             ec{"Cancun"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Merida"{
             ec{"Merida"}
-        }
-        "America:St_Barthelemy"{
-            ec{"St. Barthélemy"}
         }
         "Asia:Qostanay"{
             ec{"Kostanay"}
@@ -41,12 +29,6 @@ xh{
         }
         "Europe:London"{
             ld{"British Summer Time"}
-        }
-        "Europe:Uzhgorod"{
-            ec{"Uzhhorod"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "meta:Afghanistan"{
             ls{"Afghanistan Time"}
@@ -196,11 +178,6 @@ xh{
             ld{"China Daylight Time"}
             lg{"China Time"}
             ls{"China Standard Time"}
-        }
-        "meta:Choibalsan"{
-            ld{"Choibalsan Summer Time"}
-            lg{"Choibalsan Time"}
-            ls{"Choibalsan Standard Time"}
         }
         "meta:Christmas"{
             ls{"Christmas Island Time"}
@@ -360,6 +337,9 @@ xh{
             lg{"Japan Time"}
             ls{"Japan Standard Time"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazakhstan Time"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"East Kazakhstan Time"}
         }
@@ -390,9 +370,6 @@ xh{
             lg{"Lord Howe Time"}
             ls{"Lord Howe Standard Time"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarie Island Time"}
-        }
         "meta:Magadan"{
             ld{"Magadan Summer Time"}
             lg{"Magadan Time"}
@@ -417,11 +394,6 @@ xh{
         }
         "meta:Mawson"{
             ls{"Mawson Time"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Northwest Mexico Daylight Time"}
-            lg{"Northwest Mexico Time"}
-            ls{"Northwest Mexico Standard Time"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mexican Pacific Daylight Time"}

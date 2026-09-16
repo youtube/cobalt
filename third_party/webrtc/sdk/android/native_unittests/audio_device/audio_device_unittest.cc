@@ -805,6 +805,15 @@ TEST_F(AudioDeviceTest, InitTerminate) {
   EXPECT_FALSE(audio_device()->Initialized());
 }
 
+TEST_F(AudioDeviceTest, InitTerminateRepeat) {
+  EXPECT_TRUE(audio_device()->Initialized());
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(0, audio_device()->Terminate());
+    EXPECT_FALSE(audio_device()->Initialized());
+    EXPECT_EQ(0, audio_device()->Init());
+  }
+}
+
 TEST_F(AudioDeviceTest, Devices) {
   // Device enumeration is not supported. Verify fixed values only.
   EXPECT_EQ(1, audio_device()->PlayoutDevices());

@@ -5,9 +5,9 @@
 #ifndef CHROME_BROWSER_UI_TABS_GLIC_ACTOR_TASK_ICON_MANAGER_H_
 #define CHROME_BROWSER_UI_TABS_GLIC_ACTOR_TASK_ICON_MANAGER_H_
 
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
+#include "chrome/common/actor/task_id.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 namespace actor {
@@ -45,20 +45,19 @@ class GlicActorTaskIconManager : public KeyedService {
                            glic::GlicWindowController& window_controller);
   ~GlicActorTaskIconManager() override;
 
-  // Called whenever floaty updates.
-  void OnFloatyUpdate(glic::GlicWindowController::State floaty_state,
-                      glic::mojom::CurrentView current_view);
+  // Called whenever the instance visibility updates.
+  void OnInstanceStateChange(bool is_showing,
+                             glic::mojom::CurrentView current_view);
 
   // Called whenever actor task state updates.
   void OnActorTaskStateUpdate(actor::TaskId task_id);
 
   // Determines the state the task icon should be in.
-  void UpdateTaskIcon(glic::GlicWindowController::State floaty_state,
-                      glic::mojom::CurrentView current_view);
+  void UpdateTaskIcon(bool is_showing, glic::mojom::CurrentView current_view);
 
   // Register for this callback to get task icon state change notifications.
   using TaskIconStateChangeCallback = base::RepeatingCallback<void(
-      glic::GlicWindowController::State floaty_state,
+      bool is_showing,
       glic::mojom::CurrentView current_view,
       const ActorTaskIconState& actor_task_icon_state)>;
   base::CallbackListSubscription RegisterTaskIconStateChange(
@@ -78,7 +77,7 @@ class GlicActorTaskIconManager : public KeyedService {
   std::vector<base::CallbackListSubscription> callback_subscriptions_;
 
   using TaskIconStateChangeCallbackList = base::RepeatingCallbackList<void(
-      glic::GlicWindowController::State floaty_state,
+      bool is_showing,
       glic::mojom::CurrentView current_view,
       const ActorTaskIconState& actor_task_icon_state)>;
   TaskIconStateChangeCallbackList task_icon_state_change_callback_list_;

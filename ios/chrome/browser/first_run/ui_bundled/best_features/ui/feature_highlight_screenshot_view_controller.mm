@@ -59,12 +59,10 @@ NSString* const kFeatureHighlightScreenshotViewDarkAnimationId =
 #pragma mark - UIViewController
 
 - (void)viewDidLoad {
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits =
-        TraitCollectionSetForTraits(@[ UITraitUserInterfaceStyle.class ]);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(toggleDarkModeOnTraitChange)];
-  }
+  NSArray<UITrait>* traits =
+      TraitCollectionSetForTraits(@[ UITraitUserInterfaceStyle.class ]);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(toggleDarkModeOnTraitChange)];
 
   [self.view setBackgroundColor:[UIColor colorNamed:kSecondaryBackgroundColor]];
   self.accessibilityLabel =
@@ -82,20 +80,6 @@ NSString* const kFeatureHighlightScreenshotViewDarkAnimationId =
         BestFeaturesDetailScreenActionType::kNavigateBack);
   }
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  if (self.traitCollection.userInterfaceStyle !=
-      previousTraitCollection.userInterfaceStyle) {
-    [self toggleDarkModeOnTraitChange];
-  }
-}
-#endif
 
 #pragma mark - UINavigationControllerDelegate
 
@@ -215,7 +199,7 @@ NSString* const kFeatureHighlightScreenshotViewDarkAnimationId =
   LottieAnimationConfiguration* config =
       [[LottieAnimationConfiguration alloc] init];
   config.animationName = animationAssetName;
-  config.loopAnimationCount = -1;
+  config.shouldLoop = YES;
   return ios::provider::GenerateLottieAnimation(config);
 }
 

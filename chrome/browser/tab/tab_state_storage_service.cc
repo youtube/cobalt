@@ -4,78 +4,115 @@
 
 #include "chrome/browser/tab/tab_state_storage_service.h"
 
+#include <memory>
+
 #include "base/token.h"
+#include "chrome/browser/tab/protocol/tab_state.pb.h"
+#include "chrome/browser/tab/storage_package.h"
+#include "chrome/browser/tab/tab_storage_packager.h"
+#include "chrome/browser/tab/tab_storage_util.h"
+#include "components/tabs/public/tab_collection.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace tabs {
 
+namespace {
+
+template <typename T>
+int GetOrCreateStorageId(T* object,
+                         absl::flat_hash_map<int32_t, int>& handle_map,
+                         int& next_storage_id) {
+  int32_t handle_id = object->GetHandle().raw_value();
+  auto [it, inserted] = handle_map.try_emplace(handle_id, next_storage_id);
+  if (inserted) {
+    next_storage_id++;
+  }
+  return it->second;
+}
+
+}  // namespace
+
 TabStateStorageService::TabStateStorageService(
-    std::unique_ptr<TabStateStorageBackend> tab_backend)
-    : tab_backend_(std::move(tab_backend)) {
+    std::unique_ptr<TabStateStorageBackend> tab_backend,
+    std::unique_ptr<TabStoragePackager> packager)
+    : tab_backend_(std::move(tab_backend)), packager_(std::move(packager)) {
   tab_backend_->Initialize();
 }
 
 TabStateStorageService::~TabStateStorageService() = default;
 
-void TabStateStorageService::SaveTab(
-    int id,
-    int parent_tab_id,
-    int root_id,
-    long timestamp_millis,
-    const std::string* web_content_state_string,
-    std::string_view opener_app_id,
-    int theme_color,
-    int launch_type_at_creation,
-    int user_agent,
-    long last_navigation_committed_timestamp_millis,
-    const base::Token* tab_group_id,
-    bool tab_has_sensitive_content,
-    bool is_pinned) {
-  tabs_pb::TabState tab_state;
-  tab_state.set_parent_id(parent_tab_id);
-  tab_state.set_root_id(root_id);
-  tab_state.set_timestamp_millis(timestamp_millis);
+int TabStateStorageService::GetStorageId(const TabCollection* collection) {
+  return ::tabs::GetOrCreateStorageId(
+      collection, collection_handle_to_storage_id_, next_storage_id_);
+}
 
-  if (web_content_state_string) {
-    tab_state.set_web_contents_state_bytes(*web_content_state_string);
+int TabStateStorageService::GetStorageId(const TabInterface* tab) {
+  return ::tabs::GetOrCreateStorageId(tab, tab_handle_to_storage_id_,
+                                      next_storage_id_);
+}
+
+void TabStateStorageService::Save(const TabInterface* tab) {
+  if (!packager_) {
+    return;
   }
 
-  tab_state.set_opener_app_id(opener_app_id);
-  tab_state.set_theme_color(theme_color);
-  tab_state.set_launch_type_at_creation(launch_type_at_creation);
-  tab_state.set_user_agent(user_agent);
-  tab_state.set_last_navigation_committed_timestamp_millis(
-      last_navigation_committed_timestamp_millis);
+  std::unique_ptr<StoragePackage> package = packager_->Package(tab);
+  DCHECK(package) << "Packager should return a package";
 
-  if (tab_group_id) {
-    tab_state.set_tab_group_id_high(tab_group_id->high());
-    tab_state.set_tab_group_id_low(tab_group_id->low());
+  int storage_id = GetStorageId(tab);
+  tab_backend_->Save(storage_id, TabStorageType::kTab, std::move(package));
+}
+
+void TabStateStorageService::Save(const TabCollection* collection) {
+  if (!packager_) {
+    return;
   }
 
-  tab_state.set_tab_has_sensitive_content(tab_has_sensitive_content);
-  tab_state.set_is_pinned(is_pinned);
-  std::string payload;
-  tab_state.SerializeToString(&payload);
-  tab_backend_->SaveNode(id, 1, std::move(payload), "");
+  std::unique_ptr<StoragePackage> package =
+      packager_->Package(collection, *this);
+  DCHECK(package) << "Packager should return a package";
+
+  int storage_id = GetStorageId(collection);
+  TabStorageType type = TabCollectionTypeToTabStorageType(collection->type());
+  tab_backend_->Save(storage_id, type, std::move(package));
 }
 
 void TabStateStorageService::LoadAllTabs(LoadAllTabsCallback callback) {
   tab_backend_->LoadAllNodes(
       base::BindOnce(&TabStateStorageService::OnAllTabsLoaded,
-                     base::Unretained(this), std::move(callback)));
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void TabStateStorageService::OnAllTabsLoaded(LoadAllTabsCallback callback,
                                              std::vector<NodeState> entries) {
-  std::vector<tabs_pb::TabState> tab_states;
+  std::vector<LoadedTabState> loaded_tabs;
+  int max_storage_id = 0;
   for (auto& entry : entries) {
-    if (entry.type == 1) {
+    max_storage_id = std::max(max_storage_id, entry.id);
+    if (entry.type == TabStorageType::kTab) {
       tabs_pb::TabState tab_state;
       if (tab_state.ParseFromString(entry.payload)) {
-        tab_states.emplace_back(std::move(tab_state));
+        loaded_tabs.emplace_back(
+            std::move(tab_state),
+            base::BindOnce(&TabStateStorageService::OnTabCreated,
+                           weak_ptr_factory_.GetWeakPtr(), entry.id));
       }
     }
   }
-  std::move(callback).Run(std::move(tab_states));
+  next_storage_id_ = max_storage_id + 1;
+  std::move(callback).Run(std::move(loaded_tabs));
+}
+
+void TabStateStorageService::OnTabCreated(int storage_id,
+                                          const TabInterface* tab) {
+  if (tab == nullptr) {
+    // TODO(https://crbug.com/448151790): Consider removing from the database.
+    // Though if a complete post-initialization raze is coming, maybe it
+    // doesn't matter.
+    return;
+  }
+
+  tab_handle_to_storage_id_[tab->GetHandle().raw_value()] = storage_id;
 }
 
 }  // namespace tabs

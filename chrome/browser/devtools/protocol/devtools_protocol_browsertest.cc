@@ -1322,7 +1322,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewInnerWebContents,
 
   WebContentsBarrier barrier(
       {[](const GURL& url) -> bool {
-         return base::EndsWith(url.path(), "host.html");
+         return base::EndsWith(url.GetPath(), "host.html");
        },
        [](const GURL& url) -> bool { return url.SchemeIs(url::kDataScheme); }});
 
@@ -1385,7 +1385,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   ASSERT_THAT(extension, testing::NotNull());
 
   WebContentsBarrier barrier({[](const GURL& url) -> bool {
-    return base::EndsWith(url.path(), "host.html");
+    return base::EndsWith(url.GetPath(), "host.html");
   }});
   LaunchApp(extension->id());
   std::vector<raw_ptr<content::WebContents, VectorExperimental>> wcs =
@@ -1426,7 +1426,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   ASSERT_THAT(extension, testing::NotNull());
 
   WebContentsBarrier barrier({[](const GURL& url) -> bool {
-    return base::EndsWith(url.path(), "host.html");
+    return base::EndsWith(url.GetPath(), "host.html");
   }});
   LaunchApp(extension->id());
   std::vector<raw_ptr<content::WebContents, VectorExperimental>> wcs =
@@ -1468,7 +1468,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   ASSERT_THAT(extension, testing::NotNull());
 
   WebContentsBarrier barrier({[](const GURL& url) -> bool {
-    return base::EndsWith(url.path(), "host.html");
+    return base::EndsWith(url.GetPath(), "host.html");
   }});
   LaunchApp(extension->id());
   std::vector<raw_ptr<content::WebContents, VectorExperimental>> wcs =
@@ -1990,7 +1990,7 @@ bool MockIppRequests(bool cached,
                      std::optional<std::string_view> host_to_intercept,
                      content::URLLoaderInterceptor::RequestParams* params) {
   if (host_to_intercept.has_value() &&
-      host_to_intercept.value() != params->url_request.url.host_piece()) {
+      host_to_intercept.value() != params->url_request.url.host()) {
     return false;
   }
   // Create the mocked URLResponseHead to represent a proxied request.

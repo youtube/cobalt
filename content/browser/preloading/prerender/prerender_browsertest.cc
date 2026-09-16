@@ -183,17 +183,16 @@ ukm::SourceId ToSourceId(int64_t navigation_id) {
 // base::MemoryPressureMonitor::Get() provides access to the instance.
 class FakeMemoryPressureMonitor : public base::MemoryPressureMonitor {
  public:
-  explicit FakeMemoryPressureMonitor(MemoryPressureLevel level)
+  explicit FakeMemoryPressureMonitor(base::MemoryPressureLevel level)
       : level_(level) {}
 
-  MemoryPressureLevel GetCurrentPressureLevel(
+  base::MemoryPressureLevel GetCurrentPressureLevel(
       base::MemoryPressureMonitorTag tag) const override {
     return level_;
   }
 
  private:
-  const MemoryPressureLevel level_ =
-      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_NONE;
+  const base::MemoryPressureLevel level_ = base::MEMORY_PRESSURE_LEVEL_NONE;
 };
 
 // Example class which inherits the DocumentUserData, all the data is
@@ -409,8 +408,7 @@ class PrerenderBrowserTest : public ContentBrowserTest,
   static std::unique_ptr<net::test_server::HttpResponse>
   HandleCredentialedRequest(const net::test_server::HttpRequest& request) {
     GURL request_url = request.GetURL();
-    std::string dest =
-        base::UnescapeBinaryURLComponent(request_url.query_piece());
+    std::string dest = base::UnescapeBinaryURLComponent(request_url.query());
 
     auto http_response =
         std::make_unique<net::test_server::BasicHttpResponse>();
@@ -11762,10 +11760,10 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
 
   // Emulate moderate-level memory pressure state.
   FakeMemoryPressureMonitor memory_pressure_monitor(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+      base::MEMORY_PRESSURE_LEVEL_MODERATE);
   ASSERT_EQ(base::MemoryPressureMonitor::Get()->GetCurrentPressureLevel(
                 base::MemoryPressureMonitorTag::kTest),
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+            base::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Triggering prerendering should not be canceled due to the moderate level
   // memory pressure.
@@ -11786,10 +11784,10 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
 
   // Emulate critical-level memory pressure state.
   FakeMemoryPressureMonitor memory_pressure_monitor(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   ASSERT_EQ(base::MemoryPressureMonitor::Get()->GetCurrentPressureLevel(
                 base::MemoryPressureMonitorTag::kTest),
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+            base::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
   // Triggering prerendering should be canceled due to the critical level memory
   // pressure.
@@ -11824,7 +11822,7 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   // Emulate moderate-level memory pressure event. This shouldn't cancel
   // prerendering.
   base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+      base::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Run the message loop to give a chance to unexpectedly cancel prerendering
   // due to some bug.
@@ -11858,7 +11856,7 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   // Emulate critical-level memory pressure event. This should cancel
   // prerendering.
   base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   for (auto& observer : observers) {
     observer->WaitForDestroyed();
   }
@@ -13256,7 +13254,7 @@ class ScopedUserAgentOverrideTestDelegate : public WebContentsDelegate {
   }
 
   NavigationController::UserAgentOverrideOption
-  ShouldOverrideUserAgentForPrerender2(const GURL& url) override {
+  ShouldOverrideUserAgentForPreloading(const GURL& url) override {
     return override_option_;
   }
 
@@ -14305,9 +14303,9 @@ IN_PROC_BROWSER_TEST_F(
   // The redirected_url's origin completely differs from the prerendering one.
   GURL redirected_url = embedded_test_server()->GetURL("b.test", "/empty.html");
   GURL prerendering_url = GetUrl("/server-redirect?" + redirected_url.spec());
-  ASSERT_NE(prerendering_url.scheme(), redirected_url.scheme());
-  ASSERT_NE(prerendering_url.host(), redirected_url.host());
-  ASSERT_NE(prerendering_url.port(), redirected_url.port());
+  ASSERT_NE(prerendering_url.GetScheme(), redirected_url.GetScheme());
+  ASSERT_NE(prerendering_url.GetHost(), redirected_url.GetHost());
+  ASSERT_NE(prerendering_url.GetPort(), redirected_url.GetPort());
 
   PrerenderEmbedderTriggeredCrossOriginRedirectionPage(
       *web_contents_impl(), prerendering_url, redirected_url);
@@ -14332,10 +14330,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   GURL redirected_url = ssl_server().GetURL("a.test", "/empty.html");
   GURL prerendering_url = embedded_test_server()->GetURL(
       "a.test", "/server-redirect?" + redirected_url.spec());
-  ASSERT_NE(prerendering_url.scheme(), redirected_url.scheme());
-  ASSERT_NE(prerendering_url.port(), redirected_url.port());
-  ASSERT_EQ(prerendering_url.scheme(), url::kHttpScheme);
-  ASSERT_EQ(redirected_url.scheme(), url::kHttpsScheme);
+  ASSERT_NE(prerendering_url.GetScheme(), redirected_url.GetScheme());
+  ASSERT_NE(prerendering_url.GetPort(), redirected_url.GetPort());
+  ASSERT_EQ(prerendering_url.GetScheme(), url::kHttpScheme);
+  ASSERT_EQ(redirected_url.GetScheme(), url::kHttpsScheme);
 
   PrerenderEmbedderTriggeredCrossOriginRedirectionPage(
       *web_contents_impl(), prerendering_url, redirected_url);
@@ -14366,10 +14364,10 @@ IN_PROC_BROWSER_TEST_F(
   GURL redirected_url =
       GetUrl("/empty.html").ReplaceComponents(downgrade_protocol);
   GURL prerendering_url = GetUrl("/server-redirect?" + redirected_url.spec());
-  ASSERT_NE(prerendering_url.scheme(), redirected_url.scheme());
-  ASSERT_NE(prerendering_url.port(), redirected_url.port());
-  ASSERT_EQ(prerendering_url.scheme(), url::kHttpsScheme);
-  ASSERT_EQ(redirected_url.scheme(), "http");
+  ASSERT_NE(prerendering_url.GetScheme(), redirected_url.GetScheme());
+  ASSERT_NE(prerendering_url.GetPort(), redirected_url.GetPort());
+  ASSERT_EQ(prerendering_url.GetScheme(), url::kHttpsScheme);
+  ASSERT_EQ(redirected_url.GetScheme(), "http");
 
   PrerenderEmbedderTriggeredCrossOriginRedirectionPage(
       *web_contents_impl(), prerendering_url, redirected_url);

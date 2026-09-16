@@ -14,10 +14,10 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
-import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
@@ -269,7 +269,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
      */
     @Override
     public boolean isSigninSupported(boolean requireUpdatedPlayServices) {
-        if (ApiCompatibilityUtils.isDemoUser()) {
+        if (DeviceInfo.isRetailDemoMode()) {
             return false;
         }
         if (requireUpdatedPlayServices) {
@@ -627,29 +627,23 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
             @Nullable CoreAccountInfo account, final Callback<Boolean> callback) {
         if (account == null) throw new IllegalArgumentException("Account shouldn't be null!");
 
-        if (SigninFeatureMap.isEnabled(
-                SigninFeatures.USE_HOSTED_DOMAIN_FOR_MANAGEMENT_CHECK_ON_SIGNIN)) {
-            Callback<Integer> finderCallback =
-                    (outcome) -> {
-                        boolean isManaged =
-                                outcome == AccountManagedStatusFinderOutcome.ENTERPRISE
-                                        || outcome
-                                                == AccountManagedStatusFinderOutcome
-                                                        .ENTERPRISE_GOOGLE_DOT_COM;
-                        callback.onResult(isManaged);
-                    };
-            AccountManagedStatusFinder finder =
-                    new AccountManagedStatusFinder(
-                            getIdentityManager(), account, finderCallback, MANAGED_STATUS_TIMEOUT);
-            if (finder.getOutcome() != AccountManagedStatusFinderOutcome.PENDING) {
-                finderCallback.onResult(finder.getOutcome());
-            }
-            // `destroy` for `finder` will be called automatically when the outcome is decided (or
-            // when the timeout is reached).
-        } else {
-            SigninManagerImplJni.get()
-                    .isAccountManaged(mNativeSigninManagerAndroid, account, callback);
+        Callback<Integer> finderCallback =
+                (outcome) -> {
+                    boolean isManaged =
+                            outcome == AccountManagedStatusFinderOutcome.ENTERPRISE
+                                    || outcome
+                                            == AccountManagedStatusFinderOutcome
+                                                    .ENTERPRISE_GOOGLE_DOT_COM;
+                    callback.onResult(isManaged);
+                };
+        AccountManagedStatusFinder finder =
+                new AccountManagedStatusFinder(
+                        getIdentityManager(), account, finderCallback, MANAGED_STATUS_TIMEOUT);
+        if (finder.getOutcome() != AccountManagedStatusFinderOutcome.PENDING) {
+            finderCallback.onResult(finder.getOutcome());
         }
+        // `destroy` for `finder` will be called automatically when the outcome is decided (or
+        // when the timeout is reached).
     }
 
     private void seedThenReloadAllAccountsFromSystem(@Nullable CoreAccountId primaryAccountId) {
@@ -861,11 +855,6 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 @JniType("base::RepeatingClosure") Runnable callback);
 
         void stopApplyingCloudPolicy(long nativeSigninManagerAndroid);
-
-        void isAccountManaged(
-                long nativeSigninManagerAndroid,
-                CoreAccountInfo account,
-                Callback<Boolean> callback);
 
         @Nullable String getManagementDomain(long nativeSigninManagerAndroid);
 

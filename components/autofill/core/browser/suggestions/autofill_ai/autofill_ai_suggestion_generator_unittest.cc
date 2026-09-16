@@ -28,6 +28,7 @@
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -178,6 +179,13 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   std::vector<EntityInstance> entities_;
   std::optional<FormStructure> form_structure_;
 };
+
+std::u16string GetFlightReservationName(const EntityInstance& entity) {
+  return entity
+      .attribute(
+          AttributeType(AttributeTypeName::kFlightReservationPassengerName))
+      ->GetCompleteInfo(kAppLocaleUS);
+}
 
 std::u16string GetPassportName(const EntityInstance& entity) {
   return entity.attribute(AttributeType(AttributeTypeName::kPassportName))
@@ -567,6 +575,37 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
                           HasMainText(GetDriversLicenseName(driversLicense2))));
 }
 
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GetFillingSuggestion_CustomOrderingForFlightReservation) {
+  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno", .use_count = 16});
+  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe", .number = u"927908CYGAS1", .use_count = 15});
+  EntityInstance flight_reservation1 =
+      test::GetFlightReservationEntityInstanceWithRandomGuid(
+          {.name = u"Peter",
+           .departure_time = base::Time::UnixEpoch(),
+           .use_count = 10});
+  EntityInstance flight_reservation2 =
+      test::GetFlightReservationEntityInstanceWithRandomGuid(
+          {.name = u"Jacob",
+           .departure_time = base::Time::UnixEpoch() + base::Days(1),
+           .use_count = 12});
+  SetEntities({passport1, passport2, flight_reservation1, flight_reservation2});
+  SetForm({NAME_FULL, PASSPORT_NUMBER, FLIGHT_RESERVATION_FLIGHT_NUMBER});
+
+  // Flight reservation entities come before Passport entities, because they
+  // have frecency_override set. `flight_reservation1` comes before
+  // `flight_reservation2` since the entities are sorted by departure date.
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      res,
+      SuggestionsAre(HasMainText(GetFlightReservationName(flight_reservation1)),
+                     HasMainText(GetFlightReservationName(flight_reservation2)),
+                     HasMainText(GetPassportName(passport1)),
+                     HasMainText(GetPassportName(passport2))));
+}
+
 // Tests that an "Undo Autofill" suggestion is appended if the trigger field
 // is autofilled.
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestions_Undo) {
@@ -752,6 +791,18 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   SetForm({NAME_FULL, FLIGHT_RESERVATION_TICKET_NUMBER});
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
               SuggestionsAre(HasLabel(u"Flight · MUC–BEY")));
+}
+
+// Tests that the Wallet suggestions show the IPH.
+TEST_F(AutofillAiSuggestionGeneratorTest, WalletSuggestionsShowIPH) {
+  SetEntities({test::GetVehicleEntityInstanceWithRandomGuid(
+      {.record_type = EntityInstance::RecordType::kServerWallet})});
+  SetForm({VEHICLE_LICENSE_PLATE, VEHICLE_VIN});
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  raw_ptr<const base::Feature> kIphFeature =
+      &feature_engagement::kIPHAutofillAiValuablesFeature;
+  EXPECT_THAT(suggestions, SuggestionsAre(HasIphFeature(kIphFeature)));
 }
 
 }  // namespace

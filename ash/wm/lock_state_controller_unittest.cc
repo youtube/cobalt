@@ -1182,7 +1182,7 @@ TEST_F(LockStateControllerInformedRestoreTest, ShutdownInLockScreen) {
 
   base::HistogramTester histogram_tester;
   // Create a window and go the lock screen before requesting shutdown.
-  CreateTestWindowInShellWithId(0);
+  CreateTestWindowInShell({.window_id = 0});
   GetSessionControllerClient()->LockScreen();
   EXPECT_TRUE(Shell::Get()->session_controller()->IsScreenLocked());
 
@@ -1498,6 +1498,32 @@ TEST_F(LockStateControllerInformedRestoreTest,
       testing::ElementsAre(base::Bucket(
           ScreenshotOnShutdownStatus::kFailedWithVisibleWindowFromOtherUser,
           1)));
+}
+
+TEST_F(LockStateControllerInformedRestoreTest,
+       ScreenshotIsNotTakenWhenSessionIsNotActive) {
+  EXPECT_FALSE(base::PathExists(file_path()));
+
+  // Simulate user adding flow where user has entered their password, but the UI
+  // is still visible (e.g., PIN setup screen).
+  AshTestBase::GetSessionControllerClient()->SetSessionState(
+      session_manager::SessionState::LOGIN_PRIMARY);
+
+  base::HistogramTester histogram_tester;
+
+  base::RunLoop run_loop;
+  lock_state_test_api_->set_informed_restore_image_callback(
+      run_loop.QuitClosure());
+  // Disable the timeout to avoid test flakiness.
+  lock_state_test_api_->disable_screenshot_timeout_for_test(true);
+
+  lock_state_controller_->RequestSignOut();
+  run_loop.Run();
+  EXPECT_FALSE(base::PathExists(file_path()));
+
+  EXPECT_THAT(histogram_tester.GetAllSamples(kScreenshotOnShutdownStatus),
+              testing::ElementsAre(base::Bucket(
+                  ScreenshotOnShutdownStatus::kFailedSessionIsNotActive, 1)));
 }
 
 }  // namespace ash

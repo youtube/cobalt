@@ -352,7 +352,7 @@ class FakeIceTransport : public IceTransportInternal {
     }
 
     SentPacketInfo sent_packet(options.packet_id, TimeMillis());
-    SignalSentPacket(this, sent_packet);
+    NotifySentPacket(this, sent_packet);
     return static_cast<int>(len);
   }
 

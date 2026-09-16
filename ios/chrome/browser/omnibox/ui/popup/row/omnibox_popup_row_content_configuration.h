@@ -17,7 +17,6 @@
 @protocol OmniboxPopupActionsRowDelegate;
 
 extern NSString* const OmniboxPopupRowCellReuseIdentifier;
-extern NSString* const OmniboxPopupAIModeRowCellReuseIdentifier;
 
 /// This minimum height causes most of the rows to be the same height. Some have
 /// multiline answers, so those heights may be taller than this minimum.
@@ -45,6 +44,8 @@ extern const CGFloat kOmniboxPopupCellMinimumHeight;
 @property(nonatomic, weak) id<FaviconRetriever> faviconRetriever;
 /// Image retriever for `OmniboxIconView`.
 @property(nonatomic, weak) id<ImageRetriever> imageRetriever;
+/// The context in which the omnibox is presented.
+@property(nonatomic, assign) OmniboxPresentationContext presentationContext;
 
 /// Returns the default configuration for a list cell.
 + (instancetype)cellConfiguration;

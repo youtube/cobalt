@@ -308,7 +308,7 @@ GURL FamilyLiveTest::GetRoutedUrl(std::string_view url_spec) const {
   GURL url(url_spec);
 
   for (std::string_view enabled_host : extra_enabled_hosts_) {
-    if (url.host() == enabled_host) {
+    if (url.GetHost() == enabled_host) {
       return url;
     }
   }
@@ -341,7 +341,9 @@ InteractiveFamilyLiveTest::WaitForStateSeeding(
                  id,
                  [&]() {
                    SyncServiceFactory::GetForProfile(&browser_user.profile())
-                       ->TriggerRefresh(syncer::DataTypeSet::All());
+                       ->TriggerRefresh(
+                           syncer::SyncService::TriggerRefreshSource::kUnknown,
+                           syncer::DataTypeSet::All());
                    return state.Check(browser_user.GetServices());
                  },
                  /*polling_interval=*/base::Seconds(2)),

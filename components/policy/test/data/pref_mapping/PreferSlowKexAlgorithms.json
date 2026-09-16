@@ -12,7 +12,8 @@
       "pref_location": "local_state",
       "default_value": "",
       "values_to_test": [
-        "cnsa2"
+        "cnsa2",
+        "default"
       ]
     }
   }

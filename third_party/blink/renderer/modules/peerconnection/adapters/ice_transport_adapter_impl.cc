@@ -85,23 +85,35 @@ void IceTransportAdapterImpl::SetupIceTransportChannel() {
     return;
   }
   ice_transport_channel()->AddGatheringStateCallback(
-      this, [this](webrtc::IceTransportInternal* transport) {
-        OnGatheringStateChanged(transport);
+      this, [that = weak_factory_.GetWeakPtr()](
+                webrtc::IceTransportInternal* transport) {
+        if (that) {
+          that->OnGatheringStateChanged(transport);
+        }
       });
   ice_transport_channel()->SubscribeCandidateGathered(
-      [this](webrtc::IceTransportInternal* transport,
-             const webrtc::Candidate& candidate) {
-        OnCandidateGathered(transport, candidate);
+      [that = weak_factory_.GetWeakPtr()](
+          webrtc::IceTransportInternal* transport,
+          const webrtc::Candidate& candidate) {
+        if (that) {
+          that->OnCandidateGathered(transport, candidate);
+        }
       });
   ice_transport_channel()->SubscribeIceTransportStateChanged(
-      [this](webrtc::IceTransportInternal* transport) {
-        OnStateChanged(transport);
+      [that = weak_factory_.GetWeakPtr()](
+          webrtc::IceTransportInternal* transport) {
+        if (that) {
+          that->OnStateChanged(transport);
+        }
       });
   ice_transport_channel()->SignalNetworkRouteChanged.connect(
       this, &IceTransportAdapterImpl::OnNetworkRouteChanged);
   ice_transport_channel()->SubscribeRoleConflict(
-      [this](webrtc::IceTransportInternal* transport) {
-        OnRoleConflict(transport);
+      [that = weak_factory_.GetWeakPtr()](
+          webrtc::IceTransportInternal* transport) {
+        if (that) {
+          that->OnRoleConflict(transport);
+        }
       });
 }
 

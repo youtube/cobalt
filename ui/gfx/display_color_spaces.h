@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "skia/ext/skcolorspace_primaries.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "ui/gfx/buffer_types.h"
@@ -56,28 +57,29 @@ class COLOR_SPACE_EXPORT DisplayColorSpaces {
   // build configuration.
   explicit DisplayColorSpaces(const ColorSpace& color_space);
 
-  // Initialize as |color_space| and |buffer_format| for all settings. If
-  // |color_space| is the default (invalid) color space, then initialize to
-  // sRGB.
-  DisplayColorSpaces(const ColorSpace& color_space, BufferFormat buffer_format);
+  // Initialize as |color_space| and |format| (which must be single-plane) for
+  // all settings. If |color_space| is the default (invalid) color space, then
+  // initialize to sRGB.
+  DisplayColorSpaces(const ColorSpace& color_space,
+                     viz::SharedImageFormat format);
 
-  // Set the color space and buffer format for the final output surface when the
-  // specified content is being displayed.
-  void SetOutputColorSpaceAndBufferFormat(ContentColorUsage color_usage,
-                                          bool needs_alpha,
-                                          const gfx::ColorSpace& color_space,
-                                          gfx::BufferFormat buffer_format);
+  // Set the color space and SharedImageFormat for the final output surface when
+  // the specified content is being displayed.
+  void SetOutputColorSpaceAndFormat(ContentColorUsage color_usage,
+                                    bool needs_alpha,
+                                    const gfx::ColorSpace& color_space,
+                                    viz::SharedImageFormat format);
 
-  // Set the buffer format for all color usages to |buffer_format_no_alpha| when
-  // alpha is not needed and |buffer_format_with_alpha| when alpha is needed.
-  void SetOutputBufferFormats(gfx::BufferFormat buffer_format_no_alpha,
-                              gfx::BufferFormat buffer_format_with_alpha);
+  // Set the format for all color usages to |format_no_alpha| when alpha is not
+  // needed and |format_with_alpha| when alpha is needed.
+  void SetOutputFormats(viz::SharedImageFormat format_no_alpha,
+                        viz::SharedImageFormat format_with_alpha);
 
   // Retrieve parameters for a specific usage and alpha.
   ColorSpace GetOutputColorSpace(ContentColorUsage color_usage,
                                  bool needs_alpha) const;
-  BufferFormat GetOutputBufferFormat(ContentColorUsage color_usage,
-                                     bool needs_alpha) const;
+  viz::SharedImageFormat GetOutputFormat(ContentColorUsage color_usage,
+                                         bool needs_alpha) const;
 
   // Set the maximum SDR luminance, in nits. This is a non-default value only
   // on Windows.
@@ -126,10 +128,10 @@ class COLOR_SPACE_EXPORT DisplayColorSpaces {
 
   // Output as a vector of strings. This is a helper function for printing in
   // about:gpu. All output vectors will be the same length. Each entry will be
-  // the configuration name, its buffer format, and its color space.
+  // the configuration name, its format, and its color space.
   void ToStrings(std::vector<std::string>* out_names,
                  std::vector<gfx::ColorSpace>* out_color_spaces,
-                 std::vector<gfx::BufferFormat>* out_buffer_formats) const;
+                 std::vector<viz::SharedImageFormat>* out_formats) const;
 
   bool operator==(const DisplayColorSpaces& other) const;
 

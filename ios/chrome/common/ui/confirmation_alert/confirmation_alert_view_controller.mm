@@ -5,6 +5,7 @@
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_view_controller.h"
 
 #import "base/check.h"
+#import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
@@ -112,6 +113,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 @property(nonatomic, strong) UIImageView* imageView;
 @property(nonatomic, strong) UIView* imageContainerView;
 @property(nonatomic, strong) NSLayoutConstraint* imageViewAspectRatioConstraint;
+@property(nonatomic, strong) UIView* scrollContainerView;
 @property(nonatomic, strong) UIScrollView* scrollView;
 @property(nonatomic, strong) CAGradientLayer* gradientMask;
 @property(nonatomic, strong)
@@ -198,9 +200,13 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 
   self.stackView = [self createStackViewWithArrangedSubviews:stackSubviews];
 
+  self.scrollContainerView = [self createScrollContainerView];
+  [self.view addSubview:self.scrollContainerView];
+
   self.scrollView = [self createScrollView];
   [self.scrollView addSubview:self.stackView];
-  [self.view addSubview:self.scrollView];
+  [self.scrollContainerView addSubview:self.scrollView];
+  AddSameConstraints(self.scrollView, self.scrollContainerView);
 
   self.view.preservesSuperviewLayoutMargins = YES;
   UILayoutGuide* margins = self.view.layoutMarginsGuide;
@@ -276,19 +282,19 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
                       kScrollViewBottomInsets / self.customGradientViewHeight);
       self.gradientMask.colors =
           @[ (id)[UIColor whiteColor].CGColor, (id)bottomColor.CGColor ];
-      self.scrollView.layer.mask = self.gradientMask;
+      self.scrollContainerView.layer.mask = self.gradientMask;
     }
   }
 
-  self.scrollViewBottomAnchorConstraint = [self.scrollView.bottomAnchor
+  self.scrollViewBottomAnchorConstraint = [self.scrollContainerView.bottomAnchor
       constraintLessThanOrEqualToAnchor:scrollViewBottomAnchor
                                constant:-kScrollViewBottomInsets];
   self.scrollViewBottomAnchorConstraint.active = YES;
 
   [NSLayoutConstraint activateConstraints:@[
-    [self.scrollView.leadingAnchor
+    [self.scrollContainerView.leadingAnchor
         constraintEqualToAnchor:self.view.leadingAnchor],
-    [self.scrollView.trailingAnchor
+    [self.scrollContainerView.trailingAnchor
         constraintEqualToAnchor:self.view.trailingAnchor],
   ]];
 
@@ -301,18 +307,20 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     scrollViewTopConstant = self.customSpacingBeforeImageIfNoNavigationBar;
   }
   if (self.topAlignedLayout) {
-    [self.scrollView.topAnchor constraintEqualToAnchor:scrollViewTopAnchor
-                                              constant:scrollViewTopConstant]
+    [self.scrollContainerView.topAnchor
+        constraintEqualToAnchor:scrollViewTopAnchor
+                       constant:scrollViewTopConstant]
         .active = YES;
   } else {
-    [self.scrollView.topAnchor
+    [self.scrollContainerView.topAnchor
         constraintGreaterThanOrEqualToAnchor:scrollViewTopAnchor
                                     constant:scrollViewTopConstant]
         .active = YES;
 
     // Scroll View constraint to the vertical center.
-    NSLayoutConstraint* centerYConstraint = [self.scrollView.centerYAnchor
-        constraintEqualToAnchor:margins.centerYAnchor];
+    NSLayoutConstraint* centerYConstraint =
+        [self.scrollContainerView.centerYAnchor
+            constraintEqualToAnchor:margins.centerYAnchor];
     // This needs to be lower than the height constraint, so it's deprioritized.
     // If this breaks, the scroll view is still constrained to the navigation
     // bar and the bottom safe area or button.
@@ -386,7 +394,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   }
 
   // Match the mask's size to the scroll view's size.
-  self.gradientMask.frame = self.scrollView.bounds;
+  self.gradientMask.frame = self.scrollContainerView.bounds;
 
   // Determine the starting point of the gradient so that it has the desired
   // number of pixels of height at the bottom of the scroll view.
@@ -436,7 +444,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 }
 
 - (void)displayGradientView:(BOOL)shouldShow {
-  self.scrollView.layer.mask = shouldShow ? self.gradientMask : nil;
+  self.scrollContainerView.layer.mask = shouldShow ? self.gradientMask : nil;
 }
 
 - (UIButton*)primaryActionButton {
@@ -800,6 +808,27 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   return scrollView;
 }
 
+- (UIView*)createScrollContainerView {
+  UIView* containerView = [[UIView alloc] init];
+
+  // Set content hugging priority for both axes.
+  [containerView setContentHuggingPriority:UILayoutPriorityDefaultHigh
+                                   forAxis:UILayoutConstraintAxisHorizontal];
+  [containerView setContentHuggingPriority:UILayoutPriorityDefaultHigh
+                                   forAxis:UILayoutConstraintAxisVertical];
+
+  // Set content compression resistance for both axes.
+  [containerView
+      setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                      forAxis:UILayoutConstraintAxisHorizontal];
+  [containerView
+      setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                      forAxis:UILayoutConstraintAxisVertical];
+
+  containerView.translatesAutoresizingMaskIntoConstraints = NO;
+  return containerView;
+}
+
 // Helper to create the stack view.
 - (UIStackView*)createStackViewWithArrangedSubviews:
     (NSArray<UIView*>*)subviews {
@@ -830,20 +859,37 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     actionStackView.spacing = kButtonStackViewSpacing;
   }
 
+  // Tertiary button should always be at the top.
+  if (self.tertiaryActionString) {
+    self.tertiaryActionButton = [self createTertiaryButton];
+    [actionStackView addArrangedSubview:self.tertiaryActionButton];
+  }
+
   if (self.primaryActionString) {
     _primaryButton = [self createPrimaryActionButton];
-    [actionStackView addArrangedSubview:_primaryButton];
   }
 
   if (self.secondaryActionString) {
     _secondaryActionButton = [self createSecondaryActionButton];
-    [actionStackView addArrangedSubview:self.secondaryActionButton];
   }
-  // Tertiary button should show above the primary one.
-  if (self.tertiaryActionString) {
-    self.tertiaryActionButton = [self createTertiaryButton];
-    [actionStackView insertArrangedSubview:self.tertiaryActionButton atIndex:0];
+
+  if (app_group::IsConfirmationButtonSwapOrderEnabled()) {
+    if (_secondaryActionButton) {
+      [actionStackView addArrangedSubview:_secondaryActionButton];
+    }
+    if (_primaryButton) {
+      [actionStackView addArrangedSubview:_primaryButton];
+    }
+  } else {
+    // Default order: Primary, then Secondary.
+    if (_primaryButton) {
+      [actionStackView addArrangedSubview:_primaryButton];
+    }
+    if (_secondaryActionButton) {
+      [actionStackView addArrangedSubview:_secondaryActionButton];
+    }
   }
+
   return actionStackView;
 }
 

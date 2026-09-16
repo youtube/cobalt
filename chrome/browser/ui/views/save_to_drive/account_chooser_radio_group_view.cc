@@ -7,6 +7,8 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/save_to_drive/account_chooser_util.h"
 #include "chrome/browser/ui/views/save_to_drive/account_chooser_view_delegate.h"
+#include "chrome/grit/generated_resources.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/cascading_property.h"
@@ -17,6 +19,7 @@
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 
 namespace save_to_drive {
@@ -31,6 +34,10 @@ AccountChooserRadioButtonRow::AccountChooserRadioButtonRow(
       /*vertical=*/ChromeLayoutProvider::Get()->GetDistanceMetric(
           DISTANCE_EXTENSIONS_MENU_BUTTON_MARGIN),
       /*horizontal=*/0));
+  SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kMenuItemRadio);
+  GetViewAccessibility().SetName(
+      base::StrCat({account.full_name, " ", account.email}));
 
   auto account_row_container = std::make_unique<views::FlexLayoutView>();
   auto account_row = CreateAccountRow(account);
@@ -54,6 +61,11 @@ AccountChooserRadioButtonRow::AccountChooserRadioButtonRow(
   radio_button_ = AddChildView(std::move(radio_button));
 }
 AccountChooserRadioButtonRow::~AccountChooserRadioButtonRow() = default;
+
+bool AccountChooserRadioButtonRow::HandleAccessibleAction(
+    const ui::AXActionData& action_data) {
+  return radio_button_->HandleAccessibleAction(action_data);
+}
 
 bool AccountChooserRadioButtonRow::OnMousePressed(const ui::MouseEvent& event) {
   if (event.IsLeftMouseButton()) {
@@ -85,6 +97,10 @@ AccountChooserRadioGroupView::AccountChooserRadioGroupView(
   CHECK(accounts.size() > 1) << "Account chooser radio group view should only "
                                 "be used for multi-account cases.";
   SetCascadingRadioGroupView(this, views::kCascadingRadioGroupView);
+  SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kRadioGroup);
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
+      IDS_ACCOUNT_CHOOSER_RADIO_GROUP_ACCESSIBILITY_LABEL));
 
   // Order the accounts by display name.
   for (const auto& account : accounts) {

@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.settings;
 
+import static org.chromium.components.browser_ui.widget.containment.ContainmentUiUtils.parseContainmentAttributes;
+
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
@@ -17,7 +19,8 @@ import androidx.preference.PreferenceViewHolder;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItem;
+import org.chromium.components.browser_ui.widget.containment.ContainmentUiUtils;
 
 /**
  * A preference that supports some Chrome-specific customizations:
@@ -32,7 +35,7 @@ import org.chromium.components.browser_ui.widget.containment.CustomStyledContain
  * ColorStateList is set, only the default color will be used.
  */
 @NullMarked
-public class ChromeBasePreference extends Preference implements CustomStyledContainer {
+public class ChromeBasePreference extends Preference implements ContainmentItem {
     private final @Nullable ColorStateList mIconTint;
     private final int mBackgroundStyle;
     private final int mBackgroundColor;
@@ -61,12 +64,12 @@ public class ChromeBasePreference extends Preference implements CustomStyledCont
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ChromeBasePreference);
         mIconTint = a.getColorStateList(R.styleable.ChromeBasePreference_iconTint);
         mUserAction = a.getString(R.styleable.ChromeBasePreference_userAction);
-        mBackgroundStyle =
-                a.getInt(
-                        R.styleable.ChromeBasePreference_backgroundStyle, BackgroundStyle.STANDARD);
-        mBackgroundColor =
-                a.getInt(R.styleable.ChromeBasePreference_backgroundColor, DEFAULT_COLOR);
         a.recycle();
+
+        ContainmentUiUtils.ContainmentAttributes containmentAttributes =
+                parseContainmentAttributes(context, attrs);
+        mBackgroundStyle = containmentAttributes.backgroundStyle;
+        mBackgroundColor = containmentAttributes.backgroundColor;
 
         mHasCustomLayout = ManagedPreferencesUtils.isCustomLayoutApplied(context, attrs);
     }

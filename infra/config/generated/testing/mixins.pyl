@@ -746,6 +746,13 @@
       },
     },
   },
+  'non-gce': {
+    'swarming': {
+      'dimensions': {
+        'gce': '0',
+      },
+    },
+  },
   'nvidia_geforce_gtx_1660': {
     'swarming': {
       'dimensions': {
@@ -782,6 +789,21 @@
   'skylab-50-tests-per-shard': {
     'skylab': {
       'cros_test_max_in_shard': 50
+    },
+  },
+  'skylab-rdb-gtest': {
+    'resultdb': {
+      'result_format': 'gtest',
+    },
+  },
+  'skylab-rdb-native': {
+    'resultdb': {
+      'result_format': 'native',
+    },
+  },
+  'skylab-rdb-tast': {
+    'resultdb': {
+      'result_format': 'tast',
     },
   },
   'swarming_containment_auto': {
@@ -948,7 +970,7 @@
     'swarming': {
       'dimensions': {
         'display_attached': '1',
-        'gpu': '10de:2783-32.0.15.8088',
+        'gpu': '10de:2783-32.0.15.8129',
         'os': 'Windows-11',
         'pool': 'chromium.tests.gpu',
       },
@@ -959,7 +981,7 @@
     'swarming': {
       'dimensions': {
         'display_attached': '1',
-        'gpu': '10de:2783-32.0.15.6070|10de:2783-32.0.15.8088',
+        'gpu': '10de:2783-32.0.15.8088',
         'os': 'Windows-11',
         'pool': 'chromium.tests.gpu',
       },

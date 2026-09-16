@@ -17,7 +17,7 @@
 #include "components/facilitated_payments/content/browser/content_facilitated_payments_driver_factory.h"
 #include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/browser/facilitated_payments_client.h"
-#include "components/facilitated_payments/core/browser/network_api/multiple_request_facilitated_payments_network_interface.h"
+#include "components/facilitated_payments/core/browser/network_api/facilitated_payments_network_interface.h"
 #include "components/facilitated_payments/core/browser/payment_link_manager.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -81,12 +81,11 @@ class ChromeFacilitatedPaymentsClient
   // This returns nullptr if the `Profile` associated is null.
   payments::facilitated::FacilitatedPaymentsNetworkInterface*
   GetFacilitatedPaymentsNetworkInterface() final;
-  payments::facilitated::MultipleRequestFacilitatedPaymentsNetworkInterface*
-  GetMultipleRequestFacilitatedPaymentsNetworkInterface() final;
   // This returns std::nullopt if the `Profile` associated is null.
   std::optional<CoreAccountInfo> GetCoreAccountInfo() final;
   bool IsInLandscapeMode() final;
   bool IsFoldable() final;
+  bool IsInChromeCustomTabMode() final;
   optimization_guide::OptimizationGuideDecider* GetOptimizationGuideDecider()
       final;
   payments::facilitated::DeviceDelegate* GetDeviceDelegate() final;
@@ -107,6 +106,8 @@ class ChromeFacilitatedPaymentsClient
       base::RepeatingCallback<void(payments::facilitated::UiEvent)>
           ui_event_listener) final;
   strike_database::StrikeDatabase* GetStrikeDatabase() final;
+  void InitPixAccountLinkingFlow(
+      const url::Origin& pix_payment_page_origin) final;
   void ShowPixAccountLinkingPrompt(
       base::OnceCallback<void()> on_accepted,
       base::OnceCallback<void()> on_declined) final;
@@ -122,9 +123,6 @@ class ChromeFacilitatedPaymentsClient
 
   std::unique_ptr<payments::facilitated::FacilitatedPaymentsNetworkInterface>
       facilitated_payments_network_interface_;
-  std::unique_ptr<
-      payments::facilitated::MultipleRequestFacilitatedPaymentsNetworkInterface>
-      multiple_request_facilitated_payments_network_interface_;
 
   std::unique_ptr<FacilitatedPaymentsController>
       facilitated_payments_controller_;

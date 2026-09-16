@@ -98,17 +98,6 @@ void AppendLogsQueryParam(
   }
 }
 
-GURL AppendOrReplaceQueryParametersForLensRequest(const GURL& url,
-                                                  lens::EntryPoint ep) {
-  GURL modified_url(url);
-  for (auto const& param : GetLensQueryParametersMap(ep)) {
-    modified_url = net::AppendOrReplaceQueryParameter(modified_url, param.first,
-                                                      param.second);
-  }
-
-  return modified_url;
-}
-
 std::string GetQueryParametersForLensRequest(lens::EntryPoint ep) {
   std::string query_string;
   for (auto const& param : GetLensQueryParametersMap(ep)) {
@@ -117,22 +106,12 @@ std::string GetQueryParametersForLensRequest(lens::EntryPoint ep) {
   return query_string;
 }
 
-bool IsValidLensResultUrl(const GURL& url) {
-  if (url.is_empty()) {
-    return false;
-  }
-
-  std::string payload;
-  // Make sure the payload is present
-  return net::GetValueForKeyInQuery(url, kPayloadQueryParameter, &payload);
-}
-
 bool IsLensMWebResult(const GURL& url) {
   std::string request_id;
   std::string surface;
   GURL result_url = GURL(lens::features::GetLensOverlayResultsSearchURL());
-  return !url.is_empty() && url.host() == result_url.host() &&
-         url.path() == result_url.path() &&
+  return !url.is_empty() && url.GetHost() == result_url.GetHost() &&
+         url.GetPath() == result_url.GetPath() &&
          net::GetValueForKeyInQuery(url, kLensRequestQueryParameter,
                                     &request_id) &&
          !net::GetValueForKeyInQuery(url, kLensSurfaceQueryParameter, &surface);

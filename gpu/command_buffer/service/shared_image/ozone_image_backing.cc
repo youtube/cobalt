@@ -17,6 +17,7 @@
 #include "base/numerics/checked_math.h"
 #include "build/build_config.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
@@ -32,7 +33,6 @@
 #include "gpu/config/gpu_finch_features.h"
 #include "third_party/skia/include/gpu/ganesh/GrBackendSemaphore.h"
 #include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect.h"
@@ -62,8 +62,8 @@ namespace gpu {
 namespace {
 
 size_t GetPixmapSizeInBytes(const gfx::NativePixmap& pixmap) {
-  return gfx::BufferSizeForBufferFormat(pixmap.GetBufferSize(),
-                                        pixmap.GetBufferFormat());
+  return pixmap.GetSharedImageFormat().EstimatedSizeInBytes(
+      pixmap.GetBufferSize());
 }
 
 bool IsExoTexture(std::string_view label) {

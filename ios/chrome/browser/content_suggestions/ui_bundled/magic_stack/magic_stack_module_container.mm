@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_container.h"
 
+#import "base/containers/contains.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/commerce/core/commerce_feature_list.h"
@@ -407,12 +408,6 @@ const CGFloat kSeparatorHeight = 0.5;
       }
       return l10n_util::GetNSString(IDS_IOS_TAB_RESUMPTION_TITLE);
     }
-    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
-    case ContentSuggestionsModuleType::kSetUpListAutofill:
-    case ContentSuggestionsModuleType::kCompactedSetUpList:
-    case ContentSuggestionsModuleType::kSetUpListAllSet:
-    case ContentSuggestionsModuleType::kSetUpListNotifications:
-      return content_suggestions::SetUpListTitleString();
     case ContentSuggestionsModuleType::kSafetyCheck:
       return l10n_util::GetNSString(IDS_IOS_SAFETY_CHECK_TITLE);
     case ContentSuggestionsModuleType::kPriceTrackingPromo:
@@ -430,6 +425,11 @@ const CGFloat kSeparatorHeight = 0.5;
             IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_REVIEWS_ALT_TITLE);
       }
     }
+    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
+    case ContentSuggestionsModuleType::kSetUpListAutofill:
+    case ContentSuggestionsModuleType::kCompactedSetUpList:
+    case ContentSuggestionsModuleType::kSetUpListAllSet:
+    case ContentSuggestionsModuleType::kSetUpListNotifications:
     case ContentSuggestionsModuleType::kTipsWithProductImage:
     case ContentSuggestionsModuleType::kTips:
     case ContentSuggestionsModuleType::kAppBundlePromo:
@@ -448,8 +448,10 @@ const CGFloat kSeparatorHeight = 0.5;
       return kMagicStackContentSuggestionsModuleTabResumptionAccessibilityIdentifier;
 
     default:
-      // TODO(crbug.com/40946679): the code should use constants for
-      // accessibility identifiers, and not localized strings.
+      // Ideally the accessibility identifier should not depend on localized
+      // strings (as the test module only has access to the "en-US" locale,
+      // thus this forces the test to run the application in the same locale
+      // and prevents testing it in another configuration, i.e. LTR-language).
       return [self titleStringForModule:type config:config];
   }
 }
@@ -459,12 +461,10 @@ const CGFloat kSeparatorHeight = 0.5;
                                              config:(MagicStackModule*)config {
   switch (type) {
     case ContentSuggestionsModuleType::kShopCard: {
-      if (commerce::kShopCardVariation.Get() == commerce::kShopCardArm1) {
-        ShopCardItem* shopCardItem = static_cast<ShopCardItem*>(config);
-        _seeMoreButton.accessibilityLabel = [@[
-          _seeMoreButton.titleLabel.text, shopCardItem.shopCardData.productTitle
-        ] componentsJoinedByString:@", "];
-      }
+      ShopCardItem* shopCardItem = static_cast<ShopCardItem*>(config);
+      _seeMoreButton.accessibilityLabel = [@[
+        _seeMoreButton.titleLabel.text, shopCardItem.shopCardData.productTitle
+      ] componentsJoinedByString:@", "];
       break;
     }
     default:

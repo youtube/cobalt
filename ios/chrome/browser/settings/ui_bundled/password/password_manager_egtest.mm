@@ -20,9 +20,9 @@
 #import "components/sync/base/features.h"
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/service/sync_prefs.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_app_interface.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_app_interface.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/passwords/model/metrics/ios_password_manager_metrics.h"
@@ -2435,7 +2435,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
   // Check that the help center article was opened.
   GREYAssertEqual(std::string("support.google.com"),
-                  [ChromeEarlGrey webStateVisibleURL].host(),
+                  [ChromeEarlGrey webStateVisibleURL].GetHost(),
                   @"Did not navigate to the help center article.");
 }
 
@@ -4139,9 +4139,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
-// TODO(crbug.com/440119404): Re-enable after roll is complete and testers are
-// also updated.
-- (void)DISABLED_testSwipingAnotherAffiliatedGroupWhenAnotherIsInEditMode {
+- (void)testSwipingAnotherAffiliatedGroupWhenAnotherIsInEditMode {
   // Form an affiliated group with two passwords.
   SavePasswordFormToProfileStore(/*password=*/@"password1",
                                  /*username=*/@"user1",

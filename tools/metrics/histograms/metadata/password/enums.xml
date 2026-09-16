@@ -858,6 +858,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Shown"/>
   <int value="1" label="Canceled"/>
   <int value="2" label="Continue"/>
+  <int value="3" label="Open password change tab"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/ui/passwords/password_change_ui_controller.h:PasswordChangeToastEvent) -->
@@ -969,6 +970,8 @@ chromium-metrics-reviews@google.com.
       label="(obsolete) Re-Signin to unlock account-stored passwords"/>
   <int value="6" label="WebAuthn credential"/>
   <int value="7" label="Sign in with another WebAuthn device"/>
+  <int value="8" label="Backup password"/>
+  <int value="9" label="Trouble signing in"/>
 </enum>
 
 <enum name="PasswordDropdownState">
@@ -1816,12 +1819,6 @@ chromium-metrics-reviews@google.com.
 <enum name="SaveFlowStep">
   <int value="0" label="Form submitted"/>
   <int value="1" label="Save prompt shown"/>
-</enum>
-
-<enum name="SavingOnUsernameFirstFlow">
-  <int value="0" label="Saved"/>
-  <int value="1" label="Saved with edited username"/>
-  <int value="2" label="Not saved"/>
 </enum>
 
 <enum name="SharedPrefCredentialsAccessOutcome">

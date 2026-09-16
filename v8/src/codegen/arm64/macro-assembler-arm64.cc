@@ -2670,14 +2670,20 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
   ASM_CODE_COMMENT(this);
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, global_jump_table);
+  Mov(scratch, ExternalReference::wasm_code_pointer_table());
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  Add(target, scratch, Operand(target, LSL, 4));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+
+  // Keep `kNumRelevantBits` bits, shifted by `kLeftShift`.
+  Ubfiz(target.W(), target.W(), kLeftShift, kNumRelevantBits);
+
+  Add(target, scratch, target);
+
   Ldr(scratch,
       MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
   bool has_second_tmp = temps.CanAcquire();
@@ -2711,15 +2717,20 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
+  ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, global_jump_table);
-  constexpr unsigned int kEntrySizeLog2 =
-      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
-  Add(target, scratch, Operand(target, LSL, kEntrySizeLog2));
-  Ldr(target, MemOperand(target));
+  Mov(scratch, ExternalReference::wasm_code_pointer_table());
+
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+
+  // Keep `kNumRelevantBits` bits, shifted by `kLeftShift`.
+  Ubfiz(target.W(), target.W(), kLeftShift, kNumRelevantBits);
+
+  Ldr(target, MemOperand(scratch, target));
 
   Call(target);
 }
@@ -2954,13 +2965,11 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   Bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(x5, fun, new_target,
-                     expected_parameter_count_or_dispatch_handle,
+  DCHECK(!AreAliased(x5, fun, new_target, dispatch_handle,
                      actual_parameter_count));
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   Peek(x5, ReceiverOperand());
@@ -2970,18 +2979,17 @@ void MacroAssembler::CallDebugOnFunctionCall(
   if (!new_target.is_valid()) new_target = padreg;
 
   // Save values on stack.
-  SmiTag(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
   SmiTag(actual_parameter_count);
-  Push(expected_parameter_count_or_dispatch_handle, actual_parameter_count,
-       new_target, fun);
+  Push(dispatch_handle, actual_parameter_count, new_target, fun);
   Push(fun, x5);
   CallRuntime(Runtime::kDebugOnFunctionCall);
 
   // Restore values from stack.
-  Pop(fun, new_target, actual_parameter_count,
-      expected_parameter_count_or_dispatch_handle);
+  Pop(fun, new_target, actual_parameter_count, dispatch_handle);
   SmiUntag(actual_parameter_count);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
@@ -3950,6 +3958,15 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
   bind(&not_ok);
 }
 
+void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
+                                                   Label* dest) {
+#if V8_STATIC_ROOTS_BOOL
+  // Quick check for Read-only and small Smi values.
+  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
 void MacroAssembler::RecordWriteField(
     Register object, int offset, Register value, LinkRegisterStatus lr_status,
     SaveFPRegsMode save_fp, SmiCheck smi_check, ReadOnlyCheck ro_check,
@@ -3960,13 +3977,9 @@ void MacroAssembler::RecordWriteField(
   // catch stores of Smis and read-only objects.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip the barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -4557,13 +4570,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   // young generation.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     DCHECK_EQ(0, kSmiTag);

@@ -967,6 +967,9 @@ void PDFiumEngine::OnDocumentCanceled() {
 void PDFiumEngine::ClearTextSelection() {
   SelectionChangeInvalidator selection_invalidator(this);
   selection_.clear();
+  if (caret_) {
+    caret_->SetVisible(true);
+  }
 }
 
 void PDFiumEngine::ExtendAndInvalidateSelectionByChar(
@@ -976,6 +979,9 @@ void PDFiumEngine::ExtendAndInvalidateSelectionByChar(
 
   SelectionChangeInvalidator selection_invalidator(this);
   ExtendSelectionByChar(index);
+  if (caret_) {
+    caret_->SetVisible(!IsSelecting());
+  }
 }
 
 uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
@@ -1026,6 +1032,21 @@ bool PDFiumEngine::IsSynthesizedNewline(const PageCharacterIndex& index) const {
 
 bool PDFiumEngine::PageIndexInBounds(int index) const {
   return index >= 0 && index < static_cast<int>(pages_.size());
+}
+
+void PDFiumEngine::ScrollToChar(const PageCharacterIndex& index) {
+  CHECK(PageIndexInBounds(index.page_index));
+  PDFiumPage* page = pages_[index.page_index].get();
+
+  if (page->GetCharCount() == 0 && index.char_index == 0) {
+    ScrollToPage(index.page_index);
+    return;
+  }
+
+  CHECK(page->IsCharIndexInBounds(index.char_index));
+
+  PDFiumRange range(page, index.char_index, 1);
+  ScrollToBoundingRects(range, /*force_smooth_scroll=*/false);
 }
 
 void PDFiumEngine::StartSelection(const PageCharacterIndex& index) {
@@ -1193,7 +1214,7 @@ void PDFiumEngine::SetCaretBrowsingEnabled(bool enabled) {
   }
 
   // TODO(crbug.com/427778119): Set caret blink interval.
-  caret_->SetVisibility(enabled);
+  caret_->SetEnabled(enabled);
 }
 
 void PDFiumEngine::ContinueFind(bool case_sensitive) {
@@ -1319,6 +1340,10 @@ std::vector<uint8_t> PDFiumEngine::PrintPagesAsPdf(
 }
 
 void PDFiumEngine::KillFormFocus() {
+  if (focus_field_type_ == FocusFieldType::kNoFocus) {
+    return;
+  }
+
   FORM_ForceToKillFocus(form());
   SetFieldFocus(FocusFieldType::kNoFocus);
 }
@@ -1339,6 +1364,7 @@ void PDFiumEngine::UpdateFocus(bool has_focus) {
       if (last_focused_annot) {
         FPDF_BOOL ret = FORM_SetFocusedAnnot(form(), last_focused_annot.get());
         DCHECK(ret);
+        return;
       }
     }
   } else {
@@ -1358,6 +1384,12 @@ void PDFiumEngine::UpdateFocus(bool has_focus) {
       FPDFPage_CloseAnnot(last_focused_annot);
     }
     KillFormFocus();
+    if (has_focus) {
+      return;
+    }
+  }
+  if (caret_) {
+    caret_->SetVisible(has_focus && !IsSelecting());
   }
 }
 
@@ -1398,6 +1430,23 @@ AccessibilityFocusInfo PDFiumEngine::GetFocusInfo() {
 
 bool PDFiumEngine::IsPDFDocTagged() const {
   return FPDFCatalog_IsTagged(doc());
+}
+
+std::unique_ptr<AccessibilityStructureElement> PDFiumEngine::GetStructureTree()
+    const {
+  auto structure_tree_root = std::make_unique<AccessibilityStructureElement>();
+  structure_tree_root->type = PdfTagType::kDocument;
+  structure_tree_root->children.reserve(pages_.size());
+  // TODO(crbug.com/40707542): Get the /Lang string from
+  // AccessibilityStructureElement.
+  for (const std::unique_ptr<PDFiumPage>& page : pages_) {
+    auto page_structure = page->GetStructureTree();
+    if (page_structure) {
+      page_structure->parent = structure_tree_root.get();
+    }
+    structure_tree_root->children.push_back(std::move(page_structure));
+  }
+  return structure_tree_root;
 }
 
 uint32_t PDFiumEngine::GetLoadedByteSize() {
@@ -1559,7 +1608,9 @@ void PDFiumEngine::OnTextOrLinkAreaClickInternal(const PointData& point_data,
     OnSingleClick(point_data.page_index, char_index);
 
     if (caret_) {
-      caret_->SetChar(PageCharacterIndex(point_data.page_index, char_index));
+      caret_->SetCharAndDraw(
+          PageCharacterIndex(point_data.page_index, char_index));
+      caret_->SetVisible(true);
     }
   } else if (click_count >= 2) {
     OnMultipleClick(click_count, point_data.page_index, point_data.char_index);
@@ -1937,8 +1988,14 @@ bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
   CHECK_GE(point_data.char_index, 0);
 
   const uint32_t char_index = GetCharIndexBasedOnPointData(point_data);
-  return ExtendSelectionByChar(
-      {static_cast<uint32_t>(point_data.page_index), char_index});
+  PageCharacterIndex index{static_cast<uint32_t>(point_data.page_index),
+                           char_index};
+  const bool extended = ExtendSelectionByChar(index);
+  if (caret_) {
+    caret_->SetChar(index);
+    caret_->SetVisible(!IsSelecting());
+  }
+  return extended;
 }
 
 bool PDFiumEngine::ExtendSelectionByChar(const PageCharacterIndex& index) {
@@ -2023,12 +2080,12 @@ bool PDFiumEngine::OnKeyDown(const blink::WebKeyboardEvent& event) {
     return HandleTabEvent(event.GetModifiers());
   }
 
-  if (!PageIndexInBounds(last_focused_page_)) {
-    return false;
-  }
-
   if (caret_ && caret_->OnKeyDown(event)) {
     return true;
+  }
+
+  if (!PageIndexInBounds(last_focused_page_)) {
+    return false;
   }
 
   bool rv = !!FORM_OnKeyDown(form(), pages_[last_focused_page_]->GetPage(),
@@ -2348,12 +2405,20 @@ void PDFiumEngine::AddFindResult(PDFiumRange result) {
   client_->NotifyNumberOfFindResultsChanged(find_results_.size(), false);
 }
 
+const PDFiumRange* PDFiumEngine::GetFindSelection() const {
+  if (!current_find_index_.has_value()) {
+    return nullptr;
+  }
+  return &find_results_[current_find_index_.value()];
+}
+
 bool PDFiumEngine::SelectFindResult(bool forward) {
   if (find_results_.empty()) {
     return false;
   }
 
-  SelectionChangeInvalidator selection_invalidator(this);
+  // Invalidate the previous find selection.
+  FindResultChangeInvalidator find_change_invalidator(this);
 
   // Move back/forward through the search locations we previously found.
   size_t new_index;
@@ -2379,10 +2444,9 @@ bool PDFiumEngine::SelectFindResult(bool forward) {
   }
   current_find_index_ = new_index;
 
-  // Update the selection before telling the client to scroll, since it could
-  // paint then.
+  // Clear the current text selection.
+  SelectionChangeInvalidator selection_invalidator(this);
   selection_.clear();
-  selection_.push_back(find_results_[current_find_index_.value()]);
 
   // If the result is not in view, scroll to it.
   ScrollToBoundingRects(find_results_[current_find_index_.value()],
@@ -2394,9 +2458,7 @@ bool PDFiumEngine::SelectFindResult(bool forward) {
 }
 
 void PDFiumEngine::StopFind() {
-  SelectionChangeInvalidator selection_invalidator(this);
-  selection_.clear();
-  selecting_ = false;
+  FindResultChangeInvalidator find_change_invalidator(this);
 
   find_results_.clear();
   next_page_to_search_ = -1;
@@ -2646,6 +2708,10 @@ void PDFiumEngine::SelectAll() {
     if (page->GetCharCount()) {
       selection_.push_back(PDFiumRange::AllTextOnPage(page.get()));
     }
+  }
+
+  if (caret_ && IsSelecting()) {
+    caret_->SetVisible(false);
   }
 }
 
@@ -3611,14 +3677,6 @@ void PDFiumEngine::DrawCaret(size_t progressive_index,
 
 void PDFiumEngine::DrawSelections(size_t progressive_index,
                                   SkBitmap& image_data) const {
-#if BUILDFLAG(ENABLE_PDF_INK2)
-  if (features::kPdfInk2TextHighlighting.Get() &&
-      client_->IsInAnnotationMode()) {
-    // Ink2 should handle drawing selections.
-    return;
-  }
-#endif  // BUILDFLAG(ENABLE_PDF_INK2)
-
   CHECK_LT(progressive_index, progressive_paints_.size());
 
   uint32_t page_index = progressive_paints_[progressive_index].page_index();
@@ -3630,11 +3688,23 @@ void PDFiumEngine::DrawSelections(size_t progressive_index,
     return;
   }
 
+  // Draw the find-in-page selection.
   std::vector<gfx::Rect> highlighted_rects;
   gfx::Rect visible_rect = GetVisibleRect();
-  // First, the selections from find-in-page or mouse selections are drawn. This
-  // ensures that these selection highlights are drawn on top of text fragment
-  // highlights and form highlights.
+  const PDFiumRange* find_selection = GetFindSelection();
+  if (find_selection && find_selection->page_index() == page_index) {
+    DrawHighlightOnPage(*find_selection, dirty_in_screen, visible_rect,
+                        region.value(), kHighlightColor, highlighted_rects);
+  }
+
+#if BUILDFLAG(ENABLE_PDF_INK2)
+  // Ink2 ignores all other selections.
+  if (client_->IsInAnnotationMode()) {
+    return;
+  }
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
+
+  // Draw text selections next.
   for (const auto& range : selection_) {
     if (range.page_index() != page_index) {
       continue;
@@ -3644,6 +3714,8 @@ void PDFiumEngine::DrawSelections(size_t progressive_index,
                         kHighlightColor, highlighted_rects);
   }
 
+  // Draw text fragment and form highlights last. This ensures that the previous
+  // selection highlights are drawn on top.
   for (const auto& range : text_fragment_highlights_) {
     if (range.page_index() != page_index) {
       continue;
@@ -3918,6 +3990,24 @@ PDFiumEngine::SelectionChangeInvalidator::~SelectionChangeInvalidator() {
 std::vector<gfx::Rect>
 PDFiumEngine::SelectionChangeInvalidator::GetVisibleChangeRects() const {
   return GetVisibleScreenRectsFromRanges(engine_->selection_);
+}
+
+PDFiumEngine::FindResultChangeInvalidator::FindResultChangeInvalidator(
+    PDFiumEngine* engine)
+    : ChangeInvalidator(engine) {
+  previous_rects_ = GetVisibleChangeRects();
+}
+
+PDFiumEngine::FindResultChangeInvalidator::~FindResultChangeInvalidator() {
+  InvalidateChangesOnDestruct();
+}
+
+std::vector<gfx::Rect>
+PDFiumEngine::FindResultChangeInvalidator::GetVisibleChangeRects() const {
+  const PDFiumRange* find_selection = engine_->GetFindSelection();
+  return find_selection ? GetVisibleScreenRectsFromRanges(
+                              base::span_from_ref(*find_selection))
+                        : std::vector<gfx::Rect>();
 }
 
 PDFiumEngine::HighlightChangeInvalidator::HighlightChangeInvalidator(
@@ -4198,6 +4288,10 @@ void PDFiumEngine::EnteredEditMode() {
 }
 
 void PDFiumEngine::SetFieldFocus(PDFiumEngineClient::FocusFieldType type) {
+  if (focus_field_type_ == type) {
+    return;
+  }
+
   // If focus was previously in form text area, clear form text selection.
   // Clearing needs to be done before changing focus to ensure the correct
   // observer is notified of the change in selection. When `focus_field_type_`
@@ -4213,6 +4307,11 @@ void PDFiumEngine::SetFieldFocus(PDFiumEngineClient::FocusFieldType type) {
   // Clear `editable_form_text_area_` when focus no longer in form text area.
   if (focus_field_type_ != FocusFieldType::kText) {
     editable_form_text_area_ = false;
+  }
+
+  if (caret_) {
+    caret_->SetVisible(focus_field_type_ == FocusFieldType::kNoFocus &&
+                       !IsSelecting());
   }
 }
 

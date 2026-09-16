@@ -32,6 +32,7 @@ REPOSITORY_ROOT = os.path.abspath(
 sys.path.insert(0, REPOSITORY_ROOT)
 
 import components.cronet.tools.utils as cronet_utils
+import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
 import build.gn_helpers
 
 CRONET_LICENSE_NAME = "external_cronet_license"
@@ -705,7 +706,7 @@ class Module:
       self.static_libs = set()
       self.whole_static_libs = set()
       self.header_libs = set()
-      self.cflags = set()
+      self.cflags = list()
       self.stl = None
       self.cppflags = set()
       self.include_dirs = set()
@@ -785,7 +786,7 @@ class Module:
     self.export_static_lib_headers = set()
     self.export_header_lib_headers = set()
     self.defaults = set()
-    self.cflags = set()
+    self.cflags = list()
     self.include_dirs = set()
     self.local_include_dirs = set()
     self.header_libs = set()
@@ -863,6 +864,8 @@ class Module:
     # details, see `create_java_module()`.
     self.java_unfiltered_module = None
     self.transitive_generated_headers_modules = collections.defaultdict(set)
+    self.cargo_env_compat = None
+    self.cargo_pkg_version = None
 
   def variant(self, arch_name):
     return self if arch_name == 'common' else self.target[arch_name]
@@ -938,6 +941,8 @@ class Module:
     self._output_field(output, 'wrapper_src')
     self._output_field(output, 'handle_static_inline')
     self._output_field(output, 'static_inline_library')
+    self._output_field(output, 'cargo_env_compat')
+    self._output_field(output, 'cargo_pkg_version')
     if self.rtti:
       self._output_field(output, 'rtti')
     target_out = []
@@ -1470,13 +1475,13 @@ def create_gcc_preprocess_modules(blueprint, target):
                              bp_module_name + '_preprocess', target.name)
   # -E: stop after preprocessing.
   # -P: disable line markers, i.e. '#line 309'
-  preprocess_module.cflags.update(['-E', '-P', '-DANDROID'])
+  preprocess_module.cflags.extend(['-E', '-P', '-DANDROID'])
   preprocess_module.srcs.add(':' + rename_module.name)
   defines = [
       '-D' + target.args[i + 1] for i, arg in enumerate(target.args)
       if arg == '--define'
   ]
-  preprocess_module.cflags.update(defines)
+  preprocess_module.cflags.extend(defines)
   blueprint.add_module(preprocess_module)
 
   # Generates srcjar using soong_zip
@@ -2570,9 +2575,9 @@ def create_jni_zero_proxy_only_module(jni_zero_generator_module):
 
 
 def _get_cflags(cflags, defines):
-  cflags = {flag for flag in cflags if flag in cflag_allowlist}
+  cflags = [flag for flag in cflags if flag in cflag_allowlist]
   # Consider proper allowlist or denylist if needed
-  cflags |= set("-D%s" % define.replace("\"", "\\\"") for define in defines)
+  cflags.extend(["-D%s" % define.replace("\"", "\\\"") for define in defines])
   return cflags
 
 
@@ -2622,8 +2627,20 @@ def create_concatenated_generated_headers_module(bp_module_name,
   return module
 
 
-def configure_cc_module(module, cflags, defines, ldflags, libs):
-  module.cflags.update(_get_cflags(cflags, defines))
+def _get_cpp_std(cflags: List[str]) -> Union[str, None]:
+  cpp_stds = [
+      cflag.removeprefix('-std=') for cflag in cflags
+      if cflag.startswith('-std=')
+  ]
+  if cpp_stds:
+    # There can be multiple cpp std in cflags list. Return the last one as this will
+    # override any previous version.
+    return cpp_stds[-1]
+  return None
+
+
+def configure_cc_module(module, cflags, defines, ldflags, libs, main_module):
+  module.cflags.extend(_get_cflags(cflags, defines))
   module.ldflags.update({
       flag
       for flag in ldflags
@@ -2640,11 +2657,28 @@ def configure_cc_module(module, cflags, defines, ldflags, libs):
       module.shared_libs.add(android_lib)
   # TODO: implement proper cflag parsing.
   for flag in cflags:
-    if '-std=' in flag:
-      module.cpp_std = flag[len('-std='):]
     if '-fexceptions' in flag:
       module.cppflags.add('-fexceptions')
+  cpp_std = _get_cpp_std(cflags)
+  if cpp_std:
+    assert main_module.cpp_std is None or main_module.cpp_std == cpp_std, f"Found different CPP version across different architectures!, target name: {main_module.name}, first cpp version: {main_module.cpp_std}, current cpp version: {cpp_std}"
+    # The -std= compiler option has a dedicated property in Android.bp, called cpp_std. That property
+    # can only be set at module top level; it cannot be set per-target. However in GN
+    # cflags are arch-specific, so we will find -std= when running on the
+    # arch-specific module. Hence we need to go back to the main module and set it there.
+    main_module.cpp_std = cpp_std
 
+
+def _create_rust_build_script_output_copy_genrule(module_name,
+                                                  path_to_directory, files):
+  module = Module(
+      "genrule", module_name,
+      "Copies generated Rust build script files somewhere the dependent code can find them"
+  )
+  module.srcs = [f"{path_to_directory}/{file_name}" for file_name in files]
+  module.cmd = "cp $(in) $(genDir)"
+  module.out = files
+  return module
 
 def set_module_include_dirs(module, cflags, include_dirs):
   for flag in cflags:
@@ -2751,6 +2785,32 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
   log.info('create modules for %s (%s)', target.name, target.type)
 
+  if gn2bp_common.is_rust_build_script(target.script):
+    # Build scripts are generated via `generate_build_scripts_output.py`. See the header
+    # of that script for more details.
+    generated_files = [
+        output.split("/")[-1] for output in target.outputs
+        if output.endswith(".rs") and not output.endswith("/cargo_flags.rs")
+    ]
+    if len(generated_files) == 0:
+      # No files were generated by this build script. Just ignore it and return None.
+      return (None, )
+    # The `generated_outputs` is hardcoded as we assume that the `generate_build_scripts_output.py` script has executed
+    # and generated all the necessary files in that destination. This creates some kind of hard dependencies between
+    # those two scripts.
+    # TODO(b/447593242): Find a better way to indicate to GN2BP that generate_build_scripts_output has generated those files.
+    # TODO(b/447592983): Use architecture-specific fields instead of harcoding arm64.
+    # Rust code typically consumes generated files using the following pattern:
+    # include!(concat!(env!("OUT_DIR"), "/somefile.rs"));
+    # Because this uses OUT_DIR the generated files will not be found if we just leave this
+    # in the source tree - we need to copy them to the output directory. Hence this genrule.
+    module = _create_rust_build_script_output_copy_genrule(
+        bp_module_name,
+        f"{target.rust_source_dir}/gn2bp_rust_build_script_outputs/arm64",
+        generated_files)
+    blueprint.add_module(module)
+    return (module, )
+
   if target.type == 'executable':
     if target.testonly:
       module_type = 'cc_test'
@@ -2835,13 +2895,13 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
     if target.type in gn_utils.LINKER_UNIT_TYPES:
       configure_cc_module(module, target.cflags, target.defines, target.ldflags,
-                          target.libs)
+                          target.libs, module)
       set_module_include_dirs(module, target.cflags, target.include_dirs)
       # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
       for arch_name, arch in target.get_archs().items():
         # TODO(aymanm): Make libs arch-specific.
         configure_cc_module(module.target[arch_name], arch.cflags, arch.defines,
-                            arch.ldflags, arch.libs)
+                            arch.ldflags, arch.libs, module)
         # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
         # Flags which does not start with '-' could not be in the cflags so enabling MTE by
         # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
@@ -2870,6 +2930,9 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
     if module.type in ["rust_proc_macro", "rust_binary", "rust_ffi_static"]:
       module.crate_name = target.crate_name
       module.crate_root = gn_utils.label_to_path(target.crate_root)
+      if target.rust_package_version:
+        module.cargo_env_compat = True
+        module.cargo_pkg_version = target.rust_package_version
       module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
       module.apex_available = [tethering_apex]
       for arch_name, arch in target.get_archs().items():
@@ -2931,13 +2994,11 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
                                arch_name)
         continue
 
-      # This is like the builtin_deps with always_disable except that it matches
-      # a string.
-      if "_build_script" in dep_name:
-        continue
-
       for dep_module in create_modules_from_target(blueprint, gn, dep_name,
                                                    target.type, is_test_target):
+        if dep_module is None:
+          continue
+
         # TODO: Proper dependency check for genrule.
         # Currently, only propagating genrule dependencies.
         # Also, currently, all the dependencies are propagated upwards.
@@ -3333,6 +3394,8 @@ def apply_post_processing(module):
     curr = getattr(module, key)
     if add_val and isinstance(add_val, set) and isinstance(curr, set):
       curr.update(add_val)
+    elif isinstance(curr, list):
+      curr.extend(add_val)
     elif isinstance(add_val, str) and (not curr or isinstance(curr, str)):
       setattr(module, key, add_val)
     elif isinstance(add_val, bool) and (not curr or isinstance(curr, bool)):

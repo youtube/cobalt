@@ -72,6 +72,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/search_engines/util.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/service/sync_service.h"
@@ -349,7 +350,7 @@ std::string SanitizeEndpoint(const std::string& value) {
 
 std::string SanitizeRemoteBase(const std::string& value) {
   GURL url(value);
-  std::string path = url.path();
+  std::string path = url.GetPath();
   std::vector<std::string> parts =
       base::SplitString(path, "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   std::string revision = parts.size() > 2 ? parts[2] : "";
@@ -363,7 +364,7 @@ std::string SanitizeRemoteBase(const std::string& value) {
 std::string SanitizeRemoteFrontendURL(const std::string& value) {
   GURL url(base::UnescapeBinaryURLComponent(
       value, base::UnescapeRule::REPLACE_PLUS_WITH_SPACE));
-  std::string path = url.path();
+  std::string path = url.GetPath();
   std::vector<std::string> parts =
       base::SplitString(path, "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   std::string revision = parts.size() > 2 ? parts[2] : "";
@@ -464,8 +465,8 @@ GURL SanitizeFrontendURL(const GURL& url,
             base::StringPrintf("%s=%s", key.c_str(), value.c_str()));
       }
     }
-    if (url.has_ref() && url.ref_piece().find('\'') == std::string_view::npos) {
-      fragment = '#' + url.ref();
+    if (url.has_ref() && url.ref().find('\'') == std::string_view::npos) {
+      fragment = '#' + url.GetRef();
     }
   }
   std::string query =
@@ -665,13 +666,13 @@ DevToolsUIBindings::FrontendWebContentsObserver::
 GURL DevToolsUIBindings::SanitizeFrontendURL(const GURL& url) {
   return ::SanitizeFrontendURL(url, content::kChromeDevToolsScheme,
                                chrome::kChromeUIDevToolsHost,
-                               SanitizeFrontendPath(url.path()), true);
+                               SanitizeFrontendPath(url.GetPath()), true);
 }
 
 // static
 bool DevToolsUIBindings::IsValidFrontendURL(const GURL& url) {
   if (url.SchemeIs(content::kChromeUIScheme) &&
-      url.host() == content::kChromeUITracingHost && !url.has_query() &&
+      url.GetHost() == content::kChromeUITracingHost && !url.has_query() &&
       !url.has_ref()) {
     return true;
   }
@@ -681,7 +682,7 @@ bool DevToolsUIBindings::IsValidFrontendURL(const GURL& url) {
 
 bool DevToolsUIBindings::IsValidRemoteFrontendURL(const GURL& url) {
   return ::SanitizeFrontendURL(url, url::kHttpsScheme, kRemoteFrontendDomain,
-                               url.path(), true)
+                               url.GetPath(), true)
              .spec() == url.spec();
 }
 
@@ -697,6 +698,7 @@ void DevToolsUIBindings::FrontendWebContentsObserver::
     case base::TERMINATION_STATUS_PROCESS_CRASHED:
     case base::TERMINATION_STATUS_LAUNCH_FAILED:
     case base::TERMINATION_STATUS_OOM:
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
 #if BUILDFLAG(IS_WIN)
     case base::TERMINATION_STATUS_INTEGRITY_FAILURE:
 #endif
@@ -785,8 +787,6 @@ DevToolsUIBindings::DevToolsUIBindings(content::WebContents* web_contents)
       ->AddObserver(this);
 #endif
   can_access_aida_ = IsAnyAidaPoweredFeatureEnabled();
-
-  MaybeStartLogging();
 }
 
 DevToolsUIBindings::~DevToolsUIBindings() {
@@ -1227,14 +1227,14 @@ void DevToolsUIBindings::LoadNetworkResource(DispatchCallback callback,
     // committed URL of that frame, and use the loader associated with that
     // frame to allow nested frames with different schemes to load files.
     if (allow_web_ui_scheme && target_tab &&
-        target_tab->GetLastCommittedURL().scheme() == gurl.scheme()) {
+        target_tab->GetLastCommittedURL().GetScheme() == gurl.GetScheme()) {
       std::vector<std::string> allowed_webui_hosts;
       content::RenderFrameHost* frame_host =
           web_contents()->GetPrimaryMainFrame();
 
       mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_remote =
           content::CreateWebUIURLLoaderFactory(
-              frame_host, target_tab->GetLastCommittedURL().scheme(),
+              frame_host, target_tab->GetLastCommittedURL().GetScheme(),
               std::move(allowed_webui_hosts));
       url_loader_factory = network::SharedURLLoaderFactory::Create(
           std::make_unique<network::WrapperPendingSharedURLLoaderFactory>(
@@ -1397,8 +1397,8 @@ void DevToolsUIBindings::IndexPath(
     return;
   }
   std::vector<std::string> excluded_folders;
-  std::optional<base::Value> parsed_excluded_folders =
-      base::JSONReader::Read(excluded_folders_message);
+  std::optional<base::Value> parsed_excluded_folders = base::JSONReader::Read(
+      excluded_folders_message, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (parsed_excluded_folders && parsed_excluded_folders->is_list()) {
     for (const base::Value& folder_path : parsed_excluded_folders->GetList()) {
       if (folder_path.is_string()) {
@@ -1480,12 +1480,13 @@ void DevToolsUIBindings::SetDevicesDiscoveryConfig(
     bool network_discovery_enabled,
     const std::string& network_discovery_config) {
   std::optional<base::Value::Dict> parsed_port_forwarding =
-      base::JSONReader::ReadDict(port_forwarding_config);
+      base::JSONReader::ReadDict(port_forwarding_config,
+                                 base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_port_forwarding) {
     return;
   }
-  std::optional<base::Value> parsed_network =
-      base::JSONReader::Read(network_discovery_config);
+  std::optional<base::Value> parsed_network = base::JSONReader::Read(
+      network_discovery_config, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_network || !parsed_network->is_list()) {
     return;
   }
@@ -1642,7 +1643,9 @@ base::Value::Dict DevToolsUIBindings::GetSyncInformationForProfile(
     return result;
   }
 
-  result.Set("isSyncActive", sync_service->IsSyncFeatureActive());
+  result.Set("isSyncActive", base::FeatureList::IsEnabled(
+                                 switches::kEnablePreferencesAccountStorage) ||
+                                 sync_service->IsSyncFeatureActive());
   result.Set("arePreferencesSynced", sync_service->GetActiveDataTypes().Has(
                                          syncer::DataType::PREFERENCES));
   result.Set("isSyncPaused", sync_service->GetTransportState() ==
@@ -1821,6 +1824,16 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                       std::move(ai_code_completion_dict));
   }
 
+  if (base::FeatureList::IsEnabled(
+          ::features::kDevToolsEnableDurableMessages)) {
+    base::Value::Dict devtools_durable_message_dict;
+    devtools_durable_message_dict.Set(
+        "enabled",
+        base::FeatureList::IsEnabled(features::kDevToolsEnableDurableMessages));
+    response_dict.Set("devToolsEnableDurableMessages",
+                      std::move(devtools_durable_message_dict));
+  }
+
   base::Value::Dict devtools_well_known_dict;
   devtools_well_known_dict.Set(
       "enabled", base::FeatureList::IsEnabled(::features::kDevToolsWellKnown));
@@ -1882,6 +1895,11 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
       base::FeatureList::IsEnabled(net::features::kEnableSchemeBoundCookies));
   response_dict.Set("devToolsEnableOriginBoundCookies",
                     std::move(origin_bound_cookies_dict));
+
+  if (base::FeatureList::IsEnabled(features::kDevToolsGreenDevUi)) {
+    response_dict.Set("devToolsGreenDevUi",
+                      base::Value::Dict().Set("enabled", true));
+  }
 
   if (base::FeatureList::IsEnabled(
           ::features::kDevToolsAnimationStylesInStylesTab)) {
@@ -1965,6 +1983,8 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
     base::Value::Dict gdp_profiles_dict;
     gdp_profiles_dict.Set("enabled", base::FeatureList::IsEnabled(
                                          ::features::kDevToolsGdpProfiles));
+    gdp_profiles_dict.Set("badgesEnabled",
+                          features::kDevToolsGdpProfilesBadgesEnabled.Get());
     gdp_profiles_dict.Set(
         "starterBadgeEnabled",
         features::kDevToolsGdpProfilesStarterBadgeEnabled.Get());
@@ -2001,6 +2021,11 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                      ::features::kDevToolsStartingStyleDebugging));
   response_dict.Set("devToolsStartingStyleDebugging",
                     std::move(starting_style_debugging));
+
+  response_dict.Set("devToolsAiPromptApi",
+                    base::Value::Dict().Set(
+                        "enabled", base::FeatureList::IsEnabled(
+                                       ::features::kDevToolsAiPromptApi)));
 
   base::Value response = base::Value(std::move(response_dict));
   std::move(callback).Run(&response);
@@ -2161,7 +2186,7 @@ void DevToolsUIBindings::MaybeStartLogging() {
     session_start_time_ = base::TimeTicks::Now();
     base::Value::Dict sync_info = GetSyncInformationForProfile(profile_);
     int64_t session_tags = 0;
-    bool is_signed_in = sync_info.FindBool("isSyncActive").value_or(false) &&
+    bool is_signed_in = sync_info.FindBool("accountEmail").has_value() &&
                         !sync_info.FindBool("isSyncPaused").value_or(false);
     if (is_signed_in) {
       session_tags |= SessionTags::kUserSignedIn;
@@ -2199,6 +2224,7 @@ base::TimeDelta DevToolsUIBindings::GetTimeSinceSessionStart() {
 }
 
 void DevToolsUIBindings::RecordImpression(const ImpressionEvent& event) {
+  MaybeStartLogging();
   for (const auto& ve : event.impressions) {
     metrics::structured::StructuredMetricsClient::Record(
         metrics::structured::events::v2::dev_tools::Impression()
@@ -2215,6 +2241,7 @@ void DevToolsUIBindings::RecordImpression(const ImpressionEvent& event) {
 }
 
 void DevToolsUIBindings::RecordResize(const ResizeEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Resize()
           .SetVeId(event.veid)
@@ -2225,6 +2252,7 @@ void DevToolsUIBindings::RecordResize(const ResizeEvent& event) {
 }
 
 void DevToolsUIBindings::RecordClick(const ClickEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Click()
           .SetVeId(event.veid)
@@ -2236,6 +2264,7 @@ void DevToolsUIBindings::RecordClick(const ClickEvent& event) {
 }
 
 void DevToolsUIBindings::RecordHover(const HoverEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Hover()
           .SetVeId(event.veid)
@@ -2246,6 +2275,7 @@ void DevToolsUIBindings::RecordHover(const HoverEvent& event) {
 }
 
 void DevToolsUIBindings::RecordDrag(const DragEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Drag()
           .SetVeId(event.veid)
@@ -2256,6 +2286,7 @@ void DevToolsUIBindings::RecordDrag(const DragEvent& event) {
 }
 
 void DevToolsUIBindings::RecordChange(const ChangeEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::Change()
           .SetVeId(event.veid)
@@ -2265,6 +2296,7 @@ void DevToolsUIBindings::RecordChange(const ChangeEvent& event) {
 }
 
 void DevToolsUIBindings::RecordKeyDown(const KeyDownEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::KeyDown()
           .SetVeId(event.veid)
@@ -2274,6 +2306,7 @@ void DevToolsUIBindings::RecordKeyDown(const KeyDownEvent& event) {
 }
 
 void DevToolsUIBindings::RecordSettingAccess(const SettingAccessEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::SettingAccess()
           .SetName(event.name)
@@ -2284,6 +2317,7 @@ void DevToolsUIBindings::RecordSettingAccess(const SettingAccessEvent& event) {
 }
 
 void DevToolsUIBindings::RecordFunctionCall(const FunctionCallEvent& event) {
+  MaybeStartLogging();
   metrics::structured::StructuredMetricsClient::Record(
       metrics::structured::events::v2::dev_tools::FunctionCall()
           .SetName(event.name)
@@ -2500,7 +2534,7 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
     GURL url =
         extensions::chrome_manifest_urls::GetDevToolsPage(extension.get());
     const bool is_extension_url = url.SchemeIs(extensions::kExtensionScheme) &&
-                                  url.host_piece() == extension->id();
+                                  url.host() == extension->id();
     CHECK(is_extension_url || url.SchemeIsHTTPOrHTTPS());
 
     // Each devtools extension will need to be able to run in the devtools
@@ -2659,6 +2693,7 @@ void DevToolsUIBindings::RegisterAidaClientEvent(DispatchCallback callback,
 
 void DevToolsUIBindings::SetDelegate(Delegate* delegate) {
   delegate_.reset(delegate);
+  MaybeStartLogging();
 }
 
 void DevToolsUIBindings::TransferDelegate(DevToolsUIBindings& other) {

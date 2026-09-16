@@ -73,23 +73,17 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
   placeholder_config->set_fade_text_animation_duration_ms(250);
 
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_ASK);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_ASK);
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_PLAN);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_PLAN);
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_COMPARE);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_COMPARE);
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_RESEARCH);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_RESEARCH);
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_TEACH);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_TEACH);
   placeholder_config->add_placeholders(
-      omnibox::
-          NTPComposeboxConfig_Composebox_PlaceholderConfig_Placeholder_WRITE);
+      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_WRITE);
 
   // Attempt to parse the config proto from the feature parameter if it is set.
   omnibox::NTPComposeboxConfig fieldtrial_config;
@@ -152,7 +146,7 @@ const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
 
 const base::FeatureParam<bool> kSendLnsSurfaceParam(&kNtpComposebox,
                                                     "SendLnsSurfaceParam",
-                                                    false);
+                                                    true);
 
 const base::FeatureParam<bool> kShowComposeboxZps(&kNtpComposebox,
                                                   "ShowComposeboxZps",
@@ -171,19 +165,32 @@ const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
 const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
                                                 "ShowContextMenu",
                                                 false);
+const base::FeatureParam<bool> kShowContextMenuTabPreviews(
+    &kNtpComposebox,
+    "ShowContextMenuTabPreviews",
+    false);
+
+const base::FeatureParam<bool> kShowContextMenuDescription(
+    &kNtpComposebox,
+    "ShowContextMenuDescription",
+    true);
+const base::FeatureParam<bool> kEnableViewportImages(
+    &kNtpComposebox,
+    "EnableViewportImages",
+    true);
 
 const base::FeatureParam<bool> kShowToolsAndModels(&kNtpComposebox,
-                                                   "kShowToolsAndModels",
+                                                   "ShowToolsAndModels",
                                                    false);
+
+const base::FeatureParam<bool> kShowCreateImageTool(&kNtpComposebox,
+                                                    "ShowCreateImageTool",
+                                                    false);
 
 const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
     &kNtpComposebox,
     "ContextMenuMaxTabSuggestions",
     5);
-
-const base::FeatureParam<bool> kShowNextRealbox(&kNtpComposebox,
-                                                "ShowNextRealbox",
-                                                false);
 
 const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox, "MaxNumFiles", 1);
 
@@ -196,3 +203,56 @@ FeatureConfig& FeatureConfig::operator=(FeatureConfig&&) = default;
 FeatureConfig::~FeatureConfig() = default;
 
 }  // namespace ntp_composebox
+
+namespace ntp_realbox {
+
+bool IsNtpRealboxNextEnabled(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  // The `AimEligibilityService` depends on the `TemplateURLService`. If the
+  // `TemplateURLService` does not exist for this profile, then the
+  // `AimEligibilityService` cannot be created.
+  if (!TemplateURLServiceFactory::GetForProfile(profile)) {
+    return false;
+  }
+
+  return AimEligibilityService::GenericKillSwitchFeatureCheck(
+      AimEligibilityServiceFactory::GetForProfile(profile), kNtpRealboxNext);
+}
+
+BASE_FEATURE(kNtpRealboxNext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool> kCyclingPlaceholders(&kNtpRealboxNext,
+                                                    "CyclingPlaceholders",
+                                                    false);
+
+const base::FeatureParam<RealboxLayoutMode>::Option
+    kRealboxLayoutModeOptions[] = {
+        {RealboxLayoutMode::kTallBottomContext,
+         kRealboxLayoutModeTallBottomContext},
+        {RealboxLayoutMode::kTallTopContext, kRealboxLayoutModeTallTopContext},
+        {RealboxLayoutMode::kCompact, kRealboxLayoutModeCompact}};
+
+const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode(
+    &kNtpRealboxNext,
+    "RealboxLayoutMode",
+    RealboxLayoutMode::kTallBottomContext,
+    &kRealboxLayoutModeOptions);
+
+std::string_view RealboxLayoutModeToString(
+    RealboxLayoutMode realbox_layout_mode) {
+  switch (realbox_layout_mode) {
+    case RealboxLayoutMode::kTallBottomContext:
+      return kRealboxLayoutModeTallBottomContext;
+    case RealboxLayoutMode::kTallTopContext:
+      return kRealboxLayoutModeTallTopContext;
+    case RealboxLayoutMode::kCompact:
+      return kRealboxLayoutModeCompact;
+    default:
+      NOTREACHED();
+  }
+}
+
+}  // namespace ntp_realbox

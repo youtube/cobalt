@@ -5,6 +5,7 @@
 #include <string>
 #include <variant>
 
+#include "base/functional/callback.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
@@ -59,9 +60,12 @@ class TouchToFillDelegate {
   virtual void LoyaltyCardSuggestionSelected(
       const LoyaltyCard& loyalty_card) = 0;
   virtual void OnDismissed(bool dismissed_by_user) = 0;
+  virtual void OnErrorOkPressed() = 0;
 
   virtual void LogMetricsAfterSubmission(
       const FormStructure& submitted_form) = 0;
+
+  virtual void SetCancelCallback(base::OnceClosure cancel_callback) = 0;
 };
 
 }  // namespace autofill

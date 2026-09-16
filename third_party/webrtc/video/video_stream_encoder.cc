@@ -39,6 +39,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/corruption_detection/frame_instrumentation_generator.h"
 #include "api/video/encoded_image.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_adaptation_counters.h"
@@ -88,7 +89,6 @@
 #include "video/alignment_adjuster.h"
 #include "video/config/encoder_stream_factory.h"
 #include "video/config/video_encoder_config.h"
-#include "video/corruption_detection/frame_instrumentation_generator.h"
 #include "video/encoder_bitrate_adjuster.h"
 #include "video/frame_cadence_adapter.h"
 #include "video/frame_dumping_encoder.h"
@@ -647,9 +647,11 @@ class VideoStreamEncoder::DegradationPreferenceManager
  public:
   explicit DegradationPreferenceManager(
       VideoStreamAdapter* video_stream_adapter)
-      : degradation_preference_(DegradationPreference::DISABLED),
+      : degradation_preference_(
+            DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION),
         is_screenshare_(false),
-        effective_degradation_preference_(DegradationPreference::DISABLED),
+        effective_degradation_preference_(
+            DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION),
         video_stream_adapter_(video_stream_adapter) {
     RTC_DCHECK(video_stream_adapter_);
     sequence_checker_.Detach();
@@ -1400,8 +1402,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
           VideoFrameType::kVideoFrameKey);
       if (settings_.enable_frame_instrumentation_generator) {
         frame_instrumentation_generator_ =
-            std::make_unique<FrameInstrumentationGenerator>(
-                encoder_config_.codec_type);
+            FrameInstrumentationGenerator::Create(encoder_config_.codec_type);
       }
     }
 

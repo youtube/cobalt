@@ -70,6 +70,7 @@ if (!build_with_chromium) {
         ":stats_provider",
         "../../../api:frame_generator_api",
         "../../../api:function_view",
+        "../../../api:jsep",
         "../../../api:libjingle_peerconnection_api",
         "../../../api:make_ref_counted",
         "../../../api:media_stream_interface",
@@ -255,6 +256,7 @@ if (!build_with_chromium) {
         "../..:test_flags",
         "../..:test_support",
         "../../../api:audio_quality_analyzer_api",
+        "../../../api:jsep",
         "../../../api:libjingle_peerconnection_api",
         "../../../api:media_stream_interface",
         "../../../api:peer_connection_quality_test_fixture_api",
@@ -636,7 +638,7 @@ if (!build_with_chromium) {
     ]
     deps = [
       "../../../api:array_view",
-      "../../../api:libjingle_peerconnection_api",
+      "../../../api:jsep",
       "../../../api:rtp_parameters",
       "../../../api:rtp_transceiver_direction",
       "../../../api/test/pclf:media_configuration",

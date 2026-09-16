@@ -442,6 +442,11 @@ export interface PasswordManagerProxy {
    * Returns the list of sites that can be used for Actor Login.
    */
   getActorLoginPermissions(): Promise<ActorLoginPermission[]>;
+
+  /**
+   * Revokes actor login permission for all credentials matching the site.
+   */
+  revokeActorLoginPermission(site: ActorLoginPermission): void;
 }
 
 /**
@@ -655,7 +660,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   extendAuthValidity() {
-    chrome.passwordsPrivate.extendAuthValidity();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      chrome.passwordsPrivate.extendAuthValidity();
+      return;
+    }
+    this.handler.extendAuthValidity();
   }
 
   addAccountStorageEnabledStateListener(
@@ -727,6 +736,10 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
 
   getActorLoginPermissions() {
     return this.handler.getActorLoginPermissions().then(result => result.sites);
+  }
+
+  revokeActorLoginPermission(site: ActorLoginPermission) {
+    this.handler.revokeActorLoginPermission(site);
   }
 
   static getInstance(): PasswordManagerProxy {

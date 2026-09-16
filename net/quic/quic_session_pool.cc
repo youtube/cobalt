@@ -281,10 +281,11 @@ class ServerIdOriginFilter
   const base::RepeatingCallback<bool(const GURL&)> origin_filter_;
 };
 
-std::set<std::string> HostsFromOrigins(std::set<HostPortPair> origins) {
+std::set<std::string> HostsFromSchemeHostPorts(
+    const std::set<url::SchemeHostPort>& scheme_host_ports) {
   std::set<std::string> hosts;
-  for (const auto& origin : origins) {
-    hosts.insert(origin.host());
+  for (const auto& scheme_host_port : scheme_host_ports) {
+    hosts.insert(scheme_host_port.host());
   }
   return hosts;
 }
@@ -541,23 +542,24 @@ QuicSessionPool::QuicCryptoClientConfigOwner::QuicCryptoClientConfigOwner(
       clock_(base::DefaultClock::GetInstance()),
       quic_session_pool_(quic_session_pool) {
   DCHECK(quic_session_pool_);
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
-          FROM_HERE, base::MemoryPressureListenerTag::kQuicSessionPool,
-          base::BindRepeating(&QuicCryptoClientConfigOwner::OnMemoryPressure,
-                              base::Unretained(this)));
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
+          FROM_HERE, base::MemoryPressureListenerTag::kQuicSessionPool, this);
   config_.set_preferred_groups(
       quic_session_pool_->ssl_config_service_->GetSSLContextConfig()
           .GetSupportedGroups());
   // TODO(crbug.com/445967223): Also set client key shares. This depends on
   // changes in QUICHE.
+  // TODO(crbug.com/445967223): Also set the SSL compliance policy to prefer
+  // AES-256-GCM iff the SSLContextConfig specifies that. This requires plumbing
+  // in QUICHE.
 }
 QuicSessionPool::QuicCryptoClientConfigOwner::~QuicCryptoClientConfigOwner() {
   DCHECK_EQ(num_refs_, 0);
 }
 
 void QuicSessionPool::QuicCryptoClientConfigOwner::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+    base::MemoryPressureLevel memory_pressure_level) {
   quic::SessionCache* session_cache = config_.session_cache();
   if (!session_cache) {
     return;
@@ -568,13 +570,13 @@ void QuicSessionPool::QuicCryptoClientConfigOwner::OnMemoryPressure(
     now_u64 = static_cast<uint64_t>(now);
   }
   switch (memory_pressure_level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
       session_cache->RemoveExpiredEntries(
           quic::QuicWallTime::FromUNIXSeconds(now_u64));
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       session_cache->Clear();
       break;
   }
@@ -1995,6 +1997,11 @@ QuicSessionPool::CreateSessionHelper(
   ConfigureInitialRttEstimate(
       server_id, key.session_key().network_anonymization_key(), &config);
 
+  if (base::FeatureList::IsEnabled(features::kTryQuicByDefault)) {
+    config.AddConnectionOptionsToSend(
+        quic::ParseQuicTagVector(features::kQuicOptions.Get()));
+  }
+
   auto keep_alive_timeout = ping_timeout_;
   bool enabled_connection_keep_alive = false;
   if (connection_management_config.has_value() &&
@@ -2386,13 +2393,19 @@ QuicSessionPool::CreateCryptoConfigHandle(QuicCryptoClientConfigKey key) {
     return std::make_unique<CryptoClientConfigHandle>(map_iterator);
   }
 
+  std::set<std::string> hostnames_to_allow_unknown_roots =
+      HostsFromSchemeHostPorts(params_.origins_to_force_quic_on);
+  if (params_.force_quic_everywhere) {
+    hostnames_to_allow_unknown_roots.insert("");
+  }
+
   // Otherwise, create a new QuicCryptoClientConfigOwner and add it to
   // |active_crypto_config_map_|.
   std::unique_ptr<QuicCryptoClientConfigOwner> crypto_config_owner =
       std::make_unique<QuicCryptoClientConfigOwner>(
           std::make_unique<ProofVerifierChromium>(
               cert_verifier_, transport_security_state_, sct_auditing_delegate_,
-              HostsFromOrigins(params_.origins_to_force_quic_on),
+              std::move(hostnames_to_allow_unknown_roots),
               key.network_anonymization_key),
           std::make_unique<quic::QuicClientSessionCache>(), this);
 

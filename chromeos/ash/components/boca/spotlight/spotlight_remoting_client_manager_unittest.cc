@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -63,7 +64,7 @@ class MockRemotingClientIOProxy : public RemotingClientIOProxy {
                std::string authorized_helper_email,
                base::OnceClosure crd_session_ended_callback),
               (override));
-  MOCK_METHOD(void, StopCrdClient, (), (override));
+  MOCK_METHOD(void, StopCrdClient, (base::OnceClosure), (override));
 };
 
 class SpotlightRemotingClientManagerImplTest : public testing::Test {
@@ -145,13 +146,13 @@ TEST_F(SpotlightRemotingClientManagerImplTest, StartCrdClientSuccess) {
 }
 
 TEST_F(SpotlightRemotingClientManagerImplTest, StopCrdClient) {
-  base::RunLoop run_loop;
+  base::test::TestFuture<void> stop_future;
   manager_->StartCrdClient(std::string(kValidConnectionCode), base::DoNothing(),
                            base::DoNothing(), base::DoNothing());
   EXPECT_CALL(*remoting_client_io_proxy_, StopCrdClient)
-      .WillOnce([&run_loop]() { run_loop.Quit(); });
-  manager_->StopCrdClient();
-  run_loop.Run();
+      .WillOnce([](base::OnceClosure cb) { std::move(cb).Run(); });
+  manager_->StopCrdClient(stop_future.GetCallback());
+  EXPECT_TRUE(stop_future.Wait());
 }
 
 TEST_F(SpotlightRemotingClientManagerImplTest, GetDeviceRobotEmail) {
@@ -242,6 +243,30 @@ TEST_F(SpotlightRemotingClientManagerImplTest, FrameReceivedTimeout) {
   task_environment_.FastForwardBy(base::Seconds(5));
   stop_run_loop.Run();
   EXPECT_EQ(status_updated_future.Take(), CrdConnectionState::kTimeout);
+}
+
+TEST_F(SpotlightRemotingClientManagerImplTest, CallStopCrdClientOnTimeout) {
+  base::test::TestFuture<void> stop_future;
+  base::test::RepeatingTestFuture<SkBitmap,
+                                  std::unique_ptr<webrtc::DesktopFrame>>
+      frame_received_future;
+  std::optional<CrdConnectionState> updated_state;
+  manager_->StartCrdClient(
+      std::string(kValidConnectionCode), base::DoNothing(),
+      frame_received_future.GetCallback(),
+      base::BindLambdaForTesting(
+          [this, &stop_future, &updated_state](CrdConnectionState state) {
+            manager_->StopCrdClient(stop_future.GetCallback());
+            updated_state = state;
+          }));
+  frame_received_callback_.Run(SkBitmap(), nullptr);
+  EXPECT_TRUE(frame_received_future.Wait());
+  EXPECT_CALL(*remoting_client_io_proxy_, StopCrdClient)
+      .WillOnce([](base::OnceClosure cb) { std::move(cb).Run(); });
+  task_environment_.FastForwardBy(base::Seconds(5));
+  EXPECT_TRUE(stop_future.Wait());
+  ASSERT_TRUE(updated_state.has_value());
+  EXPECT_EQ(updated_state.value(), CrdConnectionState::kTimeout);
 }
 
 TEST_F(SpotlightRemotingClientManagerImplTest,

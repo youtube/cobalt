@@ -22,7 +22,6 @@
 #include "base/unguessable_token.h"
 #include "base/win/scoped_handle.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gl/gl_angle_util_win.h"
 #include "ui/gl/gl_switches.h"
 
@@ -49,7 +48,7 @@ std::unique_ptr<MappableBufferDXGI> MappableBufferDXGI::CreateFromHandle(
 
 base::OnceClosure MappableBufferDXGI::AllocateForTesting(
     const gfx::Size& size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     gfx::GpuMemoryBufferHandle* handle) {
   // This test only works with hardware rendering.
@@ -59,8 +58,8 @@ base::OnceClosure MappableBufferDXGI::AllocateForTesting(
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
       gl::QueryD3D11DeviceObjectFromANGLE();
 
-  DCHECK(format == gfx::BufferFormat::RGBA_8888 ||
-         format == gfx::BufferFormat::RGBX_8888);
+  DCHECK(format == viz::SinglePlaneFormat::kRGBA_8888 ||
+         format == viz::SinglePlaneFormat::kRGBX_8888);
   DCHECK(usage == gfx::BufferUsage::GPU_READ ||
          usage == gfx::BufferUsage::SCANOUT);
 

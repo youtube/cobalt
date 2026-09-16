@@ -13,6 +13,7 @@
 #include "third_party/boringssl/src/include/openssl/digest.h"
 
 namespace crypto::obsolete {
+static constexpr size_t kMd5Size = 16;
 class Md5;
 }
 
@@ -32,8 +33,13 @@ namespace autofill {
 crypto::obsolete::Md5 MakeMd5HasherForPasswordRequirementsSpec();
 }
 
+namespace base {
+std::array<uint8_t, crypto::obsolete::kMd5Size> Md5ForWinInspectionResultsCache(
+    base::span<const uint8_t> payload);
+}
+
 namespace blink {
-uint32_t MD5Hash32ForBackgroundTracingHelper(std::string_view string);
+uint32_t MD5Hash32ForBackgroundTracingHelper(std::string_view str);
 }
 
 namespace bookmarks {
@@ -42,6 +48,10 @@ class BookmarkCodec;
 
 namespace cachetool {
 crypto::obsolete::Md5 MakeMd5HasherForCachetools();
+}
+
+namespace content {
+std::string Md5OfPixelsAsHexForWebTests(base::span<const uint8_t> pixels);
 }
 
 namespace drive {
@@ -72,6 +82,10 @@ namespace remoting {
 std::string GetHostHash();
 }
 
+namespace shell_util {
+std::string Md5AsBase32ForUserSpecificRegistrySuffix(std::string_view str);
+}
+
 namespace trusted_vault {
 std::string MD5StringForTrustedVault(const std::string& local_trusted_value);
 }
@@ -94,7 +108,7 @@ namespace crypto::obsolete {
 // MD5 in new production code.
 class CRYPTO_EXPORT Md5 {
  public:
-  static constexpr size_t kSize = 16;
+  static constexpr size_t kSize = kMd5Size;
 
   Md5(const Md5& other);
   Md5(Md5&& other);
@@ -123,9 +137,13 @@ class CRYPTO_EXPORT Md5 {
   friend Md5 drive::util::MakeMd5HasherForDriveApi();
   friend Md5 extensions::image_writer::MakeMd5HasherForImageWriter();
   friend Md5 cachetool::MakeMd5HasherForCachetools();
+  friend std::string content::Md5OfPixelsAsHexForWebTests(
+      base::span<const uint8_t> pixels);
   friend std::string remoting::GetHostHash();
   friend uint32_t blink::MD5Hash32ForBackgroundTracingHelper(
-      std::string_view string);
+      std::string_view str);
+  friend std::string shell_util::Md5AsBase32ForUserSpecificRegistrySuffix(
+      std::string_view str);
 
   // TODO(b/298652869): get rid of these.
   friend Md5 ash::printing::MakeMd5HasherForPrinterConfigurer();
@@ -139,6 +157,10 @@ class CRYPTO_EXPORT Md5 {
 
   // TODO(https://crbug.com/426243026): get rid of this.
   friend class bookmarks::BookmarkCodec;
+
+  // TODO(https://crbug.com/450285252): get rid of this.
+  friend std::array<uint8_t, Md5::kSize> base::Md5ForWinInspectionResultsCache(
+      base::span<const uint8_t> payload);
 
   // TODO(https://crbug.com/428022614): get rid of this.
   friend Md5 media::test::MakeMd5HasherForVideoFrameValidation();

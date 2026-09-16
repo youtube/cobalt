@@ -79,12 +79,6 @@ NSString* const kGroupCellIdentifier = @"GroupGridCellIdentifier";
 
 CGFloat const kCellMaxHeightForEmptyThumbnailCenteredPortraitLayout = 275;
 
-// Returns the accessibility identifier to set on a GridCell when positioned at
-// the given index.
-NSString* GridCellAccessibilityIdentifier(NSUInteger index) {
-  return [NSString stringWithFormat:@"%@%ld", kGridCellIdentifierPrefix, index];
-}
-
 // Returns the accessibility identifier to set on a GroupGridCell when
 // positioned at the given index.
 NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
@@ -1353,9 +1347,9 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
                                 (GridItemIdentifier*)selectedItemIdentifier
                                           snapshot:(GridSnapshot*)snapshot {
   CHECK(item.type == GridItemType::kTab || item.type == GridItemType::kGroup);
-  // TODO(crbug.com/40069795): There are crash reports that show there could be
-  // cases where the open tabs section is not present in the snapshot. If so,
-  // don't perform the update.
+  // There are crash reports that showed there were cases where the open tabs
+  // section is not present in the snapshot. If so, don't perform the update.
+  // See crbug.com/40069795 for more details.
   NSInteger section =
       [snapshot indexOfSectionIdentifier:kGridOpenTabsSectionIdentifier];
   DUMP_WILL_BE_CHECK(section != NSNotFound)
@@ -1719,7 +1713,7 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
   cell.itemIdentifier = itemIdentifier;
   cell.title = item.title;
   cell.titleHidden = item.hidesTitle;
-  cell.accessibilityIdentifier = GridCellAccessibilityIdentifier(index);
+  [cell setAccessibilityIdentifiersWithIndex:index];
   if (IsTabGridEmptyThumbnailUIEnabled()) {
     cell.layoutType =
         [self layoutTypeForContainerSize:self.collectionView.bounds.size
@@ -1845,8 +1839,6 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
 
 // Animates the empty state into view.
 - (void)animateEmptyStateIn {
-  // TODO(crbug.com/40566436) : Polish the animation, and put constants where
-  // they belong.
   [self.emptyStateAnimator stopAnimation:YES];
   self.emptyStateAnimator = [[UIViewPropertyAnimator alloc]
       initWithDuration:1.0 - self.emptyStateView.alpha
@@ -1860,8 +1852,6 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
 
 // Removes the empty state out of view, with animation if `animated` is YES.
 - (void)removeEmptyStateAnimated:(BOOL)animated {
-  // TODO(crbug.com/40566436) : Polish the animation, and put constants where
-  // they belong.
   [self.emptyStateAnimator stopAnimation:YES];
   auto removeEmptyState = ^{
     self.emptyStateView.alpha = 0.0;
@@ -1889,7 +1879,8 @@ NSString* GroupGridCellAccessibilityIdentifier(NSUInteger index) {
       continue;
     }
     NSUInteger itemIndex = base::checked_cast<NSUInteger>(indexPath.item);
-    cell.accessibilityIdentifier = GridCellAccessibilityIdentifier(itemIndex);
+    GridCell* gridCell = base::apple::ObjCCast<GridCell>(cell);
+    [gridCell setAccessibilityIdentifiersWithIndex:itemIndex];
   }
 }
 

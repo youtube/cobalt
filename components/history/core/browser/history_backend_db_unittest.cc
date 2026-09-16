@@ -153,19 +153,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadsState) {
   // Then close the db so that we can re-open it directly.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 23);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    {
-      // The version should have been updated.
-      int cur_version = HistoryDatabase::GetCurrentVersion();
-      ASSERT_LT(22, cur_version);
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement statement(db.GetUniqueStatement(
           "SELECT id, state, opened "
@@ -234,19 +229,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadsReasonPathsAndDangerType) {
   // and danger columns.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 24);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    {
-      // The version should have been updated.
-      int cur_version = HistoryDatabase::GetCurrentVersion();
-      ASSERT_LT(23, cur_version);
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       base::Time nowish(base::Time::FromTimeT(now.ToTimeT()));
 
@@ -325,19 +315,14 @@ TEST_F(HistoryBackendDBTest, MigrateReferrer) {
   // 26, creating the referrer column.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 26);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(26, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT referrer from downloads"));
@@ -387,19 +372,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadedByExtension) {
   // 27, creating the by_ext_id and by_ext_name columns.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 27);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(27, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT by_ext_id, by_ext_name from downloads"));
@@ -452,19 +432,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadValidators) {
   // current version, creating the etag and last_modified columns.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 28);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(28, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT etag, last_modified from downloads"));
@@ -520,19 +495,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadMimeType) {
   // current version, creating the mime_type abd original_mime_type columns.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 29);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(29, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT mime_type, original_mime_type from downloads"));
@@ -608,19 +578,13 @@ TEST_F(HistoryBackendDBTest, MigrateHashHttpMethodAndGenerateGuids) {
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 30);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(30, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement("SELECT guid, id from downloads"));
       std::unordered_set<std::string> guids;
@@ -669,19 +633,14 @@ TEST_F(HistoryBackendDBTest, MigrateTabUrls) {
   // current version, creating the tab_url and tab_referrer_url columns.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 31);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(31, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT tab_url, tab_referrer_url from downloads"));
@@ -724,19 +683,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadSiteInstanceUrl) {
   // current version, creating the site_url column.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 32);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(31, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement("SELECT site_url from downloads"));
       EXPECT_TRUE(s.Step());
@@ -772,19 +726,14 @@ TEST_F(HistoryBackendDBTest, MigrateEmbedderDownloadData) {
   // current version, creating the embedder_download_data column.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 52);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(51, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       sql::Statement s(db.GetUniqueStatement(
           "SELECT guid, embedder_download_data from downloads"));
@@ -808,19 +757,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadsSlicesTable) {
   // current version, creating the downloads_slices table.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 33);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(32, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       // The downloads_slices table should be ready for use.
       sql::Statement s1(db.GetUniqueStatement(
@@ -847,19 +791,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadsLastAccessTimeAndTransient) {
   // current version.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 36);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(35, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       // The downloads table should have last_access_time and transient
       // initialized to zero.
@@ -1507,6 +1446,9 @@ TEST_F(HistoryBackendDBTest, MigratePresentations) {
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 25);
+
   std::vector<std::unique_ptr<PageUsageData>> results =
       db_->QuerySegmentUsage(/*max_result_count=*/10, base::NullCallback());
   ASSERT_EQ(1u, results.size());
@@ -1554,7 +1496,7 @@ TEST_F(HistoryBackendDBTest, CheckLastCompatibleVersion) {
 }
 
 // Tests that visit segment names are recomputed and segments merged when
-// migrating to version 37.
+// migrating to version 38.
 TEST_F(HistoryBackendDBTest, MigrateVisitSegmentNames) {
   ASSERT_NO_FATAL_FAILURE(CreateDBVersion(32));
 
@@ -1655,6 +1597,9 @@ TEST_F(HistoryBackendDBTest, MigrateVisitSegmentNames) {
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 38);
+
   std::vector<std::unique_ptr<PageUsageData>> results = db_->QuerySegmentUsage(
       /*max_result_count=*/10, base::NullCallback());
   ASSERT_EQ(1u, results.size());
@@ -1675,19 +1620,13 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadSliceFinished) {
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 39);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(38, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       // The downloads_slices table should have the finished column.
       sql::Statement s1(
@@ -1761,6 +1700,9 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsWithoutIncrementedOmniboxTypedScore) {
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 40);
+
   VisitRow visit_row1;
   db_->GetRowForVisit(visit_id1, &visit_row1);
   EXPECT_FALSE(visit_row1.incremented_omnibox_typed_score);
@@ -1811,6 +1753,9 @@ TEST_F(HistoryBackendDBTest,
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
 
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 40);
+
   // Field should be false since the migration won't update it from the default
   // due to the invalid state of the row.
   VisitRow visit_row;
@@ -1860,7 +1805,7 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsWithoutPubliclyRoutableColumn) {
   DeleteBackend();
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 44);
+  ASSERT_GE(GetDatabaseVersion(), 43);
 
   {
     sql::Database db(sql::test::kTestTag);
@@ -1970,7 +1915,7 @@ TEST_F(HistoryBackendDBTest, MigrateFlocAllowedToAnnotationsTable) {
   DeleteBackend();
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 44);
+  ASSERT_GE(GetDatabaseVersion(), 44);
 
   {
     sql::Database db(sql::test::kTestTag);
@@ -2056,7 +2001,7 @@ TEST_F(HistoryBackendDBTest, MigrateReplaceClusterVisitsTable) {
   DeleteBackend();
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 45);
+  ASSERT_GE(GetDatabaseVersion(), 45);
 
   {
     sql::Database db(sql::test::kTestTag);
@@ -2108,7 +2053,7 @@ TEST_F(HistoryBackendDBTest, MigrateKeywordSearchTerms) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 42);
+  ASSERT_GE(GetDatabaseVersion(), 42);
 
   history::KeywordSearchTermRow keyword_search_term_row;
   ASSERT_TRUE(db_->GetKeywordSearchTermRow(url_id, &keyword_search_term_row));
@@ -2149,7 +2094,7 @@ TEST_F(HistoryBackendDBTest, MigrateContentAnnotationsWithoutEntitiesColumn) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 47);
+  ASSERT_GE(GetDatabaseVersion(), 47);
 
   // After the migration, the entities should be empty.
   {
@@ -2195,7 +2140,7 @@ TEST_F(HistoryBackendDBTest,
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 48);
+  ASSERT_GE(GetDatabaseVersion(), 48);
 
   // After the migration, the related searches should be empty.
   {
@@ -2232,7 +2177,7 @@ TEST_F(HistoryBackendDBTest,
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 49);
+  ASSERT_GE(GetDatabaseVersion(), 49);
 
   // After the migration, the opener visit should be 0.
   {
@@ -2272,7 +2217,7 @@ TEST_F(HistoryBackendDBTest,
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 51);
+  ASSERT_GE(GetDatabaseVersion(), 51);
 
   // After the migration, the total foreground duration should have a default of
   // -1.
@@ -2318,7 +2263,7 @@ TEST_F(HistoryBackendDBTest,
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 53);
+  ASSERT_GE(GetDatabaseVersion(), 53);
 
   // After the migration, the search metadata should be empty.
   {
@@ -2365,7 +2310,7 @@ TEST_F(HistoryBackendDBTest, MigrateContentAnnotationsAddPageMetadataColumns) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 54);
+  ASSERT_GE(GetDatabaseVersion(), 54);
 
   // After the migration, the page metadata should be empty.
   {
@@ -2400,6 +2345,9 @@ TEST_F(HistoryBackendDBTest,
 
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 55);
 
   // After the migration, the originator columns should return default values.
   {
@@ -2440,6 +2388,9 @@ TEST_F(HistoryBackendDBTest,
 
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 56);
 
   // The previously-added visit should still exist, with the new columns being
   // empty (equal to 0).
@@ -2498,7 +2449,7 @@ TEST_F(HistoryBackendDBTest, MigrateClustersAddColumns) {
   DeleteBackend();
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 57);
+  ASSERT_GE(GetDatabaseVersion(), 57);
 
   {
     sql::Database db(sql::test::kTestTag);
@@ -2554,7 +2505,7 @@ TEST_F(HistoryBackendDBTest, MigrateAnnotationsAddColumnsForSync) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 58);
+  ASSERT_GE(GetDatabaseVersion(), 58);
 
   DeleteBackend();
 
@@ -2592,7 +2543,7 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsAddIsKnownToSyncColumn) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 59);
+  ASSERT_GE(GetDatabaseVersion(), 59);
 
   DeleteBackend();
 
@@ -2636,7 +2587,7 @@ TEST_F(HistoryBackendDBTest, MigrateClustersAddTriggerabilityCalculatedColumn) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 60);
+  ASSERT_GE(GetDatabaseVersion(), 60);
 
   // Open the db manually again and make sure the new columns exist.
   {
@@ -2679,6 +2630,9 @@ TEST_F(HistoryBackendDBTest,
 
   // Re-open the db, triggering migration.
   ASSERT_TRUE(CreateBackendAndDatabase());
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 61);
 
   // After the migration, the originator columns should return default values.
   {
@@ -2728,7 +2682,7 @@ TEST_F(HistoryBackendDBTest, MigrateContentAnnotationsAddHasUrlKeyedImage) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 62);
+  ASSERT_GE(GetDatabaseVersion(), 62);
 
   // After the migration, has_url_keyed_image should be false.
   {
@@ -2780,7 +2734,7 @@ TEST_F(HistoryBackendDBTest,
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 63);
+  ASSERT_GE(GetDatabaseVersion(), 63);
 
   VisitRow visit_row;
   db_->GetRowForVisit(visit_id, &visit_row);
@@ -2834,19 +2788,14 @@ TEST_F(HistoryBackendDBTest, MigrateDownloadByWebApp) {
   // current version.
   ASSERT_TRUE(CreateBackendAndDatabase());
   DeleteBackend();
+
+  // The version should have been updated.
+  ASSERT_GE(GetDatabaseVersion(), 64);
+
   {
     // Re-open the db for manual manipulation.
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(history_dir_.Append(kHistoryFilename)));
-    // The version should have been updated.
-    int cur_version = HistoryDatabase::GetCurrentVersion();
-    ASSERT_LE(64, cur_version);
-    {
-      sql::Statement s(db.GetUniqueStatement(
-          "SELECT value FROM meta WHERE key = 'version'"));
-      EXPECT_TRUE(s.Step());
-      EXPECT_EQ(cur_version, s.ColumnInt(0));
-    }
     {
       // The downloads table should have the by_ext_id column unmodified,
       // and should have the new by_web_app_id column initialized to empty
@@ -2903,7 +2852,7 @@ TEST_F(HistoryBackendDBTest, MigrateClustersAndVisitsAddInteractionState) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 65);
+  ASSERT_GE(GetDatabaseVersion(), 65);
 
   ClusterVisit visit_received = db_->GetClusterVisit(kTestVisitId);
   EXPECT_EQ(visit.score, visit_received.score);
@@ -2958,7 +2907,7 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsAddExternalReferrerUrlColumn) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 66);
+  ASSERT_GE(GetDatabaseVersion(), 66);
 
   VisitRow visit_row;
   db_->GetRowForVisit(visit_id, &visit_row);
@@ -3010,7 +2959,7 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsAddVisitedLinkIdColumn) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 67);
+  ASSERT_GE(GetDatabaseVersion(), 67);
 
   VisitRow visit_row;
   db_->GetRowForVisit(visit_id, &visit_row);
@@ -3042,7 +2991,7 @@ TEST_F(HistoryBackendDBTest, MigrateRemoveTypedUrlMetadataTable) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 68);
+  ASSERT_GE(GetDatabaseVersion(), 68);
 
   DeleteBackend();
 
@@ -3089,7 +3038,7 @@ TEST_F(HistoryBackendDBTest, MigrateVisitsAddAppId) {
   ASSERT_TRUE(CreateBackendAndDatabase());
 
   // The version should have been updated.
-  ASSERT_GE(HistoryDatabase::GetCurrentVersion(), 70);
+  ASSERT_GE(GetDatabaseVersion(), 70);
 
   VisitRow visit_row;
   db_->GetRowForVisit(visit_id, &visit_row);

@@ -347,6 +347,28 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
 #endif
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, 1);
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, -1);
+}
+
 void Int32Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -949,6 +971,18 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
   // The hole value is a signalling NaN, so just silence it to get the float64
   // value.
+  __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 

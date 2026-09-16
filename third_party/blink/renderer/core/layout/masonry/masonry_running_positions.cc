@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/layout/masonry/masonry_running_positions.h"
 
+#include "third_party/blink/renderer/core/layout/grid/layout_grid.h"
 #include "third_party/blink/renderer/core/style/grid_area.h"
 
 namespace blink {
@@ -61,7 +62,6 @@ void MasonryRunningPositions::UpdateRunningPositionsForSpan(
 
   for (auto track_idx = span.StartLine(); track_idx < end_line; ++track_idx) {
     const LayoutUnit current_running_position = running_positions_[track_idx];
-    DCHECK_GE(new_running_position, current_running_position);
     // If the current running position is less than the new running position, it
     // means that a opening will be formed after placement. We should only ever
     // be accounting for track openings in the case of dense packing.
@@ -72,6 +72,9 @@ void MasonryRunningPositions::UpdateRunningPositionsForSpan(
       track_collection_openings_[track_idx].emplace_back(TrackOpening{
           current_running_position, *max_running_position_for_span});
     }
+    // TODO(celestepan): Consider setting the running position of the track to
+    // be the maximum between the current and the new, depending on how
+    // https://github.com/w3c/csswg-drafts/issues/12918 resolves.
     running_positions_[track_idx] = new_running_position;
   }
 }
@@ -99,7 +102,7 @@ LayoutUnit MasonryRunningPositions::CalculateUsedTrackSize(
   return used_track_size;
 }
 
-bool MasonryRunningPositions::AccumulateTrackOpeningsToAccomodateItem(
+bool MasonryRunningPositions::AccumulateTrackOpeningsToAccommodateItem(
     LayoutUnit item_stacking_axis_contribution,
     LayoutUnit previous_track_opening_start_position,
     LayoutUnit previous_track_opening_end_position,
@@ -115,8 +118,8 @@ bool MasonryRunningPositions::AccumulateTrackOpeningsToAccomodateItem(
     // Calculate the overlap between the previous track's eligible opening and
     // the current opening. We need to ensure that the item we are placing into
     // the track opening does not layout on top of already laid out items, which
-    // means that we have to always choose the greatest start position and the
-    // smallest end position.
+    // means that we have to always choose the lowest start position and the
+    // highest end position.
     const LayoutUnit overlap_start_position =
         std::max(previous_track_opening_start_position,
                  current_track_opening.start_position);
@@ -132,15 +135,23 @@ bool MasonryRunningPositions::AccumulateTrackOpeningsToAccomodateItem(
       // Otherwise, check to see if the next n-1 tracks have openings that can
       // align to accomodate the current item. If they do, we can return.
       if (num_tracks_remaining == 0 ||
-          AccumulateTrackOpeningsToAccomodateItem(
+          AccumulateTrackOpeningsToAccommodateItem(
               item_stacking_axis_contribution,
               /*previous_track_opening_start_position=*/
               overlap_start_position,
               /*previous_track_opening_end_position=*/overlap_end_position,
               num_tracks_remaining - 1, track_to_check_for_openings + 1,
               eligible_track_opening_result)) {
+        // The first time we encounter this conditional should be when
+        // `num_tracks_remaining` is 0, which is when we're at the end of the
+        // path of adjacent track openings. At that point,
+        // `overlap_start_position` will hold the lowest start position amongst
+        // the path of eligible tracks.
+        if (!eligible_track_opening_result.IsValid()) {
+          DCHECK_EQ(num_tracks_remaining, 0u);
+          eligible_track_opening_result.start_position = overlap_start_position;
+        }
         eligible_track_opening_result.track_opening_indices.emplace_back(i);
-        eligible_track_opening_result.start_position = overlap_start_position;
         break;
       }
     }
@@ -157,32 +168,29 @@ MasonryRunningPositions::GetEligibleTrackOpeningAndUpdateMasonryItemSpan(
   DCHECK(is_dense_packing_);
 
   const auto grid_axis_direction = track_collection.Direction();
-  const wtf_size_t span_size =
-      masonry_item.resolved_position.Span(grid_axis_direction).SpanSize();
-  const LayoutUnit used_track_size = CalculateUsedTrackSize(
-      masonry_item.resolved_position.Span(grid_axis_direction));
+  const GridSpan& initial_span =
+      masonry_item.resolved_position.Span(grid_axis_direction);
+  const wtf_size_t span_size = initial_span.SpanSize();
+  const LayoutUnit used_track_size = CalculateUsedTrackSize(initial_span);
 
   EligibleTrackOpeningPath highest_eligible_track_opening_result;
 
-  // TODO(celestepan): If the item has a specified track, only check the
-  // openings within that track.
-  //
-  // Find the highest eligible opening iterating from the auto-placement cursor
-  // to the end of the tracks, then looping around from the first track to the
-  // auto-placement cursor. This gives priority to openings right after the
-  // auto-placement cursor.
-  GridSpan item_span = GridSpan::TranslatedDefiniteGridSpan(
-      auto_placement_cursor_, auto_placement_cursor_ + span_size);
+  // Find the highest eligible opening iterating from the start of the tracks if
+  // the item is auto-placed, otherwise from the author-specified track.
+  GridSpan item_span = masonry_item.is_auto_placed
+                           ? GridSpan::TranslatedDefiniteGridSpan(0, span_size)
+                           : initial_span;
 
-  // `max_iterations` is the maximum number of iterations we should need to
-  // perform to check all possible track spans of size `span_size`.
-  wtf_size_t iterations = 0;
-  wtf_size_t max_iterations = running_positions_.size() - span_size + 1;
-  do {
-    ++iterations;
-    if (item_span.EndLine() > running_positions_.size()) {
-      item_span = GridSpan::TranslatedDefiniteGridSpan(0, span_size);
+  while (item_span.EndLine() <= running_positions_.size()) {
+    // If the item we are attempting to place has a user-specified
+    // position that doesn't match the current span, there is no reason to
+    // continue iterating through the rest of the spans.
+    if (!masonry_item.is_auto_placed && item_span != initial_span) {
+      break;
     }
+
+    // If the used track size of the item doesn't match the total track size of
+    // the span, move on to the next span.
     if (CalculateUsedTrackSize(item_span) != used_track_size) {
       ++item_span;
       continue;
@@ -202,7 +210,7 @@ MasonryRunningPositions::GetEligibleTrackOpeningAndUpdateMasonryItemSpan(
     }
 
     EligibleTrackOpeningPath eligible_track_opening_result;
-    AccumulateTrackOpeningsToAccomodateItem(
+    AccumulateTrackOpeningsToAccommodateItem(
         item_stacking_axis_contribution,
         /*previous_track_opening_start_position=*/LayoutUnit(),
         /*previous_track_opening_end_position=*/LayoutUnit::Max(),
@@ -226,13 +234,13 @@ MasonryRunningPositions::GetEligibleTrackOpeningAndUpdateMasonryItemSpan(
     }
 
     ++item_span;
-  } while (iterations <= max_iterations);
+  }
 
   // TODO(celestepan): Determine if we need a faster data structure for
   // erasing items.
   //
   // The indices of the track openings are stored in reverse order due to the
-  // recursive nature of `AccumulateTrackOpeningsToAccomodateItem`, so we need
+  // recursive nature of `AccumulateTrackOpeningsToAccommodateItem`, so we need
   // to iterate through the tracks in reverse order.
   if (highest_eligible_track_opening_result.IsValid()) {
     wtf_size_t current_track_index =
@@ -285,23 +293,26 @@ MasonryRunningPositions::GetEligibleTrackOpeningAndUpdateMasonryItemSpan(
   return highest_eligible_track_opening_result.start_position;
 }
 
-// TODO(celestepan): Add method GridLayoutTrackCollection to query for
-// individual track sizes and call that here instead; that should allow us to
-// avoid the creation of a temporary `GridItemData`, as this is not good
-// performance-wise.
 void MasonryRunningPositions::CalculateAndCacheTrackSizes(
     const GridLayoutTrackCollection& track_collection) {
-  track_collection_openings_.resize(track_collection.EndLineOfImplicitGrid());
-  auto* item = MakeGarbageCollected<GridItemData>();
-  LayoutUnit start_offset;
-  GridSpan span = GridSpan::TranslatedDefiniteGridSpan(0, 1);
+  Vector<LayoutUnit> line_positions =
+      LayoutGrid::ComputeExpandedPositions(track_collection);
+  track_collection_sizes_.resize(track_collection.EndLineOfImplicitGrid());
+  // The number of lines should be one more than the number of tracks.
+  CHECK_EQ(line_positions.size(), track_collection_sizes_.size() + 1);
 
-  for (; span.StartLine() < running_positions_.size(); ++span) {
-    item->resolved_position.SetSpan(span, track_collection.Direction());
-    item->ComputeSetIndices(track_collection);
-    track_collection_sizes_.emplace_back(
-        item->CalculateAvailableSize(track_collection, &start_offset));
-    item->ResetPlacementIndices();
+  const auto track_collection_size = track_collection_sizes_.size();
+  const auto track_collection_gutter_size = track_collection.GutterSize();
+
+  // `line_positions` contains the offset of each line; the space between the
+  // adjacent lines is equivalent to the size of the tracks.
+  for (wtf_size_t i = 0; i < track_collection_size; ++i) {
+    LayoutUnit track_size = line_positions[i + 1] - line_positions[i];
+    // There is no gutter after the last track.
+    if (i < track_collection_size - 1) {
+      track_size -= track_collection_gutter_size;
+    }
+    track_collection_sizes_[i] = track_size;
   }
 }
 

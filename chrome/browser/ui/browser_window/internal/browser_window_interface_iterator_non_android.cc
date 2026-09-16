@@ -16,6 +16,9 @@ std::vector<BrowserWindowInterface*> GetAllBrowserWindowInterfaces() {
   return results;
 }
 
+// TODO(crbug.com/431671320): This is implemented in terms of BrowserList to
+// ensure it stays in sync with other BrowserList APIs during migration. It
+// can be implemented directly once clients are migrated off of BrowserList.
 void ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
     base::FunctionRef<bool(BrowserWindowInterface*)> on_browser) {
   // Make a copy of the BrowserList to simplify the case where we need to
@@ -27,12 +30,23 @@ void ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
           BrowserList::GetInstance()->end_browsers_ordered_by_activation()),
       kEnumerateNewBrowser);
   while (!browser_list_copy.empty()) {
-    if (!on_browser(browser_list_copy.Next())) {
+    Browser* browser = browser_list_copy.Next();
+
+    // Skip browsers that are already scheduled for deletion to prevent
+    // dangling pointer issues during browser destruction.
+    if (browser->is_delete_scheduled()) {
+      continue;  // Skip this browser and continue with the next one
+    }
+
+    if (!on_browser(browser)) {
       break;
     }
   }
 }
 
+// TODO(crbug.com/431671320): This is implemented in terms of BrowserList to
+// ensure it stays in sync with other BrowserList APIs during migration. It
+// can be implemented directly once clients are migrated off of BrowserList.
 void ForEachCurrentAndNewBrowserWindowInterfaceOrderedByActivation(
     base::FunctionRef<bool(BrowserWindowInterface*)> on_browser) {
   // Make a copy of the BrowserList to simplify the case where we need to
@@ -44,15 +58,26 @@ void ForEachCurrentAndNewBrowserWindowInterfaceOrderedByActivation(
           BrowserList::GetInstance()->end_browsers_ordered_by_activation()),
       kEnumerateNewBrowser);
   while (!browser_list_copy.empty()) {
-    if (!on_browser(browser_list_copy.Next())) {
+    Browser* browser = browser_list_copy.Next();
+
+    // Skip browsers that are already scheduled for deletion to prevent
+    // dangling pointer issues during browser destruction.
+    if (browser->is_delete_scheduled()) {
+      continue;  // Skip this browser and continue with the next one
+    }
+
+    if (!on_browser(browser)) {
       break;
     }
   }
 }
 
 BrowserWindowInterface* GetLastActiveBrowserWindowInterfaceWithAnyProfile() {
-  // TODO(crbug.com/431671448): This is implemented in terms of BrowserList to
-  // ensure it stays in sync with other BrowserList APIs during migration. It
-  // can be implemented directly once clients are migrated off of BrowserList.
-  return BrowserList::GetInstance()->GetLastActive();
+  BrowserWindowInterface* last_active = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        last_active = browser;
+        return false;  // stop iterating
+      });
+  return last_active;
 }

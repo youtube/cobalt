@@ -1610,14 +1610,16 @@ TEST_F(IntegrationTest, UpdateApps) {
   base::Version v1("1");
   ScopedServer test_server(test_commands_);
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
-      &test_server, kAppId, "", UpdateService::Priority::kBackground,
+      &test_server, kAppId, "", UpdateService::Priority::kForeground,
       base::Version("0.1"), v1));
+  ASSERT_NO_FATAL_FAILURE(ExpectNoUpdateSequence(&test_server, kUpdaterAppId));
   ASSERT_NO_FATAL_FAILURE(RunUpdateApps(0));
 
   base::Version v2("2");
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
-      &test_server, kAppId, "", UpdateService::Priority::kBackground, v1, v2,
+      &test_server, kAppId, "", UpdateService::Priority::kForeground, v1, v2,
       false, true));
+  ASSERT_NO_FATAL_FAILURE(ExpectNoUpdateSequence(&test_server, kUpdaterAppId));
   ASSERT_NO_FATAL_FAILURE(RunUpdateApps(0));
 
   ASSERT_TRUE(WaitForUpdaterExit());
@@ -1766,7 +1768,7 @@ TEST_F(IntegrationTest, UpdateAppSucceedsEvenAfterDeletingInterfaces) {
 }
 
 class IntegrationMetainstallerTest
-    : public ::testing::WithParamInterface<std::tuple<int, std::string>>,
+    : public ::testing::WithParamInterface<std::string>,
       public IntegrationTest {
  protected:
   void SetUp() override {
@@ -1783,36 +1785,30 @@ class IntegrationMetainstallerTest
     IntegrationTest::TearDown();
   }
 
-  int usagestats() const { return std::get<0>(GetParam()); }
-  std::string appname() const { return std::get<1>(GetParam()); }
+  std::string appname() const { return GetParam(); }
 
   std::unique_ptr<ScopedServer> test_server_;
   static constexpr char kAppId[] = "test1";
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    IntegrationMetainstallerTestCases,
-    IntegrationMetainstallerTest,
-    ::testing::Combine(::testing::Values(1, 0),
-                       ::testing::Values("&appname=MetainstallerUI%20Test",
-                                         "")));
+INSTANTIATE_TEST_SUITE_P(IntegrationMetainstallerTestCases,
+                         IntegrationMetainstallerTest,
+                         ::testing::Values("&appname=MetainstallerUI%20Test",
+                                           ""));
 
 TEST_P(IntegrationMetainstallerTest, UIAndPings) {
-  if (usagestats()) {
-    ASSERT_NO_FATAL_FAILURE(ExpectPingRequest(
-        test_server_.get(), kUpdaterAppId,
-        {
-            .event_type = update_client::protocol_request::kEventInstall,
-            .result = 0,
-            .error_code = 73118,  // ExitCode::INVALID_OPTION
-            .extra_code1 = 0,
-        }));
-  }
+  ASSERT_NO_FATAL_FAILURE(ExpectPingRequest(
+      test_server_.get(), kUpdaterAppId,
+      {
+          .event_type = update_client::protocol_request::kEventInstall,
+          .result = 0,
+          .error_code = 73118,  // ExitCode::INVALID_OPTION
+          .extra_code1 = 0,
+      }));
   ASSERT_NO_FATAL_FAILURE(InstallUpdaterAndApp(
       kAppId, /*is_silent_install=*/appname().empty(),
       /*tag=*/
-      base::StrCat({"appguid=", kAppId, appname(),
-                    "&usagestats=", base::NumberToString(usagestats())}),
+      base::StrCat({"appguid=", kAppId, appname(), "&usagestats=0"}),
       /*child_window_text_to_find=*/appname().empty() ? "" : "INVALID_OPTION",
       /*always_launch_cmd=*/false,
       /*verify_app_logo_loaded=*/false, /*expect_success=*/false,
@@ -1850,6 +1846,14 @@ INSTANTIATE_TEST_SUITE_P(IntegrationMetainstallerLangTestCases,
                          ::testing::Values("en", "de", "ar", "hi"));
 
 TEST_P(IntegrationMetainstallerLangTest, Test) {
+  ASSERT_NO_FATAL_FAILURE(ExpectPingRequest(
+      test_server_.get(), kUpdaterAppId,
+      {
+          .event_type = update_client::protocol_request::kEventInstall,
+          .result = 0,
+          .error_code = 73118,  // ExitCode::INVALID_OPTION
+          .extra_code1 = 0,
+      }));
   ASSERT_NO_FATAL_FAILURE(InstallUpdaterAndApp(
       kAppId, /*is_silent_install=*/false,
       /*tag=*/

@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -29,12 +30,11 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
-#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_default_proof_providers.h"
@@ -119,9 +119,9 @@ class MoqtIngestionHandler {
 
   // TODO(martinduke): Handle when |publish_namespace| is false
   // (PUBLISH_NAMESPACE_DONE).
-  std::optional<MoqtPublishNamespaceErrorReason> OnPublishNamespaceReceived(
-      TrackNamespace track_namespace,
-      std::optional<VersionSpecificParameters> /*parameters*/) {
+  void OnPublishNamespaceReceived(TrackNamespace track_namespace,
+                                  std::optional<VersionSpecificParameters>,
+                                  MoqtResponseCallback callback) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
             FLAGS_allow_invalid_track_namespaces)) {
@@ -129,9 +129,10 @@ class MoqtIngestionHandler {
           << "Rejected remote publish_namespace as it contained "
              "disallowed characters; namespace: "
           << track_namespace;
-      return MoqtPublishNamespaceErrorReason{
+      std::move(callback)(MoqtPublishNamespaceErrorReason{
           RequestErrorCode::kInternalError,
-          "Track namespace contains disallowed characters"};
+          "Track namespace contains disallowed characters"});
+      return;
     }
 
     std::string directory_name = absl::StrCat(
@@ -142,16 +143,18 @@ class MoqtIngestionHandler {
         track_namespace, NamespaceHandler(directory_path));
     if (!added) {
       // Received before; should be handled by already existing subscriptions.
-      return std::nullopt;
+      std::move(callback)(std::nullopt);
+      return;
     }
 
     if (absl::Status status = MakeDirectory(directory_path); !status.ok()) {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      return MoqtPublishNamespaceErrorReason{
-          RequestErrorCode::kInternalError,
-          "Failed to create output directory"};
+      std::move(callback)(
+          MoqtPublishNamespaceErrorReason{RequestErrorCode::kInternalError,
+                                          "Failed to create output directory"});
+      return;
     }
 
     std::string track_list = quiche::GetQuicheCommandLineFlag(FLAGS_tracks);
@@ -162,8 +165,7 @@ class MoqtIngestionHandler {
       session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
                                      VersionSpecificParameters());
     }
-
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
   }
 
  private:
@@ -174,11 +176,11 @@ class MoqtIngestionHandler {
 
     void OnReply(
         const FullTrackName& full_track_name,
-        std::optional<Location> /*largest_id*/,
-        std::optional<absl::string_view> error_reason_phrase) override {
-      if (error_reason_phrase.has_value()) {
+        std::variant<SubscribeOkData, MoqtRequestError> response) override {
+      if (std::holds_alternative<MoqtRequestError>(response)) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
-                          << full_track_name << ": " << *error_reason_phrase;
+                          << full_track_name << ": "
+                          << std::get<MoqtRequestError>(response).reason_phrase;
       }
     }
 
@@ -199,6 +201,8 @@ class MoqtIngestionHandler {
 
     void OnPublishDone(FullTrackName /*full_track_name*/) override {}
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
+    void OnStreamFin(const FullTrackName&, DataStreamIndex) override {}
+    void OnStreamReset(const FullTrackName&, DataStreamIndex) override {}
 
    private:
     std::string directory_;

@@ -3,6 +3,7 @@
 <translationbundle lang="ko">
 <translation id="1076643793026027628">Chrome에서 시크릿 모드로 YouTube 시크릿 모드 링크를 자동으로 엽니다</translation>
 <translation id="1086486568852410168">Google 렌즈로 검색</translation>
+<translation id="1088490543924960890">Google 비밀번호 관리자로 패스키를 저장하세요</translation>
 <translation id="1143896152279775643">비밀번호가 <ph name="EMAIL" />의 Google 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="1146503048444965320">Chrome에서 새 탭 열기</translation>
 <translation id="1158134713295836892">Chrome의 Gemini</translation>
@@ -70,7 +71,6 @@
 <translation id="2576431527583832481">한층 개선된 Chrome의 최신 버전이 출시되었습니다.</translation>
 <translation id="257708665678654955">다음에 Chrome에서 이 사이트의 <ph name="LANGUAGE_NAME" /> 페이지를 번역하시겠습니까?</translation>
 <translation id="2668242166988961773">Chrome에서 음성으로 검색합니다.</translation>
-<translation id="2689064829982324496">웹사이트에 로그인되어 있는 Google 계정에서 모두 로그아웃하려면 <ph name="BEGIN_LINK" />Chrome에서 로그아웃<ph name="END_LINK" />하세요.</translation>
 <translation id="2695886661449553974">Chrome에서 업데이트를 확인할 수 없습니다. 나중에 다시 시도해 주세요.</translation>
 <translation id="2703746758996815929">유용한 Chrome 도움말을 확인하려면 iOS 설정에서 알림을 사용 설정하세요</translation>
 <translation id="2728851697704606655">Google 렌즈로 번역</translation>
@@ -86,6 +86,9 @@
 <translation id="2940565985148833945">Chrome 도움말: 렌즈로 검색하세요</translation>
 <translation id="2957447865124070833"><ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />을 선택합니다.</translation>
 <translation id="2986402782150919988">Chrome에 북마크 추가</translation>
+<translation id="3027236223714901838">패스키를 안전하게 보호하려면 먼저 복구 PIN을 만들어야 합니다.
+
+        패스키는 Google 비밀번호 관리자에 저장됩니다. 비밀번호 관리자를 통해 모든 기기의 Chrome에서 패스키를 사용할 수 있습니다</translation>
 <translation id="3030414234702425231"><ph name="SIGNOUT_MANAGED_DOMAIN" />에서 관리하는 계정에서 로그아웃하면 Chrome 데이터가 기기에서 삭제됩니다. Google 계정에 저장된 데이터는 그대로 유지됩니다.</translation>
 <translation id="3042447686908081308">Chrome으로 가져오기</translation>
 <translation id="3051521853355903257">Chrome에서 비밀번호 관리</translation>
@@ -132,7 +135,7 @@
 <translation id="4636900170638246267">이 사이트 및 Chrome에 로그인하세요.</translation>
 <translation id="4647910807533196601">Chrome에서 최신 내 탭을 엽니다.</translation>
 <translation id="4693084815234024320">Chrome 시크릿 모드 사용 중</translation>
-<translation id="4713740144985377441">파일을 업로드하려면 Chrome으로 돌아가세요.</translation>
+<translation id="4713740144985377441">Chrome으로 돌아가 파일을 업로드합니다.</translation>
 <translation id="4713907610796204963">시작하는 데 도움이 되는 Chrome 기본사항 알아보기</translation>
 <translation id="4724297637870447613">어디서나 Chrome 사용</translation>
 <translation id="4738647308035481133">Chrome 페이지</translation>
@@ -256,6 +259,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7371674917547846460">유용한 Chrome 도움말 등을 확인하세요.</translation>
 <translation id="7394108421562933108">Chrome의 지도</translation>
 <translation id="7400722733683201933">Chrome 정보</translation>
+<translation id="7444830584401232881">이 패스키가 <ph name="USER_EMAIL" />의 Google 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="7466693328838535498">검색 위젯 상자에 Chrome을 입력합니다.</translation>
 <translation id="7477056987201678345">Chrome 데이터 삭제 중…</translation>
 <translation id="7492574581995589075">조직에서 Google 계정에 Chrome 데이터를 사용하고 저장하는 기능을 사용 중지했습니다. 새 북마크, 비밀번호 등이 이 기기에만 저장됩니다.</translation>
@@ -307,7 +311,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8413500425974960807">Chrome 도움말: Chrome을 도크로 이동</translation>
 <translation id="8413795581997394485">위험하다고 알려진 사이트, 다운로드 항목, 확장 프로그램으로부터 사용자를 보호합니다. 사이트를 방문하면 Chrome에서 사용자의 IP 주소를 숨기는 개인 정보 보호 서버를 통해 URL의 난독화된 부분을 Google로 전송합니다. 사이트에서 의심스러운 작업이 수행되면 전체 URL과 일부 페이지 콘텐츠도 전송됩니다.</translation>
 <translation id="84594714173170813">Google 계정의 Chrome 데이터를 계속 사용하세요.</translation>
-<translation id="8459495907675268833">선택한 데이터가 Chrome 및 동기화된 기기에서 삭제되었습니다. history.google.com에서 검색이나 기타 Google 서비스에서의 활동 등 내 Google 계정에 있는 다른 형식의 탐색 기록을 확인할 수 있습니다.</translation>
 <translation id="8491300088149538575"><ph name="EMAIL" /> 계정으로 로그인되었습니다.
 
 <ph name="TIME" />에 데이터가 암호로 암호화되었습니다. Google 계정에서 Chrome 데이터를 사용하고 저장하려면 암호를 입력하세요.</translation>

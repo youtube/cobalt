@@ -12,6 +12,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_number_conversions.h"
 #include "cc/base/switches.h"
 #endif
@@ -30,12 +31,12 @@ namespace cc {
 
 // static
 bool ImageDecodeCacheUtils::ShouldEvictCaches(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+    base::MemoryPressureLevel memory_pressure_level) {
   switch (memory_pressure_level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
       return false;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       return true;
   }
   NOTREACHED();
@@ -82,19 +83,33 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
 #if BUILDFLAG(IS_COBALT)
 // static
 size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
-  static const size_t cobalt_decoded_image_persistent_cache_budget_count = []() {
-    size_t budget = 2000; // kNormalMaxItemsInCacheForGpu default
-    auto* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
-      std::string value = command_line->GetSwitchValueASCII(
-          switches::kCCImageCacheLimitItems);
-      int parsed_value;
-      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
-        budget = static_cast<size_t>(parsed_value);
-      }
-    }
-    return budget;
-  }();
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count =
+      []() {
+        auto* command_line = base::CommandLine::ForCurrentProcess();
+        if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+          std::string value = command_line->GetSwitchValueASCII(
+              switches::kCCImageCacheLimitItems);
+          int parsed_value;
+          if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+            return static_cast<size_t>(parsed_value);
+          }
+        }
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltCCImageCacheLimitItems)) {
+          int items = base::features::kCobaltCCImageCacheLimitItemsCount.Get();
+          if (items >= 0) {
+            return static_cast<size_t>(items);
+          }
+        }
+#if BUILDFLAG(IS_STARBOARD)
+        // On Starboard, default to 0 (disable CC image cache items limit,
+        // previously set via cobalt_switch_defaults_starboard).
+        return static_cast<size_t>(0);
+#else
+        return static_cast<size_t>(
+            2000);  // kNormalMaxItemsInCacheForGpu default
+#endif
+      }();
   return cobalt_decoded_image_persistent_cache_budget_count;
 }
 

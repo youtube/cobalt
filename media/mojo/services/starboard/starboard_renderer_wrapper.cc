@@ -667,10 +667,9 @@ void StarboardRendererWrapper::OnSubscribeToVideoGeometryChange(
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
-    bool restart_for_transitions) {
+void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
+  client_extension_remote_->RequestOverlayInfo();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

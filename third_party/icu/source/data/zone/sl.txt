@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sl{
     zoneStrings{
         "Africa:Abidjan"{
@@ -33,14 +33,8 @@ sl{
         "Africa:Mogadishu"{
             ec{"Mogadišu"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "America:Anguilla"{
             ec{"Angvila"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia_Banderas"{
             ec{"Bahia de Banderas"}
@@ -53,9 +47,6 @@ sl{
         }
         "America:Costa_Rica"{
             ec{"Kostarika"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Dominica"{
             ec{"Dominika"}
@@ -92,9 +83,6 @@ sl{
         }
         "America:Puerto_Rico"{
             ec{"Portoriko"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:St_Barthelemy"{
             ec{"Sv. Bartolomej"}
@@ -149,9 +137,6 @@ sl{
         }
         "Asia:Chita"{
             ec{"Čita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Čojbalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -294,9 +279,6 @@ sl{
         "Atlantic:St_Helena"{
             ec{"Sv. Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"univerzalni koordinirani čas"}
         }
@@ -331,7 +313,7 @@ sl{
             ec{"Köbenhavn"}
         }
         "Europe:Dublin"{
-            ld{"irski standardni čas"}
+            ld{"Irski standardni čas"}
         }
         "Europe:Isle_of_Man"{
             ec{"Otok Man"}
@@ -343,7 +325,7 @@ sl{
             ec{"Lizbona"}
         }
         "Europe:London"{
-            ld{"britanski poletni čas"}
+            ld{"Britanski poletni čas"}
         }
         "Europe:Luxembourg"{
             ec{"Luksemburg"}
@@ -375,9 +357,6 @@ sl{
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Užgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -389,9 +368,6 @@ sl{
         }
         "Europe:Warsaw"{
             ec{"Varšava"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporožje"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -574,11 +550,6 @@ sl{
             lg{"Kitajski čas"}
             ls{"Kitajski standardni čas"}
         }
-        "meta:Choibalsan"{
-            ld{"Čojbalsanski poletni čas"}
-            lg{"Čojbalsanski čas"}
-            ls{"Čojbalsanski standardni čas"}
-        }
         "meta:Christmas"{
             ls{"Božičnootoški čas"}
         }
@@ -742,6 +713,9 @@ sl{
             lg{"Petropavlovsk-Kamčatski čas"}
             ls{"Petropavlovsk-Kamčatski standardni čas"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazahstanski čas"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Vzhodni kazahstanski čas"}
         }
@@ -772,9 +746,6 @@ sl{
             lg{"Čas otoka Lord Howe"}
             ls{"Standardni čas otoka Lord Howe"}
         }
-        "meta:Macquarie"{
-            ls{"Macquarieski čas"}
-        }
         "meta:Magadan"{
             ld{"Magadanski poletni čas"}
             lg{"Magadanski čas"}
@@ -799,11 +770,6 @@ sl{
         }
         "meta:Mawson"{
             ls{"Mawsonski čas"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Mehiški severozahodni poletni čas"}
-            lg{"Mehiški severozahodni čas"}
-            ls{"Mehiški severozahodni standardni čas"}
         }
         "meta:Mexico_Pacific"{
             ld{"Mehiški pacifiški poletni čas"}

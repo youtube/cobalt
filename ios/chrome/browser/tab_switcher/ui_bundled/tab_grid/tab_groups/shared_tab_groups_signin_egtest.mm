@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 
 #import "base/feature_list.h"
+#import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/collaboration/public/features.h"
@@ -14,9 +15,9 @@
 #import "components/signin/public/base/signin_pref_names.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/sync/base/command_line_switches.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_matchers.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_matchers.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
@@ -344,9 +345,9 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
   [ChromeEarlGrey loadURL:joinGroupURL waitForCompletion:NO];
 
   // Check that a sign in disabled alert is presented.
-  [[EarlGrey selectElementWithMatcher:grey_text(l10n_util::GetNSString(
-                                          IDS_COLLABORATION_SIGNED_OUT_HEADER))]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
+                      grey_text(l10n_util::GetNSString(
+                          IDS_COLLABORATION_SIGNED_OUT_HEADER))];
   [[EarlGrey selectElementWithMatcher:grey_text(l10n_util::GetNSString(
                                           IDS_COLLABORATION_SIGNED_OUT_BODY))]
       assertWithMatcher:grey_sufficientlyVisible()];

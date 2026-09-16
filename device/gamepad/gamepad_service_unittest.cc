@@ -41,6 +41,7 @@ class MockGamepadConsumer : public GamepadConsumer {
     // Expect no connections or disconnections by default.
     EXPECT_CALL(*this, OnGamepadConnected).Times(0);
     EXPECT_CALL(*this, OnGamepadDisconnected).Times(0);
+    EXPECT_CALL(*this, OnGamepadRawInputChanged).Times(0);
   }
 
   MockGamepadConsumer(MockGamepadConsumer&) = delete;
@@ -49,6 +50,7 @@ class MockGamepadConsumer : public GamepadConsumer {
 
   MOCK_METHOD2(OnGamepadConnected, void(uint32_t, const Gamepad&));
   MOCK_METHOD2(OnGamepadDisconnected, void(uint32_t, const Gamepad&));
+  MOCK_METHOD2(OnGamepadRawInputChanged, void(uint32_t, const Gamepad&));
 };
 
 class GamepadServiceTest : public testing::Test {
@@ -998,7 +1000,8 @@ TEST_F(GamepadServiceSimulationTest, TokenNotFound) {
   service()->SimulateInputFrame(random_token);
 }
 
-TEST_F(GamepadServiceSimulationTest, RemoveGamepadTwice) {
+// TODO(crbug.com/448993918): Re-enable this test
+TEST_F(GamepadServiceSimulationTest, DISABLED_RemoveGamepadTwice) {
   // Mark `consumer` active.
   auto* consumer = CreateConsumer();
   EXPECT_TRUE(service()->ConsumerBecameActive(consumer));

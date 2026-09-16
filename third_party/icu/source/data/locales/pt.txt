@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pt{
     AuxExemplarCharacters{"[ªăåäā æ èĕëē ìĭîïī ñ ºŏöøō œ ùŭûüū ÿ]"}
     Ellipsis{
@@ -1006,6 +1006,9 @@ pt{
                 }
             }
         }
+        minute-narrow{
+            dn{"min"}
+        }
         minute-short{
             dn{"min."}
             relativeTime{
@@ -1177,8 +1180,8 @@ pt{
                     other{"em {0} domingos"}
                 }
                 past{
-                    one{"há {0} domigo"}
-                    other{"há {0} domigos"}
+                    one{"há {0} domingo"}
+                    other{"há {0} domingos"}
                 }
             }
         }
@@ -1415,10 +1418,10 @@ pt{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

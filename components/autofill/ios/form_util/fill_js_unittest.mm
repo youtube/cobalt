@@ -26,12 +26,21 @@
 
 namespace autofill {
 
+// Creates a JavaScriptFeature that injects fill util functions used in tests.
+web::JavaScriptFeature::FeatureScript GetFillTestScript() {
+  return web::JavaScriptFeature::FeatureScript::CreateWithFilename(
+      "fill_util_test",
+      web::JavaScriptFeature::FeatureScript::InjectionTime::kDocumentStart,
+      web::JavaScriptFeature::FeatureScript::TargetFrames::kAllFrames);
+}
+
 // Creates a dummy JavaScriptFeature for the page content world.
 // Used for running test scripts in the page content world.
 web::JavaScriptFeature* GetDummyPageContentWorldFeature() {
   static base::NoDestructor<web::JavaScriptFeature> dummy_feature(
       web::ContentWorld::kPageContentWorld,
-      /*feature_scripts=*/std::vector<web::JavaScriptFeature::FeatureScript>());
+      /*feature_scripts=*/std::vector<web::JavaScriptFeature::FeatureScript>(
+          {GetFillTestScript()}));
   return dummy_feature.get();
 }
 
@@ -40,7 +49,8 @@ web::JavaScriptFeature* GetDummyPageContentWorldFeature() {
 web::JavaScriptFeature* GetDummyIsolatedWorldFeature() {
   static base::NoDestructor<web::JavaScriptFeature> dummy_feature(
       web::ContentWorld::kIsolatedWorld,
-      /*feature_scripts=*/std::vector<web::JavaScriptFeature::FeatureScript>());
+      /*feature_scripts=*/std::vector<web::JavaScriptFeature::FeatureScript>(
+          {GetFillTestScript()}));
   return dummy_feature.get();
 }
 
@@ -88,7 +98,8 @@ class FillJsTest : public web::WebTestWithWebState {
   NSString* GetUniqueID(NSString* element_id, web::ContentWorld content_world) {
     NSString* script = [NSString
         stringWithFormat:
-            @"__gCrWeb.fill.getUniqueID(document.getElementById('%@'))",
+            @"__gCrWeb.getRegisteredApi('fill_test_api')."
+            @"getFunction('getUniqueID')(document.getElementById('%@'))",
             element_id];
 
     id result_id = web::test::ExecuteJavaScriptForFeatureAndReturnResult(
@@ -144,7 +155,7 @@ TEST_F(FillJsTest, GetCanonicalActionForForm) {
 
     LoadHtml(html);
     id result = ExecuteJavaScriptInAutofillContentWorld(
-        @"__gCrWeb.fill.getCanonicalActionForForm(document.body.children[0])");
+        @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('getCanonicalActionForForm')(document.body.children[0])");
     NSString* base_url = base::SysUTF8ToNSString(BaseUrl());
     NSString* expected_action =
         [data.expected_action stringByReplacingOccurrencesOfString:@"baseurl/"
@@ -160,7 +171,8 @@ TEST_F(FillJsTest, GetAriaLabel) {
   LoadHtml(@"<input id='input' type='text' aria-label='the label'/>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"the label";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -171,7 +183,8 @@ TEST_F(FillJsTest, ShouldAutocompleteOneTimeCode) {
   LoadHtml(@"<input id='input' type='text' autocomplete='one-time-code'/>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.shouldAutocomplete(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('shouldAutocomplete')(document.getElementById('input'));");
   EXPECT_NSEQ(result, @NO);
 }
 
@@ -186,7 +199,8 @@ TEST_F(FillJsTest, GetAriaLabelledBySingle) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"Name";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -202,7 +216,8 @@ TEST_F(FillJsTest, GetAriaLabelledByMulti) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"Billing Name";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -219,7 +234,8 @@ TEST_F(FillJsTest, GetAriaLabelledByTakesPrecedence) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"Name";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -236,7 +252,8 @@ TEST_F(FillJsTest, GetAriaLabelledByInvalid) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -253,7 +270,8 @@ TEST_F(FillJsTest, GetAriaLabelledByFallback) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaLabel(document.getElementById('input'));");
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('getAriaLabel')(document.getElementById('input'));");
   NSString* expected_result = @"valid";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -266,7 +284,8 @@ TEST_F(FillJsTest, GetAriaDescriptionSingle) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaDescription(document.getElementById('input'));");
+    @"__gCrWeb.getRegisteredApi('fill_test_api')."
+    @"getFunction('getAriaDescription')(document.getElementById('input'));");
   NSString* expected_result = @"aria description";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -280,7 +299,8 @@ TEST_F(FillJsTest, GetAriaDescriptionMulti) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaDescription(document.getElementById('input'));");
+    @"__gCrWeb.getRegisteredApi('fill_test_api')."
+    @"getFunction('getAriaDescription')(document.getElementById('input'));");
   NSString* expected_result = @"aria description";
   EXPECT_NSEQ(result, expected_result);
 }
@@ -292,7 +312,8 @@ TEST_F(FillJsTest, GetAriaDescriptionInvalid) {
             "</body></html>");
 
   id result = ExecuteJavaScriptInAutofillContentWorld(
-      @"__gCrWeb.fill.getAriaDescription(document.getElementById('input'));");
+    @"__gCrWeb.getRegisteredApi('fill_test_api')."
+    @"getFunction('getAriaDescription')(document.getElementById('input'));");
   NSString* expected_result = @"";
   EXPECT_NSEQ(result, expected_result);
 }

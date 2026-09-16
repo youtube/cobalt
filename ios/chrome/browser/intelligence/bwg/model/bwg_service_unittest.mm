@@ -7,11 +7,15 @@
 #import <memory>
 
 #import "base/test/metrics/histogram_tester.h"
+#import "base/test/scoped_feature_list.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -36,17 +40,24 @@ class BwgServiceTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(
+        OptimizationGuideServiceFactory::GetInstance(),
+        OptimizationGuideServiceFactory::GetDefaultFactory());
     profile_ = std::move(builder).Build();
 
     auth_service_ = AuthenticationServiceFactory::GetForProfile(profile_.get());
+    optimization_guide_service_ =
+        OptimizationGuideServiceFactory::GetForProfile(profile_.get());
 
     pref_service_ = std::make_unique<TestingPrefServiceSimple>();
     pref_service_->registry()->RegisterIntegerPref(
         prefs::kGeminiEnabledByPolicy, 0);
+    pref_service_->registry()->RegisterBooleanPref(
+        prefs::kAIHubEligibilityTriggered, false);
 
     bwg_service_ = std::make_unique<BwgService>(
         profile_.get(), auth_service_, identity_test_env_.identity_manager(),
-        pref_service_.get());
+        pref_service_.get(), optimization_guide_service_);
   }
 
   void TearDown() override {
@@ -81,6 +92,7 @@ class BwgServiceTest : public PlatformTest {
   std::unique_ptr<BwgService> bwg_service_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
   raw_ptr<AuthenticationService> auth_service_;
+  raw_ptr<OptimizationGuideService> optimization_guide_service_;
 
   base::HistogramTester histogram_tester_;
 };

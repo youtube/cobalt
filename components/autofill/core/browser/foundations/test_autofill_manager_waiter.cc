@@ -15,6 +15,24 @@
 
 namespace autofill {
 
+namespace internal {
+
+MaybeScopedRunLoopTimeout::MaybeScopedRunLoopTimeout(
+    const base::Location& timeout_enabled_from_here,
+    std::optional<base::TimeDelta> timeout,
+    base::RepeatingCallback<std::string()> on_timeout_log) {
+  const bool is_mock_time =
+      !base::test::ScopedRunLoopTimeout::ExistsForCurrentThread();
+  if (!is_mock_time) {
+    run_loop_timeout_.emplace(timeout_enabled_from_here, timeout,
+                              std::move(on_timeout_log));
+  }
+}
+
+MaybeScopedRunLoopTimeout::~MaybeScopedRunLoopTimeout() = default;
+
+}  // namespace internal
+
 TestAutofillManagerWaiter::State::State() = default;
 TestAutofillManagerWaiter::State::~State() = default;
 
@@ -232,16 +250,15 @@ void TestAutofillManagerWaiter::OnAfterFocusOnFormField(
   OnAfter(Event::kFocusOnFormField);
 }
 
-void TestAutofillManagerWaiter::OnBeforeDidFillAutofillFormData(
+void TestAutofillManagerWaiter::OnBeforeDidAutofillForm(
     AutofillManager& manager,
     FormGlobalId form) {
-  OnBefore(Event::kDidFillAutofillFormData);
+  OnBefore(Event::kDidAutofillForm);
 }
 
-void TestAutofillManagerWaiter::OnAfterDidFillAutofillFormData(
-    AutofillManager& manager,
-    FormGlobalId form) {
-  OnAfter(Event::kDidFillAutofillFormData);
+void TestAutofillManagerWaiter::OnAfterDidAutofillForm(AutofillManager& manager,
+                                                       FormGlobalId form) {
+  OnAfter(Event::kDidAutofillForm);
 }
 
 void TestAutofillManagerWaiter::OnBeforeJavaScriptChangedAutofilledValue(
@@ -334,7 +351,7 @@ testing::AssertionResult TestAutofillManagerWaiter::Wait(
   while (!state_->timed_out &&
          (num_pending_events() > 0 ||
           num_completed_relevant_events() < num_expected_relevant_events)) {
-    base::test::ScopedRunLoopTimeout run_loop_timeout(
+    internal::MaybeScopedRunLoopTimeout run_loop_timeout(
         location, timeout,
         base::BindRepeating(
             [](TestAutofillManagerWaiter& waiter) {
@@ -374,7 +391,7 @@ const FormStructure* WaitForMatchingForm(
       DCHECK(!matching_form_);
       matching_form_ = FindForm();
       if (!matching_form_) {
-        base::test::ScopedRunLoopTimeout run_loop_timeout(
+        internal::MaybeScopedRunLoopTimeout run_loop_timeout(
             location, timeout,
             base::BindRepeating(
                 [](const Waiter* self) {

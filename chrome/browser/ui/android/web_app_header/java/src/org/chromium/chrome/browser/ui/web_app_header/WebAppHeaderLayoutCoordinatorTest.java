@@ -10,11 +10,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
-
-import static org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderLayoutCoordinator.MIN_HEADER_WIDTH_DP;
 
 import android.app.Activity;
 import android.graphics.Rect;
@@ -38,11 +37,14 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
+import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.blink.mojom.DisplayMode;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.WebappExtras;
 import org.chromium.chrome.browser.browserservices.intents.WebappIcon;
@@ -52,13 +54,16 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.web_app_header.R;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.TokenHolder;
 
+import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -75,6 +80,8 @@ public class WebAppHeaderLayoutCoordinatorTest {
     private static final Rect WINDOW_RECT = new Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     private static final Rect WIDEST_UNOCCLUDED_RECT =
             new Rect(LEFT_INSET, 0, SCREEN_WIDTH - RIGHT_INSET, SYS_APP_HEADER_HEIGHT);
+    private static final int HEADER_CONTROL_BUTTON_DP = 48;
+    private static final int BUTTON_PADDING_DP = 4;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -90,6 +97,10 @@ public class WebAppHeaderLayoutCoordinatorTest {
     @Mock public NavigationPopup.HistoryDelegate mHistoryDelegate;
     @Mock public WebappExtras mWebAppExtras;
     @Mock public Tab mTab;
+    @Mock public Callback<Boolean> mSetHeaderAsOverlayCallback;
+    @Mock public BrowserControlsStateProvider mBrowserControlsStateProvider;
+    @Mock private Runnable mRequestRenderRunnable;
+    @Mock private WindowAndroid mWindowAndroid;
 
     private WebAppHeaderLayoutCoordinator mCoordinator;
     private Activity mActivity;
@@ -99,6 +110,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
     private ObservableSupplierImpl<Boolean> mScrimVisibilitySupplier;
     private AppHeaderState mAppHeaderState;
     private ShadowLooper mShadowLooper;
+    private OneshotSupplierImpl<AppMenuCoordinator> mAppMenuSupplier;
 
     @Before
     public void setup() {
@@ -112,23 +124,34 @@ public class WebAppHeaderLayoutCoordinatorTest {
 
         mTabSupplier = new ObservableSupplierImpl<>();
         mActivityScenarioRule.getScenario().onActivity(testActivity -> mActivity = testActivity);
+        doReturn(mWindowAndroid).when(mTab).getWindowAndroid();
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
         mContentView = new FrameLayout(mActivity);
         mViewStub = new ViewStub(mActivity);
         mViewStub.setLayoutResource(R.layout.web_app_header_layout);
         mContentView.addView(mViewStub);
         mActivity.setContentView(mContentView);
+
+        mAppMenuSupplier = new OneshotSupplierImpl<>();
     }
 
     private void createCoordinator() {
         mCoordinator =
                 new WebAppHeaderLayoutCoordinator(
+                        mActivity,
                         mViewStub,
                         mDesktopWindowStateManager,
                         mTabSupplier,
                         mThemeColorProvider,
                         mIntentDataProvider,
                         mScrimManager,
-                        mHistoryDelegate);
+                        mHistoryDelegate,
+                        mSetHeaderAsOverlayCallback,
+                        mBrowserControlsStateProvider,
+                        mAppMenuSupplier,
+                        null,
+                        mWindowAndroid,
+                        mRequestRenderRunnable);
     }
 
     private void setupDesktopWindowing(boolean isInDesktopWindow) {
@@ -180,6 +203,17 @@ public class WebAppHeaderLayoutCoordinatorTest {
         when(mTab.isLoading()).thenReturn(isLoading);
         when(mTab.canGoBack()).thenReturn(canGoBack);
         mTabSupplier.set(mTab);
+    }
+
+    // Helper to determine the total width for buttons used based on display mode.
+    private int getMinButtonWidth(@DisplayMode.EnumType int displayMode) {
+        int totalWidth = 0;
+
+        // Back and reload buttons.
+        if (displayMode == DisplayMode.MINIMAL_UI) {
+            totalWidth += HEADER_CONTROL_BUTTON_DP * 2;
+        }
+        return totalWidth + BUTTON_PADDING_DP;
     }
 
     private void verifyControlsEnabledState(boolean isEnabled) {
@@ -290,7 +324,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         verifyControlsVisibility(View.VISIBLE);
         assertTrue("Reload button should be enabled", reloadButton.isEnabled());
         assertFalse("Back button should be disabled", backButton.isEnabled());
-        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectNonDraggableAreas());
+        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
     }
 
     @Test
@@ -304,7 +338,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         mShadowLooper.idle();
 
         // Emulate minimizing window.
-        int flexibleAreaWidth = MIN_HEADER_WIDTH_DP - 1;
+        int flexibleAreaWidth = getMinButtonWidth(DisplayMode.MINIMAL_UI) - 1;
         setupDesktopWindowing(
                 new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
                 new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
@@ -320,7 +354,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
     @Test
     public void testMinUiMaximizeWindow_ControlsFit_ShowControls() {
         // Emulate minimized window.
-        int flexibleAreaWidth = MIN_HEADER_WIDTH_DP - 1;
+        int flexibleAreaWidth = getMinButtonWidth(DisplayMode.MINIMAL_UI) - 1;
         setupDesktopWindowing(
                 new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
                 new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
@@ -338,7 +372,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
 
         // Verify buttons visible and draggable area is updated.
         verifyControlsVisibility(View.VISIBLE);
-        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectNonDraggableAreas());
+        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
     }
 
     @Test
@@ -349,8 +383,16 @@ public class WebAppHeaderLayoutCoordinatorTest {
         createCoordinator();
 
         setupDesktopWindowing(
-                new Rect(0, 0, LEFT_INSET + MIN_HEADER_WIDTH_DP + RIGHT_INSET, SCREEN_HEIGHT),
-                new Rect(LEFT_INSET, 0, LEFT_INSET + MIN_HEADER_WIDTH_DP, SYS_APP_HEADER_HEIGHT),
+                new Rect(
+                        0,
+                        0,
+                        LEFT_INSET + getMinButtonWidth(DisplayMode.MINIMAL_UI) + RIGHT_INSET,
+                        SCREEN_HEIGHT),
+                new Rect(
+                        LEFT_INSET,
+                        0,
+                        LEFT_INSET + getMinButtonWidth(DisplayMode.MINIMAL_UI),
+                        SYS_APP_HEADER_HEIGHT),
                 /* isInDesktopWindow= */ true);
 
         notifyHeaderStateChanged();
@@ -404,9 +446,86 @@ public class WebAppHeaderLayoutCoordinatorTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_WEB_APP_MENU_BUTTON)
+    public void testMinUiMinimizeWindow_ControlsDoNotFit_HideControls_MenuButtonVisible() {
+        when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.TRUSTED_WEB_ACTIVITY);
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.MINIMAL_UI);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        // Emulate minimizing window with added Menu button.
+        int flexibleAreaWidth =
+                getMinButtonWidth(DisplayMode.MINIMAL_UI) + HEADER_CONTROL_BUTTON_DP - 1;
+        setupDesktopWindowing(
+                new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
+                new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+        notifyHeaderStateChanged();
+        mShadowLooper.idle();
+
+        verifyControlsVisibility(View.GONE);
+        var menuButton = mActivity.findViewById(R.id.menu_button_wrapper);
+        assertTrue("Menu button should be gone", menuButton.getVisibility() == View.GONE);
+        verifyWholeHeaderIsDraggable();
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_WEB_APP_MENU_BUTTON)
+    public void testMinUiMaximizeWindow_ControlsFit_ShowControls_MenuButtonVisible() {
+        when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.TRUSTED_WEB_ACTIVITY);
+        // Emulate minimized window with added Menu button.
+        int flexibleAreaWidth =
+                getMinButtonWidth(DisplayMode.MINIMAL_UI) + HEADER_CONTROL_BUTTON_DP - 1;
+        setupDesktopWindowing(
+                new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
+                new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+
+        setupDisplayMode(DisplayMode.MINIMAL_UI);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        // Maximize window.
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        notifyHeaderStateChanged();
+        mShadowLooper.idle();
+
+        // Buttons should be visible and undraggable.
+        verifyControlsVisibility(View.VISIBLE);
+        var menuButton = mActivity.findViewById(R.id.menu_button);
+        assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
+        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_WEB_APP_MENU_BUTTON)
+    public void testMinUiWindow_ShowControls_MenuButtonVisible() {
+        when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.TRUSTED_WEB_ACTIVITY);
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.MINIMAL_UI);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        var reloadButton = mActivity.findViewById(R.id.refresh_button);
+        var backButton = mActivity.findViewById(R.id.back_button);
+        var menuButton = mActivity.findViewById(R.id.menu_button);
+
+        verifyControlsVisibility(View.VISIBLE);
+        assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
+
+        assertTrue("Reload button should be enabled", reloadButton.isEnabled());
+        assertFalse("Back button should be enabled", backButton.isEnabled());
+        assertTrue("Menu button should be enabled", menuButton.isEnabled());
+    }
+
+    @Test
     public void testControlsVisibilityChangeUMA() {
         // Emulate minimizing window.
-        int flexibleAreaWidth = MIN_HEADER_WIDTH_DP - 1;
+        int flexibleAreaWidth = getMinButtonWidth(DisplayMode.MINIMAL_UI) - 1;
         setupDesktopWindowing(
                 new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
                 new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),

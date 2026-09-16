@@ -5,15 +5,23 @@
 #ifndef COMPONENTS_CONTEXTUAL_TASKS_PUBLIC_CONTEXTUAL_TASKS_SERVICE_H_
 #define COMPONENTS_CONTEXTUAL_TASKS_PUBLIC_CONTEXTUAL_TASKS_SERVICE_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/uuid.h"
 #include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
+
+namespace syncer {
+class DataTypeControllerDelegate;
+}  // namespace syncer
 
 namespace contextual_tasks {
 
@@ -54,9 +62,12 @@ class ContextualTasksService : public KeyedService {
 
   // Methods for creating and managing tasks.
   virtual ContextualTask CreateTask() = 0;
-  virtual std::optional<ContextualTask> GetTaskById(
-      const base::Uuid& task_id) const = 0;
-  virtual std::vector<ContextualTask> GetTasks() const = 0;
+  virtual void GetTaskById(
+      const base::Uuid& task_id,
+      base::OnceCallback<void(std::optional<ContextualTask>)> callback)
+      const = 0;
+  virtual void GetTasks(
+      base::OnceCallback<void(std::vector<ContextualTask>)> callback) const = 0;
   virtual void DeleteTask(const base::Uuid& task_id) = 0;
 
   // Methods related to server-side conversations.
@@ -74,6 +85,16 @@ class ContextualTasksService : public KeyedService {
   virtual void DetachUrlFromTask(const base::Uuid& task_id,
                                  const GURL& url) = 0;
 
+  // Gets the context for a given task. The `context_callback` will receive the
+  // a contextual task. If the `sources` set is empty, all available sources
+  // will be used. The callback will be invoked with the enriched context, or
+  // `nullptr` if the task is not found.
+  virtual void GetContextForTask(
+      const base::Uuid& task_id,
+      const std::set<ContextualTaskContextSource>& sources,
+      base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
+          context_callback) = 0;
+
   // Methods related to attaching tabs to tasks using their SessionID.
   virtual void AttachSessionIdToTask(const base::Uuid& task_id,
                                      SessionID session_id) = 0;
@@ -85,6 +106,9 @@ class ContextualTasksService : public KeyedService {
   // Add / remove observers.
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;
+  // Returns DataTypeControllerDelegate for the contextual task thread datatype.
+  virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
+  GetAiThreadControllerDelegate() = 0;
 };
 
 }  // namespace contextual_tasks

@@ -30,6 +30,7 @@
 #include "api/audio/audio_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
@@ -84,14 +85,6 @@ bool SampleRateSupportsMultiBand(int sample_rate_hz) {
 // Checks whether the high-pass filter should be done in the full-band.
 bool EnforceSplitBandHpf(const FieldTrialsView& field_trials) {
   return field_trials.IsEnabled("WebRTC-FullBandHpfKillSwitch");
-}
-
-// Checks whether AEC3 should be allowed to decide what the default
-// configuration should be based on the render and capture channel configuration
-// at hand.
-bool UseSetupSpecificDefaultAec3Congfig(const FieldTrialsView& field_trials) {
-  return !field_trials.IsEnabled(
-      "WebRTC-Aec3SetupSpecificDefaultConfigDefaultsKillSwitch");
 }
 
 // Identify the native processing rate that best handles a sample rate.
@@ -440,6 +433,8 @@ bool AudioProcessingImpl::SubmoduleStates::HighPassFilteringRequired() const {
 AudioProcessingImpl::AudioProcessingImpl(const Environment& env)
     : AudioProcessingImpl(env,
                           /*config=*/{},
+                          /*echo_canceller_config=*/std::nullopt,
+                          /*echo_canceller_multichannel_config=*/std::nullopt,
                           /*capture_post_processor=*/nullptr,
                           /*render_pre_processor=*/nullptr,
                           /*echo_control_factory=*/nullptr,
@@ -452,6 +447,8 @@ std::atomic<int> AudioProcessingImpl::instance_count_(0);
 AudioProcessingImpl::AudioProcessingImpl(
     const Environment& env,
     const AudioProcessing::Config& config,
+    std::optional<EchoCanceller3Config> echo_canceller_config,
+    std::optional<EchoCanceller3Config> echo_canceller_multichannel_config,
     std::unique_ptr<CustomProcessing> capture_post_processor,
     std::unique_ptr<CustomProcessing> render_pre_processor,
     std::unique_ptr<EchoControlFactory> echo_control_factory,
@@ -460,14 +457,14 @@ AudioProcessingImpl::AudioProcessingImpl(
     std::unique_ptr<NeuralResidualEchoEstimator> neural_residual_echo_estimator)
     : env_(env),
       data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
-      use_setup_specific_default_aec3_config_(
-          UseSetupSpecificDefaultAec3Congfig(env.field_trials())),
       capture_runtime_settings_(RuntimeSettingQueueSize()),
       render_runtime_settings_(RuntimeSettingQueueSize()),
       capture_runtime_settings_enqueuer_(&capture_runtime_settings_),
       render_runtime_settings_enqueuer_(&render_runtime_settings_),
       echo_control_factory_(std::move(echo_control_factory)),
       config_(config),
+      echo_canceller_config_(echo_canceller_config),
+      echo_canceller_multichannel_config_(echo_canceller_multichannel_config),
       submodule_states_(!!capture_post_processor,
                         !!render_pre_processor,
                         !!capture_analyzer),
@@ -1921,17 +1918,24 @@ void AudioProcessingImpl::InitializeEchoController() {
     if (echo_control_factory_) {
       submodules_.echo_controller = echo_control_factory_->Create(
           env_, proc_sample_rate_hz(), num_reverse_channels(),
-          num_proc_channels());
+          num_proc_channels(),
+          submodules_.neural_residual_echo_estimator.get());
       RTC_DCHECK(submodules_.echo_controller);
     } else {
-      EchoCanceller3Config config;
-      std::optional<EchoCanceller3Config> multichannel_config;
-      if (use_setup_specific_default_aec3_config_) {
-        multichannel_config =
+      EchoCanceller3Config config_to_use =
+          echo_canceller_config_.value_or(EchoCanceller3Config());
+      std::optional<EchoCanceller3Config> multichannel_config_to_use =
+          echo_canceller_multichannel_config_;
+      if (!echo_canceller_config_.has_value() &&
+          !multichannel_config_to_use.has_value()) {
+        // We create a default multichannel config only if the user has set no
+        // config: If the user only provides a non-multichannel config, that
+        // config is used for both mono and multichannel AEC.
+        multichannel_config_to_use =
             EchoCanceller3Config::CreateDefaultMultichannelConfig();
       }
       submodules_.echo_controller = std::make_unique<EchoCanceller3>(
-          env_, config, multichannel_config,
+          env_, config_to_use, multichannel_config_to_use,
           submodules_.neural_residual_echo_estimator.get(),
           proc_sample_rate_hz(), num_reverse_channels(), num_proc_channels());
     }

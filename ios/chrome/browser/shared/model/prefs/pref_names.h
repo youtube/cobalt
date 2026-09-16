@@ -496,10 +496,6 @@ inline constexpr char kNTPContentSuggestionsForSupervisedUserEnabled[] =
 inline constexpr char kNTPCustomBackgroundEnabledByPolicy[] =
     "ios.ntp.custom_background_enabled_by_policy";
 
-// Preference that represents the sorting order of the Following feed content.
-inline constexpr char kNTPFollowingFeedSortType[] =
-    "ios.ntp.following_feed.sort_type";
-
 // Preference that determines if the user changed the Following feed sort type.
 inline constexpr char kDefaultFollowingFeedSortTypeChanged[] =
     "ios.ntp.following_feed_default_sort_type_changed";
@@ -712,8 +708,6 @@ inline constexpr char kHomeCustomizationMagicStackEnabled[] =
     "ios.home_customization.magic_stack.enabled";
 
 // Prefs indicating whether Magic Stack cards are enabled.
-inline constexpr char kHomeCustomizationMagicStackSetUpListEnabled[] =
-    "ios.home_customization.magic_stack.set_up_list.enabled";
 inline constexpr char kHomeCustomizationMagicStackSafetyCheckEnabled[] =
     "ios.home_customization.magic_stack.safety_check.enabled";
 inline constexpr char kHomeCustomizationMagicStackTabResumptionEnabled[] =
@@ -825,6 +819,10 @@ inline constexpr char kNextSSORecallTime[] = "ios.next_sso_recall_time";
 // An integer determining the enabled status of Gemini by policy.
 // 0 means Gemini is enabled (default), and 1 means it's disabled.
 inline constexpr char kGeminiEnabledByPolicy[] = "ios.gemini_enabled_by_policy";
+
+// A boolean specifying whether the user has ever been eligible for AI Hub.
+inline constexpr char kAIHubEligibilityTriggered[] =
+    "ios.ai_hub_eligibility_triggered";
 
 // A boolean specifying if the multi-profile force-migration is done.
 inline constexpr char kMultiProfileForcedMigrationDone[] =

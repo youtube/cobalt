@@ -125,7 +125,10 @@ BASE_FEATURE(kCodeCacheDeletionWithoutFilter, base::FEATURE_ENABLED_BY_DEFAULT);
 // and citadel check to collect data about possible mismatches. Requires
 // CommittedOriginTracking to also be turned on to take effect. See
 // https://crbug.com/40148776.
-BASE_FEATURE(kCommittedOriginEnforcements, base::FEATURE_DISABLED_BY_DEFAULT);
+//
+// TODO(alexmos): Remove this feature flag once committed origin enforcements
+// are fully launched. For now, the feature is kept as a kill switch.
+BASE_FEATURE(kCommittedOriginEnforcements, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Turn on the tracking of origins committed in each renderer process in
 // ChildProcessSecurityPolicy. This is required for committed origin
@@ -135,6 +138,12 @@ BASE_FEATURE(kCommittedOriginTracking, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables support for the `Critical-CH` response header.
 // https://github.com/WICG/client-hints-infrastructure/blob/master/reliability.md#critical-ch
 BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Delay the destructions of RenderFrameHostImpls during a navigation (on
+// Unload) or frame Detach, by delaying the call to
+// PendingDeletionCheckCompletedOnSubTree.
+BASE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -180,6 +189,15 @@ BASE_FEATURE(kFedCmSameSiteLax, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables NonString Tokens
 BASE_FEATURE(kFedCmNonStringToken, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether FedCM preserves ports in well-known URLs during testing.
+// When enabled, well-known URLs retain the original port from the provider URL
+// instead of stripping it via eTLD+1 extraction. This is primarily used in
+// test environments where IdPs run on non-standard ports (e.g., localhost:8080)
+// and the well-known endpoint needs to be fetched from the same port.
+// Production FedCM strips ports for security reasons to ensure well-known
+// files are served from the canonical domain.
+BASE_FEATURE(kFedCmPreservePortsForTesting, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables installed web app matching for getInstalledRelatedApps API.
 BASE_FEATURE(kFilterInstalledAppsWebAppMatching,
@@ -256,6 +274,10 @@ BASE_FEATURE(kRemoveRendererProcessLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread,
     base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Killswitch for prefetch devtools UA override (crbug.com/422193319).
+BASE_FEATURE(kPrefetchDevtoolsUserAgentOverride,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When true, duplicate navigations are ignored only if they are initiated
 // with a user gesture.
@@ -504,14 +526,6 @@ BASE_FEATURE(kReloadHiddenTabsWithCrashedSubframes,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-// ReloadHiddenTabsWithCrashedSubframes feature reloads the WebContents
-// regardless of the crashed frame's state. This feature restricts the reload
-// to only happen for active subframes.
-// This is a bug fix but being launched as a feature to see the impact.
-// This will be removed once this is launched.
-BASE_FEATURE(kReloadHiddenTabsWithActiveCrashedSubframes,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.

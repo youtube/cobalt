@@ -1,7 +1,5 @@
 This is a wdspec test.
-[FAIL] test_params_max_encoded_data_size_invalid_value[0]
-  Failed: DID NOT RAISE <class 'webdriver.bidi.error.InvalidArgumentException'>
-[FAIL] test_params_max_encoded_data_size_exceeds_max_total_size
+[FAIL] test_params_data_types_entry_invalid_value[request]
   Failed: DID NOT RAISE <class 'webdriver.bidi.error.InvalidArgumentException'>
 Harness: the test ran to completion.
 

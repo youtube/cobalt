@@ -50,6 +50,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
@@ -442,9 +443,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // Sets the upload data.
   void set_upload(std::unique_ptr<UploadDataStream> upload);
 
-  // Gets the upload data.
-  const UploadDataStream* get_upload_for_testing() const;
-
   // Returns true if the request has a non-empty message body to upload.
   bool has_upload() const;
 
@@ -490,7 +488,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
 
   // Returns a partial representation of the request's state as a value, for
   // debugging.
-  base::Value::Dict GetStateAsValue() const;
+  base::Value::Dict GetStateAsValue(NetLogCaptureMode capture_mode) const;
 
   // Logs information about what external object currently blocking the
   // request. LogUnblocked must be called before resuming the request. This
@@ -964,6 +962,9 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
     device_bound_session_deferrals_[deferral] = result;
   }
 
+  // Returns true if the request failed or was canceled.
+  bool failed() const;
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -972,9 +973,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // net::Error code. See |status_|.
   int status() const { return status_; }
   void set_status(int status);
-
-  // Returns true if the request failed or was canceled.
-  bool failed() const;
 
   // Returns the error status of the request.
 

@@ -683,6 +683,7 @@ if (is_linux || is_chromeos || is_win) {
       "../api:create_modular_peer_connection_factory",
       "../api:enable_media",
       "../api:field_trials",
+      "../api:jsep",
       "../api:libjingle_peerconnection_api",
       "../api:make_ref_counted",
       "../api:media_stream_interface",

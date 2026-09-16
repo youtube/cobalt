@@ -74,21 +74,37 @@ FieldTrials::FieldTrials(const FieldTrials& other)
   key_value_map_ = other.key_value_map_;
 }
 
+FieldTrials::FieldTrials(FieldTrials&& other) : FieldTrialsRegistry(other) {
+  key_value_map_ = std::move(other.key_value_map_);
+}
+
+FieldTrials& FieldTrials::operator=(const FieldTrials& other) {
+  if (this != &other) {
+    AssertGetValueNotCalled();
+    FieldTrialsRegistry::operator=(other);
+    key_value_map_ = other.key_value_map_;
+  }
+  return *this;
+}
+
+FieldTrials& FieldTrials::operator=(FieldTrials&& other) {
+  if (this != &other) {
+    AssertGetValueNotCalled();
+    FieldTrialsRegistry::operator=(other);
+    key_value_map_ = std::move(other.key_value_map_);
+  }
+  return *this;
+}
+
 void FieldTrials::Merge(const FieldTrials& other) {
-#ifndef NDEBUG
-  RTC_DCHECK(get_value_called_ == false)
-      << "FieldTrials are immutable once first Lookup has been performed";
-#endif
+  AssertGetValueNotCalled();
   for (const auto& [trial, group] : other.key_value_map_) {
     key_value_map_.insert_or_assign(trial, group);
   }
 }
 
 void FieldTrials::Set(absl::string_view trial, absl::string_view group) {
-#ifndef NDEBUG
-  RTC_DCHECK(get_value_called_ == false)
-      << "FieldTrials are immutable once first Lookup has been performed";
-#endif
+  AssertGetValueNotCalled();
   RTC_CHECK(!trial.empty());
   RTC_CHECK_EQ(trial.find('/'), absl::string_view::npos);
   RTC_CHECK_EQ(group.find('/'), absl::string_view::npos);
@@ -100,7 +116,7 @@ void FieldTrials::Set(absl::string_view trial, absl::string_view group) {
 }
 
 std::string FieldTrials::GetValue(absl::string_view key) const {
-#ifndef NDEBUG
+#if RTC_DCHECK_IS_ON
   get_value_called_ = true;
 #endif
   auto it = key_value_map_.find(key);

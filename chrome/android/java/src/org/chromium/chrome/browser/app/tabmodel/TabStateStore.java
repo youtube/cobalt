@@ -12,12 +12,13 @@ import org.chromium.base.Log;
 import org.chromium.base.Token;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab.TabStateAttributes.DirtinessState;
 import org.chromium.chrome.browser.tab.TabStateStorageService;
+import org.chromium.chrome.browser.tab.TabStateStorageService.LoadedTabState;
 import org.chromium.chrome.browser.tab.WebContentsState;
+import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -32,6 +33,7 @@ public class TabStateStore {
     private static final String TAG = "TabStateStore";
 
     private final TabStateStorageService mTabStateStorageService;
+    private final TabCreatorManager mTabCreatorManager;
     private final TabStateAttributes.Observer mAttributesObserver =
             this::onTabStateDirtinessChanged;
     private final TabModelSelectorTabRegistrationObserver mTabRegistrationObserver;
@@ -71,10 +73,14 @@ public class TabStateStore {
     /**
      * @param tabStateStorageService The {@link TabStateStorageService} to save to.
      * @param tabModelSelector The {@link TabModelSelector} to observe changes in.
+     * @param tabCreatorManager Used to create new tabs on initial load.
      */
     public TabStateStore(
-            TabStateStorageService tabStateStorageService, TabModelSelector tabModelSelector) {
+            TabStateStorageService tabStateStorageService,
+            TabModelSelector tabModelSelector,
+            TabCreatorManager tabCreatorManager) {
         mTabStateStorageService = tabStateStorageService;
+        mTabCreatorManager = tabCreatorManager;
         mTabRegistrationObserver = new TabModelSelectorTabRegistrationObserver(tabModelSelector);
         mTabRegistrationObserver.addObserverAndNotifyExistingTabRegistration(
                 new InnerRegistrationObserver());
@@ -100,21 +106,7 @@ public class TabStateStore {
     }
 
     private void saveTab(Tab tab) {
-        WebContentsState state = tab.getWebContentsState();
-        mTabStateStorageService.saveTabData(
-                tab.getId(),
-                tab.getParentId(),
-                tab.getRootId(),
-                tab.getTimestampMillis(),
-                state == null ? null : state.buffer(),
-                assumeNonNull(TabAssociatedApp.getAppId(tab)),
-                tab.getThemeColor(),
-                tab.getTabLaunchTypeAtCreation(),
-                tab.getUserAgent(),
-                tab.getLastNavigationCommittedTimestampMillis(),
-                tab.getTabGroupId(),
-                tab.getTabHasSensitiveContent(),
-                tab.getIsPinned());
+        mTabStateStorageService.saveTabData(tab);
     }
 
     private void onTabRegistered(Tab tab) {
@@ -156,22 +148,23 @@ public class TabStateStore {
 
     private void loadAllTabsFromService() {
         long loadStartTime = SystemClock.elapsedRealtime();
-        mTabStateStorageService.loadAllTabs((tabStates) -> onTabsLoaded(tabStates, loadStartTime));
+        mTabStateStorageService.loadAllTabs(
+                (loadedTabStates) -> onTabsLoaded(loadedTabStates, loadStartTime));
     }
 
-    private void onTabsLoaded(TabState[] tabStates, long loadStartTime) {
+    private void onTabsLoaded(LoadedTabState[] loadedTabStates, long loadStartTime) {
         long duration = SystemClock.elapsedRealtime() - loadStartTime;
-        Log.i(TAG, "Loaded %d tabs in %dms", tabStates.length, duration);
+        Log.i(TAG, "Loaded %d tabs in %dms", loadedTabStates.length, duration);
 
-        for (int i = 0; i < tabStates.length; i++) {
-            TabState tabState = tabStates[i];
+        for (int i = 0; i < loadedTabStates.length; i++) {
+            TabState tabState = loadedTabStates[i].tabState;
             if (tabState.contentsState == null || tabState.contentsState.buffer().limit() <= 0) {
                 Log.i(TAG, " Tab %d: no state", i);
+                loadedTabStates[i].onTabCreationCallback.onResult(null);
                 continue;
             }
 
             WebContentsState contentsState = tabState.contentsState;
-            contentsState.setVersion(WebContentsState.CONTENTS_STATE_CURRENT_VERSION);
             Log.i(
                     TAG,
                     " Tab %d: url: %s, title: %s, state size: %d",
@@ -179,6 +172,12 @@ public class TabStateStore {
                     contentsState.getVirtualUrlFromState(),
                     contentsState.getDisplayTitleFromState(),
                     contentsState.buffer().limit());
+
+            Tab tab =
+                    mTabCreatorManager
+                            .getTabCreator(/* incognito= */ false)
+                            .createFrozenTab(tabState, loadedTabStates[i].tabId, i);
+            loadedTabStates[i].onTabCreationCallback.onResult(tab);
         }
     }
 }

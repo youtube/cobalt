@@ -34,6 +34,7 @@
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -312,6 +313,38 @@ bool MediaSectionsHaveSameCount(const SessionDescription& desc1,
                                 const SessionDescription& desc2) {
   return desc1.contents().size() == desc2.contents().size();
 }
+
+// Checks that the remote answer follows the rules from
+// https://datatracker.ietf.org/doc/html/rfc3264#section-6.1
+RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
+                                  const SessionDescription* remote_answer) {
+  RTC_DCHECK(local_offer);
+  RTC_DCHECK(remote_answer);
+
+  const ContentInfos& local_contents = local_offer->contents();
+  const ContentInfos& remote_contents = remote_answer->contents();
+  RTC_DCHECK(local_contents.size() == remote_contents.size());
+
+  for (size_t i = 0; i < local_contents.size(); i++) {
+    RtpTransceiverDirection local_direction =
+        local_contents[i].media_description()->direction();
+    RtpTransceiverDirection remote_direction =
+        remote_contents[i].media_description()->direction();
+
+    if (!RtpTransceiverDirectionHasRecv(local_direction) &&
+        RtpTransceiverDirectionHasSend(remote_direction)) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
+                           "Incompatible receive direction");
+    }
+    if (!RtpTransceiverDirectionHasSend(local_direction) &&
+        RtpTransceiverDirectionHasRecv(remote_direction)) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
+                           "Incompatible send direction");
+    }
+  }
+  return RTCError::OK();
+}
+
 // Checks that each non-rejected content has a DTLS
 // fingerprint, unless it's in a BUNDLE group, in which case only the
 // BUNDLE-tag section (first media section/description in the BUNDLE group)
@@ -1524,7 +1557,7 @@ void SdpOfferAnswerHandler::Initialize(
 
 // ==================================================================
 // Access to pc_ variables
-MediaEngineInterface* SdpOfferAnswerHandler::media_engine() const {
+const MediaEngineInterface* SdpOfferAnswerHandler::media_engine() const {
   RTC_DCHECK(context_);
   return context_->media_engine();
 }
@@ -3884,6 +3917,17 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     if (!error.ok()) {
       return error;
     }
+
+    if (source == CS_REMOTE &&
+        (type == SdpType::kPrAnswer || type == SdpType::kAnswer)) {
+      RTC_DCHECK(local_description());
+      error = VerifyDirectionsInAnswer(local_description()->description(),
+                                       sdesc->description());
+      if (!error.ok() && !env_.field_trials().IsDisabled(
+                             "WebRTC-EnforceTransceiverDirection")) {
+        return error;
+      }
+    }
   }
 
   return RTCError::OK();
@@ -4330,6 +4374,8 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
   // the default in `options` is false.
   session_options->use_obsolete_sctp_sdp =
       offer_answer_options.use_obsolete_sctp_sdp;
+  // draft-hancke-tsvwg-snap.
+  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
@@ -4604,6 +4650,8 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
   session_options->pooled_ice_credentials =
       context_->network_thread()->BlockingCall(
           [this] { return port_allocator()->GetPooledIceCredentials(); });
+  // draft-hancke-tsvwg-snap.
+  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBAnswer(
@@ -5094,8 +5142,8 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     // If local and remote are both set, we assume that it's safe to trigger
     // CCFB.
     if (pc_->trials().IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
-      if (type == SdpType::kAnswer && local_description() &&
-          remote_description()) {
+      if ((type == SdpType::kAnswer || type == SdpType::kPrAnswer) &&
+          local_description() && remote_description()) {
         std::optional<RtcpFeedbackType> remote_preferred_rtcp_cc_ack_type;
         // Verify that the remote agrees on congestion control feedback format.
         for (const auto& content :

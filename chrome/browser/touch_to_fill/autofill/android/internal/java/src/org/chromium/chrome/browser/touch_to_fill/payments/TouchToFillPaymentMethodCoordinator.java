@@ -14,7 +14,9 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_ISSUER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_HEADER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_TOS_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ERROR_DESCRIPTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FILL_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.HEADER;
@@ -33,12 +35,13 @@ import android.graphics.drawable.Drawable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuer;
+import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuerContext;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.ImageSize;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -112,13 +115,29 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
+    public void updateBnplPaymentMethod(
+            Long extractedAmount, boolean isAmountSupportedByAnyIssuer) {
+        mMediator.updateBnplPaymentMethod(extractedAmount, isAmountSupportedByAnyIssuer);
+    }
+
+    @Override
     public void showProgressScreen() {
         mMediator.showProgressScreen();
     }
 
     @Override
-    public void showBnplIssuers(List<BnplIssuer> bnplIssuers) {
-        mMediator.showBnplIssuers(bnplIssuers);
+    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts) {
+        mMediator.showBnplIssuers(bnplIssuerContexts);
+    }
+
+    @Override
+    public void showErrorScreen(String title, String description) {
+        mMediator.showErrorScreen(title, description);
+    }
+
+    @Override
+    public void showBnplIssuerTos(BnplIssuerTosDetail bnplIssuerTosDetail) {
+        mMediator.showBnplIssuerTos(bnplIssuerTosDetail);
     }
 
     @Override
@@ -192,6 +211,14 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                 BNPL_ISSUER,
                 TouchToFillPaymentMethodViewBinder::createBnplIssuerItemView,
                 TouchToFillPaymentMethodViewBinder::bindBnplIssuerItemView);
+        adapter.registerType(
+                ERROR_DESCRIPTION,
+                TouchToFillPaymentMethodViewBinder::createErrorDescriptionView,
+                TouchToFillPaymentMethodViewBinder::bindErrorDescriptionView);
+        adapter.registerType(
+                BNPL_TOS_TEXT,
+                TouchToFillPaymentMethodViewBinder::createBnplIssuerTosItemView,
+                TouchToFillPaymentMethodViewBinder::bindBnplIssuerTosItemView);
         view.setSheetItemListAdapter(adapter);
     }
 

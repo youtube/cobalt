@@ -111,7 +111,6 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"  // nogncheck
 #include "ash/webui/system_apps/public/system_web_app_type.h"
-#include "chrome/browser/apps/browser_instance/browser_app_instance_tracker.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
@@ -391,7 +390,7 @@ apps::IntentFilterPtr CreateIntentFilterFromOrigin(
                              : apps::PatternMatchType::kLiteral);
 
   intent_filter->AddSingleValueCondition(apps::ConditionType::kPath,
-                                         extended_scope.path(),
+                                         extended_scope.GetPath(),
                                          apps::PatternMatchType::kPrefix);
 
   return intent_filter;
@@ -769,8 +768,7 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
 #endif
 
   // Add the intent filters for PWAs.
-  base::Extend(app->intent_filters,
-               CreateIntentFiltersForWebApp(*provider_, *web_app));
+  app->intent_filters = CreateIntentFiltersForWebApp(*provider_, *web_app);
 
   // These filters are used by the settings page to display would-be-handled
   // extensions even when the feature is not enabled for the app, whereas
@@ -781,7 +779,7 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
   if (all_file_handlers && !all_file_handlers->empty()) {
     std::set<std::string> extensions_set =
         apps::GetFileExtensionsFromFileHandlers(*all_file_handlers);
-    app->intent_filters.push_back(apps_util::CreateFileFilter(
+    app->intent_filters->push_back(apps_util::CreateFileFilter(
         {apps_util::kIntentActionPotentialFileHandler},
         /*mime_types=*/{},
         /*file_extensions=*/
@@ -789,16 +787,16 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
   }
 
   if (IsNoteTakingWebApp(*web_app)) {
-    app->intent_filters.push_back(apps_util::CreateNoteTakingFilter());
+    app->intent_filters->push_back(apps_util::CreateNoteTakingFilter());
   }
 
   if (IsLockScreenCapable(*web_app)) {
-    app->intent_filters.push_back(apps_util::CreateLockScreenFilter());
+    app->intent_filters->push_back(apps_util::CreateLockScreenFilter());
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (web_app->app_id() == guest_os::kTerminalSystemAppId) {
-    app->intent_filters.push_back(apps_util::CreateFileFilter(
+    app->intent_filters->push_back(apps_util::CreateFileFilter(
         {apps_util::kIntentActionView},
         /*mime_types=*/
         {extensions::app_file_handler_util::kMimeTypeInodeDirectory},
@@ -1875,14 +1873,14 @@ void WebAppPublisherHelper::LaunchAppFromProtocolCheckingUserPermission(
   GURL protocol_url = *params.protocol_handler_launch_url;
 
   WebAppRegistrar& registrar = provider_->registrar_unsafe();
-  if (!registrar.IsRegisteredLaunchProtocol(app_id, protocol_url.scheme()) ||
-      registrar.IsDisallowedLaunchProtocol(app_id, protocol_url.scheme())) {
+  if (!registrar.IsRegisteredLaunchProtocol(app_id, protocol_url.GetScheme()) ||
+      registrar.IsDisallowedLaunchProtocol(app_id, protocol_url.GetScheme())) {
     std::move(callback).Run(nullptr);
     return;
   }
 
   if (!registrar.IsAllowedLaunchProtocol(params.app_id,
-                                         protocol_url.scheme())) {
+                                         protocol_url.GetScheme())) {
     provider_->ui_manager().ShowWebAppProtocolLaunchDialog(
         protocol_url, app_id,
         base::BindOnce(&WebAppPublisherHelper::OnProtocolHandlerDialogCompleted,
@@ -1962,7 +1960,7 @@ void WebAppPublisherHelper::OnProtocolHandlerDialogCompleted(
     ApiApprovalState approval_state =
         allowed ? ApiApprovalState::kAllowed : ApiApprovalState::kDisallowed;
     provider_->scheduler().UpdateProtocolHandlerUserApproval(
-        params.app_id, params.protocol_handler_launch_url->scheme(),
+        params.app_id, params.protocol_handler_launch_url->GetScheme(),
         approval_state, base::DoNothing());
   }
   if (!allowed) {

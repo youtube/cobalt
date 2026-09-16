@@ -33,6 +33,7 @@ class CheckedInternalizedString;
 class BuiltinStringFromCharCode;
 class MaglevGraphBuilder;
 class VirtualObject;
+struct VirtualStringShape;
 }  // namespace maglev
 
 namespace wasm {
@@ -457,7 +458,7 @@ V8_OBJECT class String : public Name {
       Isolate* isolate, v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       Isolate* isolate, v8::String::ExternalOneByteStringResource* resource);
-  bool SupportsExternalization(v8::String::Encoding);
+  V8_EXPORT_PRIVATE bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.
@@ -705,6 +706,7 @@ V8_OBJECT class String : public Name {
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  friend struct maglev::VirtualStringShape;
   friend class compiler::AccessBuilder;
   friend class wasm::baseline::LiftoffCompiler;
   friend class TorqueGeneratedStringAsserts;
@@ -752,6 +754,14 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE bool SlowEquals(Tagged<String> other) const;
   V8_EXPORT_PRIVATE bool SlowEquals(
       Tagged<String> other, const SharedStringAccessGuardIfNeeded&) const;
+
+  // The part of SlowEquals that only checks the contents of strings of equal
+  // size. Should not be used for 0-length strings.
+  V8_EXPORT_PRIVATE bool SlowEqualsNonThinSameLength(
+      uint32_t len, Tagged<String> other) const;
+  V8_EXPORT_PRIVATE bool SlowEqualsNonThinSameLength(
+      uint32_t len, Tagged<String> other,
+      const SharedStringAccessGuardIfNeeded&) const;
 
   V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate,
                                            DirectHandle<String> one,
@@ -1042,6 +1052,11 @@ V8_OBJECT class ConsString : public String {
   // Minimum length for a cons string.
   static const uint32_t kMinLength = 13;
 
+  // Expose these for convenience since not all classes can be friends (classes
+  // in anonymous namespaces).
+  static const int kFirstOffset;
+  static const int kSecondOffset;
+
   DECL_VERIFIER(ConsString)
 
  private:
@@ -1063,6 +1078,9 @@ V8_OBJECT class ConsString : public String {
   TaggedMember<String> first_;
   TaggedMember<String> second_;
 } V8_OBJECT_END;
+
+constexpr int ConsString::kFirstOffset = offsetof(ConsString, first_);
+constexpr int ConsString::kSecondOffset = offsetof(ConsString, second_);
 
 template <>
 struct ObjectTraits<ConsString> {

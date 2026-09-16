@@ -8,7 +8,6 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -91,6 +90,16 @@ class FakeWebNNTensorImpl final : public WebNNTensorImpl {
     RemoveDeviceToDestroyAllContexts(
         static_cast<ContextImplDml*>(context_impl));
   }
+
+  // Interop is not required by tests.
+  bool ImportTensorImpl(
+      std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
+      override {
+    return false;
+  }
+  void ExportTensorImpl(
+      std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
+      override {}
 };
 
 // Helper class to create the FakeWebNNGraphImpl that is intended to test
@@ -121,7 +130,7 @@ struct CreateTensorSuccess {
 };
 
 CreateTensorSuccess CreateWebNNTensor(
-    mojo::AssociatedRemote<mojom::WebNNContext>& webnn_context_remote,
+    mojo::Remote<mojom::WebNNContext>& webnn_context_remote,
     OperandDataType data_type,
     std::vector<uint32_t> shape) {
   base::test::TestFuture<mojom::CreateTensorResultPtr> create_tensor_future;
@@ -176,7 +185,7 @@ class WebNNContextDMLImplTest : public TestBase {
 
  protected:
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
-  mojo::AssociatedRemote<mojom::WebNNContext> webnn_context_remote_;
+  mojo::Remote<mojom::WebNNContext> webnn_context_remote_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;

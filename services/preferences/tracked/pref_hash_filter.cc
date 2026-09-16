@@ -165,6 +165,7 @@ void PrefHashFilter::RegisterProfilePrefs(
   registry->RegisterStringPref(
       user_prefs::kPreferenceResetTime,
       base::NumberToString(base::Time().ToInternalValue()));
+  registry->RegisterDictionaryPref(user_prefs::kTrackedPreferencesReset);
   // Register the preference to trigger a flush to disk.
   // It's a string preference to store a timestamp.
   registry->RegisterStringPref(
@@ -357,6 +358,9 @@ void PrefHashFilter::FinalizeFilterOnLoad(
                        weak_ptr_factory_.GetWeakPtr(),
                        pref_store_contents.Clone()));
   } else {
+    // No deferred task will be posted, so validation is complete.
+    // Log metrics now.
+    MaybeRecordTrackedPreferenceResetCount(pref_store_contents);
     // If the feature is disabled, and we have a test callback, run it now
     // as no deferred task will be posted.
     if (on_deferred_revalidation_complete_for_testing_) {
@@ -413,13 +417,24 @@ void PrefHashFilter::DeferredEncryptorRevalidation(
     if (preference->EnforceAndReport(pref_store_contents_at_load,
                                      transaction.get(),
                                      nullptr /* external_tx */, encryptor)) {
-      // The preference was invalid. Reset the *live* preference. This action
-      // will mark the PrefService as dirty and automatically schedule a new
-      // write operation, during which new encrypted hashes will be generated.
-      pref_service_->ClearPref(path);
+      // The preference was invalid. Update the *live* preference with the
+      // corrected value from the in-memory `pref_store_contents_at_load`
+      // dictionary, which `EnforceAndReport` has already modified.
+      const base::Value* corrected_value =
+          pref_store_contents_at_load.FindByDottedPath(path);
+      if (corrected_value) {
+        pref_service_->Set(path, corrected_value->Clone());
+      } else {
+        // If the corrected value is null (meaning the whole preference was
+        // corrupt and removed), then clear the live pref.
+        pref_service_->ClearPref(path);
+      }
       pref_to_write = user_prefs::kPreferenceResetTime;
     }
   }
+
+  // This is the final validation pass. Log metrics if we haven't already.
+  MaybeRecordTrackedPreferenceResetCount(pref_store_contents_at_load);
 
   pref_service_->SetString(
       pref_to_write, base::NumberToString(base::Time::Now().ToInternalValue()));
@@ -537,6 +552,18 @@ void PrefHashFilter::SetOnDeferredRevalidationCompleteForTesting(
     base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   on_deferred_revalidation_complete_for_testing_ = std::move(callback);
+}
+
+void PrefHashFilter::MaybeRecordTrackedPreferenceResetCount(
+    const base::Value::Dict& pref_store_contents) {
+  if (reset_metric_recorded_) {
+    return;
+  }
+  const base::Value::Dict* reset_dict =
+      pref_store_contents.FindDict(user_prefs::kTrackedPreferencesReset);
+  UMA_HISTOGRAM_COUNTS_100("Settings.TrackedPreferenceResets.Count",
+                           reset_dict ? reset_dict->size() : 0);
+  reset_metric_recorded_ = true;
 }
 
 // static

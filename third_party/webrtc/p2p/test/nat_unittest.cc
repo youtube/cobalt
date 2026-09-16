@@ -368,7 +368,8 @@ class NatTcpTest : public ::testing::Test, public sigslot::has_slots<> {
 
   void ConnectEvents() {
     server_->SignalReadEvent.connect(this, &NatTcpTest::OnAcceptEvent);
-    client_->SignalConnectEvent.connect(this, &NatTcpTest::OnConnectEvent);
+    client_->SubscribeConnectEvent(
+        [this](Socket* socket) { OnConnectEvent(socket); });
   }
 
   const Environment env_;

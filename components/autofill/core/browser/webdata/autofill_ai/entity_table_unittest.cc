@@ -59,10 +59,26 @@ class EntityTableTest : public testing::Test {
 TEST_F(EntityTableTest, BasicWriteThenRead) {
   EntityInstance pp = test::GetPassportEntityInstance();
   EntityInstance dl = test::GetDriversLicenseEntityInstance();
+  // Flight reservation has frecency override set to departure time.
+  EntityInstance fr = test::GetFlightReservationEntityInstance({
+      .departure_time = test::kJune2017,
+  });
 
   ASSERT_TRUE(table().AddOrUpdateEntityInstance(pp));
   ASSERT_TRUE(table().AddOrUpdateEntityInstance(dl));
-  EXPECT_THAT(table().GetEntityInstances(), UnorderedElementsAre(pp, dl));
+  ASSERT_TRUE(table().AddOrUpdateEntityInstance(fr));
+  EXPECT_THAT(table().GetEntityInstances(), UnorderedElementsAre(pp, dl, fr));
+}
+
+// Tests that AddOrUpdateEntityInstance() correctly adds entities with an id
+// that's not formatted as GUID.
+TEST_F(EntityTableTest, BasicWriteNonGuidFormatId) {
+  EntityInstance vr = test::GetVehicleEntityInstanceWithRandomGuid(
+      {.guid = "non-guid-format",
+       .record_type = EntityInstance::RecordType::kServerWallet});
+
+  ASSERT_TRUE(table().AddOrUpdateEntityInstance(vr));
+  EXPECT_THAT(table().GetEntityInstances(), UnorderedElementsAre(vr));
 }
 
 // Tests that the entity table preserves read only flag between write and read.
@@ -220,6 +236,36 @@ TEST_F(EntityTableTest, GetEntityInstancesSkipsEmptyInstances) {
          "UpdateBuilder() call above.)";
 
   EXPECT_THAT(table().GetEntityInstances(), ElementsAre(dl));
+}
+
+// Tests the EntityInstanceExists method.
+TEST_F(EntityTableTest, EntityInstanceExists) {
+  EntityInstance pp = test::GetPassportEntityInstance();
+  EntityInstance dl = test::GetDriversLicenseEntityInstance();
+
+  // Initially, no entity should exist.
+  EXPECT_FALSE(table().EntityInstanceExists(pp.guid()));
+  EXPECT_FALSE(table().EntityInstanceExists(dl.guid()));
+
+  // After adding an entity, it should exist.
+  ASSERT_TRUE(table().AddOrUpdateEntityInstance(pp));
+  EXPECT_TRUE(table().EntityInstanceExists(pp.guid()));
+  EXPECT_FALSE(table().EntityInstanceExists(dl.guid()));
+
+  // After adding another entity, both should exist.
+  ASSERT_TRUE(table().AddOrUpdateEntityInstance(dl));
+  EXPECT_TRUE(table().EntityInstanceExists(pp.guid()));
+  EXPECT_TRUE(table().EntityInstanceExists(dl.guid()));
+
+  // After removing an entity, it should no longer exist.
+  ASSERT_TRUE(table().RemoveEntityInstance(pp.guid()));
+  EXPECT_FALSE(table().EntityInstanceExists(pp.guid()));
+  EXPECT_TRUE(table().EntityInstanceExists(dl.guid()));
+
+  // After removing the other entity, neither should exist.
+  ASSERT_TRUE(table().RemoveEntityInstance(dl.guid()));
+  EXPECT_FALSE(table().EntityInstanceExists(pp.guid()));
+  EXPECT_FALSE(table().EntityInstanceExists(dl.guid()));
 }
 
 }  // namespace

@@ -310,6 +310,7 @@ void GpuChannelMessageFilter::Destroy() {
   image_decode_accelerator_stub_->Shutdown();
 
   gpu_channel_ = nullptr;
+  scheduler_ = nullptr;
 }
 
 void GpuChannelMessageFilter::AddRoute(int32_t route_id,
@@ -704,6 +705,7 @@ GpuChannel::GpuChannel(
     int32_t client_id,
     uint64_t client_tracing_id,
     bool is_gpu_host,
+    bool enable_extra_handles_validation,
     ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     const gfx::GpuExtraInfo& gpu_extra_info)
     : gpu_channel_manager_(gpu_channel_manager),
@@ -715,6 +717,7 @@ GpuChannel::GpuChannel(
       io_task_runner_(io_task_runner),
       share_group_(share_group),
       is_gpu_host_(is_gpu_host),
+      enable_extra_handles_validation_(enable_extra_handles_validation),
       filter_(base::MakeRefCounted<GpuChannelMessageFilter>(
           this,
           channel_token,
@@ -724,6 +727,7 @@ GpuChannel::GpuChannel(
           std::move(task_runner))) {
   DCHECK(gpu_channel_manager_);
   DCHECK(client_id_);
+  DCHECK(!(is_gpu_host_ && enable_extra_handles_validation_));
 }
 
 GpuChannel::~GpuChannel() {
@@ -756,13 +760,15 @@ std::unique_ptr<GpuChannel> GpuChannel::Create(
     int32_t client_id,
     uint64_t client_tracing_id,
     bool is_gpu_host,
+    bool enable_extra_handles_validation,
     ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     const gfx::GpuExtraInfo& gpu_extra_info) {
   auto gpu_channel = base::WrapUnique(new GpuChannel(
       gpu_channel_manager, channel_token, scheduler, sync_point_manager,
       std::move(share_group), std::move(task_runner), std::move(io_task_runner),
       client_id, client_tracing_id, is_gpu_host,
-      image_decode_accelerator_worker, gpu_extra_info));
+      enable_extra_handles_validation, image_decode_accelerator_worker,
+      gpu_extra_info));
 
   if (!gpu_channel->CreateSharedImageStub(gpu_extra_info)) {
     LOG(ERROR) << "GpuChannel: Failed to create SharedImageStub";
@@ -995,36 +1001,6 @@ void GpuChannel::CreateCommandBuffer(
   }
 
   int32_t stream_id = init_params->stream_id;
-  int32_t share_group_id = init_params->share_group_id;
-  CommandBufferStub* share_group = LookupCommandBuffer(share_group_id);
-
-  if (!share_group && share_group_id != IPC::mojom::kRoutingIdNone) {
-    LOG(ERROR) << "ContextResult::kFatalFailure: invalid share group id";
-    return;
-  }
-
-  if (share_group && stream_id != share_group->stream_id()) {
-    LOG(ERROR) << "ContextResult::kFatalFailure: "
-                  "stream id does not match share group stream id";
-    return;
-  }
-
-  if (share_group && !share_group->decoder_context()) {
-    // This should catch test errors where we did not Initialize the
-    // share_group's CommandBuffer.
-    LOG(ERROR) << "ContextResult::kFatalFailure: "
-                  "shared context was not initialized";
-    return;
-  }
-
-  if (share_group && share_group->decoder_context()->WasContextLost()) {
-    // The caller should retry to get a context.
-    LOG(ERROR) << "ContextResult::kTransientFailure: "
-                  "shared context was already lost";
-    responder.set_result(ContextResult::kTransientFailure);
-    return;
-  }
-
   CommandBufferId command_buffer_id =
       CommandBufferIdFromChannelAndRoute(client_id_, route_id);
 
@@ -1062,7 +1038,7 @@ void GpuChannel::CreateCommandBuffer(
   stub->BindEndpoints(std::move(receiver), std::move(client), io_task_runner_);
 
   auto stub_result =
-      stub->Initialize(share_group, *init_params, std::move(shared_state_shm));
+      stub->Initialize(*init_params, std::move(shared_state_shm));
   if (stub_result != gpu::ContextResult::kSuccess) {
     DLOG(ERROR) << "GpuChannel::CreateCommandBuffer(): failed to initialize "
                    "CommandBufferStub";

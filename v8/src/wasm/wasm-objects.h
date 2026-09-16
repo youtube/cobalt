@@ -405,7 +405,7 @@ class WasmMemoryObject
   // Makes a new SharedArrayBuffer backed by the same backing store.
   static DirectHandle<JSArrayBuffer> RefreshSharedBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      ResizableFlag resizable_by_js);
+      DirectHandle<JSArrayBuffer> old_buffer, ResizableFlag resizable_by_js);
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
@@ -414,12 +414,14 @@ class WasmMemoryObject
   // Makes the ArrayBuffer fixed-length. Assumes the current ArrayBuffer is
   // resizable. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToFixedLengthBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   // Makes the ArrayBuffer resizable by JS. Assumes the current ArrayBuffer is
   // fixed-length. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToResizableBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   static constexpr int kNoMaximum = -1;
 
@@ -469,6 +471,12 @@ class WasmGlobalObject
   inline Address address() const;
 
   TQ_OBJECT_CONSTRUCTORS(WasmGlobalObject)
+};
+
+class FeedbackConstants {
+ public:
+  static constexpr int kHeaderSlots = 1;
+  static constexpr int kSlotsPerInstruction = 2;
 };
 
 // The trusted part of a WebAssembly instance.
@@ -1004,8 +1012,8 @@ class WasmExportedFunction : public JSFunction {
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
-      DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-      int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise);
+      DirectHandle<Code> export_wrapper, wasm::ModuleOrigin origin,
+      int func_index, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1015,7 +1023,7 @@ class WasmExportedFunction : public JSFunction {
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
                                        bool receiver_is_first_param,
-                                       const wasm::WasmModule* module);
+                                       wasm::ModuleOrigin origin);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
@@ -1048,6 +1056,7 @@ class WasmCapiFunction : public JSFunction {
                                             DirectHandle<Foreign> embedder_data,
                                             const wasm::CanonicalSig* sig);
 
+  // TODO(clemensb): Remove this accessor.
   const wasm::CanonicalSig* sig() const;
 
   // Checks whether the given {sig} has the same parameter types as the
@@ -1104,8 +1113,6 @@ class WasmExportedFunctionData
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
   inline bool is_promising() const;
-
-  bool MatchesSignature(wasm::CanonicalTypeIndex other_canonical_sig_index);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -1228,10 +1235,6 @@ class WasmJSFunctionData
 
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
-  const wasm::CanonicalSig* GetSignature() const;
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_sig_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
   bool MatchesSignature(
       wasm::CanonicalTypeIndex other_canonical_sig_index) const;
 
@@ -1554,25 +1557,36 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
   // TODO(leszeks): Consider making hole unmapping independent of wasm null.
   static constexpr int kFirstPayloadSize = 64 * KB;
   static constexpr int kSecondPayloadSize = 64 * KB;
-  static constexpr int kPayloadSize = kFirstPayloadSize + kSecondPayloadSize;
+  static constexpr int kFullPayloadSize =
+      kFirstPayloadSize + kSecondPayloadSize;
   // Payload should be a multiple of page size.
-  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
+  static_assert(kFirstPayloadSize % kMinimumOSPageSize == 0);
+  static_assert(kFullPayloadSize % kMinimumOSPageSize == 0);
 
   Address first_payload() { return field_address(kPayloadOffset); }
   Address second_payload() {
     return field_address(kPayloadOffset + kFirstPayloadSize);
   }
 
-  static constexpr size_t kPayloadOffset = HeapObject::kHeaderSize;
-  static constexpr size_t kSize = kPayloadOffset + kPayloadSize;
+  static constexpr int kPayloadOffset = HeapObject::kHeaderSize;
+  static constexpr int kSizeWithFirstPayload =
+      kPayloadOffset + kFirstPayloadSize;
+  static constexpr int kSizeWithFullPayload = kPayloadOffset + kFullPayloadSize;
+
+  static inline int Size() {
+    return v8_flags.unmap_holes ? WasmNull::kSizeWithFullPayload
+                                : WasmNull::kSizeWithFirstPayload;
+  }
 
   // Any wasm struct offset should fit in the object.
-  static_assert(kSize >=
+  static_assert(kSizeWithFirstPayload >=
                 WasmStruct::kHeaderSize +
                     (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
                         kSimd128Size);
 #else
   static constexpr int kSize = HeapObject::kHeaderSize;
+
+  static constexpr inline int Size() { return kSize; }
 #endif
 
   // WasmNull cannot use `FixedBodyDescriptorFor()` as its map is variable size

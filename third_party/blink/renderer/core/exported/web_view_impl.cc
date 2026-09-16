@@ -63,6 +63,7 @@
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/prerender_page_param.mojom.h"
+#include "third_party/blink/public/mojom/page/widget.mojom-blink.h"
 #include "third_party/blink/public/mojom/partitioned_popins/partitioned_popin_params.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom-blink.h"
 #include "third_party/blink/public/platform/interface_registry.h"
@@ -82,6 +83,7 @@
 #include "third_party/blink/public/web/web_meaningful_layout.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/public/web/web_node.h"
+#include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
 #include "third_party/blink/public/web/web_plugin.h"
 #include "third_party/blink/public/web/web_range.h"
 #include "third_party/blink/public/web/web_render_theme.h"
@@ -722,7 +724,8 @@ bool WebViewImpl::StartPageScaleAnimation(const gfx::Point& target_position,
       if (view && view->GetScrollableArea()) {
         view->GetScrollableArea()->SetScrollOffset(
             ScrollOffset(gfx::Vector2dF(clamped_point.OffsetFromOrigin())),
-            mojom::blink::ScrollType::kProgrammatic);
+            mojom::blink::ScrollType::kProgrammatic,
+            cc::ScrollSourceType::kAbsoluteScroll);
       }
 
       return false;
@@ -1250,7 +1253,12 @@ void WebViewImpl::DidFirstVisuallyNonEmptyPaint() {
 }
 
 void WebViewImpl::OnFirstContentfulPaint() {
-  local_main_frame_host_remote_->OnFirstContentfulPaint();
+  DCHECK(MainFrameImpl());
+  WebPerformanceMetricsForReporting metrics =
+      MainFrameImpl()->PerformanceMetricsForReporting();
+  local_main_frame_host_remote_->OnFirstContentfulPaint(
+      metrics.FirstContentfulPaintAsMonotonicTime() -
+      metrics.NavigationStartAsMonotonicTime());
 }
 
 void WebViewImpl::UpdateICBAndResizeViewport(
@@ -2459,6 +2467,8 @@ void WebViewImpl::SetPageLifecycleStateFromNewPageCommit(
     mojom::blink::PagehideDispatch pagehide_dispatch) {
   TRACE_EVENT0("navigation",
                "WebViewImpl::SetPageLifecycleStateFromNewPageCommit");
+  base::ScopedUmaHistogramTimer timer(
+      "Navigation.PageLifecycleStateFromNewPageCommit.Duration");
   mojom::blink::PageLifecycleStatePtr state =
       GetPage()->GetPageLifecycleState().Clone();
   state->visibility = visibility;
@@ -2623,10 +2633,16 @@ void WebViewImpl::SetPageLifecycleStateInternal(
   GetPage()->SetPageLifecycleState(std::move(new_state));
 
   // Notify all local frames that we've updated the page lifecycle state.
+  BFCacheStateChange bfcache_change = BFCacheStateChange::kNoChange;
+  if (restoring_from_bfcache) {
+    bfcache_change = BFCacheStateChange::kRestoredFromBFCache;
+  } else if (storing_in_bfcache) {
+    bfcache_change = BFCacheStateChange::kStoredToBFCache;
+  }
   for (WebFrame* frame = MainFrame(); frame; frame = frame->TraverseNext()) {
     if (frame->IsWebLocalFrame()) {
       frame->ToWebLocalFrame()->Client()->DidSetPageLifecycleState(
-          restoring_from_bfcache);
+          bfcache_change);
     }
   }
 
@@ -3250,7 +3266,8 @@ void WebViewImpl::ResetScrollAndScaleState() {
 
     if (!scrollable_area->GetScrollOffset().IsZero()) {
       scrollable_area->SetScrollOffset(ScrollOffset(),
-                                       mojom::blink::ScrollType::kProgrammatic);
+                                       mojom::blink::ScrollType::kProgrammatic,
+                                       cc::ScrollSourceType::kAbsoluteScroll);
     }
   }
 
@@ -3317,13 +3334,15 @@ gfx::Transform WebViewImpl::GetDeviceEmulationTransform() const {
 }
 
 void WebViewImpl::EnableDeviceEmulation(const DeviceEmulationParams& params) {
-  web_widget_->EnableDeviceEmulation(params);
+  web_widget_->EnableDeviceEmulation(
+      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
 }
 
 void WebViewImpl::ActivateDevToolsTransform(
-    const DeviceEmulationParams& params) {
+    const DeviceEmulationParams& params,
+    const mojom::blink::DeviceEmulationCacheBehavior& cache_behavior) {
   gfx::Transform device_emulation_transform =
-      dev_tools_emulator_->EnableDeviceEmulation(params);
+      dev_tools_emulator_->EnableDeviceEmulation(params, cache_behavior);
   SetDeviceEmulationTransform(device_emulation_transform);
 }
 

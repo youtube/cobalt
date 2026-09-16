@@ -7,7 +7,9 @@
 #include <memory>
 
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/dom_distiller/core/dom_distiller_features.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,8 +35,7 @@ class MockObserver : public DistilledPagePrefs::Observer {
 
 class TestingObserver : public DistilledPagePrefs::Observer {
  public:
-  TestingObserver()
-      : font_(mojom::FontFamily::kSansSerif), theme_(mojom::Theme::kLight) {}
+  TestingObserver() = default;
 
   void OnChangeFontFamily(mojom::FontFamily new_font) override {
     font_ = new_font;
@@ -56,8 +57,8 @@ class TestingObserver : public DistilledPagePrefs::Observer {
   float GetFontScaling() { return scaling_; }
 
  private:
-  mojom::FontFamily font_;
-  mojom::Theme theme_;
+  mojom::FontFamily font_ = mojom::FontFamily::kSansSerif;
+  mojom::Theme theme_ = mojom::Theme::kLight;
   float scaling_{1.0f};
 };
 
@@ -86,11 +87,17 @@ TEST_F(DistilledPagePrefsTest, TestingOnChangeFontIsBeingCalled) {
   EXPECT_EQ(mojom::FontFamily::kSansSerif, obs.GetFontFamily());
 
   distilled_page_prefs_->SetFontFamily(mojom::FontFamily::kMonospace);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   EXPECT_EQ(mojom::FontFamily::kMonospace, obs.GetFontFamily());
 
   distilled_page_prefs_->SetFontFamily(mojom::FontFamily::kSerif);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   EXPECT_EQ(mojom::FontFamily::kSerif, obs.GetFontFamily());
   distilled_page_prefs_->RemoveObserver(&obs);
 }
@@ -102,14 +109,20 @@ TEST_F(DistilledPagePrefsTest, TestingMultipleObserversFont) {
   distilled_page_prefs_->AddObserver(&obs2);
 
   distilled_page_prefs_->SetFontFamily(mojom::FontFamily::kSerif);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   EXPECT_EQ(mojom::FontFamily::kSerif, obs.GetFontFamily());
   EXPECT_EQ(mojom::FontFamily::kSerif, obs2.GetFontFamily());
 
   distilled_page_prefs_->RemoveObserver(&obs);
 
   distilled_page_prefs_->SetFontFamily(mojom::FontFamily::kMonospace);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   EXPECT_EQ(mojom::FontFamily::kSerif, obs.GetFontFamily());
   EXPECT_EQ(mojom::FontFamily::kMonospace, obs2.GetFontFamily());
 
@@ -122,11 +135,17 @@ TEST_F(DistilledPagePrefsTest, TestingOnChangeThemeIsBeingCalled) {
   EXPECT_EQ(mojom::Theme::kLight, obs.GetTheme());
 
   distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
 
   distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kDark);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   EXPECT_EQ(mojom::Theme::kDark, obs.GetTheme());
 
   distilled_page_prefs_->RemoveObserver(&obs);
@@ -177,18 +196,112 @@ TEST_F(DistilledPagePrefsTest, TestingMultipleObserversTheme) {
   distilled_page_prefs_->AddObserver(&obs2);
 
   distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
-  base::RunLoop().RunUntilIdle();
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
   EXPECT_EQ(mojom::Theme::kSepia, obs2.GetTheme());
 
   distilled_page_prefs_->RemoveObserver(&obs);
 
+  base::RunLoop run_loop2;
   distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kLight);
-  base::RunLoop().RunUntilIdle();
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
   EXPECT_EQ(mojom::Theme::kLight, obs2.GetTheme());
 
   distilled_page_prefs_->RemoveObserver(&obs2);
+}
+
+TEST_F(DistilledPagePrefsTest, SetDefaultThemeNoUserPref) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  EXPECT_EQ(mojom::Theme::kLight, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kLight, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kDark);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  EXPECT_EQ(mojom::Theme::kDark, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kDark, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kSepia);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kSepia, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+TEST_F(DistilledPagePrefsTest, SetDefaultThemeWithUserPref) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  base::RunLoop run_loop1;
+  distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kSepia, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kDark);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kSepia, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+TEST_F(DistilledPagePrefsTest, SetUserPrefThemeOverridesSetDefaultTheme) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kDark);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  EXPECT_EQ(mojom::Theme::kDark, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kDark, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kLight);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  EXPECT_EQ(mojom::Theme::kLight, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kLight, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
+  base::RunLoop run_loop3;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop3.QuitClosure());
+  run_loop3.Run();
+  EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kSepia, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kLight);
+  base::RunLoop run_loop4;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop4.QuitClosure());
+  run_loop4.Run();
+  EXPECT_EQ(mojom::Theme::kSepia, obs.GetTheme());
+  EXPECT_EQ(mojom::Theme::kSepia, distilled_page_prefs_->GetTheme());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
 }
 
 TEST_F(DistilledPagePrefsTest, TestingOnChangeFontScalingIsBeingCalled) {
@@ -196,12 +309,18 @@ TEST_F(DistilledPagePrefsTest, TestingOnChangeFontScalingIsBeingCalled) {
   distilled_page_prefs_->AddObserver(&obs);
   ASSERT_FLOAT_EQ(1.0f, obs.GetFontScaling());
 
-  distilled_page_prefs_->SetFontScaling(1.5f);
-  base::RunLoop().RunUntilIdle();
+  distilled_page_prefs_->SetUserPrefFontScaling(1.5f);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   ASSERT_FLOAT_EQ(1.5f, obs.GetFontScaling());
 
-  distilled_page_prefs_->SetFontScaling(0.7f);
-  base::RunLoop().RunUntilIdle();
+  distilled_page_prefs_->SetUserPrefFontScaling(0.7f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   ASSERT_FLOAT_EQ(0.7f, obs.GetFontScaling());
 
   distilled_page_prefs_->RemoveObserver(&obs);
@@ -213,19 +332,166 @@ TEST_F(DistilledPagePrefsTest, TestingMultipleObserversFontScaling) {
   TestingObserver obs2;
   distilled_page_prefs_->AddObserver(&obs2);
 
-  distilled_page_prefs_->SetFontScaling(1.3f);
-  base::RunLoop().RunUntilIdle();
+  distilled_page_prefs_->SetUserPrefFontScaling(1.3f);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
   ASSERT_FLOAT_EQ(1.3f, obs.GetFontScaling());
   ASSERT_FLOAT_EQ(1.3f, obs2.GetFontScaling());
 
   distilled_page_prefs_->RemoveObserver(&obs);
 
-  distilled_page_prefs_->SetFontScaling(0.9f);
-  base::RunLoop().RunUntilIdle();
+  distilled_page_prefs_->SetUserPrefFontScaling(0.9f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
   ASSERT_FLOAT_EQ(1.3f, obs.GetFontScaling());
   ASSERT_FLOAT_EQ(0.9f, obs2.GetFontScaling());
 
   distilled_page_prefs_->RemoveObserver(&obs2);
 }
+
+TEST_F(DistilledPagePrefsTest, SetDefaultFontScalingWithUserPref) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  base::RunLoop run_loop1;
+  distilled_page_prefs_->SetUserPrefFontScaling(1.5f);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  ASSERT_FLOAT_EQ(1.5f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.5f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetDefaultFontScaling(1.0f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  ASSERT_FLOAT_EQ(1.5f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.5f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+class DistilledPagePrefsFeatureTest
+    : public DistilledPagePrefsTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  DistilledPagePrefsFeatureTest() {
+    if (GetParam()) {
+      scoped_feature_list_.InitAndEnableFeature(kReaderModeDistillInApp);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(kReaderModeDistillInApp);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(DistilledPagePrefsTest, SetDefaultFontScalingNoUserPref) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  ASSERT_FLOAT_EQ(1.0f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.0f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetDefaultFontScaling(1.5f);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  ASSERT_FLOAT_EQ(1.5f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.5f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetDefaultFontScaling(2.0f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  ASSERT_FLOAT_EQ(2.0f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(2.0f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+TEST_F(DistilledPagePrefsTest,
+       SetUserPrefFontScalingOverridesSetDefaultFontScaling) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  distilled_page_prefs_->SetDefaultFontScaling(1.5f);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  ASSERT_FLOAT_EQ(1.5f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.5f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetDefaultFontScaling(1.0f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  ASSERT_FLOAT_EQ(1.0f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(1.0f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetUserPrefFontScaling(2.0f);
+  base::RunLoop run_loop3;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop3.QuitClosure());
+  run_loop3.Run();
+  ASSERT_FLOAT_EQ(2.0f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(2.0f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->SetDefaultFontScaling(1.0f);
+  base::RunLoop run_loop4;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop4.QuitClosure());
+  run_loop4.Run();
+  ASSERT_FLOAT_EQ(2.0f, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(2.0f, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+TEST_P(DistilledPagePrefsFeatureTest, TestClampDefaultFontScaling) {
+  TestingObserver obs;
+  distilled_page_prefs_->AddObserver(&obs);
+
+  float min_font_scale = kMinFontScaleAndroidCCT;
+  float max_font_scale = kMaxFontScaleAndroidCCT;
+  if (GetParam()) {
+    min_font_scale = kMinFontScaleAndroidInApp;
+    max_font_scale = kMaxFontScaleAndroidInApp;
+  }
+
+  // Test clamping for values smaller than the minimum.
+  distilled_page_prefs_->SetDefaultFontScaling(min_font_scale - 0.5f);
+  base::RunLoop run_loop1;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop1.QuitClosure());
+  run_loop1.Run();
+  ASSERT_FLOAT_EQ(min_font_scale, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(min_font_scale, distilled_page_prefs_->GetFontScaling());
+
+  // Test clamping for values larger than the maximum.
+  distilled_page_prefs_->SetDefaultFontScaling(max_font_scale + 0.5f);
+  base::RunLoop run_loop2;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop2.QuitClosure());
+  run_loop2.Run();
+  ASSERT_FLOAT_EQ(max_font_scale, obs.GetFontScaling());
+  ASSERT_FLOAT_EQ(max_font_scale, distilled_page_prefs_->GetFontScaling());
+
+  distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+INSTANTIATE_TEST_SUITE_P(All, DistilledPagePrefsFeatureTest, ::testing::Bool());
+#endif
 
 }  // namespace dom_distiller

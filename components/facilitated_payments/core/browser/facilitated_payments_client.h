@@ -41,9 +41,7 @@ namespace payments::facilitated {
 
 class PixAccountLinkingManager;
 class FacilitatedPaymentsNetworkInterface;
-class MultipleRequestFacilitatedPaymentsNetworkInterface;
 
-// TODO: b/350661525 - Make all methods pure virtual.
 // A cross-platform client interface for showing UI for non-form based FOPs.
 class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
  public:
@@ -59,23 +57,10 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
 
   // Gets the `FacilitatedPaymentsNetworkInterface` instance owned by the client
   // used for making payment requests. It can be null if the browser context
-  // associated with the WebContents is null. See comment for below function
-  // too.
+  // associated with the WebContents is null. Support multiple active
+  // requests at a time.
   virtual FacilitatedPaymentsNetworkInterface*
   GetFacilitatedPaymentsNetworkInterface() = 0;
-
-  // Same as above. However this network interface can support multiple active
-  // requests at a time. Sending a request will not affect other ongoing
-  // requests. This is a complete upgrade of the
-  // `FacilitatedPaymentsNetworkInterface` so all new flows should use this
-  // function. All existing flows should be migrated to this. Note that since
-  // each flow should migrate in its own effort, we would need to keep these
-  // functions separate, instead of updating the logic inside
-  // GetFacilitatedPaymentsNetworkInterface. When all migrations are finished,
-  // above function and the FacilitatedPaymentsNetworkInterface class should be
-  // cleaned up.
-  virtual MultipleRequestFacilitatedPaymentsNetworkInterface*
-  GetMultipleRequestFacilitatedPaymentsNetworkInterface() = 0;
 
   // Provides access to the core information of the user's primary account.
   virtual std::optional<CoreAccountInfo> GetCoreAccountInfo() = 0;
@@ -85,6 +70,10 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
 
   // Returns true if the device is a foldable device.
   virtual bool IsFoldable() = 0;
+
+  // Returns true if the current tab is opened as a CCT in another app instead
+  // of the Chrome browser app.
+  virtual bool IsInChromeCustomTabMode() = 0;
 
   // Returns an instance of the OptimizationGuideDecider associated with the
   // Chrome profile. It is used to determine whether a render frame host URL is
@@ -101,13 +90,13 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   // because it's outside the screen bounds.
   virtual bool IsWebContentsVisibleOrOccluded() = 0;
 
-  // Shows the user's PIX accounts from their Google Wallet, and prompts to pay.
-  // `bank_account_suggestions` is the list of PIX accounts to be shown to the
+  // Shows the user's Pix accounts from their Google Wallet, and prompts to pay.
+  // `bank_account_suggestions` is the list of Pix accounts to be shown to the
   // user for payment. `on_payment_account_selected` is the callback called with
   // the instrument id of the bank account selected by the user for payment.
   virtual void ShowPixPaymentPrompt(
       base::span<const autofill::BankAccount> bank_account_suggestions,
-      base::OnceCallback<void(int64_t)> on_payment_account_selected);
+      base::OnceCallback<void(int64_t)> on_payment_account_selected) = 0;
 
   // Shows the user's payment options and prompts to pay. `ewallet_suggestions`
   // is the list of eWallets to be shown to the user for payment.
@@ -118,45 +107,43 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   virtual void ShowPaymentLinkPrompt(
       base::span<const autofill::Ewallet> ewallet_suggestions,
       std::unique_ptr<FacilitatedPaymentsAppInfoList> app_suggestions,
-      base::OnceCallback<void(SelectedFopData)> on_fop_selected);
+      base::OnceCallback<void(SelectedFopData)> on_fop_selected) = 0;
 
   // Shows a progress bar while users wait for server response after selecting a
   // payment account.
-  virtual void ShowProgressScreen();
+  virtual void ShowProgressScreen() = 0;
 
   // Shows an error message if Chrome isn't able to complete transaction after
   // the user has selected a payment account.
-  virtual void ShowErrorScreen();
+  virtual void ShowErrorScreen() = 0;
 
   // Closes the bottom sheet.
-  virtual void DismissPrompt();
+  virtual void DismissPrompt() = 0;
 
   // Enables features to pass a callback to listen to UI events.
   virtual void SetUiEventListener(
-      base::RepeatingCallback<void(UiEvent)> ui_event_listener);
+      base::RepeatingCallback<void(UiEvent)> ui_event_listener) = 0;
 
   // Gets the StrikeDatabase associated with the client. Note: Nullptr may be
   // returned so check before use.
   virtual strike_database::StrikeDatabase* GetStrikeDatabase() = 0;
 
-  // Virtual so it can be overridden in tests.
   virtual void InitPixAccountLinkingFlow(
-      const url::Origin& pix_payment_page_origin);
+      const url::Origin& pix_payment_page_origin) = 0;
 
-  // Shows the PIX account linking prompt. Virtual so it can be overridden in
-  // tests.
+  // Shows the Pix account linking prompt.
   virtual void ShowPixAccountLinkingPrompt(
       base::OnceCallback<void()> on_accepted,
-      base::OnceCallback<void()> on_declined);
+      base::OnceCallback<void()> on_declined) = 0;
 
   // Check whether the device has the screenlock or biometric set up which is
   // required for Pix account linking in Wallet.
-  virtual bool HasScreenlockOrBiometricSetup();
+  virtual bool HasScreenlockOrBiometricSetup() = 0;
 
   void SetPixAccountLinkingManagerForTesting(
       std::unique_ptr<PixAccountLinkingManager> pix_account_linking_manager);
 
- private:
+ protected:
   std::unique_ptr<PixAccountLinkingManager> pix_account_linking_manager_;
 };
 

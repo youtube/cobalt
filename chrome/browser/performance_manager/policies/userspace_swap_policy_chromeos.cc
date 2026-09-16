@@ -71,16 +71,14 @@ void UserspaceSwapPolicy::OnPassedToGraph(Graph* graph) {
   // Only handle the memory pressure notifications if the feature to swap on
   // moderate pressure is enabled.
   if (config_->swap_on_moderate_pressure) {
-    memory_pressure_listener_.emplace(
-        FROM_HERE, base::MemoryPressureListenerTag::kUserspaceSwapPolicy,
-        base::BindRepeating(&UserspaceSwapPolicy::OnMemoryPressure,
-                            base::Unretained(this)));
+    memory_pressure_listener_registration_.emplace(
+        FROM_HERE, base::MemoryPressureListenerTag::kUserspaceSwapPolicy, this);
   }
 }
 
 void UserspaceSwapPolicy::OnTakenFromGraph(Graph* graph) {
   graph->RemoveProcessNodeObserver(this);
-  memory_pressure_listener_.reset();
+  memory_pressure_listener_registration_.reset();
 }
 
 void UserspaceSwapPolicy::OnAllFramesInProcessFrozen(
@@ -139,8 +137,8 @@ base::TimeTicks UserspaceSwapPolicy::GetLastSwapTime(
 }
 
 void UserspaceSwapPolicy::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel new_level) {
-  if (new_level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    base::MemoryPressureLevel new_level) {
+  if (new_level == base::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
 

@@ -541,17 +541,16 @@ void ProcessIncomingNotification(
   __weak AppState* _appState;
   // Stores blocks to execute once the app is finished foregrounding.
   NSMutableArray<ProceduralBlock>* _runAfterForeground;
-  // Storage for the lazy-loaded `appWideClientManager` property.
-  raw_ptr<PushNotificationClientManager> _appWideClientManager;
 }
 
-- (instancetype)initWithAppState:(AppState*)appState {
+- (instancetype)initWithAppState:(AppState*)appState
+          userNotificationCenter:
+              (UNUserNotificationCenter*)userNotificationCenter {
   if ((self = [super init])) {
     _appState = appState;
     [_appState addObserver:self];
     _metricsRecorder = [[NotificationMetricsRecorder alloc]
-        initWithNotificationCenter:[UNUserNotificationCenter
-                                       currentNotificationCenter]];
+        initWithNotificationCenter:userNotificationCenter];
     _metricsRecorder.classifier = self;
   }
   return self;
@@ -833,12 +832,9 @@ void ProcessIncomingNotification(
 }
 
 - (PushNotificationClientManager*)appWideClientManager {
-  if (!_appWideClientManager) {
-    _appWideClientManager = GetApplicationContext()
-                                ->GetPushNotificationService()
-                                ->GetPushNotificationClientManager();
-  }
-  return _appWideClientManager;
+  return GetApplicationContext()
+      ->GetPushNotificationService()
+      ->GetPushNotificationClientManager();
 }
 
 #pragma mark - Private
@@ -927,8 +923,10 @@ void ProcessIncomingNotification(
 
 // Notifies the client manager that the scene is "foreground active".
 - (void)appDidEnterForeground:(SceneState*)sceneState {
-  DCHECK(self.appWideClientManager);
-  self.appWideClientManager->OnSceneActiveForegroundBrowserReady();
+  PushNotificationClientManager* appWideClientManager =
+      self.appWideClientManager;
+  DCHECK(appWideClientManager);
+  appWideClientManager->OnSceneActiveForegroundBrowserReady();
   [self.metricsRecorder
       handleDeliveredNotificationsWithClosure:base::DoNothing()];
 
@@ -1034,8 +1032,8 @@ void ProcessIncomingNotification(
 
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForProfile(profile);
-  NSString* gaiaID =
-      authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin).gaiaID;
+  GaiaId gaiaID =
+      authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin).gaiaId;
 
   // Early return if 1) the user has previously disabled Send Tab push
   // notifications, because in that case we don't want to automatically enable
@@ -1044,7 +1042,7 @@ void ProcessIncomingNotification(
           prefs::kSendTabNotificationsPreviouslyDisabled) ||
       push_notification_settings::
           GetMobileNotificationPermissionStatusForClient(
-              PushNotificationClientId::kSendTab, GaiaId(gaiaID))) {
+              PushNotificationClientId::kSendTab, gaiaID)) {
     return;
   }
 

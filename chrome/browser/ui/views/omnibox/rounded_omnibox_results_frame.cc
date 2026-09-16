@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -225,12 +228,12 @@ DEFINE_VIEW_BUILDER(/* no export */, TopBackgroundView)
 RoundedOmniboxResultsFrame::RoundedOmniboxResultsFrame(
     views::View* contents,
     LocationBarView* location_bar,
-    bool is_webui)
-    : contents_(contents), is_webui_(is_webui) {
+    bool include_cutout)
+    : contents_(contents), include_cutout_(include_cutout) {
   const int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
       views::ShapeContextTokens::kOmniboxExpandedRadius);
   // Host the contents in its own View to simplify layout and customization.
-  auto contents_host =
+  auto contents_host_builder =
       views::Builder<views::View>()
           .CopyAddressTo(&contents_host_)
           .SetBackground(
@@ -244,11 +247,14 @@ RoundedOmniboxResultsFrame::RoundedOmniboxResultsFrame(
                     gfx::RoundedCornersF(corner_radius));
                 view->layer()->SetIsFastRoundedCorner(true);
               },
-              corner_radius))
-          .AddChild(views::Builder<TopBackgroundView>(
-                        std::make_unique<TopBackgroundView>(location_bar))
-                        .CopyAddressTo(&top_background_))
-          .Build();
+              corner_radius));
+  if (include_cutout_) {
+    contents_host_builder.AddChild(
+        views::Builder<TopBackgroundView>(
+            std::make_unique<TopBackgroundView>(location_bar))
+            .CopyAddressTo(&top_background_));
+  }
+  auto contents_host = std::move(contents_host_builder).Build();
   contents_host->AddChildViewRaw(contents_.get());
 
   // Initialize the shadow.
@@ -286,9 +292,10 @@ void RoundedOmniboxResultsFrame::OnBeforeWidgetInit(
 }
 
 // static
-int RoundedOmniboxResultsFrame::GetNonResultSectionHeight() {
-  return GetLayoutConstant(LOCATION_BAR_HEIGHT) +
-         GetLocationBarAlignmentInsets().height();
+int RoundedOmniboxResultsFrame::GetNonResultSectionHeight(bool include_cutout) {
+  return include_cutout ? GetLayoutConstant(LOCATION_BAR_HEIGHT) +
+                              GetLocationBarAlignmentInsets().height()
+                        : 0;
 }
 
 // static
@@ -304,23 +311,29 @@ gfx::Insets RoundedOmniboxResultsFrame::GetShadowInsets() {
   return views::BubbleBorder::GetBorderAndShadowInsets(kElevation);
 }
 
+std::unique_ptr<views::View> RoundedOmniboxResultsFrame::ExtractContents() {
+  auto contents = std::exchange(contents_, nullptr);
+  return contents_host_->RemoveChildViewT<views::View>(contents);
+}
+
+views::View* RoundedOmniboxResultsFrame::GetContents() {
+  return contents_;
+}
+
 void RoundedOmniboxResultsFrame::Layout(PassKey) {
   // This is called when the Widget resizes due to results changing. Resizing
   // the Widget is fast on ChromeOS, but slow on other platforms, and can't be
   // animated smoothly.
   // TODO(tapted): Investigate using a static Widget size.
   gfx::Rect bounds = GetContentsBounds();
-  bounds.set_height(
-      bounds.height() +
-      (is_webui_ ? views::LayoutProvider::Get()->GetCornerRadiusMetric(
-                       views::ShapeContextTokens::kOmniboxExpandedRadius)
-                 : 0));
   contents_host_->SetBoundsRect(bounds);
 
-  gfx::Rect top_bounds(contents_host_->GetContentsBounds());
-  top_bounds.set_height(GetNonResultSectionHeight());
-  top_bounds.Inset(GetLocationBarAlignmentInsets());
-  top_background_->SetBoundsRect(top_bounds);
+  if (include_cutout_) {
+    gfx::Rect top_bounds(contents_host_->GetContentsBounds());
+    top_bounds.set_height(GetNonResultSectionHeight(include_cutout_));
+    top_bounds.Inset(GetLocationBarAlignmentInsets());
+    top_background_->SetBoundsRect(top_bounds);
+  }
 
   gfx::Rect results_bounds(contents_host_->GetContentsBounds());
   results_bounds.Inset(GetContentInsets());
@@ -365,12 +378,7 @@ void RoundedOmniboxResultsFrame::OnMouseEvent(ui::MouseEvent* event) {
 
 // Insets used to position |contents_| within |contents_host_|.
 gfx::Insets RoundedOmniboxResultsFrame::GetContentInsets() {
-  return gfx::Insets::TLBR(
-      GetNonResultSectionHeight(), 0,
-      (is_webui_ ? views::LayoutProvider::Get()->GetCornerRadiusMetric(
-                       views::ShapeContextTokens::kOmniboxExpandedRadius)
-                 : 0),
-      0);
+  return gfx::Insets::TLBR(GetNonResultSectionHeight(include_cutout_), 0, 0, 0);
 }
 
 BEGIN_METADATA(RoundedOmniboxResultsFrame)

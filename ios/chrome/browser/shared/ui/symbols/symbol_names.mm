@@ -155,6 +155,7 @@ NSString* const kAutofillDataSymbol = @"wand.and.rays";
 NSString* const kSecureLocationBarSymbol = @"lock.fill";
 NSString* const kNavigateToTabSymbol = @"arrow.right.circle";
 NSString* const kRefineQuerySymbol = @"arrow.up.backward";
+NSString* const kRefineQueryDownSymbol = @"arrow.down.backward";
 NSString* const kLinkActionSymbol = @"link";
 NSString* const kQRCodeFinderActionSymbol = @"qrcode.viewfinder";
 NSString* const kNewTabActionSymbol = @"plus.square";
@@ -328,6 +329,8 @@ NSString* const kBuilding2Symbol = @"building.2";
 NSString* const kBookSymbol = @"book";
 NSString* const kKeySymbol = @"key";
 NSString* const kTextDocument = @"text.document";
+NSString* const kPhotoOnRectangleSymbol = @"photo.on.rectangle";
+NSString* const kSystemCameraSymbol = @"camera";
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

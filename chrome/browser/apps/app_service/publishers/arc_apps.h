@@ -179,10 +179,8 @@ class ArcApps : public KeyedService,
       arc::mojom::SupportedLinkChangeSource source) override;
 
   // ash::ArcNotificationsHostInitializer::Observer overrides.
-  void OnSetArcNotificationsInstance(
+  void OnArcNotificationManagerInitialized(
       ash::ArcNotificationManagerBase* arc_notification_manager) override;
-  void OnArcNotificationInitializerDestroyed(
-      ash::ArcNotificationsHostInitializer* initializer) override;
 
   // ArcNotificationManagerBase::Observer overrides.
   void OnNotificationUpdated(const std::string& notification_id,

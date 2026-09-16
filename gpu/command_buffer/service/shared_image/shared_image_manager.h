@@ -9,6 +9,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "build/build_config.h"
@@ -19,6 +20,10 @@
 #include "gpu/vulkan/buildflags.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
+namespace viz {
+class VulkanContextProvider;
+}  // namespace viz
+
 #if BUILDFLAG(IS_WIN)
 namespace gfx {
 class D3DSharedFence;
@@ -27,7 +32,6 @@ class D3DSharedFence;
 
 namespace gpu {
 class DXGISharedHandleManager;
-class GpuMemoryBufferFactory;
 class SharedImageRepresentationFactoryRef;
 
 class GPU_GLES2_EXPORT SharedImageManager
@@ -43,7 +47,8 @@ class GPU_GLES2_EXPORT SharedImageManager
   explicit SharedImageManager(
       bool thread_safe = false,
       bool display_context_on_another_thread = false,
-      GpuMemoryBufferFactory* gpu_memory_buffer_factory = nullptr);
+      viz::VulkanContextProvider* vulkan_context_provider = nullptr,
+      scoped_refptr<base::SingleThreadTaskRunner> io_runner = nullptr);
 
   SharedImageManager(const SharedImageManager&) = delete;
   SharedImageManager& operator=(const SharedImageManager&) = delete;
@@ -156,12 +161,15 @@ class GPU_GLES2_EXPORT SharedImageManager
     return display_context_on_another_thread_;
   }
 
-  GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
-    return gpu_memory_buffer_factory_;
+#if BUILDFLAG(IS_WIN)
+  scoped_refptr<base::SingleThreadTaskRunner> io_runner() { return io_runner_; }
+#endif
+
+#if BUILDFLAG(IS_OZONE)
+  viz::VulkanContextProvider* vulkan_context_provider() {
+    return vulkan_context_provider_.get();
   }
-  void clear_gpu_memory_buffer_factory() {
-    gpu_memory_buffer_factory_ = nullptr;
-  }
+#endif
 
   bool SupportsScanoutImages();
 
@@ -197,13 +205,13 @@ class GPU_GLES2_EXPORT SharedImageManager
 
 #if BUILDFLAG(IS_WIN)
   scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager_;
+  scoped_refptr<base::SingleThreadTaskRunner> io_runner_;
 #endif
 
 #if BUILDFLAG(IS_OZONE)
   bool supports_overlays_on_ozone_ = false;
+  scoped_refptr<viz::VulkanContextProvider> vulkan_context_provider_;
 #endif
-
-  raw_ptr<GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
 
   THREAD_CHECKER(thread_checker_);
 };

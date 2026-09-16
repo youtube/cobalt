@@ -454,8 +454,10 @@ void TabContainerImpl::ToggleTabGroup(
             ? CloseTabSource::kFromMouse
             : CloseTabSource::kFromTouch;
 
+    // Use actual last tab bounds instead of ideal_bounds to match
+    // current_group_width timing.
     EnterTabClosingMode(
-        tabs_view_model_.ideal_bounds(GetTabCount() - 1).right() -
+        tabs_view_model_.view_at(GetTabCount() - 1)->bounds().right() -
             current_group_width + collapsed_group_width,
         source);
   } else {
@@ -520,6 +522,13 @@ void TabContainerImpl::OnSplitContentsChanged(const std::vector<int>& indices) {
     Tab* const tab = GetTabAtModelIndex(index);
     CHECK(tab->split().has_value());
     tab->UpdateInsets();
+
+    // Tab shape may change due to reordering (eg. reversing split tabs). We
+    // should repaint the focus ring to ensure the highlight path matches the
+    // new shape.
+    if (auto* focus_ring = views::FocusRing::Get(tab)) {
+      focus_ring->SchedulePaint();
+    }
   }
 }
 
@@ -558,14 +567,14 @@ std::optional<int> TabContainerImpl::GetModelIndexOfFirstNonClosingTab(
 }
 
 void TabContainerImpl::UpdateHoverCard(
-    views::View* view,
+    Tab* tab,
     TabSlotController::HoverCardUpdateType update_type) {
   // Some operations (including e.g. starting a drag) can cause the tab focus
   // to change at the same time as the tabstrip is starting to animate; the
   // hover card should not be visible at this time.
   // See crbug.com/1220840 for an example case.
   if (controller_->IsAnimatingInTabStrip()) {
-    view = nullptr;
+    tab = nullptr;
     update_type = TabSlotController::HoverCardUpdateType::kAnimating;
   }
 
@@ -573,7 +582,7 @@ void TabContainerImpl::UpdateHoverCard(
     return;
   }
 
-  hover_card_controller_->UpdateHoverCard(view, update_type);
+  hover_card_controller_->UpdateHoverCard(tab, update_type);
 }
 
 void TabContainerImpl::HandleLongTap(ui::GestureEvent* event) {
@@ -1411,8 +1420,7 @@ void TabContainerImpl::CloseTabInViewModel(int index) {
   Tab* tab = GetTabAtModelIndex(index);
   bool tab_was_active = tab->IsActive();
 
-  UpdateHoverCard(nullptr,
-                  TabSlotController::HoverCardUpdateType::kViewRemoved);
+  UpdateHoverCard(nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
 
   tabs_view_model_.Remove(index);
   layout_helper_->MarkTabAsClosing(index, tab);

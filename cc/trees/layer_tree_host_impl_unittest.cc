@@ -22,6 +22,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_util.h"
+#include "base/test/simple_test_tick_clock.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cc/animation/animation.h"
@@ -118,7 +119,10 @@ using media::VideoFrame;
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
+using ::testing::ElementsAre;
 using ::testing::Mock;
+using ::testing::Pointee;
+using ::testing::Property;
 using ::testing::Range;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -7184,6 +7188,7 @@ struct PrepareToDrawSuccessTestCase {
   };
 
   bool high_res_required = false;
+  bool has_view_transition_save_directive = false;
   State layer_before;
   State layer_between;
   State layer_after;
@@ -7278,6 +7283,11 @@ TEST_P(LayerTreeHostImplPrepareToDrawTest, PrepareToDrawSucceedsAndFails) {
   cases.back().layer_between.has_missing_tile = true;
   cases.back().layer_before.has_missing_tile = true;
   cases.back().layer_before.is_animating = true;
+  // 17. checkerboarded animated content with a view transition save directive.
+  cases.push_back(PrepareToDrawSuccessTestCase(DrawResult::kSuccess));
+  cases.back().has_view_transition_save_directive = true;
+  cases.back().layer_between.has_missing_tile = true;
+  cases.back().layer_between.is_animating = true;
 
   auto* root = SetupRootLayer<DidDrawCheckLayer>(host_impl_->active_tree(),
                                                  gfx::Size(10, 10));
@@ -7299,6 +7309,14 @@ TEST_P(LayerTreeHostImplPrepareToDrawTest, PrepareToDrawSucceedsAndFails) {
     CreateLayerFromState(root, timeline(), testcase.layer_between);
     CreateLayerFromState(root, timeline(), testcase.layer_after);
     UpdateDrawProperties(host_impl_->active_tree());
+
+    if (testcase.has_view_transition_save_directive) {
+      host_impl_->active_tree()->AddViewTransitionRequest(
+          ViewTransitionRequest::CreateCapture(
+              blink::ViewTransitionToken(), false, {},
+              base::DoNothingAs<void(
+                  const viz::ViewTransitionElementResourceRects&)>()));
+    }
 
     if (testcase.high_res_required)
       host_impl_->SetRequiresHighResToDraw();
@@ -13249,7 +13267,7 @@ TEST_P(LayerTreeHostImplTest, OnMemoryPressure) {
       host_impl_->resource_pool()->GetTotalMemoryUsageForTesting();
 
   base::MemoryPressureListener::SimulatePressureNotificationAsync(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   base::RunLoop().RunUntilIdle();
 
   size_t memory_usage_after_memory_pressure =
@@ -19450,6 +19468,75 @@ TEST_P(LayerTreeHostImplTest, VisbilityUpdateToLayers) {
   EXPECT_TRUE(layer->has_been_in_invisible_layer_tree());
 }
 
+TEST_P(LayerTreeHostImplTest, DidNotProduceFramePreservesMetricsForScrollEnds) {
+  SetupViewportLayersInnerScrolls(gfx::Size(50, 50), gfx::Size(100, 100));
+
+  // Frame 1 which emits GSU and GSE metrics but doesn't end up being produced.
+  {
+    TestFrameData frame;
+    auto args = viz::CreateBeginFrameArgsForTesting(
+        BEGINFRAME_FROM_HERE, viz::BeginFrameArgs::kManualSourceId, 1,
+        base::TimeTicks() + base::Milliseconds(16));
+    host_impl_->WillBeginImplFrame(args);
+
+    base::SimpleTestTickClock tick_clock;
+    auto metrics_array = std::to_array<std::unique_ptr<EventMetrics>>(
+        {ScrollEventMetrics::CreateForTesting(
+             ui::EventType::kGestureScrollEnd,
+             ui::ScrollInputType::kTouchscreen,
+             /* is_inertial= */ false,
+             /* timestamp= */ base::TimeTicks() + base::Milliseconds(11),
+             /* arrived_in_browser_main_timestamp= */ base::TimeTicks() +
+                 base::Milliseconds(12),
+             &tick_clock),
+         ScrollUpdateEventMetrics::CreateForTesting(
+             ui::EventType::kGestureScrollUpdate,
+             ui::ScrollInputType::kTouchscreen, /* is_inertial= */ false,
+             ScrollUpdateEventMetrics::ScrollUpdateType::kContinued,
+             /* delta= */ 4.2f,
+             /* timestamp= */ base::TimeTicks() + base::Milliseconds(13),
+             /* arrived_in_browser_main_timestamp= */ base::TimeTicks() +
+                 base::Milliseconds(14),
+             &tick_clock,
+             /* trace_id= */ std::nullopt)});
+    for (auto& metrics : metrics_array) {
+      EXPECT_NE(metrics, nullptr);
+      auto scoped_monitor =
+          host_impl_->GetScopedEventMetricsMonitor(base::BindOnce(
+              [](std::unique_ptr<EventMetrics> metrics, bool handled) {
+                std::unique_ptr<EventMetrics> result =
+                    handled ? std::move(metrics) : nullptr;
+                return result;
+              },
+              std::move(metrics)));
+      scoped_monitor->SetSaveMetrics();
+    }
+
+    host_impl_->DidFinishImplFrame(args);
+    host_impl_->DidNotProduceFrame(viz::BeginFrameAck(),
+                                   FrameSkippedReason::kNoDamage);
+  }
+
+  // Frame 2 should submit the GSE metrics from frame 1 so that Chrome would
+  // emit per-scroll jank metrics for the scroll that's just ended. However,
+  // frame 2 should NOT submit the GSU metrics from frame 1 because the GSU
+  // didn't cause any damage and thus shouldn't be associated with any frame for
+  // the purposes of measuring scroll jank.
+  {
+    TestFrameData frame;
+    auto args = viz::CreateBeginFrameArgsForTesting(
+        BEGINFRAME_FROM_HERE, viz::BeginFrameArgs::kManualSourceId, 1,
+        base::TimeTicks() + base::Milliseconds(32));
+    host_impl_->WillBeginImplFrame(args);
+    host_impl_->PrepareToDraw(&frame);
+    std::optional<SubmitInfo> submit_info = host_impl_->DrawLayers(&frame);
+    EXPECT_THAT(
+        submit_info->events_metrics.impl_event_metrics,
+        ElementsAre(Pointee(Property(
+            &EventMetrics::type, EventMetrics::EventType::kGestureScrollEnd))));
+  }
+}
+
 class ConcurrentImplOnlyScrollAnimationsTest : public LayerTreeHostImplTest {
  public:
   gfx::PointF CreateAndTickScrollAnimations();
@@ -19724,5 +19811,25 @@ TEST_P(ConcurrentSnapAnimationsTest, TrackAnimatingSnapTargetIds) {
   EXPECT_FALSE(snap_state_map.contains(container1_id_));
   EXPECT_FALSE(snap_state_map.contains(container2_id_));
 }
+
+class ElasticOverscrollTest : public LayerTreeHostImplTest {
+ public:
+  LayerTreeSettings DefaultSettings() override {
+    auto settings = LayerTreeHostImplTest::DefaultSettings();
+    settings.enable_elastic_overscroll = true;
+    return settings;
+  }
+};
+
+// Verifies destroying the scroll elasticity helper without a viewport scroll
+// node does not crash.
+TEST_P(ElasticOverscrollTest, ElasticOverscrollWithoutViewport) {
+  ASSERT_NE(nullptr,
+            host_impl_->GetInputHandler().CreateScrollElasticityHelper());
+
+  // Destroying the helper without a viewport should be a safe no-op.
+  host_impl_->GetInputHandler().DestroyScrollElasticityHelper();
+}
+INSTANTIATE_COMMIT_TO_TREE_TEST_P(ElasticOverscrollTest);
 
 }  // namespace cc

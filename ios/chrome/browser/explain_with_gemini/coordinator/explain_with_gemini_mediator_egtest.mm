@@ -12,7 +12,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/edit_menu_app_interface.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/edit_menu_matchers.h"
 #import "ios/chrome/browser/explain_with_gemini/coordinator/explain_with_gemini_constants.h"
@@ -84,7 +84,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   http_response->set_code(net::HTTP_OK);
   GURL request_url = request.GetURL();
 
-  if (request_url.path_piece() == kBasicSelectionUrl) {
+  if (request_url.path() == kBasicSelectionUrl) {
     http_response->set_content(kBasicSelectionHtmlTemplate);
     return std::move(http_response);
   }

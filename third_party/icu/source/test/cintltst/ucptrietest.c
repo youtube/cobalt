@@ -636,7 +636,7 @@ testTrieUTF8(const char *testName,
             log_err("error: wrong end index from UCPTRIE_FAST_U8_NEXT(%s)(from %d %lx->U+%04lx): "
                     "%ld != %ld (bytes %lx)\n",
                     testName, (int)prev8, (unsigned long)actualBytes, (long)c,
-                    (long)(p-s), (long)i8, (unsigned long)expectedBytes);
+                    p - s, (long)i8, (unsigned long)expectedBytes);
             break;
         }
         ++i;
@@ -682,7 +682,7 @@ testTrieUTF8(const char *testName,
             log_err("error: wrong end index from UCPTRIE_FAST_U8_PREV(%s)(from %d %lx->U+%04lx): "
                     "%ld != %ld (bytes %lx)\n",
                     testName, (int)prev8, (unsigned long)actualBytes, (long)c,
-                    (long)(p-s), (long)i8, (unsigned long)expectedBytes);
+                    p - s, (long)i8, (unsigned long)expectedBytes);
             break;
         }
     }
@@ -744,7 +744,13 @@ trieTestGolden(const char *testName,
         goto cleanup;
     }
     fseek(stream, 0, SEEK_SET);
-    fread(memoryBuffer, 1, fsize, stream);
+    long rsize = fread(memoryBuffer, 1, fsize, stream);
+    if (rsize != fsize) {
+        log_err(
+            "Golden files for '%s' fread %d bytes fail. Only get %d",
+            testName, fsize, rsize);
+    }
+
 
     int32_t testResult = uprv_compareGoldenFiles(
         memoryBuffer, fsize,

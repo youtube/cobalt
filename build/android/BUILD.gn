@@ -43,6 +43,7 @@ if (enable_java_templates) {
 
     # Required to prevent circular dependency from //tools/android/errorprone_plugin.
     enable_errorprone = false
+
     srcjar_deps = [
       ":native_libraries_gen",
       ":placeholder_build_config_srcjar",
@@ -226,7 +227,7 @@ group("test_runner_device_support") {
 
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    if (!is_component_build) {
+    if (!is_component_build && !is_starboard) {
       data_deps += [ "//tools/android/forwarder2" ]
     }
     data += [ "//tools/android/avd/proto/" ]

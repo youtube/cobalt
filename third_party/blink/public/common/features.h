@@ -760,12 +760,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Tracker: https://crbug.com/1356128
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kKeepAliveInBrowserMigration);
 
-// Enables changing the influence of acceleration based on change of direction.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kKalmanHeuristics);
-// Enables discarding the prediction if the predicted direction is opposite from
-// the current direction.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kKalmanDirectionCutOff);
-
 // When enabled, PaintArtifactCompositor::Layerizer will limit the distance
 // (in number of non-mergeable intermediate PendingLayers) between merged
 // layers to kLayerMergeDistanceLimit, to reduce the cost of layerization.
@@ -1292,6 +1286,43 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     double,
     kMemoryCacheIntelligentPruningTypeWeight);
 
+// Enables extending the list of resource types for strong references
+// in MemoryCache via boolean FeatureParams.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryCacheStrongReferenceExtensions);
+
+// --- High Priority ---
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kMemoryCacheStrongRefXSLStyleSheet);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kMemoryCacheStrongRefRaw);
+
+// --- Medium Priority ---
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefImage);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kMemoryCacheStrongRefSVGDocument);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefManifest);
+
+// --- Low Priority ---
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefAudio);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefVideo);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefTextTrack);
+
+// --- Lowest Priority ---
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kMemoryCacheStrongRefLinkPrefetch);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kMemoryCacheStrongRefSpeculationRules);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                               kMemoryCacheStrongRefDictionary);
+
 // Keep strong references in the blink memory cache to maximize resource reuse.
 // See https://crbug.com/1409349.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryCacheStrongReference);
@@ -1550,6 +1581,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
 
 // Parameters for kReduceUserAgentPlatformOsCpu;
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kReducedReferrerGranularity);
+
+// Refactor CompositorThreadEventQueue to separate event queuing and coalescing.
+// When disabled, CompositorThreadEventQueue coalesces input events in
+// CompositorThreadEventQueue::Queue itself.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRefactorCompositorThreadEventQueue);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kReleaseResourceDecodedDataOnMemoryPressure);
@@ -1824,6 +1860,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppEnableScopeExtensionsBySite);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppManifestLockScreen);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAudioAllowDenormalInProcessing);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAudioDeferPullStatusUpdate);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebFontsCacheAwareTimeoutAdaption);
 

@@ -309,6 +309,7 @@ class NumberFormatTest: public CalendarTimeZoneTest {
     void Test10997_FormatCurrency();
     void Test21556_CurrencyAsDecimal();
     void Test22088_Ethiopic();
+    void Test22983_LongFraction();
 
  private:
     UBool testFormattableAsUFormattable(const char *file, int line, Formattable &f);
@@ -399,7 +400,7 @@ class NumberFormatTest: public CalendarTimeZoneTest {
 
     void expectPad(DecimalFormat& fmt, const char *pat,
                    int32_t pos) {
-        expectPad(fmt, pat, pos, 0, (char16_t)0);
+        expectPad(fmt, pat, pos, 0, static_cast<char16_t>(0));
     }
 
     void expect_rbnf(NumberFormat& fmt, const UnicodeString& str, const Formattable& n);

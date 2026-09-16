@@ -15,6 +15,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
 #include "components/dom_distiller/core/distilled_page_prefs.h"
@@ -317,15 +318,27 @@ const std::string GetLoadingImage() {
 }
 
 static std::string GetMinPinchZoomScale() {
-  std::string min_scale = "0.5";
+  float min_scale = kMinFontScaleAndroidCCT;
 #if BUILDFLAG(IS_ANDROID)
   // Make the minimum pinch zoom value to be 1.0 for distillation in app to
   // align with prefs UI.
   if (base::FeatureList::IsEnabled(kReaderModeDistillInApp)) {
-    min_scale = "1.0";
+    min_scale = kMinFontScaleAndroidInApp;
   }
 #endif
-  return min_scale;
+  return base::NumberToString(min_scale);
+}
+
+static std::string GetMaxPinchZoomScale() {
+  float max_scale = kMaxFontScaleAndroidCCT;
+#if BUILDFLAG(IS_ANDROID)
+  // Make the maximum pinch zoom value to be 2.5 for distillation in app to
+  // align with prefs UI.
+  if (base::FeatureList::IsEnabled(kReaderModeDistillInApp)) {
+    max_scale = kMaxFontScaleAndroidInApp;
+  }
+#endif
+  return base::NumberToString(max_scale);
 }
 
 const std::string GetJavaScript() {
@@ -334,6 +347,8 @@ const std::string GetJavaScript() {
           IDR_DOM_DISTILLER_VIEWER_JS);
   base::ReplaceFirstSubstringAfterOffset(&js, 0, "$MIN_SCALE",
                                          GetMinPinchZoomScale());
+  base::ReplaceFirstSubstringAfterOffset(&js, 0, "$MAX_SCALE",
+                                         GetMaxPinchZoomScale());
   return js;
 }
 
@@ -380,8 +395,10 @@ const std::string GetDistilledPageFontFamilyJs(mojom::FontFamily font_family) {
   return "useFontFamily('" + GetJsFontFamily(font_family) + "');";
 }
 
-const std::string GetDistilledPageFontScalingJs(float scaling) {
-  return "useFontScaling(" + base::NumberToString(scaling) + ");";
+const std::string GetDistilledPageFontScalingJs(float scaling,
+                                                bool restore_center) {
+  return "useFontScaling(" + base::NumberToString(scaling) + ", " +
+         base::ToString(restore_center) + ");";
 }
 
 const std::string SetDistilledPageBaseFontSize(float baseFontSize) {

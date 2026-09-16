@@ -265,7 +265,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Failed to load the key"/>
   <int value="2" label="Failed to create an unsigned assertion token"/>
   <int value="3" label="Failed to sign an assertion token"/>
-  <int value="4" label="Assertion token signature verification failed"/>
+  <int value="4"
+      label="(Obsolete) Assertion token signature verification failed"/>
   <int value="5" label="Failed to attach the signature to an assertion token"/>
 </enum>
 
@@ -577,6 +578,9 @@ chromium-metrics-reviews@google.com.
   <int value="6"
       label="User tapped on a widget and the account used on the widget is
              different from the account used in the app"/>
+  <int value="7"
+      label="User selected an account, in the share extension, different from
+             the one used in the app."/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/app/change_profile_commands.h:IOSChangeProfileReason) -->
@@ -751,6 +755,14 @@ chromium-metrics-reviews@google.com.
   <int value="60" label="Nearby Presence Server Client"/>
   <int value="61" label="Crypt Auth Client"/>
   <int value="62" label="Ambient Mode CrOS"/>
+  <int value="63" label="Profile Downloader"/>
+  <int value="64" label="Data Sharing Android"/>
+  <int value="65" label="Extensions Identity API"/>
+  <int value="66" label="Manta"/>
+  <int value="67" label="Chrome Memex"/>
+  <int value="68" label="Devtools Aida Client"/>
+  <int value="69" label="Babel Orca"/>
+  <int value="70" label="Boca School Tools Auth"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/identity_manager/oauth_consumer_ids.h:OAuthConsumerId) -->
@@ -854,7 +866,7 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="Devices page"/>
   <int value="13" label="(obsolete) Cloud print"/>
   <int value="14" label="(obsolete) Content area"/>
-  <int value="15" label="Signin promo"/>
+  <int value="15" label="Fullscreen Signin promo shown on start-up"/>
   <int value="16" label="Recent tabs"/>
   <int value="17" label="Unknown"/>
   <int value="18" label="Password bubble"/>
@@ -922,7 +934,8 @@ chromium-metrics-reviews@google.com.
   <int value="77" label="History Sync Opt-in Expanded Pill on startup"/>
   <int value="78" label="Widget (iOS only)"/>
   <int value="79" label="Leave or delete collaboration tab group"/>
-  <int value="80" label="History Sync Opt-in Expanded Pill on inactivity"/>
+  <int value="80"
+      label="(obsolete) History Sync Opt-in Expanded Pill on inactivity"/>
   <int value="81" label="History sync educational tip module (Android only)"/>
   <int value="82"
       label="Managed profile was automatically signed in (iOS only)"/>

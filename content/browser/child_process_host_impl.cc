@@ -286,8 +286,8 @@ void ChildProcessHostImpl::OnChannelError() {
   OnDisconnectedFromChildProcess();
 }
 
-void ChildProcessHostImpl::OnBadMessageReceived(const IPC::Message& message) {
-  delegate_->OnBadMessageReceived(message);
+void ChildProcessHostImpl::OnBadMessageReceived() {
+  delegate_->OnBadMessageReceived();
 }
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)
@@ -303,7 +303,7 @@ void ChildProcessHostImpl::SetProfilingFile(base::File file) {
 #if BUILDFLAG(IS_ANDROID)
 // Notifies the child process of memory pressure level.
 void ChildProcessHostImpl::NotifyMemoryPressureToChildProcess(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+    base::MemoryPressureLevel level) {
   child_process()->OnMemoryPressure(level);
 }
 #endif

@@ -198,6 +198,16 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   TNode<BoolT> TableHasKey(const TNode<Object> context,
                            TNode<OrderedHashMap> table, TNode<JSAny> key);
 
+  TNode<OrderedHashMap> LoadTable(TNode<JSMap> receiver);
+  TNode<JSAny> TableGetIfExists(const TNode<Context> context,
+                                TNode<JSMap> receiver,
+                                TNode<OrderedHashMap> table,
+                                const TNode<Object> key, Label* if_found,
+                                Label* if_not_found);
+  void TableSet(const TNode<Context> context, TNode<JSMap> receiver,
+                TNode<OrderedHashMap> table, TVariable<JSAny>* key,
+                TNode<JSAny> value);
+
   // Adds {value} to a FixedArray keyed by {key} in {groups}.
   //
   // Utility used by Object.groupBy and Map.groupBy.
@@ -307,6 +317,16 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       TNode<CollectionType> table, TNode<HeapNumber> key_heap_number,
       TVariable<IntPtrT>* result, Label* entry_found, Label* not_found);
 
+  // Specialization for string.
+  // The {result} variable will contain the entry index if the key was found,
+  // or the hash code otherwise.
+  template <typename CollectionType>
+  void FindOrderedHashTableEntryForStringKey(TNode<CollectionType> table,
+                                             TNode<String> key_tagged,
+                                             TVariable<IntPtrT>* result,
+                                             Label* entry_found,
+                                             Label* not_found);
+
   // Specialization for bigints.
   // The {result} variable will contain the entry index if the key was found,
   // or the hash code otherwise.
@@ -348,14 +368,14 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   template <typename CollectionType>
   using GrowCollection = std::function<const TNode<CollectionType>()>;
   template <typename CollectionType>
-  using StoreAtEntry = std::function<void(const TNode<CollectionType> table,
+  using ApplyAtEntry = std::function<void(const TNode<CollectionType> table,
                                           const TNode<IntPtrT> entry_start)>;
   template <typename CollectionType>
   TNode<CollectionType> AddToOrderedHashTable(
       const TNode<CollectionType> table, TVariable<JSAny>* key,
       const GrowCollection<CollectionType>& grow,
-      const StoreAtEntry<CollectionType>& store_at_new_entry,
-      const StoreAtEntry<CollectionType>& store_at_existing_entry);
+      const ApplyAtEntry<CollectionType>& store_at_new_entry,
+      const ApplyAtEntry<CollectionType>& store_at_existing_entry);
 
   template <typename CollectionType>
   void TryLookupOrderedHashTableIndex(const TNode<CollectionType> table,
@@ -369,13 +389,13 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   void AddNewToOrderedHashTable(
       const TNode<CollectionType> table, const TNode<JSAny> normalised_key,
       const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
-      const StoreAtEntry<CollectionType>& store_at_new_entry);
+      const ApplyAtEntry<CollectionType>& store_at_new_entry);
 
   void AddNewToOrderedHashSet(const TNode<OrderedHashSet> table,
                               const TNode<JSAny> key,
                               const TNode<IntPtrT> number_of_buckets,
                               const TNode<IntPtrT> occupancy) {
-    StoreAtEntry<OrderedHashSet> store_at_new_entry =
+    ApplyAtEntry<OrderedHashSet> store_at_new_entry =
         [this, key](const TNode<OrderedHashSet> table,
                     const TNode<IntPtrT> entry_start) {
           UnsafeStoreKeyInOrderedHashSetEntry(table, key, entry_start);
@@ -392,7 +412,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   void StoreOrderedHashTableNewEntry(
       const TNode<CollectionType> table, const TNode<IntPtrT> hash,
       const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
-      const StoreAtEntry<CollectionType>& store_at_new_entry);
+      const ApplyAtEntry<CollectionType>& store_at_new_entry);
 
   // Store payload (key, value, or both) in {table} at {entry}. Does not connect
   // the bucket chain and update the bucket head.
@@ -538,6 +558,12 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   TNode<EphemeronHashTable> LoadTable(TNode<JSWeakCollection> collection);
   TNode<IntPtrT> LoadTableCapacity(TNode<EphemeronHashTable> table);
 
+  TNode<JSAny> TableGetIfExists(const TNode<Context> context,
+                                TNode<JSWeakMap> receiver,
+                                TNode<EphemeronHashTable> table,
+                                const TNode<JSAny> key, Label* if_found,
+                                Label* if_not_found);
+
   void RemoveEntry(TNode<EphemeronHashTable> table, TNode<IntPtrT> key_index,
                    TNode<IntPtrT> number_of_elements);
   TNode<BoolT> ShouldRehash(TNode<Int32T> number_of_elements,
@@ -545,6 +571,15 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   TNode<Word32T> ShouldShrink(TNode<IntPtrT> capacity,
                               TNode<IntPtrT> number_of_elements);
   TNode<IntPtrT> ValueIndexFromKeyIndex(TNode<IntPtrT> key_index);
+
+  using ApplyAtEntry = std::function<void(const TNode<EphemeronHashTable> table,
+                                          const TNode<IntPtrT> entry_start,
+                                          const TNode<JSAny> value)>;
+  void AddToEphemeronHashTable(const TNode<Context> context,
+                               const TNode<JSWeakCollection> collection,
+                               const TNode<HeapObject> key,
+                               const TNode<JSAny> value,
+                               const ApplyAtEntry& existing_entry);
 
   void GetEntriesIfFastCollectionOrIterable(
       Variant variant, TNode<Object> initial_entries, TNode<Context> context,

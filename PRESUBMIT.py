@@ -125,9 +125,8 @@ class BanRule:
     # Explanation as a sequence of strings. Each string in the sequence will be
     # printed on its own line.
     explanation: Tuple[str, ...]
-    # Whether or not to treat this ban as a fatal error. If unspecified,
-    # defaults to true.
-    treat_as_error: Optional[bool] = None
+    # Whether or not to treat this ban as a fatal error.
+    treat_as_error: bool = False
     # Paths that should be excluded from the ban check. Each string is a regular
     # expression that will be matched against the path of the file being checked
     # relative to the root of the source tree.
@@ -142,6 +141,7 @@ _BANNED_JAVA_IMPORTS: Sequence[BanRule] = (
         'import java.net.URI;',
         ('Use org.chromium.url.GURL instead of java.net.URI, where possible.',
          ),
+        True,
         excluded_paths=(
             (r'net/android/javatests/src/org/chromium/net/'
              r'AndroidProxySelectorTest\.java'),
@@ -154,11 +154,13 @@ _BANNED_JAVA_IMPORTS: Sequence[BanRule] = (
         ('Do not use TargetApi, use @androidx.annotation.RequiresApi instead. '
          'RequiresApi ensures that any calls are guarded by the appropriate '
          'SDK_INT check. See https://crbug.com/1116486.', ),
+        True
     ),
     BanRule(
         'import androidx.test.rule.ActivityTestRule;',
         ('Do not use ActivityTestRule, use '
          'org.chromium.base.test.BaseActivityTestRule instead.', ),
+        True,
         excluded_paths=('components/cronet/', ),
     ),
     BanRule(
@@ -166,6 +168,13 @@ _BANNED_JAVA_IMPORTS: Sequence[BanRule] = (
         ('Do not use VectorDrawableCompat, use getResources().getDrawable() '
          'to avoid extra indirections. Please also add trace event as the call '
          'might take more than 20 ms to complete.', ),
+        True,
+    ),
+    BanRule(
+        'import java.util.Optional',
+        ('Prefer @Nullable over Optional/OptionalInt/OptionalDouble/etc. See '
+         '//styleguide/java/java.md',),
+        False,
     ),
 )
 
@@ -685,6 +694,10 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ),
         True,
         [
+            # Only used to implement a test HTTP server:
+            # https://crbug.com/438422635#comment8
+            '^third_party/crashpad/crashpad/third_party/'
+            r'cpp-httplib/cpp-httplib/httplib\.h$',
             # Abseil's benchmarks never linked into chrome.
             'third_party/abseil-cpp/.*_benchmark.cc',
         ],
@@ -2339,6 +2352,7 @@ _GENERIC_PYDEPS_FILES = [
     'chrome/android/monochrome/scripts/monochrome_python_tests.pydeps',
     'chrome/test/chromedriver/log_replay/client_replay_unittest.pydeps',
     'chrome/test/chromedriver/test/run_py_tests.pydeps',
+    'chrome/test/media/performance/videostack_performance_test.pydeps',
     'chrome/test/media_router/performance/openscreen_cast_performance_test.pydeps',
     'chromecast/resource_sizes/chromecast_resource_sizes.pydeps',
     'components/cronet/tools/check_combined_proguard_file.pydeps',
@@ -2891,8 +2905,8 @@ def _GetMessageForMatchingType(input_api, affected_file, line_number, line,
     return result
 
 
-def CheckNoBannedFunctions(input_api, output_api):
-    """Make sure that banned functions are not used."""
+def CheckNoBannedPatterns(input_api, output_api):
+    """Make sure that banned patterns are not used."""
     results = []
 
     def IsExcludedFile(affected_file, excluded_paths):
@@ -2934,22 +2948,22 @@ def CheckNoBannedFunctions(input_api, output_api):
                         start_line=line_num,
                         end_line=line_num,
                     ))
-            if ban_rule.treat_as_error is not None and ban_rule.treat_as_error:
+            if ban_rule.treat_as_error:
                 results.append(
-                    output_api.PresubmitError('A banned function was used.\n' +
+                    output_api.PresubmitError('A banned pattern was used.\n' +
                                               '\n'.join(message),
                                               locations=result_loc))
 
             else:
                 results.append(
                     output_api.PresubmitPromptWarning(
-                        'A banned function was used.\n' + '\n'.join(message),
+                        'A banned pattern was used.\n' + '\n'.join(message),
                         locations=result_loc))
 
     file_filter = lambda f: f.LocalPath().endswith(('.java'))
     for f in input_api.AffectedFiles(file_filter=file_filter):
         for line_num, line in f.ChangedContents():
-            for ban_rule in _BANNED_JAVA_FUNCTIONS:
+            for ban_rule in _BANNED_JAVA_FUNCTIONS + _BANNED_JAVA_IMPORTS:
                 CheckForMatch(f, line_num, line, ban_rule)
 
     file_filter = lambda f: f.LocalPath().endswith(('.js', '.ts'))
@@ -3011,32 +3025,8 @@ def CheckNoBannedFunctions(input_api, output_api):
     return results
 
 
-def _CheckAndroidNoBannedImports(input_api, output_api):
-    """Make sure that banned java imports are not used."""
-    errors = []
-
-    file_filter = lambda f: f.LocalPath().endswith(('.java'))
-    for f in input_api.AffectedFiles(file_filter=file_filter):
-        for line_num, line in f.ChangedContents():
-            for ban_rule in _BANNED_JAVA_IMPORTS:
-                # Consider merging this into the above function. There is no
-                # real difference anymore other than helping with a little
-                # bit of boilerplate text. Doing so means things like
-                # `treat_as_error` will also be uniformly handled.
-                problems = _GetMessageForMatchingType(input_api, f, line_num,
-                                                      line, ban_rule)
-                if problems:
-                    errors.extend(problems)
-    result = []
-    if (errors):
-        result.append(
-            output_api.PresubmitError('Banned imports were used.\n' +
-                                      '\n'.join(errors)))
-    return result
-
-
 def CheckNoPragmaOnce(input_api, output_api):
-    """Make sure that banned functions are not used."""
+    """Make sure #pragma once is not used."""
     files = []
     pattern = input_api.re.compile(r'^#pragma\s+once', input_api.re.MULTILINE)
     for f in input_api.AffectedSourceFiles(input_api.FilterSourceFile):
@@ -5888,7 +5878,6 @@ def ChecksAndroidSpecificOnUpload(input_api, output_api):
     results.extend(_CheckAndroidWebkitImports(input_api, output_api))
     results.extend(_CheckAndroidXmlStyle(input_api, output_api, True))
     results.extend(_CheckNewImagesWarning(input_api, output_api))
-    results.extend(_CheckAndroidNoBannedImports(input_api, output_api))
     results.extend(_CheckAndroidInfoBarDeprecation(input_api, output_api))
     results.extend(_CheckAndroidNullAwayAnnotatedClasses(
         input_api, output_api))
@@ -7574,7 +7563,7 @@ a subclass of it), or use "@Rule BaseRobolectricTestRule".
 def _CheckAndroidNullAwayAnnotatedClasses(input_api, output_api):
     """Checks that Java classes/interfaces/annotations are null-annotated."""
 
-    # Temporary, crbug.com/389129271
+    # clank repo is not null-marked
     if input_api.change.RepositoryRoot().endswith('clank'):
         return []
 
@@ -7590,7 +7579,6 @@ def _CheckAndroidNullAwayAnnotatedClasses(input_api, output_api):
                 _EXCLUDED_PATHS + _TEST_CODE_EXCLUDED_PATHS +
                 input_api.DEFAULT_FILES_TO_SKIP + (
                     r'.*Test.*\.java',
-                    r'^android_webview/.*',  # Temporary, crbug.com/389129271
                     r'^build/.*',
                     r'^chromecast/.*',
                     r'^components/cronet/.*',
@@ -7875,48 +7863,6 @@ def CheckNoBrowserStarInUnittests(input_api, output_api):
     or determine if a browser_test is more appropriate.
     """
     return [output_api.PresubmitPromptWarning(WARNING_MSG, items=problems)]
-
-
-def CheckEnabledByDefaultCommitMessage(input_api, output_api):
-    """Checks that if a change enables a feature by default, the commit message
-    contains an Enabled-by-default-reason: tag. This helps reviewers understand
-    the reason the flag is being enabled and acts as an additional guard
-    against accidentally enabling a feature by default when it was not intended.
-    For example, this could happen if a flag is being enabled during local
-    development, but should be turned off when committing the change."""
-
-    files_with_string = set()
-    for f, _, line in input_api.RightHandSideLines(
-            source_file_filter=lambda x: _IsCPlusPlusFile(
-                input_api, x.LocalPath())):
-        if 'FEATURE_ENABLED_BY_DEFAULT' in line:
-            files_with_string.add(f.LocalPath())
-
-    if not files_with_string:
-        return []
-
-    pattern = input_api.re.compile(r'Enabled-by-default-reason[:=]',
-                                   input_api.re.IGNORECASE)
-    if any(
-            pattern.search(line)
-            for line in input_api.change.DescriptionText().splitlines()):
-        return []
-
-    error_message = (
-        'The string "FEATURE_ENABLED_BY_DEFAULT" was found in a C++ file, '
-        'which suggests a feature is being enabled by default.\n'
-        'Please add a line to your commit description via `git cl description` '
-        'or in Gerrit with a reason the flag is being enabled by default.\n '
-        'This is a message on upload, but will block submission.\n'
-        'Use the format:\n'
-        'Enabled-by-default-reason: [reason]\n'
-        'Where [reason] is something like: "launching", "killswitch", etc.\n\n'
-        'Files containing "ENABLED_BY_DEFAULT":\n' +
-        '\n'.join('  ' + f for f in sorted(list(files_with_string))))
-
-    if input_api.is_committing:
-        return [output_api.PresubmitError(error_message)]
-    return [output_api.PresubmitNotifyResult(error_message)]
 
 
 def CheckBaseFeatureMacro(input_api, output_api):

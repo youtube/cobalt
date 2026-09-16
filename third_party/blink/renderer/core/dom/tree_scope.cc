@@ -303,11 +303,14 @@ CustomElementRegistry* TreeScope::customElementRegistry() const {
   return nullptr;
 }
 
-// Custom element registry of a tree scope can only be set once.
-// Setting registry on a tree scope with existing registry will fail.
+// Custom element registry of a tree scope can only be set once except when the
+// tree scope is using a global registry and it can be reset during cross
+// document node adoption. Otherwise, setting registry on a tree scope with
+// existing registry will fail.
 bool TreeScope::SetCustomElementRegistry(CustomElementRegistry* registry) {
   if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() ||
-      custom_element_registry_) {
+      (custom_element_registry_ &&
+       !custom_element_registry_->IsGlobalRegistry())) {
     return false;
   }
 
@@ -316,7 +319,9 @@ bool TreeScope::SetCustomElementRegistry(CustomElementRegistry* registry) {
     waiting_for_registry_ = false;
     registry->AssociatedWith(GetDocument());
     return true;
-  } else if (!custom_element_registry_) {
+  } else if (!custom_element_registry_ ||
+             custom_element_registry_->IsGlobalRegistry()) {
+    custom_element_registry_ = nullptr;
     waiting_for_registry_ = true;
     return true;
   }
@@ -628,8 +633,8 @@ Element* TreeScope::AdjustedFocusedElement(bool is_pseudo_allowed) const {
     CHECK(scroll_marker->ScrollMarkerGroup());
     // https://drafts.csswg.org/css-overflow-5/#active-element
     element = &scroll_marker->ScrollMarkerGroup()->UltimateOriginatingElement();
-  } else if (pseudo_element) {
-    element = &pseudo_element->UltimateOriginatingElement();
+  } else if (auto* maybe_pseudo = DynamicTo<PseudoElement>(element)) {
+    element = &maybe_pseudo->UltimateOriginatingElement();
   }
 
   CHECK(!element->IsPseudoElement());

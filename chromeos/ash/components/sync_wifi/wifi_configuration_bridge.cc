@@ -205,11 +205,7 @@ void WifiConfigurationBridge::OnGetAllSyncableNetworksResult(
   // Mark the changes as processed.
   batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
   Commit(std::move(batch));
-  metrics_recorder_->RecordTotalCount(entries_.size());
-  // If zero networks are synced log the reason.
-  if (entries_.size() == 0) {
-    local_network_collector_->RecordZeroNetworksEligibleForSync();
-  }
+  RecordNetworkMetrics();
 }
 
 std::optional<syncer::ModelError>
@@ -253,11 +249,7 @@ WifiConfigurationBridge::ApplyIncrementalSyncChanges(
 
   batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
   Commit(std::move(batch));
-  metrics_recorder_->RecordTotalCount(entries_.size());
-  // If zero networks are synced log the reason.
-  if (entries_.size() == 0) {
-    local_network_collector_->RecordZeroNetworksEligibleForSync();
-  }
+  RecordNetworkMetrics();
 
   return std::nullopt;
 }
@@ -297,6 +289,26 @@ std::string WifiConfigurationBridge::GetStorageKey(
       .SerializeToString();
 }
 
+bool WifiConfigurationBridge::IsEntityDataValid(
+    const syncer::EntityData& entity_data) const {
+  const sync_pb::WifiConfigurationSpecifics& specifics =
+      entity_data.specifics.wifi_configuration();
+  if (specifics.hex_ssid().empty()) {
+    return false;
+  }
+  // Only security types PSK and WEP are supported, see
+  // sync_wifi::SecurityTypeStringFromProto().
+  switch (specifics.security_type()) {
+    case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_UNSPECIFIED:
+    case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_NONE:
+      return false;
+    case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_PSK:
+    case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_WEP:
+      return true;
+  }
+  NOTREACHED();
+}
+
 void WifiConfigurationBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   // Since bridge and DataTypeStore state represents the synced networks state,
@@ -313,6 +325,14 @@ void WifiConfigurationBridge::ApplyDisableSyncChanges(
   }
   // Callbacks are no longer valid.
   weak_ptr_factory_.InvalidateWeakPtrs();
+}
+
+void WifiConfigurationBridge::RecordNetworkMetrics() {
+  metrics_recorder_->RecordTotalCount(entries_.size());
+  // If zero networks are synced log the reason.
+  if (entries_.empty()) {
+    local_network_collector_->RecordZeroNetworksEligibleForSync();
+  }
 }
 
 void WifiConfigurationBridge::OnStoreCreated(
@@ -356,22 +376,17 @@ void WifiConfigurationBridge::OnReadAllData(
                        weak_ptr_factory_.GetWeakPtr()));
   }
 
-  int entries_size = entries_.size();
   // Do not log the total network count during OOBE. It returns 0 even if there
   // are networks synced since MergeFullSyncData has not executed yet.
   if (pref_service_->GetBoolean(kIsFirstRun)) {
     pref_service_->SetBoolean(kIsFirstRun, false);
-    // This is only meant to filter out 0's that are logged during OOBE. If the
-    // entries_size is greater than zero it should be logged.
-    if (entries_size == 0) {
+    // This is only meant to filter out 0's that are logged during OOBE. If
+    // entries is not empty, the histogram will be logged..
+    if (entries_.empty()) {
       return;
     }
   }
-  metrics_recorder_->RecordTotalCount(entries_size);
-  // If zero networks are synced log the reason.
-  if (entries_size == 0) {
-    local_network_collector_->RecordZeroNetworksEligibleForSync();
-  }
+  RecordNetworkMetrics();
 }
 
 void WifiConfigurationBridge::FixAutoconnect() {
@@ -520,11 +535,7 @@ void WifiConfigurationBridge::SaveNetworkToSync(
   NET_LOG(EVENT) << "Saved network "
                  << NetworkId(NetworkStateFromNetworkIdentifier(id))
                  << " to sync.";
-  metrics_recorder_->RecordTotalCount(entries_.size());
-  // If zero networks are synced log the reason.
-  if (entries_.size() == 0) {
-    local_network_collector_->RecordZeroNetworksEligibleForSync();
-  }
+  RecordNetworkMetrics();
 }
 
 void WifiConfigurationBridge::OnNetworkCreated(const std::string& guid) {

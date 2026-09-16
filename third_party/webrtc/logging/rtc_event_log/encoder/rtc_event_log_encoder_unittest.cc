@@ -668,30 +668,6 @@ TEST_P(RtcEventLogEncoderTest, RtcEventGenericPacketSent) {
   }
 }
 
-TEST_P(RtcEventLogEncoderTest, RtcEventGenericAcksReceived) {
-  if (encoding_type_ == RtcEventLog::EncodingType::Legacy) {
-    return;
-  }
-  std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder();
-  std::vector<std::unique_ptr<RtcEventGenericAckReceived>> events(event_count_);
-  for (size_t i = 0; i < event_count_; ++i) {
-    events[i] = (i == 0 || !force_repeated_fields_)
-                    ? gen_.NewGenericAckReceived()
-                    : events[0]->Copy();
-    history_.push_back(events[i]->Copy());
-  }
-
-  encoded_ += encoder->EncodeBatch(history_.begin(), history_.end());
-  ASSERT_TRUE(parsed_log_.ParseString(encoded_).ok());
-
-  const auto& decoded_events = parsed_log_.generic_acks_received();
-  ASSERT_EQ(decoded_events.size(), event_count_);
-
-  for (size_t i = 0; i < event_count_; ++i) {
-    verifier_.VerifyLoggedGenericAckReceived(*events[i], decoded_events[i]);
-  }
-}
-
 TEST_P(RtcEventLogEncoderTest, RtcEventDtlsTransportState) {
   std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder();
   std::vector<std::unique_ptr<RtcEventDtlsTransportState>> events(event_count_);

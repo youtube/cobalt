@@ -45,18 +45,6 @@ PreloadingType ConvertSpeculationActionToPreloadingType(
   }
 }
 
-bool ShouldPauseJavaScriptExecution(blink::mojom::SpeculationAction action) {
-  switch (action) {
-    case blink::mojom::SpeculationAction::kPrerender:
-      return false;
-    case blink::mojom::SpeculationAction::kPrerenderUntilScript:
-      return true;
-    case blink::mojom::SpeculationAction::kPrefetch:
-    case blink::mojom::SpeculationAction::kPrefetchWithSubresources:
-      NOTREACHED();
-  }
-}
-
 }  // namespace
 
 struct PrerendererImpl::PrerenderInfo {
@@ -146,7 +134,8 @@ void PrerendererImpl::PrimaryPageChanged(Page& page) {
 // about making preloading decisions and could be moved to PreloadingDecider
 // class.
 void PrerendererImpl::ProcessCandidatesForPrerender(
-    const std::vector<blink::mojom::SpeculationCandidatePtr>& candidates) {
+    const std::vector<blink::mojom::SpeculationCandidatePtr>& candidates,
+    bool enable_cross_origin_prerender_iframes) {
   if (!registry_)
     return;
 
@@ -162,6 +151,8 @@ void PrerendererImpl::ProcessCandidatesForPrerender(
                                         candidate.Clone());
     }
   }
+  enable_cross_origin_prerender_iframes_ |=
+      enable_cross_origin_prerender_iframes;
 
   std::ranges::stable_sort(
       prerender_candidates, std::less<>(),
@@ -401,14 +392,15 @@ bool PrerendererImpl::MaybePrerender(
       Referrer{*candidate->referrer}, no_vary_search_hint, &rfhi,
       web_contents->GetWeakPtr(), ui::PAGE_TRANSITION_LINK,
       should_warm_up_compositor,
-      /*should_prepare_paint_tree=*/false,
-      ShouldPauseJavaScriptExecution(candidate->action),
+      /*should_prepare_paint_tree=*/false, candidate->action,
       /*url_match_predicate=*/{},
       /*prerender_navigation_handle_callback=*/{},
       PreloadPipelineInfoImpl::Create(
           /*planned_max_preloading_type=*/
           ConvertSpeculationActionToPreloadingType(candidate->action)),
       /*allow_reuse=*/false);
+  attributes.enable_cross_origin_prerender_iframes =
+      enable_cross_origin_prerender_iframes_;
 
   PreloadingTriggerType trigger_type =
       PreloadingTriggerTypeFromSpeculationInjectionType(

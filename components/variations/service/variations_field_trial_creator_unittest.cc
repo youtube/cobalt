@@ -353,17 +353,17 @@ class TestVariationsSeedStore : public VariationsSeedStore {
 
   ~TestVariationsSeedStore() override = default;
 
-  bool LoadSeed(VariationsSeed* seed,
-                std::string* seed_data,
-                std::string* base64_signature) override {
+  bool LoadSeedSync(VariationsSeed* seed,
+                    std::string* seed_data,
+                    std::string* base64_signature) override {
     *seed = CreateTestSeed();
     *seed_data = kTestSeedSerializedData;
     *base64_signature = kTestSeedSignature;
     return true;
   }
 
-  bool LoadSafeSeed(VariationsSeed* seed,
-                    ClientFilterableState* client_state) override {
+  bool LoadSafeSeedSync(VariationsSeed* seed,
+                        ClientFilterableState* client_state) override {
     if (has_unloadable_safe_seed_) {
       return false;
     }
@@ -949,7 +949,7 @@ TEST_F(FieldTrialCreatorTest, LoadSeedFromTestSeedJsonPath) {
       variations::switches::kVariationsTestSeedJsonPath, test_seed_file);
 
   // Use a real VariationsFieldTrialCreator and VariationsSeedStore to exercise
-  // the VariationsSeedStore::LoadSeed() logic.
+  // the VariationsSeedStore::LoadSeedSync() logic.
   TestVariationsServiceClient variations_service_client;
   auto seed_store = CreateSeedStore(local_state(), seed_file_path());
   VariationsFieldTrialCreator field_trial_creator(
@@ -1000,45 +1000,47 @@ TEST_F(FieldTrialCreatorTest, LoadPermanentConsistencyCountry) {
   } test_cases[] = {
       // Existing permanent overridden country.
       {"ca", "us", "20.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "ca",
-       LOAD_COUNTRY_HAS_PERMANENT_OVERRIDDEN_COUNTRY},
+       LoadPermanentConsistencyCountryResult::kHasPermanentOverriddenCountry},
       {"us", "us", "20.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_PERMANENT_OVERRIDDEN_COUNTRY},
+       LoadPermanentConsistencyCountryResult::kHasPermanentOverriddenCountry},
       {"ca", "", "", "20.0.0.0", "", "", "", "ca",
-       LOAD_COUNTRY_HAS_PERMANENT_OVERRIDDEN_COUNTRY},
+       LoadPermanentConsistencyCountryResult::kHasPermanentOverriddenCountry},
 
       // Existing pref value present for this version.
       {"", "us", "20.0.0.0", "20.0.0.0", "ca", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_BOTH_VERSION_EQ_COUNTRY_NEQ},
+       LoadPermanentConsistencyCountryResult::kHasBothVersionEqCountryNeq},
       {"", "us", "20.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_BOTH_VERSION_EQ_COUNTRY_EQ},
+       LoadPermanentConsistencyCountryResult::kHasBothVersionEqCountryEq},
       {"", "us", "20.0.0.0", "20.0.0.0", "", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_PREF_NO_SEED_VERSION_EQ},
+       LoadPermanentConsistencyCountryResult::kHasPrefNoSeedVersionEq},
 
       // Existing pref value present for a different version.
       {"", "ca", "19.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_BOTH_VERSION_NEQ_COUNTRY_NEQ},
+       LoadPermanentConsistencyCountryResult::kHasBothVersionNeqCountryNeq},
       {"", "us", "19.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_HAS_BOTH_VERSION_NEQ_COUNTRY_EQ},
+       LoadPermanentConsistencyCountryResult::kHasBothVersionNeqCountryEq},
       {"", "ca", "19.0.0.0", "20.0.0.0", "", "ca", "19.0.0.0", "",
-       LOAD_COUNTRY_HAS_PREF_NO_SEED_VERSION_NEQ},
+       LoadPermanentConsistencyCountryResult::kHasPrefNoSeedVersionNeq},
 
       // No existing pref value present.
       {"", "", "", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_NO_PREF_HAS_SEED},
-      {"", "", "", "20.0.0.0", "", "", "", "", LOAD_COUNTRY_NO_PREF_NO_SEED},
+       LoadPermanentConsistencyCountryResult::kNoPrefHasSeed},
+      {"", "", "", "20.0.0.0", "", "", "", "",
+       LoadPermanentConsistencyCountryResult::kNoPrefNoSeed},
       {"", "", "", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_NO_PREF_HAS_SEED},
-      {"", "", "", "20.0.0.0", "", "", "", "", LOAD_COUNTRY_NO_PREF_NO_SEED},
+       LoadPermanentConsistencyCountryResult::kNoPrefHasSeed},
+      {"", "", "", "20.0.0.0", "", "", "", "",
+       LoadPermanentConsistencyCountryResult::kNoPrefNoSeed},
 
       // Invalid existing pref value.
       {"", "", "20.0.0.0", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_INVALID_PREF_HAS_SEED},
+       LoadPermanentConsistencyCountryResult::kInvalidPrefHasSeed},
       {"", "", "20.0.0.0", "20.0.0.0", "", "", "", "",
-       LOAD_COUNTRY_INVALID_PREF_NO_SEED},
+       LoadPermanentConsistencyCountryResult::kInvalidPrefNoSeed},
       {"", "ca", "badversion", "20.0.0.0", "us", "us", "20.0.0.0", "us",
-       LOAD_COUNTRY_INVALID_PREF_HAS_SEED},
+       LoadPermanentConsistencyCountryResult::kInvalidPrefHasSeed},
       {"", "ca", "badversion", "20.0.0.0", "", "", "", "",
-       LOAD_COUNTRY_INVALID_PREF_NO_SEED},
+       LoadPermanentConsistencyCountryResult::kInvalidPrefNoSeed},
   };
 
   metrics::TestEnabledStateProvider enabled_state_provider(

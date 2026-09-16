@@ -4,13 +4,11 @@
 
 package org.chromium.chrome.browser.site_settings;
 
-import static androidx.test.espresso.Espresso.onData;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.swipeUp;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.PreferenceMatchers.withKey;
 import static androidx.test.espresso.matcher.RootMatchers.withDecorView;
 import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
@@ -19,7 +17,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withChild;
-import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
@@ -47,6 +44,7 @@ import static org.chromium.ui.test.util.ViewUtils.waitForViewCheckingState;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
@@ -176,7 +174,6 @@ import java.util.concurrent.TimeoutException;
     ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
     "ignore-certificate-errors"
 })
-@EnableFeatures(ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS)
 @DisableFeatures({
     ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE,
 })
@@ -3545,6 +3542,11 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @CommandLineFlags.Add(BaseSwitches.ENABLE_LOW_END_DEVICE_MODE)
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    @DisableIf.Build(
+            sdk_equals = Build.VERSION_CODES.Q,
+            message =
+                    "https://crbug.com/448715624: Test is crashing with"
+                            + " --disable-field-trial-config")
     public void testAddingJavascriptOptimizerExceptionsBlockedIfNotEnoughRam() {
         final SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
@@ -3624,13 +3626,14 @@ public class SiteSettingsTest {
                                     SingleCategorySettings.ADD_EXCEPTION_KEY);
                     Assert.assertFalse(addExceptionPreference.isEnabled());
 
-                    onData(withKey(SingleCategorySettings.ALLOWED_GROUP))
-                            .inAdapterView(
-                                    allOf(
-                                            withContentDescription(
-                                                    R.string.managed_by_your_organization),
-                                            withText(R.string.managed_by_your_organization),
-                                            isDisplayed()));
+                    // Proabably never worked. crbug.com/446200399
+                    // onData(withKey(SingleCategorySettings.ALLOWED_GROUP))
+                    //         .inAdapterView(
+                    //                 allOf(
+                    //                         withContentDescription(
+                    //                                 R.string.managed_by_your_organization),
+                    //                         withText(R.string.managed_by_your_organization)))
+                    //         .check(matches(isDisplayed()));
 
                     settingsActivity.finish();
                 });
@@ -3677,13 +3680,14 @@ public class SiteSettingsTest {
                                     SingleCategorySettings.ADD_EXCEPTION_KEY);
                     Assert.assertFalse(addExceptionPreference.isEnabled());
 
-                    onData(withKey(SingleCategorySettings.ALLOWED_GROUP))
-                            .inAdapterView(
-                                    allOf(
-                                            withContentDescription(
-                                                    R.string.managed_by_your_organization),
-                                            withText(R.string.managed_by_your_organization),
-                                            isDisplayed()));
+                    // Proabably never worked. crbug.com/446200399
+                    // onData(withKey(SingleCategorySettings.ALLOWED_GROUP))
+                    //         .inAdapterView(
+                    //                 allOf(
+                    //                         withContentDescription(
+                    //                                 R.string.managed_by_your_organization),
+                    //                         withText(R.string.managed_by_your_organization)))
+                    //         .check(matches(isDisplayed()));
 
                     settingsActivity.finish();
                 });
@@ -4347,12 +4351,13 @@ public class SiteSettingsTest {
          * then checks that the content description and the summary text reflect the managed state.
          */
         onView(ViewMatchers.withId(android.R.id.content)).perform(swipeUp());
-        onData(withKey(setting))
-                .inAdapterView(
-                        allOf(
-                                withContentDescription(R.string.managed_by_your_organization),
-                                withText(R.string.managed_by_your_organization),
-                                isDisplayed()));
+        // Proabably never worked. crbug.com/446200399
+        // onData(withKey(setting))
+        //         .inAdapterView(
+        //                 allOf(
+        //                         withContentDescription(R.string.managed_by_your_organization),
+        //                         withText(R.string.managed_by_your_organization)))
+        //         .check(matches(isDisplayed()));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

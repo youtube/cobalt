@@ -7,7 +7,6 @@ import("//third_party/protobuf/proto_library.gni")
 
 mojom_component("base") {
   generate_java = true
-  generate_rust = true
   sources = [
     "absl_status.mojom",
     "application_state.mojom",
@@ -460,7 +459,7 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.MemoryPressureLevel"
-          cpp = "::base::MemoryPressureListener::MemoryPressureLevel"
+          cpp = "::base::MemoryPressureLevel"
         },
       ]
       traits_headers =
@@ -683,6 +682,16 @@ mojom_component("base") {
           converter = "JsErrorConverter"
           mojom = "mojo_base.mojom.JsError"
           ts = "Object"
+        },
+      ]
+    },
+    {
+      source = "string16_converter.ts"
+      types = [
+        {
+          converter = "String16Converter"
+          mojom = "mojo_base.mojom.String16"
+          ts = "string"
         },
       ]
     },

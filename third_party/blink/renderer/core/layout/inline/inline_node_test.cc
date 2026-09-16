@@ -50,7 +50,7 @@ class InlineNodeForTest : public InlineNode {
   bool IsNGShapeCacheAllowed(const String& text_content,
                              const Font* override_font,
                              const InlineItems& items,
-                             ShapeResultSpacing<String>& spacing) const {
+                             ShapeResultSpacing& spacing) const {
     return InlineNode::IsNGShapeCacheAllowed(text_content, override_font, items,
                                              spacing);
   }
@@ -233,25 +233,15 @@ TEST_F(InlineNodeTest, CollectInlinesFloat) {
             "</div>");
   InlineNodeForTest node = CreateInlineNode();
   node.CollectInlines();
-  EXPECT_EQ(RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()
-                ? "abcghimno"
-                : "abc\uFFFCghi\uFFFCmno",
-            node.Text())
+  EXPECT_EQ("abcghimno", node.Text())
       << "floats are appeared as an object replacement character";
   InlineItems& items = node.Items();
   ASSERT_EQ(5u, items.size());
   TEST_ITEM_TYPE_OFFSET(items[0], kText, 0u, 3u);
-  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
-    TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 3u);
-    TEST_ITEM_TYPE_OFFSET(items[2], kText, 3u, 6u);
-    TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 6u, 6u);
-    TEST_ITEM_TYPE_OFFSET(items[4], kText, 6u, 9u);
-  } else {
-    TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 4u);
-    TEST_ITEM_TYPE_OFFSET(items[2], kText, 4u, 7u);
-    TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 7u, 8u);
-    TEST_ITEM_TYPE_OFFSET(items[4], kText, 8u, 11u);
-  }
+  TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 3u);
+  TEST_ITEM_TYPE_OFFSET(items[2], kText, 3u, 6u);
+  TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 6u, 6u);
+  TEST_ITEM_TYPE_OFFSET(items[4], kText, 6u, 9u);
 }
 
 TEST_F(InlineNodeTest, CollectInlinesInlineBlock) {
@@ -1486,11 +1476,7 @@ TEST_F(InlineNodeTest, ReusingWithCollapsed) {
             "</div>");
   GetElementById("remove")->remove();
   UpdateAllLifecyclePhasesForTest();
-  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
-    EXPECT_EQ(String(u"abc x"), GetText());
-  } else {
-    EXPECT_EQ(String(u"abc \uFFFCx"), GetText());
-  }
+  EXPECT_EQ(String(u"abc x"), GetText());
 }
 
 // https://crbug.com/109654
@@ -1736,27 +1722,7 @@ TEST_F(InlineNodeTest, FontFeaturesInitial) {
   EXPECT_FALSE(is_initial("no-kern"));
 }
 
-TEST_F(InlineNodeTest, ShapeCacheDisabled) {
-  ScopedLayoutNGShapeCacheForTest scoped_feature(false);
-
-  SetupHtml("t",
-            "<style>div { font-family: serif; }</style>"
-            "<div id=t>abc</div>");
-  InlineNodeForTest node = CreateInlineNode();
-  node.CollectInlines();
-  EXPECT_EQ("abc", node.Text());
-
-  const String& text_content(node.Text().c_str());
-  InlineItems& items = node.Items();
-  ShapeResultSpacing<String> spacing(text_content, node.IsSvgText());
-
-  EXPECT_FALSE(
-      node.IsNGShapeCacheAllowed(text_content, nullptr, items, spacing));
-}
-
 TEST_F(InlineNodeTest, ShapeCacheLongString) {
-  ScopedLayoutNGShapeCacheForTest scoped_feature(true);
-
   for (const unsigned text_length :
        {NGShapeCache::kMaxTextLengthOfEntries - 1,
         NGShapeCache::kMaxTextLengthOfEntries,
@@ -1774,7 +1740,7 @@ TEST_F(InlineNodeTest, ShapeCacheLongString) {
 
     const String& text_content(node.Text().c_str());
     InlineItems& items = node.Items();
-    ShapeResultSpacing<String> spacing(text_content, node.IsSvgText());
+    ShapeResultSpacing spacing(text_content, node.IsSvgText());
 
     EXPECT_EQ(node.IsNGShapeCacheAllowed(text_content, nullptr, items, spacing),
               text_length <= NGShapeCache::kMaxTextLengthOfEntries);
@@ -1782,8 +1748,6 @@ TEST_F(InlineNodeTest, ShapeCacheLongString) {
 }
 
 TEST_F(InlineNodeTest, ShapeCacheMultiItems) {
-  ScopedLayoutNGShapeCacheForTest scoped_feature(true);
-
   SetupHtml("t", "<div id=t>abc<span>def</span>ghi</div>");
   InlineNodeForTest node = CreateInlineNode();
   node.CollectInlines();
@@ -1791,15 +1755,13 @@ TEST_F(InlineNodeTest, ShapeCacheMultiItems) {
   const String& text_content(node.Text().c_str());
   InlineItems& items = node.Items();
   EXPECT_EQ(5u, items.size());
-  ShapeResultSpacing<String> spacing(text_content, node.IsSvgText());
+  ShapeResultSpacing spacing(text_content, node.IsSvgText());
 
   EXPECT_FALSE(
       node.IsNGShapeCacheAllowed(text_content, nullptr, items, spacing));
 }
 
 TEST_F(InlineNodeTest, ShapeCacheSpacingRequired) {
-  ScopedLayoutNGShapeCacheForTest scoped_feature(true);
-
   SetupHtml("t",
             "<style>div { letter-spacing: 5px; }</style>"
             "<div id=t>abc</div>");
@@ -1808,7 +1770,7 @@ TEST_F(InlineNodeTest, ShapeCacheSpacingRequired) {
 
   const String& text_content(node.Text().c_str());
   InlineItems& items = node.Items();
-  ShapeResultSpacing<String> spacing(text_content, node.IsSvgText());
+  ShapeResultSpacing spacing(text_content, node.IsSvgText());
 
   EXPECT_FALSE(
       node.IsNGShapeCacheAllowed(text_content, nullptr, items, spacing));

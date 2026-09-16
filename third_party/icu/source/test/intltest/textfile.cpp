@@ -21,13 +21,13 @@
 // #define CCP
 
 TextFile::TextFile(const char* _name, const char* _encoding, UErrorCode& ec) :
-    file(0),
-    name(0), encoding(0),
-    buffer(0),
+    file(nullptr),
+    name(nullptr), encoding(nullptr),
+    buffer(nullptr),
     capacity(0),
     lineNo(0)
 {
-    if (U_FAILURE(ec) || _name == 0 || _encoding == 0) {
+    if (U_FAILURE(ec) || _name == nullptr || _encoding == nullptr) {
         if (U_SUCCESS(ec)) {
             ec = U_ILLEGAL_ARGUMENT_ERROR; 
         }
@@ -44,15 +44,15 @@ TextFile::TextFile(const char* _name, const char* _encoding, UErrorCode& ec) :
     uprv_strcpy(name, _name);
     uprv_strcpy(encoding, _encoding);
 #else
-    name = (char*) _name;
-    encoding = (char*) _encoding;
+    name = const_cast<char*>(_name);
+    encoding = const_cast<char*>(_encoding);
 #endif
 
     const char* testDir = IntlTest::getSourceTestData(ec);
     if (U_FAILURE(ec)) {
         return;
     }
-    if (!ensureCapacity((int32_t)(uprv_strlen(testDir) + uprv_strlen(name) + 1))) {
+    if (!ensureCapacity(static_cast<int32_t>(uprv_strlen(testDir) + uprv_strlen(name) + 1))) {
         ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -60,15 +60,15 @@ TextFile::TextFile(const char* _name, const char* _encoding, UErrorCode& ec) :
     uprv_strcat(buffer, name);
 
     file = T_FileStream_open(buffer, "rb");
-    if (file == 0) {
+    if (file == nullptr) {
         ec = U_ILLEGAL_ARGUMENT_ERROR; 
         return;        
     }
 }
 
 TextFile::~TextFile() {
-    if (file != 0) T_FileStream_close(file);
-    if (buffer != 0) uprv_free(buffer);
+    if (file != nullptr) T_FileStream_close(file);
+    if (buffer != nullptr) uprv_free(buffer);
 #ifdef CCP
     uprv_free(name);
     uprv_free(encoding);
@@ -167,11 +167,11 @@ UBool TextFile::ensureCapacity(int32_t mincapacity) {
 
     // Simple realloc() no good; contents not preserved
     // Note: 'buffer' may be 0
-    char* newbuffer = (char*) uprv_malloc(mincapacity);
-    if (newbuffer == 0) {
+    char* newbuffer = static_cast<char*>(uprv_malloc(mincapacity));
+    if (newbuffer == nullptr) {
         return false;
     }
-    if (buffer != 0) {
+    if (buffer != nullptr) {
         uprv_strncpy(newbuffer, buffer, capacity);
         uprv_free(buffer);
     }

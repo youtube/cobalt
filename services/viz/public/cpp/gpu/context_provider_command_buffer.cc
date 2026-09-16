@@ -44,11 +44,9 @@
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "gpu/ipc/client/command_buffer_proxy_impl.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
-#include "gpu/skia_bindings/grcontext_for_gles2_interface.h"
 #include "services/viz/public/cpp/gpu/command_buffer_metrics.h"
 #include "skia/buildflags.h"
 #include "third_party/skia/include/core/SkTraceMemoryDump.h"
-#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "ui/gl/trace_util.h"
 
 class SkDiscardableMemory;
@@ -260,8 +258,8 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
   command_buffer_ = std::make_unique<gpu::CommandBufferProxyImpl>(
       channel_, stream_id_, default_task_runner_, buffer_mapper_);
   bind_result_ = command_buffer_->Initialize(
-      /*shared_command_buffer=*/nullptr, stream_priority_, attributes_.Clone(),
-      active_url_, command_buffer_metrics::ContextTypeToString(context_type_));
+      stream_priority_, attributes_.Clone(), active_url_,
+      command_buffer_metrics::ContextTypeToString(context_type_));
   if (bind_result_ != gpu::ContextResult::kSuccess) {
     DLOG(ERROR) << "GpuChannelHost failed to create command buffer.";
     command_buffer_metrics::UmaRecordContextInitFailed(context_type_);
@@ -473,12 +471,6 @@ gpu::ContextSupport* ContextProviderCommandBuffer::ContextSupport() {
   return impl_;
 }
 
-class GrDirectContext* ContextProviderCommandBuffer::GrContext() {
-  DCHECK(bind_tried_);
-  DCHECK_EQ(bind_result_, gpu::ContextResult::kSuccess);
-  return nullptr;
-}
-
 gpu::SharedImageInterface*
 ContextProviderCommandBuffer::SharedImageInterface() {
   return shared_image_interface_.get();
@@ -535,8 +527,6 @@ void ContextProviderCommandBuffer::OnLostContext() {
 
   for (auto& observer : observers_)
     observer.OnContextLost();
-  if (gr_context_)
-    gr_context_->OnLostContext();
 
   gpu::CommandBuffer::State state = GetCommandBufferProxy()->GetLastState();
   command_buffer_metrics::UmaRecordContextLost(context_type_, state.error,
@@ -578,15 +568,6 @@ bool ContextProviderCommandBuffer::OnMemoryDump(
   impl_->OnMemoryDump(args, pmd);
   helper_->OnMemoryDump(args, pmd);
 
-  if (gr_context_) {
-    if (args.level_of_detail ==
-        base::trace_event::MemoryDumpLevelOfDetail::kBackground) {
-      gpu::raster::DumpBackgroundGrMemoryStatistics(gr_context_->get(), pmd);
-    } else {
-      gpu::raster::DumpGrMemoryStatistics(gr_context_->get(), pmd,
-                                          gles2_impl_->ShareGroupTracingGUID());
-    }
-  }
   return true;
 }
 

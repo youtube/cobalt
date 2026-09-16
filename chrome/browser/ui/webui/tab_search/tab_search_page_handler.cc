@@ -73,6 +73,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/color/color_provider.h"
+#include "ui/gfx/image/image_skia.h"
 
 namespace {
 constexpr base::TimeDelta kTabsChangeDelay = base::Milliseconds(50);
@@ -1427,10 +1428,13 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
   // A visible URL is used when the a new tab is still loading.
   // If it is cancelled during loading the visible URL becomes empty.
   // We will display an empty URL as about:blank in Javascript.
-  tab_data->url =
-      !last_committed_url.is_valid() || last_committed_url.is_empty()
-          ? tab_renderer_data.visible_url
-          : last_committed_url;
+  if (!last_committed_url.is_valid() || last_committed_url.is_empty()) {
+    tab_data->url = tab_renderer_data.should_display_url
+                        ? tab_renderer_data.visible_url
+                        : GURL(url::kAboutBlankURL);
+  } else {
+    tab_data->url = last_committed_url;
+  }
 
   if (tab_renderer_data.favicon.IsEmpty()) {
     tab_data->is_default_favicon = true;

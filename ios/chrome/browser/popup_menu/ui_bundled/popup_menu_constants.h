@@ -24,8 +24,6 @@ extern NSString* const kToolsMenuNewTabId;
 extern NSString* const kToolsMenuNewWindowId;
 // New incognito Tab item accessibility Identifier.
 extern NSString* const kToolsMenuNewIncognitoTabId;
-// Follow item accessibility Identifier.
-extern NSString* const kToolsMenuFollowId;
 // Bookmarks item accessibility Identifier.
 extern NSString* const kToolsMenuBookmarksId;
 // Reading List item accessibility Identifier.
@@ -78,10 +76,6 @@ extern NSString* const kToolsMenuTextZoom;
 extern NSString* const kTextMenuEnterpriseInfo;
 // Text Family Link info item accessibility identifier.
 extern NSString* const kTextMenuFamilyLinkInfo;
-// Follow item accessibility Identifier.
-extern NSString* const kToolsMenuFollow;
-// Unfollow item accessibility Identifier.
-extern NSString* const kToolsMenuUnfollow;
 // Clear Browsing Data item accessibility identifier.
 extern NSString* const kToolsMenuClearBrowsingData;
 // Set Tab Reminder item accessibility Identifier.
@@ -94,5 +88,7 @@ extern NSString* const kToolsMenuWhatsNewId;
 extern NSString* const kToolsMenuPriceNotifications;
 // Edit Actions item accessibility Identifier.
 extern NSString* const kToolsMenuEditActionsId;
+// New Tab Group accessibility Identifier.
+extern NSString* const kToolsMenuNewTabGroupId;
 
 #endif  // IOS_CHROME_BROWSER_POPUP_MENU_UI_BUNDLED_POPUP_MENU_CONSTANTS_H_

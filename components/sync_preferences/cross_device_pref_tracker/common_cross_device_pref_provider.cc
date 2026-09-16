@@ -5,30 +5,30 @@
 #include "components/sync_preferences/cross_device_pref_tracker/common_cross_device_pref_provider.h"
 
 #include "base/no_destructor.h"
+#include "components/ntp_tiles/pref_names.h"
+#include "components/omnibox/browser/omnibox_pref_names.h"
+#include "components/safety_check/safety_check_pref_names.h"
 
 namespace sync_preferences {
-
-namespace {
-
-// Helper to return a common, static empty set.
-const base::flat_set<std::string_view>& GetEmptySet() {
-  static const base::NoDestructor<base::flat_set<std::string_view>> kEmptySet;
-  return *kEmptySet;
-}
-
-}  // namespace
 
 CommonCrossDevicePrefProvider::CommonCrossDevicePrefProvider() = default;
 CommonCrossDevicePrefProvider::~CommonCrossDevicePrefProvider() = default;
 
 const base::flat_set<std::string_view>&
 CommonCrossDevicePrefProvider::GetProfilePrefs() const {
-  return GetEmptySet();
+  static const base::NoDestructor<base::flat_set<std::string_view>>
+      kProfilePrefs({safety_check::prefs::kSafetyCheckHomeModuleEnabled,
+                     ntp_tiles::prefs::kTabResumptionHomeModuleEnabled});
+  return *kProfilePrefs;
 }
 
+// These prefs should be the tracked prefs, not the ones prefixed with
+// `cross_device.`
 const base::flat_set<std::string_view>&
 CommonCrossDevicePrefProvider::GetLocalStatePrefs() const {
-  return GetEmptySet();
+  static const base::NoDestructor<base::flat_set<std::string_view>>
+      kLocalStatePrefs({omnibox::kIsOmniboxInBottomPosition});
+  return *kLocalStatePrefs;
 }
 
 }  // namespace sync_preferences

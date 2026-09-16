@@ -180,7 +180,6 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case ContentSettingsType::TPCD_METADATA_GRANTS:
       case ContentSettingsType::TPCD_TRIAL:
       case ContentSettingsType::TOP_LEVEL_TPCD_TRIAL:
-      case ContentSettingsType::TOP_LEVEL_TPCD_ORIGIN_TRIAL:
       case ContentSettingsType::AUTO_PICTURE_IN_PICTURE:
       case ContentSettingsType::FILE_SYSTEM_ACCESS_EXTENDED_PERMISSION:
       case ContentSettingsType::FILE_SYSTEM_ACCESS_RESTORE_PERMISSION:
@@ -204,6 +203,7 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case ContentSettingsType::SUSPICIOUS_NOTIFICATION_IDS:
       case ContentSettingsType::DEVICE_ATTRIBUTES:
       case ContentSettingsType::PERMISSION_ACTIONS_HISTORY:
+      case ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL:
         break;
 
       default:

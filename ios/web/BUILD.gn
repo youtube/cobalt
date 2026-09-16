@@ -468,6 +468,7 @@ source_set("ios_web_web_state_ui_unittests") {
     ":core",
     "//base",
     "//base/test:test_support",
+    "//components/test/ios",
     "//components/url_formatter",
     "//ios/net",
     "//ios/testing:ocmock_support",
@@ -607,7 +608,6 @@ test("ios_web_inttests") {
   ]
   sources = [
     "browser_state_web_view_partition_inttest.mm",
-    "find_in_page/java_script_find_in_page_manager_inttest.mm",
     "navigation/crw_error_page_helper_inttest.mm",
     "navigation/crw_wk_navigation_handler_inttest.mm",
     "navigation/history_state_operations_inttest.mm",

@@ -22,9 +22,11 @@
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/prefs/pref_service.h"
+#import "components/privacy_sandbox/privacy_sandbox_features.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/strings/grit/privacy_sandbox_strings.h"
 #import "components/sync/service/sync_service.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
@@ -55,7 +57,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
@@ -84,6 +85,8 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierIncognitoInterstitial,
   SectionIdentifierLockdownMode,
   SectionIdentifierPrivacyGuide,
+  SectionIdentifierIncognito,
+  SectionIdentifierTrackingProtections,
 };
 
 typedef NS_ENUM(NSInteger, ItemType) {
@@ -101,6 +104,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypeIncognitoInterstitialDisabled,
   ItemTypeLockdownMode,
   ItemTypePrivacyGuide,
+  ItemTypeIncognitoHeader,
+  ItemTypeTrackingProtections,
 };
 
 // Used to open the Sync and Google Services settings.
@@ -132,11 +137,14 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   TableViewDetailIconItem* _safeBrowsingDetailItem;
   // Incognito Lock item.
   TableViewDetailIconItem* _incognitoLockItem;
-  // Locdown Mode item.
+  // Lockdown Mode item.
   TableViewDetailIconItem* _lockdownModeDetailItem;
 
   // Whether Settings have been dismissed.
   BOOL _settingsAreDismissed;
+
+  // Whether the Incognito tracking protections entrypoint should be shown.
+  BOOL _showIncognitoTrackingProtections;
 
   // Registrar for local pref changes notifications.
   PrefChangeRegistrar _localStateChangeRegistrar;
@@ -223,6 +231,8 @@ const char kSyncSettingsURL[] = "settings://open_sync";
         initWithPrefService:GetApplicationContext()->GetLocalState()
                    prefName:prefs::kIncognitoInterstitialEnabled];
     [_incognitoInterstitialPref setObserver:self];
+    _showIncognitoTrackingProtections = base::FeatureList::IsEnabled(
+        privacy_sandbox::kFingerprintingProtectionUx);
   }
   return self;
 }
@@ -299,9 +309,14 @@ const char kSyncSettingsURL[] = "settings://open_sync";
       toSectionWithIdentifier:SectionIdentifierHTTPSOnlyMode];
 
   [model addSectionWithIdentifier:SectionIdentifierWebServices];
-  [model addSectionWithIdentifier:SectionIdentifierIncognitoAuth];
-  [model addSectionWithIdentifier:SectionIdentifierIncognitoInterstitial];
-  [model addSectionWithIdentifier:SectionIdentifierLockdownMode];
+  if (_showIncognitoTrackingProtections) {
+    [model addSectionWithIdentifier:SectionIdentifierLockdownMode];
+    [model addSectionWithIdentifier:SectionIdentifierIncognito];
+  } else {
+    [model addSectionWithIdentifier:SectionIdentifierIncognitoAuth];
+    [model addSectionWithIdentifier:SectionIdentifierIncognitoInterstitial];
+    [model addSectionWithIdentifier:SectionIdentifierLockdownMode];
+  }
 
   // Clear Browsing item.
   [model addItem:[self clearBrowsingDetailItem]
@@ -321,6 +336,28 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   [model addItem:[self handoffDetailItem]
       toSectionWithIdentifier:SectionIdentifierWebServices];
 
+  SectionIdentifier incognitoAuthSection = SectionIdentifierIncognitoAuth;
+  SectionIdentifier incognitoInterstitialSection =
+      SectionIdentifierIncognitoInterstitial;
+  SectionIdentifier sectionWithPrivacyFooter = SectionIdentifierLockdownMode;
+  if (_showIncognitoTrackingProtections) {
+    // Incognito section header item.
+    TableViewTextHeaderFooterItem* headerItem =
+        [[TableViewTextHeaderFooterItem alloc]
+            initWithType:ItemTypeIncognitoHeader];
+    headerItem.text =
+        l10n_util::GetNSString(IDS_IOS_INCOGNITO_SETTINGS_SECTION_HEADER);
+    [model setHeader:headerItem
+        forSectionWithIdentifier:SectionIdentifierIncognito];
+    // Tracking protections item.
+    [model addItem:[self trackingProtectionsItem]
+        toSectionWithIdentifier:SectionIdentifierIncognito];
+
+    incognitoAuthSection = SectionIdentifierIncognito;
+    incognitoInterstitialSection = SectionIdentifierIncognito;
+    sectionWithPrivacyFooter = SectionIdentifierIncognito;
+  }
+
   if (IsIOSSoftLockEnabled()) {
     // Incognito Lock item.
     TableViewItem* incognitoLockItem =
@@ -328,7 +365,7 @@ const char kSyncSettingsURL[] = "settings://open_sync";
             ? self.incognitoLockItemDisabled
             : self.incognitoLockItem;
     [model addItem:incognitoLockItem
-        toSectionWithIdentifier:SectionIdentifierIncognitoAuth];
+        toSectionWithIdentifier:incognitoAuthSection];
   } else {
     // Incognito reauth item is added. If Incognito mode is disabled, or device
     // authentication is not supported, a disabled version is shown instead with
@@ -339,7 +376,7 @@ const char kSyncSettingsURL[] = "settings://open_sync";
             ? self.incognitoReauthItemDisabled
             : self.incognitoReauthItem;
     [model addItem:incognitoReauthItem
-        toSectionWithIdentifier:SectionIdentifierIncognitoAuth];
+        toSectionWithIdentifier:incognitoAuthSection];
   }
 
   // Show "Ask to Open Links from Other Apps in Incognito" setting.
@@ -352,13 +389,13 @@ const char kSyncSettingsURL[] = "settings://open_sync";
           ? self.incognitoInterstitialItemDisabled
           : self.incognitoInterstitialItem;
   [model addItem:incognitoInterstitialItem
-      toSectionWithIdentifier:SectionIdentifierIncognitoInterstitial];
+      toSectionWithIdentifier:incognitoInterstitialSection];
 
   // Lockdown Mode item.
   [model addItem:[self lockdownModeDetailItem]
       toSectionWithIdentifier:SectionIdentifierLockdownMode];
   [model setFooter:[self showPrivacyFooterItem]
-      forSectionWithIdentifier:SectionIdentifierLockdownMode];
+      forSectionWithIdentifier:sectionWithPrivacyFooter];
 }
 
 #pragma mark - Model Objects
@@ -373,6 +410,8 @@ const char kSyncSettingsURL[] = "settings://open_sync";
     _HTTPSOnlyModeItem.detailText =
         l10n_util::GetNSString(IDS_IOS_SETTINGS_HTTPS_ONLY_MODE_DESCRIPTION);
     _HTTPSOnlyModeItem.on = [self.HTTPSOnlyModePref value];
+    _HTTPSOnlyModeItem.target = self;
+    _HTTPSOnlyModeItem.selector = @selector(HTTPSOnlyModeSwitchToggled:);
     _HTTPSOnlyModeItem.accessibilityIdentifier = kSettingsHttpsOnlyModeCellId;
   }
   return _HTTPSOnlyModeItem;
@@ -385,6 +424,9 @@ const char kSyncSettingsURL[] = "settings://open_sync";
     _incognitoInterstitialItem.text =
         l10n_util::GetNSString(IDS_IOS_OPTIONS_ENABLE_INCOGNITO_INTERSTITIAL);
     _incognitoInterstitialItem.on = self.incognitoInterstitialPref.value;
+    _incognitoInterstitialItem.target = self;
+    _incognitoInterstitialItem.selector =
+        @selector(incognitoInterstitialSwitchToggled:);
     _incognitoInterstitialItem.enabled = YES;
     _incognitoInterstitialItem.accessibilityIdentifier =
         kSettingsIncognitoInterstitialId;
@@ -530,6 +572,8 @@ const char kSyncSettingsURL[] = "settings://open_sync";
       l10n_util::GetNSString(IDS_IOS_INCOGNITO_REAUTH_SETTING_NAME);
   _incognitoReauthItem.on = self.incognitoReauthPref.value;
   _incognitoReauthItem.enabled = YES;
+  _incognitoReauthItem.target = self;
+  _incognitoReauthItem.selector = @selector(incognitoReauthSwitchToggled:);
   return _incognitoReauthItem;
 }
 
@@ -542,6 +586,19 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   itemDisabled.iconTintColor = [UIColor colorNamed:kGrey300Color];
   itemDisabled.textColor = [UIColor colorNamed:kTextSecondaryColor];
   return itemDisabled;
+}
+
+- (TableViewItem*)trackingProtectionsItem {
+  TableViewDetailIconItem* item = [self
+           detailItemWithType:ItemTypeTrackingProtections
+                      titleId:IDS_INCOGNITO_TRACKING_PROTECTIONS_LINK_ROW_LABEL
+                   detailText:
+                       l10n_util::GetNSString(
+                           IDS_INCOGNITO_TRACKING_PROTECTIONS_LINK_ROW_SUBLABEL)
+      accessibilityIdentifier:kSettingsTrackingProtectionsCellId];
+  item.textLayoutConstraintAxis = UILayoutConstraintAxisVertical;
+  item.detailTextNumberOfLines = 0;  // Unlimited
+  return item;
 }
 
 - (TableViewDetailIconItem*)detailItemWithType:(NSInteger)type
@@ -617,6 +674,11 @@ const char kSyncSettingsURL[] = "settings://open_sync";
     case ItemTypePrivacyGuide:
       [self.handler showPrivacyGuide];
       break;
+    case ItemTypeTrackingProtections:
+      base::RecordAction(base::UserMetricsAction(
+          "Settings.TrackingProtections.OpenedFromPrivacyPage"));
+      [self.handler showTrackingProtections];
+      break;
     default:
       break;
   }
@@ -633,31 +695,12 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   ItemType itemType = static_cast<ItemType>(
       [self.tableViewModel itemTypeForIndexPath:indexPath]);
 
-  if (itemType == ItemTypeIncognitoReauth) {
-    TableViewSwitchCell* switchCell =
-        base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
-    [switchCell.switchView addTarget:self
-                              action:@selector(switchTapped:)
-                    forControlEvents:UIControlEventTouchUpInside];
-  } else if (itemType == ItemTypeIncognitoReauthDisabled) {
+  if (itemType == ItemTypeIncognitoReauthDisabled) {
     TableViewInfoButtonCell* managedCell =
         base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
     [managedCell.trailingButton
                addTarget:self
                   action:@selector(didTapIncognitoReauthDisabledInfoButton:)
-        forControlEvents:UIControlEventTouchUpInside];
-  } else if (itemType == ItemTypeHTTPSOnlyMode) {
-    TableViewSwitchCell* switchCell =
-        base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
-    [switchCell.switchView addTarget:self
-                              action:@selector(HTTPSOnlyModeTapped:)
-                    forControlEvents:UIControlEventTouchUpInside];
-  } else if (itemType == ItemTypeIncognitoInterstitial) {
-    TableViewSwitchCell* switchCell =
-        base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
-    [switchCell.switchView
-               addTarget:self
-                  action:@selector(incognitoInterstitialSwitchTapped:)
         forControlEvents:UIControlEventTouchUpInside];
   } else if (itemType == ItemTypeIncognitoInterstitialDisabled) {
     TableViewInfoButtonCell* managedCell =
@@ -850,21 +893,21 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   [self presentViewController:popover animated:YES completion:nil];
 }
 
-// Called from the HTTPS-Only Mode setting's UIControlEventTouchUpInside.
+// Called from the HTTPS-Only Mode setting's UIControlEventValueChanged.
 // When this is called, `switchView` already has the updated value:
 // If the switch was off, and user taps it, when this method is called,
 // switchView.on is YES.
-- (void)HTTPSOnlyModeTapped:(UISwitch*)switchView {
+- (void)HTTPSOnlyModeSwitchToggled:(UISwitch*)switchView {
   BOOL isOn = switchView.isOn;
   [_HTTPSOnlyModePref setValue:isOn];
   [self enhancedSafeBrowsingInlinePromoTriggerCriteriaMet];
 }
 
-// Called from the Incognito interstitial setting's UIControlEventTouchUpInside.
+// Called from the Incognito interstitial setting's UIControlEventValueChanged.
 // When this is called, `switchView` already has the updated value:
 // If the switch was off, and user taps it, when this method is called,
 // switchView.on is YES.
-- (void)incognitoInterstitialSwitchTapped:(UISwitch*)switchView {
+- (void)incognitoInterstitialSwitchToggled:(UISwitch*)switchView {
   self.incognitoInterstitialPref.value = switchView.on;
   UMA_HISTOGRAM_ENUMERATION(
       kIncognitoInterstitialSettingsActionsHistogram,
@@ -873,11 +916,11 @@ const char kSyncSettingsURL[] = "settings://open_sync";
   [self enhancedSafeBrowsingInlinePromoTriggerCriteriaMet];
 }
 
-// Called from the reauthentication setting's UIControlEventTouchUpInside.
+// Called from the reauthentication setting's UIControlEventValueChanged.
 // When this is called, `switchView` already has the updated value:
 // If the switch was off, and user taps it, when this method is called,
 // switchView.on is YES.
-- (void)switchTapped:(UISwitch*)switchView {
+- (void)incognitoReauthSwitchToggled:(UISwitch*)switchView {
   if (switchView.isOn && ![self.reauthModule canAttemptReauth]) {
     // This should normally not happen: the switch should not even be enabled.
     // Fallback behaviour added just in case.

@@ -64,13 +64,13 @@ bool IsOauthLoginComplete(const GURL& url) {
 }
 
 bool IsChromeWebStoreURL(const GURL& url) {
-  return (url.host() == extension_urls::GetWebstoreLaunchURL().host()) ||
-         (url.host() == extension_urls::GetNewWebstoreLaunchURL().host());
+  return (url.GetHost() == extension_urls::GetWebstoreLaunchURL().GetHost()) ||
+         (url.GetHost() == extension_urls::GetNewWebstoreLaunchURL().GetHost());
 }
 
 bool IsBocaAppHostURL(const GURL& url) {
   return (url.SchemeIs(content::kChromeUIUntrustedScheme) &&
-          url.host() == boca::kChromeBocaAppHost);
+          url.GetHost() == boca::kChromeBocaAppHost);
 }
 
 }  // namespace
@@ -165,7 +165,7 @@ bool OnTaskLockedSessionNavigationThrottle::MaybeProceedForOneLevelDeep(
   if (google_util::IsGoogleDomainUrl(
           url, google_util::SubdomainPermission::DISALLOW_SUBDOMAIN,
           google_util::PortPermission::ALLOW_NON_STANDARD_PORTS) &&
-      url.path_piece().starts_with("/sorry/")) {
+      url.path().starts_with("/sorry/")) {
     return true;
   }
 

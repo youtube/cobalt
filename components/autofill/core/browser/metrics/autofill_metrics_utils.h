@@ -36,10 +36,12 @@ struct DifferingProfileWithTypeSet {
   bool operator==(const DifferingProfileWithTypeSet& other) const = default;
 };
 
-// kAccount profiles are synced from an external source and have potentially
-// originated from outside of Autofill. In order to determine the added value
-// for Autofill, the `AutofillProfile::RecordType` is further resolved in some
-// metrics.
+// A superset of `AutofillProfile::RecordType` used for metrics. It breaks the
+// kAccount RecordType further down into kAccountChrome and kAccountNonChrome:
+// - kAccountChrome are addresses initially saved to the account by Chrome.
+// - kAccountNonChrome are addresses initially saved to the account by another
+//   integrator and made available to Chrome. Even if they are modified in
+//   Chrome, they remain kAccountNonChrome for metrics purposes.
 enum class AutofillProfileRecordTypeCategory {
   kLocalOrSyncable = 0,
   kAccountChrome = 1,
@@ -110,6 +112,11 @@ DenseSet<FormTypeNameForLogging> GetLoyaltyFormTypesForLogging(
 // `FormType::kCreditCardForm` or `FormType::kStandaloneCvcForm`.
 DenseSet<FormTypeNameForLogging> GetCreditCardFormTypesForLogging(
     const FormStructure& form);
+
+// Returns true if `profile` has at least 2 fields of the types
+// `ADDRESS_HOME_CITY`, `ADDRESS_HOME_STATE`, `ADDRESS_HOME_STREET_ADDRESS` or
+// `ADDRESS_HOME_ZIP` set.
+bool IsPostalAddress(const AutofillProfile& profile);
 
 // Returns whether the caller should log autofill suggestions shown metrics.
 // Some suggestions can be "displayed" without a direct user action (i.e. typing

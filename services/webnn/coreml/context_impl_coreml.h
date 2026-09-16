@@ -23,12 +23,15 @@ class API_AVAILABLE(macos(14.4)) ContextImplCoreml final
     : public WebNNContextImpl {
  public:
   ContextImplCoreml(
-      mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
-      WebNNContextProviderImpl* context_provider,
+      mojo::PendingReceiver<mojom::WebNNContext> receiver,
+      base::WeakPtr<WebNNContextProviderImpl> context_provider,
       mojom::CreateContextOptionsPtr options,
       gpu::CommandBufferId command_buffer_id,
       std::unique_ptr<ScopedSequence> sequence,
-      scoped_refptr<gpu::SchedulerTaskRunner> task_runner);
+      scoped_refptr<gpu::MemoryTracker> memory_tracker,
+      scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+      gpu::SharedImageManager* shared_image_manager,
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
   ContextImplCoreml(const WebNNContextImpl&) = delete;
   ContextImplCoreml& operator=(const ContextImplCoreml&) = delete;
@@ -53,10 +56,10 @@ class API_AVAILABLE(macos(14.4)) ContextImplCoreml final
                    mojom::TensorInfoPtr tensor_info) override;
 
   base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
-  CreateTensorFromMailboxImpl(
+  CreateTensorFromSharedImageImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
       mojom::TensorInfoPtr tensor_info,
-      gpu::Mailbox mailbox) override;
+      std::unique_ptr<gpu::WebNNTensorRepresentation> representation) override;
 
   base::WeakPtrFactory<ContextImplCoreml> weak_factory_{this};
 };

@@ -801,7 +801,6 @@ class SpecifiedTimelines {
     void operator++() { index_ = timelines_.SkipPastNullptr(index_ + 1); }
 
     bool operator==(const Iterator& o) const { return index_ == o.index_; }
-    bool operator!=(const Iterator& o) const { return index_ != o.index_; }
 
    private:
     wtf_size_t index_;
@@ -2531,19 +2530,7 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
           active_transition_iter->value;
       if (ComputedValuesEqual(property, after_change_style,
                               *running_transition->to)) {
-        if (!state.transition_data) {
-          if (!running_transition->animation->FinishedInternal()) {
-            UseCounter::Count(
-                state.animating_element.GetDocument(),
-                WebFeature::kCSSTransitionCancelledByRemovingStyle);
-          }
-          if (RuntimeEnabledFeatures::
-                  CSSTransitionNoneRunningTransitionsFixEnabled()) {
-            return;
-          }
-        } else {
-          return;
-        }
+        return;
       }
       state.update.CancelTransition(property);
       DCHECK(!state.animating_element.GetElementAnimations() ||
@@ -2918,8 +2905,7 @@ const ComputedStyle& CSSAnimations::CalculateBeforeChangeStyle(
   bool is_starting_style = state.old_style.IsStartingStyle();
   if (state.before_change_style) {
     if (!is_starting_style ||
-        state.before_change_style_is_accurate_for_starting_style ||
-        !RuntimeEnabledFeatures::CascadedAfterChangeStyleEnabled()) {
+        state.before_change_style_is_accurate_for_starting_style) {
       // The cached before_change_style is valid.
       return *state.before_change_style;
     }
@@ -2935,8 +2921,7 @@ const ComputedStyle& CSSAnimations::CalculateBeforeChangeStyle(
   // to the base computed style.
   const ComputedStyle* base_style =
       state.old_style.GetBaseComputedStyleOrThis();
-  if (is_starting_style &&
-      RuntimeEnabledFeatures::CascadedAfterChangeStyleEnabled()) {
+  if (is_starting_style) {
     // before-change style for @starting-style inherits from the after-change
     // style of the parent.
     if (const ComputedStyle* after_change_style =
@@ -3141,8 +3126,7 @@ const ComputedStyle* CSSAnimations::EnsureAfterChangeStyleIfNecessary(
 const ComputedStyle& CSSAnimations::CalculateAfterChangeStyle(
     TransitionUpdateState& state,
     const PropertyHandle& transitioning_property) {
-  if (!RuntimeEnabledFeatures::CascadedAfterChangeStyleEnabled() ||
-      !state.style_recalc_context.has_animating_ancestor) {
+  if (!state.style_recalc_context.has_animating_ancestor) {
     return state.base_style;
   }
   if (!state.after_change_style) {
@@ -3580,7 +3564,6 @@ bool CSSAnimations::IsAnimationAffectingProperty(const CSSProperty& property) {
     case CSSPropertyID::kTextOrientation:
     case CSSPropertyID::kTimelineScope:
     case CSSPropertyID::kTimelineTriggerName:
-    case CSSPropertyID::kTimelineTriggerBehavior:
     case CSSPropertyID::kTimelineTriggerRangeStart:
     case CSSPropertyID::kTimelineTriggerRangeEnd:
     case CSSPropertyID::kTimelineTriggerExitRangeStart:

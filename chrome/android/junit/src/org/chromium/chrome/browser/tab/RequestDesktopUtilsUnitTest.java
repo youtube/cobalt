@@ -20,6 +20,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.Window;
@@ -42,6 +43,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowPackageManager;
+import org.robolectric.util.ReflectionHelpers;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.SysUtils;
@@ -56,7 +58,6 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.RequestDesktopUtilsUnitTest.ShadowDisplayAndroid;
 import org.chromium.chrome.browser.tab.RequestDesktopUtilsUnitTest.ShadowDisplayAndroidManager;
-import org.chromium.chrome.browser.tab.RequestDesktopUtilsUnitTest.ShadowDisplayUtil;
 import org.chromium.chrome.browser.tab.RequestDesktopUtilsUnitTest.ShadowSysUtils;
 import org.chromium.chrome.browser.tab.RequestDesktopUtilsUnitTest.ShadowTabUtils;
 import org.chromium.chrome.test.OverrideContextWrapperTestRule;
@@ -92,8 +93,7 @@ import java.util.Map;
             ShadowSysUtils.class,
             ShadowDisplayAndroid.class,
             ShadowDisplayAndroidManager.class,
-            ShadowTabUtils.class,
-            ShadowDisplayUtil.class
+            ShadowTabUtils.class
         })
 public class RequestDesktopUtilsUnitTest {
 
@@ -161,20 +161,6 @@ public class RequestDesktopUtilsUnitTest {
         @Implementation
         public static boolean readRequestDesktopSiteContentSettings(Profile profile, GURL url) {
             return sIsContentSettingDesktop;
-        }
-    }
-
-    @Implements(DisplayUtil.class)
-    static class ShadowDisplayUtil {
-        private static int sSmallestScreenWidthDp;
-
-        public static void setCurrentSmallestScreenWidth(int smallestScreenWidthDp) {
-            sSmallestScreenWidthDp = smallestScreenWidthDp;
-        }
-
-        @Implementation
-        public static int getCurrentSmallestScreenWidth(Context context) {
-            return sSmallestScreenWidthDp;
         }
     }
 
@@ -269,7 +255,7 @@ public class RequestDesktopUtilsUnitTest {
         when(mDisplayAndroid.getYdpi()).thenReturn(276.5f);
         ShadowDisplayAndroidManager.setDisplay(mDisplay);
         when(mDisplay.getDisplayId()).thenReturn(Display.DEFAULT_DISPLAY);
-        ShadowDisplayUtil.setCurrentSmallestScreenWidth(800);
+        DisplayUtil.setCurrentSmallestScreenWidthForTesting(800);
         when(mUserPrefsJni.get(mProfile)).thenReturn(mPrefService);
         doAnswer(invocation -> mWindowSetting)
                 .when(mPrefService)
@@ -844,7 +830,7 @@ public class RequestDesktopUtilsUnitTest {
     public void testMaybeDefaultEnableWindowSetting_PhoneSizedScreen() {
         mWindowSetting = false;
         mIsDefaultValuePreference = true;
-        ShadowDisplayUtil.setCurrentSmallestScreenWidth(400);
+        DisplayUtil.setCurrentSmallestScreenWidthForTesting(400);
         RequestDesktopUtils.maybeDefaultEnableWindowSetting(mActivity, mProfile);
         Assert.assertFalse(
                 "Desktop site window setting should not be default enabled when the smallest "
@@ -904,34 +890,86 @@ public class RequestDesktopUtilsUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY)
+    @EnableFeatures(
+            ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY
+                    + ":ext_display_desktop_ua_oem_allowlist/samsung")
     public void testShouldOverrideDesktopSite_onEligibleExternalDisplay() {
         when(mDisplay.getDisplayId()).thenReturn(/*non built-in display*/ 2);
-        boolean shouldOverride =
-                RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
-        Assert.assertTrue("Desktop site should be overridden.", shouldOverride);
+        String originalManufacturer = Build.MANUFACTURER;
+        try {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "samsung");
+            boolean shouldOverride =
+                    RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
+            Assert.assertTrue("Desktop site should be overridden.", shouldOverride);
+        } finally {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", originalManufacturer);
+            RequestDesktopUtils.sDesktopUAAllowedOnExternalDisplayForOem = null;
+        }
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY)
+    @EnableFeatures(
+            ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY
+                    + ":ext_display_desktop_ua_oem_allowlist/samsung")
     public void
             testShouldOverrideDesktopSite_onEligibleExternalDisplay_userPreviouslyUpdatedSetting() {
         when(mDisplay.getDisplayId()).thenReturn(/*non built-in display*/ 2);
-        mSharedPreferencesManager.writeBoolean(
-                SingleCategorySettingsConstants
-                        .USER_ENABLED_DESKTOP_SITE_GLOBAL_SETTING_PREFERENCE_KEY,
-                true);
-        boolean shouldOverride =
-                RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
-        Assert.assertFalse("Desktop site should not be overridden.", shouldOverride);
+        String originalManufacturer = Build.MANUFACTURER;
+        try {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "samsung");
+            mSharedPreferencesManager.writeBoolean(
+                    SingleCategorySettingsConstants
+                            .USER_ENABLED_DESKTOP_SITE_GLOBAL_SETTING_PREFERENCE_KEY,
+                    true);
+            boolean shouldOverride =
+                    RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
+            Assert.assertFalse("Desktop site should not be overridden.", shouldOverride);
+        } finally {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", originalManufacturer);
+            RequestDesktopUtils.sDesktopUAAllowedOnExternalDisplayForOem = null;
+        }
     }
 
     @Test
-    public void testShouldOverrideDesktopSite_shouldNotOverride() {
+    public void testShouldOverrideDesktopSite_defaultDisplay_shouldNotOverride() {
         when(mDisplay.getDisplayId()).thenReturn(Display.DEFAULT_DISPLAY);
         boolean shouldOverride =
                 RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
         Assert.assertFalse("Desktop site should not be overridden.", shouldOverride);
+    }
+
+    @Test
+    @EnableFeatures(
+            ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY
+                    + ":ext_display_desktop_ua_oem_allowlist/samsung")
+    public void testShouldOverrideDesktopSite_OEMNotAllowlisted_shouldNotOverride() {
+        when(mDisplay.getDisplayId()).thenReturn(/*non built-in display*/ 2);
+        String originalManufacturer = Build.MANUFACTURER;
+        try {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "something_else");
+            boolean shouldOverride =
+                    RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
+            Assert.assertFalse("Desktop site should not be overridden.", shouldOverride);
+        } finally {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", originalManufacturer);
+            RequestDesktopUtils.sDesktopUAAllowedOnExternalDisplayForOem = null;
+        }
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.DESKTOP_UA_ON_CONNECTED_DISPLAY)
+    public void testShouldOverrideDesktopSite_OEMAllowlistNotSet_shouldNotOverride() {
+        when(mDisplay.getDisplayId()).thenReturn(/*non built-in display*/ 2);
+        String originalManufacturer = Build.MANUFACTURER;
+        try {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "samsung");
+            boolean shouldOverride =
+                    RequestDesktopUtils.shouldOverrideDesktopSite(mProfile, mGoogleUrl, mActivity);
+            Assert.assertFalse("Desktop site should not be overridden.", shouldOverride);
+        } finally {
+            ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", originalManufacturer);
+            RequestDesktopUtils.sDesktopUAAllowedOnExternalDisplayForOem = null;
+        }
     }
 
     private Tab createTab() {

@@ -1032,7 +1032,7 @@ BASE_FEATURE(kGMSCoreEmoji, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, then display audio track permission failures are ignored.
 BASE_FEATURE(kGetDisplayMediaIgnoreAudioPermissionFailures,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(std::string,
                    kHTMLParserYieldEventNameForPause,
@@ -1121,10 +1121,6 @@ BASE_FEATURE_ENUM_PARAM(IsolateSandboxedIframesGrouping,
                         "grouping",
                         IsolateSandboxedIframesGrouping::kPerOrigin,
                         &isolated_sandboxed_iframes_grouping_types);
-
-BASE_FEATURE(kKalmanDirectionCutOff, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kKalmanHeuristics, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kKeepAliveInBrowserMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1772,6 +1768,79 @@ BASE_FEATURE_PARAM(double,
                    "type_weight",
                    100.0);
 
+BASE_FEATURE(kMemoryCacheStrongReferenceExtensions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// --- High Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefXSLStyleSheet,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "xsl_stylesheet",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefRaw,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "raw",
+                   false);
+
+// --- Medium Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefImage,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "image",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefSVGDocument,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "svg_document",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefManifest,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "manifest",
+                   false);
+
+// --- Low Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefAudio,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "audio",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefVideo,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "video",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefTextTrack,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "text_track",
+                   false);
+
+// --- Lowest Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefLinkPrefetch,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "link_prefetch",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefSpeculationRules,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "speculation_rules",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefDictionary,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "dictionary",
+                   false);
+
 BASE_FEATURE(kMemoryCacheStrongReference,
 // Finch study showed no improvement on Android for strong memory cache.
 #if BUILDFLAG(IS_ANDROID)
@@ -1912,12 +1981,21 @@ BASE_FEATURE(kPrefetchFontLookupTables,
 );
 #endif
 
-BASE_FEATURE(kPreloadingEagerHeuristics, base::FEATURE_DISABLED_BY_DEFAULT);
+// Launch this feature only on Desktop.
+// TODO(crbug.com/436705485): Support this on mobile.
+BASE_FEATURE(kPreloadingEagerHeuristics,
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kPreloadingEagerHeuristicsHoverDwellTime,
                    &kPreloadingEagerHeuristics,
                    "hover_dwell_time",
-                   base::Milliseconds(5));
+                   base::Milliseconds(10));
 
 BASE_FEATURE(kPreloadingHeuristicsMLModel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
@@ -2044,6 +2122,9 @@ BASE_FEATURE(kQuoteEmptySecChUaStringHeadersConsistently,
 // Reduce the amount of information in the default 'referer' header for
 // cross-origin requests.
 BASE_FEATURE(kReducedReferrerGranularity, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kRefactorCompositorThreadEventQueue,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(std::string,
                    kUserAgentFrozenBuildVersion,
@@ -2472,6 +2553,11 @@ BASE_FEATURE(kWebAppManifestLockScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 // JavaScript denormal compliance.  See https://crbug.com/382005099.
 BASE_FEATURE(kWebAudioAllowDenormalInProcessing,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Use deferred pull status update instead of updating the status directly
+// on audio thread. See https://crbug.com/40249972.
+BASE_FEATURE(kWebAudioDeferPullStatusUpdate,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at

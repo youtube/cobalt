@@ -26,7 +26,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask);
 }
 
 template <>
@@ -315,7 +315,7 @@ std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
 
 // static
 MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
-    Heap* heap, Tagged<HeapObject> object) {
+    const Heap* heap, Tagged<HeapObject> object) {
   const auto* chunk = MemoryChunk::FromHeapObject(object);
   const auto flags = chunk->GetFlags();
   if (flags & MemoryChunk::READ_ONLY_HEAP) {
@@ -340,8 +340,8 @@ MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
 
 // static
 template <typename MarkingStateT>
-bool MarkingHelper::IsMarkedOrAlwaysLive(Heap* heap,
-                                         MarkingStateT* marking_state,
+bool MarkingHelper::IsMarkedOrAlwaysLive(const Heap* heap,
+                                         const MarkingStateT* marking_state,
                                          Tagged<HeapObject> object) {
   return (MarkingHelper::GetLivenessMode(heap, object) ==
           MarkingHelper::LivenessMode::kAlwaysLive) ||
@@ -350,9 +350,9 @@ bool MarkingHelper::IsMarkedOrAlwaysLive(Heap* heap,
 
 // static
 template <typename MarkingStateT>
-bool MarkingHelper::IsUnmarkedAndNotAlwaysLive(Heap* heap,
-                                               MarkingStateT* marking_state,
-                                               Tagged<HeapObject> object) {
+bool MarkingHelper::IsUnmarkedAndNotAlwaysLive(
+    const Heap* heap, const MarkingStateT* marking_state,
+    Tagged<HeapObject> object) {
   return (MarkingHelper::GetLivenessMode(heap, object) !=
           MarkingHelper::LivenessMode::kAlwaysLive) &&
          marking_state->IsUnmarked(object);

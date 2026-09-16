@@ -2485,6 +2485,14 @@ inline constexpr char kDevToolsAdbKey[] = "devtools.adb_key";
 // Defines administrator-set availability of developer tools.
 inline constexpr char kDevToolsAvailability[] = "devtools.availability";
 
+// List of developer tools availability allowlist.
+inline constexpr char kDeveloperToolsAvailabilityAllowlist[] =
+    "devtools.availability_allowlist";
+
+// List of developer tools availability blocklist.
+inline constexpr char kDeveloperToolsAvailabilityBlocklist[] =
+    "devtools.availability_blocklist";
+
 // This is a timestamp, milliseconds after epoch, of when devtools was last
 // opened.
 inline constexpr char kDevToolsLastOpenTimestamp[] =
@@ -2853,6 +2861,10 @@ inline constexpr char kDevicePostQuantumKeyAgreementEnabled[] =
 // key exchange in TLS.
 inline constexpr char kPreferSlowKexAlgorithms[] =
     "ssl.compliance.key_exchange";
+
+// String identifying the compliance regime, if any, that must be adhered to for
+// key exchange in TLS.
+inline constexpr char kPreferSlowCiphers[] = "ssl.compliance.cipher";
 
 // Boolean that specifies whether TLS 1.3 Early Data is enabled.
 inline constexpr char kTLS13EarlyDataEnabled[] = "ssl.tls13_early_data_enabled";
@@ -4263,6 +4275,11 @@ inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
 // on regardless of defaults.
 inline constexpr char kManagedLocalNetworkAccessRestrictionsEnabled[] =
     "managed_local_network_access_restrictions_enabled";
+
+// Boolean indicating whether Local Network Access restrictions should be
+// temporarily opted out of.
+inline constexpr char kManagedLocalNetworkAccessRestrictionsTemporaryOptOut[] =
+    "managed_local_network_access_restrictions_temporary_opt_out";
 
 // Boolean that specifies whether SpeculationRules prefetch can be sent to
 // ServiceWorker-controlled URLs.

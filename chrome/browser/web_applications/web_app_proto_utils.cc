@@ -32,34 +32,6 @@ namespace web_app {
 
 namespace {
 
-std::optional<apps::IconInfo::Purpose> SyncPurposeToIconInfoPurpose(
-    sync_pb::WebAppIconInfo_Purpose purpose) {
-  switch (purpose) {
-    // Treat UNSPECIFIED purpose as invalid. It means a new purpose was added
-    // that this client does not understand.
-    case sync_pb::WebAppIconInfo_Purpose_UNSPECIFIED:
-      return std::nullopt;
-    case sync_pb::WebAppIconInfo_Purpose_ANY:
-      return apps::IconInfo::Purpose::kAny;
-    case sync_pb::WebAppIconInfo_Purpose_MASKABLE:
-      return apps::IconInfo::Purpose::kMaskable;
-    case sync_pb::WebAppIconInfo_Purpose_MONOCHROME:
-      return apps::IconInfo::Purpose::kMonochrome;
-  }
-}
-
-sync_pb::WebAppIconInfo_Purpose IconInfoPurposeToSyncPurpose(
-    apps::IconInfo::Purpose purpose) {
-  switch (purpose) {
-    case apps::IconInfo::Purpose::kAny:
-      return sync_pb::WebAppIconInfo_Purpose_ANY;
-    case apps::IconInfo::Purpose::kMonochrome:
-      return sync_pb::WebAppIconInfo_Purpose_MONOCHROME;
-    case apps::IconInfo::Purpose::kMaskable:
-      return sync_pb::WebAppIconInfo_Purpose_MASKABLE;
-  }
-}
-
 content::proto::ImageResource_Purpose
 ManifestImageResourcePurposeToImageResoucePurposeProto(
     blink::mojom::ManifestImageResource_Purpose purpose) {
@@ -142,6 +114,22 @@ TabStrip::Visibility ProtoToTabStripVisibility(
 }
 
 }  // namespace
+
+std::optional<apps::IconInfo::Purpose> SyncPurposeToIconInfoPurpose(
+    sync_pb::WebAppIconInfo_Purpose purpose) {
+  switch (purpose) {
+    // Treat UNSPECIFIED purpose as invalid. It means a new purpose was added
+    // that this client does not understand.
+    case sync_pb::WebAppIconInfo_Purpose_UNSPECIFIED:
+      return std::nullopt;
+    case sync_pb::WebAppIconInfo_Purpose_ANY:
+      return apps::IconInfo::Purpose::kAny;
+    case sync_pb::WebAppIconInfo_Purpose_MASKABLE:
+      return apps::IconInfo::Purpose::kMaskable;
+    case sync_pb::WebAppIconInfo_Purpose_MONOCHROME:
+      return apps::IconInfo::Purpose::kMonochrome;
+  }
+}
 
 std::optional<std::vector<apps::IconInfo>> ParseAppIconInfos(
     const char* container_name_for_logging,
@@ -242,6 +230,18 @@ ParseAppImageResource(const char* container_name_for_logging,
   }
 
   return manifest_icons;
+}
+
+sync_pb::WebAppIconInfo_Purpose IconInfoPurposeToSyncPurpose(
+    apps::IconInfo::Purpose purpose) {
+  switch (purpose) {
+    case apps::IconInfo::Purpose::kAny:
+      return sync_pb::WebAppIconInfo_Purpose_ANY;
+    case apps::IconInfo::Purpose::kMonochrome:
+      return sync_pb::WebAppIconInfo_Purpose_MONOCHROME;
+    case apps::IconInfo::Purpose::kMaskable:
+      return sync_pb::WebAppIconInfo_Purpose_MASKABLE;
+  }
 }
 
 sync_pb::WebAppIconInfo AppIconInfoToSyncProto(

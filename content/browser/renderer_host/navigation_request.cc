@@ -88,7 +88,6 @@
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_request_info.h"
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
-#include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/navigator_delegate.h"
 #include "content/browser/renderer_host/page_delegate.h"
@@ -233,6 +232,7 @@
 #include "url/url_constants.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
 #include "ui/android/window_android.h"
 #include "ui/android/window_android_compositor.h"
 #endif
@@ -2242,12 +2242,14 @@ NavigationRequest::~NavigationRequest() {
     loading_mem_tracker_->Cancel();
   ResetExpectedProcess();
 
+#if BUILDFLAG(IS_ANDROID)
   if (IsInPrimaryMainFrame()) {
     if (auto* cache =
             GetNavigationController()->GetNavigationEntryScreenshotCache()) {
       cache->OnNavigationFinished(*this);
     }
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (HasCommitted()) {
     CHECK(!navigation_discard_reason_.has_value());
@@ -3193,10 +3195,17 @@ void NavigationRequest::StartNavigation() {
 
   // For prerendered page activation, CommitDeferringConditions have already run
   // at the beginning of the navigation, so we won't run them again.
+  // ProcessSelectionDeferringConditions also don't need to run for prerendered
+  // page activations because those have already selected a process.
   if (!IsPrerenderedPageActivation()) {
     commit_deferrer_ = CommitDeferringConditionRunner::Create(
         *this, CommitDeferringCondition::NavigationType::kOther,
         /*candidate_prerender_frame_tree_node_id=*/std::nullopt);
+    if (base::FeatureList::IsEnabled(
+            features::kProcessSelectionDeferringConditions)) {
+      process_selection_deferrer_ =
+          ProcessSelectionDeferringConditionRunner::Create(*this);
+    }
   }
 
   navigation_visible_to_embedder_ = true;
@@ -3708,6 +3717,11 @@ void NavigationRequest::OnRequestRedirected(
     return;
   }
 
+  if (process_selection_deferrer_) {
+    // Start any process selection dependencies using the redirected URL.
+    process_selection_deferrer_->OnRequestRedirected();
+  }
+
   // Compute the SiteInstance to use for the redirect and pass its
   // RenderProcessHost if it has a process. Keep a reference if it has a
   // process, so that the SiteInstance and its associated process aren't deleted
@@ -4092,8 +4106,10 @@ bool NavigationRequest::HasCommittingOrigin(const url::Origin& origin) {
   // isolation shouldn't need to care about that case because a previous
   // instance of the origin would already have determined its isolation status
   // in that BrowsingInstance.
-  // TODO(crbug.com/40092527): Use the computed origin here just to be
-  // safe.
+  // TODO(crbug.com/40092527): Use the computed origin here just to be safe.
+  // Note, however, that if this is done, we need to be careful to still match
+  // sandboxed frame origins, which GetURL() currently accomplishes "by
+  // accident" (see https://crbug.com/446157743).
   return origin == url::Origin::Create(GetURL());
 }
 
@@ -4711,9 +4727,19 @@ void NavigationRequest::OnResponseStarted(
     return;
   }
 
-  SelectFrameHostForOnResponseStarted(std::move(url_loader_client_endpoints),
-                                      is_download,
-                                      std::move(subresource_loader_params));
+  if (process_selection_deferrer_) {
+    // When process selection deferral is enabled, give process selection
+    // dependencies the opportunity to defer before finalizing the selected
+    // process.
+    process_selection_deferrer_->WillSelectFinalProcess(base::BindOnce(
+        &NavigationRequest::SelectFrameHostForOnResponseStarted,
+        weak_factory_.GetWeakPtr(), std::move(url_loader_client_endpoints),
+        is_download, std::move(subresource_loader_params)));
+  } else {
+    SelectFrameHostForOnResponseStarted(std::move(url_loader_client_endpoints),
+                                        is_download,
+                                        std::move(subresource_loader_params));
+  }
 }
 
 void NavigationRequest::SelectFrameHostForOnResponseStarted(
@@ -4922,10 +4948,17 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
         IsLoadDataWithBaseURL()
             ? url::Origin::Create(common_params_->base_url_for_data_url)
             : url::Origin::Create(common_params_->url);
-    ChildProcessSecurityPolicyImpl::GetInstance()
-        ->AddDefaultIsolatedOriginIfNeeded(
-            isolation_context, origin,
-            false /* is_global_walk_or_frame_removal */);
+    auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
+    policy->AddDefaultIsolatedOriginIfNeeded(
+        isolation_context, origin, false /* is_global_walk_or_frame_removal */);
+
+    url::Origin process_lock_origin =
+        url::Origin::Create(instance->GetSiteInfo().GetProcessLockURL());
+    // Cache the computed v8 optimization state so that all instances of an
+    // origin in a BrowsingInstance are assigned to the same process.
+    policy->AddV8OptimizationDisabledStateForOriginIfNotCached(
+        isolation_context.browsing_instance_id(), process_lock_origin,
+        instance->GetProcess()->AreV8OptimizationsDisabled());
 
     // Replace the SiteInstance of the previously committed entry if it's for a
     // url that doesn't require a site assignment, if this new commit will be
@@ -4995,9 +5028,8 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
   // TODO(crbug.com/399783247): Remove
   if (base::FeatureList::IsEnabled(
           features::kHoldbackDebugReasonStringRemoval)) {
-    SCOPED_CRASH_KEY_STRING256(
-        "Bug1454273", "base_host_for_data_url",
-        common_params_->base_url_for_data_url.host_piece());
+    SCOPED_CRASH_KEY_STRING256("Bug1454273", "base_host_for_data_url",
+                               common_params_->base_url_for_data_url.host());
     SCOPED_CRASH_KEY_STRING1024("Bug1454273", "rfh_selected_reason",
                                 rfh_selected_reason);
   }
@@ -6603,6 +6635,7 @@ void NavigationRequest::CommitNavigation() {
                                        origin_to_commit)) ||
        (base::FeatureList::IsEnabled(
             blink::features::kStickyUserActivationAcrossSameOriginNavigation) &&
+        !commit_params_->is_browser_initiated &&
         frame_tree_node_->IsMainFrame() &&
         old_frame_host->GetLastCommittedOrigin() == origin_to_commit));
 
@@ -7390,8 +7423,8 @@ NavigationRequest::CheckCredentialedSubresource() const {
   DCHECK(parent);
   const GURL& parent_url = parent->GetLastCommittedURL();
   if (url::IsSameOriginWith(parent_url, common_params_->url) &&
-      parent_url.username() == common_params_->url.username() &&
-      parent_url.password() == common_params_->url.password()) {
+      parent_url.GetUsername() == common_params_->url.GetUsername() &&
+      parent_url.GetPassword() == common_params_->url.GetPassword()) {
     return CredentialedSubresourceCheckResult::ALLOW_REQUEST;
   }
 
@@ -7484,7 +7517,8 @@ void NavigationRequest::SetupCSPEmbeddedEnforcement() {
     // 'csp' attribute.
     const GURL& url = GetURL();
     frame_csp_attribute->self_origin = network::mojom::CSPSource::New(
-        url.scheme(), url.host(), url.EffectiveIntPort(), "", false, false);
+        url.GetScheme(), url.GetHost(), url.EffectiveIntPort(), "", false,
+        false);
   }
 
   const network::mojom::ContentSecurityPolicy* parent_required_csp =
@@ -8534,7 +8568,14 @@ void NavigationRequest::UpdatePrivateNetworkRequestPolicy() {
       ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
           kBlockInsteadOfWarn) {
     private_network_request_policy_ =
-        OverrideBlockWithWarn(private_network_request_policy_);
+        OverrideToBlockInsteadOfWarn(private_network_request_policy_);
+  }
+
+  if (policy_override ==
+      ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+          kWarnInsteadOfBlock) {
+    private_network_request_policy_ =
+        OverrideToWarnInsteadOfBlock(private_network_request_policy_);
   }
 }
 

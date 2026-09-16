@@ -91,10 +91,6 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoRequestHandlerBase
     // list.
     bool has_empty_allow_list = false;
 
-    // is_only_hybrid_or_internal is true if credentials in the allow-list only
-    // contain the hybrid or internal transports.
-    bool is_only_hybrid_or_internal = false;
-
     // True this process has iCloud Keychain support. Only meaningful on macOS.
     bool has_icloud_keychain = false;
 
@@ -142,10 +138,6 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoRequestHandlerBase
 
     // Whether the platform can check biometrics and has biometrics configured.
     bool platform_has_biometrics = false;
-
-    // Indicates whether the request is occurring in an off-the-record
-    // BrowserContext (e.g. Chrome Incognito mode).
-    bool is_off_the_record_context = false;
 
     // Indicates the ResidentKeyRequirement of the current request. Only valid
     // if |request_type| is |RequestType::kMakeCredential|. Requests with a

@@ -60,6 +60,7 @@
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -75,6 +76,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "services/network/public/cpp/cookie_encryption_provider_impl.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -231,7 +233,14 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
       deep_link_(deep_link),
-      is_visible_(is_visible) {
+      is_visible_(is_visible),
+      os_crypt_async_(std::make_unique<os_crypt_async::OSCryptAsync>(
+          std::vector<
+              std::pair<os_crypt_async::OSCryptAsync::Precedence,
+                        std::unique_ptr<os_crypt_async::KeyProvider>>>{})),
+      cookie_encryption_provider_(
+          std::make_unique<CookieEncryptionProviderImpl>(
+              os_crypt_async_.get())) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -308,7 +317,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return nullptr;
 #else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
@@ -364,11 +373,11 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     content::SiteInstance& main_frame_site,
     blink::web_pref::WebPreferences* prefs) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !defined(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
       web_contents, main_frame_site, prefs);
 }
@@ -400,6 +409,16 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   cookie_manager_params->block_third_party_cookies = true;
   network_context_params->cookie_manager_params =
       std::move(cookie_manager_params);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
+  // Cobalt on Android and tvOS followed the platform default, which does not
+  // encrypt the SQLite cookie store at all, so keep it off rather than start
+  // encrypting existing cookie databases. See https://crrev.com/c/7014041 for
+  // the reasoning.
+  network_context_params->enable_encrypted_cookies = false;
+#else
+  network_context_params->cookie_encryption_provider =
+      cookie_encryption_provider_->BindNewRemote();
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
 
   // Configure on-disk storage for non-off-the-record profiles. Off-the-record
   // profiles just use default behavior (in memory storage, default sizes).
@@ -457,6 +476,12 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
+
+  // Avoid closing idle HTTP/2 sessions on memory pressure signals. On resource-
+  // constrained TV hardware, PartitionAlloc memory compaction cycles repeatedly
+  // trigger memory pressure, which otherwise results in high connection churn
+  // and aborted session spikes (ERR_ABORTED).
+  network_context_params->disable_idle_sockets_close_on_memory_pressure = true;
 
   // All consumers of the main NetworkContext must provide
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a

@@ -30,7 +30,7 @@ namespace skgpu::graphite {
 
 namespace {
 
-constexpr int kBufferBindingSizeAlignment = 16;
+constexpr uint32_t kBufferBindingSizeAlignment = 16;
 constexpr int kMaxNumberOfCachedBufferBindGroups = 1024;
 constexpr int kMaxNumberOfCachedTextureBindGroups = 4096;
 
@@ -558,23 +558,6 @@ sk_sp<DawnTexture> DawnResourceProvider::findOrCreateDiscardableMSAALoadTexture(
     return sk_sp<DawnTexture>(static_cast<DawnTexture*>(texture.release()));
 }
 
-sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
-        const RuntimeEffectDictionary* runtimeDict,
-        const UniqueKey& pipelineKey,
-        const GraphicsPipelineDesc& pipelineDesc,
-        const RenderPassDesc& renderPassDesc,
-        SkEnumBitMask<PipelineCreationFlags> pipelineCreationFlags,
-        uint32_t compilationID) {
-    return DawnGraphicsPipeline::Make(this->dawnSharedContext(),
-                                      this,
-                                      runtimeDict,
-                                      pipelineKey,
-                                      pipelineDesc,
-                                      renderPassDesc,
-                                      pipelineCreationFlags,
-                                      compilationID);
-}
-
 sk_sp<ComputePipeline> DawnResourceProvider::createComputePipeline(
         const ComputePipelineDesc& desc) {
     return DawnComputePipeline::Make(this->dawnSharedContext(), desc);
@@ -631,7 +614,8 @@ sk_sp<DawnBuffer> DawnResourceProvider::findOrCreateDawnBuffer(size_t size,
                                                                BufferType type,
                                                                AccessPattern accessPattern,
                                                                std::string_view label) {
-    sk_sp<Buffer> buffer = this->findOrCreateBuffer(size, type, accessPattern, std::move(label));
+    sk_sp<Buffer> buffer = this->findOrCreateNonShareableBuffer(
+            size, type, accessPattern, std::move(label));
     DawnBuffer* ptr = static_cast<DawnBuffer*>(buffer.release());
     return sk_sp<DawnBuffer>(ptr);
 }
@@ -750,5 +734,9 @@ BindBufferInfo DawnResourceProvider::findOrCreateIntrinsicBindBufferInfo(
         DawnCommandBuffer* cb, UniformDataBlock intrinsicValues) {
     return fIntrinsicConstantsManager->add(cb, intrinsicValues);
 }
+
+DawnThreadSafeResourceProvider::DawnThreadSafeResourceProvider(
+        std::unique_ptr<ResourceProvider> resourceProvider)
+    : ThreadSafeResourceProvider(std::move(resourceProvider)) {}
 
 } // namespace skgpu::graphite

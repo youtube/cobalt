@@ -47,6 +47,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -1118,8 +1119,10 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
     subscribe->TruncateStart(message.largest_location->Next());
   }
   if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(track->full_track_name(),
-                                  message.largest_location, std::nullopt);
+    subscribe->visitor()->OnReply(
+        track->full_track_name(),
+        SubscribeOkData{message.expires, message.group_order,
+                        message.largest_location, message.parameters});
   }
 }
 
@@ -1154,8 +1157,9 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   // subscribe will be deleted after calling Subscribe().
   session_->subscribe_by_name_.erase(subscribe->full_track_name());
   if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(subscribe->full_track_name(), std::nullopt,
-                                  message.reason_phrase);
+    subscribe->visitor()->OnReply(
+        subscribe->full_track_name(),
+        MoqtRequestError{message.error_code, message.reason_phrase});
   }
   session_->upstream_by_id_.erase(subscribe->request_id());
 }
@@ -1213,21 +1217,29 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
         session_->framer_.SerializePublishNamespaceError(error));
     return;
   }
-  std::optional<MoqtPublishNamespaceErrorReason> error =
-      session_->callbacks_.incoming_publish_namespace_callback(
-          message.track_namespace, message.parameters);
-  if (error.has_value()) {
-    MoqtPublishNamespaceError reply;
-    reply.request_id = message.request_id;
-    reply.error_code = error->error_code;
-    reply.error_reason = error->reason_phrase;
-    SendOrBufferMessage(
-        session_->framer_.SerializePublishNamespaceError(reply));
-    return;
-  }
-  MoqtPublishNamespaceOk ok;
-  ok.request_id = message.request_id;
-  SendOrBufferMessage(session_->framer_.SerializePublishNamespaceOk(ok));
+  quiche::QuicheWeakPtr<MoqtSessionInterface> session_weakptr =
+      session_->GetWeakPtr();
+  session_->callbacks_.incoming_publish_namespace_callback(
+      message.track_namespace, message.parameters,
+      [&](std::optional<MoqtRequestError> error) {
+        MoqtSession* session =
+            static_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
+        if (session == nullptr) {
+          return;
+        }
+        if (error.has_value()) {
+          MoqtPublishNamespaceError reply;
+          reply.request_id = message.request_id;
+          reply.error_code = error->error_code;
+          reply.error_reason = error->reason_phrase;
+          SendOrBufferMessage(
+              session->framer_.SerializePublishNamespaceError(reply));
+        } else {
+          MoqtPublishNamespaceOk ok;
+          ok.request_id = message.request_id;
+          SendOrBufferMessage(session->framer_.SerializePublishNamespaceOk(ok));
+        }
+      });
 }
 
 // Do not enforce that there is only one of OK or ERROR per PUBLISH_NAMESPACE.
@@ -1277,7 +1289,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
 void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
     const MoqtPublishNamespaceDone& message) {
   session_->callbacks_.incoming_publish_namespace_callback(
-      message.track_namespace, std::nullopt);
+      message.track_namespace, std::nullopt, nullptr);
 }
 
 void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
@@ -1691,6 +1703,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                   << " priority " << message.publisher_priority << " length "
                   << payload.size() << " length " << message.payload_length
                   << (end_of_message ? "F" : "");
+  if (!index_.has_value()) {
+    index_ = DataStreamIndex(message.group_id, message.subgroup_id);
+  }
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
       if (partial_object_.empty()) {
@@ -1753,10 +1768,10 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       return;
     }
     if (subscribe->visitor() != nullptr) {
-      // TODO(martinduke): Send extension headers.
       PublishedObjectMetadata metadata;
       metadata.location = Location(message.group_id, message.object_id);
       metadata.subgroup = message.subgroup_id;
+      metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
       metadata.arrival_time = session_->callbacks_.clock->Now();
@@ -1809,7 +1824,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   if (subscribe == nullptr) {
     return;
   }
-  subscribe->OnStreamClosed();
+  subscribe->OnStreamClosed(fin_received_, index_);
   session_->MaybeDestroySubscription(subscribe);
 }
 
@@ -2452,6 +2467,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   header.subgroup_id = metadata.subgroup;
   header.object_id = metadata.location.object;
   header.publisher_priority = metadata.publisher_priority;
+  header.extension_headers = metadata.extensions;
   header.object_status = metadata.status;
   header.payload_length = payload.length();
 
@@ -2530,6 +2546,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.group_id = object->metadata.location.group;
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
+  header.extension_headers = object->metadata.extensions;
   header.object_status = object->metadata.status;
   header.subgroup_id = header.object_id;
   header.payload_length = object->payload.length();

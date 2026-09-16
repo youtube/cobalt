@@ -30,6 +30,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -473,7 +474,7 @@ public class TabStripTest {
         // 3. Invoke "close all tabs" menu action; block until action is completed
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                    TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
                             .clickCloseButtonMenuItemForTesting(
                                     StripLayoutHelper.ID_CLOSE_ALL_TABS);
                 });
@@ -519,7 +520,7 @@ public class TabStripTest {
                 .setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         Assert.assertFalse(
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
                         .isCloseButtonMenuShowingForTesting());
         Assert.assertEquals(
                 "Expected 1 tab to be present",
@@ -574,6 +575,8 @@ public class TabStripTest {
     @LargeTest
     @Feature({"TabStrip"})
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testCloseLastIncognitoTab() {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         Assert.assertFalse(
@@ -612,6 +615,8 @@ public class TabStripTest {
     @LargeTest
     @Feature({"TabStrip"})
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testCloseAllIncognitoTabsFromTabMenu() {
         // 1. Create two incognito tabs
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -647,7 +652,7 @@ public class TabStripTest {
         // 3. Invoke menu action; block until action is completed
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                    TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
                             .clickCloseButtonMenuItemForTesting(
                                     StripLayoutHelper.ID_CLOSE_ALL_TABS);
                 });
@@ -676,6 +681,8 @@ public class TabStripTest {
     @LargeTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature({"TabStrip"})
+    // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testTabSelectionViewDoesNotBreakModelSwitch() {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         Assert.assertFalse(
@@ -834,7 +841,8 @@ public class TabStripTest {
         // the ScrollingStripStacker.
         assertSetTabStripScrollOffset(
                 (int)
-                        TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                        TabStripTestUtils.getActiveStripLayoutHelper(
+                                        mActivityTestRule.getActivity())
                                 .getScrollOffsetLimitForTesting());
 
         // Tab should now be hidden.
@@ -897,7 +905,8 @@ public class TabStripTest {
         // at partial opacity.
         assertSetTabStripScrollOffset(
                 (int)
-                        (TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                        (TabStripTestUtils.getActiveStripLayoutHelper(
+                                                mActivityTestRule.getActivity())
                                         .getScrollOffsetLimitForTesting()
                                 + StripLayoutHelper.FADE_FULL_OPACITY_THRESHOLD_DP / 2));
         assertTabStripFadePartiallyVisible(!isLeft);
@@ -983,7 +992,7 @@ public class TabStripTest {
 
         // Set up some variables.
         StripLayoutHelper strip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         StripLayoutTab[] tabs = strip.getStripLayoutTabsForTesting();
         float tabDrawWidth = tabs[0].getWidth() - StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
 
@@ -1181,6 +1190,8 @@ public class TabStripTest {
     @LargeTest
     @Feature({"TabStrip"})
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testHoverOnTabStrip_switchTabModel() throws Exception {
         // Open regular tabs.
         ChromeTabUtils.newTabsFromMenu(
@@ -1419,7 +1430,7 @@ public class TabStripTest {
                     }
                 });
         Assert.assertTrue(
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity())
                         .isCloseButtonMenuShowingForTesting());
     }
 
@@ -1481,7 +1492,7 @@ public class TabStripTest {
         StripLayoutHelper strip =
                 TabStripUtils.getStripLayoutHelper(mActivityTestRule.getActivity(), incognito);
         StripLayoutHelper activeStrip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         TabModel activeModel = mActivityTestRule.getActivity().getCurrentTabModel();
 
         if (activeModel.isIncognito() == incognito) {
@@ -1560,7 +1571,7 @@ public class TabStripTest {
      */
     private void assertSetTabStripScrollOffset(final int scrollOffset) throws ExecutionException {
         final StripLayoutHelper strip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     strip.setScrollOffsetForTesting(scrollOffset);
@@ -1578,7 +1589,7 @@ public class TabStripTest {
      */
     private void assertTabStripFadeFullyHidden(boolean isLeft) {
         StripLayoutHelper strip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         if (isLeft) {
             Assert.assertEquals(
                     "Left tab strip fade visibility is incorrect.",
@@ -1601,7 +1612,7 @@ public class TabStripTest {
      */
     private void assertTabStripFadeFullyVisible(boolean isLeft) {
         StripLayoutHelper strip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         if (isLeft) {
             Assert.assertEquals(
                     "Left tab strip fade visibility is incorrect.",
@@ -1624,7 +1635,7 @@ public class TabStripTest {
      */
     private void assertTabStripFadePartiallyVisible(boolean isLeft) {
         StripLayoutHelper strip =
-                TabStripUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
+                TabStripTestUtils.getActiveStripLayoutHelper(mActivityTestRule.getActivity());
         if (isLeft) {
             boolean isPartiallyVisible =
                     strip.getLeftFadeOpacity() > 0.f && strip.getLeftFadeOpacity() < 1.f;

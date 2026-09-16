@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 is{
     Countries{
         001{"Heimurinn"}
@@ -254,7 +254,7 @@ is{
         SV{"El Salvador"}
         SX{"Sint Maarten"}
         SY{"Sýrland"}
-        SZ{"Svasíland"}
+        SZ{"Esvatíní"}
         TA{"Tristan da Cunha"}
         TC{"Turks- og Caicoseyjar"}
         TD{"Tsjad"}

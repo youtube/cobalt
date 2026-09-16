@@ -58,7 +58,7 @@ import org.webrtc.NetworkMonitorAutoDetect.SimpleNetworkCallback;
 public class NetworkMonitorTest {
   private static final long INVALID_NET_ID = -1;
   private NetworkChangeDetector detector;
-  private String fieldTrialsString = "";
+  private final String fieldTrialsString = "";
 
   /**
    * Listens for alerts fired by the NetworkMonitor when network status changes.
@@ -149,7 +149,7 @@ public class NetworkMonitorTest {
 
   // A dummy NetworkMonitorAutoDetect.Observer.
   private static class TestNetworkMonitorAutoDetectObserver
-      extends NetworkMonitorAutoDetect.Observer {
+      extends NetworkChangeDetector.Observer {
     final String fieldTrialsString;
 
     TestNetworkMonitorAutoDetectObserver(String fieldTrialsString) {
@@ -221,7 +221,7 @@ public class NetworkMonitorTest {
   public void testNetworkMonitorRegistersInConstructor() throws InterruptedException {
     Context context = InstrumentationRegistry.getTargetContext();
 
-    NetworkMonitorAutoDetect.Observer observer =
+    NetworkChangeDetector.Observer observer =
         new TestNetworkMonitorAutoDetectObserver(fieldTrialsString);
 
     NetworkMonitorAutoDetect receiver = new NetworkMonitorAutoDetect(observer, context);
@@ -371,7 +371,7 @@ public class NetworkMonitorTest {
   @Test
   @SmallTest
   public void testQueryableAPIsDoNotCrash() {
-    NetworkMonitorAutoDetect.Observer observer =
+    NetworkChangeDetector.Observer observer =
         new TestNetworkMonitorAutoDetectObserver(fieldTrialsString);
     NetworkMonitorAutoDetect ncn =
         new NetworkMonitorAutoDetect(observer, InstrumentationRegistry.getTargetContext());

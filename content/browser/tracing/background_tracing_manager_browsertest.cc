@@ -768,7 +768,8 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
   EXPECT_TRUE(background_tracing_helper.trace_received());
 
   std::optional<base::Value> trace_json =
-      base::JSONReader::Read(background_tracing_helper.json_file_contents());
+      base::JSONReader::Read(background_tracing_helper.json_file_contents(),
+                             base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(trace_json);
   ASSERT_TRUE(trace_json->is_dict());
   auto* metadata_json = trace_json->GetDict().FindDict("metadata");
@@ -899,8 +900,9 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
       base::trace_event::kStartupTracingTriggerName));
 }
 
-// TODO(crbug.com/40267734): Re-enable this test once fixed
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/40267734): Re-enable this test once fixed.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || \
+    (BUILDFLAG(IS_LINUX) && defined(THREAD_SANITIZER))
 #define MAYBE_RunStartupTracing DISABLED_RunStartupTracing
 #else
 #define MAYBE_RunStartupTracing RunStartupTracing

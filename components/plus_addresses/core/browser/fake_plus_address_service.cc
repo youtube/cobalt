@@ -14,6 +14,7 @@
 #include "base/strings/to_string.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
+#include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -56,7 +57,7 @@ FakePlusAddressService::GetSuggestionsFromPlusAddresses(
     const base::flat_map<autofill::FieldGlobalId, autofill::FieldTypeGroupSet>&
         form_field_type_groups,
     const autofill::PasswordFormClassification& focused_form_classification,
-    autofill::AutofillSuggestionTriggerSource trigger_source) {
+    bool is_plus_address_manually_triggered) {
   if (IsPlusAddressCreationEnabled(last_committed_primary_main_frame_origin,
                                    is_off_the_record)) {
     Suggestion suggestion(

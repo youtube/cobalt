@@ -149,7 +149,7 @@ class NavigationCapturingBrowserNavigatorBrowserTest
                             ui::PAGE_TRANSITION_LINK);
       params.disposition = WindowOpenDisposition::NEW_WINDOW;
       Navigate(&params);
-      second_app_browser = params.browser;
+      second_app_browser = params.browser->GetBrowserForMigrationOnly();
     }
     EXPECT_NE(nullptr, second_app_browser);
     EXPECT_NE(second_app_browser, app_browser_to_use);
@@ -452,8 +452,18 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
           NavigationCapturingDisplayModeResult::kAppStandaloneFinalStandalone));
 }
 
-IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
-                       NavigateBrowserUsedForNavigateExistingToBrowserTab) {
+// This test is flaky on the Mac 13 bot.
+// TODO(crbug.com/447403523): Enable the test on Mac bots.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_NavigateBrowserUsedForNavigateExistingToBrowserTab \
+  DISABLED_NavigateBrowserUsedForNavigateExistingToBrowserTab
+#else
+#define MAYBE_NavigateBrowserUsedForNavigateExistingToBrowserTab \
+  NavigateBrowserUsedForNavigateExistingToBrowserTab
+#endif
+IN_PROC_BROWSER_TEST_F(
+    NavigationCapturingBrowserNavigatorBrowserTest,
+    MAYBE_NavigateBrowserUsedForNavigateExistingToBrowserTab) {
   // Test that the browser provided in NavigateParams is used when using a
   // browser to open a browser tab, instead of the most recently active browser.
   const webapps::AppId& app_id = InstallTestWebApp(

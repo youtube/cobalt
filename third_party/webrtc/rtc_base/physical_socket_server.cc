@@ -683,7 +683,7 @@ void PhysicalSocket::OnResolveResult(const AsyncDnsResolverResult& result) {
 
   if (error) {
     SetError(error);
-    SignalCloseEvent(this, error);
+    NotifyCloseEvent(this, error);
   }
 }
 
@@ -1056,7 +1056,7 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
   // something like a READ followed by a CONNECT, which would be odd.
   if ((ff & DE_CONNECT) != 0) {
     DisableEvents(DE_CONNECT);
-    SignalConnectEvent(this);
+    NotifyConnectEvent(this);
   }
   if ((ff & DE_ACCEPT) != 0) {
     DisableEvents(DE_ACCEPT);
@@ -1073,7 +1073,7 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
   if ((ff & DE_CLOSE) != 0) {
     // The socket is now dead to us, so stop checking it.
     SetEnabledEvents(0);
-    SignalCloseEvent(this, err);
+    NotifyCloseEvent(this, err);
   }
 #if defined(WEBRTC_USE_EPOLL)
   FinishBatchedEventUpdates();

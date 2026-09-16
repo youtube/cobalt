@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
+
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
+#include "chrome/browser/ui/lens/lens_keyed_service.h"
+#include "chrome/browser/ui/lens/lens_keyed_service_factory.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/lens/lens_features.h"
@@ -60,6 +64,24 @@ bool IsAimM3Enabled(Profile* profile) {
   return AimEligibilityService::GenericKillSwitchFeatureCheck(
       AimEligibilityServiceFactory::GetForProfile(profile),
       lens::features::kLensSearchAimM3);
+}
+
+bool ShouldShowLensOverlayEduActionChip(Profile* profile) {
+  LensKeyedService* service = LensKeyedServiceFactory::GetForProfile(
+      profile, /*create_if_necessary=*/true);
+  if (service == nullptr) {
+    return false;
+  }
+  int shown_count = service->GetActionChipShownCount();
+  return lens::features::IsLensOverlayEduActionChipEnabled() &&
+         shown_count <=
+             lens::features::GetLensOverlayEduActionChipMaxShownCount();
+}
+
+void IncrementLensOverlayEduActionChipShownCount(Profile* profile) {
+  LensKeyedService* service = LensKeyedServiceFactory::GetForProfile(
+      profile, /*create_if_necessary=*/true);
+  service->IncrementActionChipShownCount();
 }
 
 }  // namespace lens

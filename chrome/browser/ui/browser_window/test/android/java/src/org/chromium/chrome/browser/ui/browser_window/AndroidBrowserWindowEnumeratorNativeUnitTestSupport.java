@@ -27,7 +27,11 @@ final class AndroidBrowserWindowEnumeratorNativeUnitTestSupport {
         when(tabModel.getProfile()).thenReturn(profile);
         var chromeAndroidTask =
                 ChromeAndroidTaskTrackerImpl.getInstance()
-                        .obtainTask(BrowserWindowType.NORMAL, mockActivityWindowAndroid, tabModel);
+                        .obtainTask(
+                                BrowserWindowType.NORMAL,
+                                mockActivityWindowAndroid,
+                                tabModel,
+                                null);
         return chromeAndroidTask.getOrCreateNativeBrowserWindowPtr();
     }
 

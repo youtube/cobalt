@@ -50,6 +50,7 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.loading_modal.LoadingModalDialogCoordinator;
 import org.chromium.chrome.browser.password_manager.CredentialManagerLauncher.CredentialManagerError;
@@ -69,8 +70,6 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 
 /** Tests for the password checkup-related methods in {@link PasswordManagerHelper}. */
@@ -305,7 +304,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                         PasswordCheckOperation.GET_PASSWORD_CHECKUP_INTENT,
                         CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                        OptionalInt.empty());
+                        null);
         HistogramWatcher histogram =
                 builder.expectNoRecords(
                                 PasswordMetricsUtil
@@ -332,7 +331,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                         PasswordCheckOperation.GET_PASSWORD_CHECKUP_INTENT,
                         CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                        OptionalInt.empty());
+                        null);
         HistogramWatcher histogram =
                 builder.expectNoRecords(
                                 PasswordMetricsUtil
@@ -358,7 +357,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                         PasswordCheckOperation.GET_PASSWORD_CHECKUP_INTENT,
                         CredentialManagerError.API_EXCEPTION,
-                        OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR));
+                        CommonStatusCodes.DEVELOPER_ERROR);
         HistogramWatcher histogram =
                 builder.expectNoRecords(
                                 PasswordMetricsUtil
@@ -386,7 +385,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                         PasswordCheckOperation.GET_PASSWORD_CHECKUP_INTENT,
                         CredentialManagerError.API_EXCEPTION,
-                        OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR));
+                        CommonStatusCodes.DEVELOPER_ERROR);
         HistogramWatcher histogram =
                 builder.expectNoRecords(
                                 PasswordMetricsUtil
@@ -430,7 +429,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.RUN_PASSWORD_CHECKUP,
                                 CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                                OptionalInt.empty())
+                                null)
                         .build();
 
         chooseToSyncPasswords();
@@ -451,7 +450,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.RUN_PASSWORD_CHECKUP,
                                 CredentialManagerError.API_EXCEPTION,
-                                OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR))
+                                CommonStatusCodes.DEVELOPER_ERROR)
                         .build();
 
         chooseToSyncPasswords();
@@ -530,7 +529,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_BREACHED_CREDENTIALS_COUNT,
                                 CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                                OptionalInt.empty())
+                                null)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingBreachedCredentialsCount(new PasswordManagerUnavailableException());
@@ -550,7 +549,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_WEAK_CREDENTIALS_COUNT,
                                 CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                                OptionalInt.empty())
+                                null)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingWeakCredentialsCount(new PasswordManagerUnavailableException());
@@ -570,7 +569,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_REUSED_CREDENTIALS_COUNT,
                                 CredentialManagerError.PASSWORD_MANAGER_NOT_AVAILABLE,
-                                OptionalInt.empty())
+                                null)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingReusedCredentialsCount(new PasswordManagerUnavailableException());
@@ -590,7 +589,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_BREACHED_CREDENTIALS_COUNT,
                                 CredentialManagerError.API_EXCEPTION,
-                                OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR))
+                                CommonStatusCodes.DEVELOPER_ERROR)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingBreachedCredentialsCount(
@@ -611,7 +610,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_WEAK_CREDENTIALS_COUNT,
                                 CredentialManagerError.API_EXCEPTION,
-                                OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR))
+                                CommonStatusCodes.DEVELOPER_ERROR)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingWeakCredentialsCount(
@@ -632,7 +631,7 @@ public class PasswordManagerCheckupHelperTest {
                 histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                                 PasswordCheckOperation.GET_REUSED_CREDENTIALS_COUNT,
                                 CredentialManagerError.API_EXCEPTION,
-                                OptionalInt.of(CommonStatusCodes.DEVELOPER_ERROR))
+                                CommonStatusCodes.DEVELOPER_ERROR)
                         .build();
         chooseToSyncPasswords();
         returnErrorWhenGettingReusedCredentialsCount(
@@ -678,7 +677,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -694,7 +693,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -712,7 +711,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -730,7 +729,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -749,7 +748,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -768,7 +767,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -786,7 +785,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -807,7 +806,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -826,7 +825,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -847,7 +846,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -868,7 +867,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -885,7 +884,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -906,7 +905,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -923,7 +922,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -946,7 +945,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -965,7 +964,7 @@ public class PasswordManagerCheckupHelperTest {
 
         mPasswordManagerHelper.launchPasswordCheckup(
                 PasswordCheckReferrer.SAFETY_CHECK,
-                Optional.of(TEST_EMAIL_ADDRESS),
+                TEST_EMAIL_ADDRESS,
                 mLoadingModalDialogCoordinator,
                 mModalDialogManagerSupplier,
                 ContextUtils.getApplicationContext(),
@@ -1276,7 +1275,7 @@ public class PasswordManagerCheckupHelperTest {
             histogramWatcherBuilderOfPasswordCheckupFailureHistogramsForOperation(
                     @PasswordCheckOperation int operation,
                     int errorCode,
-                    OptionalInt apiErrorCode) {
+                    @Nullable Integer apiErrorCode) {
         final String nameWithSuffix =
                 PasswordMetricsUtil.PASSWORD_CHECKUP_HISTOGRAM_BASE
                         + "."
@@ -1288,8 +1287,8 @@ public class PasswordManagerCheckupHelperTest {
                         .expectNoRecords(nameWithSuffix + ".Latency")
                         .expectIntRecord(nameWithSuffix + ".ErrorLatency", 0)
                         .expectIntRecord(nameWithSuffix + ".Error", errorCode);
-        if (apiErrorCode.isPresent()) {
-            return builder.expectIntRecord(nameWithSuffix + ".APIError", apiErrorCode.getAsInt());
+        if (apiErrorCode != null) {
+            return builder.expectIntRecord(nameWithSuffix + ".APIError", apiErrorCode);
         } else {
             return builder.expectNoRecords(nameWithSuffix + ".APIError");
         }

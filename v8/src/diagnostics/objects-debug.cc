@@ -881,7 +881,7 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Tagged<Code> code = jdt->GetCode(handle);
   CodeKind kind = code->kind();
-  CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
+  CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
         kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
 #endif
@@ -2807,9 +2807,9 @@ class StringTableVerifier : public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) override {
     UNREACHABLE();
   }
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       Tagged<Object> o = p.load(isolate_);

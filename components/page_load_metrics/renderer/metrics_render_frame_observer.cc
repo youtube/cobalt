@@ -22,6 +22,7 @@
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_document_loader.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
 #include "url/gurl.h"
 
@@ -109,21 +110,33 @@ MetricsRenderFrameObserver::MetricsRenderFrameObserver(
       blink::WebLocalFrameObserver(render_frame ? render_frame->GetWebFrame()
                                                 : nullptr) {
   if (base::FeatureList::IsEnabled(
-          features::kDidObserveNewFeatureUsageImprovement) &&
+          features::kMetricsRenderFrameObserverImprovement) &&
       render_frame) {
     // If the optimization is enabled, `DidObserveNewFeatureUsage()` will be
     // called as a callback instead of the observer interface.
     render_frame->SetNewFeatureUsageCallback(base::BindRepeating(
         &MetricsRenderFrameObserver::DidObserveNewFeatureUsage,
         weak_factory_.GetWeakPtr()));
-  }
-  if (base::FeatureList::IsEnabled(
-          features::kDidObserveSubresourceLoadImprovement)) {
     // If the optimization is enabled, `DidObserveSubresourceLoad()` will be
     // called as a callback instead of the observer interface.
     render_frame->SetSubresourceLoadCallback(base::BindRepeating(
         &MetricsRenderFrameObserver::DidObserveSubresourceLoad,
         weak_factory_.GetWeakPtr()));
+    // If the optimization is enabled, `DidLoadResourceFromMemoryCache()` will
+    // be called as a callback instead of the observer interface.
+    render_frame->SetLoadFromMemoryCacheCallback(base::BindRepeating(
+        &MetricsRenderFrameObserver::DidLoadResourceFromMemoryCache,
+        weak_factory_.GetWeakPtr()));
+
+    render_frame->SetDidStartResponseCallback(
+        base::BindRepeating(&MetricsRenderFrameObserver::DidStartResponse,
+                            weak_factory_.GetWeakPtr()));
+    render_frame->SetDidCompleteResponseCallback(
+        base::BindRepeating(&MetricsRenderFrameObserver::DidCompleteResponse,
+                            weak_factory_.GetWeakPtr()));
+    render_frame->SetDidCancelResponseCallback(
+        base::BindRepeating(&MetricsRenderFrameObserver::DidCancelResponse,
+                            weak_factory_.GetWeakPtr()));
   }
 }
 
@@ -321,7 +334,7 @@ void MetricsRenderFrameObserver::DidStartNavigation(
 }
 
 void MetricsRenderFrameObserver::DidSetPageLifecycleState(
-    bool restoring_from_bfcache) {
+    blink::BFCacheStateChange bfcache_change) {
   // Send current metrics, as this RenderFrame might be replaced by a new
   // RenderFrame or its process might be killed, and this might be the last
   // point we can send the metrics to the browser. See crbug.com/1150242 for

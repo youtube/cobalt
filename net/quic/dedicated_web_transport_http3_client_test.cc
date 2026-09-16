@@ -167,7 +167,7 @@ class DedicatedWebTransportHttp3Test : public TestWithTaskEnvironment {
     // This is required to bypass the check that only allows known certificate
     // roots in QUIC.
     quic_context->params()->origins_to_force_quic_on.insert(
-        HostPortPair("test.example.com", 0));
+        url::SchemeHostPort("https", "test.example.com", 443));
     builder.set_quic_context(std::move(quic_context));
 
     builder.set_net_log(NetLog::Get());
@@ -248,7 +248,7 @@ TEST_F(DedicatedWebTransportHttp3Test, ConnectLocalNetworkAccessCheckFail) {
 
   EXPECT_CALL(visitor_, OnLocalNetworkAccessCheck)
       .WillOnce(InvokeCallbackArgument<1, CompletionOnceCallback>(
-          ERR_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_CHECKS));
+          ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS));
 
   WebTransportError error;
   EXPECT_CALL(visitor_, OnConnectionFailed)
@@ -256,7 +256,7 @@ TEST_F(DedicatedWebTransportHttp3Test, ConnectLocalNetworkAccessCheckFail) {
   client_->Connect();
   Run();
   ASSERT_TRUE(client_->session() == nullptr);
-  EXPECT_EQ(error.net_error, ERR_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_CHECKS);
+  EXPECT_EQ(error.net_error, ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS);
 }
 
 // Check that connecting via a proxy fails. This is currently not implemented,

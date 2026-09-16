@@ -48,6 +48,13 @@ class BnplManager {
   // Returns if `issuer_id` is a supported BNPL issuer.
   static bool IsBnplIssuerSupported(std::string_view issuer_id);
 
+  // Determines if autofill BNPL is supported.
+  // Returns true if:
+  // 1. The profile is not off the record.
+  // 2. The client has an `AutofillOptimizationGuideDecider` assigned.
+  // 3. The URL being visited is within the BNPL issuer allowlist.
+  static bool IsEligibleForBnpl(const AutofillClient& client);
+
   // Initializes the BNPL flow, which includes UI shown to the user to select an
   // issuer, a possible ToS dialog, and redirecting to the selected issuer's
   // website before filling the form, if the flow succeeds.
@@ -82,14 +89,16 @@ class BnplManager {
   // that the manager can update suggestions for buy-now-pay-later.
   virtual void OnAmountExtractionReturned(
       const std::optional<uint64_t>& extracted_amount,
-      bool timeout_reached = false);
+      bool timeout_reached);
 
-  // Determines if autofill BNPL is supported.
-  // Returns true if:
-  // 1. The profile is not off the record.
-  // 2. The client has an `AutofillOptimizationGuideDecider` assigned.
-  // 3. The URL being visited is within the BNPL issuer allowlist.
-  virtual bool IsEligibleForBnpl() const;
+  // Runs after amount extraction is complete from the server-side AI.
+  // `extracted_amount_in_micros` is the final checkout amount in micro units on
+  // a checkout page. `timeout_reached` is true if the server-side AI
+  // prediction takes more than
+  // `AmountExtractionManager::kAiBasedAmountExtractionWaitTime` time to finish.
+  virtual void OnAmountExtractionReturnedFromAi(
+      const std::optional<uint64_t>& extracted_amount_in_micros,
+      bool timeout_reached);
 
   // Returns true if the issuer for the ongoing flow contains the required
   // action `PaymentInstrument::ActionRequired::kAcceptTos`.

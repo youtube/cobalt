@@ -27,8 +27,12 @@ class ScriptToolRequest : public PageToolRequest {
   void Apply(ToolRequestVisitorFunctor&) const override;
 
   // PageToolRequest
-  mojom::ToolActionPtr ToMojoToolAction() const override;
+  mojom::ToolActionPtr ToMojoToolAction(
+      content::RenderFrameHost& frame) const override;
   std::unique_ptr<PageToolRequest> Clone() const override;
+
+  std::optional<ObservationDelayController::PageStabilityConfig>
+  GetObservationPageStabilityConfig() const override;
 
  private:
   std::string name_;

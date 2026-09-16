@@ -234,7 +234,6 @@ rtc_library("video_coding") {
     "../../api/video:encoded_image",
     "../../api/video:render_resolution",
     "../../api/video:video_adaptation",
-    "../../api/video:video_adaptation",
     "../../api/video:video_bitrate_allocation",
     "../../api/video:video_bitrate_allocator",
     "../../api/video:video_bitrate_allocator_factory",
@@ -396,7 +395,9 @@ rtc_library("frame_sampler") {
   ]
   deps = [
     "..:module_api_public",
+    "../../api/units:time_delta",
     "../../api/video:video_frame",
+    "../../rtc_base:timeutils",
   ]
 }
 
@@ -525,6 +526,7 @@ rtc_library("webrtc_h264") {
     "../../rtc_base:event_tracer",
     "../../rtc_base:logging",
     "../../rtc_base:timeutils",
+    "../../rtc_base/experiments:psnr_experiment",
     "../../rtc_base/system:rtc_export",
     "../../system_wrappers:metrics",
     "../rtp_rtcp:rtp_rtcp_format",
@@ -620,6 +622,7 @@ rtc_library("webrtc_vp8") {
     "../../rtc_base:safe_conversions",
     "../../rtc_base/experiments:encoder_info_settings",
     "../../rtc_base/experiments:field_trial_parser",
+    "../../rtc_base/experiments:psnr_experiment",
     "../../rtc_base/experiments:rate_control_settings",
     "../../system_wrappers:metrics",
     "../rtp_rtcp:rtp_rtcp_format",
@@ -749,6 +752,7 @@ rtc_library("webrtc_vp9") {
     "../../rtc_base/containers:flat_map",
     "../../rtc_base/experiments:encoder_info_settings",
     "../../rtc_base/experiments:field_trial_parser",
+    "../../rtc_base/experiments:psnr_experiment",
     "../../rtc_base/experiments:rate_control_settings",
     "../../rtc_base/synchronization:mutex",
     "../rtp_rtcp:rtp_rtcp_format",

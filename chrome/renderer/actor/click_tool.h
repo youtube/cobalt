@@ -8,8 +8,10 @@
 #include <cstdint>
 
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/actor/task_id.h"
 #include "chrome/renderer/actor/tool_base.h"
 
 namespace content {
@@ -26,7 +28,7 @@ namespace actor {
 class ClickTool : public ToolBase {
  public:
   ClickTool(content::RenderFrame& frame,
-            Journal::TaskId task_id,
+            TaskId task_id,
             Journal& journal,
             mojom::ClickActionPtr action,
             mojom::ToolTargetPtr target,
@@ -36,12 +38,18 @@ class ClickTool : public ToolBase {
   // actor::ToolBase
   void Execute(ToolFinishedCallback callback) override;
   std::string DebugString() const override;
+  bool SupportsPaintStability() const override;
 
  private:
   using ValidatedResult = base::expected<gfx::PointF, mojom::ActionResultPtr>;
   ValidatedResult Validate() const;
 
+  void OnActionComplete(ToolFinishedCallback callback,
+                        mojom::ActionResultPtr result);
+
   mojom::ClickActionPtr action_;
+
+  base::WeakPtrFactory<ClickTool> weak_ptr_factory_{this};
 };
 
 }  // namespace actor

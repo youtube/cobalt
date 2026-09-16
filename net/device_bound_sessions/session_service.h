@@ -35,16 +35,21 @@ class NET_EXPORT SessionService {
   using OnAccessCallback = base::RepeatingCallback<void(const SessionAccess&)>;
 
   // Records the outcome of an attempt to refresh.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(DeviceBoundSessionRefreshResult)
   enum class RefreshResult {
-    kRefreshed,           // Refresh was successful.
-    kInitializedService,  // Service is now initialized, refresh may still be
-                          // needed.
-    kUnreachable,         // Refresh endpoint was unreachable.
-    kServerError,         // Refresh endpoint served a transient error.
-    kQuotaExceeded,       // Refresh quota exceeded.
-    kFatalError,          // Refresh failed and session was terminated. No
-                          // further refresh needed.
+    kRefreshed = 0,           // Refresh was successful.
+    kInitializedService = 1,  // Service is now initialized, refresh may still
+                              // be needed.
+    kUnreachable = 2,         // Refresh endpoint was unreachable.
+    kServerError = 3,         // Refresh endpoint served a transient error.
+    kQuotaExceeded = 4,       // Refresh quota exceeded.
+    kFatalError = 5,          // Refresh failed and session was terminated. No
+                              // further refresh needed.
+    kMaxValue = kFatalError
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:DeviceBoundSessionRefreshResult)
   using RefreshCompleteCallback = base::OnceCallback<void(RefreshResult)>;
 
   // Indicates the reason for deferring. Exactly one of
@@ -81,17 +86,14 @@ class NET_EXPORT SessionService {
 
   virtual ~SessionService() = default;
 
-  // Called to register a new session after getting a Sec-Session-Registration
-  // header.
-  // Registration parameters to be used for creating the registration
-  // request.
-  // Isolation info to be used for registration request, this should be the
-  // same as was used for the response with the Sec-Session-Registration
-  // header.
-  // `net_log` is the log corresponding to the request receiving the
-  // Sec-Session-Registration header.
-  // 'original_request_initiator` was the initiator for the request that
-  // received the Sec-Session-Registration header.
+  // Called to register a new session after getting a
+  // Secure-Session-Registration header. Registration parameters to be used for
+  // creating the registration request. Isolation info to be used for
+  // registration request, this should be the same as was used for the response
+  // with the Secure-Session-Registration header. `net_log` is the log
+  // corresponding to the request receiving the Secure-Session-Registration
+  // header. 'original_request_initiator` was the initiator for the request that
+  // received the Secure-Session-Registration header.
   virtual void RegisterBoundSession(
       OnAccessCallback on_access_callback,
       RegistrationFetcherParam registration_params,
@@ -128,7 +130,7 @@ class NET_EXPORT SessionService {
                                       RefreshCompleteCallback callback) = 0;
 
   // Set the challenge for a bound session after getting a
-  // Sec-Session-Challenge header.
+  // Secure-Session-Challenge header.
   virtual void SetChallengeForBoundSession(
       OnAccessCallback on_access_callback,
       const URLRequest& request,
@@ -164,6 +166,9 @@ class NET_EXPORT SessionService {
   virtual base::ScopedClosureRunner AddObserver(
       const GURL& url,
       base::RepeatingCallback<void(const SessionAccess&)> callback) = 0;
+
+  // Get a session by key, or `nullptr` if no such session exists.
+  virtual const Session* GetSession(const SessionKey& session_key) const = 0;
 
  protected:
   SessionService() = default;

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pt_PT{
     Keys{
         cf{"Formato monetário"}
@@ -113,8 +113,10 @@ pt_PT{
         ttm{"tutchone do norte"}
         tzm{"tamazigue do Atlas Central"}
         uz{"usbeque"}
+        vec{"véneto"}
         wo{"uólofe"}
         xh{"xosa"}
+        xnr{"kangri"}
         xog{"soga"}
         yo{"ioruba"}
         zgh{"tamazight marroquino padrão"}
@@ -136,7 +138,6 @@ pt_PT{
     }
     Languages%variant{
         ckb{"sorani (curdo)"}
-        hi_Latn{"hinglish"}
     }
     Scripts{
         Aran{"nasta’liq"}

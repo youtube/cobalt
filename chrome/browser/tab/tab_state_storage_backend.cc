@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/tab/storage_package.h"
 #include "chrome/browser/tab/tab_state_storage_database.h"
 
 namespace tabs {
@@ -13,7 +14,7 @@ namespace tabs {
 namespace {
 constexpr base::TaskTraits kDBTaskTraits = {
     base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-    base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN};
+    base::TaskShutdownBehavior::BLOCK_SHUTDOWN};
 }  // namespace
 
 TabStateStorageBackend::TabStateStorageBackend(
@@ -38,10 +39,11 @@ void TabStateStorageBackend::Initialize() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void TabStateStorageBackend::SaveNode(int id,
-                                      int type,
-                                      std::string payload,
-                                      std::string children) {
+void TabStateStorageBackend::Save(int id,
+                                  TabStorageType type,
+                                  std::unique_ptr<StoragePackage> package) {
+  std::string payload = package->SerializePayload();
+  std::string children = package->SerializeChildren();
   db_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&TabStateStorageDatabase::SaveNode,

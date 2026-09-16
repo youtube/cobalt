@@ -112,7 +112,7 @@ GURL GetDeviceAuthenticationSignedURL(const GURL& url) {
           switches::kOmitDeviceAuthenticationQueryParameters)) {
     // Append the device authentication query parameters based on the platform's
     // certification secret to the initial URL.
-    std::string query = initial_url.query();
+    std::string query = initial_url.GetQuery();
     std::string device_authentication_query_string =
         GetDeviceAuthenticationSignedURLQueryString();
     if (!query.empty() && !device_authentication_query_string.empty()) {

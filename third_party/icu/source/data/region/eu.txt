@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 eu{
     Countries{
         001{"Mundua"}
@@ -299,7 +299,7 @@ eu{
         ZZ{"Eskualde ezezaguna"}
     }
     Countries%chagos{
-        IO{"Chagos uhartedia"}
+        IO{"Txagos uhartedia"}
     }
     Countries%short{
         GB{"EB"}

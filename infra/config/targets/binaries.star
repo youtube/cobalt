@@ -2,6 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""Binary declarations
+
+Binaries can be referenced by tests and define the label of the compile target
+to be built as well as various aspects that the infrastructure needs to know in
+order to run the binary.
+"""
+
 load("@chromium-luci//targets.star", "targets")
 
 targets.binaries.console_test_launcher(
@@ -1494,7 +1501,7 @@ targets.binaries.generated_script(
 
 targets.binaries.generated_script(
     name = "ios_web_view_inttests",
-    label = "//ios/web_view:ios_web_view_inttests",
+    label = "//ios/web_view/test:ios_web_view_inttests",
     # All references have been moved to starlark
     skip_usage_check = True,
     module_scheme = "gtest",
@@ -1502,7 +1509,7 @@ targets.binaries.generated_script(
 
 targets.binaries.generated_script(
     name = "ios_web_view_unittests",
-    label = "//ios/web_view:ios_web_view_unittests",
+    label = "//ios/web_view/test:ios_web_view_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
     module_scheme = "gtest",
@@ -1699,22 +1706,6 @@ targets.binaries.script(
 )
 
 targets.binaries.console_test_launcher(
-    name = "mojo_rust_integration_unittests",
-    label = "//mojo/public/rust:mojo_rust_integration_unittests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-    module_scheme = "gtest",
-)
-
-targets.binaries.console_test_launcher(
-    name = "mojo_rust_unittests",
-    label = "//mojo/public/rust:mojo_rust_unittests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-    module_scheme = "gtest",
-)
-
-targets.binaries.console_test_launcher(
     name = "mojo_test_apk",
     label = "//mojo/public/java/system:mojo_test_apk",
     # All references have been moved to starlark
@@ -1815,6 +1806,11 @@ targets.binaries.generated_script(
 targets.binaries.generated_script(
     name = "ondevice_stability_tests_light",
     label = "//components/optimization_guide/internal/testing:ondevice_stability_tests_light",
+)
+
+targets.binaries.generated_script(
+    name = "ondevice_model_benchmark_tests",
+    label = "//components/optimization_guide/internal/testing:ondevice_model_benchmark_tests",
 )
 
 targets.binaries.generated_script(
@@ -1943,6 +1939,7 @@ targets.binaries.generated_script(
             "--smoke-test-mode",
         ],
     ),
+    module_scheme = "flat",
 )
 
 targets.binaries.generated_script(
@@ -2019,6 +2016,7 @@ targets.binaries.generated_script(
     label = "//build/private_code_test:private_code_failure_test",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -2232,11 +2230,13 @@ targets.binaries.generated_script(
 targets.binaries.generated_script(
     name = "telemetry_gpu_integration_test",
     label = "//chrome/test:telemetry_gpu_integration_test",
+    module_scheme = "flat",
 )
 
 targets.binaries.generated_script(
     name = "telemetry_gpu_integration_test_android_chrome",
     label = "//chrome/test:telemetry_gpu_integration_test_android_chrome",
+    module_scheme = "flat",
 )
 
 targets.binaries.script(
@@ -2248,6 +2248,7 @@ targets.binaries.script(
     args = [
         "../../content/test/gpu/run_gpu_integration_test.py",
     ],
+    module_scheme = "flat",
 )
 
 targets.binaries.script(
@@ -2261,6 +2262,7 @@ targets.binaries.script(
         "--logs-dir",
         "${ISOLATED_OUTDIR}",
     ],
+    module_scheme = "flat",
 )
 
 targets.binaries.script(
@@ -2274,6 +2276,7 @@ targets.binaries.script(
     resultdb = targets.resultdb(
         enable = True,
     ),
+    module_scheme = "flat",
 )
 
 # This isolate is used by
@@ -2331,6 +2334,7 @@ targets.binaries.generated_script(
     resultdb = targets.resultdb(
         enable = True,
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(

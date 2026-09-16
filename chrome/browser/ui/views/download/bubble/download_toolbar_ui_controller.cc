@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_policy_handler.h"
@@ -864,9 +865,10 @@ DownloadToolbarUIController::BubbleCloser::BubbleCloser(
     : download_display_(download_display) {
   CHECK(toolbar_button);
   if (toolbar_button->GetWidget() &&
-      toolbar_button->GetWidget()->GetNativeWindow()) {
+      toolbar_button->GetWidget()->GetTopLevelWidget()->GetNativeWindow()) {
     event_monitor_ = views::EventMonitor::CreateWindowMonitor(
-        this, toolbar_button->GetWidget()->GetNativeWindow(),
+        this,
+        toolbar_button->GetWidget()->GetTopLevelWidget()->GetNativeWindow(),
         {ui::EventType::kMousePressed, ui::EventType::kKeyPressed,
          ui::EventType::kTouchPressed});
   }

@@ -56,6 +56,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/renderer_forms_from_browser_form.h"
+#include "components/autofill/core/browser/autofill_server_prediction.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/logging/log_router.h"
@@ -1198,13 +1199,6 @@ void ChromePasswordManagerClient::MaybeReportEnterpriseLoginEvent(
     bool is_federated,
     const url::SchemeHostPort& federated_origin,
     const std::u16string& login_user_name) const {
-#if BUILDFLAG(IS_ANDROID)
-  if (!base::FeatureList::IsEnabled(
-          enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid)) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-
   enterprise_connectors::ReportingEventRouter* router =
       enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
           profile_);
@@ -1219,13 +1213,6 @@ void ChromePasswordManagerClient::MaybeReportEnterpriseLoginEvent(
 
 void ChromePasswordManagerClient::MaybeReportEnterprisePasswordBreachEvent(
     const std::vector<std::pair<GURL, std::u16string>>& identities) const {
-#if BUILDFLAG(IS_ANDROID)
-  if (!base::FeatureList::IsEnabled(
-          enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid)) {
-    return;
-  }
-#endif  //  BUILDFLAG(IS_ANDROID)
-
   enterprise_connectors::ReportingEventRouter* router =
       enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
           profile_);
@@ -1710,7 +1697,7 @@ void ChromePasswordManagerClient::SetTestObserver(
 
 // static
 bool ChromePasswordManagerClient::CanShowBubbleOnURL(const GURL& url) {
-  std::string scheme = url.scheme();
+  std::string scheme = url.GetScheme();
   return (content::ChildProcessSecurityPolicy::GetInstance()->IsWebSafeScheme(
               scheme) &&
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -1777,7 +1764,7 @@ bool ChromePasswordManagerClient::IsActorTaskActive() {
 
   const tabs::TabInterface* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
-  return tab_interface && actor_service->IsAnyTaskActingOnTab(*tab_interface);
+  return tab_interface && actor_service->IsActiveOnTab(*tab_interface);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

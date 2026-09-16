@@ -63,7 +63,6 @@
 #include "media/base/stream_params.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
-#include "p2p/base/port_interface.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "p2p/test/test_stun_server.h"
@@ -81,6 +80,7 @@
 #include "rtc_base/firewall_socket_server.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/random.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
@@ -3614,6 +3614,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        RenegotiateManyAudioTransceivers) {
+  OverrideLoggingLevelForTest(LS_WARNING);
+
   PeerConnectionInterface::RTCConfiguration config;
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
@@ -3650,6 +3652,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        RenegotiateManyVideoTransceivers) {
+  OverrideLoggingLevelForTest(LS_WARNING);
+
   PeerConnectionInterface::RTCConfiguration config;
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
@@ -3688,6 +3692,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        RenegotiateManyVideoTransceiversAndWatchAudioDelay) {
+  OverrideLoggingLevelForTest(LS_WARNING);
+
   PeerConnectionInterface::RTCConfiguration config;
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));

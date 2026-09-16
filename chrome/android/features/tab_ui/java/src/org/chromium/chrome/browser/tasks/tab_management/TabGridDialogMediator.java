@@ -75,6 +75,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabLi
 import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
@@ -98,7 +100,6 @@ import org.chromium.components.collaboration.messaging.PersistentNotificationTyp
 import org.chromium.components.data_sharing.DataSharingService;
 import org.chromium.components.data_sharing.GroupMember;
 import org.chromium.components.data_sharing.member_role.MemberRole;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.tab_group_sync.EitherId.EitherGroupId;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
@@ -116,7 +117,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -1020,17 +1020,22 @@ public class TabGridDialogMediator
             List<Tab> tabsInGroup = getTabsInGroup(mCurrentTabGroupId);
             hideDialog(false);
 
+            TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
+            assumeNonNull(filter);
+
             if (tabsInGroup.isEmpty()) {
-                TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
-                assumeNonNull(filter);
                 TabModel tabModel = filter.getTabModel();
                 tabModel.getTabCreator().launchNtp();
                 return;
             }
 
+            Profile profile = filter.getTabModel().getProfile();
+            UrlConstantResolver urlConstantResolver =
+                    UrlConstantResolverFactory.getForProfile(profile);
+
             TabGroupUtils.openUrlInGroup(
                     assumeNonNull(mCurrentTabGroupModelFilterSupplier.get()),
-                    UrlConstants.NTP_URL,
+                    urlConstantResolver.getNtpUrl(),
                     tabsInGroup.get(tabsInGroup.size() - 1).getId(),
                     TabLaunchType.FROM_TAB_GROUP_UI);
             RecordUserAction.record("MobileNewTabOpened." + mComponentName);
@@ -1462,9 +1467,7 @@ public class TabGridDialogMediator
         assumeNonNull(mMessagingBackendService);
         List<PersistentMessage> messages =
                 mMessagingBackendService.getMessagesForGroup(
-                        eitherGroupId,
-                        /* type= */ Optional.of(PersistentNotificationType.DIRTY_TAB));
-
+                        eitherGroupId, /* type= */ PersistentNotificationType.DIRTY_TAB);
         Map<Integer, Integer> collaborationEventCounts = new HashMap<>();
         for (PersistentMessage message : messages) {
             collaborationEventCounts.merge(message.collaborationEvent, 1, Integer::sum);
@@ -1476,8 +1479,7 @@ public class TabGridDialogMediator
 
         // Query for tombstoned entries from backend and look for the tab removals.
         List<PersistentMessage> tombstonedMessages =
-                mMessagingBackendService.getMessages(
-                        Optional.of(PersistentNotificationType.TOMBSTONED));
+                mMessagingBackendService.getMessages(PersistentNotificationType.TOMBSTONED);
         int tabsClosed = 0;
         for (PersistentMessage message : tombstonedMessages) {
             if (message.collaborationEvent != CollaborationEvent.TAB_REMOVED) continue;

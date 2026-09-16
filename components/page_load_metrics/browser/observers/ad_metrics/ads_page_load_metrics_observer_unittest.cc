@@ -406,8 +406,10 @@ class FrameRemoteTester : public content::FakeLocalFrame {
   }
 
   // blink::mojom::LocalFrame
-  void SendInterventionReport(const std::string& id,
-                              const std::string& message) override {
+  void SendInterventionReport(
+      const std::string& id,
+      const std::string& message,
+      const std::optional<blink::FrameToken>& child_frame_token) override {
     if (id.empty()) {
       if (!on_empty_report_callback_)
         return;
@@ -425,7 +427,7 @@ class FrameRemoteTester : public content::FakeLocalFrame {
   bool FlushForTesting(RenderFrameHost* render_frame_host) {
     base::RunLoop run_loop;
     on_empty_report_callback_ = run_loop.QuitClosure();
-    render_frame_host->SendInterventionReport("", "");
+    render_frame_host->SendInterventionReport("", "", nullptr);
     run_loop.Run();
     int had_message = had_message_;
     had_message_ = false;
@@ -2887,7 +2889,7 @@ TEST_P(AdsPageLoadMetricsObserverTest, HeavyAdBlocklistFull_NotFired) {
   // Five interventions are allowed to occur, per origin per day. Add five
   // entries to the blocklist.
   for (int i = 0; i < 5; i++)
-    blocklist()->AddEntry(GURL(kNonAdUrl).host(), true, 0);
+    blocklist()->AddEntry(GURL(kNonAdUrl).GetHost(), true, 0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kNonAdUrl);
   RenderFrameHost* ad_frame = CreateAndNavigateSubFrame(kAdUrl, main_frame);
@@ -2910,7 +2912,7 @@ TEST_P(AdsPageLoadMetricsObserverTest,
   // Fill up the blocklist to verify the blocklist logic is correctly ignored
   // when disabled.
   for (int i = 0; i < 5; i++)
-    blocklist()->AddEntry(GURL(kNonAdUrl).host(), true, 0);
+    blocklist()->AddEntry(GURL(kNonAdUrl).GetHost(), true, 0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kNonAdUrl);
   RenderFrameHost* ad_frame = CreateAndNavigateSubFrame(kAdUrl, main_frame);
@@ -2947,7 +2949,7 @@ TEST_P(AdsPageLoadMetricsObserverTest, HeavyAdBlocklist_InterventionReported) {
   // Five interventions are allowed to occur, per origin per day. Add four
   // entries to the blocklist.
   for (int i = 0; i < 4; i++)
-    blocklist()->AddEntry(GURL(kNonAdUrl).host(), true, 0);
+    blocklist()->AddEntry(GURL(kNonAdUrl).GetHost(), true, 0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kNonAdUrl);
   RenderFrameHost* ad_frame = CreateAndNavigateSubFrame(kAdUrl, main_frame);

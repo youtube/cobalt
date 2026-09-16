@@ -13,10 +13,12 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
-#include "chrome/browser/glic/host/glic.mojom-forward.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/common/actor/task_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/views/widget/widget.h"
 
 class Profile;
 namespace content {
@@ -29,15 +31,27 @@ class GlicPageHandler;
 class GlicWindowController;
 class WebUIContentsContainer;
 
+struct PanelStateContext {
+  // Provided only when kGlicMultiInstance is off.
+  raw_ptr<Browser> attached_browser = nullptr;
+  // Provided only when kGlicMultiInstance is off.
+  raw_ptr<views::Widget> glic_widget = nullptr;
+};
+
+// Observes the state of the glic panel.
+class PanelStateObserver : public base::CheckedObserver {
+ public:
+  virtual void PanelStateChanged(const mojom::PanelState& panel_state,
+                                 const PanelStateContext& context) = 0;
+};
+
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
 class Host : public GlicSharingManagerProvider {
  public:
-  class Delegate {
+  class EmbedderDelegate {
    public:
-    virtual ~Delegate() = default;
-    // Returns the current panel state.
-    virtual const mojom::PanelState& GetPanelState() const = 0;
+    virtual ~EmbedderDelegate() = default;
 
     // Sets the size of the glic window to the specified dimensions. Callback
     // runs when the animation finishes or is destroyed, or soon if the window
@@ -57,6 +71,7 @@ class Host : public GlicSharingManagerProvider {
     // Attaches glic to the last focused Chrome window.
     virtual void Attach() = 0;
     virtual void Detach() = 0;
+    virtual void ClosePanel() = 0;
     // Sets the minimum widget size that the widget will allow the user to
     // resize
     // to.
@@ -65,31 +80,69 @@ class Host : public GlicSharingManagerProvider {
     virtual bool IsShowing() const = 0;
 
     virtual void SwitchConversation(
-        const std::string& conversation_id,
+        glic::mojom::ConversationInfoPtr info,
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
   };
 
+  // Functions that are on either GlicInstance or WindowController.
+  // TODO(refactor): This interface should eventually be combined with
+  // InstanceDelegate.
+  // TODO(harringtond): Clarify names of InstanceInterfaceForMigration and
+  // InstanceDelegate.
+  class InstanceInterfaceForMigration {
+   public:
+    virtual void AddStateObserver(PanelStateObserver* observer) = 0;
+    virtual void RemoveStateObserver(PanelStateObserver* observer) = 0;
+    // Returns the current panel state.
+    virtual mojom::PanelState GetPanelState() = 0;
+  };
+
+  // Functions that are on either GlicInstance or GlidKeyedService.
   // Interface for methods that the host can call on an instance.
-  // TODO(refactor): This interface should eventually take the place of
-  // Delegate.
+  // TODO(refactor): This interface should eventually be combined with
+  // InstanceInterfaceForMigration.
   class InstanceDelegate {
    public:
     virtual ~InstanceDelegate() = default;
+    virtual void CreateTab(
+        content::RenderFrameHost* source,
+        const ::GURL& url,
+        bool open_in_background,
+        const std::optional<int32_t>& window_id,
+        glic::mojom::WebClientHandler::CreateTabCallback callback) = 0;
+    virtual void CreateTask(
+        actor::webui::mojom::TaskOptionsPtr options,
+        mojom::WebClientHandler::CreateTaskCallback callback) = 0;
+    virtual void PerformActions(
+        const std::vector<uint8_t>& actions_proto,
+        mojom::WebClientHandler::PerformActionsCallback callback) = 0;
+    virtual void StopActorTask(actor::TaskId task_id,
+                               mojom::ActorTaskStopReason stop_reason) = 0;
+    virtual void PauseActorTask(actor::TaskId task_id,
+                                mojom::ActorTaskPauseReason pause_reason,
+                                tabs::TabInterface::Handle tab_handle) = 0;
+    virtual void ResumeActorTask(
+        actor::TaskId task_id,
+        const mojom::GetTabContextOptions& context_options,
+        glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) = 0;
 
-    virtual void CreateTab() = 0;
-    virtual void CreateTask() = 0;
-    virtual void PerformActions() = 0;
-    virtual void StopActorTask() = 0;
-    virtual void PauseActorTask() = 0;
-    virtual void ResumeActorTask() = 0;
-
-    virtual void GetZeroStateSuggestionsAndSubscribe() = 0;
-    virtual void GetZeroStateSuggestionsForFocusedTab() = 0;
     virtual void FetchZeroStateSuggestions(
         bool is_first_run,
         std::optional<std::vector<std::string>> supported_tools,
         glic::mojom::WebClientHandler::
             GetZeroStateSuggestionsForFocusedTabCallback callback) = 0;
+
+    virtual void GetZeroStateSuggestionsAndSubscribe(
+        bool has_active_subscription,
+        const mojom::ZeroStateSuggestionsOptions& options,
+        mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
+            callback) = 0;
+
+    virtual void RegisterConversation(
+        glic::mojom::ConversationInfoPtr info,
+        mojom::WebClientHandler::RegisterConversationCallback callback) = 0;
+
+    virtual void PrepareForOpen() = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -115,15 +168,15 @@ class Host : public GlicSharingManagerProvider {
   };
 
   // When no sharing manager provider is supplied, GlicKeyedService is used.
-  explicit Host(Profile* profile);
   explicit Host(Profile* profile,
                 GlicSharingManagerProvider* sharing_manager_provider,
+                InstanceInterfaceForMigration* instance_interface,
                 InstanceDelegate* instance_delegate);
   Host(const Host&) = delete;
   ~Host() override;
   Host& operator=(const Host&) = delete;
 
-  void Initialize(Delegate* delegate);
+  void SetDelegate(EmbedderDelegate* delegate);
 
   struct PanelWillOpenOptions {
     PanelWillOpenOptions();
@@ -141,11 +194,20 @@ class Host : public GlicSharingManagerProvider {
   void PanelWasClosed();
 
   void SwitchConversation(
-      const std::string& conversation_id,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback);
+
+  void RegisterConversation(
+      glic::mojom::ConversationInfoPtr info,
+      mojom::WebClientHandler::RegisterConversationCallback callback);
 
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
+
+  // Reload the web contents, if it is present and matches.
+  void Reload(content::RenderFrameHost* render_frame_host);
+  // Reload the web contents.
+  void Reload();
 
   // Creates the web contents that will own the Glic WebUI.
   // `initially_hidden` value is only relevant when
@@ -186,6 +248,9 @@ class Host : public GlicSharingManagerProvider {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
+  void AddPanelStateObserver(PanelStateObserver* observer);
+  void RemovePanelStateObserver(PanelStateObserver* observer);
+
   // Returns the current WebUI state, or kUninitialized if there is no active
   // glic WebUI.
   const mojom::WebUiState& GetPrimaryWebUiState() const {
@@ -198,6 +263,9 @@ class Host : public GlicSharingManagerProvider {
 
   // Sends a ViewChangeRequest to the primary client.
   void SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request);
+
+  // Informs the web client that additional context is available.
+  void NotifyAdditionalContext(mojom::AdditionalContextPtr context);
 
   // Returns the current view (conversation or actuation) in the floaty.
   mojom::CurrentView GetPrimaryCurrentView();
@@ -246,6 +314,7 @@ class Host : public GlicSharingManagerProvider {
 
   void AttachPanel(GlicPageHandler* page_handler);
   void DetachPanel(GlicPageHandler* page_handler);
+  void ClosePanel(GlicPageHandler* page_handler);
   // Sets the areas of the view from which it should be draggable.
   void SetPanelDraggableAreas(GlicPageHandler* page_handler,
                               const std::vector<gfx::Rect>& draggable_areas);
@@ -257,7 +326,9 @@ class Host : public GlicSharingManagerProvider {
   // Returns true if the widget is visible.
   bool IsWidgetShowing(GlicWebClientAccess* client) const;
   // Returns the current panel state.
-  const mojom::PanelState& GetPanelState(GlicWebClientAccess* client) const;
+  mojom::PanelState GetPanelState(GlicWebClientAccess* client) const;
+
+  base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
  private:
   friend class HostManager;
@@ -300,9 +371,10 @@ class Host : public GlicSharingManagerProvider {
 
   // The instance that owns this host.
   raw_ptr<InstanceDelegate> instance_delegate_;
+  raw_ptr<InstanceInterfaceForMigration> instance_interface_;
 
   // Null before `Initialize()` and after `Shutdown()`.
-  raw_ptr<Delegate> delegate_;
+  raw_ptr<EmbedderDelegate> delegate_;
   base::ObserverList<Observer> observers_;
 
   // The invocation source if the panel is open. nullopt while the panel is
@@ -310,25 +382,26 @@ class Host : public GlicSharingManagerProvider {
   std::optional<mojom::InvocationSource> invocation_source_;
   std::optional<PanelWillOpenOptions> pending_panel_open_options_;
   mojom::WebUiState primary_webui_state_ = mojom::WebUiState::kUninitialized;
+  std::optional<mojom::PanelState> pending_panel_state_;
 
-  std::optional<PageHandlerInfo> handler_info_;
   // Owns the WebUI contents. May be null for glic hosts in chrome://glic tabs.
   // Keep profile alive as long as the glic web contents. This object should be
   // destroyed when the profile needs to be destroyed.
   std::unique_ptr<WebUIContentsContainer> contents_;
+  std::optional<PageHandlerInfo> handler_info_;
 
   raw_ptr<GlicSharingManagerProvider> sharing_manager_provider_;
 
   // The current view in the primary page handler.
   mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
+  base::WeakPtrFactory<Host> weak_ptr_factory_{this};
 };
 
 // A Host::Delegate which does nothing. For chrome://glic tabs or inactive
 // embedders.
-class DummyHostDelegate : public Host::Delegate {
+class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
  public:
-  ~DummyHostDelegate() override = default;
-  const mojom::PanelState& GetPanelState() const override;
+  ~EmptyEmbedderDelegate() override = default;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;
@@ -337,10 +410,11 @@ class DummyHostDelegate : public Host::Delegate {
   void EnableDragResize(bool enabled) override {}
   void Attach() override {}
   void Detach() override {}
+  void ClosePanel() override {}
   void SetMinimumWidgetSize(const gfx::Size& size) override {}
   bool IsShowing() const override;
   void SwitchConversation(
-      const std::string& conversation_id,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
  private:
@@ -381,7 +455,7 @@ class HostManager {
   std::vector<Host*> GetPrimaryHosts();
   raw_ptr<Profile> profile_;
   base::WeakPtr<GlicWindowController> window_controller_;
-  std::unique_ptr<DummyHostDelegate> dummy_host_delegate_;
+  std::unique_ptr<EmptyEmbedderDelegate> empty_embedder_delegate_;
   // Hosts for any unclaimed page handlers, which is approximately limited to
   // chrome://glic in tabs. These are only important for developers, and do not
   // need to be fully functional.

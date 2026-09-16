@@ -456,6 +456,10 @@ class DawnSharedContext : public base::RefCountedThreadSafe<DawnSharedContext>,
 
   webgpu::DawnPlatform* GetDawnPlatform() { return &platform_; }
 
+  webgpu::DawnCachingInterface* GetCachingInterface() {
+    return caching_interface_.get();
+  }
+
 #if BUILDFLAG(IS_WIN)
   Microsoft::WRL::ComPtr<ID3D11Device> GetD3D11Device() const {
     if (backend_type() == wgpu::BackendType::D3D11) {
@@ -1239,6 +1243,10 @@ void DawnContextProvider::SetCachingInterface(
   CHECK(dawn_shared_context_->HasOneRef());
   CHECK(!graphite_shared_context_);
   dawn_shared_context_->SetCachingInterface(std::move(caching_interface));
+}
+
+webgpu::DawnCachingInterface* DawnContextProvider::GetCachingInterface() const {
+  return dawn_shared_context_->GetCachingInterface();
 }
 
 #if BUILDFLAG(IS_WIN)

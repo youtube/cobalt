@@ -268,23 +268,21 @@ CGFloat SpaceBetweenModules() {
 
   self.viewDidFinishLoading = YES;
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
-      UITraitUserInterfaceStyle.class, UITraitHorizontalSizeClass.class,
-      UITraitPreferredContentSizeCategory.class
-    ]);
-    __weak __typeof(self) weakSelf = self;
-    UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
-                                     UITraitCollection* previousCollection) {
-      [weakSelf updateUIOnTraitChange:previousCollection];
-    };
-    [self registerForTraitChanges:traits withHandler:handler];
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self registerForTraitChanges:
-                @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
-                         withAction:@selector(applyBackgroundTheme)];
-      [self applyBackgroundTheme];
-    }
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
+    UITraitUserInterfaceStyle.class, UITraitHorizontalSizeClass.class,
+    UITraitPreferredContentSizeCategory.class
+  ]);
+  __weak __typeof(self) weakSelf = self;
+  UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                   UITraitCollection* previousCollection) {
+    [weakSelf updateUIOnTraitChange:previousCollection];
+  };
+  [self registerForTraitChanges:traits withHandler:handler];
+  if (IsNTPBackgroundCustomizationEnabled()) {
+    [self registerForTraitChanges:
+              @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
+                       withAction:@selector(applyBackgroundTheme)];
+    [self applyBackgroundTheme];
   }
   [self.mutator checkNewBadgeEligibility];
 }
@@ -383,6 +381,10 @@ CGFloat SpaceBetweenModules() {
 
   self.viewDidAppear = YES;
   _appearing = NO;
+
+  if ([self isOrientationLandscapeForSize:self.view.bounds.size]) {
+    [self.mutator notifyNtpDisplayedInLandscape];
+  }
 }
 
 - (void)viewDidDisappear:(BOOL)animated {
@@ -444,18 +446,11 @@ CGFloat SpaceBetweenModules() {
                         }
                         [self updateFeedContainerSizeAndPosition];
                       }];
-}
 
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
+  if ([self isOrientationLandscapeForSize:size]) {
+    [self.mutator notifyNtpDisplayedInLandscape];
   }
-
-  [self updateUIOnTraitChange:previousTraitCollection];
 }
-#endif
 
 #pragma mark - Public
 
@@ -1762,6 +1757,21 @@ CGFloat SpaceBetweenModules() {
   [_backgroundImageView setImage:_backgroundImage
               framingCoordinates:_framingCoordinates];
   _backgroundImageView.hidden = !_backgroundImage;
+}
+
+// Returns if the given size represents a landscape orientation on an iPhone or
+// iPad.
+- (BOOL)isOrientationLandscapeForSize:(CGSize)size {
+  BOOL isLandscape = size.width > size.height;
+  if (isLandscape) {
+    UIUserInterfaceIdiom deviceIdiom =
+        [[UIDevice currentDevice] userInterfaceIdiom];
+    if (deviceIdiom == UIUserInterfaceIdiomPad ||
+        deviceIdiom == UIUserInterfaceIdiomPhone) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 #pragma mark - Helpers

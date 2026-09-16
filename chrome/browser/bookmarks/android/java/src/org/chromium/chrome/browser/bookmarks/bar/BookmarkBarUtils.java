@@ -151,7 +151,8 @@ public class BookmarkBarUtils {
      * Returns true if the device is compatible with, and can support, the Bookmark Bar, and
      * therefore if the feature should be exposed to the user. If true, user flows such as keyboard
      * shortcuts, IPH, settings toggles, device policies, etc should be present. This value should
-     * always return the same value for a device.
+     * always return the same value for a device. Compatible devices include Desktop, large tablets,
+     * and (unfolded) foldables.
      *
      * <p>Check this value when determining which user actions to expose to users for the Bookmark
      * Bar.

@@ -7,14 +7,13 @@
 
 #include "base/observer_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/events/event.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace tabs_api {
 
 namespace observation {
 
-class TabStripApiObserver;
+class TabStripApiBatchedObserver;
 
 }  // namespace observation
 
@@ -26,9 +25,9 @@ class EventBroadcaster {
   EventBroadcaster& operator=(EventBroadcaster&) = delete;
   ~EventBroadcaster() = default;
 
-  void Broadcast(
-      const base::ObserverList<observation::TabStripApiObserver>& targets,
-      const std::vector<events::Event>& event);
+  void Broadcast(const base::ObserverList<
+                     observation::TabStripApiBatchedObserver>& targets,
+                 const std::vector<events::Event>& event);
 };
 
 }  // namespace tabs_api

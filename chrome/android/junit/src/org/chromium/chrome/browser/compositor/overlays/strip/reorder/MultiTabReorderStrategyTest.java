@@ -22,6 +22,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,6 +39,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView;
 import org.chromium.chrome.browser.compositor.overlays.strip.reorder.ReorderDelegate.ReorderType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -114,6 +116,11 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
                         mLastReorderScrollTimeSupplier,
                         mInReorderModeSupplier);
         when(mTabGroupModelFilter.getTabUngrouper()).thenReturn(mTabUnGrouper);
+    }
+
+    @After
+    public void tearDown() {
+        mStrategy.clearReorderStateForTesting();
     }
 
     @Override
@@ -194,7 +201,7 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
         Tab expectedPrimaryTab = mModel.getTabById(mGroupedTab2.getTabId());
         verify(mTabGroupModelFilter)
                 .mergeListOfTabsToGroup(
-                        mergeCaptor.capture(), eq(expectedPrimaryTab), anyInt(), anyBoolean());
+                        mergeCaptor.capture(), eq(expectedPrimaryTab), anyInt(), anyInt());
         assertEquals("Should merge 2 tabs.", 2, mergeCaptor.getValue().size());
 
         // Verify no reorder operations took place.
@@ -272,6 +279,7 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
         selectTabs(mUngroupedTab2, mUngroupedTab3);
         float rebuildDeltaX = -TAB_WIDTH;
         float dragDeltaX = -DRAG_PAST_COLLAPSED_GROUP_SUCCESS;
+        startReorder(mUngroupedTab2);
         testUpdateReorder_success(
                 mUngroupedTab2, rebuildDeltaX, dragDeltaX, mCollapsedGroupTitle, 5);
         verifyBlockMovedPastGroup();
@@ -284,7 +292,8 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
         drag(DRAG_INTO_GROUP_SUCCESS);
 
         verify(mTabGroupModelFilter)
-                .mergeListOfTabsToGroup(anyList(), any(Tab.class), eq(0), eq(false));
+                .mergeListOfTabsToGroup(
+                        anyList(), any(Tab.class), eq(0), eq(MergeNotificationType.DONT_NOTIFY));
         verify(mAnimationHost, times(2)).startAnimations(anyList(), isNull());
     }
 
@@ -320,7 +329,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
         mUngroupedTab3.setIsPinned(true);
         selectTabs(mUngroupedTab2);
         startReorder(mUngroupedTab2);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
         testUpdateReorder_fail(mUngroupedTab2, DRAG_PAST_TAB_SUCCESS);
     }
 
@@ -332,7 +340,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
         mUngroupedTab2.setIsPinned(true);
         selectTabs(mUngroupedTab2);
         startReorder(mUngroupedTab2);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
         testUpdateReorder_fail(mUngroupedTab2, DRAG_PAST_TAB_SUCCESS);
     }
 
@@ -341,7 +348,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
     public void testUpdateReorder_fail_pastTab() {
         selectTabs(mUngroupedTab2);
         startReorder(mUngroupedTab2);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
         testUpdateReorder_fail(mUngroupedTab2, DRAG_PAST_TAB_FAIL);
     }
 
@@ -350,7 +356,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
     public void testUpdateReorder_fail_pastCollapsedGroup() {
         selectTabs(mUngroupedTab2, mUngroupedTab3);
         startReorder(mUngroupedTab2);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
         testUpdateReorder_fail(mUngroupedTab2, -DRAG_PAST_COLLAPSED_GROUP_FAIL);
     }
 
@@ -359,7 +364,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
     public void testUpdateReorder_fail_mergeIntoGroup() {
         selectTabs(mUngroupedTab1);
         startReorder(mUngroupedTab1);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
         testUpdateReorder_fail(mUngroupedTab1, DRAG_INTO_GROUP_FAIL);
     }
 
@@ -368,7 +372,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
     public void testUpdateReorder_fail_dragOutOfGroup() {
         selectTabs(mGroupedTab1, mGroupedTab2);
         startReorder(mGroupedTab1);
-        reset(mModel, mTabGroupModelFilter.getTabUngrouper());
 
         when(mTabGroupModelFilter.isTabInTabGroup(mModel.getTabById(TAB_ID2))).thenReturn(true);
         when(mTabGroupModelFilter.isTabInTabGroup(mModel.getTabById(TAB_ID3))).thenReturn(true);
@@ -427,7 +430,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
             StripLayoutView viewToMove,
             int expectedModelIndex) {
         mockRebuildForBlockMove(viewToMove, rebuildDeltaX);
-        startReorder(primaryTab);
         drag(dragDeltaX);
 
         verify(mAnimationHost, times(2)).startAnimations(anyList(), isNull());
@@ -449,7 +451,6 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
     }
 
     private void testUpdateReorder_fail(StripLayoutTab primaryTab, float dragDeltaX) {
-        startReorder(primaryTab);
         drag(dragDeltaX);
         verifyFailedDrag(dragDeltaX);
     }
@@ -494,12 +495,11 @@ public class MultiTabReorderStrategyTest extends ReorderStrategyTestBase {
 
     @SuppressWarnings("DirectInvocationOnMock")
     private void verifyFailedDrag(float expectedOffset) {
-        verify(mModel, never()).moveTab(anyInt(), anyInt());
         verify(mTabGroupModelFilter, never()).moveRelatedTabs(anyInt(), anyInt());
         verify(mTabGroupModelFilter.getTabUngrouper(), times(1))
                 .ungroupTabs(anyList(), anyBoolean(), anyBoolean(), any());
 
-        verify(mAnimationHost, times(2)).startAnimations(anyList(), isNull());
+        verify(mAnimationHost, times(1)).startAnimations(anyList(), isNull());
 
         for (StripLayoutTab tab : mSelectedTabs) {
             assertEquals(

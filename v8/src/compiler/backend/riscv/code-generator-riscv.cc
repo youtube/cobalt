@@ -116,6 +116,7 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
       case Constant::kInt64:
         return Operand(constant.ToInt64());
       case Constant::kFloat32:
+        // TODO(floitsch): don't use ToFloat32, but ToFloat32Safe.
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
@@ -1128,6 +1129,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -1138,7 +1140,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
-      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+      MacroAssembler::BlockPoolsScope block_pools(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -1174,6 +1176,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -2869,6 +2872,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_x_f_w(i.OutputSimd128Register(), kSimd128ScratchReg,
                       MaskType::Mask);
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4TruncSatF64x2UZero: {
@@ -2880,6 +2884,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_xu_f_w(i.OutputSimd128Register(), kSimd128ScratchReg,
                        MaskType::Mask);
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4ShrU: {
@@ -3470,12 +3475,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.SetSimd128(E32);
       __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_xu_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4SConvertI32x4: {
       __ VU.SetSimd128(E32);
       __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4ReplaceLane: {
@@ -3567,14 +3574,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // the 128-bit range.
         __ vslideup_vi(src0, src1, 4);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclip_vi(dst, src0, 0);
 
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses src1, which is part of the register group.
         __ vnclip_vi(dst, src0, 0);
       }
@@ -3596,21 +3601,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Clip negative values to zero.
         __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         // Clip negative values to zero.
         __ VU.SetSimd128x2(E32);
-        __ li(kScratchReg, 0);
         // Implicitly uses kSimd128ScratchReg2 and src1, which are part of the
         // register groups.
         DCHECK(kSimd128ScratchReg.code() + 1 == kSimd128ScratchReg2.code());
-        __ vmax_vx(kSimd128ScratchReg, i.InputSimd128Register(0), kScratchReg);
+        __ vmax_vx(kSimd128ScratchReg, i.InputSimd128Register(0), zero_reg);
         // Convert the clipped values to 16-bit positive integers.
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register
         // group.
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
@@ -3630,7 +3632,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, 2);
       __ vdivu_vx(temp3, temp2, kScratchReg);
       __ VU.SetSimd128(E8);
-      __ VU.set(FPURoundingMode::RNE);
       __ vnclipu_vi(i.OutputSimd128Register(), temp3, 0);
       break;
     }
@@ -3648,13 +3649,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // the 128-bit range.
         __ vslideup_vi(src0, src1, 8);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclip_vi(dst, src0, 0);
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         // If the vector size is only 128 bits, implicitly uses src1, which is
         // part of the register group.
         __ vnclip_vi(dst, src0, 0);
@@ -3677,21 +3676,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Clip negative values to zero.
         __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         // Clip negative values to zero.
         __ VU.SetSimd128x2(E16);
-        __ li(kScratchReg, 0);
         // Implicitly uses kSimd128ScratchReg2 and src1, which are part of the
         // register groups.
         DCHECK(kSimd128ScratchReg.code() + 1 == kSimd128ScratchReg2.code());
-        __ vmax_vx(kSimd128ScratchReg, src0, kScratchReg);
+        __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         // Convert the clipped values.
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register
         // group.
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
@@ -3713,7 +3709,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, 2);
       __ vdivu_vx(temp, temp, kScratchReg);
       __ VU.SetSimd128(E16);
-      __ VU.set(FPURoundingMode::RNE);
       // Reduces the register group down to a single register.
       __ vnclipu_vi(i.OutputSimd128Register(), temp, 0);
       break;
@@ -3898,6 +3893,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_x_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4UConvertF32x4: {
@@ -3913,6 +3909,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_xu_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4SConvertI16x8High: {
@@ -5143,7 +5140,7 @@ void CodeGenerator::AssembleConstructFrame() {
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
         __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                 RelocInfo::WASM_STUB_CALL);
-        // If the call succesfully grew the stack, we don't expect it to have
+        // If the call successfully grew the stack, we don't expect it to have
         // allocated any heap objects or otherwise triggered any GC.
         // If it was not able to grow the stack, it may have triggered a GC when
         // allocating the stack overflow exception object, but the call did not
@@ -5325,7 +5322,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
+void CodeGenerator::FinishCode() { __ FinishCode(); }
 
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
@@ -5333,7 +5330,6 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   // of the deoptimization exits, because it destroys our ability to compute
   // the deoptimization index based on the 'pc' and the offset of the start
   // of the exits section.
-  __ ForceConstantPoolEmissionWithoutJump();
   int total_size = 0;
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     if (exit->emitted()) continue;  // May have been emitted inline.
@@ -5341,7 +5337,25 @@ void CodeGenerator::PrepareForDeoptimizationExits(
                       ? Deoptimizer::kLazyDeoptExitSize
                       : Deoptimizer::kEagerDeoptExitSize;
   }
-  __ CheckTrampolinePoolQuick(total_size);
+  __ StartBlockPools(ConstantPoolEmission::kCheck, total_size);
+
+  // Check which deopt kinds exist in this InstructionStream object, to avoid
+  // emitting jumps to unused entries.
+  bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
+  for (auto exit : *exits) {
+    saw_deopt_kind[static_cast<int>(exit->kind())] = true;
+  }
+  // Emit the jumps to deoptimization entries.
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    if (!saw_deopt_kind[i]) continue;
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ bind(&jump_deoptimization_entry_labels_[i]);
+    __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind), scratch);
+    __ Jump(scratch);
+  }
 }
 
 void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
@@ -5480,6 +5494,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         case Constant::kFloat32:
+          // TODO(floitsch): use ToFloat32Safe instead of ToFloat32.
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kInt64:
@@ -5525,23 +5540,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (src.ToFloat32Safe().get_bits() == 0) {
           __ Sw(zero_reg, dst);
         } else {
-          __ li(kScratchReg, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
+          __ li(kScratchReg, Operand(src.ToFloat32Safe().get_bits()));
           __ Sw(kScratchReg, dst);
         }
       } else {
         DCHECK(destination->IsFPRegister());
         FloatRegister dst = g.ToSingleRegister(destination);
-        __ LoadFPRImmediate(dst, src.ToFloat32());
+        __ LoadFPRImmediate(dst, src.ToFloat32Safe());
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      __ LoadFPRImmediate(dst, src.ToFloat64().value());
+      __ LoadFPRImmediate(dst, src.ToFloat64().AsUint64());
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination));
       }

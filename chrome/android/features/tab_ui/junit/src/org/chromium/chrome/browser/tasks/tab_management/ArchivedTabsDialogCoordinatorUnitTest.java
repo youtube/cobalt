@@ -185,6 +185,7 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         recyclerView.setId(R.id.tab_list_recycler_view);
         ((ViewGroup) mCoordinator.getViewForTesting().findViewById(R.id.tab_list_editor_container))
                 .addView(recyclerView);
+        when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {});
     }
 
     private void setUpMocks() {
@@ -362,16 +363,6 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         FrameLayout buttonContainer = mCoordinator.getCloseAllTabsButtonContainer();
         assertEquals(
                 SemanticColorUtils.getColorSurface(mActivity),
-                ((ColorDrawable) buttonContainer.getBackground()).getColor());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE)
-    public void testCloseAllTabsButtonBackgroundColorUpdate() {
-        mCoordinator.show(mOnTabSelectingListener);
-        FrameLayout buttonContainer = mCoordinator.getCloseAllTabsButtonContainer();
-        assertEquals(
-                SemanticColorUtils.getColorSurfaceContainerHigh(mActivity),
                 ((ColorDrawable) buttonContainer.getBackground()).getColor());
     }
 }

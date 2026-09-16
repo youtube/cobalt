@@ -29,7 +29,7 @@ constexpr std::string_view kConnectionStatePair =
 constexpr std::string_view kConnectionDetailsPair =
     R"("connectionDetails": {
           "presenter": {
-            "userIdentity": {
+            "user": {
               "gaiaId": "presenter-gaia",
               "email": "presenter@email.com",
               "fullName": "Presenter Name",
@@ -40,7 +40,7 @@ constexpr std::string_view kConnectionDetailsPair =
             }
           },
           "initiator": {
-            "userIdentity": {
+            "user": {
               "gaiaId": "initiator-gaia",
               "email": "initiator@email.com",
               "fullName": "Initiator Name",
@@ -79,8 +79,8 @@ TEST(GetReceiverConnectionInfoRequestTest, OnSuccess) {
   std::string response_json =
       base::StrCat({"{", kConnectionIdPair, kConnectionStatePair,
                     kConnectionDetailsPair, "}"});
-  std::optional<base::Value> response_value =
-      base::JSONReader::Read(response_json);
+  std::optional<base::Value> response_value = base::JSONReader::Read(
+      response_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   request.OnSuccess(
       std::make_unique<base::Value>(std::move(response_value.value())));
 
@@ -115,8 +115,8 @@ TEST(GetReceiverConnectionInfoRequestTest, MissinConnectionId) {
 
   std::string response_json =
       base::StrCat({"{", kConnectionStatePair, kConnectionDetailsPair, "}"});
-  std::optional<base::Value> response_value =
-      base::JSONReader::Read(response_json);
+  std::optional<base::Value> response_value = base::JSONReader::Read(
+      response_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   request.OnSuccess(
       std::make_unique<base::Value>(std::move(response_value.value())));
 
@@ -137,8 +137,8 @@ TEST(GetReceiverConnectionInfoRequestTest, MissinConnectionState) {
 
   std::string response_json =
       base::StrCat({"{", kConnectionIdPair, kConnectionDetailsPair, "}"});
-  std::optional<base::Value> response_value =
-      base::JSONReader::Read(response_json);
+  std::optional<base::Value> response_value = base::JSONReader::Read(
+      response_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   request.OnSuccess(
       std::make_unique<base::Value>(std::move(response_value.value())));
 

@@ -353,6 +353,7 @@ if (!is_android) {
     ]
     if (enable_glic) {
       sources += [
+        "glic_actor_nudge_controller.h",
         "glic_actor_task_icon_controller.h",
         "glic_actor_task_icon_manager.h",
         "glic_actor_task_icon_manager_factory.h",
@@ -384,6 +385,7 @@ if (!is_android) {
     ]
     if (enable_glic) {
       sources += [
+        "glic_actor_nudge_controller.cc",
         "glic_actor_task_icon_controller.cc",
         "glic_actor_task_icon_manager.cc",
         "glic_actor_task_icon_manager_factory.cc",
@@ -577,6 +579,10 @@ if (!is_android) {
     if (is_win || is_mac || is_linux || is_chromeos) {
       deps += [ "//chrome/browser/wallet" ]
     }
+
+    if (is_chromeos) {
+      deps += [ "//chrome/browser/apps/app_service" ]
+    }
   }
 
   # This is a separate component to avoid possible circular deps.
@@ -658,6 +664,7 @@ if (!is_android) {
       "tab_dialog_manager_browsertest.cc",
       "tab_list_bridge_browsertest.cc",
       "tab_menu_model_browsertest.cc",
+      "tab_model_browsertest.cc",
       "tab_renderer_data_browsertest.cc",
       "tab_strip_model_browsertest.cc",
     ]
@@ -673,6 +680,7 @@ if (!is_android) {
       "//base",
       "//base/test:test_support",
       "//chrome/browser",
+      "//chrome/browser/favicon",
       "//chrome/browser/policy:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/profiles/keep_alive",
@@ -832,6 +840,7 @@ if (!is_android) {
       sources += [ "glic_actor_task_icon_manager_unittest.cc" ]
 
       deps += [
+        "//chrome/browser/actor",
         "//chrome/browser/actor:test_support",
         "//chrome/browser/glic",
         "//chrome/browser/glic/test_support",

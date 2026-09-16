@@ -69,7 +69,8 @@ class TestImporter:
                  host,
                  github=None,
                  wpt_manifests=None,
-                 buganizer_client: Optional[BuganizerClient] = None):
+                 buganizer_client: Optional[BuganizerClient] = None,
+                 builders: list[str] | None = None):
         self.host = host
         self.github = github
 
@@ -87,6 +88,7 @@ class TestImporter:
         self.verbose = False
         self.wpt_manifests = wpt_manifests
         self._buganizer_client = buganizer_client or BuganizerClient()
+        self._builders = builders or WPTExpectationsUpdater.DEFAULT_BUILDERS
         self._cleanup = contextlib.ExitStack()
 
     def __enter__(self):
@@ -294,11 +296,10 @@ class TestImporter:
         return True
 
     def _trigger_try_jobs(self):
-        builders = self.host.builders.builders_for_rebaselining()
         _log.info('Triggering try jobs for updating expectations:')
-        for builder in sorted(builders):
+        for builder in sorted(self._builders):
             _log.info(f'  {builder}')
-        self.git_cl.trigger_try_jobs(builders)
+        self.git_cl.trigger_try_jobs(self._builders)
 
     def run_commit_queue_for_cl(self):
         """Triggers CQ and either commits or aborts; returns True on success."""
@@ -649,9 +650,13 @@ class TestImporter:
 
         # If this starts blocking the importer unnecessarily, revert
         # https://chromium-review.googlesource.com/c/chromium/src/+/2451504
-        # Try linux-blink-rel to make sure no breakage in webdriver tests
-        for builder in ['linux-blink-rel']:
-            description += f'Cq-Include-Trybots: luci.chromium.try:{builder}\n'
+        # Try `*-blink-rel` to make sure no breakage in webdriver tests or for
+        # any OS versions not covered in CQ.
+        for builder in self.host.builders.all_try_builder_names():
+            if self.host.builders.main_for_builder(
+                    builder) == 'tryserver.blink':
+                description += (
+                    f'Cq-Include-Trybots: luci.chromium.try:{builder}\n')
 
         return description
 

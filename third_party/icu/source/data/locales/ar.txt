@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ar{
     AuxExemplarCharacters{"[ـ\u200C\u200D\u200E\u200F پ چ ژ ڜ ڢ ڤ ڥ ٯ ڧ ڨ ک گ ی]"}
     ExemplarCharacters{
@@ -18,7 +18,12 @@ ar{
             }
             symbols{
                 exponential{"أس"}
-                nan{"ليس رقم"}
+                nan{"ليس رقمًا"}
+            }
+        }
+        arabext{
+            symbols{
+                nan{"ليس رقمًا"}
             }
         }
         default{"latn"}
@@ -811,22 +816,22 @@ ar{
                     y{"E، d‏/M‏/y – E، d‏/M‏/y"}
                 }
                 yMMM{
-                    M{"MMM – MMM، y"}
-                    y{"MMM، y – MMM، y"}
+                    M{"MMM – MMM y"}
+                    y{"MMM y – MMM y"}
                 }
                 yMMMEd{
                     M{"E، d MMM – E، d MMM، y"}
                     d{"E، d – E، d MMM، y"}
-                    y{"E، d MMM، y – E، d MMM، y"}
+                    y{"E، d MMM y – E، d MMM y"}
                 }
                 yMMMM{
-                    M{"MMMM – MMMM، y"}
-                    y{"MMMM، y – MMMM، y"}
+                    M{"MMMM – MMMM y"}
+                    y{"MMMM y – MMMM y"}
                 }
                 yMMMd{
-                    M{"d MMM – d MMM، y"}
-                    d{"d–d MMM، y"}
-                    y{"d MMM، y – d MMM، y"}
+                    M{"d MMM – d MMM y"}
+                    d{"d–d MMM y"}
+                    y{"d MMM y – d MMM y"}
                 }
                 yMd{
                     M{"d‏/M‏/y – d‏/M‏/y"}

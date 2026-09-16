@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 hy{
     Countries{
         001{"Աշխարհ"}
@@ -69,7 +69,7 @@ hy{
         BS{"Բահամյան կղզիներ"}
         BT{"Բութան"}
         BV{"Բուվե կղզի"}
-        BW{"Բոթսվանա"}
+        BW{"Բոտսվանա"}
         BY{"Բելառուս"}
         BZ{"Բելիզ"}
         CA{"Կանադա"}
@@ -260,7 +260,7 @@ hy{
         TD{"Չադ"}
         TF{"Ֆրանսիական Հարավային Տարածքներ"}
         TG{"Տոգո"}
-        TH{"Թայլանդ"}
+        TH{"Թաիլանդ"}
         TJ{"Տաջիկստան"}
         TK{"Տոկելաու"}
         TL{"Թիմոր Լեշտի"}

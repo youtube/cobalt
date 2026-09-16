@@ -38,7 +38,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_result_reporter.h"
 #include "third_party/khronos/GLES2/gl2.h"
-#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 
 namespace cc {
 namespace {
@@ -113,9 +112,6 @@ class PerfContextProvider
     return raster_context_.get();
   }
   gpu::ContextSupport* ContextSupport() override { return &support_; }
-  class GrDirectContext* GrContext() override {
-    return nullptr;
-  }
   gpu::SharedImageInterface* SharedImageInterface() override {
     if (!test_context_provider_) {
       test_context_provider_ = viz::TestContextProvider::CreateRaster();
@@ -371,8 +367,8 @@ class RasterBufferProviderPerfTest
         raster_buffer_provider_ = std::make_unique<OneCopyRasterBufferProvider>(
             worker_context_provider_->SharedImageInterface(),
             task_runner_.get(), compositor_context_provider_.get(),
-            worker_context_provider_.get(), std::numeric_limits<int>::max(),
-            false, std::numeric_limits<int>::max(),
+            worker_context_provider_.get(), false,
+            std::numeric_limits<int>::max(),
             /*is_overlay_candidate=*/false);
         break;
       case RASTER_BUFFER_PROVIDER_TYPE_GPU:

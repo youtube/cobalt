@@ -861,7 +861,7 @@ TEST_F(ToolbarActionsModelUnitTest, PinnedExtensionsFilteredOnInitialization) {
   // Create a model after setting the prefs, this is done to ensure that the
   // pinned preferences are loaded and correctly filtered.
   ToolbarActionsModel model_created_after_prefs_set(profile(), extension_prefs);
-  // Wait for load to happen (::OnReady is posted from ToolbarActionModel's
+  // Wait for load to happen (::OnReady is posted from ToolbarActionsModel's
   // constructor).
   base::RunLoop().RunUntilIdle();
 
@@ -1021,7 +1021,8 @@ TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
         }
       })",
       extension_id.c_str());
-  std::optional<base::Value> parsed = base::JSONReader::Read(json);
+  std::optional<base::Value> parsed =
+      base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   policy::PolicyMap map;
   map.Set("ExtensionSettings", policy::POLICY_LEVEL_MANDATORY,
           policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_PLATFORM,
@@ -1129,7 +1130,8 @@ TEST_F(ToolbarActionsModelUnitTest, DefaultPinnedByPolicy) {
         }
       })",
       extension_id.c_str());
-  auto parsed = base::JSONReader::Read(json);
+  auto parsed =
+      base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed);
   policy::PolicyMap map;
   map.Set("ExtensionSettings", policy::POLICY_LEVEL_MANDATORY,

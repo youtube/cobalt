@@ -97,6 +97,10 @@ class EntityTable : public WebDatabaseTable {
   bool RemoveEntityInstancesModifiedBetween(base::Time delete_begin,
                                             base::Time delete_end);
 
+  // Returns true if an entity instance with the given `guid` exists in the
+  // database.
+  bool EntityInstanceExists(const EntityInstance::EntityId& guid) const;
+
   // Returns the valid entity instances; ignores invalid instances.
   //
   // An instance is valid only if all the following is true:
@@ -149,7 +153,8 @@ class EntityTable : public WebDatabaseTable {
       std::underlying_type_t<EntityInstance::RecordType>
           underlying_storage_type,
       std::map<std::string, std::vector<AttributeRecord>> attribute_records,
-      EntityInstance::AreAttributesReadOnly are_attributes_read_only) const;
+      EntityInstance::AreAttributesReadOnly are_attributes_read_only,
+      std::string frecency_override) const;
 
   friend class EntityTableTestApi;
 };

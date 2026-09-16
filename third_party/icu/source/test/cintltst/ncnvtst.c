@@ -140,7 +140,7 @@ void addExtraTests(TestNode** root)
 }
 
 /*test surrogate behaviour*/
-static void TestSurrogateBehaviour(){
+static void TestSurrogateBehaviour(void){
     log_verbose("Testing for SBCS and LATIN_1\n");
     {
         UChar sampleText[] = {0x0031, 0xd801, 0xdc01, 0x0032};
@@ -334,7 +334,7 @@ static void TestSurrogateBehaviour(){
 }
 
 /*test various error behaviours*/
-static void TestErrorBehaviour(){
+static void TestErrorBehaviour(void){
     log_verbose("Testing for SBCS and LATIN_1\n");
     {
         static const UChar    sampleText[] =   { 0x0031, 0xd801};
@@ -633,7 +633,7 @@ static void TestErrorBehaviour(){
 
 #if !UCONFIG_NO_LEGACY_CONVERSION
 /*test different convertToUnicode error behaviours*/
-static void TestToUnicodeErrorBehaviour()
+static void TestToUnicodeErrorBehaviour(void)
 {
     log_verbose("Testing error conditions for DBCS\n");
     {
@@ -665,7 +665,7 @@ static void TestToUnicodeErrorBehaviour()
     }
 }
 
-static void TestGetNextErrorBehaviour(){
+static void TestGetNextErrorBehaviour(void){
    /*Test for unassigned character*/
 #define INPUT_SIZE 1
     static const char input1[INPUT_SIZE]={ 0x70 };
@@ -689,7 +689,7 @@ static void TestGetNextErrorBehaviour(){
 #define MAX_UTF8_LEN 4
 
 /*Regression test for utf8 converter*/
-static void TestRegressionUTF8(){
+static void TestRegressionUTF8(void){
     UChar32 currCh = 0;
     int32_t offset8;
     int32_t offset16;
@@ -759,7 +759,7 @@ static void TestRegressionUTF8(){
 
 #define MAX_UTF32_LEN 1
 
-static void TestRegressionUTF32(){
+static void TestRegressionUTF32(void){
 #if !UCONFIG_ONLY_HTML_CONVERSION
     UChar32 currCh = 0;
     int32_t offset32;
@@ -896,7 +896,7 @@ static void TestRegressionUTF32(){
 }
 
 /*Walk through the available converters*/
-static void TestAvailableConverters(){
+static void TestAvailableConverters(void){
     UErrorCode status=U_ZERO_ERROR;
     UConverter *conv=NULL;
     int32_t i=0;
@@ -913,7 +913,7 @@ static void TestAvailableConverters(){
 
 }
 
-static void TestFlushInternalBuffer(){
+static void TestFlushInternalBuffer(void){
     TestWithBufferSize(MAX_LENGTH, 1);
     TestWithBufferSize(1, 1);
     TestWithBufferSize(1, MAX_LENGTH);
@@ -1027,8 +1027,8 @@ static UBool convertFromU( const UChar *source, int sourceLen,  const uint8_t *e
     targetLimit=targ+MAX_LENGTH;
     offs=offsetBuffer;
     ucnv_fromUnicode (conv,
-                  (char **)&targ,
-                  (const char *)targetLimit,
+                  &targ,
+                  targetLimit,
                   &src,
                   sourceLimit,
                   expectOffsets ? offs : NULL,
@@ -1125,7 +1125,7 @@ static UBool convertToU( const uint8_t *source, int sourceLen, const UChar *expe
     ucnv_toUnicode (conv,
                 &targ,
                 targetLimit,
-                (const char **)&src,
+                &src,
                 (const char *)sourceLimit,
                 expectOffsets ? offs : NULL,
                 doFlush,
@@ -1259,8 +1259,8 @@ static UBool testConvertFromU( const UChar *source, int sourceLen,  const uint8_
         if(gInBufferSize ==999 && gOutBufferSize==999)
             doFlush = false;
         ucnv_fromUnicode (conv,
-                  (char **)&targ,
-                  (const char *)end,
+                  &targ,
+                  end,
                   &src,
                   sourceLimit,
                   offs,
@@ -1434,8 +1434,8 @@ static UBool testConvertToU( const uint8_t *source, int sourcelen, const UChar *
         ucnv_toUnicode (conv,
                 &targ,
                 end,
-                (const char **)&src,
-                (const char *)srcLimit,
+                &src,
+                srcLimit,
                 offs,
                 doFlush, /* flush if we're at the end of the source data */
                 &status);
@@ -1834,7 +1834,7 @@ doTestTruncated(const char *cnvName, const uint8_t *bytes, int32_t length) {
 }
 
 static void
-TestTruncated() {
+TestTruncated(void) {
     static const struct {
         const char *cnvName;
         uint8_t bytes[8]; /* partial input bytes resulting in no output */
@@ -1884,7 +1884,7 @@ typedef struct NameRange {
 } NameRange;
 
 static void
-TestUnicodeSet() {
+TestUnicodeSet(void) {
     UErrorCode errorCode;
     UConverter *cnv;
     USet *set;

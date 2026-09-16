@@ -58,8 +58,7 @@ mojom::ActionResultCode LoginResultToActorResult(
     case actor_login::LoginStatusResult::kErrorNoFillableFields:
       return mojom::ActionResultCode::kLoginNoFillableFields;
     case actor_login::LoginStatusResult::kErrorFillingNotAllowed:
-      // TODO(crbug.com/427817201): Replace with a specific error code.
-      return mojom::ActionResultCode::kError;
+      return mojom::ActionResultCode::kLoginFillingNotAllowed;
   }
 }
 
@@ -90,17 +89,20 @@ void AttemptLoginTool::Invoke(InvokeCallback callback) {
     return;
   }
 
+  content::RenderFrameHost* main_rfh =
+      tab->GetContents()->GetPrimaryMainFrame();
+  main_rfh_token_ = main_rfh->GetGlobalFrameToken();
+
   invoke_callback_ = std::move(callback);
 
   // First check if there is a user selected credential for the current request
   // origin. If so, use it immediately.
-  const url::Origin& current_origin =
-      tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin();
+  const url::Origin& current_origin = main_rfh->GetLastCommittedOrigin();
   const std::optional<actor_login::Credential> user_selected_credential =
       tool_delegate().GetUserSelectedCredential(current_origin);
   if (user_selected_credential.has_value()) {
     GetActorLoginService().AttemptLogin(
-        tab, *user_selected_credential,
+        tab, *user_selected_credential, /*should_store_permission=*/false,
         base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                        weak_ptr_factory_.GetWeakPtr()));
     return;
@@ -257,8 +259,21 @@ void AttemptLoginTool::OnCredentialSelected(
                      MakeResult(mojom::ActionResultCode::kTabWentAway));
     return;
   }
+
+  if (main_rfh_token_ !=
+      tab->GetContents()->GetPrimaryMainFrame()->GetGlobalFrameToken()) {
+    // Don't proceed with the login attempt, if the page changed while we were
+    // waiting for credential selection.
+    PostResponseTask(
+        std::move(invoke_callback_),
+        MakeResult(mojom::ActionResultCode::kLoginPageChangedDuringSelection));
+    return;
+  }
+
   GetActorLoginService().AttemptLogin(
       tab, *selected_credential,
+      response->permission_duration ==
+          webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow,
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -284,9 +299,12 @@ std::string AttemptLoginTool::JournalEvent() const {
 }
 
 std::unique_ptr<ObservationDelayController>
-AttemptLoginTool::GetObservationDelayer() const {
+AttemptLoginTool::GetObservationDelayer(
+    std::optional<ObservationDelayController::PageStabilityConfig>
+        page_stability_config) {
   return std::make_unique<ObservationDelayController>(
-      GetPrimaryMainFrameOfTab(tab_handle_));
+      GetPrimaryMainFrameOfTab(tab_handle_), task_id(), journal(),
+      page_stability_config);
 }
 
 void AttemptLoginTool::UpdateTaskBeforeInvoke(ActorTask& task,

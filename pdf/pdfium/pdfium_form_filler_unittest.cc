@@ -95,24 +95,17 @@ TEST_P(FormFillerTest, DoURIActionWithKeyboardModifier) {
   const char kUri[] = "https://www.google.com/";
   {
     InSequence sequence;
-    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::CURRENT_TAB))
-        .Times(1);
-    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::SAVE_TO_DISK))
-        .Times(1);
+    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::CURRENT_TAB));
+    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::SAVE_TO_DISK));
     EXPECT_CALL(client,
-                NavigateTo(kUri, WindowOpenDisposition::NEW_BACKGROUND_TAB))
-        .Times(1);
-    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::NEW_WINDOW))
-        .Times(1);
+                NavigateTo(kUri, WindowOpenDisposition::NEW_BACKGROUND_TAB));
+    EXPECT_CALL(client, NavigateTo(kUri, WindowOpenDisposition::NEW_WINDOW));
     EXPECT_CALL(client,
-                NavigateTo(kUri, WindowOpenDisposition::NEW_FOREGROUND_TAB))
-        .Times(1);
+                NavigateTo(kUri, WindowOpenDisposition::NEW_FOREGROUND_TAB));
     EXPECT_CALL(client,
-                NavigateTo(kUri, WindowOpenDisposition::NEW_BACKGROUND_TAB))
-        .Times(1);
+                NavigateTo(kUri, WindowOpenDisposition::NEW_BACKGROUND_TAB));
     EXPECT_CALL(client,
-                NavigateTo(kUri, WindowOpenDisposition::NEW_FOREGROUND_TAB))
-        .Times(1);
+                NavigateTo(kUri, WindowOpenDisposition::NEW_FOREGROUND_TAB));
   }
 
   constexpr blink::WebInputEvent::Modifiers kModifierKey =
@@ -181,7 +174,7 @@ TEST_P(FormFillerTest, FormOnFocusChange) {
     engine->ScrolledToXPosition(test_case.initial_position.x());
     engine->ScrolledToYPosition(test_case.initial_position.y());
 
-    PDFiumPage& page = GetPDFiumPageForTest(*engine, test_case.page_index);
+    PDFiumPage& page = GetPDFiumPage(*engine, test_case.page_index);
     ScopedFPDFAnnotation annot(
         FPDFPage_GetAnnot(page.GetPage(), test_case.annot_index));
     ASSERT_TRUE(annot);

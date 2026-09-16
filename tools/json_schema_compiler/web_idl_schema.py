@@ -132,6 +132,25 @@ def GetExtendedAttributeValue(node: IDLNode, name: str) -> Optional[str]:
   return None
 
 
+def AddCommonExtendedAttributeProperties(node: IDLNode, properties: dict):
+  """Looks for common extended attributes and adds them to properties.
+
+  Several different nodes in our IDL schemas have a common set of extended
+  attributes which they all share. This helper function looks for them and adds
+  the associated values to the supplied properties if they are present.
+
+  Args:
+    node: The IDLNode to look for the extended attributes on.
+    properties: The object to add the associated key value pairs to.
+  """
+  if deprecated := GetExtendedAttributeValue(node, 'deprecated'):
+    properties['deprecated'] = deprecated
+  if HasExtendedAttribute(node, 'nodoc'):
+    properties['nodoc'] = True
+  if HasExtendedAttribute(node, 'nocompile'):
+    properties['nocompile'] = True
+
+
 def _ExtractNodeComment(node: IDLNode) -> str:
   """Extract contiguous file comments above a node and return them as a string.
 
@@ -351,11 +370,41 @@ class Type():
         properties['type'] = 'binary'
         properties['isInstanceOf'] = 'ArrayBuffer'
       else:
-        # For our own custom types defined as Dictionaries in the schema file,
-        # the name indicates the underlying referenced type.
-        # TODO(crbug.com/340297705): We should verify this ref name is actually
-        # a custom type we have parsed from the IDL.
-        properties['$ref'] = type_details.GetName()
+        # Other Typerefs will either be referencing a custom type defined as a
+        # Dictionary/Enum or a function defined as a Callback in the schema
+        # file. For custom types we just add a '$ref' with the type name,
+        # but functions we embed similar to how we normally process Operations.
+        type_name = type_details.GetName()
+        # Custom types and Callback functions are defined at the top level of
+        # the IDL file, so we need to recurse up the tree to the File node to
+        # look for them.
+        parent = self.type_node
+        while parent.GetClass() != 'File':
+          parent = parent.GetParent()
+
+        referenced_type = GetChildWithName(parent, type_name)
+        # TODO(crbug.com/450443604): Add support for shared types, which are
+        # defined in a separate file that is referenced by several different
+        # schemas.
+        if referenced_type is None:
+          raise SchemaCompilerError(
+              'Could not find definition of referenced type "%s" for node.' %
+              type_name,
+              type_details,
+          )
+
+        if referenced_type.GetClass() in ['Dictionary', 'Enum']:
+          properties['$ref'] = type_name
+        elif referenced_type.GetClass() == 'Callback':
+          properties = Operation(referenced_type).process()
+        else:
+          raise SchemaCompilerError(
+              'Found a Typeref node referencing a node of type "%s", but we'
+              ' only support Typerefs that reference Dictionary, Enum or'
+              ' Callback class nodes.' % referenced_type.GetClass(),
+              type_details,
+          )
+
     elif type_details.IsA('Undefined'):
       properties['type'] = UndefinedType
     elif type_details.IsA('Promise'):
@@ -373,6 +422,10 @@ class Type():
       properties['items'] = ArrayType(type_details).Process()
     elif type_details.IsA('Any'):
       properties['type'] = 'any'
+    elif type_details.IsA('UnionType'):
+      properties['choices'] = [
+          Type(node).Process() for node in type_details.GetListOf('Type')
+      ]
     else:
       raise SchemaCompilerError('Unsupported type class when processing type.',
                                 type_details)
@@ -529,13 +582,11 @@ class DictionaryMember(TypedProperty):
     # TODO(crbug.com/340297705): Add support for extended attributes on custom
     # type members.
     self.properties['name'] = self.node.GetName()
-    # We consider nullable properties on custom types as being "optional" in the
-    # schema compiler's logic.
-    if self.type_node.GetProperty('NULLABLE'):
+
+    if not self.node.GetProperty('REQUIRED'):
       self.properties['optional'] = True
 
-    if deprecated := GetExtendedAttributeValue(self.node, 'deprecated'):
-      self.properties['deprecated'] = deprecated
+    AddCommonExtendedAttributeProperties(self.node, self.properties)
 
     description = ProcessNodeDescription(self.node).description
     if description:
@@ -566,8 +617,7 @@ class Operation:
     if (description_data.description):
       properties['description'] = description_data.description
 
-    if deprecated := GetExtendedAttributeValue(self.node, 'deprecated'):
-      properties['deprecated'] = deprecated
+    AddCommonExtendedAttributeProperties(self.node, properties)
 
     parameters = []
     arguments_node = self.node.GetOneOf('Arguments')
@@ -633,6 +683,8 @@ class Dictionary:
         'properties': properties,
         'type': 'object'
     }
+    AddCommonExtendedAttributeProperties(self.node, result)
+
     return result
 
 
@@ -663,10 +715,7 @@ class Enum:
         'type': 'string',
         'enum': enum
     }
-    if HasExtendedAttribute(self.node, 'nodoc'):
-      result['nodoc'] = True
-    if deprecated := GetExtendedAttributeValue(self.node, 'deprecated'):
-      result['deprecated'] = deprecated
+    AddCommonExtendedAttributeProperties(self.node, result)
 
     return result
 
@@ -728,9 +777,7 @@ class Event:
           FunctionArgument(argument, parameter_descriptions).Process())
     properties['parameters'] = parameters
 
-    if deprecated := GetExtendedAttributeValue(self.node, 'deprecated'):
-      properties['deprecated'] = deprecated
-
+    AddCommonExtendedAttributeProperties(self.node, properties)
 
     return properties
 
@@ -784,17 +831,25 @@ class Property:
   def process(self) -> (str, dict):
     properties = Type(self.node).Process()
     value = self.node.GetOneOf('Value').GetProperty('VALUE')
+    # Unfortunately, WebIDL doesn't allow string values for consts, so we have
+    # to hack them in using an extended attribute.
+    if properties['type'] == 'string':
+      value = GetExtendedAttributeValue(self.node, 'StringValue')
+      if value is None:
+        raise SchemaCompilerError(
+            'If using a const of type DOMString, you must specify the extended'
+            ' attribute "StringValue" for the value.',
+            self.node,
+        )
     # The IDL Parser always returns values as strings, so cast to their real
     # type.
-    # TODO(crbug.com/445495198): Add support for DOMString const values.
     properties['value'] = self._CastFromType(properties['type'], value)
 
     description_data = ProcessNodeDescription(self.node)
     if (description_data.description):
       properties['description'] = description_data.description
 
-    # TODO(crbug.com/445495198): Add support for appropriate extended attributes
-    # on properties (deprecated, nodoc, nocompile).
+    AddCommonExtendedAttributeProperties(self.node, properties)
 
     return (self.node.GetName(), properties)
 
@@ -861,6 +916,19 @@ class Namespace:
       if node.GetClass() == 'Enum':
         types.append(Enum(node).process())
       if node.GetClass() == 'Dictionary':
+        # Manifest keys defined in the schema are separate from normal custom
+        # types and instead get put into the manifest_keys property.
+        if node.GetName() == 'Manifest':
+          if not node.GetProperty('PARTIAL'):
+            raise SchemaCompilerError(
+                'If using a "Manifest" dictionary to define manifest keys, it'
+                ' must be declared "partial".',
+                node,
+            )
+          manifest_keys = Dictionary(node).process()['properties']
+          continue
+        # Otherwise this is a normal Dictionary defined type and goes in the
+        # normal types.
         types.append(Dictionary(node).process())
 
     # Events are defined as Attributes on the API Interface definition, which
@@ -873,31 +941,32 @@ class Namespace:
       property_key, property_value = Property(node).process()
       properties[property_key] = property_value
 
-    # Several special attributes specific to the schema compilation process are
-    # defined using Extended Attributes on the API Interface definition.
-    nodoc = HasExtendedAttribute(self.namespace, 'nodoc')
-    platforms = GetExtendedAttributeValue(self.namespace, 'platforms')
-    deprecated = GetExtendedAttributeValue(self.namespace, 'deprecated')
-    compiler_options = {}
-    if implemented_in := GetExtendedAttributeValue(self.namespace,
-                                                   'implemented_in'):
-      compiler_options['implemented_in'] = implemented_in
-    if HasExtendedAttribute(self.namespace, 'generate_error_messages'):
-      compiler_options['generate_error_messages'] = True
-
-    return {
+    result = {
         'namespace': self.name,
         'functions': functions,
         'types': types,
         'events': events,
         'properties': properties,
         'manifest_keys': manifest_keys,
-        'nodoc': nodoc,
         'description': description,
-        'platforms': platforms,
-        'compiler_options': compiler_options,
-        'deprecated': deprecated,
+        'nodoc': False,
+        'platforms': None,
+        'deprecated': None,
+        'compiler_options': {},
     }
+
+    # Several special attributes specific to the schema compilation process are
+    # defined using Extended Attributes on the API Interface definition.
+    AddCommonExtendedAttributeProperties(self.namespace, result)
+    if platforms := GetExtendedAttributeValue(self.namespace, 'platforms'):
+      result['platforms'] = platforms
+    if implemented_in := GetExtendedAttributeValue(self.namespace,
+                                                   'implemented_in'):
+      result['compiler_options']['implemented_in'] = implemented_in
+    if HasExtendedAttribute(self.namespace, 'generate_error_messages'):
+      result['compiler_options']['generate_error_messages'] = True
+
+    return result
 
 
 class IDLSchema:

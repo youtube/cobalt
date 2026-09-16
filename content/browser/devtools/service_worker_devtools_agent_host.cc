@@ -17,6 +17,7 @@
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/protocol/protocol.h"
 #include "content/browser/devtools/protocol/schema_handler.h"
+#include "content/browser/devtools/protocol/storage_handler.h"
 #include "content/browser/devtools/protocol/target_handler.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
@@ -183,6 +184,12 @@ ServiceWorkerDevToolsAgentHost::ServiceWorkerDevToolsAgentHost(
   NotifyCreated();
 }
 
+std::optional<blink::StorageKey> ServiceWorkerDevToolsAgentHost::GetStorageKey()
+    const {
+  ServiceWorkerVersion* version = context_wrapper_->GetLiveVersion(version_id_);
+  return version ? std::make_optional(version->key()) : std::nullopt;
+}
+
 BrowserContext* ServiceWorkerDevToolsAgentHost::GetBrowserContext() {
   return context_wrapper_->browser_context();
 }
@@ -237,7 +244,8 @@ bool ServiceWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::IOHandler>(GetIOContext());
   session->CreateAndAddHandler<protocol::InspectorHandler>();
   session->CreateAndAddHandler<protocol::NetworkHandler>(
-      GetId(), devtools_worker_token_, GetIOContext(), base::DoNothing(),
+      GetId(), devtools_worker_token_, GetIOContext(),
+      context_wrapper()->storage_partition(), base::DoNothing(),
       session->GetClient());
 
   session->CreateAndAddHandler<protocol::FetchHandler>(
@@ -249,7 +257,8 @@ bool ServiceWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session) {
           &ServiceWorkerDevToolsAgentHost::ForceUpdateOnReloadIfModified,
           base::Unretained(this)));
   session->CreateAndAddHandler<protocol::SchemaHandler>();
-
+  session->CreateAndAddHandler<protocol::StorageHandler>(this,
+                                                         session->GetClient());
   auto* target_handler = session->CreateAndAddHandler<protocol::TargetHandler>(
       protocol::TargetHandler::AccessMode::kAutoAttachOnly, GetId(),
       auto_attacher_.get(), session);

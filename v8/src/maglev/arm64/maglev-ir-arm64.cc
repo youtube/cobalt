@@ -85,6 +85,28 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input()).W();
+  Register out = ToRegister(result()).W();
+  __ Add(out, value, Immediate(1));
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input()).W();
+  Register out = ToRegister(result()).W();
+  __ Sub(out, value, Immediate(1));
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -916,7 +938,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void Float64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -929,6 +950,7 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

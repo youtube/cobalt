@@ -44,7 +44,6 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
-#include "third_party/blink/renderer/platform/bindings/v8_external_memory_accounter.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types_3d.h"
 #include "third_party/blink/renderer/platform/graphics/offscreen_canvas_placeholder.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -244,26 +243,11 @@ class CORE_EXPORT HTMLCanvasElement final
   bool TransferToGPUTextureWasInvoked() override;
 
   // CanvasRenderingContextHost implementation
-  void UpdateMemoryUsage() override;
-  size_t GetMemoryUsage() const override;
   bool ShouldAccelerate2dContext() const override;
   bool LowLatencyEnabled() const override;
   void SetTransferToGPUTextureWasInvoked() override;
   UkmParameters GetUkmParameters() override;
   void SetNeedsCompositingUpdate() override;
-
-  // This method attempts to ensure that the canvas' resource exists on the GPU.
-  // A HTMLCanvasElement can downgrade itself from GPU to CPU when readback
-  // occurs too frequently, so a canvas may exist on the CPU even if the browser
-  // is normally GPU-capable. If the canvas needed to be migrated off of the
-  // CPU, the canvas resource provider and canvas 2D layer bridge will be
-  // destroyed and recreated; when this occurs, any existing pointers to these
-  // objects will be invalidated. If the canvas resource provider did not exist
-  // at all, it may be created.  NOTE: This method might fail to enable
-  // acceleration. Clients needing to know whether it succeeded should check
-  // whether the Canvas2D resource provider is accelerated after calling this
-  // method.
-  void EnableAccelerationForCanvas2D();
 
   void DisableAccelerationForCanvas2D();
 
@@ -298,9 +282,6 @@ class CORE_EXPORT HTMLCanvasElement final
   bool CreateLayer();
 
   void DetachContext() override { context_ = nullptr; }
-
-  void WillDrawImageInCanvas2D(CanvasImageSource*,
-                               bool image_is_texture_backed);
 
   ExecutionContext* GetTopExecutionContext() const override {
     return GetDocument().GetExecutionContext();
@@ -426,8 +407,6 @@ class CORE_EXPORT HTMLCanvasElement final
   static std::pair<blink::Image*, float> BrokenCanvas(
       float device_scale_factor);
 
-  bool RecreateCanvasInGPURasterModeForCanvas2D();
-
   void ChildrenChanged(const ChildrenChange&) override;
 
   FRIEND_TEST_ALL_PREFIXES(HTMLCanvasElementTest, BrokenCanvasHighRes);
@@ -467,9 +446,6 @@ class CORE_EXPORT HTMLCanvasElement final
 
   bool did_notify_listeners_for_current_frame_ = false;
 
-  // GPU Memory Management
-  mutable intptr_t externally_allocated_memory_;
-
   scoped_refptr<StaticBitmapImage> transparent_image_;
 
   // Paint flags set based on CSS properties, which must be propagated to the
@@ -479,8 +455,6 @@ class CORE_EXPORT HTMLCanvasElement final
   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
 
   VectorOf<ElementHitTestRegion> hit_test_regions_;
-
-  NO_UNIQUE_ADDRESS V8ExternalMemoryAccounterBase external_memory_accounter_;
 };
 
 }  // namespace blink

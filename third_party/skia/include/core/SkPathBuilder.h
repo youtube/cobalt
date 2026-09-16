@@ -25,8 +25,10 @@
 #include <optional>
 #include <tuple>
 
+class SkPathData;
 class SkRRect;
 struct SkPathRaw;
+class SkString;
 
 class SK_API SkPathBuilder {
 public:
@@ -63,8 +65,10 @@ public:
         @return      SkPathBuilder
     */
     SkPathBuilder& operator=(const SkPath&);
-
     SkPathBuilder& operator=(const SkPathBuilder&) = default;
+
+    bool operator==(const SkPathBuilder&) const;
+    bool operator!=(const SkPathBuilder& o) const { return !(*this == o); }
 
     /** Returns SkPathFillType, the rule used to fill SkPath.
 
@@ -73,15 +77,26 @@ public:
     SkPathFillType fillType() const { return fFillType; }
 
     /** Returns minimum and maximum axes values of SkPoint array.
-        Returns (0, 0, 0, 0) if SkPathBuilder contains no points. Returned bounds width and height
-        may be larger or smaller than area affected when SkPath is drawn.
+        Returns (0, 0, 0, 0) if SkPathBuilder contains no points.
 
         SkRect returned includes all SkPoint added to SkPathBuilder, including SkPoint associated
         with kMove_Verb that define empty contours.
 
-        @return  bounds of all SkPoint in SkPoint array
+        If any of the points are non-finite, returns {}.
+
+        @return  bounds of all SkPoint in SkPoint array, or {}.
     */
-    SkRect computeBounds() const;
+    std::optional<SkRect> computeFiniteBounds() const {
+        return SkRect::Bounds(fPts);
+    }
+
+    // DEPRECATED -- returns "empty" if the bounds are non-finite
+    SkRect computeBounds() const {
+        if (auto bounds = this->computeFiniteBounds()) {
+            return *bounds;
+        }
+        return SkRect::MakeEmpty();
+    }
 
     /** Returns an SkPath representing the current state of the SkPathBuilder. The builder is
         unchanged after returning the path.
@@ -98,6 +113,9 @@ public:
         @return  SkPath representing the current state of the builder.
      */
     SkPath detach(const SkMatrix* mx = nullptr);
+
+    sk_sp<SkPathData> snapshotData() const;
+    sk_sp<SkPathData> detachData();
 
     /** Sets SkPathFillType, the rule used to fill SkPath. While there is no
         check that ft is legal, values outside of SkPathFillType are not supported.
@@ -805,9 +823,7 @@ public:
     */
     SkPathBuilder& addPath(const SkPath& src,
                            SkPath::AddPathMode mode = SkPath::kAppend_AddPathMode) {
-        SkMatrix m;
-        m.reset();
-        return this->addPath(src, m, mode);
+        return this->addPath(src, SkMatrix::I(), mode);
     }
 
     /** Appends src to SkPathBuilder, transformed by matrix. Transformed curves may have different
@@ -831,10 +847,11 @@ public:
         May improve performance and use less memory by
         reducing the number and size of allocations when creating SkPathBuilder.
 
-        @param extraPtCount    number of additional SkPoint to allocate
-        @param extraVerbCount  number of additional verbs
+        @param extraPtCount     number of additional SkPoint to allocate
+        @param extraVerbCount   number of additional verbs
+        @param extraConicCount  number of additional conic weights
     */
-    void incReserve(int extraPtCount, int extraVerbCount);
+    void incReserve(int extraPtCount, int extraVerbCount, int extraConicCount);
 
     /** Grows SkPathBuilder verb array and SkPoint array to contain additional space.
         May improve performance and use less memory by
@@ -843,7 +860,7 @@ public:
         @param extraPtCount    number of additional SkPoints and verbs to allocate
     */
     void incReserve(int extraPtCount) {
-        this->incReserve(extraPtCount, extraPtCount);
+        this->incReserve(extraPtCount, extraPtCount, 0);
     }
 
     /** Offsets SkPoint array by (dx, dy).
@@ -860,12 +877,6 @@ public:
         @param pc      whether to apply perspective clipping
     */
     SkPathBuilder& transform(const SkMatrix& matrix);
-
-#ifdef SK_SUPPORT_LEGACY_APPLYPERSPECTIVECLIP
-    SkPathBuilder& transform(const SkMatrix& matrix, SkApplyPerspectiveClip) {
-        return this->transform(matrix);
-    }
-#endif
 
     /*
      *  Returns true if the builder is empty, or all of its points are finite.
@@ -940,6 +951,16 @@ public:
     SkPathBuilder& addRaw(const SkPathRaw&);
 
     SkPathIter iter() const;
+
+    enum class DumpFormat {
+        kDecimal,
+        kHex,
+    };
+    SkString dumpToString(DumpFormat = DumpFormat::kDecimal) const;
+    void dump(DumpFormat) const;
+    // can't use default argument easily in debugger, so we name this
+    // helper explicitly.
+    void dump() const { this->dump(DumpFormat::kDecimal); }
 
 private:
     SkPathRef::PointsArray fPts;

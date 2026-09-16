@@ -54,6 +54,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/signin/public/identity_manager/tribool.h"
+#include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/unified_consent/unified_consent_service.h"
@@ -179,6 +180,12 @@ TurnSyncOnHelper::TurnSyncOnHelper(
   DCHECK(profile_);
   // Should not start syncing if the profile is already authenticated
   DCHECK(!identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSync));
+
+  // This class should be unreachable if `kReplaceSyncPromosWithSignInPromos` is
+  // enabled.
+  CHECK(
+      !base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos),
+      base::NotFatalUntil::M144);
 
   // Cancel any existing helper.
   AttachToProfile();
@@ -335,7 +342,8 @@ void TurnSyncOnHelper::TurnSyncOnWithProfileMode(ProfileMode profile_mode) {
           TurnSyncOnHelperPolicyFetchTracker::CreateInstance(profile_,
                                                              account_info_);
       policy_fetch_tracker_->RegisterForPolicy(base::BindOnce(
-          &TurnSyncOnHelper::OnRegisteredForPolicy, base::Unretained(this)));
+          &TurnSyncOnHelper::OnRegisteredForPolicy, base::Unretained(this)),
+          /*is_registration_for_management_consistency_check=*/false);
       break;
     }
     case ProfileMode::NEW_PROFILE:

@@ -61,11 +61,11 @@ public class FakeMediaCodecWrapper implements MediaCodecWrapper {
 
   /** Represents an output buffer that will be returned by dequeueOutputBuffer. */
   public static class QueuedOutputBufferInfo {
-    private int index;
-    private int offset;
-    private int size;
-    private long presentationTimeUs;
-    private int flags;
+    private final int index;
+    private final int offset;
+    private final int size;
+    private final long presentationTimeUs;
+    private final int flags;
 
     private QueuedOutputBufferInfo(
         int index, int offset, int size, long presentationTimeUs, int flags) {

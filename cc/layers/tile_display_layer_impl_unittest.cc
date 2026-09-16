@@ -45,6 +45,7 @@ TEST_F(TileDisplayLayerImplTest, SettingSolidColorResultsInSolidColorQuad) {
   // For the production code to actually append a quad, the layer must have
   // non-zero size and not be completely transparent.
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -195,6 +196,7 @@ TEST_F(TileDisplayLayerImplTest,
   host_impl()->active_tree()->AddLayer(std::move(layer));
 
   raw_layer->SetBounds(layer_rect.size());
+  raw_layer->SetRecordedBounds(layer_rect);
   raw_layer->draw_properties().visible_layer_rect = layer_rect;
   raw_layer->draw_properties().occlusion_in_content_space =
       Occlusion(gfx::Transform(), SimpleEnclosedRegion(occluded_rect),
@@ -248,6 +250,7 @@ TEST_F(TileDisplayLayerImplTest,
   // For the production code to actually append a quad, the layer must have
   // non-zero size and not be completely transparent.
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -300,6 +303,7 @@ TEST_F(TileDisplayLayerImplTest,
   // For the production code to actually append a quad, the layer must have
   // non-zero size and not be completely transparent.
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -441,6 +445,31 @@ TEST_F(TileDisplayLayerImplTest,
   EXPECT_EQ(mask_uv_size, gfx::SizeF(0.5f, 0.5f));
 }
 
+// Tests that GetContentsResourceId() returns viz::kInvalidResourceId if the
+// layer has more than one tiling, as masks are only supported if they fit on a
+// single tile.
+TEST_F(TileDisplayLayerImplTest,
+       GetContentsResourceIdReturnsInvalidIdForMultipleTilings) {
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetIsBackdropFilterMask(true);
+
+  // Create two tilings.
+  raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  raw_layer->GetOrCreateTilingFromScaleKey(2.0);
+
+  viz::ResourceId mask_resource_id;
+  gfx::Size mask_texture_size;
+  gfx::SizeF mask_uv_size;
+  raw_layer->GetContentsResourceId(&mask_resource_id, &mask_texture_size,
+                                   &mask_uv_size);
+
+  EXPECT_EQ(mask_resource_id, viz::kInvalidResourceId);
+}
+
 class TileDisplayLayerImplWithEdgeAADisabledTest
     : public TileDisplayLayerImplTest {
  public:
@@ -463,6 +492,7 @@ TEST_F(TileDisplayLayerImplWithEdgeAADisabledTest,
   host_impl()->active_tree()->AddLayer(std::move(layer));
 
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -506,6 +536,7 @@ TEST_F(TileDisplayLayerImplWithEdgeAADisabledTest,
   host_impl()->active_tree()->AddLayer(std::move(layer));
 
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -542,6 +573,7 @@ TEST_F(TileDisplayLayerImplTest, MissingTileResultsInCheckerBoardQuad) {
   // For the production code to actually append a quad, the layer must have
   // non-zero size and not be completely transparent.
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -586,6 +618,7 @@ TEST_F(TileDisplayLayerImplTest, AppendsQuadsFromHighestResolutionTilingByDefaul
   host_impl()->active_tree()->AddLayer(std::move(layer));
 
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -634,6 +667,7 @@ TEST_F(TileDisplayLayerImplTest, AppendsQuadsFromIdealResolutionTiling) {
   host_impl()->active_tree()->AddLayer(std::move(layer));
 
   raw_layer->SetBounds(kLayerBounds);
+  raw_layer->SetRecordedBounds(kLayerRect);
   raw_layer->draw_properties().visible_layer_rect = kLayerRect;
   raw_layer->draw_properties().opacity = kOpacity;
 
@@ -802,6 +836,65 @@ TEST_F(TileDisplayLayerImplTest,
   tiling.SetTileContents(kTileIndex, SkColors::kRed,
                          /*update_damage=*/false);
   EXPECT_TRUE(raw_layer->GetDamageRect().IsEmpty());
+}
+
+// Verifies that when Tiling::SetTileContents is called with NoContents and the
+// reason is MissingTileReason::kTileDeleted, the corresponding tile is removed
+// from the tiling.
+TEST_F(TileDisplayLayerImplTest,
+       SetTileContentsWithNoContentsAndTileDeletedReasonRemovesTile) {
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  auto& tiling = raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  const TileIndex kTileIndex{0, 0};
+
+  // Add a tile.
+  tiling.SetTileContents(kTileIndex, SkColors::kRed,
+                         /*update_damage=*/false);
+  ASSERT_NE(tiling.TileAt(kTileIndex), nullptr);
+
+  // Set the tile's contents to NoContents with kTileDeleted as the reason and
+  // verify that the tile is deleted.
+  tiling.SetTileContents(
+      kTileIndex,
+      TileDisplayLayerImpl::NoContents{mojom::MissingTileReason::kTileDeleted},
+      /*update_damage=*/false);
+  EXPECT_EQ(tiling.TileAt(kTileIndex), nullptr);
+}
+
+// Verifies that when Tiling::SetTileContents is called with NoContents and a
+// reason other than MissingTileReason::kTileDeleted, the tile's contents are
+// updated to NoContents.
+TEST_F(TileDisplayLayerImplTest,
+       SetTileContentsWithNoContentsAndOtherReasonUpdatesTile) {
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  auto& tiling = raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  const TileIndex kTileIndex{0, 0};
+
+  // Add a tile.
+  tiling.SetTileContents(kTileIndex, SkColors::kRed,
+                         /*update_damage=*/false);
+  ASSERT_NE(tiling.TileAt(kTileIndex), nullptr);
+
+  // Set the tile's contents to NoContents with a reason other than
+  // kTileDeleted.
+  tiling.SetTileContents(kTileIndex,
+                         TileDisplayLayerImpl::NoContents{
+                             mojom::MissingTileReason::kResourceNotReady},
+                         /*update_damage=*/false);
+
+  // Verify that the tile still exists and its contents are NoContents.
+  auto* tile = tiling.TileAt(kTileIndex);
+  EXPECT_NE(tile, nullptr);
+  EXPECT_TRUE(std::holds_alternative<TileDisplayLayerImpl::NoContents>(
+      tile->contents()));
 }
 
 }  // namespace cc

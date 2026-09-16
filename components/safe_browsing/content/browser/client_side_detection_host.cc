@@ -5,6 +5,7 @@
 #include "components/safe_browsing/content/browser/client_side_detection_host.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/check_op.h"
@@ -42,6 +43,7 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/safe_browsing/core/common/safebrowsing_switches.h"
 #include "components/security_interstitials/core/unsafe_resource_locator.h"
+#include "components/site_engagement/content/site_engagement_service.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -61,6 +63,7 @@
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
+#include "third_party/blink/public/mojom/site_engagement/site_engagement.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -366,6 +369,17 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
     }
   }
 
+  void Cancel(ClientSideDetectionType request_type) {
+    // We should only log if the callback has not been answered yet.
+    if (ShouldClassifyForPhishing()) {
+      base::UmaHistogramExactLinear(
+          "SBClientPhishing.PreClassificationCheckCancelActor." +
+              GetRequestTypeName(phishing_detection_request_type_),
+          request_type, ClientSideDetectionType_MAX + 1);
+    }
+    Cancel();
+  }
+
   void Cancel() {
     DontClassifyForPhishing(PreClassificationCheckResult::NO_CLASSIFY_CANCEL);
     // Just to make sure we don't do anything bad we reset all these
@@ -403,9 +417,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
       // Track the first reason why we stopped classifying for phishing.
       RecordPreClassificationCheckResultWithAndWithoutSuffix(
           reason, phishing_detection_request_type_);
-      if (base::FeatureList::IsEnabled(
-              kClientSideDetectionDebuggingMetadataCache) &&
-          host_ && host_->delegate_->GetPrefs() &&
+      if (host_ && host_->delegate_->GetPrefs() &&
           IsEnhancedProtectionEnabled(*host_->delegate_->GetPrefs()) &&
           // Cancelation happens when the WebContents is destroyed, but we
           // cannot access ClientSideDetectionFeatureCache at that time.
@@ -594,9 +606,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
       RecordPreClassificationCheckResultWithAndWithoutSuffix(
           PreClassificationCheckResult::CLASSIFY,
           phishing_detection_request_type_);
-      if (base::FeatureList::IsEnabled(
-              kClientSideDetectionDebuggingMetadataCache) &&
-          host_ && host_->delegate_->GetPrefs() &&
+      if (host_ && host_->delegate_->GetPrefs() &&
           IsEnhancedProtectionEnabled(*host_->delegate_->GetPrefs())) {
         ClientSideDetectionFeatureCache::CreateForWebContents(web_contents_);
         ClientSideDetectionFeatureCache* feature_cache_map =
@@ -620,10 +630,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
       case CLIPBOARD_COPY_API:
         return base::RandDouble() >= kCsdClipboardCopyApiSampleRate.Get();
       case CREDIT_CARD_FORM:
-        if (base::FeatureList::IsEnabled(kClientSideDetectionCreditCardForm)) {
-          return base::RandDouble() >= kCsdCreditCardFormSampleRate.Get();
-        }
-        break;
+        return base::RandDouble() >= kCsdCreditCardFormSampleRate.Get();
       default:
         break;
     }
@@ -654,10 +661,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
       case ClientSideDetectionType::CLIPBOARD_COPY_API:
         return base::RandDouble() < kCsdClipboardCopyApiHCAcceptanceRate.Get();
       case ClientSideDetectionType::CREDIT_CARD_FORM:
-        if (base::FeatureList::IsEnabled(kClientSideDetectionCreditCardForm)) {
-          return base::RandDouble() < kCsdCreditCardFormHCAcceptanceRate.Get();
-        }
-        break;
+        return base::RandDouble() < kCsdCreditCardFormHCAcceptanceRate.Get();
       default:
         break;
     }
@@ -766,11 +770,13 @@ ClientSideDetectionHost::~ClientSideDetectionHost() {
   if (classification_request_.get()) {
     classification_request_->Cancel();
   }
+  if (intelligent_scan_session_id_.has_value()) {
+    intelligent_scan_delegate_->CancelSession(*intelligent_scan_session_id_);
+  }
 }
 
 void ClientSideDetectionHost::RegisterPermissionRequestManager() {
-  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
-      base::FeatureList::IsEnabled(kClientSideDetectionNotificationPrompt)) {
+  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     permission_request_observation_.Observe(
         permissions::PermissionRequestManager::FromWebContents(web_contents()));
   }
@@ -789,9 +795,6 @@ void ClientSideDetectionHost::RegisterAutofillManager() {
   if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     return;
   }
-  if (!base::FeatureList::IsEnabled(kClientSideDetectionCreditCardForm)) {
-    return;
-  }
   autofill_managers_observation_.Observe(
       autofill::ContentAutofillClient::FromWebContents(web_contents()),
       autofill::ScopedAutofillManagersObservation::InitializationPolicy::
@@ -803,29 +806,19 @@ void ClientSideDetectionHost::MaybeStartPreClassification(
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     return;
   }
+
   // Cancel any pending classification request.
+  // TODO(b/447359124): Support multiple classifications on the same page.
   if (classification_request_.get()) {
-    classification_request_->Cancel();
+    classification_request_->Cancel(request_type);
   }
-
-  // Cancel any ongoing on device sessions.
-  bool did_reset_session = intelligent_scan_delegate_->ResetOnDeviceSession();
-  base::UmaHistogramBoolean(
-      "SBClientPhishing.OnDeviceModelSessionAliveOnNewPreclassification",
-      did_reset_session);
-
-  // If we navigate away and there currently is a pending phishing report
-  // request we have to cancel it to make sure we don't display an interstitial
-  // for the wrong page.  Note that this won't cancel the server ping back but
-  // only cancel the showing of the interstitial.
-  weak_factory_.InvalidateWeakPtrs();
 
   if (!csd_service_) {
     return;
   }
 
   if (!preclassification_started_cb_for_testing_.is_null()) {
-    preclassification_started_cb_for_testing_.Run();
+    preclassification_started_cb_for_testing_.Run(request_type);
   }
 
   content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
@@ -852,6 +845,12 @@ void ClientSideDetectionHost::PrimaryPageChanged(content::Page& page) {
   // TODO(noelutz): move this DCHECK to WebContents and fix all the unit tests
   // that don't call this method on the UI thread.
   // DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  // If we navigate away and there currently is a pending phishing report
+  // request we have to cancel it to make sure we don't display an
+  // interstitial for the wrong page.  Note that this won't cancel the server
+  // ping back but only cancel the showing of the interstitial.
+  weak_factory_.InvalidateWeakPtrs();
 
   trigger_model_request_sent_as_force_request_ = false;
   MaybeStartPreClassification(ClientSideDetectionType::TRIGGER_MODELS);
@@ -909,6 +908,11 @@ void ClientSideDetectionHost::OnFieldTypesDetermined(
     autofill::AutofillManager& manager,
     autofill::FormGlobalId formId,
     autofill::AutofillManager::Observer::FieldTypeSource source) {
+  // Early exit if ESB is not enabled.
+  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
+    return;
+  }
+
   // Early exit if preclassification has already been done for
   // CREDIT_CARD_FORM and this URL.
   auto csd_type = ClientSideDetectionType::CREDIT_CARD_FORM;
@@ -916,20 +920,40 @@ void ClientSideDetectionHost::OnFieldTypesDetermined(
     return;
   }
 
-  // If the form is a credit card form, then trigger pre-classification.
+  // If the form is not a credit card form, then do not trigger
+  // pre-classification.
   if (auto it = manager.form_structures().find(formId);
-      it != manager.form_structures().end()) {
-    if (it->second.get()->GetFormTypes().contains(
-            autofill::FormType::kCreditCardForm)) {
-      MaybeStartPreClassification(csd_type);
-    }
+      it != manager.form_structures().end() &&
+      !it->second.get()->GetFormTypes().contains(
+          autofill::FormType::kCreditCardForm)) {
+    return;
   }
+
+  // Report metric that breaks down preclassification volume by site engagement
+  // level. This is reported before any preemptive filtering below to provide
+  // full telemetry.
+  site_engagement::SiteEngagementService* site_engagement_service =
+      site_engagement::SiteEngagementService::Get(
+          web_contents()->GetBrowserContext());
+  if (site_engagement_service) {
+    base::UmaHistogramEnumeration(
+        "SBClientPhishing.SiteEngagement.CreditCardForm",
+        site_engagement_service->GetEngagementLevel(current_url_));
+  }
+
+  // Early exit from starting preclassification if site engagement is high
+  // (user has visited this same site a lot before).
+  if (site_engagement_service &&
+      static_cast<int>(site_engagement_service->GetEngagementLevel(
+          current_url_)) > kCsdCreditCardFormMaxSiteEngagement.Get()) {
+    return;
+  }
+
+  MaybeStartPreClassification(csd_type);
 }
 
 void ClientSideDetectionHost::KeyboardLockRequested() {
-  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     return;
   }
 
@@ -941,9 +965,7 @@ void ClientSideDetectionHost::KeyboardLockRequested() {
 }
 
 void ClientSideDetectionHost::PointerLockRequested() {
-  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     return;
   }
 
@@ -1018,7 +1040,21 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
     bool is_sample_ping,
     std::optional<bool> did_match_high_confidence_allowlist) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  if (!preclassification_done_cb_for_testing_.is_null()) {
+    preclassification_done_cb_for_testing_.Run(request_type);
+  }
+
   if (should_classify) {
+    bool intelligent_scan_session_ongoing =
+        intelligent_scan_session_id_.has_value();
+    base::UmaHistogramBoolean(
+        "SBClientPhishing.OnDeviceModelSessionAliveOnNewPreclassification",
+        intelligent_scan_session_ongoing);
+    if (intelligent_scan_session_ongoing) {
+      intelligent_scan_delegate_->CancelSession(*intelligent_scan_session_id_);
+    }
+
     content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
 
     phishing_detector_.reset();
@@ -1069,8 +1105,6 @@ void ClientSideDetectionHost::PhishingDetectionDone(
       "SBClientPhishing.PhishingDetectorResult." + request_type_name, result);
 
   if (feature_cache_map &&
-      base::FeatureList::IsEnabled(
-          kClientSideDetectionDebuggingMetadataCache) &&
       IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     feature_cache_map->GetOrCreateDebuggingMetadataForURL(current_url_)
         ->set_phishing_detector_result(GetPhishingDetectorResult(result));
@@ -1082,8 +1116,6 @@ void ClientSideDetectionHost::PhishingDetectionDone(
         "SBClientPhishing.BrowserReadyOnClassifierNotReady",
         is_model_available);
   } else if (feature_cache_map &&
-             base::FeatureList::IsEnabled(
-                 kClientSideDetectionDebuggingMetadataCache) &&
              IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     // We should only add this if the classifier is ready, because then we have
     // the trigger model version in the model class.
@@ -1279,9 +1311,7 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
       "SBClientPhishing.ClientSideDetectionTypeRequest",
       verdict->client_side_detection_type(), ClientSideDetectionType_MAX + 1);
 
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionDebuggingMetadataCache) &&
-      IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
+  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     ClientSideDetectionFeatureCache::CreateForWebContents(web_contents());
     ClientSideDetectionFeatureCache* feature_cache_map =
         ClientSideDetectionFeatureCache::FromWebContents(web_contents());
@@ -1479,17 +1509,19 @@ void ClientSideDetectionHost::OnInnerTextComplete(
     return;
   }
 
-  intelligent_scan_delegate_->InquireOnDeviceModel(
-      inner_text,
-      base::BindOnce(&ClientSideDetectionHost::OnInquireOnDeviceModelDone,
-                     weak_factory_.GetWeakPtr(), std::move(verdict),
-                     did_match_high_confidence_allowlist));
+  intelligent_scan_session_id_ =
+      intelligent_scan_delegate_->InquireOnDeviceModel(
+          inner_text,
+          base::BindOnce(&ClientSideDetectionHost::OnInquireOnDeviceModelDone,
+                         weak_factory_.GetWeakPtr(), std::move(verdict),
+                         did_match_high_confidence_allowlist));
 }
 
 void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
     IntelligentScanDelegate::IntelligentScanResult response) {
+  intelligent_scan_session_id_.reset();
   base::UmaHistogramBoolean(
       "SBClientPhishing.OnDeviceModelHasSuccessfulResponse",
       response.execution_success);
@@ -1553,9 +1585,7 @@ void ClientSideDetectionHost::MaybeShowPhishingWarning(
         is_phishing);
   }
 
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionDebuggingMetadataCache) &&
-      IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
+  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
       response_code.has_value()) {
     ClientSideDetectionFeatureCache::CreateForWebContents(web_contents());
     ClientSideDetectionFeatureCache* feature_cache_map =
@@ -1564,11 +1594,7 @@ void ClientSideDetectionHost::MaybeShowPhishingWarning(
         ->set_network_result(response_code.value());
   }
 
-  if ((base::FeatureList::IsEnabled(
-           kClientSideDetectionBrandAndIntentForScamDetection) ||
-       base::FeatureList::IsEnabled(
-           kClientSideDetectionLlamaForcedTriggerInfoForScamDetection)) &&
-      IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
+  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
       intelligent_scan_verdict.has_value()) {
     base::UmaHistogramExactLinear("SBClientPhishing.IntelligentScanVerdict",
                                   intelligent_scan_verdict.value(),

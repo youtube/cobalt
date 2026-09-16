@@ -14,6 +14,7 @@
 #import "base/sequence_checker.h"
 #import "base/task/sequenced_task_runner.h"
 #import "components/keyed_service/core/keyed_service.h"
+#import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 
 @class UIImage;
 
@@ -31,22 +32,29 @@ class UserUploadedImageManager : public KeyedService {
   // calls the callback with that filename or an empty path if image storing
   // failed. This path is relative, so should only be loaded with
   // `LoadUserUploadedImage`.
-  void StoreUserUploadedImage(
+  virtual void StoreUserUploadedImage(
       UIImage* image,
       base::OnceCallback<void(base::FilePath)> callback);
 
+  using UserUploadImageCallback =
+      base::OnceCallback<void(UIImage*, UserUploadedImageError)>;
   // Loads an image previously stored at the provided relative file path.
-  void LoadUserUploadedImage(base::FilePath relative_image_file_path,
-                             base::OnceCallback<void(UIImage*)> callback);
+  virtual void LoadUserUploadedImage(base::FilePath relative_image_file_path,
+                                     UserUploadImageCallback callback);
 
   // Deletes an image previously stored at the provided relative file path.
-  void DeleteUserUploadedImage(
+  virtual void DeleteUserUploadedImage(
       base::FilePath relative_image_file_path,
       base::OnceClosure completion = base::DoNothing());
 
   // Deletes all images from the managed directory that aren't currently in use.
-  void DeleteUnusedImages(std::set<base::FilePath> relative_file_paths_in_use,
-                          base::OnceClosure completion = base::DoNothing());
+  virtual void DeleteUnusedImages(
+      std::set<base::FilePath> relative_file_paths_in_use,
+      base::OnceClosure completion = base::DoNothing());
+
+  // Returns the full, absolute path to an image file.
+  base::FilePath GetFullImagePath(
+      const base::FilePath& relative_image_file_path) const;
 
  private:
   // File path to store images at.

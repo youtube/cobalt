@@ -208,7 +208,7 @@ static void Test_strToUTF32(void){
 }
 
 /* test unpaired surrogates */
-static void Test_strToUTF32_surrogates() {
+static void Test_strToUTF32_surrogates(void) {
     UErrorCode err = U_ZERO_ERROR;
     UChar32 u32Target[400];
     int32_t len16, u32DestLen;
@@ -388,7 +388,7 @@ static void Test_strFromUTF32(void){
 }
 
 /* test surrogate code points */
-static void Test_strFromUTF32_surrogates() {
+static void Test_strFromUTF32_surrogates(void) {
     UErrorCode err = U_ZERO_ERROR;
     UChar uTarget[400];
     int32_t len32, uDestLen;
@@ -1381,7 +1381,7 @@ static void Test_UChar_WCHART_API(void){
 #endif
 } 
 
-static void Test_widestrs()
+static void Test_widestrs(void)
 {
 #if (defined(U_WCHAR_IS_UTF16) || defined(U_WCHAR_IS_UTF32)) || (!UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION)
         wchar_t ws[100];
@@ -1425,7 +1425,7 @@ static void Test_widestrs()
 }
 
 static void
-Test_WCHART_LongString(){
+Test_WCHART_LongString(void){
 #if (defined(U_WCHAR_IS_UTF16) || defined(U_WCHAR_IS_UTF32)) || (!UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION)
     UErrorCode status = U_ZERO_ERROR;
     const char* testdatapath=loadTestData(&status);
@@ -1513,7 +1513,7 @@ Test_WCHART_LongString(){
 #endif
 }
 
-static void Test_strToJavaModifiedUTF8() {
+static void Test_strToJavaModifiedUTF8(void) {
     static const UChar src[]={
         0x61, 0x62, 0x63, 0xe1, 0xe2, 0xe3,
         0xe01, 0xe02, 0xe03, 0xe001, 0xe002, 0xe003,
@@ -1527,7 +1527,7 @@ static void Test_strToJavaModifiedUTF8() {
         0xee, 0x80, 0x81, 0xee, 0x80, 0x82, 0xee, 0x80, 0x83,
         0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 0xed, 0xb0, 0x80, 0xed, 0xa0, 0x80, 0xc0, 0x80,
         0xed, 0xaf, 0xbf, 0xed, 0xbf, 0xbf,
-        0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0xc3, 0xad, 0xe0, 0xb8, 0x8e, 0x6f
+        0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0xc3, 0xad, 0xe0, 0xb8, 0x8e, 0x6f, 0
     };
     static const UChar shortSrc[]={
         0xe01, 0xe1, 0x61
@@ -1554,7 +1554,7 @@ static void Test_strToJavaModifiedUTF8() {
     p=u_strToJavaModifiedUTF8(dest, (int32_t)sizeof(dest), &length,
                               src, UPRV_LENGTHOF(src), &errorCode);
     if( U_FAILURE(errorCode) || p!=dest ||
-        length!=UPRV_LENGTHOF(expected) || 0!=memcmp(dest, expected, length) ||
+        length!=(UPRV_LENGTHOF(expected)-1) || 0!=memcmp(dest, expected, length) ||
         dest[length]!=0
     ) {
         log_err("u_strToJavaModifiedUTF8(normal) failed - %s\n", u_errorName(errorCode));
@@ -1565,18 +1565,18 @@ static void Test_strToJavaModifiedUTF8() {
     p=u_strToJavaModifiedUTF8(dest, (int32_t)sizeof(dest), NULL,
                               src, UPRV_LENGTHOF(src), &errorCode);
     if( U_FAILURE(errorCode) || p!=dest ||
-        0!=memcmp(dest, expected, UPRV_LENGTHOF(expected)) ||
-        dest[UPRV_LENGTHOF(expected)]!=0
+        0!=memcmp(dest, expected, (UPRV_LENGTHOF(expected)-1)) ||
+        dest[(UPRV_LENGTHOF(expected)-1)]!=0
     ) {
         log_err("u_strToJavaModifiedUTF8(normal, pLength=NULL) failed - %s\n", u_errorName(errorCode));
     }
     memset(dest, 0xff, sizeof(dest));
     errorCode=U_ZERO_ERROR;
     length=-5;
-    p=u_strToJavaModifiedUTF8(dest, UPRV_LENGTHOF(expected), &length,
+    p=u_strToJavaModifiedUTF8(dest, (UPRV_LENGTHOF(expected)-1), &length,
                               src, UPRV_LENGTHOF(src), &errorCode);
     if( errorCode!=U_STRING_NOT_TERMINATED_WARNING || p!=dest ||
-        length!=UPRV_LENGTHOF(expected) || 0!=memcmp(dest, expected, length) ||
+        length!=(UPRV_LENGTHOF(expected)-1) || 0!=memcmp(dest, expected, length) ||
         dest[length]!=(char)0xff
     ) {
         log_err("u_strToJavaModifiedUTF8(tight) failed - %s\n", u_errorName(errorCode));
@@ -1604,10 +1604,10 @@ static void Test_strToJavaModifiedUTF8() {
     memset(dest, 0xff, sizeof(dest));
     errorCode=U_ZERO_ERROR;
     length=-5;
-    p=u_strToJavaModifiedUTF8(dest, UPRV_LENGTHOF(expected)/2, &length,
+    p=u_strToJavaModifiedUTF8(dest, (UPRV_LENGTHOF(expected)-1)/2, &length,
                               src, UPRV_LENGTHOF(src), &errorCode);
     if( errorCode!=U_BUFFER_OVERFLOW_ERROR ||
-        length!=UPRV_LENGTHOF(expected) || dest[UPRV_LENGTHOF(expected)/2]!=(char)0xff
+        length!=(UPRV_LENGTHOF(expected)-1) || dest[(UPRV_LENGTHOF(expected)-1)/2]!=(char)0xff
     ) {
         log_err("u_strToJavaModifiedUTF8(overflow) failed - %s\n", u_errorName(errorCode));
     }
@@ -1617,7 +1617,7 @@ static void Test_strToJavaModifiedUTF8() {
     p=u_strToJavaModifiedUTF8(NULL, 0, &length,
                               src, UPRV_LENGTHOF(src), &errorCode);
     if( errorCode!=U_BUFFER_OVERFLOW_ERROR ||
-        length!=UPRV_LENGTHOF(expected) || dest[0]!=(char)0xff
+        length!=(UPRV_LENGTHOF(expected)-1) || dest[0]!=(char)0xff
     ) {
         log_err("u_strToJavaModifiedUTF8(pure preflighting) failed - %s\n", u_errorName(errorCode));
     }
@@ -1689,7 +1689,7 @@ static void Test_strToJavaModifiedUTF8() {
     }
 }
 
-static void Test_strFromJavaModifiedUTF8() {
+static void Test_strFromJavaModifiedUTF8(void) {
     static const uint8_t src[]={
         0x61, 0x62, 0x63, 0xc3, 0xa1, 0xc3, 0xa2, 0xc3, 0xa3,
         0xe0, 0xb8, 0x81, 0xe0, 0xb8, 0x82, 0xe0, 0xb8, 0x83,
@@ -1992,7 +1992,7 @@ static void Test_strFromJavaModifiedUTF8() {
 }
 
 /* test that string transformation functions permit NULL source pointer when source length==0 */
-static void TestNullEmptySource() {
+static void TestNullEmptySource(void) {
     char dest8[4]={ 3, 3, 3, 3 };
     UChar dest16[4]={ 3, 3, 3, 3 };
     UChar32 dest32[4]={ 3, 3, 3, 3 };

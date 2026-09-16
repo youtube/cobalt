@@ -104,6 +104,12 @@ class ComputedStyleBase : public GarbageCollected<ComputedStyleBase> {
   {% endif %}
   {% endfor %}
 
+  template <typename T>
+  friend CSSVariableData* GetVariableDataInternal(
+    const T& style_or_builder,
+    const AtomicString& name,
+    std::optional<bool> inherited_hint);
+
  public:
   inline bool IndependentInheritedEqual(const ComputedStyleBase& o) const {
     return (
@@ -150,6 +156,16 @@ class ComputedStyleBase : public GarbageCollected<ComputedStyleBase> {
         {{fieldwise_compare(computed_style, computed_style.all_fields
             |selectattr("is_property")
             |rejectattr("is_inherited")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  inline bool HighlightOriginatingElementDataEqual(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |selectattr("highlight_style_comes_from_originating_element")
             |list
           )|indent(8)}}
     );
@@ -270,6 +286,11 @@ class ComputedStyleBase : public GarbageCollected<ComputedStyleBase> {
 class ComputedStyleBuilderBase {
   STACK_ALLOCATED();
  public:
+  template <typename T>
+  friend CSSVariableData* GetVariableDataInternal(
+    const T& style_or_builder,
+    const AtomicString& name,
+    std::optional<bool> inherited_hint);
 
   enum IsAtShadowBoundary {
     kAtShadowBoundary,
@@ -291,6 +312,8 @@ class ComputedStyleBuilderBase {
                            const ComputedStyleBase &parent_style);
 
   void PropagateIndependentInheritedProperties(const ComputedStyleBase& parent_style);
+
+  void CopyHighlightPropertiesFrom(const ComputedStyleBase& originating_element_style);
 
   {% for field in computed_style_builder.all_fields|rejectattr('mutable')|sort(attribute='name') %}
   // {{field.property_name}}

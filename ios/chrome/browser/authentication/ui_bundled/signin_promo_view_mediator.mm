@@ -82,7 +82,7 @@ bool IsSupportedAccessPoint(signin_metrics::AccessPoint access_point) {
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kPasswordBubble:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -135,8 +135,6 @@ bool IsSupportedAccessPoint(signin_metrics::AccessPoint access_point) {
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -187,7 +185,7 @@ void RecordImpressionsTilSigninButtonsHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kPasswordBubble:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -242,8 +240,6 @@ void RecordImpressionsTilSigninButtonsHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -295,7 +291,7 @@ void RecordImpressionsTilXButtonHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kPasswordBubble:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -350,8 +346,6 @@ void RecordImpressionsTilXButtonHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -391,7 +385,7 @@ const char* DisplayedCountPreferenceKey(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kPasswordBubble:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -447,8 +441,6 @@ const char* DisplayedCountPreferenceKey(
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -487,7 +479,7 @@ const char* AlreadySeenSigninViewPreferenceKey(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kDevicesPage:
-    case signin_metrics::AccessPoint::kSigninPromo:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
     case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kPasswordBubble:
     case signin_metrics::AccessPoint::kAutofillDropdown:
@@ -543,8 +535,6 @@ const char* AlreadySeenSigninViewPreferenceKey(
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
     case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case signin_metrics::AccessPoint::
-        kHistorySyncOptinExpansionPillOnInactivity:
     case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
     case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
     case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
@@ -947,7 +937,7 @@ id<SystemIdentity> GetDisplayedIdentity(
            base::NotFatalUntil::M144)
       << base::SysNSStringToUTF8([self description]);
   CHECK_NE(self.signinInProgress, signin::Tribool::kFalse,
-           base::NotFatalUntil::M144)
+           base::NotFatalUntil::M146)
       << base::SysNSStringToUTF8([self description]);
   self.signinInProgress = signin::Tribool::kFalse;
 }
@@ -1062,6 +1052,16 @@ id<SystemIdentity> GetDisplayedIdentity(
                      operation:(AuthenticationOperation)operation
                    promoAction:(signin_metrics::PromoAction)promoAction {
   self.signinPromoViewState = SigninPromoViewState::kUsedAtLeastOnce;
+  ShowSigninCommand* command = [[ShowSigninCommand alloc]
+                      initWithOperation:operation
+                               identity:identity
+                            accessPoint:self.accessPoint
+                            promoAction:promoAction
+                             completion:nil
+      changeProfileContinuationProvider:_changeProfileContinuationProvider];
+  [_delegate showSignin:self command:command];
+  // `showSignin` checks that the signin is not in progress. So the value
+  // `signinInProgress` must be set after the signinCommand is executed.
   if (@available(iOS 26, *)) {
     // Once iOS 26 is the minimal supported version, signinInProgress can’t be
     // kUnknown anymore, and thus can become a Boolean instead of a tribool.
@@ -1075,18 +1075,6 @@ id<SystemIdentity> GetDisplayedIdentity(
       self.signinInProgress = signin::Tribool::kUnknown;
     }
   }
-  // This mediator might be removed before the sign-in callback is invoked.
-  // (if the owner receive primary account notification).
-  // To make sure -[<SigninPromoViewConsumer> signinDidFinish], we have to save
-  // in a variable and not get it from weakSelf (that might not exist anymore).
-  ShowSigninCommand* command = [[ShowSigninCommand alloc]
-                      initWithOperation:operation
-                               identity:identity
-                            accessPoint:self.accessPoint
-                            promoAction:promoAction
-                             completion:nil
-      changeProfileContinuationProvider:_changeProfileContinuationProvider];
-  [_delegate showSignin:self command:command];
 }
 
 // Shows account settings.

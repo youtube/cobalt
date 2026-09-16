@@ -32,10 +32,9 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoTypeBasics) {
   // Expect support for baseline configuration of known codecs.
   EXPECT_TRUE(IsDecoderSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, kColorSpace}));
-#if defined(ENABLE_LIBVPX)
-  EXPECT_TRUE(IsDecoderSupportedVideoType(
-      {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, kColorSpace}));
-#endif
+  EXPECT_EQ(IsDecoderSupportedVideoType({VideoCodec::kVP9, VP9PROFILE_PROFILE0,
+                                         kUnspecifiedLevel, kColorSpace}),
+            BUILDFLAG(ENABLE_LIBVPX));
   EXPECT_FALSE(IsDecoderSupportedVideoType({VideoCodec::kTheora,
                                             VIDEO_CODEC_PROFILE_UNKNOWN,
                                             kUnspecifiedLevel, kColorSpace}));
@@ -193,7 +192,7 @@ TEST(SupportedTypesTest, IsDecoderSupportedVideoType_VP9Profiles) {
       {VideoCodec::kVP9, VP9PROFILE_PROFILE2, kUnspecifiedLevel, kColorSpace}));
 #endif
 }
-#endif
+#endif  // defined(ENABLE_LIBVPX)
 
 TEST(SupportedTypesTest,
      IsDecoderSupportedAudioTypeWithSpatialRenderingBasics) {

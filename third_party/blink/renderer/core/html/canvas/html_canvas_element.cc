@@ -326,8 +326,7 @@ HTMLCanvasElement::HTMLCanvasElement(Document& document)
           gfx::Size(kDefaultCanvasWidth, kDefaultCanvasHeight)),
       context_creation_was_blocked_(false),
       origin_clean_(true),
-      surface_layer_bridge_(nullptr),
-      externally_allocated_memory_(0) {
+      surface_layer_bridge_(nullptr) {
   UseCounter::Count(document, WebFeature::kHTMLCanvasElement);
   // Create supplements now, as they may be needed at a
   // time when garbage collected objects can not be created.
@@ -342,12 +341,7 @@ HTMLCanvasElement::HTMLCanvasElement(Document& document)
   SetHasCustomStyleCallbacks();
 }
 
-HTMLCanvasElement::~HTMLCanvasElement() {
-  if (externally_allocated_memory_ > 0) {
-    external_memory_accounter_.Decrease(v8::Isolate::GetCurrent(),
-                                        externally_allocated_memory_);
-  }
-}
+HTMLCanvasElement::~HTMLCanvasElement() = default;
 
 bool HTMLCanvasElement::PrepareTransferableResource(
     viz::TransferableResource* out_resource,
@@ -794,31 +788,17 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
   // checks whether the `desynchronized` attribute is set on the context, but
   // only WebGL and Canvas2D have specific flows for low latency (for other
   // context types, setting the attribute is a no-op).
-  if (LowLatencyEnabled() && (IsWebGL() || IsRenderingContext2D())) {
-    bool resource_is_paintable =
-        IsRenderingContext2D()
-            ? RenderingContext()->IsCanvas2DResourceProviderValid()
-            : true;
-    if (frame_dispatcher_ && !dirty_rect_.IsEmpty() && resource_is_paintable) {
-      if (scoped_refptr<CanvasResource> canvas_resource =
-              context_->PaintRenderingResultsToResource(kBackBuffer, reason)) {
-        const gfx::Rect src_rect(Size());
-        dirty_rect_.Intersect(src_rect);
-        const gfx::Rect int_dirty = dirty_rect_;
-        const SkIRect damage_rect =
-            SkIRect::MakeXYWH(int_dirty.x(), int_dirty.y(), int_dirty.width(),
-                              int_dirty.height());
-        frame_dispatcher_->DispatchFrame(std::move(canvas_resource),
-                                         damage_rect, IsOpaque());
-      }
-      // WebGL clears `dirty_rect_` every frame for low-latency, but for
-      // Canvas2D it occurs only if we actually attempted to paint the
-      // resource.
-      if (IsRenderingContext2D()) {
-        dirty_rect_ = gfx::Rect();
-      }
-    }
-    if (IsWebGL()) {
+  if (LowLatencyEnabled() && (IsWebGL() || IsRenderingContext2D()) &&
+      frame_dispatcher_ && !dirty_rect_.IsEmpty()) {
+    if (scoped_refptr<CanvasResource> canvas_resource =
+            context_->PaintRenderingResultsToResource(kBackBuffer, reason)) {
+      const gfx::Rect src_rect(Size());
+      dirty_rect_.Intersect(src_rect);
+      const gfx::Rect int_dirty = dirty_rect_;
+      const SkIRect damage_rect = SkIRect::MakeXYWH(
+          int_dirty.x(), int_dirty.y(), int_dirty.width(), int_dirty.height());
+      frame_dispatcher_->DispatchFrame(std::move(canvas_resource), damage_rect,
+                                       IsOpaque());
       dirty_rect_ = gfx::Rect();
     }
   }
@@ -1589,10 +1569,8 @@ bool HTMLCanvasElement::ShouldAccelerate() const {
 }
 
 bool HTMLCanvasElement::CanStartSelection() const {
-  if (RuntimeEnabledFeatures::AvoidSelectionChangeOnCanvasClickEnabled()) {
-    if (GetHitTestRegions().empty()) {
-      return false;
-    }
+  if (GetHitTestRegions().empty()) {
+    return false;
   }
   return HTMLElement::CanStartSelection();
 }
@@ -1810,44 +1788,6 @@ void HTMLCanvasElement::RemovedFrom(ContainerNode& insertion_point) {
   ColorSchemeMayHaveChanged();
 }
 
-void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source,
-                                                bool image_is_texture_backed) {
-  CHECK(IsRenderingContext2D());
-
-  // For images coming from canvases, use the image itself as the source of
-  // truth for whether the canvas is accelerated, as
-  // CanvasRenderingContextHost::IsAccelerated() is canvas2d-specific.
-  bool source_is_accelerated =
-      (source->IsCanvasElement() || source->IsOffscreenCanvas())
-          ? image_is_texture_backed
-          : source->IsAccelerated();
-  // If the source is GPU-accelerated, and the canvas is not, but could be...
-  if (source_is_accelerated && ShouldAccelerate() &&
-      GetRasterModeForCanvas2D() == RasterMode::kCPU) {
-    // Recreate the canvas in GPU raster mode, and update its contents.
-    if (RecreateCanvasInGPURasterModeForCanvas2D()) {
-      SetNeedsCompositingUpdate();
-    }
-  }
-}
-
-void HTMLCanvasElement::EnableAccelerationForCanvas2D() {
-  CHECK(IsRenderingContext2D());
-  if (GetRasterModeForCanvas2D() == RasterMode::kCPU) {
-    RecreateCanvasInGPURasterModeForCanvas2D();
-  }
-}
-
-bool HTMLCanvasElement::RecreateCanvasInGPURasterModeForCanvas2D() {
-  CHECK(IsRenderingContext2D());
-  if (!SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
-    return false;
-  }
-  SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
-  RenderingContext()->DropAndRecreateExistingCanvas2DResourceProvider();
-  return true;
-}
-
 void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
   HTMLElement::ChildrenChanged(change);
   if (hasChildren()) {
@@ -2045,36 +1985,9 @@ UniqueFontSelector* HTMLCanvasElement::GetFontSelector() {
     return unique_font_selector;
   }
   auto* unique_font_selector = MakeGarbageCollected<UniqueFontSelector>(
-      GetDocument().GetStyleEngine().GetFontSelector(),
-      RuntimeEnabledFeatures::CanvasTextNgEnabled(
-          GetDocument().GetExecutionContext()));
+      GetDocument().GetStyleEngine().GetFontSelector());
   unique_font_selector_ = unique_font_selector;
   return unique_font_selector;
-}
-
-void HTMLCanvasElement::UpdateMemoryUsage() {
-  intptr_t externally_allocated_memory =
-      context_ ? context_->AllocatedBufferSize() : 0;
-
-  // Subtracting two intptr_t that are known to be positive will never
-  // underflow.
-  intptr_t delta_bytes =
-      externally_allocated_memory - externally_allocated_memory_;
-
-  // TODO(junov): We assume that it is impossible to be inside a FastAPICall
-  // from a host interface other than the rendering context.  This assumption
-  // may need to be revisited in the future depending on how the usage of
-  // [NoAllocDirectCall] evolves.
-
-  // ExternalMemoryAccounter::Update() with a positive delta can trigger a GC,
-  // which is not allowed when `IsAllocationAllowed() == false`.
-  CHECK(delta_bytes <= 0 || ThreadState::Current()->IsAllocationAllowed());
-  external_memory_accounter_.Update(v8::Isolate::GetCurrent(), delta_bytes);
-  externally_allocated_memory_ = externally_allocated_memory;
-}
-
-size_t HTMLCanvasElement::GetMemoryUsage() const {
-  return base::saturated_cast<size_t>(externally_allocated_memory_);
 }
 
 scoped_refptr<StaticBitmapImage> HTMLCanvasElement::GetTransparentImage() {

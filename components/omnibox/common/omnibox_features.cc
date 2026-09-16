@@ -171,8 +171,16 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 // accommodate the autocompletions.
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 
-// If enabled, shows the omnibox suggestions popup in WebUI.
+// If enabled, removes the cutout for the location bar and fills the entire
+// popup content with the WebUI WebView.
+BASE_FEATURE(kWebUIOmniboxFullPopup, DISABLED);
+// If enabled, shows the omnibox suggestions in the popup in WebUI.
 BASE_FEATURE(kWebUIOmniboxPopup, DISABLED);
+// Enables the WebUI for omnibox suggestions without modifying the popup UI.
+BASE_FEATURE(kWebUIOmniboxPopupDebug, DISABLED);
+// Enables side-by-side comparison omnibox suggestions in WebUI and Views.
+const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam{
+    &kWebUIOmniboxPopupDebug, "SxS", false};
 
 // When enabled, use Assistant for omnibox voice query recognition instead of
 // Android's built-in voice recognition service. Only works on Android.
@@ -181,8 +189,21 @@ BASE_FEATURE(kOmniboxAssistantVoiceSearch, DISABLED);
 // When enabled, the multimodal input button is shown in the Omnibox.
 BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
 
-// Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button.
+// Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button. Only
+// used on desktop platforms.
+// The first feature enables the entrypoint for all users. The second feature
+// enables the entrypoint only for users who have their locale set to English
+// and are located in the US, and has no effect if the first feature is
+// enabled.
 BASE_FEATURE(kAiModeOmniboxEntryPoint, DISABLED);
+BASE_FEATURE(kAiModeOmniboxEntryPointEnUs, ENABLED);
+
+// Hides the AIM entrypoint in the Omnibox when user input is in progress. Only
+// used on desktop platforms.
+BASE_FEATURE(kHideAimEntrypointOnUserInput,
+             "OmniboxHideAimEntrypointOnUserInput",
+             DISABLED);
+
 
 // When enabled, removes the Search Ready Omnibox feature.
 BASE_FEATURE(kRemoveSearchReadyOmnibox, DISABLED);
@@ -283,7 +304,7 @@ BASE_FEATURE(kOmniboxMobileParityUpdate, ENABLED);
 
 // Updates various NTP/Omnibox assets and descriptions for visual alignment on
 // Android and iOS, V2.
-BASE_FEATURE(kOmniboxMobileParityUpdateV2, enable_if(IS_IOS));
+BASE_FEATURE(kOmniboxMobileParityUpdateV2, ENABLED);
 
 #if BUILDFLAG(IS_IOS)
 // Updates the search engine logo on NTP. iOS only.
@@ -321,6 +342,8 @@ BASE_FEATURE(kNumSrpZpsRelatedSearches,
 // the Settings page.
 BASE_FEATURE(kEnableSearchAggregatorPolicy, ENABLED);
 
+BASE_FEATURE(kUseAgentspace25Logo, ENABLED);
+
 // If enabled, site search engines, defined by the `SiteSearchSettings` policy,
 // can be marked as user-overridable by administrators using an
 // `allow_user_override` field. This setting is stored in preferences and
@@ -329,10 +352,6 @@ BASE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy, ENABLED);
 
 // Enables preconnecting to omnibox suggestions that are not only Search types.
 BASE_FEATURE(kPreconnectNonSearchOmniboxSuggestions, DISABLED);
-
-// Enables restricting omnibox focus restoration to only situations that involve
-// "invisible focus".
-BASE_FEATURE(kOmniboxRestoreInvisibleFocusOnly, ENABLED);
 
 // Enabls adding an aim shortcut in the typed state.
 BASE_FEATURE(kOmniboxAimShortcutTypedState, DISABLED);
@@ -351,11 +370,6 @@ bool IsGeminiPrototypeProviderEnabled() {
   return base::FeatureList::IsEnabled(kGeminiPrototypeOmniboxProvider);
 }
 #endif
-
-// Hides the AIM entrypoint in the Omnibox when user input is in progress.
-BASE_FEATURE(kHideAimEntrypointOnUserInput,
-             "OmniboxHideAimEntrypointOnUserInput",
-             DISABLED);
 
 // Controls whether the composebox
 BASE_FEATURE(kComposeboxUsesChromeComposeClient, DISABLED);

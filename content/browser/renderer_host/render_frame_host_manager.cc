@@ -436,7 +436,8 @@ void UpdateProcessReusePolicyForMainFrame(SiteInstanceImpl* site_instance,
   const GURL& site_url = site_instance->GetSiteURL();
   if (!base::FeatureList::IsEnabled(
           features::kMainFrameProcessReuseAllowIPAndLocalhost) &&
-      (site_url.HostIsIPAddress() || net::IsLocalHostname(site_url.host()))) {
+      (site_url.HostIsIPAddress() ||
+       net::IsLocalHostname(site_url.GetHost()))) {
     RecordMainFrameProcessReuseBlockReason(
         MainFrameProcessReuseBlockReason::kIsIpAddressOrLocalHost);
     return;
@@ -1258,6 +1259,11 @@ void RenderFrameHostManager::UnloadOldFrame(
                 "old_render_frame_host", old_render_frame_host,
                 "bfcache_eligibility",
                 bfcache_eligibility.flattened_reasons.ToString());
+    if (render_frame_host_ &&
+        render_frame_host_->did_last_navigation_have_view_transition()) {
+      base::UmaHistogramBoolean("Navigation.ViewTransition.PerformsUnload",
+                                !can_store);
+    }
     if (can_store) {
       bool is_same_process =
           (old_render_frame_host->GetProcess() ==
@@ -2100,6 +2106,8 @@ RenderFrameHostManager::GetFrameHostForNavigation(
       return base::unexpected(
           GetFrameHostForNavigationFailed::kCouldNotReinitializeMainFrame);
     }
+    AppendReason(reason,
+                 "GetFrameHostForNavigation / main-frame-reinitialized");
 
     notify_webui_of_rf_creation = true;
 

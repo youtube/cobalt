@@ -36,12 +36,6 @@ void RunSuccessCallback(SuccessOrFailureCallback callback) {
   std::move(callback).Run(nullptr);
 }
 
-void RunWarningCallback(
-    crosapi::VpnServiceForExtensionAsh::SuccessCallback callback,
-    const std::string& /*warning*/) {
-  std::move(callback).Run();
-}
-
 void RunFailureCallback(SuccessOrFailureCallback callback,
                         const std::string& error_name,
                         const std::string& error_message) {
@@ -264,60 +258,6 @@ void VpnServiceForExtensionAsh::DestroyConfiguration(
               weak_factory_.GetWeakPtr(), std::move(failure)));
 }
 
-void VpnServiceForExtensionAsh::SetParameters(base::Value::Dict parameters,
-                                              SetParametersCallback callback) {
-  if (!OwnsActiveConfiguration()) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Unauthorized access.");
-    return;
-  }
-
-  auto [success, failure] = AdaptCallback(std::move(callback));
-  ash::ShillThirdPartyVpnDriverClient::Get()->SetParameters(
-      active_configuration_->object_path(), std::move(parameters),
-      base::BindOnce(&RunWarningCallback, std::move(success)),
-      std::move(failure));
-}
-
-void VpnServiceForExtensionAsh::SendPacket(const std::vector<uint8_t>& data,
-                                           SendPacketCallback callback) {
-  if (!OwnsActiveConfiguration()) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Unauthorized access.");
-    return;
-  }
-
-  if (data.empty()) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Can't send an empty packet.");
-    return;
-  }
-
-  auto [success, failure] = AdaptCallback(std::move(callback));
-  ash::ShillThirdPartyVpnDriverClient::Get()->SendPacket(
-      active_configuration_->object_path(),
-      std::vector<char>(data.begin(), data.end()), std::move(success),
-      std::move(failure));
-}
-
-void VpnServiceForExtensionAsh::NotifyConnectionStateChanged(
-    bool connection_success,
-    NotifyConnectionStateChangedCallback callback) {
-  if (!OwnsActiveConfiguration()) {
-    RunFailureCallback(std::move(callback), /*error_name=*/{},
-                       "Unauthorized access.");
-    return;
-  }
-
-  auto [success, failure] = AdaptCallback(std::move(callback));
-  ash::ShillThirdPartyVpnDriverClient::Get()->UpdateConnectionState(
-      active_configuration_->object_path(),
-      connection_success
-          ? base::to_underlying(api_vpn::VpnConnectionState::kConnected)
-          : base::to_underlying(api_vpn::VpnConnectionState::kFailure),
-      std::move(success), std::move(failure));
-}
-
 void VpnServiceForExtensionAsh::BindPepperVpnProxyObserver(
     const std::string& configuration_name,
     mojo::PendingRemote<crosapi::mojom::PepperVpnProxyObserver>
@@ -374,6 +314,14 @@ void VpnServiceForExtensionAsh::OnConfigurationRemoved(
 
   DispatchConfigRemovedEvent(configuration->configuration_name());
   DestroyConfigurationInternal(configuration);
+}
+
+std::optional<std::string>
+VpnServiceForExtensionAsh::GetActiveConfigurationObjectPath() const {
+  if (active_configuration_) {
+    return active_configuration_->object_path();
+  }
+  return std::nullopt;
 }
 
 bool VpnServiceForExtensionAsh::OwnsActiveConfiguration() const {
@@ -540,8 +488,13 @@ void VpnServiceAsh::MaybeFailActiveConnectionAndDestroyConfigurations(
   if (!service) {
     return;
   }
-  service->NotifyConnectionStateChanged(
-      /*connection_success=*/false, base::DoNothing());
+  if (std::optional<std::string> object_path =
+          service->GetActiveConfigurationObjectPath()) {
+    ash::ShillThirdPartyVpnDriverClient::Get()->UpdateConnectionState(
+        *object_path,
+        base::to_underlying(api_vpn::VpnConnectionState::kFailure),
+        base::DoNothing(), base::DoNothing());
+  }
 
   if (destroy_configurations) {
     service->DestroyAllConfigurations();

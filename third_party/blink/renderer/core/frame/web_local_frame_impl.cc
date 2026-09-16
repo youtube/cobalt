@@ -890,9 +890,12 @@ gfx::PointF WebLocalFrameImpl::GetScrollOffset() const {
 
 bool WebLocalFrameImpl::SetScrollOffset(const gfx::PointF& offset) {
   if (ScrollableArea* scrollable_area = LayoutViewport()) {
+    // This function is only used in tests so we are using
+    // `ScrollSourceType::kAbsoluteScroll`.
     return scrollable_area->SetScrollOffset(
         scrollable_area->ScrollPositionToOffset(offset),
-        mojom::blink::ScrollType::kProgrammatic);
+        mojom::blink::ScrollType::kProgrammatic,
+        cc::ScrollSourceType::kAbsoluteScroll);
   }
   return false;
 }

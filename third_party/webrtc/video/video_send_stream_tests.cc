@@ -104,6 +104,7 @@
 #include "rtc_base/unique_id_generator.h"
 #include "test/call_test.h"
 #include "test/configurable_frame_size_encoder.h"
+#include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_encoder.h"
 #include "test/frame_forwarder.h"
@@ -732,7 +733,8 @@ TEST_F(VideoSendStreamTest, SupportsUlpfecWithoutExtensions) {
 class VideoSendStreamWithoutUlpfecTest : public test::CallTest {
  protected:
   VideoSendStreamWithoutUlpfecTest()
-      : CallTest(/*field_trials=*/"WebRTC-DisableUlpFecExperiment/Enabled/") {}
+      : CallTest(
+            CreateTestFieldTrials("WebRTC-DisableUlpFecExperiment/Enabled/")) {}
 };
 
 TEST_F(VideoSendStreamWithoutUlpfecTest, NoUlpfecIfDisabledThroughFieldTrial) {

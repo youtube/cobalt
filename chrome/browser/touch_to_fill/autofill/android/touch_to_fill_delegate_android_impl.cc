@@ -9,6 +9,7 @@
 #include "base/check_deref.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
+#include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
@@ -24,6 +25,7 @@
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
+#include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
@@ -404,10 +406,20 @@ void TouchToFillDelegateAndroidImpl::LoyaltyCardSuggestionSelected(
 }
 
 void TouchToFillDelegateAndroidImpl::OnDismissed(bool dismissed_by_user) {
+  if (dismissed_by_user && cancel_callback_) {
+    std::move(cancel_callback_).Run();
+  } else {
+    cancel_callback_.Reset();
+  }
+
   if (IsShowingTouchToFill()) {
     ttf_payment_method_state_ = TouchToFillState::kWasShown;
     dismissed_by_user_ = dismissed_by_user;
   }
+}
+
+void TouchToFillDelegateAndroidImpl::OnErrorOkPressed() {
+  HideTouchToFill();
 }
 
 void TouchToFillDelegateAndroidImpl::LogTriggerOutcomeMetrics(
@@ -451,6 +463,11 @@ void TouchToFillDelegateAndroidImpl::LogMetricsAfterSubmission(
           IsFillingCorrect(submitted_form));
     }
   }
+}
+
+void TouchToFillDelegateAndroidImpl::SetCancelCallback(
+    base::OnceClosure cancel_callback) {
+  cancel_callback_ = std::move(cancel_callback);
 }
 
 base::WeakPtr<TouchToFillDelegateAndroidImpl>

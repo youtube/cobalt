@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.ntp;
 
-import static org.chromium.chrome.browser.tabmodel.TestTabModelDirectory.M26_GOOGLE_COM;
+import static org.chromium.chrome.browser.tabmodel.TestTabModelDirectory.V2_GOOGLE_COM_FBS;
 
 import android.graphics.Bitmap;
 import android.util.Base64;
@@ -26,8 +26,8 @@ import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.ActiveTabState;
+import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager.TabModelMetadata;
@@ -114,7 +114,7 @@ public class HomeSurfaceTestUtils {
         TabModelSelectorMetadata selectorMetaData =
                 new TabModelSelectorMetadata(normalInfo, incognitoInfo);
 
-        TabPersistentStore.saveTabModelPrefs(0, ActiveTabState.OTHER);
+        TabPersistentStoreImpl.saveTabModelPrefs(0, ActiveTabState.OTHER);
         File metadataFile =
                 new File(
                         TabStateDirectory.getOrCreateTabbedModeStateDirectory(),
@@ -195,8 +195,8 @@ public class HomeSurfaceTestUtils {
                         TabStateDirectory.getOrCreateTabbedModeStateDirectory(),
                         tabId,
                         /* encrypted= */ false,
-                        /* isFlatbuffer= */ false);
-        writeFile(file, M26_GOOGLE_COM.encodedTabState);
+                        /* isFlatbuffer= */ true);
+        writeFile(file, V2_GOOGLE_COM_FBS.encodedTabState);
 
         CipherFactory unusedCipherFactory = new CipherFactory();
         TabState tabState =

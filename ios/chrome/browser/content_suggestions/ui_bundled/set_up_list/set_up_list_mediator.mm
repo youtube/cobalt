@@ -10,6 +10,7 @@
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/prefs/pref_service.h"
@@ -128,8 +129,7 @@ bool DefaultBrowserPromoCompleted() {
         &_localStatePrefChangeRegistrar);
 
     _prefObserverBridge->ObserveChangesForPreference(
-        prefs::kHomeCustomizationMagicStackSetUpListEnabled,
-        &_prefChangeRegistrar);
+        ntp_tiles::prefs::kTipsHomeModuleEnabled, &_prefChangeRegistrar);
 
     _prefObserverBridge->ObserveChangesForPreference(
         prefs::kAppLevelPushNotificationPermissions,
@@ -201,10 +201,6 @@ bool DefaultBrowserPromoCompleted() {
 
 - (BOOL)allItemsComplete {
   return [_setUpList allItemsComplete];
-}
-
-- (void)disableModule {
-  set_up_list_prefs::DisableSetUpList(_prefService);
 }
 
 - (BOOL)shouldShowSetUpList {
@@ -312,10 +308,9 @@ bool DefaultBrowserPromoCompleted() {
     if ([self hasOptedInToNotifications]) {
       [self markSetUpListItemPrefComplete:SetUpListItemType::kNotifications];
     }
-  } else if (preferenceName ==
-                 prefs::kHomeCustomizationMagicStackSetUpListEnabled &&
+  } else if (preferenceName == ntp_tiles::prefs::kTipsHomeModuleEnabled &&
              !_prefService->GetBoolean(
-                 prefs::kHomeCustomizationMagicStackSetUpListEnabled)) {
+                 ntp_tiles::prefs::kTipsHomeModuleEnabled)) {
     [self hideSetUpList];
   }
 }

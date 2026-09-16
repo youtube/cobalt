@@ -11,7 +11,7 @@
 import("//buildtools/deps_revisions.gni")
 
 assert(
-    libcxx_revision == "cc488d26cfacef70c2df85c9f55bfcaad6f84a10",
+    libcxx_revision == "dc1441a0c244cb94e5d1b992911c7b8895d88e2c",
     "libcxx_headers.gni and third_party/libc++ are out of sync.$0x0A$0x0AIf you were messing around with the libc++ repository, run:$0x0A`buildtools/third_party/libc++/generate_libcxx_headers.py`$0x0A$0x0AIf the script doesn't resolve the error, file a bug to msta@ with reproduction details.$0x0A")
 
 libcxx_headers = [
@@ -232,6 +232,7 @@ libcxx_headers = [
   "//third_party/libc++/src/include/__atomic/check_memory_order.h",
   "//third_party/libc++/src/include/__atomic/contention_t.h",
   "//third_party/libc++/src/include/__atomic/fence.h",
+  "//third_party/libc++/src/include/__atomic/floating_point_helper.h",
   "//third_party/libc++/src/include/__atomic/is_always_lock_free.h",
   "//third_party/libc++/src/include/__atomic/kill_dependency.h",
   "//third_party/libc++/src/include/__atomic/memory_order.h",
@@ -855,6 +856,7 @@ libcxx_headers = [
   "//third_party/libc++/src/include/__type_traits/is_floating_point.h",
   "//third_party/libc++/src/include/__type_traits/is_function.h",
   "//third_party/libc++/src/include/__type_traits/is_fundamental.h",
+  "//third_party/libc++/src/include/__type_traits/is_generic_transparent_comparator.h",
   "//third_party/libc++/src/include/__type_traits/is_implicit_lifetime.h",
   "//third_party/libc++/src/include/__type_traits/is_implicitly_default_constructible.h",
   "//third_party/libc++/src/include/__type_traits/is_integral.h",
@@ -897,6 +899,7 @@ libcxx_headers = [
   "//third_party/libc++/src/include/__type_traits/make_32_64_or_128_bit.h",
   "//third_party/libc++/src/include/__type_traits/make_const_lvalue_ref.h",
   "//third_party/libc++/src/include/__type_traits/make_signed.h",
+  "//third_party/libc++/src/include/__type_traits/make_transparent.h",
   "//third_party/libc++/src/include/__type_traits/make_unsigned.h",
   "//third_party/libc++/src/include/__type_traits/maybe_const.h",
   "//third_party/libc++/src/include/__type_traits/nat.h",

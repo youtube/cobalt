@@ -56,10 +56,6 @@
 #include "services/network/public/mojom/network_service.mojom.h"
 #endif
 
-#if BUILDFLAG(IS_MAC)
-#include "components/os_crypt/sync/os_crypt_switches.h"
-#endif
-
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_switches.h"
 #endif
@@ -455,7 +451,7 @@ bool UtilityProcessHost::StartProcess() {
       switches::kSchedulerBoostUrgent,
 #endif
       switches::kFakeBackgroundBlurTogglePeriod,
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(USE_V4L2_CODEC)
       switches::kHardwareVideoDecodeFrameRate,
 #endif
 #if BUILDFLAG(IS_OZONE)
@@ -548,7 +544,7 @@ bool UtilityProcessHost::StartProcess() {
 #endif  // BUILDFLAG(USE_ZYGOTE)
 
   process_->LaunchWithFileData(std::move(delegate), std::move(cmd_line),
-                               std::move(options_.file_data_), true);
+                               std::move(options_.file_data_));
 
   return true;
 }

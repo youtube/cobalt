@@ -2,6 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""Test declarations
+
+Tests define a target to be built and executed on a builder. Tests can
+be referenced by a suite or bundle to include the test in the
+suite/bundle. Tests also define a bundle containing just the test
+itself, so they can be used wherever a bundle is expected.
+"""
+
 load("@chromium-luci//targets.star", "targets")
 
 targets.tests.gtest_test(
@@ -1847,14 +1855,6 @@ targets.tests.isolated_script_test(
 )
 
 targets.tests.gtest_test(
-    name = "mojo_rust_integration_unittests",
-)
-
-targets.tests.gtest_test(
-    name = "mojo_rust_unittests",
-)
-
-targets.tests.gtest_test(
     name = "mojo_test_apk",
 )
 
@@ -1960,6 +1960,43 @@ targets.tests.isolated_script_test(
 
 targets.tests.isolated_script_test(
     name = "ondevice_stability_tests_light",
+)
+
+targets.tests.isolated_script_test(
+    name = "ondevice_model_benchmark_tests_gpu_submodel",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
+    args = [
+        "--benchmark_binary_dir=./",
+        "--backends=gpu",
+        "--use_submodel",
+    ],
+    binary = "ondevice_model_benchmark_tests",
+)
+
+targets.tests.isolated_script_test(
+    name = "ondevice_model_benchmark_tests_gpu_no_submodel",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
+    args = [
+        "--benchmark_binary_dir=./",
+        "--backends=gpu",
+    ],
+    binary = "ondevice_model_benchmark_tests",
+)
+
+targets.tests.isolated_script_test(
+    name = "ondevice_model_benchmark_tests_cpu_no_submodel",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
+    args = [
+        "--benchmark_binary_dir=./",
+        "--backends=cpu",
+    ],
+    binary = "ondevice_model_benchmark_tests",
 )
 
 targets.tests.isolated_script_test(
@@ -3194,6 +3231,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3202,6 +3240,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3210,6 +3249,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3218,6 +3258,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3226,6 +3267,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3237,6 +3279,7 @@ targets.tests.gpu_telemetry_test(
     args = [
         "--use-worker=service",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3248,6 +3291,7 @@ targets.tests.gpu_telemetry_test(
     args = [
         "--use-worker=dedicated",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3259,6 +3303,7 @@ targets.tests.gpu_telemetry_test(
     args = [
         "--use-worker=shared",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3267,6 +3312,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.isolated_script_test(
@@ -3291,6 +3337,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3299,6 +3346,7 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
+    module_scheme = "webgpucts",
 )
 
 targets.tests.script_test(

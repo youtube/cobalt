@@ -264,6 +264,7 @@ public class MessageBannerViewTest {
      */
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/428750594")
     public void testSecondaryActionMenuInvokesPopupMenuEventHandlers() {
         PopupMenuShownListener listener = Mockito.mock(PopupMenuShownListener.class);
         ThreadUtils.runOnUiThreadBlocking(
@@ -319,7 +320,7 @@ public class MessageBannerViewTest {
                             BrowserUiListMenuUtils.getBasicListMenu(
                                     sActivity,
                                     menuItems,
-                                    (PropertyModel menuItem) -> {
+                                    (PropertyModel menuItem, View view) -> {
                                         assertThat(menuItem)
                                                 .isSameInstanceAs(menuItems.get(0).model);
                                         called.set(true);

@@ -59,7 +59,6 @@
 #include "ipc/ipc_mojo_handle_attachment.h"
 #include "ipc/ipc_mojo_param_traits.h"
 #include "ipc/ipc_sync_channel.h"
-#include "ipc/ipc_sync_message.h"
 #include "ipc/ipc_test.test-mojom.h"
 #include "ipc/urgent_message_observer.h"
 #include "mojo/core/test/mojo_test_base.h"
@@ -212,8 +211,6 @@ class ListenerThatQuits : public IPC::Listener {
   explicit ListenerThatQuits(base::OnceClosure quit_closure)
       : quit_closure_(std::move(quit_closure)) {}
 
-  bool OnMessageReceived(const IPC::Message& message) override { return true; }
-
   void OnChannelConnected(int32_t peer_pid) override {
     std::move(quit_closure_).Run();
   }
@@ -328,11 +325,7 @@ class ChannelProxyClient {
   std::unique_ptr<ChannelProxyRunner> runner_;
 };
 
-class DummyListener : public IPC::Listener {
- public:
-  // IPC::Listener
-  bool OnMessageReceived(const IPC::Message& message) override { return true; }
-};
+class DummyListener : public IPC::Listener {};
 
 class ListenerWithIndirectProxyAssociatedInterface
     : public IPC::Listener,
@@ -343,8 +336,6 @@ class ListenerWithIndirectProxyAssociatedInterface
   ~ListenerWithIndirectProxyAssociatedInterface() override = default;
 
   // IPC::Listener:
-  bool OnMessageReceived(const IPC::Message& message) override { return true; }
-
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
       mojo::ScopedInterfaceEndpointHandle handle) override {
@@ -452,7 +443,6 @@ class AssociatedInterfaceDroppingListener : public IPC::Listener {
  public:
   AssociatedInterfaceDroppingListener(base::OnceClosure callback)
       : callback_(std::move(callback)) {}
-  bool OnMessageReceived(const IPC::Message& message) override { return false; }
 
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
@@ -488,8 +478,6 @@ class ListenerThatVerifiesPeerPid : public TestListenerBase {
     EXPECT_EQ(peer_pid, kMagicChildId);
     RunQuitClosure();
   }
-
-  bool OnMessageReceived(const IPC::Message& message) override { NOTREACHED(); }
 };
 
 // The global PID is only used on systems that use the zygote. Hence, this
@@ -592,8 +580,6 @@ class ListenerWithUrgentMessageAssociatedInterface
   }
 
   // IPC::Listener:
-  bool OnMessageReceived(const IPC::Message& message) override { return true; }
-
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
       mojo::ScopedInterfaceEndpointHandle handle) override {

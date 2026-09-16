@@ -30,7 +30,7 @@
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
 #include "media/gpu/macros.h"
 #include "media/media_buildflags.h"
-#include "ui/gfx/buffer_format_util.h"
+#include "ui/gfx/buffer_types.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gl/gl_bindings.h"
 
@@ -337,8 +337,7 @@ void VdVideoDecodeAccelerator::Decode(scoped_refptr<DecoderBuffer> buffer,
 
 void VdVideoDecodeAccelerator::OnDecodeDone(int32_t bitstream_buffer_id,
                                             DecoderStatus status) {
-  DVLOGF(4) << "status: " << status.group() << ":"
-            << static_cast<int>(status.code());
+  status.DebugLog(4);
   DCHECK_CALLED_ON_VALID_SEQUENCE(client_sequence_checker_);
   DCHECK(client_);
 

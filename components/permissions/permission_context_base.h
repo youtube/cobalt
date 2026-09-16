@@ -110,6 +110,12 @@ class PermissionContextBase : public content_settings::Observer {
       std::unique_ptr<PermissionRequestData> request_data,
       BrowserPermissionCallback callback);
 
+  // Called in a permission request flow, to retrieve the current permission
+  // status with given a request_data. |render_frame_host| may be nullptr.
+  content::PermissionResult GetPermissionStatus(
+      const PermissionRequestData& request_data,
+      content::RenderFrameHost* render_frame_host) const;
+
   // Returns whether the permission has been granted, denied etc. given a
   // PermissionResolver. |render_frame_host| may be nullptr if the call is
   // coming from a context other than a specific frame.
@@ -200,8 +206,7 @@ class PermissionContextBase : public content_settings::Observer {
 
   // Implementors can override this method to update the icons on the
   // url bar with the result of the new permission.
-  virtual void UpdateTabContext(const PermissionRequestID& id,
-                                const GURL& requesting_origin,
+  virtual void UpdateTabContext(const PermissionRequestData& request_data,
                                 bool allowed) {}
 
   // Returns the browser context associated with this permission context.

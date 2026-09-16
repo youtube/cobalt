@@ -1,8 +1,20 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
+
+java_cpp_template("cobalt_build_info_srcjar") {
+  sources = [ "apk/app/src/main/java/dev/cobalt/coat/CobaltBuildInfo.tmpl" ]
+  defines = []
+  if (is_official_build) {
+    defines += [ "OFFICIAL_BUILD" ]
+  }
+  if (cobalt_is_release_build) {
+    defines += [ "COBALT_IS_RELEASE_BUILD" ]
+  }
+}
 
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
@@ -60,6 +72,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
   ]
 
   if (!use_evergreen) {
@@ -125,6 +138,7 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
@@ -170,12 +184,12 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
-    "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/AssetLoader.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
+    "apk/app/src/main/java/dev/cobalt/util/DeviceUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
@@ -307,6 +321,23 @@ shared_library_with_jni("libchrobalt") {
     "//media",
     "//skia",
     "//third_party/blink/public/common",
+
+    # Added in 143.7471:
+    #
+    # The first two were added due to https://crrev.com/c/6996548, which added
+    # a dependency on //components/permissions/android code to
+    # //services/device/geolocation.
+
+    # //components/permissions/android:core is a Cobalt-specific target that
+    # contains the C++ side of the JNI code without all the deps of the main
+    # //components/permissions target. The dependency on //components/webxr is
+    # just a byproduct of PermissionUtil.java being part of "core_java" and
+    # using a webxr class.
+    #
+    # //media/capture/video/android comes from https://crrev.com/c/7008390.
+    "//components/permissions/android:core",
+    "//components/webxr/android:features",
+    "//media/capture/video/android",
   ]
 
   # Explicit dependency required for JNI registration to be able to
@@ -352,6 +383,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/BaseStarboardBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltPictureInPictureActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
@@ -360,6 +392,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/coat/PlatformErrorTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]

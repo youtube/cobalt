@@ -15,6 +15,7 @@ source_set("save_to_drive") {
     "resumable_drive_uploader.h",
     "save_to_drive_event_dispatcher.h",
     "save_to_drive_flow.h",
+    "save_to_drive_recorder.h",
     "save_to_drive_utils.h",
     "time_remaining_calculator.h",
   ]
@@ -26,6 +27,7 @@ source_set("save_to_drive") {
     "resumable_drive_uploader.cc",
     "save_to_drive_event_dispatcher.cc",
     "save_to_drive_flow.cc",
+    "save_to_drive_recorder.cc",
     "save_to_drive_utils.cc",
     "time_remaining_calculator.cc",
   ]
@@ -41,9 +43,11 @@ source_set("save_to_drive") {
     "//chrome/browser/extensions",
     "//chrome/browser/pdf",
     "//chrome/browser/signin",
+    "//chrome/browser/ui/hats",
     "//chrome/browser/ui/save_to_drive",
     "//chrome/common/extensions",
     "//chrome/common/extensions/api",
+    "//components/download/public/common:public",
     "//components/drive",
     "//components/endpoint_fetcher",
     "//components/pdf/browser",
@@ -64,6 +68,7 @@ source_set("browser_tests") {
   deps = [
     ":save_to_drive",
     "//chrome/browser/pdf:pdf_extension_test_utils",
+    "//chrome/browser/ui/hats:test_support",
     "//chrome/browser/ui/save_to_drive",
     "//chrome/common/extensions/api",
     "//chrome/test:test_support",
@@ -82,6 +87,7 @@ source_set("unit_tests") {
     "drive_uploader_unittest.cc",
     "multipart_drive_uploader_unittest.cc",
     "resumable_drive_uploader_unittest.cc",
+    "save_to_drive_recorder_unittest.cc",
     "time_remaining_calculator_unittest.cc",
   ]
   deps = [

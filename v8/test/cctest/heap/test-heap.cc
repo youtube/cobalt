@@ -1502,49 +1502,6 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
 }
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
-TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
-  if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  v8::HandleScope scope(CcTest::isolate());
-
-  CompileRun(
-      "function make_closure(x) {"
-      "  return function() { return x + 3 };"
-      "}"
-      "var f = make_closure(5);"
-      "%PrepareFunctionForOptimization(f); f();"
-      "var g = make_closure(5);");
-
-  // Check f is compiled.
-  DirectHandle<String> f_name = factory->InternalizeUtf8String("f");
-  DirectHandle<Object> f_value =
-      Object::GetProperty(isolate, isolate->global_object(), f_name)
-          .ToHandleChecked();
-  DirectHandle<JSFunction> f_function = Cast<JSFunction>(f_value);
-  CHECK(f_function->is_compiled(isolate));
-
-  // Check g is not compiled.
-  DirectHandle<String> g_name = factory->InternalizeUtf8String("g");
-  DirectHandle<Object> g_value =
-      Object::GetProperty(isolate, isolate->global_object(), g_name)
-          .ToHandleChecked();
-  DirectHandle<JSFunction> g_function = Cast<JSFunction>(g_value);
-  CHECK(!g_function->is_compiled(isolate));
-
-  heap::SimulateIncrementalMarking(heap);
-  CompileRun("%OptimizeFunctionOnNextCall(f); f();");
-
-  // g should now have available an optimized function, unmarked by gc. The
-  // CompileLazy built-in will discover it and install it in the closure, and
-  // the incremental write barrier should be used.
-  CompileRun("g();");
-  CHECK(g_function->is_compiled(isolate));
-}
-
 void CompilationCacheCachingBehavior(bool retain_script) {
   // If we do not have the compilation cache turned off, this test is invalid.
   if (!v8_flags.compilation_cache) {
@@ -6036,7 +5993,8 @@ TEST(Regress598319) {
     }
   }
 
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   MarkingBarrier::PublishAll(heap);
 
   // Finish marking with bigger steps to speed up test.
@@ -6730,12 +6688,13 @@ HEAP_TEST(Regress670675) {
   heap->tracer()->StopFullCycleIfFinished();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    IsolateSafepointScope safepoint_scope(heap);
+    SafepointScope safepoint_scope(heap->isolate(),
+                                   kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting);
+                   i::GarbageCollectionReason::kTesting, "testing");
   }
   size_t array_length = 128 * KB;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;

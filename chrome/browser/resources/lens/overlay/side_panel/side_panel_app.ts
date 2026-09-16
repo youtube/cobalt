@@ -9,10 +9,12 @@ import '/strings.m.js';
 import '/lens/shared/searchbox_ghost_loader.js';
 import '/lens/shared/searchbox_shared_style.css.js';
 import '//resources/cr_components/searchbox/searchbox.js';
+import '//resources/cr_elements/cr_icons.css.js';
 import '//resources/cr_elements/cr_toast/cr_toast.js';
 import '//resources/cr_components/composebox/composebox.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+import type {ComposeboxElement} from '//resources/cr_components/composebox/composebox.js';
 import {HelpBubbleMixin} from '//resources/cr_components/help_bubble/help_bubble_mixin.js';
 import type {SearchboxElement} from '//resources/cr_components/searchbox/searchbox.js';
 import type {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
@@ -49,6 +51,7 @@ const RESHOW_FEEDBACK_TOAST_DELAY_MS = 4100;
 
 export interface LensSidePanelAppElement {
   $: {
+    composebox: ComposeboxElement,
     feedbackToast: FeedbackToastElement,
     ghostLoader: SidePanelGhostLoaderElement,
     messageToast: CrToastElement,
@@ -98,6 +101,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
       enableWebviewResults: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableWebviewResults'),
+      },
+      enableLensAimSuggestions: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableLensAimSuggestions'),
       },
       enableCsbMotionTweaks: {
         reflectToAttribute: true,
@@ -212,6 +220,15 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         value: false,
         reflectToAttribute: true,
       },
+      composeboxHeight_: {
+        type: Number,
+        value: 0,
+      },
+      isOverlayShowing: {
+        type: Boolean,
+        value: true,
+        reflectToAttribute: true,
+      },
     };
   }
 
@@ -250,6 +267,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare private enableClientSideAimHeader: boolean;
   // Whether the webview results container is enabled via feature flag.
   declare private enableWebviewResults: boolean;
+  declare private enableLensAimSuggestions: boolean;
   declare private isErrorPageVisible: boolean;
   // Whether the results iframe is currently loading. This needs to be done via
   // browser because the iframe is cross-origin. Default true since the side
@@ -268,8 +286,15 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   private postMessageReceiver?: PostMessageReceiver;
   // Whether the feedback toast has been explicitly dismissed by the user.
   private feedbackToastDismissed = false;
+  // Whether the composebox is currently focused.
+  private composeboxFocused = false;
+  // Whether the feedback toast has been shown for the current results.
+  private feedbackToastShown = false;
   // The timeout ID for reshowing the feedback toast.
   private feedbackToastReshowTimeoutId = -1;
+  // The timeout ID for showing the feedback toast after an initial delay
+  // after the results are loaded.
+  private feedbackToastShowAfterDelayTimeoutId = -1;
 
   private browserProxy: SidePanelBrowserProxy =
       SidePanelBrowserProxyImpl.getInstance();
@@ -282,8 +307,12 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare private searchboxSuggestionCount: number;
   // Whether the results in the iframe are currently on the AIM UI.
   declare private isOnAimResults: boolean;
+  declare private composeboxHeight_: number;
+  // Whether the visual selection overlay is currently showing.
+  declare private isOverlayShowing: boolean;
   private eventTracker_: EventTracker = new EventTracker();
-
+  // Watches for changes in the height of the composebox.
+  private composeboxResizeObserver_: ResizeObserver|null = null;
   private searchboxBoundingClientRectObserver: ResizeObserver =
       new ResizeObserver(this.onSearchboxBoundsChanged.bind(this));
 
@@ -331,6 +360,8 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
           this.onAimResultsChanged.bind(this)),
       this.browserProxy.callbackRouter.focusResultsFrame.addListener(
           this.focusResultsFrame.bind(this)),
+      this.browserProxy.callbackRouter.setIsOverlayShowing.addListener(
+          this.setIsOverlayShowing.bind(this)),
     ];
     this.eventTracker_.add(this.$.searchbox, 'mousedown', () => {
       this.suppressGhostLoader = false;
@@ -346,10 +377,27 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     this.eventTracker_.add(
         this.$.feedbackToast, 'feedback-toast-dismissed',
         () => this.feedbackToastDismissed = true);
+    this.eventTracker_.add(this.$.composebox, 'composebox-focus-in', () => {
+      this.$.feedbackToast.hide();
+      this.composeboxFocused = true;
+    });
+    this.eventTracker_.add(this.$.composebox, 'composebox-focus-out', () => {
+      this.composeboxFocused = false;
+    });
 
     // Start listening to postMessages on the window.
     this.postMessageReceiver = new PostMessageReceiver(
         SidePanelBrowserProxyImpl.getInstance(), this.getResults());
+
+    // If the composebox is enabled, start listening to resize events to update
+    // the composebox height.
+    if (this.enableAimSearchbox) {
+      const composebox = this.$.composebox;
+      this.composeboxResizeObserver_ = new ResizeObserver(() => {
+        this.composeboxHeight_ = composebox.offsetHeight;
+      });
+      this.composeboxResizeObserver_.observe(composebox);
+    }
   }
 
   override disconnectedCallback() {
@@ -362,6 +410,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     // Let the postMessageReceiver cleanup before it is destroyed.
     this.postMessageReceiver!.detach();
     this.postMessageReceiver = undefined;
+
+    if (this.composeboxResizeObserver_) {
+      this.composeboxResizeObserver_.disconnect();
+      this.composeboxResizeObserver_ = null;
+    }
   }
 
   private onBackArrowClick() {
@@ -385,6 +438,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
       // focused.
       this.blurSearchbox();
 
+      clearTimeout(this.feedbackToastShowAfterDelayTimeoutId);
       clearTimeout(this.feedbackToastReshowTimeoutId);
       this.$.feedbackToast.hide();
       this.$.messageToast.hide();
@@ -404,8 +458,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
       // Show the feedback on every result load by showing it as soon as the
       // result load animation is complete.
-      this.feedbackToastDismissed = false;
-      this.showFeedbackToast();
+      this.hideAndReshowFeedbackToast();
     }
   }
 
@@ -586,15 +639,27 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     if (!loadTimeData.getBoolean('newFeedbackEnabled')) {
       return;
     }
-
     await this.$.messageToast.hide();
+
+    if (loadTimeData.getBoolean('updatedFeedbackEnabled')) {
+      this.feedbackToastShowAfterDelayTimeoutId = setTimeout(() => {
+        if (this.composeboxFocused) {
+          return;
+        }
+        this.feedbackToastShown = true;
+        this.$.feedbackToast.show();
+      }, loadTimeData.getInteger('updatedFeedbackToastTimeoutMs'));
+      return;
+    }
+
+    this.feedbackToastShown = true;
     this.$.feedbackToast.show();
   }
 
   private async showMessageToast(message: string) {
     this.$.feedbackToast.hide();
     await this.showToast(this.$.messageToast, message);
-    if (!this.feedbackToastDismissed) {
+    if (!this.feedbackToastDismissed && this.feedbackToastShown) {
       clearTimeout(this.feedbackToastReshowTimeoutId);
       this.feedbackToastReshowTimeoutId = setTimeout(() => {
         this.showFeedbackToast();
@@ -603,10 +668,27 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   }
 
   private onAimResultsChanged(onAim: boolean) {
+    if (onAim && loadTimeData.getBoolean('updatedFeedbackEnabled')) {
+      // If the results are changing to AIM results, reset the feedback toast
+      // dismissed state and show the feedback toast because the SRP wil not
+      // reload.
+      this.hideAndReshowFeedbackToast();
+    }
+
     this.isOnAimResults = onAim;
   }
 
+  private setIsOverlayShowing(isShowing: boolean) {
+    this.isOverlayShowing = isShowing;
+  }
+
   private focusResultsFrame() {
+    // If the results frame is called to be focused, it is because new results
+    // are being loaded. This should dismiss the feedback toast and reshow it.
+    if (loadTimeData.getBoolean('updatedFeedbackEnabled')) {
+      this.hideAndReshowFeedbackToast();
+    }
+
     this.getResults().focus();
   }
 
@@ -628,7 +710,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   private onHideMessageToastClick() {
     this.$.messageToast.hide();
-    if (!this.feedbackToastDismissed) {
+    if (!this.feedbackToastDismissed && this.feedbackToastShown) {
       clearTimeout(this.feedbackToastReshowTimeoutId);
       this.showFeedbackToast();
     }
@@ -641,6 +723,12 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
       return this.$.resultsWebview;
     }
     return this.$.results;
+  }
+
+  private hideAndReshowFeedbackToast() {
+    this.$.feedbackToast.hide();
+    this.feedbackToastDismissed = false;
+    this.showFeedbackToast();
   }
 
   makeGhostLoaderVisibleForTesting() {

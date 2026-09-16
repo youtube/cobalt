@@ -125,6 +125,7 @@ group: cplusplus
     # even when no code actually uses it.
     # ICU must not _use_ the global operator delete.
     "operator delete(void*)"
+    "operator delete(void*, unsigned long)"
     # ICU also must not use the global operator new.
     # "operator new[](unsigned long)"
 
@@ -439,7 +440,7 @@ group: script_runs
 group: uchar
     uchar.o
   deps
-    utrie2
+    ucptrie utrie2
 
 group: messagepattern  # for MessageFormat and tools
     messagepattern.o
@@ -993,6 +994,7 @@ group: number_output
     # PluralRules internals:
     unifiedcache
     display_options
+    icu_utility_with_props
 
 group: numberformatter
     # ICU 60+ NumberFormatter API
@@ -1093,6 +1095,11 @@ group: formatting
     tmunit.o tmutamt.o tmutfmt.o
     # messageformat
     choicfmt.o msgfmt.o plurfmt.o selfmt.o umsg.o
+    # MessageFormat 2
+    messageformat2.o messageformat2_arguments.o messageformat2_checker.o
+    messageformat2_data_model.o messageformat2_errors.o messageformat2_evaluation.o
+    messageformat2_formattable.o messageformat2_formatter.o
+    messageformat2_function_registry.o messageformat2_parser.o messageformat2_serializer.o
   deps
     decnumber formattable format units numberformatter number_skeletons numberparser
     formatted_value_sbimpl
@@ -1116,6 +1123,7 @@ group: units_extra
     measunit_extra.o
   deps
     units bytestriebuilder bytestrie resourcebundle uclean_i18n
+    double_conversion
 
 group: units
     measunit.o currunit.o

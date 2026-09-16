@@ -79,6 +79,7 @@ import org.robolectric.annotation.LooperMode.Mode;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -125,6 +126,7 @@ import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener.DialogType;
@@ -154,7 +156,6 @@ import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.dragdrop.DragDropGlobalState.TrackerToken;
 import org.chromium.ui.shadows.ShadowAppCompatResources;
 import org.chromium.ui.util.MotionEventUtils;
-import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.RectProvider;
 import org.chromium.url.GURL;
 
@@ -589,8 +590,8 @@ public class StripLayoutHelperTest {
                 .startAnimations(animationListCaptor.capture(), any());
         final List<Animator> animationList = animationListCaptor.getValue();
         // Only the tabs that come after the closed tab should have to move and get animations
-        // created, plus the new tab button offset animation.
-        final int expectedAnimationCount = numTabs - closeTabIndex;
+        // created.
+        final int expectedAnimationCount = numTabs - closeTabIndex - 1;
         assertEquals(expectedAnimationCount, animationList.size());
     }
 
@@ -635,10 +636,7 @@ public class StripLayoutHelperTest {
                 .verify(stripLayoutHelperSpy)
                 .startAnimations(animationListCaptor.capture(), any());
         final List<Animator> animationList = animationListCaptor.getValue();
-        assertEquals(
-                "The only animation should be for the new tab button offset",
-                1,
-                animationList.size());
+        assertEquals("There should not be an animation", 0, animationList.size());
     }
 
     @Test
@@ -684,10 +682,7 @@ public class StripLayoutHelperTest {
                 .startAnimations(animationListCaptor.capture(), any());
         final List<Animator> animationList = animationListCaptor.getValue();
         assertEquals(
-                "There should be 11 animations for the visible tabs, "
-                        + "plus the new tab button offset animation",
-                12,
-                animationList.size());
+                "There should be 11 animations for the visible tabs.", 11, animationList.size());
     }
 
     @Test
@@ -741,9 +736,50 @@ public class StripLayoutHelperTest {
                 .startAnimations(animationListCaptor.capture(), any());
         final List<Animator> animationList = animationListCaptor.getValue();
         assertEquals(
-                "There should be one animation for the tab moving into the visible bounds, "
-                        + "plus the new tab button offset animation",
-                2,
+                "There should be one animation for the tab moving into the visible bounds",
+                1,
+                animationList.size());
+    }
+
+    @Test
+    // TODO(crbug.com/425740363): Rewrite the test to work with the animation enabled.
+    @DisableFeatures({ChromeFeatureList.TABLET_TAB_STRIP_ANIMATION})
+    public void testResizeStripOnTabClose_AnimateNtb() {
+        int numTabs = 50;
+        initializeTest(false, false, 0, numTabs);
+        // Trigger a size change so the strip layout tab heights and widths get set.
+        mStripLayoutHelper.onSizeChanged(
+                SCREEN_WIDTH, SCREEN_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        // Set the initial scroll offset to trigger an update to draw X positions.
+        mStripLayoutHelper.setScrollOffsetForTesting(0);
+
+        final StripLayoutHelper stripLayoutHelperSpy = spy(mStripLayoutHelper);
+        final StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
+        stripLayoutHelperSpy.handleCloseButtonClick(
+                tabs[tabs.length - 1], MotionEventUtils.MOTION_EVENT_BUTTON_NONE);
+
+        // Verify the initial NTB offset.
+        assertEquals(
+                mStripLayoutHelper.getNewTabButton().getOffsetX(),
+                mStripLayoutHelper.getUnpinnedTabWidthForTesting() - TAB_OVERLAP_WIDTH_DP,
+                EPSILON);
+
+        final Animator runningAnimator = stripLayoutHelperSpy.getRunningAnimatorForTesting();
+        // Initial animation is the tab removal animation, and after that ends the
+        // resizeStripOnTabClose animations begin.
+        runningAnimator.end();
+
+        final ArgumentCaptor<List<Animator>> animationListCaptor =
+                ArgumentCaptor.forClass(List.class);
+        final InOrder stripLayoutOrder = inOrder(stripLayoutHelperSpy);
+        stripLayoutOrder.verify(stripLayoutHelperSpy).startAnimations(any(), any());
+        stripLayoutOrder
+                .verify(stripLayoutHelperSpy)
+                .startAnimations(animationListCaptor.capture(), any());
+        final List<Animator> animationList = animationListCaptor.getValue();
+        assertEquals(
+                "There should be one animation for the NTB sliding to its new position.",
+                1,
                 animationList.size());
     }
 
@@ -797,6 +833,55 @@ public class StripLayoutHelperTest {
 
         // Verify strip has no tabs.
         assertTrue(mStripLayoutHelper.getStripLayoutTabsForTesting().length == 0);
+    }
+
+    @Test
+    public void testQueueAnimationsForNonStripClosures() {
+        // Disable testing mode so we can queue animations. Initialize and group first two tabs.
+        CompositorAnimationHandler.setTestingMode(/* enabled= */ false);
+        initializeTest(false, false, 0);
+        groupTabs(0, 2, TAB_GROUP_ID_1);
+
+        // Notify tab closures and verify state.
+        List<Tab> closingTabs = new ArrayList<>();
+        closingTabs.add(mModel.getTabAt(0));
+        closingTabs.add(mModel.getTabAt(1));
+        mModel.closeTabs(TabClosureParams.closeTabs(closingTabs).build());
+        mStripLayoutHelper.multipleTabsClosed(closingTabs);
+        int numClosingTabs = mStripLayoutHelper.getClosingTabsForTesting().size();
+        assertEquals("Should have two closing tabs.", 2, numClosingTabs);
+
+        // Notify group removal and verify state.
+        when(mTabGroupModelFilter.isTabInTabGroup(any())).thenReturn(false);
+        mStripLayoutHelper
+                .getTabGroupModelFilterObserverForTesting()
+                .didRemoveTabGroup(
+                        Tab.INVALID_TAB_ID, TAB_GROUP_ID_1, DidRemoveTabGroupReason.CLOSE);
+        int numClosingGroupTitles = mStripLayoutHelper.getClosingGroupTitlesForTesting().size();
+        assertEquals("Should have one closing group title.", 1, numClosingGroupTitles);
+
+        // Verify no animations have started yet.
+        assertNull(
+                "Animations should not yet be started.",
+                mStripLayoutHelper.getRunningAnimatorForTesting());
+
+        // Update layout. Verify the queued animations have been started, and the views have not yet
+        // been removed.
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+        assertNotNull(
+                "Animations should now be started.",
+                mStripLayoutHelper.getRunningAnimatorForTesting());
+        assertEquals(
+                "Closed views should still be present while the animations are running.",
+                6,
+                mStripLayoutHelper.getStripLayoutViewsForTesting().length);
+
+        // Finish animations, then verify the closing views have been removed.
+        mStripLayoutHelper.finishAnimations();
+        assertEquals(
+                "Closed views should no longer be present.",
+                3,
+                mStripLayoutHelper.getStripLayoutViewsForTesting().length);
     }
 
     @Test
@@ -2570,14 +2655,13 @@ public class StripLayoutHelperTest {
                 "MultiStepAnimations should still be running.",
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
-        // Act: Set animation time forward by 250ms for next set of animations.
-        mStripLayoutHelper.getRunningAnimatorForTesting().end();
-
         // Act: End the animations to apply final values.
+        mStripLayoutHelper.finishAnimations();
+
+        // Act: Fake the tab closure and end the animation, so the tab is removed from the model.
         Tab closingTab = mModel.getTabAt(2);
-        Animator runningAnimator = mStripLayoutHelper.getRunningAnimatorForTesting();
-        runningAnimator.end();
         mStripLayoutHelper.tabClosed(closingTab);
+        mStripLayoutHelper.finishAnimations();
 
         // availableSize = width(800) - NTB(32) - endPadding(8) - offsetXLeft(10) - offsetXRight(20)
         // - groupTitleWidth(46) - titleOverlapWidth(4) = 680.
@@ -3569,6 +3653,7 @@ public class StripLayoutHelperTest {
     public void testTabClosed() {
         // Initialize with 10 tabs.
         int tabCount = 10;
+        setupForAnimations();
         initializeTest(false, false, 0, tabCount);
         mStripLayoutHelper.onSizeChanged(
                 SCREEN_WIDTH, SCREEN_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
@@ -3587,12 +3672,13 @@ public class StripLayoutHelperTest {
         // Trigger update and verify the tab strip matches the tab model.
         expectedNumTabs = 9;
         mStripLayoutHelper.tabClosed(tab);
+        mStripLayoutHelper.finishAnimations();
         assertEquals(
                 "Tab strip should match tab model.",
                 expectedNumTabs,
                 mStripLayoutHelper.getStripLayoutTabsForTesting().length);
-        verify(mUpdateHost, times(5)).requestUpdate();
-        verify(mUpdateHost, times(3)).requestUpdate(any());
+        verify(mUpdateHost, times(9)).requestUpdate();
+        verify(mUpdateHost, times(4)).requestUpdate(any());
     }
 
     @Test
@@ -3654,7 +3740,7 @@ public class StripLayoutHelperTest {
 
         // Act
         mStripLayoutHelper.handleCloseButtonClick(tabs[selectedTabIndex], motionEventButtonState);
-        mStripLayoutHelper.getRunningAnimatorForTesting().end(); // end the closing animation
+        mStripLayoutHelper.finishAnimations(); // end the closing animation
 
         // Assert
         TestTabRemover testTabRemover = (TestTabRemover) mModel.getTabRemover();
@@ -3686,10 +3772,9 @@ public class StripLayoutHelperTest {
                 "MultiStepAnimations should have started.",
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
-        // Act: End the tab closing animations to apply final values.
+        // Act: Only end the first animation, so the multi-step animations are still running.
         Tab closingTab = mModel.getTabAt(14);
-        Animator runningAnimator = mStripLayoutHelper.getRunningAnimatorForTesting();
-        runningAnimator.end();
+        mStripLayoutHelper.getRunningAnimatorForTesting().end();
         mStripLayoutHelper.tabClosed(closingTab);
 
         // Assert: Tab is closed and animations are still running.
@@ -3703,7 +3788,7 @@ public class StripLayoutHelperTest {
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
         // Act: End next set of animations to apply final values.
-        mStripLayoutHelper.getRunningAnimatorForTesting().end();
+        mStripLayoutHelper.finishAnimations();
 
         // Assert: Animations completed. The tab width is not resized and drawX does not change.
         // stripRightBound = width(800) - offsetXRight(20) = 780;
@@ -3745,10 +3830,9 @@ public class StripLayoutHelperTest {
                 "MultiStepAnimations should have started.",
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
-        // Act: End the animations to apply final values.
+        // Act: Only end the first animation, so the multi-step animations are still running.
         Tab closingTab = mModel.getTabAt(2);
-        Animator runningAnimator = mStripLayoutHelper.getRunningAnimatorForTesting();
-        runningAnimator.end();
+        mStripLayoutHelper.getRunningAnimatorForTesting().end();
         mStripLayoutHelper.tabClosed(closingTab);
 
         // Assert: Tab is closed and animations are still running.
@@ -3758,8 +3842,8 @@ public class StripLayoutHelperTest {
                 "MultiStepAnimations should still be running.",
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
-        // Act: Set animation time forward by 250ms for next set of animations.
-        mStripLayoutHelper.getRunningAnimatorForTesting().end();
+        // Act: Finish the remaining animations.
+        mStripLayoutHelper.finishAnimations();
 
         // Assert: Animations completed. The tab width is resized, tab.drawX is changed and
         // newTabButton.drawX is also changed.
@@ -3797,8 +3881,7 @@ public class StripLayoutHelperTest {
                 tabs[2], MotionEventUtils.MOTION_EVENT_BUTTON_NONE);
 
         // End the tab closure animation.
-        var runningAnimator = mStripLayoutHelper.getRunningAnimatorForTesting();
-        runningAnimator.end();
+        mStripLayoutHelper.finishAnimations();
 
         verify(mTabHoverCardView).hide();
     }
@@ -3828,11 +3911,13 @@ public class StripLayoutHelperTest {
     @EnableFeatures(ChromeFeatureList.TAB_STRIP_MOUSE_CLOSE_RESIZE_DELAY)
     public void testPendingMouseTabClosure_ClearOnTabClosure() {
         // Initialize and mark a pending a mouse tab closure.
+        setupForAnimations();
         initializeTest(/* tabIndex= */ 0);
         mStripLayoutHelper.setPendingMouseTabClosureForTesting(true);
 
         // Fake a tab closure.
         mStripLayoutHelper.tabClosed(mModel.getTabAt(0));
+        mStripLayoutHelper.finishAnimations();
 
         // Verify state is cleared.
         verifyPendingMouseTabClosure(/* expectedPendingMouseTabClosure= */ false);
@@ -4538,9 +4623,7 @@ public class StripLayoutHelperTest {
 
         mStripLayoutHelper.updateGroupTextAndSharedState(tabGroupId);
         mStripLayoutHelper.rebuildStripViews();
-        if (mStripLayoutHelper.getRunningAnimatorForTesting() != null) {
-            mStripLayoutHelper.getRunningAnimatorForTesting().end();
-        }
+        mStripLayoutHelper.finishAnimations();
     }
 
     private void setTabStripDragHandlerMock() {
@@ -4589,7 +4672,7 @@ public class StripLayoutHelperTest {
     @Test
     @Config(sdk = Build.VERSION_CODES.R)
     public void testDrag_sendMoveWindowBroadcast_success() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         // Setup with tabs and select first tab.
         setTabStripDragHandlerMock();
         when(mToolbarContainerView.getContext()).thenReturn(mActivity);
@@ -5197,7 +5280,7 @@ public class StripLayoutHelperTest {
         initializeTest(false, false, 3, 5);
         mStripLayoutHelper.onSizeChanged(
                 SCREEN_WIDTH, SCREEN_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
-        groupTabs(3, 4, TAB_GROUP_ID_1);
+        groupTabs(3, 5, TAB_GROUP_ID_1);
 
         // Assert: the 4th tab is selected.
         assertEquals(
@@ -5498,7 +5581,7 @@ public class StripLayoutHelperTest {
 
     @Test
     public void testTabTearingXrIph() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         initializeTest(false, false, 0, 1);
         mStripLayoutHelper.onSizeChanged(
                 SCREEN_WIDTH, SCREEN_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
@@ -5951,11 +6034,9 @@ public class StripLayoutHelperTest {
                 "MultiStepAnimations should not have started.",
                 mStripLayoutHelper.isMultiStepCloseAnimationsRunningForTesting());
 
-        // Act: End the tab closing animations to apply final values.
+        // Act: Fake the tab closure and end the animation, so the tab is removed from the model.
         Tab closingTab = mModel.getTabAt(9);
-        Animator runningAnimator = mStripLayoutHelper.getRunningAnimatorForTesting();
-        assertNotNull(runningAnimator);
-        runningAnimator.end();
+        mStripLayoutHelper.finishAnimations();
         mStripLayoutHelper.tabClosed(closingTab);
 
         // Assert: Tab is closed.
@@ -6358,6 +6439,27 @@ public class StripLayoutHelperTest {
         List<Integer> expectedTabIds =
                 List.of(tabs[0].getTabId(), tabs[1].getTabId(), tabs[3].getTabId());
         verify(mTabContextMenuCoordinator).showMenu(any(), eq(expectedTabIds));
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING})
+    public void testTabContextMenu_MultipleTabsSelected_WithGroup() {
+        // Setup
+        initializeTest(false, false, 0, 5);
+        mStripLayoutHelper.onSizeChanged(
+                SCREEN_WIDTH, SCREEN_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+        StripLayoutView[] stripViews = mStripLayoutHelper.getStripLayoutViewsForTesting();
+        StripLayoutTab tab = (StripLayoutTab) stripViews[4];
+        tab.setKeyboardFocused(true);
+        // Action: Multiselect the keyboard focused tab.
+        mStripLayoutHelper.multiselectKeyboardFocusedItem();
+        // Verify
+        assertTrue(mModel.isTabMultiSelected(tab.getTabId()));
+        // Action : Multiselect the keyboard focused tab again to deselect it.
+        mStripLayoutHelper.multiselectKeyboardFocusedItem();
+        // Verify
+        assertFalse(mModel.isTabMultiSelected(tab.getTabId()));
     }
 
     // 1. Moving a tab to higher indices, leaving a tab group

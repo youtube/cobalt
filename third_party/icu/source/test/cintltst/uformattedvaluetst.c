@@ -37,7 +37,7 @@ void addUFormattedValueTest(TestNode** root) {
 }
 
 
-static void TestBasic() {
+static void TestBasic(void) {
     UErrorCode status = U_ZERO_ERROR;
     UConstrainedFieldPosition* ucfpos = ucfpos_open(&status);
     assertSuccess("opening ucfpos", &status);
@@ -56,7 +56,7 @@ static void TestBasic() {
     ucfpos_close(ucfpos);
 }
 
-void TestSetters() {
+void TestSetters(void) {
     UErrorCode status = U_ZERO_ERROR;
     UConstrainedFieldPosition* ucfpos = ucfpos_open(&status);
     assertSuccess("opening ucfpos", &status);
@@ -144,13 +144,13 @@ static void AssertAllPartsEqual(
     UErrorCode status = U_ZERO_ERROR;
 
     char message[256];
-    uprv_strncpy(message, messagePrefix, 256);
+    uprv_strncpy(message, messagePrefix, UPRV_LENGTHOF(message)-2);
     int32_t prefixEnd = (int32_t)uprv_strlen(messagePrefix);
     message[prefixEnd++] = ':';
     message[prefixEnd++] = ' ';
-    U_ASSERT(prefixEnd < 256);
+    U_ASSERT(prefixEnd < UPRV_LENGTHOF(message));
 
-#define AAPE_MSG(suffix) (uprv_strncpy(message+prefixEnd, suffix, 256-prefixEnd)-prefixEnd)
+#define AAPE_MSG(suffix) (uprv_strncpy(message+prefixEnd, suffix, UPRV_LENGTHOF(message)-prefixEnd)-prefixEnd)
 
     UFieldCategory _category = ucfpos_getCategory(ucfpos, &status);
     assertSuccess(AAPE_MSG("_"), &status);

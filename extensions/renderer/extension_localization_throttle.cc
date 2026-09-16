@@ -13,6 +13,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/renderer/extension_frame_helper.h"
 #include "extensions/renderer/renderer_extension_registry.h"
@@ -37,15 +38,15 @@ const char kCancelReason[] = "ExtensionLocalizationThrottle";
 
 // Return the extension id in case it's guid was supplied in the host instead.
 ExtensionId GetExtensionIdForGurl(const GURL& gurl) {
-  if (crx_file::id_util::IdIsValid(gurl.host())) {
-    return gurl.host();
+  if (crx_file::id_util::IdIsValid(gurl.GetHost())) {
+    return gurl.GetHost();
   }
 
   // Find an extension when expecting the host to be a guid.
   const Extension* extension =
       RendererExtensionRegistry::Get()->GetExtensionOrAppByURL(
           gurl, /*include_guid=*/true);
-  return extension ? extension->id() : gurl.host();
+  return extension ? extension->id() : gurl.GetHost();
 }
 
 class ExtensionLocalizationURLLoader : public network::mojom::URLLoaderClient,
@@ -291,7 +292,11 @@ void ExtensionLocalizationThrottle::WillProcessResponse(
 
   // `response_url.host()` is expected to be the extension id. However, it could
   // be a guid e.g. when a web service worker intercepts a guid fetch for css.
-  ExtensionId extension_id = GetExtensionIdForGurl(response_url);
+  ExtensionId extension_id =
+      base::FeatureList::IsEnabled(
+          extensions_features::kExtensionLocalizationGuid)
+          ? GetExtensionIdForGurl(response_url)
+          : response_url.GetHost();
 
   auto loader = std::make_unique<ExtensionLocalizationURLLoader>(
       frame_token_, extension_id, std::move(url_loader_client));

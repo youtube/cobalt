@@ -105,7 +105,6 @@ chrome/test/data/extensions/manifest_tests
 chrome/test/data/mac_installer
 chrome/test/data/safe_browsing
 chrome/test/data/safe_browsing/download_protection
-chrome/test/data/third_party/kraken/tests/kraken-1.1
 chrome/test/data/third_party/spaceport
 chrome/test/data/updater
 chrome/test/data/webui
@@ -177,6 +176,7 @@ content/public/browser
 content/public/common
 content/renderer
 content/test/gpu
+content/web_test/browser
 content/web_test/renderer
 device/gamepad
 device/vr/public/mojom
@@ -286,8 +286,6 @@ third_party/afl/src/docs
 third_party/afl/src/llvm_mode
 third_party/afl/src/qemu_mode
 third_party/android_build_tools/json
-third_party/android_deps/autorolled/committed/libs/com_google_errorprone_error_prone_annotations
-third_party/android_deps/autorolled/committed/libs/com_google_protobuf_protobuf_javalite
 third_party/android_deps/buildSrc/src/main/groovy
 third_party/android_deps/libs
 third_party/android_toolchain
@@ -324,7 +322,6 @@ third_party/blink/public/devtools_protocol/domains
 third_party/blink/public/mojom/fenced_frame
 third_party/blink/public/mojom/frame
 third_party/blink/public/mojom/input
-third_party/blink/public/mojom/manifest
 third_party/blink/public/mojom/printing
 third_party/blink/public/mojom/service_worker
 third_party/blink/public/mojom/storage_key
@@ -376,7 +373,6 @@ third_party/blink/tools/blinkpy/style/checkers
 third_party/blink/tools/blinkpy/w3c
 third_party/blink/tools/blinkpy/web_tests
 third_party/blink/tools/blinkpy/web_tests/controllers
-third_party/blink/tools/blinkpy/web_tests/layout_package
 third_party/blink/tools/blinkpy/web_tests/port
 third_party/blink/tools/blinkpy/wpt_tests
 third_party/blink/web_tests/dom/domparsing
@@ -445,7 +441,6 @@ third_party/blink/web_tests/wpt_internal/html/semantics/parser-blocking-styleshe
 third_party/blink/web_tests/wpt_internal/webgpu/canvas_webgpu_transfer
 third_party/brotli
 third_party/brotli/enc
-third_party/bspatch
 third_party/byte_buddy
 third_party/chevron
 third_party/closure_compiler/compiler
@@ -672,8 +667,8 @@ third_party/rust/chromium_crates_io/vendor/prost-v0_14
 third_party/rust/chromium_crates_io/vendor/qr_code-v2
 third_party/rust/chromium_crates_io/vendor/quote-v1
 third_party/rust/chromium_crates_io/vendor/quote-v1/.github/workflows
-third_party/rust/chromium_crates_io/vendor/read-fonts-v0_34/src/tables
-third_party/rust/chromium_crates_io/vendor/read-fonts-v0_34/src/tables/postscript
+third_party/rust/chromium_crates_io/vendor/read-fonts-v0_35/src/tables
+third_party/rust/chromium_crates_io/vendor/read-fonts-v0_35/src/tables/postscript
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/src/util
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/dfa
@@ -714,8 +709,8 @@ third_party/rust/chromium_crates_io/vendor/winapi-util-v0_1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52/src/Windows/Wdk/System/SystemServices
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52/src/Windows/Win32/Networking/Clustering
-third_party/rust/chromium_crates_io/vendor/zip-v4
-third_party/rust/chromium_crates_io/vendor/zip-v4/src
+third_party/rust/chromium_crates_io/vendor/zip-v5
+third_party/rust/chromium_crates_io/vendor/zip-v5/src
 third_party/rust/miniz_oxide/v0_8
 third_party/screen-ai
 third_party/sentencepiece/src

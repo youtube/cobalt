@@ -77,8 +77,9 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
       return std::nullopt;
     }
 
-    // We only construct Tile objects that are ready to draw.
-    bool IsReadyToDraw() const { return true; }
+    bool IsReadyToDraw() const {
+      return !std::holds_alternative<NoContents>(contents_);
+    }
 
    private:
     const raw_ref<TileDisplayLayerImpl> layer_;
@@ -140,7 +141,6 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
 
   Tiling& GetOrCreateTilingFromScaleKey(float scale_key);
   void RemoveTiling(float scale_key);
-
   void SetSolidColor(std::optional<SkColor4f> color) { solid_color_ = color; }
   void SetIsBackdropFilterMask(bool is_backdrop_filter_mask) {
     is_backdrop_filter_mask_ = is_backdrop_filter_mask;
@@ -151,6 +151,7 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
   void SetNearestNeighbor(bool nearest_neighbor) {
     nearest_neighbor_ = nearest_neighbor;
   }
+  void SetRecordedBounds(const gfx::Rect& bounds) { recorded_bounds_ = bounds; }
   bool is_directly_composited_image() const {
     return is_directly_composited_image_;
   }
@@ -169,6 +170,11 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
                              gfx::SizeF* resource_uv_size) const override;
   gfx::Rect GetDamageRect() const override;
   void ResetChangeTracking() override;
+  gfx::ContentColorUsage GetContentColorUsage() const override;
+
+  void SetContentColorUsage(gfx::ContentColorUsage content_color_usage) {
+    content_color_usage_ = content_color_usage;
+  }
 
   void RecordDamage(const gfx::Rect& damage_rect);
 
@@ -188,6 +194,8 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
   bool is_backdrop_filter_mask_ = false;
   bool is_directly_composited_image_ = false;
   bool nearest_neighbor_ = false;
+  gfx::ContentColorUsage content_color_usage_ = gfx::ContentColorUsage::kSRGB;
+  gfx::Rect recorded_bounds_;
 
   // Denotes an area that is damaged and needs redraw. This is in the layer's
   // space.

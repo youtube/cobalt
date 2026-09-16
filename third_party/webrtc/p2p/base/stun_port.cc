@@ -89,7 +89,7 @@ class StunBindingRequest : public StunRequest {
     }
 
     // The keep-alive requests will be stopped after its lifetime has passed.
-    if (WithinLifetime(Connection::AlignTime(env().clock().CurrentTime()))) {
+    if (WithinLifetime(env().clock().CurrentTime())) {
       port_->request_manager_.Send(std::make_unique<StunBindingRequest>(
                                        port_, server_addr_, start_time_),
                                    /*delay=*/port_->stun_keepalive_delay());
@@ -112,7 +112,7 @@ class StunBindingRequest : public StunRequest {
         attr ? attr->reason()
              : "STUN binding response with no error code attribute.");
 
-    Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
+    Timestamp now = env().clock().CurrentTime();
     if (WithinLifetime(now) && now - start_time_ < kRetryTimeout) {
       port_->request_manager_.Send(std::make_unique<StunBindingRequest>(
                                        port_, server_addr_, start_time_),
@@ -510,8 +510,7 @@ void UDPPort::SendStunBindingRequest(const SocketAddress& stun_addr) {
         }
 
         request_manager_.Send(std::make_unique<StunBindingRequest>(
-            this, stun_addr,
-            Connection::AlignTime(env().clock().CurrentTime())));
+            this, stun_addr, env().clock().CurrentTime()));
       });
 }
 

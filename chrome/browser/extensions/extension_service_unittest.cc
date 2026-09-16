@@ -141,6 +141,7 @@
 #include "extensions/browser/updater/extension_downloader_test_helper.h"
 #include "extensions/browser/updater/null_extension_cache.h"
 #include "extensions/browser/zipfile_installer.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"
@@ -193,6 +194,8 @@
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "content/public/browser/plugin_service.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 // The blocklist tests rely on the safe-browsing database.
 #if BUILDFLAG(SAFE_BROWSING_DB_LOCAL)
@@ -518,8 +521,8 @@ class MockProviderVisitor : public ExternalProviderInterface::VisitorInterface {
       const std::string& json_data) {
     // We also parse the file into a dictionary to compare what we get back
     // from the provider.
-    std::optional<base::Value::Dict> json_value =
-        base::JSONReader::ReadDict(json_data);
+    std::optional<base::Value::Dict> json_value = base::JSONReader::ReadDict(
+        json_data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     if (!json_value) {
       ADD_FAILURE() << "Unable to deserialize json data";
       return std::nullopt;
@@ -6067,32 +6070,6 @@ TEST_F(ExtensionServiceTest, MAYBE_LoadsFromCommandLineForUsersWithoutPolicy) {
   histograms.ExpectBucketCount(
       "Extensions.LoadingFromCommandLine",
       ExtensionService::LoadExtensionFlag::kDisableExtensionsExcept, 1);
-}
-
-TEST_F(ExtensionServiceTest, DisableLoadExtensionCommandLineSwitch) {
-  base::HistogramTester histograms;
-  base::test::ScopedFeatureList feature_list(
-      /*enable_feature=*/extensions_features::
-          kDisableLoadExtensionCommandLineSwitch);
-  InitializeEmptyExtensionServiceWithTestingPrefs();
-
-  // Try to load an extension from command line.
-  base::FilePath path =
-      base::MakeAbsoluteFilePath(data_dir().AppendASCII("good_unpacked"));
-  base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
-      switches::kLoadExtension, path);
-  service()->Init();
-
-  ExtensionSystem* extension_system = ExtensionSystem::Get(profile());
-  // Wait until the extension system is ready.
-  base::RunLoop run_loop;
-  extension_system->ready().Post(FROM_HERE, run_loop.QuitClosure());
-  run_loop.Run();
-
-  ASSERT_EQ(0u, loaded_extensions().size());
-  ValidatePrefKeyCount(0);
-
-  histograms.ExpectTotalCount("Extensions.LoadingFromCommandLine", 0);
 }
 
 TEST_F(ExtensionServiceTest, DisableDisableExtensionsExceptCommandLineSwitch) {

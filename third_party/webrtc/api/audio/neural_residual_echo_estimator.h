@@ -14,6 +14,7 @@
 #include <array>
 
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 
 namespace webrtc {
 
@@ -24,6 +25,7 @@ namespace webrtc {
 class NeuralResidualEchoEstimator {
  public:
   virtual ~NeuralResidualEchoEstimator() {}
+
   // Estimates residual echo power spectrum in the signal after linear AEC
   // subtraction. Returns two estimates:
   //   * R2: A conservative estimate.
@@ -46,6 +48,9 @@ class NeuralResidualEchoEstimator {
                         ArrayView<const std::array<float, 65>> E2,
                         ArrayView<std::array<float, 65>> R2,
                         ArrayView<std::array<float, 65>> R2_unbounded) = 0;
+
+  // Returns a recommended AEC3 configuration for this estimator.
+  virtual EchoCanceller3Config GetConfiguration(bool multi_channel) const = 0;
 };
 }  // namespace webrtc
 

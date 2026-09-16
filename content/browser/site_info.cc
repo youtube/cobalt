@@ -40,7 +40,7 @@ using WebUIDomains = std::vector<std::string>;
 // chrome://foo.bar/. Domains are returned in the same order they appear in the
 // host.
 WebUIDomains GetWebUIDomains(const GURL& url) {
-  return base::SplitString(url.host_piece(), ".", base::TRIM_WHITESPACE,
+  return base::SplitString(url.host(), ".", base::TRIM_WHITESPACE,
                            base::SPLIT_WANT_ALL);
 }
 
@@ -50,7 +50,8 @@ WebUIDomains GetWebUIDomains(const GURL& url) {
 // to share a process whilst maintaining independent SiteURLs to allow for
 // WebUIType differentiation.
 bool IsWebUIAndUsesTLDForProcessLockURL(const GURL& url) {
-  if (!base::Contains(URLDataManagerBackend::GetWebUISchemes(), url.scheme())) {
+  if (!base::Contains(URLDataManagerBackend::GetWebUISchemes(),
+                      url.GetScheme())) {
     return false;
   }
 
@@ -125,9 +126,8 @@ bool IsOriginIsolatedSandboxedFrame(const UrlInfo& url_info) {
 }
 
 // Computes whether to disable v8-optimization for the
-// (browsing_instance_id, process_lock_origin) pair. Caches the result in
-// ChildProcessSecurityPolicyImpl.
-bool CheckAndCacheShouldDisableV8Optimization(
+// (browsing_instance_id, process_lock_origin) pair.
+bool CheckShouldDisableV8Optimization(
     BrowserContext* browser_context,
     const BrowsingInstanceId& browsing_instance_id,
     const url::Origin& process_lock_origin) {
@@ -139,14 +139,8 @@ bool CheckAndCacheShouldDisableV8Optimization(
     return are_v8_optimizations_disabled_result.value();
   }
 
-  bool are_v8_optimizations_disabled =
-      GetContentClient()->browser()->AreV8OptimizationsDisabledForSite(
-          browser_context, process_lock_origin.GetURL());
-  ChildProcessSecurityPolicyImpl::GetInstance()
-      ->AddV8OptimizationDisabledStateForOrigin(browsing_instance_id,
-                                                process_lock_origin,
-                                                are_v8_optimizations_disabled);
-  return are_v8_optimizations_disabled;
+  return GetContentClient()->browser()->AreV8OptimizationsDisabledForSite(
+      browser_context, process_lock_origin.GetURL());
 }
 
 }  // namespace
@@ -165,6 +159,13 @@ SiteInfo SiteInfo::CreateForErrorPage(
     agent_cluster_key = AgentClusterKey::CreateWithCrossOriginIsolationKey(
         url::Origin::Create(GetErrorPageSiteAndLockURL()),
         cross_origin_isolation_key.value(),
+        AgentClusterKey::OACStatus::kSiteKeyedByDefault);
+  } else if (web_exposed_isolation_info.is_isolated()) {
+    // TODO(crbug.com/342365083): AgentClusterKeys for pages with COOP and COEP
+    // should use an appropriate CrossOriginIsolationKey instead of being
+    // created as just origin-keyed here.
+    agent_cluster_key = AgentClusterKey::CreateOriginKeyed(
+        url::Origin::Create(GetErrorPageSiteAndLockURL()),
         AgentClusterKey::OACStatus::kSiteKeyedByDefault);
   } else {
     agent_cluster_key = AgentClusterKey::CreateSiteKeyed(
@@ -194,7 +195,7 @@ SiteInfo SiteInfo::CreateForDefaultSiteInstance(
       isolation_context.browser_or_resource_context().ToBrowserContext();
   bool is_jit_disabled = GetContentClient()->browser()->IsJitDisabledForSite(
       browser_context, GURL());
-  bool are_v8_optimizations_disabled = CheckAndCacheShouldDisableV8Optimization(
+  bool are_v8_optimizations_disabled = CheckShouldDisableV8Optimization(
       browser_context, isolation_context.browsing_instance_id(), url::Origin());
 
   WebExposedIsolationLevel web_exposed_isolation_level =
@@ -206,6 +207,13 @@ SiteInfo SiteInfo::CreateForDefaultSiteInstance(
     agent_cluster_key = AgentClusterKey::CreateWithCrossOriginIsolationKey(
         url::Origin::Create(SiteInstanceImpl::GetDefaultSiteURL()),
         cross_origin_isolation_key.value(),
+        AgentClusterKey::OACStatus::kSiteKeyedByDefault);
+  } else if (web_exposed_isolation_info.is_isolated()) {
+    // TODO(crbug.com/342365083): AgentClusterKeys for pages with COOP and COEP
+    // should use an appropriate CrossOriginIsolationKey instead of being
+    // created as just origin-keyed here.
+    agent_cluster_key = AgentClusterKey::CreateOriginKeyed(
+        url::Origin::Create(SiteInstanceImpl::GetDefaultSiteURL()),
         AgentClusterKey::OACStatus::kSiteKeyedByDefault);
   } else {
     agent_cluster_key = AgentClusterKey::CreateSiteKeyed(
@@ -310,7 +318,7 @@ SiteInfo SiteInfo::Create(const IsolationContext& isolation_context,
   is_jitless =
       is_jitless || GetContentClient()->browser()->IsJitDisabledForSite(
                         browser_context, agent_cluster_url_or_default);
-  are_v8_optimizations_disabled = CheckAndCacheShouldDisableV8Optimization(
+  are_v8_optimizations_disabled = CheckShouldDisableV8Optimization(
       browser_context, isolation_context.browsing_instance_id(),
       url::Origin::Create(agent_cluster_url_or_default));
 
@@ -446,7 +454,8 @@ SiteInfo SiteInfo::GetNonOriginKeyedEquivalentForMetrics(
   // origin-keyed, regardless of the Origin-Agent-Cluster header.
   if ((oac_status() == AgentClusterKey::OACStatus::kOriginKeyedByHeader ||
        oac_status() == AgentClusterKey::OACStatus::kOriginKeyedByDefault) &&
-      !agent_cluster_key_.GetCrossOriginIsolationKey().has_value()) {
+      !agent_cluster_key_.GetCrossOriginIsolationKey().has_value() &&
+      !web_exposed_isolation_info_.is_isolated()) {
     CHECK(agent_cluster_key_.IsOriginKeyed());
     DCHECK(agent_cluster_key_.GetOrigin().scheme() == url::kHttpsScheme);
 
@@ -673,10 +682,16 @@ bool SiteInfo::RequiresDedicatedProcess(
 
   BrowserContext* browser_context =
       isolation_context.browser_or_resource_context().ToBrowserContext();
+  // Note: it is important to pass |AgentClusterKey::IsOriginKeyedDueToOAC|
+  // here and not |AgentClusterKey::IsOriginKeyed| below, because
+  // RequiresDedicatedProcessInternal wants to know about OAC requests
+  // exclusively. It is possible for the AgentClusterKey to be origin-keyed even
+  // if there is no OAC request for that, for example for cross-origin isolated
+  // contexts.
   return RequiresDedicatedProcessInternal(
       site_url_, isolation_context, browser_context, is_error_page(),
       does_site_request_dedicated_process_for_coop_,
-      agent_cluster_key_.IsOriginKeyed(), is_sandboxed_, is_pdf_);
+      agent_cluster_key().IsOriginKeyedDueToOAC(), is_sandboxed_, is_pdf_);
 }
 
 bool SiteInfo::ShouldLockProcessToSite(
@@ -700,7 +715,7 @@ bool SiteInfo::ShouldLockProcessToSite(
   // Most WebUI processes should be locked on all platforms.  The only exception
   // is NTP, handled via the separate callout to the embedder.
   const auto& webui_schemes = URLDataManagerBackend::GetWebUISchemes();
-  if (base::Contains(webui_schemes, site_url_.scheme())) {
+  if (base::Contains(webui_schemes, site_url_.GetScheme())) {
     return GetContentClient()->browser()->DoesWebUIUrlRequireProcessLock(
         site_url_);
   }
@@ -801,7 +816,7 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
       !effective_url.has_value()) {
     WebUIDomains host_domains = GetWebUIDomains(url_info.url);
     return AgentClusterKey::CreateSiteKeyed(
-        GURL(url_info.url.scheme() + url::kStandardSchemeSeparator +
+        GURL(url_info.url.GetScheme() + url::kStandardSchemeSeparator +
              host_domains.back()),
         AgentClusterKey::OACStatus::kSiteKeyedByDefault);
   }
@@ -887,6 +902,15 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
   if (url_info.cross_origin_isolation_key.has_value()) {
     return AgentClusterKey::CreateWithCrossOriginIsolationKey(
         origin, url_info.cross_origin_isolation_key.value(), oac_status);
+  }
+
+  // Cross-origin isolated contexts with COOP and COEP should be origin-keyed.
+  // TODO(crbug.com/342365083): In addition to being origin-keyed,
+  // AgentClusterKeys for pages with COOP and COEP should use an appropriate
+  // CrossOriginIsolationKey.
+  if (url_info.web_exposed_isolation_info &&
+      url_info.web_exposed_isolation_info->is_isolated()) {
+    return AgentClusterKey::CreateOriginKeyed(origin, oac_status);
   }
 
   bool requires_origin_keyed_process =
@@ -1030,8 +1054,8 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
   }
 
   // All other URLs use a site-keyed agent cluster based on their scheme.
-  DCHECK(!url.scheme().empty());
-  GURL site_url = GURL(url.scheme() + ":");
+  DCHECK(!url.GetScheme().empty());
+  GURL site_url = GURL(url.GetScheme() + ":");
   return AgentClusterKey::CreateSiteKeyed(site_url, oac_status);
 }
 
@@ -1087,7 +1111,7 @@ bool SiteInfo::RequiresDedicatedProcessInternal(
     const IsolationContext& isolation_context,
     BrowserContext* browser_context,
     bool does_site_request_dedicated_process_for_coop,
-    bool requires_origin_keyed_process,
+    bool requires_origin_keyed_process_for_oac,
     bool is_error_page,
     bool is_sandboxed,
     bool is_pdf) {
@@ -1106,7 +1130,24 @@ bool SiteInfo::RequiresDedicatedProcessInternal(
   // Always require a dedicated process for isolated origins.
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   if (policy->IsIsolatedOrigin(isolation_context, url::Origin::Create(site_url),
-                               requires_origin_keyed_process)) {
+                               requires_origin_keyed_process_for_oac)) {
+    return true;
+  }
+
+  // Subtle corner case: some IsolatedOriginEntries are created without port
+  // number. This cause the check above to fail when called with the site URL of
+  // an origin-keyed SiteInfo whose origin has a port number, even though we
+  // want those checks to match in partial Site Isolation mode. Also check if
+  // there is a matching IsolatedOriginEntry for the origin without port number.
+  // Note that this corner case only applies to the legacy isolated origins and
+  // not OAC isolated origins, so we pass false to requires_origin_keyed_process
+  // in the call below.
+  GURL::Replacements replacements;
+  replacements.ClearPort();
+  GURL site_url_without_port = site_url.ReplaceComponents(replacements);
+  if (policy->IsIsolatedOrigin(isolation_context,
+                               url::Origin::Create(site_url_without_port),
+                               /*origin_requests_isolation=*/false)) {
     return true;
   }
 

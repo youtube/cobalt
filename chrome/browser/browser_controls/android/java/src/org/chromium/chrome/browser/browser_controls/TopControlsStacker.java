@@ -10,7 +10,6 @@ import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
-import org.chromium.cc.input.OffsetTag;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.util.BrowserControlsVisibilityDelegate;
 
@@ -27,6 +26,8 @@ import java.util.Map;
  */
 @NullMarked
 public class TopControlsStacker implements BrowserControlsStateProvider.Observer {
+    public static final int INVALID_HEIGHT = -1;
+
     private static final String TAG = "TopControlsStacker";
 
     /** Enums that defines the types of top controls. */
@@ -95,8 +96,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
     private int mTotalHeight;
     private int mMinHeight;
-
-    private @Nullable OffsetTag mTopControlsOffsetTag;
+    private @Nullable BrowserControlsOffsetTagsInfo mTopControlsOffsetTagInfo;
 
     /**
      * Constructs the top controls stacker, which is used to calculate heights and offsets for any
@@ -171,22 +171,14 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     }
 
     /**
-     * Returns the current OffsetTag for the top controls provided by the {@link
-     * BrowserControlsStateProvider.Observer}.
-     *
-     * @return The OffsetTag for the top controls.
-     */
-    public @Nullable OffsetTag getTopControlsOffsetTag() {
-        return mTopControlsOffsetTag;
-    }
-
-    /**
      * Trigger the browser controls height update based on the current layer status. If there's
      * already an animated transition running, this call might cause it to skip to the end state.
      *
      * @param animate Whether animate the browser controls size change.
      */
     public void requestLayerUpdate(boolean animate) {
+        if (!ChromeFeatureList.sTopControlsRefactor.isEnabled()) return;
+
         recalculateHeights();
         updateTopControlsHeight(animate);
 
@@ -230,8 +222,17 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
             if (layer.getTopControlVisibility() != TopControlVisibility.VISIBLE) continue;
 
             totalHeight += layer.getTopControlHeight();
-            if (isLayerAlwaysVisible(layer)) {
+
+            boolean hasMinHeight = isLayerAlwaysVisible(layer);
+            if (hasMinHeight) {
                 minHeight += layer.getTopControlHeight();
+
+                assert minHeight == totalHeight
+                        : "All layers with minHeight should be added before a scrollable layer.";
+            }
+
+            if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
+                layer.updateOffsetTag(hasMinHeight ? null : mTopControlsOffsetTagInfo);
             }
         }
         mTotalHeight = totalHeight;
@@ -269,6 +270,34 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         }
     }
 
+    /**
+     * Calculates the total height of the UI from the specified layer to the top of the screen.
+     *
+     * <p>This method computes the cumulative height of all visible layers starting from the top
+     * most layer until the specified layer **(exclusive)**.
+     *
+     * <p><b>Warning:</b> The height returned might not be accurate during {@link
+     * #recalculateLayerSizes()}, so it should not be used to determine a layer's attribute.
+     *
+     * @param stopLayer the layer in the stack order to stop at.
+     * @return the total height of the visible UI from the specified layer to the top, or {@link
+     *     #INVALID_HEIGHT} if the layer type is invalid.
+     */
+    public int getHeightFromLayerToTop(@TopControlType int stopLayer) {
+        int height = 0;
+        for (@TopControlType int type : STACK_ORDER) {
+            TopControlLayer layer = mControls.get(type);
+
+            if (type == stopLayer) {
+                return height;
+            } else if (layer != null) {
+                height += layer.getTopControlHeight();
+            }
+        }
+
+        return INVALID_HEIGHT;
+    }
+
     // BrowserControlsStateProvider.Observer implementation:
 
     @Override
@@ -288,16 +317,14 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
             BrowserControlsOffsetTagsInfo offsetTagsInfo,
             @BrowserControlsState int constraints,
             boolean shouldUpdateOffsets) {
-        // TODO(crbug.com/417238089): Consider pushing updated OffsetTags to TopControlLayers.
-        if (mTopControlsOffsetTag == offsetTagsInfo.getTopControlsOffsetTag()
-                && mBrowserControlsState == constraints) {
+        if (!ChromeFeatureList.sTopControlsRefactor.isEnabled()) return;
+
+        if (mTopControlsOffsetTagInfo == offsetTagsInfo && mBrowserControlsState == constraints) {
             return;
         }
-        mTopControlsOffsetTag = offsetTagsInfo.getTopControlsOffsetTag();
+        mTopControlsOffsetTagInfo = offsetTagsInfo;
         mBrowserControlsState = constraints;
-        if (mScrollingDisabled) {
-            requestLayerUpdate(false);
-        }
+        requestLayerUpdate(false);
     }
 
     /** Tear down |this| and clear all existing controls from the Map. */

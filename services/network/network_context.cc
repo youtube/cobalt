@@ -2027,7 +2027,10 @@ void NetworkContext::CreateWebTransport(
     std::vector<mojom::WebTransportCertificateFingerprintPtr> fingerprints,
     const std::vector<std::string>& application_protocols,
     mojo::PendingRemote<mojom::WebTransportHandshakeClient>
-        pending_handshake_client) {
+        pending_handshake_client,
+    mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
+        url_loader_network_observer,
+    mojom::ClientSecurityStatePtr client_security_state) {
   if (!IsNetworkForNonceAndUrlAllowed(
           key.GetNonce().value_or(base::UnguessableToken::Null()), url)) {
     mojo::Remote<mojom::WebTransportHandshakeClient> remote_handshake_client(
@@ -2038,7 +2041,9 @@ void NetworkContext::CreateWebTransport(
   }
   web_transports_.insert(std::make_unique<WebTransport>(
       url, origin, key, fingerprints, application_protocols, this,
-      std::move(pending_handshake_client)));
+      std::move(pending_handshake_client),
+      std::move(url_loader_network_observer),
+      std::move(client_security_state)));
 }
 
 void NetworkContext::CreateNetLogExporter(
@@ -2742,7 +2747,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   auto* mdl_manager = network_service_->masked_domain_list_manager();
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   requires_ipp_proxy_delegate =
-      mdl_manager && mdl_manager->IsEnabled() &&
+      (mdl_manager->IsEnabled() ||
+       !net::features::kIpPrivacyUnconditionalProxyDomainList.Get().empty()) &&
       (params_->ip_protection_core_host ||
        net::features::kIpPrivacyAlwaysCreateCore.Get());
   if (requires_ipp_proxy_delegate) {
@@ -3201,7 +3207,12 @@ NetworkContext::MakeSessionCleanupCookieStore() const {
       crypto_delegate = std::make_unique<CookieOSCryptAsyncDelegate>(
           std::move(params_->cookie_encryption_provider));
     } else {
-      crypto_delegate = cookie_config::GetCookieCryptoDelegate();
+#if !BUILDFLAG(IS_ANDROID)
+      // A cookie crypto delegate should not be created on Android to
+      // match the behavior of cookie_config::GetCookieCryptoDelegate().
+      // See https://crbug.com/449652881
+      NOTREACHED();
+#endif
     }
   }
 
@@ -3284,7 +3295,7 @@ GURL NetworkContext::GetHSTSRedirectForPreconnect(const GURL& original_url) {
   // top-level navigation so we need to disallow HSTS upgrades for every
   // preconnect.
   if (!url_request_context_->transport_security_state()->ShouldUpgradeToSSL(
-          original_url.host(), /*is_top_level_nav=*/false)) {
+          original_url.GetHost(), /*is_top_level_nav=*/false)) {
     RecordHSTSPreconnectUpgradeReason(
         HSTSRedirectUpgradeReason::kNotUpgradedNoHSTSPin);
     return original_url;
@@ -3308,6 +3319,14 @@ void NetworkContext::DestroySocketManager(P2PSocketManager* socket_manager) {
 void NetworkContext::CanUploadDomainReliability(
     const url::Origin& origin,
     base::OnceCallback<void(bool)> callback) {
+  // If the NetworkContextClient hasn't been set yet or has disconnected for
+  // some reason, just return `false`. This could occur in the case of CCT for
+  // captive portal -- see crbug.com/446496025 for more details, do the similar
+  // check to CanSendSCTAuditingReport().
+  if (!client_) {
+    std::move(callback).Run(false);
+    return;
+  }
   client_->OnCanSendDomainReliabilityUpload(
       origin,
       base::BindOnce([](base::OnceCallback<void(bool)> callback,

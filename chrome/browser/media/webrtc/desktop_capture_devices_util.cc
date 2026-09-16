@@ -29,7 +29,6 @@
 #include "content/public/common/content_features.h"
 #include "media/audio/application_loopback_device_helper.h"
 #include "media/audio/audio_device_description.h"
-#include "media/audio/audio_features.h"
 #include "media/mojo/mojom/capture_handle.mojom.h"
 #include "media/mojo/mojom/display_media_information.mojom.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -249,24 +248,22 @@ std::string DeviceName(content::WebContents* web_contents,
   }
 }
 
-blink::MediaStreamDevice DesktopMediaIDToAudioMediaStreamDevice(
-    std::string device_id,
-    content::DesktopMediaID::Type desktop_media_id_type,
-    blink::mojom::MediaStreamType media_stream_type) {
-  if (desktop_media_id_type == content::DesktopMediaID::TYPE_WEB_CONTENTS) {
-    return blink::MediaStreamDevice(media_stream_type, device_id, "Tab audio");
-  } else if (desktop_media_id_type == content::DesktopMediaID::TYPE_WINDOW &&
-             media::IsApplicationAudioCaptureSupported()) {
-    // TODO(crbug.com/40947205): Refactor the logic that assumes application
-    // audio is shared for all window captures (desktop_media_id.type ==
-    // content::DesktopMediaID::TYPE_WINDOW). The user should be given the
-    // option to choose whether system audio or window audio is shared.
-    return blink::MediaStreamDevice(media_stream_type, device_id,
-                                    "Application Audio");
-  } else {
-    return blink::MediaStreamDevice(media_stream_type, device_id,
-                                    "System Audio");
+std::string GetAudioMediaStreamDeviceName(
+    const content::DesktopMediaID& desktop_media_id) {
+  switch (desktop_media_id.type) {
+    case content::DesktopMediaID::TYPE_WEB_CONTENTS:
+      return "Tab audio";
+    case content::DesktopMediaID::TYPE_WINDOW:
+      return (desktop_media_id.window_audio_type ==
+              content::DesktopMediaID::AudioType::kApplication)
+                 ? "Application Audio"
+                 : "System Audio";
+    case content::DesktopMediaID::TYPE_SCREEN:
+      return "System Audio";
+    case content::DesktopMediaID::TYPE_NONE:
+      NOTREACHED();
   }
+  NOTREACHED();
 }
 
 void CreateMediaStreamCaptureIndicatorUI(
@@ -282,16 +279,9 @@ void CreateMediaStreamCaptureIndicatorUI(
                             std::unique_ptr<content::MediaStreamUI>)>
         on_media_stream_capture_indicator_ui_created_callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-#if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<content::MediaStreamUI> capture_indicator_ui =
-      MediaCaptureDevicesDispatcher::GetInstance()
-          ->GetMediaStreamCaptureIndicator()
-          ->RegisterMediaStream(web_contents, devices);
-  std::move(on_media_stream_capture_indicator_ui_created_callback)
-      .Run(std::move(devices), std::move(capture_indicator_ui));
-#else  // !BUILDFLAG(IS_ANDROID)
-  // If required, register to display the notification for stream capture.
   std::unique_ptr<MediaStreamUI> notification_ui;
+#if !BUILDFLAG(IS_ANDROID)
+  // If required, register to display the notification for stream capture.
   if (display_notification) {
     if (media_id.type == content::DesktopMediaID::TYPE_WEB_CONTENTS) {
       content::GlobalRenderFrameHostId capturer_id;
@@ -312,6 +302,7 @@ void CreateMediaStreamCaptureIndicatorUI(
           web_contents);
     }
   }
+#endif
 
   std::unique_ptr<content::MediaStreamUI> capture_indicator_ui =
       MediaCaptureDevicesDispatcher::GetInstance()
@@ -320,7 +311,6 @@ void CreateMediaStreamCaptureIndicatorUI(
                                 std::move(notification_ui), application_title);
   std::move(on_media_stream_capture_indicator_ui_created_callback)
       .Run(std::move(devices), std::move(capture_indicator_ui));
-#endif
 }
 
 void OnAudioDeviceIdObtained(
@@ -347,9 +337,9 @@ void OnAudioDeviceIdObtained(
   }
 
   if (audio_device_id.has_value()) {
-    blink::MediaStreamDevice audio_device =
-        DesktopMediaIDToAudioMediaStreamDevice(audio_device_id.value(),
-                                               media_id.type, audio_type);
+    blink::MediaStreamDevice audio_device(
+        audio_type, audio_device_id.value(),
+        GetAudioMediaStreamDeviceName(media_id));
     devices.audio_device = audio_device;
     devices.audio_device->display_media_info =
         DesktopMediaIDToDisplayMediaInformation(
@@ -394,11 +384,8 @@ void GetAudioDeviceId(content::DesktopMediaID desktop_media_id,
         disable_local_echo || suppress_local_audio_playback;
     device_id = web_id.ToString();
   } else if (desktop_media_id.type == content::DesktopMediaID::TYPE_WINDOW &&
-             media::IsApplicationAudioCaptureSupported()) {
-    // TODO(crbug.com/40947205): Refactor the logic that assumes application
-    // audio is shared for all window captures (desktop_media_id.type ==
-    // content::DesktopMediaID::TYPE_WINDOW). The user should be given the
-    // option to choose whether system audio or window audio is shared.
+             desktop_media_id.window_audio_type ==
+                 content::DesktopMediaID::AudioType::kApplication) {
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, base::BindOnce(&GetApplicationId, desktop_media_id.id),
         std::move(audio_device_id_obtained_callback));

@@ -42,6 +42,10 @@ void GlicFrePageHandler::AcceptFre() {
   GetGlicService()->fre_controller().AcceptFre();
 }
 
+void GlicFrePageHandler::RejectFre() {
+  GetGlicService()->fre_controller().RejectFre();
+}
+
 void GlicFrePageHandler::DismissFre(mojom::FreWebUiState panel_state) {
   GetGlicService()->fre_controller().DismissFre(panel_state);
 }
@@ -58,7 +62,8 @@ void GlicFrePageHandler::PrepareForClient(
 
 void GlicFrePageHandler::ValidateAndOpenLinkInNewTab(const GURL& url) {
   if (url.DomainIs("google.com")) {
-    GetGlicService()->CreateTab(url, /*open_in_background=*/true, std::nullopt,
+    GetGlicService()->CreateTab(nullptr, url,
+                                /*open_in_background=*/true, std::nullopt,
                                 base::DoNothing());
     GetGlicService()->fre_controller().OnLinkClicked(url);
   }

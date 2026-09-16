@@ -40,7 +40,6 @@
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/events/event_handler.h"
-#include "ui/gfx/font_list.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/native_widget.h"
 
@@ -63,16 +62,6 @@
 #endif
 
 namespace {
-#if BUILDFLAG(IS_MAC)
-// Keep in sync with web_app_frame_toolbar_browsertest.cc
-constexpr double kTitlePaddingWidthFraction = 0.1;
-#endif
-
-#if BUILDFLAG(IS_LINUX)
-// These values are used for Linux/GTK.
-constexpr int kIconTitleSpacing = 4;
-constexpr int kCaptionSpacing = 5;
-#endif
 
 // Helper to track whether a ThemeChange event has been received by the widget.
 class ThemeChangedObserver : public views::WidgetObserver {
@@ -226,88 +215,8 @@ void BrowserWidget::InitBrowserWidget() {
   }
 }
 
-int BrowserWidget::GetMinimizeButtonOffset() const {
-  return browser_native_widget_
-             ? browser_native_widget_->GetMinimizeButtonOffset()
-             : 0;
-}
-
-void BrowserWidget::LayoutWebAppWindowTitle(
-    const gfx::Rect& available_space,
-    views::Label& window_title_label) const {
-  if (!browser_frame_view_) {
-    return;
-  }
-
-  if (browser_frame_view_->browser_view() &&
-      browser_frame_view_->browser_view()->GetIsPictureInPictureType()) {
-    // Do nothing for picture in picture browsers.
-    return;
-  }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // No window titles on Chrome OS, so just hide the window title.
-  window_title_label.SetVisible(false);
-#elif BUILDFLAG(IS_MAC)
-  gfx::Rect toolbar_bounds(0, 0, browser_frame_view_->width(),
-                           available_space.height());
-  gfx::Rect title_bounds = available_space;
-
-  const int title_padding = base::ClampRound(browser_frame_view_->width() *
-                                             kTitlePaddingWidthFraction);
-  title_bounds.Inset(gfx::Insets::VH(0, title_padding));
-
-  // Center in the container and make it fit in the available space.
-  int preferred_title_width =
-      window_title_label
-          .GetPreferredSize(views::SizeBounds(window_title_label.width(), {}))
-          .width();
-  toolbar_bounds.ClampToCenteredSize(
-      gfx::Size(preferred_title_width, toolbar_bounds.height()));
-  toolbar_bounds.AdjustToFit(title_bounds);
-
-  window_title_label.SetBoundsRect(toolbar_bounds);
-  // The background of the title area is always opaquely drawn, but when in
-  // immersive fullscreen, it is drawn in a way that isn't detected by the
-  // DCHECK in Label. As such, disable the DCHECK.
-  window_title_label.SetSkipSubpixelRenderingOpacityCheck(
-      browser_view_->IsImmersiveModeEnabled());
-#elif BUILDFLAG(IS_WIN)
-  gfx::Rect bounds = available_space;
-  // If nothing has been added to the left, match native Windows 10 UWP apps
-  // that don't have window icons.
-  // TODO(crbug.com/40890502): Avoid hardcoding sizes like this.
-  constexpr int kMinimumTitleLeftBorderMargin = 11;
-  if (bounds.x() < kMinimumTitleLeftBorderMargin) {
-    bounds.SetHorizontalBounds(kMinimumTitleLeftBorderMargin, bounds.right());
-  }
-  window_title_label.SetSubpixelRenderingEnabled(false);
-  window_title_label.SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  window_title_label.SetAutoColorReadabilityEnabled(false);
-  window_title_label.SetBoundsRect(bounds);
-#else
-  gfx::Rect bounds = available_space;
-  bounds.Inset(gfx::Insets::TLBR(0, kIconTitleSpacing, 0, kCaptionSpacing));
-  window_title_label.SetSubpixelRenderingEnabled(false);
-  window_title_label.SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  window_title_label.SetBoundsRect(bounds);
-#endif
-}
-
-int BrowserWidget::GetTopInset() const {
-  return browser_frame_view_->GetTopInset(false);
-}
-
-void BrowserWidget::UpdateThrobber(bool running) {
-  browser_frame_view_->UpdateThrobber(running);
-}
-
 BrowserFrameView* BrowserWidget::GetFrameView() const {
   return browser_frame_view_;
-}
-
-bool BrowserWidget::UseCustomFrame() const {
-  return browser_native_widget_ && browser_native_widget_->UseCustomFrame();
 }
 
 bool BrowserWidget::ShouldSaveWindowPlacement() const {
@@ -334,10 +243,6 @@ bool BrowserWidget::HandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
   return browser_native_widget_ &&
          browser_native_widget_->HandleKeyboardEvent(event);
-}
-
-void BrowserWidget::OnBrowserViewInitViewsComplete() {
-  browser_frame_view_->OnBrowserViewInitViewsComplete();
 }
 
 void BrowserWidget::UserChangedTheme(BrowserThemeChangeType theme_change_type) {
@@ -512,38 +417,11 @@ bool BrowserWidget::IsMenuRunnerRunningForTesting() const {
 ui::MenuModel* BrowserWidget::GetSystemMenuModel() {
   // TODO(b/271137301): Refactor this class to remove chromeos specific code to
   // subclasses.
-#if BUILDFLAG(IS_CHROMEOS)
-  if (user_manager::UserManager::IsInitialized() &&
-      user_manager::UserManager::Get()->GetLoggedInUsers().size() > 1) {
-    // In Multi user mode, the number of users as well as the order of users
-    // can change. Coming here we have more than one user and since the menu
-    // model contains the user information, it must get updated to show any
-    // changes happened since the last invocation.
-    menu_model_builder_.reset();
-  }
-
-  auto* desks_helper = chromeos::DesksHelper::Get(GetNativeWindow());
-  int current_num_desks = desks_helper ? desks_helper->GetNumberOfDesks() : -1;
-  if (current_num_desks != num_desks_) {
-    // Since the number of desks can change, the model must update to show any
-    // changes happened since the last invocation.
-    menu_model_builder_.reset();
-    num_desks_ = current_num_desks;
-  }
-
-  bool is_float_state_type =
-      GetNativeWindow()->GetProperty(chromeos::kWindowStateTypeKey) ==
-      chromeos::WindowStateType::kFloated;
-  if (is_float_state_type != is_float_state_type_) {
-    menu_model_builder_.reset();
-    is_float_state_type_ = is_float_state_type;
-  }
-#endif
   if (!menu_model_builder_.get()) {
     menu_model_builder_ = std::make_unique<SystemMenuModelBuilder>(
         browser_view_, browser_view_->browser());
-    menu_model_builder_->Init();
   }
+  menu_model_builder_->Init();
   return menu_model_builder_->menu_model();
 }
 
@@ -635,10 +513,12 @@ ui::ColorProviderKey BrowserWidget::GetColorProviderKey() const {
   }
 
   // frame_type.
-  key.frame_type = UseCustomFrame() ? ui::ColorProviderKey::FrameType::kChromium
+  const bool use_custom_frame =
+      browser_native_widget_ && browser_native_widget_->UseCustomFrame();
+  key.frame_type = use_custom_frame ? ui::ColorProviderKey::FrameType::kChromium
                                     : ui::ColorProviderKey::FrameType::kNative;
 #if BUILDFLAG(IS_WIN)
-  if (theme_service && theme_service->UsingDeviceTheme() && UseCustomFrame()) {
+  if (theme_service && theme_service->UsingDeviceTheme() && use_custom_frame) {
     key.frame_style = ui::ColorProviderKey::FrameStyle::kSystem;
   }
 #endif

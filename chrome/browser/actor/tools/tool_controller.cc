@@ -123,6 +123,9 @@ void ToolController::CreateToolAndValidate(
     return;
   }
 
+  observation_page_stability_config_ =
+      request.GetObservationPageStabilityConfig();
+
   std::unique_ptr<Tool>& tool = create_result.tool;
   CHECK(tool);
 
@@ -193,7 +196,8 @@ void ToolController::Invoke(ResultCallback result_callback) {
   // alive and focused), return error otherwise.
 
   SetState(State::kInvoking);
-  observation_delayer_ = tool.GetObservationDelayer();
+  observation_delayer_ =
+      tool.GetObservationDelayer(observation_page_stability_config_);
   tool.Invoke(base::BindOnce(&ToolController::DidFinishToolInvoke,
                              weak_ptr_factory_.GetWeakPtr()));
 }
@@ -216,25 +220,25 @@ void ToolController::DidFinishToolInvoke(mojom::ActionResultPtr result) {
     result->execution_end_time = base::TimeTicks::Now();
   }
 
-  if (!IsOk(*result) || !observation_delayer_) {
+  if (!RequiresPageStabilization(*result) || !observation_delayer_) {
     PostInvokeTool(std::move(result));
     return;
   }
 
-  if (observation_delayer_->web_contents()) {
+  if (tabs::TabInterface* target_tab =
+          active_state_->tool->GetTargetTab().Get()) {
     observation_delayer_->Wait(
-        *active_state_->journal_entry,
+        *target_tab,
         base::BindOnce(&ToolController::PostInvokeTool,
                        weak_ptr_factory_.GetWeakPtr(), std::move(result)));
   } else {
-    journal().Log(
-        active_state_->tool->JournalURL(), task_->id(),
-        mojom::JournalTrack::kActor, "ToolController DidFinishToolInvoke",
-        JournalDetailsBuilder()
-            .AddError("WebContents is gone when tool finishes successfully")
-            .Build());
+    journal().Log(active_state_->tool->JournalURL(), task_->id(),
+                  mojom::JournalTrack::kActor,
+                  "ToolController DidFinishToolInvoke",
+                  JournalDetailsBuilder()
+                      .AddError("Tab is gone when tool finishes successfully")
+                      .Build());
     PostInvokeTool(std::move(result));
-    return;
   }
 }
 

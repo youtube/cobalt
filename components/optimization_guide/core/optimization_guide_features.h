@@ -49,8 +49,6 @@ BASE_DECLARE_FEATURE(kPreventLongRunningPredictionModels);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOverrideNumThreadsForModelExecution);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-BASE_DECLARE_FEATURE(kOptGuideEnableXNNPACKDelegateWithTFLite);
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOptimizationGuidePersonalizedFetching);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOptimizationGuidePredictionModelKillswitch);
@@ -72,8 +70,6 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOnDeviceModelFetchPerformanceClassEveryStartup);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kAiSettingsPageForceAvailable);
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacyGuideAiSettings);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kAnnotatedPageContentWithActionableElements);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
@@ -245,11 +241,6 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 std::optional<int> OverrideNumThreadsForOptTarget(
     proto::OptimizationTarget opt_target);
 
-// Whether XNNPACK should be used with TFLite, on platforms where it is
-// supported. This is a no-op on unsupported platforms.
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-bool TFLiteXNNPACKDelegateEnabled();
-
 // Whether logging of model quality is enabled.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool IsModelQualityLoggingEnabled();
@@ -408,10 +399,6 @@ std::vector<uint32_t> GetOnDeviceModelAllowedAdaptationRanks();
 // Returns whether the icon view should be enabled.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldEnableOptimizationGuideIconView();
-
-// Whether Ai settings page integration with Privacy Guide is enabled.
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-bool IsPrivacyGuideAiSettingsEnabled();
 
 }  // namespace features
 }  // namespace optimization_guide

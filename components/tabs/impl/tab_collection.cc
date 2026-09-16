@@ -7,6 +7,7 @@
 #include "base/check.h"
 #include "base/notreached.h"
 #include "components/tabs/public/supports_handles.h"
+#include "components/tabs/public/tab_collection_observer.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace tabs {
@@ -76,6 +77,18 @@ TabCollection::TabCollection(
       impl_(std::make_unique<TabCollectionStorage>(*this)) {}
 
 TabCollection::~TabCollection() = default;
+
+void TabCollection::AddObserver(TabCollectionObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void TabCollection::RemoveObserver(TabCollectionObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+bool TabCollection::HasObserver(TabCollectionObserver* observer) const {
+  return observers_.HasObserver(observer);
+}
 
 bool TabCollection::ContainsCollection(TabCollection* collection) const {
   CHECK(collection);
@@ -240,6 +253,35 @@ void TabCollection::OnTabRemovedFromTree() {
   }
 }
 
+void TabCollection::NotifyOnChildrenAdded(
+    base::PassKey<TabCollection> pass_key,
+    const TabCollectionNodes& handles,
+    const std::pair<tabs::TabCollection*, int>& insertion_details,
+    TabCollection* notification_root) {
+  auto [tab_collection_parent_ptr, insert_index] = insertion_details;
+
+  TabCollectionObserver::Position position = TabCollectionObserver::Position(
+      tab_collection_parent_ptr->GetHandle(), insert_index);
+
+  observers_.Notify(&TabCollectionObserver::OnChildrenAdded, position, handles);
+
+  if (this != notification_root) {
+    parent_->NotifyOnChildrenAdded(pass_key, handles, insertion_details,
+                                   notification_root);
+  }
+}
+
+void TabCollection::NotifyOnChildrenRemoved(
+    base::PassKey<TabCollection> pass_key,
+    const TabCollectionNodes& handles,
+    TabCollection* notification_root) {
+  observers_.Notify(&TabCollectionObserver::OnChildrenRemoved, handles);
+
+  if (this != notification_root) {
+    parent_->NotifyOnChildrenRemoved(pass_key, handles, notification_root);
+  }
+}
+
 TabInterface* TabCollection::AddTab(std::unique_ptr<TabInterface> tab,
                                     size_t index) {
   CHECK(tab);
@@ -280,6 +322,11 @@ void TabCollection::OnReparented(TabCollection* new_parent) {
   for (auto tab : GetTabsRecursive()) {
     tab->OnAncestorChanged(GetPassKey());
   }
+}
+
+const ChildrenVector& TabCollection::GetChildren(
+    base::PassKey<DirectChildWalker> pass_key) const {
+  return GetChildren();
 }
 
 }  // namespace tabs

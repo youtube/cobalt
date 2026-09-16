@@ -10,8 +10,8 @@
 #import "components/password_manager/core/browser/features/password_features.h"
 #import "components/password_manager/core/browser/password_ui_utils.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/form_input_accessory/form_input_accessory_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
@@ -821,7 +821,7 @@ void CheckKeyboardIsUpAndNotCovered() {
   OpenPasswordManualFillView(/*has_suggestions=*/true);
 
   CheckPasswordFillingOptionIsVisible(
-      /*site=*/base::SysUTF8ToNSString(self.URL.host()));
+      /*site=*/base::SysUTF8ToNSString(self.URL.GetHost()));
 
   // Select a username.
   [[EarlGrey selectElementWithMatcher:UsernameButtonMatcher()]
@@ -858,7 +858,7 @@ void CheckKeyboardIsUpAndNotCovered() {
   OpenPasswordManualFillView(/*has_suggestions=*/true);
 
   CheckPasswordFillingOptionIsVisible(
-      /*site=*/base::SysUTF8ToNSString(self.URL.host()));
+      /*site=*/base::SysUTF8ToNSString(self.URL.GetHost()));
 
   // Select a password.
   [[EarlGrey selectElementWithMatcher:manual_fill::PasswordButtonMatcher()]
@@ -1254,7 +1254,7 @@ void CheckKeyboardIsUpAndNotCovered() {
 
   // Scroll down to the backup credential cell and tap the "Autofill form"
   // button.
-  NSString* host = base::SysUTF8ToNSString(self.URL.host());
+  NSString* host = base::SysUTF8ToNSString(self.URL.GetHost());
   int password_index = 1;
   [[[EarlGrey selectElementWithMatcher:BackupCredentialAutofillFormButton(
                                            host, password_index,

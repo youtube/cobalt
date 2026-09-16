@@ -41,9 +41,13 @@ namespace {
 
 using LegacySaveCardPromptResult =
     autofill::autofill_metrics::LegacySaveCardPromptResult;
+using SaveCardPromptOffer = autofill::autofill_metrics::SaveCardPromptOffer;
+using SaveCardPromptResult = autofill::autofill_metrics::SaveCardPromptResult;
 using SaveCreditCardPromptResultIOS =
     autofill::autofill_metrics::SaveCreditCardPromptResultIOS;
 
+constexpr std::string_view kSaveCreditCardPromptOfferBaseHistogram =
+    "Autofill.SaveCreditCardPromptOffer.IOS";
 const std::string kSaveCreditCardPromptResultIOSPrefix =
     "Autofill.SaveCreditCardPromptResult.IOS.Server.BottomSheet.NumStrikes.0."
     "NoFixFlow";
@@ -234,6 +238,17 @@ TEST_F(SaveCardBottomSheetMediatorTest, SetConsumer) {
     EXPECT_EQ(messages[index].linkURLs,
               (consumer.legalMessages[index]).linkURLs);
   }
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {kSaveCreditCardPromptOfferBaseHistogram, ".Server.BottomSheet"}),
+      SaveCardPromptOffer::kShown,
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({kSaveCreditCardPromptOfferBaseHistogram,
+                    ".Server.BottomSheet.NumStrikes.0.NoFixFlow"}),
+      SaveCardPromptOffer::kShown,
+      /*expected_count=*/1);
 
   histogram_tester.ExpectUniqueSample(kSaveCreditCardPromptResultIOSPrefix,
                                       SaveCreditCardPromptResultIOS::kShown,
@@ -557,6 +572,16 @@ TEST_F(SaveCardBottomSheetMediatorTestForLocalSave, SetConsumer) {
   ASSERT_EQ(nil, consumer.legalMessages);
 
   histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {kSaveCreditCardPromptOfferBaseHistogram, ".Local.BottomSheet"}),
+      SaveCardPromptOffer::kShown,
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({kSaveCreditCardPromptOfferBaseHistogram,
+                    ".Local.BottomSheet.NumStrikes.0.NoFixFlow"}),
+      SaveCardPromptOffer::kShown,
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
       kSaveCreditCardPromptResultIOSPrefixForLocalSave,
       SaveCreditCardPromptResultIOS::kShown,
       /*expected_count=*/1);
@@ -699,6 +724,45 @@ class SaveCardBottomSheetMediatorMetricsTestWithCardSaveType
                : "";
   }
 };
+
+TEST_P(SaveCardBottomSheetMediatorMetricsTestWithCardSaveType,
+       LogPromptOfferMetric) {
+  autofill::payments::PaymentsAutofillClient::CardSaveType save_type =
+      GetParam();
+
+  // Create a new model and mediator with the specific options for this test.
+  auto model = std::make_unique<MockSaveCardBottomSheetModel>(
+      CreateAutofillSaveCardUiInfo(/*for_upload=*/true),
+      autofill::payments::PaymentsAutofillClient::UploadSaveCardPromptCallback(
+          base::DoNothing()),
+      std::move(
+          autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions()
+              .with_num_strikes(0)
+              .with_card_save_type(save_type)));
+  SaveCardBottomSheetMediator* mediator = [[SaveCardBottomSheetMediator alloc]
+              initWithUIModel:std::move(model)
+      autofillCommandsHandler:mock_autofill_commands_handler_];
+
+  base::HistogramTester histogram_tester;
+
+  // Setting the consumer triggers the metric for the "Shown" event.
+  FakeSaveCardBottomSheetConsumer* consumer =
+      [[FakeSaveCardBottomSheetConsumer alloc] init];
+  mediator.consumer = consumer;
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Autofill.SaveCreditCardPromptOffer.IOS",
+                    ".Server.BottomSheet",
+                    CardSaveTypeToMetricSuffix(save_type)}),
+      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Autofill.SaveCreditCardPromptOffer.IOS",
+                    ".Server.BottomSheet.NumStrikes.0.NoFixFlow",
+                    CardSaveTypeToMetricSuffix(save_type)}),
+      SaveCardPromptOffer::kShown, 1);
+
+  [mediator disconnect];
+}
 
 TEST_P(SaveCardBottomSheetMediatorMetricsTestWithCardSaveType,
        SetConsumerLogsShownMetric) {

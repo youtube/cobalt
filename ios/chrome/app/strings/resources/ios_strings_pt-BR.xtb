@@ -12,6 +12,7 @@
 <translation id="1036348656032585052">Desativar</translation>
 <translation id="1041322626941363065">Avisar se as suas senhas forem expostas em uma violação de dados</translation>
 <translation id="104491362976654916">Página offline</translation>
+<translation id="1046742265332833834">Tema azul</translation>
 <translation id="1049743911850919806">Modo anônimo</translation>
 <translation id="1053651653201045802">Conta desconectada. Faça login novamente para acessar os favoritos, as senhas e outros recursos da sua conta.</translation>
 <translation id="1054745118061919935">Ao continuar, você concorda com os <ph name="BEGIN_LINK" />Termos de Serviço<ph name="END_LINK" />.</translation>
@@ -51,9 +52,9 @@
 <translation id="1179890706672152411">O armazenamento está cheio</translation>
 <translation id="1181037720776840403">Remover</translation>
 <translation id="1190609913194133056">Central de Notificações</translation>
+<translation id="1199963004393929848">Tema verde</translation>
 <translation id="1201402288615127009">Avançar</translation>
 <translation id="1204075260022434100">{count,plural, =1{Favorito salvo em "{title}" na conta {email}}one{{count} favorito salvo em "{title}" na conta {email}}other{{count} favoritos salvos em "{title}" na conta {email}}}</translation>
-<translation id="120431140543679678">Seguir</translation>
 <translation id="1207493287814084192">17h30</translation>
 <translation id="1217294226280635614">Visualização dividida</translation>
 <translation id="1219674500290482172">Não foi possível se conectar à Internet.</translation>
@@ -148,6 +149,7 @@
 <translation id="1540800554400757039">Endereço 1</translation>
 <translation id="154312949627292154">Abra as guias recebidas dos seus outros dispositivos na tela de bloqueio.</translation>
 <translation id="1545749641540134597">Ler QR code</translation>
+<translation id="1545757265410828525">Histórico de preços</translation>
 <translation id="1547610699249301703">Compartilhe senhas</translation>
 <translation id="1554477036522844996">Nova janela</translation>
 <translation id="1558391695376153246">Fechar guias anônimas</translation>
@@ -193,7 +195,7 @@
 <translation id="1740650426894359238">Usar outro perfil</translation>
 <translation id="1741219894094057085">Smartwatch</translation>
 <translation id="1743244221910283364">Descartar mudanças</translation>
-<translation id="1748975028205587434">Selecione o arquivo</translation>
+<translation id="1748975028205587434">Selecionar o arquivo</translation>
 <translation id="1749733017156547309">É obrigatório informar uma senha</translation>
 <translation id="174998178145075354">{count,plural, =1{{count} opção de endereço disponível acima do teclado.}one{{count} opção de endereço disponível acima do teclado.}other{{count} opções de endereço disponíveis acima do teclado.}}</translation>
 <translation id="1750238553597293878">Continue usando as senhas na sua Conta do Google</translation>
@@ -210,7 +212,6 @@
 <translation id="1807893857950749072">Permitir notificações de monitoramento de preços…</translation>
 <translation id="1809929083618343438">Essa ação remove as informações selecionadas do Chrome, mas não as exclui da sua Conta do Google.</translation>
 <translation id="1810976980198522421">Cancelar</translation>
-<translation id="1812514023095547458">Selecionar cor</translation>
 <translation id="1815941218935345331">Senha</translation>
 <translation id="1818687879307252150">{count,plural, =0{Nenhuma senha comprometida}=1{{count} senha comprometida}one{{count} senha comprometida}other{{count} senhas comprometidas}}</translation>
 <translation id="1819374301217551116">Monitoramento e informações sobre preços</translation>
@@ -277,7 +278,6 @@
 <translation id="2015722694326466240">Para acessar as senhas, defina uma senha no dispositivo primeiro.</translation>
 <translation id="201759455285471444">Abrir grupo de guias.</translation>
 <translation id="202070562065520783">Explique isso</translation>
-<translation id="2021670401941426298">Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de pesquisa, se aplicável.</translation>
 <translation id="2044394949148788042">Abrir a grade de guias</translation>
 <translation id="2044681667265133332">A conta <ph name="USER_EMAIL" /> é gerenciada por <ph name="HOSTED_DOMAIN" />, que pode ver algumas informações. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">novo item</translation>
@@ -296,7 +296,6 @@
 <translation id="2085876078937250610">Salvar…</translation>
 <translation id="2096239473850415494">Falha no download</translation>
 <translation id="2096716221239095980">Excluir todos os dados</translation>
-<translation id="2103075008456228677">Abrir history.google.com</translation>
 <translation id="2104436223719117661">Pesquisas em alta</translation>
 <translation id="21133533946938348">Fixar guia</translation>
 <translation id="2117650889962717098">Mantenha sua privacidade mudando para o modo de navegação anônima</translation>
@@ -343,7 +342,6 @@
 <translation id="2258326562203545455">{count,plural, =1{Você pode salvar o favorito na sua Conta do Google {email}.}one{Você pode salvar o favorito na sua Conta do Google {email}.}other{Você pode salvar os favoritos na sua Conta do Google {email}.}}</translation>
 <translation id="225943865679747347">Código de erro: <ph name="ERROR_CODE" /></translation>
 <translation id="2259659629660284697">Exportar senhas…</translation>
-<translation id="2265069324308685684">Excluindo dados de navegação…</translation>
 <translation id="2267753748892043616">Adicionar conta</translation>
 <translation id="2268044343513325586">Refinar</translation>
 <translation id="2271452184061378400">Seus grupos de guias são salvos aqui</translation>
@@ -385,6 +383,7 @@
 <translation id="2434405374328098816">Você já salvou uma senha para "<ph name="USERNAME" />" em <ph name="WEBSITE" /></translation>
 <translation id="2434918313224755415">Role a tela para a esquerda para navegar no modo de navegação anônima.</translation>
 <translation id="2435457462613246316">Mostrar senha</translation>
+<translation id="2451607499823206582">Monitoramento</translation>
 <translation id="2458827363789845126">{count,plural, =1{{count} item do histórico}one{{count} item do histórico}other{{count} itens do histórico}}</translation>
 <translation id="2461070143328828326">Configurações de senha</translation>
 <translation id="2462736546165239215">Todo seu histórico de navegação aparece aqui.</translation>
@@ -416,6 +415,7 @@
 <translation id="2542268842667970959">Ocultar a "Confirmação de segurança"</translation>
 <translation id="2551153019974022505">Erro na conta</translation>
 <translation id="2559843230610279254">Grupo de guias <ph name="GROUP_TITLE" />, <ph name="TABS_NUMBER" /> guias</translation>
+<translation id="257088987046510401">Temas</translation>
 <translation id="2573117291489209663">Concluir</translation>
 <translation id="2577522251608256362">Bairro</translation>
 <translation id="2579713773888829241">Drives compartilhados</translation>
@@ -447,15 +447,11 @@
 <translation id="2688535388040882469">Banners</translation>
 <translation id="2690858294534178585">A câmera está sendo usada</translation>
 <translation id="2691653761409724435">Não está disponível off-line</translation>
-<translation id="2696180352517415858">Sua Conta do Google não será desconectada. <ph name="BEGIN_LINK" />Outras formas de atividade<ph name="END_LINK" /> podem ser salvas na sua conta quando ela está conectada. É possível excluí-las a qualquer momento.
-
-
-Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Confira as instruções para excluir o histórico de pesquisa, se aplicável.</translation>
 <translation id="269819437389494246">Você pode consultar as páginas visitadas ou excluí-las do histórico</translation>
 <translation id="2704606927547763573">Copiado</translation>
 <translation id="2708051474374549906">Proteção proativa em tempo real contra sites, extensões e downloads perigosos baseada nos dados de navegação enviados ao Google</translation>
 <translation id="2709516037105925701">Preenchimento automático</translation>
-<translation id="271033894570825754">Novo</translation>
+<translation id="271033894570825754">Nova</translation>
 <translation id="2712929214961145009">Sans Serif</translation>
 <translation id="2718352093833049315">Apenas com Wi-Fi</translation>
 <translation id="2721190673959776287">Exemplo de ajuda detalhada do produto para o painel contextual, que deve aparecer várias vezes por dia.</translation>
@@ -478,6 +474,7 @@ Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Confira as instruções p
 <translation id="2793703503584038325">Selecione uma senha e toque no ícone de compartilhamento</translation>
 <translation id="2797029671965852011">Mostrar histórico</translation>
 <translation id="2797302972324086597">Código do país</translation>
+<translation id="2798263827270599246">Tema padrão</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} arquivo}one{{COUNT} arquivo}other{{COUNT} arquivos}}</translation>
 <translation id="2816149645002567541">Download pausado</translation>
 <translation id="2816489851009559785">Menu → Configurações → Navegador padrão</translation>
@@ -512,7 +509,7 @@ Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Confira as instruções p
 <translation id="2931440415625410757">Mostrar instruções</translation>
 <translation id="2952278131021475699">Pesquisa com a câmera do Lens</translation>
 <translation id="2962516096219646456">Mostrar todos os dados de preenchimento automático</translation>
-<translation id="2965594942405840553">Não é possível desfazer esta ação</translation>
+<translation id="2965594942405840553">Não é possível desfazer essa ação</translation>
 <translation id="2969979262385602596">Falha durante o login. Tente novamente mais tarde.</translation>
 <translation id="2975761176769946178">É obrigatório informar um URL</translation>
 <translation id="297667759942911166">Colaborar em grupos de guias</translation>
@@ -532,6 +529,7 @@ Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Confira as instruções p
 <translation id="3032704072014531631">Você vai perder imediatamente o acesso ao grupo de guias "<ph name="GROUP_NAME" />", e <ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) não poderá mais interagir com você nos Serviços do Google</translation>
 <translation id="3034496853223708513"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) vai perder imediatamente o acesso ao grupo de guias "<ph name="GROUP_NAME" />" e não poderá mais interagir com você nos Serviços do Google</translation>
 <translation id="3037177537145227281">Monitorando preço</translation>
+<translation id="3038136505713492417">Confirme sua identidade para usar suas chaves de acesso neste dispositivo</translation>
 <translation id="3039671569659952257">Excluir pasta</translation>
 <translation id="3053332585453689122">Envia os URLs que você visita e uma pequena amostra do conteúdo da página, dos downloads, da atividade da extensão e das informações do sistema para a Navegação segura do Google a fim de verificar se são nocivos.</translation>
 <translation id="3055102495753300780">Armazenamento de informações</translation>
@@ -540,10 +538,6 @@ Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Confira as instruções p
 <translation id="3072279342064724558">A senha já existe</translation>
 <translation id="3073258549280822127">Não funciona mais</translation>
 <translation id="3073633853887034268">Entendi</translation>
-<translation id="3076846064362030967">Sua Conta do Google não será desconectada. <ph name="BEGIN_LINK" />Outras formas de atividade<ph name="END_LINK" /> podem ser salvas na sua conta quando ela está conectada. É possível excluí-las a qualquer momento.
-
-
-Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de pesquisa, se aplicável.</translation>
 <translation id="3080525922482950719">Você pode salvar páginas para ler depois ou off-line</translation>
 <translation id="3081338492074632642">A senha que você está salvando precisa ser a mesma usada em <ph name="WEBSITE" /></translation>
 <translation id="3087734570205094154">Parte inferior</translation>
@@ -607,7 +601,6 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="3344485292736684439">{count,plural, =1{Favorito salvo em "{title}" na conta {email}}one{Favorito salvo em "{title}" na conta {email}}other{Favoritos salvos em "{title}" na conta {email}}}</translation>
 <translation id="334690320928261823">Guias recentes</translation>
 <translation id="3349031117032695619">Bloquear pop-ups</translation>
-<translation id="3349676726073650389">Os sites e as pesquisas que você segue são armazenados na sua Conta do Google. Você pode gerenciar esse conteúdo nas configurações a qualquer momento.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Esta conta é gerenciada.</translation>
 <translation id="3365529507898144230">Salvar nas Fotos</translation>
 <translation id="3371831930909698441">Tradução disponível. Opções disponíveis perto da parte inferior da tela.</translation>
@@ -693,6 +686,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="3750225824417196283">Nova página de guia anônima</translation>
 <translation id="3751873026576444885">Parar de pesquisar na tela com o Google Lens</translation>
 <translation id="3753408171347588045">Monitorando preços</translation>
+<translation id="3753618528540214374">Tema esmeralda</translation>
 <translation id="3762232513783804601">Criado para o iPad</translation>
 <translation id="3768725474733206671">Reabrir a última guia fechada</translation>
 <translation id="3779810277399252432">Sem conexão com a Internet.</translation>
@@ -772,7 +766,6 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="4026496154402824012">Para desativar, acesse <ph name="BEGIN_LINK" />Opções de senha<ph name="END_LINK" /></translation>
 <translation id="4028871427853484857">Salvar na conta…</translation>
 <translation id="4038354071007134711">Nenhum app deste dispositivo pode abrir o arquivo.</translation>
-<translation id="4039829422386964954">Procurar na galeria</translation>
 <translation id="4042870976416480368">Buscar na página</translation>
 <translation id="4045441967987592849">Reabrir</translation>
 <translation id="4047337302138771011">Compartilhe suas senhas</translation>
@@ -819,6 +812,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="422474357428465195">Você tem vários problemas de senha que podem colocar sua segurança em risco.</translation>
 <translation id="422477017457571619">Proteção com tecnologia de IA em tempo real contra sites, extensões e downloads perigosos com base nos seus dados de navegação enviados ao Google</translation>
 <translation id="4231395118547300571">Notificações da Confirmação de segurança ativadas</translation>
+<translation id="4232817129213135694">Configurar chaves de acesso para este dispositivo</translation>
 <translation id="4237377247299956313">Toque em <ph name="BEGIN_BOLD" />App de navegação padrão<ph name="END_BOLD" />.</translation>
 <translation id="4241893428331130998">Nenhuma senha ou chave de acesso salva</translation>
 <translation id="4242533952199664413">Abrir configurações.</translation>
@@ -826,6 +820,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="4250680216510889253">Não</translation>
 <translation id="4253168017788158739">Observação</translation>
 <translation id="4256782883801055595">Licenças de código aberto</translation>
+<translation id="4258815194323378612">Agora não</translation>
 <translation id="4263576668337963058">Mostrar ações de página disponíveis</translation>
 <translation id="4267586310863245665">{COUNT,plural, =1{Você dispensou {COUNT} aviso}one{Você dispensou {COUNT} aviso}other{Você dispensou {COUNT} avisos}}</translation>
 <translation id="4268574628540273656">URL:</translation>
@@ -907,7 +902,6 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="4601095002996233687">Faz verificações detalhadas de downloads suspeitos.</translation>
 <translation id="4606247758155004938">O navegador é gerenciado pela sua organização.</translation>
 <translation id="4607887340472970274">Monitoramento de preços</translation>
-<translation id="4611811151908969241">Ocultar opção "Parar de seguir <ph name="DOMAIN_NAME" />"</translation>
 <translation id="461440297010471931">Pesquisando com o Google</translation>
 <translation id="4619564267100705184">Confirmar sua identidade</translation>
 <translation id="4621768135601674446">Abrir opções do Modo de Leitura</translation>
@@ -989,6 +983,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="4869146460927742717">Posição da barra de endereço</translation>
 <translation id="4870911314065352661">Fechar todas as guias?</translation>
 <translation id="4872664437015695612">Abrir em Downloads</translation>
+<translation id="4876237378696925987">Começar</translation>
 <translation id="4876305945144899064">Sem nome de usuário</translation>
 <translation id="4876665338492917862">Aberto em <ph name="LAST_OPENING_DATE" /></translation>
 <translation id="4877597489778380935">Lembrar mais tarde</translation>
@@ -1040,6 +1035,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="5059136629401106827">OK</translation>
 <translation id="5062321486222145940">Instalar o Google Drive</translation>
 <translation id="5067540696062462445">Downloads</translation>
+<translation id="5070314445039955096">As permissões do "<ph name="SITE_DOMAIN" />" serão redefinidas como desativadas quando você sair deste site</translation>
 <translation id="507187271399539513">{count,plural, =1{{position} de {count} forma de pagamento}one{{position} de {count} forma de pagamento}other{{position} de {count} formas de pagamento}}</translation>
 <translation id="5075939510584558547">Salvar sem criptografia</translation>
 <translation id="5076534614343816664">Monitoramento de preços</translation>
@@ -1062,6 +1058,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="514154868070499296">Fonte: <ph name="FONT" /></translation>
 <translation id="5145331760738811130">Sair do seletor guias</translation>
 <translation id="5148717509369231739">Importação do Safari</translation>
+<translation id="5152483358138813104">Faça login mais rápido em todos os seus dispositivos</translation>
 <translation id="5157638238828697074">Ocorreu um erro. Não foi possível abrir o aplicativo.</translation>
 <translation id="5163417375525818870">PDFs</translation>
 <translation id="5168414296986405587">Desenvolvido para iPadOS</translation>
@@ -1071,6 +1068,7 @@ Veja as instruções do seu mecanismo de pesquisa para excluir o histórico de p
 <translation id="5177141896043341906">Você tem <ph name="NUMBER_OF_PASSWORDS" /> senhas fracas que podem colocar sua segurança em risco.</translation>
 <translation id="5181140330217080051">Fazendo download</translation>
 <translation id="5186185447130319458">Particular</translation>
+<translation id="5189431381114029336">Salve sua primeira chave de acesso</translation>
 <translation id="518997337573684769">Enviando relatório de falha…</translation>
 <translation id="519530786644929958">O download falhou e não pode ser repetido.</translation>
 <translation id="5197255632782567636">Internet</translation>
@@ -1172,7 +1170,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="5596627076506792578">Mais opções</translation>
 <translation id="560322036295180549">Desativado pela organização</translation>
 <translation id="5611398002774823980">Salvar na conta</translation>
-<translation id="561269594905823128">Toque em <ph name="BEGIN_BOLD" />Selecione o arquivo<ph name="END_BOLD" /></translation>
+<translation id="561269594905823128">Toque em <ph name="BEGIN_BOLD" />Selecionar o arquivo<ph name="END_BOLD" /></translation>
 <translation id="5613297089029360427">Ordenar por mais recentes</translation>
 <translation id="5614553682702429503">Salvar senha?</translation>
 <translation id="5617769621178348890">Abrir no app Arquivos</translation>
@@ -1194,7 +1192,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="5652623411397330904">Os produtos que você acompanha vão aparecer aqui.</translation>
 <translation id="5656431592348714536">Agenda aprimorada</translation>
 <translation id="5659593005791499971">E-mail</translation>
-<translation id="5665739277590037307">Os <ph name="GOOGLE_TERMS" /> e a <ph name="GEMINI_APPS_PRIVACY" /> se aplicam. O Gemini pode cometer erros. Por isso, é bom checar as respostas.</translation>
+<translation id="5665739277590037307">Os <ph name="GOOGLE_TERMS" /> e o <ph name="GEMINI_APPS_PRIVACY" /> se aplicam. O Gemini pode cometer erros. Por isso, é bom checar as respostas.</translation>
 <translation id="5666313630530585305">Faça login em um site.</translation>
 <translation id="5669335982068190158">A conta foi desconectada como parte da redefinição do iPhone. Toque em "Continuar" abaixo para fazer login.</translation>
 <translation id="5669528293118408608">www</translation>
@@ -1235,7 +1233,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="5779117921996157216">{count,plural, =1{Você tem {count} senha comprometida que pode colocar sua segurança em risco. Corrija o problema agora para se proteger.}one{Você tem {count} senha comprometida que pode colocar sua segurança em risco. Corrija o problema agora para se proteger.}other{Você tem {count} senhas comprometidas que podem colocar sua segurança em risco. Corrija o problema agora para se proteger.}}</translation>
 <translation id="5791632441210678828">Botão para ordenar o feed "Seguindo".</translation>
 <translation id="5803566855766646066">Tem certeza de que você quer descartar este novo card?</translation>
-<translation id="5804012843049740908">Dicas para ajudar você a aproveitar o Chrome ao máximo</translation>
 <translation id="5804241973901381774">Permissões</translation>
 <translation id="58081802114142635">Sua atividade ajuda a aprimorar a IA do Google</translation>
 <translation id="5813223718099710537">Ao usar esse recurso, o conteúdo da página e os URLs são enviados ao Google. Você pode desativá-lo nas configurações quando quiser.</translation>
@@ -1282,6 +1279,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="5971872012779224351">{count,plural, =1{1 favorito excluído}one{{count} favorito excluído}other{{count} favoritos excluídos}}</translation>
 <translation id="5972844218283131174">Desmarcar tudo</translation>
 <translation id="5977976211062815271">Neste dispositivo</translation>
+<translation id="5986043348928676121">Avançar</translation>
 <translation id="598634819525651074">Área</translation>
 <translation id="5988097621740394599">Ver reduções no preço nas suas guias.</translation>
 <translation id="5988851877894965432">Abrir URLs no Chrome</translation>
@@ -1299,7 +1297,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6045460247888249350">Adicionar título</translation>
 <translation id="6052269326659653305">Trocar de perfil</translation>
 <translation id="605721222689873409">AA</translation>
-<translation id="6059103953801602038">Os sites que você segue são armazenados na sua Conta do Google. Eles podem ser gerenciados nas configurações do Discover.</translation>
 <translation id="6059830886158432458">Controle suas matérias e atividade aqui</translation>
 <translation id="6066301408025741299">Toque para cancelar.</translation>
 <translation id="6074656473835429958">Receber notificações</translation>
@@ -1337,7 +1334,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6169031022444660352">Para excluir todas as credenciais salvas, defina uma senha no dispositivo.</translation>
 <translation id="6172428250974276014">Sim, manter dados separados (recomendado)</translation>
 <translation id="6173499589275053515">Senha salva na sua Conta do Google <ph name="EMAIL" /></translation>
-<translation id="6181969657494915430">Tela de pesquisa</translation>
+<translation id="6181969657494915430">Pesquisar na tela</translation>
 <translation id="6187302354554850004">Última sincronização: <ph name="LAST_USED_TIME" /></translation>
 <translation id="6188737759358894319">Criado em <ph name="DATE" /></translation>
 <translation id="6189413832092199491">Não lidas</translation>
@@ -1347,6 +1344,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6198252989419008588">Alterar PIN</translation>
 <translation id="6210079381482819663">As guias não usadas há <ph name="THRESHOLD" /> dias ou mais são movidas para cá. É possível mudar isso a qualquer momento nas <ph name="BEGIN_LINK" />configurações<ph name="END_LINK" />.</translation>
 <translation id="6213281885682386884">Nenhum endereço encontrado</translation>
+<translation id="6218508144653756827">Tema fúcsia</translation>
 <translation id="6218758465102657583">Mover barra de endereço para cima</translation>
 <translation id="6223816392543092032">Tenha seus favoritos, seu histórico, suas senhas e outras configurações em todos os seus dispositivos.</translation>
 <translation id="6225572914528673855">Barra de endereço</translation>
@@ -1394,7 +1392,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="63519665078626091">Para usar o Web Inspector, conecte-se ao Safari no computador usando um cabo e acesse o iPad no menu de desenvolvimento. Você pode ativar o menu de desenvolvimento na seção "Avançado" das configurações do Safari no computador.</translation>
 <translation id="6355820183143562453">Ocultar o card "Monitoramento de preços"</translation>
 <translation id="6355820205320395730">Senhas fracas são fáceis de adivinhar. Você precisa criar senhas fortes. <ph name="BEGIN_LINK" />Confira mais dicas de segurança<ph name="END_LINK" />.</translation>
-<translation id="6361848730467328243">Seguir <ph name="DOMAIN_NAME" /></translation>
 <translation id="6368038301482806847">Selecione um mecanismo de pesquisa na lista.</translation>
 <translation id="6368102751067608420">Para excluir todos os dados do Gerenciador de senhas</translation>
 <translation id="6372558618707314581">Acesse a página que quiser</translation>
@@ -1439,6 +1436,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6523575793810663688">Me ajude a fazer isso</translation>
 <translation id="6524082013156754186">Salvar na conta</translation>
 <translation id="6524918542306337007">O modo de navegação anônima está indisponível</translation>
+<translation id="6527208859483186860">plano de fundo {position} de {total}</translation>
 <translation id="6527303717912515753">Compartilhar</translation>
 <translation id="6532106788206463496">Salvar alterações</translation>
 <translation id="6536759809440150308">Abrir <ph name="GROUP_TITLE" />, grupo de <ph name="NUMBER_OF_TABS" />, <ph name="CREATION_TEXT" /></translation>
@@ -1449,7 +1447,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="656065428026159829">Ver mais</translation>
 <translation id="6571070086367343653">Editar cartão de crédito</translation>
 <translation id="6574092468346088891">Ativar as notificações da Confirmação de segurança</translation>
-<translation id="6574225511994820656">Começar a configuração</translation>
 <translation id="6579867704846662339">Você pode abrir os URLs recebidos de outros apps no modo de navegação anônima.</translation>
 <translation id="6583087784430677195">Para desativar, abra <ph name="BEGIN_LINK" />Ajustes<ph name="END_LINK" /> e acesse "Preenchimento Automático de Senhas".</translation>
 <translation id="6585618849026997638">Adicione uma página importante aos favoritos para acessá-la com facilidade</translation>
@@ -1464,6 +1461,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="661266467055912436">Melhora a segurança para você e para todos na Web.</translation>
 <translation id="6612912757320004438">Permitir notificações de guias…</translation>
 <translation id="6617761071025228250">Limpar texto</translation>
+<translation id="6619015782482868078">Tema aqua</translation>
 <translation id="6620279676667515405">Cancelar</translation>
 <translation id="6625830436658400045">Suas configurações de sincronização vão ser restauradas com base no seu último backup. Nas <ph name="BEGIN_LINK" />configurações<ph name="END_LINK" />, é possível escolher a qualquer momento o que é sincronizado.</translation>
 <translation id="6627583120233659107">Editar pasta</translation>
@@ -1499,6 +1497,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6713676799463473249">Última modificação: <ph name="LAST_MODIFICATION_DATE" /></translation>
 <translation id="6722623263381062480">Guias recebidas</translation>
 <translation id="6723740634201835758">Na Conta do Google</translation>
+<translation id="6724024423419410528">Cores</translation>
 <translation id="672735642903863329">Acesse seus favoritos, senhas e mais em todos os seus dispositivos.</translation>
 <translation id="6729493062119577923">Atividade do grupo de guias compartilhado</translation>
 <translation id="6732087373923685049">câmera</translation>
@@ -1510,12 +1509,11 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="6761393919622941301">Áudio</translation>
 <translation id="6770452996697898492">[AGENDADO]</translation>
 <translation id="6779455296366983087">Os dados de navegação serão excluídos</translation>
-<translation id="6790502149545262384">Em breve, stories de <ph name="CHANNEL_NAME" /> vão ser mostrados quando você abrir uma nova guia.</translation>
 <translation id="6791425686608802741">Toque em "Adicionar guia ao novo grupo"</translation>
 <translation id="6794476726485507147">Escolha uma data e um horário para receber uma notificação de lembrete para voltar a esta página</translation>
 <translation id="6795481620482106033">Dados inválidos</translation>
 <translation id="6797543908718012274">Ativar modo de leitura</translation>
-<translation id="6806550742467879742">Ferramentas para páginas</translation>
+<translation id="6806550742467879742">Ferramentas da página</translation>
 <translation id="6807287147325542056">Senhas em outros apps</translation>
 <translation id="681368974849482173">Item criado</translation>
 <translation id="6825078212112407882">{count,plural, =1{Favorito salvo na sua Conta do Google {email}}one{{count} favorito salvo na sua Conta do Google {email}}other{{count} favoritos salvos na sua Conta do Google {email}}}</translation>
@@ -1562,6 +1560,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="69739764870135975">Se o Google também for seu mecanismo de pesquisa padrão, você vai receber sugestões melhores e relevantes para o contexto</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">Todo o período</translation>
+<translation id="6980507581230208647">Tema rosa</translation>
 <translation id="6983306615164277634">Você também pode manter a barra endereço pressionada para mudar a posição dela.</translation>
 <translation id="6987201788018524855">Conheça recursos úteis que você pode ter deixado passar</translation>
 <translation id="6989636517316575338">Pergunte sobre qualquer página</translation>
@@ -1588,7 +1587,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7091023926159231962">{count,plural, =1{Não foi possível importar {count} senha}one{Não foi possível importar {count} senha}other{Não foi possível importar {count} senhas}}</translation>
 <translation id="7095110968493193530">No Gerenciador de senhas do Google da conta <ph name="EMAIL" /></translation>
 <translation id="7097046145876891318">Na barra de endereço, toque no histórico de preços para ver as mudanças ao longo do tempo</translation>
-<translation id="7101580180124131336">Agora, você vai receber conteúdo de e sobre <ph name="CHANNEL_NAME" /> na guia "Seguindo".</translation>
 <translation id="7102005569666697658">Fazendo o download… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">Menu → Configurações → Formas de pagamento</translation>
 <translation id="7108338896283013870">Ocultar</translation>
@@ -1607,6 +1605,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7176183551031110427">Diminuir zoom</translation>
 <translation id="7186568385131859684">Controle como o histórico de navegação é usado com seus outros dados nos Serviços do Google</translation>
 <translation id="719133302483559673">Gerencie seus interesses e suas preferências.</translation>
+<translation id="7191382490098297347">Imagem do rolo da câmera</translation>
 <translation id="7203496777391039568">A privacidade e segurança dos dados da sua organização ficam garantidas</translation>
 <translation id="720399613139435155">Falha na tradução</translation>
 <translation id="7204922488054642675">Notícias personalizadas</translation>
@@ -1628,13 +1627,14 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="728025568708172005">Mostrar a região</translation>
 <translation id="7280980607183752256">Não é possível importar este arquivo</translation>
 <translation id="7281202269687163394">Sua privacidade e o Gemini.</translation>
+<translation id="7282197670900591579">Tema limão</translation>
 <translation id="7293429513719260019">Selecionar idioma</translation>
 <translation id="7300448350764260141">Adicione mais uma camada de proteção contra ameaças on-line.</translation>
 <translation id="7311244614769792472">Nenhum resultado encontrado</translation>
 <translation id="7313347584264171202">Você verá suas guias anônimas aqui</translation>
+<translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7334364820047587268">Você já tem senhas dessas contas no Gerenciador de senhas do Google. Se decidir importar uma das senhas abaixo, ela vai substituir a atual.</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> por cento baixados</translation>
-<translation id="7346909386216857016">Ok, entendi.</translation>
 <translation id="7352651011704765696">Algo deu errado</translation>
 <translation id="7363349185727752629">Um guia das suas escolhas de privacidade</translation>
 <translation id="736564850024123010">Mude a posição da barra de endereço para personalizar sua experiência.</translation>
@@ -1663,9 +1663,10 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7435356471928173109">Desativado pelo administrador</translation>
 <translation id="7437712592381799950">Deslize para cima para mais conteúdos personalizados.</translation>
 <translation id="7438473148803748807">Todos vão perder imediatamente o acesso ao grupo de guias "<ph name="GROUP_NAME" />", e todos os links de convite serão desativados</translation>
-<translation id="7438481509621345350">Agora, você verá stories de <ph name="CHANNEL_NAME" /> quando abrir uma nova guia.</translation>
+<translation id="7445682342344043969">Pop-ups bloqueados</translation>
 <translation id="7451023311965289370">{count,plural, =1{Favorito salvo em "{title}"}one{Favorito salvo em "{title}"}other{Favoritos salvos em "{title}"}}</translation>
 <translation id="7451404862887877229">Toque em "Privacidade e segurança" e depois em "Navegação segura"</translation>
+<translation id="7452393099119876789">Isso só precisa ser feito uma vez.</translation>
 <translation id="7454057999980797137">Estado/Província</translation>
 <translation id="7458706065921255639">Personalização e vinculação</translation>
 <translation id="745899714366929493">O dia todo</translation>
@@ -1751,6 +1752,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7749790401023484470">Você não selecionou nenhum texto.</translation>
 <translation id="7757015014239760147">Sem nome de usuário ••••••••</translation>
 <translation id="775755486779745798">Preencher automaticamente o mês de vencimento <ph name="MONTH" /></translation>
+<translation id="7758789811447313947">Tema violeta</translation>
 <translation id="7759809451544302770">Opcional</translation>
 <translation id="7765158879357617694">Mover</translation>
 <translation id="7772032839648071052">Confirmar senha</translation>
@@ -1769,7 +1771,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="7815852444315004084">Ocultar por enquanto</translation>
 <translation id="7825973332242257878">Grupos de guias</translation>
 <translation id="7839994177130598711">Os membros da sua família agora podem usar seu nome de usuário e sua senha ao fazer login em <ph name="BEGIN_BOLD" /><ph name="WEBSITE" /><ph name="END_BOLD" /> com o Gerenciador de senhas do Google.</translation>
-<translation id="7840771868269352570">Os itens selecionados serão removidos.</translation>
 <translation id="7841180087127694526">Pesquisar texto copiado</translation>
 <translation id="7841418003178675048">Escolha quais cards vão aparecer na página "Nova guia".</translation>
 <translation id="7845466610722898">Mostrar "Lista de leitura"</translation>
@@ -1815,6 +1816,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="797824194429476746">As guias vão continuar abertas no dispositivo, mas o grupo será excluído permanentemente.</translation>
 <translation id="797874245254030665">Acesse suas senhas e chaves de acesso em qualquer app</translation>
 <translation id="7982789257301363584">Rede</translation>
+<translation id="798299424881500862">Tema laranja</translation>
 <translation id="7987685713885608670">Para ter mais segurança, criptografe as senhas no dispositivo antes que elas sejam salvas no Gerenciador de senhas do Google.</translation>
 <translation id="798991908416757345">Os grupos de guias estão indisponíveis</translation>
 <translation id="7993170188789685695">Toque duas vezes para fechar a notificação.</translation>
@@ -1834,7 +1836,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8035133914807600019">Nova pasta...</translation>
 <translation id="8035412398498507358">Fotos</translation>
 <translation id="8040407350301524547">Para conferir opções de trajeto, toque em "Conferir rotas".</translation>
-<translation id="804225253087497565">O <ph name="BEGIN_LINK" />histórico de pesquisa<ph name="END_LINK" /> e <ph name="BEGIN_LINK" />outras formas de atividade<ph name="END_LINK" /> podem ser salvos na sua Conta do Google quando ela está conectada. É possível excluí-los a qualquer momento.</translation>
 <translation id="804427445359061970">Suas guias de outros dispositivos vão aparecer aqui</translation>
 <translation id="8058655154417507695">Ano de expiração</translation>
 <translation id="8059312861912872211">{count,plural, =1{{count} favorito}one{{count} favorito}other{{count} favoritos}}</translation>
@@ -1914,7 +1915,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8343993175958086504">Faça backup e use seus dados em qualquer dispositivo.</translation>
 <translation id="8348530355586151720">Toque no menu de três pontos.</translation>
 <translation id="8349305172487531364">Barra de favoritos</translation>
-<translation id="8361189290032177785">{count,plural, =1{{count} favorito foi importado}one{{count} favorito foi importado}other{{count} favoritos foram importados}}</translation>
+<translation id="8361189290032177785">{count,plural, =1{{count} favorito importado}one{{count} favorito importado}other{{count} favoritos importados}}</translation>
 <translation id="8363484128299778310">Recuperação temporária em caso de problemas</translation>
 <translation id="8364563001733875155">Para mudar o PIN, primeiro defina uma senha no dispositivo.</translation>
 <translation id="8366466717204352506">Confirmação nunca executada</translation>
@@ -1928,8 +1929,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8393700583063109961">Enviar mensagem</translation>
 <translation id="8393889347136007944">Guias não usadas há <ph name="THRESHOLD" /> dias</translation>
 <translation id="8395180897620197612">Parar de registrar</translation>
-<translation id="8395339334550012808">Em breve, você vai receber conteúdo de e sobre <ph name="CHANNEL_NAME" /> na guia "Seguindo".</translation>
-<translation id="8402673309244746971">Acessar "Seguindo"</translation>
 <translation id="8407669440184693619">Nenhuma senha encontrada para este site</translation>
 <translation id="8407831512155324054">Senhas fortes</translation>
 <translation id="8414283596511250978">Nunca mais esqueça suas senhas</translation>
@@ -1975,6 +1974,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8571019948162152515">Excluir "<ph name="FILENAME" />"?</translation>
 <translation id="8571213806525832805">Últimas quatro semanas</translation>
 <translation id="8577056989960190117">Preencher automaticamente o ano de validade <ph name="YEAR" /></translation>
+<translation id="8587001564479545614">Crie um PIN de recuperação</translation>
 <translation id="8588404856427128947">Desativada</translation>
 <translation id="8590286732816598906">Grupo de guias, <ph name="GROUP_TITLE" />, menu.</translation>
 <translation id="8600272508328041907">Alternar para tradução de página inteira</translation>
@@ -2023,7 +2023,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="872371143724482722">{COUNT,plural, =1{{COUNT} guia}one{{COUNT} guia}other{{COUNT} guias}}</translation>
 <translation id="8725066075913043281">Tentar novamente</translation>
 <translation id="8726523474917941818">Lembrar</translation>
-<translation id="8730621377337864115">Concluir</translation>
+<translation id="8730621377337864115">Concluído</translation>
 <translation id="8731268612289859741">Código de segurança</translation>
 <translation id="87371078663613140">Explore as opções na barra de menus</translation>
 <translation id="8741627442233023406">{count,plural, =1{Conferir a guia…}one{Conferir a guia…}other{Conferir todas as guias…}}</translation>
@@ -2034,7 +2034,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8750037785291841318">Suas guias aparecem aqui</translation>
 <translation id="8756969031206844760">Atualizar senha?</translation>
 <translation id="8763613688786959833">Ir para a última guia</translation>
-<translation id="8764015330924122850">Parar de seguir <ph name="DOMAIN_NAME" /></translation>
 <translation id="8766790350274092814">As senhas de <ph name="WEBSITE" /> e <ph name="SECOND_WEBSITE" /> vão ser excluídas. Suas contas não serão excluídas.</translation>
 <translation id="8775144690796719618">URL inválido</translation>
 <translation id="8781834595282316166">Nova guia no grupo</translation>
@@ -2053,7 +2052,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8829809207373502270">Essa chave de acesso não funciona mais. Ela foi excluída de <ph name="WEBSITE" /> e será excluída daqui em breve. <ph name="BEGIN_LINK" />Sobre chaves de acesso<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Fechar todas as guias inativas</translation>
 <translation id="8837654851594567190">Ordenar por publisher</translation>
-<translation id="8840513115188359703">Você não será desconectado da sua Conta do Google.</translation>
 <translation id="8848286253339013170">Salvando imagem no Google Fotos de <ph name="USER_EMAIL" />…</translation>
 <translation id="8849001918648564819">Oculto</translation>
 <translation id="8855242995793521265">Não deixa o navegador ou dispositivo lento.</translation>
@@ -2095,9 +2093,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="8976382372951310360">Ajuda</translation>
 <translation id="8976414606286374109">Os cartões são salvos na sua Conta do Google.</translation>
 <translation id="8981454092730389528">Controles de atividades do Google</translation>
-<translation id="8984627322964256190">Ocultar opção "Seguir <ph name="DOMAIN_NAME" />"</translation>
 <translation id="8998289560386111590">Indisponível no seu dispositivo</translation>
-<translation id="9000089900434778519">Seu mecanismo de pesquisa é o <ph name="DSE_NAME" />. Veja as instruções para excluir o histórico de pesquisa, se aplicável.</translation>
 <translation id="9000532564152265066">Todas as guias</translation>
 <translation id="9003677638446136377">Verificar novamente</translation>
 <translation id="9006453925669499173">Menu → Nova guia anônima</translation>
@@ -2138,7 +2134,7 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="913036870884277353">Abra links facilmente em outros apps.</translation>
 <translation id="9137013805542155359">Mostrar original</translation>
 <translation id="9140888637198815199">A</translation>
-<translation id="9144152097013965297">Ativar Modo de leitura</translation>
+<translation id="9144152097013965297">Ativar modo de leitura</translation>
 <translation id="9144230693397287797">Receba atualizações sobre os lembretes que você definiu e as guias de outros dispositivos</translation>
 <translation id="914781932147356857">Marcar tudo…</translation>
 <translation id="9148126808321036104">Faça login novamente</translation>
@@ -2171,7 +2167,6 @@ A "Transição" também deve ser ativada na seção "Geral" das configurações.
 <translation id="952704832371081537">Cancelar</translation>
 <translation id="954667170699278022">Lista de leitura</translation>
 <translation id="956218893102219091">Use sua localização exata para ter resultados mais precisos no Gemini, em vez de uma localização aproximada com base no seu endereço IP. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
-<translation id="959066944189734975">Você está seguindo este canal: <ph name="CHANNEL_NAME" /></translation>
 <translation id="961856697154696964">Excluir histórico</translation>
 <translation id="963102227019621224">Atividade na Web e de apps</translation>
 <translation id="966593914872420832">Pesquisa por voz</translation>

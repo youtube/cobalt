@@ -1392,7 +1392,7 @@ TEST_P(ReportingEventRouterTest,
 }
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
-#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 TEST_P(ReportingEventRouterTest, TestOnDataControlsSensitiveDataEvent) {
   test::SetOnSecurityEventReporting(
       profile_->GetPrefs(), /*enabled=*/true,
@@ -1400,7 +1400,7 @@ TEST_P(ReportingEventRouterTest, TestOnDataControlsSensitiveDataEvent) {
       /*enabled_opt_in_events=*/{});
 
   data_controls::Verdict::TriggeredRules triggered_rules = {
-      {0, {"1", "rule_1_name"}}};
+      {{0, true}, {"1", "rule_1_name"}}};
   test::EventReportValidator validator(client_.get());
   base::RunLoop run_loop;
   validator.SetDoneClosure(run_loop.QuitClosure());
@@ -1461,7 +1461,7 @@ TEST_P(ReportingEventRouterTest, TestOnDataControlsSensitiveDataEvent) {
       enterprise_connectors::EventResult::ALLOWED, 1234);
   run_loop.Run();
 }
-#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS) && !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
 INSTANTIATE_TEST_SUITE_P(, ReportingEventRouterTest, ::testing::Bool());
 

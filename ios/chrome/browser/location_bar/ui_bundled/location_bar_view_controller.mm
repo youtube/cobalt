@@ -14,6 +14,7 @@
 #import "components/feature_engagement/public/tracker.h"
 #import "components/lens/lens_overlay_metrics.h"
 #import "components/omnibox/browser/omnibox_field_trial.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/prefs/pref_service.h"
@@ -300,8 +301,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   }
 
   if (IsPageActionMenuEnabled()) {
-    _pageActionMenuEntrypointView = [[PageActionMenuEntrypointView alloc]
-        initWithNewBadgeVisible:_isAIHubNewBadgeVisible];
+    _pageActionMenuEntrypointView = [[PageActionMenuEntrypointView alloc] init];
     [_pageActionMenuEntrypointView
                addTarget:self
                   action:@selector(handlePageActionMenuEntrypointTapped)
@@ -348,15 +348,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self updateTrailingButtonState];
   [self switchToEditing:NO];
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-        @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(updateTrailingButtonState)];
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+      @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(updateTrailingButtonState)];
 
-    [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
-                       withAction:@selector(sizeClassDidChange)];
-  }
+  [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
+                     withAction:@selector(sizeClassDidChange)];
 
   if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     _defaultSearchEngineIconView = [[UIImageView alloc] init];
@@ -367,16 +365,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
         CGSizeMake(kOmniboxLeadingImageSize + 12.0f, kOmniboxLeadingImageSize));
   }
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-  [self updateTrailingButtonState];
-}
-#endif
 
 #pragma mark - FullscreenUIElement
 
@@ -705,16 +693,21 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       // padding to balance it.
       UIImage* shareImage =
           DefaultSymbolWithPointSize(kShareSymbol, kSymbolImagePointSize);
-      // TODO(crbug.com/411039614): Replace
-      // UIGraphicsBeginImageContextWithOptions with UIGraphicsImageRenderer.
-      UIGraphicsBeginImageContextWithOptions(
-          CGSizeMake(shareImage.size.width,
-                     shareImage.size.height + kShareIconBalancingHeightPadding),
-          NO, 0.0);
-      [shareImage drawInRect:CGRectMake(0, 0, shareImage.size.width,
-                                        shareImage.size.height)];
-      UIImage* paddedShareImage = UIGraphicsGetImageFromCurrentImageContext();
-      UIGraphicsEndImageContext();
+
+      UIGraphicsImageRendererFormat* format =
+          [UIGraphicsImageRendererFormat preferredFormat];
+      format.scale = 0.0;
+      format.opaque = NO;
+      UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc]
+          initWithSize:CGSizeMake(shareImage.size.width,
+                                  shareImage.size.height +
+                                      kShareIconBalancingHeightPadding)
+                format:format];
+      UIImage* paddedShareImage = [renderer
+          imageWithActions:^(UIGraphicsImageRendererContext* context) {
+            [shareImage drawInRect:CGRectMake(0, 0, shareImage.size.width,
+                                              shareImage.size.height)];
+          }];
 
       [self.locationBarSteadyView.trailingButton setImage:paddedShareImage
                                                  forState:UIControlStateNormal];
@@ -911,7 +904,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
     UIImage* image = nil;
     ToolbarType targetToolbarType;
     if (GetApplicationContext()->GetLocalState()->GetBoolean(
-            prefs::kBottomOmnibox)) {
+            omnibox::kIsOmniboxInBottomPosition)) {
       title = l10n_util::GetNSString(IDS_IOS_TOOLBAR_MENU_TOP_OMNIBOX);
       image = DefaultSymbolWithPointSize(kMovePlatterToTopPhoneSymbol,
                                          kSymbolActionPointSize);
@@ -1035,7 +1028,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 /// Set the preferred omnibox position to `toolbarType`.
 - (void)moveOmniboxToToolbarType:(ToolbarType)toolbarType {
   GetApplicationContext()->GetLocalState()->SetBoolean(
-      prefs::kBottomOmnibox, toolbarType == ToolbarType::kSecondary);
+      omnibox::kIsOmniboxInBottomPosition,
+      toolbarType == ToolbarType::kSecondary);
 
   if (toolbarType == ToolbarType::kPrimary) {
     RecordAction(
@@ -1057,11 +1051,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
 - (void)handlePageActionMenuEntrypointTapped {
   // TODO(crbug.com/402827015): Log opens.
-  if (_isAIHubNewBadgeVisible) {
+  if (_pageActionMenuEntrypointView.newBadgeVisible) {
     RecordAIHubNewBadgeTapped();
-    [_pageActionMenuEntrypointView setNewBadgeVisible:NO];
-    _isAIHubNewBadgeVisible = NO;
     [self.delegate locationBarDidTapAIHubNewBadge];
+    _pageActionMenuEntrypointView.newBadgeVisible = NO;
   }
   if (IsDirectBWGEntryPoint()) {
     [self.BWGHandler startBWGFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
@@ -1114,6 +1107,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       CHECK(IsPageActionMenuEnabled());
       self.locationBarSteadyView.placeholderView =
           _pageActionMenuEntrypointView;
+      if (!_pageActionMenuEntrypointView.newBadgeVisible) {
+        _pageActionMenuEntrypointView.newBadgeVisible =
+            [self.delegate shouldShowAIHubNewFeatureBadge];
+      }
       break;
     case LocationBarPlaceholderType::kDefaultSearchEngineIcon:
       self.locationBarSteadyView.placeholderView = _defaultSearchEngineIconView;

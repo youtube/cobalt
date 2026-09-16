@@ -37,9 +37,13 @@
 
 #include <stdio.h>
 
+#include <fstream>
 #include <memory>
 #include <set>
 
+#include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/external-reference.h"
@@ -53,9 +57,29 @@
 namespace v8 {
 namespace internal {
 
-#define DEBUG_PRINTF(...)     \
-  if (v8_flags.riscv_debug) { \
-    printf(__VA_ARGS__);      \
+class DebugFile : public std::ofstream {
+ public:
+  static DebugFile& GetDebugFile() {
+    static DebugFile debug_file;
+    return debug_file;
+  }
+  ~DebugFile() { flush(); }
+  DebugFile(const DebugFile&) = delete;
+  DebugFile& operator=(const DebugFile&) = delete;
+
+ private:
+  DebugFile() : std::ofstream(v8_flags.riscv_debug_file_path) {}
+};
+
+#define DEBUG_PRINTF(...) /*                                  force 80 cols */ \
+  if (V8_UNLIKELY(v8_flags.riscv_debug)) {                                     \
+    if (v8_flags.riscv_debug_file_path) {                                      \
+      base::EmbeddedVector<char, 1024> chars;                                  \
+      SNPrintF(chars, __VA_ARGS__);                                            \
+      DebugFile::GetDebugFile() << chars.begin();                              \
+    } else {                                                                   \
+      PrintF(__VA_ARGS__);                                                     \
+    }                                                                          \
   }
 
 class SafepointTableBuilder;
@@ -79,9 +103,8 @@ class AssemblerRiscvBase {
 
   virtual void emit(Instr x) = 0;
   virtual void emit(ShortInstr x) = 0;
-  virtual void emit(uint64_t x) = 0;
 
-  virtual void ClearVectorunit() = 0;
+  virtual void ClearVectorUnit() = 0;
 
   // Record the last known safepoint location to the current pc.
   virtual void RecordPcForSafepoint() = 0;

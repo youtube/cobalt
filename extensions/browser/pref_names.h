@@ -130,6 +130,11 @@ inline constexpr char kPinnedExtensions[] = "extensions.pinned_extensions";
 inline constexpr char kExtensionInstallTypeBlocklist[] =
     "extensions.extension_install_type_blocklist";
 
+// Pref for policy to enable/disable force-install extensions with non-malware
+// violations.
+inline constexpr char kExtensionForceInstallWithNonMalwareViolationsEnabled[] =
+    "extensions.extension_force_install_with_non_malware_violations_enabled";
+
 // Properties in kExtensions dictionaries --------------------------------------
 
 // Extension-controlled preferences.
@@ -157,6 +162,17 @@ inline constexpr char kGlobalShortcutsUuid[] =
 // Boolean that specifies whether ExtensionInstallCloudPolicyChecks is enabled.
 inline constexpr char kExtensionInstallCloudPolicyChecksEnabled[] =
     "extensions.install.cloud_policy_checks_enabled";
+
+// A pref that stores the expiration time for the enterprise promotion banner
+// on the Chrome Web Store. After this time, the banner will not be shown
+// anymore.
+inline constexpr char kEnterprisePromotionExpirationTime[] =
+    "extensions.enterprise_promotion.expiration_time";
+
+// A pref that stores whether the enterprise promotion banner on the Chrome
+// Web Store has been dismissed by the user by clicking the banner button.
+inline constexpr char kHasDismissedEnterprisePromotion[] =
+    "extensions.has_dismissed_enterprise_promotion";
 
 }  // namespace pref_names
 }  // namespace extensions

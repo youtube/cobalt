@@ -76,18 +76,16 @@ const CGFloat kTitleTopMarginWhenNoHeaderImage = 30;
   self.titleTopMarginWhenNoHeaderImage = kTitleTopMarginWhenNoHeaderImage;
   self.preferToCompressContent = YES;
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits =
-        TraitCollectionSetForTraits(@[ UITraitUserInterfaceStyle.class ]);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(selectAnimationForCurrentStyle)];
-  }
+  NSArray<UITrait>* traits =
+      TraitCollectionSetForTraits(@[ UITraitUserInterfaceStyle.class ]);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(selectAnimationForCurrentStyle)];
 
   if (![self.titleText length] || ![self.subtitleText length]) {
     // Sets default promo text if title and subtitle text are not explicitly
     // set.
-    CHECK(![self.titleText length], base::NotFatalUntil::M138);
-    CHECK(![self.subtitleText length], base::NotFatalUntil::M138);
+    CHECK(![self.titleText length]);
+    CHECK(![self.subtitleText length]);
     BOOL usesTabletStrings =
         ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
     [self setPromoTitle:
@@ -131,17 +129,6 @@ const CGFloat kTitleTopMarginWhenNoHeaderImage = 30;
 
   [super viewDidLoad];
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  [self selectAnimationForCurrentStyle];
-}
-#endif
 
 #pragma mark - DefaultBrowserScreenConsumer
 
@@ -283,7 +270,7 @@ const CGFloat kTitleTopMarginWhenNoHeaderImage = 30;
   LottieAnimationConfiguration* config =
       [[LottieAnimationConfiguration alloc] init];
   config.animationName = animationAssetName;
-  config.loopAnimationCount = -1;  // Always loop.
+  config.shouldLoop = YES;
   return ios::provider::GenerateLottieAnimation(config);
 }
 

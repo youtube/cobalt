@@ -267,7 +267,10 @@
       <message name="IDS_IOS_ADVANCED_SIGNIN_SETTINGS_CANCEL_SYNC_ALERT_MESSAGE" desc="Alert title to ask if the user really wants to cancel sign-in and sync.">
         Cancel sync? You can turn on sync anytime in settings.
       </message>
-      <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" translateable="false" desc="The button label for the Gemini entry point of the AI hub.">
+      <message name="IDS_IOS_AI_HUB_CAMERA_PERMISSION_LABEL" desc="The button label for the Camera permission feature of the AI hub.">
+        Camera
+      </message>
+      <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" desc="The button label for the Gemini entry point of the AI hub.">
         Ask Gemini
       </message>
       <message name="IDS_IOS_AI_HUB_HIDE_BUTTON_LABEL" desc="The button label for hiding feature entry points in the AI hub.">
@@ -279,6 +282,27 @@
       <message name="IDS_IOS_AI_HUB_LENS_LABEL" desc="The button label for the Lens entry point of the AI hub.">
         Search screen
       </message>
+      <message name="IDS_IOS_AI_HUB_MICROPHONE_PERMISSION_LABEL" desc="The button label for the Microphone permission feature of the AI hub.">
+        Microphone
+      </message>
+      <message name="IDS_IOS_AI_HUB_PERMISSION_SITE_EXPLANATION" desc="Explanation text for site permissions in the AI hub showing which site the permissions apply to.">
+        "<ph name="SITE_DOMAIN">$1<ex>camera.com</ex></ph>" permissions will reset to off when you leave this site
+      </message>
+      <message name="IDS_IOS_AI_HUB_POPUP_ALWAYS_SHOW_BUTTON_LABEL" desc="The button label for always showing pop-ups in the Pop-up blocker feature of the AI hub.">
+        Always show
+      </message>
+      <message name="IDS_IOS_AI_HUB_POPUP_BLOCKER_COUNT_SUBTITLE" desc="A subtitle showing the number of blocked pop-ups in the AI hub. The number shows how many pop-ups were blocked.">
+        (<ph name="COUNT">$1<ex>2</ex></ph>)
+      </message>
+      <message name="IDS_IOS_AI_HUB_POPUP_BLOCKER_LABEL" desc="The button label for the Pop-up blocker feature of the AI hub.">
+        Pop-ups blocked
+      </message>
+      <message name="IDS_IOS_AI_HUB_PRICE_TRACKING_BUTTON_LABEL" desc="The button label for tracking prices in the Price tracking feature of the AI hub.">
+        Tracking
+      </message>
+      <message name="IDS_IOS_AI_HUB_PRICE_TRACKING_LABEL" desc="The label for the Price tracking feature of the AI hub.">
+        Price history
+      </message>
       <message name="IDS_IOS_AI_HUB_READER_MODE_LABEL" desc="The button label for the Reader mode entry point of the AI hub.">
         Reading Mode
       </message>
@@ -287,6 +311,12 @@
       </message>
       <message name="IDS_IOS_AI_HUB_READER_MODE_OPTIONS_FONT_LABEL" desc="A subtitle of a button to customise Reader mode options from the AI hub. The subtitle shows a preview of the currently selected font in Reader mode.">
         Font: <ph name="FONT">$1<ex>Serif</ex></ph>
+      </message>
+      <message name="IDS_IOS_AI_HUB_TRANSLATE_LABEL" desc="The button label for the Translate feature of the AI hub.">
+        Translate
+      </message>
+      <message name="IDS_IOS_AI_HUB_TRANSLATE_SHOW_ORIGINAL_BUTTON_LABEL" desc="The button label for showing original text in the Translate feature of the AI hub.">
+        Show original
       </message>
       <message name="IDS_IOS_AI_PROTOTYPING_CALENDAR_HEADER" translateable="false" desc="The title for the enhanced calendar page of the AI prototyping menu [Length: unlimited].">
         Enhanced Calendar
@@ -1234,39 +1264,6 @@
       <message name="IDS_IOS_CLEAR_AUTOFILL" desc="Label for the option in settings to clear form data. [Length: 20em] [iOS only]">
         Autofill data
       </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_ACTIVITY_MODAL" desc="Message text for the activity indicator modal during delete browsing data.">
-        Deleting browsing data…
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_ACCOUNT" desc="Footer message in the settings to clear browsing data that informs the user that clearing browsing data will not sign them out of Chrome.">
-        You won't be signed out of your Google Account.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_GOOGLE_DSE" desc="Footer message in the settings to clear browsing data that informs the user they can seperately delete their search history and/or other account info at the 2 links provided.">
-        <ph name="BEGIN_LINK">BEGIN_LINK</ph>Search history<ph name="END_LINK">END_LINK</ph> and <ph name="BEGIN_LINK">BEGIN_LINK</ph>other forms of activity<ph name="END_LINK">END_LINK</ph> may be saved in your Google Account when you’re signed in. You can delete them anytime.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_KNOWN_DSE_SIGNED_IN" desc="Footer message in the settings to clear browsing data that informs a signed in user that they will need to look up instructions to delete their search history from their DSE, as well as that they won't be signed out and where to delete other account data.">
-        You won't be signed out of your Google Account. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Other forms of activity<ph name="END_LINK">END_LINK</ph> may be saved in your Google Account when you’re signed in. You can delete them anytime.
-
-
-Your search engine is <ph name="DSE_NAME">$1<ex>DuckDuckGo</ex></ph>. See their instructions for deleting your search history, if applicable.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_KNOWN_DSE_SIGNED_OUT" desc="Footer message in the settings to clear browsing data that informs the user that they will need to look up instructions to delete their search history from their DSE.">
-        Your search engine is <ph name="DSE_NAME">$1<ex>DuckDuckGo</ex></ph>. See their instructions for deleting your search history, if applicable.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_UNKOWN_DSE_SIGNED_IN" desc="Footer message in the settings to clear browsing data that informs a signed in user that they will need to look up instructions to delete their search history from a DSE that is not well known to Google, as well as that they won't be signed out and where to delete other account data.">
-        You won't be signed out of your Google Account. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Other forms of activity<ph name="END_LINK">END_LINK</ph> may be saved in your Google Account when you’re signed in. You can delete them anytime.
-
-
-See your search engine’s instructions for deleting your search history, if applicable.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_FOOTER_UNKOWN_DSE_SIGNED_OUT" desc="Footer message in the settings to clear browsing data that informs the user that they will need to look up instructions to delete their search history from a DSE that is not well known to Google.">
-        See your search engine’s instructions for deleting your search history, if applicable.
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_HISTORY_NOTICE_OK_BUTTON" desc="Title of a button that closes the dialog informing the user to open the Google My Activity. [Length: 15em]">
-        Ok, got it
-      </message>
-      <message name="IDS_IOS_CLEAR_BROWSING_DATA_HISTORY_NOTICE_OPEN_HISTORY_BUTTON" desc="Title of a button that allows the user to open history.google.com. [Length: 15em]">
-        Open history.google.com
-      </message>
       <message name="IDS_IOS_CLEAR_BROWSING_DATA_TIME_RANGE_OPTION_BEGINNING_OF_TIME" desc="Label of a time range option. This is used to specify that the user wishes to clear their browsing data since the beginning of time.">
         All time
       </message>
@@ -1296,9 +1293,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_CLEAR_BROWSING_HISTORY" desc="Label for the option in settings to clear browsing history. [Length: 20em] [iOS only]">
         Browsing history
-      </message>
-      <message name="IDS_IOS_CLEAR_BUTTON" desc="Title for the button used to delete data. [Length: 20em] [iOS only]">
-        Delete browsing data
       </message>
       <message name="IDS_IOS_CLEAR_CACHE" desc="Label for the option in settings to clear the cache. [Length: 20em] [iOS only]">
         Cached images and files
@@ -1350,9 +1344,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_CONFIRM_CLEAR_BUTTON" desc="Accessibility label for the button used to confirm deleting data. [iOS only]">
         Confirm delete browsing data
-      </message>
-      <message name="IDS_IOS_CONFIRM_CLEAR_BUTTON_TITLE" desc="Title for the UIAlertController indicating browsing data selected will be removed. [Length: 20em] [iOS only]">
-        The items you selected will be removed.
       </message>
       <message name="IDS_IOS_CONFIRM_PASSKEY_DELETION" desc="Label of a confirmation dialogue button which allows the user to confirm deletion of a stored passkey. [Length: one line] [iOS only]">
         Delete passkey
@@ -2607,35 +2598,17 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_FEED_SWIPE_IPH" desc="Text for the in-product help bubble highlighting scrolling on the Feed.">
         You can swipe up to see more content tailored to you.
       </message>
+      <message name="IDS_IOS_FILE_UPLOAD_PANEL_CHOOSE_FILE_ACTION_LABEL" desc="Title for a single file chooser button used in HTML forms. [iOS only]">
+        Choose File
+      </message>
+      <message name="IDS_IOS_FILE_UPLOAD_PANEL_PHOTO_LIBRARY_ACTION_LABEL" desc="Title for a button for choosing an existing media item from the Photo Library, used in HTML forms. [iOS only]">
+        Photo Library
+      </message>
+      <message name="IDS_IOS_FILE_UPLOAD_PANEL_TAKE_PHOTO_OR_VIDEO_ACTION_LABEL" desc="Title for a button for taking a photo or video, used in HTML forms. [iOS only]">
+        Take Photo or Video
+      </message>
       <message name="IDS_IOS_FIRSTRUN_TERMS_TITLE" desc="Title for the Terms of Service page shown to user on First Run. [Length: 20em] [iOS only]">
         Terms of service
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_BODY" desc="The body of the first follow surface.">
-        Sites you follow are saved in your Google Account. You can manage them in Discover Settings.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_BODY_UPDATE" desc="The body of the first follow surface for the follow UI update.">
-        The sites and searches you follow are saved in your Google Account. You can manage your follows in settings at any time.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_GOT_IT" desc="The action button to dismiss the first follow surface.">
-        Got it
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_GO_TO_FOLLOWING" desc="The action button to see the Following feed in the first follow surface.">
-        Go to Following
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_SUBTITLE" desc="The subtitle of the first follow surface.">
-        You'll now see stories from <ph name="CHANNEL_NAME">$1<ex>ESPN</ex></ph> when you open a new tab.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_SUBTITLE_NO_CONTENT" desc="The subtitle of the first follow surface when there's no available content from the website.">
-        Soon, you’ll see stories from <ph name="CHANNEL_NAME">$1<ex>ESPN</ex></ph> when you open a new tab.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_SUBTITLE_NO_CONTENT_UPDATE" desc="The subtitle of the first follow surface when there's no available content from the website for the follow UI update.">
-        Soon, you’ll see content from and about <ph name="CHANNEL_NAME">$1<ex>ESPN</ex></ph> in Following.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_SUBTITLE_UPDATE" desc="The subtitle of the first follow surface for the follow UI update.">
-        You'll now see content from and about <ph name="CHANNEL_NAME">$1<ex>ESPN</ex></ph> in Following.
-      </message>
-      <message name="IDS_IOS_FIRST_FOLLOW_TITLE" desc="The title of the first follow surface.">
-        You're following <ph name="CHANNEL_NAME">$1<ex>ESPN</ex></ph>
       </message>
       <message name="IDS_IOS_FIRST_RUN_DEFAULT_BROWSER_SCREEN_DEFAULT_APPS_FIRST_STEP" desc="Text of the row indicating the first step of setting the default browser [iOS only]">
         Open <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Default Apps<ph name="END_BOLD">END_BOLD</ph> settings in iOS
@@ -2922,8 +2895,11 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_SAVE_BUTTON_LABEL" desc="Label for the save button in the framing view that saves the selected framing configuration for the image.">
         Save
       </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PHOTO_LIBRARY_ACCESSIBILITY_LABEL" desc="Accessibility label for a camera roll image.">
+        Camera roll image
+      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_ACCESSIBILITY_LABEL" desc="Accessibility label for the background picker.">
-        Action button
+        More options
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_COLOR_TITLE" desc="Title of an option in the background customization action sheet that allows the user to pick a solid background color.">
         Colors
@@ -2952,9 +2928,6 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE_SAFETY_CHECK" desc="The subtitle text for the Safety Check toggle in the Home Customization menu.">
         Know if you have the safest settings or need to review anything
       </message>
-      <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE_SET_UP_LIST" desc="The subtitle text for the Set Up List toggle in the Home Customization menu.">
-        Set up tips that help you get the most out of Chrome
-      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE_TAB_RESUMPTION" desc="The subtitle text for the Tab Resumption toggle in the Home Customization menu.">
         Your last open tab across all your devices
       </message>
@@ -2966,9 +2939,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE_SAFETY_CHECK" desc="The title text for the Safety Check toggle in the Home Customization menu.">
         Safety Check
-      </message>
-      <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE_SET_UP_LIST" desc="The title text for the Set Up List toggle in the Home Customization menu.">
-        Get set up
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE_TAB_RESUMPTION" desc="The title text for the Tab Resumption toggle in the Home Customization menu.">
         Continue with this tab
@@ -3206,6 +3176,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_INCOGNITO_REAUTH_UNLOCK_BUTTON_VOICEOVER_LABEL" desc="Voiceover label on the button that starts biometric authentication on a screen that blocks Incognito tabs until biometric authetication. [iOS only]">
        Unlock Incognito tabs with <ph name="BIOMETRIC_AUTHENITCATION_TYPE">$1<ex>Face ID</ex></ph>
+      </message>
+      <message name="IDS_IOS_INCOGNITO_SETTINGS_SECTION_HEADER" desc="Section header for Incognito settings on the Privacy and security settings page." translateable="false">
+       Incognito
       </message>
       <message name="IDS_IOS_INFOBAR_BADGES_PASSWORD_HINT" desc="The iOS infobar badge item for saving password credentials [Length:Unlimited]">
         Options to save password
@@ -3954,8 +3927,26 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_NOTIFICATIONS_OPT_IN_TITLE" desc="The title of the screen that prompts to select which notifications to opt-in to.">
         Choose the notifications you want to receive
       </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_ENHANCED_SAFE_BROWSING_ALT1_BODY" desc="Text for the body of a Tips notification that encourages the user to enable Enhanced Safe Browsing">
+        Add this extra layer of protection against online threats.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_ENHANCED_SAFE_BROWSING_ALT2_TITLE" desc="Text for the title of a Tips notification that encourages the user to enable Enhanced Safe Browsing">
+         Turn On Enhanced Safe Browsing
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_ENHANCED_SAFE_BROWSING_ALT3_TITLE" desc="Text for the title of a Tips notification that encourages the user to enable Enhanced Safe Browsing">
+         Get real-time protection with Enhanced safe browsing
+      </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_ENHANCED_SAFE_BROWSING_BODY" desc="Text for the body of a Tips notification that encourages the user to enable Enhanced Safe Browsing">
         Add an extra layer of protection against online threats.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_ALT1_BODY" desc="Text for the body of a Tips notification that encourages the user to search with Lens">
+         Now you can shop and translate with your camera. Tap to try it out.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_ALT2_TITLE" desc="Text for the title of a Tips notification that encourages the user to search with Lens">
+         Search with Google Lens
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_ALT3_TITLE" desc="Text for the title of a Tips notification that encourages the user to search with Lens">
+         Search what you see with Google Lens
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_BODY" desc="Text for the body of a Tips notification that encourages the user to search with Lens">
         Shop, translate, and identify what you see with your camera.
@@ -3963,11 +3954,29 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_OVERLAY_BODY" desc="Text for the body of a Tips notification that encourages the user to use the Lens Overlay feature.">
         Learn more as you browse and search what you see on any page to explore products, places and text.
       </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_OMNIBOX_POSITION_ALT1_BODY" desc="Text for the body of a Tips notification that reminds the user to set their preferred omnibox position">
+         Switch the position of your address bar to the top or bottom.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_OMNIBOX_POSITION_ALT2_TITLE" desc="Text for the title of a Tips notification that reminds the user to set their preferred omnibox position">
+         Choose your address bar position
+      </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_OMNIBOX_POSITION_BODY" desc="Text for the body of a Tips notification that reminds the user to set their preferred omnibox position">
         Switch the position of your address bar for a customized experience.
       </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_SIGNIN_ALT1_BODY" desc="Text for the body of a Tips notification that encourages the user to sign in to their account">
+         Sign in to get all your stuff like passwords, bookmarks, and more.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_SIGNIN_ALT2_BODY" desc="Text for the body of a Tips notification that encourages the user to sign in to their account">
+         Sign in to get your passwords, tabs, bookmarks, and more.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_SIGNIN_ALT3_BODY" desc="Text for the body of a Tips notification that encourages the user to sign in to their account">
+         Get your saved passwords, tabs, bookmarks, and more.
+      </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_BODY" desc="TODO">
         Verify it's you to access all your passwords on this device.
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_WHATS_NEW_ALT1_BODY" desc="Text for the body of a Tips notification that takes the user to the Whats New page">
+         Family passwords, new customizations and more. Tap to learn more.
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TITLE" desc="Title for Notifications settings menu.">
         Notifications
@@ -4046,6 +4055,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_OMNIBOX_REMOVE_THUMBNAIL_LABEL" desc="The accessibility label for the button that will remove the image from the search box. [iOS only].">
        Thumbnail
+      </message>
+      <message name="IDS_IOS_OPENS_IN_NEW_TAB" desc="ARIA (accessibility) label describing a link which opens in a new tab.">
+       Opens in new tab
       </message>
       <message name="IDS_IOS_OPEN_ANOTHER_APP_ALLOW" desc="Text on the button, when tapped will allow opening an external application. [iOS only]">
        Allow
@@ -4228,9 +4240,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_FIND_IN_PAGE" desc="The title for the context menu item to hide Find in Page. This should match the title of the Find in Page action in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Find in Page
       </message>
-      <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_FOLLOW" desc="The title for the context menu item to hide Follow. This should match the title of the Follow action in the menu." meaning="[iOS only] [Length: Unlimited]">
-        Hide Follow <ph name="DOMAIN_NAME">$1<ex>google.com</ex></ph>
-      </message>
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_LENS_OVERLAY" desc="The title for the context menu item to hide Search screen with Google Lens. This should match the title of the Search screen with Google Lens action in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Search screen with Google Lens
       </message>
@@ -4245,9 +4254,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TRANSLATE" desc="The title for the context menu item to hide Translate. This should match the title of the Translate action in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Translate
-      </message>
-      <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_UNFOLLOW" desc="The title for the context menu item to hide Unfollow. This should match the title of the Unfollow action in the menu. [iOS only]">
-        Hide Unfollow <ph name="DOMAIN_NAME">$1<ex>google.com</ex></ph>
       </message>
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_DESTINATION_BOOKMARKS" desc="The title for the context menu item to hide Bookmarks. This should match the title of the Bookmarks destination in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Bookmarks
@@ -4370,14 +4376,41 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_PARTIAL_TRANSLATE_SWITCH_FULL_PAGE_TRANSLATION" desc="Title of the alert proposing to switch to full page translation if partial translate fails.">
         Switch to full Page translation
       </message>
+      <message name="IDS_IOS_PASSKEY_BOOTSTRAPPING_SUBTITLE" desc="Subtitle of the screen shown when the user needs to enter their Google Password Manager pin to use passkeys on their device.">
+        You’ll only have to do this once.
+      </message>
+      <message name="IDS_IOS_PASSKEY_BOOTSTRAPPING_TITLE" desc="Title of the screen shown when the user needs to enter their Google Password Manager pin to use passkeys on their device.">
+        Verify it’s you to use your passkeys on this device
+      </message>
       <message name="IDS_IOS_PASSKEY_CREATION_DATE" desc="Passkey creation date. [iOS only]">
         Created on <ph name="Date"><ex>2023/12/31</ex>$1</ph>
       </message>
       <message name="IDS_IOS_PASSKEY_DOES_NOT_WORK" desc="Label indicating that the passkey was marked for deletion and does not work anymore. [iOS only]">
         Doesn't work
       </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_INSTRUCTIONS_STEP_1" desc="First step of the instructions on how to get set up to create and use passkeys with Google Password Manager. Lets the user know that they first need to create their recovery PIN.">
+        Create a recovery PIN
+      </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_INSTRUCTIONS_STEP_2" desc="Second step of the instructions on how to get set up to create and use passkeys with Google Password Manager. Lets the user know that they'll be able to save their first passkey after they've created their recovery pin.">
+        Save your first passkey
+      </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_INSTRUCTIONS_STEP_3" desc="Third step of the instructions on how to get set up to create and use passkeys with Google Password Manager. Lets the user know that they'll be able to sign in faster accross their devices if they use passkeys.">
+        Sign in faster across your devices
+      </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_NOT_NOW_BUTTON" desc="Used as a title for a 'Not now' button." meaning="Abort a certain process. User doesn't want to keep going for now.">
+        Not now
+      </message>
       <message name="IDS_IOS_PASSKEY_HIDDEN_INFO" desc="Label in the popover informing the user that a passkey was deleted by a website and will be deleted from password manager soon. Includes a link to a help center article informing more about passkeys. Refer to Glossary for the meaning of 'passkey', do not translate it as 'password'. [iOS only]">
         This passkey doesn't work anymore. It was deleted from <ph name="WEBSITE">$1<ex>shrine.com</ex></ph> and will get deleted from here soon. <ph name="BEGIN_LINK">BEGIN_LINK</ph>About passkeys<ph name="END_LINK">END_LINK</ph>
+      </message>
+      <message name="IDS_IOS_PASSKEY_PARTIAL_BOOTSTRAPPING_TITLE" desc="Title of the screen shown when the user needs to create their Google Password Manager pin to set up passkeys on their device.">
+        Set up passkeys for this device
+      </message>
+      <message name="IDS_IOS_PASSKEY_WELCOME_SCREEN_GET_STARTED_BUTTON" desc="Used as a title for a 'Get started' button." meaning="Get set up to use a feature.">
+        Get started
+      </message>
+      <message name="IDS_IOS_PASSKEY_WELCOME_SCREEN_NEXT_BUTTON" desc="Used as a title for a 'Next' button." meaning="Go to the next step.">
+        Next
       </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_CONTINUE" desc="The action button to use the selected credentials to fill the username on a username only form without password.">
         Continue
@@ -7424,9 +7457,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_TOOLS_MENU_CUSTOMIZATION_IPH" desc="The text on an IPH for the iOS menu telling users they can customize the menu">
         Customize your menu
       </message>
-      <message name="IDS_IOS_TOOLS_MENU_CUSTOMIZE_FOLLOW" desc="The iOS menu item for customizing the follow item. [iOS only]" meaning="[iOS only] Overflow menu item">
-        Follow
-      </message>
       <message name="IDS_IOS_TOOLS_MENU_DOWNLOADS" desc="The iOS menu item for opening the downloads folder [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         Downloads
       </message>
@@ -7441,9 +7471,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_TOOLS_MENU_FIND_IN_PAGE" desc="The iOS menu item for searching in the current page [iOS only]" meaning="Open the Find In Page menu [Length: unlimited]">
         Find in Page…
-      </message>
-      <message name="IDS_IOS_TOOLS_MENU_FOLLOW" desc="The iOS menu item for following web content. [iOS only]">
-        Follow <ph name="DOMAIN_NAME">$1<ex>google.com</ex></ph>
       </message>
       <message name="IDS_IOS_TOOLS_MENU_HELP_MOBILE" desc="The Tools menu item for bringing up online help page." meaning="Open the help menu [Length: unlimited]">
         Help
@@ -7543,9 +7570,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_TOOLS_MENU_TRANSLATE" desc="The iOS menu item for translating the current page [iOS only]" meaning="Open the translate infobar [Length: unlimited]">
         Translate
-      </message>
-      <message name="IDS_IOS_TOOLS_MENU_UNFOLLOW" desc="The iOS menu item for unfollowing web content. [iOS only]">
-        Unfollow <ph name="DOMAIN_NAME">$1<ex>google.com</ex></ph>
       </message>
       <message name="IDS_IOS_TOOLS_MENU_VISIT_COPIED_LINK" desc="If a user has a URL on their clipboard, this string will appear as an option when the user long-presses on Chrome's search icon. The user can select this option to visit the URL. This string is a complete sentence. If necessary for your language, you can translate as 'Visit link that you copied.'" meaning="[Lenth: unlimited]">
         Visit Link You Copied

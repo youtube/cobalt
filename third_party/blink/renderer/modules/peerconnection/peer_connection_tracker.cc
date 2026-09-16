@@ -910,8 +910,9 @@ void PeerConnectionTracker::TrackSignalingStateChange(
   if (id == -1)
     return;
   SendPeerConnectionUpdate(
-      id, "signalingstatechange",
-      webrtc::PeerConnectionInterface::AsString(state).data());
+      id, "onsignalingstatechange",
+      StrCat({"\"", webrtc::PeerConnectionInterface::AsString(state).data(),
+              "\""}));
 }
 
 void PeerConnectionTracker::TrackIceConnectionStateChange(
@@ -922,8 +923,9 @@ void PeerConnectionTracker::TrackIceConnectionStateChange(
   if (id == -1)
     return;
   SendPeerConnectionUpdate(
-      id, "iceconnectionstatechange",
-      webrtc::PeerConnectionInterface::AsString(state).data());
+      id, "oniceconnectionstatechange",
+      StrCat({"\"", webrtc::PeerConnectionInterface::AsString(state).data(),
+              "\""}));
 }
 
 void PeerConnectionTracker::TrackConnectionStateChange(
@@ -934,8 +936,9 @@ void PeerConnectionTracker::TrackConnectionStateChange(
   if (id == -1)
     return;
   SendPeerConnectionUpdate(
-      id, "connectionstatechange",
-      webrtc::PeerConnectionInterface::AsString(state).data());
+      id, "onconnectionstatechange",
+      StrCat({"\"", webrtc::PeerConnectionInterface::AsString(state).data(),
+              "\""}));
 }
 
 void PeerConnectionTracker::TrackIceGatheringStateChange(
@@ -946,8 +949,9 @@ void PeerConnectionTracker::TrackIceGatheringStateChange(
   if (id == -1)
     return;
   SendPeerConnectionUpdate(
-      id, "icegatheringstatechange",
-      webrtc::PeerConnectionInterface::AsString(state).data());
+      id, "onicegatheringstatechange",
+      StrCat({"\"", webrtc::PeerConnectionInterface::AsString(state).data(),
+              "\""}));
 }
 
 void PeerConnectionTracker::TrackSessionDescriptionCallback(
@@ -1006,7 +1010,7 @@ void PeerConnectionTracker::TrackOnRenegotiationNeeded(
   int id = GetLocalIDForHandler(pc_handler);
   if (id == -1)
     return;
-  SendPeerConnectionUpdate(id, "negotiationneeded", g_empty_string);
+  SendPeerConnectionUpdate(id, "onnegotiationneeded", g_empty_string);
 }
 
 void PeerConnectionTracker::TrackGetUserMedia(

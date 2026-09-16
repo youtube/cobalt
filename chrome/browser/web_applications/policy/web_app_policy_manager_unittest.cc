@@ -248,19 +248,19 @@ class WebAppPolicyManagerTestBase : public ChromeRenderViewHostTestHarness {
 #endif
     auto web_app_policy_manager =
         std::make_unique<WebAppPolicyManager>(profile());
-    web_app_policy_manager_ = web_app_policy_manager.get();
-    provider_->SetWebAppPolicyManager(std::move(web_app_policy_manager));
-
 #if BUILDFLAG(IS_CHROMEOS)
-    web_app_policy_manager_->SetSystemWebAppDelegateMap(
+    web_app_policy_manager->SetSystemWebAppDelegateMap(
         &system_app_manager().system_app_delegates());
 #endif
+    provider_->SetWebAppPolicyManager(std::move(web_app_policy_manager));
 
     test::AwaitStartWebAppProviderAndSubsystems(profile());
   }
 
   void TearDown() override {
     provider_->Shutdown();
+    // Reset to prevent dangling.
+    provider_ = nullptr;
 #if BUILDFLAG(IS_CHROMEOS)
     test_system_app_manager_.reset();
 #endif
@@ -361,9 +361,7 @@ class WebAppPolicyManagerTestBase : public ChromeRenderViewHostTestHarness {
   data_decoder::test::InProcessDataDecoder data_decoder_;
 
  private:
-  raw_ptr<FakeWebAppProvider, DanglingUntriaged> provider_ = nullptr;
-  raw_ptr<WebAppPolicyManager, DanglingUntriaged> web_app_policy_manager_ =
-      nullptr;
+  raw_ptr<FakeWebAppProvider> provider_ = nullptr;
 
 #if BUILDFLAG(IS_WIN)
   // This is used to prevent creating shortcuts in the start menu dir.
@@ -1493,7 +1491,7 @@ class WebAppPolicyForceUnregistrationTest : public WebAppTest {
                                             /*start_url=*/manifest_id);
     // The name of the app should also change, otherwise on Mac and Windows, the
     // shortcuts are stored as name(1) and gets wiped out with name.
-    info->title = base::UTF8ToUTF16(manifest_id.host());
+    info->title = base::UTF8ToUTF16(manifest_id.GetHost());
     info->user_display_mode = web_app::mojom::UserDisplayMode::kStandalone;
     info->icon_bitmaps.any = std::move(icon_map);
     base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>

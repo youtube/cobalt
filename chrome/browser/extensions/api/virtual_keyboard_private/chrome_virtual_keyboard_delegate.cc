@@ -512,14 +512,15 @@ void ChromeVirtualKeyboardDelegate::OnHasInputDevices(
       base::FeatureList::IsEnabled(ash::features::kAssistMultiWord)));
   features.Append(GenerateFeatureFlag("stylushandwriting", false));
   features.Append(GenerateFeatureFlag("roundCorners", false));
-  features.Append(GenerateFeatureFlag("systemjapanesephysicaltyping", true));
   features.Append(GenerateFeatureFlag(
       "autocorrectparamstuning",
       base::FeatureList::IsEnabled(ash::features::kAutocorrectParamsTuning)));
   features.Append(GenerateFeatureFlag("jelly", true));
-  features.Append(GenerateFeatureFlag(
-      "japanesefunctionrow",
-      base::FeatureList::IsEnabled(ash::features::kJapaneseFunctionRow)));
+  features.Append(GenerateFeatureFlag("japanesefunctionrow", false));
+  features.Append(
+      GenerateFeatureFlag("japaneseinputmodeswitchinvk",
+                          base::FeatureList::IsEnabled(
+                              ash::features::kJapaneseInputModeSwitchInVK)));
 
   results.Set("features", std::move(features));
 

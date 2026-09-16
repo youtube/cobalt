@@ -137,12 +137,9 @@ bool IsCredentialFromPlatformAuthenticator(
 // Returns true iff |user_id| starts with the prefix reserved for passkeys used
 // to authenticate to Google services.
 bool UserIdHasGooglePasskeyAuthPrefix(const std::vector<uint8_t>& user_id) {
-  constexpr std::string_view kPrefix = "GOOGLE_ACCOUNT:";
-  if (user_id.size() < kPrefix.size()) {
-    return false;
-  }
-  return UNSAFE_TODO(memcmp(user_id.data(), kPrefix.data(), kPrefix.size())) ==
-         0;
+  static constexpr std::string_view kPrefix = "GOOGLE_ACCOUNT:";
+  return user_id.size() >= kPrefix.size() &&
+         base::span(user_id).first(kPrefix.size()) == base::span(kPrefix);
 }
 
 // Filters |passkeys| to only contain credentials that are used to authenticate
@@ -1276,6 +1273,6 @@ void ChromeAuthenticatorRequestDelegate::UpdateModelForTransportAvailability(
   dialog_model_->show_security_key_on_qr_sheet =
       base::Contains(tai.available_transports,
                      device::FidoTransportProtocol::kUsbHumanInterfaceDevice);
-  dialog_model_->is_off_the_record = tai.is_off_the_record_context;
+  dialog_model_->is_off_the_record = GetBrowserContext()->IsOffTheRecord();
   dialog_model_->platform_has_biometrics = tai.platform_has_biometrics;
 }

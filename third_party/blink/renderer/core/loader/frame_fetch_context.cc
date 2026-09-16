@@ -102,7 +102,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image_chrome_client.h"
-#include "third_party/blink/renderer/core/svg/svg_resource_document_cache.h"
+#include "third_party/blink/renderer/core/svg/svg_document_resource_tracker.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
@@ -989,9 +989,7 @@ void FrameFetchContext::UpgradeResourceRequestForLoader(
   AddReducedAcceptLanguageIfNecessary(request);
 }
 
-bool FrameFetchContext::StartSpeculativeImageDecode(
-    Resource* resource,
-    base::OnceClosure callback) {
+bool FrameFetchContext::StartSpeculativeImageDecode(Resource* resource) {
   CHECK(resource->GetType() == ResourceType::kImage);
   if (!document_ || !document_->GetFrame()) {
     return false;
@@ -1041,29 +1039,11 @@ bool FrameFetchContext::StartSpeculativeImageDecode(
         TRACE_EVENT_SCOPE_THREAD, "url", resource->Url().GetString().Utf8(),
         "image_id", paint_image_id);
     document_->GetFrame()->GetChromeClient().RequestDecode(
-        document_->GetFrame(), draw_image,
-        blink::BindOnce(
-            [](base::OnceClosure cb, PaintImage::Id paint_image_id, bool) {
-              TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("loading"),
-                                   "SpeculativeImageDecodeFinished",
-                                   TRACE_EVENT_SCOPE_THREAD, "image_id",
-                                   paint_image_id);
-              std::move(cb).Run();
-            },
-            std::move(callback), paint_image_id),
+        document_->GetFrame(), draw_image, base::DoNothingAs<void(bool)>(),
         /*speculative*/ true);
     return true;
   }
   return false;
-}
-
-bool FrameFetchContext::SpeculativeDecodeRequestInFlight() const {
-  if (GetResourceFetcherProperties().IsDetached()) {
-    return false;
-  }
-  return document_->GetFrame()
-      ->GetChromeClient()
-      .SpeculativeDecodeRequestInFlight(document_->GetFrame());
 }
 
 bool FrameFetchContext::IsPrerendering() const {
@@ -1336,7 +1316,7 @@ String FrameFetchContext::GetSVGCacheIdentifier() const {
 
   Page* page = document_->GetPage();
   DCHECK(page);
-  return page->GetSVGResourceDocumentCache().GetCacheIdentifier();
+  return page->GetSVGDocumentResourceTracker().GetCacheIdentifier();
 }
 
 const ClientHintsPreferences FrameFetchContext::GetClientHintsPreferences()

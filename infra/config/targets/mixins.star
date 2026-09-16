@@ -2,6 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""Mixin declarations
+
+Mixins are used to define common properties that can be applied to multiple
+tests.
+"""
+
 load("@chromium-luci//targets.star", "targets")
 
 targets.mixin(
@@ -531,6 +537,27 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "skylab-rdb-tast",
+    resultdb = targets.resultdb(
+        result_format = "tast",
+    ),
+)
+
+targets.mixin(
+    name = "skylab-rdb-gtest",
+    resultdb = targets.resultdb(
+        result_format = "gtest",
+    ),
+)
+
+targets.mixin(
+    name = "skylab-rdb-native",
+    resultdb = targets.resultdb(
+        result_format = "native",
+    ),
+)
+
+targets.mixin(
     name = "tfc-exclude-public",
     generate_pyl_entry = False,
     skylab = targets.skylab(
@@ -877,6 +904,15 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "gce": "1",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "non-gce",
+    swarming = targets.swarming(
+        dimensions = {
+            "gce": "0",
         },
     ),
 )
@@ -1331,19 +1367,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "ios_runtime_cache_18_1",
-    generate_pyl_entry = False,
-    swarming = targets.swarming(
-        named_caches = [
-            swarming.cache(
-                name = "runtime_ios_18_1",
-                path = "Runtime-ios-18.1",
-            ),
-        ],
-    ),
-)
-
-targets.mixin(
     name = "ios_runtime_cache_18_2",
     swarming = targets.swarming(
         named_caches = [
@@ -1395,13 +1418,26 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "tvos_runtime_cache_18_5",
+    name = "ios_runtime_cache_26_1",
     generate_pyl_entry = False,
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "runtime_tvos_18_5",
-                path = "Runtime-tvos-18.5",
+                name = "runtime_ios_26_1",
+                path = "Runtime-ios-26.1",
+            ),
+        ],
+    ),
+)
+
+targets.mixin(
+    name = "tvos_runtime_cache_26_0",
+    generate_pyl_entry = False,
+    swarming = targets.swarming(
+        named_caches = [
+            swarming.cache(
+                name = "runtime_tvos_26_0",
+                path = "Runtime-tvos-26.0",
             ),
         ],
     ),
@@ -2626,7 +2662,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2783-32.0.15.8088",
+            "gpu": "10de:2783-32.0.15.8129",
             "os": "Windows-11",
             "pool": "chromium.tests.gpu",
         },
@@ -2641,7 +2677,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2783-32.0.15.6070|10de:2783-32.0.15.8088",
+            "gpu": "10de:2783-32.0.15.8088",
             "os": "Windows-11",
             "pool": "chromium.tests.gpu",
         },
@@ -2771,12 +2807,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a324",
+        "17b5025f",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a324",
+                name = "xcode_ios_17b5025f",
                 path = "Xcode.app",
             ),
         ],

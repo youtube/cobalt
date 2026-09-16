@@ -10,6 +10,7 @@ import static org.chromium.ui.base.LocalizationUtils.isLayoutRtl;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -63,6 +64,7 @@ class KeyboardAccessoryView extends LinearLayout {
     private boolean mAnimateSuggestionsFromTop;
 
     protected RecyclerView mBarItemsView;
+    protected RecyclerView mFixedBarItemsView;
 
     /** Interface that allows to react to animations. */
     interface AnimationListener {
@@ -238,6 +240,9 @@ class KeyboardAccessoryView extends LinearLayout {
 
         mBarItemsView = findViewById(R.id.bar_items_view);
         initializeHorizontalRecyclerView(mBarItemsView);
+        mFixedBarItemsView = findViewById(R.id.fixed_bar_items_view);
+        mFixedBarItemsView.setLayoutManager(
+                new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
 
         // Apply RTL layout changes to the view's children:
         int layoutDirection = isLayoutRtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR;
@@ -336,6 +341,14 @@ class KeyboardAccessoryView extends LinearLayout {
         findViewById(R.id.accessory_shadow).setVisibility(View.GONE);
         findViewById(R.id.accessory_bar_contents).setBackground(null);
         setBackgroundResource(R.drawable.keyboard_accessory_shadow_shape);
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+            GradientDrawable background = (GradientDrawable) getBackground();
+            background.setCornerRadius(
+                    getResources()
+                            .getDimensionPixelSize(
+                                    R.dimen.keyboard_accessory_corner_radius_redesign));
+        }
         @Px
         int elevation = getResources().getDimensionPixelSize(R.dimen.keyboard_accessory_elevation);
         setElevation(elevation);
@@ -408,18 +421,26 @@ class KeyboardAccessoryView extends LinearLayout {
     }
 
     void setBarItemsAdapter(RecyclerView.Adapter adapter) {
+        registerAdapter(adapter, mBarItemsView);
+    }
+
+    void setFixedBarItemsAdapter(RecyclerView.Adapter adapter) {
+        registerAdapter(adapter, mFixedBarItemsView);
+    }
+
+    private void registerAdapter(RecyclerView.Adapter adapter, RecyclerView view) {
         // Make sure the view updates the fallback icon padding whenever new items arrive.
         adapter.registerAdapterDataObserver(
                 new RecyclerView.AdapterDataObserver() {
                     @Override
                     public void onItemRangeChanged(int positionStart, int itemCount) {
                         super.onItemRangeChanged(positionStart, itemCount);
-                        mBarItemsView.scrollToPosition(0);
-                        mBarItemsView.invalidateItemDecorations();
+                        view.scrollToPosition(0);
+                        view.invalidateItemDecorations();
                         onItemsChanged();
                     }
                 });
-        mBarItemsView.setAdapter(adapter);
+        view.setAdapter(adapter);
     }
 
     private void show() {

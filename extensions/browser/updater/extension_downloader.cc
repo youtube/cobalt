@@ -136,7 +136,7 @@ bool ShouldRetryRequest(const network::SimpleURLLoader* loader) {
 // maximum.
 bool IncrementAuthUserIndex(GURL* url) {
   int user_index = 0;
-  std::string old_query = url->query();
+  std::string old_query = url->GetQuery();
   std::vector<std::string> new_query_parts;
   url::Component query(0, old_query.length());
   url::Component key, value;
@@ -250,12 +250,6 @@ ExtensionDownloader::FetchDataGroupKey::FetchDataGroupKey(
       is_force_installed(is_force_installed) {}
 
 ExtensionDownloader::FetchDataGroupKey::~FetchDataGroupKey() = default;
-
-bool ExtensionDownloader::FetchDataGroupKey::operator<(
-    const FetchDataGroupKey& other) const {
-  return std::tie(request_id, update_url, is_force_installed) <
-         std::tie(other.request_id, other.update_url, other.is_force_installed);
-}
 
 ExtensionDownloader::ExtensionDownloader(
     ExtensionDownloaderDelegate* delegate,

@@ -77,7 +77,7 @@ class WebStateImpl::RealizedWebState::PendingSession {
   // The WebStateStorage is only needed to implement SerializeToProto() while
   // the navigation history restoration is in progress for the legacy session
   // serialization logic.
-  // TODO(crbug.com/40245950): Remove it once the feature has launched.
+  // TODO(crbug.com/40945317): Remove it once the feature has launched.
   const proto::WebStateStorage storage_;
   const std::u16string page_title_;
   const GURL page_visible_url_;
@@ -98,16 +98,13 @@ WebStateImpl::RealizedWebState::PendingSession::PendingSession(
 
 WebStateImpl::RealizedWebState::RealizedWebState(WebStateImpl* owner,
                                                  base::Time creation_time,
-                                                 NSString* stable_identifier,
                                                  WebStateID unique_identifier)
     : owner_(owner),
       interface_binder_(owner),
       creation_time_(creation_time),
       user_agent_type_(UserAgentType::AUTOMATIC),
-      stable_identifier_([stable_identifier copy]),
       unique_identifier_(unique_identifier) {
   DCHECK(owner_);
-  DCHECK(stable_identifier_.length);
   DCHECK(unique_identifier_.valid());
 }
 
@@ -384,7 +381,7 @@ void WebStateImpl::RealizedWebState::OnFaviconUrlUpdated(
 
 void WebStateImpl::RealizedWebState::CreateWebUI(const GURL& url) {
   if (HasWebUI()) {
-    if (web_ui_->GetController()->GetHost() == url.host()) {
+    if (web_ui_->GetController()->GetHost() == url.GetHost()) {
       // Don't recreate webUI for the same host.
       return;
     }
@@ -671,10 +668,6 @@ void WebStateImpl::RealizedWebState::SetKeepRenderProcessAlive(
 
 BrowserState* WebStateImpl::RealizedWebState::GetBrowserState() const {
   return navigation_manager_->GetBrowserState();
-}
-
-NSString* WebStateImpl::RealizedWebState::GetStableIdentifier() const {
-  return [stable_identifier_ copy];
 }
 
 WebStateID WebStateImpl::RealizedWebState::GetUniqueIdentifier() const {

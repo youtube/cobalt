@@ -171,10 +171,6 @@ group("cobalt_shell_lib_deps") {
     public_deps += [ "//ui/views" ]
   }
 
-  if (is_linux) {
-    public_deps += [ "//build/config/freetype" ]
-  }
-
   if (use_ozone) {
     public_deps += [ "//ui/ozone" ]
   }

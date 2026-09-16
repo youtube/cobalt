@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ga{
     zoneStrings{
         "Africa:Algiers"{
@@ -36,9 +36,6 @@ ga{
         "Africa:Nouakchott"{
             ec{"Nuacsat"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Tripilí"}
         }
@@ -50,9 +47,6 @@ ga{
         }
         "America:Aruba"{
             ec{"Arúba"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
@@ -116,9 +110,6 @@ ga{
         }
         "America:Puerto_Rico"{
             ec{"Pórtó Ríce"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Sao_Paulo"{
             ec{"São Paulo"}
@@ -248,9 +239,6 @@ ga{
         }
         "Atlantic:St_Helena"{
             ec{"San Héilin"}
-        }
-        "Australia:Currie"{
-            ec{"Currie"}
         }
         "Etc:UTC"{
             ls{"Am Uilíoch Lárnach"}
@@ -634,11 +622,6 @@ ga{
             lg{"Am na Síne"}
             ls{"Am Caighdeánach na Síne"}
         }
-        "meta:Choibalsan"{
-            ld{"Am Samhraidh Choibalsan"}
-            lg{"Am Choibalsan"}
-            ls{"Am Caighdeánach Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"Am Oileán na Nollag"}
         }
@@ -815,6 +798,9 @@ ga{
             lg{"Am Phetropavlovsk-Kamchatski"}
             ls{"Am Caighdeánach Phetropavlovsk-Kamchatski"}
         }
+        "meta:Kazakhstan"{
+            ls{"Am na Casacstáine"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Am Oirthear na Casacstáine"}
         }
@@ -853,9 +839,6 @@ ga{
             lg{"Am Mhacao"}
             ls{"Am Caighdeánach Mhacao"}
         }
-        "meta:Macquarie"{
-            ls{"Am Oileán Mhic Guaire"}
-        }
         "meta:Magadan"{
             ld{"Am Samhraidh Mhagadan"}
             lg{"Am Mhagadan"}
@@ -880,11 +863,6 @@ ga{
         }
         "meta:Mawson"{
             ls{"Am Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Am Samhraidh Iarthuaisceart Mheicsiceo"}
-            lg{"Am Iarthuaisceart Mheicsiceo"}
-            ls{"Am Caighdeánach Iarthuaisceart Mheicsiceo"}
         }
         "meta:Mexico_Pacific"{
             ld{"Am Samhraidh Meicsiceach an Aigéin Chiúin"}

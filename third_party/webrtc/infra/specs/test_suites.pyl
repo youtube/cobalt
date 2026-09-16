@@ -52,6 +52,7 @@
       'video_engine_tests': {
         'mixins': ['shards-4'],
       },
+      'video_timing_tests': {},
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
     },
@@ -96,6 +97,7 @@
       'video_engine_tests': {
         'mixins': ['shards-4'],
       },
+      'video_timing_tests': {},
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
     },
@@ -205,6 +207,7 @@
       'video_engine_tests': {
         'mixins': ['shards-4'],
       },
+      'video_timing_tests': {},
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
     },

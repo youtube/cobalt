@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 bs{
     Countries{
         001{"Svijet"}
@@ -146,6 +146,7 @@ bs{
         IL{"Izrael"}
         IM{"Ostrvo Man"}
         IN{"Indija"}
+        IO{"Britanska Teritorija u Indijskom Okeanu"}
         IQ{"Irak"}
         IR{"Iran"}
         IS{"Island"}

@@ -1728,29 +1728,35 @@ ABSL_ATTRIBUTE_NOINLINE void TransferNRelocatable(void*, void* dst, void* src,
 // empty class cases.
 void* GetRefForEmptyClass(CommonFields& common);
 
-// Given the hash of a value not currently in the table and the first empty
-// slot in the probe sequence, finds a viable slot index to insert it at.
+// Given the hash of a value not currently in the table and the first group with
+// an empty slot in the probe sequence, finds a viable slot index to insert it
+// at.
 //
 // In case there's no space left, the table can be resized or rehashed
 // (for tables with deleted slots, see FindInsertPositionWithGrowthOrRehash).
 //
 // In the case of absence of deleted slots and positive growth_left, the element
-// can be inserted in the provided `target` position.
+// can be inserted in one of the empty slots in the provided `target_group`.
 //
 // When the table has deleted slots (according to GrowthInfo), the target
 // position will be searched one more time using `find_first_non_full`.
 //
 // REQUIRES: `!common.is_small()`.
 // REQUIRES: At least one non-full slot available.
-// REQUIRES: `target` is a valid empty position to insert.
+// REQUIRES: `mask_empty` is a mask containing empty slots for the
+//           `target_group`.
+// REQUIRES: `target_group` is a starting position for the group that has
+//            at least one empty slot.
 size_t PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
-                          size_t hash, FindInfo target);
+                          size_t hash, Group::NonIterableBitMaskType mask_empty,
+                          FindInfo target_group);
 
 // Same as above, but with generations enabled, we may end up changing the seed,
 // which means we need to be able to recompute the hash.
 size_t PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
-    FindInfo target, absl::FunctionRef<size_t(size_t)> recompute_hash);
+    Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
+    absl::FunctionRef<size_t(size_t)> recompute_hash);
 
 // A SwissTable.
 //
@@ -2439,17 +2445,17 @@ class raw_hash_set {
 
   template <class InputIt>
   void insert(InputIt first, InputIt last) {
-    for (; first != last; ++first) emplace(*first);
+    insert_range(first, last);
   }
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<const T&>::value, int> = 0>
   void insert(std::initializer_list<T> ilist) {
-    insert(ilist.begin(), ilist.end());
+    insert_range(ilist.begin(), ilist.end());
   }
 
   void insert(std::initializer_list<init_type> ilist) {
-    insert(ilist.begin(), ilist.end());
+    insert_range(ilist.begin(), ilist.end());
   }
 
   insert_return_type insert(node_type&& node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -3203,14 +3209,15 @@ class raw_hash_set {
         }
         auto mask_empty = g.MaskEmpty();
         if (ABSL_PREDICT_TRUE(mask_empty)) {
-          size_t target = seq.offset(mask_empty.LowestBitSet());
+          size_t target_group_offset = seq.offset();
           index = SwisstableGenerationsEnabled()
                       ? PrepareInsertLargeGenerationsEnabled(
-                            common(), GetPolicyFunctions(), hash,
-                            FindInfo{target, seq.index()},
+                            common(), GetPolicyFunctions(), hash, mask_empty,
+                            FindInfo{target_group_offset, seq.index()},
                             HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key})
-                      : PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
-                                           FindInfo{target, seq.index()});
+                      : PrepareInsertLarge(
+                            common(), GetPolicyFunctions(), hash, mask_empty,
+                            FindInfo{target_group_offset, seq.index()});
           inserted = true;
           return;
         }
@@ -3219,6 +3226,11 @@ class raw_hash_set {
       }
     }();
     return {iterator_at(index), inserted};
+  }
+
+  template <class InputIt>
+  void insert_range(InputIt first, InputIt last) {
+    for (; first != last; ++first) emplace(*first);
   }
 
  protected:

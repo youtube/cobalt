@@ -431,7 +431,7 @@ MakeCookieFromProtocolValues(
 
     secure = secure || source_url.SchemeIsCryptographic();
     if (normalized_domain.empty())
-      normalized_domain = source_url.host();
+      normalized_domain = source_url.GetHost();
   }
 
   std::string url_host = normalized_domain;
@@ -754,7 +754,7 @@ String GetProtocol(const GURL& url,
           protocol = "http/1.1";
       }
     } else {
-      protocol = url.scheme();
+      protocol = url.GetScheme();
     }
   }
   return protocol;
@@ -1210,6 +1210,7 @@ NetworkHandler::NetworkHandler(
     const std::string& host_id,
     const base::UnguessableToken& devtools_token,
     DevToolsIOContext* io_context,
+    StoragePartition* maybe_storage_partition,
     base::RepeatingClosure update_loader_factories_callback,
     DevToolsAgentHostClient* client,
     base::OnceClosure cleanup_after_modifications_callback)
@@ -1219,7 +1220,7 @@ NetworkHandler::NetworkHandler(
       io_context_(io_context),
       client_(client),
       browser_context_(nullptr),
-      storage_partition_(nullptr),
+      storage_partition_(maybe_storage_partition),
       host_(nullptr),
       enabled_(false),
 #if BUILDFLAG(ENABLE_REPORTING)
@@ -1456,6 +1457,7 @@ void NetworkHandler::SetRenderer(int render_process_host_id,
     storage_partition_ = nullptr;
     browser_context_ = nullptr;
   }
+  MaybeEnableDurableMessages();
   host_ = frame_host;
   if (background_sync_restorer_)
     background_sync_restorer_->SetStoragePartition(storage_partition_);
@@ -1467,25 +1469,14 @@ Response NetworkHandler::Enable(
     std::optional<int> max_post_data_size,
     std::optional<bool> report_direct_socket_traffic,
     std::optional<bool> enable_durable_messages) {
-  enabled_ = true;
-  network::mojom::NetworkDurableMessageConfigPtr durable_messages_config;
-  if (enable_durable_messages.value_or(false)) {
-    if (!storage_partition_ || devtools_token_.is_empty()) {
-      return Response::ServerError(
-          "Durable messages cannot be enabled without a valid "
-          "storage partition and devtools token");
-    }
-    if (!max_total_size.has_value()) {
-      return Response::InvalidParams(
-          "maxTotalBufferSize is required with enableDurableMessages");
-    }
-    durable_messages_config =
-        network::mojom::NetworkDurableMessageConfig::New();
-    durable_messages_config->http_storage_max_size = max_total_size.value();
-    ConfigureDurableMessageCollector(std::move(durable_messages_config));
-  } else {
-    durable_message_collector_.reset();
+  enable_durable_messages_ = enable_durable_messages.value_or(false);
+  durable_message_max_total_size_ = max_total_size.value_or(0);
+  if (enable_durable_messages_ && !durable_message_max_total_size_) {
+    return Response::InvalidParams(
+        "maxTotalBufferSize is required with enableDurableMessages");
   }
+  MaybeEnableDurableMessages();
+  enabled_ = true;
   return Response::FallThrough();
 }
 
@@ -1923,7 +1914,7 @@ void NetworkHandler::DeleteCookies(
           "An http or https url URL must be specified"));
       return;
     }
-    normalized_domain = url.host();
+    normalized_domain = url.GetHost();
   }
 
   auto* cookie_manager =
@@ -3208,6 +3199,50 @@ void NetworkHandler::BodyDataReceived(const String& request_id,
   received_body_data_[request_id] = {body, is_base64_encoded};
 }
 
+void NetworkHandler::FedCmRequestWillBeSent(
+    const std::string& request_id,
+    const std::string& loader_id,
+    const network::ResourceRequest& request,
+    const std::optional<std::string>& request_body,
+    const GURL& initiator_url,
+    const std::optional<base::UnguessableToken>& frame_token,
+    base::TimeTicks timestamp) {
+  if (!enabled_) {
+    return;
+  }
+
+  double current_wall_time = base::Time::Now().InSecondsFSinceUnixEpoch();
+  double current_ticks = timestamp.since_origin().InSecondsF();
+
+  std::vector<base::expected<std::vector<uint8_t>, std::string>>
+      request_body_bytes;
+  if (request_body.has_value() && !request_body->empty()) {
+    request_body_bytes.emplace_back(
+        std::vector<uint8_t>(request_body->begin(), request_body->end()));
+  }
+
+  std::unique_ptr<protocol::Network::Request> request_info =
+      CreateRequestFromResourceRequest(request, "",
+                                       std::move(request_body_bytes));
+
+  auto initiator = protocol::Network::Initiator::Create()
+                       .SetType(protocol::Network::Initiator::TypeEnum::FedCM)
+                       .Build();
+  if (!initiator_url.is_empty()) {
+    initiator->SetUrl(initiator_url.spec());
+  }
+
+  std::string frame_token_str =
+      frame_token.has_value() ? frame_token.value().ToString() : "";
+
+  frontend_->RequestWillBeSent(
+      request_id, loader_id, request.url.spec(), std::move(request_info),
+      current_ticks, current_wall_time, std::move(initiator),
+      /*redirectHasExtraInfo=*/false, /*redirectResponse=*/nullptr,
+      std::string(Network::ResourceTypeEnum::FedCM), frame_token_str,
+      /*hasUserGesture=*/false);
+}
+
 void NetworkHandler::ProcessDurableMessageOrGetLocalData(
     const String& request_id,
     std::unique_ptr<GetResponseBodyCallback> callback,
@@ -3286,7 +3321,7 @@ std::string NetworkHandler::ExtractFragment(const GURL& url,
     *fragment = std::string();
     return url.spec();
   }
-  *fragment = "#" + url.ref();
+  *fragment = "#" + url.GetRef();
   GURL::Replacements replacements;
   replacements.ClearRef();
   return url.ReplaceComponents(replacements).spec();
@@ -3829,7 +3864,7 @@ void NetworkHandler::LoadNetworkResource(
         "NetworkHandler::LoadNetworkResource");
 
     auto factory = CreateNetworkFactoryForDevTools(
-        gurl.scheme(), frame->GetProcess(), frame->GetRoutingID(),
+        gurl.GetScheme(), frame->GetProcess(), frame->GetRoutingID(),
         frame->GetLastCommittedOrigin(), std::move(params));
     if (!factory.is_valid()) {
       callback->sendFailure(Response::InvalidParams("Unsupported URL scheme"));
@@ -3851,7 +3886,7 @@ void NetworkHandler::LoadNetworkResource(
     // TODO(mkwst): Check CSP for non-frame targets.
     auto info = host->CreateNetworkFactoryParamsForDevTools();
     auto factory = CreateNetworkFactoryForDevTools(
-        gurl.scheme(), host->GetProcessHost(), IPC::mojom::kRoutingIdNone,
+        gurl.GetScheme(), host->GetProcessHost(), IPC::mojom::kRoutingIdNone,
         info.origin, std::move(info.factory_params));
     if (factory.is_valid()) {
       url_loader_factory.Bind(std::move(factory));
@@ -4104,6 +4139,21 @@ NetworkHandler::BuildCorsErrorStatus(const network::CorsErrorStatus& status) {
       .SetCorsError(BuildCorsError(status.cors_error))
       .SetFailedParameter(status.failed_parameter)
       .Build();
+}
+
+void NetworkHandler::MaybeEnableDurableMessages() {
+  if (!enable_durable_messages_) {
+    durable_message_collector_.reset();
+    return;
+  }
+  if (!storage_partition_ || devtools_token_.is_empty()) {
+    return;
+  }
+  network::mojom::NetworkDurableMessageConfigPtr durable_messages_config;
+  durable_messages_config = network::mojom::NetworkDurableMessageConfig::New();
+  durable_messages_config->http_storage_max_size =
+      durable_message_max_total_size_;
+  ConfigureDurableMessageCollector(std::move(durable_messages_config));
 }
 
 }  // namespace protocol

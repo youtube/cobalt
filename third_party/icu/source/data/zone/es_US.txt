@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 es_US{
     %%Parent{"es_419"}
     zoneStrings{
@@ -119,9 +119,6 @@ es_US{
         }
         "meta:Indian_Ocean"{
             ls{"hora del Océano Índico"}
-        }
-        "meta:Macquarie"{
-            ls{"hora de la isla Macquarie"}
         }
         "meta:Marquesas"{
             ls{"hora de las islas Marquesas"}

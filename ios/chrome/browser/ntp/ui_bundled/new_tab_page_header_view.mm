@@ -123,9 +123,6 @@ const CGFloat kCustomizationNewBadgeOffset = 14.0;
 NSString* const kMIACircleAnimationLightMode = @"mia_circle_animation_no_glow";
 NSString* const kMIACircleAnimationDarkMode = @"mia_glowing_circle_animation";
 
-// The value that makes the Lottie animation loop indefinitely.
-const CGFloat kLottieInfiniteLoopFlag = -1;
-
 // The value of the sides of the MIA circle animation for the normal size of the
 // fakebox.
 const CGFloat kMIACircleAnimationSizeNormal = 40.0;
@@ -321,23 +318,19 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
     _lastAnimationPercent = 0;
     _currentHintLabelScale = 1;
 
-    if (@available(iOS 17, *)) {
-      NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
-        UITraitPreferredContentSizeCategory.class,
-        UITraitUserInterfaceStyle.class
-      ]);
-      __weak __typeof(self) weakSelf = self;
-      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
-                                       UITraitCollection* previousCollection) {
-        [weakSelf updateUIOnTraitChange:previousCollection];
-      };
-      [self registerForTraitChanges:traits withHandler:handler];
-      if (IsNTPBackgroundCustomizationEnabled()) {
-        [self
-            registerForTraitChanges:
+    NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
+      UITraitPreferredContentSizeCategory.class, UITraitUserInterfaceStyle.class
+    ]);
+    __weak __typeof(self) weakSelf = self;
+    UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                     UITraitCollection* previousCollection) {
+      [weakSelf updateUIOnTraitChange:previousCollection];
+    };
+    [self registerForTraitChanges:traits withHandler:handler];
+    if (IsNTPBackgroundCustomizationEnabled()) {
+      [self registerForTraitChanges:
                 @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
                          withAction:@selector(applyBackgroundTheme)];
-      }
     }
   }
   return self;
@@ -807,15 +800,22 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
         CreateThemedButtonConfigurationUpdateHandler(
             unthemedTintColor, ^UIColor*(NewTabPageColorPalette* palette) {
               if (palette) {
-                return palette.secondaryColor;
+                return palette.headerButtonColor;
               }
 
-              return IsSignInButtonNoAvatarEnabled()
-                         ? [[UIColor colorNamed:kSolidWhiteColor]
-                               colorWithAlphaComponent:0.75]
-                         : [[UIColor colorNamed:
-                                         @"fake_omnibox_solid_background_color"]
-                               colorWithAlphaComponent:0.8];
+              return [UIColor colorWithDynamicProvider:^UIColor*(
+                                  UITraitCollection* traits) {
+                if (!IsSignInButtonNoAvatarEnabled()) {
+                  return [[UIColor
+                      colorNamed:@"fake_omnibox_solid_background_color"]
+                      colorWithAlphaComponent:0.8];
+                }
+                return traits.userInterfaceStyle == UIUserInterfaceStyleDark
+                           ? [UIColor
+                                 colorNamed:kTabGroupFaviconBackgroundColor]
+                           : [[UIColor colorNamed:kSolidWhiteColor]
+                                 colorWithAlphaComponent:0.75];
+              }];
             });
   }
 
@@ -893,20 +893,6 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 - (void)setAIMAllowed:(BOOL)allowed {
   _isAIMAllowed = allowed;
 }
-
-#pragma mark - UITraitEnvironment
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  [self updateUIOnTraitChange:previousTraitCollection];
-}
-
-#endif
 
 #pragma mark - Property accessors
 
@@ -1347,7 +1333,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
       self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark
           ? kMIACircleAnimationDarkMode
           : kMIACircleAnimationLightMode;
-  config.loopAnimationCount = kLottieInfiniteLoopFlag;
+  config.shouldLoop = YES;
   return ios::provider::GenerateLottieAnimation(config);
 }
 

@@ -39,7 +39,6 @@
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
@@ -237,10 +236,6 @@ class MockPeerConnectionInterface : public PeerConnectionInterface {
   MOCK_METHOD(void, StopRtcEventLog, (), (override));
   MOCK_METHOD(void, Close, (), (override));
   MOCK_METHOD(Thread*, signaling_thread, (), (const, override));
-  MOCK_METHOD(NetworkControllerInterface*,
-              GetNetworkController,
-              (),
-              (override));
 };
 
 static_assert(

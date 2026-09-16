@@ -119,7 +119,7 @@ class BetterSessionRestoreTest : public InProcessBrowserTest {
     url_loader_interceptor_ = std::make_unique<content::URLLoaderInterceptor>(
         base::BindLambdaForTesting(
             [&](content::URLLoaderInterceptor::RequestParams* params) {
-              std::string path = params->url_request.url.path();
+              std::string path = params->url_request.url.GetPath();
               std::string path_prefix = std::string("/") + test_path_;
               for (auto& it : test_files_) {
                 std::string file = path_prefix + it;
@@ -299,12 +299,9 @@ class BetterSessionRestoreTest : public InProcessBrowserTest {
     helper.SetForceBrowserNotAliveWithNoWindows(true);
 
     // Create a new window, which may trigger session restore.
-    size_t count = BrowserList::GetInstance()->size();
+    ui_test_utils::BrowserCreatedObserver created_observer;
     chrome::NewEmptyWindow(profile);
-    if (count == BrowserList::GetInstance()->size())
-      return ui_test_utils::WaitForBrowserToOpen();
-
-    return BrowserList::GetInstance()->get(count);
+    return created_observer.Wait();
   }
 
   std::string fake_server_address() {

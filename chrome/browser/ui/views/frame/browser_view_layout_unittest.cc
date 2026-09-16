@@ -27,6 +27,7 @@ namespace {
 // Save space for the separator.
 constexpr int kToolbarHeight = 30 - views::Separator::kThickness;
 constexpr int kBaseWidth = 800;
+constexpr gfx::Size kDefaultViewSize = gfx::Size(kBaseWidth, 600);
 
 class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
  public:
@@ -69,6 +70,9 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   gfx::Rect GetBoundsForWebAppFrameToolbarInBrowserView() const override {
     return gfx::Rect();
   }
+  void LayoutWebAppWindowTitle(
+      const gfx::Rect& available_space,
+      views::Label& window_title_label) const override {}
   int GetTopInsetInBrowserView() const override { return 0; }
   bool IsToolbarVisible() const override { return toolbar_visible_; }
   bool IsBookmarkBarVisible() const override { return bookmark_bar_visible_; }
@@ -159,16 +163,21 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   views::View* separator() { return separator_; }
   InfoBarContainerView* infobar_container() { return infobar_container_; }
   views::View* contents_container() { return contents_container_; }
+  views::View* browser_main_view() { return main_container_; }
 
   void SetUp() override {
     ChromeViewsTestBase::SetUp();
 
-    browser_view_ = CreateFixedSizeView(gfx::Size(kBaseWidth, 600));
+    browser_view_ = CreateFixedSizeView(kDefaultViewSize);
 
     immersive_mode_controller_ =
         std::make_unique<MockImmersiveModeController>();
+    main_region_ =
+        browser_view_->AddChildView(CreateFixedSizeView(kDefaultViewSize));
+    main_container_ =
+        main_region_->AddChildView(CreateFixedSizeView(kDefaultViewSize));
 
-    top_container_ = browser_view_->AddChildView(
+    top_container_ = main_container_->AddChildView(
         CreateFixedSizeView(gfx::Size(kBaseWidth, 60)));
     auto tab_strip = std::make_unique<TabStrip>(
         std::make_unique<FakeBaseTabStripController>());
@@ -186,26 +195,26 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         std::make_unique<InfoBarContainerView>(nullptr));
 
     left_aligned_side_panel_separator_ =
-        browser_view_->AddChildView(std::make_unique<views::Separator>());
+        main_container_->AddChildView(std::make_unique<views::Separator>());
     right_aligned_side_panel_separator_ =
-        browser_view_->AddChildView(std::make_unique<views::Separator>());
+        main_container_->AddChildView(std::make_unique<views::Separator>());
     side_panel_rounded_corner_ =
-        browser_view_->AddChildView(CreateFixedSizeView(gfx::Size(16, 16)));
+        main_container_->AddChildView(CreateFixedSizeView(gfx::Size(16, 16)));
 
-    contents_container_ = browser_view_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+    contents_container_ =
+        main_container_->AddChildView(CreateFixedSizeView(kDefaultViewSize));
     devtools_web_view_ = contents_container_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+        CreateFixedSizeView(kDefaultViewSize));
     devtools_web_view_->SetVisible(false);
     devtools_scrim_view_ = contents_container_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+        CreateFixedSizeView(kDefaultViewSize));
     devtools_scrim_view_->SetVisible(false);
     contents_web_view_ = contents_container_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+        CreateFixedSizeView(kDefaultViewSize));
     contents_scrim_view_ = contents_container_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+        CreateFixedSizeView(kDefaultViewSize));
     lens_overlay_view_ = contents_container_->AddChildView(
-        CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
+        CreateFixedSizeView(kDefaultViewSize));
     contents_container_->SetLayoutManager(
         std::make_unique<ContentsLayoutManager>(contents_web_view_,
                                                 lens_overlay_view_));
@@ -215,14 +224,16 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
     delegate_ = delegate.get();
     auto layout = std::make_unique<BrowserViewLayout>(
         std::move(delegate),
-        /*browser_view=*/nullptr, /*window_scrim=*/nullptr, top_container_,
+        /*browser_view=*/nullptr, /*window_scrim=*/nullptr, main_region_,
+        main_container_, top_container_,
         /*web_app_frame_toolbar=*/nullptr,
         /*web_app_window_title=*/nullptr, tab_strip_region_view_,
         /*vertical_tab_strip_container=*/nullptr, toolbar_, infobar_container_,
         contents_container_,
         /*multi_contents_view=*/nullptr, left_aligned_side_panel_separator_,
-        /*unified_side_panel=*/nullptr, right_aligned_side_panel_separator_,
-        side_panel_rounded_corner_, separator_);
+        /*contents_height_side_panel=*/nullptr,
+        right_aligned_side_panel_separator_, side_panel_rounded_corner_,
+        separator_);
     layout->set_webui_tab_strip(webui_tab_strip());
     layout_ = layout.get();
     browser_view_->SetLayoutManager(std::move(layout));
@@ -238,6 +249,8 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
     // The other views are children of |browser_view_| and will be destroyed
     // along with it after TearDown(). Null out the pointers to avoid them
     // dangling.
+    main_region_ = nullptr;
+    main_container_ = nullptr;
     top_container_ = nullptr;
     webui_tab_strip_ = nullptr;
     toolbar_ = nullptr;
@@ -270,12 +283,14 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   std::unique_ptr<views::View> browser_view_;
 
   // Views owned by |browser_view_|.
+  raw_ptr<views::View> main_region_;
   raw_ptr<views::View> top_container_;
   raw_ptr<TabStripRegionView> tab_strip_region_view_;
   raw_ptr<views::View> webui_tab_strip_;
   raw_ptr<views::View> toolbar_;
   raw_ptr<views::Separator> separator_;
   raw_ptr<InfoBarContainerView> infobar_container_;
+  raw_ptr<views::View> main_container_;
   raw_ptr<views::View> left_aligned_side_panel_separator_;
   raw_ptr<views::View> right_aligned_side_panel_separator_;
   raw_ptr<views::View> side_panel_rounded_corner_;
@@ -305,7 +320,7 @@ TEST_F(BrowserViewLayoutTest, Layout) {
 
   // Top views are zero-height.
   EXPECT_EQ(gfx::Rect(0, 0, 0, 0), tab_strip()->bounds());
-  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 0), toolbar()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, 0, 0), toolbar()->bounds());
   EXPECT_EQ(gfx::Rect(0, 0, 0, 0), infobar_container()->bounds());
   // Contents split fills the window.
   EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), contents_container()->bounds());
@@ -321,6 +336,9 @@ TEST_F(BrowserViewLayoutTest, Layout) {
       gfx::Rect(0, kToolbarHeight, kBaseWidth, views::Separator::kThickness),
       separator()->bounds());
   EXPECT_EQ(gfx::Rect(0, 30, 0, 0), infobar_container()->bounds());
+
+  // browser_main_view contains the toolbar and separator
+  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), browser_main_view()->bounds());
   EXPECT_EQ(gfx::Rect(0, 30, kBaseWidth, 570), contents_container()->bounds());
 
   // Disable the contents separator.
@@ -332,6 +350,7 @@ TEST_F(BrowserViewLayoutTest, Layout) {
   EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, kToolbarHeight), toolbar()->bounds());
   EXPECT_FALSE(separator()->GetVisible());
   EXPECT_EQ(gfx::Rect(0, 29, 0, 0), infobar_container()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), browser_main_view()->bounds());
   EXPECT_EQ(gfx::Rect(0, 29, kBaseWidth, 571), contents_container()->bounds());
 
   // TODO(jamescook): Tab strip and bookmark bar.
@@ -349,6 +368,7 @@ TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {
   EXPECT_EQ(
       gfx::Rect(0, kToolbarHeight, kBaseWidth, views::Separator::kThickness),
       separator()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), browser_main_view()->bounds());
   EXPECT_EQ(gfx::Rect(0, 30, kBaseWidth, 570), contents_container()->bounds());
 
   // Top controls are half shown, half hidden.
@@ -359,6 +379,7 @@ TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {
   EXPECT_EQ(
       gfx::Rect(0, kToolbarHeight, kBaseWidth, views::Separator::kThickness),
       separator()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), browser_main_view()->bounds());
   EXPECT_EQ(gfx::Rect(0, 30, kBaseWidth, 570), contents_container()->bounds());
 
   // Top controls are fully hidden. the contents are expanded in height by an
@@ -370,6 +391,7 @@ TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {
   EXPECT_EQ(
       gfx::Rect(0, kToolbarHeight, kBaseWidth, views::Separator::kThickness),
       separator()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), browser_main_view()->bounds());
   EXPECT_EQ(gfx::Rect(0, 0, kBaseWidth, 600), contents_container()->bounds());
 }
 

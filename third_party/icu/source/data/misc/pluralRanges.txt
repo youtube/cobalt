@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pluralRanges:table(nofallback){
     locales{
         af{"set04"}
@@ -72,7 +72,7 @@ pluralRanges:table(nofallback){
         ro{"set11"}
         ru{"set18"}
         sc{"set03"}
-        scn{"set03"}
+        scn{"set14"}
         sd{"set07"}
         si{"set06"}
         sk{"set17"}

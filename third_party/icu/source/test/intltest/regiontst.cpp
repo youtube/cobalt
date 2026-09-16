@@ -17,7 +17,9 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/region.h"
+#include "unicode/ures.h"
 #include "regiontst.h"
+#include "ulocimp.h"
 
 typedef struct KnownRegion {
   const char *code;
@@ -359,6 +361,7 @@ RegionTest::runIndexedTest( int32_t index, UBool exec, const char* &name, char* 
    TESTCASE_AUTO(TestAvailableTerritories);
    TESTCASE_AUTO(TestNoContainedRegions);
    TESTCASE_AUTO(TestGroupingChildren);
+   TESTCASE_AUTO(TestGetRegionForSupplementalDataMatch);
    TESTCASE_AUTO_END;
 }
 
@@ -760,7 +763,7 @@ void RegionTest::TestGroupingChildren() {
                     if (expectedChildEnd == nullptr) {
                         expectedChildEnd = expectedChildStart + uprv_strlen(expectedChildStart);
                     }
-                    if (uprv_strlen(actualChild) != size_t(expectedChildEnd - expectedChildStart) || uprv_strncmp(actualChild, expectedChildStart, expectedChildEnd - expectedChildStart) != 0) {
+                    if (uprv_strlen(actualChild) != static_cast<size_t>(expectedChildEnd - expectedChildStart) || uprv_strncmp(actualChild, expectedChildStart, expectedChildEnd - expectedChildStart) != 0) {
                         errln("Mismatch in child list for %s at position %d: expected %s, got %s\n", groupingCode, numExpectedChildren, expectedChildStart, actualChild);
                     }
                     expectedChildStart = (*expectedChildEnd != '\0') ? expectedChildEnd + 1 : expectedChildEnd;
@@ -780,6 +783,80 @@ void RegionTest::TestGroupingChildren() {
         } else {
             errln("Region %s not found\n", groupingCode);
         }
+    }
+}
+
+class MutableRegionValidateMap : public RegionValidateMap {
+ public:
+  MutableRegionValidateMap() {
+      uprv_memset(map, 0, sizeof(map));
+  }
+  virtual ~MutableRegionValidateMap() {}
+  void add(const char* region) {
+    int32_t index = value(region);
+    if (index >= 0) {
+        map[index / 32] |= (1L << (index % 32));
+    }
+  }
+  const uint32_t* data(int32_t* length) const {
+    if (length != nullptr) {
+        *length = sizeof(map)/sizeof(uint32_t);
+    }
+    return map;
+  }
+};
+
+void RegionTest::TestGetRegionForSupplementalDataMatch(void) {
+    RegionValidateMap builtin;
+    MutableRegionValidateMap prefab;
+
+    UErrorCode status = U_ZERO_ERROR;
+    LocalUResourceBundlePointer supplementalData(ures_openDirect(nullptr,"supplementalData",&status));
+
+    LocalUResourceBundlePointer idValidity(ures_getByKey(supplementalData.getAlias(),"idValidity",nullptr,&status));
+    LocalUResourceBundlePointer subdivisions(ures_getByKey(idValidity.getAlias(),"subdivision",nullptr,&status));
+    LocalUResourceBundlePointer unknown(ures_getByKey(subdivisions.getAlias(),"unknown",nullptr,&status));
+
+    while (U_SUCCESS(status) && ures_hasNext(unknown.getAlias())) {
+        UnicodeString subdivision = ures_getNextUnicodeString(unknown.getAlias(),nullptr,&status);
+        if (U_SUCCESS(status)) {
+            std::string str;
+            subdivision.toUTF8String<std::string>(str);
+            str.resize(2);
+            prefab.add(str.c_str());
+        }
+    }
+    if (!prefab.equals(builtin)) {
+        int32_t length;
+        const uint32_t* data = prefab.data(&length);
+        printf("const uint32_t gValidRegionMap[] = {");
+        for (int32_t i = 0; i < length; i++) {
+            if (i % 4 == 0) {
+                printf("\n    ");
+            }
+            printf("0x%08x, ", data[i]);
+        }
+        printf("\n};\n");
+        errln("ulocimp_getRegionForSupplementalData() inconsistent with supplementalData");
+    }
+
+    // Ensure consistency with Region API.
+    MutableRegionValidateMap prefab2;
+    char code[3] = "AA";
+    for (code[0] ='A' ; code[0] <= 'Z'; code[0]++) {
+        for (code[1] ='A' ; code[1] <= 'Z'; code[1]++) {
+            status = U_ZERO_ERROR;
+            const Region *r = Region::getInstance(code, status);
+            // The Region code successfully created by Region::getInstance with
+            // type URGN_TERRITORY. Notice the r->getRegionCode() may not be the
+            // same as the same as the one calling getInstance.
+            if (U_SUCCESS(status) && (r != nullptr) && r->getType() == URGN_TERRITORY ) {
+                 prefab2.add(r->getRegionCode());
+            }
+        }
+    }
+    if (!prefab2.equals(builtin)) {
+        errln("ulocimp_getRegionForSupplementalData() inconsistent with Region::getInstance");
     }
 }
 

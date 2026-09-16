@@ -310,7 +310,8 @@ MAC_ARM64_HOST = {
 
 MAC_X86_64_HOST = {
     "dimensions": {
-        "os": "Mac-10.15|Mac-11",
+        # macOS 12 or later is needed as of Go 1.25.
+        "os": "Mac-12|Mac-13",
         "cpu": "x86-64",
     },
     "caches": [swarming.cache("osx_sdk")],

@@ -12,6 +12,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/task/thread_pool.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_run_loop_timeout.h"
@@ -144,7 +145,7 @@ class PredictionManagerBrowserTestBase : public InProcessBrowserTest {
         net::EmbeddedTestServer::TYPE_HTTPS);
     net::EmbeddedTestServer::ServerCertificateConfig models_server_cert_config;
     models_server_cert_config.dns_names = {
-        GURL(kOptimizationGuideServiceGetModelsDefaultURL).host()};
+        GURL(kOptimizationGuideServiceGetModelsDefaultURL).GetHost()};
     models_server_cert_config.ip_addresses = {net::IPAddress::IPv4Localhost()};
     models_server_->SetSSLConfig(models_server_cert_config);
     models_server_->ServeFilesFromSourceDirectory(
@@ -186,8 +187,9 @@ class PredictionManagerBrowserTestBase : public InProcessBrowserTest {
     cmd->AppendSwitchASCII(
         switches::kOptimizationGuideServiceGetModelsURL,
         models_server_
-            ->GetURL(GURL(kOptimizationGuideServiceGetModelsDefaultURL).host(),
-                     "/")
+            ->GetURL(
+                GURL(kOptimizationGuideServiceGetModelsDefaultURL).GetHost(),
+                "/")
             .spec());
     cmd->AppendSwitchASCII("force-variation-ids", "4");
   }
@@ -201,7 +203,10 @@ class PredictionManagerBrowserTestBase : public InProcessBrowserTest {
     OptimizationGuideKeyedServiceFactory::GetForProfile(browser()->profile())
         ->AddObserverForOptimizationTargetModel(
             optimization_guide::proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD,
-            std::nullopt, model_file_observer);
+            std::nullopt,
+            base::ThreadPool::CreateSequencedTaskRunner(
+                {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
+            model_file_observer);
   }
 
   PredictionManager* GetPredictionManager() {
@@ -428,7 +433,10 @@ class PredictionManagerModelDownloadingBrowserTest
         profile ? profile : browser()->profile())
         ->AddObserverForOptimizationTargetModel(
             proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD,
-            /*model_metadata=*/std::nullopt, model_file_observer_.get());
+            /*model_metadata=*/std::nullopt,
+            base::ThreadPool::CreateSequencedTaskRunner(
+                {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
+            model_file_observer_.get());
   }
 
  private:
@@ -882,7 +890,10 @@ IN_PROC_BROWSER_TEST_F(PredictionManagerModelPackageOverrideTest, TestE2E) {
   OptimizationGuideKeyedServiceFactory::GetForProfile(browser()->profile())
       ->AddObserverForOptimizationTargetModel(
           proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD,
-          /*model_metadata=*/std::nullopt, &model_file_observer);
+          /*model_metadata=*/std::nullopt,
+          base::ThreadPool::CreateSequencedTaskRunner(
+              {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
+          &model_file_observer);
 
   run_loop.Run();
 }

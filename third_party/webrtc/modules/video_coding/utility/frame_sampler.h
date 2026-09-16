@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "api/units/time_delta.h"
 #include "api/video/video_frame.h"
 
 namespace webrtc {
@@ -24,13 +25,14 @@ namespace webrtc {
 // on the RTP timestamp difference.
 class FrameSampler {
  public:
-  FrameSampler() = default;
+  explicit FrameSampler(TimeDelta interval);
   FrameSampler(const FrameSampler&) = delete;
   FrameSampler& operator=(const FrameSampler&) = delete;
 
   bool ShouldBeSampled(const VideoFrame& frame);
 
  private:
+  const TimeDelta sampling_interval_;
   std::optional<uint32_t> last_rtp_timestamp_sampled_;
   std::optional<uint32_t> last_rtp_timestamp_;
 };

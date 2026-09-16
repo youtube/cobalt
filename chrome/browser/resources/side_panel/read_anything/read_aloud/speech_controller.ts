@@ -209,15 +209,19 @@ export class SpeechController {
   }
 
   onHighlightGranularityChange(newGranularity: number) {
-    chrome.readingMode.onHighlightGranularityChanged(newGranularity);
-
     // Rehighlight the new granularity.
     if (newGranularity !== chrome.readingMode.noHighlighting) {
       this.highlightCurrentGranularity_(
           this.readAloudModel_.getCurrentTextSegments());
     }
+  }
 
-    this.logger_.logHighlightGranularity(newGranularity);
+  onPlayPauseKeyPress(context: HTMLElement|null) {
+    if (this.isSpeechActive()) {
+      this.logger_.logSpeechStopSource(
+          chrome.readingMode.keyboardShortcutStopSource);
+    }
+    this.onPlayPauseToggle(context);
   }
 
   onPlayPauseToggle(context: HTMLElement|null) {
@@ -325,9 +329,16 @@ export class SpeechController {
     this.setHasSpeechBeenTriggered(true);
     this.model_.setIsSpeechBeingRepositioned(false);
 
-    const playedFromSelection = this.playFromSelection_();
-    if (playedFromSelection) {
-      return;
+    // When the TS segmentation flag is enabled, playFromSelection_ needs to
+    // called after initializeSpeechTree. While this change is probably okay
+    // to introduce for the non-TS segmentation flag case, the original
+    // order is maintained when the flag is disabled to reduce the risk of
+    // introducing unexpected bugs to the V8 segmentation method.
+    if (!chrome.readingMode.isTsTextSegmentationEnabled) {
+      const playedFromSelection = this.playFromSelection_();
+      if (playedFromSelection) {
+        return;
+      }
     }
 
     if (chrome.readingMode.isTsTextSegmentationEnabled) {
@@ -336,6 +347,13 @@ export class SpeechController {
       this.initializeSpeechTree(context);
     } else {
       this.initializeSpeechTree();
+    }
+
+    if (chrome.readingMode.isTsTextSegmentationEnabled) {
+      const playedFromSelection = this.playFromSelection_();
+      if (playedFromSelection) {
+        return;
+      }
     }
     if (this.isSpeechTreeInitialized() && !this.highlightAndPlayMessage_()) {
       // Ensure we're updating Read Aloud state if there's no text to speak.
@@ -835,9 +853,36 @@ export class SpeechController {
   private findSegment_(
       segments: Segment[], node: ReadAloudNode, offset: number): Segment
       |undefined {
-    return segments.find(
-        segment => segment.node.equals(node) &&
-            (segment.start + segment.length > offset));
+    // When the TsTextSegmentation flag is enabled, findSegment_ should count a
+    // match if the selection node contains the read aloud node (i.e. the read
+    // aloud node is a child of the selection node) - otherwise there
+    // won't be a match on the first run of playFromSelection()
+    if (!chrome.readingMode.isTsTextSegmentationEnabled) {
+      return segments.find(
+          segment => segment.node.equals(node) &&
+              (segment.start + segment.length > offset));
+    }
+
+    const selectedDomNode = node.domNode();
+    if (!selectedDomNode) {
+      return undefined;
+    }
+    return segments.find(segment => {
+      const segmentDomNode = segment.node.domNode();
+      if (!segmentDomNode) {
+        return false;
+      }
+
+      if (segment.node.equals(node)) {
+        return (segment.start + segment.length > offset);
+      }
+
+      if (selectedDomNode.contains(segmentDomNode)) {
+        return true;
+      }
+
+      return false;
+    });
   }
 
   // Highlights or rehighlights the current granularity, sentence or word.

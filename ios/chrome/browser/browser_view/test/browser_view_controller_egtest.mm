@@ -11,7 +11,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/browser_view/public/browser_view_visibility_state.h"
 #import "ios/chrome/browser/browser_view/test/browser_view_visibility_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
@@ -59,7 +59,7 @@ const char kSecondURLText[] = "You've arrived";
 // the animation of the first NTP opening. See crbug.com/1032544.
 - (void)testPageInteractable {
   // Put MVT as the top magic stack module for easier tapping.
-  [NewTabPageAppInterface disableSetUpList];
+  [NewTabPageAppInterface disableTipsCards];
 
   // Ensures that the first favicon in Most Visited row is the test URL.
   if (![ChromeTestCase forceRestartAndWipe]) {
@@ -240,14 +240,7 @@ const char kSecondURLText[] = "You've arrived";
 
 // Tests that BVC properly handles open URL. When BVC is showing a non-NTP
 // tab, the URL should be opened in a new tab, adding to the tab count.
-// TODO(crbug.com/436849556): Renable this test. It is flaky on iphone-device
-// and ipad-device.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testOpenURLFromTab testOpenURLFromTab
-#else
-#define MAYBE_testOpenURLFromTab FLAKY_testOpenURLFromTab
-#endif
-- (void)MAYBE_testOpenURLFromTab {
+- (void)testOpenURLFromTab {
   [ChromeEarlGrey loadURL:GURL("https://invalid")];
   [ChromeEarlGrey sceneOpenURL:GURL("https://anything")];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(
@@ -279,20 +272,76 @@ const char kSecondURLText[] = "You've arrived";
 
 #if BUILDFLAG(ENABLE_WIDGETS_FOR_MIM)
 // Test that code for opening URLs from Search widgets loads the NTP with the
-// Omnibox focused and switches to the correct account.
-- (void)testOpenSearchWidgetForMultiprofile {
-  [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
+// Omnibox focused and switches to the correct account (in the same profile).
+- (void)testOpenSearchWidgetWithoutProfileSwitch {
+  FakeSystemIdentity* fakeIdentity1 = [FakeSystemIdentity fakeIdentity1];
+  FakeSystemIdentity* fakeIdentity2 = [FakeSystemIdentity fakeIdentity2];
+
+  // Test sign-out from unmanaged identity.
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity1];
   [ChromeEarlGrey
       sceneOpenURL:
           GURL("chromewidgetkit://search-widget/search?gaia_id=No account")];
-
-  GREYAssertTrue([SigninEarlGrey isSignedOut], @"Failed to sign-out.");
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  GREYAssertTrue([SigninEarlGrey isSignedOut], @"Failed to sign-out.");
 
+  // Test sign-in to unmanaged identity.
   [ChromeEarlGrey sceneOpenURL:GURL("chromewidgetkit://search-widget/"
                                     "search?gaia_id=foo1_gmail.com_GAIAID")];
-  GREYAssertTrue(![SigninEarlGrey isSignedOut], @"Failed to sign-in.");
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity1];
+
+  // Test switch account in the same profile.
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity2];
+  [ChromeEarlGrey sceneOpenURL:GURL("chromewidgetkit://search-widget/"
+                                    "search?gaia_id=foo1_gmail.com_GAIAID")];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity1];
+}
+
+// Test that code for opening URLs from Search widgets loads the NTP with the
+// Omnibox focused and switches to the correct profile and account.
+// Disabled due to failures when field trial config is disabled.
+// See crbug.com/450574249.
+- (void)DISABLED_testOpenSearchWidgetWithProfileSwitch {
+  FakeSystemIdentity* fakeManagedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+
+  // Test sign-out from managed identity.
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
+  [SigninEarlGrey
+      signinWithFakeManagedIdentityInPersonalProfile:fakeManagedIdentity];
+  [ChromeEarlGrey
+      sceneOpenURL:
+          GURL("chromewidgetkit://search-widget/search?gaia_id=No account")];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  GREYAssertTrue([SigninEarlGrey isSignedOut], @"Failed to sign-out.");
+
+  // Test sign-in to managed identity.
+  [ChromeEarlGrey sceneOpenURL:GURL("chromewidgetkit://search-widget/"
+                                    "search?gaia_id=foo_google.com_GAIAID")];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeManagedIdentity];
+
+  // Test sign-in from managed to unmanaged identity.
+  [ChromeEarlGrey sceneOpenURL:GURL("chromewidgetkit://search-widget/"
+                                    "search?gaia_id=foo1_gmail.com_GAIAID")];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
+
+  // Test sign-in from unmanaged to managed identity.
+  [ChromeEarlGrey sceneOpenURL:GURL("chromewidgetkit://search-widget/"
+                                    "search?gaia_id=foo_google.com_GAIAID")];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeManagedIdentity];
 }
 
 // Test that code for opening URLs from Dino Widget opens the dino game and

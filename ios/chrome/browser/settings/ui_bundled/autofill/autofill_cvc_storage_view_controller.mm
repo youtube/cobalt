@@ -6,9 +6,9 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/memory/raw_ptr.h"
+#import "base/metrics/user_metrics.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
@@ -111,6 +111,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
       initWithType:ItemTypeSaveSecurityCodesSwitch];
   switchItem.text = l10n_util::GetNSString(
       IDS_AUTOFILL_SETTINGS_PAGE_ENABLE_CVC_STORAGE_LABEL);
+  switchItem.target = self;
+  switchItem.selector = @selector(cvcStorageSwitchChanged:);
   switchItem.on = self.cvcStorageSwitchIsOn;
   switchItem.accessibilityIdentifier = kAutofillSaveSecurityCodesSwitchViewId;
   return switchItem;
@@ -150,26 +152,6 @@ typedef NS_ENUM(NSInteger, ItemType) {
   return NO;
 }
 
-#pragma mark - UITableViewDataSource
-
-- (UITableViewCell*)tableView:(UITableView*)tableView
-        cellForRowAtIndexPath:(NSIndexPath*)indexPath {
-  UITableViewCell* cell = [super tableView:tableView
-                     cellForRowAtIndexPath:indexPath];
-
-  ItemType itemType = static_cast<ItemType>(
-      [self.tableViewModel itemTypeForIndexPath:indexPath]);
-
-  if (itemType == ItemTypeSaveSecurityCodesSwitch) {
-    TableViewSwitchCell* switchCell =
-        base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
-    [switchCell.switchView addTarget:self
-                              action:@selector(cvcStorageSwitchChanged:)
-                    forControlEvents:UIControlEventValueChanged];
-  }
-  return cell;
-}
-
 #pragma mark - UITableViewDelegate
 
 - (void)tableView:(UITableView*)tableView
@@ -181,6 +163,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
   [tableView deselectRowAtIndexPath:indexPath animated:YES];
 
   if (type == ItemTypeDeleteSavedSecurityCodesButton) {
+    base::RecordAction(
+        base::UserMetricsAction("BulkCvcDeletionHyperlinkClicked"));
     [self showDeleteConfirmationForIndexPath:indexPath];
   }
 }
@@ -209,6 +193,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
       actionWithTitle:l10n_util::GetNSString(IDS_IOS_DELETE_SAVED_SECURITY_CODE)
                 style:UIAlertActionStyleDestructive
               handler:^(UIAlertAction* action) {
+                base::RecordAction(base::UserMetricsAction(
+                    "BulkCvcDeletionConfirmationDialogAccepted"));
                 [weakSelf.delegate
                     deleteAllSavedCvcsForViewController:weakSelf];
                 [weakSelf userDismissedAlert];
@@ -219,6 +205,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
                           IDS_IOS_DELETE_SAVED_SECURITY_CODE_CANCEL)
                 style:UIAlertActionStyleCancel
               handler:^(UIAlertAction* action) {
+                base::RecordAction(base::UserMetricsAction(
+                    "BulkCvcDeletionConfirmationDialogCancelled"));
                 [weakSelf userDismissedAlert];
               }];
 

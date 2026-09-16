@@ -16,6 +16,15 @@ class PrefService;
 
 namespace dom_distiller {
 
+inline constexpr float kMinFontScale = 0.4f;
+inline constexpr float kMaxFontScale = 3.0f;
+
+// Custom values for Android reader mode font scaling boundaries.
+inline constexpr float kMinFontScaleAndroidInApp = 1.0f;
+inline constexpr float kMaxFontScaleAndroidInApp = 2.5f;
+inline constexpr float kMinFontScaleAndroidCCT = 0.5f;
+inline constexpr float kMaxFontScaleAndroidCCT = 2.0f;
+
 // The source for updates to the distiller theme settings.
 enum class ThemeSettingsUpdateSource {
   kSystem,
@@ -59,14 +68,27 @@ class DistilledPagePrefs {
   mojom::Theme GetTheme();
 
   // Sets the user's preference for the font size scaling of distilled pages.
-  void SetFontScaling(float scaling);
-  // Returns the user's preference for the font size scaling of distilled pages.
+  void SetUserPrefFontScaling(float scaling);
+
+  // Sets default font scaling, used when user's preference for font scaling is
+  // not set. This will be aligned with the default zoom.
+  void SetDefaultFontScaling(float scaling);
+
+  // Returns the font size scaling of distilled pages. If user's preference for
+  // font size scaling is set, it will return the user's preference. Otherwise,
+  // it will return the value of default_font_scaling_.
   float GetFontScaling();
 
   void AddObserver(Observer* obs);
   void RemoveObserver(Observer* obs);
 
  private:
+#if BUILDFLAG(IS_ANDROID)
+  // Clamps the default font scaling to properly follow min and max font scaling
+  // for whether the distillation is in-app or CCT.
+  void ClampDefaultFontScaling();
+#endif
+
   // Notifies all Observers of new font family.
   void NotifyOnChangeFontFamily();
   // Notifies all Observers of new theme.
@@ -79,6 +101,7 @@ class DistilledPagePrefs {
   base::ObserverList<Observer> observers_;
 
   mojom::Theme default_theme_ = mojom::Theme::kLight;
+  float default_font_scaling_ = 1.0f;
 
   base::WeakPtrFactory<DistilledPagePrefs> weak_ptr_factory_{this};
 };

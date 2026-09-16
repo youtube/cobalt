@@ -8,6 +8,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
@@ -25,7 +26,6 @@ DEFINE_USER_DATA(actor::ui::ActorUiTabController);
 
 namespace actor::ui {
 using ::tabs::TabInterface;
-using enum actor::ui::HandoffButtonState::ControlOwnership;
 
 void LogAndIgnoreCallbackError(const std::string_view source_name,
                                bool result) {
@@ -57,6 +57,7 @@ ActorUiTabController::ActorUiTabController(
   CHECK(actor_keyed_service_);
   handoff_button_controller_ =
       controller_factory_->CreateHandoffButtonController(tab);
+  RegisterTabSubscriptions();
 }
 
 ActorUiTabController::~ActorUiTabController() = default;
@@ -206,7 +207,7 @@ void ActorUiTabController::InitializeImmersiveModeObserver() {
 }
 
 void ActorUiTabController::OnImmersiveFullscreenEntered() {
-  if (!actor_keyed_service_->IsAnyTaskActingOnTab(*tab_)) {
+  if (!actor_keyed_service_->GetTaskFromTab(*tab_)) {
     return;
   }
   UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError,
@@ -214,7 +215,7 @@ void ActorUiTabController::OnImmersiveFullscreenEntered() {
 }
 
 void ActorUiTabController::OnImmersiveFullscreenExited() {
-  if (!actor_keyed_service_->IsAnyTaskActingOnTab(*tab_)) {
+  if (!actor_keyed_service_->GetTaskFromTab(*tab_)) {
     return;
   }
   UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError,
@@ -261,21 +262,13 @@ bool ActorUiTabController::ComputeHandoffButtonVisibility() {
     return false;
   }
 
-  bool is_button_active = current_ui_tab_state_.handoff_button.is_active;
-  bool is_client_control =
-      current_ui_tab_state_.handoff_button.controller == kClient;
-
   // Only visible when:
-  // 1. Its state and the associated tab is selected and the mouse is hovering
-  //    over the overlay or the button.
-  // 2. Its state and the associated tab is selected and the client is in
-  //    control.
-  return tab_->IsSelected() && is_button_active &&
-         (should_show_scrim_background_ || is_client_control);
+  // 1. Its state is active and the associated tab is selected.
+  return tab_->IsSelected() && current_ui_tab_state_.handoff_button.is_active;
 }
 
 void ActorUiTabController::SetActorTaskPaused() {
-  TaskId task_id = actor_keyed_service_->IsAnyTaskActingOnTab(*tab_);
+  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
   if (!task_id) {
     VLOG(1) << "There is no active task acting on this tab.";
     return;
@@ -287,7 +280,7 @@ void ActorUiTabController::SetActorTaskPaused() {
 }
 
 void ActorUiTabController::SetActorTaskResume() {
-  TaskId task_id = actor_keyed_service_->IsAnyTaskActingOnTab(*tab_);
+  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
   if (!task_id) {
     VLOG(1) << "There is no active task acting on this tab.";
     return;
@@ -298,6 +291,9 @@ void ActorUiTabController::SetActorTaskResume() {
   }
 }
 
+// TODO(crbug.com/447624564): After migrating the Handoff button off the TDM and
+// onto contents container, investigate removing debouncing on the tab
+// controller side and handle it on the ui component side.
 void ActorUiTabController::UpdateScrimBackground() {
   bool should_show_scrim_background =
       is_overlay_hovered_ || handoff_button_controller_->IsHovering();
@@ -305,11 +301,12 @@ void ActorUiTabController::UpdateScrimBackground() {
     return;
   }
   should_show_scrim_background_ = should_show_scrim_background;
+  // TODO(chrstne): Move this notify to UpdateUI + consolidate visibility &
+  // background into 1 struct.
   if (features::kGlicActorUiOverlay.Get()) {
     actor_overlay_background_changed_callbacks_.Notify(
         should_show_scrim_background_);
   }
-  UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError, "UpdateScrimBackground"));
 }
 
 void ActorUiTabController::OnOverlayHoverStatusChanged(bool is_hovering) {

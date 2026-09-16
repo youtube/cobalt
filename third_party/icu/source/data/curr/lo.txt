@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 lo{
     Currencies{
         ADP{
@@ -1217,8 +1217,5 @@ lo{
         XXX{
             other{"(ສະກຸນເງິນທີ່ບໍ່ຮູ້ຈັກ)"}
         }
-    }
-    CurrencyUnitPatterns{
-        other{"{0} {1}"}
     }
 }

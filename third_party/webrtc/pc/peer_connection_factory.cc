@@ -32,7 +32,6 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "api/units/data_rate.h"
 #include "call/call_config.h"
 #include "media/base/codec.h"
@@ -102,10 +101,7 @@ PeerConnectionFactory::PeerConnectionFactory(
     : env_(env),
       context_(context ? context
                        : ConnectionContext::Create(env_, dependencies)),
-      codec_vendor_(context_->media_engine(),
-                    context_->use_rtx(),
-                    env_.field_trials()),
-
+      codec_vendor_(media_engine(), context_->use_rtx(), env_.field_trials()),
       event_log_factory_(std::move(dependencies->event_log_factory)),
       fec_controller_factory_(std::move(dependencies->fec_controller_factory)),
       network_state_predictor_factory_(
@@ -128,6 +124,7 @@ PeerConnectionFactory::~PeerConnectionFactory() {
     RTC_DCHECK_RUN_ON(worker_thread());
     decode_metronome_ = nullptr;
     encode_metronome_ = nullptr;
+    StopAecDump();
   });
 }
 
@@ -194,16 +191,30 @@ scoped_refptr<AudioSourceInterface> PeerConnectionFactory::CreateAudioSource(
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(worker_thread());
-  return media_engine()->voice().StartAecDump(FileWrapper(file),
-                                              max_size_bytes);
+  if (aec_dump_active_) {
+    RTC_LOG(LS_WARNING) << "Replacing ongoing AEC dump.";
+  } else {
+    aec_dump_active_ = true;
+    context_->AddRefMediaEngine();
+  }
+  const bool started = context_->media_engine()->voice().StartAecDump(
+      FileWrapper(file), max_size_bytes);
+  if (!started) {  // E.g. if the file couldn't be opened/created.
+    StopAecDump();
+  }
+  return started;
 }
 
 void PeerConnectionFactory::StopAecDump() {
   RTC_DCHECK_RUN_ON(worker_thread());
-  media_engine()->voice().StopAecDump();
+  if (!aec_dump_active_)
+    return;
+  context_->media_engine()->voice().StopAecDump();
+  context_->ReleaseMediaEngine();
+  aec_dump_active_ = false;
 }
 
-MediaEngineInterface* PeerConnectionFactory::media_engine() const {
+const MediaEngineInterface* PeerConnectionFactory::media_engine() const {
   RTC_DCHECK(context_);
   return context_->media_engine();
 }
@@ -288,13 +299,9 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
   dependencies.allocator->SetNetworkIgnoreMask(options().network_ignore_mask);
   dependencies.allocator->SetVpnList(configuration.vpn_list);
 
-  std::unique_ptr<NetworkControllerFactoryInterface>
-      network_controller_factory =
-          std::move(dependencies.network_controller_factory);
-  std::unique_ptr<Call> call = worker_thread()->BlockingCall(
-      [this, &env, &configuration, &network_controller_factory] {
-        return CreateCall_w(env, std::move(configuration),
-                            std::move(network_controller_factory));
+  std::unique_ptr<Call> call =
+      worker_thread()->BlockingCall([this, &env, &configuration] {
+        return CreateCall_w(env, std::move(configuration));
       });
 
   auto pc = PeerConnection::Create(env, context_, options_, std::move(call),
@@ -337,9 +344,7 @@ scoped_refptr<AudioTrackInterface> PeerConnectionFactory::CreateAudioTrack(
 
 std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
     const Environment& env,
-    const PeerConnectionInterface::RTCConfiguration& configuration,
-    std::unique_ptr<NetworkControllerFactoryInterface>
-        per_call_network_controller_factory) {
+    const PeerConnectionInterface::RTCConfiguration& configuration) {
   RTC_DCHECK_RUN_ON(worker_thread());
 
   CallConfig call_config(env, network_thread());
@@ -369,12 +374,7 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
       network_state_predictor_factory_.get();
   call_config.neteq_factory = neteq_factory_.get();
 
-  if (per_call_network_controller_factory != nullptr) {
-    RTC_LOG(LS_INFO) << "Using pc injected network controller factory";
-    call_config.per_call_network_controller_factory =
-        std::move(per_call_network_controller_factory);
-  } else if (field_trials().IsEnabled(
-                 "WebRTC-Bwe-InjectedCongestionController")) {
+  if (field_trials().IsEnabled("WebRTC-Bwe-InjectedCongestionController")) {
     RTC_LOG(LS_INFO) << "Using pcf injected network controller factory";
     call_config.network_controller_factory =
         injected_network_controller_factory_.get();

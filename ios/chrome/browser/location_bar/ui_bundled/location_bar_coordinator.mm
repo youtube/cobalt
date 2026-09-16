@@ -37,11 +37,15 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/infobars/model/infobar_metrics_recorder.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/location_bar/model/web_location_bar_delegate.h"
 #import "ios/chrome/browser/location_bar/model/web_location_bar_impl.h"
+#import "ios/chrome/browser/location_bar/ui/badge/location_bar_badge_coordinator.h"
+#import "ios/chrome/browser/location_bar/ui/badge/location_bar_badge_mediator.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_constants.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_consumer.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_mediator.h"
@@ -65,6 +69,7 @@
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_chip_coordinator.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_web_state_utils.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -151,6 +156,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 // Coordinator for the reader mode chip.
 @property(nonatomic, strong)
     ReaderModeChipCoordinator* readerModeChipCoordinator;
+// Coordinator for the location bar badge view.
+@property(nonatomic, strong)
+    LocationBarBadgeCoordinator* locationBarBadgeCoordinator;
 // Coordinator for the omnibox.
 @property(nonatomic, strong) OmniboxCoordinator* omniboxCoordinator;
 @property(nonatomic, strong) LocationBarMediator* mediator;
@@ -230,7 +238,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   id<HelpCommands> helpHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands);
   [self.viewController setHelpCommandsHandler:helpHandler];
-  self.viewController.isAIHubNewBadgeVisible = [self isAIHubNewBadgeVisible];
 
   _locationBar = std::make_unique<WebLocationBarImpl>(self);
   _locationBar->SetURLLoader(self);
@@ -340,6 +347,26 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     self.incognitoBadgeMediator.consumer = self.incognitoBadgeViewController;
     _incognitoBadgeFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
         fullscreenController, self.incognitoBadgeViewController);
+  }
+
+  // TODO(crbug.com/445784670): Connect LocationBarViewController to
+  // BadgeContainerView.
+  if (IsAskGeminiChipEnabled()) {
+    // Overrides visibility delegates to use badge view from
+    // LocationBarBadgeContainer.
+    self.locationBarBadgeCoordinator = [[LocationBarBadgeCoordinator alloc]
+        initWithBaseViewController:self.viewController
+                           browser:self.browser];
+    LocationBarBadgeMediator* locationBarBadgeMediator =
+        self.locationBarBadgeCoordinator.mediator;
+    // TODO(crbug.com/445786272): Properly create mediator delegate.
+    self.readerModeChipCoordinator.visibilityDelegate =
+        locationBarBadgeMediator;
+    self.contextualPanelEntrypointCoordinator.visibilityDelegate =
+        locationBarBadgeMediator;
+    self.incognitoBadgeViewController.visibilityDelegate =
+        locationBarBadgeMediator;
+    self.badgeViewController.visibilityDelegate = locationBarBadgeMediator;
   }
 
   self.mediator = [[LocationBarMediator alloc] initWithIsIncognito:isIncognito];
@@ -624,10 +651,12 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   const GURL visibleURL = self.webState->GetVisibleURL();
   NSString* title = base::SysUTF16ToNSString(self.webState->GetTitle());
 
-  SharingParams* params =
-      [[SharingParams alloc] initWithURL:visibleURL
-                                   title:title
-                                scenario:SharingScenario::TabShareButton];
+  SharingScenario scenario = IsReaderModeActiveInWebState(self.webState)
+                                 ? SharingScenario::ShareInReaderMode
+                                 : SharingScenario::TabShareButton;
+  SharingParams* params = [[SharingParams alloc] initWithURL:visibleURL
+                                                       title:title
+                                                    scenario:scenario];
   _sharingCoordinator = [[SharingCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
@@ -686,6 +715,15 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 - (void)locationBarDidTapAIHubNewBadge {
   _tracker->NotifyUsedEvent(feature_engagement::kIPHiOSAIHubNewBadge);
 }
+
+- (BOOL)shouldShowAIHubNewFeatureBadge {
+  if (!base::FeatureList::IsEnabled(kAIHubNewBadge)) {
+    return NO;
+  }
+  return _tracker->ShouldTriggerHelpUI(
+      feature_engagement::kIPHiOSAIHubNewBadge);
+}
+
 #pragma mark - ContextualPanelEntrypointCoordinatorDelegate
 
 - (BOOL)canShowLargeContextualPanelEntrypoint:
@@ -829,16 +867,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   }
 
   [self cancelOmniboxEdit];
-}
-
-// Decides if AI Hub new badge should show.
-- (BOOL)isAIHubNewBadgeVisible {
-  if (!base::FeatureList::IsEnabled(kAIHubNewBadge)) {
-    return NO;
-  }
-
-  return _tracker->ShouldTriggerHelpUI(
-      feature_engagement::kIPHiOSAIHubNewBadge);
 }
 
 @end

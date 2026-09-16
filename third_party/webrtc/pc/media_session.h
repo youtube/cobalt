@@ -28,7 +28,6 @@
 #include "pc/codec_vendor.h"
 #include "pc/media_options.h"
 #include "pc/session_description.h"
-#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/memory/always_valid_pointer.h"
 #include "rtc_base/unique_id_generator.h"
 
@@ -52,7 +51,7 @@ class MediaSessionDescriptionFactory {
   // The TransportDescriptionFactory, the UniqueRandomIdGenerator, and the
   // PayloadTypeSuggester are not owned by MediaSessionDescriptionFactory, so
   // they must be kept alive by the user of this class.
-  MediaSessionDescriptionFactory(MediaEngineInterface* media_engine,
+  MediaSessionDescriptionFactory(const MediaEngineInterface* media_engine,
                                  bool rtx_enabled,
                                  UniqueRandomIdGenerator* ssrc_generator,
                                  const TransportDescriptionFactory* factory,

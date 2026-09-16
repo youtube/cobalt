@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 yue_Hans{
     %%Parent{"root"}
     Keys{
@@ -93,6 +93,7 @@ yue_Hans{
         bjn{"班亚尔文"}
         bkm{"康姆文"}
         bla{"锡克锡卡文"}
+        blo{"阿尼文"}
         bm{"班巴拉文"}
         bn{"孟加拉文"}
         bo{"藏文"}
@@ -221,7 +222,6 @@ yue_Hans{
         gmh{"中古高地德文"}
         gn{"瓜拉尼文"}
         goh{"古高地日耳曼文"}
-        gom{"孔卡尼文"}
         gon{"冈德文"}
         gor{"科隆达罗文"}
         got{"哥德文"}
@@ -331,6 +331,7 @@ yue_Hans{
         kv{"科米文"}
         kw{"康瓦耳文"}
         kwk{"夸夸瓦拉文"}
+        kxv{"库维文"}
         ky{"吉尔吉斯文"}
         la{"拉丁文"}
         lad{"拉迪诺文"}
@@ -625,6 +626,7 @@ yue_Hans{
         vi{"越南文"}
         vls{"西佛兰德文"}
         vmf{"美茵-法兰克尼亚文"}
+        vmw{"马库瓦文"}
         vo{"沃拉普克文"}
         vot{"沃提克文"}
         vro{"佛罗文"}
@@ -640,6 +642,7 @@ yue_Hans{
         xal{"卡尔梅克文"}
         xh{"科萨文"}
         xmf{"明格列尔文"}
+        xnr{"康格里文"}
         xog{"索加文"}
         yao{"瑶文"}
         yap{"雅浦文"}
@@ -911,7 +914,6 @@ yue_Hans{
             phonebook{"电话簿排序"}
             phonetic{"发音排序"}
             pinyin{"拼音排序"}
-            reformed{"改良排序"}
             search{"一般用途搜寻"}
             searchjl{"韩文子音排序"}
             standard{"标准排序"}

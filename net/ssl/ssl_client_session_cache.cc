@@ -47,11 +47,10 @@ SSLClientSessionCache::SSLClientSessionCache(const Config& config)
     : clock_(base::DefaultClock::GetInstance()),
       config_(config),
       cache_(config.max_entries) {
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE, base::MemoryPressureListenerTag::kSSLClientSessionCache,
-          base::BindRepeating(&SSLClientSessionCache::OnMemoryPressure,
-                              base::Unretained(this)));
+          this);
 }
 
 SSLClientSessionCache::~SSLClientSessionCache() {
@@ -204,14 +203,14 @@ void SSLClientSessionCache::FlushExpiredSessions() {
 }
 
 void SSLClientSessionCache::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+    base::MemoryPressureLevel memory_pressure_level) {
   switch (memory_pressure_level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
       FlushExpiredSessions();
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       Flush();
       break;
   }

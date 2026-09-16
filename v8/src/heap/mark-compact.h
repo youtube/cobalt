@@ -188,6 +188,7 @@ class MarkCompactCollector final {
   void MaybeEnableBackgroundThreadsInCycle(CallOrigin origin);
 
   Heap* heap() { return heap_; }
+  const Heap* heap() const { return heap_; }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
@@ -305,10 +306,6 @@ class MarkCompactCollector final {
   bool ProcessOldBaselineSFI(Tagged<SharedFunctionInfo> flushing_candidate);
   void FlushSFI(Tagged<SharedFunctionInfo> sfi,
                 bool bytecode_already_decompiled);
-
-#ifndef V8_ENABLE_LEAPTIERING
-  void ProcessFlushedBaselineCandidates();
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();

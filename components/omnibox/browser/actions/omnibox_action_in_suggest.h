@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/gtest_prod_util.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/search_engines/template_url.h"
@@ -43,6 +44,12 @@ class OmniboxActionInSuggest : public OmniboxAction {
 
   omnibox::SuggestTemplateInfo::TemplateAction template_action;
   std::optional<TemplateURLRef::SearchTermsArgs> search_terms_args;
+  int tab_id = 0;
+
+ protected:
+  FRIEND_TEST_ALL_PREFIXES(OmniboxActionInSuggestTest, ShowAsActionButton);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxActionInSuggestTest,
+                           ShowAsActionButtonForTabSwitch);
 
  private:
   ~OmniboxActionInSuggest() override;

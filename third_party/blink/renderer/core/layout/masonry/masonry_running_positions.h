@@ -36,6 +36,8 @@ class CORE_EXPORT MasonryRunningPositions {
     }
 
     if (is_dense_packing_) {
+      track_collection_openings_.resize(
+          track_collection.EndLineOfImplicitGrid());
       // If dense packing is enabled, we need to keep track of the track sizes
       // and initialize the data structure that will be used to keep track of
       // any openings.
@@ -65,7 +67,9 @@ class CORE_EXPORT MasonryRunningPositions {
 
   // Update all the running positions for the tracks within the given `span` to
   // have the inputted `new_running_position`. `new_running_position` is the
-  // new running position of all the tracks the item is placed across.
+  // new running position of all the tracks the item is placed across. The new
+  // running position accounts for the gap between items if the user has
+  // specified one.
   //
   // `max_running_position_for_span` should only be used in the case of
   // dense-packing, and it is the current maximum running position of the tracks
@@ -102,10 +106,10 @@ class CORE_EXPORT MasonryRunningPositions {
     auto_placement_cursor_ = line;
   }
 
-  // If we can find an earlier track opening to fit the item, set `masonry_item`
-  // to have the updated span location, adjust the track opening as needed
-  // (either erasing it or reducing the size), and return the running position
-  // at which the item will be placed. This method is only used when
+  // If we can find an eligible track opening to fit the item, set
+  // `masonry_item` to have the updated span location, adjust the track opening
+  // as needed (either erasing it or reducing the size), and return the running
+  // position at which the item will be placed. This method is only used when
   // dense-packing is set.
   LayoutUnit GetEligibleTrackOpeningAndUpdateMasonryItemSpan(
       wtf_size_t start_offset,
@@ -179,11 +183,6 @@ class CORE_EXPORT MasonryRunningPositions {
   // track number and the value corresponds to the max-position for that track.
   Vector<LayoutUnit> GetMaxPositionsForAllTracks(wtf_size_t span_size) const;
 
-  // TODO(celestepan): Once we have a way to query for individual track sizes
-  // from `GridLayoutTrackCollection`, move this method to GridSpan and have it
-  // take in a `GridLayoutTrackCollection` and use that to perform the size
-  // calculations.
-  //
   // Calculate the total size of the tracks across the given span.
   LayoutUnit CalculateUsedTrackSize(const GridSpan& span) const;
 
@@ -193,7 +192,7 @@ class CORE_EXPORT MasonryRunningPositions {
   // returns whether or not a path of eligible track openings were found.
   // Because of the recursive nature of this method, the `track_opening_indices`
   // in `eligible_track_opening_result` will be in reverse order.
-  bool AccumulateTrackOpeningsToAccomodateItem(
+  bool AccumulateTrackOpeningsToAccommodateItem(
       LayoutUnit item_stacking_axis_contribution,
       LayoutUnit previous_track_opening_start_position,
       LayoutUnit previous_track_opening_end_position,

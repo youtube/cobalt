@@ -32,7 +32,9 @@ namespace viz {
 
 class VulkanContextProvider;
 
-class VIZ_SERVICE_EXPORT CompositorGpuThread : public base::Thread {
+class VIZ_SERVICE_EXPORT CompositorGpuThread
+    : public base::Thread,
+      public base::MemoryPressureListener {
  public:
   using GetVideoMemoryUsageStatsCallback =
       base::OnceCallback<void(const ::gpu::VideoMemoryUsageStats&)>;
@@ -91,8 +93,8 @@ class VIZ_SERVICE_EXPORT CompositorGpuThread : public base::Thread {
 
   bool Initialize();
 
-  void HandleMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(
+      base::MemoryPressureLevel memory_pressure_level) override;
   void OnBackgroundedOnCompositorGpuThread();
 
   raw_ptr<gpu::GpuChannelManager> gpu_channel_manager_;
@@ -116,13 +118,9 @@ class VIZ_SERVICE_EXPORT CompositorGpuThread : public base::Thread {
   std::unique_ptr<gpu::GpuWatchdogThread> watchdog_thread_;
   scoped_refptr<gpu::SharedContextState> shared_context_state_;
 
-  // To start listening memory pressure signals from the platform, we create a
-  // new instance of MemoryPressureListener, passing a callback to a
-  // function that takes a MemoryPressureLevel parameter.To stop listening,
-  // simply delete the listener object. The implementation guarantees
-  // that the callback will always be called on the thread that created
-  // the listener.
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  // Listens to the memory pressure signals from the platform.
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   base::WeakPtrFactory<CompositorGpuThread> weak_ptr_factory_;
 };

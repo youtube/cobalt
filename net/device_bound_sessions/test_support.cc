@@ -10,6 +10,7 @@
 #include "base/base64url.h"
 #include "base/compiler_specific.h"
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/numerics/byte_conversions.h"
@@ -19,6 +20,7 @@
 #include "base/values.h"
 #include "crypto/evp.h"
 #include "crypto/signature_verifier.h"
+#include "net/base/features.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -82,7 +84,9 @@ std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
     return response;
   } else if (request.relative_url == "/dbsc_required") {
     response->AddCustomHeader(
-        "Sec-Session-Registration",
+        net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
+            ? "Secure-Session-Registration"
+            : "Sec-Session-Registration",
         "(RS256 "
         "ES256);challenge=\"challenge_value\";path=\"dbsc_register_session\"");
     response->set_content_type("text/html");
@@ -97,13 +101,14 @@ std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
             .Set("session_identifier", "session_id")
             .Set("refresh_url",
                  base_url.Resolve("/dbsc_refresh_session").spec())
-            .Set("scope",
-                 base::Value::Dict().Set("scope_specification",
-                                         base::Value::List().Append(
-                                             base::Value::Dict()
-                                                 .Set("type", "exclude")
-                                                 .Set("domain", base_url.host())
-                                                 .Set("path", "/favicon.ico"))))
+            .Set("scope", base::Value::Dict()
+                              .Set("include_site", false)
+                              .Set("scope_specification",
+                                   base::Value::List().Append(
+                                       base::Value::Dict()
+                                           .Set("type", "exclude")
+                                           .Set("domain", base_url.GetHost())
+                                           .Set("path", "/favicon.ico"))))
             .Set("credentials",
                  base::Value::List().Append(
                      base::Value::Dict()
@@ -279,8 +284,10 @@ bool VerifyEs256Jwt(std::string_view jwt) {
   const std::string& payload64 = jwt_sections[1];
   const std::string& signature64 = jwt_sections[2];
 
-  std::string payload, signature;
+  std::string header, payload, signature;
   if (!base::Base64UrlDecode(
+          header64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &header) ||
+      !base::Base64UrlDecode(
           payload64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &payload) ||
       !base::Base64UrlDecode(signature64,
                              base::Base64UrlDecodePolicy::DISALLOW_PADDING,
@@ -288,14 +295,22 @@ bool VerifyEs256Jwt(std::string_view jwt) {
     return false;
   }
 
-  // Extract the JWK.
+  const std::optional<base::Value::Dict> header_json =
+      base::JSONReader::ReadDict(header, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  if (!header_json) {
+    return false;
+  }
   const std::optional<base::Value::Dict> payload_json =
-      base::JSONReader::ReadDict(payload);
+      base::JSONReader::ReadDict(payload, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!payload_json) {
     return false;
   }
 
-  const base::Value::Dict* jwk = payload_json->FindDict("key");
+  // Extract the JWK.
+  const base::Value::Dict* jwk =
+      net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
+          ? header_json->FindDict("jwk")
+          : payload_json->FindDict("key");
   if (!jwk) {
     return false;
   }
@@ -366,7 +381,7 @@ ScopedTestRegistrationFetcher::CreateWithTermination(
   return ScopedTestRegistrationFetcher(base::BindRepeating(
       [](const std::string& session_id, const std::string& refresh_url_string) {
         return RegistrationResult(
-            SessionError{SessionError::ErrorType::kServerRequestedTermination});
+            SessionError{SessionError::kServerRequestedTermination});
       },
       std::string(session_id), std::string(refresh_url_string)));
 }

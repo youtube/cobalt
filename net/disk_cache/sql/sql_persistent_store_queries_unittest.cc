@@ -39,7 +39,6 @@ constexpr auto kSchemaAndIndexQueries = base::MakeFixedFlatSet<Query>({
     Query::kInitSchema_CreateTableBlobs,
     Query::kIndex_ResourcesCacheKeyHashDoomed,
     Query::kIndex_LiveResourcesLastUsed,
-    Query::kIndex_DoomedResourcesResId,
     Query::kIndex_BlobsResIdStart,
 });
 
@@ -137,9 +136,6 @@ TEST_F(SqlPersistentStoreQueriesTest, AllQueriesHaveValidPlan) {
            {Query::kDeleteDoomedEntry_DeleteFromResources,
             "`--SEARCH resources USING "
             "INTEGER PRIMARY KEY (rowid=?)"},
-           {Query::kDeleteDoomedEntries_SelectDoomedResources,
-            "`--SCAN resources USING "
-            "COVERING INDEX index_doomed_resources_res_id"},
            {Query::kDeleteLiveEntry_DeleteFromResources,
             "`--SEARCH resources USING "
             "INDEX index_resources_cache_key_hash_doomed "
@@ -148,15 +144,18 @@ TEST_F(SqlPersistentStoreQueriesTest, AllQueriesHaveValidPlan) {
            {Query::kDeleteAllEntries_DeleteFromBlobs, ""},
            {Query::kDeleteLiveEntriesBetween_SelectLiveResources,
             "`--SEARCH resources USING "
-            "INDEX index_live_resources_last_used "
+            "COVERING INDEX index_live_resources_last_used_bytes_usage "
             "(last_used>? AND last_used<?)"},
            {Query::kDeleteResourcesByResIds_DeleteFromResources,
             "`--SEARCH resources USING "
             "INTEGER PRIMARY KEY (rowid=?)"},
-           {Query::kUpdateEntryLastUsed_UpdateResourceLastUsed,
+           {Query::kUpdateEntryLastUsedByKey_UpdateResourceLastUsed,
             "`--SEARCH resources USING "
             "INDEX index_resources_cache_key_hash_doomed "
             "(cache_key_hash=? AND doomed=?)"},
+           {Query::kUpdateEntryLastUsedByResId_UpdateResourceLastUsed,
+            "`--SEARCH resources USING "
+            "INTEGER PRIMARY KEY (rowid=?)"},
            {Query::kUpdateEntryHeaderAndLastUsed_UpdateResource,
             "`--SEARCH resources USING "
             "INTEGER PRIMARY KEY (rowid=?)"},
@@ -193,22 +192,26 @@ TEST_F(SqlPersistentStoreQueriesTest, AllQueriesHaveValidPlan) {
             "(res_id=? AND start<?)"},
            {Query::kCalculateSizeOfEntriesBetween_SelectLiveResources,
             "`--SEARCH resources USING "
-            "INDEX index_live_resources_last_used "
+            "COVERING INDEX index_live_resources_last_used_bytes_usage "
             "(last_used>? AND last_used<?)"},
            {Query::kOpenLatestEntryBeforeResId_SelectLiveResources,
             "`--SEARCH resources USING "
             "INTEGER PRIMARY KEY (rowid<?)"},
            {Query::kRunEviction_SelectLiveResources,
-            "`--SCAN resources USING INDEX index_live_resources_last_used"},
+            "`--SCAN resources USING "
+            "COVERING INDEX index_live_resources_last_used_bytes_usage"},
            {Query::kRunEviction_DeleteFromResources,
             "`--SEARCH resources USING "
             "INTEGER PRIMARY KEY (rowid=?)"},
            {Query::kCalculateResourceEntryCount_SelectCountFromLiveResources,
             "`--SCAN resources USING "
-            "COVERING INDEX index_live_resources_last_used"},
+            "COVERING INDEX index_live_resources_last_used_bytes_usage"},
            {Query::kCalculateTotalSize_SelectTotalSizeFromLiveResources,
             "`--SCAN resources USING "
-            "INDEX index_live_resources_last_used"}});
+            "COVERING INDEX index_live_resources_last_used_bytes_usage"},
+           {Query::kGetCacheKeyHashes_SelectCacheKeyHashFromLiveResources,
+            "`--SCAN resources USING COVERING INDEX "
+            "index_resources_cache_key_hash_doomed"}});
   static_assert(kAllQueriesAndPlans.size() + kSchemaAndIndexQueries.size() ==
                 static_cast<int>(Query::kMaxValue) + 1);
   for (const auto& it : kAllQueriesAndPlans) {

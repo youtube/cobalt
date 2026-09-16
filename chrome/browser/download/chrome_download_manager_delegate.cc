@@ -75,7 +75,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
-#include "components/safe_browsing/content/browser/web_ui/web_ui_info_singleton.h"
+#include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_search_api/safe_search_util.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -128,7 +128,7 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/api/downloads/downloads_api.h"
 #include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/webstore_installer.h"
@@ -186,7 +186,7 @@ using ConnectionType = net::NetworkChangeNotifier::ConnectionType;
 using safe_browsing::DownloadProtectionService;
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 using extensions::CrxInstaller;
 using extensions::CrxInstallError;
 #endif
@@ -252,8 +252,8 @@ void CheckDownloadUrlDone(
     const std::vector<GURL>& download_urls,
     bool is_content_check_supported,
     safe_browsing::DownloadCheckResult result) {
-  safe_browsing::WebUIInfoSingleton::GetInstance()->AddToDownloadUrlsChecked(
-      download_urls, result);
+  safe_browsing::WebUIContentInfoSingleton::GetInstance()
+      ->AddToDownloadUrlsChecked(download_urls, result);
   download::DownloadDangerType danger_type;
   if (result == safe_browsing::DownloadCheckResult::SAFE ||
       result == safe_browsing::DownloadCheckResult::UNKNOWN) {
@@ -322,25 +322,6 @@ void CheckCanDownload(const content::WebContents::Getter& web_contents_getter,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-// TODO(qinmin): reuse the similar function defined in
-// DownloadResourceThrottle.
-void OnDownloadAcquireFileAccessPermissionDone(
-    const content::WebContents::Getter& web_contents_getter,
-    const GURL& url,
-    const std::string& request_method,
-    std::optional<url::Origin> request_initiator,
-    CanDownloadCallback can_download_cb,
-    bool granted) {
-  if (granted) {
-    CheckCanDownload(web_contents_getter, url, request_method,
-                     std::move(request_initiator),
-                     false /* from_download_cross_origin_redirect */,
-                     std::move(can_download_cb));
-  } else {
-    std::move(can_download_cb).Run(false, false);
-  }
-}
-
 // Overlays download location dialog result to target determiner.
 void OnDownloadDialogClosed(
     DownloadTargetDeterminerDelegate::ConfirmationCallback callback,
@@ -560,14 +541,11 @@ void OnCheckDownloadAllowedFailed(
 
 ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
     : profile_(profile),
-      next_download_id_(download::DownloadItem::kInvalidId),
-      next_id_retrieved_(false),
-      download_prefs_(new DownloadPrefs(profile)),
-      is_file_picker_showing_(false) {
 #if BUILDFLAG(IS_ANDROID)
-  download_dialog_bridge_ = std::make_unique<DownloadDialogBridge>();
-  download_message_bridge_ = std::make_unique<DownloadMessageBridge>();
+      download_dialog_bridge_(std::make_unique<DownloadDialogBridge>()),
+      download_message_bridge_(std::make_unique<DownloadMessageBridge>()),
 #endif
+      download_prefs_(std::make_unique<DownloadPrefs>(profile)) {
 }
 
 ChromeDownloadManagerDelegate::~ChromeDownloadManagerDelegate() {
@@ -752,7 +730,7 @@ bool ChromeDownloadManagerDelegate::ShouldAutomaticallyOpenFile(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (path.Extension().empty())
     return false;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // TODO(crbug.com/40129365): This determination is done based on |path|, while
   // ShouldOpenDownload() detects extension downloads based on the
   // characteristics of the download. Reconcile this.
@@ -782,7 +760,7 @@ bool ChromeDownloadManagerDelegate::ShouldAutomaticallyOpenFileByPolicy(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (path.Extension().empty())
     return false;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // TODO(crbug.com/40129365): This determination is done based on |path|, while
   // ShouldOpenDownload() detects extension downloads based on the
   // characteristics of the download. Reconcile this.
@@ -966,7 +944,7 @@ bool ChromeDownloadManagerDelegate::ShouldCompleteDownload(
 bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
     DownloadItem* item,
     content::DownloadOpenDelayedCallback callback) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (download_crx_util::IsExtensionDownload(*item) &&
       !extensions::WebstoreInstaller::GetAssociatedApproval(*item)) {
     scoped_refptr<CrxInstaller> installer(
@@ -1332,7 +1310,7 @@ void ChromeDownloadManagerDelegate::NotifyExtensions(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(!download->IsTransient());
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions::ExtensionDownloadsEventRouter* router =
       DownloadCoreServiceFactory::GetForBrowserContext(profile_)
           ->GetExtensionEventRouter();
@@ -1866,11 +1844,10 @@ void ChromeDownloadManagerDelegate::CheckSavePackageScanningDone(
       // These other results should never be returned.
       NOTREACHED();
   }
-
 }
 #endif  // SAFE_BROWSING_DOWNLOAD_PROTECTION
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 void ChromeDownloadManagerDelegate::OnInstallerDone(
     const base::UnguessableToken& token,
     content::DownloadOpenDelayedCallback callback,
@@ -2130,16 +2107,12 @@ void ChromeDownloadManagerDelegate::CheckDownloadAllowed(
       weak_ptr_factory_.GetWeakPtr(), std::move(check_download_allowed_cb));
 
 #if BUILDFLAG(IS_ANDROID)
-  DownloadControllerBase::Get()->AcquireFileAccessPermission(
-      web_contents_getter,
-      base::BindOnce(&OnDownloadAcquireFileAccessPermissionDone,
-                     web_contents_getter, url, request_method,
-                     std::move(request_initiator), std::move(cb)));
-#else
+  from_download_cross_origin_redirect = false;
+#endif
+
   CheckCanDownload(web_contents_getter, url, request_method,
                    std::move(request_initiator),
                    from_download_cross_origin_redirect, std::move(cb));
-#endif
 }
 
 download::QuarantineConnectionCallback

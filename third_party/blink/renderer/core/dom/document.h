@@ -1449,6 +1449,9 @@ class CORE_EXPORT Document : public ContainerNode,
   V8HTMLOrSVGScriptElement* currentScriptForBinding() const;
   void PushCurrentScript(ScriptElementBase*);
   void PopCurrentScript(ScriptElementBase*);
+  bool IsCurrentScriptStackEmpty() const {
+    return current_script_stack_.empty();
+  }
 
   void SetTransformSource(std::unique_ptr<TransformSource>);
   TransformSource* GetTransformSource() const {
@@ -1750,6 +1753,12 @@ class CORE_EXPORT Document : public ContainerNode,
   void DidChangeFormRelatedElementDynamically(HTMLElement*,
                                               WebFormRelatedChangeType);
 
+  // Please familiarize yourself with http://goo.gle/devtools-console-policy
+  // prior to adding new console messages, and make sure that you understand the
+  // implications on the developer experience. A good console message should be
+  // actionable and relevant to what the developer is currently doing. Using the
+  // DevTools Console panel as a means to advertise best practices or Chromium
+  // agendas has shown to be counterproductive.
   void AddConsoleMessage(ConsoleMessage* message,
                          bool discard_duplicates = false) const;
 
@@ -2256,6 +2265,12 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // WidgetCreationObserver implementation
   void OnLocalRootWidgetCreated() override;
+
+  // https://dom.spec.whatwg.org/#effective-global-custom-element-registry
+  // A document's effective global custom element registry is its own registry
+  // if the registry is global, otherwise the effective global registry is
+  // nullptr.
+  CustomElementRegistry* EffectiveGlobalCustomElementRegistry() const;
 
  protected:
   void ClearXMLVersion() { xml_version_ = String(); }

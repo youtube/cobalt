@@ -30,10 +30,15 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
+#include "services/device/public/cpp/geolocation/geolocation_system_permission_manager.h"
 #include "services/device/public/cpp/test/fake_geolocation_system_permission_manager.h"
 #endif
 
 namespace headless {
+
+namespace {
+inline constexpr char kResetResults[] = "reset-results";
+}  // namespace
 
 HeadlessBrowserTest::HeadlessBrowserTest() {
 #if BUILDFLAG(IS_MAC)
@@ -109,9 +114,10 @@ void HeadlessBrowserTest::CreatedBrowserMainParts(
       std::make_unique<device::FakeGeolocationSystemPermissionManager>();
   fake_geolocation_system_permission_manager->SetSystemPermission(
       device::LocationSystemPermissionStatus::kAllowed);
-  static_cast<HeadlessBrowserImpl*>(browser())
-      ->SetGeolocationSystemPermissionManagerForTesting(
-          std::move(fake_geolocation_system_permission_manager));
+
+  CHECK(!device::GeolocationSystemPermissionManager::GetInstance());
+  device::GeolocationSystemPermissionManager::SetInstance(
+      std::move(fake_geolocation_system_permission_manager));
 }
 #endif
 
@@ -138,6 +144,10 @@ void HeadlessBrowserTest::RunAsynchronousTest() {
 
 void HeadlessBrowserTest::FinishAsynchronousTest() {
   run_loop_->Quit();
+}
+
+bool HeadlessBrowserTest::ShouldUpdateExpectations() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(kResetResults);
 }
 
 }  // namespace headless

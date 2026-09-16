@@ -8,6 +8,7 @@
 
 namespace glic {
 
+GlicDelegatingSharingManager::GlicDelegatingSharingManager() = default;
 GlicDelegatingSharingManager::~GlicDelegatingSharingManager() = default;
 
 base::CallbackListSubscription
@@ -117,9 +118,9 @@ void GlicDelegatingSharingManager::GetContextFromTab(
     const mojom::GetTabContextOptions& options,
     base::OnceCallback<void(GlicGetContextResult)> callback) {
   if (!sharing_manager_delegate_) {
-    std::move(callback).Run(base::unexpected(GlicGetContextError{
-        GlicGetContextFromFocusedTabError::kPageContextNotEligible,
-        "tab not eligible"}));
+    std::move(callback).Run(base::unexpected(
+        GlicGetContextError{GlicGetContextFromTabError::kPageContextNotEligible,
+                            "tab not eligible"}));
     return;
   }
 
@@ -132,9 +133,9 @@ void GlicDelegatingSharingManager::GetContextForActorFromTab(
     const mojom::GetTabContextOptions& options,
     base::OnceCallback<void(GlicGetContextResult)> callback) {
   if (!sharing_manager_delegate_) {
-    std::move(callback).Run(base::unexpected(GlicGetContextError{
-        GlicGetContextFromFocusedTabError::kPageContextNotEligible,
-        "tab not eligible"}));
+    std::move(callback).Run(base::unexpected(
+        GlicGetContextError{GlicGetContextFromTabError::kPageContextNotEligible,
+                            "tab not eligible"}));
     return;
   }
 
@@ -156,11 +157,120 @@ void GlicDelegatingSharingManager::SubscribeToPinCandidates(
   NOTREACHED();
 }
 
+base::WeakPtr<GlicSharingManager> GlicDelegatingSharingManager::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void GlicDelegatingSharingManager::SetDelegate(
     base::WeakPtr<GlicSharingManager> sharing_manager_delegate) {
-  // TODO(b:444463509): Wire-up callback list subscriptions and trigger upstream
-  // callbacks.
+  // Do nothing if the delegate hasn't changed.
+  if (!sharing_manager_delegate_.WasInvalidated() &&
+      sharing_manager_delegate.get() == sharing_manager_delegate_.get()) {
+    return;
+  }
+  // Grab currently pinned tabs before swapping delegate so we can fire pinned
+  // status updates on them.
+  auto old_pinned_tabs = GetPinnedTabs();
   sharing_manager_delegate_ = sharing_manager_delegate;
+  RefreshDelegateSubscriptions();
+  ForceNotify(old_pinned_tabs);
+}
+
+void GlicDelegatingSharingManager::OnFocusedTabChangedCallback(
+    const FocusedTabData& focused_tab_data) {
+  focused_tab_changed_callback_list_.Notify(focused_tab_data);
+}
+
+void GlicDelegatingSharingManager::OnFocusedTabDataChangedCallback(
+    const mojom::TabData* focused_tab_data) {
+  focused_tab_data_changed_callback_list_.Notify(focused_tab_data);
+}
+
+void GlicDelegatingSharingManager::OnFocusedBrowserChangedCallback(
+    BrowserWindowInterface* browser_window) {
+  focused_browser_changed_callback_list_.Notify(browser_window);
+}
+
+void GlicDelegatingSharingManager::OnTabPinningStatusChangedCallback(
+    tabs::TabInterface* tab,
+    bool pinned) {
+  tab_pinning_status_changed_callback_list_.Notify(tab, pinned);
+}
+
+void GlicDelegatingSharingManager::OnPinnedTabsChangedCallback(
+    const std::vector<content::WebContents*>& pinned_tabs) {
+  pinned_tabs_changed_callback_list_.Notify(pinned_tabs);
+}
+
+void GlicDelegatingSharingManager::OnPinnedTabDataChangedCallback(
+    const TabDataChange& tab_data_change) {
+  pinned_tab_data_changed_callback_list_.Notify(tab_data_change);
+}
+
+void GlicDelegatingSharingManager::ResetDelegateSubscriptions() {
+  focused_tab_changed_callback_ = {};
+  focused_tab_data_changed_callback_ = {};
+  focused_browser_changed_callback_ = {};
+  tab_pinning_status_changed_callback_ = {};
+  pinned_tabs_changed_callback_ = {};
+  pinned_tab_data_changed_callback_ = {};
+}
+
+void GlicDelegatingSharingManager::RefreshDelegateSubscriptions() {
+  if (!sharing_manager_delegate_) {
+    ResetDelegateSubscriptions();
+    return;
+  }
+
+  focused_tab_changed_callback_ =
+      sharing_manager_delegate_->AddFocusedTabChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnFocusedTabChangedCallback,
+              base::Unretained(this)));
+  focused_tab_data_changed_callback_ =
+      sharing_manager_delegate_->AddFocusedTabDataChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnFocusedTabDataChangedCallback,
+              base::Unretained(this)));
+  focused_browser_changed_callback_ =
+      sharing_manager_delegate_->AddFocusedBrowserChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnFocusedBrowserChangedCallback,
+              base::Unretained(this)));
+  tab_pinning_status_changed_callback_ =
+      sharing_manager_delegate_->AddTabPinningStatusChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnTabPinningStatusChangedCallback,
+              base::Unretained(this)));
+  pinned_tabs_changed_callback_ =
+      sharing_manager_delegate_->AddPinnedTabsChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnPinnedTabsChangedCallback,
+              base::Unretained(this)));
+  pinned_tab_data_changed_callback_ =
+      sharing_manager_delegate_->AddPinnedTabDataChangedCallback(
+          base::BindRepeating(
+              &GlicDelegatingSharingManager::OnPinnedTabDataChangedCallback,
+              base::Unretained(this)));
+}
+
+void GlicDelegatingSharingManager::ForceNotify(
+    const std::vector<content::WebContents*>& old_pinned_tabs) {
+  for (auto* tab : old_pinned_tabs) {
+    tab_pinning_status_changed_callback_list_.Notify(
+        tabs::TabInterface::GetFromContents(tab), false);
+  }
+
+  for (auto* tab : GetPinnedTabs()) {
+    tab_pinning_status_changed_callback_list_.Notify(
+        tabs::TabInterface::GetFromContents(tab), true);
+  }
+
+  // Note: in the case where delegate is now null, we still want to fire these
+  // (with empty arguments).
+  focused_tab_changed_callback_list_.Notify(GetFocusedTabData());
+  focused_browser_changed_callback_list_.Notify(GetFocusedBrowser());
+  pinned_tabs_changed_callback_list_.Notify(GetPinnedTabs());
 }
 
 }  // namespace glic

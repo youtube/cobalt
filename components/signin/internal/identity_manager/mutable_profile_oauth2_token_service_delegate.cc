@@ -11,6 +11,8 @@
 #include <optional>
 #include <string>
 
+#include "base/check_is_test.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -45,11 +47,19 @@
 #include "google_apis/gaia/oauth2_access_token_fetcher.h"
 #include "google_apis/gaia/oauth2_access_token_fetcher_immediate_error.h"
 #include "google_apis/gaia/oauth2_mint_access_token_fetcher_adapter.h"
+#include "google_apis/google_api_keys.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace {
 
+bool g_ignore_non_official_api_keys_for_testing = false;
+
 const char kAccountIdPrefix[] = "AccountId-";
+
+// Temporary kill-switch in case the unreadable tokens clearing logic needs to
+// be disabled.
+BASE_FEATURE(kClearUnreadableTokensUponAddingNewCredential,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enum for the Signin.LoadTokenFromDB histogram.
 // Do not modify, or add or delete other than directly before
@@ -173,6 +183,17 @@ bool CanMoveAccountToService(
     }
   }
   return true;
+}
+
+bool ShouldUseIssueTokenForUnboundTokens() {
+  // IssueToken can be used only with official Google API keys.
+  if (!google_apis::IsGoogleChromeAPIKeyUsed() &&
+      !g_ignore_non_official_api_keys_for_testing) {
+    return false;
+  }
+
+  return base::FeatureList::IsEnabled(
+      switches::kUseIssueTokenToFetchAccessTokens);
 }
 
 }  // namespace
@@ -333,9 +354,7 @@ MutableProfileOAuth2TokenServiceDelegate::CreateAccessTokenFetcher(
   std::string refresh_token = GetRefreshToken(account_id);
   DCHECK(!refresh_token.empty());
   bool is_refresh_token_bound = IsRefreshTokenBound(account_id);
-  if (base::FeatureList::IsEnabled(
-          switches::kUseIssueTokenToFetchAccessTokens) ||
-      is_refresh_token_bound) {
+  if (is_refresh_token_bound || ShouldUseIssueTokenForUnboundTokens()) {
     // `CoreAccountId` is always equal to Gaia ID on DICE platforms.
     // We cannot get Gaia ID from `account_tracker_service_` as it's sometimes
     // unknown and the only way of getting it requires an access token, which
@@ -443,6 +462,12 @@ void MutableProfileOAuth2TokenServiceDelegate::
 std::string MutableProfileOAuth2TokenServiceDelegate::GetRefreshTokenForTest(
     const CoreAccountId& account_id) const {
   return GetRefreshToken(account_id);
+}
+
+void MutableProfileOAuth2TokenServiceDelegate::
+    SetIgnoreNonOfficialApiKeysForTesting() {
+  CHECK_IS_TEST();
+  g_ignore_non_official_api_keys_for_testing = true;
 }
 
 std::vector<CoreAccountId>
@@ -660,6 +685,12 @@ void MutableProfileOAuth2TokenServiceDelegate::UpdateCredentialsInternal(
   if (GetRefreshToken(account_id) != refresh_token) {
     UpdateCredentialsInMemory(account_id, refresh_token, wrapped_binding_key);
     PersistCredentials(account_id, refresh_token, wrapped_binding_key);
+    if (base::FeatureList::IsEnabled(
+            kClearUnreadableTokensUponAddingNewCredential)) {
+      // If any tokens failed to read from the DB, discard them now to avoid
+      // mixing them with the new token in the next session.
+      ClearUnreadableCredentials();
+    }
     FireRefreshTokenAvailable(account_id);
   }
 }
@@ -736,6 +767,33 @@ void MutableProfileOAuth2TokenServiceDelegate::PersistCredentials(
         ApplyAccountIdPrefix(account_id.ToString()), refresh_token,
         wrapped_binding_key);
   }
+}
+
+void MutableProfileOAuth2TokenServiceDelegate::ClearUnreadableCredentials() {
+  if (!token_web_data_) {
+    return;
+  }
+
+  // No need to clear the DB if credentials hasn't finished loading yet or there
+  // were no credential loading errors.
+  using enum signin::LoadCredentialsState;
+  if (load_credentials_state() != LOAD_CREDENTIALS_FINISHED_WITH_DB_ERRORS &&
+      load_credentials_state() !=
+          LOAD_CREDENTIALS_FINISHED_WITH_DECRYPT_ERRORS) {
+    return;
+  }
+
+  // No need to clear credentials more than once.
+  if (has_cleared_unreadable_credentials_) {
+    return;
+  }
+  has_cleared_unreadable_credentials_ = true;
+
+  std::vector<std::string> accounts_to_keep;
+  for (const auto& [account_id, refresh_token] : refresh_tokens_) {
+    accounts_to_keep.push_back(ApplyAccountIdPrefix(account_id.ToString()));
+  }
+  token_web_data_->RemoveOtherTokens(accounts_to_keep);
 }
 
 void MutableProfileOAuth2TokenServiceDelegate::RevokeAllCredentialsInternal(

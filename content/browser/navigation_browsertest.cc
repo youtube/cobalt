@@ -37,6 +37,7 @@
 #include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/browser/browser_url_handler_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
@@ -447,7 +448,7 @@ class FrameAncestorNavigationBrowserTest
         base::BindLambdaForTesting(
             [&](const net::test_server::HttpRequest& request) {
               base::AutoLock lock(lock_);
-              observed_request_headers_.emplace_back(request.GetURL().path(),
+              observed_request_headers_.emplace_back(request.GetURL().GetPath(),
                                                      request.headers);
             }));
     NavigationBaseBrowserTest::SetUpOnMainThread();
@@ -516,7 +517,7 @@ IN_PROC_BROWSER_TEST_P(FrameAncestorNavigationBrowserTest,
   EXPECT_THAT(
       observed_request_headers(),
       Contains(Pair(
-          inner_url.path(),
+          inner_url.GetPath(),
           testing::IsSupersetOf<HeaderMapMatchers>({
               testing::Pair("Sec-Fetch-Frame-Ancestors", expected_relation()),
           }))));
@@ -546,7 +547,7 @@ IN_PROC_BROWSER_TEST_P(FrameAncestorNavigationBrowserTest, SubframeRedirect) {
   load_observer.Wait();
 
   EXPECT_THAT(observed_request_headers(),
-              Contains(Pair(inner_url.path(),
+              Contains(Pair(inner_url.GetPath(),
                             testing::IsSupersetOf<HeaderMapMatchers>({
                                 testing::Pair("Sec-Fetch-Frame-Ancestors",
                                               expected_relation_for_redirect()),
@@ -571,7 +572,7 @@ IN_PROC_BROWSER_TEST_P(FrameAncestorNavigationBrowserTest, TopFrameRedirect) {
   // since it is same-origin with itself.
   EXPECT_THAT(observed_request_headers(),
               Contains(Pair(
-                  inner_url.path(),
+                  inner_url.GetPath(),
                   testing::IsSupersetOf<HeaderMapMatchers>({
                       testing::Pair("Sec-Fetch-Frame-Ancestors", "same-origin"),
                   }))));
@@ -603,7 +604,7 @@ IN_PROC_BROWSER_TEST_P(FrameAncestorNavigationBrowserTest,
                      JsReplace(subresource_request_script, redirecting_url)));
 
   EXPECT_THAT(observed_request_headers(),
-              Contains(Pair(inner_url.path(),
+              Contains(Pair(inner_url.GetPath(),
                             testing::IsSupersetOf<HeaderMapMatchers>({
                                 testing::Pair("Sec-Fetch-Frame-Ancestors",
                                               expected_relation_for_redirect()),
@@ -4196,7 +4197,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   TestNavigationObserver observer(web_contents());
   shell()->LoadURL(embedded_test_server()->GetURL("/virtual-url.html"));
   observer.Wait();
-  EXPECT_EQ("/title2.html", observer.last_navigation_url().path());
+  EXPECT_EQ("/title2.html", observer.last_navigation_url().GetPath());
   EXPECT_EQ(2, rewrite_count);
 }
 
@@ -4280,9 +4281,25 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   loop.Run();
 }
 
+namespace {
+// TODO(crbug.com/450537562): Fix underlying behavior and run these tests with
+// the feature enabled.
+class NavigationBrowserTestNoRfhDtorDelay : public NavigationBrowserTest {
+ public:
+  NavigationBrowserTestNoRfhDtorDelay() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kDelayRfhDestructionsOnUnloadAndDetach);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+}  // namespace
+
 // A document initiates a form submission in another frame, then deletes itself.
 // Check the initiator frame token.
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FormSubmissionThenDeleteFrame) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTestNoRfhDtorDelay,
+                       FormSubmissionThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
   GURL always_referrer_url(embedded_test_server()->GetURL(
       "/set-header?Referrer-Policy: unsafe-url"));
@@ -4394,7 +4411,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FormSubmissionThenDeleteFrame) {
 // Same as the previous test, but for a remote frame navigation:
 // A document initiates a form submission in a cross-origin frame, then deletes
 // itself. Check the initiator frame token.
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTestNoRfhDtorDelay,
                        FormSubmissionInRemoteFrameThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
   GURL cross_origin_always_referrer_url(embedded_test_server()->GetURL(
@@ -9131,8 +9148,8 @@ class NavigationBrowserTestPaintHoldingSubframe
     }
   }
 
-  void OnCopyDone(const SkBitmap& bitmap) {
-    bitmap_ = bitmap;
+  void OnCopyDone(const viz::CopyOutputBitmapWithMetadata& result) {
+    bitmap_ = result.bitmap;
     run_loop_->Quit();
   }
 
@@ -10154,7 +10171,7 @@ IN_PROC_BROWSER_TEST_F(HstsUpgradeBrowserTest, UpgradeTopLevelOnly) {
                                 ->GetDefaultStoragePartition()
                                 ->GetNetworkContext();
     base::RunLoop run_loop;
-    network_context->AddHSTS(url_of_hsts_frame_http.host(), expiry,
+    network_context->AddHSTS(url_of_hsts_frame_http.GetHost(), expiry,
                              include_subdomains, run_loop.QuitClosure());
     run_loop.Run();
   }

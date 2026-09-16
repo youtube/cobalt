@@ -3,6 +3,7 @@
 <translationbundle lang="pl">
 <translation id="1076643793026027628">Chrome automatycznie otwiera linki incognito z YouTube w trybie incognito.</translation>
 <translation id="1086486568852410168">Szukaj za pomocą Obiektywu Google</translation>
+<translation id="1088490543924960890">Zacznij zapisywać klucze dostępu w Menedżerze haseł Google</translation>
 <translation id="1143896152279775643">Hasło zostanie zapisane w menedżerze haseł Google na koncie <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Otwórz nową kartę w Chrome</translation>
 <translation id="1158134713295836892">Gemini w Chrome</translation>
@@ -70,7 +71,6 @@ Pamiętaj, że:
 <translation id="2576431527583832481">Chrome jest teraz jeszcze lepszy! Dostępna jest nowa wersja.</translation>
 <translation id="257708665678654955">Czy następnym razem Google Chrome ma zaproponować Ci tłumaczenie stron tej witryny, których język to <ph name="LANGUAGE_NAME" />?</translation>
 <translation id="2668242166988961773">Wyszukaj głosowo w Chrome.</translation>
-<translation id="2689064829982324496">Aby wylogować się z konta Google na wszystkich stronach, <ph name="BEGIN_LINK" />wyloguj się z Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome nie udało się sprawdzić dostępności aktualizacji. Spróbuj ponownie później.</translation>
 <translation id="2703746758996815929">Aby otrzymywać przydatne wskazówki dotyczące Chrome, włącz powiadomienia w ustawieniach iOS.</translation>
 <translation id="2728851697704606655">Przetłumacz za pomocą Obiektywu Google</translation>
@@ -86,6 +86,9 @@ Odczekaj kilka minut, zanim się wylogujesz. Jeśli wylogujesz się teraz, te da
 <translation id="2940565985148833945">Wskazówka dotycząca Chrome: wyszukuj za pomocą Obiektywu</translation>
 <translation id="2957447865124070833">Wybierz <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Dodawanie zakładek do Chrome</translation>
+<translation id="3027236223714901838">Aby zabezpieczyć klucze dostępu, musisz najpierw utworzyć kod PIN przywracania.
+
+        Klucze są zapisywane w Menedżerze haseł Google, dzięki czemu możesz ich używać w Chrome na dowolnym urządzeniu.</translation>
 <translation id="3030414234702425231">Wylogowujesz się z konta, którym zarządza <ph name="SIGNOUT_MANAGED_DOMAIN" />. Spowoduje to usunięcie danych Chrome z tego urządzenia, ale pozostaną one na koncie Google.</translation>
 <translation id="3042447686908081308">Importuj do Chrome</translation>
 <translation id="3051521853355903257">Zarządzaj hasłami w Chrome</translation>
@@ -256,6 +259,7 @@ W <ph name="BEGIN_LINK" />usługach Google<ph name="END_LINK" /> znajdziesz wi�
 <translation id="7371674917547846460">Otrzymuj przydatne wskazówki dotyczące Chrome i inne informacje.</translation>
 <translation id="7394108421562933108">Mapy w Chrome</translation>
 <translation id="7400722733683201933">Google Chrome – informacje</translation>
+<translation id="7444830584401232881">Ten klucz dostępu zostanie zapisany w Menedżerze haseł Google na koncie <ph name="USER_EMAIL" /></translation>
 <translation id="7466693328838535498">W polu Widżety wyszukiwania wpisz Chrome</translation>
 <translation id="7477056987201678345">Usuwam dane Chrome…</translation>
 <translation id="7492574581995589075">Twoja organizacja wyłączyła możliwość używania i zapisywania danych Chrome na Twoim koncie Google. Nowe zakładki, hasła i inne ustawienia będą zapisywane tylko na tym urządzeniu.</translation>
@@ -307,7 +311,6 @@ Twoje zaszyfrowane dane może odczytać tylko osoba znająca hasło. Nie jest on
 <translation id="8413500425974960807">Wskazówka dotycząca Chrome: przenieś Chrome do Docka</translation>
 <translation id="8413795581997394485">Chroni przed stronami, pobieranymi plikami i rozszerzeniami, o których wiadomo, że są niebezpieczne. Gdy wchodzisz na stronę, Chrome wysyła zaciemniony fragment adresu URL do Google przez serwer prywatności, który ukrywa Twój adres IP. Jeśli strona robi coś podejrzanego, wysyłane są też pełne adresy URL i fragmenty zawartości strony.</translation>
 <translation id="84594714173170813">Nadal korzystaj z danych Chrome na koncie Google</translation>
-<translation id="8459495907675268833">Wybrane dane zostały usunięte z Chrome i synchronizowanych urządzeń. Inne rodzaje historii przeglądania, takie jak wyszukiwania i aktywność w innych usługach Google, mogą być nadal dostępne na Twoim koncie Google na history.google.com</translation>
 <translation id="8491300088149538575">Zalogowano jako <ph name="EMAIL" />.
 
 Dane zostały zaszyfrowane za pomocą hasła wielowyrazowego <ph name="TIME" />. Podaj to hasło, aby korzystać z danych Chrome i zapisywać je na swoim koncie Google.</translation>

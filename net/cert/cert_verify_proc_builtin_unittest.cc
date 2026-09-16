@@ -536,12 +536,12 @@ TEST_F(CertVerifyProcBuiltinTest, ShouldBypassHSTS) {
     TestCompletionCallback verify_callback;
     // Ensure HSTS upgrades for the domain which hosts the CRLs.
     context()->transport_security_state()->AddHSTS(
-        test_server.base_url().host(), base::Time::Now() + base::Seconds(30),
+        test_server.base_url().GetHost(), base::Time::Now() + base::Seconds(30),
         /*include_subdomains=*/true);
     // Setting `is_top_level_nav` true prevents the upgrade from being blocked
     // by kHstsTopLevelNavigationsOnly.
     ASSERT_TRUE(context()->transport_security_state()->ShouldUpgradeToSSL(
-        test_server.base_url().host(), /*is_top_level_nav=*/true));
+        test_server.base_url().GetHost(), /*is_top_level_nav=*/true));
     Verify(chain.get(), "www.example.com",
            CertVerifyProc::VERIFY_REV_CHECKING_ENABLED,
            &verify_result, &verify_net_log_source, verify_callback.callback());
@@ -2941,7 +2941,7 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingFailsParsing) {
 
   TwoQwacCertBindingBuilder binding_builder;
   binding_builder.SetBoundCerts({tls_leaf->GetDER()});
-  std::string jws = "invalid" + binding_builder.GetJWS();
+  std::string jws = "invalid:" + binding_builder.GetJWS();
 
   InitializeVerifyProc(CreateParams(/*additional_trust_anchors=*/{}));
   AddMockEutlRoot(binding_builder.GetRootBuilder()->GetCertBuffer());
@@ -2961,7 +2961,7 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingFailsParsing) {
   ASSERT_EQ(1U, end_events.size());
   auto& event = end_events[0];
   EXPECT_EQ(ERR_FAILED, event.params.FindInt("net_error"));
-  EXPECT_EQ("binding parsing error",
+  EXPECT_EQ("binding parsing error: base64 decoding header error",
             base::optional_ref(event.params.FindString("error_description")));
 }
 

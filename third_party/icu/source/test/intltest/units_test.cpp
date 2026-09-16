@@ -26,6 +26,7 @@
 #include "units_router.h"
 #include "uparse.h"
 #include "uresimp.h"
+#include <climits>
 
 struct UnitConversionTestCase {
     const StringPiece source;
@@ -50,6 +51,9 @@ class UnitsTest : public IntlTest {
     void testComplexUnitsConverter();
     void testComplexUnitsConverterSorting();
     void testUnitPreferencesWithCLDRTests();
+    void testUnitsConstantsDenomenator();
+    void testMeasureUnit_withConstantDenominator();
+    void testUnitsConstantsDenomenator_getIdentifier();
     void testConverter();
 };
 
@@ -67,6 +71,9 @@ void UnitsTest::runIndexedTest(int32_t index, UBool exec, const char *&name, cha
     TESTCASE_AUTO(testComplexUnitsConverter);
     TESTCASE_AUTO(testComplexUnitsConverterSorting);
     TESTCASE_AUTO(testUnitPreferencesWithCLDRTests);
+    TESTCASE_AUTO(testUnitsConstantsDenomenator);
+    TESTCASE_AUTO(testMeasureUnit_withConstantDenominator);
+    TESTCASE_AUTO(testUnitsConstantsDenomenator_getIdentifier);
     TESTCASE_AUTO(testConverter);
     TESTCASE_AUTO_END;
 }
@@ -145,6 +152,9 @@ void UnitsTest::testExtractConvertibility() {
         {"percent", "portion", CONVERTIBLE},                                         //
         {"ofhg", "kilogram-per-square-meter-square-second", CONVERTIBLE},            //
         {"second-per-meter", "meter-per-second", RECIPROCAL},                        //
+        {"mile-per-hour", "meter-per-second", CONVERTIBLE},                        //
+        {"knot", "meter-per-second", CONVERTIBLE},                        //
+        {"beaufort", "meter-per-second", CONVERTIBLE},                        //
     };
 
     for (const auto &testCase : testCases) {
@@ -299,6 +309,19 @@ void UnitsTest::testConverter() {
         {"ton", "pound", 1.0, 2000},
         {"stone", "pound", 1.0, 14},
         {"stone", "kilogram", 1.0, 6.35029},
+        // Speed
+        {"mile-per-hour", "meter-per-second", 1.0, 0.44704},
+        {"knot", "meter-per-second", 1.0, 0.514444},
+        {"beaufort", "meter-per-second", 1.0, 0.95},
+        {"beaufort", "meter-per-second", 4.0, 6.75},
+        {"beaufort", "meter-per-second", 7.0, 15.55},
+        {"beaufort", "meter-per-second", 10.0, 26.5},
+        {"beaufort", "meter-per-second", 13.0, 39.15},
+        {"beaufort", "mile-per-hour", 1.0, 2.12509},
+        {"beaufort", "mile-per-hour", 4.0, 15.099319971367215},
+        {"beaufort", "mile-per-hour", 7.0, 34.784359341445956},
+        {"beaufort", "mile-per-hour", 10.0, 59.2788},
+        {"beaufort", "mile-per-hour", 13.0, 87.5761},
         // Temperature
         {"celsius", "fahrenheit", 0.0, 32.0},
         {"celsius", "fahrenheit", 10.0, 50.0},
@@ -340,6 +363,24 @@ void UnitsTest::testConverter() {
         {"dot-per-inch", "pixel-per-inch", 1.0, 1.0},
         {"dot", "pixel", 1.0, 1.0},
 
+        // Test with constants
+        {"meter-per-10", "foot", 1.0, 0.328084},
+        {"meter", "foot-per-10", 1.0, 32.8084},
+        {"meter", "foot-per-100", 1.0, 328.084},
+        {"portion", "portion-per-1000", 1.0, 1000},
+        {"portion", "portion-per-10000", 1.0, 10000},
+        {"portion", "portion-per-100000", 1.0, 100000},
+        {"portion", "portion-per-1000000", 1.0, 1000000},
+        {"portion-per-10", "portion", 1.0, 0.1},
+        {"portion-per-100", "portion", 1.0, 0.01},
+        {"portion-per-1000", "portion", 1.0, 0.001},
+        {"portion-per-10000", "portion", 1.0, 0.0001},
+        {"portion-per-100000", "portion", 1.0, 0.00001},
+        {"portion-per-1000000", "portion", 1.0, 0.000001},
+        {"mile-per-hour", "meter-per-second", 1.0, 0.44704},
+        {"mile-per-100-hour", "meter-per-100-second", 1.0, 0.44704},
+        {"mile-per-hour", "meter-per-100-second", 1.0, 44.704},
+        {"mile-per-100-hour", "meter-per-second", 1.0, 0.0044704},
     };
 
     for (const auto &testCase : testCases) {
@@ -408,7 +449,7 @@ StringPiece trimField(char *(&field)[2]) {
     while ((start < end) && U_IS_INV_WHITESPACE(*(end - 1))) {
         end--;
     }
-    int32_t length = (int32_t)(end - start);
+    int32_t length = static_cast<int32_t>(end - start);
     return StringPiece(start, length);
 }
 
@@ -455,7 +496,7 @@ void unitsTestDataLineFn(void *context, char *fields[][2], int32_t fieldCount, U
         return;
     }
     UnicodeString uExpected = UnicodeString::fromUTF8(utf8Expected);
-    double expected = unum_parseDouble(nf, uExpected.getBuffer(), uExpected.length(), 0, status);
+    double expected = unum_parseDouble(nf, uExpected.getBuffer(), uExpected.length(), nullptr, status);
     unum_close(nf);
     if (status.errIfFailureAndReset("unum_parseDouble(\"%s\") failed", utf8Expected)) {
         return;
@@ -508,7 +549,10 @@ void unitsTestDataLineFn(void *context, char *fields[][2], int32_t fieldCount, U
     double inverted = converter.convertInverse(got);
     msg.clear();
     msg.append("Converting back to ", status).append(x, status).append(" from ", status).append(y, status);
-    unitsTest->assertEqualsNear(msg.data(), 1000, inverted, 0.0001);
+    if (strncmp(x.data(), "beaufort", 8)
+    		&& log_knownIssue("CLDR-17454", "unitTest.txt for beaufort doesn't scale correctly") ) {
+		unitsTest->assertEqualsNear(msg.data(), 1000, inverted, 0.0001);
+    }
 }
 
 /**
@@ -1135,6 +1179,208 @@ void UnitsTest::testUnitPreferencesWithCLDRTests() {
                           errorCode);
     if (errorCode.errIfFailureAndReset("error parsing %s: %s\n", path.data(), u_errorName(errorCode))) {
         return;
+    }
+}
+
+void UnitsTest::testUnitsConstantsDenomenator() {
+    IcuTestErrorCode status(*this, "UnitTests::testUnitsConstantsDenomenator");
+
+    // Test Cases
+    struct TestCase {
+        const char *source;
+        const uint64_t expectedConstant;
+    } testCases[]{
+        {"meter-per-1000", 1000},
+        {"liter-per-1000-kiloliter", 1000},
+        {"meter-per-100-kilometer", 100}, // Failing: ICU-23045
+        {"liter-per-kilometer", 0},
+        {"second-per-1000-minute", 1000},
+        {"gram-per-1000-kilogram", 1000},
+        {"meter-per-100", 100},
+        {"portion-per-1", 1},
+        {"portion-per-2", 2},
+        {"portion-per-3", 3},
+        {"portion-per-4", 4},
+        {"portion-per-5", 5},
+        {"portion-per-6", 6},
+        {"portion-per-7", 7},
+        {"portion-per-8", 8},
+        {"portion-per-9", 9},
+
+        // Test for constant denominators that are powers of 10
+        {"portion-per-10", 10},
+        {"portion-per-100", 100},
+        {"portion-per-1000", 1000},
+        {"portion-per-10000", 10000},
+        {"portion-per-100000", 100000},
+        {"portion-per-1000000", 1000000},
+        {"portion-per-10000000", 10000000},
+        {"portion-per-100000000", 100000000},
+        {"portion-per-1000000000", 1000000000}, // Failing: ICU-23045
+        {"portion-per-10000000000", 10000000000},
+        {"portion-per-100000000000", 100000000000},
+        {"portion-per-1000000000000", 1000000000000},
+        {"portion-per-10000000000000", 10000000000000},
+        {"portion-per-100000000000000", 100000000000000},
+        {"portion-per-1000000000000000", 1000000000000000},
+        {"portion-per-10000000000000000", 10000000000000000},
+        {"portion-per-100000000000000000", 100000000000000000},
+        {"portion-per-1000000000000000000", 1000000000000000000},
+        {"portion-per-1e3-kilometer", 1000},
+
+        // Test for constant denominators that are represented as scientific notation
+        // numbers.
+        {"portion-per-1e1", 10},
+        {"portion-per-1E1", 10},
+        {"portion-per-1e2", 100},
+        {"portion-per-1E2", 100},
+        {"portion-per-1e3", 1000},
+        {"portion-per-1E3", 1000},
+        {"portion-per-1e4", 10000},
+        {"portion-per-1E4", 10000},
+        {"portion-per-1e5", 100000},
+        {"portion-per-1E5", 100000},
+        {"portion-per-1e6", 1000000},
+        {"portion-per-1E6", 1000000},
+        {"portion-per-1e9", 1000000000}, // Failing: ICU-23045
+        {"portion-per-1E9", 1000000000}, // Failing: ICU-23045
+        {"portion-per-1e10", 10000000000},
+        {"portion-per-1E10", 10000000000},
+        {"portion-per-1e18", 1000000000000000000},
+        {"portion-per-1E18", 1000000000000000000},
+
+        // Test for constant denominators that are randomly selected.
+        {"liter-per-12345-kilometer", 12345},
+        {"per-1000-kilometer", 1000},
+        {"liter-per-1000-kiloliter", 1000},
+
+        // Test for constant denominators that give 0.
+        {"meter", 0},
+        {"meter-per-second", 0},
+        {"meter-per-square-second", 0},
+    };
+
+    for (const auto &testCase : testCases) {
+        if (uprv_strcmp(testCase.source, "portion-per-1000000000") == 0 ||
+            uprv_strcmp(testCase.source, "portion-per-1e9") == 0 ||
+            uprv_strcmp(testCase.source, "portion-per-1E9") == 0 ||
+            uprv_strcmp(testCase.source, "meter-per-100-kilometer") == 0) {
+            logKnownIssue("ICU-23045", "Incorrect constant denominator for certain unit identifiers");
+            continue;
+        }
+
+        MeasureUnit unit = MeasureUnit::forIdentifier(testCase.source, status);
+        if (status.errIfFailureAndReset("forIdentifier(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        uint64_t constant = unit.getConstantDenominator(status);
+        if (status.errIfFailureAndReset("getConstantDenominator(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        auto complexity = unit.getComplexity(status);
+        if (status.errIfFailureAndReset("getComplexity(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        if (constant != testCase.expectedConstant) {
+            assertTrue("getConstantDenominator(\"%s\")", false);
+        }
+        if (constant != 0) {
+            assertEquals("getComplexity(\"%s\")", UMEASURE_UNIT_COMPOUND, complexity);
+        }
+    }
+}
+
+void UnitsTest::testMeasureUnit_withConstantDenominator() {
+    IcuTestErrorCode status(*this, "UnitsTest::testMeasureUnit_withConstantDenominator");
+
+    // Test Cases
+    struct TestCase {
+        const char *source;
+        const uint64_t constantDenominator;
+        const UMeasureUnitComplexity expectedComplexity;
+    } testCases[]{
+        {"meter-per-second", 100, UMEASURE_UNIT_COMPOUND},
+        {"meter-per-100-second", 0, UMEASURE_UNIT_COMPOUND},
+        {"portion", 100, UMEASURE_UNIT_COMPOUND},
+        {"portion-per-100", 0, UMEASURE_UNIT_SINGLE},
+
+    };
+
+    for (auto testCase : testCases) {
+        auto unit = MeasureUnit::forIdentifier(testCase.source, status);
+        if (status.errIfFailureAndReset("forIdentifier(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        unit = unit.withConstantDenominator(testCase.constantDenominator, status);
+        if (status.errIfFailureAndReset("withConstantDenominator(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        auto actualConstantDenominator = unit.getConstantDenominator(status);
+        if (status.errIfFailureAndReset("getConstantDenominator(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        auto actualComplexity = unit.getComplexity(status);
+        if (status.errIfFailureAndReset("getComplexity(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        if (actualConstantDenominator != testCase.constantDenominator) {
+            assertTrue("getConstantDenominator(\"%s\")", false);
+        }
+        assertEquals("getComplexity(\"%s\")", testCase.expectedComplexity, actualComplexity);
+    }
+
+    // Test for invalid constant denominator
+    auto unit = MeasureUnit::forIdentifier("portion", status);
+    if (status.errIfFailureAndReset("forIdentifier(\"portion\")")) {
+        return;
+    }
+
+    uint64_t denominator = LONG_MAX;
+    denominator++;
+    unit = unit.withConstantDenominator(denominator, status);
+    assertTrue("There is a failure caused by withConstantDenominator(\"portion\")", status.isFailure());
+    status.reset();
+}
+
+void UnitsTest::testUnitsConstantsDenomenator_getIdentifier() {
+    IcuTestErrorCode status(*this, "UnitTests::testUnitsConstantsDenomenator_getIdentifier");
+
+    // Test Cases
+    struct TestCase {
+        const char *source;
+        const char *expectedIdentifier;
+    } testCases[]{
+        {"meter-per-1000", "meter-per-1000"},
+        {"meter-per-1000-kilometer", "meter-per-1000-kilometer"},
+        {"meter-per-1000000", "meter-per-1e6"},
+        {"meter-per-1000000-kilometer", "meter-per-1e6-kilometer"},
+        {"meter-per-1000000000", "meter-per-1e9"},
+        {"meter-per-1000000000-kilometer", "meter-per-1e9-kilometer"},
+        {"meter-per-1000000000000", "meter-per-1e12"},
+        {"meter-per-1000000000000-kilometer", "meter-per-1e12-kilometer"},
+        {"meter-per-1000000000000000", "meter-per-1e15"},
+        {"meter-per-1e15-kilometer", "meter-per-1e15-kilometer"},
+        {"meter-per-1000000000000000000", "meter-per-1e18"},
+        {"meter-per-1e18-kilometer", "meter-per-1e18-kilometer"},
+        {"meter-per-1000000000000001", "meter-per-1000000000000001"},
+        {"meter-per-1000000000000001-kilometer", "meter-per-1000000000000001-kilometer"},
+    };
+
+    for (const auto &testCase : testCases) {
+        MeasureUnit unit = MeasureUnit::forIdentifier(testCase.source, status);
+        if (status.errIfFailureAndReset("forIdentifier(\"%s\")", testCase.source)) {
+            continue;
+        }
+
+        auto actualIdentifier = unit.getIdentifier();
+        assertEquals(" getIdentifier(\"%s\")", testCase.expectedIdentifier, actualIdentifier);
     }
 }
 

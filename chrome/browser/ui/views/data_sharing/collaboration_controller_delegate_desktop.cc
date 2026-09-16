@@ -4,12 +4,9 @@
 
 #include "chrome/browser/ui/views/data_sharing/collaboration_controller_delegate_desktop.h"
 
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_ui_util.h"
-#include "chrome/browser/signin/signin_util.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_dialogs.h"
@@ -17,9 +14,9 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
-#include "chrome/browser/ui/signin/promos/signin_promo_tab_helper.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/views/data_sharing/account_card_view.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
@@ -31,14 +28,7 @@
 #include "components/collaboration/public/service_status.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/signin/public/base/signin_metrics.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
-#include "components/strings/grit/components_strings.h"
-#include "components/sync/base/features.h"
-#include "components/sync/service/sync_service.h"
-#include "components/sync/service/sync_user_settings.h"
-#include "ui/base/l10n/l10n_util.h"
-#include "ui/base/models/dialog_model.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/widget/widget.h"
 
@@ -152,6 +142,14 @@ CollaborationControllerDelegateDesktop::CollaborationControllerDelegateDesktop(
           collaboration::CollaborationServiceFactory::GetForProfile(
               browser_->GetProfile())) {
   browser_list_observer_.Observe(BrowserList::GetInstance());
+
+  // Register for browser closed callback.
+  if (browser_) {
+    browser_close_subscription_ =
+        browser_->RegisterBrowserDidClose(base::BindRepeating(
+            &CollaborationControllerDelegateDesktop::OnBrowserDidClose,
+            base::Unretained(this)));
+  }
 }
 
 CollaborationControllerDelegateDesktop::
@@ -353,15 +351,13 @@ CollaborationControllerDelegateDesktop::GetServiceStatus() {
   return collaboration_service_->GetServiceStatus();
 }
 
-void CollaborationControllerDelegateDesktop::OnBrowserClosing(
-    Browser* browser) {
+void CollaborationControllerDelegateDesktop::OnBrowserDidClose(
+    BrowserWindowInterface* browser_window_interface) {
   // When the current browser is closing, cancel the flow because we can't show
   // any UI on the current browser.
-  if (browser_ == browser) {
-    MaybeCloseDialogs();
-    browser_ = nullptr;
-    ExitFlow();
-  }
+  MaybeCloseDialogs();
+  browser_ = nullptr;
+  ExitFlow();
 }
 
 void CollaborationControllerDelegateDesktop::OnManageDialogClosing(
@@ -435,63 +431,15 @@ void CollaborationControllerDelegateDesktop::
     return;
   }
 
-  Profile* profile = browser_->profile();
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(profile);
-
-  // Try to sign in or open a sign in tab if user input is needed. If the user
-  // is already signed in, this is a no-op.
-  signin_ui_util::SignInFromSingleAccountPromo(
-      profile,
-      signin_ui_util::GetSingleAccountForPromos(
-          IdentityManagerFactory::GetForProfile(profile)),
+  // This function uses `signin_util::GetSignedInState()` rather than
+  // `status.signin_status`. We cannot currently use `status.signin_status`, as
+  // it may not update in time after `SignInFromSingleAccountPromo` sets the
+  // primary account.
+  // TODO (crbug.com/443679624): Consider updating and using
+  // `status.signin_status` instead for consistency.
+  signin_ui_util::TriggerSignInForHistorySyncOptIn(
+      browser_, browser_->profile(),
       signin_metrics::AccessPoint::kCollaborationShareTabGroup);
-
-  if (!sync_service) {
-    return;
-  }
-
-  // It is safe to pass a pointer to the sync service here because the callback
-  // is then owned by a tab helper, which is guaranteed to be destroyed before
-  // the sync service.
-  auto enable_history_sync = base::BindOnce(&signin_util::EnableHistorySync,
-                                            base::Unretained(sync_service));
-
-  // We cannot currently use `status.signin_status`, as it may not update in
-  // time after `SignInFromSingleAccountPromo` sets the primary account.
-  // TODO (crbug.com/443679624): Update and use `status.signin_status` instead
-  // for consistency.
-  switch (signin_util::GetSignedInState(
-      IdentityManagerFactory::GetForProfile(profile))) {
-    // If the sign in was already successful, enable history sync directly.
-    case signin_util::SignedInState::kSignedIn:
-      std::move(enable_history_sync).Run();
-      return;
-    // These states require a sign in tab to be displayed. A tab helper attached
-    // to the tab will take care of turning on history sync once signed in.
-    case signin_util::SignedInState::kSignedOut:
-    case signin_util::SignedInState::kSignInPending:
-    case signin_util::SignedInState::kSyncPaused:
-      break;
-    case signin_util::SignedInState::kSyncing:
-    case signin_util::SignedInState::kWebOnlySignedIn:
-      return;
-  }
-
-  content::WebContents* sign_in_tab_contents =
-      signin_ui_util::GetSignInTabWithAccessPoint(
-          browser_, signin_metrics::AccessPoint::kCollaborationShareTabGroup);
-
-  // SignInFromSingleAccountPromo may fail to open a tab. Do not wait for a
-  // sign in event in that case.
-  if (!sign_in_tab_contents) {
-    return;
-  }
-
-  SigninPromoTabHelper::GetForWebContents(*sign_in_tab_contents)
-      ->InitializeCallbackAfterSignIn(
-          std::move(enable_history_sync),
-          signin_metrics::AccessPoint::kCollaborationShareTabGroup);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
@@ -576,13 +524,35 @@ void CollaborationControllerDelegateDesktop::
                 .SetEnabled(true));
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    AccountInfo account_for_promo = signin_ui_util::GetSingleAccountForPromos(
+        IdentityManagerFactory::GetForProfile(browser_->profile()));
+
     if (base::FeatureList::IsEnabled(
             syncer::kReplaceSyncPromosWithSignInPromos)) {
       dialog_builder.SetFootnote(ui::DialogModelLabel(dialog_text.footnote));
+
+      // Record metrics about signin and history sync opt in being offered.
+      switch (status.signin_status) {
+        case collaboration::SigninStatus::kSigninDisabled:
+          break;
+        case collaboration::SigninStatus::kNotSignedIn:
+          signin_metrics::LogSignInOffered(
+              signin_metrics::AccessPoint::kCollaborationShareTabGroup,
+              account_for_promo.IsEmpty()
+                  ? signin_metrics::PromoAction::
+                        PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT
+                  : signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT);
+          signin_metrics::LogHistorySyncOptInOffered(
+              signin_metrics::AccessPoint::kCollaborationShareTabGroup);
+          break;
+        case collaboration::SigninStatus::kSignedInPaused:
+        case collaboration::SigninStatus::kSignedIn:
+          signin_metrics::LogHistorySyncOptInOffered(
+              signin_metrics::AccessPoint::kCollaborationShareTabGroup);
+          break;
+      }
     }
 
-    AccountInfo account_for_promo = signin_ui_util::GetSingleAccountForPromos(
-        IdentityManagerFactory::GetForProfile(browser_->profile()));
 #else
     AccountInfo account_for_promo =
         GetAccountInfoFromProfile(browser_->profile());

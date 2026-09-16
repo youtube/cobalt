@@ -249,20 +249,21 @@ class IESiteListModeRule : public Rule {
          StringFindInsensitiveASCII(original_rule, "https://").begin() ==
              original_rule.begin() ||
          url.SchemeIsFile())) {
-      scheme_ = url.scheme();
+      scheme_ = url.GetScheme();
     }
 
     if (url.has_host())
-      host_ = url.host();
+      host_ = url.GetHost();
 
     if (url.has_port())
       port_ = url.IntPort();
 
     // Make sure |path_| always has at least the leading slash.
-    if (url.has_path() && !url.path_piece().empty())
-      path_ = base::ToLowerASCII(url.path());
-    else
+    if (url.has_path() && !url.path().empty()) {
+      path_ = base::ToLowerASCII(url.GetPath());
+    } else {
       path_ = "/";
+    }
   }
 
   ~IESiteListModeRule() override = default;
@@ -272,21 +273,22 @@ class IESiteListModeRule : public Rule {
 
     const GURL& url = no_copy_url.original();
     // Compare schemes, if present in the rule.
-    if (scheme_ && url.scheme_piece() != *scheme_) {
+    if (scheme_ && url.scheme() != *scheme_) {
       return false;
     }
 
     // Compare hosts.
-    if (!url::DomainIs(url.host_piece(), host_))
+    if (!url::DomainIs(url.host(), host_)) {
       return false;
+    }
 
     // Compare ports, if present in the rule.
     if (port_ && url.IntPort() != *port_)
       return false;
 
     // Compare paths, case-insensitively. They must match at the beginning.
-    return StringFindInsensitiveASCII(url.path_piece(), path_).begin() ==
-           url.path_piece().begin();
+    return StringFindInsensitiveASCII(url.path(), path_).begin() ==
+           url.path().begin();
   }
 
   bool IsValid() const override { return valid_; }

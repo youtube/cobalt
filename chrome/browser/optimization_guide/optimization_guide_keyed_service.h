@@ -61,7 +61,6 @@ class ModelQualityLogsUploaderService;
 class ModelValidatorKeyedService;
 class OnDeviceAssetManager;
 class OnDeviceModelAvailabilityObserver;
-class OnDeviceModelComponentStateManager;
 class OptimizationGuideStore;
 class OptimizationGuideKeyedServiceBrowserTest;
 class PredictionManagerBrowserTestBase;
@@ -139,6 +138,7 @@ class OptimizationGuideKeyedService
   void AddObserverForOptimizationTargetModel(
       optimization_guide::proto::OptimizationTarget optimization_target,
       const std::optional<optimization_guide::proto::Any>& model_metadata,
+      scoped_refptr<base::SequencedTaskRunner> model_task_runner,
       optimization_guide::OptimizationTargetModelObserver* observer) override;
   void RemoveObserverForOptimizationTargetModel(
       optimization_guide::proto::OptimizationTarget optimization_target,
@@ -223,6 +223,15 @@ class OptimizationGuideKeyedService
       const GURL& url,
       optimization_guide::proto::OptimizationType optimization_type,
       const std::optional<optimization_guide::OptimizationMetadata>& metadata);
+
+  // Adds hints for a URL for the given optimization types to the optimization
+  // guide. For testing purposes only. This will flush any callbacks for |url|
+  // that were registered via |CanApplyOptimization|. If no applicable callbacks
+  // were registered, this will just add the hint for later use.
+  void AddHintWithMultipleOptimizationsForTesting(
+      const GURL& url,
+      const std::vector<optimization_guide::proto::OptimizationType>&
+          optimization_types);
 
   // Adds hints for a URL with provided metadata to the optimization guide.
   // Hints added via this method will work for `CanApplyOptimizationOnDemand`
@@ -310,16 +319,15 @@ class OptimizationGuideKeyedService
   }
 
   optimization_guide::PredictionManager* GetPredictionManager() {
-    return &optimization_guide_global_state_->prediction_manager();
+    return &GetGlobalState().prediction_manager();
   }
 
   optimization_guide::OptimizationGuideGlobalState& GetGlobalState() {
+    if (!optimization_guide_global_state_) {
+      optimization_guide_global_state_ =
+          optimization_guide::OptimizationGuideGlobalState::CreateOrGet();
+    }
     return *optimization_guide_global_state_;
-  }
-
-  optimization_guide::OnDeviceModelComponentStateManager*
-  GetComponentManager() {
-    return &optimization_guide_global_state_->component_state_manager();
   }
 
   optimization_guide::ModelExecutionManager* GetModelExecutionManager() {
@@ -377,7 +385,7 @@ class OptimizationGuideKeyedService
   // Gets the possible capabilities that this device can support. This can be
   // used to get all the capabilities this device supports before downloading
   // the model. This will be a superset of GetOnDeviceCapabilities().
-  on_device_model::Capabilities GetPossibleOnDeviceCapabilities() const;
+  on_device_model::Capabilities GetPossibleOnDeviceCapabilities();
 
   raw_ptr<content::BrowserContext> browser_context_;
 

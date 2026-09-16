@@ -10,6 +10,7 @@
 
 #include "base/base64url.h"
 #include "base/test/bind.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/repeating_test_future.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -35,10 +36,12 @@
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
+#include "third_party/lens_server_proto/lens_overlay_contextual_inputs.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_platform.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_surface.pb.h"
+#include "third_party/lens_server_proto/lens_overlay_visual_search_interaction_data.pb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image_skia_operations.h"
 
@@ -46,9 +49,11 @@
 #include "ui/gfx/codec/jpeg_codec.h"
 #endif  // !BUILDFLAG(IS_IOS)
 
+constexpr char kContextualInputsParameterKey[] = "cinpts";
 constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
 constexpr char kClientUploadDurationQueryParameter[] = "cud";
 constexpr char kSessionIdQueryParameterKey[] = "gsessionid";
+constexpr char kSearchModeQueryParameterKey[] = "udm";
 constexpr char kVariationsHeaderKey[] = "X-Client-Data";
 constexpr char kTestUser[] = "test_user@gmail.com";
 constexpr char kTestSearchSessionId[] = "test_search_session_id";
@@ -57,10 +62,14 @@ constexpr char kLocale[] = "en-US";
 constexpr char kRegion[] = "US";
 constexpr char kTimeZone[] = "America/Los_Angeles";
 constexpr char kRequestIdParameterKey[] = "vsrid";
+constexpr char kVisualSearchInteractionDataParameterKey[] = "vsint";
 constexpr char kVisualInputTypeParameterKey[] = "vit";
 constexpr char kLnsSurfaceParameterKey[] = "lns_surface";
 constexpr char kTestCellAddress[] = "test_cell_address";
 constexpr char kTestServerAddress[] = "test_server_address";
+constexpr char kAimUdmQueryParameterValue[] = "50";
+constexpr char kMultimodalUdmQueryParameterValue[] = "24";
+constexpr char kUnimodalUdmQueryParameterValue[] = "26";
 
 #if BUILDFLAG(IS_ANDROID)
 constexpr lens::CompressionType kExpectedPdfCompressionType =
@@ -77,6 +86,10 @@ using FileUploadStatusTuple = std::tuple<base::UnguessableToken,
                                          lens::MimeType,
                                          FileUploadStatus,
                                          std::optional<FileUploadErrorType>>;
+using CreateSearchUrlRequestInfo =
+    ComposeboxQueryController::CreateSearchUrlRequestInfo;
+
+using base::test::EqualsProto;
 
 class ComposeboxQueryControllerTest
     : public testing::Test,
@@ -86,12 +99,13 @@ class ComposeboxQueryControllerTest
   ~ComposeboxQueryControllerTest() override = default;
 
   void CreateController(bool send_lns_surface,
-                        bool enable_multi_context_input_flow = false) {
+                        bool enable_multi_context_input_flow = false,
+                        bool enable_viewport_images = true) {
     controller_ = std::make_unique<TestComposeboxQueryController>(
         identity_manager(), shared_url_loader_factory_,
         version_info::Channel::UNKNOWN, kLocale, template_url_service(),
         fake_variations_client_.get(), send_lns_surface,
-        enable_multi_context_input_flow);
+        enable_multi_context_input_flow, enable_viewport_images);
     controller_->AddObserver(this);
 
     lens::LensOverlayServerClusterInfoResponse cluster_info_response;
@@ -269,6 +283,35 @@ class ComposeboxQueryControllerTest
     EXPECT_TRUE(
         net::GetValueForKeyInQuery(url, kRequestIdParameterKey, &vsrid_param));
     return DecodeRequestIdFromVsrid(vsrid_param);
+  }
+
+  lens::LensOverlayContextualInputs GetContextualInputsFromUrl(
+      std::string url_string) {
+    GURL url = GURL(url_string);
+    std::string contextual_inputs_param;
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url, kContextualInputsParameterKey,
+                                           &contextual_inputs_param));
+    std::string serialized_proto;
+    EXPECT_TRUE(base::Base64UrlDecode(
+        contextual_inputs_param, base::Base64UrlDecodePolicy::DISALLOW_PADDING,
+        &serialized_proto));
+    lens::LensOverlayContextualInputs proto;
+    EXPECT_TRUE(proto.ParseFromString(serialized_proto));
+    return proto;
+  }
+
+  lens::LensOverlayVisualSearchInteractionData GetVsintFromUrl(
+      const GURL& url) {
+    std::string vsint_param;
+    EXPECT_TRUE(net::GetValueForKeyInQuery(
+        url, kVisualSearchInteractionDataParameterKey, &vsint_param));
+    std::string serialized_proto;
+    EXPECT_TRUE(base::Base64UrlDecode(
+        vsint_param, base::Base64UrlDecodePolicy::DISALLOW_PADDING,
+        &serialized_proto));
+    lens::LensOverlayVisualSearchInteractionData proto;
+    EXPECT_TRUE(proto.ParseFromString(serialized_proto));
+    return proto;
   }
 
  protected:
@@ -940,7 +983,23 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(aim_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::WEBPAGE_QUERY);
+  EXPECT_TRUE(vsint.has_zoomed_crop());
+  EXPECT_EQ(vsint.zoomed_crop().zoom(), 1);
+  EXPECT_EQ(vsint.zoomed_crop().crop().coordinate_type(),
+            lens::CoordinateType::NORMALIZED);
 
   // Get the file and viewport upload requests.
   std::optional<lens::LensOverlayServerRequest> file_upload_request;
@@ -1068,6 +1127,58 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
                                          &vit_value));
   EXPECT_EQ(vit_value, "wp");
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPageContextPdfFileWithViewportButViewportsDisabledRequestSuccess) {
+  // Create the controller with viewports disabled.
+  CreateController(/*send_lns_surface=*/false,
+                   /*enable_multi_context_input_flow=*/true,
+                   /*enable_viewport_images=*/false);
+
+  // Act: Start the session.
+  controller().NotifySessionStarted();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow with viewport and pdf context inputs.
+  GURL page_url = GURL("https://www.test.com");
+  std::string page_title = "Test Page";
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kPdf;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->page_url = page_url;
+  input_data->page_title = page_title;
+  input_data->pdf_current_page = 1;
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(100, 100);
+  bitmap.eraseColor(SK_ColorRED);  // Fill with a solid color
+  input_data->viewport_screenshot = bitmap;
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   image_options);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Get the file and viewport upload requests.
+  std::optional<lens::LensOverlayServerRequest> file_upload_request =
+      controller().last_sent_file_upload_request();
+
+  // Validate the file upload request payload.
+  EXPECT_EQ(file_upload_request->objects_request()
+                .request_context()
+                .request_id()
+                .media_type(),
+            lens::LensOverlayRequestId::MEDIA_TYPE_PDF);
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -1303,7 +1414,12 @@ TEST_F(ComposeboxQueryControllerTest, AbandonSessionClearsFiles) {
             controller_state_future_.Take());
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1384,7 +1500,12 @@ TEST_F(ComposeboxQueryControllerTest,
   WaitForClusterInfo(QueryControllerState::kClusterInfoInvalid);
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1419,7 +1540,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmitted) {
   WaitForClusterInfo();
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1444,6 +1570,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmitted) {
   std::string cud_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
       aim_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the udm parameter is set to 50 (AIM).
+  std::string udm_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSearchModeQueryParameterKey,
+                                         &udm_value));
+  EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
 }
 
 TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
@@ -1463,7 +1595,20 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(aim_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+  EXPECT_FALSE(vsint.has_zoomed_crop());
 
   // Assert: Lens request id is NOT added to multimodal pdf queries.
   std::string vsrid_value;
@@ -1493,6 +1638,107 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
   std::string cud_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
       aim_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the udm value is set to 50 (AIM).
+  std::string udm_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSearchModeQueryParameterKey,
+                                         &udm_value));
+  EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       QuerySubmittedWithUploadedPdfStandardSearch) {
+  // Act: Start the session.
+  controller().NotifySessionStarted();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query. The destination URL can
+  // only be created after the cluster info is received.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL search_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(search_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+  EXPECT_FALSE(vsint.has_zoomed_crop());
+
+  // Assert: Lens request id is added to multimodal pdf queries.
+  std::string vsrid_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
+                                         &vsrid_value));
+  EXPECT_FALSE(vsrid_value.empty());
+  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
+            DecodeRequestIdFromVsrid(vsrid_value).media_type());
+
+  // Assert: Visual input type is set to pdf for multimodal pdf queries.
+  std::string vit_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kVisualInputTypeParameterKey, &vit_value));
+  EXPECT_EQ(vit_value, "pdf");
+
+  // Assert: Gsession id is added to multimodal pdf queries.
+  std::string gsession_id_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSessionIdQueryParameterKey, &gsession_id_value));
+  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
+
+  // Check that the timestamps are attached to the url.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  std::string cud_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the udm value is set to 24 (multimodal search).
+  std::string udm_value_24;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSearchModeQueryParameterKey, &udm_value_24));
+  EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
+
+  // Act: Create the destination URL for the query, with no query text.
+  std::unique_ptr<CreateSearchUrlRequestInfo>
+      search_url_request_info_no_query_text =
+          std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info_no_query_text->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info_no_query_text->query_start_time = kTestQueryStartTime;
+  GURL no_query_text_url = controller().CreateSearchUrl(
+      std::move(search_url_request_info_no_query_text));
+
+  // Check that the vsint is populated correctly.
+  auto vsint_2 = GetVsintFromUrl(no_query_text_url);
+  EXPECT_EQ(vsint_2.text_select().selected_texts(), "");
+  EXPECT_TRUE(vsint_2.log_data().is_parent_query());
+  EXPECT_EQ(vsint_2.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+  EXPECT_FALSE(vsint_2.has_zoomed_crop());
+
+  // Check that the udm value is set to 26 (unimodal search).
+  std::string udm_value_26;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      no_query_text_url, kSearchModeQueryParameterKey, &udm_value_26));
+  EXPECT_EQ(udm_value_26, kUnimodalUdmQueryParameterValue);
 }
 
 #if !BUILDFLAG(IS_IOS)
@@ -1517,7 +1763,23 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(aim_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::REGION);
+  EXPECT_TRUE(vsint.has_zoomed_crop());
+  EXPECT_EQ(vsint.zoomed_crop().zoom(), 1);
+  EXPECT_EQ(vsint.zoomed_crop().crop().coordinate_type(),
+            lens::CoordinateType::NORMALIZED);
 
   // Assert: Lens request id is NOT added to multimodal pdf queries.
   std::string vsrid_value;
@@ -1580,7 +1842,12 @@ TEST_F(ComposeboxQueryControllerTest,
             controller().query_controller_state());
 
   // Act: Create the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1695,7 +1962,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithLnsSurface) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lns surface is added to the url.
   std::string lns_surface_value;
@@ -1830,4 +2102,65 @@ TEST_F(ComposeboxQueryControllerTest,
                 .request_context()
                 .request_id()
                 .uuid());
+  // Act: Create the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Assert: Lens request id is NOT added to queries using multi-context flow.
+  std::string vsrid_value;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
+                                          &vsrid_value));
+
+  // Assert: Visual input type is NOT set for queries using multi-context flow.
+  std::string vit_value;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
+                                          &vit_value));
+
+  // Assert: Gsession id is added to multimodal queries.
+  std::string gsession_id_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSessionIdQueryParameterKey,
+                                         &gsession_id_value));
+  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
+
+  // Check that the timestamps are attached to the url.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      aim_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  std::string cud_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      aim_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the contextual inputs param contains the request ids.
+  lens::LensOverlayContextualInputs contextual_inputs =
+      GetContextualInputsFromUrl(aim_url.spec());
+  EXPECT_EQ(contextual_inputs.inputs_size(), 2);
+
+  // The files may be in any order, so find the corresponding request ids.
+  bool first_contextual_input_is_first_file =
+      contextual_inputs.inputs(0).request_id().uuid() ==
+      controller()
+          .GetFileInfo(first_file_token)
+          ->GetRequestIdForTesting()
+          ->uuid();
+  auto first_file_request_id =
+      *controller()
+           .GetFileInfo(first_contextual_input_is_first_file
+                            ? first_file_token
+                            : second_file_token)
+           ->GetRequestIdForTesting();
+  auto second_file_request_id =
+      *controller()
+           .GetFileInfo(first_contextual_input_is_first_file ? second_file_token
+                                                             : first_file_token)
+           ->GetRequestIdForTesting();
+
+  EXPECT_THAT(contextual_inputs.inputs(0).request_id(),
+              EqualsProto(first_file_request_id));
+  EXPECT_THAT(contextual_inputs.inputs(1).request_id(),
+              EqualsProto(second_file_request_id));
 }

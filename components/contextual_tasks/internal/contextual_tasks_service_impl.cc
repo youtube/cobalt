@@ -4,18 +4,35 @@
 
 #include "components/contextual_tasks/internal/contextual_tasks_service_impl.h"
 
-#include <map>
-#include <vector>
+#include <optional>
+#include <utility>
 
+#include "base/containers/contains.h"
+#include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/uuid.h"
+#include "components/contextual_tasks/internal/composite_context_decorator.h"
 #include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/sessions/core/session_id.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/base/report_unrecoverable_error.h"
+#include "components/sync/model/client_tag_based_data_type_processor.h"
 #include "url/gurl.h"
 
 namespace contextual_tasks {
 
-ContextualTasksServiceImpl::ContextualTasksServiceImpl() = default;
+ContextualTasksServiceImpl::ContextualTasksServiceImpl(
+    version_info::Channel channel,
+    syncer::OnceDataTypeStoreFactory data_type_store_factory,
+    std::unique_ptr<CompositeContextDecorator> composite_context_decorator)
+    : composite_context_decorator_(std::move(composite_context_decorator)) {
+  auto processor = std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
+      syncer::AI_THREAD,
+      base::BindRepeating(&syncer::ReportUnrecoverableError, channel));
+  ai_thread_sync_bridge_ = std::make_unique<AiThreadSyncBridge>(
+      std::move(processor), std::move(data_type_store_factory));
+}
 
 ContextualTasksServiceImpl::~ContextualTasksServiceImpl() {
   for (auto& observer : observers_) {
@@ -33,21 +50,26 @@ ContextualTask ContextualTasksServiceImpl::CreateTask() {
   return it->second;
 }
 
-std::optional<ContextualTask> ContextualTasksServiceImpl::GetTaskById(
-    const base::Uuid& task_id) const {
+void ContextualTasksServiceImpl::GetTaskById(
+    const base::Uuid& task_id,
+    base::OnceCallback<void(std::optional<ContextualTask>)> callback) const {
   auto it = tasks_.find(task_id);
+  std::optional<ContextualTask> result;
   if (it != tasks_.end()) {
-    return it->second;
+    result = it->second;
   }
-  return std::nullopt;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
 }
 
-std::vector<ContextualTask> ContextualTasksServiceImpl::GetTasks() const {
+void ContextualTasksServiceImpl::GetTasks(
+    base::OnceCallback<void(std::vector<ContextualTask>)> callback) const {
   std::vector<ContextualTask> tasks;
   for (const auto& pair : tasks_) {
     tasks.push_back(pair.second);
   }
-  return tasks;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::move(tasks)));
 }
 
 void ContextualTasksServiceImpl::DeleteTask(const base::Uuid& task_id) {
@@ -100,11 +122,10 @@ void ContextualTasksServiceImpl::RemoveThreadFromTask(
   auto it = tasks_.find(task_id);
   if (it != tasks_.end()) {
     it->second.RemoveThread(type, server_id);
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ContextualTasksServiceImpl::NotifyTaskUpdated,
-                       weak_ptr_factory_.GetWeakPtr(), it->second,
-                       TriggerSource::kLocal));
+    // If the task no longer has any thread, remove it.
+    if (!it->second.GetThread()) {
+      DeleteTask(task_id);
+    }
   }
 }
 
@@ -112,12 +133,14 @@ void ContextualTasksServiceImpl::AttachUrlToTask(const base::Uuid& task_id,
                                                  const GURL& url) {
   auto it = tasks_.find(task_id);
   if (it != tasks_.end()) {
-    it->second.AddUrl(url);
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ContextualTasksServiceImpl::NotifyTaskUpdated,
-                       weak_ptr_factory_.GetWeakPtr(), it->second,
-                       TriggerSource::kLocal));
+    if (it->second.AddUrlResource(
+            UrlResource(base::Uuid::GenerateRandomV4(), url))) {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&ContextualTasksServiceImpl::NotifyTaskUpdated,
+                         weak_ptr_factory_.GetWeakPtr(), it->second,
+                         TriggerSource::kLocal));
+    }
   }
 }
 
@@ -167,13 +190,46 @@ ContextualTasksServiceImpl::GetMostRecentContextualTaskForSessionID(
   return std::nullopt;
 }
 
-void ContextualTasksServiceImpl::AddObserver(Observer* observer) {
+void ContextualTasksServiceImpl::GetContextForTask(
+    const base::Uuid& task_id,
+    const std::set<ContextualTaskContextSource>& sources,
+    base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
+        context_callback) {
+  auto it = tasks_.find(task_id);
+  if (it == tasks_.end()) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(context_callback),
+                                  std::unique_ptr<ContextualTaskContext>()));
+    return;
+  }
+
+  composite_context_decorator_->DecorateContext(
+      std::make_unique<ContextualTaskContext>(it->second), sources,
+      std::move(context_callback));
+}
+
+void ContextualTasksServiceImpl::AddObserver(
+    ContextualTasksService::Observer* observer) {
   observers_.AddObserver(observer);
 }
 
-void ContextualTasksServiceImpl::RemoveObserver(Observer* observer) {
+void ContextualTasksServiceImpl::RemoveObserver(
+    ContextualTasksService::Observer* observer) {
   observers_.RemoveObserver(observer);
 }
+
+base::WeakPtr<syncer::DataTypeControllerDelegate>
+ContextualTasksServiceImpl::GetAiThreadControllerDelegate() {
+  return ai_thread_sync_bridge_->change_processor()->GetControllerDelegate();
+}
+
+void ContextualTasksServiceImpl::OnThreadDataStoreLoaded() {}
+
+void ContextualTasksServiceImpl::OnThreadAddedOrUpdatedRemotely(
+    const std::vector<Thread>& threads) {}
+
+void ContextualTasksServiceImpl::OnThreadRemovedRemotely(
+    const std::vector<Thread>& threads) {}
 
 size_t ContextualTasksServiceImpl::GetSessionIdMapSizeForTesting() const {
   return session_to_task_.size();

@@ -98,11 +98,12 @@ source_set("impl") {
     "//components/browsing_data/core",
     "//components/certificate_transparency",
     "//components/collaboration/public:prefs",
-    "//components/commerce/core:pref_names",
+    "//components/commerce/core:prefs",
     "//components/content_settings/core/browser",
     "//components/custom_handlers",
     "//components/domain_reliability:prefs",
     "//components/enterprise/browser/identifiers",
+    "//components/enterprise/browser/promotion:prefs",
     "//components/enterprise/connectors/core",
     "//components/feature_engagement/public:prefs",
     "//components/fingerprinting_protection_filter/common",
@@ -119,6 +120,7 @@ source_set("impl") {
     "//components/media_device_salt",
     "//components/metrics/demographics",
     "//components/network_time",
+    "//components/ntp_tiles:pref_names",
     "//components/omnibox/browser",
     "//components/optimization_guide/core:features",
     "//components/password_manager/core/browser",
@@ -133,6 +135,7 @@ source_set("impl") {
     "//components/regional_capabilities",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safety_check:prefs",
     "//components/saved_tab_groups/public:prefs",
     "//components/security_interstitials/content:security_interstitial_page",
     "//components/segmentation_platform/embedder/default_model",
@@ -142,6 +145,7 @@ source_set("impl") {
     "//components/subresource_filter/core/common",
     "//components/supervised_user/core/browser",
     "//components/sync_preferences",
+    "//components/sync_preferences/cross_device_pref_tracker/prefs",
     "//components/sync_sessions",
     "//components/tpcd/metadata/browser:prefs",
     "//components/ukm",
@@ -169,6 +173,7 @@ source_set("impl") {
       "//chrome/browser/apps/app_discovery_service",
       "//chrome/browser/apps/app_preload_service",
       "//chrome/browser/apps/app_service",
+      "//chrome/browser/apps/app_service/webapk:prefs",
       "//chrome/browser/ash/account_manager",
       "//chrome/browser/ash/app_list",
       "//chrome/browser/ash/app_list/arc",
@@ -279,9 +284,6 @@ source_set("impl") {
       "//chrome/browser/browser_switcher",
       "//chrome/browser/ui/webui/whats_new",
     ]
-    if (is_win || is_mac) {
-      deps += [ "//components/os_crypt/sync" ]
-    }
   }
 
   if (is_win) {
@@ -402,6 +404,7 @@ source_set("util_impl") {
     ":util",
     "//base",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/startup:startup_tab",
     "//chrome/common:constants",
     "//components/bookmarks/common",

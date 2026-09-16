@@ -24,6 +24,9 @@
 #include "components/autofill/core/browser/filling/autofill_ai/select_date_matching.h"
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_field_data.h"
 
@@ -48,7 +51,7 @@ bool AttributesMeetImportConstraints(EntityType entity_type,
 
 struct ValueAndFormatString {
   std::u16string value;
-  std::u16string format_string;
+  AutofillFormatString format_string;
 };
 
 // Returns the value and format string of `field` for import by Autofill AI.
@@ -58,9 +61,9 @@ ValueAndFormatString GetValueAndFormatString(const AutofillField& field,
       !field.IsSelectElement()) {
     std::u16string value = field.value_for_import();
     base::TrimWhitespace(value, base::TRIM_ALL, &value);
-    return {
-        .value = std::move(value),
-        .format_string = field.format_string() ? *field.format_string() : u""};
+    return {.value = std::move(value),
+            .format_string = field.format_string() ? *field.format_string()
+                                                   : AutofillFormatString()};
   }
 
   auto get_value = [&](DatePartRange range) {
@@ -77,21 +80,29 @@ ValueAndFormatString GetValueAndFormatString(const AutofillField& field,
     }
     return std::u16string();
   };
+
+  auto make_date_format = [](std::u16string fs) {
+    return AutofillFormatString(std::move(fs), FormatString_Type_DATE);
+  };
+
   std::u16string value;
   if (!(value = get_value(GetYearRange(field.options()))).empty()) {
-    return {.value = std::move(value), .format_string = u"YYYY"};
+    return {.value = std::move(value),
+            .format_string = make_date_format(u"YYYY")};
   } else if (!(value = get_value(GetMonthRange(field.options()))).empty()) {
-    return {.value = std::move(value), .format_string = u"M"};
+    return {.value = std::move(value), .format_string = make_date_format(u"M")};
   } else if (!(value = get_value(GetDayRange(field.options()))).empty()) {
-    return {.value = std::move(value), .format_string = u"D"};
+    return {.value = std::move(value), .format_string = make_date_format(u"D")};
   }
   return {};
 }
 
 std::vector<EntityInstance> GetPossibleEntitiesFromSubmittedForm(
     base::span<const std::unique_ptr<AutofillField>> fields,
-    const std::string& app_locale,
-    const GeoIpCountryCode& country_code) {
+    const AutofillClient& client) {
+  const GeoIpCountryCode& country_code = client.GetVariationConfigCountryCode();
+  const std::string& app_locale = client.GetAppLocale();
+
   std::map<Section,
            std::map<EntityType, std::map<AttributeType, AttributeInstance>>>
       section_to_entity_types_attributes;
@@ -139,7 +150,8 @@ std::vector<EntityInstance> GetPossibleEntitiesFromSubmittedForm(
         // Do not import entities that have an attribute whose value is a proper
         // prefix or suffix.
         if (IsAffixFormatStringEnabledForType(field_type) &&
-            data_util::IsValidAffixFormat(value.format_string,
+            value.format_string.type == FormatString_Type_AFFIX &&
+            data_util::IsValidAffixFormat(value.format_string.value,
                                           /*exclude_full_value=*/true)) {
           if (auto it = section_to_entity_types_attributes.find(section);
               it != section_to_entity_types_attributes.end()) {
@@ -178,15 +190,25 @@ std::vector<EntityInstance> GetPossibleEntitiesFromSubmittedForm(
       if (attributes.empty()) {
         continue;
       }
-      // TODO(crbug.com/436174974): Support saving server entities.
+      // Some entities can be stored in Google Wallet servers. This depends
+      // on whether the user is eligible (pref state and feature enabled)
+      // and whether the entity type is "walletable". If the entity cannot be
+      // stored on the Wallet servers, it is stored locally.
+      const EntityInstance::RecordType record_type =
+          MayPerformAutofillAiAction(client, AutofillAiAction::kImportToWallet,
+                                     entity_name)
+              ? EntityInstance::RecordType::kServerWallet
+              : EntityInstance::RecordType::kLocal;
       EntityInstance entity = EntityInstance(
-          EntityType(entity_name),
+          entity_name,
           base::ToVector(
               attributes,
               &std::pair<const AttributeType, AttributeInstance>::second),
           EntityInstance::EntityId(base::Uuid::GenerateRandomV4()),
           /*nickname=*/std::string(""), base::Time::Now(), /*use_count=*/0,
-          /*use_date=*/base::Time::Now(), EntityInstance::RecordType::kLocal);
+          /*use_date=*/base::Time::Now(), record_type,
+          EntityInstance::AreAttributesReadOnly(false),
+          /*frecency_override=*/"");
       if (!EntitySatisfiesImportConstraints(entity)) {
         continue;
       }
@@ -207,7 +229,10 @@ std::optional<std::u16string> MaybeGetLocalizedDate(
     int part = 0;
     // The app_locale is irrelevant for dates.
     bool success = base::StringToInt(
-        attribute.GetInfo(field_type, /*app_locale=*/"", format), &part);
+        attribute.GetInfo(
+            field_type, /*app_locale=*/"",
+            AutofillFormatString(std::move(format), FormatString_Type_DATE)),
+        &part);
     return success ? part : 0;
   };
   base::Time time;

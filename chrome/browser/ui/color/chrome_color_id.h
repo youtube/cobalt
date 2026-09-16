@@ -315,6 +315,15 @@
   E_CPONLY(kColorNewTabPageModuleTabGroupsPurple) \
   E_CPONLY(kColorNewTabPageModuleTabGroupsCyan) \
   E_CPONLY(kColorNewTabPageModuleTabGroupsOrange) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotGrey) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotBlue) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotRed) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotYellow) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotGreen) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotPink) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotPurple) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotCyan) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsDotOrange) \
   E_CPONLY(kColorNewTabPageMostVisitedForeground) \
   E_CPONLY(kColorNewTabPageMostVisitedTileBackground) \
   E_CPONLY(kColorNewTabPageMostVisitedTileBackgroundThemed) \
@@ -388,6 +397,7 @@
   E_CPONLY(kColorOmniboxResultsIcon) \
   E_CPONLY(kColorOmniboxResultsIconGM3Background) \
   E_CPONLY(kColorOmniboxResultsIconSelected) \
+  E_CPONLY(kColorOmniboxResultsIconHovered) \
   E_CPONLY(kColorOmniboxResultsStarterPackIcon) \
   E_CPONLY(kColorOmniboxResultsTextAnswer) \
   E_CPONLY(kColorOmniboxResultsTextDimmed) \
@@ -924,6 +934,8 @@
   E_CPONLY(kColorToolbarTextDisabledDefault) \
   E_CPONLY(kColorToolbarTopSeparatorFrameActive) \
   E_CPONLY(kColorToolbarTopSeparatorFrameInactive) \
+  /* Vertical Tabs colors. */ \
+  E_CPONLY(kColorVerticalTabStripBottomButtonBackground) \
   /* WebAuthn colors. */ \
   E_CPONLY(kColorWebAuthnHoverButtonForeground) \
   E_CPONLY(kColorWebAuthnHoverButtonForegroundDisabled) \

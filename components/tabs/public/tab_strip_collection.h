@@ -41,10 +41,6 @@ class TabStripCollection : public TabCollection {
 
   size_t IndexOfFirstNonPinnedTab() const;
 
-  // Adds a tab to a particular recursive index in the collection. This forwards
-  // calls to the appropriate parent collection (currently supports pinned,
-  // unpinned, and group collections). If the inputs are incorrect this method
-  // will fail and hit a CHECK.
   void AddTabRecursive(std::unique_ptr<TabInterface> tab,
                        size_t index,
                        std::optional<tab_groups::TabGroupId> new_group_id,
@@ -66,19 +62,21 @@ class TabStripCollection : public TabCollection {
   // due to bad input then CHECK.
   std::unique_ptr<TabInterface> RemoveTabAtIndexRecursive(size_t index);
 
-  // Removes the tab from the collection. If `close_empty_group_collection` is
-  // true then group collection is closed when the last tab is removed from
-  // the group collection.
-  std::unique_ptr<TabInterface> RemoveTabRecursive(
-      TabInterface* tab,
-      bool close_empty_group_collection = true);
-
   // TabCollection:
   // Tabs and Collections are not allowed to be removed from TabStripCollection.
   // `MaybeRemoveTab` and `MaybeRemoveCollection` will return nullptr.
   std::unique_ptr<TabInterface> MaybeRemoveTab(TabInterface* tab) override;
   std::unique_ptr<TabCollection> MaybeRemoveCollection(
       TabCollection* collection) override;
+
+  void InsertTabCollectionAt(
+      std::unique_ptr<TabCollection> collection,
+      int index,
+      int pinned,
+      std::optional<tab_groups::TabGroupId> parent_group);
+
+  // Remove a tab collection and send the appropriate notifications.
+  std::unique_ptr<TabCollection> RemoveTabCollection(TabCollection* collection);
 
   // Adds the `tab_group_collection` to `detached_group_collections_`
   // so that it can be used when inserting a tab to a group.
@@ -101,11 +99,6 @@ class TabStripCollection : public TabCollection {
   std::vector<tab_groups::TabGroupId> GetAllTabGroupIds() const;
   void MoveTabGroupTo(const tab_groups::TabGroupId& group, int to_index);
 
-  // Adds the `tab_group_collection` to the collection hierarchy
-  // with the first tab of the group starting at the recursive `index`.
-  void InsertTabGroupAt(std::unique_ptr<TabGroupTabCollection> group_collection,
-                        int index);
-
   // Detached tab group operations.
 
   // Clears the detached group with `group_id` in `detached_group_collections_`.
@@ -122,10 +115,6 @@ class TabStripCollection : public TabCollection {
                    const std::vector<TabInterface*>& tabs,
                    split_tabs::SplitTabVisualData visual_data);
   void Unsplit(split_tabs::SplitTabId split_id);
-  void InsertSplitTabAt(std::unique_ptr<SplitTabCollection> split_collection,
-                        int index,
-                        int pinned,
-                        std::optional<tab_groups::TabGroupId> group);
   std::unique_ptr<TabCollection> RemoveSplit(SplitTabCollection* split);
   void ValidateData() const;
 
@@ -134,6 +123,23 @@ class TabStripCollection : public TabCollection {
       base::PassKey<TabStripModel>) const;
 
  private:
+  // Adds a tab to a particular recursive index in the collection.
+  void AddTabRecursiveImpl(std::unique_ptr<TabInterface> tab,
+                           size_t index,
+                           std::optional<tab_groups::TabGroupId> new_group_id,
+                           bool new_pinned_state);
+
+  // Removes the tab from the collection. If `close_empty_group_collection` is
+  // true then group collection is closed when the last tab is removed from
+  // the group collection.
+  std::unique_ptr<TabInterface> RemoveTabRecursiveImpl(
+      TabInterface* tab,
+      bool close_empty_group_collection = true);
+
+  // Removes a tab collection and its mappings.
+  std::unique_ptr<TabCollection> RemoveTabCollectionImpl(
+      TabCollection* collection);
+
   // If the group specified by new_group is detached, pop it from the detached
   // groups vector and add it to the collections structure at the specified
   // `index`.

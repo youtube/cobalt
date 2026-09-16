@@ -6,13 +6,14 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/searchbox/lens_searchbox_client.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_omnibox_client.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/omnibox_client.h"
-#include "components/omnibox/browser/omnibox_controller.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -105,13 +106,11 @@ LensSearchboxHandler::LensSearchboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
     Profile* profile,
     content::WebContents* web_contents,
-    MetricsReporter* metrics_reporter,
     LensSearchboxClient* lens_searchbox_client)
     : SearchboxHandler(
           std::move(pending_page_handler),
           profile,
           web_contents,
-          metrics_reporter,
           std::make_unique<OmniboxController>(
               /*view=*/nullptr,
               std::make_unique<LensOmniboxClient>(profile,
@@ -123,6 +122,18 @@ LensSearchboxHandler::LensSearchboxHandler(
 }
 
 LensSearchboxHandler::~LensSearchboxHandler() = default;
+
+std::string LensSearchboxHandler::AutocompleteIconToResourceName(
+    const gfx::VectorIcon& icon) const {
+  // The default icon for contextual suggestions is the subdirectory arrow right
+  // icon. For the Lens searchbox, we want to stay consistent with the search
+  // loupe instead.
+  if (icon.name == omnibox::kSubdirectoryArrowRightIcon.name) {
+    return searchbox_internal::kSearchIconResourceName;
+  }
+
+  return SearchboxHandler::AutocompleteIconToResourceName(icon);
+}
 
 void LensSearchboxHandler::SetPage(
     mojo::PendingRemote<searchbox::mojom::Page> pending_page) {

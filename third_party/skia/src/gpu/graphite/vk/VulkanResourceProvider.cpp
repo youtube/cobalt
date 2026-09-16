@@ -95,12 +95,6 @@ VulkanResourceProvider::VulkanResourceProvider(SharedContext* sharedContext,
         , fUniformBufferDescSetCache(kMaxNumberOfCachedBufferDescSets) {}
 
 VulkanResourceProvider::~VulkanResourceProvider() {
-    if (fPipelineCache != VK_NULL_HANDLE) {
-        VULKAN_CALL(this->vulkanSharedContext()->interface(),
-                    DestroyPipelineCache(this->vulkanSharedContext()->device(),
-                                         fPipelineCache,
-                                         nullptr));
-    }
     if (fMockPipelineLayout) {
         VULKAN_CALL(this->vulkanSharedContext()->interface(),
                     DestroyPipelineLayout(this->vulkanSharedContext()->device(),
@@ -111,6 +105,10 @@ VulkanResourceProvider::~VulkanResourceProvider() {
 
 const VulkanSharedContext* VulkanResourceProvider::vulkanSharedContext() const {
     return static_cast<const VulkanSharedContext*>(fSharedContext);
+}
+
+VulkanSharedContext* VulkanResourceProvider::nonConstVulkanSharedContext() {
+    return static_cast<VulkanSharedContext*>(fSharedContext);
 }
 
 sk_sp<Texture> VulkanResourceProvider::onCreateWrappedTexture(const BackendTexture& texture) {
@@ -130,23 +128,6 @@ sk_sp<Texture> VulkanResourceProvider::onCreateWrappedTexture(const BackendTextu
                                       BackendTextures::GetVkImage(texture),
                                       /*alloc=*/{} /*Skia does not own wrapped texture memory*/,
                                       std::move(ycbcrConversion));
-}
-
-sk_sp<GraphicsPipeline> VulkanResourceProvider::createGraphicsPipeline(
-        const RuntimeEffectDictionary* runtimeDict,
-        const UniqueKey& pipelineKey,
-        const GraphicsPipelineDesc& pipelineDesc,
-        const RenderPassDesc& renderPassDesc,
-        SkEnumBitMask<PipelineCreationFlags> pipelineCreationFlags,
-        uint32_t compilationID) {
-    return VulkanGraphicsPipeline::Make(this->vulkanSharedContext(),
-                                        this,
-                                        runtimeDict,
-                                        pipelineKey,
-                                        pipelineDesc,
-                                        renderPassDesc,
-                                        pipelineCreationFlags,
-                                        compilationID);
 }
 
 sk_sp<ComputePipeline> VulkanResourceProvider::createComputePipeline(const ComputePipelineDesc&) {
@@ -455,26 +436,6 @@ sk_sp<VulkanRenderPass> VulkanResourceProvider::findOrCreateRenderPass(
     return renderPass;
 }
 
-VkPipelineCache VulkanResourceProvider::pipelineCache() {
-    if (fPipelineCache == VK_NULL_HANDLE) {
-        VkPipelineCacheCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-        createInfo.initialDataSize = 0;
-        createInfo.pInitialData = nullptr;
-        VkResult result;
-        VULKAN_CALL_RESULT(this->vulkanSharedContext(),
-                           result,
-                           CreatePipelineCache(this->vulkanSharedContext()->device(),
-                                               &createInfo,
-                                               nullptr,
-                                               &fPipelineCache));
-        if (VK_SUCCESS != result) {
-            fPipelineCache = VK_NULL_HANDLE;
-        }
-    }
-    return fPipelineCache;
-}
-
 namespace {
 
 void gather_attachment_views(skia_private::TArray<VkImageView>& attachmentViews,
@@ -637,7 +598,7 @@ sk_sp<VulkanGraphicsPipeline> VulkanResourceProvider::findOrCreateLoadMSAAPipeli
     }
 
     sk_sp<VulkanGraphicsPipeline> pipeline = VulkanGraphicsPipeline::MakeLoadMSAAPipeline(
-            this->vulkanSharedContext(), this, *fLoadMSAAProgram, renderPassDesc);
+            this->nonConstVulkanSharedContext(), *fLoadMSAAProgram, renderPassDesc);
     if (!pipeline) {
         SKGPU_LOG_E("Failed to create MSAA load pipeline");
         return nullptr;
@@ -645,6 +606,25 @@ sk_sp<VulkanGraphicsPipeline> VulkanResourceProvider::findOrCreateLoadMSAAPipeli
 
     fLoadMSAAPipelines.push_back(std::make_pair(compatibleRenderPassHash, pipeline));
     return pipeline;
+}
+
+VulkanThreadSafeResourceProvider::VulkanThreadSafeResourceProvider(
+        std::unique_ptr<ResourceProvider> resourceProvider)
+    : ThreadSafeResourceProvider(std::move(resourceProvider)) {}
+
+sk_sp<VulkanRenderPass> VulkanThreadSafeResourceProvider::findOrCreateRenderPass(
+        const RenderPassDesc& renderPassDesc,
+        bool compatibleOnly) {
+    SkAutoSpinlock lock{fSpinLock};
+
+    VulkanResourceProvider* vkResourceProvider =
+        static_cast<VulkanResourceProvider*>(fWrappedProvider.get());
+
+    sk_sp<VulkanRenderPass> renderPass =
+        vkResourceProvider->findOrCreateRenderPass(renderPassDesc, compatibleOnly);
+    SkAssertResult(renderPass->gpuMemorySize() == 0);
+
+    return renderPass;
 }
 
 #ifdef SK_BUILD_FOR_ANDROID

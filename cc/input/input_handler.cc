@@ -16,6 +16,7 @@
 #include "base/types/optional_ref.h"
 #include "build/build_config.h"
 #include "cc/base/features.h"
+#include "cc/base/math_util.h"
 #include "cc/input/browser_controls_offset_manager.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/scroll_elasticity_helper.h"
@@ -411,19 +412,25 @@ InputHandlerScrollResult InputHandler::ScrollUpdate(
     accumulated_root_overscroll_.set_y(0);
   }
 
-  gfx::Vector2dF unused_root_delta;
-  if (GetViewport().ShouldScroll(scroll_node)) {
-    unused_root_delta =
-        gfx::Vector2dF(scroll_state.delta_x(), scroll_state.delta_y());
-  }
+  gfx::Vector2dF unused_scroll_delta(scroll_state.delta_x(),
+                                     scroll_state.delta_y());
+  const bool is_root_scroller = GetViewport().ShouldScroll(scroll_node);
+  if (is_root_scroller) {
+    // When inner viewport is unscrollable, disable overscrolls.
+    if (auto* inner_viewport_scroll_node = InnerViewportScrollNode()) {
+      unused_scroll_delta =
+          UserScrollableDelta(*inner_viewport_scroll_node, unused_scroll_delta);
+    }
 
-  // When inner viewport is unscrollable, disable overscrolls.
-  if (auto* inner_viewport_scroll_node = InnerViewportScrollNode()) {
-    unused_root_delta =
-        UserScrollableDelta(*inner_viewport_scroll_node, unused_root_delta);
+    accumulated_root_overscroll_ += unused_scroll_delta;
   }
-
-  accumulated_root_overscroll_ += unused_root_delta;
+  // Reset non-root scroll delta if overscroll effect on non root scrollers is
+  // disabled. Does not modify the value in any cases if it is a root scroller.
+  if (!base::FeatureList::IsEnabled(
+          ::features::kOverscrollEffectOnNonRootScrollers) &&
+      !is_root_scroller) {
+    unused_scroll_delta = gfx::Vector2dF();
+  }
 
   bool did_scroll_top_controls =
       initial_top_controls_offset !=
@@ -431,9 +438,12 @@ InputHandlerScrollResult InputHandler::ScrollUpdate(
 
   InputHandlerScrollResult scroll_result;
   scroll_result.did_scroll = did_scroll_content || did_scroll_top_controls;
-  scroll_result.did_overscroll_root = !unused_root_delta.IsZero();
+  // TODO(crbug.com/41102897): Refactor did_root_overscroll to instead store the
+  // ElementId of scroller that consumed the overscroll.
+  scroll_result.did_overscroll_root =
+      is_root_scroller && !unused_scroll_delta.IsZero();
   scroll_result.accumulated_root_overscroll = accumulated_root_overscroll_;
-  scroll_result.unused_scroll_delta = unused_root_delta;
+  scroll_result.unused_scroll_delta = unused_scroll_delta;
   scroll_result.overscroll_behavior =
       scroll_state.is_scroll_chain_cut()
           ? OverscrollBehavior(OverscrollBehavior::Type::kNone)
@@ -1132,6 +1142,19 @@ void InputHandler::NotifyInputEvent(bool is_fling) {
   compositor_delegate_->NotifyInputEvent(is_fling);
 }
 
+void InputHandler::UpdateLastLatchedScrollSourceType() {
+  if (has_scrolled_by_wheel_ || has_scrolled_by_touch_ ||
+      has_scrolled_by_precisiontouchpad_ || has_scrolled_by_scrollbar_ ||
+      has_pinch_zoomed_) {
+    // On the compositor we set all scrollbar scrolls as relatives, the correct
+    // type for scrollbar scrolls is computed in
+    // `ScrollableArea::DidCompositorScroll`.
+    last_latched_scroll_source_type_ = ScrollSourceType::kRelativeScroll;
+    return;
+  }
+  last_latched_scroll_source_type_ = ScrollSourceType::kNone;
+}
+
 //
 // =========== InputDelegateForCompositor Interface
 //
@@ -1161,6 +1184,8 @@ void InputHandler::ProcessCommitDeltas(
       commit_data, inner_viewport_scroll_element_id,
       compositor_delegate_->GetSettings().commit_fractional_scroll_deltas,
       snapped_elements, main_thread_mutator_host);
+
+  commit_data->scroll_type = last_latched_scroll_source_type_;
 
   // Record and reset scroll source flags.
   DCHECK(!commit_data->manipulation_info);
@@ -1199,6 +1224,7 @@ void InputHandler::ProcessCommitDeltas(
   if (commit_data->scroll_end_data.done_containers.contains(
           last_latched_scroller_)) {
     last_latched_scroller_ = ElementId();
+    last_latched_scroll_source_type_ = ScrollSourceType::kNone;
   }
 }
 
@@ -2186,6 +2212,7 @@ void InputHandler::DidLatchToScroller(const ScrollState& scroll_state,
   compositor_delegate_->DidStartScroll();
 
   UpdateScrollSourceInfo(scroll_state, type);
+  UpdateLastLatchedScrollSourceType();
 }
 
 bool InputHandler::CanConsumeDelta(const ScrollState& scroll_state,

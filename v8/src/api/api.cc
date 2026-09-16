@@ -185,8 +185,6 @@
 
 namespace v8 {
 
-namespace {
-
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
                        static_cast<uint16_t>(api_tag);
@@ -194,8 +192,6 @@ i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
                   "The provided tag is outside the allowed range");
   return static_cast<i::ExternalPointerTag>(tag_value);
 }
-
-}  // namespace
 
 static OOMErrorCallback g_oom_error_callback = nullptr;
 
@@ -289,7 +285,7 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
 void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
                              const OOMDetails& details) {
   if (auto oom_callback = i_isolate->oom_behavior()) {
-    oom_callback(location, details);
+    oom_callback(location, details, i_isolate->oom_callback_data());
   } else {
     // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
     // crbug.com/614440.
@@ -972,7 +968,8 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
             *Utils::OpenDirectHandle(*GetEmbedderData(index)));
 }
 
-void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
+void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
+                                                     EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::HandleScope handle_scope(i_isolate);
@@ -980,9 +977,10 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(*data, index)
-                      .DeprecatedToAlignedPointer(i_isolate, &result),
-                  location, "Pointer is not aligned");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(*data, index)
+          .ToAlignedPointer(i_isolate, &result, ToExternalPointerTag(tag)),
+      location, "Pointer is not aligned");
   return result;
 }
 
@@ -996,7 +994,7 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value,
                 .store_aligned_pointer(i_isolate, *data, value,
                                        ToExternalPointerTag(tag));
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
-  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
+  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
 
 // --- T e m p l a t e ---
@@ -4647,13 +4645,6 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   return api_scope.Escape(Utils::ToLocal(desc.ToObject(i_isolate)));
 }
 
-Local<Value> v8::Object::GetPrototype() {
-  auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate = i::Isolate::Current();
-  i::PrototypeIterator iter(i_isolate, self);
-  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
-}
-
 Local<Value> v8::Object::GetPrototypeV2() {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
@@ -4706,12 +4697,6 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
 }
 
 }  // namespace
-
-Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
-                                     Local<Value> value) {
-  static constexpr bool from_javascript = false;
-  return SetPrototypeImpl(this, context, value, from_javascript);
-}
 
 Maybe<bool> v8::Object::SetPrototypeV2(Local<Context> context,
                                        Local<Value> value) {
@@ -5179,7 +5164,8 @@ Local<v8::Context> v8::Object::GetCreationContextChecked() {
 namespace {
 V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
     i::DirectHandle<i::JSReceiver> object,
-    i::IsolateForSandbox i_isolate_for_sandbox, int index) {
+    i::IsolateForSandbox i_isolate_for_sandbox, int index,
+    EmbedderDataTypeTag tag) {
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
   auto maybe_context = object->GetCreationContext();
@@ -5214,10 +5200,10 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
   if (V8_LIKELY(static_cast<unsigned>(index) <
                 static_cast<unsigned>(data->length()))) {
     void* result;
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(data, index)
-            .DeprecatedToAlignedPointer(i_isolate_for_sandbox, &result),
-        location, "Pointer is not aligned");
+    Utils::ApiCheck(i::EmbedderDataSlot(data, index)
+                        .ToAlignedPointer(i_isolate_for_sandbox, &result,
+                                          ToExternalPointerTag(tag)),
+                    location, "Pointer is not aligned");
     return result;
   }
   // Bad index, report an API error.
@@ -5229,19 +5215,19 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
 }  // namespace
 
 void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
-    v8::Isolate* isolate, int index) {
+    v8::Isolate* isolate, int index, EmbedderDataTypeTag tag) {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, i_isolate,
-                                                                index);
+                                                                index, tag);
 }
 
 void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
-    int index) {
+    int index, EmbedderDataTypeTag tag) {
   auto self = Utils::OpenDirectHandle(this);
   i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
   return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, isolate,
-                                                                index);
+                                                                index, tag);
 }
 
 int v8::Object::GetIdentityHash() {
@@ -5706,212 +5692,9 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
-int String::Utf8Length(Isolate* v8_isolate) const {
-  auto str = Utils::OpenDirectHandle(this);
-  str = i::String::Flatten(reinterpret_cast<i::Isolate*>(v8_isolate), str);
-  int length = str->length();
-  if (length == 0) return 0;
-  i::DisallowGarbageCollection no_gc;
-  i::String::FlatContent flat = str->GetFlatContent(no_gc);
-  DCHECK(flat.IsFlat());
-  int utf8_length = 0;
-  if (flat.IsOneByte()) {
-    for (uint8_t c : flat.ToOneByteVector()) {
-      utf8_length += c >> 7;
-    }
-    utf8_length += length;
-  } else {
-    int last_character = unibrow::Utf16::kNoPreviousCharacter;
-    for (uint16_t c : flat.ToUC16Vector()) {
-      utf8_length += unibrow::Utf8::Length(c, last_character);
-      last_character = c;
-    }
-  }
-  return utf8_length;
-}
-
 size_t String::Utf8LengthV2(Isolate* v8_isolate) const {
   auto str = Utils::OpenDirectHandle(this);
   return i::String::Utf8Length(reinterpret_cast<i::Isolate*>(v8_isolate), str);
-}
-
-namespace {
-// Writes the flat content of a string to a buffer. This is done in two phases.
-// The first phase calculates a pessimistic estimate (writable_length) on how
-// many code units can be safely written without exceeding the buffer capacity
-// and without leaving at a lone surrogate. The estimated number of code units
-// is then written out in one go, and the reported byte usage is used to
-// correct the estimate. This is repeated until the estimate becomes <= 0 or
-// all code units have been written out. The second phase writes out code
-// units until the buffer capacity is reached, would be exceeded by the next
-// unit, or all code units have been written out.
-template <typename Char>
-static int WriteUtf8Impl(base::Vector<const Char> string, char* write_start,
-                         int write_capacity, int options,
-                         int* utf16_chars_read_out) {
-  bool write_null = !(options & v8::String::NO_NULL_TERMINATION);
-  bool replace_invalid_utf8 = (options & v8::String::REPLACE_INVALID_UTF8);
-  char* current_write = write_start;
-  const Char* read_start = string.begin();
-  int read_index = 0;
-  int read_length = string.length();
-  int prev_char = unibrow::Utf16::kNoPreviousCharacter;
-  // Do a fast loop where there is no exit capacity check.
-  // Need enough space to write everything but one character.
-  static_assert(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
-  static const int kMaxSizePerChar = sizeof(Char) == 1 ? 2 : 3;
-  while (read_index < read_length) {
-    int up_to = read_length;
-    if (write_capacity != -1) {
-      int remaining_capacity =
-          write_capacity - static_cast<int>(current_write - write_start);
-      int writable_length =
-          (remaining_capacity - kMaxSizePerChar) / kMaxSizePerChar;
-      // Need to drop into slow loop.
-      if (writable_length <= 0) break;
-      up_to = std::min(up_to, read_index + writable_length);
-    }
-    // Write the characters to the stream.
-    if (sizeof(Char) == 1) {
-      // Simply memcpy if we only have ASCII characters.
-      uint8_t char_mask = 0;
-      for (int i = read_index; i < up_to; i++) char_mask |= read_start[i];
-      if ((char_mask & 0x80) == 0) {
-        int copy_length = up_to - read_index;
-        memcpy(current_write, read_start + read_index, copy_length);
-        current_write += copy_length;
-        read_index = up_to;
-      } else {
-        for (; read_index < up_to; read_index++) {
-          current_write += unibrow::Utf8::EncodeOneByte(
-              current_write, static_cast<uint8_t>(read_start[read_index]));
-          DCHECK(write_capacity == -1 ||
-                 (current_write - write_start) <= write_capacity);
-        }
-      }
-    } else {
-      for (; read_index < up_to; read_index++) {
-        uint16_t character = read_start[read_index];
-        current_write += unibrow::Utf8::Encode(current_write, character,
-                                               prev_char, replace_invalid_utf8);
-        prev_char = character;
-        DCHECK(write_capacity == -1 ||
-               (current_write - write_start) <= write_capacity);
-      }
-    }
-  }
-  if (read_index < read_length) {
-    DCHECK_NE(-1, write_capacity);
-    // Aborted due to limited capacity. Check capacity on each iteration.
-    int remaining_capacity =
-        write_capacity - static_cast<int>(current_write - write_start);
-    DCHECK_GE(remaining_capacity, 0);
-    for (; read_index < read_length && remaining_capacity > 0; read_index++) {
-      uint32_t character = read_start[read_index];
-      int written = 0;
-      // We can't use a local buffer here because Encode needs to modify
-      // previous characters in the stream.  We know, however, that
-      // exactly one character will be advanced.
-      if (unibrow::Utf16::IsSurrogatePair(prev_char, character)) {
-        written = unibrow::Utf8::Encode(current_write, character, prev_char,
-                                        replace_invalid_utf8);
-        DCHECK_EQ(written, 1);
-      } else {
-        // Use a scratch buffer to check the required characters.
-        char temp_buffer[unibrow::Utf8::kMaxEncodedSize];
-        // Encoding a surrogate pair to Utf8 always takes 4 bytes.
-        static const int kSurrogatePairEncodedSize =
-            static_cast<int>(unibrow::Utf8::kMaxEncodedSize);
-        // For REPLACE_INVALID_UTF8, catch the case where we cut off in the
-        // middle of a surrogate pair. Abort before encoding the pair instead.
-        if (replace_invalid_utf8 &&
-            remaining_capacity < kSurrogatePairEncodedSize &&
-            unibrow::Utf16::IsLeadSurrogate(character) &&
-            read_index + 1 < read_length &&
-            unibrow::Utf16::IsTrailSurrogate(read_start[read_index + 1])) {
-          write_null = false;
-          break;
-        }
-        // Can't encode using prev_char as gcc has array bounds issues.
-        written = unibrow::Utf8::Encode(temp_buffer, character,
-                                        unibrow::Utf16::kNoPreviousCharacter,
-                                        replace_invalid_utf8);
-        if (written > remaining_capacity) {
-          // Won't fit. Abort and do not null-terminate the result.
-          write_null = false;
-          break;
-        }
-        // Copy over the character from temp_buffer.
-        for (int i = 0; i < written; i++) current_write[i] = temp_buffer[i];
-      }
-
-      current_write += written;
-      remaining_capacity -= written;
-      prev_char = character;
-    }
-  }
-
-  // Write out number of utf16 characters written to the stream.
-  if (utf16_chars_read_out != nullptr) *utf16_chars_read_out = read_index;
-
-  // Only null-terminate if there's space.
-  if (write_null && (write_capacity == -1 ||
-                     (current_write - write_start) < write_capacity)) {
-    *current_write++ = '\0';
-  }
-  return static_cast<int>(current_write - write_start);
-}
-}  // anonymous namespace
-
-int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
-                      int* nchars_ref, int options) const {
-  auto str = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_String_WriteUtf8);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  str = i::String::Flatten(i_isolate, str);
-  i::DisallowGarbageCollection no_gc;
-  i::String::FlatContent content = str->GetFlatContent(no_gc);
-  if (content.IsOneByte()) {
-    return WriteUtf8Impl<uint8_t>(content.ToOneByteVector(), buffer, capacity,
-                                  options, nchars_ref);
-  } else {
-    return WriteUtf8Impl<uint16_t>(content.ToUC16Vector(), buffer, capacity,
-                                   options, nchars_ref);
-  }
-}
-
-template <typename CharType>
-static inline int WriteHelper(i::Isolate* i_isolate, const String* string,
-                              CharType* buffer, int start, int length,
-                              int options) {
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_String_Write);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  DCHECK(start >= 0 && length >= -1);
-  auto str = Utils::OpenDirectHandle(string);
-  int end = start + length;
-  if ((length == -1) || (static_cast<uint32_t>(length) > str->length() - start))
-    end = str->length();
-  if (end < 0) return 0;
-  int write_length = end - start;
-  if (start < end) i::String::WriteToFlat(*str, buffer, start, write_length);
-  if (!(options & String::NO_NULL_TERMINATION) &&
-      (length == -1 || write_length < length)) {
-    buffer[write_length] = '\0';
-  }
-  return write_length;
-}
-
-int String::WriteOneByte(Isolate* v8_isolate, uint8_t* buffer, int start,
-                         int length, int options) const {
-  return WriteHelper(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer,
-                     start, length, options);
-}
-
-int String::Write(Isolate* v8_isolate, uint16_t* buffer, int start, int length,
-                  int options) const {
-  return WriteHelper(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer,
-                     start, length, options);
 }
 
 template <typename CharType>
@@ -5939,7 +5722,6 @@ void String::WriteV2(Isolate* v8_isolate, uint32_t offset, uint32_t length,
 
 void String::WriteOneByteV2(Isolate* v8_isolate, uint32_t offset,
                             uint32_t length, uint8_t* buffer, int flags) const {
-  DCHECK(IsOneByte());
   WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
                 length, flags);
 }
@@ -6266,28 +6048,29 @@ void v8::Object::SetInternalField(int index, v8::Local<Data> value) {
   i::Cast<i::JSObject>(obj)->SetEmbedderField(index, *val);
 }
 
-void* v8::Object::SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate,
-                                                         int index) {
+void* v8::Object::SlowGetAlignedPointerFromInternalField(
+    v8::Isolate* isolate, int index, EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
   Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .DeprecatedToAlignedPointer(
-                          reinterpret_cast<i::Isolate*>(isolate), &result),
+                      .ToAlignedPointer(reinterpret_cast<i::Isolate*>(isolate),
+                                        &result, ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
   return result;
 }
 
-void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
+void* v8::Object::SlowGetAlignedPointerFromInternalField(
+    int index, EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
-  Utils::ApiCheck(
-      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-          .DeprecatedToAlignedPointer(i::Isolate::Current(), &result),
-      location, "Unaligned pointer");
+  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                      .ToAlignedPointer(i::Isolate::Current(), &result,
+                                        ToExternalPointerTag(tag)),
+                  location, "Unaligned pointer");
   return result;
 }
 
@@ -6302,7 +6085,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
                       .store_aligned_pointer(i::Isolate::Current(), *obj, value,
                                              ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
-  DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
+  DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -6327,7 +6110,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
             .store_aligned_pointer(i::Isolate::Current(), *obj, value,
                                    ToExternalPointerTag(tag)),
         location, "Unaligned pointer");
-    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
+    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
   }
 }
 
@@ -7510,7 +7293,8 @@ void FunctionTemplate::SealAndPrepareForPromotionToReadOnly() {
                                                                 self);
 }
 
-Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
+Local<External> v8::External::New(Isolate* v8_isolate, void* value,
+                                  ExternalPointerTypeTag api_tag) {
   static_assert(sizeof(value) == sizeof(i::Address));
   // Nullptr is not allowed here because serialization/deserialization of
   // nullptr external api references is not possible as nullptr is used as an
@@ -7520,15 +7304,23 @@ Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_External_New);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  i::DirectHandle<i::JSObject> external =
-      i_isolate->factory()->NewExternal(value);
+  uint16_t tag_value = static_cast<uint16_t>(i::kFirstExternalTypeTag) +
+                       static_cast<uint16_t>(api_tag);
+  Utils::ApiCheck(tag_value <= i::kLastExternalTypeTag, "v8::External::New",
+                  "The provided tag is outside the allowed range");
+  i::DirectHandle<i::JSObject> external = i_isolate->factory()->NewExternal(
+      value, static_cast<i::ExternalPointerTag>(tag_value));
   return Utils::ExternalToLocal(external);
 }
 
-void* External::Value() const {
+void* External::Value(ExternalPointerTypeTag api_tag) const {
   i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
+  uint16_t tag_value = static_cast<uint16_t>(i::kFirstExternalTypeTag) +
+                       static_cast<uint16_t>(api_tag);
+  Utils::ApiCheck(tag_value <= i::kLastExternalTypeTag, "v8::External::Value",
+                  "The provided tag is outside the allowed range");
   return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))
-      ->value(isolate);
+      ->value(isolate, static_cast<i::ExternalPointerTag>(tag_value));
 }
 
 Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,
@@ -10866,7 +10658,6 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
   }
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
-CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback)
@@ -10909,6 +10700,22 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   i::WasmJs::InstallConditionalFeatures(i_isolate,
                                         Utils::OpenDirectHandle(*context));
 #endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+void Isolate::SetOOMErrorHandler(OOMErrorCallback callback) {
+  void* data = reinterpret_cast<void*>(callback);
+  SetOOMErrorHandler(
+      [](const char* location, const OOMDetails& details, void* data) {
+        reinterpret_cast<OOMErrorCallback>(data)(location, details);
+      },
+      data);
+}
+
+void Isolate::SetOOMErrorHandler(OOMErrorCallbackWithData callback,
+                                 void* data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->set_oom_behavior(callback);
+  i_isolate->set_oom_callback_data(data);
 }
 
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,

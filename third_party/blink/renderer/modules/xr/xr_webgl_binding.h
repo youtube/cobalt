@@ -9,6 +9,8 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
 #include "third_party/blink/renderer/modules/xr/xr_graphics_binding.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/xr_webgl_frame_transport_delegate.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 
 namespace blink {
 
@@ -83,6 +85,8 @@ class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
 
   WebGLRenderingContextBase* context() const { return webgl_context_.Get(); }
 
+  XRFrameTransportDelegate* GetTransportDelegate();
+
   void Trace(Visitor*) const override;
 
  private:
@@ -98,11 +102,14 @@ class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
   GLenum InternalFormatForLayerFormat(GLenum format);
   GLenum TypeForLayerFormat(GLenum format);
 
+  XRWebGLSwapChain* CreateColorSwapchain(GLenum layer_format,
+                                         gfx::Size layer_size);
   XRWebGLSwapChain* GetSwapchainForLayer(XRCompositionLayer* layer);
 
   Member<WebGLRenderingContextBase> webgl_context_;
-
   bool webgl2_;
+
+  Member<XRWebGLFrameTransportDelegate> transport_delegate_;
 };
 
 }  // namespace blink

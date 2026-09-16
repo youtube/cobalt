@@ -115,38 +115,35 @@ TEST_F(ChromeDataExchangeDelegateTest, GetDataTransferEndpointType) {
   // delegate and app type set, but use the child window in tests. Arc:
   aura::Window* arc_toplevel =
       aura::test::CreateTestWindow(
-          {.delegate = &delegate_, .parent = &container_window, .bounds = {}})
+          {.delegate = &delegate_, .parent = &container_window})
           .release();
   arc_toplevel->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::ARC_APP);
   ASSERT_TRUE(IsArcWindow(arc_toplevel));
   aura::Window* arc_window =
-      aura::test::CreateTestWindow({.parent = arc_toplevel, .bounds = {}})
-          .release();
+      aura::test::CreateTestWindow({.parent = arc_toplevel}).release();
   ASSERT_TRUE(IsArcWindow(arc_window->GetToplevelWindow()));
 
   // Crostini:
   aura::Window* crostini_toplevel =
       aura::test::CreateTestWindow(
-          {.delegate = &delegate_, .parent = &container_window, .bounds = {}})
+          {.delegate = &delegate_, .parent = &container_window})
           .release();
   crostini_toplevel->SetProperty(chromeos::kAppTypeKey,
                                  chromeos::AppType::CROSTINI_APP);
   ASSERT_TRUE(crostini::IsCrostiniWindow(crostini_toplevel));
   aura::Window* crostini_window =
-      aura::test::CreateTestWindow({.parent = crostini_toplevel, .bounds = {}})
-          .release();
+      aura::test::CreateTestWindow({.parent = crostini_toplevel}).release();
   ASSERT_TRUE(crostini::IsCrostiniWindow(crostini_window->GetToplevelWindow()));
 
   // Plugin VM:
   aura::Window* plugin_vm_toplevel =
       aura::test::CreateTestWindow(
-          {.delegate = &delegate_, .parent = &container_window, .bounds = {}})
+          {.delegate = &delegate_, .parent = &container_window})
           .release();
   exo::SetShellApplicationId(plugin_vm_toplevel, "org.chromium.plugin_vm_ui");
   ASSERT_TRUE(plugin_vm::IsPluginVmAppWindow(plugin_vm_toplevel));
   aura::Window* plugin_vm_window =
-      aura::test::CreateTestWindow({.parent = plugin_vm_toplevel, .bounds = {}})
-          .release();
+      aura::test::CreateTestWindow({.parent = plugin_vm_toplevel}).release();
   ASSERT_TRUE(
       plugin_vm::IsPluginVmAppWindow(plugin_vm_window->GetToplevelWindow()));
 

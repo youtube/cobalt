@@ -58,8 +58,7 @@ class LRURendererCache {
   void SetFactoryForTesting(RendererPrelauncherFactory* factory);
 
   void StartNextPrelauncher(const GURL& page_url);
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(base::MemoryPressureLevel memory_pressure_level);
 
   // Evict pre-launched renderers so that the total number of in-use and cached
   // renderers doesn't exceed |max_renderers_|.
@@ -69,7 +68,8 @@ class LRURendererCache {
   const size_t max_renderers_;
   size_t in_use_count_;
   std::list<std::unique_ptr<RendererPrelauncher>> cache_;
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   RendererPrelauncherFactory* factory_for_testing_ = nullptr;
 

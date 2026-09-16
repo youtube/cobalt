@@ -11,14 +11,14 @@ import {sanitizeInnerHtml} from '//resources/js/parse_html_subset.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
-import type {ACMatchClassification, Action, AutocompleteMatch, OmniboxPopupSelection, PageHandlerInterface, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {SelectionLineState} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {ACMatchClassification, AutocompleteMatch, OmniboxPopupSelection, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {SelectionLineState, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
-import {SearchboxBrowserProxy} from './searchbox_browser_proxy.js';
+import {createAutocompleteMatch, SearchboxBrowserProxy} from './searchbox_browser_proxy.js';
 import type {SearchboxIconElement} from './searchbox_icon.js';
 import {getCss} from './searchbox_match.css.js';
 import {getHtml} from './searchbox_match.html.js';
-import {decodeString16, mojoTimeTicks} from './utils.js';
+import {mojoTimeTicks} from './utils.js';
 
 
 
@@ -42,7 +42,6 @@ type ActionEvent = CustomEvent<{
   event: MouseEvent | KeyboardEvent,
   actionIndex: number,
 }>;
-
 
 export interface SearchboxMatchElement {
   $: {
@@ -76,10 +75,7 @@ export class SearchboxMatchElement extends CrLitElement {
       //========================================================================
 
       /** Element's 'aria-label' attribute. */
-      ariaLabel: {
-        type: String,
-        reflect: true,
-      },
+      ariaLabel: {type: String},
 
       hasAction: {
         type: Boolean,
@@ -113,6 +109,8 @@ export class SearchboxMatchElement extends CrLitElement {
 
       match: {type: Object},
 
+      selection: {type: Object},
+
       /**
        * Index of the match in the autocomplete result. Used to inform embedder
        * of events such as deletion, click, etc.
@@ -130,6 +128,11 @@ export class SearchboxMatchElement extends CrLitElement {
       //========================================================================
       // Private properties
       //========================================================================
+
+      isTopChromeSearchbox_: {
+        type: Boolean,
+        reflect: true,
+      },
 
       isLensSearchbox_: {
         type: Boolean,
@@ -162,29 +165,38 @@ export class SearchboxMatchElement extends CrLitElement {
     };
   }
 
-  override accessor ariaLabel: string;
-  accessor hasAction: boolean;
-  accessor hasImage: boolean;
-  accessor isEntitySuggestion: boolean;
-  accessor isRichSuggestion: boolean;
-  accessor match: AutocompleteMatch;
+  override accessor ariaLabel: string = '';
+  accessor hasAction: boolean = false;
+  accessor hasImage: boolean = false;
+  accessor isEntitySuggestion: boolean = false;
+  accessor isRichSuggestion: boolean = false;
+  accessor match: AutocompleteMatch = createAutocompleteMatch();
+  accessor selection: OmniboxPopupSelection = {
+    line: -1,
+    state: SelectionLineState.kNormal,
+    actionIndex: 0,
+  };
   accessor matchIndex: number = -1;
-  accessor sideType: SideType;
-  accessor showThumbnail: boolean;
-  accessor showEllipsis: boolean;
+  accessor sideType: SideType = SideType.kDefaultPrimary;
+  accessor showThumbnail: boolean = false;
+  accessor showEllipsis: boolean = false;
+  private accessor isTopChromeSearchbox_: boolean =
+      loadTimeData.getBoolean('isTopChromeSearchbox');
   private accessor isLensSearchbox_: boolean =
       loadTimeData.getBoolean('isLensSearchbox');
   private accessor forceHideEllipsis_: boolean =
       loadTimeData.getBoolean('forceHideEllipsis');
-  protected accessor contentsHtml_: TrustedHTML;
-  protected accessor descriptionHtml_: TrustedHTML;
-  private accessor enableCsbMotionTweaks_: boolean =
+  protected accessor contentsHtml_: TrustedHTML =
+      window.trustedTypes!.emptyHTML;
+  protected accessor descriptionHtml_: TrustedHTML =
+      window.trustedTypes!.emptyHTML;
+  protected accessor enableCsbMotionTweaks_: boolean =
       loadTimeData.getBoolean('enableCsbMotionTweaks');
-  protected accessor removeButtonAriaLabel_: string;
+  protected accessor removeButtonAriaLabel_: string = '';
   protected accessor removeButtonTitle_: string =
       loadTimeData.getString('removeSuggestion');
-  protected accessor separatorText_: string;
-  protected accessor tailSuggestPrefix_: string;
+  protected accessor separatorText_: string = '';
+  protected accessor tailSuggestPrefix_: string = '';
 
   private pageHandler_: PageHandlerInterface;
 
@@ -255,7 +267,13 @@ export class SearchboxMatchElement extends CrLitElement {
         /* are_matches_showing */ true, e.button || 0, e.altKey, e.ctrlKey,
         e.metaKey, e.shiftKey);
 
-    this.fire('match-click');
+    // Duplicates the logic in `ui::DispositionFromClick()`.
+    const backgroundTab = (e.metaKey || e.ctrlKey) && e.shiftKey;
+    // 'match-click' event is used to close the dropdown. Don't do so when
+    // opening a background tab so users can open multiple matches.
+    if (!backgroundTab) {
+      this.fire('match-click');
+    }
   }
 
   private onMatchFocusin_() {
@@ -289,19 +307,11 @@ export class SearchboxMatchElement extends CrLitElement {
   // Helpers
   //============================================================================
 
-  /**
-   * @returns Index of the action in the autocomplete match. Passed to the
-   *     action so it knows its position in the list of actions.
-   */
-  protected actionIndex_(action: Action): number {
-    return this.match?.actions?.indexOf(action) ?? -1;
-  }
-
   private computeAriaLabel_(): string {
     if (!this.match) {
       return '';
     }
-    return decodeString16(this.match.a11yLabel);
+    return this.match.a11yLabel;
   }
 
   private sanitizeInnerHtml_(html: string): TrustedHTML {
@@ -312,24 +322,17 @@ export class SearchboxMatchElement extends CrLitElement {
     if (!this.match) {
       return window.trustedTypes!.emptyHTML;
     }
-    const match = this.match;
     // `match.answer.firstLine` is generated by appending an optional additional
     // text from the answer's first line to `match.contents`, making the latter
     // a prefix of the former. Thus `match.answer.firstLine` can be rendered
     // using the markup in `match.contentsClass` which contains positions in
     // `match.contents` and the markup to be applied to those positions.
     // See //chrome/browser/ui/webui/searchbox/searchbox_handler.cc
-    const matchContents =
-        match.answer ? match.answer.firstLine : match.contents;
-    return match.swapContentsAndDescription ?
-        this.sanitizeInnerHtml_(
-            this.renderTextWithClassifications_(
-                    decodeString16(match.description), match.descriptionClass)
-                .innerHTML) :
-        this.sanitizeInnerHtml_(
-            this.renderTextWithClassifications_(
-                    decodeString16(matchContents), match.contentsClass)
-                .innerHTML);
+    return this.sanitizeInnerHtml_(
+        this.renderTextWithClassifications_(
+                this.getMatchContents_(),
+                this.getMatchContentsClassifications_())
+            .innerHTML);
   }
 
   private computeDescriptionHtml_(): TrustedHTML {
@@ -338,34 +341,17 @@ export class SearchboxMatchElement extends CrLitElement {
     }
     const match = this.match;
     if (match.answer) {
-      return this.sanitizeInnerHtml_(decodeString16(match.answer.secondLine));
+      return this.sanitizeInnerHtml_(this.getMatchDescription_());
     }
-    return match.swapContentsAndDescription ?
-        this.sanitizeInnerHtml_(
-            this.renderTextWithClassifications_(
-                    decodeString16(match.contents), match.contentsClass)
-                .innerHTML) :
-        this.sanitizeInnerHtml_(
-            this.renderTextWithClassifications_(
-                    decodeString16(match.description), match.descriptionClass)
-                .innerHTML);
+    return this.sanitizeInnerHtml_(
+        this.renderTextWithClassifications_(
+                this.getMatchDescription_(),
+                this.getMatchDescriptionClassifications_())
+            .innerHTML);
   }
 
   private computeHasAction_() {
     return this.match?.actions?.length > 0;
-  }
-
-  private computeTailSuggestPrefix_(): string {
-    if (!this.match || !this.match.tailSuggestCommonPrefix) {
-      return '';
-    }
-    const prefix = decodeString16(this.match.tailSuggestCommonPrefix);
-    // Replace last space with non breaking space since spans collapse
-    // trailing white spaces and the prefix always ends with a white space.
-    if (prefix.slice(-1) === ' ') {
-      return prefix.slice(0, -1) + '\u00A0';
-    }
-    return prefix;
   }
 
   private computeHasImage_(): boolean {
@@ -377,24 +363,36 @@ export class SearchboxMatchElement extends CrLitElement {
   }
 
   private computeIsRichSuggestion_(): boolean {
-    return this.match && this.match.isRichSuggestion;
+    // When the searchbox is embedded in the top-chrome (i.e. Omnibox), all
+    // suggestions should be rendered using a one-line layout.
+    return !this.isTopChromeSearchbox_ && this.match &&
+        this.match.isRichSuggestion;
   }
 
   private computeRemoveButtonAriaLabel_(): string {
     if (!this.match) {
       return '';
     }
-    return decodeString16(this.match.removeButtonA11yLabel);
+    return this.match.removeButtonA11yLabel;
   }
 
   private computeSeparatorText_(): string {
-    return this.match &&
-            decodeString16(
-                this.match.swapContentsAndDescription ?
-                    this.match.contents :
-                    this.match.description) ?
+    return this.getMatchDescription_() ?
         loadTimeData.getString('searchboxSeparator') :
         '';
+  }
+
+  private computeTailSuggestPrefix_(): string {
+    if (!this.match || !this.match.tailSuggestCommonPrefix) {
+      return '';
+    }
+    const prefix = this.match.tailSuggestCommonPrefix;
+    // Replace last space with non breaking space since spans collapse
+    // trailing white spaces and the prefix always ends with a white space.
+    if (prefix.slice(-1) === ' ') {
+      return prefix.slice(0, -1) + '\u00A0';
+    }
+    return prefix;
   }
 
   private computeShowEllipsis_(): boolean {
@@ -405,7 +403,7 @@ export class SearchboxMatchElement extends CrLitElement {
   }
 
   /**
-   * Decodes the AcMatchClassificationStyle enteries encoded in the given
+   * Decodes the AcMatchClassificationStyle entries encoded in the given
    * ACMatchClassification style field, maps each entry to a CSS
    * class and returns them.
    */
@@ -453,25 +451,80 @@ export class SearchboxMatchElement extends CrLitElement {
         }, document.createElement('span'));
   }
 
-  updateSelection(selection: OmniboxPopupSelection) {
-    this.$['focus-indicator'].classList.toggle(
-        'selected-within',
-        selection.state !== SelectionLineState.kNormal &&
-            selection.line === this.matchIndex);
+  private getMatchContents_(): string {
+    if (!this.match) {
+      return '';
+    }
 
-    this.$.remove.classList.toggle(
-        'selected',
-        selection.state === SelectionLineState.kFocusedButtonRemoveSuggestion &&
-            selection.line === this.matchIndex);
+    const match = this.match;
+    const matchContents =
+        match.answer ? match.answer.firstLine : match.contents;
+    const matchDescription =
+        match.answer ? match.answer.secondLine : match.description;
 
-    [...this.shadowRoot.querySelectorAll('cr-searchbox-action')].forEach(
-        (action, index) => {
-          action.classList.toggle(
-              'selected',
-              selection.state === SelectionLineState.kFocusedButtonAction &&
-                  selection.actionIndex === index &&
-                  selection.line === this.matchIndex);
-        });
+    return match.swapContentsAndDescription ? matchDescription : matchContents;
+  }
+
+  private getMatchDescription_(): string {
+    if (!this.match) {
+      return '';
+    }
+
+    const match = this.match;
+    const matchContents =
+        match.answer ? match.answer.firstLine : match.contents;
+    const matchDescription =
+        match.answer ? match.answer.secondLine : match.description;
+
+    return match.swapContentsAndDescription ? matchContents : matchDescription;
+  }
+
+  private getMatchContentsClassifications_(): ACMatchClassification[] {
+    if (!this.match) {
+      return [];
+    }
+    const match = this.match;
+    return match.swapContentsAndDescription ? match.descriptionClass :
+                                              match.contentsClass;
+  }
+
+  private getMatchDescriptionClassifications_(): ACMatchClassification[] {
+    if (!this.match) {
+      return [];
+    }
+    const match = this.match;
+    return match.swapContentsAndDescription ? match.contentsClass :
+                                              match.descriptionClass;
+  }
+
+  protected getFocusIndicatorCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state !== SelectionLineState.kNormal ?
+        'selected-within' :
+        '';
+  }
+
+  protected getKeywordCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state === SelectionLineState.kKeywordMode ?
+        'selected' :
+        '';
+  }
+
+  protected getActionCssClass_(actionIndex: number): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state === SelectionLineState.kFocusedButtonAction &&
+            this.selection.actionIndex === actionIndex ?
+        'selected' :
+        '';
+  }
+
+  protected getRemoveCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state ===
+                SelectionLineState.kFocusedButtonRemoveSuggestion ?
+        'selected' :
+        '';
   }
 }
 

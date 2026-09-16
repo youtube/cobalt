@@ -30,12 +30,14 @@
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/grit/branded_strings.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace {
@@ -137,12 +139,16 @@ void LensSearchController::OpenLensOverlay(
     lens::LensOverlayInvocationSource invocation_source) {
   CheckInitialized(initialized_);
 
+  // The overlay can only be reinvoked if the feature is enabled.
+  const bool allow_reinvoking_overlay =
+      lens::features::GetEnableLensButtonInSearchbox() || IsOff();
   // If the eligibility checks fail, do not procced with opening any UI.
-  if (!IsOff() || !RunLensEligibilityChecks(
-                      invocation_source,
-                      /*permission_granted_callback=*/base::BindRepeating(
-                          &LensSearchController::OpenLensOverlay,
-                          weak_ptr_factory_.GetWeakPtr(), invocation_source))) {
+  if (!allow_reinvoking_overlay ||
+      !RunLensEligibilityChecks(
+          invocation_source,
+          /*permission_granted_callback=*/base::BindRepeating(
+              &LensSearchController::OpenLensOverlay,
+              weak_ptr_factory_.GetWeakPtr(), invocation_source))) {
     return;
   }
 
@@ -161,9 +167,14 @@ void LensSearchController::OpenLensOverlay(
     return;
   }
 
+  if (lens::features::IsLensSearchZeroStateCsbEnabled() && IsOff()) {
+    IssueZeroStateRequest(invocation_source);
+    return;
+  }
+
   // If the overlay is already active, don't start a new session. This can
   // happen if the side panel is open and the user reinvokes the overlay.
-  if (!lens_overlay_controller_->IsOverlayActive()) {
+  if (IsOff()) {
     // Setup all state necessary for this Lens session.
     StartLensSession(invocation_source);
   }
@@ -206,6 +217,24 @@ void LensSearchController::OpenLensOverlayWithPendingRegion(
   lens_overlay_controller_->ShowUIWithPendingRegion(
       lens_overlay_query_controller_.get(), invocation_source,
       std::move(region), region_bitmap);
+}
+
+void LensSearchController::OpenLensOverlayInCurrentSession() {
+  if (IsOff() || lens_overlay_controller_->IsOverlayShowing()) {
+    return;
+  }
+
+  // If the overlay was already initialized, but hidden, reshow the overlay.
+  if (lens_overlay_controller_->state() ==
+      LensOverlayController::State::kHidden) {
+    lens_overlay_controller_->ReshowOverlay();
+    return;
+  }
+
+  // Otherwise, the overlay must be fully closed. Open the overlay as normal.
+  lens_overlay_controller_->ShowUI(
+      lens_session_metrics_logger_->GetInvocationSource(),
+      lens_overlay_query_controller_.get());
 }
 
 void LensSearchController::StartContextualization(
@@ -278,6 +307,31 @@ void LensSearchController::IssueTextSearchRequest(
       query_text, additional_query_parameters,
       lens_overlay_query_controller_.get(), match_type,
       is_zero_prefix_suggestion, invocation_source);
+}
+
+void LensSearchController::IssueZeroStateRequest(
+    lens::LensOverlayInvocationSource invocation_source) {
+  CheckInitialized(initialized_);
+  if (!RunLensEligibilityChecks(
+          invocation_source,
+          base::BindRepeating(&LensSearchController::IssueZeroStateRequest,
+                              weak_ptr_factory_.GetWeakPtr(),
+                              invocation_source))) {
+    return;
+  }
+
+  auto query_start_time = base::Time::Now();
+  if (IsOff()) {
+    StartLensSession(invocation_source);
+  }
+
+  lens_contextualization_controller_->StartContextualization(
+      invocation_source,
+      base::BindOnce(
+          &LensSearchController::OnPageContextUpdatedForZeroStateRequest,
+          weak_ptr_factory_.GetWeakPtr(), invocation_source, query_start_time));
+  // Show the side panel right away so the ghost loader is shown.
+  lens_overlay_side_panel_coordinator()->RegisterEntryAndShow();
 }
 
 void LensSearchController::CloseLensAsync(
@@ -389,6 +443,13 @@ void LensSearchController::MaybeLaunchSurvey() {
 
 bool LensSearchController::IsActive() {
   return state_ == State::kActive;
+}
+
+bool LensSearchController::IsShowingUI() {
+  CHECK(lens_overlay_controller_);
+  CHECK(lens_overlay_side_panel_coordinator_);
+  return lens_overlay_controller_->IsOverlayShowing() ||
+         lens_overlay_side_panel_coordinator_->IsEntryShowing();
 }
 
 bool LensSearchController::IsOff() {
@@ -766,10 +827,9 @@ void LensSearchController::TabWillEnterBackground(tabs::TabInterface* tab) {
     return;
   }
 
-  // If the overlay is not active when the tab is backgrounded, then the entire
-  // Lens session should be closed. Note that the overlay is considered active
-  // when it is hidden and the side panel is open.
-  if (!lens_overlay_controller_->IsOverlayActive()) {
+  // If no Lens UI is showing when the tab is backgrounded, then the entire Lens
+  // session should be closed.
+  if (!IsShowingUI()) {
     CloseLensSync(
         lens::LensOverlayDismissalSource::kTabBackgroundedWhileScreenshotting);
     return;
@@ -803,5 +863,25 @@ void LensSearchController::WillDetach(tabs::TabInterface* tab,
     case tabs::TabInterface::DetachReason::kInsertIntoOtherWindow:
       CloseLensSync(lens::LensOverlayDismissalSource::kTabDragNewWindow);
       return;
+  }
+}
+
+void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
+    lens::LensOverlayInvocationSource invocation_source,
+    base::Time query_start_time) {
+  lens_searchbox_controller()->SetSearchboxInputText(std::string());
+  if (lens_search_contextualization_controller()
+          ->GetCurrentPageContextEligibility()) {
+    // Create a region that consists of the entire viewport.
+    auto full_viewport_region = lens::mojom::CenterRotatedBox::New();
+    full_viewport_region->box = gfx::RectF(/*x=*/0.5, /*y=*/0.5, /*width=*/1.0, /*height=*/1.0);
+    full_viewport_region->coordinate_type =
+        lens::mojom::CenterRotatedBox_CoordinateType::kNormalized;
+
+    lens_overlay_query_controller()->SendRegionSearch(
+        query_start_time, std::move(full_viewport_region),
+        lens::LensOverlaySelectionType::REGION_SEARCH,
+        /*additional_search_query_params=*/std::map<std::string, std::string>(),
+        /*region_bytes=*/std::nullopt);
   }
 }

@@ -207,11 +207,13 @@ class PLATFORM_EXPORT Resource : public GarbageCollected<Resource>,
   // - `first` is the priority with the fix of https://crbug.com/1369823.
   // - `second` is the priority without the fix, ignoring the priority from
   //   ImageLoader.
-  virtual std::pair<ResourcePriority, ResourcePriority> PriorityFromObservers()
-      const {
-    return std::make_pair(ResourcePriority(), ResourcePriority());
+  virtual std::pair<std::optional<ResourcePriority>,
+                    std::optional<ResourcePriority>>
+  PriorityFromObservers() const {
+    return std::make_pair(std::nullopt, std::nullopt);
   }
 
+  virtual bool HasNonDegenerateContentSize() const { return false; }
   virtual bool IsAboveSpeculativeDecodeSizeThreshold() const { return false; }
 
   // If this Resource is already finished when AddClient is called, the

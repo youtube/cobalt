@@ -27,6 +27,10 @@
 #include "pdf/mojom/pdf.mojom.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
+namespace viz {
+struct CopyOutputBitmapWithMetadata;
+}  // namespace viz
+
 namespace optimization_guide {
 struct AIPageContentResult;
 }  // namespace optimization_guide
@@ -83,7 +87,7 @@ class TabContextualizationController : public content::WebContentsObserver {
 
   // Captures a screenshot of the current tab's viewport, downscales it if
   // necessary, and calls the callback with the screenshot.
-  void CaptureScreenshot(
+  virtual void CaptureScreenshot(
       std::optional<lens::ImageEncodingOptions> image_options,
       CaptureScreenshotCallback callback);
 
@@ -144,7 +148,7 @@ class TabContextualizationController : public content::WebContentsObserver {
       base::ScopedClosureRunner decrement_capturer_count_runner,
       std::optional<lens::ImageEncodingOptions> image_options,
       CaptureScreenshotCallback callback,
-      const SkBitmap& screenshot);
+      const viz::CopyOutputBitmapWithMetadata& result);
 
   // Called when screenshot is captured. Calls the callback with the supplied
   // contextual input data including the screenshot.

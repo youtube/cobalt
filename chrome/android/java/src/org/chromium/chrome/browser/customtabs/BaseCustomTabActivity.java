@@ -30,6 +30,7 @@ import androidx.annotation.Nullable;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.TrustedWebUtils;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
@@ -304,7 +305,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @Override
     public void setContentView(int layoutResID) {
-        if (WebAppHeaderUtils.isMinimalUiEnabled(mIntentDataProvider)) {
+        if (WebAppHeaderUtils.isWebAppHeaderEnabled(mIntentDataProvider)) {
             final View rootLayout =
                     getLayoutInflater().inflate(WebAppHeaderUtils.getWebAppHeaderLayoutId(), null);
             final LinearLayout linearLayout =
@@ -318,7 +319,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @Override
     public void setContentView(View view) {
-        if (WebAppHeaderUtils.isMinimalUiEnabled(mIntentDataProvider)) {
+        if (WebAppHeaderUtils.isWebAppHeaderEnabled(mIntentDataProvider)) {
             final View rootLayout =
                     getLayoutInflater().inflate(WebAppHeaderUtils.getWebAppHeaderLayoutId(), null);
             final LinearLayout linearLayout =
@@ -332,7 +333,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @Override
     public void setContentView(View view, ViewGroup.LayoutParams params) {
-        if (WebAppHeaderUtils.isMinimalUiEnabled(mIntentDataProvider)) {
+        if (WebAppHeaderUtils.isWebAppHeaderEnabled(mIntentDataProvider)) {
             final View rootLayout =
                     getLayoutInflater().inflate(WebAppHeaderUtils.getWebAppHeaderLayoutId(), null);
             rootLayout.setLayoutParams(params);
@@ -502,7 +503,10 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     }
 
     @Override
-    protected void onPreCreate() {
+    public void performPreInflationStartup() {
+        // This must be requested before adding content.
+        supportRequestWindowFeature(Window.FEATURE_ACTION_MODE_OVERLAY);
+
         // Parse the data from the Intent before calling super to allow the Intent to customize
         // the Activity parameters, including the background of the page.
         // Note that color scheme is fixed for the lifetime of Activity: if the system setting
@@ -515,14 +519,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             this.finishAndRemoveTask();
             return;
         }
-
-        super.onPreCreate();
-    }
-
-    @Override
-    public void performPreInflationStartup() {
-        // This must be requested before adding content.
-        supportRequestWindowFeature(Window.FEATURE_ACTION_MODE_OVERLAY);
 
         InstalledWebappDataRegister.prefetchPreferences();
 
@@ -1011,6 +1007,11 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     @Override
     public void finish() {
         super.finish();
+
+        // Calling #overridePendingTransition() is known to cause the device to freeze on
+        // automotive. See crbug.com/445873259.
+        if (DeviceInfo.isAutomotive()) return;
+
         BrowserServicesIntentDataProvider intentDataProvider = getIntentDataProvider();
         if (intentDataProvider != null && intentDataProvider.shouldAnimateOnFinish()) {
             mShouldOverridePackage = true;
@@ -1396,6 +1397,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                             getAuthTabVerifier(),
                             getBrowserControlsManager(),
                             this::isShowingWebAppHeaderButtons,
+                            this::isShowingHeaderAsOverlay,
                             mRootUiCoordinator.getExclusiveAccessManager());
         }
         return mDelegateFactory;
@@ -1521,7 +1523,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private AppHeaderCoordinator getAppHeaderCoordinator() {
-        if (!WebAppHeaderUtils.isMinimalUiEnabled(getIntentDataProvider())) return null;
+        if (!WebAppHeaderUtils.isWebAppHeaderEnabled(getIntentDataProvider())) return null;
         if (mAppHeaderCoordinator != null) return mAppHeaderCoordinator;
 
         mAppHeaderCoordinator =
@@ -1532,7 +1534,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getInsetObserver(),
                         getLifecycleDispatcher(),
                         getSavedInstanceState(),
-                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider());
+                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider(),
+                        /* minHeightPx= */ 0);
 
         return mAppHeaderCoordinator;
     }
@@ -1570,5 +1573,17 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             return false;
         }
         return webAppHeaderLayoutCoordinator.isShowingButtons();
+    }
+
+    private boolean isShowingHeaderAsOverlay() {
+        if (!WebAppHeaderUtils.isWindowControlsOverlayEnabled(getIntentDataProvider())) {
+            return false;
+        }
+
+        if (mBaseCustomTabRootUiCoordinator.getWebAppHeaderLayoutCoordinator() == null) {
+            return false;
+        }
+
+        return mBaseCustomTabRootUiCoordinator.isShowingHeaderAsOverlay();
     }
 }

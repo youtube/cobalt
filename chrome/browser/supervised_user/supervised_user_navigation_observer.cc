@@ -295,7 +295,7 @@ void SupervisedUserNavigationObserver::OnRequestBlockedInternal(
       /*hidden=*/false, history::SOURCE_BROWSED,
       history::VisitResponseCodeCategory::kNot404,
       /*did_replace_entry=*/false, /*consider_for_ntp_most_visited=*/true,
-      /*is_ephemeral=*/false,
+      history::VisitContextEphemerality::kNotEphemeral,
       /*title=*/std::nullopt,
       // TODO(crbug.com/40279734): Investigate whether we want to record blocked
       // navigations in the VisitedLinkDatabase, and if so, populate
@@ -380,7 +380,7 @@ void SupervisedUserNavigationObserver::MaybeShowInterstitial(
           reason);
   supervised_user_interstitials_[frame_id] = std::move(interstitial);
 
-  bool already_requested = base::Contains(requested_hosts_, url.host());
+  bool already_requested = base::Contains(requested_hosts_, url.GetHost());
   bool is_main_frame =
       frame_id == web_contents()->GetPrimaryMainFrame()->GetFrameTreeNodeId();
 
@@ -437,7 +437,7 @@ void SupervisedUserNavigationObserver::RequestUrlAccessRemote(
   interstitial->RequestUrlAccessRemote(
       base::BindOnce(&SupervisedUserNavigationObserver::RequestCreated,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                     interstitial->url().host()));
+                     interstitial->url().GetHost()));
 }
 
 void SupervisedUserNavigationObserver::RequestUrlAccessLocal(

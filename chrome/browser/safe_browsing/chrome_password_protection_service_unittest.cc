@@ -1301,10 +1301,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
 
 TEST_F(ChromePasswordProtectionServiceTest,
        VerifyOnPolicySpecifiedPasswordChangedEvent) {
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitAndEnableFeature(
-      enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid);
-#else
+#if !BUILDFLAG(IS_ANDROID)
   TestExtensionEventObserver event_observer(test_event_router_);
 #endif
 
@@ -1345,10 +1342,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
 TEST_F(
     ChromePasswordProtectionServiceTest,
     VerifyTriggerOnPolicySpecifiedPasswordReuseDetectedForEnterprisePasswordWithAlertMode) {
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitAndEnableFeature(
-      enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid);
-#else
+#if !BUILDFLAG(IS_ANDROID)
   TestExtensionEventObserver event_observer(test_event_router_);
 #endif
 
@@ -1374,10 +1368,7 @@ TEST_F(
 TEST_F(
     ChromePasswordProtectionServiceTest,
     VerifyTriggerOnPolicySpecifiedPasswordReuseDetectedForEnterprisePasswordOnChromeExtension) {
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitAndEnableFeature(
-      enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid);
-#else
+#if !BUILDFLAG(IS_ANDROID)
   TestExtensionEventObserver event_observer(test_event_router_);
 #endif
 
@@ -1401,10 +1392,7 @@ TEST_F(
 
 TEST_F(ChromePasswordProtectionServiceTest,
        VerifyTriggerOnPolicySpecifiedPasswordReuseDetectedForGsuiteUser) {
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitAndEnableFeature(
-      enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid);
-#else
+#if !BUILDFLAG(IS_ANDROID)
   TestExtensionEventObserver event_observer(test_event_router_);
 #endif
 
@@ -1523,10 +1511,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
 
 TEST_F(ChromePasswordProtectionServiceTest,
        VerifyTriggerOnPolicySpecifiedPasswordReuseDetectedForGmailUser) {
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitAndEnableFeature(
-      enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid);
-#else
+#if !BUILDFLAG(IS_ANDROID)
   TestExtensionEventObserver event_observer(test_event_router_);
 #endif
   // If user is a Gmail user and enterprise password is used, event should be
@@ -1692,7 +1677,7 @@ TEST_F(ChromePasswordProtectionServiceTest, VerifyCanShowInterstitial) {
 
   // Add |trigger_url| to enterprise allowlist.
   base::Value::List allowlisted_domains;
-  allowlisted_domains.Append(trigger_url.host());
+  allowlisted_domains.Append(trigger_url.GetHost());
   profile()->GetPrefs()->SetList(prefs::kSafeBrowsingAllowlistDomains,
                                  std::move(allowlisted_domains));
   reused_password_type.set_account_type(

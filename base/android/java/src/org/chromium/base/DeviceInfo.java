@@ -7,7 +7,9 @@ package org.chromium.base;
 import static android.content.Context.UI_MODE_SERVICE;
 
 import android.app.UiModeManager;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -15,6 +17,7 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Process;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
 
 import androidx.annotation.GuardedBy;
@@ -42,8 +45,11 @@ public final class DeviceInfo {
     private static @Nullable String sGmsVersionCodeForTesting;
     private static @Nullable Boolean sIsAutomotiveForTesting;
     private static boolean sInitialized;
-    private static boolean sIsXrForTesting;
+    private static @Nullable Boolean sIsXrForTesting;
+    private static @Nullable Boolean sIsRetailDemoModeForTesting;
     private final IDeviceInfo mIDeviceInfo;
+    private @Nullable Boolean mIsRetailDemoMode;
+    private @Nullable ApplicationInfo mGmsAppInfo;
 
     // This is the minimum width in DP that defines a large display device
     public static final int LARGE_DISPLAY_MIN_SCREEN_WIDTH_600_DP = 600;
@@ -72,7 +78,7 @@ public final class DeviceInfo {
                         /* isFoldable= */ info.isFoldable,
                         /* isDesktop= */ info.isDesktop,
                         /* vulkanDeqpLevel= */ info.vulkanDeqpLevel,
-                        /* isXr= */ sIsXrForTesting ? true : info.isXr,
+                        /* isXr= */ (sIsXrForTesting != null) ? sIsXrForTesting : info.isXr,
                         /* wasLaunchedOnLargeDisplay= */ info.wasLaunchedOnLargeDisplay);
     }
 
@@ -82,6 +88,10 @@ public final class DeviceInfo {
 
     public static String getGmsVersionCode() {
         return getInstance().mIDeviceInfo.gmsVersionCode;
+    }
+
+    public static @Nullable ApplicationInfo getGmsAppInfo() {
+        return getInstance().mGmsAppInfo;
     }
 
     @CalledByNativeForTesting
@@ -118,7 +128,28 @@ public final class DeviceInfo {
     }
 
     public static boolean isXr() {
-        return getInstance().mIDeviceInfo.isXr;
+        return (sIsXrForTesting != null) ? sIsXrForTesting : getInstance().mIDeviceInfo.isXr;
+    }
+
+    public static boolean isRetailDemoMode() {
+        if (sIsRetailDemoModeForTesting != null) {
+            return sIsRetailDemoModeForTesting;
+        }
+        // Always assume false for tests, unless specifically overridden by a test.
+        if (BuildConfig.IS_FOR_TEST) {
+            return false;
+        }
+        DeviceInfo instance = getInstance();
+        boolean ret;
+        if (instance.mIsRetailDemoMode != null) {
+            ret = instance.mIsRetailDemoMode;
+        } else {
+            ContentResolver resolver = ContextUtils.getApplicationContext().getContentResolver();
+            // Android demo mode (Settings.Global.DEVICE_DEMO_MODE is @hide).
+            ret = Settings.Global.getInt(resolver, "device_demo_mode", 0) != 0;
+            instance.mIsRetailDemoMode = ret;
+        }
+        return ret;
     }
 
     public static boolean isInitializedForTesting() {
@@ -126,13 +157,19 @@ public final class DeviceInfo {
     }
 
     @CalledByNativeForTesting
-    public static void setIsXrForTesting() {
-        sIsXrForTesting = true;
+    public static void setIsXrForTesting(boolean value) {
+        sIsXrForTesting = value;
+        ResettersForTesting.register(() -> sIsXrForTesting = null);
     }
 
     @CalledByNativeForTesting
     public static void resetIsXrForTesting() {
-        sIsXrForTesting = false;
+        sIsXrForTesting = null;
+    }
+
+    public static void setIsRetailDemoModeForTesting(boolean value) {
+        sIsRetailDemoModeForTesting = value;
+        ResettersForTesting.register(() -> sIsRetailDemoModeForTesting = null);
     }
 
     private static DeviceInfo getInstance() {
@@ -189,10 +226,13 @@ public final class DeviceInfo {
         mIDeviceInfo = new IDeviceInfo();
         sInitialized = true;
         PackageInfo gmsPackageInfo = PackageUtils.getPackageInfo("com.google.android.gms", 0);
-        mIDeviceInfo.gmsVersionCode =
-                gmsPackageInfo != null
-                        ? String.valueOf(packageVersionCode(gmsPackageInfo))
-                        : "gms versionCode not available.";
+        if (gmsPackageInfo != null) {
+            mGmsAppInfo = gmsPackageInfo.applicationInfo;
+            mIDeviceInfo.gmsVersionCode =
+                    gmsPackageInfo != null
+                            ? String.valueOf(packageVersionCode(gmsPackageInfo))
+                            : "gms versionCode not available.";
+        }
         if (sGmsVersionCodeForTesting != null) {
             mIDeviceInfo.gmsVersionCode = sGmsVersionCodeForTesting;
         }

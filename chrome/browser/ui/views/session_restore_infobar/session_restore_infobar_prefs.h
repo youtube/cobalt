@@ -13,7 +13,7 @@ namespace session_restore_infobar {
 // Exposed for testing.
 inline constexpr int kSessionRestoreInfoBarMaxTimesToShow = 3;
 
-// Increments the number of times the infobar has been shown for `profile`.
+// Increments the number of times the infobar has been shown for `prefs`.
 void IncrementInfoBarShownCount(PrefService* prefs);
 
 // Returns true if the session restore infobar has been shown the maximum

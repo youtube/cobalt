@@ -56,7 +56,6 @@
 #include "pc/rtp_transport_internal.h"
 #include "pc/sctp_transport.h"
 #include "pc/session_description.h"
-#include "pc/srtp_transport.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/callback_list.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -424,10 +423,6 @@ class JsepTransportController : public PayloadTypeSuggester,
       const std::string& transport_name,
       PacketTransportInternal* rtp_packet_transport,
       PacketTransportInternal* rtcp_packet_transport);
-  std::unique_ptr<SrtpTransport> CreateSdesTransport(
-      const std::string& transport_name,
-      DtlsTransportInternal* rtp_dtls_transport,
-      DtlsTransportInternal* rtcp_dtls_transport);
   std::unique_ptr<DtlsSrtpTransport> CreateDtlsSrtpTransport(
       const std::string& transport_name,
       DtlsTransportInternal* rtp_dtls_transport,

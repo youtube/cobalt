@@ -28,6 +28,7 @@
 #include "components/dom_distiller/core/url_utils.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -54,7 +55,7 @@ using dom_distiller::ViewRequestDelegate;
 // distillation fininishes, and makes it to the cache. An optional callback can
 // be provided which will be called when the article content is ready. The
 // callback will be invoked with false if the object is destroyed before the
-//callback is invoked.
+// callback is invoked.
 class SelfDeletingRequestDelegate : public ViewRequestDelegate,
                                     public content::WebContentsObserver {
  public:
@@ -167,6 +168,10 @@ void StartNavigationToDistillerViewer(content::WebContents* web_contents,
   content::NavigationController::LoadURLParams params(viewer_url);
   params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
   web_contents->GetController().LoadURLWithParams(params);
+#if BUILDFLAG(IS_ANDROID)
+  // Override default accessibility zoom for in-app distillation.
+  OverrideDefaultZoomForReaderModePage(web_contents, viewer_url);
+#endif
 }
 
 void MaybeStartDistillation(
@@ -235,56 +240,6 @@ void DistillCurrentPageAndViewIfSuccessful(
   MaybeStartDistillation(std::move(source_page_handle), view_request_delegate);
 }
 
-void DistillCurrentPageAndView(content::WebContents* old_web_contents) {
-  DCHECK(old_web_contents);
-  // Create new WebContents.
-  content::WebContents::CreateParams create_params(
-      old_web_contents->GetBrowserContext());
-  std::unique_ptr<content::WebContents> new_web_contents =
-      content::WebContents::Create(create_params);
-  DCHECK(new_web_contents);
-
-  // Copy all navigation state from the old WebContents to the new one.
-  new_web_contents->GetController().CopyStateFrom(
-      &old_web_contents->GetController(), /* needs_reload */ true);
-
-  // StartNavigationToDistillerViewer must come before swapping the tab contents
-  // to avoid triggering a reload of the page.  This reloadmakes it very
-  // difficult to distinguish between the intermediate reload and a user hitting
-  // the back button.
-  StartNavigationToDistillerViewer(new_web_contents.get(),
-                                   old_web_contents->GetLastCommittedURL());
-
-  // This is used to start distillation and keep task_tracker alive till
-  // main viewer is created.
-  // Observes |new_web_contents| and is self deleted in the following cases
-  // (whichever happens first).
-  // 1. After navigation to distiller viewer is completed
-  // 2. When |new_web_contents| is destroyed
-  // 3. When render process attached to |new_web_contents| is gone
-  // Observing new_web_contents instead of |old_web_contents| will make sure
-  // that the destruction of |old_web_contents| will happen along with other
-  // web_contents else we might end up caching it till browser close which will
-  // lead to improper shutdown.
-  // For more details refer - https://crbug.com/1221168
-  SelfDeletingRequestDelegate* view_request_delegate =
-      new SelfDeletingRequestDelegate(new_web_contents.get());
-
-#if BUILDFLAG(IS_ANDROID)
-  TabAndroid* tab = TabAndroid::FromWebContents(old_web_contents);
-  std::unique_ptr<content::WebContents> old_web_contents_owned =
-      tab->SwapWebContents(std::move(new_web_contents),
-                           /*did_start_load=*/false,
-                           /*did_finish_load=*/false);
-  old_web_contents = old_web_contents_owned.release();
-#endif
-
-  std::unique_ptr<SourcePageHandleWebContents> source_page_handle(
-      new SourcePageHandleWebContents(old_web_contents, true));
-
-  MaybeStartDistillation(std::move(source_page_handle), view_request_delegate);
-}
-
 void DistillCurrentPage(content::WebContents* source_web_contents) {
   DCHECK(source_web_contents);
 
@@ -315,4 +270,18 @@ void RunReadabilityHeuristicsOnWebContents(
       base::UTF8ToUTF16(script),
       base::BindOnce(OnReadabilityHeuristicResult, std::move(callback)),
       ISOLATED_WORLD_ID_CHROME_INTERNAL);
+}
+
+void OverrideDefaultZoomForReaderModePage(content::WebContents* web_contents,
+                                          const GURL& url) {
+#if BUILDFLAG(IS_ANDROID)
+  // Ensure that the distilled page does not apply the default accessibility
+  // zoom by setting explicit zoom for the distiller URL.
+  content::HostZoomMap* host_zoom_map =
+      content::HostZoomMap::GetForWebContents(web_contents);
+  if (host_zoom_map) {
+    host_zoom_map->SetZoomLevelForHostAndScheme(url.GetScheme(), url.GetHost(),
+                                                0.0);
+  }
+#endif
 }

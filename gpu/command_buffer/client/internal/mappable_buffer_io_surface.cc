@@ -13,7 +13,6 @@
 #include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/mac/io_surface.h"
 
 namespace gpu {
@@ -85,11 +84,10 @@ MappableBufferIOSurface::CreateFromHandleForTesting(
 // static
 base::OnceClosure MappableBufferIOSurface::AllocateForTesting(
     const gfx::Size& size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     gfx::GpuMemoryBufferHandle* handle) {
-  viz::SharedImageFormat si_format = viz::GetSharedImageFormat(format);
-  *handle = gfx::GpuMemoryBufferHandle(gfx::CreateIOSurface(size, si_format));
+  *handle = gfx::GpuMemoryBufferHandle(gfx::CreateIOSurface(size, format));
   return base::DoNothing();
 }
 

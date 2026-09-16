@@ -18,6 +18,7 @@ namespace password_manager::features {
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 BASE_DECLARE_FEATURE(kActorLogin);
+BASE_DECLARE_FEATURE(kActorLoginFillingHeuristics);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -184,13 +185,6 @@ BASE_DECLARE_FEATURE(kBiometricAuthIdentityCheck);
 // affiliation service. It fixes problem with incorrect password suggestions on
 // websites like slack.com.
 BASE_DECLARE_FEATURE(kUseExtensionListForPSLMatching);
-
-// Enables new encryption method of OSCrypt inside LoginDatabase (Stage 2).
-BASE_DECLARE_FEATURE(kUseNewEncryptionMethod);
-
-// Enables re-encryption of all passwords. Done separately for each store
-// (Stage 3).
-BASE_DECLARE_FEATURE(kEncryptAllPasswordsWithOSCryptAsync);
 
 // Marks all submitted credentials as leaked, useful for testing of a password
 // leak dialog.

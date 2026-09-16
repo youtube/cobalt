@@ -1042,8 +1042,6 @@ void PartitionRoot::Init(PartitionOptions opts) {
 #endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
     settings.eventually_zero_freed_memory =
         opts.eventually_zero_freed_memory == PartitionOptions::kEnabled;
-    settings.fewer_memory_regions =
-        opts.fewer_memory_regions == PartitionOptions::kEnabled;
 
     scheduler_loop_quarantine.Configure(
         scheduler_loop_quarantine_root,
@@ -1051,6 +1049,10 @@ void PartitionRoot::Init(PartitionOptions opts) {
     scheduler_loop_quarantine_for_advanced_memory_safety_checks.Configure(
         scheduler_loop_quarantine_root,
         opts.scheduler_loop_quarantine_for_advanced_memory_safety_checks_config);
+#if BUILDFLAG(IS_COBALT)
+    settings.scheduler_loop_quarantine_global_config =
+        opts.scheduler_loop_quarantine_global_config;
+#endif  // BUILDFLAG(IS_COBALT)
     settings.scheduler_loop_quarantine_thread_local_config =
         opts.scheduler_loop_quarantine_thread_local_config;
 

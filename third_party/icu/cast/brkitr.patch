@@ -1,20 +1,20 @@
 diff --git a/source/data/brkitr/ja.txt b/source/data/brkitr/ja.txt
-index 363a74f6..7ae4b8f6 100644
+index 363a74f6b..f09c72444 100644
 --- a/source/data/brkitr/ja.txt
 +++ b/source/data/brkitr/ja.txt
 @@ -11,6 +11,7 @@ ja{
          line_phrase:process(dependency){"line_phrase_cj.brk"}
          line_strict:process(dependency){"line.brk"}
          line_strict_phrase:process(dependency){"line_phrase_cj.brk"}
-+	word:process(dependency){"word_ja.brk"}
++        word:process(dependency){"word_ja.brk"}
      }
      extensions{
      }
 diff --git a/source/data/brkitr/rules/word.txt b/source/data/brkitr/rules/word.txt
-index b4603823..58c18cbc 100644
+index abd20b8ce..0b92fad9a 100644
 --- a/source/data/brkitr/rules/word.txt
 +++ b/source/data/brkitr/rules/word.txt
-@@ -84,13 +84,11 @@ $Control        = [\p{Grapheme_Cluster_Break = Control}];
+@@ -70,13 +70,11 @@ $Control        = [\p{Grapheme_Cluster_Break = Control}];
  $HangulSyllable = [\uac00-\ud7a3];
  $ComplexContext = [:LineBreak = Complex_Context:];
  $KanaKanji      = [$Han $Hiragana $Katakana];
@@ -30,7 +30,7 @@ index b4603823..58c18cbc 100644
  
  
  ## -------------------------------------------------
-@@ -185,10 +183,6 @@ $ExtendNumLet  $ExFm* $Katakana     {400};    #  (13b)
+@@ -171,10 +169,6 @@ $ExtendNumLet  $ExFm* $Katakana     {400};    #  (13b)
  #
  ^$Regional_Indicator $ExFm* $Regional_Indicator;
  

@@ -479,7 +479,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.updatedElementIds_ = [bookmark.id];
     this.updateShoppingData_();
     this.notifyPathIfVisible_(parent.id, 'children');
-    this.keyArrowNavigationService_.rebuildNavigationElements();
   }
 
   onBookmarkMoved(
@@ -510,7 +509,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
     if (this.bookmarksTreeViewEnabled_ && this.compact_) {
       this.notifyBookmarksListResize_();
     }
-    this.keyArrowNavigationService_.rebuildNavigationElements();
   }
 
   onBookmarkRemoved(bookmark: BookmarksTreeNode) {
@@ -577,6 +575,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
   /** PowerBookmarksDragDelegate */
   onFinishDrop(dropTarget: BookmarksTreeNode): void {
+    this.updateDisplayLists_();
     this.focusBookmark_(dropTarget.id);
 
     // Show the focus state immediately after dropping a bookmark to indicate
@@ -586,7 +585,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
     document.addEventListener('mousedown', () => {
       this.focusOutlineManager_.visible = false;
     }, {once: true});
-    this.keyArrowNavigationService_.rebuildNavigationElements();
   }
 
   clickBookmarkRowForTests(bookmark: BookmarksTreeNode) {
@@ -790,7 +788,13 @@ export class PowerBookmarksListElement extends PolymerElement implements
           [...this.shadowRoot!.querySelectorAll('power-bookmark-row')];
       if (children.length > 0) {
         Promise.all(children.map(el => el.updateComplete))
-            .then(() => this.notifyBookmarksListResize_());
+            .then(() => {
+              this.notifyBookmarksListResize_();
+
+              // Make sure the keyboard navigation tree is rebuilt whenever the
+              // iron-list is updated.
+              this.keyArrowNavigationService_.rebuildNavigationElements();
+            });
       }
     });
   }

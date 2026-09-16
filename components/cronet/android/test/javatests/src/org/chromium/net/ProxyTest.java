@@ -34,7 +34,7 @@ import org.mockito.Mockito;
 
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.net.CronetTestRule.CronetImplementation;
+import org.chromium.net.CronetTestFramework.CronetImplementation;
 import org.chromium.net.CronetTestRule.IgnoreFor;
 import org.chromium.net.CronetTestRule.RequiresMinAndroidApi;
 import org.chromium.net.test.ServerCertificate;
@@ -52,6 +52,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RunWith(AndroidJUnit4.class)
 @Batch(Batch.UNIT_TESTS)
 public class ProxyTest {
+    // See http://go/android-sdk-docs-sdk-extensions.
+    private static final int HTTPENGINE_PROXY_API_SDK_EXTENSION = 21;
+
     @Rule public final CronetTestRule mTestRule = CronetTestRule.withManualEngineStartup();
 
     private NativeTestServer mNativeTestServer;
@@ -178,7 +181,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     public void testDirectProxy_requestSucceeds() {
         mNativeTestServer.start();
         mTestRule
@@ -204,7 +208,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#verify implementations makes use of java.util.stream.Stream, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -245,7 +250,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#verify implementations makes use of java.util.stream.Stream, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -284,7 +290,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     @DisabledTest(
             message =
                     "TODO(https://crbug.com/440096216): Make Cronet fallback for"
@@ -394,7 +401,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#verify implementations makes use of java.util.stream.Stream, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -453,7 +461,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#when implementation makes use of java.util.Map#computeIfAbsent, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -519,7 +528,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#when implementation makes use of java.util.Map#computeIfAbsent, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -590,20 +600,17 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#when implementation makes use of java.util.Map#computeIfAbsent, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
-    public void testProxyAuthChallenge_connectRequestIsSentTwice() {
+    public void testProxyAuthChallenge_urlRequestFails() {
         var requestHandler =
                 new NativeTestServer.HandleRequestCallback() {
-                    public NativeTestServer.HttpRequest mReceivedHttpRequest;
-
                     @Override
                     public NativeTestServer.RawHttpResponse handleRequest(
                             NativeTestServer.HttpRequest httpRequest) {
-                        assertThat(mReceivedHttpRequest).isNull();
-                        mReceivedHttpRequest = httpRequest;
                         return NativeTestServer.RawHttpResponse.createFromHeaders(
                                 Arrays.asList(
                                         "HTTP/1.1 407 Proxy Authentication Required",
@@ -612,6 +619,7 @@ public class ProxyTest {
                 };
         mNativeTestServer.registerRequestHandler(requestHandler);
         mNativeTestServer.start();
+
         Proxy.Callback proxyCallback =
                 Mockito.mock(Proxy.Callback.class, Mockito.CALLS_REAL_METHODS);
         doAnswer(
@@ -626,17 +634,19 @@ public class ProxyTest {
         mTestRule
                 .getTestFramework()
                 .applyEngineBuilderPatch(
-                        (builder) ->
-                                builder.setProxyOptions(
-                                        new ProxyOptions(
-                                                Arrays.asList(
-                                                        new Proxy(
-                                                                /* scheme= */ Proxy.HTTP,
-                                                                /* host= */ "localhost",
-                                                                /* port= */ mNativeTestServer
-                                                                        .getPort(),
-                                                                Executors.newSingleThreadExecutor(),
-                                                                /* callback= */ proxyCallback)))));
+                        (builder) -> {
+                            builder.enableHttpCache(
+                                    CronetEngine.Builder.HTTP_CACHE_IN_MEMORY, 100 * 1024);
+                            builder.setProxyOptions(
+                                    new ProxyOptions(
+                                            Arrays.asList(
+                                                    new Proxy(
+                                                            /* scheme= */ Proxy.HTTP,
+                                                            /* host= */ "localhost",
+                                                            /* port= */ mNativeTestServer.getPort(),
+                                                            Executors.newSingleThreadExecutor(),
+                                                            /* callback= */ proxyCallback))));
+                        });
         ExperimentalCronetEngine cronetEngine = mTestRule.getTestFramework().startEngine();
         TestUrlRequestCallback callback = new TestUrlRequestCallback();
         UrlRequest.Builder urlRequestBuilder =
@@ -644,16 +654,13 @@ public class ProxyTest {
                         "https://test-hostname/test-path", callback, callback.getExecutor());
         urlRequestBuilder.build().start();
         callback.blockForDone();
-        assertThat(requestHandler.mReceivedHttpRequest).isNotNull();
-        assertThat(requestHandler.mReceivedHttpRequest.getRelativeUrl())
-                .isEqualTo("test-hostname:443");
-        assertThat(requestHandler.mReceivedHttpRequest.getMethod()).isEqualTo("CONNECT");
         Mockito.verify(proxyCallback, times(1)).onBeforeTunnelRequest(any());
         Mockito.verify(proxyCallback, times(1)).onTunnelHeadersReceived(any(), anyInt());
-        // TODO(https://crbug.com/441490632): This request should not fail with
-        // net::ERR_TUNNEL_CONNECTION_FAILED. Instead, we should call Request#onBeforeTunnelRequest
-        // again for the same Proxy, giving the embedder a chance to respond to the authentication
-        // challenge.
+        // TODO(https://crbug.com/447574602): Consider supporting authentication challenges in
+        // Cronet. Currently, whenever Cronet encounters a 401/407 we rely on developers to retry
+        // the request after adding an Authentication/Proxy-Authentication header. If this turns out
+        // to be too cumbersome, we should consider providing an ad-hoc abstraction to handle these
+        // (similarly to how //net provides net::HttpAuthController).
         assertThat(callback.mError).isNotNull();
         assertThat(callback.mError).isInstanceOf(NetworkException.class);
         NetworkException networkException = (NetworkException) callback.mError;
@@ -668,7 +675,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito#verify implementations makes use of java.util.stream.Stream, which is available
     // starting from Nougat/API level 24.
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -723,7 +731,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -811,7 +820,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -876,7 +886,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -952,7 +963,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1018,7 +1030,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1089,7 +1102,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     @DisabledTest(message = "TODO(https://crbug.com/442024094): Reenable after flakiness is fixed")
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
@@ -1158,7 +1172,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1226,7 +1241,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1309,7 +1325,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1380,7 +1397,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1451,7 +1469,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1519,7 +1538,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1625,7 +1645,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
@@ -1760,7 +1781,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // This test is written without relying on Mockito. This is necessary because Mockito makes use
     // of Java APIs which are not available on Marshmallow/API level 23. Once support for
     // Marshmallow is dropped, we can move these to Mockito.
@@ -1848,7 +1870,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // This test is written without relying on Mockito. This is necessary because Mockito makes use
     // of Java APIs which are not available on Marshmallow/API level 23. Once support for
     // Marshmallow is dropped, we can move these to Mockito.
@@ -1929,7 +1952,8 @@ public class ProxyTest {
             implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
             reason =
                     "This feature flag has not reached platform Cronet yet. Fallback provides no"
-                            + " ProxyOptions support.")
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
     // This test is written without relying on Mockito. This is necessary because Mockito makes use
     // of Java APIs which are not available on Marshmallow/API level 23. Once support for
     // Marshmallow is dropped, we can move these to Mockito.

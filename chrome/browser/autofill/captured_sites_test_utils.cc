@@ -472,7 +472,8 @@ std::optional<base::Value::Dict> ReadRecipeFile(
   }
 
   // Convert the file text into a json object.
-  std::optional<base::Value> parsed_json = base::JSONReader::Read(json_text);
+  std::optional<base::Value> parsed_json =
+      base::JSONReader::Read(json_text, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_json) {
     ADD_FAILURE() << "Failed to deserialize json text!";
     return std::nullopt;
@@ -998,8 +999,8 @@ bool TestRecipeReplayer::OverrideTimeClock(
     return false;
   }
   // Convert the file text into a json object.
-  std::optional<base::Value> parsed_json =
-      base::JSONReader::Read(decompressed_json_text);
+  std::optional<base::Value> parsed_json = base::JSONReader::Read(
+      decompressed_json_text, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_json) {
     VLOG(1) << kTimeClockOverrideNotSetMessage << "Failed to deserialize json";
     return false;
@@ -2156,15 +2157,24 @@ bool TestRecipeReplayer::AllAssertionsPassed(
     return false;
   }
   for (const std::string& assertion : assertions) {
-    if (!EvalJs(frame, base::StringPrintf("(function() {"
-                                          "  try {"
-                                          "    %s"
-                                          "  } catch (ex) {}"
-                                          "  return false;"
-                                          "})();",
-                                          assertion.c_str()))
-             .ExtractBool()) {
-      VLOG(1) << "'" << assertion << "' failed!";
+    content::EvalJsResult result =
+        EvalJs(frame, base::StringPrintf("(function() {"
+                                         "  try {"
+                                         "    %s"
+                                         "  } catch (ex) {}"
+                                         "  return false;"
+                                         "})();",
+                                         assertion.c_str()));
+    if (!result.is_ok()) {
+      VLOG(1) << "'" << assertion << "' failed: " << result.ExtractError();
+      return false;
+    }
+    if (!result.is_bool()) {
+      VLOG(1) << "'" << assertion << "' failed: Did not return boolean.";
+      return false;
+    }
+    if (!result.ExtractBool()) {
+      VLOG(1) << "'" << assertion << "' failed: Returned false.";
       return false;
     }
   }

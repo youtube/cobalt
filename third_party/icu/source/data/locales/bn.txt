@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 bn{
     AuxExemplarCharacters{"[\u200C\u200D ৲ ৳ ৴ ৵ ৶ ৷ ৸ ৹ ৰ ৱ]"}
     Ellipsis{
@@ -644,7 +644,7 @@ bn{
                     "খৃষ্টাব্দ",
                 }
                 abbreviated%variant{
-                    "খ্রিষ্টপূর্বাব্দ",
+                    "\u0022খ্রিঃপূঃ\u0022",
                     "খ্রিষ্টাব্দ",
                 }
                 wide{
@@ -982,7 +982,7 @@ bn{
                         "শাহরিবার",
                         "মেহের",
                         "আবান",
-                        "আজার",
+                        "সেপ্ট",
                         "দে",
                         "বাহমান",
                         "এসফ্যান্ড",
@@ -1277,12 +1277,20 @@ bn{
                     other{"{0} সেকেন্ডে"}
                 }
                 past{
-                    one{"{0} সেকেন্ড পূর্বে"}
+                    one{"{0} সেকেন্ড আগে"}
                     other{"{0} সেকেন্ড পূর্বে"}
                 }
             }
         }
         second-narrow{
+            relativeTime{
+                past{
+                    one{"{0} সেকেন্ড আগে"}
+                    other{"{0} সেকেন্ড আগে"}
+                }
+            }
+        }
+        second-short{
             relativeTime{
                 past{
                     one{"{0} সেকেন্ড আগে"}
@@ -1451,10 +1459,10 @@ bn{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

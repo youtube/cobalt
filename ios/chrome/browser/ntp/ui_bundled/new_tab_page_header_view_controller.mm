@@ -156,24 +156,20 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
     _useNewBadgeForLensButton = useNewBadgeForLensButton;
     _useNewBadgeForCustomizationMenu = useNewBadgeForCustomizationMenu;
 
-    if (@available(iOS 17, *)) {
-      NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
-        UITraitHorizontalSizeClass.class,
-        UITraitPreferredContentSizeCategory.class,
-        UITraitUserInterfaceStyle.class
-      ]);
-      __weak __typeof(self) weakSelf = self;
-      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
-                                       UITraitCollection* previousCollection) {
-        [weakSelf updateUIOnTraitChange:previousCollection];
-      };
-      [self registerForTraitChanges:traits withHandler:handler];
-      if (IsNTPBackgroundCustomizationEnabled()) {
-        [self
-            registerForTraitChanges:
+    NSArray<UITrait>* traits = TraitCollectionSetForTraits(@[
+      UITraitHorizontalSizeClass.class,
+      UITraitPreferredContentSizeCategory.class, UITraitUserInterfaceStyle.class
+    ]);
+    __weak __typeof(self) weakSelf = self;
+    UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                     UITraitCollection* previousCollection) {
+      [weakSelf updateUIOnTraitChange:previousCollection];
+    };
+    [self registerForTraitChanges:traits withHandler:handler];
+    if (IsNTPBackgroundCustomizationEnabled()) {
+      [self registerForTraitChanges:
                 @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
                          withAction:@selector(applyBackgroundTheme)];
-      }
     }
   }
   return self;
@@ -188,17 +184,6 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
 - (UIView*)fakeOmniboxView {
   return self.headerView.omnibox;
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  [self updateUIOnTraitChange:previousTraitCollection];
-}
-#endif
 
 - (void)willTransitionToTraitCollection:(UITraitCollection*)newCollection
               withTransitionCoordinator:
@@ -608,14 +593,8 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
             ? ntp_home::kCustomizationMenuIconSizeWhenSignInButtonHasNoAvatar
             : ntp_home::kCustomizationMenuIconSize);
     [customizationMenuButton setImage:icon forState:UIControlStateNormal];
-
-    UIColor* backgroundColor =
-        IsSignInButtonNoAvatarEnabled()
-            ? [[UIColor colorNamed:kSolidWhiteColor]
-                  colorWithAlphaComponent:0.75]
-            : [[UIColor colorNamed:@"fake_omnibox_solid_background_color"]
-                  colorWithAlphaComponent:0.8];
-    customizationMenuButton.backgroundColor = backgroundColor;
+    customizationMenuButton.backgroundColor =
+        [self defaultButtonBackgroundColor];
 
     UIColor* tintColor = [UIColor
         colorNamed:(IsSignInButtonNoAvatarEnabled() ? kBlue600Color
@@ -673,7 +652,7 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
     UIButtonConfiguration* buttonConfiguration =
         [UIButtonConfiguration plainButtonConfiguration];
     buttonConfiguration.background.backgroundColor =
-        [[UIColor colorNamed:kSolidWhiteColor] colorWithAlphaComponent:0.75];
+        [self defaultButtonBackgroundColor];
     NSDictionary* attributes = @{
       NSFontAttributeName : PreferredFontForTextStyle(
           UIFontTextStyleSubheadline, UIFontWeightSemibold,
@@ -711,9 +690,8 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
                                    : [UIColor colorNamed:kBlue600Color];
 
     UIColor* backgroundColor = colorPalette
-                                   ? colorPalette.secondaryColor
-                                   : [[UIColor colorNamed:kSolidWhiteColor]
-                                         colorWithAlphaComponent:0.75];
+                                   ? colorPalette.headerButtonColor
+                                   : [self defaultButtonBackgroundColor];
     // The default avatar icon does not have a background.
     if (colorPalette || IsSignInButtonNoAvatarEnabled()) {
       buttonConfiguration.background.backgroundColor = backgroundColor;
@@ -1085,6 +1063,21 @@ const CGFloat kIdentityDiscAvatarBackgroundSpacing = 5;
 
 #pragma mark - Private
 
+// Returns the default background color for buttons based on the current
+// appearance.
+- (UIColor*)defaultButtonBackgroundColor {
+  return
+      [UIColor colorWithDynamicProvider:^UIColor*(UITraitCollection* traits) {
+        if (!IsSignInButtonNoAvatarEnabled()) {
+          return [[UIColor colorNamed:@"fake_omnibox_solid_background_color"]
+              colorWithAlphaComponent:0.8];
+        }
+        return traits.userInterfaceStyle == UIUserInterfaceStyleDark
+                   ? [UIColor colorNamed:kTabGroupFaviconBackgroundColor]
+                   : [[UIColor colorNamed:kSolidWhiteColor]
+                         colorWithAlphaComponent:0.75];
+      }];
+}
 // Sets the background using the current color palette, or defaults if none is
 // set.
 - (void)applyBackgroundTheme {

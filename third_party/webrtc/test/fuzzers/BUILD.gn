@@ -488,7 +488,7 @@ webrtc_fuzzer_test("residual_echo_detector_fuzzer") {
 webrtc_fuzzer_test("sdp_parser_fuzzer") {
   sources = [ "sdp_parser_fuzzer.cc" ]
   deps = [
-    "../../api:libjingle_peerconnection_api",
+    "../../api:jsep",
     "../../pc:libjingle_peerconnection",
   ]
   seed_corpus = "corpora/sdp-corpus"
@@ -503,6 +503,7 @@ if (!build_with_chromium) {
     sources = [ "sdp_integration_fuzzer.cc" ]
     deps = [
       "..:wait_until",
+      "../../api:jsep",
       "../../api:libjingle_peerconnection_api",
       "../../api:make_ref_counted",
       "../../api:rtc_error_matchers",
@@ -829,6 +830,15 @@ webrtc_fuzzer_test("webrtc_base64_encode_fuzzer") {
   ]
 }
 
+webrtc_fuzzer_test("windowed_min_filter_fuzzer") {
+  sources = [ "windowed_min_filter_fuzzer.cc" ]
+  deps = [
+    "../../rtc_base:checks",
+    "../../rtc_base:windowed_min_filter",
+    "//third_party/abseil-cpp/absl/algorithm:container",
+  ]
+}
+
 group("fuzzers") {
   testonly = true
   deps = [
@@ -889,6 +899,7 @@ group("fuzzers") {
     ":vp9_replay_fuzzer",
     ":webrtc_base64_decode_fuzzer",
     ":webrtc_base64_encode_fuzzer",
+    ":windowed_min_filter_fuzzer",
   ]
   if (rtc_use_h265) {
     deps += [

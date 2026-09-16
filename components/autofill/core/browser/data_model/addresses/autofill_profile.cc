@@ -260,7 +260,7 @@ AutofillProfile::AutofillProfile(const std::string& guid,
       initial_creator_id_(kInitialCreatorOrModifierChrome),
       last_modifier_id_(kInitialCreatorOrModifierChrome),
       token_quality_(this),
-      usage_history_information_(/*usage_history_size=*/3) {}
+      usage_history_information_(/*usage_history_size=*/1) {}
 
 AutofillProfile::AutofillProfile(RecordType record_type,
                                  AddressCountryCode country_code)
@@ -334,7 +334,7 @@ AutofillProfile& AutofillProfile::operator=(const AutofillProfile& profile) {
 
 #if BUILDFLAG(IS_ANDROID)
 base::android::ScopedJavaLocalRef<jobject> AutofillProfile::CreateJavaObject(
-    const std::string& app_locale) const {
+    std::string_view app_locale) const {
   JNIEnv* env = base::android::AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jobject> jprofile =
       Java_AutofillProfile_Constructor(
@@ -359,7 +359,7 @@ base::android::ScopedJavaLocalRef<jobject> AutofillProfile::CreateJavaObject(
 AutofillProfile AutofillProfile::CreateFromJavaObject(
     const base::android::JavaParamRef<jobject>& jprofile,
     const AutofillProfile* existing_profile,
-    const std::string& app_locale) {
+    std::string_view app_locale) {
   JNIEnv* env = base::android::AttachCurrentThread();
   AutofillProfile profile =
       CreateStarterProfile(jprofile, env, existing_profile);
@@ -403,34 +403,20 @@ AutofillProfile AutofillProfile::CreateFromJavaObject(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-double AutofillProfile::GetRankingScore(base::Time current_time,
-                                        bool use_frecency) const {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableRankingFormulaAddressProfiles) &&
-      !use_frecency) {
-    // Exponentially decay the use count by the days since the data model was
-    // last used.
-    return log10(usage_history_information_.use_count() + 1) *
-           exp(-usage_history_information_.GetDaysSinceLastUse(current_time) /
-               features::kAutofillRankingFormulaAddressProfilesUsageHalfLife
-                   .Get());
-  }
-  // Default to legacy frecency scoring.
+double AutofillProfile::GetRankingScore(base::Time current_time) const {
   return usage_history_information_.GetRankingScore(current_time);
 }
 
 bool AutofillProfile::HasGreaterRankingThan(const AutofillProfile* other,
-                                            base::Time comparison_time,
-                                            bool use_frecency) const {
-  const double score = GetRankingScore(comparison_time, use_frecency);
-  const double other_score =
-      other->GetRankingScore(comparison_time, use_frecency);
+                                            base::Time comparison_time) const {
+  const double score = GetRankingScore(comparison_time);
+  const double other_score = other->GetRankingScore(comparison_time);
   return usage_history_information_.CompareRankingScores(
       score, other_score, other->usage_history().use_date());
 }
 
-void AutofillProfile::GetMatchingTypes(const std::u16string& text,
-                                       const std::string& app_locale,
+void AutofillProfile::GetMatchingTypes(std::u16string_view text,
+                                       std::string_view app_locale,
                                        FieldTypeSet* matching_types) const {
   FieldTypeSet matching_types_in_this_profile;
   for (const auto* form_group : FormGroups()) {
@@ -494,7 +480,7 @@ FieldTypeSet AutofillProfile::GetUserVisibleTypes() const {
   return visible_types;
 }
 
-bool AutofillProfile::IsEmpty(const std::string& app_locale) const {
+bool AutofillProfile::IsEmpty(std::string_view app_locale) const {
   FieldTypeSet types;
   GetNonEmptyTypes(app_locale, &types);
   return types.empty();
@@ -773,7 +759,7 @@ void AutofillProfile::OverwriteDataFromForLegacySync(
 }
 
 bool AutofillProfile::MergeDataFrom(const AutofillProfile& profile,
-                                    const std::string& app_locale) {
+                                    std::string_view app_locale) {
   AutofillProfileComparator comparator(app_locale);
   DCHECK(comparator.AreMergeable(*this, profile));
 
@@ -889,7 +875,7 @@ void AutofillProfile::MergeFormGroupTokenQuality(
 // static
 std::vector<std::u16string> AutofillProfile::CreateDifferentiatingLabels(
     base::span<const AutofillProfile* const> profiles,
-    const std::string& app_locale) {
+    std::string_view app_locale) {
   const size_t kMinimalFieldsShown = 2;
   return CreateInferredLabels(profiles, /*suggested_fields=*/std::nullopt,
                               /*triggering_field_type=*/std::nullopt,
@@ -904,7 +890,7 @@ std::vector<std::u16string> AutofillProfile::CreateInferredLabels(
     std::optional<FieldType> triggering_field_type,
     FieldTypeSet excluded_fields,
     size_t minimal_fields_shown,
-    const std::string& app_locale,
+    std::string_view app_locale,
     bool use_improved_labels_order) {
   // TODO(crbug.com/380273791): Clean up after launch.
   CHECK(!triggering_field_type ||
@@ -966,7 +952,7 @@ std::vector<std::u16string> AutofillProfile::CreateInferredLabels(
 std::u16string AutofillProfile::ConstructInferredLabel(
     base::span<const FieldType> included_fields,
     size_t num_fields_to_use,
-    const std::string& app_locale) const {
+    std::string_view app_locale) const {
   // TODO(estade): use libaddressinput?
   std::u16string separator =
       l10n_util::GetStringUTF16(IDS_AUTOFILL_ADDRESS_SUMMARY_SEPARATOR);
@@ -1117,7 +1103,7 @@ void AutofillProfile::CreateInferredLabelsHelper(
     const std::list<size_t>& indices,
     const std::vector<FieldType>& field_types,
     size_t num_fields_to_include,
-    const std::string& app_locale,
+    std::string_view app_locale,
     bool force_differentiating_label_in_front,
     std::vector<std::u16string>& labels) {
   // For efficiency, we first construct a map of fields to their text values and

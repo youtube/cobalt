@@ -588,8 +588,8 @@ ContextProperties ContextImplDml::GetProperties(
 
 ContextImplDml::ContextImplDml(
     scoped_refptr<Adapter> adapter,
-    mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    mojo::PendingReceiver<mojom::WebNNContext> receiver,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     mojom::CreateContextOptionsPtr options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
@@ -597,16 +597,22 @@ ContextImplDml::ContextImplDml(
     const gpu::GpuFeatureInfo& gpu_feature_info,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
+    scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
-                       context_provider,
+                       std::move(context_provider),
                        GetProperties(adapter->max_supported_feature_level()),
                        std::move(options),
                        std::move(write_tensor_consumer),
                        std::move(read_tensor_producer),
                        command_buffer_id,
                        std::move(sequence),
-                       std::move(task_runner)),
+                       std::move(memory_tracker),
+                       std::move(owning_task_runner),
+                       shared_image_manager,
+                       std::move(main_task_runner)),
       adapter_(std::move(adapter)),
       command_recorder_(std::move(command_recorder)),
       gpu_feature_info_(gpu_feature_info) {
@@ -724,24 +730,10 @@ ContextImplDml::CreateTensorImpl(
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
-ContextImplDml::CreateTensorFromMailboxImpl(
+ContextImplDml::CreateTensorFromSharedImageImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     mojom::TensorInfoPtr tensor_info,
-    gpu::Mailbox mailbox) {
-  gpu::SharedImageManager* shared_image_manager =
-      context_provider()->shared_image_manager();
-  CHECK(shared_image_manager);
-
-  // TODO(crbug.com/345352987): give WebNN its own memory source and tracker.
-  std::unique_ptr<gpu::WebNNTensorRepresentation> representation =
-      shared_image_manager->ProduceWebNNTensor(
-          mailbox,
-          context_provider()->shared_context_state()->memory_type_tracker());
-  if (!representation) {
-    return base::unexpected(CreateError(mojom::Error::Code::kUnknownError,
-                                        "Failed to create tensor."));
-  }
-
+    std::unique_ptr<gpu::WebNNTensorRepresentation> representation) {
   // Validate D3D12 buffer size matches TensorInfo.
   // DML requires resources to be in multiple of 4 bytes.
   // https://learn.microsoft.com/en-us/windows/ai/directml/dml-helper-functions#dmlcalcbuffertensorsize
@@ -990,7 +982,7 @@ void ContextImplDml::HandleContextLostOrCrash(std::string_view message_for_log,
     // device removal.
     // TODO(crbug.com/364445586): Move non-GPU backends like TFLite outside of
     // the GPU process.
-    context_provider()->DestroyContextsAndKillGpuProcess("device removed.");
+    DestroyAllContextsAndKillGpuProcess("device removed.");
     return;
   }
 

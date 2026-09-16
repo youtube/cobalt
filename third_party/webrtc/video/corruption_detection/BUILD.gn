@@ -21,31 +21,6 @@ rtc_library("corruption_classifier") {
   ]
 }
 
-rtc_library("frame_instrumentation_generator") {
-  sources = [
-    "frame_instrumentation_generator.cc",
-    "frame_instrumentation_generator.h",
-  ]
-  deps = [
-    ":generic_mapping_functions",
-    ":halton_frame_sampler",
-    "../../api:scoped_refptr",
-    "../../api/video:encoded_image",
-    "../../api/video:video_frame",
-    "../../api/video:video_frame_type",
-    "../../api/video/corruption_detection:filter_settings",
-    "../../api/video/corruption_detection:frame_instrumentation_data",
-    "../../api/video_codecs:video_codecs_api",
-    "../../modules:module_api_public",
-    "../../modules/video_coding:video_coding_utility",
-    "../../rtc_base:checks",
-    "../../rtc_base:logging",
-    "../../rtc_base:macromagic",
-    "../../rtc_base/synchronization:mutex",
-    "//third_party/abseil-cpp/absl/algorithm:container",
-  ]
-}
-
 rtc_library("frame_pair_corruption_score") {
   sources = [
     "frame_pair_corruption_score.cc",
@@ -120,6 +95,7 @@ rtc_library("utils") {
   ]
   deps = [
     "../../api:scoped_refptr",
+    "../../api/video:encoded_image",
     "../../api/video:video_frame",
     "../../rtc_base:checks",
     "//third_party/abseil-cpp/absl/strings",
@@ -137,24 +113,6 @@ if (rtc_include_tests) {
       "../../test:test_support",
     ]
   }
-
-  rtc_library("frame_instrumentation_generator_unittest") {
-    testonly = true
-    sources = [ "frame_instrumentation_generator_unittest.cc" ]
-    deps = [
-      ":frame_instrumentation_generator",
-      "../../api:make_ref_counted",
-      "../../api:scoped_refptr",
-      "../../api/video:encoded_image",
-      "../../api/video:video_frame",
-      "../../api/video:video_frame_type",
-      "../../api/video/corruption_detection:filter_settings",
-      "../../api/video/corruption_detection:frame_instrumentation_data",
-      "../../rtc_base:refcount",
-      "../../test:test_support",
-    ]
-  }
-
   rtc_library("frame_pair_corruption_score_unittest") {
     testonly = true
     sources = [ "frame_pair_corruption_score_unittest.cc" ]
@@ -218,6 +176,7 @@ if (rtc_include_tests) {
     sources = [ "utils_unittest.cc" ]
     deps = [
       ":utils",
+      "../../api/video:encoded_image",
       "../../api/video:video_frame",
       "../../test:test_support",
     ]
@@ -228,7 +187,6 @@ if (rtc_include_tests) {
     sources = []
     deps = [
       ":corruption_classifier_unittest",
-      ":frame_instrumentation_generator_unittest",
       ":frame_pair_corruption_score_unittest",
       ":generic_mapping_functions_unittest",
       ":halton_frame_sampler_unittest",

@@ -180,7 +180,13 @@ enum DataType {
   // Read-only on the client.
   ACCOUNT_SETTING,
 
-  LAST_USER_DATA_TYPE = ACCOUNT_SETTING,
+  // A user thread when interacting with AI features.
+  AI_THREAD,
+
+  // Information about a contextual task.
+  CONTEXTUAL_TASK,
+
+  LAST_USER_DATA_TYPE = CONTEXTUAL_TASK,
 
   // ---- Control Types ----
   // An object representing a set of Nigori keys.
@@ -282,7 +288,9 @@ enum class DataTypeForHistograms {
   kSharedTabGroupAccountData = 70,
   kSharedComment = 71,
   kAccountSetting = 72,
-  kMaxValue = kAccountSetting,
+  kAIThread = 73,
+  kContextualTask = 74,
+  kMaxValue = kContextualTask,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
 
@@ -342,7 +350,12 @@ constexpr DataTypeSet HighPriorityUserTypes() {
       // in the creation flow for a new profile. If the user has no theme in
       // their sync data, the browser offers a theme customization bubble which
       // should appear soon after opening the browser.
-      THEMES};
+      THEMES,
+      // This guarantees that sync will process updates for collaboration groups
+      // before other data types during initial sync download and during
+      // uploads, which is critical for remote clients to correctly detect the
+      // start of a passive migration.
+      COLLABORATION_GROUP};
 }
 
 // This is the subset of UserTypes() that have a *lower* priority than other
@@ -405,7 +418,7 @@ constexpr DataTypeSet SharedTypes() {
 // any pending account data or abort, depending on the platform.
 constexpr DataTypeSet TypesRequiringUnsyncedDataCheckOnSignout() {
   static_assert(
-      56 == GetNumDataTypes(),
+      58 == GetNumDataTypes(),
       "Add new types to `TypesRequiringUnsyncedDataCheckOnSignout()` if there "
       "should be a warning when the user signs out and the types have unsynced "
       "data. The warning offers the user to either proceed with sign-out "

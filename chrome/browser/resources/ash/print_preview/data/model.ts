@@ -878,11 +878,6 @@ export class PrintPreviewModelElement extends PolymerElement {
     this.setSettingPath_(
         'copies.available', this.destination.hasCopiesCapability);
     this.setSettingPath_('collate.available', !!caps && !!caps.collate);
-    // TODO(crbug.com/374066702): "color.available" is set to false if the
-    // per-printer job options policy allows to use only a single color (even if
-    // the destination supports both b&w and color printing). This hides the
-    // color setting dropdown instead of disabling it. Figure out if that's
-    // desirable behaviour.
     this.setSettingPath_(
         'color.available', this.destination.hasColorCapability);
 
@@ -1842,17 +1837,24 @@ export class PrintPreviewModelElement extends PolymerElement {
         allowedManagedPrintOptionsApplied?.mediaType &&
             capabilities?.printer.media_type?.option.length === 1);
 
-    if (allowedManagedPrintOptionsApplied?.duplex &&
-        capabilities?.printer.duplex?.option.length === 1) {
-      this.set('settings.duplex.setByDestinationPolicy', true);
-      this.set('settings.duplexShortEdge.setByDestinationPolicy', true);
-    } else if (
-        allowedManagedPrintOptionsApplied?.duplex &&
-        !this.destination.supportsDuplex(DuplexType.NO_DUPLEX)) {
-      // This means that all the allowed duplex values are two-sided, but there
-      // are multiple duplex modes allowed by the policy.
-      this.set('settings.duplex.setByDestinationPolicy', true);
-      this.set('settings.duplexShortEdge.setByDestinationPolicy', false);
+    if (allowedManagedPrintOptionsApplied?.duplex) {
+      const oneSidedModeSupported =
+          this.destination.supportsDuplex(DuplexType.NO_DUPLEX);
+      const atLeastOneDuplexModeSupported =
+          this.destination.supportsDuplex(DuplexType.LONG_EDGE)
+          || this.destination.supportsDuplex(DuplexType.SHORT_EDGE);
+      const bothDuplexModesSupported =
+          this.destination.supportsDuplex(DuplexType.LONG_EDGE)
+          && this.destination.supportsDuplex(DuplexType.SHORT_EDGE);
+      // Disable the checkbox that switches between one-sided and duplex
+      // printing if either of those modes are not available.
+      this.set('settings.duplex.setByDestinationPolicy',
+          !oneSidedModeSupported || !atLeastOneDuplexModeSupported);
+      // Disable the select menu that switches between "Flip on short edge" and
+      // "Flip on long edge" duplex modes if either of those modes are not
+      // available.
+      this.set('settings.duplexShortEdge.setByDestinationPolicy',
+          !bothDuplexModesSupported);
     } else {
       this.set('settings.duplex.setByDestinationPolicy', false);
       this.set('settings.duplexShortEdge.setByDestinationPolicy', false);

@@ -130,6 +130,52 @@ const CachedMatchedProperties::Entry* MatchedPropertiesCache::Find(
             *entry.parent_computed_style)) {
       continue;
     }
+
+    // If explicit inheritance is used, even normally non-inherited properties
+    // from the parent would influence the child's style. We don't track which
+    // properties are set to “inherit”, but we can still use the MPC entry
+    // if _all_ non-inherited properties from the two parents are the same
+    // (for instance because they are the very same parent).
+    if (entry.computed_style->HasExplicitInheritance() &&
+        style_resolver_state.ParentStyle() != entry.parent_computed_style &&
+        !style_resolver_state.ParentStyle()->NonInheritedEqual(
+            *entry.parent_computed_style)) {
+      continue;
+    }
+
+    if (style_resolver_state.IsForHighlight()) {
+      // For highlight pseudos, inherited _and_ non-inherited data
+      // comes from the parent, so non-inherited properties also
+      // need to match.
+      if (!style_resolver_state.ParentStyle()->NonInheritedEqual(
+              *entry.parent_computed_style)) {
+        continue;
+      }
+
+      // Finally, some properties come from the originating element,
+      // which is not the same as the parent element. We need to
+      // test those as well. Note that this check can be overly
+      // restrictive, since these properties were already tested earlier.
+      // E.g., if the parent element is in dark mode but the originating
+      // element is not, the style will always get rejected. This is
+      // obscure enough that we don't consider it a problem in practice;
+      // we'll get a false MPC miss but that's OK.
+      //
+      // DarkColorScheme() is marked as custom_compare, and InsideLink()
+      // is a special case (see comments in computed_style_extra_fields.json5),
+      // so we need to add those comparisons manually.
+      const ComputedStyle& originating_style =
+          *style_resolver_state.OriginatingElementStyle();
+      if (!originating_style.HighlightOriginatingElementDataEqual(
+              *entry.computed_style) ||
+          originating_style.DarkColorScheme() !=
+              entry.computed_style->DarkColorScheme() ||
+          originating_style.InsideLink() !=
+              entry.computed_style->InsideLink()) {
+        continue;
+      }
+    }
+
     if (IsAtShadowBoundary(&style_resolver_state.GetElement()) &&
         entry.parent_computed_style->UserModify() !=
             ComputedStyleInitialValues::InitialUserModify()) {
@@ -276,13 +322,6 @@ bool MatchedPropertiesCache::IsStyleCacheable(
     // element's position in the DOM.
     return false;
   }
-  // Avoiding cache for ::highlight styles, and the originating styles they are
-  // associated with, because the style depends on the highlight names involved
-  // and they're not cached.
-  if (builder.HasPseudoElementStyle(kPseudoIdHighlight) ||
-      builder.StyleType() == kPseudoIdHighlight) {
-    return false;
-  }
   // Functional media queries cause the style to depend directly on
   // the current MediaValues, without going through RuleSet invalidation.
   // These values are not captured by the MatchResult.
@@ -296,25 +335,6 @@ bool MatchedPropertiesCache::IsCacheable(const StyleResolverState& state) {
   const ComputedStyle& parent_style = *state.ParentStyle();
 
   if (!IsStyleCacheable(state.StyleBuilder())) {
-    return false;
-  }
-
-  // If we allowed styles with explicit inheritance in, we would have to mark
-  // them as partial hits (different parents could mean that _non-inherited_
-  // properties would need to be reapplied, similar to the situation with
-  // ForcedColors). We don't bother tracking this, and instead just never
-  // insert them.
-  //
-  // The “explicit inheritance” flag is stored on the parent, not the style
-  // itself, since that's where we need it 90%+ of the time. This means that
-  // if we do not know the flat-tree parent, StyleBuilder::ApplyProperty() will
-  // not SetChildHasExplicitInheritance() on the parent style, and we do not
-  // know whether this flag is true or false. However, the only two cases where
-  // this can happen (root element, and unused slots in shadow trees),
-  // it doesn't actually matter whether we have explicit inheritance or not,
-  // since the parent style is the initial style. So even if the test returns
-  // a false positive, that's fine.
-  if (parent_style.ChildHasExplicitInheritance()) {
     return false;
   }
 
@@ -344,10 +364,6 @@ bool MatchedPropertiesCache::IsCacheable(const StyleResolverState& state) {
     return false;
   }
 
-  // See StyleResolver::ApplyMatchedCache() for comments.
-  if (state.IsForHighlight()) {
-    return false;
-  }
   if (!state.GetElement().GetCascadeFilter().IsEmpty()) {
     // The result of applying properties with the same matching declarations can
     // be different if the cascade filter is different.

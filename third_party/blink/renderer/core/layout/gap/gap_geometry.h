@@ -16,16 +16,6 @@
 
 namespace blink {
 
-// Represents the direction in which a GapIntersecion is blocked. When
-// considering column gaps, `kBefore` means a GapIntersection is blocked by a
-// spanning item upwards and `kAfter` means it is blocked downwards. When
-// considering row gaps, `kBefore` means a GapIntersection is blocked by a
-// spanning item to the left and `kAfter` means it is blocked to the right.
-enum class BlockedGapDirection {
-  kBefore,
-  kAfter,
-};
-
 // This bitmask indicates whether an intersection is blocked due to the presence
 // of a spanning item in one or both directions. When considering column gaps,
 // `kBlockedBefore` means the intersection is blocked by a spanning item
@@ -58,38 +48,6 @@ class CORE_EXPORT BlockedStatus {
   wtf_size_t status_{kNone};
 };
 
-// GapIntersection points are used to paint gap decorations. An intersection
-// point occurs:
-// 1. At the center of an intersection between a gap and the container edge.
-// 2. At the center of an intersection between gaps in different directions.
-// https://drafts.csswg.org/css-gaps-1/#layout-painting
-class GapIntersection {
- public:
-  GapIntersection() = default;
-  GapIntersection(LayoutUnit inline_offset, LayoutUnit block_offset)
-      : inline_offset(inline_offset), block_offset(block_offset) {}
-
-  GapIntersection(LayoutUnit inline_offset,
-                  LayoutUnit block_offset,
-                  bool is_at_edge_of_container)
-      : inline_offset(inline_offset),
-        block_offset(block_offset),
-        is_at_edge_of_container(is_at_edge_of_container) {}
-
-  String ToString(bool verbose = false) const;
-
-  LayoutUnit inline_offset;
-  LayoutUnit block_offset;
-
-  // Represents whether the intersection point is blocked before or after due to
-  // the presence of a spanning item.
-  bool is_blocked_before = false;
-  bool is_blocked_after = false;
-
-  bool is_at_edge_of_container = false;
-};
-
-using GapIntersectionList = Vector<GapIntersection>;
 using MainGaps = Vector<MainGap>;
 using CrossGaps = Vector<CrossGap>;
 
@@ -124,29 +82,37 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   explicit GapGeometry(ContainerType container_type)
       : container_type_(container_type) {}
 
+  // This copy-esque constructor allows creating a new GapGeometry
+  // instance based on an existing one, while replacing the main gaps and
+  // content block offsets. This is useful for fragmentation where most states
+  // remain the same, but the content block offsets and main gaps may differ.
+  GapGeometry(const GapGeometry& other,
+              MainGaps&& main_gaps,
+              LayoutUnit content_block_start,
+              LayoutUnit content_block_end)
+      : inline_gap_size_(other.inline_gap_size_),
+        block_gap_size_(other.block_gap_size_),
+        container_type_(other.container_type_),
+        main_gaps_(std::move(main_gaps)),
+        cross_gaps_(other.cross_gaps_),
+        content_inline_start_(other.content_inline_start_),
+        content_inline_end_(other.content_inline_end_),
+        content_block_start_(content_block_start),
+        content_block_end_(content_block_end),
+        row_gaps_to_blocked_column_ranges_(
+            other.row_gaps_to_blocked_column_ranges_),
+        column_gaps_to_blocked_row_ranges_(
+            other.column_gaps_to_blocked_row_ranges_),
+        main_direction_(other.main_direction_),
+        main_gap_running_index_(other.main_gap_running_index_) {}
+
   void Trace(Visitor* visitor) const {}
-
-  void SetGapIntersections(GridTrackSizingDirection track_direction,
-                           Vector<GapIntersectionList>&& intersection_list);
-
-  const Vector<GapIntersectionList>& GetGapIntersections(
-      GridTrackSizingDirection track_direction) const;
 
   // Computes the physical bounding rect for gap decorations ink overflow.
   PhysicalRect ComputeInkOverflowForGaps(WritingDirectionMode writing_direction,
                                          const PhysicalSize& container_size,
                                          LayoutUnit inline_thickness,
                                          LayoutUnit block_thickness) const;
-
-  // Computes the physical bounding rect for gap decorations ink overflow.
-  //
-  // TODO(samomekarajr): Rename this to ComputeInkOverflowForGaps and remove the
-  // other function during cleanup.
-  PhysicalRect ComputeInkOverflowForGapsOptimized(
-      WritingDirectionMode writing_direction,
-      const PhysicalSize& container_size,
-      LayoutUnit inline_thickness,
-      LayoutUnit block_thickness) const;
 
   ContainerType GetContainerType() const { return container_type_; }
 
@@ -156,15 +122,6 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   void SetBlockGapSize(LayoutUnit size) { block_gap_size_ = size; }
   LayoutUnit GetBlockGapSize() const { return block_gap_size_; }
 
-  String IntersectionsToString(GridTrackSizingDirection track_direction,
-                               bool verbose = false) const;
-
-  // TODO(crbug.com/436140061): These methods are being used to implement the
-  // optimized version of GapDecorations. Once the optimized version is
-  // implemented, we can remove all the other unused methods from the old
-  // version.
-  // See third_party/blink/renderer/core/layout/gap/README.md for more
-  // information.
 
   void SetContentInlineOffsets(LayoutUnit start_offset, LayoutUnit end_offset);
   LayoutUnit GetContentInlineStart() const { return content_inline_start_; }
@@ -177,7 +134,14 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   void SetMainGaps(Vector<MainGap>&& main_gaps) {
     CHECK(!main_gaps.empty());
     main_gaps_ = std::move(main_gaps);
+
+    // The `main_gap_running_index_` should be the first main_gap index that has
+    // cross gaps before it.
     main_gap_running_index_ = 0;
+    while (main_gap_running_index_ < main_gaps_.size() &&
+           !main_gaps_[main_gap_running_index_].HasCrossGapsBefore()) {
+      ++main_gap_running_index_;
+    }
   }
 
   void SetCrossGaps(Vector<CrossGap>&& cross_gaps) {
@@ -219,12 +183,12 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
     return column_gaps_to_blocked_row_ranges_;
   }
 
-  // Returns the offset of the gap at the specified `gap_index` in the given
-  // `direction` (main or cross axis). For the main axis, it returns the offset
-  // directly. For the cross axis, it returns either the inline or block offset
-  // depending on the direction (columns or rows).
-  LayoutUnit GetGapOffset(GridTrackSizingDirection direction,
-                          wtf_size_t gap_index) const;
+  // Returns the center offset of the gap at the specified `gap_index` in the
+  // given `direction` (main or cross axis). For the main axis, it returns the
+  // offset directly. For the cross axis, it returns either the inline or block
+  // offset depending on the direction (columns or rows).
+  LayoutUnit GetGapCenterOffset(GridTrackSizingDirection direction,
+                                wtf_size_t gap_index) const;
 
   // Gap Decorations are painted relative to intersection points within a gap.
   // This methods returns a Vector of ordered intersection offsets for the gap
@@ -243,7 +207,8 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   bool IsEdgeIntersection(wtf_size_t gap_index,
                           wtf_size_t intersection_index,
                           wtf_size_t intersection_count,
-                          bool is_main_gap) const;
+                          bool is_main_gap,
+                          const Vector<LayoutUnit>& intersections) const;
 
   // Determines if a given track at `cross_index` is covered for gap at
   // `main_index`. For the given `track_direction`, this function looks up any
@@ -261,16 +226,10 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   BlockedStatus GetIntersectionBlockedStatus(
       GridTrackSizingDirection track_direction,
       wtf_size_t primary_index,
-      wtf_size_t secondary_index) const;
+      wtf_size_t secondary_index,
+      const Vector<LayoutUnit>& intersections) const;
 
   blink::String ToString(bool verbose = false) const;
-
-  const Vector<wtf_size_t>& GetSpannerMainGapsIndices() const {
-    return spanner_main_gaps_indices_;
-  }
-  void SetSpannerMainGapsIndices(Vector<wtf_size_t>&& indices) {
-    spanner_main_gaps_indices_ = std::move(indices);
-  }
 
   bool IsMultiColSpanner(wtf_size_t gap_index,
                          GridTrackSizingDirection direction = kForRows) const;
@@ -294,24 +253,28 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
       GridTrackSizingDirection direction,
       wtf_size_t gap_index) const;
 
-  // Computes the end offset for a flex cross gap at `cross_gap_index`. The end
-  // offset is either:
+  // Computes the end offset for a flex or multicol cross gap at
+  // `cross_gap_index`. The end offset is either:
   // - The container's content end which occurs when the cross gap is at last
   // line, or
   // - The offset of the main gap where this cross gap ends (tracked by
   // `main_gap_running_index_`) which occurs when the cross gap occurs on any
   // line but the last.
-  LayoutUnit ComputeEndOffsetForFlexCrossGap(wtf_size_t cross_gap_index,
-                                             GridTrackSizingDirection direction,
-                                             bool cross_gap_is_at_end) const;
+  LayoutUnit ComputeEndOffsetForFlexOrMulticolCrossGap(
+      wtf_size_t cross_gap_index,
+      GridTrackSizingDirection direction,
+      bool cross_gap_is_at_end) const;
 
-  // TODO(samomekarajr): Potential optimization. This can be a single
-  // Vector<GapIntersection> if we exclude intersection points at the edge of
-  // the container. We can check the "blocked" status of edge intersection
-  // points to determine if we should draw from edge of the container to that
-  // intersection.
-  Vector<GapIntersectionList> column_intersections_;
-  Vector<GapIntersectionList> row_intersections_;
+  // In multicol, the intersections of a given `CrossGap` will be spanner
+  // adjacent if and only if there are 3 intersections in the gap, and we are at
+  // the middle intersection. This is because all multicol `CrossGap` will have
+  // only 2 intersections, except if they are adjacent to a spanner, in which
+  // case they will have 3 intersections: One at the start of the gap, one at
+  // the start of the spanner, and one at the end of the spanner. The middle
+  // intersection is the one that is spanner adjacent.
+  bool MulticolCrossGapIntersectionsEndAtSpanner(
+      wtf_size_t intersection_index,
+      const Vector<LayoutUnit>& intersections) const;
 
   // In flex it refers to the gap between flex items, and in grid it
   // refers to the column gutter size.
@@ -328,22 +291,6 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   // version.
   // See third_party/blink/renderer/core/layout/gap/README.md for more
   // information.
-
-  // In order to correctly get the start and end intersections for a `CrossGap`,
-  // (i.e. stopping at spanners), we use two indices (`main_gap_running_index_`
-  // and `next_spanner_main_gap_index_`), to help us in doing this in constant
-  // time (for most cases). `next_spanner_main_gap_index_` is an index of
-  // `spanner_main_gaps_indices_`, which in turn is a vector of indices for
-  // spanner main gaps in `main_gaps_`, and it is used to track the next spanner
-  // main gap (the end offset/intersection of the cross gap we want to paint).
-  // `main_gap_running_index_` is an index of `main_gaps_`, and we use
-  // `spanner_main_gap_indices_` along with `next_spanner_main_gap_index_` to
-  // move `main_gap_running_index_` forward as we progress.
-  //
-  // After we are done painting a cross gap that goes from one spanner to the
-  // next (or to the end of the container), we advance the indices to point
-  // towards the next spanner main gap that we will paint up until.
-  void AdvanceMulticolRunningIndices(bool& should_add_content_end) const;
 
   MainGaps main_gaps_;
   CrossGaps cross_gaps_;
@@ -383,20 +330,6 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   // TODO(samomekarajr): Explore removing this in favour of having this state
   // live at the parent paint call and passing in as an input/output param.
   mutable wtf_size_t main_gap_running_index_ = kNotFound;
-  // For multicol, for a given cross gap, we need to track the index the next
-  // spanner main gap, since this will be the end of that cross gap. This is a
-  // running index (in `spanner_main_gaps_indices_`) that gets updated as we
-  // progress, using the `spanner_main_gaps_indices_`.
-  //
-  // This must be mutable for the same reasons that `main_gap_running_index_` is
-  // mutable.
-  mutable wtf_size_t next_spanner_main_gap_index_ = 0;
-  // These are the indices (in `main_gaps_`) of the main gaps that are spanners.
-  // Only used for multicol.
-  //
-  // This must be mutable for the same reasons that `main_gap_running_index_` is
-  // mutable.
-  mutable Vector<wtf_size_t> spanner_main_gaps_indices_;
 };
 
 }  // namespace blink

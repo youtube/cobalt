@@ -379,6 +379,10 @@ class PDFiumEngine : public DocumentLoader::Client,
   // elements, e.g. headings and table cells.
   virtual bool IsPDFDocTagged() const;
 
+  // Returns a copy of the structure tree which describes the logical
+  // organization of the PDF, if present.
+  std::unique_ptr<AccessibilityStructureElement> GetStructureTree() const;
+
   virtual uint32_t GetLoadedByteSize();
 
   // Copies data from `doc_loader_` into `buffer` starting from `offset`.
@@ -516,6 +520,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   bool IsSelecting() const override;
   bool IsSynthesizedNewline(const PageCharacterIndex& index) const override;
   bool PageIndexInBounds(int index) const override;
+  void ScrollToChar(const PageCharacterIndex& index) override;
   void StartSelection(const PageCharacterIndex& index) override;
 
   // `PdfAnnotationAgent::Container`:
@@ -637,6 +642,16 @@ class PDFiumEngine : public DocumentLoader::Client,
    public:
     explicit SelectionChangeInvalidator(PDFiumEngine* engine);
     ~SelectionChangeInvalidator() override;
+
+   private:
+    std::vector<gfx::Rect> GetVisibleChangeRects() const override;
+  };
+
+  // Tracks and invalidates find result changes.
+  class FindResultChangeInvalidator : public ChangeInvalidator {
+   public:
+    explicit FindResultChangeInvalidator(PDFiumEngine* engine);
+    ~FindResultChangeInvalidator() override;
 
    private:
     std::vector<gfx::Rect> GetVisibleChangeRects() const override;
@@ -800,6 +815,10 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   // Inserts a find result into `find_results_`, which is sorted.
   void AddFindResult(PDFiumRange result);
+
+  // Returns the current find selection, otherwise returns nullptr if there is
+  // no find selection.
+  const PDFiumRange* GetFindSelection() const;
 
   // Search a page ourself using ICU.
   void SearchUsingICU(const std::u16string& term,
@@ -1316,7 +1335,9 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   PDFiumPrint print_;
 
-  // The text caret on the PDF, excluding AcroForms.
+  // The text caret on the PDF, excluding AcroForms. Once initialized, it will
+  // not be destroyed until the destructor is called. The caret needs to store
+  // state, such as its position, blink interval, etc.
   std::unique_ptr<PdfCaret> caret_;
 
   // The list of text fragments to highlight on the PDF.

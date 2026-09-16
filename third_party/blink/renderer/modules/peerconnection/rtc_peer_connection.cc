@@ -201,7 +201,7 @@ bool CallErrorCallbackIfSignalingStateClosed(
 bool IsIceCandidateMissingSdpMidAndMLineIndex(
     const RTCIceCandidateInit* candidate) {
   return (candidate->sdpMid().IsNull() &&
-          !candidate->hasSdpMLineIndexNonNull());
+          !candidate->sdpMLineIndex().has_value());
 }
 
 RTCOfferOptionsPlatform* ConvertToRTCOfferOptionsPlatform(
@@ -233,17 +233,15 @@ RTCIceCandidatePlatform* ConvertToRTCIceCandidatePlatform(
     ExecutionContext* context,
     const RTCIceCandidateInit* candidate) {
   // TODO(guidou): Change default value to -1. crbug.com/614958.
-  uint16_t sdp_m_line_index = 0;
-  if (candidate->hasSdpMLineIndexNonNull()) {
-    sdp_m_line_index = candidate->sdpMLineIndexNonNull();
-  } else {
+  uint16_t sdp_m_line_index = candidate->sdpMLineIndex().value_or(0);
+  if (!candidate->sdpMLineIndex()) {
     UseCounter::Count(context,
                       WebFeature::kRTCIceCandidateDefaultSdpMLineIndex);
   }
   return MakeGarbageCollected<RTCIceCandidatePlatform>(
       candidate->candidate(), candidate->sdpMid(), sdp_m_line_index,
       candidate->usernameFragment(),
-      /*url can not be reconstruncted*/ String());
+      /*url can not be reconstructed*/ String());
 }
 
 webrtc::PeerConnectionInterface::IceTransportsType IceTransportPolicyFromEnum(
@@ -1218,10 +1216,10 @@ RTCConfiguration* RTCPeerConnection::getConfiguration(
 
   switch (webrtc_configuration.type) {
     case webrtc::PeerConnectionInterface::kRelay:
-      result->setIceTransportPolicy("relay");
+      result->setIceTransportPolicy(V8RTCIceTransportPolicy::Enum::kRelay);
       break;
     case webrtc::PeerConnectionInterface::kAll:
-      result->setIceTransportPolicy("all");
+      result->setIceTransportPolicy(V8RTCIceTransportPolicy::Enum::kAll);
       break;
     default:
       NOTREACHED();
@@ -1229,13 +1227,13 @@ RTCConfiguration* RTCPeerConnection::getConfiguration(
 
   switch (webrtc_configuration.bundle_policy) {
     case webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat:
-      result->setBundlePolicy("max-compat");
+      result->setBundlePolicy(V8RTCBundlePolicy::Enum::kMaxCompat);
       break;
     case webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle:
-      result->setBundlePolicy("max-bundle");
+      result->setBundlePolicy(V8RTCBundlePolicy::Enum::kMaxBundle);
       break;
     case webrtc::PeerConnectionInterface::kBundlePolicyBalanced:
-      result->setBundlePolicy("balanced");
+      result->setBundlePolicy(V8RTCBundlePolicy::Enum::kBalanced);
       break;
     default:
       NOTREACHED();
@@ -1243,10 +1241,10 @@ RTCConfiguration* RTCPeerConnection::getConfiguration(
 
   switch (webrtc_configuration.rtcp_mux_policy) {
     case webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate:
-      result->setRtcpMuxPolicy("negotiate");
+      result->setRtcpMuxPolicy(V8RTCRtcpMuxPolicy::Enum::kNegotiate);
       break;
     case webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire:
-      result->setRtcpMuxPolicy("require");
+      result->setRtcpMuxPolicy(V8RTCRtcpMuxPolicy::Enum::kRequire);
       break;
     default:
       NOTREACHED();

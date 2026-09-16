@@ -751,6 +751,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_SHOW_SYNC_SETTINGS:
       chrome::ShowSettingsSubPage(browser_, chrome::kSyncSetupSubPage);
       break;
+    case IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL:
+      ShowContextualTasksSidePanel(browser_);
+      break;
     case IDC_TURN_ON_SYNC:
       signin_ui_util::EnableSyncFromSingleAccountPromo(
           browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
@@ -977,6 +980,10 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       ShowSettingsSubPage(browser_->GetBrowserForOpeningWebUi(),
                           chrome::kPeopleSubPage);
       break;
+    case IDC_RECENT_TABS_SEE_DEVICE_TABS:
+      ShowHistorySubPage(browser_->GetBrowserForOpeningWebUi(),
+                         kChromeUIHistorySyncedTabs);
+      break;
     case IDC_SHOW_BOOKMARK_MANAGER:
       ShowBookmarkManager(browser_->GetBrowserForOpeningWebUi());
       break;
@@ -1119,6 +1126,7 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
                                     TabGroupShortcut::kCloseTabGroup);
       break;
     case IDC_CREATE_NEW_TAB_GROUP:
+    case IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL:
       CreateNewTabGroup(browser_);
       base::UmaHistogramEnumeration("TabGroups.Shortcuts",
                                     TabGroupShortcut::kCreateNewTabGroup);
@@ -1133,7 +1141,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       base::RecordAction(
           base::UserMetricsAction("TabGroups_GroupAllUngroupedTabs"));
       break;
-
+    case IDC_ADD_NEW_TAB_RECENT_GROUP:
+      AddNewTabToRecentGroup(browser_);
+      break;
     case IDC_WINDOW_CLOSE_TABS_TO_RIGHT:
       CloseTabsToRight(browser_);
       break;
@@ -1273,15 +1283,7 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       base::MakeRefCounted<shell_integration::DefaultBrowserWorker>()
           ->StartSetAsDefault(base::DoNothing());
 
-      // Log metrics before clearing prefs and closing prompts.
-      if (g_browser_process->local_state()->HasPrefPath(
-              prefs::kDefaultBrowserFirstShownTime)) {
-        base::UmaHistogramCounts100(
-            "DefaultBrowser.AppMenu.TimesShownBeforeAccept",
-            g_browser_process->local_state()->GetInteger(
-                prefs::kDefaultBrowserDeclinedCount) +
-                1);
-      }
+      // Clear prefs and close prompts.
       chrome::startup::default_prompt::UpdatePrefsForDismissedPrompt(
           browser_->profile());
       DefaultBrowserPromptManager::GetInstance()->CloseAllPrompts(
@@ -1420,6 +1422,9 @@ void BrowserCommandController::InitCommandState() {
   command_updater_.UpdateCommandEnabled(IDC_FOCUS_PREV_TAB_GROUP, true);
   command_updater_.UpdateCommandEnabled(IDC_CLOSE_TAB_GROUP, true);
   command_updater_.UpdateCommandEnabled(IDC_GROUP_UNGROUPED_TABS, true);
+  command_updater_.UpdateCommandEnabled(IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL,
+                                        true);
+  command_updater_.UpdateCommandEnabled(IDC_ADD_NEW_TAB_RECENT_GROUP, true);
 
   // Omnibox commands
   command_updater_.UpdateCommandEnabled(IDC_SHOW_FULL_URLS, true);
@@ -1543,6 +1548,10 @@ void BrowserCommandController::InitCommandState() {
       IDC_RECENT_TABS_LOGIN_FOR_DEVICE_TABS,
       (!guest_session && !profile()->IsSystemProfile() &&
        !profile()->IsIncognitoProfile()));
+  command_updater_.UpdateCommandEnabled(
+      IDC_RECENT_TABS_SEE_DEVICE_TABS,
+      (!guest_session && !profile()->IsSystemProfile() &&
+       !profile()->IsIncognitoProfile()));
 #if !BUILDFLAG(IS_CHROMEOS)
   command_updater_.UpdateCommandEnabled(IDC_CUSTOMIZE_CHROME, true);
   command_updater_.UpdateCommandEnabled(IDC_CLOSE_PROFILE, true);
@@ -1628,6 +1637,9 @@ void BrowserCommandController::InitCommandState() {
                                         enable_tab_search_commands);
   command_updater_.UpdateCommandEnabled(IDC_TAB_SEARCH_CLOSE,
                                         enable_tab_search_commands);
+
+  command_updater_.UpdateCommandEnabled(IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL,
+                                        true);
 
   if (base::FeatureList::IsEnabled(features::kUIDebugTools)) {
     command_updater_.UpdateCommandEnabled(IDC_DEBUG_TOGGLE_TABLET_MODE, true);

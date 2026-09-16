@@ -150,7 +150,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
       WebContentDecryptionModule* initial_cdm,
       media::RequestRoutingTokenCallback request_routing_token_cb,
       base::WeakPtr<media::MediaObserver> media_observer,
-      bool enable_instant_source_buffer_gc,
       bool embedded_media_experience_enabled,
       mojo::PendingRemote<media::mojom::blink::MediaMetricsProvider>
           metrics_provider,
@@ -447,8 +446,8 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   void DemuxerRequestsSeek(base::TimeDelta seek_time) override;
 
 #if BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
-  void AddMediaTrack(const media::MediaTrack&) override;
-  void RemoveMediaTrack(const media::MediaTrack&) override;
+  void AddTrack(const media::MediaTrack&) override;
+  void RemoveTrack(const media::MediaTrack&) override;
 #endif  // BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -495,7 +494,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   // Called by GpuVideoDecoder on Android to request a surface to render to (if
   // necessary).
   void OnOverlayInfoRequested(
-      bool decoder_requires_restart_for_overlay,
       media::ProvideOverlayInfoCB provide_overlay_info_cb);
 
   // Creates a Renderer via the |renderer_factory_selector_|. If the
@@ -830,9 +828,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   // Cors and Caching flags set during `Load` and used while creating demuxers.
   CorsMode cors_mode_ = kCorsModeUnspecified;
   bool is_cache_disabled_ = false;
-
-  // Whether the current decoder requires a restart on overlay transitions.
-  bool decoder_requires_restart_for_overlay_ = false;
 
   const raw_ptr<MediaPlayerClient> client_;
   const raw_ptr<WebMediaPlayerEncryptedMediaClient> encrypted_client_;

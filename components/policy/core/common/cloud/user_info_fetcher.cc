@@ -37,7 +37,7 @@ static const char kLegacyGoogleApisHost[] = "www.googleapis.com";
 // doesn't support the User Info API anymore. This is needed on iOS, which is
 // the only platform that uses the new OAuth2 host at the moment.
 GURL SwitchBackToLegacyHostIfNeeded(const GURL& url) {
-  if (url.host() == "oauth2.googleapis.com") {
+  if (url.GetHost() == "oauth2.googleapis.com") {
     GURL::Replacements replace_host;
     replace_host.SetHostStr(kLegacyGoogleApisHost);
     return url.ReplaceComponents(replace_host);
@@ -139,8 +139,8 @@ void UserInfoFetcher::OnFetchComplete(
   DCHECK(unparsed_data);
   DVLOG_POLICY(1, POLICY_AUTH)
       << "Received UserInfo response: " << *unparsed_data;
-  std::optional<base::Value> parsed_value =
-      base::JSONReader::Read(*unparsed_data);
+  std::optional<base::Value> parsed_value = base::JSONReader::Read(
+      *unparsed_data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (parsed_value && parsed_value->is_dict()) {
     RecordFetchStatus(EnterpriseUserInfoFetchStatus::kSuccess);
     delegate_->OnGetUserInfoSuccess(parsed_value->GetDict());

@@ -36,9 +36,9 @@ source_set("public") {
     # altogether). The dep itself is dropped upstream by
     # https://crrev.com/c/7638529 in 148.0.7728.0. Only user_agent.h is used
     # here, and that lives in //ios/web/common:user_agent, kept above.
-    # Delete this block when the roll reaches 148.0.7728.0: deps -= errors
-    # once the dep is gone upstream.
+    # Delete this block when the roll reaches 148.0.7728.0.
     deps -= [ "//ios/web/common" ]
+    deps += [ "//ios/web/common:features" ]
   }
 
   sources = [

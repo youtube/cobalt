@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_history_entry.h"
 #include "third_party/blink/renderer/core/navigation_api/navigation_transition.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/route_matching/route_map.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/bindings/exception_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -775,6 +776,7 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
 
   PromoteUpcomingNavigationToOngoing(key);
 
+  KURL previous_url = currentEntry()->url();
   auto* init = NavigateEventInit::Create();
   V8NavigationType::Enum navigation_type =
       DetermineNavigationType(params->frame_load_type);
@@ -852,8 +854,7 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
       // If these conditions are met, create a SoftNavigationEventScope to
       // consider this a "user initiated click", and the dispatched event
       // handlers as potential soft navigation tasks.
-      soft_navigation_scope =
-          heuristics->MaybeCreateEventScopeForEvent(*navigate_event);
+      soft_navigation_scope = heuristics->CreateNavigationEventScope();
     }
   }
 
@@ -876,10 +877,15 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
 
   if (navigate_event->HasNavigationActions()) {
     transition_ = MakeGarbageCollected<NavigationTransition>(
-        window_, navigation_type, currentEntry());
+        window_, navigation_type, currentEntry(),
+        navigate_event->destination());
     navigate_event->MaybeCommitImmediately(script_state);
   } else if (params->event_type != NavigateEventType::kCrossDocument) {
     navigate_event->React(script_state);
+  }
+
+  if (auto* routemap = RouteMap::Get(window_->document())) {
+    routemap->OnNavigationStart(previous_url, params->url);
   }
 
   // Note: we cannot clean up ongoing_navigation_ for cross-document
@@ -978,6 +984,9 @@ void NavigationApi::DidFailOngoingNavigation(ScriptValue value) {
       ErrorEvent::Create(ToCoreStringWithNullCheck(isolate, message->Get()),
                          location, value, &DOMWrapperWorld::MainWorld(isolate));
   event->SetType(event_type_names::kNavigateerror);
+  if (auto* routemap = RouteMap::Get(window_->document())) {
+    routemap->OnNavigationDone();
+  }
   DispatchEvent(*event);
 
   if (transition_) {
@@ -992,6 +1001,9 @@ void NavigationApi::DidFinishOngoingNavigation() {
     ongoing_api_method_tracker_ = nullptr;
   }
 
+  if (auto* routemap = RouteMap::Get(window_->document())) {
+    routemap->OnNavigationDone();
+  }
   DispatchEvent(*Event::Create(event_type_names::kNavigatesuccess));
 
   if (transition_) {

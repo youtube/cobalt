@@ -211,7 +211,8 @@ TEST_F(ChromeExtensionNavigationTest,
       })",
       extension_id.c_str());
 
-  std::optional<base::Value> settings = base::JSONReader::Read(json);
+  std::optional<base::Value> settings =
+      base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   testing_pref_service()->SetManagedPref(
       pref_names::kExtensionManagement,
       base::Value::ToUniquePtrValue(std::move(settings.value())));
@@ -247,23 +248,6 @@ TEST_F(ChromeExtensionNavigationTest, PrepareURLForNavigationOnDevtools) {
         kDevtoolsURL, no_permission_extension.get(), browser_context());
     EXPECT_THAT(
         url, base::test::ErrorIs(ExtensionTabUtil::kCannotNavigateToDevtools));
-  }
-  // Having the devtools permissions should allow access.
-  {
-    auto devtools_extension = ExtensionBuilder("devtools")
-                                  .SetManifestKey("devtools_page", "foo.html")
-                                  .Build();
-    auto url = ExtensionTabUtil::PrepareURLForNavigation(
-        kDevtoolsURL, devtools_extension.get(), browser_context());
-    EXPECT_THAT(url, base::test::ValueIs(kDevtoolsURL));
-  }
-  // Having the debugger permissions should also allow access.
-  {
-    auto debugger_extension =
-        ExtensionBuilder("debugger").AddAPIPermission("debugger").Build();
-    auto url = ExtensionTabUtil::PrepareURLForNavigation(
-        kDevtoolsURL, debugger_extension.get(), browser_context());
-    EXPECT_THAT(url, base::test::ValueIs(kDevtoolsURL));
   }
 }
 

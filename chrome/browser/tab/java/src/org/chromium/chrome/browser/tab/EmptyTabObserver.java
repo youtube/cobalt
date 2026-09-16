@@ -84,12 +84,6 @@ public class EmptyTabObserver implements TabObserver {
     public void onCrash(Tab tab) {}
 
     @Override
-    public void webContentsWillSwap(Tab tab) {}
-
-    @Override
-    public void onWebContentsSwapped(Tab tab, boolean didStartLoad, boolean didFinishLoad) {}
-
-    @Override
     public void onContextMenuShown(Tab tab) {}
 
     @Override
@@ -190,6 +184,12 @@ public class EmptyTabObserver implements TabObserver {
 
     @Override
     public void onGestureEnd() {}
+
+    @Override
+    public void onTouchDown() {}
+
+    @Override
+    public void onTouchUp() {}
 
     @Override
     public void didBackForwardTransitionAnimationChange(Tab tab) {}

@@ -12,8 +12,8 @@
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/ios/features.h"
 #import "components/url_formatter/elide_url.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/autofill/model/features.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_app_interface.h"
@@ -754,7 +754,7 @@ void LongPressElementOnceVisible(id<GREYMatcher> matcher) {
   // Since the bottom sheet was dismissed, now suggestions are shown in the
   // keyboard acessory.
   NSString* accessorySuggestionURL =
-      base::SysUTF8ToNSString(loginURL.host() + ":" + loginURL.port());
+      base::SysUTF8ToNSString(loginURL.GetHost() + ":" + loginURL.GetPort());
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
                       grey_accessibilityLabel([@"user, "
                           stringByAppendingString:accessorySuggestionURL])];

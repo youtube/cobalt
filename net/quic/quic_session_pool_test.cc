@@ -3961,7 +3961,7 @@ TEST_P(QuicSessionPoolTest,
   socket_data
       .AddWrite("connect-udp",
                 ConstructConnectUdpRequestPacket(
-                    to_proxy_packet_num++, stream_id, proxy.host(),
+                    to_proxy_packet_num++, stream_id, proxy.GetHost(),
                     "/.well-known/masque/udp/www.example.org/443/", false))
       .Sync();
   socket_data.AddRead("server-settings",
@@ -4179,7 +4179,7 @@ TEST_P(QuicSessionPoolTest, MigrateOnPathDegradingWithProxiedSession) {
   socket_data
       .AddWrite("connect-udp",
                 ConstructConnectUdpRequestPacket(
-                    to_proxy_packet_num++, stream_id, proxy.host(),
+                    to_proxy_packet_num++, stream_id, proxy.GetHost(),
                     "/.well-known/masque/udp/www.example.org/443/", false))
       .Sync();
   socket_data.AddRead("server-settings",
@@ -13326,7 +13326,7 @@ TEST_P(QuicSessionPoolWithDestinationTest, DifferentProxyChain) {
   socket_data1.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket(1));
   socket_data1.AddWrite(
       SYNCHRONOUS, ConstructConnectUdpRequestPacket(
-                       2, stream_id, proxy1.host(),
+                       2, stream_id, proxy1.GetHost(),
                        "/.well-known/masque/udp/www.example.org/443/", false));
   socket_data1.AddRead(ASYNC, ConstructServerSettingsPacket(3));
   socket_data1.AddRead(ASYNC, ConstructOkResponsePacket(4, stream_id, true));
@@ -13352,7 +13352,7 @@ TEST_P(QuicSessionPoolWithDestinationTest, DifferentProxyChain) {
   socket_data2.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket(1));
   socket_data2.AddWrite(
       SYNCHRONOUS, ConstructConnectUdpRequestPacket(
-                       2, stream_id, proxy2.host(),
+                       2, stream_id, proxy2.GetHost(),
                        "/.well-known/masque/udp/mail.example.org/443/", false));
   socket_data2.AddRead(ASYNC, ConstructServerSettingsPacket(3));
   socket_data2.AddRead(ASYNC, ConstructOkResponsePacket(4, stream_id, true));
@@ -14878,6 +14878,45 @@ TEST_P(QuicSessionPoolTest, TrustAnchorIDs) {
   ASSERT_TRUE(session);
   quic::QuicSSLConfig config = session->GetSSLConfig();
   EXPECT_EQ(config.trust_anchor_ids, "\x03\x01\x02\x03");
+}
+
+// Test that when Trust Anchor IDs are not advertised by the server, but are
+// enabled on the client, we send an empty list to indicate that TAI is
+// supported.
+TEST_P(QuicSessionPoolTest, TrustAnchorIDsNotAdvertisedInDns) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kTLSTrustAnchorIDs);
+
+  SSLContextConfig ssl_config;
+  ssl_config.trust_anchor_ids = {{0x01, 0x02, 0x03}, {0x01, 0x01}};
+  ssl_config_service_.UpdateSSLConfigAndNotify(ssl_config);
+
+  HostResolverEndpointResult endpoint;
+  endpoint.ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
+  endpoint.metadata.trust_anchor_ids = {};
+
+  host_resolver_ = std::make_unique<MockHostResolver>();
+  host_resolver_->rules()->AddRule(
+      kDefaultServerHostName,
+      MockHostResolverBase::RuleResolver::RuleResult({endpoint}));
+
+  Initialize();
+  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
+  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  ASSERT_THAT(callback_.WaitForResult(), IsOk());
+
+  QuicChromiumClientSession* session = GetActiveSession(kDefaultDestination);
+  ASSERT_TRUE(session);
+  quic::QuicSSLConfig config = session->GetSSLConfig();
+  EXPECT_EQ(config.trust_anchor_ids, "");
 }
 
 // Test that Trust Anchor IDs are not configured via GetSSLConfig() when the

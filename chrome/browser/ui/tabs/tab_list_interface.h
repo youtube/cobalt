@@ -10,6 +10,7 @@
 #include <set>
 #include <vector>
 
+#include "base/scoped_observation_traits.h"
 #include "build/android_buildflags.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_interface.h"
@@ -57,7 +58,7 @@ class TabListInterface {
 
   // Opens a new tab to the given `url`, inserting it at `index` in the tab
   // strip. `index` may be ignored by the implementation if necessary.
-  virtual void OpenTab(const GURL& url, int index) = 0;
+  virtual tabs::TabInterface* OpenTab(const GURL& url, int index) = 0;
 
   // Attempts to discard the renderer for the `tab` from memory.
   //
@@ -137,5 +138,21 @@ class TabListInterface {
                                     SessionID destination_window_id,
                                     int destination_index) = 0;
 };
+
+namespace base {
+
+template <>
+struct ScopedObservationTraits<TabListInterface, TabListInterfaceObserver> {
+  static void AddObserver(TabListInterface* tab_list,
+                          TabListInterfaceObserver* observer) {
+    tab_list->AddTabListInterfaceObserver(observer);
+  }
+  static void RemoveObserver(TabListInterface* tab_list,
+                             TabListInterfaceObserver* observer) {
+    tab_list->RemoveTabListInterfaceObserver(observer);
+  }
+};
+
+}  // namespace base
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_LIST_INTERFACE_H_

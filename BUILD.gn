@@ -27,7 +27,6 @@ import("//extensions/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
-import("//mojo/public/rust/rust.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//remoting/remoting_enable.gni")
@@ -371,13 +370,6 @@ group("gn_all") {
       ]
     }
 
-    # Allow building md5sum tool for other OSes (android is added below).
-    # For Windows, see: crbug.com/1090428.
-    # TODO(cavalcantii): move it out of 'android' folder.
-    if (!is_win) {
-      deps += [ "//tools/android/md5sum" ]
-    }
-
     if (is_android) {
       deps += [
         "//base:base_junit_tests",
@@ -404,11 +396,6 @@ group("gn_all") {
         "//third_party/jni_zero:jni_zero_tests",
         "//third_party/r8:custom_d8_java",
         "//tools/android:android_tools",
-        "//tools/android:memconsumer",
-        "//tools/android:push_apps_to_background",
-        "//tools/android/audio_focus_grabber:audio_focus_grabber_apk",
-        "//tools/android/customtabs_benchmark:customtabs_benchmark_apk",
-        "//tools/android/kerberos/SpnegoAuthenticator:spnego_authenticator_apk",
         "//tools/cygprofile:generate_orderfile_android_trichrome_chrome_bundle",
         "//tools/pgo:generate_profile_android_trichrome_chrome_bundle",
         "//ui:ui_junit_tests",
@@ -594,6 +581,7 @@ group("gn_all") {
 
     if (is_linux) {
       deps += [
+        "//components/safe_browsing/content/resources/real_time_url_checks_allowlist:make_real_time_url_allowlist_protobuf_for_gcs",
         "//skia:filter_fuzz_stub",
         "//skia:image_operations_bench",
         "//ui/snapshot:snapshot_unittests",
@@ -871,13 +859,6 @@ group("all_rust") {
   }
   }
 
-  if (enable_rust_mojo) {
-    deps += [
-      "//mojo/public/rust:mojo_rust",
-      "//mojo/public/rust:mojo_rust_integration_unittests",
-      "//mojo/public/rust:mojo_rust_unittests",
-    ]
-  }
   if (!is_cronet_build) {
     deps += [ "//skia" ]
   }
@@ -1032,7 +1013,7 @@ if (is_chromeos) {
       "//ui/ozone/gl:ozone_gl_unittests",
     ]
 
-    if (use_v4l2_codec || use_vaapi) {
+    if (use_linux_video_acceleration) {
       data_deps += [
         "//components/chromeos_camera:jpeg_encode_accelerator_unittest",
         "//media/gpu/chromeos:image_processor_test",

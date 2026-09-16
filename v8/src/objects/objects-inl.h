@@ -95,11 +95,6 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
 #define IS_TYPE_FUNCTION_DEF(type_)                                          \
   bool Is##type_(Tagged<Object> obj) {                                       \
     return IsHeapObject(obj) && Is##type_(Cast<HeapObject>(obj));            \
@@ -506,11 +501,29 @@ bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #endif
 }
 
+bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
+}
+
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
   return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsAnyObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  return (IsJSObject(obj) || IsWasmObject(obj)) &&
+         !HeapLayout::InWritableSharedSpace(*obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
@@ -1089,10 +1102,26 @@ void HeapObject::InitExternalPointerField(size_t offset,
                                              tag, mode);
 }
 
+void HeapObject::InitExternalPointerField(size_t offset,
+                                          IsolateForSandbox isolate,
+                                          ExternalPointerTag tag, Address value,
+                                          WriteBarrierMode mode) {
+  i::InitExternalPointerField(address(), field_address(offset), isolate, tag,
+                              value);
+  CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(*this, static_cast<int>(offset),
+                                             tag, mode);
+}
+
 template <ExternalPointerTagRange tag_range>
 Address HeapObject::ReadExternalPointerField(size_t offset,
                                              IsolateForSandbox isolate) const {
   return i::ReadExternalPointerField<tag_range>(field_address(offset), isolate);
+}
+
+Address HeapObject::ReadExternalPointerField(
+    size_t offset, IsolateForSandbox isolate,
+    ExternalPointerTagRange tag_range) const {
+  return i::ReadExternalPointerField(field_address(offset), isolate, tag_range);
 }
 
 template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
@@ -1113,6 +1142,13 @@ void HeapObject::WriteExternalPointerField(size_t offset,
                                            IsolateForSandbox isolate,
                                            Address value) {
   i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
+}
+
+void HeapObject::WriteExternalPointerField(size_t offset,
+                                           IsolateForSandbox isolate,
+                                           ExternalPointerTag tag,
+                                           Address value) {
+  i::WriteExternalPointerField(field_address(offset), isolate, tag, value);
 }
 
 void HeapObject::SetupLazilyInitializedExternalPointerField(size_t offset) {
@@ -1307,7 +1343,6 @@ template <typename ObjectType>
 JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
     ObjectType host, size_t offset, Isolate* isolate, uint16_t parameter_count,
     DirectHandle<Code> code, WriteBarrierMode mode) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(host->field_address(offset));
   JSDispatchHandle handle =
@@ -1322,9 +1357,6 @@ JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
 
   return handle;
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

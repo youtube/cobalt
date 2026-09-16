@@ -10,6 +10,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Rect;
 import android.os.Build;
@@ -20,15 +21,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -38,6 +39,7 @@ import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.FullscreenTestUtils;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.display.DisplayUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +47,6 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(value = Batch.PER_CLASS)
-// TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
-@DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
 @NullMarked
 public class ChromeAndroidTaskIntegrationTest {
 
@@ -79,8 +79,8 @@ public class ChromeAndroidTaskIntegrationTest {
         var tabModel = mFreshCtaTransitTestRule.getActivity().getCurrentTabModel();
 
         // Assert.
-        assertTrue(chromeAndroidTask.getSessionIdForTesting().isPresent());
-        assertTrue(tabModel.getNativeSessionIdForTesting().isPresent());
+        assertNotNull(chromeAndroidTask.getSessionIdForTesting());
+        assertNotNull(tabModel.getNativeSessionIdForTesting());
         assertEquals(
                 chromeAndroidTask.getSessionIdForTesting(),
                 tabModel.getNativeSessionIdForTesting());
@@ -206,21 +206,29 @@ public class ChromeAndroidTaskIntegrationTest {
     @Test
     @MediumTest
     @MinAndroidSdkLevel(Build.VERSION_CODES.R)
-    public void getBounds_returnsCorrectBounds() {
+    @SuppressLint("NewApi" /* @MinAndroidSdkLevel already specifies the required SDK */)
+    public void getBoundsInDp_returnsCorrectBounds() {
         // Arrange
         mFreshCtaTransitTestRule.startOnBlankPage();
-        Activity activity = mFreshCtaTransitTestRule.getActivity();
+        ChromeTabbedActivity activity = mFreshCtaTransitTestRule.getActivity();
         int taskId = activity.getTaskId();
         var chromeAndroidTask = getChromeAndroidTask(taskId);
         assertNotNull(chromeAndroidTask);
 
+        var activityWindowAndroid = activity.getWindowAndroid();
+        assertNotNull(activityWindowAndroid);
+
         // Act
-        Rect actualBounds = chromeAndroidTask.getBounds();
+        Rect actualBoundsInDp = chromeAndroidTask.getBoundsInDp();
 
         // Assert: by default, the bounds are the maximum window bounds.
-        var expectedBounds = activity.getWindowManager().getMaximumWindowMetrics().getBounds();
-        assertFalse(actualBounds.isEmpty());
-        assertEquals(expectedBounds, actualBounds);
+        Rect expectedBoundsInPx = activity.getWindowManager().getMaximumWindowMetrics().getBounds();
+        Rect expectedBoundsInDp =
+                DisplayUtil.scaleToEnclosingRect(
+                        expectedBoundsInPx,
+                        1.0f / activityWindowAndroid.getDisplay().getDipScale());
+
+        assertEquals(expectedBoundsInDp, actualBoundsInDp);
     }
 
     @Test
@@ -241,6 +249,12 @@ public class ChromeAndroidTaskIntegrationTest {
 
         // Assert
         assertTrue(ntpStation.getActivity().isFinishing());
+        CriteriaHelper.pollUiThread(
+                () -> ntpStation.getActivity().isDestroyed(), "activity to be destroyed");
+        assertEquals(
+                "only one activity should be running",
+                1,
+                ApplicationStatus.getRunningActivities().size());
     }
 
     @Test
@@ -359,6 +373,37 @@ public class ChromeAndroidTaskIntegrationTest {
 
     @Test
     @MediumTest
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP /* test needs "new window" in app menu */)
+    public void deactivate_notTriggeredIfAlreadyInactive() {
+        // Arrange
+        WebPageStation webPageStation = mFreshCtaTransitTestRule.startOnBlankPage();
+        int firstTaskId = mFreshCtaTransitTestRule.getActivity().getTaskId();
+        var firstChromeAndroidTask = getChromeAndroidTask(firstTaskId);
+        assertNotNull(firstChromeAndroidTask);
+        assertTrue(firstChromeAndroidTask.isActive());
+
+        RegularNewTabPageStation ntpStation =
+                webPageStation.openRegularTabAppMenu().openNewWindow();
+        int secondTaskId = ntpStation.getActivity().getTaskId();
+        var secondChromeAndroidTask = getChromeAndroidTask(secondTaskId);
+        assertNotNull(secondChromeAndroidTask);
+        assertTrue(secondChromeAndroidTask.isActive());
+        assertFalse("Task should be inactive", firstChromeAndroidTask.isActive());
+
+        // Act
+        firstChromeAndroidTask.deactivate();
+
+        // Assert
+        assertFalse(
+                "Deactivate should be a no-op for inactive tasks",
+                firstChromeAndroidTask.isActive());
+        assertTrue("Deactivate should be a no-op", secondChromeAndroidTask.isActive());
+        // Cleanup
+        ntpStation.getActivity().finish();
+    }
+
+    @Test
+    @MediumTest
     public void isMaximized_trueByDefault() {
         // Arrange
         mFreshCtaTransitTestRule.startOnBlankPage();
@@ -367,8 +412,14 @@ public class ChromeAndroidTaskIntegrationTest {
         var chromeAndroidTask = getChromeAndroidTask(taskId);
         assertNotNull(chromeAndroidTask);
 
-        // Assert: by default, app is maximized in non desktop windowing mode.
-        assertTrue(chromeAndroidTask.isMaximized());
+        // Assert
+        assertEquals(
+                "only one activity should be running",
+                1,
+                ApplicationStatus.getRunningActivities().size());
+        assertTrue(
+                "App should be maximized in non desktop windowing mode",
+                chromeAndroidTask.isMaximized());
     }
 
     @Test
@@ -500,7 +551,7 @@ public class ChromeAndroidTaskIntegrationTest {
         public void onTaskRemoved() {}
 
         @Override
-        public void onTaskBoundsChanged(Rect newBounds) {
+        public void onTaskBoundsChanged(Rect newBoundsInDp) {
             mTimesOnTaskBoundsChanged++;
         }
 

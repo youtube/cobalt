@@ -374,8 +374,8 @@ void RequestService::RequestToken(
 
         bool has_nonce_in_params = false;
         if (idp_ptr->params_json) {
-          std::optional<base::Value> params =
-              base::JSONReader::Read(*idp_ptr->params_json);
+          std::optional<base::Value> params = base::JSONReader::Read(
+              *idp_ptr->params_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
           if (params && params->is_dict()) {
             if (params->GetDict().contains("nonce")) {
               has_nonce_in_params = true;
@@ -606,7 +606,7 @@ void RequestService::CancelTokenRequest() {
 
 void RequestService::ResolveTokenRequest(
     const std::optional<std::string>& account_id,
-    const std::string& token,
+    base::Value token,
     ResolveTokenRequestCallback callback) {
   if (!identity_registry_ && !SetupIdentityRegistryFromPopup()) {
     std::move(callback).Run(false);
@@ -1206,7 +1206,8 @@ void RequestService::AfterAccountsDialogShown(
   // small percentage of the samples recorded.
   fedcm_metrics_->RecordAccountsDialogShown(idp_data_for_display_);
   fedcm_metrics_->RecordRpUrlHasPath(
-      render_frame_host().GetMainFrame()->GetLastCommittedURL().path() != "/");
+      render_frame_host().GetMainFrame()->GetLastCommittedURL().GetPath() !=
+      "/");
 }
 
 void RequestService::NotifyAutofillSuggestionAccepted(
@@ -2149,7 +2150,7 @@ void RequestService::OnClose() {
 
 bool RequestService::OnResolve(GURL idp_config_url,
                                const std::optional<std::string>& account_id,
-                               const std::string& token) {
+                               const base::Value& token) {
   // Close the pop-up window post user permission.
   if (!request_dialog_controller_) {
     return false;
@@ -2177,14 +2178,21 @@ bool RequestService::OnResolve(GURL idp_config_url,
   DCHECK(provider);
 
   if (provider->format && *provider->format == blink::mojom::Format::kSdJwt) {
-    federated_sdjwt_handler_->ProcessSdJwt(token);
-    return true;
+    if (token.is_string()) {
+      federated_sdjwt_handler_->ProcessSdJwt(token.GetString());
+      return true;
+    } else {
+      CompleteRequestWithError(FederatedAuthRequestResult::kError,
+                               TokenStatus::kIdTokenInvalidResponse,
+                               /*should_delay_callback=*/false);
+      return false;
+    }
   }
 
   CompleteRequest(FederatedAuthRequestResult::kSuccess,
                   TokenStatus::kSuccessUsingIdentityProviderResolve,
-                  /*token_error=*/std::nullopt, idp_config_url,
-                  base::Value(token), /*should_delay_callback=*/false);
+                  /*token_error=*/std::nullopt, idp_config_url, token.Clone(),
+                  /*should_delay_callback=*/false);
   // TODO(crbug.com/40262526): handle the corner cases where CompleteRequest
   // can't actually fulfill the request.
   return true;

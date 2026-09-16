@@ -22,6 +22,7 @@
 #include "components/autofill/core/browser/form_import/form_data_importer_utils.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/history/core/browser/history_service_observer.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace history {
 class HistoryService;
@@ -284,6 +285,11 @@ class FormDataImporter : public AddressDataManager::Observer,
       const std::optional<CreditCard>& extracted_credit_card,
       bool is_credit_card_upstream_enabled,
       ukm::SourceId ukm_source_id);
+
+  // If the mandatory re-auth opt-in bubble can be shown for a credit card, this
+  // function will start the flow and return true. Otherwise, it will return
+  // false.
+  bool ProceedWithCardMandatoryReauthOptInIfApplicable();
 
   // Processes the extracted address profiles. `extracted_address_profiles`
   // contains the addresses extracted from the form. |allow_prompt| denotes if a

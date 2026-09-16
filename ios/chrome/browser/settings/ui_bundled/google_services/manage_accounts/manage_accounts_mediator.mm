@@ -83,8 +83,10 @@
 }
 
 - (IdentityViewItem*)primaryIdentityViewItem {
-  return [self identityViewItemForIdentity:_authService->GetPrimaryIdentity(
-                                               signin::ConsentLevel::kSignin)];
+  id<SystemIdentity> identity =
+      _authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  CHECK(identity, base::NotFatalUntil::M147);
+  return [self identityViewItemForIdentity:identity];
 }
 
 - (std::vector<IdentityViewItem*>)identityViewItems {
@@ -121,6 +123,12 @@
 - (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
   id<SystemIdentity> identity =
       _accountManagerService->GetIdentityOnDeviceWithGaiaID(info.gaia);
+  if (!identity) {
+    DUMP_WILL_BE_NOTREACHED();
+    // If the user is signed-out, the view may currently be dismissed. No need
+    // to update the view.
+    return;
+  }
   [self handleIdentityUpdated:identity];
 }
 
@@ -141,11 +149,13 @@
 #pragma mark - Private
 
 - (void)handleIdentityUpdated:(id<SystemIdentity>)identity {
+  CHECK(identity, base::NotFatalUntil::M147);
   [self.consumer
       updateIdentityViewItem:[self identityViewItemForIdentity:identity]];
 }
 
 - (IdentityViewItem*)identityViewItemForIdentity:(id<SystemIdentity>)identity {
+  CHECK(identity, base::NotFatalUntil::M147);
   IdentityViewItem* identityViewItem = [[IdentityViewItem alloc] init];
   identityViewItem.userEmail = identity.userEmail;
   identityViewItem.userFullName = identity.userFullName;
@@ -165,6 +175,7 @@
 // called asynchronously when the management status if retrieved and the
 // identity is managed.
 - (BOOL)isIdentityKnownToBeManaged:(id<SystemIdentity>)identity {
+  CHECK(identity, base::NotFatalUntil::M147);
   if (std::optional<BOOL> managed = IsIdentityManaged(identity);
       managed.has_value()) {
     return managed.value();
@@ -173,6 +184,7 @@
   __weak __typeof(self) weakSelf = self;
   FetchManagedStatusForIdentity(identity, base::BindOnce(^(bool managed) {
                                   if (managed) {
+                                    CHECK(identity, base::NotFatalUntil::M147);
                                     [weakSelf handleIdentityUpdated:identity];
                                   }
                                 }));

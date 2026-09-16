@@ -201,8 +201,7 @@ TEST(WaitableEventTest, WaitMany) {
     // Signaler can't outlive event.
     WaitableEventSignaler signaler(Milliseconds(10), ev[2]);
     PlatformThread::Create(0, &signaler, &thread);
-    size_t index = WaitableEvent::WaitMany(ev);
-    EXPECT_EQ(2u, index);
+    EXPECT_EQ(2u, WaitableEvent::WaitMany(ev));
   }
 
   for (auto* i : ev) {

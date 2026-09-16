@@ -367,6 +367,8 @@ const Flag<TestConfig> *FindFlag(const char *name) {
         IntVectorFlag("-curves", &TestConfig::curves),
         OptionalIntVectorFlag("-key-shares", &TestConfig::key_shares),
         OptionalDefaultInitFlag("-no-key-shares", &TestConfig::key_shares),
+        IntVectorFlag("-server-supported-groups-hint",
+                      &TestConfig::server_supported_groups_hint),
         StringFlag("-trust-cert", &TestConfig::trust_cert),
         StringFlag("-expect-server-name", &TestConfig::expect_server_name),
         BoolFlag("-enable-ech-grease", &TestConfig::enable_ech_grease),
@@ -2530,6 +2532,12 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   if (key_shares.has_value() &&
       !SSL_set1_client_key_shares(ssl.get(), key_shares->data(),
                                   key_shares->size())) {
+    return nullptr;
+  }
+  if (!server_supported_groups_hint.empty() &&
+      !SSL_set1_server_supported_groups_hint(
+          ssl.get(), server_supported_groups_hint.data(),
+          server_supported_groups_hint.size())) {
     return nullptr;
   }
   if (initial_timeout_duration_ms > 0) {

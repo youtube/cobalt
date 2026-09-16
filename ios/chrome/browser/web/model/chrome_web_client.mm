@@ -79,6 +79,7 @@
 #import "ios/chrome/browser/supervised_user/model/supervised_user_url_filter_tab_helper.h"
 #import "ios/chrome/browser/web/model/browser_about_rewriter.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_java_script_feature.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 #import "ios/chrome/browser/web/model/chrome_main_parts.h"
 #import "ios/chrome/browser/web/model/error_page_util.h"
 #import "ios/chrome/browser/web/model/features.h"
@@ -556,12 +557,6 @@ bool ChromeWebClient::EnableWebInspector(
   return profile->GetPrefs()->GetBoolean(prefs::kWebInspectorEnabled);
 }
 
-bool ChromeWebClient::OverrideOpenPanel() const {
-  // TODO(crbug.com/441659098): Use a feature flag to determine whether to
-  // override the open panel.
-  return false;
-}
-
 web::UserAgentType ChromeWebClient::GetDefaultUserAgent(
     web::WebState* web_state,
     const GURL& url) const {
@@ -597,7 +592,7 @@ void ChromeWebClient::CleanupNativeRestoreURLs(web::WebState* web_state) const {
     // The WKWebView URL underneath a forced-offline page is chrome://offline,
     // which has an embedded entry URL. Apply that entryURL to the virtualURL
     // here.
-    if (item->GetVirtualURL().host() == kChromeUIOfflineHost) {
+    if (item->GetVirtualURL().GetHost() == kChromeUIOfflineHost) {
       item->SetVirtualURL(
           reading_list::EntryURLForOfflineURL(item->GetVirtualURL()));
     }
@@ -647,4 +642,21 @@ void ChromeWebClient::BuildEditMenu(web::WebState* web_state,
   if (tab_helper) {
     tab_helper->BuildEditMenu(builder);
   }
+}
+
+bool ChromeWebClient::CanRunOpenPanel(web::WebState* source) const
+    API_AVAILABLE(ios(18.4)) {
+  return base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu);
+}
+
+void ChromeWebClient::RunOpenPanel(
+    web::WebState* source,
+    WKOpenPanelParameters* parameters,
+    WKFrameInfo* frame,
+    base::OnceCallback<void(NSArray<NSURL*>*)> completion) const
+    API_AVAILABLE(ios(18.4)) {
+  CHECK(base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu));
+  ChooseFileTabHelper* tab_helper = ChooseFileTabHelper::FromWebState(source);
+  CHECK(tab_helper);
+  tab_helper->RunOpenPanel(parameters, frame, std::move(completion));
 }

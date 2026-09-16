@@ -1717,18 +1717,6 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
-  if (kIPHRtlGestureNavigationFeature.name == feature->name) {
-    FeatureConfig config;
-    config.valid = true;
-    config.availability = Comparator(ANY, 0);
-    config.session_rate = Comparator(LESS_THAN, 1);
-    config.used =
-        EventConfig("rtl_gesture_iph_show", Comparator(EQUAL, 0), 365, 365);
-    config.trigger =
-        EventConfig("rtl_gesture_iph_trigger", Comparator(EQUAL, 0), 30, 365);
-    return config;
-  }
-
   if (kIPHPageZoomFeature.name == feature->name) {
     FeatureConfig config;
     config.valid = true;
@@ -2030,9 +2018,13 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     FeatureConfig config;
     config.valid = true;
     config.availability = Comparator(ANY, 0);
-    config.session_rate = Comparator(EQUAL, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.blocked_by.type = BlockedBy::Type::NONE;
+
+    // Show max of one time per week.
     config.trigger = EventConfig("reader_mode_distill_in_app_iph_triggered",
                                  Comparator(EQUAL, 0), 7, 7);
+    // Show max of three times per year.
     config.event_configs.insert(
         EventConfig("reader_mode_distill_in_app_iph_triggered",
                     Comparator(LESS_THAN, 3), 360, 360));
@@ -2882,38 +2874,60 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
+  if (kIPHIOSPageActionMenu.name == feature->name) {
+    // Show the promo only once when the conditions are met.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+
+    // This IPH showing does not affect the session count for other IPHs.
+    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
+    config.blocked_by.type = BlockedBy::Type::NONE;
+    config.blocking.type = Blocking::Type::NONE;
+
+    config.trigger =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHTrigger,
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    config.used =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHUsed,
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    return config;
+  }
+
   if (kIPHiOSAIHubNewBadge.name == feature->name) {
     FeatureConfig config;
     config.valid = true;
-    config.availability = Comparator(ANY, 0);  // Available immediately
-    config.session_rate = Comparator(LESS_THAN, 1);
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
 
     // This badge showing does not affect the session count for other IPHs.
     config.session_rate_impact.type = SessionRateImpact::Type::NONE;
     config.blocked_by.type = BlockedBy::Type::NONE;
     config.blocking.type = Blocking::Type::NONE;
 
-    // Feature should show as long as used event count is 0.
+    // Feature should show as long as the AI Hub was never used.
     config.used =
         EventConfig(events::kIOSAIHubNewBadgeUsed, Comparator(EQUAL, 0),
                     feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
 
-    // Should trigger no matter how many impressions there are given that other
-    // criterias also allow this feature to show.
+    // Should trigger no matter how many impressions there are.
     config.trigger =
         EventConfig(events::kIOSAIHubNewBadgeTriggered, Comparator(ANY, 0),
                     feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
 
-    // This feature can start showing only after the Gemini promo was shown once
-    // within the past 2 weeks. After 2 weeks since the first time the Gemini
-    // promo was shown, this feature, AI Hub "New" badge, should no longer show.
-    config.event_configs.insert(EventConfig(
-        events::kIOSGeminiPromoFirstCompletion, Comparator(EQUAL, 1), 14,
-        feature_engagement::kMaxStoragePeriod));
+    // This feature should show for 2 weeks after the client was first
+    // considered eligible for the AI Hub.
+    config.event_configs.insert(
+        EventConfig(events::kIOSGeminiEligiblity, Comparator(EQUAL, 1), 14,
+                    feature_engagement::kMaxStoragePeriod));
     return config;
   }
+
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_CHROMEOS)

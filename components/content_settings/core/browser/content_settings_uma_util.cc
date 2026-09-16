@@ -142,7 +142,7 @@ constexpr auto kHistogramValue = base::MakeFixedFlatMap<ContentSettingsType,
     {ContentSettingsType::POINTER_LOCK, 121},
     {ContentSettingsType::REVOKED_ABUSIVE_NOTIFICATION_PERMISSIONS, 122},
     {ContentSettingsType::TRACKING_PROTECTION, 123},
-    {ContentSettingsType::TOP_LEVEL_TPCD_ORIGIN_TRIAL, 124},
+    // Removed TOP_LEVEL_TPCD_ORIGIN_TRIAL in M143.
     {ContentSettingsType::DISPLAY_MEDIA_SYSTEM_AUDIO, 125},
     {ContentSettingsType::JAVASCRIPT_OPTIMIZER, 126},
     {ContentSettingsType::STORAGE_ACCESS_HEADER_ORIGIN_TRIAL, 127},
@@ -162,6 +162,7 @@ constexpr auto kHistogramValue = base::MakeFixedFlatMap<ContentSettingsType,
     {ContentSettingsType::GEOLOCATION_WITH_OPTIONS, 139},
     {ContentSettingsType::DEVICE_ATTRIBUTES, 140},
     {ContentSettingsType::PERMISSION_ACTIONS_HISTORY, 141},
+    {ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL, 142}
 
     // As mentioned at the top, please don't forget to update ContentType in
     // enums.xml when you add entries here!
@@ -247,6 +248,34 @@ void RecordActiveExpiryEvent(content_settings::ProviderType provider_type,
                     GetProviderNameForHistograms(provider_type),
                     ".ContentSettingsType"}),
       content_setting_type);
+}
+
+void RecordContentSettingChange(ContentSetting content_setting_value,
+                                ContentSettingsType content_setting_type) {
+  switch (content_setting_value) {
+    case CONTENT_SETTING_ALLOW:
+      content_settings_uma_util::RecordContentSettingsHistogram(
+          "Permissions.SiteSettingsChanged.Allow", content_setting_type);
+      break;
+    case CONTENT_SETTING_BLOCK:
+      content_settings_uma_util::RecordContentSettingsHistogram(
+          "Permissions.SiteSettingsChanged.Block", content_setting_type);
+      break;
+    case CONTENT_SETTING_DEFAULT:
+      content_settings_uma_util::RecordContentSettingsHistogram(
+          "Permissions.SiteSettingsChanged.Default", content_setting_type);
+      break;
+    case CONTENT_SETTING_ASK:
+      content_settings_uma_util::RecordContentSettingsHistogram(
+          "Permissions.SiteSettingsChanged.Ask", content_setting_type);
+      break;
+    case CONTENT_SETTING_SESSION_ONLY:
+      content_settings_uma_util::RecordContentSettingsHistogram(
+          "Permissions.SiteSettingsChanged.SessionOnly", content_setting_type);
+      break;
+    default:
+      NOTREACHED();
+  }
 }
 
 }  // namespace content_settings_uma_util

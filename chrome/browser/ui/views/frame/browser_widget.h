@@ -38,7 +38,6 @@ class MenuModel;
 }
 
 namespace views {
-class Label;
 class MenuRunner;
 class View;
 }  // namespace views
@@ -75,31 +74,8 @@ class BrowserWidget : public views::Widget,
   // Initialize the frame (creates the underlying native window).
   void InitBrowserWidget();
 
-  // Determine the distance of the left edge of the minimize button from the
-  // left edge of the window. Used in our Non-Client View's Layout.
-  int GetMinimizeButtonOffset() const;
-
-  // Lays out the window title for a web app within the given available space.
-  // Unlike the above GetBounds methods this is not just a method to return the
-  // bounds the title should occupy, since different implementations might also
-  // want to change other attributes of the title, such as alignment.
-  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
-                               views::Label& window_title_label) const;
-
-  // Returns the inset of the topmost view in the client view from the top of
-  // the non-client view. The topmost view depends on the window type. The
-  // topmost view is the tab strip for tabbed browser windows, the toolbar for
-  // popups, the web contents for app windows and varies for fullscreen windows.
-  int GetTopInset() const;
-
-  // Tells the frame to update the throbber.
-  void UpdateThrobber(bool running);
-
   // Returns the FrameView of this frame.
   BrowserFrameView* GetFrameView() const;
-
-  // Returns |true| if we should use the custom frame.
-  bool UseCustomFrame() const;
 
   // Returns true when the window placement should be saved.
   bool ShouldSaveWindowPlacement() const;
@@ -119,9 +95,6 @@ class BrowserWidget : public views::Widget,
   // Returns true if the |event| was handled by the platform implementation,
   // if the renderer did not process it.
   bool HandleKeyboardEvent(const input::NativeWebKeyboardEvent& event);
-
-  // Called when BrowserView creates all it's child views.
-  void OnBrowserViewInitViewsComplete();
 
   // ThemeService calls this when a user has changed their theme, indicating
   // that it's time to redraw everything.
@@ -216,14 +189,6 @@ class BrowserWidget : public views::Widget,
 
 #if BUILDFLAG(IS_LINUX)
   bool tiled_ = false;
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Store the number of virtual desks that currently exist and if the window
-  // state is float state type. Used to determine  whether the system menu
-  // should be reset.
-  std::optional<int> num_desks_;
-  std::optional<bool> is_float_state_type_;
 #endif
 };
 

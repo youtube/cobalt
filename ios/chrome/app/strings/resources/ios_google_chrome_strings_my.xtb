@@ -3,6 +3,7 @@
 <translationbundle lang="my">
 <translation id="1076643793026027628">Chrome သည် ရုပ်ဖျက်မုဒ်တွင် ‘YouTube ရုပ်ဖျက်လင့်ခ်များ’ ကို အလိုအလျောက်ဖွင့်သည်။</translation>
 <translation id="1086486568852410168">Google Lens ဖြင့် ရှာရန်</translation>
+<translation id="1088490543924960890">Google Password Manager ဖြင့် လျှို့ဝှက်ကီးများကို စတင်သိမ်းဆည်းခြင်း</translation>
 <translation id="1143896152279775643"><ph name="EMAIL" /> အတွက် သင့်စကားဝှက်ကို ‘Google စကားဝှက်မန်နေဂျာ’ သို့ သိမ်းပါမည်။</translation>
 <translation id="1146503048444965320">Chrome တွင် တဘ်အသစ် ဖွင့်ရန်</translation>
 <translation id="1158134713295836892">Chrome ရှိ Gemini</translation>
@@ -70,7 +71,6 @@
 <translation id="2576431527583832481">Chrome ပို ကောင်းလာပါပြီ! ဗားရှင်း အသစ် တစ်ခု ရနိုင်ပါပြီ။</translation>
 <translation id="257708665678654955">ဤဆိုက်မှ <ph name="LANGUAGE_NAME" /> စာမျက်နှာများကို နောက်တစ်ကြိမ်တွင် ဘာသာပြန်ရန် Google Chrome မှကမ်းလှမ်းစေလိုပါသလား။</translation>
 <translation id="2668242166988961773">Chrome တွင် အသံဖြင့်ရှာရန်။</translation>
-<translation id="2689064829982324496">ဝဘ်ဆိုက်အားလုံးမှ သင့် Google Account ထွက်ရန် <ph name="BEGIN_LINK" />Chrome မှ ထွက်ပါ<ph name="END_LINK" />။</translation>
 <translation id="2695886661449553974">Chrome က အပ်ဒိတ်များကို စစ်ဆေး၍မရခဲ့ပါ။ နောက်မှ ထပ်စမ်းပါ။</translation>
 <translation id="2703746758996815929">အသုံးဝင်သော Chrome အကြံပြုချက်များ ရယူရန် iOS ဆက်တင်များရှိ အကြောင်းကြားချက်များကို ဖွင့်ပါ။</translation>
 <translation id="2728851697704606655">Google Lens ဖြင့် ဘာသာပြန်ခြင်း</translation>
@@ -86,6 +86,9 @@
 <translation id="2940565985148833945">Chrome အကြံပြုချက်- Lens ဖြင့် ရှာပါ</translation>
 <translation id="2957447865124070833"><ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /> ကို ရွေးပါ</translation>
 <translation id="2986402782150919988">Chromium တွင် Bookmarks ထည့်ရန်</translation>
+<translation id="3027236223714901838">သင့်လျှို့ဝှက်ကီးများ လုံခြုံစေရန် ပြန်လည်ရယူရေး ပင်နံပါတ်ကို အရင်ပြုလုပ်ရပါမည်။
+
+        လျှို့ဝှက်ကီးများကို စက်တိုင်းရှိ Chrome တွင် ၎င်းတို့အား သုံးနိုင်သည့် Google Password Manager တွင် သိမ်းသည်။</translation>
 <translation id="3030414234702425231">သင်သည် <ph name="SIGNOUT_MANAGED_DOMAIN" /> က ကြီးကြပ်သည့် အကောင့်မှ ထွက်သွားသောကြောင့် သင်၏ Chrome ဒေတာများကို ဤစက်မှ ဖျက်လိုက်ပါမည်။ သင်၏ ဒေတာများသည် သင့် Google အကောင့်အတွင်းတွင် ရှိနေပါဦးမည်။</translation>
 <translation id="3042447686908081308">Chrome သို့ ထည့်သွင်းရန်</translation>
 <translation id="3051521853355903257">Chrome တွင် စကားဝှက်များ စီမံရန်</translation>
@@ -256,6 +259,7 @@
 <translation id="7371674917547846460">အသုံးဝင်သော Chromium အကြံပြုချက်နှင့် အခြားအရာများကို စောင့်ကြည့်နိုင်သည်။</translation>
 <translation id="7394108421562933108">Chrome ရှိ Maps</translation>
 <translation id="7400722733683201933">Google Chrome အကြောင်း</translation>
+<translation id="7444830584401232881"><ph name="USER_EMAIL" /> အတွက် ဤလျှို့ဝှက်ကီးကို Google Password Manager တွင် သိမ်းပါမည်</translation>
 <translation id="7466693328838535498">‘ရှာဖွေမှု ဝိဂျက်များ’ အကွက်တွင် Chrome ထည့်ပါ</translation>
 <translation id="7477056987201678345">Chrome ဒေတာကို ဖျက်နေသည်…</translation>
 <translation id="7492574581995589075">သင့်အဖွဲ့အစည်းက သင့် Google Account ရှိ Chrome ဒေတာ သုံးခွင့်နှင့် သိမ်းခွင့်ကို ပိတ်ထားသည်။ လိပ်စာအသစ်၊ စကားဝှက်အသစ် စသည်တို့ကို ဤစက်တွင်သာ သိမ်းပါမည်။</translation>
@@ -307,7 +311,6 @@
 <translation id="8413500425974960807">Chrome အကြံပြုချက်- Chrome ကို ပုံသေအထိုင်နေရာသို့ ရွှေ့ပါ</translation>
 <translation id="8413795581997394485">အန္တရာယ်ရှိသည်ဟု သိထားသော ဝဘ်ဆိုက်၊ ဒေါင်းလုဒ်နှင့် နောက်ဆက်တွဲများမှ ကာကွယ်ပေးသည်။ ဝဘ်ဆိုက်တစ်ခုသို့ ဝင်ကြည့်သောအခါ Chrome သည် သင့် IP လိပ်စာ ဖျောက်ထားသော သီးသန့်ဆာဗာမှတစ်ဆင့် URL ၏ ရှုပ်ထွေးသောအပိုင်းကို Google သို့ ပို့သည်။ ဝဘ်ဆိုက်သည် သံသယဖြစ်ဖွယ်တစ်ခုခု ဆောင်ရွက်ပါက URL အပြည့်အစုံနှင့် စာမျက်နှာပါ အကြောင်းအရာအချို့ကိုလည်း ပို့သည်။</translation>
 <translation id="84594714173170813">သင့် Google Account တွင် Chrome ဒေတာများ ဆက်သုံးပါ</translation>
-<translation id="8459495907675268833">ရွေးချယ်ထားသည့် ဒေတာများကို စင့်ခ်ပြုလုပ်ထားသည့် စက်ပစ္စည်းများနှင့် Chrome မှဖယ်ရှားလိုက်ပါပြီ။ သင့် Google အကောင့်တွင် history.google.com ရှိရှာဖွေမှုများနှင့် အခြား Google ဝန်ဆောင်မှုများကဲ့သို့ အင်တာနက်အသုံးပြုမှု မှတ်တမ်း အခြားပုံစံများ ရှိနိုင်ပါသည်။</translation>
 <translation id="8491300088149538575"><ph name="EMAIL" /> အဖြစ် လက်မှတ်ထိုးဝင်ပါ။
 
 သင့်ဒေတာကို သင်၏စကားဝှက်စာဖြင့် <ph name="TIME" /> တွင် အသွင်ဝှက်ထားသည်။ သင်၏ Google Account တွင် Chrome ဒေတာ သုံးရန်နှင့် သိမ်းရန် ၎င်းကိုထည့်ပါ။</translation>

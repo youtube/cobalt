@@ -43,7 +43,6 @@ webview:not([hidden]) {
 .dialog .container {
   background: var(--color--surface-container);
   color: var(--color--on-surface-variant);
-  padding-bottom: 14px;
 }
 
 #loadingPanel {
@@ -117,7 +116,6 @@ webview:not([hidden]) {
   color: var(--color--on-surface);
   border-radius: 10px;
   padding: 12px;
-  margin: 0 14px;
 }
 
 .notice .icon {
@@ -127,6 +125,22 @@ webview:not([hidden]) {
 #disabledByAdminPanel .notice .icon {
   /* This isn't considered an error, so use primary color. */
   color: var(--color--primary);
+}
+
+#disabledByAdminPanel .without-link {
+  display: inline-block;
+}
+
+#disabledByAdminPanel .with-link {
+  display: none;
+}
+
+#disabledByAdminPanel.show-disabled-by-admin-link .with-link {
+  display: inline-block;
+}
+
+#disabledByAdminPanel.show-disabled-by-admin-link .without-link {
+  display: none;
 }
 
 .dialog p {

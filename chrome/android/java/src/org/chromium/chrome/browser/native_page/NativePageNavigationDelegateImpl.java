@@ -54,7 +54,7 @@ public class NativePageNavigationDelegateImpl implements NativePageNavigationDel
     }
 
     @Override
-    public boolean isOpenInNewWindowEnabled() {
+    public boolean isOpenInAnotherWindowEnabled() {
         return MultiWindowUtils.getInstance().isOpenInOtherWindowSupported(mActivity)
                 || MultiWindowUtils.getInstance().canEnterMultiWindowMode();
     }
@@ -107,7 +107,8 @@ public class NativePageNavigationDelegateImpl implements NativePageNavigationDel
                 loadUrlParams,
                 mActivity,
                 mHost.getParentId(),
-                MultiWindowUtils.getForegroundWindowActivity(mActivity));
+                MultiWindowUtils.getForegroundWindowActivity(mActivity),
+                MultiWindowUtils.NewWindowEntryPoint.OTHER);
     }
 
     private Tab openUrlInNewTab(LoadUrlParams loadUrlParams, int windowOpenDisposition) {

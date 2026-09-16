@@ -15,13 +15,13 @@
 #include "base/task/thread_pool.h"
 #include "base/token.h"
 #include "base/unguessable_token.h"
+#include "components/url_pattern/simple_url_pattern_matcher.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/request_destination.h"
 #include "services/network/shared_dictionary/shared_dictionary_cache.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage_on_disk.h"
-#include "services/network/shared_dictionary/simple_url_pattern_matcher.h"
 
 namespace network {
 namespace {
@@ -493,12 +493,6 @@ SharedDictionaryManagerOnDisk::SharedDictionaryManagerOnDisk(
           base::CommandLine::ForCurrentProcess()->HasSwitch(
               switches::kDisableSharedDictionaryStorageCleanupForTesting)) {
   dictionary_cache_ = base::MakeRefCounted<SharedDictionaryCache>();
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kSharedDictionaryManagerOnDisk,
-          base::BindRepeating(&SharedDictionaryManagerOnDisk::OnMemoryPressure,
-                              weak_factory_.GetWeakPtr()));
   disk_cache_.Initialize(cache_directory_path,
 #if BUILDFLAG(IS_ANDROID)
                          app_status_listener_getter,
@@ -591,6 +585,13 @@ void SharedDictionaryManagerOnDisk::GetOriginsBetween(
                 result.value_or(std::vector<url::Origin>()));
           },
           std::move(callback)));
+}
+
+void SharedDictionaryManagerOnDisk::HandleMemoryPressure(
+    base::MemoryPressureLevel level) {
+  if (level != base::MEMORY_PRESSURE_LEVEL_NONE) {
+    dictionary_cache_->Clear();
+  }
 }
 
 scoped_refptr<SharedDictionaryWriter>
@@ -831,13 +832,6 @@ void SharedDictionaryManagerOnDisk::MaybePostExpiredDictionaryDeletionTask() {
             }
           },
           weak_factory_.GetWeakPtr())));
-}
-
-void SharedDictionaryManagerOnDisk::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
-    dictionary_cache_->Clear();
-  }
 }
 
 }  // namespace network

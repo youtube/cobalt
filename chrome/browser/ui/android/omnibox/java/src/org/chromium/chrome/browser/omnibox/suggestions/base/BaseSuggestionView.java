@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.omnibox.suggestions.base;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -26,8 +28,6 @@ import org.chromium.ui.base.KeyNavigationUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * Base layout for common suggestion types. Includes support for a configurable suggestion content
@@ -43,7 +43,7 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
     public final RoundedCornerOutlineProvider decorationIconOutline;
     private final List<ImageView> mActionButtons;
     private final SimpleSelectionController mActionButtonsHighlighter;
-    private Optional<Runnable> mOnFocusViaSelectionListener = Optional.empty();
+    private @Nullable Runnable mOnFocusViaSelectionListener;
 
     /**
      * Constructs a new suggestion view and inflates supplied layout as the contents view.
@@ -171,8 +171,8 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
         if (actionChipsView.onKeyDown(keyCode, event)) return true;
         if (KeyNavigationUtil.isEnter(event)) {
             if (!mActionButtonsHighlighter.isParkedAtSentinel()) {
-                OptionalInt selection = mActionButtonsHighlighter.getPosition();
-                return mActionButtons.get(selection.getAsInt()).performClick();
+                int selection = assumeNonNull(mActionButtonsHighlighter.getPosition());
+                return mActionButtons.get(selection).performClick();
             }
             return performClick();
         }
@@ -203,7 +203,9 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
     public void setSelected(boolean selected) {
         super.setSelected(selected);
         if (mActionButtonsHighlighter != null) mActionButtonsHighlighter.reset();
-        if (selected) mOnFocusViaSelectionListener.ifPresent(Runnable::run);
+        if (selected && mOnFocusViaSelectionListener != null) {
+            mOnFocusViaSelectionListener.run();
+        }
     }
 
     /**
@@ -212,7 +214,7 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
      * @param listener The listener to be notified about selection.
      */
     void setOnFocusViaSelectionListener(@Nullable Runnable listener) {
-        mOnFocusViaSelectionListener = Optional.ofNullable(listener);
+        mOnFocusViaSelectionListener = listener;
     }
 
     /** Set the lead-in spacing for the action chip carousel. */

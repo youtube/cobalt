@@ -59,7 +59,7 @@ const jint HDR_TYPE_HDR10_PLUS = 4;
 const char SECURE_DECODER_SUFFIX[] = ".secure";
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  const auto j_range_ref = JavaParamRef<jobject>(env, j_range);
+  const auto j_range_ref = JavaParamRef<jobject>::CreateLeaky(env, j_range);
   return Range(Java_MediaCodecUtil_getRangeLower(env, j_range_ref),
                Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
 }
@@ -401,14 +401,6 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
 std::string MediaCapabilitiesCache::FindAudioDecoder(
     const std::string& mime_type,
     int bitrate) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name =
-        Java_MediaCodecUtil_findAudioDecoder(env, j_mime, bitrate);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
@@ -443,17 +435,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     Size frame_size,
     int bitrate,
     int fps) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
-        env, j_mime, must_support_secure, must_support_hdr,
-        /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
-        /*decoderCacheTtlMs=*/-1, frame_size.width, frame_size.height, bitrate,
-        fps);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 

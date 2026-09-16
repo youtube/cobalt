@@ -33,7 +33,6 @@
 #import "ios/web/common/features.h"
 #import "ios/web/common/url_util.h"
 #import "ios/web/download/crw_web_view_download.h"
-#import "ios/web/find_in_page/java_script_find_in_page_manager_impl.h"
 #import "ios/web/history_state_util.h"
 #import "ios/web/js_features/scroll_helper/scroll_helper_java_script_feature.h"
 #import "ios/web/js_messaging/java_script_feature_util_impl.h"
@@ -259,7 +258,6 @@ CGRect GetScreenBounds() {
     web::BrowserState* browserState = _webStateImpl->GetBrowserState();
     _certVerificationController = [[CRWCertVerificationController alloc]
         initWithBrowserState:browserState];
-    web::JavaScriptFindInPageManagerImpl::CreateForWebState(_webStateImpl);
 
     if (!browserState->IsOffTheRecord()) {
       web::AnnotationsTextManager::CreateForWebState(_webStateImpl);
@@ -1341,7 +1339,7 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
                                       navigationManager:navManager];
     [_SSLStatusUpdater setDelegate:self];
   }
-  NSString* host = base::SysUTF8ToNSString(_documentURL.host());
+  NSString* host = base::SysUTF8ToNSString(_documentURL.GetHost());
   BOOL hasOnlySecureContent = [self.webView hasOnlySecureContent];
   base::apple::ScopedCFTypeRef<SecTrustRef> trust;
   trust.reset([self.webView serverTrust], base::scoped_policy::RETAIN);
@@ -1724,9 +1722,9 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
           web::features::kCrashOnUnexpectedURLChange)) {
     if (_documentURL.DeprecatedGetOriginAsURL() !=
         newURL.DeprecatedGetOriginAsURL()) {
-      if (!_documentURL.host().empty() &&
-          (base::Contains(newURL.username(), _documentURL.host()) ||
-           base::Contains(newURL.password(), _documentURL.host()))) {
+      if (!_documentURL.GetHost().empty() &&
+          (base::Contains(newURL.GetUsername(), _documentURL.GetHost()) ||
+           base::Contains(newURL.GetPassword(), _documentURL.GetHost()))) {
         NOTREACHED();
       }
     }

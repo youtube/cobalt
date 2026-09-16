@@ -505,7 +505,6 @@ void InputsSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
       "onDeviceGrammarCheckEnabled",
       base::FeatureList::IsEnabled(features::kOnDeviceGrammarCheck));
 
-  html_source->AddBoolean("systemJapanesePhysicalTyping", true);
   html_source->AddBoolean(
       "languagePacksInSettingsEnabled",
       base::FeatureList::IsEnabled(features::kLanguagePacksInSettings));
@@ -635,7 +634,7 @@ void InputsSection::InputMethodChanged(
 }
 
 bool InputsSection::ShouldShowEmojiSuggestionsSettings() const {
-  return pref_service_->GetBoolean(prefs::kEmojiSuggestionEnterpriseAllowed);
+  return false;
 }
 
 bool InputsSection::IsSpellCheckEnabled() const {

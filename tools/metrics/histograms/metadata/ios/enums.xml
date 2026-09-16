@@ -118,6 +118,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="UserInitiatedFinishedByCode"/>
   <int value="3" label="UserTapped"/>
   <int value="4" label="BottomReached"/>
+  <int value="5" label="NoChange"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h:FullscreenModeTransitionReason) -->
@@ -269,6 +270,16 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Fetching Failure Error"/>
   <int value="3" label="Fetching Time Out Error"/>
 </enum>
+
+<!-- LINT.IfChange(IOSBackgroundSelectionOutcome) -->
+
+<enum name="IOSBackgroundSelectionOutcome">
+  <int value="0" label="Background change was applied"/>
+  <int value="1" label="Background change was canceled"/>
+  <int value="2" label="Background was selected but change was canceled"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:BackgroundSelectionOutcome) -->
 
 <!-- LINT.IfChange(IOSBestFeaturesDetailScreenActionType) -->
 
@@ -597,6 +608,15 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Drive"/>
 </enum>
 
+<!-- LINT.IfChange(IOSFileUploadPanelContextMenuVariant) -->
+
+<enum name="IOSFileUploadPanelContextMenuVariant">
+  <int value="0" label="PhotoPickerAndCameraAndFilePicker"/>
+  <int value="1" label="PhotoPickerAndFilePicker"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelContextMenuVariant) -->
+
 <!-- LINT.IfChange(IOSGeminiEntryPoint) -->
 
 <enum name="IOSGeminiEntryPoint">
@@ -649,6 +669,17 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Tips tile"/>
   <int value="12" label="ShopCard tile"/>
 </enum>
+
+<!-- LINT.IfChange(IOSHomeCustomizationBackgroundStyle) -->
+
+<enum name="IOSHomeCustomizationBackgroundStyle">
+  <int value="0" label="Default NTP background was loaded"/>
+  <int value="1" label="Gallery image background was loaded"/>
+  <int value="2" label="Color background was loaded"/>
+  <int value="3" label="User uploaded image background was loaded"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:HomeCustomizationBackgroundStyle) -->
 
 <enum name="IOSHomeCustomizationEntrypoint">
   <int value="0" label="Main entrypoint"/>
@@ -891,7 +922,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="NewTab"/>
   <int value="2" label="NewIncognitoTab"/>
   <int value="3" label="NewWindow"/>
-  <int value="4" label="Follow"/>
+  <int value="4" label="Obsolete in M143 - Follow"/>
   <int value="5" label="Bookmark"/>
   <int value="6" label="ReadingList"/>
   <int value="7" label="ClearBrowsingData"/>
@@ -964,6 +995,47 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Microphone permission"/>
   <int value="2" label="Camera and Microphone permissions"/>
 </enum>
+
+<!-- LINT.IfChange(IOSPersistTabContextDeleteResult) -->
+
+<enum name="IOSPersistTabContextDeleteResult">
+  <summary>
+    The result of attempting to delete a persisted tab context from storage.
+  </summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="Storage Path Empty"/>
+  <int value="2" label="Delete Failure"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h:IOSPersistTabContextDeleteResult) -->
+
+<!-- LINT.IfChange(IOSPersistTabContextReadResult) -->
+
+<enum name="IOSPersistTabContextReadResult">
+  <summary>
+    The result of attempting to read a persisted tab context from storage.
+  </summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="File Not Found"/>
+  <int value="2" label="Storage Path Empty"/>
+  <int value="3" label="Read Failure"/>
+  <int value="4" label="Parse Failure"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h:IOSPersistTabContextReadResult) -->
+
+<!-- LINT.IfChange(IOSPersistTabContextWriteResult) -->
+
+<enum name="IOSPersistTabContextWriteResult">
+  <summary>
+    The result of attempting to write a persisted tab context to storage.
+  </summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="Storage Path Empty"/>
+  <int value="2" label="Write Failure"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h:IOSPersistTabContextWriteResult) -->
 
 <enum name="IOSPhotosServiceUploadFailureType">
   <int value="0" label="None"/>
@@ -1171,7 +1243,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Obsolete - SignIn Sync"/>
   <int value="2" label="Default Browser"/>
   <int value="3" label="Autofill"/>
-  <int value="4" label="Follow"/>
+  <int value="4" label="Obsolete - Follow"/>
   <int value="5" label="All Set"/>
   <int value="6" label="Notifications"/>
   <int value="7" label="Obsolete in M138 - Docking"/>
@@ -1311,6 +1383,19 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Invalid URL"/>
   <int value="1" label="Invalid Version"/>
 </enum>
+
+<!-- LINT.IfChange(IOSUserUploadedImageError) -->
+
+<enum name="IOSUserUploadedImageError">
+  <int value="0" label="No error"/>
+  <int value="1" label="Failed to create directory"/>
+  <int value="2" label="Failed to write file"/>
+  <int value="3" label="Failed to convert to JPEG"/>
+  <int value="4" label="Failed to read file"/>
+  <int value="5" label="Failed to create a UIImage from the loaded data"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:UserUploadedImageError) -->
 
 <enum name="IOSWebFileInputAttributes">
   <int value="0" label="No Accept"/>
@@ -1542,6 +1627,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Safety Check"/>
   <int value="6" label="Send Tab"/>
   <int value="7" label="Reminders"/>
+  <int value="8" label="Cross-Platform Promos"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/push_notification_client_id.h:PushNotificationClientId) -->
@@ -1661,6 +1747,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAccessPoint) -->
+
+<!-- LINT.IfChange(ReaderModeAccessPointWithMode) -->
+
+<enum name="ReaderModeAccessPointWithMode">
+  <int value="0" label="Contextual Chip in Regular"/>
+  <int value="1" label="Contextual Chip in Incognito"/>
+  <int value="2" label="Tools Menu in Regular"/>
+  <int value="3" label="Tools Menu in Incognito"/>
+  <int value="4" label="AI Hub in Regular"/>
+  <int value="5" label="AI Hub in Incognito"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAccessPointWithMode) -->
 
 <!-- LINT.IfChange(ReaderModeCustomizationType) -->
 

@@ -42,8 +42,9 @@ class HistoryTool : public Tool, content::WebContentsObserver {
   void Invoke(InvokeCallback callback) override;
   std::string DebugString() const override;
   std::string JournalEvent() const override;
-  std::unique_ptr<ObservationDelayController> GetObservationDelayer()
-      const override;
+  std::unique_ptr<ObservationDelayController> GetObservationDelayer(
+      std::optional<ObservationDelayController::PageStabilityConfig>
+          page_stability_config) override;
   void UpdateTaskBeforeInvoke(ActorTask& task,
                               InvokeCallback callback) const override;
   tabs::TabHandle GetTargetTab() const override;
@@ -76,6 +77,9 @@ class HistoryTool : public Tool, content::WebContentsObserver {
 
   // Holds the callback to the Invoke method. Null before invoke is called.
   InvokeCallback invoke_callback_;
+
+  // The unique ID of the navigation entry at the time of validation.
+  int validated_entry_id_ = 0;
 
   tabs::TabHandle tab_handle_;
 

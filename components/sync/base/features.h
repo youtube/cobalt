@@ -36,14 +36,24 @@ BASE_DECLARE_FEATURE(kSyncSharedTabGroupAccountData);
 // Enables syncing comments for shared contexts.
 BASE_DECLARE_FEATURE(kSyncSharedComment);
 
-#if BUILDFLAG(IS_ANDROID)
+// Enables syncing of AI threads across devices.
+BASE_DECLARE_FEATURE(kSyncAIThread);
+
+// Enables syncing of contextual tasks.
+BASE_DECLARE_FEATURE(kSyncContextualTask);
+
+#if !BUILDFLAG(IS_CHROMEOS)
 // Flag that controls Uno fast-follow features which are:
+// On Android:
 // - Batch upload of left-behind bookmarks from the bookmark manager
 // - Turn on bookmarks and reading list when signing in from bookmark manager
 // - Confirmation dialog when turning off “Allow Chrome sign-in”
 // - Promo for signed-in users with bookmarks toggle off
+// On desktop:
+// Adding history sync opt-in entry points, and other follow-ups to
+// `kReplaceSyncPromosWithSignInPromos`.
 BASE_DECLARE_FEATURE(kUnoPhase2FollowUp);
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Controls whether to enable syncing of Autofill Wallet Credential Data.
 BASE_DECLARE_FEATURE(kSyncAutofillWalletCredentialData);
@@ -180,8 +190,8 @@ inline constexpr base::FeatureParam<int>
 BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements);
 #endif  // BUILDFLAG(IS_IOS)
 
-// When enabled, Sync will use OSCryptAsync for encrypting Nigori storage on
-// disk.
+// When enabled, Sync will use OSCryptAsync for encryption/decryption instead
+// of OSCrypt within the sync code.
 BASE_DECLARE_FEATURE(kSyncUseOsCryptAsync);
 
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);

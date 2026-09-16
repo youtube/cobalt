@@ -50,6 +50,8 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
@@ -67,6 +69,7 @@
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
+#include "chrome/browser/ui/views/location_bar/zoom_bubble_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/zoom_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
@@ -271,10 +274,6 @@ using BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip =
 
 IN_PROC_BROWSER_TEST_F(BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip,
                        TabletSplitViewNonClientHitTest) {
-  if (!IsSnapWindowSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
   views::Widget* widget = browser_view->GetWidget();
@@ -294,10 +293,6 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip,
 
 IN_PROC_BROWSER_TEST_F(BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip,
                        TabletSplitViewSwipeDownFromEdgeOpensWebUiTabStrip) {
-  if (!IsSnapWindowSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
   const int expect_y =
@@ -736,13 +731,16 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, ShowZoomIcon) {
       zoom::ZoomController::FromWebContents(web_contents);
   IconLabelBubbleView* zoom_icon = GetPageActionView(kActionZoomNormal);
 
+  ZoomBubbleCoordinator* zoom_bubble_coordinator =
+      ZoomBubbleCoordinator::From(app_browser_);
+
   EXPECT_TRUE(zoom_icon);
   EXPECT_FALSE(zoom_icon->GetVisible());
-  EXPECT_FALSE(ZoomBubbleView::GetZoomBubble());
+  EXPECT_FALSE(zoom_bubble_coordinator->bubble());
 
   zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(1.5));
   ASSERT_TRUE(WaitForVisible(true, zoom_icon));
-  EXPECT_TRUE(ZoomBubbleView::GetZoomBubble());
+  EXPECT_TRUE(zoom_bubble_coordinator->bubble());
 }
 
 IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, ShowFindIcon) {
@@ -933,7 +931,7 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, PopupHasNoToolbar) {
     navigation_observer.StartWatchingNewWebContents();
     Navigate(&navigate_params);
     navigation_observer.WaitForNavigationFinished();
-    popup_browser = navigate_params.browser;
+    popup_browser = navigate_params.browser->GetBrowserForMigrationOnly();
   }
 
   BrowserView* browser_view =
@@ -972,10 +970,6 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest, TopViewInset) {
 // tablet mode.
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                        BrowserHeaderVisibilityInTabletModeTest) {
-  if (!IsSnapWindowSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   views::Widget* widget = browser_view->GetWidget();
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
@@ -1309,10 +1303,6 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
 
 IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
                        BrowserHeaderVisibilityInTabletModeTest) {
-  if (!IsSnapWindowSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
 
@@ -1339,10 +1329,6 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
 // in tablet mode.
 IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
                        BrowserAppHeaderVisibilityInTabletModeTest) {
-  if (!IsSnapWindowSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   Browser* browser2 =
       CreateBrowserForApp("test_browser_app", browser()->profile());
   BrowserView* browser_view2 = BrowserView::GetBrowserViewForBrowser(browser2);
@@ -1525,10 +1511,6 @@ using LockedFullscreenBrowserFrameViewChromeOSTest =
 
 IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserFrameViewChromeOSTest,
                        ToggleTabletModeWhenNotLockedForOnTask) {
-  if (!IsIsShelfVisibleSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   browser()->SetLockedForOnTask(false);
   BrowserView* const browser_view =
       BrowserView::GetBrowserViewForBrowser(browser());
@@ -1569,10 +1551,6 @@ IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserFrameViewChromeOSTest,
 
 IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserFrameViewChromeOSTest,
                        ToggleTabletModeWhenLockedForOnTask) {
-  if (!IsIsShelfVisibleSupported()) {
-    GTEST_SKIP() << "Ash is too old.";
-  }
-
   browser()->SetLockedForOnTask(true);
   BrowserView* const browser_view =
       BrowserView::GetBrowserViewForBrowser(browser());

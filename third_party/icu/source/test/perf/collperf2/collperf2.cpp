@@ -60,8 +60,8 @@ class Strcoll : public UPerfFunction
 public:
     Strcoll(const UCollator* coll, const CA_uchar* source, UBool useLen);
     ~Strcoll();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -120,8 +120,8 @@ class Strcoll_2 : public UPerfFunction
 public:
     Strcoll_2(const UCollator* coll, const CA_uchar* source, const CA_uchar* target, UBool useLen);
     ~Strcoll_2();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -172,8 +172,8 @@ class StrcollUTF8 : public UPerfFunction
 public:
     StrcollUTF8(const UCollator* coll, const CA_char* source, UBool useLen);
     ~StrcollUTF8();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -232,8 +232,8 @@ class StrcollUTF8_2 : public UPerfFunction
 public:
     StrcollUTF8_2(const UCollator* coll, const CA_char* source, const CA_char* target, UBool useLen);
     ~StrcollUTF8_2();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -283,8 +283,8 @@ class GetSortKey : public UPerfFunction
 public:
     GetSortKey(const UCollator* coll, const CA_uchar* source, UBool useLen);
     ~GetSortKey();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -310,15 +310,14 @@ void GetSortKey::call(UErrorCode* status)
     if (U_FAILURE(*status)) return;
 
     uint8_t key[KEY_BUF_SIZE];
-    int32_t len;
 
     if (useLen) {
         for (int32_t i = 0; i < source->count; i++) {
-            len = ucol_getSortKey(coll, source->dataOf(i), source->lengthOf(i), key, KEY_BUF_SIZE);
+            ucol_getSortKey(coll, source->dataOf(i), source->lengthOf(i), key, KEY_BUF_SIZE);
         }
     } else {
         for (int32_t i = 0; i < source->count; i++) {
-            len = ucol_getSortKey(coll, source->dataOf(i), -1, key, KEY_BUF_SIZE);
+            ucol_getSortKey(coll, source->dataOf(i), -1, key, KEY_BUF_SIZE);
         }
     }
 }
@@ -337,9 +336,9 @@ class NextSortKeyPart : public UPerfFunction
 public:
     NextSortKeyPart(const UCollator* coll, const CA_uchar* source, int32_t bufSize, int32_t maxIteration = -1);
     ~NextSortKeyPart();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
-    virtual long getEventsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
+    long getEventsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -367,7 +366,7 @@ void NextSortKeyPart::call(UErrorCode* status)
 {
     if (U_FAILURE(*status)) return;
 
-    uint8_t *part = (uint8_t *)malloc(bufSize);
+    uint8_t* part = static_cast<uint8_t*>(malloc(bufSize));
     uint32_t state[2];
     UCharIterator iter;
 
@@ -404,9 +403,9 @@ class NextSortKeyPartUTF8 : public UPerfFunction
 public:
     NextSortKeyPartUTF8(const UCollator* coll, const CA_char* source, int32_t bufSize, int32_t maxIteration = -1);
     ~NextSortKeyPartUTF8();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
-    virtual long getEventsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
+    long getEventsPerIteration() override;
 
 private:
     const UCollator *coll;
@@ -434,7 +433,7 @@ void NextSortKeyPartUTF8::call(UErrorCode* status)
 {
     if (U_FAILURE(*status)) return;
 
-    uint8_t *part = (uint8_t *)malloc(bufSize);
+    uint8_t* part = static_cast<uint8_t*>(malloc(bufSize));
     uint32_t state[2];
     UCharIterator iter;
 
@@ -472,8 +471,8 @@ class CppCompare : public UPerfFunction
 public:
     CppCompare(const Collator* coll, const CA_uchar* source, UBool useLen);
     ~CppCompare();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const Collator *coll;
@@ -531,8 +530,8 @@ class CppCompare_2 : public UPerfFunction
 public:
     CppCompare_2(const Collator* coll, const CA_uchar* source, const CA_uchar* target, UBool useLen);
     ~CppCompare_2();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const Collator *coll;
@@ -582,8 +581,8 @@ class CppCompareUTF8 : public UPerfFunction
 public:
     CppCompareUTF8(const Collator* coll, const CA_char* source, UBool useLen);
     ~CppCompareUTF8();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const Collator *coll;
@@ -652,8 +651,8 @@ class CppCompareUTF8_2 : public UPerfFunction
 public:
     CppCompareUTF8_2(const Collator* coll, const CA_char* source, const CA_char* target, UBool useLen);
     ~CppCompareUTF8_2();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const Collator *coll;
@@ -709,8 +708,8 @@ class CppGetCollationKey : public UPerfFunction
 public:
     CppGetCollationKey(const Collator* coll, const CA_uchar* source, UBool useLen);
     ~CppGetCollationKey();
-    virtual void call(UErrorCode* status);
-    virtual long getOperationsPerIteration();
+    void call(UErrorCode* status) override;
+    long getOperationsPerIteration() override;
 
 private:
     const Collator *coll;
@@ -757,8 +756,8 @@ struct CollatorAndCounter {
 int32_t U_CALLCONV
 UniStrCollatorComparator(const void* context, const void* left, const void* right) {
     CollatorAndCounter& cc = *(CollatorAndCounter*)context;
-    const UnicodeString& leftString = **(const UnicodeString**)left;
-    const UnicodeString& rightString = **(const UnicodeString**)right;
+    const UnicodeString& leftString = **static_cast<const UnicodeString* const*>(left);
+    const UnicodeString& rightString = **static_cast<const UnicodeString* const*>(right);
     UErrorCode errorCode = U_ZERO_ERROR;
     ++cc.counter;
     return cc.coll.compare(leftString, rightString, errorCode);
@@ -772,7 +771,7 @@ public:
             : coll(coll), ucoll(ucoll), ops(0) {}
     virtual ~CollPerfFunction();
     /** Calls call() to set the ops field, and returns that. */
-    virtual long getOperationsPerIteration();
+    long getOperationsPerIteration() override;
 
 protected:
     const Collator& coll;
@@ -820,7 +819,7 @@ public:
             : UniStrCollPerfFunction(coll, ucoll, data16),
               dest(new UnicodeString*[d16->count]) {}
     virtual ~UniStrSort();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 
 private:
     UnicodeString** dest;  // aliases only
@@ -836,7 +835,7 @@ void UniStrSort::call(UErrorCode* status) {
     CollatorAndCounter cc(coll);
     int32_t count = d16->count;
     memcpy(dest, source, count * sizeof(UnicodeString *));
-    uprv_sortArray(dest, count, (int32_t)sizeof(UnicodeString *),
+    uprv_sortArray(dest, count, static_cast<int32_t>(sizeof(UnicodeString*)),
                    UniStrCollatorComparator, &cc, true, status);
     ops = cc.counter;
 }
@@ -846,8 +845,8 @@ namespace {
 int32_t U_CALLCONV
 StringPieceCollatorComparator(const void* context, const void* left, const void* right) {
     CollatorAndCounter& cc = *(CollatorAndCounter*)context;
-    const StringPiece& leftString = *(const StringPiece*)left;
-    const StringPiece& rightString = *(const StringPiece*)right;
+    const StringPiece& leftString = *static_cast<const StringPiece*>(left);
+    const StringPiece& rightString = *static_cast<const StringPiece*>(right);
     UErrorCode errorCode = U_ZERO_ERROR;
     ++cc.counter;
     return cc.coll.compareUTF8(leftString, rightString, errorCode);
@@ -856,8 +855,8 @@ StringPieceCollatorComparator(const void* context, const void* left, const void*
 int32_t U_CALLCONV
 StringPieceUCollatorComparator(const void* context, const void* left, const void* right) {
     CollatorAndCounter& cc = *(CollatorAndCounter*)context;
-    const StringPiece& leftString = *(const StringPiece*)left;
-    const StringPiece& rightString = *(const StringPiece*)right;
+    const StringPiece& leftString = *static_cast<const StringPiece*>(left);
+    const StringPiece& rightString = *static_cast<const StringPiece*>(right);
     UErrorCode errorCode = U_ZERO_ERROR;
     ++cc.counter;
     return ucol_strcollUTF8(cc.ucoll,
@@ -910,7 +909,7 @@ public:
     StringPieceSortCpp(const Collator& coll, const UCollator *ucoll, const CA_char* data8)
             : StringPieceSort(coll, ucoll, data8) {}
     virtual ~StringPieceSortCpp();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 };
 
 StringPieceSortCpp::~StringPieceSortCpp() {}
@@ -921,7 +920,7 @@ void StringPieceSortCpp::call(UErrorCode* status) {
     CollatorAndCounter cc(coll);
     int32_t count = d8->count;
     memcpy(dest, source, count * sizeof(StringPiece));
-    uprv_sortArray(dest, count, (int32_t)sizeof(StringPiece),
+    uprv_sortArray(dest, count, static_cast<int32_t>(sizeof(StringPiece)),
                    StringPieceCollatorComparator, &cc, true, status);
     ops = cc.counter;
 }
@@ -934,7 +933,7 @@ public:
     StringPieceSortC(const Collator& coll, const UCollator *ucoll, const CA_char* data8)
             : StringPieceSort(coll, ucoll, data8) {}
     virtual ~StringPieceSortC();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 };
 
 StringPieceSortC::~StringPieceSortC() {}
@@ -945,7 +944,7 @@ void StringPieceSortC::call(UErrorCode* status) {
     CollatorAndCounter cc(coll, ucoll);
     int32_t count = d8->count;
     memcpy(dest, source, count * sizeof(StringPiece));
-    uprv_sortArray(dest, count, (int32_t)sizeof(StringPiece),
+    uprv_sortArray(dest, count, static_cast<int32_t>(sizeof(StringPiece)),
                    StringPieceUCollatorComparator, &cc, true, status);
     ops = cc.counter;
 }
@@ -958,7 +957,7 @@ public:
     UniStrBinSearch(const Collator& coll, const UCollator *ucoll, const CA_uchar* data16)
             : UniStrCollPerfFunction(coll, ucoll, data16) {}
     virtual ~UniStrBinSearch();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 };
 
 UniStrBinSearch::~UniStrBinSearch() {}
@@ -969,8 +968,8 @@ void UniStrBinSearch::call(UErrorCode* status) {
     CollatorAndCounter cc(coll);
     int32_t count = d16->count;
     for (int32_t i = 0; i < count; ++i) {
-        (void)uprv_stableBinarySearch((char *)source, count,
-                                      source + i, (int32_t)sizeof(UnicodeString *),
+        (void)uprv_stableBinarySearch(reinterpret_cast<char*>(source), count,
+                                      source + i, static_cast<int32_t>(sizeof(UnicodeString*)),
                                       UniStrCollatorComparator, &cc);
     }
     ops = cc.counter;
@@ -994,7 +993,7 @@ public:
     StringPieceBinSearchCpp(const Collator& coll, const UCollator *ucoll, const CA_char* data8)
             : StringPieceBinSearch(coll, ucoll, data8) {}
     virtual ~StringPieceBinSearchCpp();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 };
 
 StringPieceBinSearchCpp::~StringPieceBinSearchCpp() {}
@@ -1005,8 +1004,8 @@ void StringPieceBinSearchCpp::call(UErrorCode* status) {
     CollatorAndCounter cc(coll);
     int32_t count = d8->count;
     for (int32_t i = 0; i < count; ++i) {
-        (void)uprv_stableBinarySearch((char *)source, count,
-                                      source + i, (int32_t)sizeof(StringPiece),
+        (void)uprv_stableBinarySearch(reinterpret_cast<char*>(source), count,
+                                      source + i, static_cast<int32_t>(sizeof(StringPiece)),
                                       StringPieceCollatorComparator, &cc);
     }
     ops = cc.counter;
@@ -1021,7 +1020,7 @@ public:
     StringPieceBinSearchC(const Collator& coll, const UCollator *ucoll, const CA_char* data8)
             : StringPieceBinSearch(coll, ucoll, data8) {}
     virtual ~StringPieceBinSearchC();
-    virtual void call(UErrorCode* status);
+    void call(UErrorCode* status) override;
 };
 
 StringPieceBinSearchC::~StringPieceBinSearchC() {}
@@ -1032,8 +1031,8 @@ void StringPieceBinSearchC::call(UErrorCode* status) {
     CollatorAndCounter cc(coll, ucoll);
     int32_t count = d8->count;
     for (int32_t i = 0; i < count; ++i) {
-        (void)uprv_stableBinarySearch((char *)source, count,
-                                      source + i, (int32_t)sizeof(StringPiece),
+        (void)uprv_stableBinarySearch(reinterpret_cast<char*>(source), count,
+                                      source + i, static_cast<int32_t>(sizeof(StringPiece)),
                                       StringPieceUCollatorComparator, &cc);
     }
     ops = cc.counter;
@@ -1045,8 +1044,8 @@ class CollPerf2Test : public UPerfTest
 public:
     CollPerf2Test(int32_t argc, const char *argv[], UErrorCode &status);
     ~CollPerf2Test();
-    virtual UPerfFunction* runIndexedTest(
-        int32_t index, UBool exec, const char *&name, char *par = nullptr);
+    UPerfFunction* runIndexedTest(
+        int32_t index, UBool exec, const char*& name, char* par = nullptr) override;
 
 private:
     UCollator* coll;
@@ -1273,10 +1272,10 @@ struct ArrayAndColl {
 
 int32_t U_CALLCONV
 U16CollatorComparator(const void* context, const void* left, const void* right) {
-    const ArrayAndColl& ac = *(const ArrayAndColl*)context;
+    const ArrayAndColl& ac = *static_cast<const ArrayAndColl*>(context);
     const CA_uchar* d16 = ac.d16;
-    int32_t leftIndex = *(const int32_t*)left;
-    int32_t rightIndex = *(const int32_t*)right;
+    int32_t leftIndex = *static_cast<const int32_t*>(left);
+    int32_t rightIndex = *static_cast<const int32_t*>(right);
     UErrorCode errorCode = U_ZERO_ERROR;
     return ac.coll.compare(d16->dataOf(leftIndex), d16->lengthOf(leftIndex),
                            d16->dataOf(rightIndex), d16->lengthOf(rightIndex),
@@ -1285,9 +1284,9 @@ U16CollatorComparator(const void* context, const void* left, const void* right) 
 
 int32_t U_CALLCONV
 U16HashComparator(const void* context, const void* left, const void* right) {
-    const CA_uchar* d16 = (const CA_uchar*)context;
-    int32_t leftIndex = *(const int32_t*)left;
-    int32_t rightIndex = *(const int32_t*)right;
+    const CA_uchar* d16 = static_cast<const CA_uchar*>(context);
+    int32_t leftIndex = *static_cast<const int32_t*>(left);
+    int32_t rightIndex = *static_cast<const int32_t*>(right);
     int32_t leftHash = ustr_hashUCharsN(d16->dataOf(leftIndex), d16->lengthOf(leftIndex));
     int32_t rightHash = ustr_hashUCharsN(d16->dataOf(rightIndex), d16->lengthOf(rightIndex));
     return leftHash < rightHash ? -1 : leftHash == rightHash ? 0 : 1;

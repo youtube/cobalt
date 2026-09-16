@@ -91,6 +91,8 @@ gn_args.config(
     name = "android_fastbuild",
     args = {
         "android_static_analysis": "off",
+        # Still want TraceReferences checks, which impact targets that enable R8.
+        "enable_r8_tracerefs": True,
     },
 )
 
@@ -560,20 +562,6 @@ gn_args.config(
     name = "disable_seed_corpus",
     args = {
         "archive_seed_corpus": False,
-    },
-)
-
-gn_args.config(
-    name = "enable_rust_mojo",
-    args = {
-        "enable_rust_mojo": True,
-    },
-)
-
-gn_args.config(
-    name = "enable_rust_mojom_bindings",
-    args = {
-        "enable_rust_mojom_bindings": True,
     },
 )
 

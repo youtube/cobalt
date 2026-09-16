@@ -32,7 +32,7 @@
 #if BUILDFLAG(IS_WIN)
 #include "device/fido/win/authenticator.h"
 #include "device/fido/win/type_conversions.h"
-#include "third_party/microsoft_webauthn/webauthn.h"
+#include "third_party/microsoft_webauthn/src/webauthn.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -358,8 +358,6 @@ MakeCredentialRequestHandler::MakeCredentialRequestHandler(
   DCHECK(!request_.cred_protect_enforce);
 
   transport_availability_info().request_type = FidoRequestType::kMakeCredential;
-  transport_availability_info().is_off_the_record_context =
-      options_.is_off_the_record_context;
   transport_availability_info().resident_key_requirement =
       options_.resident_key;
   transport_availability_info().attestation_conveyance_preference =

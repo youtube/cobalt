@@ -119,10 +119,10 @@ class EmbeddedURLExtractor {
     if (url.DomainIs(kGoogleAmpCacheHost)) {
       std::string s;
       std::string embedded;
-      if (re2::RE2::FullMatch(url.path(), google_amp_cache_path_regex_, &s,
+      if (re2::RE2::FullMatch(url.GetPath(), google_amp_cache_path_regex_, &s,
                               &embedded)) {
         if (url.has_query())
-          embedded += "?" + url.query();
+          embedded += "?" + url.GetQuery();
         return BuildURL(!s.empty(), embedded);
       }
     }
@@ -136,8 +136,8 @@ class EmbeddedURLExtractor {
     // Check for Google web cache URLs
     // ("webcache.googleusercontent.com/search?q=cache:...").
     std::string query;
-    if (url.host_piece() == kGoogleWebCacheHost &&
-        base::StartsWith(url.path_piece(), kGoogleWebCachePathPrefix) &&
+    if (url.host() == kGoogleWebCacheHost &&
+        base::StartsWith(url.path(), kGoogleWebCachePathPrefix) &&
         net::GetValueForKeyInQuery(url, "q", &query)) {
       std::string fingerprint;
       std::string scheme;
@@ -151,11 +151,10 @@ class EmbeddedURLExtractor {
     // Check for Google translate URLs ("translate.google.TLD/...?...&u=URL" or
     // "translate.googleusercontent.com/...?...&u=URL").
     bool is_translate = false;
-    if (base::StartsWith(url.host_piece(), kGoogleTranslateSubdomain)) {
+    if (base::StartsWith(url.host(), kGoogleTranslateSubdomain)) {
       // Remove the "translate." prefix.
       GURL::Replacements replace;
-      replace.SetHostStr(
-          url.host_piece().substr(strlen(kGoogleTranslateSubdomain)));
+      replace.SetHostStr(url.host().substr(strlen(kGoogleTranslateSubdomain)));
       GURL trimmed = url.ReplaceComponents(replace);
       // Check that the remainder is a Google URL. Note: IsGoogleDomainUrl
       // checks for [www.]google.TLD, but we don't want the "www.", so
@@ -165,10 +164,9 @@ class EmbeddedURLExtractor {
       is_translate = google_util::IsGoogleDomainUrl(
                          trimmed, google_util::DISALLOW_SUBDOMAIN,
                          google_util::DISALLOW_NON_STANDARD_PORTS) &&
-                     !base::StartsWith(trimmed.host_piece(), "www.");
+                     !base::StartsWith(trimmed.host(), "www.");
     }
-    bool is_alternate_translate =
-        url.host_piece() == kAlternateGoogleTranslateHost;
+    bool is_alternate_translate = url.host() == kAlternateGoogleTranslateHost;
     if (is_translate || is_alternate_translate) {
       std::string embedded;
       if (net::GetValueForKeyInQuery(url, "u", &embedded)) {
@@ -188,7 +186,7 @@ class EmbeddedURLExtractor {
             google_util::DISALLOW_NON_STANDARD_PORTS)) {
       std::string s;
       std::string embedded;
-      if (re2::RE2::FullMatch(url.path(), google_amp_viewer_path_regex_, &s,
+      if (re2::RE2::FullMatch(url.GetPath(), google_amp_viewer_path_regex_, &s,
                               &embedded)) {
         // The embedded URL may be percent-encoded. Undo that.
         embedded = base::UnescapeBinaryURLComponent(embedded);

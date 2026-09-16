@@ -22,14 +22,12 @@
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/service/sync_service_utils.h"
 #import "components/sync/service/sync_user_settings.h"
-#import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_exporter.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/saved_passwords_presenter_observer.h"
 #import "ios/chrome/browser/settings/ui_bundled/utils/password_auto_fill_status_manager.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/browser/signin/model/trusted_vault_client_backend.h"
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
-#import "ios/chrome/browser/webauthn/model/credential_exporter.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_protocol.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -72,11 +70,10 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
       _passwordsPresenterObserver;
 
   // Service which gives us a view on users' saved passwords.
-  raw_ptr<password_manager::SavedPasswordsPresenter, DanglingUntriaged>
-      _savedPasswordsPresenter;
+  raw_ptr<password_manager::SavedPasswordsPresenter> _savedPasswordsPresenter;
 
   // Allows reading and writing user preferences.
-  raw_ptr<PrefService, DanglingUntriaged> _prefService;
+  raw_ptr<PrefService> _prefService;
 
   // Provides status of Chrome as iOS AutoFill credential provider (i.e.,
   // whether or not Chrome passwords can currently be used in other apps).
@@ -87,14 +84,13 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
       _identityManagerObserver;
 
   // Service providing information about sync status.
-  raw_ptr<syncer::SyncService, DanglingUntriaged> _syncService;
+  raw_ptr<syncer::SyncService> _syncService;
 
   // Sync observer.
   std::unique_ptr<SyncObserverBridge> _syncObserver;
 
   // Used to retrieve information about user's passkey security domain.
-  raw_ptr<TrustedVaultClientBackend, DanglingUntriaged>
-      _trustedVaultClientBackend;
+  raw_ptr<TrustedVaultClientBackend> _trustedVaultClientBackend;
 
   // Identity of the user. Can be nil if there is no primary account.
   id<SystemIdentity> _identity;
@@ -176,6 +172,10 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
 
 - (void)setConsumer:(id<PasswordSettingsConsumer>)consumer {
   _consumer = consumer;
+  if (!_consumer) {
+    return;
+  }
+
   // Now that the consumer is set, ensure that the consumer starts out with the
   // correct initial value for `canExportPasswords` or else the export button
   // will not behave correctly on load.
@@ -231,15 +231,9 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
 }
 
 - (void)userDidStartExportFlow:(UIWindow*)window {
-  if (CredentialExchangeEnabled()) {
-    CredentialExporter* credentialExporter =
-        [[CredentialExporter alloc] initWithWindow:window];
-    [credentialExporter startExport];
-  } else {
-    std::vector<CredentialUIEntry> passwords =
-        _savedPasswordsPresenter->GetSavedPasswords();
-    [_passwordExporter startExportFlow:passwords];
-  }
+  std::vector<CredentialUIEntry> passwords =
+      _savedPasswordsPresenter->GetSavedPasswords();
+  [_passwordExporter startExportFlow:passwords];
 }
 
 - (void)userDidCompleteExportFlow {
@@ -258,9 +252,12 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
   [[PasswordAutoFillStatusManager sharedManager] removeObserver:self];
   _prefObserverBridge.reset();
   _prefChangeRegistrar.reset();
-
   _identityManagerObserver.reset();
   _syncObserver.reset();
+  _savedPasswordsPresenter = nullptr;
+  _prefService = nullptr;
+  _syncService = nullptr;
+  _trustedVaultClientBackend = nullptr;
 }
 
 - (CredentialCounts)passwordAndPasskeyCounts {

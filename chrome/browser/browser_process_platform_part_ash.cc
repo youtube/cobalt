@@ -46,7 +46,6 @@
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sessions/session_service_utils.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -73,6 +72,7 @@
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
+#include "components/sync/base/command_line_switches.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_manager_impl.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -106,7 +106,6 @@ class PrimaryProfileServicesShutdownNotifierFactory
       : BrowserContextKeyedServiceShutdownNotifierFactory(
             "PrimaryProfileServices") {
     DependsOn(DeviceInfoSyncServiceFactory::GetInstance());
-    DependsOn(SyncServiceFactory::GetInstance());
   }
   ~PrimaryProfileServicesShutdownNotifierFactory() override = default;
 };
@@ -320,11 +319,16 @@ void BrowserProcessPlatformPart::InitializePrimaryProfileServices(
       g_browser_process->local_state(), CHECK_DEREF(user),
       primary_profile->GetProfilePolicyConnector()->IsManaged());
 
-  if (ash::features::IsAutoSignOutEnabled()) {
+  if (ash::features::IsAutoSignOutEnabled() &&
+      primary_profile->IsRegularProfile() && syncer::IsSyncAllowedByFlag()) {
     PrefService* prefs = primary_profile->GetPrefs();
+    // AutoSignOutService is tied to the primary user profile and it's
+    // destroyed via the `primary_profile_shutdown_subscription_`. To ensure
+    // a safe shutdown, the `PrimaryProfileServicesShutdownNotifierFactory`
+    // uses a `DependsOn()` to guarantee that DeviceInfoSyncService outlives
+    // AutoSignOutService.
     auto_sign_out_service_ = std::make_unique<ash::AutoSignOutService>(
         DeviceInfoSyncServiceFactory::GetForProfile(primary_profile),
-        SyncServiceFactory::GetForProfile(primary_profile),
         session_manager_.get(), prefs);
   }
 }

@@ -58,6 +58,34 @@ builder.addFunction("call_next_in_catch_all", kSig_v_v)
         kExprCallRef, sig_v_v,
       kExprEnd,
     ]).exportFunc();
+let nop_index = builder.addFunction("nop", kSig_v_v).addBody([]).exportFunc().index;
+builder.addFunction("resume_next_twice", kSig_v_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprCallFunction, get_next_index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
+          kExprReturn,
+        kExprEnd,
+        kExprResume, cont_index, 0,
+    ]).exportFunc();
+builder.addFunction("resume_next_with_handler_and_catch_all", kSig_v_v)
+    .addBody([
+        kExprTryTable, kWasmVoid, 1,
+        kCatchAllNoRef, 0,
+          kExprBlock, kWasmRef, cont_index,
+            kExprCallFunction, get_next_index,
+            kExprContNew, cont_index,
+            kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+        kExprEnd,
+    ]).exportFunc();
+builder.addFunction("throw_exn", kSig_v_v)
+    .addBody([
+        kExprThrow, tag_index
+    ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
@@ -137,23 +165,41 @@ instance = builder.instantiate( {m: {
   WebAssembly.promising(instance.exports.call_next_as_cont)()
 })();
 
+(function TestEffectHandlers() {
+  print(arguments.callee.name);
+
+  instance.exports.call_stack.value = [
+      instance.exports.nop,
+  ];
+  instance.exports.resume_next_twice();
+
+  // A resume instruction within a try scope triggers interesting code paths:
+  // the resume builtin call must be able to handle either exceptions or
+  // effects.
+  instance.exports.call_stack.value = [
+      instance.exports.throw_exn
+  ];
+  instance.exports.resume_next_with_handler_and_catch_all();
+})();
+
 (function TestResumeSuspendReturn() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let cont_index = builder.addCont(kSig_v_i);
-  let tag_index = builder.addTag(kSig_v_v);
+  let tag_index = builder.addTag(kSig_i_v);
   let suspend_if = builder.addFunction('suspend_if', kSig_v_i)
       .addBody([
           kExprLocalGet, 0,
           kExprIf, kWasmVoid,
             kExprSuspend, tag_index,
+            kExprDrop,
           kExprEnd,
       ]).exportFunc();
   const kSuspended = 0;
   const kReturned = 1;
   builder.addFunction("main", kSig_i_i)
       .addBody([
-          kExprBlock, kWasmVoid,
+          kExprBlock, kWasmRef, cont_index,
             kExprLocalGet, 0,
             kExprRefFunc, suspend_if.index,
             kExprContNew, cont_index,
@@ -161,6 +207,7 @@ instance = builder.instantiate( {m: {
             kExprI32Const, kReturned,
             kExprReturn,
           kExprEnd,
+          kExprDrop,
           kExprI32Const, kSuspended,
       ]).exportFunc();
   assertTrue(WebAssembly.validate(builder.toBuffer()));

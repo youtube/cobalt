@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.browser_controls;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -20,6 +21,7 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker.ScrollBehavior;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
@@ -29,20 +31,32 @@ import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopContro
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TopControlsStackerUnitTest {
+
     /** Mock implementation of TestLayer for testing purposes. */
     private static class TestLayer implements TopControlLayer {
+        private static final int LAYER_HEIGHT_STATUS_INDICATOR = 20;
+        private static final int LAYER_HEIGHT_TAB_STRIP = 50;
+        private static final int LAYER_HEIGHT_TOOLBAR = 100;
+        private static final int LAYER_HEIGHT_BOOKMARK_BAR = 120;
+        private static final int LAYER_HEIGHT_PROGRESS_BAR = 5;
+
+        private final String mName;
         private final @TopControlType int mType;
-        private final @TopControlVisibility int mVisibility;
         private final @ScrollBehavior int mScrollBehavior;
         private final boolean mContributesToTotalHeight;
         private final int mHeight;
 
+        private @TopControlVisibility int mVisibility;
+        private @Nullable BrowserControlsOffsetTagsInfo mOffsetTagsInfo;
+
         TestLayer(
+                String name,
                 @TopControlType int type,
                 @TopControlVisibility int visibility,
                 @ScrollBehavior int scrollBehavior,
                 boolean contributesToTotalHeight,
                 int height) {
+            mName = name;
             mType = type;
             mVisibility = visibility;
             mScrollBehavior = scrollBehavior;
@@ -74,6 +88,76 @@ public class TopControlsStackerUnitTest {
         public int getTopControlHeight() {
             return mHeight;
         }
+
+        @Override
+        public void updateOffsetTag(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+            mOffsetTagsInfo = offsetTagsInfo;
+        }
+
+        // Assert methods
+
+        void assertHasOffsetTags(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+            assertEquals(
+                    mName + " should holds offset tags info.", offsetTagsInfo, mOffsetTagsInfo);
+        }
+
+        void assertHasNoOffsetTags() {
+            Assert.assertNull(
+                    mName + " Unscrollable layer should not have offset tags info.",
+                    mOffsetTagsInfo);
+        }
+
+        // Factory methods
+
+        static TestLayer statusIndicatorLayer() {
+            return new TestLayer(
+                    "STATUS_INDICATOR",
+                    TopControlType.STATUS_INDICATOR,
+                    TopControlVisibility.VISIBLE,
+                    ScrollBehavior.NEVER_SCROLLABLE,
+                    /* contributesToTotalHeight= */ true,
+                    LAYER_HEIGHT_STATUS_INDICATOR);
+        }
+
+        static TestLayer tabStripLayer() {
+            return new TestLayer(
+                    "TABSTRIP",
+                    TopControlType.TABSTRIP,
+                    TopControlVisibility.VISIBLE,
+                    ScrollBehavior.DEFAULT_SCROLLABLE,
+                    /* contributesToTotalHeight= */ true,
+                    LAYER_HEIGHT_TAB_STRIP);
+        }
+
+        static TestLayer toolbarLayer() {
+            return new TestLayer(
+                    "TOOLBAR",
+                    TopControlType.TOOLBAR,
+                    TopControlVisibility.VISIBLE,
+                    ScrollBehavior.DEFAULT_SCROLLABLE,
+                    /* contributesToTotalHeight= */ true,
+                    LAYER_HEIGHT_TOOLBAR);
+        }
+
+        static TestLayer bookmarkLayer() {
+            return new TestLayer(
+                    "BOOKMARK_BAR",
+                    TopControlType.BOOKMARK_BAR,
+                    TopControlVisibility.VISIBLE,
+                    ScrollBehavior.DEFAULT_SCROLLABLE,
+                    /* contributesToTotalHeight= */ true,
+                    LAYER_HEIGHT_BOOKMARK_BAR);
+        }
+
+        static TestLayer progressBarLayer() {
+            return new TestLayer(
+                    "PROGRESS_BAR",
+                    TopControlType.PROGRESS_BAR,
+                    TopControlVisibility.VISIBLE,
+                    ScrollBehavior.DEFAULT_SCROLLABLE,
+                    /* contributesToTotalHeight= */ false,
+                    LAYER_HEIGHT_PROGRESS_BAR);
+        }
     }
 
     @Mock private BrowserControlsSizer mBrowserControlsSizer;
@@ -92,147 +176,92 @@ public class TopControlsStackerUnitTest {
 
     @Test
     public void testAddRemoveControl() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
+        TestLayer toolbar = TestLayer.toolbarLayer();
         mTopControlsStacker.addControl(toolbar);
         mTopControlsStacker.requestLayerUpdate(false);
-        Assert.assertEquals(
-                "Total height should be 100.",
-                100,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
+        assertControlsHeight(100, 0);
 
         mTopControlsStacker.removeControl(toolbar);
         mTopControlsStacker.requestLayerUpdate(false);
-        Assert.assertEquals(
-                "Total height should be 0.",
-                0,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
+        assertControlsHeight(0, 0);
     }
 
     @Test
     public void testHeightCalculation() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        TestLayer tabstrip =
-                new TestLayer(
-                        TopControlType.TABSTRIP,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        50);
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        TestLayer tabStrip = TestLayer.tabStripLayer();
+
         mTopControlsStacker.addControl(toolbar);
-        mTopControlsStacker.addControl(tabstrip);
+        mTopControlsStacker.addControl(tabStrip);
         mTopControlsStacker.requestLayerUpdate(false);
 
-        Assert.assertEquals(
-                "Total height should be 150.",
-                150,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
-        Assert.assertEquals(
-                "Min height should be 0.", 0, mTopControlsStacker.getVisibleTopControlsMinHeight());
+        assertControlsHeight(150, 0);
     }
 
     @Test
     public void testHeightCalculation_HiddenControl() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        TestLayer tabstrip =
-                new TestLayer(
-                        TopControlType.TABSTRIP,
-                        TopControlVisibility.HIDDEN,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        50);
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        TestLayer tabStrip = TestLayer.tabStripLayer();
+
+        tabStrip.mVisibility = TopControlVisibility.HIDDEN;
+
         mTopControlsStacker.addControl(toolbar);
-        mTopControlsStacker.addControl(tabstrip);
+        mTopControlsStacker.addControl(tabStrip);
         mTopControlsStacker.requestLayerUpdate(false);
 
-        Assert.assertEquals(
-                "Total height should be 100.",
-                100,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
+        assertControlsHeight(100, 0);
     }
 
     @Test
     public void testHeightCalculation_DoesNotContributeToTotalHeight() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        TestLayer progressBar =
-                new TestLayer(
-                        TopControlType.PROGRESS_BAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ false,
-                        5);
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        TestLayer progressBar = TestLayer.progressBarLayer();
+
         mTopControlsStacker.addControl(toolbar);
         mTopControlsStacker.addControl(progressBar);
         mTopControlsStacker.requestLayerUpdate(false);
 
-        Assert.assertEquals(
-                "Total height should be 100.",
-                100,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
+        assertControlsHeight(100, 0);
     }
 
     @Test
     public void testMinHeightCalculation() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.NEVER_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        TestLayer tabstrip =
-                new TestLayer(
-                        TopControlType.TABSTRIP,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        50);
+        TestLayer statusIndicator = TestLayer.statusIndicatorLayer();
+        TestLayer toolbar = TestLayer.toolbarLayer();
+
+        mTopControlsStacker.addControl(statusIndicator);
         mTopControlsStacker.addControl(toolbar);
-        mTopControlsStacker.addControl(tabstrip);
         mTopControlsStacker.requestLayerUpdate(false);
 
-        Assert.assertEquals(
-                "Total height should be 150.",
-                150,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
-        Assert.assertEquals(
-                "Min height should be 100.",
-                100,
-                mTopControlsStacker.getVisibleTopControlsMinHeight());
+        assertControlsHeight(120, 20);
+    }
+
+    @Test(expected = AssertionError.class)
+    public void testAddSameControlTwice() {
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        mTopControlsStacker.addControl(toolbar);
+        mTopControlsStacker.addControl(toolbar);
+    }
+
+    @Test
+    public void testRemoveControlNotAdded() {
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        mTopControlsStacker.removeControl(toolbar);
+        mTopControlsStacker.requestLayerUpdate(false);
+        assertControlsHeight(0, 0);
+    }
+
+    @Test
+    public void testZeroHeightControl() {
+        TestLayer progressBar = TestLayer.progressBarLayer();
+        mTopControlsStacker.addControl(progressBar);
+        mTopControlsStacker.requestLayerUpdate(false);
+        assertControlsHeight(0, 0);
     }
 
     @Test
     public void testScrollingDisabled() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
+        TestLayer toolbar = TestLayer.toolbarLayer();
         mTopControlsStacker.addControl(toolbar);
         mTopControlsStacker.onOffsetTagsInfoChanged(
                 new BrowserControlsOffsetTagsInfo(),
@@ -242,107 +271,102 @@ public class TopControlsStackerUnitTest {
 
         mTopControlsStacker.setScrollingDisabled(true);
 
-        verify(mBrowserControlsSizer).setTopControlsHeight(100, 100);
-    }
-
-    @Test(expected = AssertionError.class)
-    public void testAddSameControlTwice() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        mTopControlsStacker.addControl(toolbar);
-        mTopControlsStacker.addControl(toolbar);
+        assertControlsHeight(100, 100);
     }
 
     @Test
-    public void testRemoveControlNotAdded() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
-        mTopControlsStacker.removeControl(toolbar);
-
-        Assert.assertEquals(
-                "Total height should be 0.",
-                0,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
-    }
-
-    @Test
-    public void testZeroHeightControl() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        0);
-        mTopControlsStacker.addControl(toolbar);
-
-        Assert.assertEquals(
-                "Total height should be 0.",
-                0,
-                mTopControlsStacker.getVisibleTopControlsTotalHeight());
-    }
-
-    @Test
-    public void testBrowserControlsStateChange() {
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        100);
+    public void testScrollingDisabled_HiddenToShown() {
+        TestLayer toolbar = TestLayer.toolbarLayer();
         mTopControlsStacker.addControl(toolbar);
         mTopControlsStacker.setScrollingDisabled(true);
+        BrowserControlsOffsetTagsInfo offsetTagsInfo = new BrowserControlsOffsetTagsInfo();
         mTopControlsStacker.onOffsetTagsInfoChanged(
                 new BrowserControlsOffsetTagsInfo(),
-                new BrowserControlsOffsetTagsInfo(),
+                offsetTagsInfo,
                 BrowserControlsState.HIDDEN,
                 false);
-        verify(mBrowserControlsSizer).setTopControlsHeight(100, 0);
+        assertControlsHeight(100, 0);
+        toolbar.assertHasOffsetTags(offsetTagsInfo);
 
         // Simulate a browser controls state change without offset tag update.
         reset(mBrowserControlsSizer);
 
         verify(mVisibilityDelegate).addObserver(mVisibilityCallbackCaptor.capture());
         mVisibilityCallbackCaptor.getValue().onResult(BrowserControlsState.SHOWN);
-        verify(mBrowserControlsSizer).setTopControlsHeight(100, 100);
+        assertControlsHeight(100, 100);
+        toolbar.assertHasNoOffsetTags();
+    }
+
+    @Test
+    public void testScrollingDisabled_OffsetTagsInfoChanged() {
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        mTopControlsStacker.addControl(toolbar);
+        mTopControlsStacker.setScrollingDisabled(true);
+        assertControlsHeight(100, 100);
+        reset(mBrowserControlsSizer);
+
+        mTopControlsStacker.onOffsetTagsInfoChanged(
+                new BrowserControlsOffsetTagsInfo(),
+                new BrowserControlsOffsetTagsInfo(),
+                BrowserControlsState.BOTH,
+                false);
+        assertControlsHeight(100, 100);
+        toolbar.assertHasNoOffsetTags();
+    }
+
+    @Test
+    public void testOffsetTagsInfo_MultipleLayers() {
+        BrowserControlsOffsetTagsInfo offsetTagsInfo = new BrowserControlsOffsetTagsInfo();
+        mTopControlsStacker.onOffsetTagsInfoChanged(
+                new BrowserControlsOffsetTagsInfo(),
+                offsetTagsInfo,
+                BrowserControlsState.BOTH,
+                false);
+
+        TestLayer statusIndicator = TestLayer.statusIndicatorLayer();
+        TestLayer toolbar = TestLayer.toolbarLayer();
+
+        mTopControlsStacker.addControl(statusIndicator);
+        mTopControlsStacker.addControl(toolbar);
+        mTopControlsStacker.requestLayerUpdate(false);
+
+        assertControlsHeight(120, 20);
+        statusIndicator.assertHasNoOffsetTags();
+        toolbar.assertHasOffsetTags(offsetTagsInfo);
+    }
+
+    @Test
+    public void testOffsetTagsInfo_ChangeConstraints() {
+        BrowserControlsOffsetTagsInfo offsetTagsInfo = new BrowserControlsOffsetTagsInfo();
+        mTopControlsStacker.onOffsetTagsInfoChanged(
+                new BrowserControlsOffsetTagsInfo(),
+                offsetTagsInfo,
+                BrowserControlsState.BOTH,
+                false);
+
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        mTopControlsStacker.addControl(toolbar);
+        mTopControlsStacker.requestLayerUpdate(false);
+
+        assertControlsHeight(100, 0);
+        toolbar.assertHasOffsetTags(offsetTagsInfo);
+
+        BrowserControlsOffsetTagsInfo newOffsetTagsInfo = new BrowserControlsOffsetTagsInfo();
+        mTopControlsStacker.onOffsetTagsInfoChanged(
+                offsetTagsInfo, newOffsetTagsInfo, BrowserControlsState.SHOWN, false);
+        // Assert new offset tags are populated.
+        toolbar.assertHasOffsetTags(newOffsetTagsInfo);
     }
 
     @Test
     public void testIsLayerAtBottom() {
         // Create test layers. The bookmark bar is hidden, and the hairline is visible but does not
         // contribute to total height, so neither will prevent the above from being bottom layer.
-        TestLayer tabStrip =
-                new TestLayer(
-                        TopControlType.TABSTRIP,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        0);
-        TestLayer toolbar =
-                new TestLayer(
-                        TopControlType.TOOLBAR,
-                        TopControlVisibility.VISIBLE,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        0);
-        TestLayer bookmarkBar =
-                new TestLayer(
-                        TopControlType.BOOKMARK_BAR,
-                        TopControlVisibility.HIDDEN,
-                        ScrollBehavior.DEFAULT_SCROLLABLE,
-                        /* contributesToTotalHeight= */ true,
-                        0);
+        TestLayer tabStrip = TestLayer.tabStripLayer();
+        TestLayer toolbar = TestLayer.toolbarLayer();
+        TestLayer bookmarkBar = TestLayer.bookmarkLayer();
+
+        bookmarkBar.mVisibility = TopControlVisibility.HIDDEN;
 
         mTopControlsStacker.addControl(tabStrip);
         mTopControlsStacker.addControl(toolbar);
@@ -358,5 +382,19 @@ public class TopControlsStackerUnitTest {
         Assert.assertFalse(
                 "Layers not in the current stack can never be at the bottom.",
                 mTopControlsStacker.isLayerAtBottom(TopControlType.HAIRLINE));
+    }
+
+    private void assertControlsHeight(int totalHeight, int minHeight) {
+        assertEquals(
+                "Total height does not match.",
+                totalHeight,
+                mTopControlsStacker.getVisibleTopControlsTotalHeight());
+        assertEquals(
+                "Total minHeight does not match.",
+                minHeight,
+                mTopControlsStacker.getVisibleTopControlsMinHeight());
+        verify(mBrowserControlsSizer).setTopControlsHeight(totalHeight, minHeight);
+
+        reset(mBrowserControlsSizer);
     }
 }

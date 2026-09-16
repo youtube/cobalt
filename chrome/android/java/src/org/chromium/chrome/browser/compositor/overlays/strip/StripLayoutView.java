@@ -54,20 +54,6 @@ public abstract class StripLayoutView implements VirtualView {
         void onKeyboardFocus(boolean isFocused, StripLayoutView view);
     }
 
-    /** A property for animations to use for changing the drawX of the view. */
-    public static final FloatProperty<StripLayoutView> DRAW_X =
-            new FloatProperty<>("drawX") {
-                @Override
-                public void setValue(StripLayoutView object, float value) {
-                    object.setDrawX(value);
-                }
-
-                @Override
-                public Float get(StripLayoutView object) {
-                    return object.getDrawX();
-                }
-            };
-
     /** A property for animations to use for changing the X offset of the view. */
     public static final FloatProperty<StripLayoutView> X_OFFSET =
             new FloatProperty<>("offsetX") {
@@ -386,8 +372,8 @@ public abstract class StripLayoutView implements VirtualView {
     }
 
     /** Marks that the view will be closed due to an incoming TabModel update. */
-    public void setWillClose() {
-        mWillClose = true;
+    public void setWillClose(boolean willClose) {
+        mWillClose = willClose;
     }
 
     /** Returns whether or not the view will be closed due to an incoming TabModel update. */

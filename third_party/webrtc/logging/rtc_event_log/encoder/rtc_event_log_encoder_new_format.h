@@ -102,9 +102,6 @@ class RtcEventLogEncoderNewFormat final : public RtcEventLogEncoder {
       rtclog2::EventStream* event_stream);
   void EncodeFramesDecoded(ArrayView<const RtcEventFrameDecoded* const> batch,
                            rtclog2::EventStream* event_stream);
-  void EncodeGenericAcksReceived(
-      ArrayView<const RtcEventGenericAckReceived*> batch,
-      rtclog2::EventStream* event_stream);
   void EncodeGenericPacketsReceived(
       ArrayView<const RtcEventGenericPacketReceived*> batch,
       rtclog2::EventStream* event_stream);

@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -57,10 +58,10 @@ struct RTC_EXPORT AsyncSocketPacketOptions {
 
   DiffServCodePoint dscp = DSCP_NO_CHANGE;
 
-  // Packet will be sent with ECN(1), RFC-3168, Section 5.
+  // Packet will be sent with ECT(1), RFC-3168, Section 5.
   // Intended to be used with L4S
   // https://www.rfc-editor.org/rfc/rfc9331.html
-  bool ecn_1 = false;
+  bool ect_1 = false;
 
   // When used with RTP packets (for example, PacketOptions), the value
   // should be 16 bits. A value of -1 represents "not set".

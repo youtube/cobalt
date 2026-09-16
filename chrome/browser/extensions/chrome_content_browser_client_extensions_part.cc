@@ -92,6 +92,7 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service_factory.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -124,7 +125,7 @@ const Extension* GetEnabledExtensionFromSiteURL(BrowserContext* context,
   if (!registry)
     return nullptr;
 
-  return registry->enabled_extensions().GetByID(site_url.host());
+  return registry->enabled_extensions().GetByID(site_url.GetHost());
 }
 
 bool HasEffectiveUrl(content::BrowserContext* browser_context,
@@ -378,7 +379,7 @@ bool ChromeContentBrowserClientExtensionsPart::
   }
 
   // Determine whether the URL is manifest-sandboxed.
-  return SandboxedPageInfo::IsSandboxedPage(extension, url.path());
+  return SandboxedPageInfo::IsSandboxedPage(extension, url.GetPath());
 }
 
 // static
@@ -419,7 +420,7 @@ bool ChromeContentBrowserClientExtensionsPart::CanCommitURL(
   // separately) to verify that the ProcessLock matches the extension's origin.
   // TODO(https://crbug.com/346264217): Also ensure the process is sandboxed, if
   // that does not cause problems for pushState cases.
-  if (SandboxedPageInfo::IsSandboxedPage(extension, url.path())) {
+  if (SandboxedPageInfo::IsSandboxedPage(extension, url.GetPath())) {
     return true;
   }
 
@@ -653,7 +654,13 @@ bool ChromeContentBrowserClientExtensionsPart::
   // of e.g. throwing errors in response to installation events (where the
   // worker is registered, but then immediately unregistered).
   if (!registered_version.IsValid()) {
+#if BUILDFLAG(IS_CHROMEOS)
+    // Make an exception for kiosk mode, since kiosk sessions use temporary
+    // profiles, which are discarded when a session ends.
+    return !user_manager::UserManager::Get()->IsLoggedInAsAnyKioskApp();
+#else
     return true;
+#endif
   }
 
   // Don't allow the unregistration of a valid, enabled service worker-based
@@ -842,7 +849,7 @@ bool ChromeContentBrowserClientExtensionsPart::
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   const Extension* extension = registry->enabled_extensions().GetByID(
-      main_frame_site.GetSiteURL().host());
+      main_frame_site.GetSiteURL().GetHost());
   extension_webkit_preferences::SetPreferences(extension, web_prefs);
 #endif
   return true;

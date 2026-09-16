@@ -6,7 +6,6 @@
 
 #include "base/check.h"
 #include "base/compiler_specific.h"
-#include "base/containers/span.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
@@ -76,7 +75,7 @@ size_t WaitableEvent::WaitMany(base::span<WaitableEvent*> events) {
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       FROM_HERE, BlockingType::MAY_BLOCK);
 
-  const size_t signaled_id = WaitManyImpl(events.data(), events.size());
+  const size_t signaled_id = WaitManyImpl(events);
   WaitableEvent* const signaled_event = events[signaled_id];
   if (!signaled_event->only_used_while_idle_) {
     TRACE_EVENT_INSTANT("wakeup.flow,toplevel.flow",

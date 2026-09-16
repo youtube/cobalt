@@ -139,7 +139,7 @@ class TestGpuChannelHost : public gpu::GpuChannelHost {
 
 class MockOverlayInfoCbHandler {
  public:
-  MOCK_METHOD2(Call, void(bool, media::ProvideOverlayInfoCB));
+  MOCK_METHOD1(Call, void(media::ProvideOverlayInfoCB));
 };
 
 class MockContextProviderCommandBuffer
@@ -159,7 +159,6 @@ class MockContextProviderCommandBuffer
   MOCK_METHOD(gpu::gles2::GLES2Interface*, ContextGL, (), (override));
   MOCK_METHOD(gpu::raster::RasterInterface*, RasterInterface, (), (override));
   MOCK_METHOD(gpu::ContextSupport*, ContextSupport, (), (override));
-  MOCK_METHOD(class GrDirectContext*, GrContext, (), (override));
   MOCK_METHOD(gpu::SharedImageInterface*, SharedImageInterface, (), (override));
   MOCK_METHOD(viz::ContextCacheController*, CacheController, (), (override));
   MOCK_METHOD(base::Lock*, GetLock, (), (override));
@@ -440,7 +439,7 @@ class MojoGpuVideoAcceleratorFactoriesTest : public testing::Test {
         gpu_channel_host_, kGpuStreamIdDefault,
         task_environment_.GetMainThreadTaskRunner());
     gpu_command_buffer_proxy_->Initialize(
-        nullptr, kGpuStreamPriorityDefault,
+        kGpuStreamPriorityDefault,
         gpu::mojom::ContextCreationAttribs::NewGles(
             gpu::mojom::GLESCreationAttribs::New()),
         GURL());

@@ -8,13 +8,21 @@ assert(!is_android && !is_ios)
 
 build_webui("build") {
   grd_prefix = "omnibox_popup"
-  static_files = [ "omnibox_popup.html" ]
+  static_files = [
+    "omnibox_popup.html",
+    "omnibox_popup_full.html",
+  ]
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "full_app.html.ts",
+    "full_app.ts",
     "omnibox_popup.ts",
   ]
-  css_files = [ "app.css" ]
+  css_files = [
+    "app.css",
+    "full_app.css",
+  ]
   ts_composite = true
   ts_deps = [
     "//third_party/lit/v3_0:build_ts",

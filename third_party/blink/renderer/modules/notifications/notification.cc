@@ -370,10 +370,10 @@ v8::LocalVector<v8::Value> Notification::actions(
 
     switch (actions[i]->type) {
       case mojom::blink::NotificationActionType::BUTTON:
-        action->setType("button");
+        action->setType(V8NotificationActionType::Enum::kButton);
         break;
       case mojom::blink::NotificationActionType::TEXT:
-        action->setType("text");
+        action->setType(V8NotificationActionType::Enum::kText);
         break;
       default:
         NOTREACHED() << "Unknown action type: " << actions[i]->type;
@@ -412,7 +412,6 @@ V8NotificationPermission::Enum Notification::PermissionToV8Enum(
     case mojom::blink::PermissionStatus::GRANTED:
       return V8NotificationPermission::Enum::kGranted;
     case mojom::blink::PermissionStatus::DENIED:
-    case mojom::blink::PermissionStatus::UNSATISFIED_OPTIONS:
       return V8NotificationPermission::Enum::kDenied;
     case mojom::blink::PermissionStatus::ASK:
       return V8NotificationPermission::Enum::kDefault;

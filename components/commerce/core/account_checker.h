@@ -15,7 +15,6 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 class GURL;
 class PrefService;
@@ -24,6 +23,10 @@ class PrefChangeRegistrar;
 namespace base {
 class TimeDelta;
 }  // namespace base
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
 
 namespace commerce {
 
@@ -78,11 +81,10 @@ class AccountChecker {
 
   // This method could be overridden in tests.
   virtual std::unique_ptr<endpoint_fetcher::EndpointFetcher>
-  CreateEndpointFetcher(const std::string& oauth_consumer_name,
+  CreateEndpointFetcher(signin::OAuthConsumerId oauth_consumer_id,
                         const GURL& url,
                         const endpoint_fetcher::HttpMethod http_method,
                         const std::string& content_type,
-                        const std::vector<std::string>& scopes,
                         const base::TimeDelta& timeout,
                         const std::string& post_data,
                         const net::NetworkTrafficAnnotationTag& annotation_tag);

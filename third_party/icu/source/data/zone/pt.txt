@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pt{
     zoneStrings{
         "Africa:Accra"{
@@ -45,9 +45,6 @@ pt{
         "Africa:Porto-Novo"{
             ec{"Porto Novo"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Trípoli"}
         }
@@ -86,9 +83,6 @@ pt{
         }
         "America:Cuiaba"{
             ec{"Cuiabá"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Eirunepe"{
             ec{"Eirunepé"}
@@ -146,9 +140,6 @@ pt{
         }
         "America:Puerto_Rico"{
             ec{"Porto Rico"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -294,9 +285,6 @@ pt{
         "Atlantic:St_Helena"{
             ec{"Santa Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"Horário Universal Coordenado"}
         }
@@ -402,9 +390,6 @@ pt{
         }
         "Europe:Warsaw"{
             ec{"Varsóvia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporizhia"}
         }
         "Europe:Zurich"{
             ec{"Zurique"}
@@ -634,11 +619,6 @@ pt{
             lg{"Horário da China"}
             ls{"Horário Padrão da China"}
         }
-        "meta:Choibalsan"{
-            ld{"Horário de Verão de Choibalsan"}
-            lg{"Horário de Choibalsan"}
-            ls{"Horário Padrão de Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"Horário da Ilha Christmas"}
         }
@@ -805,11 +785,14 @@ pt{
             lg{"Horário de Petropavlovsk-Kamchatski"}
             ls{"Horário Padrão de Petropavlovsk-Kamchatski"}
         }
+        "meta:Kazakhstan"{
+            ls{"Horário do Cazaquistão"}
+        }
         "meta:Kazakhstan_Eastern"{
-            ls{"Horário do Casaquistão Oriental"}
+            ls{"Horário do Cazaquistão Oriental"}
         }
         "meta:Kazakhstan_Western"{
-            ls{"Horário do Casaquistão Ocidental"}
+            ls{"Horário do Cazaquistão Ocidental"}
         }
         "meta:Korea"{
             ld{"Horário de Verão da Coreia"}
@@ -843,9 +826,6 @@ pt{
             lg{"Horário de Macau"}
             ls{"Horário Padrão de Macau"}
         }
-        "meta:Macquarie"{
-            ls{"Horário da Ilha Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Horário de Verão de Magadan"}
             lg{"Horário de Magadan"}
@@ -870,11 +850,6 @@ pt{
         }
         "meta:Mawson"{
             ls{"Horário de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Horário de Verão do Noroeste do México"}
-            lg{"Horário do Noroeste do México"}
-            ls{"Horário Padrão do Noroeste do México"}
         }
         "meta:Mexico_Pacific"{
             ld{"Horário de Verão do Pacífico Mexicano"}

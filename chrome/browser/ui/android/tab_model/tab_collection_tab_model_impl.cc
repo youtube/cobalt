@@ -9,11 +9,11 @@
 #include <optional>
 #include <utility>
 
-#include "base/check.h"
-#include "base/logging.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/token_android.h"
+#include "base/check.h"
+#include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/android/tab_group_android.h"
@@ -22,6 +22,7 @@
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/android/jni_conversion.h"
 #include "components/tabs/public/pinned_tab_collection.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
@@ -159,6 +160,7 @@ int TabCollectionTabModelImpl::AddTabRecursive(
     TabAndroid* tab_android,
     size_t index,
     const std::optional<base::Token>& token,
+    bool is_attaching_group,
     bool is_pinned) {
   CHECK(tab_android);
 
@@ -169,8 +171,17 @@ int TabCollectionTabModelImpl::AddTabRecursive(
                        index, tab_group_id, is_pinned);
 
   auto tab_interface_android = ToTabInterface(tab_android);
-  tab_strip_collection_->AddTabRecursive(std::move(tab_interface_android),
-                                         index, tab_group_id, is_pinned);
+
+  // When the tab is attaching a detached group we first add the tab to the
+  // collection and then move the tab to the group.
+  tab_strip_collection_->AddTabRecursive(
+      std::move(tab_interface_android), index,
+      is_attaching_group ? std::nullopt : tab_group_id, is_pinned);
+
+  if (is_attaching_group) {
+    tab_strip_collection_->MoveTabRecursive(index, index, *tab_group_id,
+                                            is_pinned);
+  }
   return base::checked_cast<int>(index);
 }
 
@@ -447,6 +458,11 @@ TabAndroid* TabCollectionTabModelImpl::GetLastShownTabForGroup(
 
 int TabCollectionTabModelImpl::GetIndexOfFirstNonPinnedTab(JNIEnv* env) {
   return tab_strip_collection_->IndexOfFirstNonPinnedTab();
+}
+
+TabStripCollection* TabCollectionTabModelImpl::GetTabStripCollection(
+    JNIEnv* env) {
+  return tab_strip_collection_.get();
 }
 
 // Private methods:

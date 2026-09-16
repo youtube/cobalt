@@ -435,8 +435,8 @@ TEST_P(ViewTransitionTest, StartTransitionElementsWantToBeComposited) {
   // This callback sets the elements for the start phase of the transition.
   auto start_setup_lambda =
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        auto* data =
-            static_cast<Data*>(info.Data().As<v8::External>()->Value());
+        auto* data = static_cast<Data*>(info.Data().As<v8::External>()->Value(
+            gin::kViewTransitionTestDataTag));
         data->document.getElementById(AtomicString("e1"))
             ->setAttribute(html_names::kStyleAttr, g_empty_atom);
         data->document.getElementById(AtomicString("e3"))
@@ -448,7 +448,8 @@ TEST_P(ViewTransitionTest, StartTransitionElementsWantToBeComposited) {
       };
   auto start_setup_callback =
       v8::Function::New(script_state->GetContext(), start_setup_lambda,
-                        v8::External::New(script_state->GetIsolate(), &data))
+                        v8::External::New(script_state->GetIsolate(), &data,
+                                          gin::kViewTransitionTestDataTag))
           .ToLocalChecked();
 
   ViewTransitionSupplement::startViewTransition(
@@ -584,7 +585,8 @@ TEST_P(ViewTransitionTest, ScopedElementRemoved) {
   auto lambda = [](const v8::FunctionCallbackInfo<v8::Value>& info) {};
   auto* callback = V8ViewTransitionCallback::Create(
       v8::Function::New(script_state->GetContext(), lambda,
-                        v8::External::New(script_state->GetIsolate(), document))
+                        v8::External::New(script_state->GetIsolate(), document,
+                                          gin::kViewTransitionTestDocumentTag))
           .ToLocalChecked());
 
   auto* transition = ScopedViewTransition::startViewTransition(
@@ -898,7 +900,7 @@ TEST_P(ViewTransitionTest, InspectorStyleResolver) {
     for (const auto& matched_rules : parent_resolver.PseudoElementRules()) {
       if (matched_rules->pseudo_id != test_case.pseudo_id)
         continue;
-      if (matched_rules->view_transition_name == "root") {
+      if (matched_rules->pseudo_argument == "root") {
         EXPECT_FALSE(found_rule_for_root);
         found_rule_for_root = true;
         continue;
@@ -912,7 +914,7 @@ TEST_P(ViewTransitionTest, InspectorStyleResolver) {
     // Pseudo-elements which are generated for each tag should include the root
     // by default.
     EXPECT_EQ(found_rule_for_root, test_case.uses_tags);
-    EXPECT_EQ(matched_rules_for_pseudo->view_transition_name,
+    EXPECT_EQ(matched_rules_for_pseudo->pseudo_argument,
               test_case.uses_tags ? AtomicString("foo") : g_null_atom);
 
     auto pseudo_element_rules = matched_rules_for_pseudo->matched_rules;
@@ -1101,7 +1103,8 @@ TEST_P(ViewTransitionTest, PseudoAwareChildTraversal) {
   auto start_setup_lambda =
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
         auto* document =
-            static_cast<Document*>(info.Data().As<v8::External>()->Value());
+            static_cast<Document*>(info.Data().As<v8::External>()->Value(
+                gin::kViewTransitionTestDocumentTag));
         document->documentElement()->classList().Add(
             AtomicString("transitioned"));
       };
@@ -1110,7 +1113,8 @@ TEST_P(ViewTransitionTest, PseudoAwareChildTraversal) {
   auto start_setup_callback =
       v8::Function::New(
           script_state->GetContext(), start_setup_lambda,
-          v8::External::New(script_state->GetIsolate(), &GetDocument()))
+          v8::External::New(script_state->GetIsolate(), &GetDocument(),
+                            gin::kViewTransitionTestDocumentTag))
           .ToLocalChecked();
 
   ViewTransitionSupplement::startViewTransition(
@@ -1429,13 +1433,15 @@ TEST_P(ViewTransitionTest, ScriptCallAfterNavigationTransition) {
   auto start_setup_lambda =
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
         auto* callback_issued =
-            static_cast<bool*>(info.Data().As<v8::External>()->Value());
+            static_cast<bool*>(info.Data().As<v8::External>()->Value(
+                gin::kViewTransitionTestBoolTag));
         *callback_issued = true;
       };
   auto start_setup_callback =
       v8::Function::New(
           script_state->GetContext(), start_setup_lambda,
-          v8::External::New(script_state->GetIsolate(), &callback_issued))
+          v8::External::New(script_state->GetIsolate(), &callback_issued,
+                            gin::kViewTransitionTestBoolTag))
           .ToLocalChecked();
   DOMViewTransition* script_transition =
       ViewTransitionSupplement::startViewTransition(
@@ -1534,7 +1540,8 @@ TEST_P(ViewTransitionTest, ReplaceDocumentElement) {
   ScriptState::Scope scope(script_state);
 
   auto lambda = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-    auto* doc = static_cast<Document*>(info.Data().As<v8::External>()->Value());
+    auto* doc = static_cast<Document*>(info.Data().As<v8::External>()->Value(
+        gin::kViewTransitionTestDocumentTag));
     auto* new_root = doc->CreateElementForBinding(AtomicString("html"));
     new_root->SetInnerHTMLWithoutTrustedTypes(R"HTML(
       <body>
@@ -1548,7 +1555,8 @@ TEST_P(ViewTransitionTest, ReplaceDocumentElement) {
   };
   auto* callback = V8ViewTransitionCallback::Create(
       v8::Function::New(script_state->GetContext(), lambda,
-                        v8::External::New(script_state->GetIsolate(), document))
+                        v8::External::New(script_state->GetIsolate(), document,
+                                          gin::kViewTransitionTestDocumentTag))
           .ToLocalChecked());
 
   auto* transition = ViewTransitionSupplement::startViewTransition(
@@ -1578,7 +1586,8 @@ TEST_P(ViewTransitionTest, ReplaceBody) {
   ScriptState::Scope scope(script_state);
 
   auto lambda = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-    auto* doc = static_cast<Document*>(info.Data().As<v8::External>()->Value());
+    auto* doc = static_cast<Document*>(info.Data().As<v8::External>()->Value(
+        gin::kViewTransitionTestDocumentTag));
     doc->documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
       <body>
         <style>
@@ -1590,7 +1599,8 @@ TEST_P(ViewTransitionTest, ReplaceBody) {
   };
   auto* callback = V8ViewTransitionCallback::Create(
       v8::Function::New(script_state->GetContext(), lambda,
-                        v8::External::New(script_state->GetIsolate(), document))
+                        v8::External::New(script_state->GetIsolate(), document,
+                                          gin::kViewTransitionTestDocumentTag))
           .ToLocalChecked());
 
   auto* transition = ViewTransitionSupplement::startViewTransition(

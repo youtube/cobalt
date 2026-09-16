@@ -24,6 +24,14 @@ SidePanelRegistry* GetSidePanelRegistryFromWebContents(
   return tab->GetTabFeatures()->side_panel_registry();
 }
 
+SidePanelRegistry* GetSidePanelRegistryFromTabHandle(tabs::TabHandle handle) {
+  tabs::TabInterface* tab = handle.Get();
+  if (!tab || !tab->GetTabFeatures()) {
+    return nullptr;
+  }
+  return tab->GetTabFeatures()->side_panel_registry();
+}
+
 }  // namespace
 
 SidePanelUIBase::SidePanelUIBase(Browser* browser)
@@ -102,7 +110,11 @@ SidePanelEntry* SidePanelUIBase::GetEntryForUniqueKey(
     const UniqueKey& unique_key) const {
   SidePanelEntry* entry = nullptr;
   if (unique_key.tab_handle) {
-    entry = GetActiveContextualEntryForKey(unique_key.key);
+    SidePanelRegistry* tab_registry =
+        GetSidePanelRegistryFromTabHandle(unique_key.tab_handle.value());
+    if (tab_registry) {
+      entry = tab_registry->GetEntryForKey(unique_key.key);
+    }
   } else {
     entry = window_registry_->GetEntryForKey(unique_key.key);
   }
@@ -148,17 +160,21 @@ SidePanelUIBase::GetNewActiveKeyOnTabChanged() {
   // that entry will be active in its owning registry.
   auto* active_contextual_registry = GetActiveContextualRegistry();
   if (active_contextual_registry &&
-      active_contextual_registry->active_entry()) {
+      active_contextual_registry->GetActiveEntryFor(
+          SidePanelEntry::PanelType::kContent)) {
     return UniqueKey{browser_->GetActiveTabInterface()->GetHandle(),
-                     (*active_contextual_registry->active_entry())->key()};
+                     (*active_contextual_registry->GetActiveEntryFor(
+                          SidePanelEntry::PanelType::kContent))
+                         ->key()};
   }
 
   if (current_key_ && window_registry_->GetEntryForKey(current_key_->key)) {
     return GetUniqueKeyForKey(current_key_->key);
   }
 
-  if (window_registry_->active_entry()) {
-    return GetUniqueKeyForKey((*window_registry_->active_entry())->key());
+  if (auto entry = window_registry_->GetActiveEntryFor(
+          SidePanelEntry::PanelType::kContent)) {
+    return GetUniqueKeyForKey((*entry)->key());
   }
 
   return std::nullopt;

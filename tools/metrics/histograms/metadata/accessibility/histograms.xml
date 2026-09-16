@@ -224,6 +224,7 @@ chromium-metrics-reviews@google.com.
   <owner>mschillaci@google.com</owner>
   <owner>katie@chromium.org</owner>
   <owner>jhimawan@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     When a keyboard shortcut is used on Android, tracks the action of the
@@ -2272,7 +2273,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.LoadResult"
-    enum="TranslationDispatcherLoadResult" expires_after="2026-02-01">
+    enum="TranslationDispatcherLoadResult" expires_after="2026-04-05">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -2282,7 +2283,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.ParseResult"
-    enum="TranslationDispatcherParseResult" expires_after="2026-02-01">
+    enum="TranslationDispatcherParseResult" expires_after="2026-04-05">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -3964,13 +3965,21 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
-<histogram name="DomDistiller.Android.EntryPoint" enum="DomDistillerEntryPoint"
-    expires_after="2026-06-01">
+<histogram name="DomDistiller.Android.EntryPoint.{TabType}"
+    enum="DomDistillerEntryPoint" expires_after="2026-06-01">
   <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
   <owner>chrome-reader-mode-team@google.com</owner>
   <summary>
-    The entry-point into Reader Mode, recorded when the user enters reader mode.
+    The entry-point into Reader Mode for a certain {TabType}, recorded when the
+    user enters reader mode.
   </summary>
+  <token key="TabType">
+    <variant name="CCT" summary="Custom tab"/>
+    <variant name="Incognito" summary="Incognito tab"/>
+    <variant name="IncognitoCCT" summary="Incognito custom tab"/>
+    <variant name="Regular" summary="Regular tab"/>
+  </token>
 </histogram>
 
 <histogram name="DomDistiller.Android.FontScalingSelected" units="%"
@@ -4014,6 +4023,17 @@ even if they fit the naming pattern. -->
     Records the end-state of the distillation result. This is different from the
     triggering model result because it also includes android business logic.
     Recorded when ReaderModeManager gets a distillation result.
+  </summary>
+</histogram>
+
+<histogram name="DomDistiller.Android.ReaderModeContextualPageActionEvent"
+    enum="ReaderModeContextualPageActionEvent" expires_after="2026-06-01">
+  <owner>wylieb@google.com</owner>
+  <owner>chrome-reader-mode-team@google.com</owner>
+  <summary>
+    Records various events that happen in the Reader Mode Contextual Page
+    Action. These represent a funnel of user actions starting from eligibility
+    to click-through.
   </summary>
 </histogram>
 

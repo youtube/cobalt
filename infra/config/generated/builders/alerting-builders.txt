@@ -208,8 +208,9 @@ ci/ToTMacArm64
 ci/ToTMacArm64PGO
 ci/ToTMacCoverage
 ci/ToTMacPGO
-ci/ToTMacRust (dbg)
-ci/ToTRustLinux (dbg)
+ci/ToTRustLinux(dbg)
+ci/ToTRustMac(dbg)
+ci/ToTRustWin(dbg)
 ci/ToTWin
 ci/ToTWin(dbg)
 ci/ToTWin(dll)
@@ -218,7 +219,6 @@ ci/ToTWin64(dbg)
 ci/ToTWin64(dll)
 ci/ToTWin64PGO
 ci/ToTWinASanLibfuzzer
-ci/ToTWinRust(dbg)
 ci/ToTWindowsCoverage
 ci/ToTiOS
 ci/ToTiOSDevice
@@ -243,6 +243,7 @@ ci/Win10 FYI x64 Release (NVIDIA)
 ci/Win10 FYI x64 Release XR Perf (NVIDIA)
 ci/Win10 FYI x86 Release (NVIDIA)
 ci/Win10 Tests x64
+ci/Win10 Tests x64 (dbg)
 ci/Win10 x64 Debug (NVIDIA)
 ci/Win10 x64 Release (NVIDIA)
 ci/Win11 FYI arm64 Release (Qualcomm Adreno 690)
@@ -254,6 +255,7 @@ ci/Win11 FYI x64 Release (NVIDIA RTX 4070 Super)
 ci/Win11 Tests x64
 ci/Windows deterministic
 ci/android-10-arm64-rel
+ci/android-10-x86-nofieldtrial-rel
 ci/android-10-x86-rel
 ci/android-11-x86-rel
 ci/android-12-x64-rel
@@ -357,6 +359,7 @@ ci/linux-cfm-rel
 ci/linux-chromeos-archive-rel
 ci/linux-chromeos-dbg
 ci/linux-chromeos-rel
+ci/linux-crossbench
 ci/linux-extended-tracing-rel
 ci/linux-gcc-rel
 ci/linux-oi-rel
@@ -409,6 +412,7 @@ ci/win32-archive-rel
 ci/win32-official
 try/3pp-linux-amd64-packager
 try/android-10-arm64-rel
+try/android-10-x86-nofieldtrial-rel
 try/android-10-x86-rel
 try/android-11-x86-rel
 try/android-12-x64-dbg
@@ -594,6 +598,7 @@ try/linux-chromeos-compile-dbg
 try/linux-chromeos-dbg
 try/linux-chromeos-rel
 try/linux-clobber-rel
+try/linux-crossbench
 try/linux-dcheck-off-rel
 try/linux-enterprise-companion-try-builder-dbg
 try/linux-enterprise-companion-try-builder-rel
@@ -607,6 +612,7 @@ try/linux-msan-chained-origins-rel
 try/linux-msan-no-origins-rel
 try/linux-oi-rel
 try/linux-perfetto-rel
+try/linux-presubmit
 try/linux-rel
 try/linux-rel-cft
 try/linux-rel-test-selection

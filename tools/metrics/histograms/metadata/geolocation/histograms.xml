@@ -287,7 +287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Geolocation.NetworkLocationRequest.RequestInterval"
-    units="mins" expires_after="2025-11-09">
+    units="mins" expires_after="2026-05-09">
   <owner>alvinji@chromium.org</owner>
   <owner>device-dev@chromium.org</owner>
   <summary>
@@ -298,7 +298,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Geolocation.NetworkLocationRequest.ResponseCode"
-    enum="HttpResponseCode" expires_after="2026-01-18">
+    enum="HttpResponseCode" expires_after="2026-03-22">
   <owner>mattreynolds@chromium.org</owner>
   <owner>device-dev@chromium.org</owner>
   <summary>
@@ -310,7 +310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Geolocation.NetworkLocationRequest.Result"
-    enum="NetworkLocationRequestResult" expires_after="2026-02-01">
+    enum="NetworkLocationRequestResult" expires_after="2026-04-05">
   <owner>mattreynolds@chromium.org</owner>
   <owner>device-dev@chromium.org</owner>
   <summary>
@@ -404,7 +404,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Geolocation.SystemGeolocationSourceWin.PermissionStatusChangedAfterPrompt"
-    enum="LocationSystemPermissionStatus" expires_after="2026-02-01">
+    enum="LocationSystemPermissionStatus" expires_after="2026-04-05">
   <owner>mattreynolds@chromium.org</owner>
   <owner>device-dev@chromium.org</owner>
   <summary>

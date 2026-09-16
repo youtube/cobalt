@@ -51,7 +51,7 @@ static int32_t fail;
  */
 
 static uint32_t
-randul()
+randul(void)
 {
     uint32_t l=0;
     int32_t i;
@@ -72,7 +72,7 @@ randul()
  * Return a random double x where 0.0 <= x < 1.0.
  */
 static double
-randd()
+randd(void)
 {
     return ((double)randul()) / UINT32_MAX;
 }
@@ -212,6 +212,7 @@ static int32_t bundles_count = UPRV_LENGTHOF(param);
 static void TestDecodedBundle(void);
 static void TestGetKeywordValues(void);
 static void TestGetFunctionalEquivalent(void);
+static void TestGetFunctionalEquivalentVariantLengthLimit(void);
 static void TestCLDRStyleAliases(void);
 static void TestFallbackCodes(void);
 static void TestGetUTF8String(void);
@@ -249,7 +250,10 @@ void addNEWResourceBundleTest(TestNode** root)
     addTest(root, &TestGetVersionColl,        "tsutil/creststn/TestGetVersionColl");
     addTest(root, &TestAliasConflict,         "tsutil/creststn/TestAliasConflict");
     addTest(root, &TestGetKeywordValues,      "tsutil/creststn/TestGetKeywordValues");
-    addTest(root, &TestGetFunctionalEquivalent,"tsutil/creststn/TestGetFunctionalEquivalent");
+    addTest(root, &TestGetFunctionalEquivalent,
+            "tsutil/creststn/TestGetFunctionalEquivalent");
+    addTest(root, &TestGetFunctionalEquivalentVariantLengthLimit,
+            "tsutil/creststn/TestGetFunctionalEquivalentVariantLengthLimit");
     addTest(root, &TestJB3763,                "tsutil/creststn/TestJB3763");
 }
 
@@ -403,7 +407,7 @@ static void TestAliasConflict(void) {
     }
 }
 
-static void TestDecodedBundle(){
+static void TestDecodedBundle(void){
 
     UErrorCode error = U_ZERO_ERROR;
 
@@ -479,7 +483,7 @@ static void TestDecodedBundle(){
     ures_close(resB);
 }
 
-static void TestNewTypes() {
+static void TestNewTypes(void) {
     UResourceBundle* theBundle = NULL;
     char action[256];
     const char* testdatapath;
@@ -781,7 +785,7 @@ static void TestNewTypes() {
 
 }
 
-static void TestEmptyTypes() {
+static void TestEmptyTypes(void) {
     UResourceBundle* theBundle = NULL;
     char action[256];
     const char* testdatapath;
@@ -926,7 +930,7 @@ static void TestEmptyTypes() {
     ures_close(theBundle);
 }
 
-static void TestEmptyBundle(){
+static void TestEmptyBundle(void){
     UErrorCode status = U_ZERO_ERROR;
     const char* testdatapath=NULL;
     UResourceBundle *resb=0, *dResB=0;
@@ -950,7 +954,7 @@ static void TestEmptyBundle(){
     ures_close(resb);
 }
 
-static void TestBinaryCollationData(){
+static void TestBinaryCollationData(void){
 #if !UCONFIG_NO_COLLATION
     UErrorCode status=U_ZERO_ERROR;
     const char*      locale="te";
@@ -1008,7 +1012,7 @@ static void TestBinaryCollationData(){
 #endif
 }
 
-static void TestAPI() {
+static void TestAPI(void) {
     UErrorCode status=U_ZERO_ERROR;
     int32_t len=0;
     const char* key=NULL;
@@ -1170,7 +1174,7 @@ static void TestAPI() {
     free(utestdatapath);
 }
 
-static void TestErrorConditions(){
+static void TestErrorConditions(void){
     UErrorCode status=U_ZERO_ERROR;
     const char *key=NULL;
     const UChar *value=NULL;
@@ -1405,7 +1409,7 @@ static void TestErrorConditions(){
 
 }
 
-static void TestGetVersion(){
+static void TestGetVersion(void){
     UVersionInfo minVersionArray = {0x01, 0x00, 0x00, 0x00};
     UVersionInfo maxVersionArray = {0x50, 0xff, 0xcf, 0xcf};
     UVersionInfo versionArray;
@@ -1443,7 +1447,7 @@ static void TestGetVersion(){
 }
 
 
-static void TestGetVersionColl(){
+static void TestGetVersionColl(void){
 #if !UCONFIG_NO_COLLATION
     UVersionInfo minVersionArray = {0x00, 0x00, 0x00, 0x00};
     UVersionInfo maxVersionArray = {0x50, 0x80, 0xcf, 0xcf};
@@ -1507,7 +1511,7 @@ static void TestGetVersionColl(){
 #endif  /* !UCONFIG_NO_COLLATION */
 }
 
-static void TestResourceBundles()
+static void TestResourceBundles(void)
 {
     // The test expectation only works if the default locale is not one of the
     // locale bundle in the testdata which have those info. Therefore, we skip
@@ -1539,7 +1543,7 @@ static void TestResourceBundles()
 }
 
 
-static void TestConstruction1()
+static void TestConstruction1(void)
 {
     // The test expectation only works if the default locale is not one of the
     // locale bundle in the testdata which have those info. Therefore, we skip
@@ -2051,20 +2055,20 @@ static UBool testTag(const char* frag,
     ures_close(tags);
     ures_close(arrayItem1);
     free(base);
-    return (UBool)(failNum == fail);
+    return failNum == fail;
 }
 
-static void record_pass()
+static void record_pass(void)
 {
     ++pass;
 }
 
-static void record_fail()
+static void record_fail(void)
 {
     ++fail;
 }
 
-static void TestPreventFallback() {
+static void TestPreventFallback(void) {
     UResourceBundle* theBundle = NULL;
     const char* testdatapath;
     UErrorCode status = U_ZERO_ERROR;
@@ -2124,7 +2128,7 @@ static void TestPreventFallback() {
  * are set correctly
  */
 
-static void TestFallback()
+static void TestFallback(void)
 {
     UErrorCode status = U_ZERO_ERROR;
     UResourceBundle *fr_FR = NULL;
@@ -2181,7 +2185,7 @@ static void TestFallback()
         UResourceBundle* myResB = ures_open(NULL,"no_NO_NY",&err);
         UResourceBundle* resLocID = ures_getByKey(myResB, "Version", NULL, &err);
         const UChar* version = NULL;
-        static const UChar versionStr[] = u"44.1"; // 44.1 in nn_NO or in a parent bundle/root
+        static const UChar versionStr[] = u"47"; // 47 in nn_NO or in a parent bundle/root
 
         if(U_FAILURE(err)) {
             log_data_err("Expected success when trying to test no_NO_NY aliased to nn_NO for Version "
@@ -2777,6 +2781,100 @@ static void TestGetFunctionalEquivalent(void) {
 #endif
 }
 
+static void TestGetFunctionalEquivalentVariantLengthLimit(void) {
+    static const char valid[] =
+        "en_001"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678";
+
+    static const char invalid[] =
+        "en_001"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678"
+        "_12345678X";  // One character too long.
+
+    static const char localeExpected[] = "en_001@calendar=gregorian";
+    const int32_t reslenExpected = uprv_strlen(localeExpected);
+
+    char buffer[UPRV_LENGTHOF(invalid)];
+    UErrorCode status;
+
+    status = U_ZERO_ERROR;
+    int32_t reslen = ures_getFunctionalEquivalent(
+        buffer,
+        UPRV_LENGTHOF(buffer),
+        NULL,
+        "calendar",
+        "calendar",
+        valid,
+        NULL,
+        false,
+        &status);
+    if (U_FAILURE(status)) {
+        log_err("Unexpected error in ures_getFunctionalEquivalent(): %s\n",
+                myErrorName(status));
+    } else if (reslenExpected != reslen) {
+        log_err("Expected length %d but got length %d.\n",
+                reslenExpected, reslen);
+    } else if (uprv_strcmp(localeExpected, buffer) != 0) {
+        log_err("Expected locale \"%s\" but got locale \"%s\"\n",
+                localeExpected, buffer);
+    }
+
+    status = U_ZERO_ERROR;
+    ures_getFunctionalEquivalent(
+        buffer,
+        UPRV_LENGTHOF(buffer),
+        NULL,
+        "calendar",
+        "calendar",
+        invalid,
+        NULL,
+        false,
+        &status);
+    if (status != U_ILLEGAL_ARGUMENT_ERROR) {
+        // The variants are known to be too long, parsing must fail.
+        log_err("Unexpected error in ures_getFunctionalEquivalent(), expected "
+                "U_ILLEGAL_ARGUMENT_ERROR but got %s.\n",
+                myErrorName(status));
+    }
+}
+
 static void TestXPath(void) {
     UErrorCode status = U_ZERO_ERROR;
     UResourceBundle *rb = NULL, *alias = NULL;
@@ -2937,7 +3035,6 @@ tres_getString(const UResourceBundle *resB,
     const char *s8;
     UChar32 c16, c8;
     int32_t length16, length8, i16, i8;
-    UBool forceCopy;
 
     if(length == NULL) {
         length = &length16;
@@ -2955,7 +3052,7 @@ tres_getString(const UResourceBundle *resB,
     length16 = *length;
 
     /* try the UTF-8 variant of ures_getStringXYZ() */
-    for(forceCopy = false; forceCopy <= true; ++forceCopy) {
+    for (int8_t forceCopy = 0; forceCopy <= 1; ++forceCopy) {
         p8 = buffer8;
         length8 = (int32_t)sizeof(buffer8);
         if(idx >= 0) {
@@ -3039,7 +3136,7 @@ tres_getString(const UResourceBundle *resB,
  * UTF-16 ures_getStringXYZ() that are called internally.
  */
 static void
-TestGetUTF8String() {
+TestGetUTF8String(void) {
     UResourceBundle *res;
     const char *testdatapath;
     char buffer8[16];

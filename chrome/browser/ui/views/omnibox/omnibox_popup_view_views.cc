@@ -19,6 +19,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_header_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
@@ -27,8 +30,6 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -42,8 +43,6 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/widget/widget.h"
 
-static_assert(!BUILDFLAG(IS_IOS));
-
 namespace {
 
 #if BUILDFLAG(IS_WIN)
@@ -53,7 +52,50 @@ BASE_FEATURE(kOmniboxRemovePopupWidgetSoftwareCompositing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// Returns the bounds for the popup widget's content frame (before shadow
+// insets) when in debug mode. The bounds are calculated such that:
+//  1. The widget takes up half the width of the content area.
+//  2. The widget is positioned on the far right of the content area.
+//  3. The top of the results aligns with the top of the content area.
+// Returns std::nullopt if the bounds could not be determined.
+std::optional<gfx::Rect> GetDebugWidgetBounds(
+    LocationBarView* location_bar_view,
+    int popup_results_height) {
+  Browser* browser = location_bar_view->browser();
+  if (!browser) {
+    return std::nullopt;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  if (!browser_view || !browser_view->contents_web_view()) {
+    return std::nullopt;
+  }
+
+  gfx::Rect contents_bounds =
+      browser_view->contents_web_view()->GetBoundsInScreen();
+  int frame_width = contents_bounds.width() / 2;
+  int frame_height = popup_results_height;
+
+  gfx::Rect frame_bounds;
+  frame_bounds.set_width(frame_width);
+  frame_bounds.set_height(frame_height);
+
+  // Calculate the frame's X position so the widget's right edge aligns with the
+  // content area's right edge.
+  const gfx::Insets shadow_insets =
+      RoundedOmniboxResultsFrame::GetShadowInsets();
+  frame_bounds.set_x(contents_bounds.right() - shadow_insets.right() -
+                     frame_width);
+
+  // Calculate the frame's Y position so the top of the results area
+  // (frame_y + non_result_height) aligns with the content area's top.
+  frame_bounds.set_y(contents_bounds.y() -
+                     RoundedOmniboxResultsFrame::GetNonResultSectionHeight());
+
+  return frame_bounds;
+}
+
 }  // namespace
+
 class OmniboxPopupViewViews::PopupWidget final : public ThemeCopyingWidget {
  public:
   // TODO(tapted): Remove |role_model| when the omnibox is completely decoupled
@@ -189,6 +231,26 @@ class OmniboxPopupViewViews::PopupWidget final : public ThemeCopyingWidget {
   base::WeakPtrFactory<PopupWidget> weak_ptr_factory_{this};
 };
 
+OmniboxPopupViewViews::WidgetObserverHelper::WidgetObserverHelper(
+    OmniboxPopupViewViews* popup_view)
+    : popup_view_(popup_view) {}
+OmniboxPopupViewViews::WidgetObserverHelper::~WidgetObserverHelper() = default;
+
+void OmniboxPopupViewViews::WidgetObserverHelper::OnWidgetBoundsChanged(
+    views::Widget* widget,
+    const gfx::Rect& new_bounds) {
+  popup_view_->OnWidgetBoundsChanged(widget, new_bounds);
+}
+void OmniboxPopupViewViews::WidgetObserverHelper::OnWidgetVisibilityChanged(
+    views::Widget* widget,
+    bool visible) {
+  popup_view_->OnWidgetVisibilityChanged(widget, visible);
+}
+void OmniboxPopupViewViews::WidgetObserverHelper::OnWidgetDestroying(
+    views::Widget* widget) {
+  popup_view_->OnWidgetDestroying(widget);
+}
+
 OmniboxPopupViewViews::OmniboxPopupViewViews(OmniboxViewViews* omnibox_view,
                                              OmniboxController* controller,
                                              LocationBarView* location_bar_view)
@@ -196,6 +258,7 @@ OmniboxPopupViewViews::OmniboxPopupViewViews(OmniboxViewViews* omnibox_view,
       omnibox_view_(omnibox_view),
       location_bar_view_(location_bar_view) {
   model()->set_popup_view(this);
+  edit_model_observation_.Observe(model());
 
   if (omnibox_view_) {
     GetViewAccessibility().SetPopupForId(
@@ -218,9 +281,9 @@ OmniboxPopupViewViews::~OmniboxPopupViewViews() {
   // We don't need to close or delete `widget_` here. The OS either has already
   // closed the window, in which case it's been deleted, or it will soon.
   if (widget_) {
-    widget_->RemoveObserver(this);
+    widget_->RemoveObserver(&widget_observer_helper_);
   }
-  CHECK(!IsInObserverList());
+  CHECK(!widget_observer_helper_.IsInObserverList());
   model()->set_popup_view(nullptr);
   UpdateAccessibleControlIds();
 }
@@ -272,22 +335,6 @@ void OmniboxPopupViewViews::InvalidateLine(size_t line) {
   row_views_[line]->OnSelectionStateChanged();
 }
 
-void OmniboxPopupViewViews::OnSelectionChanged(
-    OmniboxPopupSelection old_selection,
-    OmniboxPopupSelection new_selection) {
-  // Do not invalidate the same line twice, in order to avoid redundant
-  // accessibility events.
-  if (old_selection.line != OmniboxPopupSelection::kNoMatch &&
-      old_selection.line != new_selection.line) {
-    InvalidateLine(old_selection.line);
-  }
-
-  if (new_selection.line != OmniboxPopupSelection::kNoMatch) {
-    InvalidateLine(new_selection.line);
-  }
-  UpdateAccessibleActiveDescendantForInvokingView();
-}
-
 void OmniboxPopupViewViews::UpdatePopupAppearance() {
   const auto* autocomplete_controller = controller()->autocomplete_controller();
   if (autocomplete_controller->result().empty() ||
@@ -301,7 +348,7 @@ void OmniboxPopupViewViews::UpdatePopupAppearance() {
         return;
       }
       widget_->CloseAnimated();  // This will eventually delete the popup.
-      widget_->RemoveObserver(this);
+      widget_->RemoveObserver(&widget_observer_helper_);
       widget_.reset();
       if (contextual_group_view_) {
         contextual_group_view_->OnPopupHide();
@@ -337,7 +384,7 @@ void OmniboxPopupViewViews::UpdatePopupAppearance() {
 
     widget_->SetVisibilityAnimationTransition(views::Widget::ANIMATE_NONE);
     widget_->SetPopupContentsView(this);
-    widget_->AddObserver(this);
+    widget_->AddObserver(&widget_observer_helper_);
 
     popup_created = true;
   }
@@ -426,12 +473,6 @@ void OmniboxPopupViewViews::ProvideButtonFocusHint(size_t line) {
     // creates a OmniboxPopupSelection::NORMAL we fire the event.
     result_view_at(line)->GetViewAccessibility().SetIsSelected(false);
     FireAXEventsForNewActiveDescendant(active_button);
-  }
-}
-
-void OmniboxPopupViewViews::OnMatchIconUpdated(size_t match_index) {
-  if (OmniboxResultView* result_view = result_view_at(match_index)) {
-    result_view->OnMatchIconUpdated();
   }
 }
 
@@ -549,10 +590,32 @@ void OmniboxPopupViewViews::OnWidgetVisibilityChanged(views::Widget* widget,
 void OmniboxPopupViewViews::OnWidgetDestroying(views::Widget* widget) {
   CHECK_EQ(widget, widget_.get());
   if (widget_) {
-    widget_->RemoveObserver(this);
+    widget_->RemoveObserver(&widget_observer_helper_);
     widget_ = nullptr;
   }
   UpdateAccessibleStates();
+}
+
+void OmniboxPopupViewViews::OnSelectionChanged(
+    OmniboxPopupSelection old_selection,
+    OmniboxPopupSelection new_selection) {
+  // Do not invalidate the same line twice, in order to avoid redundant
+  // accessibility events.
+  if (old_selection.line != OmniboxPopupSelection::kNoMatch &&
+      old_selection.line != new_selection.line) {
+    InvalidateLine(old_selection.line);
+  }
+
+  if (new_selection.line != OmniboxPopupSelection::kNoMatch) {
+    InvalidateLine(new_selection.line);
+  }
+  UpdateAccessibleActiveDescendantForInvokingView();
+}
+
+void OmniboxPopupViewViews::OnMatchIconUpdated(size_t match_index) {
+  if (OmniboxResultView* result_view = result_view_at(match_index)) {
+    result_view->OnMatchIconUpdated();
+  }
 }
 
 gfx::Rect OmniboxPopupViewViews::GetTargetBounds() const {
@@ -595,6 +658,13 @@ gfx::Rect OmniboxPopupViewViews::GetTargetBounds() const {
   content_rect.Inset(
       -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
   content_rect.set_height(popup_height);
+
+  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug) &&
+      omnibox::kWebUIOmniboxPopupDebugSxSParam.Get()) {
+    if (auto bounds = GetDebugWidgetBounds(location_bar_view_, popup_height)) {
+      content_rect = *bounds;
+    }
+  }
 
   // Finally, expand the widget to accommodate the custom-drawn shadows.
   content_rect.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());

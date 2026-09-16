@@ -4,10 +4,13 @@
 
 #include "chrome/browser/actor/tools/page_tool_request.h"
 
+#include <optional>
+
 #include "chrome/browser/actor/tools/page_tool.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_constants.h"
+#include "chrome/common/actor/actor_utils.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
@@ -24,7 +27,7 @@ using tabs::TabHandle;
 namespace {
 constexpr absl::Overload ToMojoFn{
     [](const gfx::Point& pt) -> mojom::ToolTargetPtr {
-      return actor::mojom::ToolTarget::NewCoordinate(pt);
+      return actor::mojom::ToolTarget::NewCoordinateDip(pt);
     },
     [](const DomNode& node) -> mojom::ToolTargetPtr {
       return actor::mojom::ToolTarget::NewDomNodeId(node.node_id);
@@ -48,6 +51,7 @@ ToolRequest::CreateToolResult PageToolRequest::CreateTool(
     ToolDelegate& tool_delegate) const {
   if (!GetTabHandle().Get()) {
     return {/*tool=*/nullptr, MakeResult(mojom::ActionResultCode::kTabWentAway,
+                                         /*requires_page_stabilization=*/false,
                                          "The tab is no longer present.")};
   }
 
@@ -57,6 +61,15 @@ ToolRequest::CreateToolResult PageToolRequest::CreateTool(
 
 const PageTarget& PageToolRequest::GetTarget() const {
   return target_;
+}
+
+std::optional<ObservationDelayController::PageStabilityConfig>
+PageToolRequest::GetObservationPageStabilityConfig() const {
+  if (UseGeneralPageStabilityAllTools()) {
+    return ObservationDelayController::PageStabilityConfig();
+  } else {
+    return std::nullopt;
+  }
 }
 
 }  // namespace actor

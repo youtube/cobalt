@@ -9,7 +9,6 @@
 #include <string>
 
 #include "chrome/browser/actor/tools/tool_request.h"
-#include "chrome/common/actor.mojom-forward.h"
 
 namespace actor {
 
@@ -25,6 +24,8 @@ class AttemptLoginToolRequest : public TabToolRequest {
                               ToolDelegate& tool_delegate) const override;
   void Apply(ToolRequestVisitorFunctor& f) const override;
   std::string JournalEvent() const override;
+  std::optional<ObservationDelayController::PageStabilityConfig>
+  GetObservationPageStabilityConfig() const override;
 };
 
 }  // namespace actor

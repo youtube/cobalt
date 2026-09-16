@@ -5,10 +5,8 @@
 import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
-import type {PageRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {FileUploadErrorType, FileUploadStatus} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -37,7 +35,6 @@ suite('NewTabPageComposeboxTest', () => {
   let composeboxElement: ComposeboxElement;
   let handler: TestMock<PageHandlerRemote>;
   let searchboxHandler: TestMock<SearchboxPageHandlerRemote>;
-  let callbackRouterRemote: PageRemote;
   let searchboxCallbackRouterRemote: SearchboxPageRemote;
   let metrics: MetricsTracker;
 
@@ -48,8 +45,6 @@ suite('NewTabPageComposeboxTest', () => {
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
             mock, new PageCallbackRouter(), new SearchboxPageHandlerRemote(),
             new SearchboxPageCallbackRouter())));
-    callbackRouterRemote = ComposeboxProxyImpl.getInstance()
-                               .callbackRouter.$.bindNewPipeAndPassRemote();
     searchboxHandler = installMock(
         SearchboxPageHandlerRemote,
         mock => ComposeboxProxyImpl.getInstance().searchboxHandler = mock);
@@ -68,7 +63,7 @@ suite('NewTabPageComposeboxTest', () => {
     const startTime = Date.now();
     return new Promise((resolve, reject) => {
       const checkCount = () => {
-        const currentCount = handler.getCallCount(ADD_FILE_CONTEXT_FN);
+        const currentCount = searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN);
         if (currentCount === expectedCount) {
           resolve();
           return;
@@ -86,8 +81,9 @@ suite('NewTabPageComposeboxTest', () => {
   }
 
   function getInputForFileType(fileType: string): HTMLInputElement {
-    return fileType === 'application/pdf' ? composeboxElement.$.fileInput :
-                                            composeboxElement.$.imageInput;
+    return fileType === 'application/pdf' ?
+        composeboxElement.$.context.$.fileInput :
+        composeboxElement.$.context.$.imageInput;
   }
 
   function getMockFileChangeEventForType(fileType: string): Event {
@@ -98,14 +94,14 @@ suite('NewTabPageComposeboxTest', () => {
     const mockFileChange = new Event('change', {bubbles: true});
     Object.defineProperty(mockFileChange, 'target', {
       writable: false,
-      value: composeboxElement.$.imageInput,
+      value: composeboxElement.$.context.$.imageInput,
     });
     return mockFileChange;
   }
 
   function createAutocompleteMatch(): AutocompleteMatch {
     return {
-      a11yLabel: {data: []},
+      a11yLabel: '',
       actions: [],
       allowedToBeDefaultMatch: false,
       isSearchType: false,
@@ -113,31 +109,33 @@ suite('NewTabPageComposeboxTest', () => {
       swapContentsAndDescription: false,
       supportsDeletion: false,
       suggestionGroupId: -1,  // Indicates a missing suggestion group Id.
-      contents: {data: []},
+      contents: '',
       contentsClass: [{offset: 0, style: 0}],
-      description: {data: []},
+      description: '',
       descriptionClass: [{offset: 0, style: 0}],
       destinationUrl: {url: ''},
-      inlineAutocompletion: {data: []},
-      fillIntoEdit: {data: []},
+      inlineAutocompletion: '',
+      fillIntoEdit: '',
       iconPath: '',
       iconUrl: {url: ''},
       imageDominantColor: '',
       imageUrl: '',
       isNoncannedAimSuggestion: false,
-      removeButtonA11yLabel: {data: []},
+      removeButtonA11yLabel: '',
       type: '',
       isRichSuggestion: false,
       isWeatherAnswerSuggestion: null,
       answer: null,
       tailSuggestCommonPrefix: null,
+      keywordChipHint: '',
+      keywordChipA11y: '',
     };
   }
 
   function createAutocompleteResult(
       modifiers: Partial<AutocompleteResult> = {}): AutocompleteResult {
     const base: AutocompleteResult = {
-      input: stringToMojoString16(''),
+      input: '',
       matches: [],
       suggestionGroupsMap: {},
       smartComposeInlineHint: null,
@@ -151,9 +149,9 @@ suite('NewTabPageComposeboxTest', () => {
     return Object.assign(
         createAutocompleteMatch(), {
           isSearchType: true,
-          contents: stringToMojoString16('hello world'),
+          contents: 'hello world',
           destinationUrl: {url: 'https://www.google.com/search?q=hello+world'},
-          fillIntoEdit: stringToMojoString16('hello world'),
+          fillIntoEdit: 'hello world',
           type: 'search-suggest',
         },
         modifiers);
@@ -169,9 +167,10 @@ suite('NewTabPageComposeboxTest', () => {
 
   async function uploadFileAndVerify(token: Object, file: File) {
     // Assert no files.
-    assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+    assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
 
-    handler.setResultFor(ADD_FILE_CONTEXT_FN, Promise.resolve({token: token}));
+    searchboxHandler.setResultFor(ADD_FILE_CONTEXT_FN,
+                                  Promise.resolve({token: token}));
 
     // Act.
     const dataTransfer = new DataTransfer();
@@ -181,35 +180,35 @@ suite('NewTabPageComposeboxTest', () => {
     input.files = dataTransfer.files;
     input.dispatchEvent(getMockFileChangeEventForType(file.type));
 
-    await handler.whenCalled(ADD_FILE_CONTEXT_FN);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
-    assertEquals(handler.getCallCount('notifySessionStarted'), 1);
+    assertEquals(searchboxHandler.getCallCount('notifySessionStarted'), 1);
     await verifyFileUpload(file);
   }
 
   async function verifyFileUpload(file: File) {
     // Assert one file.
-    const files = composeboxElement.$.carousel.files;
+    const files = composeboxElement.$.context.$.carousel.files;
     assertEquals(files.length, 1);
 
     assertEquals(files[0]!.type, file.type);
     assertEquals(files[0]!.name, file.name);
 
     // Assert file is uploaded.
-    assertEquals(handler.getCallCount(ADD_FILE_CONTEXT_FN), 1);
+    assertEquals(searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN), 1);
 
     const fileBuffer = await file.arrayBuffer();
     const fileArray = Array.from(new Uint8Array(fileBuffer));
 
-    const [[fileInfo, fileData]] = handler.getArgs(ADD_FILE_CONTEXT_FN);
+    const [[fileInfo, fileData]] = searchboxHandler.getArgs(ADD_FILE_CONTEXT_FN);
     assertEquals(fileInfo.fileName, file.name);
     assertDeepEquals(fileData.bytes, fileArray);
   }
 
   test('clear functionality', async () => {
     createComposeboxElement();
-    handler.setResultFor(
+    searchboxHandler.setResultFor(
         ADD_FILE_CONTEXT_FN,
         Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
@@ -221,26 +220,26 @@ suite('NewTabPageComposeboxTest', () => {
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(
         new File(['foo1'], 'foo1.pdf', {type: 'application/pdf'}));
-    composeboxElement.$.fileInput.files = dataTransfer.files;
-    composeboxElement.$.fileInput.dispatchEvent(new Event('change'));
+    composeboxElement.$.context.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.context.$.fileInput.dispatchEvent(new Event('change'));
 
-    await handler.whenCalled(ADD_FILE_CONTEXT_FN);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
     // Check submit button enabled and file uploaded.
     assertStyle(composeboxElement.$.submitIcon, 'cursor', 'pointer');
-    assertEquals(composeboxElement.$.carousel.files.length, 1);
+    assertEquals(composeboxElement.$.context.$.carousel.files.length, 1);
 
     // Clear input.
     $$<HTMLElement>(composeboxElement, '#cancelIcon')!.click();
     await microtasksFinished();
 
     // Assert
-    assertEquals(handler.getCallCount('clearFiles'), 1);
+    assertEquals(searchboxHandler.getCallCount('clearFiles'), 1);
 
     // Check submit button disabled and files empty.
     assertStyle(composeboxElement.$.submitIcon, 'cursor', 'default');
-    assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+    assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
 
     // Close composebox.
     const whenCloseComposebox =
@@ -268,7 +267,7 @@ suite('NewTabPageComposeboxTest', () => {
     const id = generateZeroId();
     await uploadFileAndVerify(
         id, new File(['foo'], 'foo.pdf', {type: 'application/pdf'}));
-    callbackRouterRemote.onContextualInputStatusChanged(
+    searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         id, FileUploadStatus.kProcessing, null);
     await microtasksFinished();
 
@@ -279,18 +278,19 @@ suite('NewTabPageComposeboxTest', () => {
 
     // The suggest request should be triggered before the file has finished
     // uploading.
-    callbackRouterRemote.onContextualInputStatusChanged(
+    searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         id, FileUploadStatus.kUploadSuccessful, null);
 
     // Delete the uploaded file.
-    const deletedId = composeboxElement.$.carousel.files[0]!.uuid;
-    composeboxElement.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
-      detail: {
-        uuid: deletedId,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    const deletedId = composeboxElement.$.context.$.carousel.files[0]!.uuid;
+    composeboxElement.$.context.$.carousel.dispatchEvent(
+        new CustomEvent('delete-file', {
+          detail: {
+            uuid: deletedId,
+          },
+          bubbles: true,
+          composed: true,
+        }));
 
     await microtasksFinished();
 
@@ -311,7 +311,7 @@ suite('NewTabPageComposeboxTest', () => {
     const id = generateZeroId();
     await uploadFileAndVerify(
         id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
-    callbackRouterRemote.onContextualInputStatusChanged(
+    searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         id, FileUploadStatus.kProcessing, null);
     await microtasksFinished();
 
@@ -331,7 +331,7 @@ suite('NewTabPageComposeboxTest', () => {
     const id = generateZeroId();
     await uploadFileAndVerify(
         id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
-    callbackRouterRemote.onContextualInputStatusChanged(
+    searchboxCallbackRouterRemote.onContextualInputStatusChanged(
         id, FileUploadStatus.kProcessing, null);
     await microtasksFinished();
 
@@ -366,9 +366,9 @@ suite('NewTabPageComposeboxTest', () => {
               assertTrue(!!announcement);
               assertEquals(announcement.detail.messages.length, 1);
 
-              callbackRouterRemote.onContextualInputStatusChanged(
+              searchboxCallbackRouterRemote.onContextualInputStatusChanged(
                   id, FileUploadStatus.kUploadSuccessful, null);
-              await callbackRouterRemote.$.flushForTesting();
+              await searchboxCallbackRouterRemote.$.flushForTesting();
 
               announcementPromise = eventToPromise(
                   'cr-a11y-announcer-messages-sent', document.body);
@@ -401,8 +401,8 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert no files uploaded or rendered on the carousel
-    assertEquals(handler.getCallCount(ADD_FILE_CONTEXT_FN), 0);
-    assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+    assertEquals(searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN), 0);
+    assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
     assertEquals(
         1,
         metrics.count(
@@ -427,8 +427,8 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert no files uploaded or rendered on the carousel
-    assertEquals(handler.getCallCount(ADD_FILE_CONTEXT_FN), 0);
-    assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+    assertEquals(searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN), 0);
+    assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
     assertEquals(
         1,
         metrics.count(
@@ -456,50 +456,53 @@ suite('NewTabPageComposeboxTest', () => {
           const file = new File(['foo'], 'foo.jpg', {type: 'image/jpeg'});
           await uploadFileAndVerify(id, file);
 
-          callbackRouterRemote.onContextualInputStatusChanged(
+          searchboxCallbackRouterRemote.onContextualInputStatusChanged(
               id, fileUploadStatus as FileUploadStatus,
               fileUploadErrorType as FileUploadErrorType | null);
-          await callbackRouterRemote.$.flushForTesting();
+          await searchboxCallbackRouterRemote.$.flushForTesting();
 
           // Assert no files in the carousel.
-          assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+          assertFalse(
+              !!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
         });
   });
 
   test('upload pdf', async () => {
     createComposeboxElement();
-    handler.setResultFor(
+    searchboxHandler.setResultFor(
         ADD_FILE_CONTEXT_FN,
         Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // Assert no files.
-    assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+    assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
 
     // Arrange.
     const dataTransfer = new DataTransfer();
     const file = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
     dataTransfer.items.add(file);
-    composeboxElement.$.fileInput.files = dataTransfer.files;
-    composeboxElement.$.fileInput.dispatchEvent(new Event('change'));
+    composeboxElement.$.context.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.context.$.fileInput.dispatchEvent(
+        new Event('change'));
 
-    await handler.whenCalled(ADD_FILE_CONTEXT_FN);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
     // Assert one pdf file.
-    const files = composeboxElement.$.carousel.files;
+    const files = composeboxElement.$.context.$.carousel.files;
     assertEquals(files.length, 1);
     assertEquals(files[0]!.type, 'application/pdf');
     assertEquals(files[0]!.name, 'foo.pdf');
     assertFalse(!!files[0]!.objectUrl);
 
-    assertEquals(handler.getCallCount('notifySessionStarted'), 1);
+    assertEquals(searchboxHandler.getCallCount('notifySessionStarted'), 1);
 
     const fileBuffer = await file.arrayBuffer();
     const fileArray = Array.from(new Uint8Array(fileBuffer));
 
     // Assert file is uploaded.
-    assertEquals(handler.getCallCount(ADD_FILE_CONTEXT_FN), 1);
-    const [[fileInfo, fileData]] = handler.getArgs(ADD_FILE_CONTEXT_FN);
+    assertEquals(searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN), 1);
+    const [[fileInfo, fileData]] =
+        searchboxHandler.getArgs(ADD_FILE_CONTEXT_FN);
     assertEquals(fileInfo.fileName, 'foo.pdf');
     assertDeepEquals(fileData.bytes, fileArray);
   });
@@ -507,7 +510,7 @@ suite('NewTabPageComposeboxTest', () => {
   test('delete file', async () => {
     createComposeboxElement();
     let i = 0;
-    handler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
+    searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
       i += 1;
       return Promise.resolve(
           {token: {low: BigInt(i + 1), high: BigInt(i + 2)}});
@@ -525,46 +528,73 @@ suite('NewTabPageComposeboxTest', () => {
     const mockFileChange = new Event('change', {bubbles: true});
     Object.defineProperty(mockFileChange, 'target', {
       writable: false,
-      value: composeboxElement.$.fileInput,
+      value: composeboxElement.$.context.$.fileInput,
     });
 
-    composeboxElement.$.fileInput.files = dataTransfer.files;
-    composeboxElement.$.fileInput.dispatchEvent(mockFileChange);
+    composeboxElement.$.context.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.context.$.fileInput.dispatchEvent(mockFileChange);
 
     await waitForAddFileCallCount(2);
     await composeboxElement.updateComplete;
     await microtasksFinished();
 
     // Assert two files are present initially.
-    assertEquals(composeboxElement.$.carousel.files.length, 2);
+    assertEquals(composeboxElement.$.context.$.carousel.files.length, 2);
 
     // Act.
-    const deletedId = composeboxElement.$.carousel.files[0]!.uuid;
-    composeboxElement.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
-      detail: {
-        uuid: deletedId,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    const deletedId = composeboxElement.$.context.$.carousel.files[0]!.uuid;
+    composeboxElement.$.context.$.carousel.dispatchEvent(
+        new CustomEvent('delete-file', {
+          detail: {
+            uuid: deletedId,
+          },
+          bubbles: true,
+          composed: true,
+        }));
 
     await microtasksFinished();
 
     // Assert.
-    assertEquals(composeboxElement.$.carousel.files.length, 1);
-    assertEquals(handler.getCallCount('deleteContext'), 1);
-    const [idArg] = handler.getArgs('deleteContext');
+    assertEquals(composeboxElement.$.context.$.carousel.files.length, 1);
+    assertEquals(searchboxHandler.getCallCount('deleteContext'), 1);
+    const [idArg] = searchboxHandler.getArgs('deleteContext');
     assertEquals(idArg, deletedId);
   });
 
   test('NotifySessionStarted called on composebox created', () => {
     // Assert call has not occurred.
-    assertEquals(handler.getCallCount('notifySessionStarted'), 0);
+    assertEquals(searchboxHandler.getCallCount('notifySessionStarted'), 0);
 
     createComposeboxElement();
 
     // Assert call occurs.
-    assertEquals(handler.getCallCount('notifySessionStarted'), 1);
+    assertEquals(searchboxHandler.getCallCount('notifySessionStarted'), 1);
+  });
+
+  test('lens icon click calls handler', async () => {
+    createComposeboxElement();
+
+    const lensIcon = $$<HTMLElement>(composeboxElement, '#lensIcon');
+    assertTrue(!!lensIcon);
+
+    lensIcon.click();
+    await handler.whenCalled('handleLensButtonClick');
+    assertEquals(1, handler.getCallCount('handleLensButtonClick'));
+  });
+
+  test('lens icon mousedown prevents default', async () => {
+    createComposeboxElement();
+    await microtasksFinished();
+
+    const lensIcon = $$<HTMLElement>(composeboxElement, '#lensIcon');
+    assertTrue(!!lensIcon);
+
+    const event = new MouseEvent(
+        'mousedown', {bubbles: true, cancelable: true, composed: true});
+    lensIcon.dispatchEvent(event);
+    await microtasksFinished();
+
+    assertTrue(event.defaultPrevented);
   });
 
   test('image upload button clicks file input', async () => {
@@ -572,9 +602,9 @@ suite('NewTabPageComposeboxTest', () => {
       'composeboxShowContextMenu': false,
     });
     createComposeboxElement();
-    const imageUploadEventPromise =
-        eventToPromise('click', composeboxElement.$.imageInput);
-    composeboxElement.$.imageUploadButton.click();
+    const imageUploadEventPromise = eventToPromise(
+        'click', composeboxElement.$.context.$.imageInput);
+    composeboxElement.$.context.$.imageUploadButton.click();
 
     // Assert.
     await imageUploadEventPromise;
@@ -586,9 +616,9 @@ suite('NewTabPageComposeboxTest', () => {
       'composeboxShowContextMenu': false,
     });
     createComposeboxElement();
-    const fileUploadClickEventPromise =
-        eventToPromise('click', composeboxElement.$.fileInput);
-    composeboxElement.$.fileUploadButton.click();
+    const fileUploadClickEventPromise = eventToPromise(
+        'click', composeboxElement.$.context.$.fileInput);
+    composeboxElement.$.context.$.fileUploadButton.click();
 
     // Assert.
     await fileUploadClickEventPromise;
@@ -601,34 +631,35 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Assert
     assertFalse(
-        !!composeboxElement.shadowRoot.querySelector('#fileUploadButton'));
+        !!composeboxElement.$.context.shadowRoot.querySelector(
+            '#fileUploadButton'));
   });
 
   test('file upload buttons disabled when max files uploaded', async () => {
     loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
     loadTimeData.overrideValues({'composeboxShowPdfUpload': true});
     createComposeboxElement();
-    handler.setResultFor(
+    searchboxHandler.setResultFor(
         ADD_FILE_CONTEXT_FN,
         Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // File upload buttons are not disabled when there are no files.
-    assertFalse(composeboxElement.$.fileUploadButton.disabled);
-    assertFalse(composeboxElement.$.imageUploadButton.disabled);
+    assertFalse(composeboxElement.$.context.$.fileUploadButton.disabled);
+    assertFalse(composeboxElement.$.context.$.imageUploadButton.disabled);
 
     // Arrange.
     const dataTransfer = new DataTransfer();
     const file = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
     dataTransfer.items.add(file);
-    composeboxElement.$.fileInput.files = dataTransfer.files;
-    composeboxElement.$.fileInput.dispatchEvent(new Event('change'));
+    composeboxElement.$.context.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.context.$.fileInput.dispatchEvent(new Event('change'));
 
-    await handler.whenCalled(ADD_FILE_CONTEXT_FN);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
     // Assert.
-    assertTrue(composeboxElement.$.fileUploadButton.disabled);
-    assertTrue(composeboxElement.$.imageUploadButton.disabled);
+    assertTrue(composeboxElement.$.context.$.fileUploadButton.disabled);
+    assertTrue(composeboxElement.$.context.$.imageUploadButton.disabled);
   });
 
   test('session abandoned on esc click', async () => {
@@ -648,6 +679,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
     const event = await whenCloseComposebox;
     assertEquals(event.detail.composeboxText, 'test');
+    assertEquals(event.detail.contextFiles.length, 0);
   });
 
   test('session abandoned on cancel button click', async () => {
@@ -662,7 +694,9 @@ suite('NewTabPageComposeboxTest', () => {
     const cancelIcon = $$<HTMLElement>(composeboxElement, '#cancelIcon');
     assertTrue(!!cancelIcon);
     cancelIcon.click();
-    await whenCloseComposebox;
+    const event = await whenCloseComposebox;
+    assertEquals(event.detail.composeboxText, '');
+    assertEquals(event.detail.contextFiles.length, 0);
   });
 
   test('submit button click leads to handler called', async () => {
@@ -676,7 +710,7 @@ suite('NewTabPageComposeboxTest', () => {
     const matches = [createSearchMatch({allowedToBeDefaultMatch: true})];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16('test'),
+          input: 'test',
           matches,
         }));
     await searchboxCallbackRouterRemote.$.flushForTesting();
@@ -699,7 +733,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert call does not occur.
-    assertEquals(handler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
   });
 
@@ -724,7 +758,7 @@ suite('NewTabPageComposeboxTest', () => {
     const matches = [createSearchMatch({allowedToBeDefaultMatch: true})];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16('test'),
+          input: 'test',
           matches: matches,
         }));
     await searchboxCallbackRouterRemote.$.flushForTesting();
@@ -801,7 +835,7 @@ suite('NewTabPageComposeboxTest', () => {
 
     const matches = [
       createSearchMatch(),
-      createSearchMatch({fillIntoEdit: stringToMojoString16('hello world 2')}),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
@@ -811,6 +845,48 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Dropdown should show for when matches are available.
     assertFalse(composeboxDropdown.hidden);
+  });
+
+  test('dropdown does not show for multiline input', async () => {
+    loadTimeData.overrideValues(
+        {composeboxShowZps: true, composeboxShowTypedSuggest: true});
+    createComposeboxElement();
+    await microtasksFinished();
+
+    // Add typed input.
+    composeboxElement.$.input.value = 'Test';
+    composeboxElement.$.input.style.height = '64px';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
+
+    const composeboxDropdown =
+        composeboxElement.shadowRoot.querySelector<HTMLElement>('#matches');
+    assertTrue(!!composeboxDropdown);
+
+    const matches = [
+      createSearchMatch(),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
+    ];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          matches: matches,
+        }));
+    await microtasksFinished();
+
+    // Dropdown should show for when matches are not available.
+    assertTrue(composeboxDropdown.hidden);
+
+    // Arrow down should do default action.
+    const arrowDownEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,  // So it propagates across shadow DOM boundary.
+      key: 'ArrowDown',
+    });
+
+    composeboxElement.$.input.dispatchEvent(arrowDownEvent);
+    await microtasksFinished();
+    assertFalse(arrowDownEvent.defaultPrevented);
   });
 
   test('dropdown does not show when no typed suggestions enabled', async () => {
@@ -830,7 +906,7 @@ suite('NewTabPageComposeboxTest', () => {
 
     const matches = [
       createSearchMatch(),
-      createSearchMatch({fillIntoEdit: stringToMojoString16('hello world 2')}),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
@@ -850,6 +926,42 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(composeboxDropdown.hidden);
   });
 
+  test(
+      'dropdown visibility change fires an event when Realbox Next is enabled',
+      async () => {
+        loadTimeData.overrideValues({
+          composeboxShowZps: true,
+          composeboxShowTypedSuggest: true,
+        });
+        createComposeboxElement();
+        composeboxElement.ntpRealboxNextEnabled = true;
+
+        let whenDropdownVisibleChanged = eventToPromise(
+            'composebox-dropdown-visible-changed', composeboxElement);
+
+        // Add typed input.
+        composeboxElement.$.input.value = 'Test';
+        composeboxElement.$.input.style.height = '48px';
+        composeboxElement.$.input.dispatchEvent(new Event('input'));
+        await microtasksFinished();
+        const matches = [
+          createSearchMatch(),
+        ];
+        searchboxCallbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResult({
+              input: 'Test',
+              matches: matches,
+            }));
+        const e1 = await whenDropdownVisibleChanged;
+        assertTrue(e1.detail.value);
+
+        whenDropdownVisibleChanged = eventToPromise(
+            'composebox-dropdown-visible-changed', composeboxElement);
+        composeboxElement.closeDropdown();
+        const e2 = await whenDropdownVisibleChanged;
+        assertFalse(e2.detail.value);
+      });
+
   test('arrow up/down moves selection / focus', async () => {
     loadTimeData.overrideValues({composeboxShowZps: true});
     createComposeboxElement();
@@ -861,7 +973,7 @@ suite('NewTabPageComposeboxTest', () => {
 
     const matches = [
       createSearchMatch(),
-      createSearchMatch({fillIntoEdit: stringToMojoString16('hello world 2')}),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
@@ -941,8 +1053,7 @@ suite('NewTabPageComposeboxTest', () => {
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input:
-              stringToMojoString16(composeboxElement.$.input.value.trimStart()),
+          input: composeboxElement.$.input.value.trimStart(),
           matches,
         }));
     await microtasksFinished();
@@ -963,14 +1074,15 @@ suite('NewTabPageComposeboxTest', () => {
     searchboxHandler.reset();
 
     matches = [
-      createSearchMatch({supportsDeletion: true}), createSearchMatch({
+      createSearchMatch({supportsDeletion: true}),
+      createSearchMatch({
         supportsDeletion: true,
-        fillIntoEdit: stringToMojoString16('hello world 2'),
+        fillIntoEdit: 'hello world 2',
       }),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16(''),
+          input: '',
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -1015,11 +1127,11 @@ suite('NewTabPageComposeboxTest', () => {
 
     matches = [createSearchMatch({
       supportsDeletion: true,
-      fillIntoEdit: stringToMojoString16('hello world 2'),
+      fillIntoEdit: 'hello world 2',
     })];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16(''),
+          input: '',
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -1038,9 +1150,9 @@ suite('NewTabPageComposeboxTest', () => {
 
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16('smart '),
+          input: 'smart ',
           matches: [],
-          smartComposeInlineHint: stringToMojoString16('compose'),
+          smartComposeInlineHint: 'compose',
         }));
     await microtasksFinished();
 
@@ -1050,16 +1162,21 @@ suite('NewTabPageComposeboxTest', () => {
   test('tab adds smart compose to input', async () => {
     createComposeboxElement();
     await microtasksFinished();
+    // Autocomplete queried once when composebox is opened.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 1);
 
     // Add input.
     composeboxElement.$.input.value = 'smart ';
     composeboxElement.$.input.dispatchEvent(new Event('input'));
 
+    // Autocomplete queried on input.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 2);
+
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16('smart '),
+          input: 'smart ',
           matches: [],
-          smartComposeInlineHint: stringToMojoString16('compose'),
+          smartComposeInlineHint: 'compose',
         }));
     await microtasksFinished();
 
@@ -1075,12 +1192,14 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(tabEvent.defaultPrevented);
 
     assertEquals('smart compose', composeboxElement.$.input.value);
+    // Autocomplete queried when smart compose accepted.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 3);
   });
 
   test('composebox does not open match when only file present', async () => {
     createComposeboxElement();
 
-    assertEquals(handler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
     const token = {low: BigInt(1), high: BigInt(2)};
     await uploadFileAndVerify(
         token, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
@@ -1089,8 +1208,91 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert call occurs.
-    assertEquals(handler.getCallCount('submitQuery'), 1);
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 1);
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+  });
+
+  test('composebox does not show when image is present', async () => {
+    loadTimeData.overrideValues({
+      composeboxShowZps: true,
+      composeboxShowTypedSuggest: true,
+      composeboxShowImageSuggest: false,
+    });
+    createComposeboxElement();
+    // Autocomplete queried once when composebox is created.
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 1);
+
+    const matches = [createSearchMatch()];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          input: '',
+          matches,
+        }));
+    assertTrue(await areMatchesShowing());
+
+    // Upload an image.
+    const id = generateZeroId();
+    await uploadFileAndVerify(
+        id, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
+
+    searchboxCallbackRouterRemote.onContextualInputStatusChanged(
+        id, FileUploadStatus.kUploadSuccessful, null);
+
+    // Matches should not show when image is present.
+    assertFalse(await areMatchesShowing());
+
+    // Do not query autocomplete with image present.
+    composeboxElement.$.input.value = 'T';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
+    assertEquals(searchboxHandler.getCallCount('queryAutocomplete'), 1);
+  });
+
+  test('composebox does not show verbatim match', async () => {
+    loadTimeData.overrideValues(
+        {composeboxShowZps: true, composeboxShowTypedSuggest: true});
+    createComposeboxElement();
+    await microtasksFinished();
+
+    // Add zps input.
+    composeboxElement.$.input.value = '';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+
+    const matches = [
+      createSearchMatch(),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
+    ];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          matches: matches,
+        }));
+    assertTrue(await areMatchesShowing());
+
+    let matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
+        'ntp-composebox-match');
+    assertEquals(2, matchEls.length);
+    let matchEl = matchEls[0];
+    assertTrue(!!matchEl);
+    // First match shows for zps.
+    assertStyle(matchEl, 'display', 'block');
+
+    // Add typed input
+    composeboxElement.$.input.value = 'awesome';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          input: 'awesome',
+          matches: matches,
+        }));
+    assertTrue(await areMatchesShowing());
+
+    matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
+        'ntp-composebox-match');
+    assertEquals(2, matchEls.length);
+    matchEl = matchEls[0];
+    assertTrue(!!matchEl);
+    // Verbatim match does not show for typed suggest.
+    assertStyle(matchEl, 'display', 'none');
   });
 
   test('delete button removes match', async () => {
@@ -1100,11 +1302,11 @@ suite('NewTabPageComposeboxTest', () => {
 
     const matches = [
       createSearchMatch(),
-      createSearchMatch({fillIntoEdit: stringToMojoString16('hello world 2')}),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResult({
-          input: stringToMojoString16(''),
+          input: '',
           matches,
           suggestionGroupsMap: {},
         }));
@@ -1139,7 +1341,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(destinationUrl, keydownArgs[1]);
     assertEquals(1, searchboxHandler.getCallCount('deleteAutocompleteMatch'));
     // Pressing the 'Enter' button doesn't accidentally trigger navigation.
-    assertEquals(0, handler.getCallCount('submitQuery'));
+    assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
     searchboxHandler.reset();
     handler.reset();
 
@@ -1151,7 +1353,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(destinationUrl, clickArgs[1]);
     assertEquals(1, searchboxHandler.getCallCount('deleteAutocompleteMatch'));
     // Clicking the button doesn't accidentally trigger navigation.
-    assertEquals(0, handler.getCallCount('submitQuery'));
+    assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
   });
 
   test('composebox stops autocomplete when clearing input', async () => {
@@ -1188,22 +1390,25 @@ suite('NewTabPageComposeboxTest', () => {
     test('context button replaces upload container', () => {
       createComposeboxElement();
 
-      const uploadContainer = $$(composeboxElement, '#uploadContainer');
+      const uploadContainer = $$(
+          composeboxElement.$.context, '#uploadContainer');
       assertFalse(!!uploadContainer);
-      const contextMenuButton = $$(composeboxElement, '#contextEntrypoint');
+      const contextMenuButton = $$(
+          composeboxElement.$.context, '#contextEntrypoint');
       assertTrue(!!contextMenuButton);
     });
 
     test('add tab context', async () => {
       createComposeboxElement();
-      handler.setResultFor(
+      searchboxHandler.setResultFor(
           ADD_TAB_CONTEXT_FN,
           Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
       // Assert no files.
-      assertFalse(!!$$<HTMLElement>(composeboxElement, '#carousel'));
+      assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
 
-      const contextMenuButton = $$(composeboxElement, '#contextEntrypoint');
+      const contextMenuButton = $$(
+          composeboxElement.$.context, '#contextEntrypoint');
       assertTrue(!!contextMenuButton);
       const sampleTabTitle = 'Sample Tab';
       contextMenuButton.dispatchEvent(new CustomEvent('add-tab-context', {
@@ -1212,12 +1417,24 @@ suite('NewTabPageComposeboxTest', () => {
         composed: true,
       }));
 
-      await handler.whenCalled(ADD_TAB_CONTEXT_FN);
+      await searchboxHandler.whenCalled(ADD_TAB_CONTEXT_FN);
       await microtasksFinished();
-      const files = composeboxElement.$.carousel.files;
+      const files = composeboxElement.$.context.$.carousel.files;
       assertEquals(files.length, 1);
       assertEquals(files[0]!.type, 'tab');
       assertEquals(files[0]!.name, sampleTabTitle);
+
+      // Close composebox by escaping, and ensure files are returned.
+      const whenCloseComposebox =
+          eventToPromise('close-composebox', composeboxElement);
+      composeboxElement.$.composebox.dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'Escape'}));
+      await microtasksFinished();
+      const event = await whenCloseComposebox;
+      assertEquals(event.detail.composeboxText, '');
+      assertEquals(event.detail.contextFiles.length, 1);
+      assertEquals(event.detail.contextFiles[0].type, 'tab');
+      assertEquals(event.detail.contextFiles[0].name, sampleTabTitle);
     });
   });
 });

@@ -3428,7 +3428,6 @@
         "args": [
           "--webview-process-mode=multiple",
           "--avd-config=../../tools/android/avd/proto/android_35_google_apis_x64.textpb",
-          "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_15.webview_instrumentation_test_apk.filter",
           "--gs-results-bucket=chromium-result-details",
           "--recover-devices"
         ],
@@ -4010,6 +4009,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//build/private_code_test:private_code_failure_test",
+        "module_scheme": "single",
         "name": "private_code_failure_test",
         "resultdb": {
           "enable": true,

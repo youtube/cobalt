@@ -207,7 +207,6 @@ void TestArabicShapeThreads::doTailTest() {
             return;
         }
     }
-    return;
 }
 	
 
@@ -304,7 +303,7 @@ static void formatErrorMessage(UErrorCode &realStatus, const UnicodeString& patt
     inCountry2.getDisplayCountry(theLocale,countryName2);
 
     Formattable myArgs[] = {
-        Formattable((int32_t)inStatus0),   // inStatus0      {0}
+        Formattable(static_cast<int32_t>(inStatus0)), // inStatus0      {0}
         Formattable(errString1), // statusString1 {1}
         Formattable(countryName2),  // inCountry2 {2}
         Formattable(currency3)// currency3  {3,number,currency}
@@ -506,7 +505,7 @@ public:
         // Keep this data here to avoid static initialization.
         FormatThreadTestData kNumberFormatTestData[] =
         {
-            FormatThreadTestData((double)5.0, UnicodeString(u"5")),
+            FormatThreadTestData(5.0, UnicodeString(u"5")),
                 FormatThreadTestData( 6.0, UnicodeString(u"6")),
                 FormatThreadTestData( 20.0, UnicodeString(u"20")),
                 FormatThreadTestData( 8.0, UnicodeString(u"8")),
@@ -519,7 +518,7 @@ public:
         // Keep this data here to avoid static initialization.
         FormatThreadTestData kPercentFormatTestData[] =
         {
-            FormatThreadTestData((double)5.0, CharsToUnicodeString("500\\u00a0%")),
+            FormatThreadTestData(5.0, CharsToUnicodeString("500\\u00a0%")),
                 FormatThreadTestData( 1.0, CharsToUnicodeString("100\\u00a0%")),
                 FormatThreadTestData( 0.26, CharsToUnicodeString("26\\u00a0%")),
                 FormatThreadTestData(
@@ -752,7 +751,7 @@ public:
             int32_t resLen = coll->getSortKey(lines[i].buff, lines[i].buflen, newSk, 1024);
 
             if(oldSk != nullptr) {
-                int32_t skres = strcmp((char *)oldSk, (char *)newSk);
+                int32_t skres = strcmp(reinterpret_cast<char*>(oldSk), reinterpret_cast<char*>(newSk));
                 int32_t cmpres = coll->compare(lines[prev].buff, lines[prev].buflen, lines[i].buff, lines[i].buflen);
                 int32_t cmpres2 = coll->compare(lines[i].buff, lines[i].buflen, lines[prev].buff, lines[prev].buflen);
 
@@ -825,17 +824,17 @@ void MultithreadTest::TestCollators()
 
     testFile = fopen(buffer, "rb");
 
-    if(testFile == 0) {
+    if (testFile == nullptr) {
         strcpy(buffer+bufLen, "_SHORT");
         strcat(buffer, ext);
         testFile = fopen(buffer, "rb");
 
-        if(testFile == 0) {
+        if (testFile == nullptr) {
             strcpy(buffer+bufLen, "_STUB");
             strcat(buffer, ext);
             testFile = fopen(buffer, "rb");
 
-            if (testFile == 0) {
+            if (testFile == nullptr) {
                 *(buffer+bufLen) = 0;
                 dataerrln("could not open any of the conformance test files, tried opening base %s", buffer);
                 return;
@@ -849,8 +848,10 @@ void MultithreadTest::TestCollators()
         }
     }
 
-    LocalArray<Line> lines(new Line[200000]);
-    memset(lines.getAlias(), 0, sizeof(Line)*200000);
+    // UCA 16.0 CollationTest_CLDR_SHIFTED_SHORT.txt has over 225000 lines.
+    constexpr int32_t MAX_LINES_IN_COLLATION_TEST_FILE = 500000;
+    LocalArray<Line> lines(new Line[MAX_LINES_IN_COLLATION_TEST_FILE]);
+    memset(lines.getAlias(), 0, sizeof(Line)*MAX_LINES_IN_COLLATION_TEST_FILE);
     int32_t lineNum = 0;
 
     char16_t bufferU[1024];

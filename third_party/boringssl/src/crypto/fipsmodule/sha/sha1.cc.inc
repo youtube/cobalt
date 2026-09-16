@@ -47,7 +47,7 @@ bcm_infallible BCM_sha1_transform(SHA_CTX *c, const uint8_t data[SHA_CBLOCK]) {
 namespace {
 struct SHA1Traits {
   using HashContext = SHA_CTX;
-  static constexpr size_t kBlockSize = BCM_SHA_CBLOCK;
+  static constexpr size_t kBlockSize = SHA_CBLOCK;
   static constexpr bool kLengthIsBigEndian = true;
   static void HashBlocks(uint32_t *state, const uint8_t *data,
                          size_t num_blocks) {

@@ -11,6 +11,8 @@
 #include "base/android/device_info.h"
 #include "base/check_deref.h"
 #include "base/functional/callback_helpers.h"
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_web_contents_delegate_android.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/strike_database_factory.h"
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
@@ -25,8 +27,8 @@
 #include "components/facilitated_payments/android/device_delegate_android.h"
 #include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/browser/network_api/facilitated_payments_network_interface.h"
-#include "components/facilitated_payments/core/browser/network_api/multiple_request_facilitated_payments_network_interface.h"
 #include "components/facilitated_payments/core/browser/payment_link_manager.h"
+#include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
@@ -85,29 +87,10 @@ ChromeFacilitatedPaymentsClient::GetFacilitatedPaymentsNetworkInterface() {
     facilitated_payments_network_interface_ = std::make_unique<
         payments::facilitated::FacilitatedPaymentsNetworkInterface>(
         profile->GetURLLoaderFactory(),
-        IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile()),
-        GetPaymentsDataManager(), profile->IsOffTheRecord());
-  }
-  return facilitated_payments_network_interface_.get();
-}
-
-payments::facilitated::MultipleRequestFacilitatedPaymentsNetworkInterface*
-ChromeFacilitatedPaymentsClient::
-    GetMultipleRequestFacilitatedPaymentsNetworkInterface() {
-  if (!multiple_request_facilitated_payments_network_interface_) {
-    Profile* profile =
-        Profile::FromBrowserContext(GetWebContents().GetBrowserContext());
-    if (!profile) {
-      return nullptr;
-    }
-    multiple_request_facilitated_payments_network_interface_ = std::make_unique<
-        payments::facilitated::
-            MultipleRequestFacilitatedPaymentsNetworkInterface>(
-        profile->GetURLLoaderFactory(),
         *IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile()),
         *GetPaymentsDataManager(), profile->IsOffTheRecord());
   }
-  return multiple_request_facilitated_payments_network_interface_.get();
+  return facilitated_payments_network_interface_.get();
 }
 
 std::optional<CoreAccountInfo>
@@ -128,6 +111,14 @@ bool ChromeFacilitatedPaymentsClient::IsInLandscapeMode() {
 
 bool ChromeFacilitatedPaymentsClient::IsFoldable() {
   return base::android::device_info::is_foldable();
+}
+
+bool ChromeFacilitatedPaymentsClient::IsInChromeCustomTabMode() {
+  auto* delegate = TabAndroid::FromWebContents(&GetWebContents())
+                       ? static_cast<android::TabWebContentsDelegateAndroid*>(
+                             GetWebContents().GetDelegate())
+                       : nullptr;
+  return delegate && delegate->IsCustomTab();
 }
 
 optimization_guide::OptimizationGuideDecider*
@@ -198,6 +189,12 @@ ChromeFacilitatedPaymentsClient::GetStrikeDatabase() {
   }
 
   return autofill::StrikeDatabaseFactory::GetForProfile(profile);
+}
+
+void ChromeFacilitatedPaymentsClient::InitPixAccountLinkingFlow(
+    const url::Origin& pix_payment_page_origin) {
+  pix_account_linking_manager_->MaybeShowPixAccountLinkingPrompt(
+      pix_payment_page_origin);
 }
 
 void ChromeFacilitatedPaymentsClient::ShowPixAccountLinkingPrompt(

@@ -158,7 +158,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType audio_sample_type,
-                SbMediaAudioFrameStorageType audio_frame_storage_type,
                 SbAudioSinkFrameBuffers frame_buffers,
                 int frame_buffers_size_in_frames,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -170,8 +169,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
-                  audio_frame_storage_type, frame_buffers,
-                  frame_buffers_size_in_frames,
+                  frame_buffers, frame_buffers_size_in_frames,
                   {update_source_status_func, consume_frames_func, error_func},
                   start_media_time, tunnel_mode_audio_session_id,
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
@@ -199,9 +197,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                               int* min_frames_per_append) const override {
     SB_CHECK(max_cached_frames);
     SB_CHECK(min_frames_per_append);
-    SB_DCHECK_EQ(AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend %
-                     AudioRendererSink::kAudioSinkFramesAlignment,
-                 0);
     *min_frames_per_append =
         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
 
@@ -242,7 +237,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
              RenderCallback* render_callback) override {
@@ -254,8 +248,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
         audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
         channels == channels_ &&
         sampling_frequency_hz == sampling_frequency_hz_ &&
-        audio_sample_type == audio_sample_type_ &&
-        audio_frame_storage_type == audio_frame_storage_type_) {
+        audio_sample_type == audio_sample_type_) {
       SB_LOG(INFO) << "Audio track is already started with the same config, "
                    << "skipping Start().";
       auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
@@ -272,12 +265,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     channels_ = channels;
     sampling_frequency_hz_ = sampling_frequency_hz;
     audio_sample_type_ = audio_sample_type;
-    audio_frame_storage_type_ = audio_frame_storage_type;
 
-    AudioRendererSinkImpl::Start(media_start_time, channels,
-                                 sampling_frequency_hz, audio_sample_type,
-                                 audio_frame_storage_type, frame_buffers,
-                                 frames_per_channel, render_callback);
+    AudioRendererSinkImpl::Start(
+        media_start_time, channels, sampling_frequency_hz, audio_sample_type,
+        frame_buffers, frames_per_channel, render_callback);
   }
 
  private:
@@ -322,8 +313,6 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   int sampling_frequency_hz_ = -1;
   SbMediaAudioSampleType audio_sample_type_ =
       kSbMediaAudioSampleTypeInt16Deprecated;
-  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
-      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 class PlayerComponentsPassthrough : public PlayerComponents {
@@ -365,11 +354,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
 
-    Buffer::SetPoolEnabled(
-        experimental_features.GetBool(kMediaDecodedAudioBufferPool));
-    MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
-        experimental_features.GetBool(kMediaVideoFrameImplPool));
-
     if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
@@ -382,19 +366,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
       return PlayerComponents::Factory::CreateComponents(creation_parameters);
-    }
-
-    if (!creation_parameters.audio_mime().empty()) {
-      auto audio_mime_type = MimeType::Create(creation_parameters.audio_mime());
-      if (!audio_mime_type ||
-          !audio_mime_type->ValidateBoolParameter("audiopassthrough")) {
-        return Failure("Invalid audio mime type.");
-      }
-      if (!audio_mime_type->GetParamBoolValue("audiopassthrough", true)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                        "false. Passthrough is disabled.";
-        return Failure("Passthrough disabled by mime attribute.");
-      }
     }
 
     bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
@@ -592,6 +563,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           experimental_features.GetBool(kMediaPauseUsingAudioTrackState);
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "pause_using_audio_track_state is set to true.";
+
+      AudioOutputManager::SetSeamlessAudioSwitching(
+          experimental_features.GetBool(kMediaSeamlessAudioSwitching));
 
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =

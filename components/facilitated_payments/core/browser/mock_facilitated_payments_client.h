@@ -29,8 +29,6 @@ class StrikeDatabase;
 
 namespace payments::facilitated {
 
-class FacilitatedPaymentsNetworkInterface;
-
 // A mock for the facilitated payment "client" interface.
 class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
  public:
@@ -51,10 +49,6 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
               (override));
   MOCK_METHOD(FacilitatedPaymentsNetworkInterface*,
               GetFacilitatedPaymentsNetworkInterface,
-              (),
-              (override));
-  MOCK_METHOD(MultipleRequestFacilitatedPaymentsNetworkInterface*,
-              GetMultipleRequestFacilitatedPaymentsNetworkInterface,
               (),
               (override));
   MOCK_METHOD(std::optional<CoreAccountInfo>,
@@ -83,6 +77,11 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
   MOCK_METHOD(void, ShowProgressScreen, (), (override));
   MOCK_METHOD(void, ShowErrorScreen, (), (override));
   MOCK_METHOD(void, DismissPrompt, (), (override));
+  MOCK_METHOD(void,
+              SetUiEventListener,
+              (base::RepeatingCallback<void(payments::facilitated::UiEvent)>
+                   ui_event_listener),
+              (override));
   MOCK_METHOD(strike_database::StrikeDatabase*,
               GetStrikeDatabase,
               (),
@@ -97,6 +96,7 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
                base::OnceCallback<void()> on_declined),
               (override));
   MOCK_METHOD(bool, HasScreenlockOrBiometricSetup, (), (override));
+  MOCK_METHOD(bool, IsInChromeCustomTabMode, (), (override));
 };
 
 }  // namespace payments::facilitated

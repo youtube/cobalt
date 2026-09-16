@@ -274,6 +274,10 @@ class BrowserTestBase : public ::testing::Test {
   // display densities.
   void EnablePixelOutput(float force_device_scale_factor = 1.f);
 
+  // Call this before SetUp() to specify whether fake media stream devices
+  // should be used. True by default.
+  void SetUseFakeMediaStreamDevices(bool use_fake_media_stream_devices);
+
   // Call this before SetUp() to not use GL, but use software compositing
   // instead.
   void UseSoftwareCompositing();
@@ -294,6 +298,12 @@ class BrowserTestBase : public ::testing::Test {
   // This waits for those to complete before we can continue with the test.
   void WaitUntilJavaIsReady(base::OnceClosure quit_closure,
                             const base::TimeDelta& wait_retry_left);
+  // Android browser tests need to wait for the Activity to finish after tests
+  // run to properly shut down the browser.
+  void WaitUntilActivityTeardownIsFinished(
+      base::OnceClosure quit_closure,
+      const base::TimeDelta& wait_retry_left);
+
 #endif
   // Performs a bunch of setup, and then runs the browser test body.
   void ProxyRunTestOnMainThreadLoop();
@@ -365,6 +375,11 @@ class BrowserTestBase : public ::testing::Test {
   // explicit value to ensure consistent results. This value will be passed to
   // the --force-device-scale-factor flag in SetUp.
   float force_device_scale_factor_ = 0;
+
+  // When true, fake media stream devices will be used instead of real ones.
+  // Real devices may depend on OS-specific implementations and may not work on
+  // bots.
+  bool use_fake_media_stream_devices_ = true;
 
   // When verifying pixel output, animations are disabled to reduce flakiness.
   std::unique_ptr<ui::ScopedAnimationDurationScaleMode>

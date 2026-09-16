@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.keyboard_accessory.bar_component;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATE_SUGGESTIONS_FROM_TOP;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATION_LISTENER;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS;
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS_FIXED;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISABLE_ANIMATIONS_FOR_TESTING;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISMISS_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM;
@@ -53,7 +54,6 @@ import org.chromium.ui.modelutil.PropertyObservable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -75,7 +75,7 @@ class KeyboardAccessoryMediator
     private final Supplier<Integer> mBackgroundColorSupplier;
     private final Supplier<Boolean> mIsLargeFormFactorSupplier;
     private final Profile mProfile;
-    private Optional<Boolean> mHasFilteredTouchEvent = Optional.empty();
+    private @Nullable Boolean mHasFilteredTouchEvent;
     private final ObserverList<KeyboardAccessoryVisualStateProvider.Observer> mVisualObservers =
             new ObserverList<>();
 
@@ -121,15 +121,7 @@ class KeyboardAccessoryMediator
     void setSuggestions(List<AutofillSuggestion> suggestions, AutofillDelegate delegate) {
         List<BarItem> retainedItems = collectItemsToRetain(AccessoryAction.AUTOFILL_SUGGESTION);
         retainedItems.addAll(toBarItems(suggestions, delegate));
-        retainedItems.add(retainedItems.size(), mModel.get(SHEET_OPENER_ITEM));
-        // TODO(crbug.com/441006939): Show dismiss on first launch too.
-        if (mIsLargeFormFactorSupplier.get()
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP)) {
-            retainedItems.add(retainedItems.size(), mModel.get(DISMISS_ITEM));
-        }
-        mModel.get(BAR_ITEMS).set(retainedItems);
-        mModel.set(HAS_SUGGESTIONS, barHasSuggestions());
+        setBarContents(retainedItems);
     }
 
     private boolean barHasSuggestions() {
@@ -153,19 +145,39 @@ class KeyboardAccessoryMediator
         retainedItems.addAll(
                 typeId == AccessoryAction.CREDMAN_CONDITIONAL_UI_REENTRY ? retainedItems.size() : 0,
                 toBarItems(actions));
-        retainedItems.add(retainedItems.size(), mModel.get(SHEET_OPENER_ITEM));
+        setBarContents(retainedItems);
+        TraceEvent.end("KeyboardAccessoryMediator#onItemAvailable");
+    }
+
+    /**
+     * Sets the contents of the accessory bar.
+     *
+     * <p>This method updates the fixed items, adds the sheet opener to the scrollable items if not
+     * present in the fixed ones, and then sets the final scrollable item list on the model,
+     * updating the suggestion state.
+     *
+     * @param scrollableItems The list of {@link BarItem}s to be set on the scrollable part of the
+     *     bar.
+     */
+    private void setBarContents(List<BarItem> scrollableItems) {
+        // TODO(crbug.com/441006939): Show dismiss on first launch too.
+        List<BarItem> fixedBarItems = new ArrayList<BarItem>();
         if (mIsLargeFormFactorSupplier.get()
                 && ChromeFeatureList.isEnabled(
                         ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP)) {
-            retainedItems.add(mModel.get(DISMISS_ITEM));
+            fixedBarItems.add(mModel.get(SHEET_OPENER_ITEM));
+            fixedBarItems.add(mModel.get(DISMISS_ITEM));
+        } else {
+            scrollableItems.add(mModel.get(SHEET_OPENER_ITEM));
         }
-        mModel.get(BAR_ITEMS).set(retainedItems);
+        mModel.get(BAR_ITEMS_FIXED).set(fixedBarItems);
+        mModel.get(BAR_ITEMS).set(scrollableItems);
         mModel.set(HAS_SUGGESTIONS, barHasSuggestions());
-        TraceEvent.end("KeyboardAccessoryMediator#onItemAvailable");
     }
 
     private List<BarItem> collectItemsToRetain(@AccessoryAction int actionType) {
         List<BarItem> retainedItems = new ArrayList<>();
+        // Fallback sheet menu and dismiss button are never retained.
         for (BarItem item : mModel.get(BAR_ITEMS)) {
             if (item.getAction() == null) continue;
             if (item.getAction().getActionType() == AccessoryAction.DISMISS) continue;
@@ -290,12 +302,12 @@ class KeyboardAccessoryMediator
     void dismiss() {
         mTabSwitcher.closeActiveTab();
         mModel.set(VISIBLE, false);
-        if (!mHasFilteredTouchEvent.orElse(true)) {
+        if (!(mHasFilteredTouchEvent == null || mHasFilteredTouchEvent)) {
             // Log the metric if the accessory received touch events, but none of them were
             // filtered.
             ManualFillingMetricsRecorder.recordHasFilteredTouchEvents(false);
         }
-        mHasFilteredTouchEvent = Optional.empty();
+        mHasFilteredTouchEvent = null;
     }
 
     @Override
@@ -326,7 +338,8 @@ class KeyboardAccessoryMediator
                 || propertyKey == HAS_SUGGESTIONS
                 || propertyKey == HAS_STICKY_LAST_ITEM
                 || propertyKey == ANIMATE_SUGGESTIONS_FROM_TOP
-                || propertyKey == ANIMATION_LISTENER) {
+                || propertyKey == ANIMATION_LISTENER
+                || propertyKey == BAR_ITEMS_FIXED) {
             return;
         }
         assert false : "Every property update needs to be handled explicitly!";
@@ -347,14 +360,16 @@ class KeyboardAccessoryMediator
 
     private void onTouchEvent(boolean eventFiltered) {
         if (!eventFiltered) {
-            mHasFilteredTouchEvent = Optional.of(mHasFilteredTouchEvent.orElse(false));
+            if (mHasFilteredTouchEvent == null) {
+                mHasFilteredTouchEvent = false;
+            }
             return;
         }
-        if (!mHasFilteredTouchEvent.orElse(false)) {
+        if (mHasFilteredTouchEvent == null || !mHasFilteredTouchEvent) {
             // Log the metric if none of the previous touch events were filtered.
             ManualFillingMetricsRecorder.recordHasFilteredTouchEvents(true);
         }
-        mHasFilteredTouchEvent = Optional.of(true);
+        mHasFilteredTouchEvent = true;
     }
 
     /**

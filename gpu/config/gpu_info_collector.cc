@@ -25,7 +25,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_switches.h"
-#include "gpu/config/webgpu_blocklist.h"
+#include "gpu/config/webgpu_blocklist_impl.h"
 #include "skia/buildflags.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  // nogncheck
@@ -91,7 +91,6 @@ scoped_refptr<gl::GLSurface> InitializeGLSurface(gl::GLDisplay* display) {
 scoped_refptr<gl::GLContext> InitializeGLContext(gl::GLSurface* surface) {
   TRACE_EVENT("gpu,startup", "gpu_info_collector::InitializeGLContext");
   gl::GLContextAttribs attribs;
-  attribs.client_major_es_version = 2;
   scoped_refptr<gl::GLContext> context(
       gl::init::CreateGLContext(nullptr, surface, attribs));
   if (!context.get()) {

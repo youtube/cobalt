@@ -30,7 +30,7 @@ using blink::WebSelectElement;
 using blink::WebString;
 
 SelectTool::SelectTool(content::RenderFrame& frame,
-                       Journal::TaskId task_id,
+                       TaskId task_id,
                        Journal& journal,
                        mojom::SelectActionPtr action,
                        mojom::ToolTargetPtr target,
@@ -64,6 +64,7 @@ void SelectTool::Execute(ToolFinishedCallback callback) {
   if (select.Value() != value) {
     std::move(callback).Run(
         MakeResult(mojom::ActionResultCode::kSelectUnexpectedValue,
+                   /*requires_page_stabilization=*/false,
                    absl::StrFormat("ValueAfter [%s]", select.Value().Utf8())));
     return;
   }
@@ -80,7 +81,7 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
   CHECK(frame_->GetWebFrame());
   CHECK(frame_->GetWebFrame()->FrameWidget());
 
-  if (target_->is_coordinate()) {
+  if (target_->is_coordinate_dip()) {
     NOTIMPLEMENTED() << "Coordinate-based target is not yet supported.";
     return base::unexpected(MakeErrorResult());
   }
@@ -96,12 +97,14 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
   if (!select) {
     return base::unexpected(
         MakeResult(mojom::ActionResultCode::kSelectInvalidElement,
+                   /*requires_page_stabilization=*/false,
                    absl::StrFormat("Element [%s]", base::ToString(node))));
   }
 
   if (!select.IsEnabled()) {
     return base::unexpected(
         MakeResult(mojom::ActionResultCode::kElementDisabled,
+                   /*requires_page_stabilization=*/false,
                    absl::StrFormat("Element [%s]", base::ToString(select))));
   }
 
@@ -112,6 +115,7 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
       if (!option.IsEnabled()) {
         return base::unexpected(MakeResult(
             mojom::ActionResultCode::kSelectOptionDisabled,
+            /*requires_page_stabilization=*/false,
             absl::StrFormat("SelectElement[%s] OptionElement [%s]",
                             base::ToString(select), base::ToString(option))));
       }
@@ -121,6 +125,7 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
 
   return base::unexpected(
       MakeResult(mojom::ActionResultCode::kSelectNoSuchOption,
+                 /*requires_page_stabilization=*/false,
                  absl::StrFormat("SelectElement[%s]", base::ToString(select))));
 }
 

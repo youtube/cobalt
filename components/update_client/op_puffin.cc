@@ -85,7 +85,7 @@ void VerifyAndCleanUp(
     int result) {
   RetryFileOperation(&base::DeleteFile, patch_file);
   if (result != puffin::P_OK) {
-    RetryFileOperation(&base::DeleteFile, new_file);
+    DeleteFileAndEmptyParentDirectory(new_file);
     std::move(callback).Run(base::unexpected<CategorizedError>(
         {.category = ErrorCategory::kUnpack,
          .code = static_cast<int>(UnpackerError::kDeltaOperationFailure),
@@ -94,7 +94,7 @@ void VerifyAndCleanUp(
   }
 
   if (!VerifyFileHash256(new_file, output_hash)) {
-    RetryFileOperation(&base::DeleteFile, new_file);
+    DeleteFileAndEmptyParentDirectory(new_file);
     std::move(callback).Run(base::unexpected<CategorizedError>(
         {.category = ErrorCategory::kUnpack,
          .code = static_cast<int>(UnpackerError::kPatchOutHashMismatch)}));
@@ -159,7 +159,7 @@ void CacheLookupDone(
         FROM_HERE, kTaskTraits,
         base::BindOnce(
             [](const base::FilePath& patch_file) {
-              RetryFileOperation(&base::DeleteFile, patch_file);
+              DeleteFileAndEmptyParentDirectory(patch_file);
             },
             patch_file),
         base::BindOnce(&PatchDone, std::move(callback), event_adder,

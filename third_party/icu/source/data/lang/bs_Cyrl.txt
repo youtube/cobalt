@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 bs_Cyrl{
     %%Parent{"root"}
     Keys{
@@ -774,6 +774,7 @@ bs_Cyrl{
             gregorian{"грегоријански календар"}
             hebrew{"хебрејски календар"}
             indian{"Индијски национални календар"}
+            islamic{"исламски календар"}
             iso8601{"ISO-8601 календар"}
             japanese{"јапански календар"}
             persian{"персијски календар"}

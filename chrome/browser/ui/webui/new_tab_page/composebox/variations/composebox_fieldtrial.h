@@ -37,14 +37,22 @@ extern const base::FeatureParam<bool> kShowComposeboxImageSuggestions;
 // Whether to show the + entrypoint and contextual input menu in the realbox and
 // composebox.
 extern const base::FeatureParam<bool> kShowContextMenu;
+// Whether to show tab previews on hover for the composebox context menu.
+extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
 // The maximum number of tab suggestions to show in the composebox context menu.
 extern const base::FeatureParam<int> kContextMenuMaxTabSuggestions;
-// Whether to show the next realbox.
-extern const base::FeatureParam<bool> kShowNextRealbox;
+
 // The maximum number of file attachments to upload.
 extern const base::FeatureParam<int> kMaxNumFiles;
+// Whether or not to show a description in the context menu entrypoint, or just
+// the icon.
+extern const base::FeatureParam<bool> kShowContextMenuDescription;
+// Whether or not to enable viewport images with page context uploads.
+extern const base::FeatureParam<bool> kEnableViewportImages;
 // Whether to show the tools and models picker in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
+// Whether to show the create image button in the composebox context menu.
+extern const base::FeatureParam<bool> kShowCreateImageTool;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
 
@@ -69,5 +77,38 @@ using ScopedFeatureConfigForTesting =
     omnibox_feature_configs::ScopedConfigForTesting<FeatureConfig>;
 
 }  // namespace ntp_composebox
+
+namespace ntp_realbox {
+
+// If overridden to false, disables the feature (kill switch). If true, enables
+// the feature.
+BASE_DECLARE_FEATURE(kNtpRealboxNext);
+
+// Whether to show a series of cycling placeholder texts on the search input UI.
+extern const base::FeatureParam<bool> kCyclingPlaceholders;
+
+// Enum for `kRealboxLayoutMode`.
+enum class RealboxLayoutMode {
+  kTallBottomContext,
+  kTallTopContext,
+  kCompact,
+};
+
+// Flag to control the realbox layout mode (Tall, Compact).
+extern const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode;
+
+bool IsNtpRealboxNextEnabled(Profile* profile);
+
+// String constants for RealboxLayoutMode.
+inline constexpr char kRealboxLayoutModeTallBottomContext[] =
+    "TallBottomContext";
+inline constexpr char kRealboxLayoutModeTallTopContext[] = "TallTopContext";
+inline constexpr char kRealboxLayoutModeCompact[] = "Compact";
+
+// Returns the string representation of `RealboxLayoutMode`.
+std::string_view RealboxLayoutModeToString(
+    RealboxLayoutMode realbox_layout_mode);
+
+}  // namespace ntp_realbox
 
 #endif  // CHROME_BROWSER_UI_WEBUI_NEW_TAB_PAGE_COMPOSEBOX_VARIATIONS_COMPOSEBOX_FIELDTRIAL_H_

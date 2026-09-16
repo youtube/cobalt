@@ -18,6 +18,7 @@
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/lens/lens_features.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -202,6 +203,11 @@ void LensSearchContextualizationController::GetPageContextualization(
 
 void LensSearchContextualizationController::TryUpdatePageContextualization(
     OnPageContextUpdatedCallback callback) {
+  if (state_ == State::kInitializing) {
+    // Will be called again by OnInitialPageContextEligibilityFetched when the
+    // controller finishes initializing.
+    return;
+  }
   if (state_ == State::kOff) {
     // TODO(crbug.com/418825720): The viewport screenshot should be only be set
     // in this controller in the future.
@@ -275,7 +281,7 @@ void LensSearchContextualizationController::ResetState() {
 void LensSearchContextualizationController::SetPageContent(
     std::vector<lens::PageContent> page_contents,
     lens::MimeType primary_content_type) {
-  page_contents_ = std::move(page_contents);
+  page_contents_ = page_contents;
   primary_content_type_ = primary_content_type;
 }
 
@@ -813,8 +819,11 @@ void LensSearchContextualizationController::CaptureScreenshot(
 
   view->CopyFromSurface(
       /*src_rect=*/gfx::Rect(), /*output_size=*/gfx::Size(),
-      base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
-                         std::move(callback)));
+      base::BindPostTask(
+          base::SequencedTaskRunner::GetCurrentDefault(),
+          base::BindOnce([](const viz::CopyOutputBitmapWithMetadata& result) {
+            return result.bitmap;
+          }).Then(std::move(callback))));
 }
 
 void LensSearchContextualizationController::DidCaptureScreenshot(
@@ -889,8 +898,8 @@ void LensSearchContextualizationController::IsPageContextEligible(
   }
 
   std::move(callback).Run(optimization_guide::IsPageContextEligible(
-      main_frame_url.host(), main_frame_url.path(), std::move(frame_metadata),
-      page_context_eligibility_));
+      main_frame_url.GetHost(), main_frame_url.GetPath(),
+      std::move(frame_metadata), page_context_eligibility_));
 }
 
 void LensSearchContextualizationController::CreatePageContextEligibilityAPI() {
@@ -929,8 +938,8 @@ void LensSearchContextualizationController::OnPageContextEligibilityAPILoaded(
       pending_context_eligibility_params_) {
     std::move(page_context_eligibility_callback_)
         .Run(optimization_guide::IsPageContextEligible(
-            pending_context_eligibility_params_->main_frame_url.host(),
-            pending_context_eligibility_params_->main_frame_url.path(),
+            pending_context_eligibility_params_->main_frame_url.GetHost(),
+            pending_context_eligibility_params_->main_frame_url.GetPath(),
             std::move(pending_context_eligibility_params_->frame_metadata),
             page_context_eligibility_));
     pending_context_eligibility_params_.reset();
@@ -975,7 +984,8 @@ void LensSearchContextualizationController::
 
 void LensSearchContextualizationController::FetchViewportImageBoundingBoxes(
     OnScreenshotTakenCallback callback,
-    const SkBitmap& bitmap) {
+    const viz::CopyOutputBitmapWithMetadata& result) {
+  const SkBitmap& bitmap = result.bitmap;
   content::RenderFrameHost* render_frame_host =
       lens_search_controller_->GetTabInterface()
           ->GetContents()

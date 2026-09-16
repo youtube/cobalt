@@ -183,8 +183,8 @@ TEST_F(FocusgroupControllerTest, IsAxisSupported) {
   ASSERT_TRUE(utils::IsAxisSupported(flags_block_only,
                                      FocusgroupDirection::kForwardBlock));
 
-  FocusgroupFlags flags_both_directions =
-      FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
+  FocusgroupFlags flags_both_directions = static_cast<FocusgroupFlags>(
+      FocusgroupFlags::kInline | FocusgroupFlags::kBlock);
   ASSERT_FALSE(utils::IsAxisSupported(flags_both_directions,
                                       FocusgroupDirection::kNone));
   ASSERT_TRUE(utils::IsAxisSupported(flags_both_directions,
@@ -234,8 +234,8 @@ TEST_F(FocusgroupControllerTest, WrapsInDirection) {
   ASSERT_TRUE(utils::WrapsInDirection(flags_wrap_block,
                                       FocusgroupDirection::kForwardBlock));
 
-  FocusgroupFlags flags_wrap_both =
-      FocusgroupFlags::kWrapInline | FocusgroupFlags::kWrapBlock;
+  FocusgroupFlags flags_wrap_both = static_cast<FocusgroupFlags>(
+      FocusgroupFlags::kWrapInline | FocusgroupFlags::kWrapBlock);
   ASSERT_FALSE(
       utils::WrapsInDirection(flags_wrap_both, FocusgroupDirection::kNone));
   ASSERT_TRUE(utils::WrapsInDirection(flags_wrap_both,
@@ -248,148 +248,26 @@ TEST_F(FocusgroupControllerTest, WrapsInDirection) {
                                       FocusgroupDirection::kForwardBlock));
 }
 
-TEST_F(FocusgroupControllerTest, FocusgroupExtendsInAxis) {
-  FocusgroupFlags focusgroup = FocusgroupFlags::kNone;
-  FocusgroupFlags extending_focusgroup = FocusgroupFlags::kNone;
-
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                              FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  focusgroup |= FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
-
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                              FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  extending_focusgroup |= FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
-
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                              FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  extending_focusgroup = FocusgroupFlags::kExtend;
-
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                             FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  extending_focusgroup |= FocusgroupFlags::kInline;
-
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                             FocusgroupDirection::kNone));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  extending_focusgroup |= FocusgroupFlags::kBlock;
-
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                             FocusgroupDirection::kNone));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  focusgroup = FocusgroupFlags::kNone;
-  extending_focusgroup = FocusgroupFlags::kExtend | FocusgroupFlags::kInline |
-                         FocusgroupFlags::kBlock;
-
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                              FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  focusgroup |= FocusgroupFlags::kBlock;
-
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                             FocusgroupDirection::kNone));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_FALSE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-
-  focusgroup |= FocusgroupFlags::kInline;
-
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(extending_focusgroup, focusgroup,
-                                             FocusgroupDirection::kNone));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kBackwardBlock));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardInline));
-  ASSERT_TRUE(utils::FocusgroupExtendsInAxis(
-      extending_focusgroup, focusgroup, FocusgroupDirection::kForwardBlock));
-}
-
 TEST_F(FocusgroupControllerTest, FindNearestFocusgroupAncestor) {
   GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
     <div>
       <span id=item1 tabindex=0></span>
     </div>
-    <div id=fg1 focusgroup>
+    <div id=fg1 focusgroup="toolbar">
       <span id=item2 tabindex=-1></span>
       <div>
-        <div id=fg2 focusgroup=extend>
+        <div id=fg2 focusgroup="toolbar">
           <span id=item3 tabindex=-1></span>
           <div>
             <span id=item4></span>
           </div>
-          <table id=fg3 focusgroup=grid>
+          <table id=fg3 focusgroup="grid">
             <tr>
               <td id=item5 tabindex=-1>
                 <!-- The following is an error. -->
-                <div id=fg4 focusgroup=grid>
+                <div id=fg4 focusgroup="grid">
                   <span id=item6 tabindex=-1></span>
-                  <div id=fg5 focusgroup>
+                  <div id=fg5 focusgroup="toolbar">
                     <span id=item7 tabindex=-1></span>
                   </div>
                 </div>
@@ -398,7 +276,7 @@ TEST_F(FocusgroupControllerTest, FindNearestFocusgroupAncestor) {
           </table>
           <div id=fg6-container>
             <template shadowrootmode=open>
-              <div id=fg6 focusgroup=extend>
+              <div id=fg6 focusgroup="toolbar">
                 <span id=item8 tabindex=-1></span>
               </div>
             </template>
@@ -556,16 +434,17 @@ TEST_F(FocusgroupControllerTest, PreviousElement) {
   ASSERT_EQ(utils::PreviousElement(fg3), item3);
 }
 
-TEST_F(FocusgroupControllerTest, LastElementWithin) {
+TEST_F(FocusgroupControllerTest, LastFocusgroupItemWithin) {
   GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
-    <div id=fg1 focusgroup>
+    <div id=fg1 focusgroup="toolbar">
       <span id=item1></span>
       <span id=item2 tabindex=-1></span>
     </div>
-    <div id=fg2 focusgroup>
+    <div id=fg2 focusgroup="toolbar">
         <template shadowrootmode=open>
           <span id=item3 tabindex=-1></span>
-          <span id=item4></span>
+          <span id=item4 tabindex=-1></span>
+          <span id=item5></span>
         </template>
     </div>
     <span id=item5 tabindex=-1></span>
@@ -580,52 +459,84 @@ TEST_F(FocusgroupControllerTest, LastElementWithin) {
   ASSERT_TRUE(item2);
   ASSERT_TRUE(item4);
 
-  ASSERT_EQ(utils::LastElementWithin(fg1), item2);
-  ASSERT_EQ(utils::LastElementWithin(fg2), item4);
-  ASSERT_EQ(utils::LastElementWithin(item4), nullptr);
+  EXPECT_EQ(utils::LastFocusgroupItemWithin(fg1), item2);
+  EXPECT_EQ(utils::LastFocusgroupItemWithin(fg2), item4);
+  EXPECT_EQ(utils::LastFocusgroupItemWithin(item4), nullptr);
 }
 
-TEST_F(FocusgroupControllerTest, IsFocusgroupItem) {
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <div id=fg1 focusgroup>
-      <span id=item1 tabindex=0></span>
-      <span id=item2></span>
-      <div id=fg2 focusgroup=extend>
-        <span tabindex=-1></span>
-        <div id=non-fg1 tabindex=-1>
+TEST_F(FocusgroupControllerTest, FirstFocusgroupItemWithin) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <div id=fg1 focusgroup="toolbar">
+      <span id=item1></span>
+      <span id=item2 tabindex=-1></span>
+    </div>
+    <div id=fg2 focusgroup="toolbar">
+        <template shadowrootmode=open>
           <span id=item3 tabindex=-1></span>
-        </div>
-      </div>
-      <button id=button1></button>
+          <span id=item4 tabindex=-1></span>
+          <span id=item5></span>
+        </template>
     </div>
   )HTML");
-  auto* item1 = GetElementById("item1");
-  auto* item2 = GetElementById("item2");
-  auto* item3 = GetElementById("item3");
+
   auto* fg1 = GetElementById("fg1");
   auto* fg2 = GetElementById("fg2");
-  auto* non_fg1 = GetElementById("non-fg1");
-  auto* button1 = GetElementById("button1");
-  ASSERT_TRUE(item1);
-  ASSERT_TRUE(item2);
-  ASSERT_TRUE(item3);
   ASSERT_TRUE(fg1);
   ASSERT_TRUE(fg2);
-  ASSERT_TRUE(non_fg1);
-  ASSERT_TRUE(button1);
 
-  ASSERT_TRUE(utils::IsFocusgroupItem(item1));
-  ASSERT_FALSE(utils::IsFocusgroupItem(item2));
-  ASSERT_FALSE(utils::IsFocusgroupItem(item3));
-  ASSERT_FALSE(utils::IsFocusgroupItem(fg1));
-  ASSERT_FALSE(utils::IsFocusgroupItem(fg2));
-  ASSERT_TRUE(utils::IsFocusgroupItem(non_fg1));
-  ASSERT_TRUE(utils::IsFocusgroupItem(button1));
+  auto* item2 = GetElementById("item2");
+  auto* item3 = fg2->GetShadowRoot()->getElementById(AtomicString("item3"));
+  auto* item4 = fg2->GetShadowRoot()->getElementById(AtomicString("item4"));
+
+  ASSERT_TRUE(item2);
+  ASSERT_TRUE(item3);
+  ASSERT_TRUE(item4);
+
+  EXPECT_EQ(utils::FirstFocusgroupItemWithin(fg1), item2);
+  EXPECT_EQ(utils::FirstFocusgroupItemWithin(fg2), item3);
+  EXPECT_EQ(utils::FirstFocusgroupItemWithin(item4), nullptr);
+}
+
+TEST_F(FocusgroupControllerTest, IsFocusgroupItemWithOwner) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <div id=outer_fg focusgroup="toolbar">
+      <span id=outer_item1 tabindex=0></span>
+      <div>
+        <div id=inner_fg focusgroup="toolbar">
+          <span id=inner_item1 tabindex=-1></span>
+          <span id=inner_item2 tabindex=-1></span>
+        </div>
+      </div>
+      <span id=outer_item2 tabindex=-1></span>
+    </div>
+  )HTML");
+  auto* outer_fg = GetElementById("outer_fg");
+  auto* inner_fg = GetElementById("inner_fg");
+  auto* outer_item1 = GetElementById("outer_item1");
+  auto* outer_item2 = GetElementById("outer_item2");
+  auto* inner_item1 = GetElementById("inner_item1");
+  auto* inner_item2 = GetElementById("inner_item2");
+
+  // Outer focusgroup items should belong to outer context.
+  EXPECT_TRUE(utils::IsFocusgroupItemWithOwner(outer_item1, outer_fg));
+  EXPECT_TRUE(utils::IsFocusgroupItemWithOwner(outer_item2, outer_fg));
+
+  // Inner focusgroup items should NOT belong to outer context.
+  EXPECT_FALSE(utils::IsFocusgroupItemWithOwner(inner_item1, outer_fg));
+  EXPECT_FALSE(utils::IsFocusgroupItemWithOwner(inner_item2, outer_fg));
+
+  // Inner focusgroup items should belong to inner context.
+  EXPECT_TRUE(utils::IsFocusgroupItemWithOwner(inner_item1, inner_fg));
+  EXPECT_TRUE(utils::IsFocusgroupItemWithOwner(inner_item2, inner_fg));
+
+  // Outer focusgroup items should NOT belong to inner context.
+  EXPECT_FALSE(utils::IsFocusgroupItemWithOwner(outer_item1, inner_fg));
+  EXPECT_FALSE(utils::IsFocusgroupItemWithOwner(outer_item2, inner_fg));
 }
 
 TEST_F(FocusgroupControllerTest, CellAtIndexInRowBehaviorOnNoCellFound) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <table id=table focusgroup=grid>
+    <table id=table focusgroup="grid">
       <tr>
         <td id=r1c1></td>
         <td id=r1c2></td>
@@ -658,7 +569,7 @@ TEST_F(FocusgroupControllerTest, CellAtIndexInRowBehaviorOnNoCellFound) {
   ASSERT_TRUE(r2c1);
   ASSERT_TRUE(r3c2);
 
-  ASSERT_TRUE(table->GetFocusgroupFlags() & FocusgroupFlags::kGrid);
+  ASSERT_EQ(table->GetFocusgroupData().behavior, FocusgroupBehavior::kGrid);
   auto* helper = utils::CreateGridFocusgroupStructureInfoForGridRoot(table);
 
   // The first column starts at index 0.
@@ -752,6 +663,78 @@ TEST_F(FocusgroupControllerTest, DontMoveFocusWhenItAlreadyMoved) {
   SendEvent(event);
 
   ASSERT_EQ(GetDocument().FocusedElement(), item1);
+}
+
+TEST_F(FocusgroupControllerTest, NestedFocusgroupsHaveSeparateScopes) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <div id=outer focusgroup="toolbar">
+      <button id=outer1 tabindex=0>Outer 1</button>
+      <button id=outer2 tabindex=-1>Outer 2</button>
+
+      <div id=inner focusgroup="menu">
+        <button id=inner1 tabindex=-1>Inner 1</button>
+        <button id=inner2 tabindex=-1>Inner 2</button>
+        <button id=inner3 tabindex=-1>Inner 3</button>
+      </div>
+
+      <button id=outer3 tabindex=-1>Outer 3</button>
+    </div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  auto* outer = GetElementById("outer");
+  auto* inner = GetElementById("inner");
+  auto* outer1 = GetElementById("outer1");
+  auto* outer2 = GetElementById("outer2");
+  auto* outer3 = GetElementById("outer3");
+  auto* inner1 = GetElementById("inner1");
+  auto* inner2 = GetElementById("inner2");
+  auto* inner3 = GetElementById("inner3");
+
+  ASSERT_TRUE(outer);
+  ASSERT_TRUE(inner);
+  ASSERT_TRUE(outer1);
+  ASSERT_TRUE(outer2);
+  ASSERT_TRUE(outer3);
+  ASSERT_TRUE(inner1);
+  ASSERT_TRUE(inner2);
+  ASSERT_TRUE(inner3);
+
+  // Verify that the outer elements belong to the outer focusgroup.
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(outer1, FocusgroupType::kLinear),
+      outer);
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(outer2, FocusgroupType::kLinear),
+      outer);
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(outer3, FocusgroupType::kLinear),
+      outer);
+
+  // Verify that the inner elements belong to the inner focusgroup, not the
+  // outer one.
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(inner1, FocusgroupType::kLinear),
+      inner);
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(inner2, FocusgroupType::kLinear),
+      inner);
+  EXPECT_EQ(
+      utils::FindNearestFocusgroupAncestor(inner3, FocusgroupType::kLinear),
+      inner);
+
+  // Verify that NextElement within outer focusgroup skips the inner focusgroup
+  // elements.
+  EXPECT_EQ(utils::NextElement(outer1, /* skip_subtree */ false), outer2);
+  EXPECT_EQ(utils::NextElement(outer2, /* skip_subtree */ false), inner);
+
+  // When we encounter the inner focusgroup container, NextElement should skip
+  // its subtree and go to the next element in the outer focusgroup.
+  EXPECT_EQ(utils::NextElement(inner, /* skip_subtree */ true), outer3);
+
+  // Verify that within the inner focusgroup, navigation works independently.
+  EXPECT_EQ(utils::NextElement(inner1, /* skip_subtree */ false), inner2);
+  EXPECT_EQ(utils::NextElement(inner2, /* skip_subtree */ false), inner3);
 }
 
 }  // namespace blink

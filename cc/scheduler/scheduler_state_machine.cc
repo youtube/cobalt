@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
@@ -666,6 +667,7 @@ bool SchedulerStateMachine::ShouldSendBeginMainFrame() const {
 bool SchedulerStateMachine::ShouldThrottleSendBeginMainFrame() const {
   bool result = false;
   auto throttled_interval = MainFrameThrottledInterval();
+
   if (throttled_interval.is_positive() &&
       last_begin_impl_frame_time_ - last_sent_begin_main_frame_time_ <
           throttled_interval) {
@@ -677,6 +679,15 @@ bool SchedulerStateMachine::ShouldThrottleSendBeginMainFrame() const {
   // throttle. This is more expensive, but is required to reach perceptual
   // visual parity between throttled and non-throttled scrolling.
   if (is_current_scroll_main_painted_) {
+    result = false;
+  }
+
+  // Only evaluate the condition if we would be throttling, this is important
+  // for experiment targeting (not querying the feature).
+  if (result &&
+      base::FeatureList::IsEnabled(
+          features::kBoostFrameRateForUrgentMainFrame) &&
+      (Now() - last_urgent_main_frame_request_) < kUrgentBoostDuration) {
     result = false;
   }
 
@@ -1537,14 +1548,22 @@ void SchedulerStateMachine::FrameIntervalUpdated(
   //
   // Apply some slack, so that if for some reason the interval is a bit larger
   // than 8.33333333333333ms, then we catch it still.
+  //
+  // Do not enable throttling for the synchronous compositor, as it hasn't been
+  // evaluated for this use case, as of 09/2025. The aim is to make sure that
+  // this does not get enabled on WebView when the feature is active on Android,
+  // as they share the same binary configuration. Exclude this platform, which
+  // is using the synchronous compositor.
   constexpr float kSlackFactor = .9;
   bool fast_vsync_interval =
       frame_interval < base::Hertz(120) * (1 / kSlackFactor);
-  if (fast_vsync_interval) {
+  if (fast_vsync_interval && !settings_.using_synchronous_renderer_compositor) {
     features::SetIsEligibleForThrottleMainFrameTo60Hz(true);
   }
+  // Same as above, no synchronous compositor.
   if (fast_vsync_interval &&
-      base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz)) {
+      base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz) &&
+      !settings_.using_synchronous_renderer_compositor) {
     // Here as well, use a slack factor, to make sure that small timing
     // variations don't result in uneven pacing.
     //
@@ -1690,6 +1709,7 @@ void SchedulerStateMachine::SetNeedsBeginMainFrame(bool now) {
 
   if (now) {
     last_sent_begin_main_frame_time_ = base::TimeTicks();
+    last_urgent_main_frame_request_ = Now();
   }
 }
 
@@ -1849,6 +1869,10 @@ void SchedulerStateMachine::SetShouldThrottleFrameRate(bool flag) {
   if (base::FeatureList::IsEnabled(features::kRenderThrottleFrameRate)) {
     throttle_frame_rate_ = flag;
   }
+}
+
+base::TimeTicks SchedulerStateMachine::Now() const {
+  return base::TimeTicks::Now();
 }
 
 base::TimeDelta SchedulerStateMachine::MainFrameThrottledInterval() const {

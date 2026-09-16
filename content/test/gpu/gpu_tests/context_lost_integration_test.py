@@ -156,7 +156,6 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
               'worker-webgl-raf-after-gpu-crash.html'),
              ('ContextLost_OffscreenCanvasRecoveryAfterGPUCrash',
               'offscreencanvas_recovery_after_gpu_crash.html'),
-             ('ContextLost_WebGL2Blocked', 'webgl2-context-blocked.html'),
              ('ContextLost_WebGL2UnpackImageHeight',
               'webgl2-unpack-image-height.html'),
              ('ContextLost_MacWebGLMultisamplingHighPowerSwitchLosesContext',
@@ -205,7 +204,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
   @functools.lru_cache(maxsize=None)
   def _GetWaitTimeout(cls):
     timeout = 60
-    if cls._is_asan or cls.browser.browser_type == 'debug':
+    if cls._is_asan or cls.browser.browser_type in ('debug', 'web-engine-shell',
+                                                    'cast-streaming-shell'):
       timeout *= 2
     return timeout
 
@@ -379,8 +379,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
 
     self._RestartBrowser('must restart after tests that kill the GPU process')
 
-  def _ContextLost_WebGPUStressRequestDeviceAndRemoveLoop(self, test_path: str
-                                                          ) -> None:
+  def _ContextLost_WebGPUStressRequestDeviceAndRemoveLoop(
+      self, test_path: str) -> None:
     self.RestartBrowserIfNecessaryWithArgs(cba.ENABLE_WEBGPU_FOR_TESTING)
     self._NavigateAndWaitForLoad(test_path)
 
@@ -436,8 +436,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
     # No reason to wait more than 10 seconds for this test to complete.
     self._WaitForTabAndCheckCompletion(timeout=10)
 
-  def _ContextLost_WebGLContextRestoredInHiddenTab(self, test_path: str
-                                                   ) -> None:
+  def _ContextLost_WebGLContextRestoredInHiddenTab(self,
+                                                   test_path: str) -> None:
     self.RestartBrowserIfNecessaryWithArgs([])
     self._NavigateAndWaitForLoad(test_path)
     tab = self.tab
@@ -493,8 +493,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
           'Page should have been blocked from getting a new WebGL context')
     self._RestartBrowser('must restart after tests that kill the GPU process')
 
-  def _ContextLost_WebGLUnblockedAfterUserInitiatedReload(self, test_path: str
-                                                          ) -> None:
+  def _ContextLost_WebGLUnblockedAfterUserInitiatedReload(
+      self, test_path: str) -> None:
     self.RestartBrowserIfNecessaryWithArgs([])
     self._NavigateAndWaitForLoad(test_path)
     tab = self.tab
@@ -571,16 +571,6 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
     self._KillGPUProcess(1, False)
     self._WaitForTabAndCheckCompletion()
     self._RestartBrowser('must restart after tests that kill the GPU process')
-
-  def _ContextLost_WebGL2Blocked(self, test_path: str) -> None:
-    self.RestartBrowserIfNecessaryWithArgs(['--disable_es3_gl_context=1'])
-    self._NavigateAndWaitForLoad(test_path)
-    tab = self.tab
-    tab.EvaluateJavaScript('runTest()')
-    self._WaitForTabAndCheckCompletion()
-    # Attempting to create a WebGL 2.0 context when ES 3.0 is
-    # blocklisted should not cause the GPU process to crash.
-    self._CheckCrashCount(tab, 0)
 
   def _ContextLost_WebGL2UnpackImageHeight(self, test_path: str) -> None:
     self.RestartBrowserIfNecessaryWithArgs([
@@ -859,9 +849,8 @@ class ContextLostIntegrationTest(gpu_integration_test.GpuIntegrationTest):
   @classmethod
   def ExpectationsFiles(cls) -> list[str]:
     return [
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 'test_expectations',
-            'context_lost_expectations.txt')
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     'test_expectations', 'context_lost_expectations.txt')
     ]
 
 

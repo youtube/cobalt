@@ -32,9 +32,19 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
 
     private static @Nullable ChromeAndroidTaskTrackerImpl sInstance;
 
-    /** Maps {@link ChromeAndroidTask} IDs to their instances. */
+    /**
+     * Maps {@link ChromeAndroidTask} IDs to their instances. This reflects the {@link
+     * ChromeAndroidTask}'s ID when it is alive, and is different from its ID in the pending state.
+     */
     @GuardedBy("mTasksLock")
     private final Map<Integer, ChromeAndroidTask> mTasks = new ArrayMap<>();
+
+    /**
+     * Maps pending {@link ChromeAndroidTask} IDs to their instances. This reflects the {@link
+     * ChromeAndroidTask}'s ID when it is pending, and is different from its ID in the alive state.
+     */
+    @GuardedBy("mTasksLock")
+    private final Map<Integer, ChromeAndroidTask> mPendingTasks = new ArrayMap<>();
 
     /** List of observers currently observing this instance. */
     @GuardedBy("mTasksLock")
@@ -55,7 +65,8 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     public ChromeAndroidTask obtainTask(
             @BrowserWindowType int browserWindowType,
             ActivityWindowAndroid activityWindowAndroid,
-            TabModel tabModel) {
+            TabModel tabModel,
+            @Nullable Integer pendingId) {
         int taskId = getTaskId(activityWindowAndroid);
 
         synchronized (mTasksLock) {
@@ -65,6 +76,14 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
                         : "The browser window type of an existing task can't be changed.";
                 existingTask.setActivityWindowAndroid(activityWindowAndroid, tabModel);
                 return existingTask;
+            }
+
+            if (pendingId != null) {
+                ChromeAndroidTask pendingTask = mPendingTasks.remove(pendingId);
+                assert pendingTask != null : "Invalid pendingId provided.";
+                pendingTask.setActivityWindowAndroid(activityWindowAndroid, tabModel);
+                mTasks.put(taskId, pendingTask);
+                return pendingTask;
             }
 
             var newTask =
@@ -80,7 +99,7 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         synchronized (mTasksLock) {
             int pendingId = IdSequencer.next();
             var pendingTask = new ChromeAndroidTaskImpl(pendingId, createParams);
-            // TODO (crbug.com/444744966): Update mPendingTasks.
+            mPendingTasks.put(pendingId, pendingTask);
 
             // Apply a non-default initial show state if needed.
             setInitialShowState(pendingTask, createParams.getInitialShowState());
@@ -171,7 +190,7 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     /** Returns an array of the native {@code BrowserWindowInterface} addresses. */
     long[] getAllNativeBrowserWindowPtrs() {
         synchronized (mTasksLock) {
-            return getNativeBrowserWindowPtrsLocked(mTasks.values());
+            return getNativeBrowserWindowPtrsLocked(getAllTasksLocked());
         }
     }
 
@@ -181,7 +200,7 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
      */
     long[] getNativeBrowserWindowPtrsOrderedByActivation() {
         synchronized (mTasksLock) {
-            List<ChromeAndroidTask> tasks = new ArrayList<>(mTasks.values());
+            List<ChromeAndroidTask> tasks = getAllTasksLocked();
             tasks.sort(
                     Comparator.comparingLong(ChromeAndroidTask::getLastActivatedTimeMillis)
                             .reversed());
@@ -193,7 +212,7 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     /** Activates the second to last activated task, if there are at least two tasks. */
     void activatePenultimatelyActivatedTask() {
         synchronized (mTasksLock) {
-            List<ChromeAndroidTask> tasks = new ArrayList<>(mTasks.values());
+            List<ChromeAndroidTask> tasks = getAllTasksLocked();
             tasks.sort(
                     Comparator.comparingLong(ChromeAndroidTask::getLastActivatedTimeMillis)
                             .reversed());
@@ -216,6 +235,14 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         synchronized (mTasksLock) {
             mTasks.forEach((taskId, task) -> task.destroy());
             mTasks.clear();
+            mPendingTasks.forEach((taskId, task) -> task.destroy());
+            mPendingTasks.clear();
+        }
+    }
+
+    @Nullable ChromeAndroidTask getPendingTaskForTesting(int pendingId) {
+        synchronized (mTasksLock) {
+            return mPendingTasks.get(pendingId);
         }
     }
 
@@ -257,8 +284,6 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
 
     private static void setInitialShowState(
             ChromeAndroidTask pendingTask, @WindowShowState.EnumType int showState) {
-        // TODO (crbug.com/444743853): Add test coverage for initiating actions MAXIMIZED and
-        // MINIMIZED on a pending Task.
         switch (showState) {
             case WindowShowState.MAXIMIZED:
                 pendingTask.maximize();
@@ -307,5 +332,13 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** Returns all PENDING and ALIVE Tasks. */
+    @GuardedBy("mTasksLock")
+    private List<ChromeAndroidTask> getAllTasksLocked() {
+        List<ChromeAndroidTask> tasks = new ArrayList<>(mTasks.values());
+        tasks.addAll(mPendingTasks.values());
+        return tasks;
     }
 }

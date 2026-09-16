@@ -34,11 +34,6 @@ BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-// Feature that manages the transition between old and new browser layout.
-BASE_DECLARE_FEATURE(kDesktopNewTopAreaLayoutFeature);
-#endif
-
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Controls how extensions show up in the main menu. When enabled, if the
@@ -66,6 +61,10 @@ BASE_DECLARE_FEATURE_PARAM(PdfInfoBarTrigger, kPdfInfoBarTrigger);
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 // When enabled, user may see the session restore UI flow.
 BASE_DECLARE_FEATURE(kSessionRestoreInfobar);
+
+// When this param is true, the session restore preference will have
+// continue where you left off as default behavior
+BASE_DECLARE_FEATURE_PARAM(bool, kSetDefaultToContinueSession);
 #endif
 
 BASE_DECLARE_FEATURE(kPreloadTopChromeWebUI);
@@ -154,6 +153,7 @@ BASE_DECLARE_FEATURE(kSideBySide);
 
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideHideDropTargetDelay);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowNudgeDelay);
 
 // Feature params for the width of the multi-contents drop target.
 // If the `kSideBySideDropTargetNudge` feature is enabled, then these only
@@ -219,7 +219,6 @@ BASE_DECLARE_FEATURE(kTabScrollingButtonPosition);
 inline constexpr char kTabScrollingButtonPositionParameterName[] =
     "buttonPosition";
 
-BASE_DECLARE_FEATURE(kSidePanelResizing);
 BASE_DECLARE_FEATURE(kSidePanelSearchCompanion);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
@@ -388,6 +387,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAiMode);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
@@ -440,6 +440,9 @@ BASE_DECLARE_FEATURE(kAndroidAnimatedProgressBarInBrowser);
 
 bool IsAndroidAnimatedProgressBarInBrowserEnabled();
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// Controls whether the updated What's New page is enabled.
+BASE_DECLARE_FEATURE(kWhatsNewDesktopRefresh);
 
 }  // namespace features
 

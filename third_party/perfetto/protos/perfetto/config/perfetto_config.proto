@@ -46,6 +46,7 @@ message GpuCounterDescriptor {
     // Includes counters relating to caching and bandwidth.
     MEMORY = 5;
     COMPUTE = 6;
+    RAY_TRACING = 7;
   }
 
   message GpuCounterSpec {
@@ -1171,6 +1172,11 @@ message FtraceConfig {
   // If true, use self-describing proto messages when writing events not known
   // at compile time (aka generic events). Each event bundle will have a set of
   // serialised proto descriptors for events within that bundle.
+  //
+  // Default if unset:
+  // * v53+: true
+  // * before v53: false
+  //
   // Added in: perfetto v50.
   optional bool denser_generic_event_encoding = 32;
 
@@ -1900,7 +1906,7 @@ message PerfEvents {
   // The primary event to count. If recording multiple events, this
   // counter is the "group leader".
   // Commented from the perspective of its use in |PerfEventConfig|.
-  // Next id: 12
+  // Next id: 13
   message Timebase {
     // How often to snapshot the counter, along with any follower events and
     // any additional sampled data such as callstacks.
@@ -1948,6 +1954,12 @@ message PerfEvents {
       Tracepoint tracepoint = 3;
       RawEvent raw_event = 5;
     }
+
+    // Optional modifiers for the event. Modelled after the perftool's
+    // https://man7.org/linux/man-pages/man1/perf-list.1.html#EVENT_MODIFIERS
+    // Currently supported: count scoping such as :u, :k, :uk, ...
+    // Modifiers can differ between the timebase and followers.
+    repeated EventModifier modifiers = 12;
 
     // If set, samples will be timestamped with the given clock.
     // If unset, the clock is chosen by the implementation.
@@ -2048,18 +2060,31 @@ message PerfEvents {
     PERF_CLOCK_MONOTONIC_RAW = 3;
     PERF_CLOCK_BOOTTIME = 4;
   }
+
+  enum EventModifier {
+    UNKNOWN_EVENT_MODIFIER = 0;
+    // count only while in userspace
+    EVENT_MODIFIER_COUNT_USERSPACE = 1;
+    // count only while in kernel
+    EVENT_MODIFIER_COUNT_KERNEL = 2;
+    // count only while in hypervisor
+    EVENT_MODIFIER_COUNT_HYPERVISOR = 3;
+  }
 }
 
 // Additional events associated with a leader.
-// Configuration is similar to Timebase event. Because data acquisition is
-// driven by the leader there is no option to configure the clock or the
-// frequency.
+// See https://man7.org/linux/man-pages/man1/perf-list.1.html#LEADER_SAMPLING
 message FollowerEvent {
   oneof event {
     PerfEvents.Counter counter = 1;
     PerfEvents.Tracepoint tracepoint = 2;
     PerfEvents.RawEvent raw_event = 3;
   }
+  // Modifiers can differ between the timebase and followers.
+  repeated PerfEvents.EventModifier modifiers = 5;
+  // Optional arbitrary name for the event, to identify it in the parsed
+  // trace. Does *not* affect the profiling itself. If unset, the trace
+  // parser will choose a suitable name.
   optional string name = 4;
 }
 
@@ -4177,7 +4202,7 @@ message DataSourceConfig {
 // It contains the general config for the logging buffer(s) and the configs for
 // all the data source being enabled.
 //
-// Next id: 42.
+// Next id: 43.
 message TraceConfig {
   message BufferConfig {
     optional uint32 size_kb = 1;
@@ -4913,6 +4938,22 @@ message TraceConfig {
   // Introduced in: perfetto v52.
   // Supported on: Android 25Q3+.
   optional uint32 exclusive_prio = 41;
+
+  // If true && |write_into_file|, do NOT flush buffers when periodically write
+  // them into file.
+  //
+  // By default, if |write_into_file| is set, each time we periodically write
+  // buffers into file, we first issue a Flush() to all data source, forcing
+  // them to commit their data into the tracing service. This helps us to always
+  // write latest data to the file.
+  //
+  // Before this flag was introduced, the default behavior was NOT to flush
+  // buffers when periodically write them into file. If true this flag
+  // returns the old default behavior.
+  //
+  // Introduced in: perfetto v53.
+  // Supported on: Android 25Q4+.
+  optional bool no_flush_before_write_into_file = 42;
 }
 
 // End of protos/perfetto/config/trace_config.proto

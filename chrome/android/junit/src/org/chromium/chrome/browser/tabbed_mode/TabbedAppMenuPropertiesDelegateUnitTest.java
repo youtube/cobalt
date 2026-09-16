@@ -67,7 +67,6 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.PowerBookmarkUtils;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.device.DeviceConditions;
-import org.chromium.chrome.browser.device.ShadowDeviceConditions;
 import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtils;
 import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtilsJni;
 import org.chromium.chrome.browser.feed.FeedFeatures;
@@ -116,7 +115,8 @@ import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.test.OverrideContextWrapperTestRule;
-import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomManager;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
@@ -244,6 +244,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private LargeIconBridge.Natives mLargeIconBridgeJni;
     @Mock private DomDistillerUrlUtilsJni mDomDistillerUrlUtilsJni;
     @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
+    @Mock private PageZoomManager mPageZoomManagerMock;
 
     private ShadowPackageManager mShadowPackageManager;
 
@@ -305,7 +306,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         IdentityServicesProvider.setInstanceForTests(mIdentityService);
         when(mIdentityService.getIdentityManager(any(Profile.class))).thenReturn(mIdentityManager);
         when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
-        PageZoomBarCoordinator.setShouldShowMenuItemForTesting(false);
+        PageZoomUtils.setShouldShowMenuItemForTesting(false);
         FeedFeatures.setFakePrefsForTest(mPrefService);
         FeedServiceBridgeJni.setInstanceForTesting(mFeedServiceBridgeJniMock);
         when(mSyncService.getAuthError())
@@ -358,7 +359,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         mDialogManager,
                         mSnackbarManager,
                         mIncognitoReauthControllerSupplier,
-                        mReadAloudControllerSupplier);
+                        mReadAloudControllerSupplier,
+                        mPageZoomManagerMock);
         BaseRobolectricTestRule.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
 
@@ -494,6 +496,22 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                                 .getDisplayMetrics()
                                                 .density));
         assertFalse(mTabbedAppMenuPropertiesDelegate.shouldShowIconRow());
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
+    public void testShouldShowIconRow_Tablet_MissingToolbarComponents() {
+        doReturn(true).when(mToolbarManager).areAnyToolbarComponentsMissingForWidth(any());
+        when(mDecorView.getWidth())
+                .thenReturn(
+                        (int)
+                                (600
+                                        * ContextUtils.getApplicationContext()
+                                                .getResources()
+                                                .getDisplayMetrics()
+                                                .density));
+        assertTrue(mTabbedAppMenuPropertiesDelegate.shouldShowIconRow());
     }
 
     @Test
@@ -693,7 +711,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         testPageMenuItems_RegularPage(/* shouldShowNewIncognitoTab= */ false);
     }
 
-    private void testPageMenuItems_IncognitoPage(boolean shouldShowNewTab) {
+    private void testPageMenuItems_IncognitoPage(boolean isIncognitoWindow) {
         setUpMocksForPageMenu();
         when(mTab.isIncognito()).thenReturn(true);
         when(mTabModelSelector.getCurrentModel()).thenReturn(mIncognitoTabModel);
@@ -708,7 +726,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(R.id.icon_row_menu_id);
         expectedTitles.add(0);
 
-        if (shouldShowNewTab) {
+        if (!isIncognitoWindow) {
             expectedItems.add(R.id.new_tab_menu_id);
             expectedTitles.add(R.string.menu_new_tab);
         }
@@ -721,8 +739,10 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_pin_tab);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
-        expectedItems.add(R.id.open_history_menu_id);
-        expectedTitles.add(R.string.menu_history);
+        if (!isIncognitoWindow) {
+            expectedItems.add(R.id.open_history_menu_id);
+            expectedTitles.add(R.string.menu_history);
+        }
         expectedItems.add(R.id.downloads_menu_id);
         expectedTitles.add(R.string.menu_downloads);
         expectedItems.add(R.id.all_bookmarks_menu_id);
@@ -769,7 +789,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
     @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPageMenuItems_Phone_IncognitoPage() {
-        testPageMenuItems_IncognitoPage(/* shouldShowNewTab= */ true);
+        testPageMenuItems_IncognitoPage(/* isIncognitoWindow= */ false);
     }
 
     @Test
@@ -779,7 +799,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW
     })
     public void testPageMenuItems_Phone_IncognitoPage_incognitoWindowEnabled() {
-        testPageMenuItems_IncognitoPage(/* shouldShowNewTab= */ false);
+        testPageMenuItems_IncognitoPage(/* isIncognitoWindow= */ true);
     }
 
     @Test
@@ -1278,7 +1298,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         // Setup no wifi condition, and "only on wifi" user option.
         DeviceConditions noWifi =
                 new DeviceConditions(false, 75, ConnectionType.CONNECTION_2G, false, false, true);
-        ShadowDeviceConditions.setCurrentConditions(noWifi);
+        DeviceConditions.setForTesting(noWifi);
         when(mPrefService.getBoolean(Pref.ACCESSIBILITY_IMAGE_LABELS_ONLY_ON_WIFI))
                 .thenReturn(true);
 
@@ -1628,9 +1648,25 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
+    public void readerModeEntryPointEnabled_chromePage() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(new GURL(UrlConstants.NTP_URL));
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        Context context = ContextUtils.getApplicationContext();
+        assertFalse(
+                isMenuVisibleWithCorrectTitle(
+                        modelList,
+                        R.id.reader_mode_menu_id,
+                        context.getString(R.string.hide_reading_mode_text)));
+    }
+
+    @Test
     public void pageZoomMenuOption_NotVisibleInReadingMode() {
         setUpMocksForPageMenu();
-        PageZoomBarCoordinator.setShouldShowMenuItemForTesting(true);
+        PageZoomUtils.setShouldShowMenuItemForTesting(true);
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.CHROME_DISTILLER_EXAMPLE_URL);
         when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(true);
 

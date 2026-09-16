@@ -71,8 +71,8 @@ source_set("coordinator") {
 source_set("unit_tests") {
   testonly = true
   sources = [
-    "account_menu_coordinator_unittests.mm",
-    "account_menu_mediator_unittests.mm",
+    "account_menu_coordinator_unittest.mm",
+    "account_menu_mediator_unittest.mm",
   ]
   deps = [
     ":coordinator",
@@ -80,6 +80,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/sync:test_support",
     "//components/sync/service",
+    "//components/test/ios",
     "//components/trusted_vault",
     "//ios/chrome/browser/authentication/account_menu/public",
     "//ios/chrome/browser/authentication/account_menu/ui",

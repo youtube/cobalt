@@ -24,7 +24,6 @@
 #include "ui/color/color_transform.h"
 #include "ui/color/win/accent_color_observer.h"
 #include "ui/gfx/color_utils.h"
-#include "ui/views/views_features.h"
 
 namespace {
 
@@ -72,17 +71,20 @@ FrameTransforms GetSystemFrameTransforms(const ui::ColorProviderKey& key) {
   if (ShouldDefaultThemeUseMicaTitlebar()) {
     frame_transforms = GetMicaFrameTransforms(key);
   }
-  const auto* const accent_color_observer = ui::AccentColorObserver::Get();
-  if (const std::optional<SkColor> dwm_frame_color =
-          accent_color_observer->accent_color()) {
-    frame_transforms.active = {dwm_frame_color.value()};
-    const std::optional<SkColor> dwm_inactive_frame_color =
-        accent_color_observer->accent_color_inactive();
-    frame_transforms.inactive =
-        dwm_inactive_frame_color.has_value()
-            ? ui::ColorTransform(dwm_inactive_frame_color.value())
-            : ui::HSLShift({dwm_frame_color.value()},
-                           GetTint(ThemeProperties::TINT_FRAME_INACTIVE, key));
+  if (const auto* const accent_color_observer = ui::AccentColorObserver::Get();
+      accent_color_observer->ShouldUseAccentColorForWindowFrame()) {
+    if (const std::optional<SkColor> dwm_frame_color =
+            accent_color_observer->accent_color()) {
+      frame_transforms.active = {dwm_frame_color.value()};
+      const std::optional<SkColor> dwm_inactive_frame_color =
+          accent_color_observer->accent_color_inactive();
+      frame_transforms.inactive =
+          dwm_inactive_frame_color.has_value()
+              ? ui::ColorTransform(dwm_inactive_frame_color.value())
+              : ui::HSLShift(
+                    {dwm_frame_color.value()},
+                    GetTint(ThemeProperties::TINT_FRAME_INACTIVE, key));
+    }
   }
   return frame_transforms;
 }
@@ -110,9 +112,12 @@ void EnsureColorProviderCacheWillBeResetWhenAccentColorStateChanges() {
 }
 
 SkColor GetAccentBorderColor() {
-  if (const std::optional<SkColor> accent_border_color =
-          ui::AccentColorObserver::Get()->accent_border_color()) {
-    return accent_border_color.value();
+  if (const auto* const accent_color_observer = ui::AccentColorObserver::Get();
+      accent_color_observer->ShouldUseAccentColorForWindowFrame()) {
+    if (const std::optional<SkColor> accent_border_color =
+            accent_color_observer->accent_border_color()) {
+      return accent_border_color.value();
+    }
   }
 
   // Windows 10 pre-version 1809 native active borders default to white, while
@@ -186,19 +191,14 @@ void AddNativeHighContrastColors(ui::ColorMixer& mixer) {
       kColorTabForegroundActiveFrameActive};
   mixer[kColorNewTabButtonForegroundFrameInactive] = {
       kColorTabForegroundActiveFrameActive};
+  mixer[kColorTaskManagerTableBackgroundSelectedFocused] = {
+      ui::kColorNativeHighlight};
   mixer[kColorToolbar] = {ui::kColorNativeWindow};
   mixer[kColorToolbarButtonIcon] = {kColorToolbarText};
-  const bool platform_high_contrast_ink_drop = base::FeatureList::IsEnabled(
-      views::features::kEnablePlatformHighContrastInkDrop);
-  mixer[kColorToolbarButtonIconHovered] = {
-      platform_high_contrast_ink_drop
-          ? ui::ColorId{ui::kColorNativeHighlightText}
-          : kColorToolbarText};
+  mixer[kColorToolbarButtonIconHovered] = {ui::kColorNativeHighlightText};
   mixer[kColorToolbarButtonIconInactive] = {ui::kColorNativeGrayText};
   mixer[kColorToolbarContentAreaSeparator] = {kColorToolbarText};
-  if (platform_high_contrast_ink_drop) {
-    mixer[kColorToolbarInkDrop] = {ui::kColorNativeHighlight};
-  }
+  mixer[kColorToolbarInkDrop] = {ui::kColorNativeHighlight};
   mixer[kColorToolbarSeparator] = {ui::kColorNativeWindowText};
   mixer[kColorToolbarText] = {ui::kColorNativeBtnText};
   mixer[kColorToolbarTopSeparatorFrameActive] = {kColorToolbarSeparator};

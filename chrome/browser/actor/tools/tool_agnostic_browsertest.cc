@@ -101,10 +101,12 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_background));
 
   WebContents* background_contents = web_contents();
+
   NavigateParams params(browser(), url_foreground, ::ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   ::ui_test_utils::NavigateToURL(&params);
 
+  WebContents* foreground_contents = web_contents();
   ASSERT_NE(web_contents(), background_contents);
   ASSERT_FALSE(background_contents->GetPrimaryMainFrame()
                    ->GetRenderWidgetHost()
@@ -122,11 +124,48 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
   std::unique_ptr<ToolRequest> action =
       MakeClickRequest(*background_main_frame, input_id.value());
 
-  ActResultFuture result;
-  actor_task().Act(ToRequestList(action), result.GetCallback());
-  ExpectOkResult(result);
+  {
+    ActResultFuture result;
+    actor_task().Act(ToRequestList(action), result.GetCallback());
+    ExpectOkResult(result);
 
-  EXPECT_EQ(true, EvalJs(background_contents, "focus_fired"));
+    // We shouldn't have change the active web contents, just renderer focus.
+    ASSERT_NE(web_contents(), background_contents);
+    ASSERT_EQ(web_contents(), foreground_contents);
+
+    ASSERT_EQ(true, EvalJs(background_contents, "focus_fired"));
+    EXPECT_EQ(true, EvalJs(background_contents, "document.hasFocus()"));
+    // The foreground tab should still think it has focus.
+    EXPECT_EQ(true, EvalJs(foreground_contents, "document.hasFocus()"));
+  }
+
+  // Reset the page for the next check
+  ASSERT_TRUE(ExecJs(background_contents, "focus_fired = false;"));
+
+  // Check that a second action during this task doesn't get another focus
+  // event.
+  {
+    ActResultFuture result;
+    action = MakeClickRequest(*background_main_frame, input_id.value());
+    actor_task().Act(ToRequestList(action), result.GetCallback());
+    ExpectOkResult(result);
+
+    EXPECT_EQ(false, EvalJs(background_contents, "focus_fired"));
+    EXPECT_EQ(true, EvalJs(background_contents, "document.hasFocus()"));
+    // The foreground tab should still think it has focus and is the active web
+    // contents.
+    EXPECT_EQ(true, EvalJs(foreground_contents, "document.hasFocus()"));
+    ASSERT_EQ(web_contents(), foreground_contents);
+  }
+
+  actor_task().Stop(true);
+
+  // Now that the actor has stopped, the background should lose focus
+  EXPECT_EQ(false, EvalJs(background_contents, "document.hasFocus()"));
+  // The foreground tab should still think it has focus and is the active web
+  // contents.
+  EXPECT_EQ(true, EvalJs(foreground_contents, "document.hasFocus()"));
+  ASSERT_EQ(web_contents(), foreground_contents);
 }
 
 // Basic test to ensure sending a click to an element in a same-site subframe
@@ -216,6 +255,27 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, OffscreenElement) {
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
   EXPECT_EQ(EvalJs(web_contents(), "offscreen_button_clicked"), true);
+}
+
+// Same as above but the element is an inline element. (i.e. doesn't have a
+// LayoutBox).
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, OffscreenElementInline) {
+  const GURL url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  ASSERT_EQ(EvalJs(web_contents(), "offscreen_inline_clicked"), false);
+
+  std::optional<int> anchor_id =
+      GetDOMNodeId(*main_frame(), "a#offscreenInline");
+  ASSERT_TRUE(anchor_id);
+
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), anchor_id.value());
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+  EXPECT_EQ(EvalJs(web_contents(), "offscreen_inline_clicked"), true);
 }
 
 // Sending an action to an offscreen coordinate should fail.

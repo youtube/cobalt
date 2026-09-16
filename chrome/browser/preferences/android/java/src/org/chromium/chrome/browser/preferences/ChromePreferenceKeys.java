@@ -207,6 +207,10 @@ public final class ChromePreferenceKeys {
     public static final String NTP_CUSTOMIZATION_PRIMARY_COLOR =
             "Chrome.NtpCustomization.NtpCustomizationPrimaryColor";
 
+    /** The NtpThemeColorId of customized color for NTP. */
+    public static final String NTP_CUSTOMIZATION_THEME_COLOR_ID =
+            "Chrome.NtpCustomization.NtpThemeColorId";
+
     /** The transformation matrix for the NTP background image in portrait orientation. */
     public static final String NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX =
             "Chrome.NtpCustomization.BackgroundImagePortraitMatrix";
@@ -308,21 +312,9 @@ public final class ChromePreferenceKeys {
     public static final String EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS =
             "Chrome.NTPExploreOfflineCard.HasExploreOfflineContent";
 
-    /** Indicates whether the NTP page URL has been overridden by an extension. */
-    public static final String EXTENSIONS_NTP_URL_OVERRIDE_ENABLED =
-            "Extensions.UrlOverrides.Page.NTP";
-
-    /** Indicates whether the history page URL has been overridden by an extension. */
-    public static final String EXTENSIONS_HISTORY_URL_OVERRIDE_ENABLED =
-            "Extensions.UrlOverrides.Page.History";
-
-    /** Indicates whether the bookmarks page URL has been overridden by an extension. */
-    public static final String EXTENSIONS_BOOKMARKS_URL_OVERRIDE_ENABLED =
-            "Extensions.UrlOverrides.Page.Bookmarks";
-
-    /** Indicates whether extensions can override pages in incognito mode. */
-    public static final String EXTENSIONS_INCOGNITO_URL_OVERRIDES_ENABLED =
-            "Extensions.UrlOverrides.IncognitoEnabled";
+    /** Indicates whether a chrome page URL has been overridden by an extension. */
+    public static final KeyPrefix EXTENSIONS_CHROME_PAGE_URL_OVERRIDE_ENABLED =
+            new KeyPrefix("Chrome.ExtensionsUrlOverrides.Page.*");
 
     public static final String FIRST_RUN_FLOW_COMPLETE = "first_run_flow";
     // BACKUP_FLOW_SIGNIN_ACCOUNT_NAME used to be employed for the FRE too, thus the "first_run_"
@@ -1093,6 +1085,7 @@ public final class ChromePreferenceKeys {
                 CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS_CLICKED,
                 CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED,
                 NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE,
+                NTP_CUSTOMIZATION_THEME_COLOR_ID,
                 NTP_CUSTOMIZATION_BACKGROUND_COLOR,
                 NTP_CUSTOMIZATION_PRIMARY_COLOR,
                 NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX,
@@ -1117,6 +1110,7 @@ public final class ChromePreferenceKeys {
                 DSE_NEW_TAB_URL,
                 HOME_MODULES_IMPRESSION_COUNT_BEFORE_INTERACTION.pattern(),
                 EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS,
+                EXTENSIONS_CHROME_PAGE_URL_OVERRIDE_ENABLED.pattern(),
                 FIRST_RUN_SKIPPED_BY_POLICY,
                 FIRST_CTA_START_TIMESTAMP,
                 FLAGS_LAST_CACHED_MINIMAL_BROWSER_FLAGS_TIME_MILLIS,

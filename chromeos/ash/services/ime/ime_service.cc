@@ -163,7 +163,6 @@ bool ImeService::IsFeatureEnabled(const char* feature_name) {
       &features::kAutocorrectParamsTuning,
       &features::kImeDownloaderExperiment,
       &features::kImeDownloaderUpdate,
-      &features::kImeKoreanOnlyModeSwitchOnRightAlt,
       &features::kImeUsEnglishExperimentalModel,
       &features::kImeUsEnglishModelUpdate,
       &features::kImeFstDecoderParamsUpdate,
@@ -173,7 +172,7 @@ bool ImeService::IsFeatureEnabled(const char* feature_name) {
   static constexpr std::string_view kEnabledFeatures[] = {
       "InputMethodKoreanRightAltKeyDownFix",
       "FirstPartyVietnameseInput",
-      "SystemJapanesePhysicalTyping",
+      "ImeKoreanOnlyModeSwitchOnRightAlt",
   };
 
   // Use consistent feature flag names as in CrOS base::Feature::name and always

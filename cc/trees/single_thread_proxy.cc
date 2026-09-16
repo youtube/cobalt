@@ -468,10 +468,6 @@ void SingleThreadProxy::QueueImageDecode(int request_id,
                                          const DrawImage& image,
                                          bool speculative) {
   DCHECK(task_runner_provider_->IsMainThread());
-  if (speculative) {
-    CHECK(!speculative_decode_request_in_flight_);
-    speculative_decode_request_in_flight_ = true;
-  }
   DebugScopedSetImplThread impl(task_runner_provider_);
   host_impl_->QueueImageDecode(request_id, image, speculative);
 }
@@ -634,6 +630,14 @@ void SingleThreadProxy::DidReceiveCompositorFrameAckOnImplThread() {
                "SingleThreadProxy::DidReceiveCompositorFrameAckOnImplThread");
   if (scheduler_on_impl_thread_)
     scheduler_on_impl_thread_->DidReceiveCompositorFrameAck();
+
+  // We do a PostTask here because freeing resources in some cases (such as in
+  // TextureLayer) is PostTasked and we want to make sure ack is received
+  // after resources are returned.
+  task_runner_provider_->MainThreadTaskRunner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SingleThreadProxy::DidReceiveCompositorFrameAck,
+                     frame_sink_bound_weak_ptr_));
 }
 
 void SingleThreadProxy::OnDrawForLayerTreeFrameSink(
@@ -652,18 +656,10 @@ void SingleThreadProxy::SetNeedsImplSideInvalidation(
   }
 }
 
-bool SingleThreadProxy::SpeculativeDecodeRequestInFlight() const {
-  return speculative_decode_request_in_flight_;
-}
-
 void SingleThreadProxy::NotifyImageDecodeRequestFinished(
     int request_id,
     bool speculative,
     bool decode_succeeded) {
-  if (speculative) {
-    CHECK(speculative_decode_request_in_flight_);
-    speculative_decode_request_in_flight_ = false;
-  }
   DCHECK(!task_runner_provider_->HasImplThread() ||
          task_runner_provider_->IsImplThread());
   if (base::FeatureList::IsEnabled(
@@ -1321,6 +1317,11 @@ void SingleThreadProxy::DidNotProduceFrame(const viz::BeginFrameAck& ack,
 void SingleThreadProxy::WillNotReceiveBeginFrame() {
   DebugScopedSetImplThread impl(task_runner_provider_);
   host_impl_->DidNotNeedBeginFrame();
+}
+
+void SingleThreadProxy::DidReceiveCompositorFrameAck() {
+  DebugScopedSetMainThread main(task_runner_provider_);
+  layer_tree_host_->DidReceiveCompositorFrameAckDeprecatedForCompositor();
 }
 
 void SingleThreadProxy::SetShouldThrottleFrameRate(bool flag) {

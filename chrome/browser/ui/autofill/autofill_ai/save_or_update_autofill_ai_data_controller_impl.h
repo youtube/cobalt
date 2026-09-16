@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
-#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 
@@ -59,6 +58,7 @@ class SaveOrUpdateAutofillAiDataControllerImpl
   int GetTitleImagesResourceId() const override;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override;
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 

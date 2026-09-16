@@ -18,7 +18,7 @@ patch -p1 < cast/brkitr.patch || { echo "failed to patch" >&2; exit 1; }
 #
 # It can't be really empty though, as the build tool fails if it's empty.
 # Instead, this patch makes it just one entry.
-CJDICT="${treeroot}/source/data/brkitr/dictionaries/cjdict.txt"
+CJDICT="source/data/brkitr/dictionaries/cjdict.txt"
 CJDICT_TMP="${CJDICT}.tmp"
 grep -E "^[^#[:space:]]+[[:space:]]+[[:digit:]]+" "$CJDICT" |
   tail -1 > "$CJDICT_TMP"

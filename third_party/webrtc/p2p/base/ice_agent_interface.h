@@ -11,8 +11,6 @@
 #ifndef P2P_BASE_ICE_AGENT_INTERFACE_H_
 #define P2P_BASE_ICE_AGENT_INTERFACE_H_
 
-#include <cstdint>
-
 #include "api/array_view.h"
 #include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
@@ -34,9 +32,6 @@ class IceAgentInterface {
   // keep this state on its own.
   // TODO(bugs.webrtc.org/14367): route extra pings through the ICE controller.
   virtual Timestamp GetLastPingSent() const = 0;
-  // TODO: bugs.webrtc.org/42223979 - Remove this function when chromium is
-  // updated to the one above.
-  virtual int64_t GetLastPingSentMs() const { return GetLastPingSent().ms(); }
 
   // Get the ICE role of this ICE agent.
   virtual IceRole GetIceRole() const = 0;

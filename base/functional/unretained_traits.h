@@ -58,6 +58,8 @@
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_form_handle_t__)   \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_page_t__)          \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_structelement_t__) \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_structelement_attr_t__) \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_structelement_attr_value_t__) \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(hb_set_t)               \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_gpu)                 \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_shm)                 \

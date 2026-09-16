@@ -830,7 +830,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   // request without worrying that the corresponding test files exist.
   content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](content::URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url.host() == kTabUrlRedirectHost) {
+        if (params->url_request.url.GetHost() == kTabUrlRedirectHost) {
           content::URLLoaderInterceptor::WriteResponse(
               "chrome/test/data/title2.html", params->client.get());
           return true;
@@ -852,7 +852,8 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   navigate_params.disposition = WindowOpenDisposition::NEW_POPUP;
   navigate_params.window_action = NavigateParams::SHOW_WINDOW;
   ui_test_utils::NavigateToURL(&navigate_params);
-  Browser* const popup_browser = navigate_params.browser;
+  Browser* const popup_browser =
+      navigate_params.browser->GetBrowserForMigrationOnly();
 
   ui_test_utils::BrowserActivationWaiter popup_activation_waiter(popup_browser);
   popup_activation_waiter.WaitForActivation();
@@ -917,7 +918,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   // request without worrying that the corresponding test files exist.
   content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](content::URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url.host() == kTabUrlRedirectHost) {
+        if (params->url_request.url.GetHost() == kTabUrlRedirectHost) {
           content::URLLoaderInterceptor::WriteResponse(
               "chrome/test/data/title2.html", params->client.get());
           return true;
@@ -935,7 +936,8 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionNavigationThrottleInteractiveUITest,
   navigate_params.disposition = WindowOpenDisposition::NEW_POPUP;
   navigate_params.window_action = NavigateParams::SHOW_WINDOW;
   ui_test_utils::NavigateToURL(&navigate_params);
-  Browser* const popup_browser = navigate_params.browser;
+  Browser* const popup_browser =
+      navigate_params.browser->GetBrowserForMigrationOnly();
 
   ui_test_utils::BrowserActivationWaiter popup_activation_waiter(popup_browser);
   popup_activation_waiter.WaitForActivation();

@@ -543,7 +543,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
       blink::mojom::LocalFrame::GetTextSurroundingSelectionCallback callback,
       int max_length) override;
   void SendInterventionReport(const std::string& id,
-                              const std::string& message) override;
+                              const std::string& message,
+                              RenderFrameHost* child_frame) override;
   WebUI* GetWebUI() override;
   void AllowBindings(BindingsPolicySet bindings) override;
   BindingsPolicySet GetEnabledBindings() override;
@@ -724,7 +725,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   blink::web_pref::WebPreferences GetOrCreateWebPreferences();
 
   // IPC::Listener
-  bool OnMessageReceived(const IPC::Message& msg) override;
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
       mojo::ScopedInterfaceEndpointHandle handle) override;
@@ -2266,7 +2266,16 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void CreateOriginTrialStateHost(
       mojo::PendingReceiver<blink::mojom::OriginTrialStateHost> receiver);
 
+  FrameTreeNode* GetPrerenderOuterMostMainFrame();
   // Prerender2:
+  // Tells PrerenderHostRegistry to cancel the prerendering of the page this
+  // frame is in when a loading error happens. When Prerender2ReuseHost is
+  // enabled, ABORT will be passed from the previous page when committing the
+  // navigation of the new page.
+  // Returns true if a prerender was canceled.
+  // Does nothing and returns false if `this` is not prerendered or the page
+  // is not yet committed for loading.
+  bool CancelPrerenderingForLoadingError(int32_t loading_error_code);
   // Tells PrerenderHostRegistry to cancel the prerendering of the page this
   // frame is in, which destroys this frame.
   // Returns true if a prerender was canceled. Does nothing and returns false if
@@ -2394,6 +2403,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
   }
 
   int renderer_exit_count() const { return renderer_exit_count_; }
+
+  bool did_last_navigation_have_view_transition() const {
+    return did_last_navigation_have_view_transition_;
+  }
 
   // Re-creates loader factories and pushes them to |RenderFrame|.
   // Used in case we need to add or remove intercepting proxies to the
@@ -2686,7 +2699,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void DraggableRegionsChanged(
       std::vector<blink::mojom::DraggableRegionPtr> regions) override;
   void NotifyDocumentInteractive() override;
-  void OnFirstContentfulPaint() override;
+  void OnFirstContentfulPaint(base::TimeDelta load_time) override;
+  void NotifyFirstContentfulPaint();
   void SetStorageAccessApiStatus(net::StorageAccessApiStatus status) override;
 
   void ReportNoBinderForInterface(const std::string& error);
@@ -3026,6 +3040,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const url::Origin& effective_origin,
       bool is_payment_credential_creation,
       const std::optional<url::Origin>& remote_desktop_client_override_origin,
+      base::OnceCallback<void(blink::mojom::AuthenticatorStatus, bool)>
+          callback);
+  void PerformReportWebAuthSecurityChecks(
+      const std::string& relying_party_id,
+      const url::Origin& effective_origin,
       base::OnceCallback<void(blink::mojom::AuthenticatorStatus, bool)>
           callback);
 #endif
@@ -4125,6 +4144,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // this frame's subtree.
   void PendingDeletionCheckCompletedOnSubtree();
 
+  // Call PendingDeletionCheckCompletedOnSubtree now or later, depending on
+  // the feature gate DelayRfhDestructionsOnUnloadAndDetach.
+  void PendingDeletionCheckCompletedOnSubtreeNowOrLater();
+
   // In this RenderFramehost, cancels every:
   // - Non-pending commit NavigationRequest owned by the FrameTreeNode that
   // intends to commit in this RFH
@@ -4404,15 +4427,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   std::optional<mojo::UrgentMessageScope> MakeUrgentMessageScopeIfNeeded();
 
 #if BUILDFLAG(IS_ANDROID)
-  // These functions are called after a WebAuthn relying party check has
-  // completed. See `PerformMakeCredentialWebAuthSecurityChecks` and
-  // `PerformGetAssertionWebAuthSecurityChecks`.
-  void OnGetAssertionWebAuthSecurityChecksCompleted(
-      base::OnceCallback<void(blink::mojom::AuthenticatorStatus, bool)>
-          callback,
-      bool is_cross_origin,
-      blink::mojom::AuthenticatorStatus status);
-  void OnMakeCredentialWebAuthSecurityChecksCompleted(
+  // This function is called after a WebAuthn relying party check has
+  // completed. See `Perform*WebAuthSecurityChecks`.
+  void OnWebAuthSecurityChecksCompleted(
       base::OnceCallback<void(blink::mojom::AuthenticatorStatus, bool)>
           callback,
       bool is_cross_origin,
@@ -4459,6 +4476,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // called either when the renderer acknowledges the operation completed
   // successfully or the renderer was proactively terminated.
   void MaybeNotifyDiscardedFrame();
+
+  // Removes FrameNavigationEntries that will no longer be used from the last
+  // committed NavigationEntry. Must be called when this frame transitions to
+  // kRunningUnloadHandlers or kReadyToBeDeleted, when the frame is detaching.
+  void CleanupLastCommittedNavigationEntry();
 
   // The RenderViewHost that this RenderFrameHost is associated with.
   //
@@ -5156,6 +5178,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // Used to hear about UnloadACK calls in tests.
   UnloadACKCallbackForTesting unload_ack_callback_;
+
+  // Whether the last navigation request require view transitions.
+  bool did_last_navigation_have_view_transition_ = false;
 
   // Mask of the active features tracked by the scheduler used by this frame.
   // This is used only for metrics.

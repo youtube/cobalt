@@ -69,6 +69,7 @@ class TabCollectionTabModelImpl {
                       TabAndroid* tab,
                       size_t index,
                       const std::optional<base::Token>& j_tab_group_id,
+                      bool is_attaching_group,
                       bool is_pinned);
 
   // Removes a list of tabs from the tab model.
@@ -149,6 +150,9 @@ class TabCollectionTabModelImpl {
 
   // Returns the index of the first non-pinned tab.
   int GetIndexOfFirstNonPinnedTab(JNIEnv* env);
+
+  // Returns the TabStripCollection associated with this TabModel.
+  tabs::TabStripCollection* GetTabStripCollection(JNIEnv* env);
 
  private:
   // Returns a safe index for adding or moving a tab or tab group.

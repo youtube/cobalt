@@ -78,6 +78,7 @@ struct DidOverscrollParams;
 
 namespace viz {
 class RasterContextProvider;
+struct CopyOutputBitmapWithMetadata;
 }  // namespace viz
 
 namespace content {
@@ -176,16 +177,19 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void CopyFromSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
-      base::OnceCallback<void(const SkBitmap&)> callback) override;
+      base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+          callback) override;
   void CopyFromExactSurfaceWithIpcDelay(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
-      base::OnceCallback<void(const SkBitmap&)> callback,
+      base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+          callback,
       base::TimeDelta ipc_delay) override;
   void CopyFromExactSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
-      base::OnceCallback<void(const SkBitmap&)> callback) override;
+      base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+          callback) override;
   void CopySharedImageFromExactSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
@@ -529,6 +533,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest,
                            GestureManagerListensToChildFrames);
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostViewAndroidTest, DisplayFeature);
+  FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostViewAndroidFluidResizeBrowserTest,
+                           ResizeDefersSynchronizationToNextFrame);
 
   class ScreenStateChangeHandler {
    public:
@@ -600,9 +606,10 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void OnDidUpdateVisualPropertiesComplete(
       const cc::RenderFrameMetadata& metadata);
 
-  void OnFinishGetContentBitmap(const base::android::JavaRef<jobject>& callback,
-                                const std::string& path,
-                                const SkBitmap& bitmap);
+  void OnFinishGetContentBitmap(
+      const base::android::JavaRef<jobject>& callback,
+      const std::string& path,
+      const viz::CopyOutputBitmapWithMetadata& result);
 
   void ShowInternal();
   void HideInternal();
@@ -617,7 +624,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void SynchronousCopyContents(
       const gfx::Rect& src_subrect_dip,
       const gfx::Size& dst_size_in_pixel,
-      base::OnceCallback<void(const SkBitmap&)> callback);
+      base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+          callback);
 
   void MaybeCreateSynchronousCompositor();
   void ResetSynchronousCompositor();
@@ -828,6 +836,10 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   ScreenStateChangeHandler screen_state_change_handler_;
 
   std::optional<base::flat_set<ui::DomCode>> locked_keyboard_keys_;
+
+  // Used to schedule a single visual properties update on the next vsync tick
+  // to achieve fluid resizing.
+  bool visual_properties_update_pending_ = false;
 
   base::WeakPtrFactory<RenderWidgetHostViewAndroid> weak_ptr_factory_{this};
 };

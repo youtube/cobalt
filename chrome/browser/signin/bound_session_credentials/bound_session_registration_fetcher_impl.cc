@@ -228,6 +228,8 @@ void BoundSessionRegistrationFetcherImpl::RunCallbackAndRecordMetrics(
   base::UmaHistogramEnumeration(
       "Signin.BoundSessionCredentials.SessionRegistrationResult",
       error_for_metrics);
+  base::UmaHistogramBoolean(
+      "Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard", false);
   CHECK(registration_duration_.has_value());
   base::UmaHistogramMediumTimes(
       "Signin.BoundSessionCredentials.SessionRegistrationTotalDuration",
@@ -251,8 +253,8 @@ BoundSessionRegistrationFetcherImpl::ParseJsonResponse(
   if (remainder) {
     response_json = *remainder;
   }
-  std::optional<base::Value::Dict> maybe_root =
-      base::JSONReader::ReadDict(response_json);
+  std::optional<base::Value::Dict> maybe_root = base::JSONReader::ReadDict(
+      response_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!maybe_root) {
     return base::unexpected(RegistrationError::kParseJsonFailed);
   }

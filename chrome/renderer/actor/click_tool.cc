@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "base/functional/bind.h"
 #include "base/strings/to_string.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -39,7 +40,7 @@ using ::blink::WebMouseEvent;
 using ::blink::WebNode;
 
 ClickTool::ClickTool(content::RenderFrame& frame,
-                     Journal::TaskId task_id,
+                     TaskId task_id,
                      Journal& journal,
                      mojom::ClickActionPtr action,
                      mojom::ToolTargetPtr target,
@@ -88,8 +89,14 @@ void ClickTool::Execute(ToolFinishedCallback callback) {
   journal_->Log(task_id_, "ClickTool::Execute",
                 JournalDetailsBuilder().Add("point", click_point).Build());
 
-  mojom::ActionResultPtr result = CreateAndDispatchClick(
-      button, click_count, click_point, frame_->GetWebFrame()->FrameWidget());
+  CreateAndDispatchClick(
+      button, click_count, click_point, weak_ptr_factory_.GetWeakPtr(),
+      base::BindOnce(&ClickTool::OnActionComplete,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ClickTool::OnActionComplete(ToolFinishedCallback callback,
+                                 mojom::ActionResultPtr result) {
   std::move(callback).Run(std::move(result));
 }
 
@@ -97,6 +104,10 @@ std::string ClickTool::DebugString() const {
   return absl::StrFormat("ClickTool[%s;type(%s);count(%s)]",
                          ToDebugString(target_), base::ToString(action_->type),
                          base::ToString(action_->count));
+}
+
+bool ClickTool::SupportsPaintStability() const {
+  return true;
 }
 
 ClickTool::ValidatedResult ClickTool::Validate() const {
@@ -116,6 +127,7 @@ ClickTool::ValidatedResult ClickTool::Validate() const {
     if (!form_element.IsNull() && !form_element.IsEnabled()) {
       return base::unexpected(MakeResult(
           mojom::ActionResultCode::kElementDisabled,
+          /*requires_page_stabilization=*/false,
           absl::StrFormat("[Element %s]", base::ToString(form_element))));
     }
   }

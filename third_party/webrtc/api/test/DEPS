@@ -61,9 +61,6 @@ specific_include_rules = {
   "mock_peerconnectioninterface\.h": [
     "+rtc_base/thread.h",
   ],
-  "mock_session_description_interface\.h": [
-    "+pc/session_description.h",
-  ],
   "videocodec_test_fixture\.h": [
     "+modules/video_coding/codecs/h264/include/h264_globals.h",
   ],

@@ -166,7 +166,10 @@ void SurfaceSavedFrame::RequestCopyOfOutput(
         std::move(shared_image));
   }
 
-  if (copy_request_count_ == 0) {
+  // DispatchCopyDoneCallback early for cross frame sink view transitions.
+  if ((features::ShouldAckCOREarlyForViewTransition() &&
+       directive_.maybe_cross_frame_sink()) ||
+      copy_request_count_ == 0) {
     DispatchCopyDoneCallback();
   }
 }
@@ -205,9 +208,8 @@ std::unique_ptr<CopyOutputRequest> SurfaceSavedFrame::CreateCopyRequestIfNeeded(
   const auto& display_color_spaces = directive_.display_color_spaces();
   bool has_transparent_background = render_pass.has_transparent_background;
 
-  auto image_format =
-      GetSharedImageFormat(display_color_spaces.GetOutputBufferFormat(
-          content_color_usage, has_transparent_background));
+  auto image_format = display_color_spaces.GetOutputFormat(
+      content_color_usage, has_transparent_background);
   auto color_space =
       display_color_spaces.GetRasterAndCompositeColorSpace(content_color_usage);
 
@@ -260,7 +262,11 @@ void SurfaceSavedFrame::NotifyCopyOfOutputComplete(
   DCHECK_GT(copy_request_count_, 0u);
   // Even if we early out, we update the count since we are no longer waiting
   // for this result.
-  if (--copy_request_count_ == 0) {
+  --copy_request_count_;
+  // Callback is run already for cross frame view transitions.
+  if (!(features::ShouldAckCOREarlyForViewTransition() &&
+        directive_.maybe_cross_frame_sink()) &&
+      copy_request_count_ == 0) {
     DispatchCopyDoneCallback();
   }
 

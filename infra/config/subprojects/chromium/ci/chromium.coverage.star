@@ -404,7 +404,6 @@ coverage_builder(
             # Keep this same as android-10-x86-rel
             "webview_instrumentation_test_apk_multiple_process_mode": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.webview_instrumentation_test_apk.filter",
                     "--use-persistent-shell",
                 ],
                 swarming = targets.swarming(
@@ -960,7 +959,7 @@ coverage_builder(
             "use_clang_coverage",
             "debug_static_builder",
             "remoteexec",
-            "x64",
+            "arm64",
             "ios_simulator",
             "xctest",
         ],
@@ -974,7 +973,7 @@ coverage_builder(
             "has_native_resultdb_integration",
             "ios_output_disabled_tests",
             "isolate_profile_data",
-            "mac_default_x64",
+            "mac_default_arm64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_main",
@@ -1220,6 +1219,9 @@ coverage_builder(
             short_name = "lnx-fuzz",
         ),
     ],
+    # TODO(crbug.com/449026537): Remove elevated timeout once performance
+    # improves.
+    execution_timeout = 32 * time.hour,
     notifies = ["chrome-fuzzing-core"],
     properties = {
         "collect_fuzz_coverage": True,
@@ -1272,6 +1274,9 @@ coverage_builder(
         ),
     ],
     contact_team_email = "chrome-fuzzing-core@google.com",
+    # TODO(crbug.com/449026537): Remove elevated timeout once performance
+    # improves.
+    execution_timeout = 24 * time.hour,
     notifies = ["chrome-fuzzing-core"],
     properties = {
         "collect_fuzz_coverage": True,

@@ -357,7 +357,7 @@ ContentSetting CookieSettings::GetContentSetting(
 }
 
 bool CookieSettings::IsThirdPartyCookiesAllowedScheme(
-    const std::string& scheme) const {
+    std::string_view scheme) const {
   return base::Contains(ContentSettingsRegistry::GetInstance()
                             ->Get(ContentSettingsType::COOKIES)
                             ->third_party_cookie_allowed_secondary_schemes(),
@@ -458,15 +458,6 @@ void CookieSettings::OnTrackingProtection3pcdChanged() {
   for (Observer& obs : observers_) {
     obs.OnTrackingProtectionEnabledFor3pcdChanged(
         new_tracking_protection_enabled_for_3pcd);
-  }
-  // If the user opted to block all 3PC while in the experiment, preserve that
-  // preference if they are offboarded.
-  if (!new_tracking_protection_enabled_for_3pcd &&
-      pref_change_registrar_->prefs()->GetBoolean(
-          prefs::kBlockAll3pcToggleEnabled)) {
-    pref_change_registrar_->prefs()->SetInteger(
-        prefs::kCookieControlsMode,
-        static_cast<int>(CookieControlsMode::kBlockThirdParty));
   }
   OnCookiePreferencesChanged();
 }

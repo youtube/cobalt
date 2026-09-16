@@ -754,6 +754,18 @@ bool ConsumeTranslate3d(CSSParserTokenStream& stream,
   return true;
 }
 
+// Returns true for filter functions for which the following applies:
+//
+// > Values of amount over 100% are allowed but UAs must clamp the values to 1.
+//
+// https://drafts.fxtf.org/filter-effects-1/#typedef-filter-function
+bool ShouldClampFilterFunctionArgument(CSSValueID filter_type) {
+  return filter_type == CSSValueID::kGrayscale ||
+         filter_type == CSSValueID::kInvert ||
+         filter_type == CSSValueID::kOpacity ||
+         filter_type == CSSValueID::kSepia;
+}
+
 CSSFunctionValue* ConsumeFilterFunction(CSSParserTokenStream& stream,
                                         const CSSParserContext& context) {
   CSSValueID filter_type = stream.Peek().FunctionId();
@@ -777,19 +789,6 @@ CSSFunctionValue* ConsumeFilterFunction(CSSParserTokenStream& stream,
       if (stream.AtEnd()) {
         context.Count(WebFeature::kCSSFilterFunctionNoArguments);
         no_arguments = true;
-      } else if (filter_type == CSSValueID::kBrightness) {
-        // FIXME (crbug.com/397061): Support calc expressions like
-        // calc(10% + 0.5)
-        parsed_value = ConsumePercent(
-            stream, context,
-            RuntimeEnabledFeatures::
-                    CSSFilterBrightnessNonNegativePercentageEnabled()
-                ? CSSPrimitiveValue::ValueRange::kNonNegative
-                : CSSPrimitiveValue::ValueRange::kAll);
-        if (!parsed_value) {
-          parsed_value = ConsumeNumber(
-              stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
-        }
       } else if (filter_type == CSSValueID::kHueRotate) {
         parsed_value =
             ConsumeAngle(stream, context, WebFeature::kUnitlessZeroAngleFilter);
@@ -807,21 +806,21 @@ CSSFunctionValue* ConsumeFilterFunction(CSSParserTokenStream& stream,
           parsed_value = ConsumeNumber(
               stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
         }
-        // NOTE: calc() values should not be attempted evaluated parse-time,
-        // and will be clamped in
-        // FilterOperationResolver::ResolveNumericArgumentForFunction() instead,
-        // when we can resolve e.g. length units.
-        if (auto* literal_value =
-                DynamicTo<CSSNumericLiteralValue>(parsed_value);
-            literal_value && filter_type != CSSValueID::kSaturate &&
-            filter_type != CSSValueID::kContrast) {
-          bool is_percentage = literal_value->IsPercentage();
-          double max_allowed = is_percentage ? 100.0 : 1.0;
-          if (literal_value->ClampedDoubleValue() > max_allowed) {
-            parsed_value = CSSNumericLiteralValue::Create(
-                max_allowed, is_percentage
-                                 ? CSSPrimitiveValue::UnitType::kPercentage
-                                 : CSSPrimitiveValue::UnitType::kNumber);
+        if (ShouldClampFilterFunctionArgument(filter_type)) {
+          // NOTE: calc() values should not be attempted evaluated parse-time,
+          // and will be clamped in
+          // FilterOperationResolver::ResolveNumericArgumentForFunction()
+          // instead, when we can resolve e.g. length units.
+          if (auto* literal_value =
+                  DynamicTo<CSSNumericLiteralValue>(parsed_value)) {
+            bool is_percentage = literal_value->IsPercentage();
+            double max_allowed = is_percentage ? 100.0 : 1.0;
+            if (literal_value->ClampedDoubleValue() > max_allowed) {
+              parsed_value = CSSNumericLiteralValue::Create(
+                  max_allowed, is_percentage
+                                   ? CSSPrimitiveValue::UnitType::kPercentage
+                                   : CSSPrimitiveValue::UnitType::kNumber);
+            }
           }
         }
       }
@@ -4399,59 +4398,40 @@ CSSValue* ConsumeAnimationDuration(CSSParserTokenStream& stream,
                      CSSPrimitiveValue::ValueRange::kNonNegative);
 }
 
+CSSIdentifierValue* ConsumeAnimationTriggerBehavior(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context) {
+  return ConsumeIdent<CSSValueID::kPlay, CSSValueID::kPause, CSSValueID::kReset,
+                      CSSValueID::kPlayOnce, CSSValueID::kPlayAlternate,
+                      CSSValueID::kPlayForwards, CSSValueID::kPlayBackwards,
+                      CSSValueID::kPlayPause, CSSValueID::kReplay,
+                      CSSValueID::kNone>(stream);
+}
+
 CSSValue* ConsumeSingleAnimationTriggerAttachment(
     CSSParserTokenStream& stream,
     const CSSParserContext& context) {
-  if (stream.Peek().FunctionId() != CSSValueID::kTrigger) {
+  CSSCustomIdentValue* trigger_name = nullptr;
+
+  // Consume the trigger name.
+  trigger_name = ConsumeDashedIdent(stream, context);
+  if (!trigger_name) {
     return nullptr;
   }
 
-  CSSCustomIdentValue* trigger_name = nullptr;
-  HeapVector<std::pair<Member<const CSSCustomIdentValue>,
-                       Member<const CSSCustomIdentValue>>>
-      action_behavior_pairs;
-
-  {
-    CSSParserTokenStream::BlockGuard guard(stream);
-    stream.ConsumeWhitespace();
-    // First get the trigger name.
-    trigger_name = ConsumeDashedIdent(stream, context);
-    if (!trigger_name) {
-      return nullptr;
-    }
-
-    stream.ConsumeWhitespace();
-
-    // Now get the action-behavior pairs.
-    while (!stream.AtEnd()) {
-      if (!ConsumeCommaIncludingWhitespace(stream)) {
-        return nullptr;
-      }
-
-      // TODO: separate this out into a ConsumeTriggerAction method, which can
-      // consume actions which are functions, e.g. keypress("Enter"). For now,
-      // we only support simple ident actions.
-      CSSCustomIdentValue* action = ConsumeCustomIdent(stream, context);
-      if (!action) {
-        return nullptr;
-      }
-
-      CSSCustomIdentValue* behavior = ConsumeCustomIdent(stream, context);
-      if (!behavior) {
-        return nullptr;
-      }
-
-      action_behavior_pairs.push_back(std::make_pair(action, behavior));
-    }
-  }
-  stream.ConsumeWhitespace();
-
-  if (!action_behavior_pairs.empty()) {
-    return MakeGarbageCollected<cssvalue::CSSTriggerAttachmentValue>(
-        trigger_name, action_behavior_pairs);
+  // Consume the enter-behavior.
+  const CSSIdentifierValue* enter_behavior =
+      ConsumeAnimationTriggerBehavior(stream, context);
+  if (!enter_behavior) {
+    return nullptr;
   }
 
-  return nullptr;
+  // Consume the (optional) exit-behavior.
+  const CSSIdentifierValue* exit_behavior =
+      ConsumeAnimationTriggerBehavior(stream, context);
+
+  return MakeGarbageCollected<cssvalue::CSSTriggerAttachmentValue>(
+      trigger_name, enter_behavior, exit_behavior);
 }
 
 CSSValue* ConsumeTimelineRangeName(CSSParserTokenStream& stream) {
@@ -4637,10 +4617,6 @@ CSSValue* ConsumeTimelineTriggerValue(CSSPropertyID property,
     case CSSPropertyID::kTimelineTriggerName:
       return css_parsing_utils::ConsumeSingleTimelineTriggerName(stream,
                                                                  context);
-    case CSSPropertyID::kTimelineTriggerBehavior:
-      return css_parsing_utils::ConsumeIdent<
-          CSSValueID::kOnce, CSSValueID::kRepeat, CSSValueID::kAlternate,
-          CSSValueID::kState>(stream);
     case CSSPropertyID::kTimelineTriggerSource:
       return css_parsing_utils::ConsumeAnimationTimeline(stream, context);
     case CSSPropertyID::kTimelineTriggerRangeStart:
@@ -9064,12 +9040,12 @@ struct PositionAreaKeyword {
     // [ span-all | center ]
     kGeneral,
     // [ left | right | span-left | span-right | x-start | x-end |
-    //   span-x-start | span-x-end | x-self-start | x-self-end |
-    //   span-x-self-start | span-x-self-end ]
+    //   span-x-start | span-x-end | self-x-start | self-x-end |
+    //   span-self-x-start | span-self-x-end ]
     kHorizontal,
     // [ top | bottom | span-top | span-bottom | y-start | y-end |
-    //   span-y-start | span-y-end | y-self-start | y-self-end |
-    //   span-y-self-start | span-y-self-end ]
+    //   span-y-start | span-y-end | self-y-start | self-y-end |
+    //   span-self-y-start | span-self-y-end ]
     kVertical,
     // [ inline-start | inline-end | span-inline-start | span-inline-end |
     //   self-inline-start | self-inline-end | span-self-inline-start |
@@ -9110,6 +9086,50 @@ struct PositionAreaKeyword {
   Type type;
 };
 
+namespace {
+
+std::optional<PositionAreaKeyword> ConsumeLegacyPositionAreaKeyword(
+    CSSParserTokenStream& stream) {
+  CHECK(RuntimeEnabledFeatures::PositionAreaXYSelfEnabled());
+  PositionAreaKeyword::Type type = PositionAreaKeyword::kHorizontal;
+  CSSValueID value_id = stream.ConsumeIncludingWhitespace().Id();
+  switch (value_id) {
+    case CSSValueID::kXSelfStart:
+      value_id = CSSValueID::kSelfXStart;
+      break;
+    case CSSValueID::kXSelfEnd:
+      value_id = CSSValueID::kSelfXEnd;
+      break;
+    case CSSValueID::kSpanXSelfStart:
+      value_id = CSSValueID::kSpanSelfXStart;
+      break;
+    case CSSValueID::kSpanXSelfEnd:
+      value_id = CSSValueID::kSpanSelfXEnd;
+      break;
+    case CSSValueID::kYSelfStart:
+      value_id = CSSValueID::kSelfYStart;
+      type = PositionAreaKeyword::kVertical;
+      break;
+    case CSSValueID::kYSelfEnd:
+      value_id = CSSValueID::kSelfYEnd;
+      type = PositionAreaKeyword::kVertical;
+      break;
+    case CSSValueID::kSpanYSelfStart:
+      value_id = CSSValueID::kSpanSelfYStart;
+      type = PositionAreaKeyword::kVertical;
+      break;
+    case CSSValueID::kSpanYSelfEnd:
+      value_id = CSSValueID::kSpanSelfYEnd;
+      type = PositionAreaKeyword::kVertical;
+      break;
+    default:
+      NOTREACHED();
+  }
+  return PositionAreaKeyword(CSSIdentifierValue::Create(value_id), type);
+}
+
+}  // namespace
+
 std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
     CSSParserTokenStream& stream,
     bool allow_any_keyword) {
@@ -9132,10 +9152,10 @@ std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
     case CSSValueID::kXEnd:
     case CSSValueID::kSpanXStart:
     case CSSValueID::kSpanXEnd:
-    case CSSValueID::kXSelfStart:
-    case CSSValueID::kXSelfEnd:
-    case CSSValueID::kSpanXSelfStart:
-    case CSSValueID::kSpanXSelfEnd:
+    case CSSValueID::kSelfXStart:
+    case CSSValueID::kSelfXEnd:
+    case CSSValueID::kSpanSelfXStart:
+    case CSSValueID::kSpanSelfXEnd:
       type = PositionAreaKeyword::kHorizontal;
       break;
     case CSSValueID::kTop:
@@ -9146,10 +9166,10 @@ std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
     case CSSValueID::kYEnd:
     case CSSValueID::kSpanYStart:
     case CSSValueID::kSpanYEnd:
-    case CSSValueID::kYSelfStart:
-    case CSSValueID::kYSelfEnd:
-    case CSSValueID::kSpanYSelfStart:
-    case CSSValueID::kSpanYSelfEnd:
+    case CSSValueID::kSelfYStart:
+    case CSSValueID::kSelfYEnd:
+    case CSSValueID::kSpanSelfYStart:
+    case CSSValueID::kSpanSelfYEnd:
       type = PositionAreaKeyword::kVertical;
       break;
     case CSSValueID::kBlockStart:
@@ -9188,6 +9208,18 @@ std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
     case CSSValueID::kSpanSelfEnd:
       type = PositionAreaKeyword::kSelfStartEnd;
       break;
+    case CSSValueID::kXSelfStart:
+    case CSSValueID::kXSelfEnd:
+    case CSSValueID::kSpanXSelfStart:
+    case CSSValueID::kSpanXSelfEnd:
+    case CSSValueID::kYSelfStart:
+    case CSSValueID::kYSelfEnd:
+    case CSSValueID::kSpanYSelfStart:
+    case CSSValueID::kSpanYSelfEnd:
+      if (RuntimeEnabledFeatures::PositionAreaXYSelfEnabled()) {
+        return ConsumeLegacyPositionAreaKeyword(stream);
+      }
+      return std::nullopt;
     default:
       return std::nullopt;
   }
@@ -9199,12 +9231,12 @@ std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
 // <position-area> = [
 //                  [ left | center | right | span-left | span-right |
 //                    x-start | x-end | span-x-start | span-x-end |
-//                    x-self-start | x-self-end | span-x-self-start |
-//                    span-x-self-end | span-all ] ||
+//                    self-x-start | self-x-end | span-self-x-start |
+//                    span-self-x-end | span-all ] ||
 //                  [ top | center | bottom | span-top | span-bottom |
 //                    y-start | y-end | span-y-start | span-y-end |
-//                    y-self-start | y-self-end | span-y-self-start |
-//                    span-y-self-end | span-all ]
+//                    self-y-start | self-y-end | span-self-y-start |
+//                    span-self-y-end | span-all ]
 //                 |
 //                  [ block-start | center | block-end | span-block-start |
 //                    span-block-end | span-all ] ||
@@ -9253,12 +9285,14 @@ CSSValue* ConsumePositionArea(CSSParserTokenStream& stream,
   if (first_value->GetValueID() == second_value->GetValueID()) {
     return first_value;
   }
-  if (first_value->GetValueID() == CSSValueID::kSpanAll &&
+  CSSValueID non_repeated_default =
+      allow_any_keyword ? CSSValueID::kAny : CSSValueID::kSpanAll;
+  if (first_value->GetValueID() == non_repeated_default &&
       !css_parsing_utils::IsRepeatedPositionAreaValue(
           second_value->GetValueID())) {
     return second_value;
   }
-  if (second_value->GetValueID() == CSSValueID::kSpanAll &&
+  if (second_value->GetValueID() == non_repeated_default &&
       !css_parsing_utils::IsRepeatedPositionAreaValue(
           first_value->GetValueID())) {
     return first_value;

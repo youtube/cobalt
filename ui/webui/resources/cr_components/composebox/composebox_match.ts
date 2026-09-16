@@ -5,13 +5,12 @@
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {mojoString16ToString} from '//resources/js/mojo_type_util.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
 import {getCss} from './composebox_match.css.js';
 import {getHtml} from './composebox_match.html.js';
-import {ComposeboxProxyImpl} from './composebox_proxy.js';
+import {ComposeboxProxyImpl, createAutocompleteMatch} from './composebox_proxy.js';
 
 export interface ComposeboxMatchElement {
   $: {
@@ -51,9 +50,9 @@ export class ComposeboxMatchElement extends CrLitElement {
     };
   }
 
-  accessor match: AutocompleteMatch;
+  accessor match: AutocompleteMatch = createAutocompleteMatch();
 
-  accessor matchIndex: number;
+  accessor matchIndex: number = -1;
   private searchboxHandler_: SearchboxPageHandlerRemote;
   protected accessor removeButtonTitle_: string =
       loadTimeData.getString('removeSuggestion');
@@ -70,21 +69,15 @@ export class ComposeboxMatchElement extends CrLitElement {
   }
 
   protected computeContents_(): string {
-    if (!this.match) {
-      return '';
-    }
-    return mojoString16ToString(this.match.contents);
+    return this.match.contents;
   }
 
   protected computeRemoveButtonAriaLabel_(): string {
-    if (!this.match) {
-      return '';
-    }
-    return mojoString16ToString(this.match.removeButtonA11yLabel);
+    return this.match.removeButtonA11yLabel;
   }
 
   protected iconPath_(): string {
-    return this.match.iconPath;
+    return this.match.iconPath || '';
   }
 
   private onMatchFocusin_() {

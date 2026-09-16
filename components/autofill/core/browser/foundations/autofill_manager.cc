@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
 #include "base/types/zip.h"
+#include "components/autofill/core/browser/autofill_server_prediction.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
@@ -37,6 +38,7 @@
 #include "components/autofill/core/common/autofill_switches.h"
 #include "components/language_detection/core/constants.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -187,7 +189,8 @@ void AutofillManager::OnLanguageDetermined(
 
   // Wait for ongoing parsing operations to finish, so `form_structures_` is
   // up to date.
-  AfterParsingFinishes(base::BindOnce([](base::WeakPtr<AutofillManager> self) {
+  AfterParsingFinishesDeprecated(base::BindOnce([](base::WeakPtr<
+                                                    AutofillManager> self) {
     if (!self) {
       return;
     }
@@ -217,19 +220,16 @@ LanguageCode AutofillManager::GetCurrentPageLanguage() {
   return LanguageCode(language_state->current_language());
 }
 
-void AutofillManager::OnDidFillAutofillFormData(
-    const FormData& form,
-    const base::TimeTicks timestamp) {
+void AutofillManager::OnDidAutofillForm(const FormData& form,
+                                        const base::TimeTicks timestamp) {
   if (!IsValidFormData(form)) {
     return;
   }
-  NotifyObservers(&Observer::OnBeforeDidFillAutofillFormData, form.global_id());
+  NotifyObservers(&Observer::OnBeforeDidAutofillForm, form.global_id());
   ParseFormAsync(
-      form,
-      ParsingCallback(&AutofillManager::OnDidFillAutofillFormDataImpl,
-                      timestamp)
-          .Then(NotifyObserversCallback(
-              &Observer::OnAfterDidFillAutofillFormData, form.global_id())));
+      form, ParsingCallback(&AutofillManager::OnDidAutofillFormImpl, timestamp)
+                .Then(NotifyObserversCallback(&Observer::OnAfterDidAutofillForm,
+                                              form.global_id())));
 }
 
 void AutofillManager::OnFormSubmitted(const FormData& form,
@@ -288,16 +288,21 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
 
   std::vector<raw_ptr<const FormStructure, VectorExperimental>> queryable_forms;
   for (const FormData& form : forms) {
-    const FormStructure& form_structure =
-        CHECK_DEREF(FindCachedFormById(form.global_id()));
+    // The FormStructure might not exist if the form cache hit its capacity of
+    // `kAutofillManagerMaxFormCacheSize` and due to race conditions the initial
+    // check in ParseFormsAsync() was passed.
+    const FormStructure* form_structure = FindCachedFormById(form.global_id());
+    if (!form_structure) {
+      continue;
+    }
 
     // Configure the query encoding for this form and add it to the appropriate
     // collection of forms: queryable vs non-queryable.
-    if (ShouldBeQueried(form_structure)) {
-      queryable_forms.push_back(&form_structure);
+    if (ShouldBeQueried(*form_structure)) {
+      queryable_forms.push_back(form_structure);
     }
 
-    OnFormProcessed(form, form_structure);
+    OnFormProcessed(form, *form_structure);
   }
 
   if (base::FeatureList::IsEnabled(features::test::kShowDomNodeIDs)) {
@@ -311,7 +316,7 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
     // server response is processed, to ensure server predictions are not lost.
     client().GetCrowdsourcingManager().StartQueryRequest(
         queryable_forms, driver().GetIsolationInfo(),
-        AfterParsingFinishes(base::BindOnce(
+        AfterParsingFinishesDeprecated(base::BindOnce(
             &AutofillManager::OnLoadedServerPredictions, GetWeakPtr())));
   }
 }
@@ -537,7 +542,7 @@ void AutofillManager::ReparseKnownForms() {
   ParseFormsAsync(forms, base::BindOnce(ProcessParsedForms));
 }
 
-base::flat_map<FieldGlobalId, AutofillType::ServerPrediction>
+base::flat_map<FieldGlobalId, AutofillServerPrediction>
 AutofillManager::GetServerPredictionsForForm(
     FormGlobalId form_id,
     const std::vector<FieldGlobalId>& field_ids) const {
@@ -871,6 +876,28 @@ void AutofillManager::RunMlModels(
 }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
+// TODO(crbug.com/448144129): Remove once `kAutofillSynchronousAfterParsing`
+// can be cleaned up.
+template <typename... Args>
+base::OnceCallback<void(Args...)>
+AutofillManager::AfterParsingFinishesDeprecated(
+    base::OnceCallback<void(Args...)> callback) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillSynchronousAfterParsing)) {
+    return callback;
+  }
+  return base::BindOnce(
+      [](base::WeakPtr<AutofillManager> self,
+         base::OnceCallback<void(Args...)> callback, Args... args) {
+        if (self) {
+          self->parsing_task_runner_->PostTaskAndReply(
+              FROM_HERE, base::DoNothing(),
+              base::BindOnce(std::move(callback), std::forward<Args>(args)...));
+        }
+      },
+      GetWeakPtr(), std::move(callback));
+}
+
 void AutofillManager::OnLoadedServerPredictions(
     std::optional<AutofillCrowdsourcingManager::QueryResponse> response) {
   absl::Cleanup on_after_loaded_server_predictions = [this] {
@@ -917,8 +944,7 @@ void AutofillManager::OnLoadedServerPredictions(
 
   for (const raw_ptr<FormStructure, VectorExperimental> form : queried_forms) {
     form->RationalizeAndAssignSections(client().GetVariationConfigCountryCode(),
-                                       GetCurrentPageLanguage(), log_manager(),
-                                       /*legacy_order=*/true);
+                                       GetCurrentPageLanguage(), log_manager());
 
     autofill_metrics::LogQualityMetricsBasedOnAutocomplete(
         *form, client().GetFormInteractionsUkmLogger(),

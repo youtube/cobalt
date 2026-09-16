@@ -134,11 +134,6 @@
 
 namespace {
 
-#if BUILDFLAG(IS_MAC)
-// Keep in sync with browser_frame_view_mac.mm
-constexpr double kTitlePaddingWidthFraction = 0.1;
-#endif
-
 template <typename T>
 T* GetLastVisible(const std::vector<T*>& views) {
   T* visible = nullptr;
@@ -182,7 +177,8 @@ class WebAppFrameToolbarBrowserTest : public web_app::WebAppBrowserTestBase {
         /*enabled_features=*/
         {{features::kPageActionsMigration,
           {{features::kPageActionsMigrationZoom.name, "true"}}},
-         {features::kWebAppPredictableAppUpdating, {}}},
+         {features::kWebAppPredictableAppUpdating, {}},
+         {features::kWebAppUsePrimaryIcon, {}}},
         /*disabled_features=*/{});
   }
 
@@ -458,6 +454,9 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, TitleHover) {
       helper()->frame_view()->width() - original_title_gap + narrow_title_gap;
 #if BUILDFLAG(IS_MAC)
   // Increase width to allow for title padding.
+  // LINT.IfChange(mac_title_padding_width_fraction)
+  static constexpr double kTitlePaddingWidthFraction = 0.1;
+  // LINT.ThenChange(//chrome/browser/ui/views/frame/browser_frame_view_mac.mm:mac_title_padding_width_fraction)
   narrow_width = base::checked_cast<int>(
       std::ceil(narrow_width / (1 - 2 * kTitlePaddingWidthFraction)));
 #endif
@@ -497,11 +496,13 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, MenuButtonUpdatePending) {
       helper()->browser_view()->toolbar_button_provider()->GetAppMenuButton());
   EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
 
+  // Set that the `update_info` was not ignored by the user.
   {
     web_app::ScopedRegistryUpdate update =
         provider().sync_bridge_unsafe().BeginUpdate();
     web_app::proto::PendingUpdateInfo update_info;
     update_info.set_name("Updated app name");
+    update_info.set_was_ignored(false);
     update->UpdateApp(app_id)->SetPendingUpdateInfo(std::move(update_info));
   }
 
@@ -518,6 +519,23 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, MenuButtonUpdatePending) {
     update->UpdateApp(app_id)->SetPendingUpdateInfo(std::nullopt);
   }
 
+  menu_button->UpdateStateForTesting();
+  EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
+  EXPECT_EQ(menu_button->GetViewAccessibility().GetCachedName(),
+            u"Customize and control A minimal-ui app");
+  EXPECT_EQ(menu_button->GetRenderedTooltipText(gfx::Point()),
+            u"Customize and control A minimal-ui app");
+
+  // Setting a pending update info with available information but ignored by the
+  // user doesn't update the menu button.
+  {
+    web_app::ScopedRegistryUpdate update =
+        provider().sync_bridge_unsafe().BeginUpdate();
+    web_app::proto::PendingUpdateInfo update_info;
+    update_info.set_name("Updated app name");
+    update_info.set_was_ignored(true);
+    update->UpdateApp(app_id)->SetPendingUpdateInfo(std::move(update_info));
+  }
   menu_button->UpdateStateForTesting();
   EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
   EXPECT_EQ(menu_button->GetViewAccessibility().GetCachedName(),

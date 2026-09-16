@@ -100,10 +100,6 @@ class ProfilePickerPostSignInAdapter : public content::WebContentsDelegate,
     return weak_ptr_factory_.GetWeakPtr();
   }
 
-  // Getter of the path of profile which is displayed on the profile switch
-  // screen. Returns an empty path if no such screen has been displayed.
-  base::FilePath switch_profile_path() const { return switch_profile_path_; }
-
   content::WebContents* contents() const { return contents_.get(); }
 
  protected:
@@ -132,7 +128,8 @@ class ProfilePickerPostSignInAdapter : public content::WebContentsDelegate,
   // HistorySyncOptinHelper::Delegate implementation:
   void ShowHistorySyncOptinScreen(
       Profile*,
-      base::OnceClosure history_optin_completed_closure) override;
+      HistorySyncOptinHelper::FlowCompletedCallback
+          history_optin_completed_callback) override;
   void ShowAccountManagementScreen(
       signin::SigninChoiceCallback on_account_management_screen_closed)
       override;
@@ -177,19 +174,16 @@ class ProfilePickerPostSignInAdapter : public content::WebContentsDelegate,
   // enterprise management.
   StepSwitchFinishedCallback step_switch_callback_;
 
-  // Steps to be executed after the user has made a choice in the sync
-  // confirmation screen or the history sync optin screen. Might be executed
-  // when the screen is also skipped.
-  base::OnceClosure on_sync_screen_closed_closure_;
+  // Steps to be executed after the user has made a choice in the history sync
+  // optin screen. Might be executed when the screen is also skipped.
+  HistorySyncOptinHelper::FlowCompletedCallback
+      on_post_signin_in_finished_callback_;
 
   std::unique_ptr<HistorySyncOptinHelper> history_sync_optin_helper_;
 
   // Email of the signed-in account. It is set after the user finishes the
   // sign-in flow on GAIA and Chrome receives the account info.
   std::string email_;
-
-  // Path to a profile that should be displayed on the profile switch screen.
-  base::FilePath switch_profile_path_;
 
   GURL url_to_open_;
 

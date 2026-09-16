@@ -19,6 +19,7 @@
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -84,13 +85,13 @@ int AsyncUDPSocket::SendTo(const void* pv,
                              env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
-  if (has_set_ect1_options_ != options.ecn_1) {
+  if (has_set_ect1_options_ != options.ect_1) {
     // It is unclear what is most efficient, setting options on every sent
     // packet or when changed. Potentially, can separate send sockets be used?
     // This is the easier implementation.
     if (socket_->SetOption(Socket::Option::OPT_SEND_ECN,
-                           options.ecn_1 ? 1 : 0) == 0) {
-      has_set_ect1_options_ = options.ecn_1;
+                           options.ect_1 ? 1 : 0) == 0) {
+      has_set_ect1_options_ = options.ect_1;
     }
   }
   int ret = socket_->SendTo(pv, cb, addr);
@@ -147,12 +148,17 @@ void AsyncUDPSocket::OnReadEvent(Socket* socket) {
     // Timestamp from socket is not available.
     receive_buffer.arrival_time = env_.clock().CurrentTime();
   } else {
-    if (!socket_time_offset_) {
+    Timestamp current_time = env_.clock().CurrentTime();
+    if (!socket_time_offset_ ||
+        *receive_buffer.arrival_time + *socket_time_offset_ > current_time) {
       // Estimate timestamp offset from first packet arrival time.
-      socket_time_offset_ =
-          env_.clock().CurrentTime() - *receive_buffer.arrival_time;
+      // This may be wrong if packets have been buffered in the socket before we
+      // read the first packet and `socket_time_offset_` may then have to be set
+      // again to ensure no arrival times are set in the future.
+      socket_time_offset_ = current_time - *receive_buffer.arrival_time;
     }
     *receive_buffer.arrival_time += *socket_time_offset_;
+    RTC_DCHECK_LE(*receive_buffer.arrival_time, current_time);
   }
   NotifyPacketReceived(
       ReceivedIpPacket(receive_buffer.payload, receive_buffer.source_address,

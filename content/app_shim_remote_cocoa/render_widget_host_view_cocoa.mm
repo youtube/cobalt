@@ -781,19 +781,9 @@ void ExtractUnderlines(NSAttributedString* string,
 }
 
 - (BOOL)acceptsFirstMouse:(NSEvent*)theEvent {
-  switch ([self acceptsMouseEventsOption]) {
-    case AcceptMouseEvents::kWhenInActiveWindow:
-      // It is important to accept clicks when this window is the main window.
-      // It handles the case when the find bar (or other secondary UI) is the
-      // key window.
-      return self.window.mainWindow || self.window.keyWindow;
-    case AcceptMouseEvents::kWhenInActiveApp:
-      // This will accept clicks regardless of Chrome being the active app or
-      // not. This is intentional. It mimics the views UI's behavior.
-      return YES;
-    case AcceptMouseEvents::kAlways:
-      return YES;
-  }
+  // Enable "click-through" if mouse clicks are accepted in inactive windows.
+  return
+      [self acceptsMouseEventsOption] > AcceptMouseEvents::kWhenInActiveWindow;
 }
 
 - (void)setCloseOnDeactivate:(BOOL)b {
@@ -2134,7 +2124,7 @@ extern NSString* NSTextInputReplacementRangeAttributeName;
   // The returned rectangle is in WebKit coordinates (upper left origin), so
   // flip the coordinate system.
   NSRect viewFrame = [self frame];
-  NSRect rect = NSRectFromCGRect(gfxRect.ToCGRect());
+  NSRect rect = gfxRect.ToCGRect();
   rect.origin.y = NSHeight(viewFrame) - NSMaxY(rect);
 
   // Convert into screen coordinates for return.

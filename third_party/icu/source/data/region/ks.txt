@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ks{
     Countries{
         001{"دُنیا"}
@@ -220,7 +220,7 @@ ks{
         PK{"پاکِستان"}
         PL{"پولینڈ"}
         PM{"سینٹ پیٖری تہٕ موکیلِیَن"}
-        PN{"پِٹکیرٕنۍ جٔزیٖرٕ"}
+        PN{"پِٹکیرٕنؠ جٔزیٖرٕ"}
         PR{"پٔرٹو رِکو"}
         PS{"فلسطین"}
         PT{"پُرتِگال"}

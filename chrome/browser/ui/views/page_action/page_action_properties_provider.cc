@@ -8,12 +8,23 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/views/location_bar/find_bar_icon.h"
 #include "ui/actions/action_id.h"
 
 namespace {
 constexpr auto kPageActionProperties =
     base::MakeFixedFlatMap<actions::ActionId,
                            page_actions::PageActionProperties>({
+        {
+            kActionAiMode,
+            {
+                .histogram_name = "AiMode",
+                .exempt_from_omnibox_suppression = true,
+                .type = PageActionIconType::kAiMode,
+                .element_identifier = kAiModePageActionIconElementId,
+            },
+        },
+
         {
             kActionSidePanelShowLensOverlayResults,
             {
@@ -114,7 +125,34 @@ constexpr auto kPageActionProperties =
                 .type = PageActionIconType::kMandatoryReauth,
             },
         },
+        {
+            kActionFind,
+            {
+                .histogram_name = "Find",
+                .type = PageActionIconType::kFind,
+                // TODO(crbug.com/376283618): Create a dedicated element ID once
+                // `FindBarIcon` is removed.
+                .element_identifier = FindBarIcon::kElementId,
+            },
+        },
     });
+
+constexpr bool CheckIgnoreFlagUsage() {
+  for (const auto& [action_id, properties] : kPageActionProperties) {
+    if (properties.exempt_from_omnibox_suppression &&
+        action_id != kActionAiMode) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// AI Mode page action is designed to be displayed by itself. Other page actions
+// should avoid using this property unless there is a strong reason.
+static_assert(
+    CheckIgnoreFlagUsage(),
+    "ignore_should_hide_page_actions should only be used by kActionAiMode");
+
 }  // namespace
 
 namespace page_actions {

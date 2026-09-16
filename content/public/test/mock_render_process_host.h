@@ -137,7 +137,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   bool HasPriorityOverride() override;
   void ClearPriorityOverride() override;
 #endif
-  void SetHasSpareRendererPriority(bool) override;
+  void GraduateSpareToNormalRendererPriority() override;
 #if BUILDFLAG(IS_ANDROID)
   ChildProcessImportance GetEffectiveImportance() override;
   base::android::ChildBindingState GetEffectiveChildBindingState() override;
@@ -285,11 +285,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   void ResumeSocketManagerForRenderFrameHost(
       const GlobalRenderFrameHostId& render_frame_host_id) override {}
 
-  // IPC::Sender via RenderProcessHost.
-  bool Send(IPC::Message* msg) override;
-
   // IPC::Listener via RenderProcessHost.
-  bool OnMessageReceived(const IPC::Message& msg) override;
   void OnChannelConnected(int32_t peer_pid) override;
 
   void set_priority(base::Process::Priority priority) { priority_ = priority; }

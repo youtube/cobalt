@@ -74,7 +74,8 @@ void OverscrollRefresh::OnScrollEnd(const gfx::Vector2dF& scroll_velocity) {
 }
 
 void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
-                                       gfx::Vector2dF accumulated_overscroll) {
+                                       gfx::Vector2dF accumulated_overscroll,
+                                       blink::WebGestureDevice source_device) {
   // `accumulated_overscroll` is in the opposite direction of the scroll_deltas
   // sent to the renderer.
   MaybeDisableScrollConsumption(-accumulated_overscroll);
@@ -89,7 +90,10 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
   OverscrollAction type = OverscrollAction::kNone;
   std::optional<BackGestureEventSwipeEdge> overscroll_edge;
   if (in_y_direction) {
-    if (behavior.y != cc::OverscrollBehavior::Type::kAuto) {
+    if (behavior.y != cc::OverscrollBehavior::Type::kAuto ||
+        // Pull-to-refresh should only work on touchscreen overscrolls. In
+        // particular, not by touchpad or mousewheel scrolls.
+        source_device != blink::WebGestureDevice::kTouchscreen) {
       Reset();
       return;
     }
@@ -99,11 +103,15 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
     } else if (scrolled_to_bottom_) {  // ydelta < 0
       type = OverscrollAction::kPullFromBottomEdge;
     }
-  } else if (in_x_direction &&
-             (scroll_begin_x_ < edge_width_ ||
-              viewport_width_ - scroll_begin_x_ < edge_width_)) {
-    // Swipe-to-navigate. Check overscroll-behavior-x
-    if (behavior.x != cc::OverscrollBehavior::Type::kAuto) {
+  } else if (in_x_direction) {
+    DCHECK(source_device == blink::WebGestureDevice::kTouchpad ||
+           source_device == blink::WebGestureDevice::kTouchscreen);
+    DCHECK_GE(viewport_width_, 0);
+    bool scroll_from_edge = scroll_begin_x_ < edge_width_ ||
+                            viewport_width_ - scroll_begin_x_ < edge_width_;
+    // Swipe-to-navigate. Check overscroll-behavior-x and scroll start position.
+    if (behavior.x != cc::OverscrollBehavior::Type::kAuto ||
+        !scroll_from_edge) {
       Reset();
       return;
     }

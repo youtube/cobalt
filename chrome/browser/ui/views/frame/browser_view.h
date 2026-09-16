@@ -140,6 +140,10 @@ class BrowserView : public BrowserWindow,
   // The width of the vertical tab strip.
   static constexpr int kVerticalTabStripWidth = 240;
 
+  // The name of a key to store on the window handle so that other code can
+  // locate this object using just the handle.
+  static constexpr char kBrowserViewKey[] = "__BROWSER_VIEW__";
+
   explicit BrowserView(Browser* browser);
   BrowserView(const BrowserView&) = delete;
   BrowserView& operator=(const BrowserView&) = delete;
@@ -246,7 +250,11 @@ class BrowserView : public BrowserWindow,
   // Container for the web contents.
   views::View* contents_container() { return contents_container_; }
 
-  SidePanel* unified_side_panel() { return unified_side_panel_; }
+  views::View* main_container() { return main_container_; }
+
+  SidePanel* contents_height_side_panel() {
+    return contents_height_side_panel_;
+  }
 
   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
 
@@ -587,7 +595,7 @@ class BrowserView : public BrowserWindow,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
   views::Button* GetSharingHubIconButton() override;
-  void ToggleMultitaskMenu() const override;
+  void ToggleMultitaskMenu() override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
       share::ShareAttempt attempt) override;
@@ -872,7 +880,7 @@ class BrowserView : public BrowserWindow,
   // This is used only for SWA/PWA scenario.
   void OnLockedForOnTaskUpdated();
 
-  bool IsTrustedPinned() const;
+  bool IsLockedFullscreen() const;
 #endif
 
  protected:
@@ -882,7 +890,7 @@ class BrowserView : public BrowserWindow,
  private:
   // Do not friend BrowserViewLayout. Use the BrowserViewLayoutDelegate
   // interface to keep these two classes decoupled and testable.
-  friend class BrowserViewLayoutDelegateImplNew;
+  friend class BrowserViewLayoutDelegateImpl;
   friend class BrowserViewLayoutDelegateImplOld;
   friend class BrowserViewLayoutDelegateImplBrowsertest;
   friend class TopControlsSlideControllerTest;
@@ -921,7 +929,7 @@ class BrowserView : public BrowserWindow,
   bool IsTabChangeInSplitView(content::WebContents* old_contents,
                               content::WebContents* new_contents);
 
-  void UpdateTabModalDialogBounds();
+  void UpdateTabModalDialogHost();
 
   // Updates stored focus for web contents that is being activated.
   void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
@@ -953,6 +961,10 @@ class BrowserView : public BrowserWindow,
   // Helper method, returns if we should show the IPHs anchored on the avatar
   // toolbar.
   bool ShouldShowAvatarToolbarIPH();
+
+  // Returns the frame view.
+  BrowserFrameView* GetFrameView();
+  const BrowserFrameView* GetFrameView() const;
 
   // Returns the BrowserViewLayout.
   BrowserViewLayout* GetBrowserViewLayout() const;
@@ -1046,8 +1058,7 @@ class BrowserView : public BrowserWindow,
       version_info::Channel,
       Profile* profile) const;
 
-  // Reparents |top_container_| to be a child of |this| instead of
-  // |overlay_view_|.
+  // Reparents |top_container_| to |main_container_| instead of |overlay_view_|.
   void ReparentTopContainerForEndOfImmersive();
 
   // Ensures that the correct focus order is set for child views, regardless of
@@ -1124,26 +1135,43 @@ class BrowserView : public BrowserWindow,
   base::CallbackListSubscription chip_visibility_subscription_;
 
   // BrowserView layout (LTR one is pictured here).
-  //
-  // --------------------------------------------------------------------
-  // | TopContainerView (top_container_)                                |
-  // |  --------------------------------------------------------------  |
-  // |  | Web App toolbar and title (web_app_frame_toolbar_)         |  |
-  // |  |------------------------------------------------------------|  |
-  // |  | Tabs (tabstrip_)                                           |  |
-  // |  |------------------------------------------------------------|  |
-  // |  | Navigation buttons, address bar, menu (toolbar_)           |  |
-  // |  --------------------------------------------------------------  |
-  // |------------------------------------------------------------------|
-  // | Bookmarks (bookmark_bar_view_)                                   |
-  // |------------------------------------------------------------------|
-  // | All infobars (infobar_container_)                                |
-  // |------------------------------------------------------------------|
-  // | Contents container (contents_container_)                         |
-  // |  --------------------------------------------------------------  |
-  // |  |  contents_web_view_ (or multi_contents_view_ if defined)   |  |
-  // |  --------------------------------------------------------------  |
-  // --------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // | Tabs (tab_strip_region_view_) |
+  // |---------------------------------------------------------------------|
+  // | MainRegion (main_region_)                                           |
+  // |  ----------------------------------------------------------------   |
+  // |  | MainContainer (main_container_)                               |  |
+  // |  |  ------------------------------------------------------------ |  |
+  // |  |  | TopContainerView (top_container)                           |  |
+  // |  |  |  --------------------------------------------------------- |  |
+  // |  |  |  | Web App toolbar and title (web_app_frame_toolbar_)      |  |
+  // |  |  |  |-------------------------------------------------------- |  |
+  // |  |  |  | Navigation buttons, address bar, menu (toolbar_)        |  |
+  // |  |  |  |-------------------------------------------------------- |  |
+  // |  |  |  | Bookmarks (bookmark_bar_view_)                          |  |
+  // |  |  |  --------------------------------------------------------- |  |
+  // |  |  |----------------------------------------------------------- |  |
+  // |  |  | All infobars (infobar_container_)                          |  |
+  // |  |  |----------------------------------------------------------- |  |
+  // |  |  | Contents container (contents_container_)                   |  |
+  // |  |  |  --------------------------------------------------------- |  |
+  // |  |  |  |  contents_web_view_ (or multi_contents_view_ if defined)|  |
+  // |  |  |  --------------------------------------------------------- |  |
+  // |  |  |----------------------------------------------------------- |  |
+  // |  |  | ContentHeightSidePanel (contents_height_side_panel_)       |  |
+  // |  |  |----------------------------------------------------------- |  |
+  // |  ----------------------------------------------------------------   |
+  // |  | ToolbarHeightSidePanel ()                                     |  |
+  // |  |---------------------------------------------------------------|  |
+  // ----------------------------------------------------------------------
+
+  // The view that contains the MainContainer and the toolbar height side panel
+  // when it is implemented.
+  raw_ptr<views::View> main_region_ = nullptr;
+
+  // The view that contains the primary UI (Toolbar, BookmarksBar, InfoBar,
+  // WebContents, and Side panel).
+  raw_ptr<views::View> main_container_ = nullptr;
 
   // The view that manages the tab strip, toolbar, and sometimes the bookmark
   // bar. Stacked top in the view hiearachy so it can be used to slide out
@@ -1245,7 +1273,7 @@ class BrowserView : public BrowserWindow,
   // depending on the kSidePanelHorizontalAlignment pref's value.
   // Conceptually this member should exist if and only if the
   // side_panel_coordinator is created.
-  raw_ptr<SidePanel> unified_side_panel_ = nullptr;
+  raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
 
   // These are only non-null when the `SideBySide` feature is disabled.
   // Otherwise, `multi_contents_view_` will create its own separators.

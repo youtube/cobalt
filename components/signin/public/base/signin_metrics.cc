@@ -191,6 +191,11 @@ void LogSyncOptInOffered(AccessPoint access_point) {
   base::UmaHistogramEnumeration("Signin.SyncOptIn.Offered", access_point);
 }
 
+void LogHistorySyncOptInOffered(AccessPoint access_point) {
+  base::UmaHistogramEnumeration("Signin.HistorySyncOptIn.Offered",
+                                access_point);
+}
+
 void LogSyncSettingsOpened(AccessPoint access_point) {
   base::UmaHistogramEnumeration("Signin.SyncOptIn.OpenedSyncSettings",
                                 access_point);
@@ -433,7 +438,7 @@ void RecordSigninUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(
           base::UserMetricsAction("Signin_Signin_FromDevicesPage"));
       break;
-    case AccessPoint::kSigninPromo:
+    case AccessPoint::kFullscreenSigninPromo:
       base::RecordAction(
           base::UserMetricsAction("Signin_Signin_FromSigninPromo"));
       break;
@@ -624,10 +629,6 @@ void RecordSigninUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(base::UserMetricsAction(
           "Signin_Signin_FromHistorySyncOptinExpansionPillOnStartup"));
       break;
-    case AccessPoint::kHistorySyncOptinExpansionPillOnInactivity:
-      base::RecordAction(base::UserMetricsAction(
-          "Signin_Signin_FromHistorySyncOptinExpansionPillOnInactivity"));
-      break;
     case AccessPoint::kNonModalSigninPasswordPromo:
       base::RecordAction(base::UserMetricsAction(
           "Signin_Signin_FromNonModalSigninPasswordPromo"));
@@ -695,7 +696,7 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(
           base::UserMetricsAction("Signin_Impression_FromDevicesPage"));
       break;
-    case AccessPoint::kSigninPromo:
+    case AccessPoint::kFullscreenSigninPromo:
       base::RecordAction(
           base::UserMetricsAction("Signin_Impression_FromSigninPromo"));
       break;
@@ -831,7 +832,6 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
     case AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case AccessPoint::kWidget:
     case AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
-    case AccessPoint::kHistorySyncOptinExpansionPillOnInactivity:
     case AccessPoint::kHistorySyncEducationalTip:
     case AccessPoint::kManagedProfileAutoSigninIos:
     case AccessPoint::kNonModalSigninPasswordPromo:

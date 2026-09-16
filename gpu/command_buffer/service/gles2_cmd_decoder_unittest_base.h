@@ -32,11 +32,9 @@
 #include "gpu/command_buffer/service/gles2_cmd_decoder_passthrough.h"
 #include "gpu/command_buffer/service/gles2_query_manager.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
-#include "gpu/command_buffer/service/passthrough_discardable_manager.h"
 #include "gpu/command_buffer/service/program_manager.h"
 #include "gpu/command_buffer/service/renderbuffer_manager.h"
 #include "gpu/command_buffer/service/sampler_manager.h"
-#include "gpu/command_buffer/service/service_discardable_manager.h"
 #include "gpu/command_buffer/service/shader_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/test_helper.h"
@@ -531,11 +529,6 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
   void AddExpectationsForBindVertexArrayOES();
   void AddExpectationsForRestoreAttribState(GLuint attrib);
 
-  void DoInitializeDiscardableTextureCHROMIUM(GLuint texture_id);
-  void DoUnlockDiscardableTextureCHROMIUM(GLuint texture_id);
-  void DoLockDiscardableTextureCHROMIUM(GLuint texture_id);
-  bool IsDiscardableTextureUnlocked(GLuint texture_id);
-
   GLvoid* BufferOffset(unsigned i) { return reinterpret_cast<GLvoid*>(i); }
 
   template <typename Command, typename Result>
@@ -799,7 +792,6 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
   GpuPreferences gpu_preferences_;
   ShaderTranslatorCache shader_translator_cache_;
   FramebufferCompletenessCache framebuffer_completeness_cache_;
-  ServiceDiscardableManager discardable_manager_;
   SharedImageManager shared_image_manager_;
   scoped_refptr<ContextGroup> group_;
   MockGLStates gl_states_;
@@ -989,13 +981,6 @@ class GLES2DecoderPassthroughTestBase : public testing::Test,
 
   void DoGetIntegerv(GLenum pname, GLint* result, size_t num_results);
 
-  void DoInitializeDiscardableTextureCHROMIUM(GLuint client_id);
-  void DoUnlockDiscardableTextureCHROMIUM(GLuint client_id);
-  void DoLockDiscardableTextureCHROMIUM(GLuint client_id);
-
-  PassthroughDiscardableManager* passthrough_discardable_texture_manager() {
-    return &passthrough_discardable_manager_;
-  }
   ContextGroup* group() { return group_.get(); }
   FeatureInfo* feature_info() { return group_->feature_info(); }
 
@@ -1024,8 +1009,6 @@ class GLES2DecoderPassthroughTestBase : public testing::Test,
   GpuPreferences gpu_preferences_;
   ShaderTranslatorCache shader_translator_cache_;
   FramebufferCompletenessCache framebuffer_completeness_cache_;
-  ServiceDiscardableManager discardable_manager_;
-  PassthroughDiscardableManager passthrough_discardable_manager_;
   SharedImageManager shared_image_manager_;
 
   scoped_refptr<gl::GLSurface> surface_;

@@ -221,6 +221,10 @@ class CONTENT_EXPORT RenderProcessHostImpl
       BrowserContext* browser_context,
       SiteInstanceImpl* site_instance);
 
+  static RenderProcessHost* CreateSpareRenderProcessHost(
+      BrowserContext* browser_context,
+      SiteInstanceImpl* site_instance);
+
   ~RenderProcessHostImpl() override;
 
   RenderProcessHostImpl(const RenderProcessHostImpl& other) = delete;
@@ -278,7 +282,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
   bool HasPriorityOverride() override;
   void ClearPriorityOverride() override;
 #endif
-  void SetHasSpareRendererPriority(bool has_spare_renderer_priority) override;
+  void GraduateSpareToNormalRendererPriority() override;
 #if BUILDFLAG(IS_ANDROID)
   ChildProcessImportance GetEffectiveImportance() override;
   base::android::ChildBindingState GetEffectiveChildBindingState() override;
@@ -367,21 +371,21 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void ResumeSocketManagerForRenderFrameHost(
       const GlobalRenderFrameHostId& render_frame_host_id) override;
 
-  // IPC::Sender via RenderProcessHost.
-  bool Send(IPC::Message* msg) override;
-
   // IPC::Listener via RenderProcessHost.
-  bool OnMessageReceived(const IPC::Message& msg) override;
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
       mojo::ScopedInterfaceEndpointHandle handle) override;
   void OnChannelConnected(int32_t peer_pid) override;
   void OnChannelError() override;
-  void OnBadMessageReceived(const IPC::Message& message) override;
+  void OnBadMessageReceived() override;
 
   // ChildProcessLauncher::Client implementation.
   void OnProcessLaunched() override;
   void OnProcessLaunchFailed(int error_code) override;
+#if BUILDFLAG(IS_ANDROID)
+  bool CanUseWarmUpConnection() override;
+  bool HasSpareRendererPriority() override;
+#endif
 
   const std::string& GetUnresponsiveDocumentJavascriptCallStack() const;
   const blink::LocalFrameToken& GetUnresponsiveDocumentToken() const;
@@ -870,8 +874,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
 
 #if BUILDFLAG(IS_ANDROID)
   // Notifies the renderer process of memory pressure level.
-  void NotifyMemoryPressureToRenderer(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void NotifyMemoryPressureToRenderer(base::MemoryPressureLevel level);
 #endif
 
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
@@ -1011,11 +1014,17 @@ class CONTENT_EXPORT RenderProcessHostImpl
 #endif
   };
 
-  // Use CreateRenderProcessHost() instead of calling this constructor
-  // directly.
+  static RenderProcessHost* CreateRenderProcessHost(
+      BrowserContext* browser_context,
+      SiteInstanceImpl* site_instance,
+      bool is_spare_renderer);
+
+  // Use CreateRenderProcessHost() or CreateSpareRenderProcessHost() instead of
+  // calling this constructor directly.
   RenderProcessHostImpl(BrowserContext* browser_context,
                         StoragePartitionImpl* storage_partition_impl,
-                        int flags);
+                        int flags,
+                        bool is_spare_renderer);
 
   void MaybeNotifyVizOfRendererBlockStateChanged(bool blocked);
 
@@ -1373,6 +1382,11 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // Stores the time at which the last successful call to Init happened.
   base::TimeTicks last_init_time_;
 
+  // Stores the last time Pause() was called on the IPC channel when the channel
+  // was initialized / renderer process launch was requested, respectively.
+  base::TimeTicks pause_channel_on_init_time_;
+  base::TimeTicks pause_channel_on_process_launch_time_;
+
   // Used to launch and terminate the process without blocking the UI thread.
   std::unique_ptr<ChildProcessLauncher> child_process_launcher_;
 
@@ -1519,6 +1533,11 @@ class CONTENT_EXPORT RenderProcessHostImpl
       file_system_manager_impl_;
   std::unique_ptr<viz::GpuClient> gpu_client_;
   std::unique_ptr<PushMessagingManager> push_messaging_manager_;
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+  std::unique_ptr<viz::GpuClient, base::OnTaskRunnerDeleter>
+      oop_video_decoder_gpu_client_{nullptr,
+                                    base::OnTaskRunnerDeleter(nullptr)};
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
   std::unique_ptr<EmbeddedFrameSinkProviderImpl> embedded_frame_sink_provider_;
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -1618,7 +1637,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // RenderWidgetHostImpl. For other renderer process allocations, the value
   // will be set to false when the process is taken from the
   // SpareRenderProcessHostManager.
-  bool has_spare_renderer_priority_ = false;
+  bool has_spare_renderer_priority_;
 
   // Tracing track used to emit async event related to lifecycle.
   perfetto::NamedTrack tracing_track_;

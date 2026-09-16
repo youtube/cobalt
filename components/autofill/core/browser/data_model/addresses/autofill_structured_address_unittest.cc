@@ -2980,6 +2980,30 @@ TEST_F(AutofillStructuredAddress, ZipCodeParsing) {
        .zip = "163-8001",
        .zip_prefix = "163",
        .zip_suffix = "8001"},
+      {.country_code = "JP",
+       .zip = "1638001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "JP",
+       .zip = "〒163-8001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "JP",
+       .zip = "〒 163-8001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "JP",
+       .zip = "〒1638001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "JP",
+       .zip = "１６３－８００１",
+       .zip_prefix = "１６３",
+       .zip_suffix = "８００１"},
+      {.country_code = "JP",
+       .zip = "〒１６３－８００１",
+       .zip_prefix = "１６３",
+       .zip_suffix = "８００１"},
       {.country_code = "PL",
        .zip = "00-843",
        .zip_prefix = "00",
@@ -3127,6 +3151,56 @@ TEST_F(AutofillStructuredAddress, ZipCodeFormatting) {
     VerifyTestValues(address.Root(), expectation);
   }
 }
+
+struct HouseNumberTestCase {
+  std::u16string input;
+  std::u16string expected;
+};
+
+class AutofillStructuredAddressHouseNumberTest
+    : public AutofillStructuredAddress,
+      public testing::WithParamInterface<HouseNumberTestCase> {
+ private:
+  base::test::ScopedFeatureList features_{
+      features::kAutofillAddressDiscardWhitespaceInHouseNumber};
+};
+
+TEST_P(AutofillStructuredAddressHouseNumberTest,
+       DiscardWhitespaceWhenNormalizingHouseNumber) {
+  const HouseNumberTestCase& test_case = GetParam();
+
+  AddressComponentsStore address =
+      i18n_model_definition::CreateAddressComponentModel();
+  AddressComponent* house_number_node =
+      test_api(*address.Root()).GetNodeForType(ADDRESS_HOME_HOUSE_NUMBER);
+
+  ASSERT_TRUE(house_number_node->SetValueForType(
+      ADDRESS_HOME_HOUSE_NUMBER, test_case.input,
+      VerificationStatus::kObserved));
+  ASSERT_EQ(house_number_node->GetValue(), test_case.input);
+  EXPECT_EQ(house_number_node->GetValueForComparisonForType(
+                ADDRESS_HOME_HOUSE_NUMBER, house_number_node->GetCountryCode()),
+            test_case.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    AutofillStructuredAddressHouseNumberTest,
+    ::testing::ValuesIn<HouseNumberTestCase>(
+        {{u" 123 ", u"123"},
+         {u"123 A", u"123a"},
+         {u"123   a", u"123a"},
+         {u" 45 B ", u"45b"},
+         {u"123", u"123"},
+         {u"   ", u""},
+         {u"apt. 123", u"apt123"},
+         // Test cases below are considered equal because normalization removes
+         // character such as "/", "-" and whitespaces. The risks of merging
+         // profiles with "12/3" and "123" are considered acceptable as it
+         // requires other profile fields to match as well. Such cases are
+         // expected to be rare compared to the "123 A" and "123a".
+         {u"12/3", u"123"},
+         {u"12-3", u"123"}}));
 
 }  // namespace
 

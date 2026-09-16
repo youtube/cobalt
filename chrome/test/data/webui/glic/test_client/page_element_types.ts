@@ -123,6 +123,10 @@ export interface PageElementTypes {
   stopActorTask: HTMLButtonElement;
   actorTaskId: HTMLInputElement;
   executeAction: HTMLButtonElement;
+  credentialSelection: HTMLDivElement;
+  selectCredential: HTMLSelectElement;
+  credentialOnce: HTMLButtonElement;
+  credentialAlways: HTMLButtonElement;
   actionProtoEncodedText: HTMLInputElement;
   actionStatus: HTMLSpanElement;
   actionUpdatedContextResult: HTMLSpanElement;
@@ -148,8 +152,11 @@ export interface PageElementTypes {
   viewChangedCurrentView: HTMLSelectElement;
   viewChangedAutomaticallyAccept: HTMLInputElement;
   mqlsClientIdBtn: HTMLButtonElement;
+  additionalContextResult: HTMLTextAreaElement;
+  additionalContextImages: HTMLDivElement;
   multiTabFetchScreenshot: HTMLInputElement;
   conversationIdInput: HTMLInputElement;
+  conversationTitleInput: HTMLInputElement;
   switchConversationBtn: HTMLButtonElement;
   registerConversationBtn: HTMLButtonElement;
   conversationId: HTMLInputElement;

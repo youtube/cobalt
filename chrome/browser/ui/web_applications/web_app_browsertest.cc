@@ -32,9 +32,6 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
-#include "chrome/browser/apps/app_service/app_service_proxy.h"
-#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/browser_app_launcher.h"
 #include "chrome/browser/banners/app_banner_manager_desktop.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/devtools/protocol/browser_handler.h"
@@ -844,7 +841,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, AppLastLaunchTime) {
               before_launch);
 }
 
-IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, WithMinimalUiButtons_ManifsetBrowser) {
+IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
+                       WithMinimalUiButtons_ManifsetBrowser) {
   EXPECT_TRUE(
       HasMinimalUiButtons(/*install_display_mode=*/DisplayMode::kBrowser,
                           /*app_display_mode_override=*/std::nullopt,
@@ -898,9 +896,8 @@ IN_PROC_BROWSER_TEST_F(
                           /*expected_launch_display=*/DisplayMode::kBrowser));
 }
 
-IN_PROC_BROWSER_TEST_F(
-    WebAppBrowserTest,
-    WithoutMinimalUiButtons_ManifestBrowser_OpenInBrowser) {
+IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
+                       WithoutMinimalUiButtons_ManifestBrowser_OpenInBrowser) {
   EXPECT_FALSE(
       HasMinimalUiButtons(/*install_display_mode=*/DisplayMode::kBrowser,
                           /*app_display_mode_override=*/std::nullopt,
@@ -942,8 +939,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
-                     WithoutMinimalUiButtons_DisplayOverride_Standalone) {
-
+                       WithoutMinimalUiButtons_DisplayOverride_Standalone) {
   EXPECT_FALSE(HasMinimalUiButtons(
       DisplayMode::kMinimalUi, DisplayMode::kStandalone,
       /*open_as_window=*/true,
@@ -1733,7 +1729,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
   // install source.
   EXPECT_FALSE(provider->registrar_unsafe().CanUserUninstallWebApp(app_id));
   const WebApp& web_app = *provider->registrar_unsafe().GetAppById(app_id);
-    EXPECT_TRUE(web_app.GetSources().Has(WebAppManagement::kUserInstalled));
+  EXPECT_TRUE(web_app.GetSources().Has(WebAppManagement::kUserInstalled));
   EXPECT_TRUE(web_app.IsPolicyInstalledApp());
 }
 
@@ -2044,8 +2040,9 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ReparentLastBrowserTab) {
   const webapps::AppId app_id = InstallPWA(app_url);
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), app_url));
 
-  Browser* const app_browser = ReparentWebAppForActiveTab(browser());
-  ASSERT_EQ(app_browser->app_controller()->app_id(), app_id);
+  BrowserWindowInterface* const app_browser =
+      ReparentWebAppForActiveTab(browser());
+  ASSERT_EQ(app_browser->GetAppBrowserController()->app_id(), app_id);
 
   ASSERT_TRUE(IsBrowserOpen(browser()));
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
@@ -2685,11 +2682,15 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_NoDestroyProfile, Shutdown) {
   handler.Close();
   ui_test_utils::WaitForBrowserToClose();
 
-  content::WebContents* const web_contents =
-      apps::AppServiceProxyFactory::GetForProfile(profile)
-          ->BrowserAppLauncher()
-          ->LaunchAppWithParamsForTesting(std::move(params));
-  EXPECT_EQ(web_contents, nullptr);
+  web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
+  base::test::TestFuture<base::WeakPtr<Browser>,
+                         base::WeakPtr<content::WebContents>,
+                         apps::LaunchContainer>
+      future;
+  provider->scheduler().LaunchAppWithCustomParams(std::move(params),
+                                                  future.GetCallback());
+  EXPECT_FALSE(future.template Get<1>().get());
 }
 
 using WebAppBrowserTest_ManifestId = WebAppBrowserTest;
@@ -2924,11 +2925,11 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, UninstallIncompleteUninstall) {
 // Verifies the behavior of the App/site settings link in the page info bubble.
 class WebAppBrowserTest_PageInfoManagementLink : public WebAppBrowserTest {
  public:
-  bool ShowingAppManagementLink(Browser* browser) {
+  bool ShowingAppManagementLink(BrowserWindowInterface* browser) {
     int unused_id, unused_id2;
     return GetLabelIdsForAppManagementLinkInPageInfo(
-        browser->tab_strip_model()->GetActiveWebContents(), &unused_id,
-        &unused_id2);
+        browser->GetFeatures().tab_strip_model()->GetActiveWebContents(),
+        &unused_id, &unused_id2);
   }
 };
 
@@ -2945,14 +2946,16 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_PageInfoManagementLink, Reparenting) {
   // link.
   EXPECT_TRUE(ShowingAppManagementLink(browser()));
   // Reparent into app browser window.
-  Browser* const app_browser = ReparentWebAppForActiveTab(browser());
+  BrowserWindowInterface* const app_browser =
+      ReparentWebAppForActiveTab(browser());
   // The leftover tab in the tabbed browser window should not be appy.
   EXPECT_FALSE(ShowingAppManagementLink(browser()));
   // After reparenting into an app browser, should show the app settings link.
   EXPECT_TRUE(ShowingAppManagementLink(app_browser));
 
   // Move back into tabbed browser: should keep showing the app settings link.
-  Browser* tabbed_browser = chrome::OpenInChrome(app_browser);
+  Browser* tabbed_browser =
+      chrome::OpenInChrome(app_browser->GetBrowserForMigrationOnly());
   EXPECT_TRUE(ShowingAppManagementLink(tabbed_browser));
 }
 

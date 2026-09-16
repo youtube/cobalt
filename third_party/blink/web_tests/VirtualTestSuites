@@ -339,6 +339,25 @@
     "expires": "never"
   },
   {
+    "prefix": "cpu-performance",
+    "owners": [
+      "nikolaos@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/cpu-performance"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=CpuPerformance"
+    ],
+    "expires": "Dec 31, 2025"
+  },
+  {
     "prefix": "cross-partition-blob-url",
     "platforms": [
       "Linux"
@@ -576,7 +595,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions:RefreshQuota/false,DeviceBoundSessionsOriginTrialFeedback",
+      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions:RefreshQuota/false/OriginTrialFeedback/true,DeviceBoundSessionsFederatedRegistration",
       "--disable-features=TrackingProtection3pcd"
     ],
     "expires": "never"
@@ -1001,6 +1020,27 @@
     "expires": "Aug 1, 2026"
   },
   {
+    "prefix": "fedcm-well-known-validation",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/fedcm/fedcm-well-known-validation/"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=FedCmWellKnownEndpointValidation,FedCmPreservePortsForTesting"
+    ],
+    "owners": [
+      "npm@chromium.org",
+      "cbiesinger@chromium.org",
+      "goto@chromium.org"
+    ],
+    "expires": "Aug 1, 2026"
+  },
+  {
     "prefix": "fedcm-third-party-iframe",
     "platforms": [
       "Linux",
@@ -1034,6 +1074,27 @@
     "exclusive_tests": "ALL",
     "args": [
       "--enable-features=FedCmIdPregistration"
+    ],
+    "owners": [
+      "npm@chromium.org",
+      "cbiesinger@chromium.org",
+      "goto@chromium.org"
+    ],
+    "expires": "Aug 1, 2026"
+  },
+  {
+    "prefix": "fedcm-error-attribute",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/fedcm/fedcm-error-attribute"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=FedCmErrorAttribute"
     ],
     "owners": [
       "npm@chromium.org",
@@ -2527,8 +2588,8 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/speculation-rules/prefetch/anonymous-client.https.html",
-      "external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip-duplicate.https.html"
+      "external/wpt/speculation-rules/prefetch/anonymous/anonymous-client.https.html",
+      "external/wpt/speculation-rules/prefetch/anonymous/cross-origin-cookies-anonymous-client-ip-duplicate.https.html"
     ],
     "exclusive_tests": "ALL",
     "args": [
@@ -2596,7 +2657,10 @@
   {
     "prefix": "presentation",
     "owners": [
-      "mfoltz@chromium.org"
+      "mfoltz@chromium.org",
+      "muyaoxu@google.com",
+      "jophba@chromium.org",
+      "openscreen-eng@google.com"
     ],
     "platforms": [
       "Linux",
@@ -2607,7 +2671,7 @@
     "args": [
       "--force-presentation-receiver-for-testing"
     ],
-    "expires": "Oct 1, 2025"
+    "expires": "never"
   },
   {
     "prefix": "private-aggregation",
@@ -2893,7 +2957,7 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/custom-elements/registries"
+      "external/wpt/custom-elements/"
     ],
     "args": [
       "--enable-blink-features=ScopedCustomElementRegistry"
@@ -2996,18 +3060,24 @@
       "external/wpt/compression/decompression-constructor-error.tentative.any.shadowrealm-in-window.html",
       "external/wpt/compression/decompression-constructor-error.tentative.https.any.shadowrealm-in-audioworklet.html",
       "external/wpt/compression/decompression-constructor-error.tentative.https.any.shadowrealm-in-serviceworker.html",
-      "external/wpt/compression/decompression-correct-input.tentative.any.shadowrealm-in-dedicatedworker.html",
-      "external/wpt/compression/decompression-correct-input.tentative.any.shadowrealm-in-shadowrealm.html",
-      "external/wpt/compression/decompression-correct-input.tentative.any.shadowrealm-in-sharedworker.html",
-      "external/wpt/compression/decompression-correct-input.tentative.any.shadowrealm-in-window.html",
-      "external/wpt/compression/decompression-correct-input.tentative.https.any.shadowrealm-in-audioworklet.html",
-      "external/wpt/compression/decompression-correct-input.tentative.https.any.shadowrealm-in-serviceworker.html",
+      "external/wpt/compression/decompression-correct-input.any.shadowrealm-in-dedicatedworker.html",
+      "external/wpt/compression/decompression-correct-input.any.shadowrealm-in-shadowrealm.html",
+      "external/wpt/compression/decompression-correct-input.any.shadowrealm-in-sharedworker.html",
+      "external/wpt/compression/decompression-correct-input.any.shadowrealm-in-window.html",
+      "external/wpt/compression/decompression-correct-input.https.any.shadowrealm-in-audioworklet.html",
+      "external/wpt/compression/decompression-correct-input.https.any.shadowrealm-in-serviceworker.html",
       "external/wpt/compression/decompression-empty-input.tentative.any.shadowrealm-in-dedicatedworker.html",
       "external/wpt/compression/decompression-empty-input.tentative.any.shadowrealm-in-shadowrealm.html",
       "external/wpt/compression/decompression-empty-input.tentative.any.shadowrealm-in-sharedworker.html",
       "external/wpt/compression/decompression-empty-input.tentative.any.shadowrealm-in-window.html",
       "external/wpt/compression/decompression-empty-input.tentative.https.any.shadowrealm-in-audioworklet.html",
       "external/wpt/compression/decompression-empty-input.tentative.https.any.shadowrealm-in-serviceworker.html",
+      "external/wpt/compression/decompression-extra-input.any.shadowrealm-in-dedicatedworker.html",
+      "external/wpt/compression/decompression-extra-input.any.shadowrealm-in-shadowrealm.html",
+      "external/wpt/compression/decompression-extra-input.any.shadowrealm-in-sharedworker.html",
+      "external/wpt/compression/decompression-extra-input.any.shadowrealm-in-window.html",
+      "external/wpt/compression/decompression-extra-input.https.any.shadowrealm-in-audioworklet.html",
+      "external/wpt/compression/decompression-extra-input.https.any.shadowrealm-in-serviceworker.html",
       "external/wpt/compression/decompression-split-chunk.tentative.any.shadowrealm-in-dedicatedworker.html",
       "external/wpt/compression/decompression-split-chunk.tentative.any.shadowrealm-in-shadowrealm.html",
       "external/wpt/compression/decompression-split-chunk.tentative.any.shadowrealm-in-sharedworker.html",
@@ -4079,6 +4149,26 @@
     "expires": "Apr 1, 2026"
   },
   {
+    "prefix": "speculation-rules-prerender-wpt-internal",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "wpt_internal/origin_trials/prerender/"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=Prerender2AllowActivationInBackground"
+    ],
+    "owners": [
+      "nhiroki@chromium.org",
+      "yoichio@chromium.org"
+    ],
+    "expires": "Apr 1, 2026"
+  },
+  {
     "prefix": "speech-with-unified-autoplay",
     "owners": [
       "media-dev@chromium.org",
@@ -4704,6 +4794,8 @@
       "external/wpt/html/webappapis/scripting/events/event-handler-attributes-body-window.html",
       "external/wpt/html/webappapis/scripting/events/event-handler-attributes-frameset-window.html",
       "external/wpt/html/webappapis/scripting/events/event-handler-attributes-windowless-body.html",
+      "external/wpt/navigation-api/ordering-and-transition/back-cross-document-event-order.html",
+      "external/wpt/navigation-api/ordering-and-transition/navigate-cross-document-event-order.html",
       "external/wpt/navigation-timing/nested-unload-timing.html",
       "external/wpt/permissions-policy/experimental-features/unload-allowed-by-default.tentative.window.js",
       "external/wpt/permissions-policy/experimental-features/unload-disallowed-subframe.tentative.window.js",

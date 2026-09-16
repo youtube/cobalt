@@ -3285,8 +3285,26 @@ TEST_F(FileUtilTest, FILEToFile) {
 
 TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
   FilePath temp_dir;
-  ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
+  ASSERT_TRUE(CreateNewTempDirectory(FPL(""), &temp_dir));
   EXPECT_TRUE(PathExists(temp_dir));
+  EXPECT_TRUE(DeleteFile(temp_dir));
+}
+
+TEST_F(FileUtilTest, CreateNewTempDirectoryPrefixTest) {
+  FilePath temp_dir;
+  ASSERT_TRUE(
+      CreateNewTempDirectory(FILE_PATH_LITERAL("test_dir_prefix"), &temp_dir));
+  EXPECT_TRUE(PathExists(temp_dir));
+
+  const FilePath::StringType matcher =
+#if BUILDFLAG(IS_WIN)
+      FILE_PATH_LITERAL("test_dir_prefix*");
+#else   // BUILDFLAG(IS_WIN)
+      FILE_PATH_LITERAL("*.test_dir_prefix.*");
+#endif  // BUILDFLAG(IS_WIN)
+
+  EXPECT_THAT(temp_dir.value(),
+              ::testing::HasSubstr(FILE_PATH_LITERAL("test_dir_prefix")));
   EXPECT_TRUE(DeleteFile(temp_dir));
 }
 
@@ -3296,7 +3314,7 @@ TEST_F(FileUtilTest, TempDirectoryParentTest) {
     GTEST_SKIP() << "This test must be run by an admin user";
   }
   FilePath temp_dir;
-  ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
+  ASSERT_TRUE(CreateNewTempDirectory(FPL(""), &temp_dir));
   EXPECT_TRUE(PathExists(temp_dir));
 
   FilePath expected_parent_dir;

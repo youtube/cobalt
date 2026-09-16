@@ -33,7 +33,9 @@ import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.PendingTabClosureManager.PendingTabClosureDelegate;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.tasks.tab_management.MoveTabUtils;
+import org.chromium.components.tabs.TabStripCollection;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -405,22 +407,43 @@ public class TabModelImpl extends TabModelJniBridge {
     }
 
     @Override
-    public void pinTab(int tabId) {
+    public void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener) {
+        Tab eligibleTabToPin = getEligibleTabToPin(tabId);
+        if (eligibleTabToPin == null) return;
+
+        TabPinnerActionListener listener =
+                new TabPinnerActionListener(() -> doPin(tabId), tabModelActionListener);
+        getTabUngrouper()
+                .ungroupTabs(
+                        Collections.singletonList(eligibleTabToPin),
+                        /* trailing= */ true,
+                        showUngroupDialog,
+                        listener);
+        listener.pinIfCollaborationDialogShown();
+    }
+
+    private @Nullable Tab getEligibleTabToPin(int tabId) {
+        Tab tab = getTabById(tabId);
+        if (tab == null) return null;
+
+        if (tab.getIsPinned()) return null;
+
+        return tab;
+    }
+
+    private void doPin(int tabId) {
+        Tab tab = getEligibleTabToPin(tabId);
+        if (tab == null) return;
+
         int availableIndex = findFirstNonPinnedTabIndex();
         if (availableIndex == mTabs.size()) return;
 
-        Tab tab = getTabById(tabId);
-        if (tab == null) return;
-
-        if (tab.getIsPinned()) return;
-
-        // Call #notifyWillChangePinState before #moveTab. The notify step triggers
-        // TabGroupModelFilterImpl#willChangePinState to ungroup the tab prior to pinning.
-        // #moveTab typically kicks off StripLayoutHelper#rebuildStripView. If rebuild runs
-        // before the tab is removed from its group, the strip can treat the group as split,
-        // miscount groups, and hit an out-of-bounds.
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(true);
+        recordPinTimestamp(tab);
         moveTab(tab.getId(), availableIndex);
         notifyDidChangeInPinState(tab);
     }
@@ -440,6 +463,7 @@ public class TabModelImpl extends TabModelJniBridge {
 
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(false);
+        recordPinnedDuration(tab);
         notifyDidChangeInPinState(tab);
     }
 
@@ -929,9 +953,7 @@ public class TabModelImpl extends TabModelJniBridge {
 
         // Deferred until another tab is selected. Otherwise the compositor may try to re-navigate
         // the tab.
-        if (ChromeFeatureList.sTabFreezeOnUndoableClosureKillSwitch.isEnabled()
-                && pauseMedia
-                && TabUtils.isCapturingForMedia(tab)) {
+        if (pauseMedia && TabUtils.isCapturingForMedia(tab)) {
             // If media is being captured freeze the tab to disconnect it.
             tab.freeze();
         }
@@ -1029,7 +1051,7 @@ public class TabModelImpl extends TabModelJniBridge {
             // TODO(crbug.com/427929717): Ensure any pinned tabs get unpinned.
             ungroup(tabs);
             Tab destinationTab = tabs.get(0);
-            filter.mergeListOfTabsToGroup(tabs, destinationTab, false);
+            filter.mergeListOfTabsToGroup(tabs, destinationTab, MergeNotificationType.DONT_NOTIFY);
             return destinationTab.getTabGroupId();
         }
         List<Tab> tabsInGroup = filter.getTabsInGroup(tabGroupId);
@@ -1044,7 +1066,8 @@ public class TabModelImpl extends TabModelJniBridge {
         }
         // Ungroup the tabs first to ensure they are not in any groups.
         ungroup(tabsToGroup);
-        filter.mergeListOfTabsToGroup(tabsToGroup, tabsInGroup.get(0), false);
+        filter.mergeListOfTabsToGroup(
+                tabsToGroup, tabsInGroup.get(0), MergeNotificationType.DONT_NOTIFY);
         return tabsInGroup.get(0).getTabGroupId();
     }
 
@@ -1130,5 +1153,10 @@ public class TabModelImpl extends TabModelJniBridge {
         }
 
         return firstNonPinnedIndex;
+    }
+
+    @Override
+    public @Nullable TabStripCollection getTabStripCollection() {
+        return null;
     }
 }

@@ -320,7 +320,8 @@ inline constexpr char kGoogleAccountWorkAddressURL[] =
 
 // URL of the change Google Account name page.
 inline constexpr char kGoogleAccountNameEmailAddressEditURL[] =
-    "https://myaccount.google.com/personal-info";
+    "https://myaccount.google.com/"
+    "personal-info?utm_source=chrome-settings&utm_medium=autofill";
 
 // URL of the two factor authentication setup required intersitial.
 inline constexpr char kGoogleTwoFactorIntersitialURL[] =
@@ -380,13 +381,20 @@ inline constexpr char16_t kManagedUiLearnMoreUrl[] =
 inline constexpr char kInsecureDownloadBlockingLearnMoreUrl[] =
     "https://support.google.com/chrome?p=mixed_content_downloads";
 
-// "myactivity.google.com" URL for the history checkbox in ClearBrowsingData.
+// "myactivity.google.com" URLs with their respective UTM sources.
+// - In the Clear Browsing Data footer.
+// - In the Clear Browsing Data "notice about other forms of history".
+// - On the history page.
 inline constexpr char16_t kMyActivityUrlInClearBrowsingData[] =
     u"https://myactivity.google.com/myactivity?utm_source=chrome_cbd";
+inline constexpr char16_t kMyActivityUrlInClearBrowsingDataNotice[] =
+    u"https://myactivity.google.com/myactivity/?utm_source=chrome_n";
+inline constexpr char16_t kMyActivityUrlInHistory[] =
+    u"https://myactivity.google.com/myactivity/?utm_source=chrome_h";
 
 // The URL for the Gemini Personal Context page.
 inline constexpr char16_t kGeminiPersonalContextUrl[] =
-    u"https://gemini.google.com/corp/saved-info";
+    u"https://gemini.google.com/saved-info";
 
 // The URL for "Your Gemini Apps Activity" page.inline constexpr char16_t
 // kMyActivityGeminiAppsUrl[] =
@@ -459,6 +467,9 @@ inline constexpr char kAddressesAndPaymentMethodsLearnMoreURL[] =
 // finalized.
 inline constexpr char16_t kPayOverTimeLearnMoreUrl[] =
     u"https://support.google.com/googlepay?p=bnpl_autofill_chrome";
+
+// The URL for the Wallet website.
+inline constexpr char16_t kWalletUrl[] = u"https://wallet.google.com";
 
 // Help URL for Autofill AI.
 inline constexpr char16_t kAutofillAiLearnMoreURL[] =
@@ -605,6 +616,10 @@ inline constexpr char16_t kHistorySearchSettingURL[] =
 // The URL for the "Learn more" page for Wallpaper Search.
 inline constexpr char kWallpaperSearchLearnMorePageURL[] =
     "https://support.google.com/chrome?p=create_themes_with_ai";
+
+// The URL for the passed in Google Wallet.
+inline constexpr char kWalletPassesPageURL[] =
+    "https://wallet.google.com/wallet/passes";
 
 // The URL for the "Learn more" page for Tab Organization.
 inline constexpr char kTabOrganizationLearnMorePageURL[] =

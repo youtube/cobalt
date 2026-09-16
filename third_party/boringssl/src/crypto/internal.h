@@ -407,8 +407,16 @@ static inline uint8_t constant_time_select_8(crypto_word_t mask, uint8_t a,
 // constant_time_select_int acts like |constant_time_select| but operates on
 // ints.
 static inline int constant_time_select_int(crypto_word_t mask, int a, int b) {
-  return (int)(constant_time_select_w(mask, (crypto_word_t)(a),
-                                      (crypto_word_t)(b)));
+  return static_cast<int>(constant_time_select_w(
+      mask, static_cast<crypto_word_t>(a), static_cast<crypto_word_t>(b)));
+}
+
+// constant_time_select_32 acts like |constant_time_select| but operates on
+// 32-bit values.
+static inline uint32_t constant_time_select_32(crypto_word_t mask, uint32_t a,
+                                               uint32_t b) {
+  return static_cast<uint32_t>(
+      constant_time_select_w(mask, crypto_word_t{a}, crypto_word_t{b}));
 }
 
 // constant_time_conditional_memcpy copies |n| bytes from |src| to |dst| if

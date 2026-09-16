@@ -40,7 +40,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         SSL3_TXT_RSA_DES_192_CBC3_SHA,
         "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
-        SSL3_CK_RSA_DES_192_CBC3_SHA,
+        SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA,
         SSL_kRSA,
         SSL_aRSA_DECRYPT,
         SSL_3DES,
@@ -55,7 +55,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_RSA_WITH_AES_128_SHA,
         "TLS_RSA_WITH_AES_128_CBC_SHA",
-        TLS1_CK_RSA_WITH_AES_128_SHA,
+        SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA,
         SSL_kRSA,
         SSL_aRSA_DECRYPT,
         SSL_AES128,
@@ -67,7 +67,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_RSA_WITH_AES_256_SHA,
         "TLS_RSA_WITH_AES_256_CBC_SHA",
-        TLS1_CK_RSA_WITH_AES_256_SHA,
+        SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA,
         SSL_kRSA,
         SSL_aRSA_DECRYPT,
         SSL_AES256,
@@ -81,7 +81,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_PSK_WITH_AES_128_CBC_SHA,
         "TLS_PSK_WITH_AES_128_CBC_SHA",
-        TLS1_CK_PSK_WITH_AES_128_CBC_SHA,
+        SSL_CIPHER_PSK_WITH_AES_128_CBC_SHA,
         SSL_kPSK,
         SSL_aPSK,
         SSL_AES128,
@@ -93,7 +93,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_PSK_WITH_AES_256_CBC_SHA,
         "TLS_PSK_WITH_AES_256_CBC_SHA",
-        TLS1_CK_PSK_WITH_AES_256_CBC_SHA,
+        SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA,
         SSL_kPSK,
         SSL_aPSK,
         SSL_AES256,
@@ -107,7 +107,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_RSA_WITH_AES_128_GCM_SHA256,
         "TLS_RSA_WITH_AES_128_GCM_SHA256",
-        TLS1_CK_RSA_WITH_AES_128_GCM_SHA256,
+        SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256,
         SSL_kRSA,
         SSL_aRSA_DECRYPT,
         SSL_AES128GCM,
@@ -119,7 +119,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_RSA_WITH_AES_256_GCM_SHA384,
         "TLS_RSA_WITH_AES_256_GCM_SHA384",
-        TLS1_CK_RSA_WITH_AES_256_GCM_SHA384,
+        SSL_CIPHER_RSA_WITH_AES_256_GCM_SHA384,
         SSL_kRSA,
         SSL_aRSA_DECRYPT,
         SSL_AES256GCM,
@@ -133,7 +133,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_3_RFC_AES_128_GCM_SHA256,
         "TLS_AES_128_GCM_SHA256",
-        TLS1_3_CK_AES_128_GCM_SHA256,
+        SSL_CIPHER_AES_128_GCM_SHA256,
         SSL_kGENERIC,
         SSL_aGENERIC,
         SSL_AES128GCM,
@@ -145,7 +145,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_3_RFC_AES_256_GCM_SHA384,
         "TLS_AES_256_GCM_SHA384",
-        TLS1_3_CK_AES_256_GCM_SHA384,
+        SSL_CIPHER_AES_256_GCM_SHA384,
         SSL_kGENERIC,
         SSL_aGENERIC,
         SSL_AES256GCM,
@@ -157,7 +157,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_3_RFC_CHACHA20_POLY1305_SHA256,
         "TLS_CHACHA20_POLY1305_SHA256",
-        TLS1_3_CK_CHACHA20_POLY1305_SHA256,
+        SSL_CIPHER_CHACHA20_POLY1305_SHA256,
         SSL_kGENERIC,
         SSL_aGENERIC,
         SSL_CHACHA20POLY1305,
@@ -169,7 +169,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
         "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-        TLS1_CK_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+        SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
         SSL_kECDHE,
         SSL_aECDSA,
         SSL_AES128,
@@ -181,7 +181,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
         "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-        TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+        SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
         SSL_kECDHE,
         SSL_aECDSA,
         SSL_AES256,
@@ -193,7 +193,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA,
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-        TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+        SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_AES128,
@@ -205,7 +205,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_AES_256_CBC_SHA,
         "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-        TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+        SSL_CIPHER_ECDHE_RSA_WITH_AES_256_CBC_SHA,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_AES256,
@@ -217,7 +217,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-        TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+        SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_AES128,
@@ -231,7 +231,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
         "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-        TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+        SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
         SSL_kECDHE,
         SSL_aECDSA,
         SSL_AES128GCM,
@@ -243,7 +243,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
         "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+        SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
         SSL_kECDHE,
         SSL_aECDSA,
         SSL_AES256GCM,
@@ -255,7 +255,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
         "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-        TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_AES128GCM,
@@ -267,7 +267,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
         "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-        TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+        SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_AES256GCM,
@@ -281,7 +281,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_PSK_WITH_AES_128_CBC_SHA,
         "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA",
-        TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA,
+        SSL_CIPHER_ECDHE_PSK_WITH_AES_128_CBC_SHA,
         SSL_kECDHE,
         SSL_aPSK,
         SSL_AES128,
@@ -293,7 +293,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_PSK_WITH_AES_256_CBC_SHA,
         "TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA",
-        TLS1_CK_ECDHE_PSK_WITH_AES_256_CBC_SHA,
+        SSL_CIPHER_ECDHE_PSK_WITH_AES_256_CBC_SHA,
         SSL_kECDHE,
         SSL_aPSK,
         SSL_AES256,
@@ -307,7 +307,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
-        TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+        SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         SSL_kECDHE,
         SSL_aRSA_SIGN,
         SSL_CHACHA20POLY1305,
@@ -319,7 +319,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
         "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
-        TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+        SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
         SSL_kECDHE,
         SSL_aECDSA,
         SSL_CHACHA20POLY1305,
@@ -331,7 +331,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
     {
         TLS1_TXT_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
         "TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256",
-        TLS1_CK_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
+        SSL_CIPHER_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
         SSL_kECDHE,
         SSL_aPSK,
         SSL_CHACHA20POLY1305,
@@ -642,7 +642,7 @@ void SSLCipherPreferenceList::Remove(const SSL_CIPHER *cipher) {
 }
 
 bool ssl_cipher_is_deprecated(const SSL_CIPHER *cipher) {
-  return cipher->id == TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ||
+  return cipher->protocol_id == SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ||
          cipher->algorithm_enc == SSL_3DES;
 }
 
@@ -655,7 +655,7 @@ bool ssl_cipher_is_deprecated(const SSL_CIPHER *cipher) {
 //   of that strength.
 // - Otherwise, |alias| must be non-null. It selects ciphers that matches
 //   |*alias|.
-static void ssl_cipher_apply_rule(uint32_t cipher_id, const CIPHER_ALIAS *alias,
+static void ssl_cipher_apply_rule(uint16_t cipher_id, const CIPHER_ALIAS *alias,
                                   int rule, int strength_bits, bool in_group,
                                   CIPHER_ORDER **head_p,
                                   CIPHER_ORDER **tail_p) {
@@ -703,7 +703,7 @@ static void ssl_cipher_apply_rule(uint32_t cipher_id, const CIPHER_ALIAS *alias,
     // Selection criteria is either a specific cipher, the value of
     // |strength_bits|, or the algorithms used.
     if (cipher_id != 0) {
-      if (cipher_id != cp->id) {
+      if (cipher_id != cp->protocol_id) {
         continue;
       }
     } else if (strength_bits >= 0) {
@@ -888,7 +888,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
     }
 
     bool multi = false;
-    uint32_t cipher_id = 0;
+    uint16_t cipher_id = 0;
     CIPHER_ALIAS alias;
     bool skip_rule = false;
 
@@ -921,7 +921,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
         for (const SSL_CIPHER &cipher : kCiphers) {
           if (rule_equals(cipher.name, buf, buf_len) ||
               rule_equals(cipher.standard_name, buf, buf_len)) {
-            cipher_id = cipher.id;
+            cipher_id = cipher.protocol_id;
             break;
           }
         }
@@ -1010,31 +1010,31 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   // non-AEAD. The constants are masked by 0xffff to remove the vestigial 0x03
   // byte from SSL 2.0.
   static const uint16_t kAESCiphers[] = {
-      TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
-      TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
+      SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+      SSL_CIPHER_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+      SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+      SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
   };
   static const uint16_t kChaChaCiphers[] = {
-      TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
-      TLS1_CK_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
+      SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+      SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+      SSL_CIPHER_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
   };
   static const uint16_t kLegacyCiphers[] = {
-      TLS1_CK_ECDHE_ECDSA_WITH_AES_128_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_PSK_WITH_AES_256_CBC_SHA & 0xffff,
-      TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 & 0xffff,
-      TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
-      TLS1_CK_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
-      TLS1_CK_RSA_WITH_AES_128_SHA & 0xffff,
-      TLS1_CK_PSK_WITH_AES_128_CBC_SHA & 0xffff,
-      TLS1_CK_RSA_WITH_AES_256_SHA & 0xffff,
-      TLS1_CK_PSK_WITH_AES_256_CBC_SHA & 0xffff,
-      SSL3_CK_RSA_DES_192_CBC3_SHA & 0xffff,
+      SSL_CIPHER_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+      SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+      SSL_CIPHER_ECDHE_PSK_WITH_AES_128_CBC_SHA,
+      SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+      SSL_CIPHER_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+      SSL_CIPHER_ECDHE_PSK_WITH_AES_256_CBC_SHA,
+      SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+      SSL_CIPHER_RSA_WITH_AES_128_GCM_SHA256,
+      SSL_CIPHER_RSA_WITH_AES_256_GCM_SHA384,
+      SSL_CIPHER_RSA_WITH_AES_128_CBC_SHA,
+      SSL_CIPHER_PSK_WITH_AES_128_CBC_SHA,
+      SSL_CIPHER_RSA_WITH_AES_256_CBC_SHA,
+      SSL_CIPHER_PSK_WITH_AES_256_CBC_SHA,
+      SSL_CIPHER_RSA_WITH_3DES_EDE_CBC_SHA,
   };
 
   // Set up a linked list of ciphers.
@@ -1187,10 +1187,10 @@ using namespace bssl;
 
 static constexpr int ssl_cipher_id_cmp(const SSL_CIPHER *a,
                                        const SSL_CIPHER *b) {
-  if (a->id > b->id) {
+  if (a->protocol_id > b->protocol_id) {
     return 1;
   }
-  if (a->id < b->id) {
+  if (a->protocol_id < b->protocol_id) {
     return -1;
   }
   return 0;
@@ -1216,20 +1216,20 @@ static_assert(ssl_ciphers_sorted(kCiphers),
 
 const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value) {
   SSL_CIPHER c;
-
-  c.id = 0x03000000L | value;
+  c.protocol_id = value;
   return reinterpret_cast<const SSL_CIPHER *>(
       bsearch(&c, kCiphers, std::size(kCiphers), sizeof(SSL_CIPHER),
               ssl_cipher_id_cmp_void));
 }
 
-uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher) { return cipher->id; }
+uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher) {
+  // Historically, OpenSSL added a leading 0x03 byte to cipher IDs, to
+  // distinguish between SSL 2.0 and SSL 3.0.
+  return cipher->protocol_id | 0x03000000;
+}
 
 uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher) {
-  // All OpenSSL cipher IDs are prefaced with 0x03. Historically this referred
-  // to SSLv2 vs SSLv3.
-  assert((cipher->id & 0xff000000) == 0x03000000);
-  return static_cast<uint16_t>(cipher->id);
+  return cipher->protocol_id;
 }
 
 int SSL_CIPHER_is_aead(const SSL_CIPHER *cipher) {

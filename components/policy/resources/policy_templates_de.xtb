@@ -380,6 +380,7 @@ Die Muster für diese Richtlinie dürfen allerdings keine „/path“- oder „@
 
       Wenn die Richtlinie nicht konfiguriert oder der Wert nach dem Ersetzen kein gültiger Hostname ist, wird in der DHCP-Anfrage kein Hostname festgelegt.</translation>
 <translation id="1257550411839719984">Standard-Downloadverzeichnis festlegen</translation>
+<translation id="1258255231440297460">Richtlinien zur Einhaltung der Kryptografie</translation>
 <translation id="1262993197422487260">Schaltfläche zum Anzeigen des Passworts nicht auf dem Anmelde- oder Sperrbildschirm anzeigen</translation>
 <translation id="1265053460044691532">Zeit beschränken, für die sich ein über SAML authentifizierter Nutzer offline anmelden kann</translation>
 <translation id="1265076559723566171">Für die Konfiguration der Einstellungen für EDU-Nutzer</translation>
@@ -614,6 +615,7 @@ https://support.google.com/chrome/a/?p=extended_updates_support.</translation>
       <ph name="BATTERY_SAVER_MODE_ENABLED_ON_BATTERY" /> (2): Dieser Wert wird ab M121 eingestellt. Ab M121 werden Werte als „EnabledBelowThreshold“ behandelt.
       </translation>
 <translation id="1434300053894025056">Rechtschreibprüfung deaktivieren</translation>
+<translation id="1434936032334586168">Stummes Drucken aktivieren</translation>
 <translation id="1435031247649241006">Nutzer können auf dem Sperrbildschirm ein Fenster für die erneute Onlineauthentifizierung öffnen. Dieses Fenster können sie für den Authentifizierungsprozess verwenden, um ihre Sitzung wieder aufzunehmen. Diese Richtlinie kann verwendet werden, um das Fenster automatisch zu öffnen, wenn eine erneute Onlineauthentifizierung erforderlich ist.
 
 Wenn diese Richtlinie aktiviert ist und eine erneute Onlineauthentifizierung erforderlich ist, wird das Fenster für die erneute Onlineauthentifizierung automatisch geöffnet.
@@ -633,6 +635,7 @@ Eine erneute Onlineauthentifizierung kann aus verschiedenen Gründen erforderlic
 <translation id="1438739959477268107">Standardeinstellung für die Schlüsselgenerierung</translation>
 <translation id="1440408958042020947">Zulassen, dass Nutzer, die der Verwendung von Phone Hub zugestimmt haben, auf Fotos und Videos zugreifen können, die kürzlich mit ihrem Smartphone aufgenommen wurden</translation>
 <translation id="1443532790824582949">Touch-Bildschirmtastatur aktivieren</translation>
+<translation id="1447252610864877219">Zulassen, dass die Gemini App Aktionen auf Webseiten ausführt.</translation>
 <translation id="1449083855104537880">Wenn du die Richtlinie auf "True" setzt, werden die Optionen für Bedienungshilfen im Taskleistenmenü angezeigt. Wenn die Richtlinie auf "False" gesetzt ist, werden die Optionen nicht im Taskleistenmenü angezeigt.
 
       Wenn du diese Richtlinie konfigurierst, kann sie von Nutzern nicht geändert werden. Wird sie nicht konfiguriert, erscheinen keine Optionen für Bedienungshilfen im Taskleistenmenü, die Nutzer können sie auf der Seite "Einstellungen" jedoch anzeigen lassen.
@@ -783,6 +786,7 @@ Ausführliche Informationen zu gültigen URL-Mustern findest du unter https://cl
 <translation id="1523774894176285446">Für konfigurierte Websites soll ein alternativer Browser geöffnet werden.</translation>
 <translation id="152657506688053119">Liste alternativer URLs für den Standardsuchanbieter</translation>
 <translation id="1530812829012954197">Immer die folgenden URL-Muster im Host-Browser darstellen</translation>
+<translation id="1533353321560451784">Vids (wird seit Version 143 unterstützt)</translation>
 <translation id="1534007181698071943">Erlaubt die standardmäßige Deaktivierung von unloud-Event-Handlern während der Einstellungsphase</translation>
 <translation id="1539343118617844331">Schule</translation>
 <translation id="1542491165152947087">Nutzer dürfen die <ph name="PRIVACY_SANDBOX_NAME" />-Einstellung für Anzeigenthemen auf ihrem Gerät aktivieren oder deaktivieren.</translation>
@@ -916,6 +920,7 @@ Der Nutzer bleibt in seinem Google-Konto angemeldet, wenn über „<ph name="CLE
 
 Wenn du „<ph name="CLEAR_BROWSING_HISTORY_ACTION" />“, „<ph name="CLEAR_PASSWORD_SIGNIN_ACTION" />“, „<ph name="CLEAR_AUTOFILL_ACTION" />“ und „<ph name="CLEAR_SITE_SETTINGS_ACTION" />“ festlegst, wird die Synchronisierung für die entsprechenden Datentypen deaktiviert, sofern weder „<ph name="CHROME_SYNC_NAME" />“ durch Festlegen der Richtlinie „<ph name="SYNC_DISABLED_POLICY_NAME" />“ noch „<ph name="BROWSER_SIGNIN_POLICY_NAME" />“ deaktiviert ist.</translation>
 <translation id="1583248206450240930">Standardmäßig <ph name="PRODUCT_FRAME_NAME" /> verwenden</translation>
+<translation id="1585643501600142852">Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ nicht aktivieren.</translation>
 <translation id="1587585749332985896">Verwendung des monitorlosen Modus nicht erlauben</translation>
 <translation id="1588240398285670601">Browsereinstellungen</translation>
 <translation id="1590802206069983683">Funktion „ThrottleDisplayNoneAndViewableHiddenCrossOriginIframes“ verfügbar</translation>
@@ -1132,6 +1137,7 @@ Diese Richtlinie ist eine vorübergehende Problemumgehung für den Fall, dass di
       Hinweis: Die Richtlinienwerte sollten in % angegeben werden und zwischen 0 und 100 liegen.</translation>
 <translation id="1733092875104864334">Erfassen von WebRTC-Textprotokollen aus Google-Diensten nicht zulassen</translation>
 <translation id="1733768596873041559">Standardmäßig zum SAML-Identitätsanbieter weiterleiten (vor <ph name="PRODUCT_NAME" />-Version 99 ist eine Bestätigung durch den Nutzer erforderlich)</translation>
+<translation id="1736032188431871940">Zugriff auf eine Liste von URLs im Inkognitomodus blockieren.</translation>
 <translation id="1736269219679256369">Fortfahren von SSL-Hinweisseite erlauben</translation>
 <translation id="1736990730683753958">Die in Gruppen eingeteilte Chrome-Verlaufsseite ist unter chrome://history/grouped nicht sichtbar.</translation>
 <translation id="1740724790865999129">Wenn diese Richtlinie auf eine Liste von Gerätetypen gesetzt ist, können Low-Level-Debug-Daten von den genannten Gerätetypen in das Nutzerfeedback aufgenommen werden.
@@ -1233,6 +1239,7 @@ Diese Richtlinie hat keine Auswirkungen, wenn die Option zum Beibehalten von bes
 <translation id="1837165432382702436">Seitenhöhe in Mikrometern</translation>
 <translation id="1838910874018595451">Voreingestellte Konfiguration für Kerberos-Tickets</translation>
 <translation id="1839042185432919430">Zulassen, dass die Kiosk-Web-App beim Start der App eine Netzwerkaufforderung anzeigt, wenn das Gerät offline ist</translation>
+<translation id="1839711547980672664">Liste der URL-Muster, für die das Öffnen von <ph name="CHROME_DEVTOOLS_NAME" /> zulässig ist</translation>
 <translation id="1843102210803941014">Nur notwendige Cookies und Daten in der Suche aktivieren</translation>
 <translation id="1843117931376765605">Aktualisierungsrate für Nutzerrichtlinien</translation>
 <translation id="1844616986352942647">„Designs mit KI erstellen“ zulassen und KI‑Modelle verbessern.</translation>
@@ -1302,6 +1309,17 @@ Wenn diese Richtlinie auf „False“ gesetzt ist, werden keine personenbezogene
 
 Diese Richtlinie wird nur angewendet, wenn das Gerät für <ph name="PRODUCT_NAME" /> mit <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> registriert ist.
 Für <ph name="PRODUCT_OS_NAME" /> wird diese Richtlinie immer angewendet.</translation>
+<translation id="1878535132109943599">Wenn diese Richtlinie aktiviert ist, werden bei Anfragen vom Typ „<ph name="LOCAL_NETWORK_ACCESS" />“ in den <ph name="CHROME_DEVTOOLS_NAME" /> nur Warnungen aufgrund fehlgeschlagener „<ph name="LOCAL_NETWORK_ACCESS" />“-Prüfungen angezeigt.
+
+Ist diese Richtlinie deaktiviert oder nicht konfiguriert, werden Anfragen vom Typ „<ph name="LOCAL_NETWORK_ACCESS" />“ gemäß dem standardmäßigen Verarbeitungsprozess für diesen Anfragetyp verarbeitet.
+
+Informationen zu Einschränkungen für den <ph name="LOCAL_NETWORK_ACCESS" /> findest du unter https://wicg.github.io/local-network-access/.
+
+Diese Unternehmensrichtlinie ist nur vorübergehend verfügbar und wird nach M146 entfernt.
+
+Langfristig kann die Richtlinie „<ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" />“ verwendet werden, um URL-Muster auf die Zulassungsliste zu setzen, für die automatisch die Berechtigung „<ph name="LOCAL_NETWORK_ACCESS" />“ gewährt werden soll.
+
+Wenn die Richtlinie „<ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" />“ aktiviert ist, hat sie Vorrang vor dieser Richtlinie.</translation>
 <translation id="187961648719201562">Vorhandene lokale Dateien löschen (wird seit Version 137 unterstützt)</translation>
 <translation id="1883274744253492031">Automatisches Upgrade für gemischte Inhalte aktivieren</translation>
 <translation id="1885782360784839335">Einblendung von Werbung auf dem gesamten Tab aktivieren</translation>
@@ -1820,9 +1838,13 @@ Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, ist eine Dateiüber
       Diese Richtlinie überschreibt <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />, <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />, <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> und die Nutzereinstellungen.
 
       Sie wirkt sich nur auf den Zugriff auf USB-Geräte über die Web Serial API aus. Sieh dir für die Gewährung des Zugriffs auf USB-Geräte über die WebUSB API die Richtlinie <ph name="WEB_USB_ALLOW_DEVICES_FOR_URLS_POLICY_NAME" /> an.</translation>
+<translation id="2246450159673309951">Wenn die Richtlinie „<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />“ konfiguriert ist, wird verhindert, dass Webseiten mit unzulässigen URLs im Inkognitomodus geladen werden. Administratoren können eine Liste mit URL-Mustern angeben, die blockiert werden sollen. Ist die Richtlinie nicht konfiguriert, werden keine URLs im Inkognitomodus blockiert. In der Richtlinie „<ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" />“ können bis zu 1.000 Ausnahmen definiert werden. Wie ein URL-Muster formatiert wird, erfährst du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Diese Richtlinie wirkt sich nur auf den Inkognitomodus aus. Verwende die Richtlinie „<ph name="URL_BLOCKLIST_POLICY_NAME" />“, um URLs für alle Nutzerprofile zu blockieren.</translation>
 <translation id="2246565294817797392">Abgeschnittene Cookies blockieren</translation>
 <translation id="2246621891161157804">Chrome erlauben, das Aufrufen externer Protokolle in einem Sandbox-iFrame zu blockieren</translation>
 <translation id="224750967938323855">Einwilligung zur Synchronisierung während der Anmeldung nicht anzeigen</translation>
+<translation id="2251507373069657590">Erweiterungen mit erzwungener Installation und Verstößen, bei denen es nicht um Malware geht, aktivieren</translation>
 <translation id="2252400912879027343">WebSQL bleibt in nicht sicheren Kontexten bis M109 verfügbar und ist dann ab M110 nicht mehr verfügbar.</translation>
 <translation id="225340736558643885">Warnmeldungen für nicht sichere Formulare aktivieren</translation>
 <translation id="2258126710006312594">Nutzern mit Remote-Zugriff die Übertragung von Dateien vom/zum Host gestatten</translation>
@@ -1895,6 +1917,7 @@ Ist diese Richtlinie nicht konfiguriert, können Nutzer die im Launcher angepinn
 <translation id="2306505001667207184">Fordert Nutzer auf, das Clientzertifikat auszuwählen, wenn die Richtlinie für die automatische Auswahl zu mehreren Zertifikaten passt.</translation>
 <translation id="230713790688681130">Inscript-Layout für Hindi aktivieren</translation>
 <translation id="2307496301287881990">Status von Display und Grafikkarte melden</translation>
+<translation id="2308899582897965249">Stummes Drucken deaktivieren</translation>
 <translation id="2309284543927494965">Updates blockieren</translation>
 <translation id="2309341709647905294">Keine Daten zu Peripheriegeräten melden, die an das Gerät angeschlossen sind</translation>
 <translation id="2309390639296060546">Standardeinstellung für "Standortbestimmung"</translation>
@@ -2072,10 +2095,14 @@ Ist sie nicht konfiguriert, ist der Datenschutzbildschirm anfangs deaktiviert, N
 <translation id="2433683038230070030">Adaptives Zwischenspeichern für Web Audio kann abhängig vom Funktionseinführungsprozess aktiviert werden.</translation>
 <translation id="2435052056904485763">Zulassungsliste für Kerberos-Bevollmächtigungs-Server</translation>
 <translation id="2436302465999055995"><ph name="LACROS_NAME" /> als einzigen verfügbaren Browser festlegen (noch nicht implementiert)</translation>
+<translation id="2437963451532167293">Cache-Verschlüsselung verwenden.</translation>
 <translation id="2439187682308339104">Websites nicht erlauben, den Nutzer über die WebHID API um Zugriff auf HID-Geräte zu bitten</translation>
 <translation id="2439733504887695659">Schließen von Warnungen zu gehackten Passwörtern für eingegebene Anmeldedaten aktivieren</translation>
 <translation id="2446029789419870019">Nutzung der Funktion mit Verbesserung von KI‑Modellen zulassen</translation>
 <translation id="2446244536806499267">Nutzer wird während der Audiowiedergabe nicht als inaktiv angesehen</translation>
+<translation id="2450392422484526374">Wird diese Richtlinie auf „True“ gesetzt, wird das stumme Drucken aktiviert. Dabei wird das Druckvorschaufenster nach dem Öffnen sofort geschlossen und der Druckvorgang wird mit den Standardeinstellungen auf dem Standarddrucker gestartet. Wenn unter „Standarddrucker“ die Option „Als PDF speichern“ ausgewählt ist, wird die Datei im Ordner „Downloads“ gespeichert.
+
+Wird diese Richtlinie nicht konfiguriert oder auf „False“ festgelegt, wird das stumme Drucken deaktiviert. In diesem Fall wird das Druckvorschaufenster nicht automatisch geschlossen und der Nutzer muss wie gewohnt eine Auswahl treffen.</translation>
 <translation id="2452225615952836461">Anfragemethoden immer groß schreiben</translation>
 <translation id="2454228136871844693">Für eine optimale Stabilität.</translation>
 <translation id="2455033019778127130">Verwendet das Standard-Browserverhalten, zeigt die Nutzungsbedingungen an und wartet auf die Zustimmung des Nutzers.</translation>
@@ -2175,6 +2202,7 @@ Ist die Richtlinie aktiviert oder nicht konfiguriert, akzeptiert <ph name="PRODU
 Ist die Richtlinie deaktiviert, wird die Funktion zur <ph name="ZSTANDARD_SHORTNAME" />-Inhaltscodierung deaktiviert.</translation>
 <translation id="2512972020817284317">Zusammenführung von Cloud-Richtlinien auf Nutzerebene aktivieren.</translation>
 <translation id="2515699738406900920">Verfügbarkeit von Profil-Picker beim Start</translation>
+<translation id="2516463908828124816">Dadurch werden Erweiterungen mit erzwungener Installation aktiviert, die keine Malware enthalten.</translation>
 <translation id="2517466659416174529">Deaktivieren von Tabs im Hintergrund zulassen</translation>
 <translation id="2518231489509538392">Wiedergabe von Audioinhalten zulassen</translation>
 <translation id="2519578205567666653">Externe Speichergeräte zulassen</translation>
@@ -2409,6 +2437,13 @@ Das System fragt AAAA-Einträge nur dann ab, wenn es für einen globalen IPv6-Ho
 <translation id="2673363037046384711">Der Endnutzer kann den Modus für hohe Effizienz aktivieren oder deaktivieren.</translation>
 <translation id="2673968385134502798">Spiele</translation>
 <translation id="2678503605767349615">Erforderliche geräteübergreifende Clientzertifikate</translation>
+<translation id="268025561734472010">Mit dieser Richtlinie wird die Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ gesteuert. Das Google Developer Program-Profil des Nutzers wird in „<ph name="CHROME_DEVTOOLS_NAME" />“ angezeigt und Nutzer erhalten Logos für die Ausführung bestimmter Aktionen in „<ph name="CHROME_DEVTOOLS_NAME" />“.
+
+Wenn die Richtlinie auf „0“ (Aktiviert) festgelegt oder kein Richtlinienwert festgelegt wird, ist die Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ möglich und die Nutzung des Tools „<ph name="CHROME_DEVTOOLS_NAME" />“ wird freigegeben, damit Logos vergeben werden können.
+
+Wenn die Richtlinie auf „1“ (Aktiviert ohne Logos) festgelegt wird, ist die Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ möglich, aber die Nutzung des Tools „<ph name="CHROME_DEVTOOLS_NAME" />“ wird für das Google Developer Program nicht freigegeben. Es werden keine Logos vergeben.
+
+Wenn die Richtlinie auf „2“ (Deaktiviert) festgelegt wird, ist die Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ nicht möglich.</translation>
 <translation id="268134026533587276">Der Bildschirmschoner für den Sperrbildschirm des Nutzers ist aktiviert.</translation>
 <translation id="268577405881275241">Funktion für Datenkomprimierungs-Proxy aktivieren</translation>
 <translation id="268695908564263739">Mit dieser Richtlinie wird die Einstellung „Modus für hohe Effizienz“ aktiviert oder deaktiviert. Die Einstellung bewirkt, dass Tabs nach einer bestimmten Zeit im Hintergrund geschlossen werden, um Arbeitsspeicher freizugeben.
@@ -2615,6 +2650,7 @@ Diese Richtlinie kann nur als Cloud-Nutzerrichtlinie konfiguriert werden.</trans
 <translation id="2872189563975139803">Einstellungen für die Trennung von Unternehmensprofilen</translation>
 <translation id="2872961005593481000">Herunterfahren</translation>
 <translation id="2872968825059227580">GIF-Unterstützung deaktivieren.</translation>
+<translation id="2873976725097049554">Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ aktivieren.</translation>
 <translation id="2874209944580848064">Hinweis für <ph name="PRODUCT_OS_NAME" />-Geräte, die Android-Apps unterstützen:</translation>
 <translation id="287474029350993681">Streamen von Inhalten auf das Gerät deaktivieren</translation>
 <translation id="2875192972412983412">Gibt die Untergruppe der Druckserver an, von denen Serverdrucker abgefragt werden.
@@ -2673,6 +2709,7 @@ Diese Richtlinie kann nur als Cloud-Nutzerrichtlinie konfiguriert werden.</trans
 
           Falls mehrere Außerkraftsetzungen gesendet werden, wird der neueste gültige Eintrag angewendet.</translation>
 <translation id="2901725272378498025">Sicherheitswarnungen für Befehlszeilen-Flags aktivieren</translation>
+<translation id="2901969573658712576">Chiffren bevorzugen, die die Anforderungen von CNSA 1.0 und 2.0 erfüllen</translation>
 <translation id="2905984450136807296">Cachelebensdauer für Authentifizierungsdaten</translation>
 <translation id="2906874737073861391">Liste der AppPack-Erweiterungen</translation>
 <translation id="2908277604670530363">Maximale Anzahl gleichzeitiger Verbindungen zum Proxyserver</translation>
@@ -3053,6 +3090,7 @@ Ist diese Richtlinie aktiviert, wird das unverankerte Menü für Bedienungshilfe
 Ist diese Richtlinie deaktiviert oder nicht konfiguriert, wird das unverankerte Menü für Bedienungshilfen nie angezeigt.</translation>
 <translation id="312646755999968569">TLS 1.3 Early Data deaktivieren</translation>
 <translation id="3126748868885248792">Rechte Taste als primäre Maustaste festlegen</translation>
+<translation id="3127816006382989270">Zugriff auf eine Liste von URLs im Inkognitomodus erlauben.</translation>
 <translation id="3128072319047570212">Keygen-Einstellungen</translation>
 <translation id="3131703464330936425">Mobilfunk-Roaming nicht zulassen</translation>
 <translation id="3135820765957090754">Wenn diese Einstellung aktiviert ist, können Nutzer WLAN-Konfigurationen zwischen <ph name="PRODUCT_OS_NAME" />-Gerät(en) und einem verbundenen Android-Smartphone synchronisieren. Damit die WLAN-Konfigurationen synchronisiert werden können, muss diese Funktion durch Nutzer eingerichtet und explizit freigeschaltet werden.
@@ -3336,6 +3374,7 @@ Ausführliche Informationen zu gültigen <ph name="URL_LABEL" />-Mustern (ab Ver
 
 Wenn du die Richtlinie auf „False“ setzt oder nicht konfigurierst, führt die Tastatur standardmäßig Medientastenbefehle aus. Bei gedrückter Suchtaste führt die Tastatur Funktionstastenbefehle aus.</translation>
 <translation id="3351835664671920945">Standardmäßig Standardtastatur für Passworteingabe anzeigen</translation>
+<translation id="3356374145373094294">Liste der URL-Muster, für die <ph name="CHROME_DEVTOOLS_NAME" /> blockiert sind</translation>
 <translation id="3359186795130278362">Eingeschränkte verwaltete Gastsitzung aktivieren.</translation>
 <translation id="33592541385181121">Port nicht in generierten Kerberos-SPN einschließen</translation>
 <translation id="3360093276083825336">Diese Richtlinie ist veraltet und wird in Version 85 von <ph name="PRODUCT_OS_NAME" /> entfernt. Bitte verwende stattdessen die Richtlinie "<ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />".
@@ -3453,6 +3492,7 @@ Wenn die Richtlinie nicht konfiguriert ist, wird die Browsernavigation verhinder
       Die experimentelle Einstellung wird in Zukunft entfernt, sobald die Inline-Anmeldung alle SSO-Anmeldeprozesse vollständig unterstützt.</translation>
 <translation id="3435796032110614169">Zulassen, dass der Druckauftragsverlauf gelöscht wird</translation>
 <translation id="3436217793443508863">Zeitraum ohne Nutzereingabe im Akkubetrieb, nach dem der Bildschirm gesperrt wird, angegeben in Millisekunden.</translation>
+<translation id="3437391374720747482">Schlüsselaustauschmethoden bevorzugen, die die Anforderungen von CNSA 2.0 erfüllen</translation>
 <translation id="3437924696598384725">Zulassen, dass der Nutzer VPN-Verbindungen verwaltet</translation>
 <translation id="3441664787678256816">Verbindungen zu diesem Computer per Remote-Unterstützung von Unternehmen erlauben</translation>
 <translation id="3442269905344976871">Wenn die Richtlinie aktiviert und <ph name="WILCO_NAME" /> Diagnostics and Telemetry Controller (DTC) auf dem Gerät verfügbar ist, wird die Erhebung, Verarbeitung und Meldung von Telemetrie- und Diagnosedaten aktiviert.
@@ -4376,6 +4416,7 @@ Informationen zu Einschränkungen für <ph name="LOCAL_NETWORK_ACCESS" /> findes
 <translation id="4101282687722389021">UTC-Zeitstempel für die letzte Änderung dieses Eintrags. Wird als String gesendet, da der Zeitstempel nicht als Ganzzahl angegeben werden kann.</translation>
 <translation id="4101826711886952606">In den Einstellungen von „Position 1“ und „Ende“ wird die Tastenkombination verwendet, die den Suchmodifikator enthält</translation>
 <translation id="4102347680024644994">Ereignisse vom Typ „Extended Detection and Response“ (XDR) melden</translation>
+<translation id="4103790291347614186">Google Developer Program-Profile in „<ph name="CHROME_DEVTOOLS_NAME" />“ aktivieren</translation>
 <translation id="4105989332710272578">Erzwingung der Zertifikatstransparenz für eine Liste von URLs deaktivieren</translation>
 <translation id="410740968939768919">Mit dieser Richtlinie kann festgelegt werden, ob Manifest V2-Erweiterungen auf dem <ph name="PRODUCT_OS_NAME" />-Anmeldebildschirm verwendet werden können.
 
@@ -4483,13 +4524,6 @@ Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durc
           Wenn du diese Richtlinie konfigurierst, kann sie vom Nutzer nicht geändert oder überschrieben werden.
 
           Wird sie nicht konfiguriert, ist die Bedienungshilfe "Textcursor hervorheben" auf dem Anmeldebildschirm anfangs deaktiviert, kann jedoch vom Nutzer jederzeit aktiviert werden.</translation>
-<translation id="4182333458177354245">Mit dieser Richtlinie kann konfiguriert werden, wie <ph name="PRODUCT_NAME" /> das Foundation Model für generative KI herunterlädt und lokal für die Inferenz verwendet.
-
-Wenn die Richtlinie auf „Zulässig (0)“ gesetzt oder nicht konfiguriert ist, wird das Modell automatisch heruntergeladen und für die Inferenz verwendet.
-
-Ist die Richtlinie auf „Deaktiviert (1)“ gesetzt, wird das Modell nicht heruntergeladen.
-
-Das Herunterladen von Modellen kann auch über die Richtlinie „<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />“ deaktiviert werden.</translation>
 <translation id="4182348537826882258">Wenn die Richtlinie <ph name="URL_BLOCKLIST_POLICY_NAME" /> konfiguriert ist, wird verhindert, dass Webseiten mit unzulässigen URLs geladen werden. Administratoren können eine Liste mit URL-Mustern angeben, die blockiert werden sollen. Ist die Richtlinie nicht konfiguriert, werden keine URLs im Browser blockiert. In <ph name="URL_ALLOWLIST_POLICY_NAME" /> können bis zu 1.000 Ausnahmen definiert werden. Wie ein URL-Muster formatiert wird, siehst du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
 
 Hinweis: Diese Richtlinie gilt nicht für In-Page-JavaScript-URLs mit dynamisch geladenen Daten. Wenn du etwa „beispiel.de/abc“ blockierst, kann „beispiel.de“ diese URL trotzdem über „XMLHTTPRequest“ laden. Außerdem hindert diese Richtlinie Webseiten nicht daran, die in der Omnibox angezeigte URL über die JavaScript History API in eine blockierte URL zu ändern.
@@ -4668,6 +4702,7 @@ Diese Richtlinie wird nur auf verwaltete Browser angewendet. Sie hat also keine 
 Unter <ph name="MS_WIN_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die Teil einer <ph name="MS_AD_NAME" />-Domain oder von <ph name="MS_AAD_NAME" /> sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
 
 Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die über die Mobilgeräteverwaltung verwaltet werden, die über MCX Teil einer Domain sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.</translation>
+<translation id="4297918983070495117">Cache-Verschlüsselung nicht verwenden.</translation>
 <translation id="4301478455179579340">Signatur nativer Anwendungen während der Installation einer progressiven Webanwendung</translation>
 <translation id="4303167373847512281">Entwicklermodus zulassen</translation>
 <translation id="4307116964468610577">Die Richtlinie verlängert die Lebensdauer von Systemakkus, indem sie nur einmal pro Tag vollständig aufgeladen werden. Für den Rest des Tages werden die Akkus in einem niedrigeren Ladezustand gehalten. So werden sie geschont, auch wenn das System an eine Stromquelle angeschlossen ist.
@@ -4716,6 +4751,7 @@ Hinweis: Diese Richtlinie ersetzt die Richtlinie „<ph name="ARC_GLS_POLICY_NAM
 <translation id="4347908978527632940">Wenn "true" eingestellt ist und der Nutzer ein betreuter Nutzer ist, können andere Android-Apps die Webeinschränkungen des Nutzers über einen Contentanbieter abfragen.
 
           Wenn "false" oder nichts eingestellt ist, gibt der Contentanbieter keine Informationen zurück.</translation>
+<translation id="4349863629157433459">Einbindung des Google Developer Program in „<ph name="CHROME_DEVTOOLS_NAME" />“ aktivieren, jedoch ohne die Nutzung von Tools freizugeben (zur Vergabe von Logos).</translation>
 <translation id="435395045087992163">Das Gerät nicht sperren, wenn es in den Ruhemodus versetzt oder zugeklappt wird</translation>
 <translation id="4354792057099570728">Dadurch wird die <ph name="PRIVACY_SANDBOX_NAME" />-Einstellung für die Anzeigenanalyse für Nutzer deaktiviert.</translation>
 <translation id="4357587374229381015">Legt einen URL-Parameternamen fest, der auf der SAML-IdP-Anmeldeseite automatisch in das Feld für den Nutzernamen eingetragen wird.
@@ -4759,6 +4795,7 @@ Hinweis: Diese Richtlinie ersetzt die Richtlinie „<ph name="ARC_GLS_POLICY_NAM
 <translation id="4389073105055031853">Nutzern erlauben, alle Zertifikate zu verwalten</translation>
 <translation id="4389091865841123886">Konfiguriert die Remote-Bestätigung mit TPM-Mechanismus</translation>
 <translation id="4389113579547582722">Werbung für App Store-Bewertungen zulassen</translation>
+<translation id="439152798535870249">Bestimmte Algorithmen zum Schlüsselaustausch für TLS bevorzugen</translation>
 <translation id="4395619678972620537">Wenn die Richtlinie aktiviert ist, können WebRTC-Peer-Verbindungen ein Downgrade auf veraltete Versionen der TLS/DTLS-Protokolle (DTLS 1.0, TLS 1.0 und TLS 1.1) durchführen.
       Wenn sie deaktiviert oder nicht konfiguriert ist, sind diese TLS/DTLS-Versionen deaktiviert.
 
@@ -4803,6 +4840,17 @@ WebSQL in unsicheren Kontexten wurde in M112 entfernt.</translation>
 <translation id="4408428864159735559">Liste der vorkonfigurierten Netzwerkfreigaben.</translation>
 <translation id="4410236409016356088">Begrenzung der Netzwerkbandbreite erlauben</translation>
 <translation id="4410361389637971319">Ursprüngen der isolierten Web-App erlauben, Direct Sockets zu verwenden</translation>
+<translation id="4410792459434637140">Mit dieser Richtlinie kannst du <ph name="CHROME_DEVTOOLS_NAME" /> für bestimmte URLs zulassen.
+
+URL-Muster werden mit der URL der geprüften Seite abgeglichen. Wenn eine Übereinstimmung gefunden wird, werden die <ph name="CHROME_DEVTOOLS_NAME" /> zugelassen. Dies gilt auch dann, wenn die URL mit der Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ übereinstimmt, selbst wenn die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ auf 2 (nicht zugelassen) gesetzt ist. Informationen zum URL-Format findest du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Wenn die Richtlinie nicht konfiguriert ist, hat diese Zulassungsliste keine Auswirkungen. Da <ph name="CHROME_DEVTOOLS_NAME" /> standardmäßig verfügbar sind, werden sie nur blockiert, wenn sie in der Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ angegeben sind.
+
+Nicht übereinstimmende URLs unterliegen der Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“.
+
+Diese Richtlinie gilt auch für <ph name="CHROME_DEVTOOLS_NAME" />, die für Erweiterungen und Webanwendungen geöffnet werden.
+
+Diese Richtlinie ist auf 1.000 Einträge beschränkt.</translation>
 <translation id="4411734231900934213">Zulässiger Unterschied zwischen der Uhrzeit auf den Geräten von Kindern und Eltern, angegeben in Sekunden.</translation>
 <translation id="441217499641439905">Synchronisierung zwischen Google Drive und der App "Dateien" von <ph name="PRODUCT_OS_NAME" /> per Mobilfunkverbindung deaktivieren</translation>
 <translation id="4412885120239670573">Wenn die Richtlinie aktiviert ist, wird der interne PDF-Viewer in <ph name="PRODUCT_NAME" /> ausgeschaltet und PDF-Dateien werden als Download behandelt. Nutzer können sie dann mit der Standardanwendung öffnen.
@@ -5092,21 +5140,6 @@ Ist diese Einstellung deaktiviert oder nicht konfiguriert, erfasst der Passworts
 Unter <ph name="MS_WIN_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die Teil einer <ph name="MS_AD_NAME" />-Domain oder von <ph name="MS_AAD_NAME" /> sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
 
 Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die über die Mobilgeräteverwaltung verwaltet werden, die über MCX Teil einer Domain sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.</translation>
-<translation id="4607416370554533118">Mit dieser Richtlinie kannst du eine Liste von URL-Mustern erstellen, die Websites angeben, für die Chrome automatisch ein Clientzertifikat auswählen kann. Der Wert ist ein Array von String-JSON-Wörterbüchern. Jedes Wörterbuch muss das Format <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> haben, wobei <ph name="URL_PATTERN_PLACEHOLDER" /> ein Muster zum Festlegen der Inhalte ist. <ph name="FILTER_PLACEHOLDER" /> schränkt ein, aus welchen Clientzertifikaten der Browser automatisch auswählt. Unabhängig vom Filter werden nur Zertifikate ausgewählt, die mit der Zertifizierungsanforderung des Servers übereinstimmen.
-
-      Beispiele für die Verwendung des Abschnitts <ph name="FILTER_PLACEHOLDER" />:
-
-      * Wenn für <ph name="FILTER_PLACEHOLDER" /> <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" /> festgelegt ist, werden nur Clientzertifikate ausgewählt, die über ein Zertifikat mit dem CommonName <ph name="ISSUER_CN_PLACEHOLDER" /> ausgestellt wurden.
-
-      * Wenn <ph name="FILTER_PLACEHOLDER" /> sowohl den Abschnitt <ph name="ISSUER_STRING_VALUE" /> als auch den Abschnitt <ph name="SUBJECT_STRING_VALUE" /> enthält, werden nur Clientzertifikate ausgewählt, die beide Bedingungen erfüllen.
-
-      * Wenn <ph name="FILTER_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit dem Wert <ph name="FILTER_STRING_ORGANIZATION" /> enthält, muss ein Zertifikat mindestens eine Organisation haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
-
-      * Wenn <ph name="FILTER_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit einem <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />-Wert enthält, muss ein Zertifikat mindestens eine Organisationseinheit haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
-
-      * Wenn für <ph name="FILTER_PLACEHOLDER" /> <ph name="EMPTY_DICTIONARY" /> festgelegt ist, wird die Auswahl der Clientzertifikate nicht zusätzlich eingeschränkt. Beachte, dass vom Webserver bereitgestellte Filter weiterhin gelten.
-
-      Wenn die Richtlinie nicht konfiguriert ist, findet für keine Website eine automatische Auswahl statt.</translation>
 <translation id="4607499333275488034"><ph name="PRIVACY_SANDBOX_NAME" />-Funktion „Fingerprinting-Schutz“ im Inkognitomodus deaktivieren.</translation>
 <translation id="4611983465824842867">In unsicheren Formularen keine Warnungen anzeigen und auch nicht Autofill deaktivieren</translation>
 <translation id="4615003180013429835">Parsing-Modus für Websiteliste</translation>
@@ -5459,6 +5492,7 @@ Diese Richtlinie gilt vorübergehend und wird 2026 entfernt.</translation>
 <translation id="4860900625632464759">Nutzern erlauben, SMS zwischen Smartphone und Chromebook zu synchronisieren</translation>
 <translation id="486146220825734683">Nicht zulassen, dass Nutzer Kerberos-Passwörter speichern</translation>
 <translation id="4861767323695239729">In einer Nutzersitzung zulässige Eingabemethoden konfigurieren</translation>
+<translation id="4872597029876646534">Bestimmte Algorithmen für Verschlüsselungschiffren für TLS bevorzugen</translation>
 <translation id="4872803921706580974">Bildschirm für den Sensor zur Erkennung der Anwesenheit von Personen bei der Anmeldung anzeigen</translation>
 <translation id="4873380469296842901">Durch Aktivieren dieser Einstellung können Nutzer, die der Verwendung von Phone Hub zugestimmt haben, Benachrichtigungen ihres Smartphones unter Chrome OS senden und erhalten.
 
@@ -5524,6 +5558,7 @@ Wenn diese Richtlinie auf „<ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHORTCU
 
 Wenn diese Richtlinie auf „<ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHORTCUTS_FULLSCREEN_ONLY" />“ gesetzt ist, werden Tastenkombinationen mit der Suchtaste an Apps gesendet und nicht vom Betriebssystem verarbeitet, sofern die App, auf der der Fokus liegt, im Vollbildmodus ist.</translation>
 <translation id="4906194810004762807">Aktualisierungsrate für Geräterichtlinien</translation>
+<translation id="4909014294835203766">Mit dieser Richtlinie können Administratoren den HTTP-Cache auf dem Datenträger verschlüsseln.</translation>
 <translation id="49093841899738146">Wenn diese Richtlinie aktiviert ist, darf <ph name="PRODUCT_NAME" /> WebRTC-Ereignisprotokolle aus Google-Diensten wie Hangouts Meet speichern und die Protokolle bei Google hochladen. Diese Protokolle enthalten Diagnoseinformationen, die für die Fehlerbehebung bei Audioanrufen oder Videokonferenzen in <ph name="PRODUCT_NAME" /> hilfreich sein können. Dazu zählen die Sende- und Empfangszeit sowie die Größe von RTP-Paketen, Feedback zur Auslastung des Netzwerks und Metadaten zur Länge und Qualität von Audio- und Videoframes. Audio- oder Videoinhalte von Anrufen bzw. Konferenzen gehören nicht dazu. Damit Fehler leichter behoben werden können, verknüpft Google diese Protokolle anhand einer Sitzungs-ID unter Umständen mit anderen Protokollen, die vom Google-Dienst selbst erfasst wurden.
 
       Wenn die Richtlinie deaktiviert ist, werden solche Protokolle weder erfasst noch hochgeladen.
@@ -6212,15 +6247,6 @@ Hinweis: Diese Richtlinie gilt nicht für HSTS-Umstellungen.</translation>
 <translation id="5308551343115571396">Wenn <ph name="LACROS_NAME" /> deaktiviert wurde, versuchen wir, so viele Nutzerdaten wie möglich zu speichern und gleichzeitig alle Browserdaten zu entfernen.</translation>
 <translation id="530949964068726932">Bedienungshilfen im Taskleistenmenü ausblenden</translation>
 <translation id="5309944663104291505">Isolierten Web-Apps mit erzwungener Installation und Kiosk-Apps nicht erlauben, die Device Attributes API zu verwenden</translation>
-<translation id="5310544046492594469">Wenn die Richtlinie auf 0 gesetzt ist (Standardeinstellung), kannst du auf die Entwicklertools und die JavaScript-Konsole zugreifen. Für Erweiterungen, die über die Unternehmensrichtlinie installiert wurden, oder ab Version 114 für Erweiterungen, die in den Browser eines verwalteten Nutzers integriert sind, ist der Zugriff aber nicht möglich. Ist die Richtlinie auf 1 gesetzt, kannst du die Entwicklertools und die JavaScript-Konsole in allen Kontexten aufrufen, also auch bei Erweiterungen, die über die Unternehmensrichtlinie installiert wurden. Wenn die Richtlinie auf 2 gesetzt ist, kann nicht auf die Entwicklertools zugegriffen werden und Websiteelemente können nicht geprüft werden.
-
-      Alle Tastenkombinationen und Einträge im Menü oder Kontextmenü, mit denen die Entwicklertools oder die JavaScript-Konsole aufgerufen werden, werden deaktiviert.
-
-      Ab Version 99 von <ph name="PRODUCT_NAME" /> werden durch diese Einstellung auch Einstiegspunkte für die Funktion „Seiten-Quelltext anzeigen“ bestimmt. Wenn diese Richtlinie auf DeveloperToolsDisallowed (Wert 2) festgelegt ist, können Nutzer sich den Quelltext nicht über Tastenkombinationen oder das Kontextmenü anzeigen lassen. Soll die Anzeige des Quelltexts komplett blockiert werden, musst du der Richtlinie <ph name="URL_BLOCKLIST_POLICY_NAME" /> auch „view-source:*“ hinzufügen.
-
-      Ab Version 119 von <ph name="PRODUCT_NAME" /> wird durch diese Einstellung außerdem bestimmt, ob der Entwicklermodus für isolierte Web-Apps aktiviert und verwendet werden kann.
-
-      Ab Version 128 von <ph name="PRODUCT_NAME" /> wird durch diese Einstellung der Entwicklermodus auf der Seite „Erweiterungen“ nicht mehr gesteuert, wenn die Richtlinie „<ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" />“ konfiguriert ist.</translation>
 <translation id="5311275381462687162">Einstellung für das alte Standardverhalten des "<ph name="ATTRIBUTE_SAMESITE_NAME" />"-Cookies</translation>
 <translation id="5312253627576569499">Prozentsatz, um den die Verzögerung für die Bildschirmabdunkelung skaliert wird, wenn bei abgedunkeltem Bildschirm oder kurz nach dem Abschalten des Bildschirms Nutzeraktivität erkannt wird.</translation>
 <translation id="5316856058059940708">Großen Cursor deaktivieren</translation>
@@ -6263,6 +6289,7 @@ Verwaltete Konten können keiner Familiengruppe beitreten oder eine erstellen un
 <translation id="5337869685871558036">„SpeculationRules“-Prefetch für von ServiceWorkers gesteuerte URLs zulassen</translation>
 <translation id="5339096331970464266">Bedienungshilfe „Bildschirmtastatur“ aktivieren</translation>
 <translation id="5340008866815063393">Erfassen von Richtliniendaten aktivieren</translation>
+<translation id="5342379224047377786">Standardreihenfolge von <ph name="PRODUCT_NAME" /> für Chiffren verwenden</translation>
 <translation id="5345892164332459671">Floating-SSO deaktivieren und die Webdienst-Authentifizierungen des Nutzers nicht auf ein neues Gerät verschieben</translation>
 <translation id="5345910753471481870">Schaltfläche „Google Lens“ nicht im Suchfeld auf der Seite „Neuer Tab“ anzeigen.</translation>
 <translation id="5346587320074666194">Den Zugriff auf Sensoren für diese Websites sperren</translation>
@@ -6396,6 +6423,25 @@ wird die Funktion "<ph name="PRODUCT_NAME" />" aktiviert.
           </translation>
 <translation id="5433865420958136693">Grafikbeschleunigung verwenden, falls verfügbar</translation>
 <translation id="5435888298115339571">Desktop-Freigabe in der Omnibox und im Dreipunkt-Menü aktivieren</translation>
+<translation id="5435967860403961472">Mit dieser Richtlinie kann festgelegt werden, ob die Installation von Erweiterungen, die aufgrund von Verstößen, bei denen es nicht um Malware geht, entfernt wurden, in Umgebungen mit geringem Vertrauensgrad weiterhin erzwungen werden kann.
+
+Weitere Informationen zu Verstößen, bei denen es nicht um Malware geht, und zur Entfernung findest du hier: https://developer.chrome.com/docs/webstore/review-process#warning
+
+Sobald ein Verstoß, bei dem es nicht um Malware geht, behoben wurde, bleibt die Erweiterung aktiviert und kann nicht deaktiviert oder entfernt werden.
+
+Unter <ph name="MS_WIN_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die Teil einer <ph name="MS_AD_NAME" />-Domain oder von <ph name="MS_AAD_NAME" /> sind oder die in <ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" /> angemeldet sind.
+
+Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Verfügung, die über die Mobilgeräteverwaltung verwaltet werden, die über MCX Teil einer Domain sind oder die in <ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" /> angemeldet sind.
+
+Erweiterungen mit erzwungener Installation und Verstößen, bei denen es nicht um Malware geht, bleiben in diesen Fällen aktiviert.
+
+Momentan bleibt eine Erweiterung mit erzwungener Installation und Verstößen, bei denen es nicht um Malware geht, in Chrome installiert und aktiviert.
+
+Wenn die Richtlinie aktiviert ist, verhalten sich Erweiterungen mit erzwungener Installation unabhängig von Verstößen, bei denen es nicht um Malware geht, gleich (d. h. sie bleiben aktiviert).
+
+Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, werden Erweiterungen mit erzwungener Installation und Verstößen, bei denen es nicht um Malware geht, deaktiviert.
+
+Diese Richtlinie ist für 3 Meilensteine verfügbar.</translation>
 <translation id="5441508088704391614">Keine besonderen Einschränkungen. Standard.</translation>
 <translation id="5442026853063570579">Mit dieser Richtlinie wird außerdem der Zugriff auf Android-Entwickleroptionen festgelegt. Wenn du diese Richtlinie auf "DeveloperToolsDisallowed" (Wert 2) setzt, können Nutzer nicht auf die Entwickleroptionen zugreifen. Wenn du diese Richtlinie auf einen anderen Wert setzt oder sie nicht festlegst, können Nutzer auf die Entwickleroptionen zugreifen, indem sie in der Android-App "Einstellungen" siebenmal auf die Build-Nummer tippen.</translation>
 <translation id="5443582909255996887">Wenn die Richtlinie aktiviert ist, werden unter Android alle Websites isoliert. Jede Website wird dann in einem eigenen Prozess ausgeführt. Nutzer können diese Einstellung nicht ändern. Eine Website ist ein Protokoll plus eTLD+1 (z. B. https://beispiel.de). Ab <ph name="PRODUCT_NAME" />-Version 77 werden unter Android bestimmte sensible Websites standardmäßig isoliert. Diese Richtlinie weitet diesen Modus für die standardmäßige Website-Isolierung auf alle Websites aus.
@@ -6760,6 +6806,21 @@ Wenn diese Richtlinie für <ph name="PRODUCT_OS_NAME" /> Kiosk festgelegt ist, w
 <translation id="5625771176514429288">Chrome-Apps dürfen zukünftig auf diesen Plattformen ausgeführt werden.</translation>
 <translation id="5627270992026554674">Lehrkräften nicht erlauben, die Teilnehmerliste von Google Classroom zu verwenden.</translation>
 <translation id="5630352020869108293">Letzte Sitzung wiederherstellen</translation>
+<translation id="5630952076819481843">Mit dieser Richtlinie kannst du eine Liste von URL-Mustern erstellen, durch die Websites angegeben werden, für die Chrome automatisch ein Clientzertifikat auswählen kann. Der Wert ist ein Array von String-JSON-Wörterbüchern. Jedes Wörterbuch muss das Format <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> haben, wobei <ph name="URL_PATTERN_PLACEHOLDER" /> ein Muster zum Festlegen der Inhalte ist. <ph name="FILTER_PLACEHOLDER" /> schränkt ein, aus welchen Clientzertifikaten der Browser automatisch auswählt. Unabhängig vom Filter werden nur Zertifikate ausgewählt, die mit der Zertifizierungsanforderung des Servers übereinstimmen. Unter Android kann Chrome nur Clientzertifikate auswählen, die Chrome selbst bereitgestellt hat. Chrome kann nicht auf Zertifikate zugreifen, die auf Betriebssystemebene installiert sind.
+
+      Beispiele für die Verwendung des Abschnitts <ph name="FILTER_PLACEHOLDER" />:
+
+      * Wenn für <ph name="FILTER_PLACEHOLDER" /> <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" /> festgelegt ist, werden nur Clientzertifikate ausgewählt, die über ein Zertifikat mit dem CommonName <ph name="ISSUER_CN_PLACEHOLDER" /> ausgestellt wurden.
+
+      * Wenn <ph name="FILTER_PLACEHOLDER" /> sowohl den Abschnitt <ph name="ISSUER_STRING_VALUE" /> als auch den Abschnitt <ph name="SUBJECT_STRING_VALUE" /> enthält, werden nur Clientzertifikate ausgewählt, die beide Bedingungen erfüllen.
+
+      * Wenn <ph name="FILTER_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit dem Wert <ph name="FILTER_STRING_ORGANIZATION" /> enthält, muss ein Zertifikat mindestens eine Organisation haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
+
+      * Wenn <ph name="FILTER_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit einem <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />-Wert enthält, muss ein Zertifikat mindestens eine Organisationseinheit haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
+
+      * Wenn für <ph name="FILTER_PLACEHOLDER" /> <ph name="EMPTY_DICTIONARY" /> festgelegt ist, wird die Auswahl der Clientzertifikate nicht zusätzlich eingeschränkt. Beachte, dass vom Webserver bereitgestellte Filter weiterhin gelten.
+
+      Wenn die Richtlinie nicht konfiguriert ist, findet für keine Website eine automatische Auswahl statt.</translation>
 <translation id="5633871703004128675">Bedienungshilfe "Textcursor hervorheben" aktivieren</translation>
 <translation id="5634032995857968056">Renderer-App-Container-Sandbox aktivieren</translation>
 <translation id="5638334542697444045">Nutzer dürfen Instant Tethering nicht verwenden</translation>
@@ -6931,6 +6992,13 @@ Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, werden keine Protok
 <translation id="5746149754419996562">Dadurch können Glanceables-Widgets in <ph name="PRODUCT_OS_NAME" /> verwendet werden. Das gilt insbesondere für die Widgets, die über den Datums-Chip in der Ablage verfügbar sind.
 Wenn diese Richtlinie aktiviert ist, sind Glanceables in <ph name="PRODUCT_OS_NAME" /> aktiviert.
 Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, sind Glanceables in <ph name="PRODUCT_OS_NAME" /> nicht aktiviert.</translation>
+<translation id="5747628966013559697">Mit dieser Richtlinie kann konfiguriert werden, wie <ph name="PRODUCT_NAME" /> das Foundation Model für generative KI herunterlädt und lokal für die Inferenz verwendet.
+
+Wenn die Richtlinie auf „Zulässig (0)“ gesetzt oder nicht konfiguriert ist, wird das Modell automatisch heruntergeladen und für die Inferenz verwendet.
+
+Ist die Richtlinie auf „Deaktiviert (1)“ gesetzt, wird das Modell nicht heruntergeladen.
+
+Auf Desktop-Plattformen kann das Herunterladen von Modellen auch über die Richtlinie „<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />“ deaktiviert werden.</translation>
 <translation id="5749396052108288586">Diese Richtlinie ist veraltet. Bitte verwende stattdessen die Richtlinie <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.</translation>
 <translation id="574983287620584622">Tastenkombinationen für Bedienungshilfen auf dem Anmeldebildschirm aktivieren</translation>
 <translation id="5755002458331714762"> Die Web Components v0 APIs (Shadow DOM v0, Custom Elements v0 und HTML Imports) wurden 2018 eingestellt und ab M80 standardmäßig deaktiviert. Mit dieser Richtlinie lassen sich die Funktionen selektiv bis M84 wieder aktivieren.
@@ -6956,6 +7024,7 @@ Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, sind Glanceables 
 <translation id="5774856474228476867">Such-URL der Standardsuchmaschine</translation>
 <translation id="5775235485119094648">Lädt den Akku auf, solange er sich in einem festen Bereich befindet.</translation>
 <translation id="5776485039795852974">Nachfragen, wenn eine Website Desktop-Benachrichtigungen anzeigen will</translation>
+<translation id="5776508475264864949">Nicht zulassen, dass die Gemini App Aktionen auf Webseiten ausführt.</translation>
 <translation id="5783009211970309878">Kopf- und Fußzeilen drucken</translation>
 <translation id="5790763087505467169">Benachrichtigungen zum automatischen Start bei verwalteten Gastsitzungen reduzieren</translation>
 <translation id="5794205610250307906">Mit dieser Richtlinie wird festgelegt, ob der Browser adaptives Zwischenspeichern für Web Audio verwendet. Durch diese Funktion können Audiofehler reduziert werden, jedoch erhöht sich dabei möglicherweise die Latenz in variablem Umfang.
@@ -7227,6 +7296,17 @@ Ist die Richtlinie auf „<ph name="DISPLAY_MANAGEMENT_LABEL_TRANSIENT_VALUE" />
 
 Ausführliche Informationen zu gültigen <ph name="URL_LABEL" />‑Mustern findest du unter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. „<ph name="WILDCARD_VALUE" />“ ist kein akzeptierter Wert für diese Richtlinie.</translation>
 <translation id="5962271004971310788">Erweiterungen, deren Ausführung im Inkognitomodus vom Nutzer erlaubt werden muss</translation>
+<translation id="5962401339101255719">Wenn die Richtlinie auf 0 gesetzt ist (Standardeinstellung), kannst du auf die Entwicklertools und die JavaScript-Konsole zugreifen. Für Erweiterungen, die über die Unternehmensrichtlinie installiert wurden, oder ab Version 114 für Erweiterungen, die in den Browser eines verwalteten Nutzers integriert sind, ist der Zugriff aber nicht möglich. Ist die Richtlinie auf 1 gesetzt, kannst du die Entwicklertools und die JavaScript-Konsole in allen Kontexten aufrufen, also auch bei Erweiterungen, die über die Unternehmensrichtlinie installiert wurden. Wenn die Richtlinie auf 2 gesetzt ist, kann nicht auf die Entwicklertools zugegriffen werden und Websiteelemente können nicht geprüft werden.
+
+Alle Tastenkombinationen und Einträge im Menü oder Kontextmenü, mit denen die Entwicklertools oder die JavaScript-Konsole aufgerufen werden, werden deaktiviert.
+
+Ab Version 99 von <ph name="PRODUCT_NAME" /> werden durch diese Einstellung auch Einstiegspunkte für die Funktion „Seiten-Quelltext anzeigen“ bestimmt. Wenn diese Richtlinie auf DeveloperToolsDisallowed (Wert 2) festgelegt ist, können Nutzer sich den Quelltext nicht über Tastenkombinationen oder das Kontextmenü anzeigen lassen. Soll die Anzeige des Quelltexts komplett blockiert werden, musst du der Richtlinie „<ph name="URL_BLOCKLIST_POLICY_NAME" />“ auch „view-source:*“ hinzufügen.
+
+Ab Version 119 von <ph name="PRODUCT_NAME" /> wird durch diese Einstellung außerdem bestimmt, ob der Entwicklermodus für isolierte Web-Apps aktiviert und verwendet werden kann.
+
+Ab Version 128 von <ph name="PRODUCT_NAME" /> wird durch diese Einstellung der Entwicklermodus auf der Seite „Erweiterungen“ nicht mehr gesteuert, wenn die Richtlinie „<ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" />“ konfiguriert ist.
+
+Wenn du den Zugriff auf die Entwicklertools anhand der Seiten-URL einschränken möchtest, verwende die Richtlinien „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ und „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“.</translation>
 <translation id="5963752574792883406">Port 990 (Blockierung kann bis 01.02.2022 aufgehoben werden)</translation>
 <translation id="596523880465577341">Diese Richtlinie ist veraltet und wird nicht mehr unterstützt. Bitte verwende stattdessen die Richtlinie „<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />“.</translation>
 <translation id="5966615072639944554">Erweiterungen, die die Remote Attestation API zur Bestätigung der Nutzeridentität verwenden dürfen</translation>
@@ -7524,12 +7604,28 @@ Weitere Informationen zu gültigen <ph name="URL_LABEL" />-Mustern findest du un
       Wenn die Richtlinie auf <ph name="ASK_LOCAL_FONTS_POLICY_NAME" /> (Wert 3) gesetzt ist, wird dem Nutzer standardmäßig eine Benachrichtigung angezeigt, wenn die Berechtigung für lokale Schriftarten angefragt wird. Wenn Nutzer die Berechtigung gewähren, erweitert das die Fähigkeit von Websites, Informationen zu lokalen Schriftarten zu sehen.
 
       Wenn diese Richtlinie nicht konfiguriert ist, sieht der Nutzer standardmäßig eine Benachrichtigung, kann die Einstellung aber ändern.</translation>
+<translation id="6203014458380972093">Einschränkungen für Anfragen an lokale Netzwerkendpunkte vorübergehend deaktivieren</translation>
 <translation id="6203715554101884845">Wenn diese Richtlinie konfiguriert ist, kann eine Liste mit Website-URLs erstellt werden, denen automatisch die Berechtigung für den Zugriff auf ein HID-Gerät mit den angegebenen Anbieter- und Produkt-IDs auf dem Anmeldebildschirm gewährt wird. Für jeden Eintrag sind die Felder „<ph name="DEVICES_FIELD_NAME" />“ und „<ph name="URLS_FIELD_NAME" />“ erforderlich, damit er gültig ist. Sonst wird er ignoriert. Für jeden Eintrag im Feld „<ph name="DEVICES_FIELD_NAME" />“ ist das Feld „<ph name="VENDOR_ID_FIELD_NAME" />“ erforderlich. „<ph name="PRODUCT_ID_FIELD_NAME" />“ ist optional. Wird das Feld „<ph name="PRODUCT_ID_FIELD_NAME" />“ weggelassen, wird eine Richtlinie erstellt, die für jedes Gerät mit der angegebenen Anbieter-ID gilt. Einträge, für die das Feld „<ph name="PRODUCT_ID_FIELD_NAME" />“ angegeben ist, „<ph name="VENDOR_ID_FIELD_NAME" />“ aber fehlt, sind ungültig und werden ignoriert.
 
 Ist diese Richtlinie nicht konfiguriert, wird für alle Websites der globale Standardwert verwendet (kein automatischer Zugriff).</translation>
 <translation id="6207607210601267301">Authentifizierung ohne PIN für den Host für den Remote-Zugriff deaktivieren</translation>
 <translation id="6208896993204286313"><ph name="PRODUCT_NAME" />-Richtliniendaten erfassen</translation>
 <translation id="6210259502936598222">Informationen zu Betriebssystem und <ph name="PRODUCT_NAME" />-Version erfassen</translation>
+<translation id="6214712395769944855">Diese Richtlinie konfiguriert <ph name="PRODUCT_NAME" /> so, dass die bevorzugten Chiffren für Verschlüsselungen in TLS 1.3 nach einer bestimmten Compliance-Regelung genehmigte Algorithmen bevorzugen.
+
+Durch das Festlegen dieser Richtlinie wird nicht garantiert, dass bestimmte Algorithmen ausgehandelt werden.
+
+Diese Richtlinie ermöglicht es Serverbetreibern, die Clients mit und ohne Compliance-Anforderungen unterstützen möchten, zwischen diesen Clients zu unterscheiden. Bestimmte nicht-standardmäßige Algorithmen mit erhöhter kryptographischer Stärke werden nur für diejenigen Clients verwendet, die ausdrücklich so konfiguriert wurden, dass sie diese bevorzugen.
+
+Wird die Richtlinie auf „<ph name="CNSA_NAME" />“ festgelegt, wird <ph name="PRODUCT_NAME" /> so konfiguriert, dass die für die Compliance mit der Commercial National Security Algorithm Suite 1.0 und 2.0 (CNSA 1.0 und 2.0) erforderlichen Chiffren bevorzugt werden.
+
+Wenn die Richtlinie nicht konfiguriert oder auf „<ph name="DEFAULT_NAME" />“ gesetzt ist, verwendet <ph name="PRODUCT_NAME" /> die standardmäßigen Chiffren.
+
+Das Festlegen dieser Richtlinie ist für die Sicherheit nicht erforderlich. Die Standardkryptografie, die von <ph name="PRODUCT_NAME" /> verwendet wird, ist stark genug, um einem Brute-Force-Angriff mit der gesamten Energie der Sonne standzuhalten.
+
+Wenn du diese Richtlinie festlegst, wird <ph name="PRODUCT_NAME" /> beim Zugriff auf Websites langsamer.
+
+Diese Richtlinie wirkt sich nur auf TLS 1.3 und QUIC aus, nicht auf frühere Versionen von TLS.</translation>
 <translation id="6215023506958127056">Hiermit kann die Installation externer Erweiterungen verwaltet werden.
 
 Wenn diese Richtlinie aktiviert ist, können externe Erweiterungen nicht installiert werden.
@@ -7787,6 +7883,14 @@ Wenn die Richtlinie nicht konfiguriert oder auf „<ph name="ALLOW" />“ festge
 ACHTUNG: Du musst vorsichtig sein, wenn du diese Einstellung änderst, da dadurch möglicherweise andere Richtlinien nicht mehr funktionieren, die die Standortbestimmung betreffen (z. B. „<ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" />“). Speziell die Optionen „<ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDWIFIACCESSPOINTS" />“ und „<ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDALLLOCATIONINFO" />“ der Richtlinie „<ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" />“ funktionieren nicht mehr, wenn diese Richtlinie auf „<ph name="DISALLOW" />“ gesetzt ist. Sie verwenden dann nur die <ph name="IP" />-basierte Standortauflösung auf dem Anmeldebildschirm (<ph name="LOG_IN" />).</translation>
 <translation id="6338982178236723271">Systeminformationen melden</translation>
 <translation id="6339355882150329269">Nutzer wird während der Videowiedergabe nicht als inaktiv angesehen</translation>
+<translation id="6347110299837147365">Mit dieser Richtlinie können Administratoren den HTTP-Cache des Browsers auf dem Datenträger verschlüsseln.
+Wird derzeit nur unter Windows unterstützt.
+
+Wenn diese Richtlinie aktiviert ist, wird der Browser-Cache verschlüsselt.
+
+Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, wird der Browser-Cache nicht verschlüsselt.
+
+Die Verschlüsselung des Browser-Caches kann sich auf die Leistung auswirken.</translation>
 <translation id="6352714113109004581">Wenn diese Richtlinie konfiguriert ist, kannst du eine Liste mit URL-Mustern erstellen, die angeben, welche Websites Nutzer bitten dürfen, ihnen Zugriff auf ein HID-Gerät zu gewähren.
 
       Wenn die Richtlinie nicht konfiguriert ist, gilt <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> für alle Websites, sofern konfiguriert. Falls nicht, werden die persönlichen Einstellungen des Nutzers verwendet.
@@ -7911,6 +8015,15 @@ Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, bestimmt die CNAME-
 Die separate Richtlinie <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> kann verwendet werden, um bestimmte Hostnamen oder Hostnamenmuster von der Aktualisierung auf HTTPS durch diese Funktion auszuschließen.
 
 Weitere Informationen findest du in der Richtlinie <ph name="HTTPS_ONLY_MODE_POLICY_NAME" />.</translation>
+<translation id="6439002087726312326">URL-Muster werden mit der URL der Seite abgeglichen, die geprüft wird. Wenn eine Übereinstimmung gefunden wird, werden die <ph name="CHROME_DEVTOOLS_NAME" /> blockiert. Informationen zum URL-Format findest du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ hat Vorrang vor „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“.
+
+Nicht übereinstimmende URLs unterliegen der Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“.
+
+Diese Richtlinie gilt auch für <ph name="CHROME_DEVTOOLS_NAME" />, die für Erweiterungen und Webanwendungen geöffnet werden.
+
+Diese Richtlinie ist auf 1.000 Einträge beschränkt.</translation>
 <translation id="6440051664870270040">Websites erlauben, gleichzeitig auf andere Websites weiterzuleiten und Pop-ups zu öffnen</translation>
 <translation id="6441781723322254041">Abgeschnittene Cookies zulassen</translation>
 <translation id="6446366416439249472">Google Drive-Synchronisierung über Mobilfunkverbindungen deaktivieren</translation>
@@ -7923,6 +8036,23 @@ Weitere Informationen findest du in der Richtlinie <ph name="HTTPS_ONLY_MODE_POL
           Wenn diese Richtlinie deaktiviert ist, kann das <ph name="PRODUCT_OS_NAME" />-Gerät keine <ph name="GOOGLE_CALENDAR_NAME" />-Termine abrufen und im <ph name="PRODUCT_OS_NAME" />-Kalenderwidget in der Systemstatusleiste des angemeldeten Nutzers anzeigen.
 
           Ist die Richtlinie nicht konfiguriert, ist die <ph name="GOOGLE_CALENDAR_NAME" />-Funktion für Unternehmensnutzer standardmäßig aktiviert.</translation>
+<translation id="6450557649904429321">Diese Richtlinie konfiguriert <ph name="PRODUCT_NAME" /> so, dass die bevorzugten Algorithmen für Schlüsselvereinbarungen (unterstützte Gruppen) in TLS 1.3 nach einer bestimmten Compliance-Regelung genehmigte Algorithmen bevorzugen.
+
+Durch das Festlegen dieser Richtlinie wird nicht garantiert, dass bestimmte Algorithmen ausgehandelt werden.
+
+Diese Richtlinie ermöglicht es Serverbetreibern, die Clients mit und ohne Compliance-Anforderungen unterstützen möchten, zwischen diesen Clients zu unterscheiden. Bestimmte nicht-standardmäßige Algorithmen mit erhöhter kryptographischer Stärke werden nur für diejenigen Clients verwendet, die ausdrücklich so konfiguriert wurden, dass sie diese bevorzugen.
+
+Wird die Richtlinie auf „<ph name="CNSA2_NAME" />“ festgelegt, wird <ph name="PRODUCT_NAME" /> so konfiguriert, dass die für die Compliance mit der Commercial National Security Algorithm Suite 2.0 (CNSA 2.0) erforderlichen Methoden zum Schlüsselaustausch bevorzugt werden.
+
+Wenn die Richtlinie nicht konfiguriert oder auf „<ph name="DEFAULT_NAME" />“ gesetzt ist, verwendet <ph name="PRODUCT_NAME" /> die standardmäßigen Methoden für den Schlüsselaustausch.
+
+Wenn diese Richtlinie auf einen Wert festgelegt wird, sodass <ph name="PRODUCT_NAME" /> einen Post-Quanten-Algorithmus für Schlüsselvereinbarungen bevorzugt, <ph name="POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> aber deaktiviert ist, hat die Einstellung von <ph name="POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> Vorrang.
+
+Das Festlegen dieser Richtlinie ist für die Sicherheit nicht erforderlich. Die Standardkryptografie, die von <ph name="PRODUCT_NAME" /> verwendet wird, ist stark genug, um einem Brute-Force-Angriff mit der gesamten Energie der Sonne standzuhalten.
+
+Wenn du diese Richtlinie festlegst, wird <ph name="PRODUCT_NAME" /> beim Zugriff auf Websites langsamer.
+
+Diese Richtlinie wirkt sich nur auf TLS 1.3 und QUIC aus, nicht auf frühere Versionen von TLS.</translation>
 <translation id="6452882999388592166">Wenn diese Richtlinie aktiviert ist, wird die integrierte Komponentenerweiterung „CryptoToken“ beim Start geladen. Ist sie deaktiviert oder nicht konfiguriert, wird „CryptoToken“ beim Browserstart nicht geladen. Diese Richtlinie ist als vorübergehende Behelfslösung für Websites gedacht, die nicht funktionieren, weil „chrome.runtime“ als Nebeneffekt der Entfernung von „CryptoToken“ in Version M106 nicht definiert wird. Websites dürfen nicht davon abhängen, ob „chrome.runtime“ uneingeschränkt definiert ist.</translation>
 <translation id="6453641799812499182">Einschränkungen bei <ph name="CORS" />-Prüfungen in der neuen <ph name="CORS" />-Implementierung aktivieren</translation>
 <translation id="645425387487868471">Erzwungene Anmeldung für <ph name="PRODUCT_NAME" /> aktivieren</translation>
@@ -8214,6 +8344,11 @@ Hinweis: Durch einen Neustart oder eine Abmeldung wird der Cache geleert.</trans
 
       – Wenn die Richtlinie deaktiviert ist, müssen Administratoren Endnutzer dieses Geräts darüber informieren.</translation>
 <translation id="6605778633186421420">Unterstützung für komprimierten Wörterbuchtransport aktivieren</translation>
+<translation id="6605903339716787410">Mit dieser Richtlinie kann im Inkognitomodus auf die aufgeführten URLs zugegriffen werden (als Ausnahmen von „<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />“). Beispielsweise werden alle Anfragen im Inkognitomodus blockiert, wenn du „<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />“ auf * setzt. Du kannst diese Richtlinie verwenden, um den Zugriff auf eine eingeschränkte Liste mit URLs zu erlauben. Mit ihr lassen sich bei Verwendung des unter https://support.google.com/chrome/a?p=url_blocklist_filter_format angegebenen Formats Ausnahmen für bestimmte Schemas, Subdomains anderer Domains, Ports oder bestimmte Pfade festlegen. Die Richtlinie „<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />“ hat Vorrang gegenüber „<ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" />“. Diese Richtlinie ist auf 1.000 Einträge beschränkt.
+
+Wenn die Richtlinie nicht konfiguriert ist, sind keine Ausnahmen zu „<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />“ möglich.
+
+Diese Richtlinie wirkt sich nur auf den Inkognitomodus aus. Wenn du URLs für alle Nutzerprofile zulassen möchtest, verwende die Richtlinie „<ph name="URL_ALLOWLIST_POLICY_NAME" />“.</translation>
 <translation id="6607983779935460461">Unterstützung von Daten-URLs für SVGUseElement.</translation>
 <translation id="660893824005096050">Lehrkräften erlauben, Transkripte an Schüler/Studenten zu senden.</translation>
 <translation id="6609867253856597039">Nutzereinstellungen für deaktivierte Funktionen festlegen</translation>
@@ -9133,6 +9268,7 @@ Die Unterstützung dieser Richtlinieneinstellung wird in <ph name="PRODUCT_NAME"
       Diese Richtlinien sind nur aktiv, wenn der Chrome Remote Desktop-Host installiert ist.</translation>
 <translation id="7202925763179776247">Download-Einschränkungen zulassen</translation>
 <translation id="7203243973351251622">Rekorder (wird seit Version 130 unterstützt)</translation>
+<translation id="720452615542063651">Erweiterungen mit erzwungener Installation und Verstößen, bei denen es nicht um Malware geht, deaktivieren.</translation>
 <translation id="7207095846245296855">Google SafeSearch erzwingen</translation>
 <translation id="7211368186050418507">Zeitzone nie automatisch erkennen</translation>
 <translation id="7214815535735080007">„<ph name="ALR_FEATURE_NAME" />“ steuern</translation>
@@ -9179,6 +9315,7 @@ Wenn diese Richtlinie nicht festgelegt ist oder absichtlich leer gelassen wird, 
 
 * Bei „Ersetzen“ werden die Nutzerrichtlinien in den Nutzer-GPOs mit denen der Computer-GPOs ersetzt. Nutzer-GPOs werden ignoriert.</translation>
 <translation id="7258823566580374486">Zugangsbeschränkung für Remote-Zugriff-Hosts aktivieren</translation>
+<translation id="725978547392822291">Konfiguriert Nutzer- und Geräterichtlinien, die sich auf bestimmte kryptografische Compliance-Regelungen beziehen</translation>
 <translation id="7260204423892780600">Legt die Einstellungen für Google Assistant fest.</translation>
 <translation id="7261140115553020049">Dienst für unverankerten Arbeitsbereich aktivieren</translation>
 <translation id="7261252191178797385">Gerätehintergrundbild</translation>
@@ -9274,6 +9411,7 @@ Dies ersetzt die eingestellte Richtlinie <ph name="WINDOW_PLACEMENT_BLOCKED_FOR_
 <translation id="7323896582714668701">Zusätzliche Befehlszeilenparameter für <ph name="PRODUCT_NAME" /></translation>
 <translation id="7325801934761922681">Chrome daran hindern, das Aufrufen externer Protokolle in einem Sandbox-iFrame zu blockieren</translation>
 <translation id="7326394567531622570">Ähnlich wie bei den Werkseinstellungen (Wert 2); hier wird jedoch versucht, die Log-in-Tokens zu übernehmen, sodass der Nutzer sich nicht noch einmal anmelden muss.</translation>
+<translation id="7331098674887251788">Ermöglicht es Gemini-App-Integrationen, Aktionen direkt auf Webseiten auszuführen</translation>
 <translation id="7331387825106440104">Einschränkungen in lokal hinzugefügten Trust-Anchors nicht erzwingen</translation>
 <translation id="7331962793961469250">Wenn die Option auf "True" gesetzt ist, erscheint Werbung für Chrome Web Store-Apps nicht auf der "Neuer Tab"-Seite. Wenn sie auf "False" eingestellt oder nicht konfiguriert ist, so erscheint Chrome Web Store-Werbung auf der "Neuer Tab"-Seite.</translation>
 <translation id="7332963785317884918">Diese Richtlinie ist veraltet. <ph name="PRODUCT_OS_NAME" /> verwendet immer die "RemoveLRU"-Bereinigungsstrategie.
@@ -9561,6 +9699,7 @@ Wenn die Richtlinie leer bleibt, sind keine Ausnahmen zu „<ph name="FLOATING_S
 <translation id="7587345076013230465">Nutzer auffordern, auf dem Anmeldebildschirm das Clientzertifikat auszuwählen, wenn die Richtlinie für die automatische Auswahl zu mehreren Zertifikaten passt</translation>
 <translation id="7587921466180902617">Screencast-Dogfood für Family Link-Nutzer aktivieren</translation>
 <translation id="7588140323025689972">Protokolle für Kiosk-Apps aktivieren</translation>
+<translation id="7593286371155131669">Standardmäßig unterstützte Gruppen von <ph name="PRODUCT_NAME" /> verwenden</translation>
 <translation id="7595074040612182185">Wenn diese Richtlinie konfiguriert ist, kannst du eine Liste mit URL-Mustern erstellen, durch die angegeben wird, welche Websites Bilder anzeigen dürfen.
 
       Wenn die Richtlinie nicht konfiguriert ist, gilt „<ph name="DEFAULT_IMAGES_SETTING_ENABLED_POLICY_NAME" />“ für alle Websites, sofern konfiguriert. Falls nicht, wird die persönliche Einstellung des Nutzers verwendet.
@@ -10064,6 +10203,7 @@ Diese Richtlinie ist vorübergehend und wird in Zukunft entfernt.</translation>
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651">Glanceables in <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="7986473886676689183">Android-Berichterstellung aktivieren</translation>
+<translation id="798671159602573821">Legt fest, ob Einschränkungen für den Zugriff auf das lokale Netzwerk (vorübergehend) deaktiviert werden sollen</translation>
 <translation id="7990280274626154329"><ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> aktivieren</translation>
 <translation id="7991022023019679916">Diese Richtlinie ist veraltet und wird in Version 85 von <ph name="PRODUCT_OS_NAME" /> entfernt. Bitte verwende stattdessen die Richtlinie "<ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />".
 
@@ -10391,6 +10531,15 @@ Eine ausführliche Beschreibung aller Werte findest du unter RFC 8828, Abschnit
       Wird die Richtlinie deaktiviert, dürfen angemeldete Geräte keine Steuerelemente für detailliertes Reporting erhalten.</translation>
 <translation id="82530263956734297">Aus der Sperrliste auszuschließende Erweiterungs-IDs</translation>
 <translation id="8254749125469750814">Nicht mit einem Cloud-Dienst prüfen, ob eine Erweiterung installiert werden kann oder nicht.</translation>
+<translation id="825509998103089977">Diese Richtlinie legt fest, ob die Gemini App im Namen des Nutzers Aktionen auf Webseiten ausführen darf.
+
+0 / nicht festgelegt = Die Gemini App darf Aktionen auf Webseiten ausführen.
+
+1 = Die Gemini App darf keine Aktionen auf den Webseiten ausführen.
+
+Diese Richtlinie hat keine Auswirkungen, wenn die Gemini App deaktiviert ist. Beispielsweise kann die Gemini App durch die Richtlinie „<ph name="GEMINI_SETTINGS_POLICY_NAME" />“ deaktiviert werden.
+
+Weitere Informationen findest du unter https://support.google.com/chrome/a/answer/16291696.</translation>
 <translation id="8256006033157034334">Diese Richtlinie ist veraltet und wird nicht mehr unterstützt. Bitte verwende stattdessen „<ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />“.</translation>
 <translation id="8256688113167012935">Gibt an, welchen Kontonamen <ph name="PRODUCT_OS_NAME" /> für das entsprechende lokale Gerätekonto auf der Anmeldeseite anzeigt.
 

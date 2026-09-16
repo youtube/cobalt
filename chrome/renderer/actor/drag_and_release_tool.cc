@@ -5,6 +5,7 @@
 #include "chrome/renderer/actor/drag_and_release_tool.h"
 
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/renderer/actor/tool_utils.h"
@@ -31,7 +32,7 @@ using ::blink::mojom::EventType;
 
 DragAndReleaseTool::DragAndReleaseTool(
     content::RenderFrame& frame,
-    Journal::TaskId task_id,
+    TaskId task_id,
     Journal& journal,
     mojom::DragAndReleaseActionPtr action,
     mojom::ToolTargetPtr target,
@@ -68,7 +69,8 @@ void DragAndReleaseTool::Execute(ToolFinishedCallback callback) {
   if (!InjectMouseEvent(EventType::kMouseDown, from_point,
                         WebMouseEvent::Button::kLeft)) {
     std::move(callback).Run(
-        MakeResult(mojom::ActionResultCode::kDragAndReleaseDownSuppressed));
+        MakeResult(mojom::ActionResultCode::kDragAndReleaseDownSuppressed,
+                   /*requires_page_stabilization=*/true));
     return;
   }
 
@@ -76,14 +78,16 @@ void DragAndReleaseTool::Execute(ToolFinishedCallback callback) {
   if (!InjectMouseEvent(EventType::kMouseMove, to_point,
                         WebMouseEvent::Button::kLeft)) {
     std::move(callback).Run(
-        MakeResult(mojom::ActionResultCode::kDragAndReleaseToMoveSuppressed));
+        MakeResult(mojom::ActionResultCode::kDragAndReleaseToMoveSuppressed,
+                   /*requires_page_stabilization=*/true));
     return;
   }
 
   if (!InjectMouseEvent(EventType::kMouseUp, to_point,
                         WebMouseEvent::Button::kLeft)) {
     std::move(callback).Run(
-        MakeResult(mojom::ActionResultCode::kDragAndReleaseUpSuppressed));
+        MakeResult(mojom::ActionResultCode::kDragAndReleaseUpSuppressed,
+                   /*requires_page_stabilization=*/true));
     return;
   }
 
@@ -100,30 +104,27 @@ DragAndReleaseTool::ValidatedResult DragAndReleaseTool::Validate() const {
   CHECK(frame_->GetWebFrame());
   CHECK(frame_->GetWebFrame()->FrameWidget());
 
-  mojom::ToolTargetPtr& to_target = action_->to_target;
+  const mojom::ToolTargetPtr& from_target = target_;
+  const mojom::ToolTargetPtr& to_target = action_->to_target;
 
-  if (target_->is_dom_node_id() || to_target->is_dom_node_id()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kArgumentsInvalid,
-                   "DomNodeId target not supported"));
+  CHECK(from_target);
+  CHECK(to_target);
+
+  ResolveResult resolved_from = ResolveTarget(*from_target);
+  ResolveResult resolved_to = ResolveTarget(*to_target);
+
+  if (!resolved_from.has_value()) {
+    return base::unexpected(std::move(resolved_from.error()));
   }
 
-  gfx::PointF from_point = gfx::PointF(target_->get_coordinate());
-  gfx::PointF to_point = gfx::PointF(to_target->get_coordinate());
-
-  if (!IsPointWithinViewport(from_point, frame_.get())) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kDragAndReleaseFromOffscreen,
-                   absl::StrFormat("Point [%s]", from_point.ToString())));
+  if (!resolved_to.has_value()) {
+    return base::unexpected(std::move(resolved_to.error()));
   }
 
-  if (!IsPointWithinViewport(to_point, frame_.get())) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kDragAndReleaseToOffscreen,
-                   absl::StrFormat("Point [%s]", to_point.ToString())));
-  }
+  // TODO(b/450018073): This should be checking the targets for time-of-use
+  // validity.
 
-  return DragParams{from_point, to_point};
+  return DragParams{resolved_from.value().point, resolved_to.value().point};
 }
 
 bool DragAndReleaseTool::InjectMouseEvent(WebInputEvent::Type type,

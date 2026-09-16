@@ -354,20 +354,14 @@ class MLGraphTest : public testing::Test {
 
 class WebNNContextHelper {
  public:
-  WebNNContextHelper() = default;
-  ~WebNNContextHelper() = default;
+  WebNNContextHelper();
+  ~WebNNContextHelper();
 
   void ConnectWebNNTensorImpl(const blink::WebNNTensorToken& handle,
-                              std::unique_ptr<FakeWebNNTensor> tensor) {
-    const auto it = tensor_impls_.find(handle);
-    ASSERT_TRUE(it == tensor_impls_.end());
-    tensor_impls_.try_emplace(handle, std::move(tensor));
-  }
+                              std::unique_ptr<FakeWebNNTensor> tensor);
 
   void DisconnectAndDestroyWebNNTensorImpl(
-      const blink::WebNNTensorToken& handle) {
-    tensor_impls_.erase(handle);
-  }
+      const blink::WebNNTensorToken& handle);
 
  private:
   std::map<blink::WebNNTensorToken, std::unique_ptr<FakeWebNNTensor>>
@@ -449,6 +443,22 @@ class FakeWebNNTensor : public blink_mojom::WebNNTensor {
 
   mojo_base::BigBuffer buffer_;
 };
+
+WebNNContextHelper::WebNNContextHelper() = default;
+WebNNContextHelper::~WebNNContextHelper() = default;
+
+void WebNNContextHelper::ConnectWebNNTensorImpl(
+    const blink::WebNNTensorToken& handle,
+    std::unique_ptr<FakeWebNNTensor> tensor) {
+  const auto it = tensor_impls_.find(handle);
+  ASSERT_TRUE(it == tensor_impls_.end());
+  tensor_impls_.try_emplace(handle, std::move(tensor));
+}
+
+void WebNNContextHelper::DisconnectAndDestroyWebNNTensorImpl(
+    const blink::WebNNTensorToken& handle) {
+  tensor_impls_.erase(handle);
+}
 
 class FakeWebNNGraphBuilder : public blink_mojom::WebNNGraphBuilder {
  public:
@@ -561,11 +571,11 @@ class FakeWebNNContextProvider : public blink_mojom::WebNNContextProvider {
   // Override methods from webnn::mojom::WebNNContextProvider.
   void CreateWebNNContext(blink_mojom::CreateContextOptionsPtr options,
                           CreateWebNNContextCallback callback) override {
-    mojo::PendingAssociatedRemote<blink_mojom::WebNNContext> blink_remote;
+    mojo::PendingRemote<blink_mojom::WebNNContext> blink_remote;
     // The receiver bind to FakeWebNNContext.
-    mojo::MakeSelfOwnedAssociatedReceiver<blink_mojom::WebNNContext>(
+    mojo::MakeSelfOwnedReceiver<blink_mojom::WebNNContext>(
         std::make_unique<FakeWebNNContext>(*helper_),
-        blink_remote.InitWithNewEndpointAndPassReceiver());
+        blink_remote.InitWithNewPipeAndPassReceiver());
 
     webnn::ContextProperties context_properties(
         webnn::InputOperandLayout::kNchw, webnn::Resample2DAxes::kAny,
@@ -2027,8 +2037,8 @@ TEST_F(MLGraphTest, MLTransposeEliminationTransformerTest) {
         BuildConstant(scope.GetScriptState(), builder, {1, 3, 1, 1},
                       V8MLOperandDataType::Enum::kFloat32, exception_state);
     auto* conv2d_options = MLConv2dOptions::Create();
-    conv2d_options->setInputLayout("nchw");
-    conv2d_options->setFilterLayout("oihw");
+    conv2d_options->setInputLayout(V8MLInputOperandLayout::Enum::kNchw);
+    conv2d_options->setFilterLayout(V8MLConv2dFilterOperandLayout::Enum::kOihw);
     auto* conv2d =
         builder->conv2d(input, constant, conv2d_options, exception_state);
     ASSERT_THAT(conv2d, testing::NotNull());
@@ -2114,8 +2124,8 @@ TEST_F(MLGraphTest, MLTransposeEliminationTransformerTest) {
         BuildConstant(scope.GetScriptState(), builder, {1, 3, 1, 1},
                       V8MLOperandDataType::Enum::kFloat32, exception_state);
     auto* conv2d_options = MLConv2dOptions::Create();
-    conv2d_options->setInputLayout("nchw");
-    conv2d_options->setFilterLayout("oihw");
+    conv2d_options->setInputLayout(V8MLInputOperandLayout::Enum::kNchw);
+    conv2d_options->setFilterLayout(V8MLConv2dFilterOperandLayout::Enum::kOihw);
     auto* conv2d =
         builder->conv2d(input, constant, conv2d_options, exception_state);
     ASSERT_THAT(conv2d, testing::NotNull());
@@ -2253,8 +2263,8 @@ TEST_F(MLGraphTest, MLQDQDetectionTest) {
     ASSERT_THAT(transpose1_output_operand, testing::NotNull());
 
     auto* conv2d_options = MLConv2dOptions::Create();
-    conv2d_options->setInputLayout("nhwc");
-    conv2d_options->setFilterLayout("ohwi");
+    conv2d_options->setInputLayout(V8MLInputOperandLayout::Enum::kNhwc);
+    conv2d_options->setFilterLayout(V8MLConv2dFilterOperandLayout::Enum::kOhwi);
 
     auto* conv2d_output_operand =
         builder->conv2d(transpose0_output_operand, transpose1_output_operand,

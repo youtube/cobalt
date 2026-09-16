@@ -3,18 +3,58 @@
 // found in the LICENSE file.
 
 import 'chrome://new-tab-page/strings.m.js';
+import 'chrome://resources/cr_components/composebox/context_menu_entrypoint.js';
 
-import {ContextMenuEntrypointElement} from 'chrome://resources/cr_components/composebox/context_menu_entrypoint.js';
+import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
+import type {ContextMenuEntrypointElement} from 'chrome://resources/cr_components/composebox/context_menu_entrypoint.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {$$, eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 suite('ContextMenuEntrypoint', () => {
   let entrypoint: ContextMenuEntrypointElement;
 
+  let searchboxPageHandler: TestMock<SearchboxPageHandlerRemote>;
+
+  async function openContextMenuWithSuggestions(suggestions: TabInfo[]) {
+    const refreshTabs = eventToPromise('refresh-tab-suggestions', entrypoint);
+    $$(entrypoint, '#entrypoint')!.click();
+    const e = await refreshTabs;
+    e.detail.onRefreshComplete(suggestions);
+    await microtasksFinished();
+  }
+
+  function createTabInfo(count: number): TabInfo[] {
+    const tabs: TabInfo[] = [];
+    for (let i = 1; i <= count; i++) {
+      tabs.push({
+        title: `Tab ${i}`,
+        url: {url: `https://www.google.com/${i}`},
+        tabId: i,
+        lastActive: {internalValue: BigInt(i)},
+      });
+    }
+    return tabs;
+  }
+
   setup(async () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    loadTimeData.overrideValues({
+      composeboxShowContextMenuTabPreviews: true,
+    });
 
-    entrypoint = new ContextMenuEntrypointElement();
+    searchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
+    const proxy = new ComposeboxProxyImpl(
+        new PageHandlerRemote(), new PageCallbackRouter(),
+        searchboxPageHandler as unknown as SearchboxPageHandlerRemote,
+        new SearchboxPageCallbackRouter());
+    ComposeboxProxyImpl.setInstance(proxy);
+
+    entrypoint = document.createElement('composebox-context-menu-entrypoint');
     document.body.appendChild(entrypoint);
     await microtasksFinished();
   });
@@ -27,7 +67,7 @@ suite('ContextMenuEntrypoint', () => {
   test('clicking entrypoint shows context menu', async () => {
     // Act.
     const refreshTabs = eventToPromise('refresh-tab-suggestions', entrypoint);
-    entrypoint.$.entrypoint.click();
+    $$(entrypoint, '#entrypoint')!.click();
     const e = await refreshTabs;
     e.detail.onRefreshComplete();
     await microtasksFinished();
@@ -42,7 +82,7 @@ suite('ContextMenuEntrypoint', () => {
         // Arrange & Act.
         const refreshTabs =
             eventToPromise('refresh-tab-suggestions', entrypoint);
-        entrypoint.$.entrypoint.click();
+        $$(entrypoint, '#entrypoint')!.click();
         const e = await refreshTabs;
         e.detail.onRefreshComplete();
         await microtasksFinished();
@@ -62,7 +102,9 @@ suite('ContextMenuEntrypoint', () => {
         // Arrange.
         const refreshTabs =
             eventToPromise('refresh-tab-suggestions', entrypoint);
-        entrypoint.tabSuggestions = [
+        $$(entrypoint, '#entrypoint')!.click();
+        const e = await refreshTabs;
+        e.detail.onRefreshComplete([
           {
             title: 'Tab 1',
             url: {url: 'https://www.google.com'},
@@ -75,10 +117,7 @@ suite('ContextMenuEntrypoint', () => {
             tabId: 2,
             lastActive: { internalValue: BigInt(2) },
           },
-        ];
-        entrypoint.$.entrypoint.click();
-        const e = await refreshTabs;
-        e.detail.onRefreshComplete();
+        ]);
         await microtasksFinished();
         assertTrue(entrypoint.$.menu.open);
 
@@ -93,6 +132,39 @@ suite('ContextMenuEntrypoint', () => {
         assertEquals('fileUpload', items[3]!.id);
       });
 
+  test('disabled tabs cannot be added as context', async () => {
+    // Arrange.
+    const refreshTabs = eventToPromise('refresh-tab-suggestions', entrypoint);
+    $$(entrypoint, '#entrypoint')!.click();
+    const e = await refreshTabs;
+    e.detail.onRefreshComplete([
+      {
+        title: 'Tab 1',
+        url: {url: 'https://www.google.com'},
+        tabId: 1,
+        lastActive: { internalValue: BigInt(1) },
+      },
+      {
+        title: 'Tab 2',
+        url: {url: 'https://www.google.com'},
+        tabId: 2,
+        lastActive: { internalValue: BigInt(2) },
+      },
+    ]);
+    entrypoint.disabledTabIds = new Set([2]);
+    await microtasksFinished();
+    assertTrue(entrypoint.$.menu.open);
+
+    // Assert.
+    const items = entrypoint.$.menu.querySelectorAll('.dropdown-item');
+    const tab1 = items[0]! as HTMLButtonElement;
+    assertEquals('Tab 1', tab1.getAttribute('title'));
+    assertFalse(tab1.disabled);
+    const tab2 = items[1]! as HTMLButtonElement;
+    assertEquals('Tab 2', tab2.getAttribute('title'));
+    assertTrue(tab2.disabled);
+  });
+
   ([
     ['#fileUpload', 'open-file-upload'],
     ['#imageUpload', 'open-image-upload'],
@@ -104,7 +176,7 @@ suite('ContextMenuEntrypoint', () => {
               // Arrange.
               const refreshTabs =
                   eventToPromise('refresh-tab-suggestions', entrypoint);
-              entrypoint.$.entrypoint.click();
+              $$(entrypoint, '#entrypoint')!.click();
               const e = await refreshTabs;
               e.detail.onRefreshComplete();
               await microtasksFinished();
@@ -123,4 +195,181 @@ suite('ContextMenuEntrypoint', () => {
               assertFalse(entrypoint.$.menu.open);
             });
       });
+
+  test('tab thumbnail is shown on pointerenter', async () => {
+    // Arrange.
+    const previewUrl = 'data:image/png;base64,sometestdata';
+    const tabPreviewPromise = eventToPromise('get-tab-preview', entrypoint);
+    await openContextMenuWithSuggestions(createTabInfo(1));
+
+    // Assert that thumbnail is not shown initially.
+    let preview = $$<HTMLImageElement>(entrypoint, '.tab-preview');
+    assertFalse(!!preview);
+
+    // Act.
+    const tabItem = $$<HTMLButtonElement>(
+        entrypoint, '.suggestion-container .dropdown-item');
+    assertTrue(!!tabItem);
+    tabItem.dispatchEvent(new PointerEvent('pointerenter', {bubbles: true}));
+    const e = await tabPreviewPromise;
+    e.detail.onPreviewFetched(previewUrl);
+    await microtasksFinished();
+
+    // Assert that thumbnail is shown.
+    preview = $$<HTMLImageElement>(entrypoint, '.tab-preview');
+    assertTrue(!!preview);
+    assertEquals(previewUrl, preview.src);
+  });
+
+  test('tab thumbnail is updated on pointerenter on another tab', async () => {
+    // Arrange.
+    const previewUrl1 = 'data:image/png;base64,sometestdata1';
+    const previewUrl2 = 'data:image/png;base64,sometestdata2';
+    await openContextMenuWithSuggestions(createTabInfo(2));
+    assertTrue(entrypoint.$.menu.open);
+
+    const tabItems = entrypoint.shadowRoot.querySelectorAll<HTMLButtonElement>(
+        '.suggestion-container .dropdown-item');
+    assertEquals(2, tabItems.length);
+
+    // Act & Assert for first tab.
+    const tabPreviewPromise1 = eventToPromise('get-tab-preview', entrypoint);
+    tabItems[0]!.dispatchEvent(
+        new PointerEvent('pointerenter', {bubbles: true}));
+    const e1 = await tabPreviewPromise1;
+    e1.detail.onPreviewFetched(previewUrl1);
+    await microtasksFinished();
+
+    let previews = entrypoint.shadowRoot.querySelectorAll<HTMLImageElement>(
+        '.tab-preview');
+    assertEquals(2, previews.length);
+    assertEquals(previewUrl1, previews[0]!.src);
+    assertEquals(previewUrl1, previews[1]!.src);
+
+    // Act & Assert for second tab.
+    const tabPreviewPromise2 = eventToPromise('get-tab-preview', entrypoint);
+    tabItems[1]!.dispatchEvent(
+        new PointerEvent('pointerenter', {bubbles: true}));
+    const e2 = await tabPreviewPromise2;
+    e2.detail.onPreviewFetched(previewUrl2);
+    await microtasksFinished();
+
+    previews = entrypoint.shadowRoot.querySelectorAll<HTMLImageElement>(
+        '.tab-preview');
+    assertEquals(2, previews.length);
+    assertEquals(previewUrl2, previews[0]!.src);
+    assertEquals(previewUrl2, previews[1]!.src);
+  });
+
+  test('tab thumbnail is not shown when feature is disabled', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({
+      composeboxShowContextMenuTabPreviews: false,
+    });
+    // The element reads the loadTimeData in its constructor, so we need to
+    // recreate it.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    entrypoint = document.createElement('composebox-context-menu-entrypoint');
+    document.body.appendChild(entrypoint);
+    await microtasksFinished();
+
+    await openContextMenuWithSuggestions(createTabInfo(1));
+
+    // Act.
+    const tabItem = $$<HTMLButtonElement>(
+        entrypoint, '.suggestion-container .dropdown-item');
+    assertTrue(!!tabItem);
+    tabItem.dispatchEvent(new PointerEvent('pointerenter', {bubbles: true}));
+    await microtasksFinished();
+
+    // Assert that thumbnail is not shown.
+    const preview = $$<HTMLImageElement>(entrypoint, '.tab-preview');
+    assertFalse(!!preview);
+  });
+
+  test('create image mode disables file upload and other tools', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({
+      composeboxShowDeepSearchButton: true,
+      composeboxShowCreateImageButton: true,
+    });
+
+    entrypoint.remove();
+    entrypoint = document.createElement('composebox-context-menu-entrypoint');
+    document.body.appendChild(entrypoint);
+    await microtasksFinished();
+
+    await openContextMenuWithSuggestions([]);
+
+    const fileUploadButton = $$<HTMLButtonElement>(entrypoint, '#fileUpload');
+    const deepSearchButton = $$<HTMLButtonElement>(entrypoint, '#deepSearch');
+    const createImageButton = $$<HTMLButtonElement>(entrypoint, '#createImage');
+    assertTrue(!!fileUploadButton);
+    assertTrue(!!deepSearchButton);
+    assertTrue(!!createImageButton);
+
+    // Assert buttons are enabled initially.
+    assertFalse(fileUploadButton.disabled);
+    assertFalse(deepSearchButton.disabled);
+
+    // Set `inCreateImageMode` to true.
+    entrypoint.inCreateImageMode = true;
+    await entrypoint.updateComplete;
+
+    // Assert buttons are disabled.
+    assertTrue(fileUploadButton.disabled);
+    assertTrue(deepSearchButton.disabled);
+
+    // Click create image.
+    const eventFired = eventToPromise('create-image-click', entrypoint);
+    createImageButton.click();
+    await eventFired;
+
+    // Assert menu is closed.
+    assertFalse(entrypoint.$.menu.open);
+
+    // Set `inCreateImageMode` to false.
+    await openContextMenuWithSuggestions([]);
+    entrypoint.inCreateImageMode = false;
+    await entrypoint.updateComplete;
+
+    // Assert buttons are enabled again.
+    assertFalse(fileUploadButton.disabled);
+    assertFalse(deepSearchButton.disabled);
+  });
+
+  test('deep search mode disables contextual inputs', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({
+      composeboxShowDeepSearchButton: true,
+    });
+    entrypoint.remove();
+    entrypoint = document.createElement('composebox-context-menu-entrypoint');
+    document.body.appendChild(entrypoint);
+    await entrypoint.updateComplete;
+
+    await openContextMenuWithSuggestions([]);
+
+    // Assert entrypoint is enabled initially.
+    const deepSearchButton = $$<HTMLButtonElement>(entrypoint, '#deepSearch');
+    assertTrue(!!deepSearchButton);
+    assertFalse(entrypoint.inputsDisabled);
+
+    // Click deep search button.
+    const eventFired = eventToPromise('deep-search-click', entrypoint);
+    deepSearchButton.click();
+    await eventFired;
+    await entrypoint.updateComplete;
+
+    // Assert menu is closed and entrypoint is disabled.
+    assertFalse(entrypoint.$.menu.open);
+    assertTrue(entrypoint.inputsDisabled);
+
+    // Toggle deep search button.
+    entrypoint['onDeepSearchClick_']();
+    await entrypoint.updateComplete;
+
+    // Assert entrypoint is enabled again.
+    assertFalse(entrypoint.inputsDisabled);
+  });
 });

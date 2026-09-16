@@ -28,11 +28,9 @@ class WebContents;
 //
 // The saved_state_version parameter is which version of the saved state format
 // the buffer stores; the known versions are:
-//   0: Chrome <= 18
-//   1: Chrome 18 - 25
+//   0: Chrome <= 18 (Deprecated)
+//   1: Chrome 18 - 25 (Deprecated)
 //   2: Chrome 26+
-// TODO(crbug.com/41493935): Get rid of the old versions and possibly the
-// version field altogether.
 struct WebContentsStateByteBuffer {
   WebContentsStateByteBuffer(base::android::ScopedJavaLocalRef<jobject>
                                  web_contents_byte_buffer_result,
@@ -87,13 +85,13 @@ class WebContentsState {
                                         const DeletionPredicate& predicate);
 
   // Extracts display title from serialized tab data on restore.
-  static base::android::ScopedJavaLocalRef<jstring>
-  GetDisplayTitleFromByteBuffer(JNIEnv* env,
-                                base::span<const uint8_t> buffer,
-                                int saved_state_version);
+  static std::optional<std::u16string> GetDisplayTitleFromByteBuffer(
+      JNIEnv* env,
+      base::span<const uint8_t> buffer,
+      int saved_state_version);
 
   // Extracts virtual url from serialized tab data on restore.
-  static base::android::ScopedJavaLocalRef<jstring> GetVirtualUrlFromByteBuffer(
+  static std::optional<std::string> GetVirtualUrlFromByteBuffer(
       JNIEnv* env,
       base::span<const uint8_t> buffer,
       int saved_state_version);
@@ -103,7 +101,7 @@ class WebContentsState {
   RestoreContentsFromByteBuffer(JNIEnv* env,
                                 const base::android::JavaRef<jobject>& state,
                                 content::BrowserContext* browser_context,
-                                jint saved_state_version,
+                                int saved_state_version,
                                 jboolean initially_hidden,
                                 jboolean no_renderer);
 
@@ -129,13 +127,13 @@ class WebContentsState {
   CreateSingleNavigationStateAsByteBuffer(
       JNIEnv* env,
       content::BrowserContext* browser_context,
-      const base::android::JavaRef<jstring>& title,
-      const base::android::JavaRef<jstring>& url,
-      const base::android::JavaRef<jstring>& referrer_url,
-      jint referrer_policy,
-      const base::android::JavaParamRef<jobject>& initiator_origin);
+      const std::optional<std::u16string>& title,
+      const std::string& url,
+      const std::optional<std::string>& referrer_url,
+      int referrer_policy,
+      const std::optional<url::Origin>& initiator_origin);
 
-  // Creates a single navigation entry in a serilized form.
+  // Creates a single navigation entry in a serialized form.
   static base::Pickle CreateSingleNavigationStateAsPickle(
       content::BrowserContext* browser_context,
       std::u16string title,
@@ -150,11 +148,11 @@ class WebContentsState {
       content::BrowserContext* browser_context,
       base::span<const uint8_t> buffer,
       int saved_state_version,
-      const base::android::JavaRef<jstring>& title,
-      const base::android::JavaRef<jstring>& url,
-      const base::android::JavaRef<jstring>& referrer_url,
-      jint referrer_policy,
-      const base::android::JavaParamRef<jobject>& initiator_origin);
+      const std::optional<std::u16string>& title,
+      const std::string& url,
+      const std::optional<std::string>& referrer_url,
+      int referrer_policy,
+      const std::optional<url::Origin>& initiator_origin);
 
  private:
   static std::unique_ptr<content::WebContents>

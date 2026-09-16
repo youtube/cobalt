@@ -29,13 +29,6 @@ const char kDeprecateFeedHeaderParameterHeaderBottomPadding[] =
 
 #pragma mark - Feature declarations
 
-BASE_FEATURE(kEnableDiscoverFeedStaticResourceServing,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint,
-             "EnableDiscoFeedEndpoint",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableNTPViewHierarchyRepair,
              "NTPViewHierarchyRepair",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -43,8 +36,6 @@ BASE_FEATURE(kEnableNTPViewHierarchyRepair,
 BASE_FEATURE(kOverrideFeedSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebFeedFeedbackReroute, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableSignedOutViewDemotion, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableiPadFeedGhostCards, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -98,19 +89,8 @@ bool IsWebFeedFeedbackRerouteEnabled() {
   return base::FeatureList::IsEnabled(kWebFeedFeedbackReroute);
 }
 
-bool IsSignedOutViewDemotionEnabled() {
-  return base::FeatureList::IsEnabled(kEnableSignedOutViewDemotion);
-}
-
 bool IsiPadFeedGhostCardsEnabled() {
   return base::FeatureList::IsEnabled(kEnableiPadFeedGhostCards);
-}
-
-bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine) {
-  return is_google_default_search_engine && ShouldDeprecateFeedHeader() &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kDeprecateFeedHeader, kDeprecateFeedHeaderParameterRemoveLabel,
-             false);
 }
 
 bool ShouldEnlargeLogoAndFakebox() {

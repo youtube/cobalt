@@ -10,7 +10,7 @@ import("//third_party/protobuf/proto_library.gni")
 # V4L2 and VAAPI for video acceleration should not be enabled simultaneously.
 assert(!(use_v4l2_codec && use_vaapi))
 
-assert(use_v4l2_codec || use_vaapi)
+assert(use_linux_video_acceleration)
 
 # V4L2 or Vaapi imply the OS is Linux or ChromeOS
 assert(is_linux || is_chromeos)
@@ -91,6 +91,8 @@ source_set("common") {
     "registered_frame_converter.cc",
     "registered_frame_converter.h",
     "shaders/shaders.h",
+    "simple_video_frame_converter.cc",
+    "simple_video_frame_converter.h",
     "vd_video_decode_accelerator.cc",
     "vd_video_decode_accelerator.h",
     "vda_video_frame_pool.cc",
@@ -152,7 +154,7 @@ source_set("common") {
 }
 
 # Although fourcc is platform-agnostic; however, it is restricted by the above
-# assert(use_v4l2_codec || use_vaapi).
+# assert(use_linux_video_acceleration).
 source_set("fourcc") {
   defines = [ "MEDIA_GPU_IMPLEMENTATION" ]
   sources = [
@@ -195,7 +197,7 @@ source_set("video_frame_utils") {
   deps = [
     "//base",
     "//build/config/linux/libdrm",
-    "//components/viz/common:shared_image_format",
+    "//components/viz/common/resources:shared_image_format",
     "//gpu/ipc/common",
     "//media",
     "//media/gpu:buffer_validation",

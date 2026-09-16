@@ -13,11 +13,11 @@
 #import "components/signin/ios/browser/features.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/expected_signin_histograms.h"
+#import "ios/chrome/browser/authentication/test/expected_signin_histograms.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_matchers.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_matchers.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/views_constants.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_constants.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
@@ -588,11 +588,6 @@ void CompleteSigninFlow() {
 // Tests that the forced sign-in prompt isn't shown when sign-in is done from
 // the regular sign-in prompt.
 - (void)testNoSignInScreenWhenSigninFromRegularSigninPrompt {
-  // TODO(crbug.com/439982418): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
   // Restart the app to reset the policies.
   [self restartAppWithoutEnterprisePolicy];
 

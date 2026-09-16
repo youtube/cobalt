@@ -68,7 +68,7 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
     return;
   }
 
-  // Make a request to payments backend to check if user is eligible for pix
+  // Make a request to payments backend to check if user is eligible for Pix
   // account linking.
   auto billing_customer_id = autofill::payments::GetBillingCustomerId(
       CHECK_DEREF(client_->GetPaymentsDataManager()));
@@ -79,7 +79,7 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
   } else {
     // The user is an existing payments customer. Make a backend call to check
     // eligibility for Pix account linking.
-    client_->GetMultipleRequestFacilitatedPaymentsNetworkInterface()
+    client_->GetFacilitatedPaymentsNetworkInterface()
         ->GetDetailsForCreatePaymentInstrument(
             billing_customer_id,
             base::BindOnce(

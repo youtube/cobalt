@@ -519,8 +519,11 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         this, [this](std::optional<NetworkRoute> network_route) {
           OnNetworkRouteChanged(network_route);
         });
-    channel->SignalSentPacket.connect(
-        this, &P2PTransportChannelTestBase::OnSentPacket);
+    channel->SubscribeSentPacket(
+        this,
+        [this](PacketTransportInternal* transport, const SentPacketInfo& info) {
+          OnSentPacket(transport, info);
+        });
     channel->SetIceParameters(local_ice);
     if (remote_ice_parameter_source_ == FROM_SETICEPARAMETERS) {
       channel->SetRemoteIceParameters(remote_ice);

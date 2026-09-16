@@ -35,14 +35,18 @@ class TabInterface;
 }
 
 namespace gfx {
-class Size;
 class Point;
 }  // namespace gfx
 
 namespace glic {
-class GlicInstanceCoordinatorImpl
+
+// An interface to GlicInstanceCoordinatorImpl. Should be used instead of direct
+// access to GlicInstanceCoordinatorImpl to allow for test fakes.
+class GlicInstanceCoordinator
     : public GlicWindowController,
-      public GlicInstanceImpl::AttachmentDelegate {
+      public GlicInstanceImpl::InstanceCoordinatorDelegate {};
+
+class GlicInstanceCoordinatorImpl : public GlicInstanceCoordinator {
  public:
   GlicInstanceCoordinatorImpl(const GlicInstanceCoordinatorImpl&) = delete;
   GlicInstanceCoordinatorImpl& operator=(const GlicInstanceCoordinatorImpl&) =
@@ -54,13 +58,13 @@ class GlicInstanceCoordinatorImpl
                               GlicEnabling* enabling);
   ~GlicInstanceCoordinatorImpl() override;
 
-  // GlicInstanceImpl::AttachmentDelegate implementation
-  void AttachInstance(GlicInstance* instance) override;
-  void DetachInstance(GlicInstance* instance) override;
-  void OnInstanceOrphaned(GlicInstance* instance) override;
+  // GlicInstanceImpl::InstanceCoordinatorDelegate implementation
+  void OnInstanceVisibilityChanged(GlicInstance* instance,
+                                   bool is_showing) override;
   void SwitchConversation(
-      tabs::TabInterface* tab,
-      const std::string& conversation_id,
+      GlicInstanceImpl& source_instance,
+      const ShowOptions& options,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
   // GlicWindowController implementation
@@ -73,71 +77,60 @@ class GlicInstanceCoordinatorImpl
               mojom::InvocationSource source) override;
   bool ActivateBrowser() override;
   void ShowAfterSignIn(base::WeakPtr<Browser> browser) override;
-  void ToggleWhenNotAlwaysDetached(Browser* new_attached_browser,
-                                   bool prevent_close,
-                                   mojom::InvocationSource source) override;
   void FocusIfOpen() override;
   void Shutdown() override;
   void MaybeSetWidgetCanResize() override;
-  gfx::Size GetSize() override;
   void Close() override;
-  void CloseWithReason(views::Widget::ClosedReason reason) override;
   void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
-  bool ShouldStartDrag(const gfx::Point& initial_press_loc,
-                       const gfx::Point& mouse_location) override;
 
   void AddStateObserver(StateObserver* observer) override;
   void RemoveStateObserver(StateObserver* observer) override;
 
-  const mojom::PanelState& GetPanelState() const override;
-  bool IsShowing() const override;
+  mojom::PanelState GetPanelState() override;
 
   bool IsActive() override;
-  bool IsAttached() const override;
   bool IsDetached() const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) override;
   void Preload() override;
-  void Reload() override;
-  bool IsWarmed() const override;
-  base::WeakPtr<GlicWindowController> GetWeakPtr() override;
+  void Reload(content::RenderFrameHost* render_frame_host) override;
+  base::WeakPtr<GlicInstanceCoordinatorImpl> GetWeakPtr();
 
-  GlicView* GetGlicView() const override;
   base::WeakPtr<views::View> GetGlicViewAsView() override;
   GlicWidget* GetGlicWidget() const override;
   gfx::NativeWindow GetHostNativeWindow() override;
 
   Browser* attached_browser() override;
   State state() const override;
-  GlicWindowAnimator* window_animator() override;
   Profile* profile() override;
   gfx::Rect GetInitialBounds(Browser* browser) override;
   void ShowDetachedForTesting() override;
   void SetPreviousPositionForTesting(gfx::Point position) override;
-  std::unique_ptr<views::View> CreateViewForSidePanel(
-      tabs::TabInterface& tab) override;
-  void SidePanelShown(BrowserWindowInterface* browser) override;
 
-  base::CallbackListSubscription RegisterFloatyStateChange(
-      FloatyStateChangeCallback callback) override;
+  base::CallbackListSubscription RegisterLastActiveInstanceChangedCallback(
+      LastActiveInstanceChangedCallback callback) override;
+
+  void FindInstanceFromGlicContentsAndBindToTab(
+      content::WebContents* source_glic_web_contents,
+      tabs::TabInterface* tab_to_bind) override;
 
  private:
   GlicInstanceImpl* GetOrCreateGlicInstanceImplForTab(tabs::TabInterface* tab);
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id);
   GlicInstanceImpl* GetInstanceImplForTab(tabs::TabInterface* tab);
   GlicInstanceImpl* CreateGlicInstance();
+  void CreateWarmedInstance();
 
-  void ToggleFloaty();
-  void ToggleSidePanel(BrowserWindowInterface* browser);
+  void ToggleFloaty(bool prevent_close);
+  void ToggleSidePanel(BrowserWindowInterface* browser, bool prevent_close);
 
-  void RemoveInstance(GlicInstance* instance);
+  void RemoveInstance(GlicInstance* instance) override;
   bool HasAttachedInstance(GlicInstance* instance);
+
+  void NotifyLastActiveInstanceChanged();
 
   // List of callbacks to be notified when window activation has changed.
   base::RepeatingCallbackList<void(bool)> window_activation_callback_list_;
-  using FloatyStateChangeCallbackList =
-      base::RepeatingCallbackList<void(State, mojom::CurrentView view)>;
-  FloatyStateChangeCallbackList floaty_state_change_callback_list_;
 
   mojom::PanelState panel_state_;
   const raw_ptr<Profile> profile_;
@@ -147,7 +140,13 @@ class GlicInstanceCoordinatorImpl
   // The instance ID of the one instance that is currently floating.
   std::optional<InstanceId> floating_instance_key_;
 
+  std::unique_ptr<GlicInstanceImpl> warmed_instance_;
+
   std::unique_ptr<HostManager> host_manager_;
+
+  raw_ptr<GlicInstance> last_active_instance_ = nullptr;
+  base::RepeatingCallbackList<void(GlicInstance*)>
+      last_active_instance_changed_callback_list_;
 
   base::WeakPtrFactory<GlicInstanceCoordinatorImpl> weak_ptr_factory_{this};
 };

@@ -351,22 +351,31 @@ void ArcAppTest::TearDown() {
   if (compatibility_mode_instance_) {
     compatibility_mode_instance_.reset();
   }
-  if (intent_helper_instance_) {
+  app_instance_.reset();
+  arc_play_store_enabled_preference_handler_.reset();
+
+  CHECK(arc_session_manager_);
+  arc_session_manager_->Shutdown();
+
+  apps::ArcAppsFactory::GetInstance()->ShutDownForTesting(profile_);
+
+  if (initialize_real_intent_helper_bridge_) {
     arc_service_manager_->arc_bridge_service()->intent_helper()->CloseInstance(
         intent_helper_instance_.get());
     intent_helper_instance_.reset();
-    intent_helper_host_.reset();
-  }
-  if (initialize_real_intent_helper_bridge_)
     arc::ArcIntentHelperBridge::ShutDownForTesting(profile_);
-  app_instance_.reset();
-  arc_play_store_enabled_preference_handler_.reset();
-  arc_session_manager_.reset();
-  if (!persist_service_manager_)
-    arc_service_manager_.reset();
+  }
+
   arc::ResetArcAllowedCheckForTesting(profile_);
 
-  apps::ArcAppsFactory::GetInstance()->ShutDownForTesting(profile_);
+  profile_ = nullptr;
+
+  arc_session_manager_.reset();
+  if (!persist_service_manager_) {
+    arc_service_manager_.reset();
+  }
+
+  session_manager_.reset();
 
   // ConciergeClient may be initialized from other testing utility, such as
   // ash::AshTestHelper::SetUp(), so Shutdown() only when it is initialized in
@@ -375,8 +384,6 @@ void ArcAppTest::TearDown() {
     ash::ConciergeClient::Shutdown();
     concierge_client_initialized_ = false;
   }
-  profile_ = nullptr;
-  session_manager_.reset();
 
   is_pre_profile_setup_called_ = false;
 }

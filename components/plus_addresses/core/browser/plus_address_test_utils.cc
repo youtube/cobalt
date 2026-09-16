@@ -64,7 +64,7 @@ std::string MakeCreationResponse(const PlusProfile& profile) {
           }
         )",
       {MakePlusProfile(profile)}, nullptr);
-  DCHECK(base::JSONReader::Read(json));
+  DCHECK(base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS));
   return json;
 }
 
@@ -73,7 +73,8 @@ std::string MakeListResponse(const std::vector<PlusProfile>& profiles) {
   base::Value::List list;
   for (const PlusProfile& profile : profiles) {
     std::string json = MakePlusProfile(profile);
-    std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(json);
+    std::optional<base::Value::Dict> dict =
+        base::JSONReader::ReadDict(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     DCHECK(dict.has_value());
     list.Append(std::move(dict.value()));
   }
@@ -115,7 +116,7 @@ std::string MakePlusProfile(const PlusProfile& profile) {
       {*profile.profile_id, profile.facet.canonical_spec(),
        *profile.plus_address, mode},
       nullptr);
-  DCHECK(base::JSONReader::Read(json));
+  DCHECK(base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS));
   return json;
 }
 
@@ -123,14 +124,14 @@ std::unique_ptr<net::test_server::HttpResponse>
 HandleRequestToPlusAddressWithSuccess(
     const net::test_server::HttpRequest& request) {
   // Ignore unrecognized path.
-  if (request.GetURL().path() != kReservePath &&
-      request.GetURL().path() != kConfirmPath) {
+  if (request.GetURL().GetPath() != kReservePath &&
+      request.GetURL().GetPath() != kConfirmPath) {
     return nullptr;
   }
 
   bool is_refresh = [&]() {
-    std::optional<base::Value::Dict> body =
-        base::JSONReader::ReadDict(request.content);
+    std::optional<base::Value::Dict> body = base::JSONReader::ReadDict(
+        request.content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     if (!body) {
       return false;
     }
@@ -142,7 +143,7 @@ HandleRequestToPlusAddressWithSuccess(
   http_response->set_content_type("application/json");
   PlusProfile profile = CreatePlusProfile(
       /*plus_address=*/is_refresh ? kFakePlusAddressRefresh : kFakePlusAddress,
-      /*is_confirmed=*/request.GetURL().path() == kConfirmPath);
+      /*is_confirmed=*/request.GetURL().GetPath() == kConfirmPath);
   http_response->set_content(MakeCreationResponse(profile));
   return http_response;
 }

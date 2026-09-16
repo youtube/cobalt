@@ -500,13 +500,12 @@ public class ReaderModeManagerTest {
     public void testTryShowingPrompt_Cct_AdaptiveButtonOn_ButtonShowing_ShouldNotShowPrompt() {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.isCustomTab()).thenReturn(true);
-        when(mTab.isLoading()).thenReturn(false);
 
         mDistillabilityObserver.onIsPageDistillableResult(mTab, true, true, false);
 
         // Simulate the button UI being displayed.
         mButtonVisibilitySupplier.set(true);
-        mManager.onContextualPageActionShown(mButtonVisibilitySupplier);
+        mManager.onContextualPageActionShown(mButtonVisibilitySupplier, /* isReaderMode= */ true);
 
         verify(mMessageDispatcher, never())
                 .enqueueMessage(any(), any(), eq(MessageScopeType.NAVIGATION), anyBoolean());
@@ -530,12 +529,11 @@ public class ReaderModeManagerTest {
             testTryShowingPrompt_Cct_AdaptiveButtonOn_ButtonShowingDelayed_ShouldNotShowPrompt() {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.isCustomTab()).thenReturn(true);
-        when(mTab.isLoading()).thenReturn(false);
 
         mDistillabilityObserver.onIsPageDistillableResult(mTab, true, true, false);
 
         // Simulate the button UI being displayed.
-        mManager.onContextualPageActionShown(mButtonVisibilitySupplier);
+        mManager.onContextualPageActionShown(mButtonVisibilitySupplier, /* isReaderMode= */ true);
 
         // The visibility is determined in delayed fashion - after |onContextualPageActionShown|.
         mButtonVisibilitySupplier.set(true);
@@ -555,20 +553,18 @@ public class ReaderModeManagerTest {
 
     @Test
     @Feature("ReaderMode")
-    @EnableFeatures({
-        ChromeFeatureList.CCT_ADAPTIVE_BUTTON,
-        DomDistillerFeatures.READER_MODE_DISTILL_IN_APP // Makes test mocking easier.
-    })
+    @EnableFeatures({ChromeFeatureList.CCT_ADAPTIVE_BUTTON})
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void testTryShowingPrompt_Cct_AdaptiveButtonOn_ButtonNotShowing_ShouldShowPrompt() {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.isCustomTab()).thenReturn(true);
-        when(mTab.isLoading()).thenReturn(false);
+        when(mWebContents.getLastCommittedUrl()).thenReturn(MOCK_URL);
 
         mDistillabilityObserver.onIsPageDistillableResult(mTab, true, true, false);
 
         // Simulate the button UI not being displayed.
         mButtonVisibilitySupplier.set(false);
-        mManager.onContextualPageActionShown(mButtonVisibilitySupplier);
+        mManager.onContextualPageActionShown(mButtonVisibilitySupplier, /* isReaderMode= */ true);
 
         verify(mMessageDispatcher)
                 .enqueueMessage(
@@ -585,20 +581,18 @@ public class ReaderModeManagerTest {
 
     @Test
     @Feature("ReaderMode")
-    @EnableFeatures({
-        ChromeFeatureList.CCT_ADAPTIVE_BUTTON,
-        DomDistillerFeatures.READER_MODE_DISTILL_IN_APP // Makes test mocking easier.
-    })
+    @EnableFeatures({ChromeFeatureList.CCT_ADAPTIVE_BUTTON})
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void
             testTryShowingPrompt_Cct_AdaptiveButtonOn_ButtonNotShowingDelayed_ShouldShowPrompt() {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.isCustomTab()).thenReturn(true);
-        when(mTab.isLoading()).thenReturn(false);
+        when(mWebContents.getLastCommittedUrl()).thenReturn(MOCK_URL);
 
         mDistillabilityObserver.onIsPageDistillableResult(mTab, true, true, false);
 
         // Simulate the button UI not being displayed.
-        mManager.onContextualPageActionShown(mButtonVisibilitySupplier);
+        mManager.onContextualPageActionShown(mButtonVisibilitySupplier, /* isReaderMode= */ true);
 
         // The visibility is determined in delayed fashion - after |onContextualPageActionShown|.
         mButtonVisibilitySupplier.set(false);
@@ -739,11 +733,6 @@ public class ReaderModeManagerTest {
         watcher.assertExpected();
     }
 
-    /**
-     * @param index The index of the entry.
-     * @param url The URL the entry represents.
-     * @return A new {@link NavigationEntry}.
-     */
     private NavigationEntry createNavigationEntry(int index, GURL url) {
         return new NavigationEntry(
                 index, url, url, url, "", null, 0, 0, /* isInitialEntry= */ false);

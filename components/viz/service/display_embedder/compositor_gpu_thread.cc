@@ -15,6 +15,7 @@
 #include "components/viz/common/features.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/switches.h"
+#include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
@@ -149,15 +150,6 @@ CompositorGpuThread::GetSharedContextState() {
   // GL resources with the contexts created on gpu main thread.
   auto context =
       gl::init::CreateGLContext(share_group.get(), surface.get(), attribs);
-
-  if (!context && !features::UseGles2ForOopR()) {
-    LOG(ERROR) << "Failed to create GLES3 context, fallback to GLES2.";
-    attribs.client_major_es_version = 2;
-    attribs.client_minor_es_version = 0;
-    context =
-        gl::init::CreateGLContext(share_group.get(), surface.get(), attribs);
-  }
-
   if (!context) {
     LOG(ERROR) << "Failed to create shared context";
     return nullptr;
@@ -238,8 +230,8 @@ bool CompositorGpuThread::Initialize() {
   return init_succeeded_;
 }
 
-void CompositorGpuThread::HandleMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+void CompositorGpuThread::OnMemoryPressure(
+    base::MemoryPressureLevel memory_pressure_level) {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   // Context should be current for cache/memory cleanup.
@@ -261,18 +253,17 @@ void CompositorGpuThread::Init() {
   // Making sure to create the |memory_pressure_listener_| on
   // CompositorGpuThread since this callback will be called on the thread it was
   // created on.
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE, base::MemoryPressureListenerTag::kCompositorGpuThread,
-          base::BindRepeating(&CompositorGpuThread::HandleMemoryPressure,
-                              base::Unretained(this))),
+          this),
   init_succeeded_ = true;
 }
 
 void CompositorGpuThread::CleanUp() {
   // Destroying |memory_pressure_listener_| here to ensure its destroyed on the
   // same thread on which it was created on.
-  memory_pressure_listener_.reset();
+  memory_pressure_listener_registration_.reset();
   if (watchdog_thread_)
     watchdog_thread_->OnGpuProcessTearDown();
 
@@ -300,9 +291,7 @@ void CompositorGpuThread::OnBackgroundedOnCompositorGpuThread() {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   if (shared_context_state_) {
-    shared_context_state_->PurgeMemory(
-        base::MemoryPressureListener::MemoryPressureLevel::
-            MEMORY_PRESSURE_LEVEL_CRITICAL);
+    shared_context_state_->PurgeMemory(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   }
 }
 

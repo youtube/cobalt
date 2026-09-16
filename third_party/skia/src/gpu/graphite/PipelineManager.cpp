@@ -13,7 +13,6 @@
 #include "src/gpu/graphite/Log.h"
 #include "src/gpu/graphite/PipelineCreationTask.h"
 #include "src/gpu/graphite/RenderPassDesc.h"
-#include "src/gpu/graphite/ResourceProvider.h"
 #include "src/gpu/graphite/RuntimeEffectDictionary.h"
 #include "src/gpu/graphite/SharedContext.h"
 
@@ -66,7 +65,7 @@ GraphicsPipelineHandle PipelineManager::createHandle(
     return GraphicsPipelineHandle(std::move(task));
 }
 
-void PipelineManager::startPipelineCreationTask(ResourceProvider* resourceProvider,
+void PipelineManager::startPipelineCreationTask(SharedContext* sharedContext,
                                                 sk_sp<const RuntimeEffectDictionary> runtimeDict,
                                                 const GraphicsPipelineHandle& handle) {
     if (std::holds_alternative<sk_sp<GraphicsPipeline>>(handle.fTaskOrPipeline)) {
@@ -76,7 +75,7 @@ void PipelineManager::startPipelineCreationTask(ResourceProvider* resourceProvid
     sk_sp<PipelineCreationTask> task =
             std::get<sk_sp<PipelineCreationTask>>(handle.fTaskOrPipeline);
 
-    sk_sp<GraphicsPipeline> pipeline = resourceProvider->findOrCreateGraphicsPipeline(
+    sk_sp<GraphicsPipeline> pipeline = sharedContext->findOrCreateGraphicsPipeline(
             runtimeDict.get(),
             task->fPipelineKey,
             task->fGraphicsPipelineDesc,

@@ -139,6 +139,7 @@ source_set("permissions") {
     "//components/permissions/vector_icons",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/safety_check",
     "//components/strings:components_branded_strings_grit",
     "//components/strings:components_strings_grit",
     "//components/tabs:public",
@@ -221,6 +222,14 @@ source_set("permissions") {
       "//third_party/jni_zero",
       "//ui/android",
     ]
+
+    if (is_cobalt) {
+      sources -= [
+        "android/permissions_android_feature_map.cc",
+        "android/permissions_android_feature_map.h",
+      ]
+      deps += [ "//components/permissions/android:core" ]
+    }
   } else {
     sources += [
       "bluetooth_chooser_controller.cc",
@@ -351,6 +360,7 @@ source_set("unit_tests") {
     "//components/content_settings/core/browser",
     "//components/keyed_service/content",
     "//components/prefs:test_support",
+    "//components/safety_check",
     "//components/security_state/core",
     "//components/strings:components_strings_grit",
     "//components/sync_preferences:test_support",

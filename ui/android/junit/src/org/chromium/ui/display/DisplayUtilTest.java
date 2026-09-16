@@ -4,12 +4,12 @@
 package org.chromium.ui.display;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.when;
 
 import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Pair;
@@ -75,7 +75,6 @@ public class DisplayUtilTest {
             new WindowInsets.Builder()
                     .setInsets(WindowInsets.Type.systemBars(), TEST_SYSTEM_BAR_INSETS)
                     .build();
-    private static final int TEST_DISPLAY_ID = 73;
 
     @Test
     @Config(sdk = Build.VERSION_CODES.R)
@@ -305,61 +304,6 @@ public class DisplayUtilTest {
                         });
     }
 
-    private void coordinateTranslationTestsSetup(float density) {
-        when(mDisplayAndroid.getDipScale()).thenReturn(density);
-        when(mDisplayAndroid.getDisplayId()).thenReturn(TEST_DISPLAY_ID);
-    }
-
-    @Test
-    @Config(sdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    public void testPassesContextDisplayId() {
-        coordinateTranslationTestsSetup(1.0f);
-        RectF globalCoordinates = new RectF(0, 0, 0, 0);
-        assertEquals(
-                "The display ID returned should be equal to the display ID of the provided display",
-                Integer.valueOf(TEST_DISPLAY_ID),
-                DisplayUtil.getLocalCoordinatesPx(globalCoordinates, mDisplayAndroid).first);
-    }
-
-    @Test
-    @Config(sdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    public void testBasicTranslation() {
-        coordinateTranslationTestsSetup(1.5f);
-        RectF globalCoordinates = new RectF(200, 300, 400, 500);
-        Rect expectedResult = new Rect(300, 450, 600, 750);
-
-        assertEquals(
-                "The coordinates were not translated properly",
-                expectedResult,
-                DisplayUtil.getLocalCoordinatesPx(globalCoordinates, mDisplayAndroid).second);
-    }
-
-    @Test
-    @Config(sdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    public void testTranslationRoundingResult() {
-        coordinateTranslationTestsSetup(1.03125f);
-        RectF globalCoordinates = new RectF(200, 300, 400, 500);
-        Rect expectedResult = new Rect(206, 309, 413, 516);
-
-        assertEquals(
-                "The coordinates were not rounded properly",
-                expectedResult,
-                DisplayUtil.getLocalCoordinatesPx(globalCoordinates, mDisplayAndroid).second);
-    }
-
-    @Test
-    @Config(sdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    public void testTranslationRoundingInput() {
-        coordinateTranslationTestsSetup(2.0f);
-        RectF globalCoordinates = new RectF(200.25f, 300.5f, 400.75f, 500);
-        Rect expectedResult = new Rect(401, 601, 802, 1000);
-
-        assertEquals(
-                "The coordinates were not rounded properly",
-                expectedResult,
-                DisplayUtil.getLocalCoordinatesPx(globalCoordinates, mDisplayAndroid).second);
-    }
-
     @Test
     public void testDpToPx() {
         // Trivial test with density = 1, value = 0, expected = 0
@@ -491,78 +435,91 @@ public class DisplayUtilTest {
     }
 
     @Test
-    public void testClampWindowToDisplay_boundsInsideDisplay() {
+    public void testClampRect_inputRectInsideLimitingRect() {
+        Rect limitingRect = new Rect(0, 0, 1920, 1080);
+        Rect inputRect = new Rect(100, 200, 700, 800);
+        assertEquals(
+                "The inputRect should have been preserved as it's' already inside limitingRect",
+                inputRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampRect_inputRectPartiallyOutsideLimitingRectInHorizontalAxis() {
+        Rect limitingRect = new Rect(0, 0, 1000, 1000);
+        Rect inputRect = new Rect(-100, 200, 700, 800);
+
+        // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
+        // Manhattan metric that fits inside the limitingRect, and there is no valid Rect with given
+        // size closer than 100 px.
+        Rect expectedRect = new Rect(0, 200, 800, 800);
+        assertEquals(
+                "The inputRect is partially outside the limitingRect",
+                expectedRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampRect_inputRectPartiallyOutsideLimitingRectInVerticalAxis() {
+        Rect limitingRect = new Rect(0, 0, 1000, 1000);
+        Rect inputRect = new Rect(200, -100, 800, 700);
+
+        // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
+        // Manhattan metric that fits inside the limitingRect, and there is no valid Rect with given
+        // size closer than 100 px.
+        Rect expectedRect = new Rect(200, 0, 800, 800);
+        assertEquals(
+                "The inputRect is partially outside the limitingRect",
+                expectedRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampRect_inputRectFullyOutsideLimitingRect() {
+        Rect limitingRect = new Rect(0, 0, 1000, 1000);
+        Rect inputRect = new Rect(1100, 1200, 1600, 1800);
+
+        // Size can be preserved, there is exactly one Rect with given size distant by 1400 px in
+        // Manhattan metric that fits inside the limitingRect, and there is no valid Rect with given
+        // size closer than 1400 px.
+        Rect expectedRect = new Rect(500, 400, 1000, 1000);
+        assertEquals(
+                "The inputRect is fully outside the limitingRect",
+                expectedRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampRect_inputRectFullyOutsideAndWiderThanLimitingRect() {
+        Rect limitingRect = new Rect(0, 0, 1100, 1200);
+        Rect inputRect = new Rect(-100, 1400, 1200, 1800);
+
+        // Size cannot be preserved in horizontal axis. The least displacement in the vertical axis
+        // to get a Rect inside the display is 400px.
+        Rect expectedRect = new Rect(0, 800, 1100, 1200);
+        assertEquals(
+                "The inputRect is fully outside and wider than the limitingRect",
+                expectedRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampRect_inputRectBiggerThanLimitingRect() {
+        Rect limitingRect = new Rect(0, 0, 1400, 1200);
+        Rect inputRect = new Rect(-100, 1400, 1400, 3000);
+        assertEquals(
+                "The inputRect is bigger in both dimensions than the limitingRect",
+                limitingRect,
+                DisplayUtil.clampRect(inputRect, limitingRect));
+    }
+
+    @Test
+    public void testClampWindowToDisplay() {
         when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1920, 1080));
         final Rect testBounds = new Rect(100, 200, 700, 800);
         assertEquals(
                 "The bounds should have been preserved as they were already inside display",
                 testBounds,
-                DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
-    }
-
-    @Test
-    public void testClampWindowToDisplay_boundsPartiallyOffscreen() {
-        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
-        final Rect testBounds = new Rect(-100, 200, 700, 800);
-        // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
-        // Manhattan metric that fits inside the display, and there is no valid Rect with given size
-        // closer than 100 px.
-        final Rect expectedBounds = new Rect(0, 200, 800, 800);
-        assertEquals(
-                "The bounds were partially off-screen",
-                expectedBounds,
-                DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
-    }
-
-    @Test
-    public void testClampWindowToDisplay_boundsPartiallyOffscreen2() {
-        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
-        final Rect testBounds = new Rect(200, -100, 800, 700);
-        // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
-        // Manhattan metric that fits inside the display, and there is no valid Rect with given size
-        // closer than 100 px.
-        final Rect expectedBounds = new Rect(200, 0, 800, 800);
-        assertEquals(
-                "The bounds were partially off-screen",
-                expectedBounds,
-                DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
-    }
-
-    @Test
-    public void testClampWindowToDisplay_boundsFullyOffscreen() {
-        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
-        final Rect testBounds = new Rect(1100, 1200, 1600, 1800);
-        // Size can be preserved, there is exactly one Rect with given size distant by 1400 px in
-        // Manhattan metric that fits inside the display, and there is no valid Rect with given size
-        // closer than 1400 px.
-        final Rect expectedBounds = new Rect(500, 400, 1000, 1000);
-        assertEquals(
-                "The bounds were fully off-screen",
-                expectedBounds,
-                DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
-    }
-
-    @Test
-    public void testClampWindowToDisplay_boundsFullyOffscreenAndWiderThanDisplay() {
-        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1100, 1200));
-        final Rect testBounds = new Rect(-100, 1400, 1200, 1800);
-        // Size cannot be preserved in horizontal axis. The least displacement in the vertical axis
-        // to get a Rect inside the display is 400px.
-        final Rect expectedBounds = new Rect(0, 800, 1100, 1200);
-        assertEquals(
-                "The bounds were fully off-screen and wider than the display",
-                expectedBounds,
-                DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
-    }
-
-    @Test
-    public void testClampWindowToDisplay_boundsBiggerThanDisplay() {
-        final Rect displayLocalBounds = new Rect(0, 0, 1400, 1200);
-        when(mDisplayAndroid.getLocalBounds()).thenReturn(displayLocalBounds);
-        final Rect testBounds = new Rect(-100, 1400, 1400, 3000);
-        assertEquals(
-                "The bounds were bigger in both dimensions than the display",
-                displayLocalBounds,
                 DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
     }
 
@@ -632,9 +589,8 @@ public class DisplayUtilTest {
             Rect globalCoordinatesDip = new Rect(100, 200, 300, 400);
             when(mDisplayAndroidManager.getDisplayMatching(globalCoordinatesDip)).thenReturn(null);
 
-            assertEquals(
-                    "Conversion should return Pair.create(null, null) when no display matches: ",
-                    Pair.create(null, null),
+            assertNull(
+                    "Conversion should return null when no display matches: ",
                     DisplayUtil.convertGlobalDipToLocalPxCoordinates(globalCoordinatesDip));
         }
         // Empty coordinates
@@ -743,5 +699,90 @@ public class DisplayUtilTest {
                     Pair.create(mDisplayAndroid, new Rect(-184, -97, 3415, 2149)),
                     DisplayUtil.convertGlobalDipToLocalPxCoordinates(globalCoordinatesDip));
         }
+    }
+
+    @Test
+    public void testConvertLocalPxToGlobalDipCoordinates_fullDisplayBounds() {
+        final float displayDipScale = 1.25f;
+        final Rect displayLocalCoordinatesPx = new Rect(0, 0, 3120, 1980);
+        final Rect displayGlobalCoordinatesDp = new Rect(-960, -720, 1536, 864);
+
+        prepareDisplayAndroid(
+                displayGlobalCoordinatesDp, displayLocalCoordinatesPx, displayDipScale);
+        assertEquals(
+                "Conversion between coordinate systems failed",
+                displayGlobalCoordinatesDp,
+                DisplayUtil.convertLocalPxToGlobalDipCoordinates(
+                        mDisplayAndroid, displayLocalCoordinatesPx));
+    }
+
+    @Test
+    public void testConvertLocalPxToGlobalDipCoordinates_rounding() {
+        final float displayDipScale = 1.2f;
+        final Rect displayLocalCoordinatesPx = new Rect(0, 0, 1000, 1000);
+        final Rect displayGlobalCoordinatesDp = new Rect(0, 0, 834, 834);
+        final Rect testLocalCoordinatesPx = new Rect(1, 3, 100, 1000);
+        final Rect expectedGlobalCoordinatesDp = new Rect(0, 2, 84, 834);
+
+        prepareDisplayAndroid(
+                displayGlobalCoordinatesDp, displayLocalCoordinatesPx, displayDipScale);
+        assertEquals(
+                "Conversion between coordinate systems failed",
+                expectedGlobalCoordinatesDp,
+                DisplayUtil.convertLocalPxToGlobalDipCoordinates(
+                        mDisplayAndroid, testLocalCoordinatesPx));
+    }
+
+    @Test
+    public void testConvertLocalPxToGlobalDipCoordinates_emptyRect() {
+        final float displayDipScale = 1.3f;
+        final Rect displayLocalCoordinatesPx = new Rect(0, 0, 1000, 1000);
+        final Rect displayGlobalCoordinatesDp = new Rect(0, 0, 770, 770);
+        final Rect testLocalCoordinatesPx = new Rect(123, 456, 123, 456);
+        final Rect expectedGlobalCoordinatesDp = new Rect(94, 350, 95, 351);
+
+        prepareDisplayAndroid(
+                displayGlobalCoordinatesDp, displayLocalCoordinatesPx, displayDipScale);
+        assertEquals(
+                "Conversion between coordinate systems failed",
+                expectedGlobalCoordinatesDp,
+                DisplayUtil.convertLocalPxToGlobalDipCoordinates(
+                        mDisplayAndroid, testLocalCoordinatesPx));
+    }
+
+    @Test
+    public void testConvertLocalPxToGlobalDipCoordinates_displayOriginTranslation() {
+        final float displayDipScale = 1.75f;
+        final Rect displayLocalCoordinatesPx = new Rect(0, 0, 1000, 1000);
+        final Rect displayGlobalCoordinatesDp = new Rect(-100, -200, 472, 372);
+        final Rect testLocalCoordinatesPx = new Rect(12, 34, 567, 890);
+        final Rect expectedGlobalCoordinatesDp =
+                new Rect(-100 + 6, -200 + 19, -100 + 324, -200 + 509);
+
+        prepareDisplayAndroid(
+                displayGlobalCoordinatesDp, displayLocalCoordinatesPx, displayDipScale);
+        assertEquals(
+                "Conversion between coordinate systems failed",
+                expectedGlobalCoordinatesDp,
+                DisplayUtil.convertLocalPxToGlobalDipCoordinates(
+                        mDisplayAndroid, testLocalCoordinatesPx));
+    }
+
+    @Test
+    public void testConvertLocalPxToGlobalDipCoordinates_coordinatesNotInsideDisplay() {
+        final float displayDipScale = 0.5f;
+        final Rect displayLocalCoordinatesPx = new Rect(0, 0, 1000, 1000);
+        final Rect displayGlobalCoordinatesDp = new Rect(-500, 700, 1500, 2700);
+        final Rect testLocalCoordinatesPx = new Rect(-600, -400, -100, 1300);
+        final Rect expectedGlobalCoordinatesDp =
+                new Rect(-500 - 1200, 700 - 800, -500 - 200, 700 + 2600);
+
+        prepareDisplayAndroid(
+                displayGlobalCoordinatesDp, displayLocalCoordinatesPx, displayDipScale);
+        assertEquals(
+                "Conversion between coordinate systems failed",
+                expectedGlobalCoordinatesDp,
+                DisplayUtil.convertLocalPxToGlobalDipCoordinates(
+                        mDisplayAndroid, testLocalCoordinatesPx));
     }
 }

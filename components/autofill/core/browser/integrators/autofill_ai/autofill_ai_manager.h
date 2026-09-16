@@ -5,8 +5,10 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_INTEGRATORS_AUTOFILL_AI_AUTOFILL_AI_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_INTEGRATORS_AUTOFILL_AI_AUTOFILL_AI_MANAGER_H_
 
+#include "base/containers/lru_cache.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_logger.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_attribute.h"
@@ -79,6 +81,14 @@ class AutofillAiManager {
 
  private:
   friend class AutofillAiManagerTestApi;
+  struct UserSuggestionInteractionDetails {
+    // Upon clicking a field, stores the different entity types used to
+    // generate the suggestions shown.
+    DenseSet<EntityType> suggested_entity_types;
+    std::optional<EntityType> entity_type_accepted;
+  };
+
+  const size_t kSuggestionInteractionCacheMaxSize = 5;
 
   // Strike database related methods:
   void AddStrikeForSaveAttempt(const GURL& url, const EntityInstance& entity);
@@ -95,13 +105,23 @@ class AutofillAiManager {
   // by decreasing priority.
   //
   // The function returns two possible type of candidates:
-  // - A single EntityInstance (and std::nullopt) if the entity qualifies for a
-  //   save prompt.
+  // - A single EntityInstance (and `std::nullopt`) if the entity qualifies for
+  //   a save prompt.
   // - A pair of two entities if the entity qualifies for an update prompt. In
   //   that case, the first entity in the pair would be the new entity (after
   //   update) and the second one the old entity (before update).
   std::vector<std::pair<EntityInstance, std::optional<EntityInstance>>>
   GetEntitySaveAndUpdatePromptCandidates(const FormStructure& form);
+
+  // Given `form` that is observed at submission, returns a pair containing the
+  // candidate for showing a migration/upstream prompt together with the
+  // original local entity to be migrated. Migration means moving an entity from
+  // local storage to the Wallet server. The migrated entity is the most
+  // recently used one that is a superset of the values filled in form.
+  //
+  // The function returns `std::nullopt` if no candidate exists.
+  std::optional<std::pair<EntityInstance, EntityInstance::EntityId>>
+  GetEntityUpstreamCandidate(const FormStructure& form);
 
   // Attempts to display an import bubble for `form` if Autofill AI is
   // interested in the form. Returns whether an import bubble will be shown.
@@ -116,6 +136,7 @@ class AutofillAiManager {
       ukm::SourceId ukm_source_id,
       const EntityInstance& entity,
       AutofillClient::EntitySaveOrUpdatePromptResult result);
+
   // Updates the `EntityDataManager` and the update strike database depending on
   // the prompt `result`.
   void HandleUpdatePromptResult(
@@ -124,6 +145,24 @@ class AutofillAiManager {
       ukm::SourceId ukm_source_id,
       const EntityInstance::EntityId& entity_uuid,
       AutofillClient::EntitySaveOrUpdatePromptResult result);
+
+  // Updates the `EntityDataManager` by deleting a local entity and moving it to
+  // the Google Wallet server. Updates the strike database depending on the
+  // prompt `result`.
+  void HandleUpstreamEntityPrompt(
+      const GURL& form_url,
+      uint64_t form_session_id,
+      const std::string& domain,
+      ukm::SourceId ukm_source_id,
+      const EntityInstance& entity,
+      EntityInstance::EntityId local_entity,
+      AutofillClient::EntitySaveOrUpdatePromptResult result);
+
+  // Decides whether a migration bubble should be shown after a form submitted.
+  // This is used to upstream local entities of a certain type to the Google
+  // Wallet server.
+  bool MaybeUpstreamEntityToWallet(const FormStructure& form,
+                                   ukm::SourceId ukm_source_id);
 
   LogManager* GetCurrentLogManager();
 
@@ -145,6 +184,11 @@ class AutofillAiManager {
   // A strike database for update prompts keyed by the guid of the entity that
   // is to be updated.
   std::unique_ptr<AutofillAiUpdateStrikeDatabase> update_strike_db_;
+
+  // Keeps suggestions details about the five most recent forms the user has
+  // interacted with.
+  base::LRUCache<FormGlobalId, UserSuggestionInteractionDetails>
+      user_suggestion_interactions_per_form{kSuggestionInteractionCacheMaxSize};
 
   base::WeakPtrFactory<AutofillAiManager> weak_ptr_factory_{this};
 };

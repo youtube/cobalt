@@ -21,7 +21,6 @@
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_features.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
@@ -32,6 +31,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/features.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "content/public/test/browser_task_environment.h"
@@ -288,6 +288,39 @@ class CloudBinaryUploadServiceTest : public ::testing::Test {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+TEST_F(CloudBinaryUploadServiceTest, PassesForLargeFile) {
+  BinaryUploadService::Result scanning_result;
+  enterprise_connectors::ContentAnalysisResponse scanning_response;
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath file_path = temp_dir.GetPath().AppendASCII("normal.doc");
+  ASSERT_TRUE(base::WriteFile(file_path, "test"));
+
+  ExpectNetworkResponse(/*should_succeed=*/true,
+                        enterprise_connectors::ContentAnalysisResponse());
+
+  std::unique_ptr<MockRequest> request = MakeRequest(
+      &scanning_result, &scanning_response, /*is_advanced_protection*/ false);
+  request->set_analysis_connector(
+      enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
+  ON_CALL(*request, GetRequestData(_))
+      .WillByDefault(
+          [file_path](BinaryUploadService::Request::DataCallback callback) {
+            BinaryUploadService::Request::Data data;
+            data.path = file_path;
+            data.size = 4;  // Must not be zero.
+            std::move(callback).Run(BinaryUploadService::Result::FILE_TOO_LARGE,
+                                    std::move(data));
+          });
+  UploadForDeepScanning(std::move(request));
+
+  content::RunAllTasksUntilIdle();
+
+  EXPECT_EQ(scanning_result, BinaryUploadService::Result::FILE_TOO_LARGE);
+}
+
 TEST_F(CloudBinaryUploadServiceTest, FailsForLargeFile) {
   BinaryUploadService::Result scanning_result;
   enterprise_connectors::ContentAnalysisResponse scanning_response;
@@ -397,7 +430,7 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForEncryptedFileIfEnabled) {
   // instead.
   content::RunAllTasksUntilIdle();
 
-  EXPECT_EQ(scanning_result, BinaryUploadService::Result::SUCCESS);
+  EXPECT_EQ(scanning_result, BinaryUploadService::Result::FILE_ENCRYPTED);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, Succeeds) {

@@ -16,7 +16,6 @@
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/facilitated_payments/core/browser/facilitated_payments_client.h"
 #include "components/facilitated_payments/core/browser/network_api/facilitated_payments_network_interface.h"
-#include "components/facilitated_payments/core/browser/network_api/multiple_request_facilitated_payments_network_interface.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
@@ -69,7 +68,7 @@ void PixManager::OnPixCodeCopiedToClipboard(
   }
   has_payflow_started_ = true;
   client_->SetUiEventListener(base::BindRepeating(
-      &PixManager::OnUiEvent, weak_ptr_factory_.GetWeakPtr()));
+      &PixManager::OnUiScreenEvent, weak_ptr_factory_.GetWeakPtr()));
   pix_code_copied_timestamp_ = base::TimeTicks::Now();
   ukm_source_id_ = ukm_source_id;
   LogPixCodeCopied(ukm_source_id_);
@@ -80,7 +79,7 @@ void PixManager::OnPixCodeCopiedToClipboard(
     return;
   }
   initiate_payment_request_details_->merchant_payment_page_hostname_ =
-      render_frame_host_url.host();
+      render_frame_host_url.GetHost();
   pix_payment_page_origin_ = render_frame_host_origin;
   // Trigger Pix code validation.
   utility_process_validator_.ValidatePixCode(
@@ -97,10 +96,10 @@ bool PixManager::IsMerchantAllowlisted(const GURL& url) const {
     // allowlist.
     return true;
   }
-  // Since the optimization guide decider integration corresponding to PIX
+  // Since the optimization guide decider integration corresponding to Pix
   // merchant lists are allowlists for the question "Can this site be
   // optimized?", a match on the allowlist answers the question with "yes".
-  // Therefore, `kTrue` indicates that `url` is allowed for detecting PIX code
+  // Therefore, `kTrue` indicates that `url` is allowed for detecting Pix code
   // on copy events. If the optimization type was not registered in time when we
   // queried it, it will be `kUnknown`.
   return optimization_guide_decider_->CanApplyOptimization(
@@ -126,8 +125,8 @@ void PixManager::OnPixCodeValidated(
     LogPixFlowExitedReason(PixFlowExitedReason::kInvalidCode);
     return;
   }
-  // If a valid PIX code is found, and the user has Google wallet linked PIX
-  // accounts, verify that the payments API is available, and then show the PIX
+  // If a valid Pix code is found, and the user has Google Wallet linked Pix
+  // accounts, verify that the payments API is available, and then show the Pix
   // payment prompt.
   auto* payments_data_manager = client_->GetPaymentsDataManager();
   if (!payments_data_manager) {
@@ -167,10 +166,14 @@ void PixManager::OnPixCodeValidated(
     return;
   }
 
+  if (client_->IsInChromeCustomTabMode() &&
+      client_->GetDeviceDelegate()->IsPixSupportAvailableViaGboard()) {
+    LogPixFlowExitedReason(PixFlowExitedReason::kCctWithGboardAsDefaultIme);
+    return;
+  }
   if (!GetApiClient()) {
     return;
   }
-
   initiate_payment_request_details_->pix_code_ = std::move(pix_code);
   GetApiClient()->IsAvailable(
       base::BindOnce(&PixManager::OnApiAvailabilityReceived,
@@ -255,29 +258,14 @@ void PixManager::OnGetClientToken(base::TimeTicks start_time,
 }
 
 void PixManager::SendInitiatePaymentRequest() {
-  if (base::FeatureList::IsEnabled(
-          kSupportMultipleServerRequestsForPixPayments)) {
-    if (auto* payments_network_interface =
-            client_->GetMultipleRequestFacilitatedPaymentsNetworkInterface()) {
-      LogInitiatePaymentAttempt(kPaymentsType);
-      payments_network_interface->InitiatePayment(
-          std::move(initiate_payment_request_details_),
-          base::BindOnce(&PixManager::OnInitiatePaymentResponseReceived,
-                         weak_ptr_factory_.GetWeakPtr(),
-                         base::TimeTicks::Now()),
-          client_->GetPaymentsDataManager()->app_locale());
-    }
-  } else {
-    if (auto* payments_network_interface =
-            client_->GetFacilitatedPaymentsNetworkInterface()) {
-      LogInitiatePaymentAttempt(kPaymentsType);
-      payments_network_interface->InitiatePayment(
-          std::move(initiate_payment_request_details_),
-          base::BindOnce(&PixManager::OnInitiatePaymentResponseReceived,
-                         weak_ptr_factory_.GetWeakPtr(),
-                         base::TimeTicks::Now()),
-          client_->GetPaymentsDataManager()->app_locale());
-    }
+  if (auto* payments_network_interface =
+          client_->GetFacilitatedPaymentsNetworkInterface()) {
+    LogInitiatePaymentAttempt(kPaymentsType);
+    payments_network_interface->InitiatePayment(
+        std::move(initiate_payment_request_details_),
+        base::BindOnce(&PixManager::OnInitiatePaymentResponseReceived,
+                       weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now()),
+        client_->GetPaymentsDataManager()->app_locale());
   }
 }
 
@@ -347,7 +335,7 @@ void PixManager::OnPurchaseActionResult(base::TimeTicks start_time,
       result, base::TimeTicks::Now() - pix_code_copied_timestamp_);
 }
 
-void PixManager::OnUiEvent(UiEvent ui_event_type) {
+void PixManager::OnUiScreenEvent(UiEvent ui_event_type) {
   switch (ui_event_type) {
     case UiEvent::kNewScreenShown: {
       CHECK_NE(ui_state_, UiState::kHidden);

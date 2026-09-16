@@ -5,6 +5,7 @@
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_impl.h"
 
 #include <algorithm>
+#include <string>
 #include <variant>
 
 #include "base/android/jni_android.h"
@@ -18,6 +19,7 @@
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
 #include "components/autofill/core/browser/data_model/valuables/android/loyalty_card_android.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
+#include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -29,6 +31,38 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/TouchToFillPaymentMethodViewBridge_jni.h"
 #include "components/autofill/android/main_autofill_jni_headers/LoyaltyCard_jni.h"
+#include "components/autofill/android/payments_jni_headers/BnplIssuerTosDetail_jni.h"
+
+using base::android::ConvertUTF16ToJavaString;
+using base::android::ConvertUTF8ToJavaString;
+
+namespace {
+
+static base::android::ScopedJavaLocalRef<jobject>
+ConvertTextWithLinkToJavaObject(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& obj,
+    const autofill::payments::TextWithLink& link_text) {
+  return autofill::Java_TouchToFillPaymentMethodViewBridge_getSpannableString(
+      env, obj, ConvertUTF16ToJavaString(env, link_text.text),
+      static_cast<int>(link_text.offset.start()),
+      static_cast<int>(link_text.offset.end()),
+      ConvertUTF8ToJavaString(env, link_text.url.spec()));
+}
+
+static base::android::ScopedJavaLocalRef<jobject>
+ConvertBnplIssuerTosDetailToJavaObject(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& obj,
+    const autofill::payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
+  return Java_BnplIssuerTosDetail_Constructor(
+      env, ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.review_text),
+      ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.approve_text),
+      ConvertTextWithLinkToJavaObject(env, obj,
+                                      bnpl_issuer_tos_detail.link_text));
+}
+
+}  // namespace
 
 namespace autofill {
 
@@ -156,6 +190,22 @@ bool TouchToFillPaymentMethodViewImpl::ShowLoyaltyCards(
   return true;
 }
 
+bool TouchToFillPaymentMethodViewImpl::UpdateBnplPaymentMethod(
+    std::optional<uint64_t> extracted_amount,
+    bool is_amount_supported_by_any_issuer) {
+  if (!java_object_) {
+    return false;
+  }
+  std::optional<int64_t> final_extracted_amount;
+  if (extracted_amount.has_value()) {
+    final_extracted_amount = static_cast<int64_t>(extracted_amount.value());
+  }
+  Java_TouchToFillPaymentMethodViewBridge_updateBnplPaymentMethod(
+      base::android::AttachCurrentThread(), java_object_,
+      final_extracted_amount, is_amount_supported_by_any_issuer);
+  return true;
+}
+
 bool TouchToFillPaymentMethodViewImpl::ShowProgressScreen(
     TouchToFillPaymentMethodViewController* controller) {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -170,27 +220,64 @@ bool TouchToFillPaymentMethodViewImpl::ShowProgressScreen(
   // Use either the old `java_object_` or the new one created in
   // `IsReadyToShow()` to show the progress screen.
   Java_TouchToFillPaymentMethodViewBridge_showProgressScreen(env, java_object_);
-
   return true;
 }
 
 bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuers(
-    base::span<const autofill::BnplIssuer> bnpl_issuers_to_suggest) {
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) {
   if (!java_object_) {
     return false;
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  std::vector<base::android::ScopedJavaLocalRef<jobject>> issuers_array;
-  issuers_array.reserve(bnpl_issuers_to_suggest.size());
-  for (const autofill::BnplIssuer& issuer : bnpl_issuers_to_suggest) {
-    issuers_array.push_back(
-        PersonalDataManagerAndroid::CreateJavaBnplIssuerFromNative(env,
-                                                                   issuer));
+  std::vector<base::android::ScopedJavaLocalRef<jobject>> issuer_context_array;
+  issuer_context_array.reserve(bnpl_issuer_contexts.size());
+  for (const payments::BnplIssuerContext& issuer_context :
+       bnpl_issuer_contexts) {
+    issuer_context_array.push_back(
+        PersonalDataManagerAndroid::CreateJavaBnplIssuerContextFromNative(
+            env, issuer_context));
   }
 
   Java_TouchToFillPaymentMethodViewBridge_showBnplIssuers(
-      env, java_object_, std::move(issuers_array));
+      env, java_object_, std::move(issuer_context_array));
+  return true;
+}
+
+bool TouchToFillPaymentMethodViewImpl::ShowErrorScreen(
+    TouchToFillPaymentMethodViewController* controller,
+    const std::u16string& title,
+    const std::u16string& description) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+
+  // If the TTF surface isn't already showing, and a new surface is not ready to
+  // show, return that showing the error screen failed, as the error screen can
+  // not be shown.
+  if (!java_object_ && !IsReadyToShow(controller, env)) {
+    return false;
+  }
+
+  // Use either the old `java_object_` or the new one created in
+  // `IsReadyToShow()` to show the error screen.
+  Java_TouchToFillPaymentMethodViewBridge_showErrorScreen(env, java_object_,
+                                                          title, description);
+
+  return true;
+}
+
+bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuerTos(
+    const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
+  if (!java_object_) {
+    return false;  // View should already be shown.
+  }
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+
+  Java_TouchToFillPaymentMethodViewBridge_showBnplIssuerTos(
+      env, java_object_,
+      ConvertBnplIssuerTosDetailToJavaObject(env, java_object_,
+                                             bnpl_issuer_tos_detail));
+
   return true;
 }
 

@@ -18,13 +18,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.view.View;
 
-import androidx.annotation.ColorInt;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.After;
 import org.junit.Before;
@@ -46,6 +48,10 @@ import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.R;
+import org.chromium.chrome.browser.ntp_customization.theme.BackgroundImageInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorFromHexInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
@@ -75,11 +81,16 @@ public class TopInsetCoordinatorUnitTest {
             new ObservableSupplierImpl<>();
     private final OneshotSupplierImpl<LayoutStateProvider> mLayoutStateProviderSupplier =
             new OneshotSupplierImpl<>();
+
+    private Context mContext;
     private NtpCustomizationConfigManager mNtpCustomizationConfigManager;
     private TopInsetCoordinator mTopInsetCoordinator;
 
     @Before
     public void setUp() {
+        mContext = ApplicationProvider.getApplicationContext();
+        mContext.setTheme(R.style.Theme_BrowserUI_DayNight);
+
         when(mNtpTab.getUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
         when(mNtpTab.isNativePage()).thenReturn(true);
         when(mNtpTab.getNativePage()).thenReturn(mNativePage);
@@ -95,7 +106,8 @@ public class TopInsetCoordinatorUnitTest {
 
         mNtpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
         mTopInsetCoordinator =
-                new TopInsetCoordinator(mTabSupplier, mInsetObserver, mLayoutStateProviderSupplier);
+                new TopInsetCoordinator(
+                        mContext, mTabSupplier, mInsetObserver, mLayoutStateProviderSupplier);
         mTopInsetCoordinator.addObserver(mObserver);
 
         mWindowInsetsCompat = createWindowInsetsCompat(TOP_PADDING);
@@ -200,30 +212,42 @@ public class TopInsetCoordinatorUnitTest {
     @Test
     public void testOnBackgroundChanged_fromInitialization() {
         Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        Matrix portraitMatrix = new Matrix();
+        Matrix landscapeMatrix = new Matrix();
+        landscapeMatrix.setScale(2f, 9f);
+        BackgroundImageInfo imageInfo = new BackgroundImageInfo(portraitMatrix, landscapeMatrix);
 
         mNtpCustomizationConfigManager.notifyBackgroundImageChanged(
-                bitmap, /* fromInitialization= */ true, NtpBackgroundImageType.DEFAULT);
+                bitmap,
+                imageInfo,
+                /* fromInitialization= */ true,
+                /* oldType= */ NtpBackgroundImageType.DEFAULT);
         verify(mInsetObserver, never()).retriggerOnApplyWindowInsets();
 
         mNtpCustomizationConfigManager.notifyBackgroundImageChanged(
-                bitmap, /* fromInitialization= */ false, NtpBackgroundImageType.DEFAULT);
+                bitmap,
+                imageInfo,
+                /* fromInitialization= */ false,
+                /* oldType= */ NtpBackgroundImageType.DEFAULT);
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
     }
 
     @Test
     public void testOnBackgroundColorChanged_fromInitialization() {
-        @ColorInt int color = Color.RED;
+        NtpThemeColorFromHexInfo colorInfo =
+                new NtpThemeColorFromHexInfo(mContext, Color.RED, NtpThemeColorInfo.COLOR_NOT_SET);
 
-        mNtpCustomizationConfigManager.setBackgroundImageTypeFroTesting(
+        mNtpCustomizationConfigManager.setNtpThemeColorInfoForTesting(colorInfo);
+        mNtpCustomizationConfigManager.setBackgroundImageTypeForTesting(
                 NtpBackgroundImageType.CHROME_COLOR);
         mNtpCustomizationConfigManager.notifyBackgroundColorChanged(
-                color, /* fromInitialization= */ true, NtpBackgroundImageType.DEFAULT);
-        assertEquals(color, mNtpCustomizationConfigManager.getBackgroundColorForTesting());
+                mContext, /* fromInitialization= */ true, NtpBackgroundImageType.DEFAULT);
+        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfoForTesting());
         verify(mInsetObserver, never()).retriggerOnApplyWindowInsets();
 
         mNtpCustomizationConfigManager.notifyBackgroundColorChanged(
-                color, /* fromInitialization= */ false, NtpBackgroundImageType.DEFAULT);
-        assertEquals(color, mNtpCustomizationConfigManager.getBackgroundColorForTesting());
+                mContext, /* fromInitialization= */ false, NtpBackgroundImageType.DEFAULT);
+        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfoForTesting());
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
     }
 
@@ -261,7 +285,8 @@ public class TopInsetCoordinatorUnitTest {
         // Verifies that observers are NOT added again when a customized background type is changed.
         clearInvocations(mNtpTab);
         clearInvocations(mLayoutStateProvider);
-        setBackgroundType(NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.CHROME_THEME);
+        setBackgroundType(
+                NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.THEME_COLLECTION);
         verify(mNtpTab, never()).addObserver(any(TabObserver.class));
         verify(mLayoutStateProvider, never())
                 .addObserver(any(LayoutStateProvider.LayoutStateObserver.class));
@@ -269,7 +294,7 @@ public class TopInsetCoordinatorUnitTest {
         assertNotNull(mTopInsetCoordinator.getTrackingTabForTesting());
 
         // Verifies that observers are removed when the customized background is removed.
-        setBackgroundType(NtpBackgroundImageType.CHROME_THEME, NtpBackgroundImageType.DEFAULT);
+        setBackgroundType(NtpBackgroundImageType.THEME_COLLECTION, NtpBackgroundImageType.DEFAULT);
         verify(mNtpTab, times(2)).removeObserver(any(TabObserver.class));
         verify(mLayoutStateProvider)
                 .removeObserver(any(LayoutStateProvider.LayoutStateObserver.class));
@@ -301,12 +326,13 @@ public class TopInsetCoordinatorUnitTest {
         // Verifies that retriggerOnApplyWindowInsets() isn't called again when the customized
         // background type is changed.
         clearInvocations(mInsetObserver);
-        setBackgroundType(NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.CHROME_THEME);
+        setBackgroundType(
+                NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.THEME_COLLECTION);
         verify(mInsetObserver, never()).retriggerOnApplyWindowInsets();
 
         // Verifies that retriggerOnApplyWindowInsets() is called when the customized background is
         // removed.
-        setBackgroundType(NtpBackgroundImageType.CHROME_THEME, NtpBackgroundImageType.DEFAULT);
+        setBackgroundType(NtpBackgroundImageType.THEME_COLLECTION, NtpBackgroundImageType.DEFAULT);
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
 
         // Verifies that retriggerOnApplyWindowInsets() isn't called again when the background type
@@ -394,7 +420,7 @@ public class TopInsetCoordinatorUnitTest {
 
     private void setBackgroundType(
             @NtpBackgroundImageType int oldType, @NtpBackgroundImageType int newType) {
-        mNtpCustomizationConfigManager.setBackgroundImageTypeFroTesting(newType);
+        mNtpCustomizationConfigManager.setBackgroundImageTypeForTesting(newType);
         mTopInsetCoordinator.onNtpBackgroundChanged(
                 /* fromInitialization= */ false, oldType, newType);
     }

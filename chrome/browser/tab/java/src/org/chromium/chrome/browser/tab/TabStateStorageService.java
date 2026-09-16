@@ -20,6 +20,22 @@ import java.nio.ByteBuffer;
 @JNINamespace("tabs")
 @NullMarked
 public class TabStateStorageService {
+    /** Simple data container for a TabState and its corresponding creation callback. */
+    public static class LoadedTabState {
+        public final @TabId int tabId;
+        public final TabState tabState;
+        public final Callback<@Nullable Tab> onTabCreationCallback;
+
+        public LoadedTabState(
+                @TabId int tabId,
+                TabState tabState,
+                Callback<@Nullable Tab> onTabCreationCallback) {
+            this.tabId = tabId;
+            this.tabState = tabState;
+            this.onTabCreationCallback = onTabCreationCallback;
+        }
+    }
+
     private final long mNativeTabStateStorageService;
 
     private TabStateStorageService(long nativeTabStateStorageService) {
@@ -32,53 +48,12 @@ public class TabStateStorageService {
     }
 
     /**
-     * Saves the tab state to persistent storage. This approach takes raw fields instead of an
-     * object.
+     * Saves the tab state to persistent storage.
      *
-     * @param id The id of the tab.
-     * @param parentTabId The tab id of the tab that spawned this tab, optional.
-     * @param rootId If the tab is part of a tab group, the owner tab id.
-     * @param timestampMillis The last time it was shown.
-     * @param webContentsStateBuffer Holds serialized web contents data.
-     * @param openerAppId If associated with another app, its id. Optional.
-     * @param themeColor The toolbar color specified by the page. Optional.
-     * @param launchTypeAtCreation How the tab was created.
-     * @param userAgent What user agent should be passed in the HTTP requests.
-     * @param lastNavigationCommittedTimestampMillis The time the last navigation was made.
-     * @param tabGroupId The group id if the tab is in a group. Optional.
-     * @param tabHasSensitiveContent If there is sensitive content.
-     * @param isPinned Whether the tab is pinned.
+     * @param tab The tab to save to storage.
      */
-    public void saveTabData(
-            int id,
-            int parentTabId,
-            int rootId,
-            long timestampMillis,
-            @Nullable ByteBuffer webContentsStateBuffer,
-            String openerAppId,
-            int themeColor,
-            int launchTypeAtCreation,
-            @TabUserAgent int userAgent,
-            long lastNavigationCommittedTimestampMillis,
-            @Nullable Token tabGroupId,
-            boolean tabHasSensitiveContent,
-            boolean isPinned) {
-        TabStateStorageServiceJni.get()
-                .saveTab(
-                        mNativeTabStateStorageService,
-                        id,
-                        parentTabId,
-                        rootId,
-                        timestampMillis,
-                        webContentsStateBuffer,
-                        openerAppId,
-                        themeColor,
-                        launchTypeAtCreation,
-                        userAgent,
-                        lastNavigationCommittedTimestampMillis,
-                        tabGroupId,
-                        tabHasSensitiveContent,
-                        isPinned);
+    public void saveTabData(Tab tab) {
+        TabStateStorageServiceJni.get().save(mNativeTabStateStorageService, tab);
     }
 
     /**
@@ -88,8 +63,14 @@ public class TabStateStorageService {
      *
      * @param callback Run with loaded tab data.
      */
-    public void loadAllTabs(Callback<TabState[]> callback) {
+    public void loadAllTabs(Callback<LoadedTabState[]> callback) {
         TabStateStorageServiceJni.get().loadAllTabs(mNativeTabStateStorageService, callback);
+    }
+
+    @CalledByNative
+    public static LoadedTabState createLoadedTabState(
+            @TabId int tabId, TabState tabState, Callback<@Nullable Tab> onTabCreationCallback) {
+        return new LoadedTabState(tabId, tabState, onTabCreationCallback);
     }
 
     @CalledByNative
@@ -98,6 +79,8 @@ public class TabStateStorageService {
             int rootId,
             long timestampMillis,
             @Nullable ByteBuffer webContentsStateBuffer,
+            int webContentsStateVersion,
+            long webContentsStateStringPointer,
             @Nullable @JniType("std::string") String openerAppId,
             int themeColor,
             int launchTypeAtCreation,
@@ -112,7 +95,12 @@ public class TabStateStorageService {
         tabState.rootId = rootId;
         tabState.timestampMillis = timestampMillis;
         if (webContentsStateBuffer != null) {
-            tabState.contentsState = new WebContentsState(webContentsStateBuffer);
+            assert webContentsStateStringPointer != 0;
+            tabState.contentsState =
+                    new WebContentsState(
+                            webContentsStateBuffer,
+                            webContentsStateVersion,
+                            webContentsStateStringPointer);
         }
         tabState.openerAppId = openerAppId;
         tabState.themeColor = themeColor;
@@ -127,22 +115,9 @@ public class TabStateStorageService {
 
     @NativeMethods
     interface Natives {
-        void saveTab(
-                long nativeTabStateStorageServiceAndroid,
-                int id,
-                int parentTabId,
-                int rootId,
-                long timestampMillis,
-                @Nullable ByteBuffer webContentsStateBuffer,
-                @Nullable @JniType("std::string") String openerAppId,
-                int themeColor,
-                int launchTypeAtCreation,
-                int userAgent,
-                long lastNavigationCommittedTimestampMillis,
-                @Nullable Token tabGroupId,
-                boolean tabHasSensitiveContent,
-                boolean isPinned);
+        void save(long nativeTabStateStorageServiceAndroid, @JniType("TabAndroid*") Tab tab);
 
-        void loadAllTabs(long nativeTabStateStorageServiceAndroid, Callback<TabState[]> callback);
+        void loadAllTabs(
+                long nativeTabStateStorageServiceAndroid, Callback<LoadedTabState[]> callback);
     }
 }

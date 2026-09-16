@@ -58,6 +58,18 @@ BASE_FEATURE(kContextualPageActions, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualPageActionTabGrouping,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContextualPageActionTabGroupThrottling,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool>
+    kContextualPageActionTabGroupParamThrottleOnNewTab{
+        &kContextualPageActionTabGroupThrottling, "throttle_on_new_tab", false};
+
+const base::FeatureParam<bool>
+    kContextualPageActionTabGroupParamShowWhenNotClickedInLastDay{
+        &kContextualPageActionTabGroupThrottling,
+        "show_when_not_clicked_in_last_day", false};
+
 BASE_FEATURE(kSegmentationDefaultReportingSegments,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -109,7 +121,7 @@ BASE_FEATURE(kSegmentationPlatformComposePromotion,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSegmentationPlatformUmaFromSqlDb,
-#if !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_IOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -243,6 +255,11 @@ constexpr base::FeatureParam<int> kMaxAppBundleAppsInstalled{
     &kAppBundlePromoEphemeralCard, "max_app_bundle_apps_installed",
     /*default_value=*/4};
 
+bool IsAppBundlePromoEphemeralCardEnabled() {
+  return base::FeatureList::IsEnabled(
+      segmentation_platform::features::kAppBundlePromoEphemeralCard);
+}
+
 BASE_FEATURE(kDefaultBrowserMagicStackIos,
 #if BUILDFLAG(IS_IOS)
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -254,6 +271,11 @@ constexpr base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions{
     &kDefaultBrowserMagicStackIos,
     "max_default_browser_magic_stack_ios_impressions",
     /*default_value=*/6};
+
+bool IsDefaultBrowserMagicStackEnabled() {
+  return base::FeatureList::IsEnabled(
+      segmentation_platform::features::kDefaultBrowserMagicStackIos);
+}
 
 BASE_FEATURE(kAndroidTipsNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 

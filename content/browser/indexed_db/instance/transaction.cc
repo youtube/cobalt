@@ -22,6 +22,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/not_fatal_until.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -833,6 +834,7 @@ Status Transaction::BlobWriteComplete(
 
 Status Transaction::DoPendingCommit() {
   TRACE_EVENT1("IndexedDB", "Transaction::DoPendingCommit", "txn.id", id());
+  CHECK(is_commit_pending_, base::NotFatalUntil::M145);
 
   ResetTimeoutTimer();
 
@@ -843,8 +845,6 @@ Status Transaction::DoPendingCommit() {
     return Status::OK();
   }
   DCHECK_NE(state_, COMMITTING);
-
-  is_commit_pending_ = true;
 
   // Front-end has requested a commit, but this transaction is blocked by
   // other transactions. The commit will be initiated when the transaction
@@ -1152,31 +1152,55 @@ void Transaction::NotifyOfIdbInternalsRelevantChange() {
 }
 
 void Transaction::TimeoutFired() {
+  // The timeout timer should only be running when these conditions are met:
+  CHECK(used_, base::NotFatalUntil::M145);
+  CHECK(!diagnostics_.mojo_receiver_disconnected, base::NotFatalUntil::M145);
+  CHECK(task_queue_.empty(), base::NotFatalUntil::M145);
+  CHECK(preemptive_task_queue_.empty(), base::NotFatalUntil::M145);
+  CHECK(connection_.get() != nullptr);
+
+  const size_t num_transactions_across_all_connections =
+      database_->GetNumTransactionsAcrossAllConnections();
+
   // Histograms to diagnose memory leak crbug.com/381086791.
   // TODO(crbug.com/381086791): Remove after the leak is fixed.
   base::UmaHistogramEnumeration("IndexedDB.TransactionTimeout.Mode", mode_);
-  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.Used", used_);
-  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.MojoDisconnected",
-                            diagnostics_.mojo_receiver_disconnected);
   base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.CommitPending",
                             is_commit_pending_);
-  base::UmaHistogramCounts100("IndexedDB.TransactionTimeout.NumPendingTasks",
-                              task_queue_.size());
-  base::UmaHistogramCounts100(
-      "IndexedDB.TransactionTimeout.NumPendingPreemptiveTasks",
-      preemptive_task_queue_.size());
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.IsAborted", aborted_);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.TaskRunQueued",
+                            bucket_context_->task_run_queued());
   base::UmaHistogramCounts10000(
       "IndexedDB.TransactionTimeout.NumTransactionsInDB",
-      database_->GetNumTransactionsAcrossAllConnections());
+      num_transactions_across_all_connections);
+  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.IsConnected",
+                            connection_->IsConnected());
+  base::UmaHistogramCounts10000(
+      "IndexedDB.TransactionTimeout.NumTransactionsInConnection",
+      connection_->transactions().size());
 
-  const bool has_connection = (connection_.get() != nullptr);
-  base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.HasConnection",
-                            has_connection);
-  if (has_connection) {
-    base::UmaHistogramBoolean("IndexedDB.TransactionTimeout.Connected",
-                              connection_->IsConnected());
-    base::UmaHistogramCounts10000(
-        "IndexedDB.TransactionTimeout.NumTransactionsInConnection",
+  // Same histograms as above, but only when there are a lot of transactions in
+  // the connection.
+  if (connection_->transactions().size() > 10000) {
+    base::UmaHistogramEnumeration(
+        "IndexedDB.TransactionTimeout.10kTransactions.Mode", mode_);
+    base::UmaHistogramBoolean(
+        "IndexedDB.TransactionTimeout.10kTransactions.CommitPending",
+        is_commit_pending_);
+    base::UmaHistogramBoolean(
+        "IndexedDB.TransactionTimeout.10kTransactions.IsAborted", aborted_);
+    base::UmaHistogramBoolean(
+        "IndexedDB.TransactionTimeout.10kTransactions.TaskRunQueued",
+        bucket_context_->task_run_queued());
+    base::UmaHistogramCounts100000(
+        "IndexedDB.TransactionTimeout.10kTransactions.NumTransactionsInDB",
+        num_transactions_across_all_connections);
+    base::UmaHistogramBoolean(
+        "IndexedDB.TransactionTimeout.10kTransactions.IsConnected",
+        connection_->IsConnected());
+    base::UmaHistogramCounts100000(
+        "IndexedDB.TransactionTimeout.10kTransactions."
+        "NumTransactionsInConnection",
         connection_->transactions().size());
   }
 

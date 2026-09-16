@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 cy{
     AuxExemplarCharacters{"[ăåãā æ ç ĕē ĭī k ñ ŏøō œ q ŭū v x z]"}
     ExemplarCharacters{
@@ -353,6 +353,7 @@ cy{
                 GyMd{"M/d/y GGGGG"}
                 MEd{"E, d/M"}
                 MMMEd{"E, d MMM"}
+                MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
                 h{"h a"}
@@ -1789,11 +1790,11 @@ cy{
                     one{"ymhen blwyddyn"}
                     other{"ymhen {0} mlynedd"}
                     two{"ymhen {0} flynedd"}
-                    zero{"ymhen {0} mlynedd"}
+                    zero{"ymhen {0} o flynyddoedd"}
                 }
                 past{
-                    few{"{0} blynedd yn ôl"}
-                    many{"{0} blynedd yn ôl"}
+                    few{"{0} o flynyddoedd yn ôl"}
+                    many{"{0} o flynyddoedd yn ôl"}
                     one{"blwyddyn yn ôl"}
                     other{"{0} o flynyddoedd yn ôl"}
                     two{"{0} flynedd yn ôl"}
@@ -1812,15 +1813,15 @@ cy{
                     few{"ymhen {0} blynedd"}
                     many{"ymhen {0} blynedd"}
                     one{"ymhen bl."}
-                    other{"ymhen {0} mlynedd"}
+                    other{"ymhen {0} o flynyddoedd"}
                     two{"ymhen {0} flynedd"}
-                    zero{"ymhen {0} mlynedd"}
+                    zero{"ymhen {0} o flynyddoedd"}
                 }
                 past{
-                    few{"{0} blynedd yn ôl"}
-                    many{"{0} blynedd yn ôl"}
+                    few{"{0} o flynyddoedd yn ôl"}
+                    many{"{0} o flynyddoedd yn ôl"}
                     one{"blwyddyn yn ôl"}
-                    other{"{0} bl. yn ôl"}
+                    other{"{0} o flynyddoedd yn ôl"}
                     two{"{0} flynedd yn ôl"}
                     zero{"{0} o flynyddoedd yn ôl"}
                 }
@@ -1829,11 +1830,19 @@ cy{
         year-short{
             dn{"bl."}
             relativeTime{
+                future{
+                    few{"ymhen {0} blynedd"}
+                    many{"ymhen {0} blynedd"}
+                    one{"ymhen blwyddyn"}
+                    other{"ymhen {0} o flynyddoedd"}
+                    two{"ymhen {0} flynedd"}
+                    zero{"ymhen {0} o flynyddoedd"}
+                }
                 past{
-                    few{"{0} blynedd yn ôl"}
-                    many{"{0} blynedd yn ôl"}
+                    few{"{0} o flynyddoedd yn ôl"}
+                    many{"{0} o flynyddoedd yn ôl"}
                     one{"{0} bl. yn ôl"}
-                    other{"{0} bl. yn ôl"}
+                    other{"{0} o flynyddoedd yn ôl"}
                     two{"{0} flynedd yn ôl"}
                     zero{"{0} o flynyddoedd yn ôl"}
                 }

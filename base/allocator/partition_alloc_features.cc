@@ -9,20 +9,15 @@
 
 #include "base/allocator/partition_alloc_features.h"
 
-#include "base/allocator/miracle_parameter.h"
 #include "base/base_export.h"
 #include "base/feature_list.h"
 #include "base/features.h"
-#include "base/metrics/field_trial_params.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "partition_alloc/buildflags.h"
-#include "partition_alloc/partition_alloc_base/time/time.h"
 #include "partition_alloc/partition_alloc_constants.h"
 #include "partition_alloc/partition_root.h"
 #include "partition_alloc/shim/allocator_shim_dispatch_to_noop_on_free.h"
-#include "partition_alloc/thread_cache.h"
 
 namespace base::features {
 
@@ -92,17 +87,6 @@ constinit const FeatureParam<DanglingPtrType> kDanglingPtrTypeParam{
 // Use a larger maximum thread cache cacheable bucket size.
 BASE_FEATURE(kPartitionAllocLargeThreadCacheSize, FEATURE_ENABLED_BY_DEFAULT);
 
-MIRACLE_PARAMETER_FOR_INT(GetPartitionAllocLargeThreadCacheSizeValue,
-                          kPartitionAllocLargeThreadCacheSize,
-                          "PartitionAllocLargeThreadCacheSizeValue",
-                          ::partition_alloc::kThreadCacheLargeSizeThreshold)
-
-MIRACLE_PARAMETER_FOR_INT(
-    GetPartitionAllocLargeThreadCacheSizeValueForLowRAMAndroid,
-    kPartitionAllocLargeThreadCacheSize,
-    "PartitionAllocLargeThreadCacheSizeValueForLowRAMAndroid",
-    ::partition_alloc::kThreadCacheDefaultSizeThreshold)
-
 BASE_FEATURE(kPartitionAllocLargeEmptySlotSpanRing,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
              FEATURE_ENABLED_BY_DEFAULT);
@@ -137,17 +121,37 @@ constinit const FeatureParam<std::string>
         &kPartitionAllocSchedulerLoopQuarantine,
         "PartitionAllocSchedulerLoopQuarantineConfig", "{}"};
 
+BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge,
+             FEATURE_DISABLED_BY_DEFAULT);
+constexpr FeatureParam<
+    PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses>::Option
+    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesOptions[] =
+        {{PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+              kBrowserOnly,
+          kBrowserOnlyStr},
+         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+              kBrowserAndRenderer,
+          kBrowserAndRendererStr},
+         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+              kNonRenderer,
+          kNonRendererStr},
+         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+              kAllProcesses,
+          kAllProcessesStr}};
+// Note: Do not use the prepared macro as of no need for a local cache.
+constinit const FeatureParam<
+    PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses>
+    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesParam{
+        &kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge,
+        "PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcess"
+        "es",
+        PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+            kBrowserOnly,
+        &kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesOptions};
+
 BASE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory,
              FEATURE_DISABLED_BY_DEFAULT);
 
-// Evaluated and positive stability and peformance-wise on Linux-based systems,
-// disabled elsewhere (for now). Does not apply to Windows.
-BASE_FEATURE(kPartitionAllocFewerMemoryRegions,
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
-             FEATURE_ENABLED_BY_DEFAULT);
-#else
-             FEATURE_DISABLED_BY_DEFAULT);
-#endif
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 BASE_FEATURE(kPartitionAllocBackupRefPtr,
@@ -216,7 +220,7 @@ constexpr FeatureParam<MemtagMode>::Option kMemtagModeOptions[] = {
     {MemtagMode::kSync, "sync"},
     {MemtagMode::kAsync, "async"}};
 
-// Note: Do not use the prepared macro as of no need for a local cache.
+// Note: Do not use the prepared muacro as of no need for a local cache.
 constinit const FeatureParam<MemtagMode> kMemtagModeParam{
     &kPartitionAllocMemoryTagging, "memtag-mode",
 #if PA_BUILDFLAG(USE_FULL_MTE)
@@ -359,19 +363,6 @@ BASE_FEATURE_PARAM(bool,
                    false);
 #endif
 
-BASE_FEATURE(kEnableConfigurableThreadCacheMultiplier,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_DOUBLE(GetThreadCacheMultiplier,
-                             kEnableConfigurableThreadCacheMultiplier,
-                             "ThreadCacheMultiplier",
-                             2.)
-
-MIRACLE_PARAMETER_FOR_DOUBLE(GetThreadCacheMultiplierForAndroid,
-                             kEnableConfigurableThreadCacheMultiplier,
-                             "ThreadCacheMultiplierForAndroid",
-                             1.)
-
 constexpr partition_alloc::internal::base::TimeDelta ToPartitionAllocTimeDelta(
     TimeDelta time_delta) {
   return partition_alloc::internal::base::Microseconds(
@@ -382,51 +373,6 @@ constexpr TimeDelta FromPartitionAllocTimeDelta(
     partition_alloc::internal::base::TimeDelta time_delta) {
   return Microseconds(time_delta.InMicroseconds());
 }
-
-BASE_FEATURE(kEnableConfigurableThreadCachePurgeInterval,
-             FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheMinPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheMinPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kMinPurgeInterval))
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheMaxPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheMaxPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kMaxPurgeInterval))
-
-MIRACLE_PARAMETER_FOR_TIME_DELTA(
-    GetThreadCacheDefaultPurgeIntervalValue,
-    kEnableConfigurableThreadCachePurgeInterval,
-    "ThreadCacheDefaultPurgeInterval",
-    FromPartitionAllocTimeDelta(partition_alloc::kDefaultPurgeInterval))
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMinPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheMinPurgeIntervalValue());
-}
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMaxPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheMaxPurgeIntervalValue());
-}
-
-const partition_alloc::internal::base::TimeDelta
-GetThreadCacheDefaultPurgeInterval() {
-  return ToPartitionAllocTimeDelta(GetThreadCacheDefaultPurgeIntervalValue());
-}
-
-BASE_FEATURE(kEnableConfigurableThreadCacheMinCachedMemoryForPurging,
-             FEATURE_DISABLED_BY_DEFAULT);
-
-MIRACLE_PARAMETER_FOR_INT(
-    GetThreadCacheMinCachedMemoryForPurgingBytes,
-    kEnableConfigurableThreadCacheMinCachedMemoryForPurging,
-    "ThreadCacheMinCachedMemoryForPurgingBytes",
-    partition_alloc::kMinCachedMemoryForPurgingBytes)
 
 // An apparent quarantine leak in the buffer partition unacceptably
 // bloats memory when MiraclePtr is enabled in the renderer process.
@@ -450,5 +396,11 @@ BASE_FEATURE(kPartitionAllocAdjustSizeWhenInForeground,
 BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
+
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers,
+             "PartitionAllocReuseMainPartitionForBuffers",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace base::features

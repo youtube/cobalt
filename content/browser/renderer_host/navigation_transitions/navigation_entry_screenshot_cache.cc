@@ -4,6 +4,8 @@
 
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
 
+#include <optional>
+
 #include "base/debug/dump_without_crashing.h"
 #include "base/memory/ptr_util.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
@@ -160,6 +162,14 @@ void NavigationEntryScreenshotCache::SetScreenshotInternal(
   CHECK(cached_screenshots_.find(transition_data.unique_id()) ==
         cached_screenshots_.end());
   CHECK(!screenshot->is_cached());
+
+  if (!screenshot->IsValid()) {
+    transition_data.set_cache_hit_or_miss_reason(
+        NavigationTransitionData::CacheHitOrMissReason::
+            kCacheMissFailedReadBack);
+    return;
+  }
+
   const size_t size = screenshot->SetCache(this);
 
   entry->SetUserData(NavigationEntryScreenshot::kUserDataKey,
@@ -177,7 +187,9 @@ void NavigationEntryScreenshotCache::SetScreenshotInternal(
 
 std::unique_ptr<NavigationEntryScreenshot>
 NavigationEntryScreenshotCache::RemoveScreenshot(
-    NavigationEntry* navigation_entry) {
+    NavigationEntry* navigation_entry,
+    std::optional<NavigationTransitionData::CacheHitOrMissReason>
+        cache_hit_or_miss_reason) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(navigation_entry);
   auto it = cached_screenshots_.find(
@@ -193,10 +205,27 @@ NavigationEntryScreenshotCache::RemoveScreenshot(
   auto screenshot = RemoveScreenshotFromEntry(navigation_entry);
   static_cast<NavigationEntryImpl*>(navigation_entry)
       ->navigation_transition_data()
-      .set_cache_hit_or_miss_reason(std::nullopt);
+      .set_cache_hit_or_miss_reason(cache_hit_or_miss_reason);
   manager_->OnScreenshotRemoved(this, size);
 
   return screenshot;
+}
+
+void NavigationEntryScreenshotCache::RemoveFailedScreenshot(
+    NavigationEntryScreenshot* screenshot) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  int index =
+      NavigationTransitionUtils::FindEntryIndexForNavigationTransitionID(
+          nav_controller_, screenshot->unique_id());
+  NavigationEntryImpl* entry = nav_controller_->GetEntryAtIndex(index);
+  if (!entry) {
+    // The entry was deleted by the time we did the readback.
+    return;
+  }
+
+  RemoveScreenshot(
+      entry,
+      NavigationTransitionData::CacheHitOrMissReason::kCacheMissFailedReadBack);
 }
 
 void NavigationEntryScreenshotCache::OnNavigationEntryGone(

@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.customtabs.content;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -37,13 +38,12 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
+import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.cookies.CookiesFetcher;
 import org.chromium.chrome.browser.cookies.CookiesFetcherJni;
 import org.chromium.chrome.browser.flags.ActivityType;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.embedder_support.util.ShadowUrlUtilities;
@@ -57,7 +57,6 @@ import org.chromium.net.NetId;
 @Config(
         manifest = Config.NONE,
         shadows = {ShadowUrlUtilities.class})
-@Features.EnableFeatures({ChromeFeatureList.CCT_EARLY_NAV})
 public class CustomTabActivityTabControllerUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -358,9 +357,23 @@ public class CustomTabActivityTabControllerUnitTest {
     @Test
     public void doesNotUseTabFromIntent_IfNotInAsyncParamsManager() {
         Tab tab = env.prepareTransferredTab();
+        AsyncTabParamsManagerSingleton.getInstance().remove(tab.getId());
         mTabController.setUpInitialTab(null);
         mTabController.finishNativeInitialization();
-        assertEquals(tab, env.tabProvider.getTab());
+        assertNotEquals(tab, env.tabProvider.getTab());
+    }
+
+    // If the Activity has been recreated, ignore the Tab ID provided in the Intent -- the Tab will
+    // be restored using a different mechanism. See crbug.com/448865648.
+    @Test
+    public void doesNotUseTabFromIntent_IfActivityRecreated() {
+        Tab popupTab = env.prepareTransferredTab();
+        Tab savedTab = env.prepareTab();
+        env.saveTab(savedTab);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(savedTab, env.tabProvider.getTab());
+        assertEquals(TabCreationMode.RESTORED, env.tabProvider.getInitialTabCreationMode());
     }
 
     @Test

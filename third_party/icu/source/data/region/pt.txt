@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pt{
     Countries{
         001{"Mundo"}
@@ -11,7 +11,7 @@ pt{
         011{"África Ocidental"}
         013{"América Central"}
         014{"África Oriental"}
-        015{"África do Norte"}
+        015{"África Setentrional"}
         017{"África Central"}
         018{"África Meridional"}
         019{"Américas"}

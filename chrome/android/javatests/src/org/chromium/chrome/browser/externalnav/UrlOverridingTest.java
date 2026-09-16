@@ -68,6 +68,7 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -1802,7 +1803,6 @@ public class UrlOverridingTest {
     @Test
     @LargeTest
     @Restriction(Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE)
-    @EnableFeatures({ChromeFeatureList.CCT_EARLY_NAV})
     public void testRedirectFromCctEarlyNav() throws Exception {
         final String url = mTestServer.getURL(NAVIGATION_FROM_JAVA_REDIRECTION_PAGE);
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
@@ -2307,6 +2307,7 @@ public class UrlOverridingTest {
     @Test
     @EnableFeatures({ExternalIntentsFeatures.AUXILIARY_NAVIGATION_STAYS_IN_BROWSER_NAME})
     @LargeTest
+    @DisabledTest(message = "https://issuetracker.google.com/446837985")
     public void testTopLevelNavigationShouldBeIntercepted() throws Exception {
         InterceptNavigationDelegateClientImpl.setIsDesktopWindowingModeForTesting(true);
 

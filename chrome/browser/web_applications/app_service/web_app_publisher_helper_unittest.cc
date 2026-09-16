@@ -79,7 +79,10 @@ class NoOpWebAppPublisherDelegate : public WebAppPublisherHelper::Delegate {
 };
 
 bool HandlesIntent(const apps::AppPtr& app, const apps::IntentPtr& intent) {
-  for (const auto& filter : app->intent_filters) {
+  if (!app->intent_filters) {
+    return false;
+  }
+  for (const auto& filter : *app->intent_filters) {
     if (intent->MatchFilter(filter)) {
       return true;
     }
@@ -298,7 +301,7 @@ TEST_F(WebAppPublisherHelperTest,
     ASSERT_EQ(condition.condition_values.size(), 1U);
     EXPECT_EQ(condition.condition_values[0]->match_type,
               apps::PatternMatchType::kLiteral);
-    EXPECT_EQ(condition.condition_values[0]->value, app->scope().scheme());
+    EXPECT_EQ(condition.condition_values[0]->value, app->scope().GetScheme());
   }
 
   {
@@ -317,7 +320,7 @@ TEST_F(WebAppPublisherHelperTest,
     ASSERT_EQ(condition.condition_values.size(), 1U);
     EXPECT_EQ(condition.condition_values[0]->match_type,
               apps::PatternMatchType::kPrefix);
-    EXPECT_EQ(condition.condition_values[0]->value, app->scope().path());
+    EXPECT_EQ(condition.condition_values[0]->value, app->scope().GetPath());
   }
 }
 

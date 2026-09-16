@@ -6,6 +6,7 @@
 #define COMPONENTS_SYNC_PROTOCOL_PROTO_VISITORS_H_
 
 #include "components/sync/base/data_type.h"
+#include "components/sync/protocol/ai_thread_specifics.pb.h"
 #include "components/sync/protocol/app_list_specifics.pb.h"
 #include "components/sync/protocol/app_setting_specifics.pb.h"
 #include "components/sync/protocol/app_specifics.pb.h"
@@ -408,8 +409,6 @@ VISIT_PROTO_FIELDS(const sync_pb::ContactInfoSpecifics& proto) {
   VISIT_ENUM(address_type);
   VISIT(use_count);
   VISIT(use_date_unix_epoch_seconds);
-  VISIT(use_date2_unix_epoch_seconds);
-  VISIT(use_date3_unix_epoch_seconds);
   VISIT(date_modified_unix_epoch_seconds);
   VISIT(language_code);
   VISIT(profile_label);
@@ -728,7 +727,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(56 == GetNumDataTypes(),
+  static_assert(58 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -789,6 +788,8 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
   VISIT(wifi_configuration);
   VISIT(workspace_desk);
   VISIT(webauthn_credential);
+  VISIT(ai_thread);
+  VISIT(contextual_task);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
@@ -2023,11 +2024,6 @@ VISIT_PROTO_FIELDS(
   VISIT(is_collapsed);
 }
 
-VISIT_PROTO_FIELDS(const sync_pb::Any& proto) {
-  VISIT_REP(type_url);
-  VISIT_REP(value);
-}
-
 VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableSpecifics& proto) {
   VISIT(id);
   VISIT(is_editable);
@@ -2035,6 +2031,11 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableSpecifics& proto) {
   VISIT(vehicle_registration);
   VISIT(flight_reservation);
   VISIT(serialized_chrome_valuables_metadata);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::Any& proto) {
+  VISIT(type_url);
+  VISIT_BYTES(value);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::LoyaltyCard& proto) {
@@ -2065,6 +2066,8 @@ VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
   VISIT(arrival_airport);
   VISIT(departure_date_unix_epoch_micros);
   VISIT(arrival_date_unix_epoch_micros);
+  VISIT(airline_logo);
+  VISIT(carrier_code);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AccountSettingSpecifics& proto) {
@@ -2141,6 +2144,30 @@ VISIT_PROTO_FIELDS(const sync_pb::SharedCommentSpecifics& proto) {
   VISIT(proto_version);
   VISIT(comment);
   VISIT(shared_url_context);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {
+  VISIT_ENUM(type);
+  VISIT(server_id);
+  VISIT(conversation_turn_id);
+  VISIT(title);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::ContextualTask& proto) {
+  VISIT(title);
+  VISIT(thread_id);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::UrlResource& proto) {
+  VISIT(task_guid);
+  VISIT(url);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::ContextualTaskSpecifics& proto) {
+  VISIT(guid);
+  VISIT(contextual_task);
+  VISIT(url_resource);
+  VISIT(version);
 }
 
 }  // namespace syncer

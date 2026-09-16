@@ -5,6 +5,8 @@
 #include "third_party/blink/renderer/core/html/anchor_element_metrics_sender.h"
 
 #include "base/containers/contains.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -160,12 +162,23 @@ class AnchorElementMetricsSenderTest : public SimTest {
     // Allows WidgetInputHandlerManager::InitOnInputHandlingThread() to run.
     platform_->RunForPeriod(base::Milliseconds(1));
     // Report all anchors to avoid non-deterministic behavior.
-    std::map<std::string, std::string> params;
-    params["random_anchor_sampling_period"] = "1";
-    params["intersection_observation_after_fcp_only"] = "false";
+    std::map<std::string, std::string> nav_predictor_params;
+    nav_predictor_params["random_anchor_sampling_period"] = "1";
+    nav_predictor_params["intersection_observation_after_fcp_only"] = "false";
+    // Set "eager" hover time to the same as "moderate" hover time to avoid test
+    // flakiness.
+    const std::string eager_hover_time = base::StrCat(
+        {base::NumberToString(
+             AnchorElementInteractionTracker::kModerateHoverDwellTime
+                 .InMilliseconds()),
+         "ms"});
+    std::map<std::string, std::string> eager_heuristics_params = {
+        {{"hover_dwell_time", eager_hover_time}}};
 
-    feature_list_.InitAndEnableFeatureWithParameters(
-        features::kNavigationPredictor, params);
+    feature_list_.InitWithFeaturesAndParameters(
+        {{features::kNavigationPredictor, nav_predictor_params},
+         {features::kPreloadingEagerHeuristics, eager_heuristics_params}},
+        {});
 
     IntersectionObserver::SetThrottleDelayEnabledForTesting(false);
 
@@ -751,7 +764,7 @@ TEST_F(AnchorElementMetricsSenderTest, AnchorElementLeftViewport) {
 
   GetDocument().View()->LayoutViewport()->SetScrollOffset(
       ScrollOffset(0, 2 * kViewportHeight),
-      mojom::blink::ScrollType::kProgrammatic);
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
   ProcessEvents(1);
   EXPECT_EQ(1u, mock_host->entered_viewport_.size());
   EXPECT_EQ(
@@ -765,7 +778,7 @@ TEST_F(AnchorElementMetricsSenderTest, AnchorElementLeftViewport) {
   clock_.Advance(time_in_viewport_1);
   GetDocument().View()->LayoutViewport()->SetScrollOffset(
       ScrollOffset(0, -2 * kViewportHeight),
-      mojom::blink::ScrollType::kProgrammatic);
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
   ProcessEvents(1);
   EXPECT_EQ(1u, mock_host->entered_viewport_.size());
   EXPECT_EQ(1u, mock_host->left_viewport_.size());
@@ -778,7 +791,7 @@ TEST_F(AnchorElementMetricsSenderTest, AnchorElementLeftViewport) {
   clock_.Advance(wait_time2);
   GetDocument().View()->LayoutViewport()->SetScrollOffset(
       ScrollOffset(0, 2 * kViewportHeight),
-      mojom::blink::ScrollType::kProgrammatic);
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
   ProcessEvents(1);
   EXPECT_EQ(2u, mock_host->entered_viewport_.size());
   EXPECT_EQ(
@@ -792,7 +805,7 @@ TEST_F(AnchorElementMetricsSenderTest, AnchorElementLeftViewport) {
   clock_.Advance(time_in_viewport_2);
   GetDocument().View()->LayoutViewport()->SetScrollOffset(
       ScrollOffset(0, -2 * kViewportHeight),
-      mojom::blink::ScrollType::kProgrammatic);
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
   ProcessEvents(1);
   EXPECT_EQ(2u, mock_host->entered_viewport_.size());
   EXPECT_EQ(2u, mock_host->left_viewport_.size());
@@ -967,7 +980,7 @@ TEST_F(AnchorElementMetricsSenderTest, AnchorElementEnteredViewportLater) {
   // Scroll down. Now the anchor element is visible.
   GetDocument().View()->LayoutViewport()->SetScrollOffset(
       ScrollOffset(0, 2 * kViewportHeight),
-      mojom::blink::ScrollType::kProgrammatic);
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
   ProcessEvents(1);
   EXPECT_EQ(1u, hosts_.size());
   EXPECT_EQ(0u, mock_host->clicks_.size());
@@ -1044,12 +1057,12 @@ TEST_F(AnchorElementMetricsSenderTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, hosts_.size());
   const auto& mock_host = hosts_[0];
-  EXPECT_EQ(1u, mock_host->pointer_data_on_hover_.size());
-  EXPECT_TRUE(
-      mock_host->pointer_data_on_hover_[0]->pointer_data->is_mouse_pointer);
-  EXPECT_NEAR(
-      20.0 * std::sqrt(2.0),
-      mock_host->pointer_data_on_hover_[0]->pointer_data->mouse_velocity, 0.5);
+  // Must have at least one hover data.
+  EXPECT_LE(1u, mock_host->pointer_data_on_hover_.size());
+  for (const auto& data : mock_host->pointer_data_on_hover_) {
+    EXPECT_TRUE(data->pointer_data->is_mouse_pointer);
+    EXPECT_NEAR(20.0 * std::sqrt(2.0), data->pointer_data->mouse_velocity, 0.5);
+  }
 }
 
 TEST_F(AnchorElementMetricsSenderTest, MaxIntersectionObservations) {

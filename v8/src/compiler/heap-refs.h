@@ -877,6 +877,8 @@ class FeedbackVectorRef : public HeapObjectRef {
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 
   bool was_once_deoptimized() const;
+
+  HeapObjectRef GetClosureFeedbackCellArrayRef(JSHeapBroker* broker);
 };
 
 class AccessorInfoRef : public HeapObjectRef {
@@ -898,7 +900,7 @@ class AllocationSiteRef : public HeapObjectRef {
 
   OptionalJSObjectRef boilerplate(JSHeapBroker* broker) const;
   ElementsKind GetElementsKind() const;
-  bool CanInlineCall() const;
+  bool IsSpeculationDisabled() const;
 };
 
 class BigIntRef : public HeapObjectRef {

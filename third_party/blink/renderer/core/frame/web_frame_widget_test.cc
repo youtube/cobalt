@@ -14,6 +14,7 @@
 #include "cc/base/features.h"
 #include "cc/layers/solid_color_layer.h"
 #include "cc/test/property_tree_test_utils.h"
+#include "cc/trees/scroll_source_type.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
@@ -244,7 +245,8 @@ class WebFrameWidgetScrollContainerHitTest : public WebFrameWidgetSimTest {
     EXPECT_EQ(scrollable_id, box1_dom_node_id);
 
     visual_viewport.SetScrollOffset(ScrollOffset(0, 50),
-                                    mojom::blink::ScrollType::kProgrammatic);
+                                    mojom::blink::ScrollType::kProgrammatic,
+                                    cc::ScrollSourceType::kNone);
     EXPECT_EQ(visual_viewport.GetScrollOffset(), ScrollOffset(0, 50));
     scrollable_id = widget.GetScrollableContainerIdAt(box2_target_offset);
     EXPECT_EQ(scrollable_id, box2_dom_node_id);
@@ -683,7 +685,7 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeSimple) {
   url_test_helpers::ServeAsynchronousRequests();
 }
 
-TEST_F(WebFrameWidgetImplSimTest, NoSpeculativeDecodeOutsideViewport) {
+TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeOutsideViewport) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
@@ -707,7 +709,7 @@ TEST_F(WebFrameWidgetImplSimTest, NoSpeculativeDecodeOutsideViewport) {
   Compositor().BeginFrame();
 }
 
-TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeIgnoresBackgroundImage) {
+TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeBackgroundImage) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
@@ -729,20 +731,21 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeIgnoresBackgroundImage) {
   url_test_helpers::ServeAsynchronousRequests();
 }
 
-// Without extrinsic sizing (e.g., css width & height), an image's final decode
-// size can depend on both the image's intrinsic size and layout. Using only the
-// image's intrinsic size can result in a speculative decode that is too small
-// (will not be used), or too big (can cause small rendering differences as the
-// larger decode will be re-used and scaled). To avoid these issues, we should
-// wait for layout if the decoded size depends on it.
-TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeNoSizeWaitsForLayout) {
+// An img element may get a small layout size when layout runs prior to
+// intrinsic sizing info being available. In that case, we skip the expensive
+// visibility computation for performance reasons. When the image resource loads
+// and it turns out to be above the speculative decode size threshold, we may
+// still speculatively decode it, but not until a subsequent layout runs during
+// which the img element's visibility will be computed.
+TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeSmallLayoutSizeBeforeLoad) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
       {features::kSpeculativeImageDecodes,
        ::features::kSendExplicitDecodeRequestsImmediately},
       /*disabled_features=*/{});
-  SimRequest image_request("https://example.com/image.png", "image/png");
+  SimRequest image_1_request("https://example.com/image1.png", "image/png");
+  SimRequest image_2_request("https://example.com/image2.png", "image/png");
   auto* widget = WebView().MainFrameViewWidget();
   widget->Resize(gfx::Size(800, 600));
   SimRequest doc_request("https://example.com/test.html", "text/html");
@@ -752,17 +755,40 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeNoSizeWaitsForLayout) {
     EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(0);
     doc_request.Complete(
         R"HTML(<!DOCTYPE html>
-        <img id="i1" src="image.png">
-        <img id="i2" style="height: auto; max-height: 1000px;" src="image.png">
+        <img id="img1">
+        <img id="img2" style="min-width:10px;min-height:10px">
       )HTML");
     Compositor().BeginFrame();
     test::RunPendingTasks();
-    image_request.Complete(*test::ReadFromFile(
-        test::CoreTestDataPath("notifications/3000x2000.png")));
   }
 
   {
-    EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(1);
+    // Set the src attribute and load the image without doing layout. Priority
+    // has not been calculated, so speculative decode cannot start.
+    EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(0);
+    HTMLImageElement* image1 = To<HTMLImageElement>(
+        GetDocument().QuerySelector(AtomicString("#img1")));
+    image1->setAttribute(html_names::kSrcAttr, AtomicString("image1.png"));
+    HTMLImageElement* image2 = To<HTMLImageElement>(
+        GetDocument().QuerySelector(AtomicString("#img2")));
+    image2->setAttribute(html_names::kSrcAttr, AtomicString("image2.png"));
+    // The fetch is initiated synchronously from a microtask after src is set.
+    GetDocument().GetAgent().PerformMicrotaskCheckpoint();
+    image_1_request.Complete(*test::ReadFromFile(
+        test::CoreTestDataPath("notifications/120x120.png")));
+    image_2_request.Complete(*test::ReadFromFile(
+        test::CoreTestDataPath("notifications/500x500.png")));
+    EXPECT_FALSE(To<LayoutImage>(image1->GetLayoutObject())
+                     ->CachedResourcePriority()
+                     .has_value());
+    EXPECT_FALSE(To<LayoutImage>(image2->GetLayoutObject())
+                     ->CachedResourcePriority()
+                     .has_value());
+  }
+
+  {
+    // Speculative decode should start after the next layout.
+    EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(2);
     widget->UpdateAllLifecyclePhases(DocumentUpdateReason::kTest);
   }
 }
@@ -786,12 +812,12 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeDecodeWithExtrinsicSize) {
     EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(1);
     doc_request.Complete(
         R"HTML(<!DOCTYPE html>
-        <img style="width: 3000px" src="image.png">
+        <img style="width:240px;height:240px" src="image.png">
       )HTML");
     Compositor().BeginFrame();
     test::RunPendingTasks();
     image_request.Complete(*test::ReadFromFile(
-        test::CoreTestDataPath("notifications/3000x2000.png")));
+        test::CoreTestDataPath("notifications/120x120.png")));
     test::RunPendingTasks();
   }
 }
@@ -813,7 +839,10 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeBeforeLayout) {
   HTMLImageElement* image =
       To<HTMLImageElement>(GetDocument().QuerySelector(AtomicString("img")));
   LayoutImage* layout_image = To<LayoutImage>(image->GetLayoutObject());
-  EXPECT_EQ(layout_image->CachedResourcePriority().visibility,
+  EXPECT_TRUE(layout_image->CachedResourcePriority().has_value());
+  EXPECT_EQ(layout_image->CachedResourcePriority()
+                .value_or(ResourcePriority())
+                .visibility,
             ResourcePriority::kVisible);
   // Decode size should be based on layout size; note that this does not
   // actually match the intrinsic size of the data URL below.
@@ -828,6 +857,8 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeBeforeLayout) {
 }
 
 TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeMinimumSize) {
+  // Tests that an image with large layout size but small intrinsic image size
+  // will not be speculatively decoded.
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
@@ -836,7 +867,7 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeMinimumSize) {
       /*disabled_features=*/{});
   url_test_helpers::RegisterMockedURLLoad(
       url_test_helpers::ToKURL("https://example.com/image.png"),
-      test::CoreTestDataPath("background_image.png"));
+      test::CoreTestDataPath("notifications/48x48.png"));
   WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
   SimRequest doc_request("https://example.com/test.html", "text/html");
   LoadURL("https://example.com/test.html");
@@ -844,9 +875,39 @@ TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeMinimumSize) {
   doc_request.Complete(
       R"HTML(
 <!DOCTYPE html>
-<img id="img" width=4 height=5 src="image.png">
+<img id="img" width=400 height=300 src="image.png">
       )HTML");
   url_test_helpers::ServeAsynchronousRequests();
+}
+
+TEST_F(WebFrameWidgetImplSimTest, SpeculativeImageDecodeMultiple) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kSpeculativeImageDecodes,
+       ::features::kSendExplicitDecodeRequestsImmediately},
+      /*disabled_features=*/{});
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest doc_request("https://example.com/test.html", "text/html");
+  SimRequest image_a_request("https://example.com/a.png", "image/png");
+  SimRequest image_b_request("https://example.com/b.png", "image/png");
+  LoadURL("https://example.com/test.html");
+  {
+    EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, _)).Times(0);
+    doc_request.Complete(
+        R"HTML(
+<!DOCTYPE html>
+<img id="img_a" width=500 height=500 src="a.png">
+<img id="img_b" width=3000 height=1000 src="b.png">
+      )HTML");
+    Compositor().BeginFrame();
+    test::RunPendingTasks();
+  }
+  EXPECT_CALL(*MockMainFrameWidget(), RequestDecode(_, _, true)).Times(2);
+  image_a_request.Complete(
+      *test::ReadFromFile(test::CoreTestDataPath("notifications/500x500.png")));
+  image_b_request.Complete(*test::ReadFromFile(
+      test::CoreTestDataPath("notifications/3000x1000.png")));
 }
 
 #if BUILDFLAG(IS_WIN)

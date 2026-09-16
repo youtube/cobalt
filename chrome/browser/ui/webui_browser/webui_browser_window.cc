@@ -828,7 +828,7 @@ views::Button* WebUIBrowserWindow::GetSharingHubIconButton() {
   return nullptr;
 }
 
-void WebUIBrowserWindow::ToggleMultitaskMenu() const {
+void WebUIBrowserWindow::ToggleMultitaskMenu() {
   NOTIMPLEMENTED();
 }
 #else
@@ -1210,10 +1210,7 @@ void WebUIBrowserWindow::OnWindowCloseRequested(
     // immediately) and close all the tabs, allowing the renderers to shut
     // down. When the tab strip is empty we'll be called back again.
     widget_->Hide();
-    return;
   }
-
-  browser_->SynchronouslyDestroyBrowser();
 }
 
 WebUIBrowserWindow::WidgetDelegate::WidgetDelegate(

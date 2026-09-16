@@ -17,8 +17,8 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "components/omnibox/browser/omnibox_popup_view.h"
-#include "components/omnibox/browser/omnibox_view.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_observer.h"
@@ -39,11 +39,9 @@
 #include "ui/base/ime/ash/input_method_manager.h"
 #endif
 
-static_assert(!BUILDFLAG(IS_IOS));
-
 class LocationBarView;
 class OmniboxClient;
-class PageActionIconView;
+class IconLabelBubbleView;
 
 namespace content {
 class WebContents;
@@ -67,6 +65,17 @@ class OmniboxViewViews
       public views::TextfieldController,
       public ui::CompositorObserver,
       public TemplateURLServiceObserver {
+  // TODO(crbug.com/392015004): Remove this macro once it gets fixed.
+  //
+  // Both `OmniboxView` and `views::Textfield` (*1) have the
+  // `ADVANCED_MEMORY_SAFETY_CHECKS` macro, hence there is ambiguity about which
+  // `operator new` should be used (although the two `operator new` are
+  // eventually equivalent). Choose `OmniboxView` with no deep reason.
+  //
+  // (*1) Note that `views::Textfield` inherits from `views::View`, which has
+  // the `ADVANCED_MEMORY_SAFETY_CHECKS` macro.
+  INHERIT_MEMORY_SAFETY_CHECKS(OmniboxView);
+
   METADATA_HEADER(OmniboxViewViews, views::Textfield)
 
  public:
@@ -136,8 +145,6 @@ class OmniboxViewViews
   void SetFocus(bool is_user_initiated) override;
   void ApplyFocusRingToAimButton(bool focus_aim) override;
   bool AimButtonVisible() const override;
-  bool IsImeComposing() const override;
-  gfx::NativeView GetRelativeWindowForPopup() const override;
   bool IsImeShowingPopup() const override;
 
   // views::Textfield:
@@ -333,7 +340,7 @@ class OmniboxViewViews
 
   // Returns the AI Mode page action icon view, if present, or nullptr if the
   // view doesn't exist.
-  PageActionIconView* GetAiModePageActionIconView() const;
+  IconLabelBubbleView* GetAiModePageActionIconView() const;
 
   // When true, the location bar view is read only and also is has a slightly
   // different presentation (smaller font size). This is used for popups.

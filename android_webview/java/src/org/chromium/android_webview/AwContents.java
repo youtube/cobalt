@@ -156,7 +156,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -389,6 +388,7 @@ public class AwContents implements SmartClipProvider {
     private final AwScrollOffsetManager mScrollOffsetManager;
     private OverScrollGlow mOverScrollGlow;
     private final DisplayAndroidObserver mDisplayObserver;
+    private final AwPasswordEchoSettingController mPasswordEchoSettingController;
     // This can be accessed on any thread after construction. See AwContentsIoThreadClient.
     private final AwSettings mSettings;
     private final ScrollAccessibilityHelper mScrollAccessibilityHelper;
@@ -1051,6 +1051,8 @@ public class AwContents implements SmartClipProvider {
                             () -> mBrowserContext.getCookieManager().acceptCookie());
             mInterceptNavigationDelegate = new InterceptNavigationDelegateImpl();
             mDisplayObserver = new AwDisplayAndroidObserver();
+            mPasswordEchoSettingController =
+                    new AwPasswordEchoSettingController(mSettings, mContext);
             mUpdateVisibilityRunnable = () -> updateWebContentsVisibility();
 
             AwSettings.ZoomSupportChangeListener zoomListener =
@@ -1117,7 +1119,8 @@ public class AwContents implements SmartClipProvider {
         mViewEventSink = ViewEventSink.from(mWebContents);
         mViewEventSink.setHideKeyboardOnBlur(false);
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
-        controller.setActionModeCallback(new AwActionModeCallback(mContext, this, webContents));
+        controller.setActionModeCallback(
+                new AwActionModeCallback(mContext, this, webContents, selectionActionMenuDelegate));
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));
         controller.setSelectionActionMenuDelegate(selectionActionMenuDelegate);
         AwSelectionDropdownMenuDelegate.maybeSetWebViewDropdownSelectionMenuDelegate(controller);
@@ -1149,7 +1152,7 @@ public class AwContents implements SmartClipProvider {
             mAutofillProvider.setWebContents(mWebContents);
         }
         selectionActionMenuDelegate.setAutofillSelectionMenuItemHelper(
-                new AutofillSelectionMenuItemHelper(mContext, mAutofillProvider));
+                new AutofillSelectionMenuItemHelper(mAutofillProvider));
         AwContentsJni.get().initializeAndroidAutofill(mNativeAwContents);
     }
 
@@ -1850,11 +1853,11 @@ public class AwContents implements SmartClipProvider {
             @NonNull Callback<Throwable> errorCallback) {
         if (isDestroyed(NO_WARN)) return;
         if (prefetchParameters != null) {
-            Optional<IllegalArgumentException> exception =
+            IllegalArgumentException exception =
                     AwBrowserContext.validateAdditionalHeaders(
                             prefetchParameters.getAdditionalHeaders());
-            if (exception.isPresent()) {
-                throw exception.get();
+            if (exception != null) {
+                throw exception;
             }
         }
         // `errorCallback` support is still under development. Ideally, an error message should be
@@ -2224,10 +2227,10 @@ public class AwContents implements SmartClipProvider {
 
         LoadUrlParams params = new LoadUrlParams(url, PageTransition.TYPED);
         if (additionalHttpHeaders != null) {
-            Optional<IllegalArgumentException> exception =
+            IllegalArgumentException exception =
                     AwBrowserContext.validateAdditionalHeaders(additionalHttpHeaders);
-            if (exception.isPresent()) {
-                throw exception.get();
+            if (exception != null) {
+                throw exception;
             }
             params.setExtraHeaders(new HashMap<String, String>(additionalHttpHeaders));
         }
@@ -4280,14 +4283,14 @@ public class AwContents implements SmartClipProvider {
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                float frame_rate =
+                float frameRate =
                         mSizeIsSmallForFrameRateHints
                                 ? View.REQUESTED_FRAME_RATE_CATEGORY_DEFAULT
                                 : View.REQUESTED_FRAME_RATE_CATEGORY_HIGH;
                 if (mPreferredFrameIntervalNanos > 0) {
-                    frame_rate = (float) 1e9 / mPreferredFrameIntervalNanos;
+                    frameRate = (float) 1e9 / mPreferredFrameIntervalNanos;
                 }
-                mContainerView.setRequestedFrameRate(frame_rate);
+                mContainerView.setRequestedFrameRate(frameRate);
                 float velocity =
                         AwContentsJni.get().getVelocityInPixelsPerSecond(mNativeAwContents);
                 mContainerView.setFrameContentVelocity(velocity);
@@ -4313,7 +4316,7 @@ public class AwContents implements SmartClipProvider {
                 }
             }
 
-            boolean did_draw =
+            boolean didDraw =
                     AwContentsJni.get()
                             .onDraw(
                                     mNativeAwContents,
@@ -4332,12 +4335,12 @@ public class AwContents implements SmartClipProvider {
                 TraceEvent.instant("DrawBackgroundColor");
                 canvas.drawColor(getEffectiveBackgroundColor());
             }
-            if (did_draw
+            if (didDraw
                     && canvas.isHardwareAccelerated()
                     && !ForceAuxiliaryBitmapRendering.sResult) {
-                did_draw = mDrawFunctor.requestDraw(canvas);
+                didDraw = mDrawFunctor.requestDraw(canvas);
             }
-            if (did_draw) {
+            if (didDraw) {
                 int scrollXDiff = mContainerView.getScrollX() - scrollX;
                 int scrollYDiff = mContainerView.getScrollY() - scrollY;
                 canvas.translate(-scrollXDiff, -scrollYDiff);
@@ -4518,6 +4521,8 @@ public class AwContents implements SmartClipProvider {
             mDisplayObserver.onDIPScaleChanged(display.getDipScale());
             display.addObserver(mDisplayObserver);
 
+            mPasswordEchoSettingController.onAttachedToWindow();
+
             mViewEventSink.onAttachedToWindow();
             AwContentsJni.get()
                     .onAttachedToWindow(
@@ -4561,6 +4566,8 @@ public class AwContents implements SmartClipProvider {
                 Log.w(TAG, "onDetachedFromWindow called when already detached. Ignoring");
                 return;
             }
+
+            mPasswordEchoSettingController.onDetachedFromWindow();
 
             mWindowAndroid.getWindowAndroid().getDisplay().removeObserver(mDisplayObserver);
             detachWindowCoverageTracker();

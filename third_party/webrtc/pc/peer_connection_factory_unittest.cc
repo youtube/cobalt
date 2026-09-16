@@ -763,5 +763,29 @@ TEST(PeerConnectionFactoryDependenciesTest,
   pcf->StartAecDump(nullptr, 24'242);
 }
 
+TEST(PeerConnectionFactoryDependenciesTest, RepeatMediaEngineInitialization) {
+  scoped_refptr<AudioDeviceModule> adm = FakeAudioCaptureModule::Create();
+  PeerConnectionFactoryDependencies pcf_dependencies;
+  pcf_dependencies.adm = adm;
+  pcf_dependencies.signaling_thread = Thread::Current();
+  pcf_dependencies.worker_thread = Thread::Current();
+  pcf_dependencies.network_thread = Thread::Current();
+  EnableMediaWithDefaults(pcf_dependencies);
+
+  scoped_refptr<PeerConnectionFactoryInterface> pcf =
+      CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
+
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_FALSE(adm->Initialized());
+    PeerConnectionInterface::RTCConfiguration config;
+    NullPeerConnectionObserver observer;
+    auto pc = pcf->CreatePeerConnectionOrError(
+        config, PeerConnectionDependencies(&observer));
+    ASSERT_TRUE(pc.ok());
+    EXPECT_TRUE(adm->Initialized());
+  }
+  EXPECT_FALSE(adm->Initialized());
+}
+
 }  // namespace
 }  // namespace webrtc

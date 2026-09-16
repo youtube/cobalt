@@ -219,14 +219,13 @@ V8RenderingContext* CanvasRenderingContext2D::AsV8RenderingContext() {
 
 CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 
-void CanvasRenderingContext2D::Reset() {
+void CanvasRenderingContext2D::ResetInternal() {
   if (IsHibernating()) {
     CanvasHibernationHandler::ReportHibernationEvent(
-        CanvasHibernationHandler::HibernationEvent::kHibernationEndedNormally);
+        CanvasHibernationHandler::HibernationEvent::kHibernationEndedOnReset);
     GetHibernationHandler()->Clear();
   }
-
-  BaseRenderingContext2D::Reset();
+  BaseRenderingContext2D::ResetInternal();
 }
 
 bool CanvasRenderingContext2D::IsComposited() const {
@@ -256,6 +255,12 @@ void CanvasRenderingContext2D::Stop() {
     // Stop any pending restoration.
     try_restore_context_event_timer_.Stop();
   } else {
+    if (IsHibernating()) {
+      CanvasHibernationHandler::ReportHibernationEvent(
+          CanvasHibernationHandler::HibernationEvent::
+              kHibernationEndedWithTeardown);
+      GetHibernationHandler()->Clear();
+    }
     LoseContext(kCanvasDisposed);
   }
 }
@@ -275,14 +280,6 @@ void CanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
   ResetInternal();
   HTMLCanvasElement* const element = canvas();
   if (element != nullptr) [[likely]] {
-    if (IsHibernating()) {
-      // Ensure consistency of metrics reporting across the change from the
-      // previous code flow.
-      CanvasHibernationHandler::ReportHibernationEvent(
-          CanvasHibernationHandler::HibernationEvent::
-              kHibernationEndedWithTeardown);
-      GetHibernationHandler()->Clear();
-    }
     resource_provider_ = nullptr;
     element->DiscardResources();
     element->DiscardResourceDispatcher();
@@ -303,10 +300,25 @@ void CanvasRenderingContext2D::Trace(Visitor* visitor) const {
   SVGResourceClient::Trace(visitor);
 }
 
-void CanvasRenderingContext2D::WillDrawImage(
-    CanvasImageSource* source,
-    bool image_is_texture_backed) const {
-  canvas()->WillDrawImageInCanvas2D(source, image_is_texture_backed);
+void CanvasRenderingContext2D::WillDrawImage(CanvasImageSource* source,
+                                             bool image_is_texture_backed) {
+  // For images coming from canvases, use the image itself as the source of
+  // truth for whether the canvas is accelerated, as
+  // CanvasRenderingContextHost::IsAccelerated() is canvas2d-specific.
+  bool source_is_accelerated =
+      (source->IsCanvasElement() || source->IsOffscreenCanvas())
+          ? image_is_texture_backed
+          : source->IsAccelerated();
+  // If the source is GPU-accelerated, and the canvas is not, but could be...
+  if (source_is_accelerated && canvas()->ShouldAccelerate2dContext() &&
+      canvas()->GetRasterModeForCanvas2D() == RasterMode::kCPU &&
+      SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
+    // Recreate the CRP in GPU raster mode and signal that it needs a
+    // compositing update.
+    canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
+    DropAndRecreateExistingCanvas2DResourceProvider();
+    canvas()->SetNeedsCompositingUpdate();
+  }
 }
 
 bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
@@ -445,7 +457,7 @@ MemoryManagedPaintCanvas* CanvasRenderingContext2D::GetOrCreatePaintCanvas() {
     }
   } else {
     // If we have no provider, try creating one.
-    provider = GetOrCreateCanvas2DResourceProvider();
+    provider = GetOrCreateResourceProvider();
     if (provider == nullptr) [[unlikely]] {
       return nullptr;
     }
@@ -693,14 +705,10 @@ scoped_refptr<CanvasResource>
 CanvasRenderingContext2D::PaintRenderingResultsToResource(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
-  if (!IsCanvas2DResourceProviderValid()) {
+  if (!IsResourceProviderValid()) {
     return nullptr;
   }
   return resource_provider_->ProduceCanvasResource(reason);
-}
-
-bool CanvasRenderingContext2D::IsCanvas2DResourceProviderValid() {
-  return resource_provider_ && resource_provider_->IsValid();
 }
 
 const std::optional<cc::PaintRecord>&
@@ -712,8 +720,8 @@ CanvasRenderingContext2D::GetLastRecordingForCanvas2D() {
   return provider->LastRecording();
 }
 
-bool CanvasRenderingContext2D::CanCreateCanvas2dResourceProvider() {
-  return GetOrCreateCanvas2DResourceProvider();
+bool CanvasRenderingContext2D::CanCreateResourceProvider() {
+  return GetOrCreateResourceProvider();
 }
 
 scoped_refptr<StaticBitmapImage> blink::CanvasRenderingContext2D::GetImage(
@@ -723,7 +731,7 @@ scoped_refptr<StaticBitmapImage> blink::CanvasRenderingContext2D::GetImage(
         GetHibernationHandler()->GetImage());
   }
 
-  if (!IsCanvas2DResourceProviderValid()) {
+  if (!IsResourceProviderValid()) {
     return nullptr;
   }
 
@@ -800,7 +808,11 @@ void CanvasRenderingContext2D::setHitTestRegions(
 }
 
 void CanvasRenderingContext2D::EnableAccelerationIfPossible() {
-  canvas()->EnableAccelerationForCanvas2D();
+  if (canvas()->GetRasterModeForCanvas2D() == RasterMode::kCPU &&
+      SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
+    canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
+    DropAndRecreateExistingCanvas2DResourceProvider();
+  }
 }
 
 void CanvasRenderingContext2D::DrawElementInternal(
@@ -937,7 +949,7 @@ void CanvasRenderingContext2D::PreFinalizeFrame() {
   // TODO(crbug.com/40280152): Analyze whether this call is redundant (i.e.,
   // whether the CRP is guaranteed to always be present).
   if (canvas() && canvas()->LowLatencyEnabled() && canvas()->IsDirty()) {
-    GetOrCreateCanvas2DResourceProvider();
+    GetOrCreateResourceProvider();
   }
 }
 
@@ -1002,9 +1014,14 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
   HTMLCanvasElement* const element = canvas();
 
   bool page_is_visible = element->IsPageVisible();
-  CanvasResourceProvider* resource_provider = GetResourceProvider();
-  if (resource_provider) {
-    resource_provider->SetResourceRecyclingEnabled(page_is_visible);
+
+  // If the canvas is backed by a SharedImage resource provider, toggle
+  // whether resource recycling is enabled based on page visibility.
+  auto* resource_provider = GetResourceProvider();
+  auto* resource_provider_si =
+      resource_provider ? resource_provider->AsSharedImageProvider() : nullptr;
+  if (resource_provider_si) {
+    resource_provider_si->SetResourceRecyclingEnabled(page_is_visible);
   }
 
   // Conserve memory.
@@ -1048,7 +1065,7 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
   }
 
   if (page_is_visible && IsHibernating()) {
-    GetOrCreateCanvas2DResourceProvider();  // Rude awakening
+    GetOrCreateResourceProvider();  // Rude awakening
   }
 
   if (!element->IsPageVisible()) {
@@ -1199,14 +1216,6 @@ UniqueFontSelector* CanvasRenderingContext2D::GetFontSelector() const {
 }
 
 void CanvasRenderingContext2D::SizeChanged() {
-  if (IsHibernating()) {
-    // Ensure consistency of metrics reporting across the change from the
-    // previous code flow.
-    CanvasHibernationHandler::ReportHibernationEvent(
-        CanvasHibernationHandler::HibernationEvent::
-            kHibernationEndedWithTeardown);
-    GetHibernationHandler()->Clear();
-  }
   resource_provider_ = nullptr;
   did_fail_to_create_resource_provider_ = false;
 }
@@ -1316,10 +1325,6 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
         canvas());
   }
 
-  if (provider) {
-    provider->SetResourceRecyclingEnabled(true);
-  }
-
   return provider;
 }
 
@@ -1331,7 +1336,7 @@ CanvasResourceProvider* CanvasRenderingContext2D::GetResourceProvider() const {
 }
 
 CanvasResourceProvider*
-CanvasRenderingContext2D::GetOrCreateCanvas2DResourceProvider() {
+CanvasRenderingContext2D::GetOrCreateResourceProvider() {
   HTMLCanvasElement* const element = canvas();
   if (!element) [[unlikely]] {
     return nullptr;

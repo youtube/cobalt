@@ -224,8 +224,8 @@ void ComponentLoader::LoadAll() {
 
 std::optional<base::Value::Dict> ComponentLoader::ParseManifest(
     std::string_view manifest_contents) const {
-  std::optional<base::Value::Dict> manifest =
-      base::JSONReader::ReadDict(manifest_contents);
+  std::optional<base::Value::Dict> manifest = base::JSONReader::ReadDict(
+      manifest_contents, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!manifest) {
     LOG(ERROR) << "Failed to parse extension manifest.";
     return std::nullopt;
@@ -312,7 +312,7 @@ void ComponentLoader::Reload(const ExtensionId& extension_id) {
 }
 
 void ComponentLoader::Load(const ComponentExtensionInfo& info) {
-  std::string error;
+  std::u16string error;
   scoped_refptr<const Extension> extension(CreateExtension(info, &error));
   if (!extension.get()) {
     LOG(ERROR) << error;
@@ -459,7 +459,7 @@ void ComponentLoader::AddKeyboardApp() {
 
 scoped_refptr<const Extension> ComponentLoader::CreateExtension(
     const ComponentExtensionInfo& info,
-    std::string* utf8_error) {
+    std::u16string* error) {
   // TODO(abarth): We should REQUIRE_MODERN_MANIFEST_VERSION once we've updated
   //               our component extensions to the new manifest version.
   int flags = Extension::REQUIRE_KEY;
@@ -472,7 +472,7 @@ scoped_refptr<const Extension> ComponentLoader::CreateExtension(
 
   return Extension::Create(info.root_directory,
                            mojom::ManifestLocation::kComponent, info.manifest,
-                           flags, utf8_error);
+                           flags, error);
 }
 
 // static

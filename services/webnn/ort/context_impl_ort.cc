@@ -19,9 +19,35 @@
 
 namespace webnn::ort {
 
+// static
+scoped_refptr<WebNNContextImpl> ContextImplOrt::Create(
+    mojo::PendingReceiver<mojom::WebNNContext> receiver,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
+    const EpWorkarounds& ep_workarounds,
+    mojom::CreateContextOptionsPtr options,
+    mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
+    mojo::ScopedDataPipeProducerHandle read_tensor_producer,
+    scoped_refptr<Environment> env,
+    gpu::CommandBufferId command_buffer_id,
+    std::unique_ptr<ScopedSequence> sequence,
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
+    scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    ScopedTrace scoped_trace) {
+  DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
+  return base::MakeRefCounted<ContextImplOrt>(
+      std::move(receiver), std::move(context_provider),
+      std::move(ep_workarounds), std::move(options),
+      std::move(write_tensor_consumer), std::move(read_tensor_producer),
+      std::move(env), command_buffer_id, std::move(sequence),
+      std::move(memory_tracker), std::move(owning_task_runner),
+      shared_image_manager, std::move(main_task_runner));
+}
+
 ContextImplOrt::ContextImplOrt(
-    mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    mojo::PendingReceiver<mojom::WebNNContext> receiver,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     const EpWorkarounds& ep_workarounds,
     mojom::CreateContextOptionsPtr options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
@@ -29,20 +55,25 @@ ContextImplOrt::ContextImplOrt(
     scoped_refptr<Environment> env,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
+    scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(
           std::move(receiver),
-          context_provider,
+          std::move(context_provider),
           GetContextProperties(ep_workarounds.resample2d_limit_to_nchw),
           std::move(options),
           std::move(write_tensor_consumer),
           std::move(write_tensor_producer),
           command_buffer_id,
           std::move(sequence),
-          std::move(task_runner)),
+          std::move(memory_tracker),
+          std::move(owning_task_runner),
+          shared_image_manager,
+          std::move(main_task_runner)),
       env_(std::move(env)),
-      session_options_(SessionOptions::Create(this->options().device, env_)),
-      is_external_data_supported_(!ep_workarounds.disable_external_data) {}
+      session_options_(SessionOptions::Create(this->options().device, env_)) {}
 
 ContextImplOrt::~ContextImplOrt() = default;
 
@@ -221,7 +252,7 @@ ContextProperties ContextImplOrt::GetContextProperties(
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
        /*matmul_input=*/{DataTypeConstraint::kFloat16To32Ints32To64, kMaxRank},
        /*pad_input=*/
-       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*average_pool2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
        /*l2_pool2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
        /*max_pool2d_input=*/{kInts8Float16To32, {3, 8}},
@@ -272,7 +303,7 @@ ContextProperties ContextImplOrt::GetContextProperties(
        /*sigmoid_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*slice_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
-       /*softmax_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
+       /*softmax_input=*/{DataTypeConstraint::kFloat16To32, kMaxNonScalarRank},
        /*softplus_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*softsign_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*split_input=*/
@@ -329,10 +360,10 @@ ContextImplOrt::CreateTensorImpl(
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
-ContextImplOrt::CreateTensorFromMailboxImpl(
+ContextImplOrt::CreateTensorFromSharedImageImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     mojom::TensorInfoPtr tensor_info,
-    gpu::Mailbox mailbox) {
+    std::unique_ptr<gpu::WebNNTensorRepresentation> representation) {
   return base::unexpected(
       mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                         "WebGPU Interop is not supported."));

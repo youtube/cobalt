@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ChildBindingState;
 import org.chromium.base.process_launcher.ChildConnectionAllocator;
 import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.ChildProcessLauncher;
@@ -115,7 +116,6 @@ public class ChildProcessLauncherTest {
                                         SERVICE_COUNT_META_DATA_KEY,
                                         /* bindToCaller= */ false,
                                         /* bindAsExternalService= */ false,
-                                        /* useStrongBinding= */ false,
                                         /* fallbackToNextSlot= */ false,
                                         /* isSandboxedForHistograms= */ false);
                             }
@@ -204,10 +204,19 @@ public class ChildProcessLauncherTest {
                     @Override
                     public ChildProcessConnection getBoundConnection(
                             ChildConnectionAllocator connectionAllocator,
-                            ChildProcessConnection.ServiceCallback serviceCallback) {
+                            ChildProcessConnection.ServiceCallback serviceCallback,
+                            @ChildBindingState int requestedBindingState) {
                         if (boundConnectionToUse == null) {
                             return null;
                         }
+                        // We do not reset the bindingState for the requestedBindingState in the
+                        // test launcher. The boundConnectionToUse shall be created with the
+                        // proper binding state.
+                        // Currently the boundConnectionToUse is only used in
+                        // testLaunchServiceCreatedWithBoundConnection.
+                        Assert.assertEquals(
+                                requestedBindingState,
+                                boundConnectionToUse.connection.bindingStateCurrent());
                         boundConnectionToUse.serviceCallbackForwarder.setServiceCallback(
                                 serviceCallback);
                         return boundConnectionToUse.connection;
@@ -267,7 +276,8 @@ public class ChildProcessLauncherTest {
                                                 Arrays.asList(childProcessBinder));
                                 processLauncher.start(
                                         /* setupConnection= */ true,
-                                        /* queueIfNoFreeConnection= */ false);
+                                        /* queueIfNoFreeConnection= */ false,
+                                        ChildBindingState.VISIBLE);
                                 return processLauncher;
                             }
                         });
@@ -345,7 +355,8 @@ public class ChildProcessLauncherTest {
                                         context,
                                         new Bundle()
                                         /* serviceBundle= */ ,
-                                        serviceCallbackForwarder);
+                                        serviceCallbackForwarder,
+                                        ChildBindingState.VISIBLE);
                             }
                         });
         Assert.assertNotNull(boundConnection);
@@ -372,7 +383,6 @@ public class ChildProcessLauncherTest {
                                         /* serviceCount= */ 2,
                                         /* bindToCaller= */ false,
                                         /* bindAsExternalService= */ false,
-                                        /* useStrongBinding= */ false,
                                         /* fallbackToNextSlot= */ false,
                                         /* isSandboxedForHistograms= */ false);
                             }
@@ -386,7 +396,8 @@ public class ChildProcessLauncherTest {
                 createChildProcessLauncher(
                         badConnectionAllocator,
                         /* setupConnection= */ true,
-                        /* queueIfNoFreeConnection= */ false);
+                        /* queueIfNoFreeConnection= */ false,
+                        ChildBindingState.VISIBLE);
 
         Assert.assertNotNull(processLauncher);
 
@@ -407,7 +418,8 @@ public class ChildProcessLauncherTest {
                 createChildProcessLauncher(
                         mConnectionAllocator,
                         /* setupConnection= */ false,
-                        /* queueIfNoFreeConnection= */ false);
+                        /* queueIfNoFreeConnection= */ false,
+                        ChildBindingState.VISIBLE);
 
         // Verify that the service is bound but not yet set up.
         Assert.assertTrue(mConnectionAllocator.anyConnectionAllocated());
@@ -434,7 +446,8 @@ public class ChildProcessLauncherTest {
                 createChildProcessLauncher(
                         mConnectionAllocator,
                         /* setupConnection= */ true,
-                        /* queueIfNoFreeConnection= */ false);
+                        /* queueIfNoFreeConnection= */ false,
+                        ChildBindingState.VISIBLE);
 
         Assert.assertTrue(mConnectionAllocator.anyConnectionAllocated());
         ChildProcessConnection connection = processLauncher.getConnection();
@@ -467,7 +480,8 @@ public class ChildProcessLauncherTest {
                     createChildProcessLauncher(
                             mConnectionAllocator,
                             /* setupConnection= */ true,
-                            /* queueIfNoFreeConnection= */ true);
+                            /* queueIfNoFreeConnection= */ true,
+                            ChildBindingState.VISIBLE);
             Assert.assertNotNull(launchers[i]);
             connections[i] = launchers[i].getConnection();
         }
@@ -481,7 +495,8 @@ public class ChildProcessLauncherTest {
                 createChildProcessLauncher(
                         mConnectionAllocator,
                         /* setupConnection= */ true,
-                        /* queueIfNoFreeConnection= */ false));
+                        /* queueIfNoFreeConnection= */ false,
+                        ChildBindingState.VISIBLE));
 
         waitForConnectionState(connections[0], CONNECTION_BLOCK_UNTIL_SETUP);
         waitForConnectionState(connections[1], CONNECTION_BLOCK_UNTIL_SETUP);
@@ -503,7 +518,8 @@ public class ChildProcessLauncherTest {
     private static ChildProcessLauncher createChildProcessLauncher(
             final ChildConnectionAllocator connectionAllocator,
             final boolean setupConnection,
-            final boolean queueIfNoFreeConnection) {
+            final boolean queueIfNoFreeConnection,
+            @ChildBindingState final int initialBindingState) {
         return ChildProcessLauncherTestUtils.runOnLauncherAndGetResult(
                 new Callable<ChildProcessLauncher>() {
                     @Override
@@ -521,7 +537,8 @@ public class ChildProcessLauncherTest {
                                         new IFileDescriptorInfo[0],
                                         connectionAllocator,
                                         /* clientInterfaces= */ null);
-                        if (!processLauncher.start(setupConnection, queueIfNoFreeConnection)) {
+                        if (!processLauncher.start(
+                                setupConnection, queueIfNoFreeConnection, initialBindingState)) {
                             return null;
                         }
                         return processLauncher;
@@ -586,5 +603,32 @@ public class ChildProcessLauncherTest {
                         launcher.stop();
                     }
                 });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"ProcessManagement"})
+    public void testInitialBindingState() {
+        @ChildBindingState
+        int[] testBindingStates = {
+            ChildBindingState.WAIVED,
+            ChildBindingState.NOT_PERCEPTIBLE,
+            ChildBindingState.VISIBLE,
+            ChildBindingState.STRONG,
+        };
+        for (@ChildBindingState int testBindingState : testBindingStates) {
+            // With initialBindingState specified.
+            ChildProcessLauncher processLauncher =
+                    createChildProcessLauncher(
+                            mConnectionAllocator,
+                            /* setupConnection= */ true,
+                            /* queueIfNoFreeConnection= */ false,
+                            testBindingState);
+            Assert.assertNotNull(processLauncher);
+            Assert.assertNotNull(processLauncher.getConnection());
+            Assert.assertEquals(
+                    testBindingState, processLauncher.getConnection().bindingStateCurrent());
+            stopLauncher(processLauncher);
+        }
     }
 }

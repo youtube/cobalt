@@ -41,7 +41,6 @@
 #include "chrome/browser/ash/plugin_vm/plugin_vm_features.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_test_helper.h"
 #include "chrome/browser/extensions/chrome_app_icon.h"
-#include "chrome/browser/extensions/install_tracker.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -79,6 +78,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/image_loader.h"
+#include "extensions/browser/install_tracker.h"
 #include "extensions/browser/uninstall_reason.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest.h"
@@ -135,7 +135,7 @@ scoped_refptr<extensions::Extension> MakeApp(const std::string& name,
                                              const std::string& version,
                                              const std::string& url,
                                              const std::string& id) {
-  std::string err;
+  std::u16string err;
   base::Value::Dict value;
   value.Set("name", name);
   value.Set("version", version);
@@ -143,7 +143,7 @@ scoped_refptr<extensions::Extension> MakeApp(const std::string& name,
   scoped_refptr<extensions::Extension> app = extensions::Extension::Create(
       base::FilePath(), extensions::mojom::ManifestLocation::kInternal, value,
       extensions::Extension::WAS_INSTALLED_BY_DEFAULT, id, &err);
-  EXPECT_EQ(err, "");
+  EXPECT_EQ(err, u"");
   return app;
 }
 

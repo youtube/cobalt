@@ -106,6 +106,10 @@ enum class TabGridOpeningMode {
 - (void)showPrivacySettingsFromViewController:
     (UIViewController*)baseViewController;
 
+// Shows the Tracking Protection Settings UI.
+- (void)showTrackingProtectionSettingsFromViewController:
+    (UIViewController*)baseViewController;
+
 // Shows the Report an Issue UI, presenting from `baseViewController`.
 - (void)showReportAnIssueFromViewController:
             (UIViewController*)baseViewController
@@ -166,9 +170,9 @@ enum class TabGridOpeningMode {
 // Opens a debug menu for AI prototyping.
 - (void)openAIMenu;
 
-// Shows the sign-in upgrade promo with a completion block that is called when
-// the promo is dismissed.
-- (void)showSigninUpgradePromoWithCompletion:
+// Shows the fullscreen sign-in promo with a completion block that is called
+// when the promo is dismissed.
+- (void)showFullscreenSigninPromoWithCompletion:
     (SigninCoordinatorCompletionCallback)dismissalCompletion;
 
 // Shows the user the modal that contains a button to start the workflow to

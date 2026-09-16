@@ -35,12 +35,15 @@ source_set("safety_hub") {
     "//components/content_settings/core/browser",
     "//components/content_settings/core/common",
     "//components/keyed_service/core",
+    "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/browser/db:database_manager",
     "//components/safety_check:features",
     "//components/site_engagement/content",
     "//content/public/browser",
     "//url",
   ]
+
+  deps = [ "//components/safety_check" ]
 
   if (is_android) {
     sources += [
@@ -110,6 +113,7 @@ source_set("impl") {
     "//components/safe_browsing/core/browser/db:v4_protocol_manager_util",
     "//components/safe_browsing/core/common:features",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safety_check",
     "//components/site_engagement/content",
     "//services/metrics/public/cpp:ukm_builders",
   ]
@@ -261,6 +265,7 @@ source_set("unit_tests") {
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/common:features",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safety_check",
     "//components/sync_preferences:test_support",
     "//components/ukm:test_support",
     "//content/test:test_support",

@@ -16,7 +16,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler.VoiceResult;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteResult;
@@ -29,7 +28,6 @@ import org.chromium.url.GURL;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -54,7 +52,7 @@ public class AutocompleteController {
 
     private final Set<OnSuggestionsReceivedListener> mListeners = new HashSet<>();
     private long mNativeController;
-    private Optional<AutocompleteResult> mAutocompleteResult = Optional.empty();
+    private @Nullable AutocompleteResult mAutocompleteResult;
 
     /** Listener for receiving OmniboxSuggestions. */
     public interface OnSuggestionsReceivedListener {
@@ -202,9 +200,9 @@ public class AutocompleteController {
         // Skip suggestions from cache.
         OmniboxMetrics.recordUsedSuggestionFromCache(match.getNativeObjectRef() == 0L);
         if (match.getNativeObjectRef() == 0L) return false;
-        return mAutocompleteResult
-                .map(res -> res.verifyCoherency(AutocompleteResult.NO_SUGGESTION_INDEX, reason))
-                .orElse(false);
+        return mAutocompleteResult != null
+                && mAutocompleteResult.verifyCoherency(
+                        AutocompleteResult.NO_SUGGESTION_INDEX, reason);
     }
 
     /**
@@ -243,7 +241,7 @@ public class AutocompleteController {
     @CalledByNative
     @VisibleForTesting
     public void onSuggestionsReceived(AutocompleteResult autocompleteResult, boolean isFinal) {
-        mAutocompleteResult = Optional.of(autocompleteResult);
+        mAutocompleteResult = autocompleteResult;
 
         // Notify callbacks of suggestions.
         for (OnSuggestionsReceivedListener listener : mListeners) {
@@ -372,19 +370,6 @@ public class AutocompleteController {
     }
 
     /**
-     * Retrieves matching tab for suggestion at specific index.
-     *
-     * @param match the AutocompleteMatch to retrieve Tab info for
-     * @return tab that hosts matching URL
-     */
-    @Nullable Tab getMatchingTabForSuggestion(AutocompleteMatch match) {
-        if (mNativeController == 0) return null;
-        if (!hasValidNativeObjectRef(match, VerificationPoint.GET_MATCHING_TAB)) return null;
-        return AutocompleteControllerJni.get()
-                .getMatchingTabForSuggestion(mNativeController, match.getNativeObjectRef());
-    }
-
-    /**
      * Pass the UI specific measurement information to Native code to aid Adaptive Suggestions.
      *
      * @param dropdownHeightWithKeyboardActive the height of visible part of the suggestions
@@ -406,9 +391,8 @@ public class AutocompleteController {
      * @return An existing (if one is available) or new (otherwise) instance of the
      *     AutocompleteController associated with the supplied profile.
      */
-    public static Optional<AutocompleteController> getForProfile(Profile profile) {
-        return Optional.ofNullable(
-                profile == null ? null : AutocompleteControllerJni.get().getForProfile(profile));
+    public static AutocompleteController getForProfile(Profile profile) {
+        return AutocompleteControllerJni.get().getForProfile(profile);
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
@@ -468,9 +452,6 @@ public class AutocompleteController {
                 long nativeAutocompleteControllerAndroid,
                 long nativeAutocompleteMatch,
                 long elapsedTimeSinceInputChange);
-
-        Tab getMatchingTabForSuggestion(
-                long nativeAutocompleteControllerAndroid, long nativeAutocompleteMatch);
 
         void setVoiceMatches(
                 long nativeAutocompleteControllerAndroid,

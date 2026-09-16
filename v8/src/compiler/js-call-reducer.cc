@@ -3976,7 +3976,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 
   Tagged<WasmTrustedInstanceData> instance_data =
       function_data->instance_data();
-  const wasm::CanonicalSig* wasm_signature = function_data->sig();
+  const wasm::CanonicalSig* wasm_signature = function_data->internal()->sig();
   if (!CanInlineJSToWasmCall(wasm_signature)) {
     return NoChange();
   }
@@ -6484,8 +6484,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       {
         // Call the generic C++ implementation.
         const Builtin builtin = Builtin::kArrayShift;
-        auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-            graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
+        auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+            graph()->zone(), BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
         const bool has_builtin_exit_frame = true;

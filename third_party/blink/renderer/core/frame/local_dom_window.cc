@@ -363,11 +363,6 @@ TrustedTypePolicyFactory* LocalDOMWindow::GetTrustedTypesForWorld(
       .stored_value->value;
 }
 
-TrustedTypePolicyFactory* LocalDOMWindow::trustedTypes(
-    ScriptState* script_state) const {
-  return GetTrustedTypesForWorld(script_state->World());
-}
-
 bool LocalDOMWindow::IsCrossSiteSubframe() const {
   if (!GetFrame())
     return false;
@@ -517,6 +512,30 @@ bool LocalDOMWindow::CanExecuteScripts(
   return script_enabled;
 }
 
+bool LocalDOMWindow::AllowInlineJavascriptUrl(const DOMWrapperWorld* world,
+                                              const KURL& url,
+                                              Element* element) {
+  // This is basically a version of CheckAndGetJavascriptUrl, but where the
+  // caller does not care about the actual string value, but only about the
+  // error conditions. In this case, multiple checks just drop out.
+
+  // We don't run a Trusted Types check here, as this is always checked in
+  // ScriptController::ExecuteJavaScriptURL.
+
+  // AllowInline below will check the source's hash against CSP, which is why
+  // it needs an exact script_source.
+  const int kJavascriptSchemeLength = sizeof("javascript:") - 1;
+  String decoded_url = DecodeURLEscapeSequences(
+      url.GetString(), DecodeURLMode::kUTF8OrIsomorphic);
+  String script_source = decoded_url.Substring(kJavascriptSchemeLength);
+
+  // Check the CSP of the caller (the "source browsing context") if required,
+  // as per https://html.spec.whatwg.org/C/#javascript-protocol.
+  return GetContentSecurityPolicyForWorld(world)->AllowInline(
+      ContentSecurityPolicy::InlineType::kNavigation, element, decoded_url,
+      String() /* nonce */, Url(), OrdinalNumber::First());
+}
+
 String LocalDOMWindow::CheckAndGetJavascriptUrl(
     const DOMWrapperWorld* world,
     const KURL& url,
@@ -541,6 +560,10 @@ String LocalDOMWindow::CheckAndGetJavascriptUrl(
   // implemented for isolated worlds.
   if (ContentSecurityPolicy::ShouldBypassMainWorldDeprecated(world))
     return script_source;
+
+  // Sanity check: If we're here, AllowInlineJavascriptUrl would have also
+  // allowed this URL to proceed.
+  DCHECK(AllowInlineJavascriptUrl(world, url, element));
 
   // https://w3c.github.io/trusted-types/dist/spec/#require-trusted-types-for-pre-navigation-check
   // 4.9.1.1. require-trusted-types-for Pre-Navigation check
@@ -1237,7 +1260,7 @@ void LocalDOMWindow::SchedulePostMessage(PostedMessage* posted_message) {
   // local dispatch.
   MessageEvent* event = MessageEvent::Create(
       std::move(posted_message->channels), std::move(posted_message->data),
-      posted_message->source_origin->ToString(), message_origin_kind, String(),
+      std::move(posted_message->source_origin), message_origin_kind, String(),
       posted_message->source, posted_message->user_activation,
       posted_message->delegated_capability);
 
@@ -1329,19 +1352,11 @@ void LocalDOMWindow::DispatchMessageEventWithOriginCheck(
     }
   }
 
-  KURL sender(event->origin());
-  if (!GetContentSecurityPolicy()->AllowConnectToSource(
-          sender, sender, RedirectStatus::kNoRedirect,
-          ReportingDisposition::kSuppressReporting)) {
-    UseCounter::Count(
-        this, WebFeature::kPostMessageIncomingWouldBeBlockedByConnectSrc);
-  }
-
+  scoped_refptr<const SecurityOrigin> sender_origin =
+      event->GetSecurityOrigin();
   if (event->IsOriginCheckRequiredToAccessData()) {
-    scoped_refptr<SecurityOrigin> sender_security_origin =
-        SecurityOrigin::Create(sender);
-    if (!sender_security_origin->IsSameOriginWith(GetSecurityOrigin())) {
-      event = MessageEvent::CreateError(event->origin(), event->source());
+    if (!sender_origin->IsSameOriginWith(GetSecurityOrigin())) {
+      event = MessageEvent::CreateError(event);
     }
   }
   if (event->IsLockedToAgentCluster()) {
@@ -1349,10 +1364,8 @@ void LocalDOMWindow::DispatchMessageEventWithOriginCheck(
       UseCounter::Count(
           this,
           WebFeature::kMessageEventSharedArrayBufferDifferentAgentCluster);
-      event = MessageEvent::CreateError(event->origin(), event->source());
+      event = MessageEvent::CreateError(event);
     } else {
-      scoped_refptr<SecurityOrigin> sender_origin =
-          SecurityOrigin::Create(sender);
       if (!sender_origin->IsSameOriginWith(GetSecurityOrigin())) {
         UseCounter::Count(
             this, WebFeature::kMessageEventSharedArrayBufferSameAgentCluster);
@@ -1364,7 +1377,7 @@ void LocalDOMWindow::DispatchMessageEventWithOriginCheck(
   }
 
   if (!event->CanDeserializeIn(this)) {
-    event = MessageEvent::CreateError(event->origin(), event->source());
+    event = MessageEvent::CreateError(event);
   }
 
   if (event->delegatedCapability() ==
@@ -1882,7 +1895,8 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
           scroll_to_options->behavior().AsEnum());
   viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
-      mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+      mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior);
 
   return CreateScrollResolvedPromise(script_state);
 }
@@ -1955,7 +1969,8 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(
           scroll_to_options->behavior().AsEnum());
   viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
-      mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+      mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 
   return CreateScrollResolvedPromise(script_state);
 }

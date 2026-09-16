@@ -56,6 +56,7 @@
 #include "chrome/browser/web_applications/link_capturing_features.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/navigation_capturing_metrics.h"
+#include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
@@ -90,6 +91,7 @@
 #include "third_party/liburlpattern/pattern.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace web_app {
 
@@ -103,6 +105,8 @@ constexpr char kDestinationPageScopeB[] =
     "/banners/link_capturing/scope_b/destination.html";
 constexpr char kDestinationPageScopeB2[] =
     "/banners/link_capturing/scope_b/destination2.html";
+constexpr char kDestinationPageScopeBExtended[] =
+    "/banners/link_capturing/scope_b_extended/destination.html";
 constexpr char kDestinationPageScopeX[] =
     "/banners/link_capturing/scope_x/destination.html";
 constexpr char kLinkCaptureTestInputPathPrefix[] = "chrome/test/data/web_apps/";
@@ -110,6 +114,7 @@ constexpr char kLinkCaptureTestInputPathPrefix[] = "chrome/test/data/web_apps/";
 constexpr char kValueScopeA2A[] = "A_TO_A";
 constexpr char kValueScopeA2B[] = "A_TO_B";
 constexpr char kValueScopeA2B2[] = "A_TO_B2";
+constexpr char kValueScopeA2BExtended[] = "A_TO_B_EXTENDED";
 constexpr char kValueScopeA2X[] = "A_TO_X";
 constexpr char kValueLink[] = "LINK";
 constexpr char kValueButton[] = "BTN";
@@ -203,6 +208,7 @@ enum class Destination {
   kScopeA2A,
   kScopeA2B,
   kScopeA2B2,
+  kScopeA2BExtended,
   kScopeA2X,
 };
 
@@ -214,6 +220,8 @@ constexpr std::string ToIdString(Destination scope) {
       return kValueScopeA2B;
     case Destination::kScopeA2B2:
       return kValueScopeA2B2;
+    case Destination::kScopeA2BExtended:
+      return kValueScopeA2BExtended;
     case Destination::kScopeA2X:
       return kValueScopeA2X;
   }
@@ -227,6 +235,8 @@ constexpr std::string_view ToParamString(Destination scope) {
       return "ScopeA2B";
     case Destination::kScopeA2B2:
       return "ScopeA2B2";
+    case Destination::kScopeA2BExtended:
+      return "ScopeA2BExtended";
     case Destination::kScopeA2X:
       return "ScopeA2X";
   }
@@ -826,6 +836,9 @@ class NavCaptureParameterizedBrowserTest
     enabled_features.emplace_back(
         features::kPwaNavigationCapturing,
         base::FieldTrialParams({{"link_capturing_state", mode}}));
+    enabled_features.emplace_back(
+        features::kPwaNavigationCapturingWithScopeExtensions,
+        base::FieldTrialParams());
     scoped_feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/enabled_features,
         /*disabled_features=*/{});
@@ -871,12 +884,12 @@ class NavCaptureParameterizedBrowserTest
     wildcard.name = "0";
 
     url_pattern.protocol.emplace_back(
-        PartType::kFixed, destination_page.scheme(), Modifier::kNone);
-    url_pattern.hostname.emplace_back(PartType::kFixed, destination_page.host(),
-                                      Modifier::kNone);
+        PartType::kFixed, destination_page.GetScheme(), Modifier::kNone);
+    url_pattern.hostname.emplace_back(
+        PartType::kFixed, destination_page.GetHost(), Modifier::kNone);
     // The path can be the destination url plus anything else.
-    url_pattern.pathname.emplace_back(PartType::kFixed, destination_page.path(),
-                                      Modifier::kNone);
+    url_pattern.pathname.emplace_back(
+        PartType::kFixed, destination_page.GetPath(), Modifier::kNone);
     url_pattern.pathname.push_back(wildcard);
     url_pattern.search.push_back(wildcard);
     url_pattern.hash.push_back(wildcard);
@@ -905,7 +918,7 @@ class NavCaptureParameterizedBrowserTest
     // redirection happening on the way from a source to a destination url.
     // Prevent multiple redirections from being triggered which causes a Chrome
     // error page to show up, cancelling the navigation.
-    if (base::Contains(request.GetURL().query_piece(), "redirect")) {
+    if (base::Contains(request.GetURL().query(), "redirect")) {
       return nullptr;
     }
 
@@ -935,10 +948,10 @@ class NavCaptureParameterizedBrowserTest
     // destination url.
     GURL::Replacements destination_replacements;
     GURL request_url = request.GetURL();
-    destination_replacements.SetRefStr(request_url.ref_piece());
+    destination_replacements.SetRefStr(request_url.ref());
     std::string new_query =
         request_url.has_query()
-            ? base::StrCat({request_url.query_piece(), "&did_redirect"})
+            ? base::StrCat({request_url.query(), "&did_redirect"})
             : "did_redirect";
     destination_replacements.SetQueryStr(new_query);
     redirect_to = redirect_to.ReplaceComponents(destination_replacements);
@@ -1333,6 +1346,11 @@ class NavCaptureParameterizedBrowserTest
     return embedded_test_server()->GetURL(kDestinationPageScopeB2);
   }
 
+  GURL GetDestinationUrlPageBExtended() const {
+    return embedded_https_test_server().GetURL("example.com",
+                                               kDestinationPageScopeBExtended);
+  }
+
   GURL GetDestinationUrlPageX() const {
     return embedded_test_server()->GetURL(kDestinationPageScopeX);
   }
@@ -1345,6 +1363,8 @@ class NavCaptureParameterizedBrowserTest
         return GetDestinationUrlPageB();
       case Destination::kScopeA2B2:
         return GetDestinationUrlPageB2();
+      case Destination::kScopeA2BExtended:
+        return GetDestinationUrlPageBExtended();
       case Destination::kScopeA2X:
         return GetDestinationUrlPageX();
     }
@@ -1415,6 +1435,12 @@ class NavCaptureParameterizedBrowserTest
       web_app_info->tab_strip = blink::Manifest::TabStrip();
       web_app_info->tab_strip->home_tab = home_tab_params;
     }
+    if (start_url == GetDestinationUrlPageB() &&
+        GetDestination() == Destination::kScopeA2BExtended) {
+      web_app_info->scope_extensions.insert(
+          ScopeExtensionInfo::CreateForScope(GetDestinationUrlPageBExtended()));
+      web_app_info->validated_scope_extensions = web_app_info->scope_extensions;
+    }
     const webapps::AppId app_id =
         test::InstallWebApp(profile(), std::move(web_app_info));
     apps::AppReadinessWaiter(profile(), app_id).Await();
@@ -1446,6 +1472,10 @@ class NavCaptureParameterizedBrowserTest
         &NavCaptureParameterizedBrowserTest::SimulateRedirectHandler,
         base::Unretained(this)));
     ASSERT_TRUE(embedded_test_server()->Start());
+    embedded_https_test_server().RegisterRequestHandler(base::BindRepeating(
+        &NavCaptureParameterizedBrowserTest::SimulateRedirectHandler,
+        base::Unretained(this)));
+    ASSERT_TRUE(embedded_https_test_server().Start());
 
     NotificationPermissionContext::UpdatePermission(
         profile(), embedded_test_server()->GetOrigin().GetURL(),
@@ -1703,6 +1733,15 @@ class NavCaptureParameterizedBrowserTest
     // Ensure that all `WebContents` has finished loading.
     test::CompletePageLoadForAllWebContents();
 
+    if (GetDestination() == Destination::kScopeA2BExtended) {
+      const url::Origin dest_b_extended_origin =
+          url::Origin::Create(GetDestinationUrlPageBExtended());
+      ASSERT_TRUE(content::ExecJs(
+          contents_a,
+          base::StrCat({"updateDestinationBExtendedOrigin('",
+                        dest_b_extended_origin.Serialize(), "')"})));
+    }
+
     DLOG(INFO) << "Performing action.";
 
     action_histogram_tester_ = std::make_unique<base::HistogramTester>();
@@ -1867,7 +1906,8 @@ class NavCaptureParameterizedBrowserTest
           "tests": {}
         })";
     }
-    test_expectations_ = base::JSONReader::Read(json_data);
+    test_expectations_ =
+        base::JSONReader::Read(json_data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     ASSERT_TRUE(test_expectations_) << "Unable to read test expectation file";
     ASSERT_TRUE(test_expectations_.value().is_dict());
   }
@@ -2447,6 +2487,24 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(test::ClickMethod::kLeftClick),
         testing::Values(OpenerMode::kNoOpener),
         testing::Values(NavigationTarget::kSelf, NavigationTarget::kBlank)),
+    LinkCaptureTestParamToString);
+
+// Scope extensions related tests
+INSTANTIATE_TEST_SUITE_P(
+    ScopeExtensions,
+    NavCaptureParameterizedBrowserTest,
+    testing::Combine(testing::Values(ClientModeCombination::kAuto),
+                     testing::Values(AppUserDisplayMode::kBothStandalone),
+                     testing::Values(LinkCapturing::kEnabled),
+                     testing::Values(StartingPoint::kTab),
+                     testing::Values(Destination::kScopeA2BExtended),
+                     testing::Values(RedirectType::kNone,
+                                     RedirectType::kServerSideViaB,
+                                     RedirectType::kServerSideViaX),
+                     testing::Values(NavigationElement::kElementLink),
+                     testing::Values(test::ClickMethod::kLeftClick),
+                     testing::Values(OpenerMode::kNoOpener),
+                     testing::Values(NavigationTarget::kBlank)),
     LinkCaptureTestParamToString);
 
 // This is a derived test fixture that allows us to test Navigation Capturing

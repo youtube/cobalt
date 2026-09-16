@@ -311,10 +311,6 @@ class RuleMap {
       DCHECK_EQ(rule_map, other.rule_map);
       return sub_it == other.sub_it;
     }
-    bool operator!=(const ConstIterator& other) const {
-      DCHECK_EQ(rule_map, other.rule_map);
-      return sub_it != other.sub_it;
-    }
     ConstIterator& operator++() {
       ++sub_it;
       return *this;
@@ -368,13 +364,13 @@ class RuleMap {
   bool compacted = false;
 };
 
-// Holds RuleData objects. It partitions them into various indexed groups,
-// e.g. it stores separately rules that match against id, class, tag, shadow
-// host, etc. It indexes these by some key where possible, e.g. rules that match
-// against tag name are indexed by that tag. Rules that don't fall into a
-// specific group are appended to the "universal" rules. The grouping is done to
-// optimize finding what rules apply to an element under consideration by
-// ElementRuleCollector::CollectMatchingRules.
+// Holds RuleData objects. It partitions them into various indexed groups
+// ("buckets"), e.g. it stores separately rules that match against id, class,
+// tag, shadow host, etc. It indexes these by some key where possible,
+// e.g. rules that match against tag name are indexed by that tag. Rules that
+// don't fall into a specific group are appended to the "universal" rules.
+// The grouping is done to optimize finding what rules apply to an element
+// under consideration by ElementRuleCollector::CollectMatchingRules.
 class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
  public:
   RuleSet() = default;
@@ -669,8 +665,8 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   using SubstringMatcherMap =
       HashMap<AtomicString, std::unique_ptr<base::SubstringSetMatcher>>;
 
-  void AddToRuleSet(const AtomicString& key, RuleMap&, const RuleData&);
-  void AddToRuleSet(HeapVector<RuleData>&, const RuleData&);
+  void AddToBucket(const AtomicString& key, RuleMap&, const RuleData&);
+  void AddToBucket(HeapVector<RuleData>&, const RuleData&);
   void AddPageRule(StyleRulePage*);
   void AddRouteRule(StyleRuleRoute*);
   void AddFontFaceRule(StyleRuleFontFace*);
@@ -696,14 +692,14 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
                      ApplyMixinsStack& apply_mixins_stack);
 
   // Determines whether or not CSSSelector::is_covered_by_bucketing_ should
-  // be computed during calls to FindBestRuleSetAndAdd.
+  // be computed during calls to FindBestBucketAndAdd.
   enum class BucketCoverage {
     kIgnore,
     kCompute,
   };
 
   template <BucketCoverage bucket_coverage>
-  void FindBestRuleSetAndAdd(CSSSelector&, const RuleData&, const StyleScope*);
+  void FindBestBucketAndAdd(CSSSelector&, const RuleData&, const StyleScope*);
 
   void AddRule(StyleRule*,
                unsigned selector_index,
@@ -811,7 +807,15 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   HeapVector<Member<StyleRulePositionTry>> position_try_rules_;
   HeapVector<MediaQuerySetResult> media_query_set_results_;
   HeapVector<Member<StyleRuleFunction>> function_rules_;
-  HashSet<String> active_routes_;
+
+  // Names of routes we're currently at.
+  HashSet<String> at_routes_;
+
+  // Names of routes we're navigating away from.
+  HashSet<String> from_routes_;
+
+  // Names of routes we're navigating to.
+  HashSet<String> to_routes_;
 
   // Whether there is a ruleset bucket for rules with a selector on
   // the style attribute (which is rare, but allowed). If so, the caller

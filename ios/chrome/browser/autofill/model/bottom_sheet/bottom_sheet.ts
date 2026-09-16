@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
 import {gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js';
 
@@ -43,7 +44,7 @@ function canTriggerBottomSheet(element: Element) {
   // Verify that the window's layout viewport has a height and a width and also
   // that the element is visible.
   return window.innerHeight > 0 && window.innerWidth > 0 &&
-      gCrWebLegacy.fill.isVisibleNode(element);
+      fillUtil.isVisibleNode(element);
 }
 
 /*
@@ -72,9 +73,9 @@ function showBottomSheet(hasUserGesture: boolean): void {
   const msg = {
     'frameID': gCrWeb.getFrameId(),
     'formName': gCrWebLegacy.form.getFormIdentifier(form),
-    'formRendererID': gCrWebLegacy.fill.getUniqueID(form),
+    'formRendererID': fillUtil.getUniqueID(form),
     'fieldIdentifier': gCrWebLegacy.form.getFieldIdentifier(field),
-    'fieldRendererID': gCrWebLegacy.fill.getUniqueID(field),
+    'fieldRendererID': fillUtil.getUniqueID(field),
     'fieldType': fieldType,
     'type': 'focus',
     'value': fieldValue,

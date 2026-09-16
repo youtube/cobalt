@@ -866,6 +866,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(MapPrototypeGet, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   TFJ(MapPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   CPP(MapPrototypeClear, JSParameterCount(0))                                  \
+  TFJ(MapPrototypeGetOrInsert, kJSArgcReceiverSlots + 2, kReceiver, kKey,      \
+      kValue)                                                                  \
+  TFJ(MapPrototypeGetOrInsertComputed, kJSArgcReceiverSlots + 2, kReceiver,    \
+      kKey, kCallbackfn)                                                       \
   /* ES #sec-map.prototype.entries */                                          \
   TFJ(MapPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                    \
   /* ES #sec-get-map.prototype.size */                                         \
@@ -1166,7 +1170,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
-  IF_WASM_DRUMBRAKE(ASM, GenericJSToWasmInterpreterWrapper, WasmDummy)         \
+  IF_WASM_DRUMBRAKE(ASM, GenericJSToWasmInterpreterWrapper, JSTrampoline)      \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \
   IF_WASM_DRUMBRAKE(ASM, GenericWasmToJSInterpreterWrapper, WasmDummy)         \
                                                                                \
@@ -1401,9 +1405,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \
   TFS(WeakMapLookupHashIndex, NeedsContext::kYes, kTable, kKey)                \
-  TFJ(WeakMapGet, kJSArgcReceiverSlots + 1, kReceiver, kKey)                   \
+  TFJ(WeakMapPrototypeGet, kJSArgcReceiverSlots + 1, kReceiver, kKey)          \
   TFJ(WeakMapPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)          \
   TFJ(WeakMapPrototypeSet, kJSArgcReceiverSlots + 2, kReceiver, kKey, kValue)  \
+  TFJ(WeakMapPrototypeGetOrInsert, kJSArgcReceiverSlots + 2, kReceiver, kKey,  \
+      kValue)                                                                  \
+  TFJ(WeakMapPrototypeGetOrInsertComputed, kJSArgcReceiverSlots + 2,           \
+      kReceiver, kKey, kCallbackfn)                                            \
   TFJ(WeakMapPrototypeDelete, kJSArgcReceiverSlots + 1, kReceiver, kKey)       \
                                                                                \
   /* WeakSet */                                                                \

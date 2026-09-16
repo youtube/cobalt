@@ -4,6 +4,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/features.gni")
+import("//components/captive_portal/core/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/services/on_device_translation/buildflags/features.gni")
 import("//components/signin/features.gni")
@@ -241,9 +242,12 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/bitmap_fetcher",
     "//chrome/browser/bluetooth",
     "//chrome/browser/breadcrumbs",
+    "//chrome/browser/btm",
+    "//chrome/browser/client_hints",
     "//chrome/browser/commerce",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/contextual_tasks",
+    "//chrome/browser/dom_distiller",
     "//chrome/browser/favicon",
     "//chrome/browser/feature_engagement",
     "//chrome/browser/file_system_access",
@@ -309,6 +313,7 @@ source_set("profiles_extra_parts_impl") {
     "//components/optimization_guide/core",
     "//components/password_manager/content/browser",
     "//components/payments/content",
+    "//components/payments/content/browser_binding:browser_bound_key_deleter",
     "//components/permissions:permissions_common",
     "//components/policy/content",
     "//components/policy/content:safe_sites_navigation_throttle",
@@ -331,8 +336,8 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/auxiliary_search",
       "//chrome/browser/commerce/merchant_viewer:merchant_viewer_data_manager",
       "//chrome/browser/fast_checkout",
+      "//chrome/browser/tab",
       "//components/commerce/core:merchant_signal_db_proto",
-      "//components/payments/content/browser_binding:browser_bound_keys_deleter_factory",
     ]
   } else {
     deps += [
@@ -351,8 +356,10 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/themes",
       "//chrome/browser/ui/global_error",
       "//chrome/browser/ui/global_media_controls",
+      "//chrome/browser/ui/lens",
       "//chrome/browser/ui/media_router",
       "//chrome/browser/ui/performance_controls",
+      "//chrome/browser/ui/promos:service",
       "//chrome/browser/ui/tabs/organization",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/views/side_panel",
@@ -376,6 +383,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ash/policy/dlp",
       "//chrome/browser/ash/policy/skyvault",
       "//chrome/browser/ash/scanner",
+      "//chrome/browser/certificate_provider",
       "//chrome/browser/chromeos/cros_apps",
       "//chrome/browser/chromeos/enterprise/cloud_storage",
       "//chrome/browser/chromeos/extensions/telemetry/api:keyed_service_factory",
@@ -438,7 +446,11 @@ source_set("profiles_extra_parts_impl") {
     ]
   }
 
-  if (!is_android && !is_official_build) {
+  if (enable_captive_portal_detection) {
+    deps += [ "//chrome/browser/captive_portal" ]
+  }
+
+  if (!is_android) {
     deps += [ "//chrome/browser/password_manager:startup_import" ]
   }
 }

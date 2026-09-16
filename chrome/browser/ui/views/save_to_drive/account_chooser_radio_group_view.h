@@ -37,8 +37,10 @@ class AccountChooserRadioButtonRow : public views::FlexLayoutView {
       delete;
   ~AccountChooserRadioButtonRow() override;
 
-  // Selects the account.
+  // View:
+  bool HandleAccessibleAction(const ui::AXActionData& action_data) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
+
   // Registers the account selection.
   void OnAccountSelected();
   // Selects the radio button.
@@ -70,6 +72,9 @@ class AccountChooserRadioGroupView : public views::BoxLayoutView,
  private:
   struct AccountInfoCmp {
     bool operator()(const AccountInfo& lhs, const AccountInfo& rhs) const {
+      if (lhs.full_name == rhs.full_name) {
+        return lhs.email < rhs.email;
+      }
       return lhs.full_name < rhs.full_name;
     }
   };

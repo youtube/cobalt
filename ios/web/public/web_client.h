@@ -5,6 +5,8 @@
 #ifndef IOS_WEB_PUBLIC_WEB_CLIENT_H_
 #define IOS_WEB_PUBLIC_WEB_CLIENT_H_
 
+#import <Foundation/Foundation.h>
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -30,6 +32,8 @@ class GURL;
 @class NSData;
 @protocol UIMenuBuilder;
 @class UIView;
+@class WKFrameInfo;
+@class WKOpenPanelParameters;
 
 namespace net {
 class SSLInfo;
@@ -164,9 +168,6 @@ class WebClient {
   // Allows WKWebViews to be inspected using Safari's Web Inspector.
   virtual bool EnableWebInspector(web::BrowserState* browser_state) const;
 
-  // Allows the embedder to override the open panel (also called upload panel).
-  virtual bool OverrideOpenPanel() const;
-
   // Returns the UserAgentType that should be used by default for the web
   // content, based on the `web_state`.
   virtual UserAgentType GetDefaultUserAgent(web::WebState* web_state,
@@ -202,6 +203,22 @@ class WebClient {
       web::BrowserState* browser_state) const;
 
   virtual void BuildEditMenu(web::WebState* web_state, id<UIMenuBuilder>) const;
+
+  // Whether the embedder implements `RunOpenPanel()` for `web_state`.
+  // If this returns `false`, then the native open panel will run instead.
+  // The value returned for a `web_state` cannot change during its lifetime.
+  virtual bool CanRunOpenPanel(web::WebState* web_state) const
+      API_AVAILABLE(ios(18.4));
+  // Displays a file upload panel and calls `completion` with file URLs selected
+  // by the user. `parameters` describe the file upload control which initiated
+  // the call from `frame`. This is not called if `CanRunOpenPanel()` returns
+  // false for `web_state`.
+  virtual void RunOpenPanel(
+      web::WebState* web_state,
+      WKOpenPanelParameters* parameters,
+      WKFrameInfo* frame,
+      base::OnceCallback<void(NSArray<NSURL*>*)> completion) const
+      API_AVAILABLE(ios(18.4));
 };
 
 }  // namespace web

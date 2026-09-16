@@ -50,9 +50,6 @@ namespace apps {
 class AppInstallService;
 class AppPlatformMetrics;
 class AppPlatformMetricsService;
-class InstanceRegistryUpdater;
-class BrowserAppInstanceRegistry;
-class BrowserAppInstanceTracker;
 class PackageId;
 class PromiseAppRegistryCache;
 class PromiseAppService;
@@ -87,11 +84,6 @@ class AppServiceProxyAsh : public AppServiceProxyBase,
   apps::InstanceRegistry& InstanceRegistry();
   apps::AppPlatformMetrics* AppPlatformMetrics();
   apps::AppPlatformMetricsService* AppPlatformMetricsService();
-
-  // TODO(373972275): Remove BrowserAppInstanceTracker,
-  // BrowserAppInstanceRegistry and InstanceRegistryUpdater.
-  apps::BrowserAppInstanceTracker* BrowserAppInstanceTracker();
-  apps::BrowserAppInstanceRegistry* BrowserAppInstanceRegistry();
 
   // Sets the publisher for `app_type` is unavailable, to allow
   // AppService to remove apps for `app_type`, and clean up launch requests,
@@ -195,6 +187,13 @@ class AppServiceProxyAsh : public AppServiceProxyBase,
   // Sets app locale for an app with the given `app_id`. Empty |locale_tag|
   // indicates system language being chosen.
   void SetAppLocale(const std::string& app_id, const std::string& locale_tag);
+
+  // Set |app_id| as preferred app for this `protocol_scheme` (which is
+  // guaranteed to not be equal to http/https and hence not overlap with
+  // supported links; attempt to pass http/https will CHECK()). This is only
+  // supported for web apps.
+  void SetProtocolLinkPreference(std::string_view app_id,
+                                 std::string_view protocol_scheme);
 
  private:
   // OnAppsRequest is used to save the parameters of the OnApps calling.

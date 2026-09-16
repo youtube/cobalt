@@ -30,7 +30,13 @@ BASE_FEATURE(kUseFinchPermanentCountryForFetchCountryId,
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-BASE_FEATURE(kTaiyaki, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTaiyaki,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 namespace {
 constexpr base::FeatureParam<RegionalCapabilitiesChoiceScreenSurface>::Option
@@ -46,6 +52,12 @@ const base::FeatureParam<RegionalCapabilitiesChoiceScreenSurface>
         &kChoiceScreenSurfaceOptions};
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kDynamicProfileCountry, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDynamicProfileCountry,
+#if BUILDFLAG(IS_IOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 }  // namespace switches

@@ -66,7 +66,7 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   static constexpr const char* kEventTypesInDroppedSequenceHistogram =
       "Android.InputOnViz.Browser.EventTypesInDroppedSequence";
   static constexpr const char* kTouchSequenceDroppedReasonHistogram =
-      "Android.InputOnViz.Browser.SequenceDroppedReason";
+      "Android.InputOnViz.Browser.SequenceDroppedReason2";
 
   bool touch_transferred() {
     return handler_state_ == HandlerState::kConsumeEventsUntilCancel;
@@ -117,7 +117,8 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   enum class InputOnVizSequenceDroppedReason {
     kActiveSeqOnVizAbnormalDownTime = 0,
     kFailedToTransferPotentialPointer = 1,
-    kMaxValue = kFailedToTransferPotentialPointer,
+    kAndroidOSTransferredANewSequence = 2,
+    kMaxValue = kAndroidOSTransferredANewSequence,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:InputOnVizSequenceDroppedReason)
 
@@ -159,6 +160,12 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   std::unique_ptr<JniDelegate> jni_delegate_ = nullptr;
 
   base::TimeTicks last_seen_touch_end_ts_;
+
+  // In cases where system transfers a different sequence than the one requested
+  // by Chrome, a new state is transferred corresponding to the potential
+  // transferred touch sequence. To create new state in such scenarios this
+  // variable is being used.
+  bool last_sent_browser_would_have_handled_ = false;
 
   InputObserver input_observer_;
 };

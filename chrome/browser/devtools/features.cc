@@ -145,10 +145,13 @@ BASE_FEATURE(kDevToolsVerticalDrawer, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether DevTools shows submenu example prompts for the AI Assistance panel
 // in context menus.
-BASE_FEATURE(kDevToolsAiSubmenuPrompts, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsAiSubmenuPrompts, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether DevTools shows 'Debug with AI' and new badges.
 BASE_FEATURE(kDevToolsAiDebugWithAi, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Turns on the GreenDev experimental UI.
+BASE_FEATURE(kDevToolsGreenDevUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether the global AI entrypoint is enabled.
 BASE_FEATURE(kDevToolsGlobalAiButton, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -158,7 +161,13 @@ const base::FeatureParam<bool> kDevToolsGlobalAiButtonPromotionEnabled{
     /*default_value=*/false};
 
 // Whether the Google Developer Program integration is enabled.
-BASE_FEATURE(kDevToolsGdpProfiles, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsGdpProfiles, base::FEATURE_ENABLED_BY_DEFAULT);
+// Whether the badges for the Google Developer Program is enabled. It's used
+// as a kill-switch to disable granting badges in case something goes wrong and
+// we start spamming users with badge notifications.
+const base::FeatureParam<bool> kDevToolsGdpProfilesBadgesEnabled{
+    &kDevToolsGdpProfiles, "badges_enabled",
+    /*default_value=*/true};
 // Whether the starter badge for the Google Developer Program is enabled.
 const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
     &kDevToolsGdpProfiles, "starter_badge_enabled",
@@ -166,7 +175,7 @@ const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
 
 // Whether DevTools Live Edit (Debugger.setScriptSource usage in CDP) is
 // enabled.
-BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDevToolsIndividualRequestThrottling,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -178,5 +187,8 @@ BASE_FEATURE(kDevToolsAiPromptApi, base::FEATURE_DISABLED_BY_DEFAULT);
 // Whether showing animation styles in the styles tab is enabled.
 BASE_FEATURE(kDevToolsStartingStyleDebugging,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether Network panel should use Durable Messages to preserve network bodies.
+BASE_FEATURE(kDevToolsEnableDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

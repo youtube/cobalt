@@ -164,7 +164,7 @@ GURL GeolocationRequestURL(const GURL& url) {
   if (api_key.empty())
     return url;
 
-  std::string query(url.query());
+  std::string query(url.GetQuery());
   if (!query.empty())
     query += "&";
   query += "key=" + base::EscapeQueryParamValue(api_key, true);
@@ -203,8 +203,8 @@ bool ParseServerResponse(const GURL& server_url,
           << response_body << "'";
 
   // Parse the response, ignoring comments.
-  auto response_result =
-      base::JSONReader::ReadAndReturnValueWithError(response_body);
+  auto response_result = base::JSONReader::ReadAndReturnValueWithError(
+      response_body, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!response_result.has_value()) {
     PrintGeolocationError(
         server_url, "JSONReader failed: " + response_result.error().message,

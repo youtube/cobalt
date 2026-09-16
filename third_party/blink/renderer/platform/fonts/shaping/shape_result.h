@@ -67,9 +67,7 @@ struct CharacterRange;
 class Font;
 struct GlyphIndexResult;
 struct ShapeResultRun;
-template <typename TextContainerType>
-class PLATFORM_EXPORT ShapeResultSpacing;
-class TextRun;
+class ShapeResultSpacing;
 class ShapeResultView;
 struct TabSize;
 
@@ -104,11 +102,6 @@ struct ShapeResultCharacterData {
 struct PLATFORM_EXPORT OffsetWithSpacing {
   wtf_size_t offset;
   float spacing;
-};
-
-struct DeprecatedInkBounds : public GarbageCollected<DeprecatedInkBounds> {
-  void Trace(Visitor*) const {}
-  gfx::RectF ink_bounds;
 };
 
 // BreakGlyphsOption - allows OffsetForPosition to consider graphemes
@@ -271,9 +264,7 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   // |StartIndex()| is larger than the text in |ShapeResultSpacing|.
   //
   // The function returns spacing amount on the right of the last glyph.
-  float ApplySpacing(ShapeResultSpacing<String>&, int text_start_offset = 0);
-  ShapeResult* ApplySpacingToCopy(ShapeResultSpacing<TextRun>&,
-                                  const TextRun&) const;
+  float ApplySpacing(ShapeResultSpacing&, int text_start_offset = 0);
   // Add `expansion` space before the first glyph.
   void ApplyLeadingExpansion(LayoutUnit expansion);
   // Add `expansion` space after the last glyph.
@@ -372,22 +363,14 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
                                 GraphemeClusterCallback,
                                 void* context) const;
 
+  // Returns the first GlyphData for an emphasis mark.
+  // Returns an empty GlyphData if this ShapeResult contains no glyphs.
+  GlyphData EmphasisMarkGlyphData(
+      const FontDescription& font_description) const;
+
   // Computes and returns the ink bounds (or visual overflow rect). This is
   // quite expensive and involves measuring each glyph accumulating the bounds.
   gfx::RectF ComputeInkBounds() const;
-
-  // Only used by CachingWordShapeIterator
-  // TODO(eae): Remove once LayoutNG lands. https://crbug.com/591099
-  void SetDeprecatedInkBounds(gfx::RectF ink_bounds) {
-    if (!deprecated_ink_bounds_) {
-      deprecated_ink_bounds_ = MakeGarbageCollected<DeprecatedInkBounds>();
-    }
-    deprecated_ink_bounds_->ink_bounds = ink_bounds;
-  }
-  gfx::RectF GetDeprecatedInkBounds() const {
-    DCHECK(deprecated_ink_bounds_);
-    return deprecated_ink_bounds_->ink_bounds;
-  }
 
   String ToString() const;
   void ToString(StringBuilder*) const;
@@ -433,9 +416,7 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   void ComputePositionData() const;
   void RecalcCharacterPositions() const;
 
-  template <typename TextContainerType>
-  float ApplySpacingImpl(ShapeResultSpacing<TextContainerType>&,
-                         int text_start_offset = 0);
+  float ApplySpacingImpl(ShapeResultSpacing&, int text_start_offset = 0);
   template <bool is_horizontal_run>
   void ComputeGlyphPositions(ShapeResultRun*,
                              unsigned start_glyph,
@@ -484,11 +465,6 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
 
   HeapVector<Member<ShapeResultRun>, 1> runs_;
 
-  // Only used by CachingWordShapeIterator and stored here for memory reduction
-  // reasons. See https://crbug.com/955776
-  // TODO(eae): Remove once LayoutNG lands. https://crbug.com/591099
-  Member<DeprecatedInkBounds> deprecated_ink_bounds_ = nullptr;
-
   // The total width. This is the sum of `ShapeResultRun::width_`.
   // It's mutable because `RecalcCharacterPositions()` recalculates this.
   // This should be in sync with `CharacterPositionData::width_`.
@@ -513,11 +489,11 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
 
  private:
   friend class HarfBuzzShaper;
-  friend class ShapeResultBuffer;
   friend class ShapeResultBloberizer;
   friend class ShapeResultView;
   friend class ShapeResultTest;
   friend class StretchyOperatorShaper;
+  friend struct CharacterRangeContext;
 
   static void AddRunInfoRanges(const ShapeResultRun& run_info,
                                float offset,

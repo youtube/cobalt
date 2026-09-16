@@ -9,7 +9,6 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
-import static androidx.test.espresso.matcher.ViewMatchers.withParent;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.Matchers.not;
@@ -47,6 +46,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
+import org.chromium.base.ui.KeyboardUtils;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -70,7 +70,6 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.common.ContentSwitches;
-import org.chromium.ui.KeyboardUtils;
 import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.ViewUtils;
@@ -518,10 +517,13 @@ public class LocationBarTest {
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
 
         Mockito.reset(mVoiceRecognitionHandler);
-        onView(
-                allOf(
-                        withId(R.id.voice_search_button),
-                        withParent(withId(R.layout.new_tab_page_layout))));
+
+        // Proabably never worked. crbug.com/446200399
+        // onView(
+        //                 allOf(
+        //                         withId(R.id.voice_search_button),
+        //                         withParent(withId(R.layout.new_tab_page_layout))))
+        //         .check(matches(isDisplayed()));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

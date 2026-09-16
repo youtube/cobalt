@@ -104,9 +104,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_jump_table_info_offset(options.jump_table_info_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
   code->set_parameter_count(options.parameter_count);
-#ifdef V8_ENABLE_LEAPTIERING
   code->set_js_dispatch_handle(kNullJSDispatchHandle);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
@@ -1481,21 +1479,27 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
   return impl()->AllocationTypeForInPlaceInternalizableString();
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 template <typename Impl>
 JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code,
     JSDispatchTable::Space* space) {
   JSDispatchTable* jdt = isolate()->isolate_group()->js_dispatch_table();
+  auto result =
+      jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+  if (result) {
+    return *result;
+  }
   auto Allocate = [&]() {
-    return jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+    return (result = jdt->TryAllocateAndInitializeEntry(space, parameter_count,
+                                                        *code))
+        .has_value();
   };
   // Dispatch entries are only freed on major GCs.
   AllocationType type = AllocationType::kOld;
   auto allocator = isolate()->heap()->allocator();
-  return allocator->CustomAllocateWithRetryOrFail(Allocate, type);
+  std::ignore = allocator->RetryCustomAllocateOrFail(Allocate, type);
+  return *result;
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 // Instantiate FactoryBase for the two variants we want.
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;

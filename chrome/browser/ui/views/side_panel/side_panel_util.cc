@@ -12,6 +12,7 @@
 #include "chrome/browser/history_clusters/history_clusters_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
@@ -98,6 +99,28 @@ SidePanelContentProxy* SidePanelUtil::GetSidePanelContentProxy(
   return content_view->GetProperty(kSidePanelContentProxyKey);
 }
 
+actions::ActionItem* SidePanelUtil::GetActionItem(
+    Browser* browser,
+    SidePanelEntry::Key entry_key) {
+  BrowserActions* const browser_actions = browser->browser_actions();
+  if (entry_key.id() == SidePanelEntryId::kExtension) {
+    std::optional<actions::ActionId> extension_action_id =
+        actions::ActionIdMap::StringToActionId(entry_key.ToString());
+    CHECK(extension_action_id.has_value());
+    actions::ActionItem* const action_item =
+        actions::ActionManager::Get().FindAction(
+            extension_action_id.value(), browser_actions->root_action_item());
+    CHECK(action_item);
+    return action_item;
+  }
+
+  std::optional<actions::ActionId> action_id =
+      SidePanelEntryIdToActionId(entry_key.id());
+  CHECK(action_id.has_value());
+  return actions::ActionManager::Get().FindAction(
+      action_id.value(), browser_actions->root_action_item());
+}
+
 void SidePanelUtil::RecordSidePanelOpen(
     std::optional<SidePanelUtil::SidePanelOpenTrigger> trigger) {
   base::RecordAction(base::UserMetricsAction("SidePanel.Show"));
@@ -181,10 +204,6 @@ void SidePanelUtil::RecordEntryShowTriggeredMetrics(
                       ".ShowTriggered"}),
         trigger.value());
   }
-}
-
-void SidePanelUtil::RecordComboboxShown() {
-  base::UmaHistogramBoolean("SidePanel.ComboboxMenuShown", true);
 }
 
 void SidePanelUtil::RecordPinnedButtonClicked(SidePanelEntry::Id id,

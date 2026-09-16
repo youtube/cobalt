@@ -7,6 +7,8 @@ source_set("ui") {
     "background_collection_configuration.h",
     "background_collection_configuration.mm",
     "background_customization_configuration.h",
+    "centered_flow_layout.h",
+    "centered_flow_layout.mm",
     "home_customization_background_cell.h",
     "home_customization_background_cell.mm",
     "home_customization_background_color_picker_view_controller.h",
@@ -56,8 +58,11 @@ source_set("ui") {
     "home_customization_view_controller_protocol.h",
     "home_cutomization_color_palette_cell.h",
     "home_cutomization_color_palette_cell.mm",
+    "rainbow_slider.h",
+    "rainbow_slider.mm",
   ]
   deps = [
+    ":constants",
     "//base",
     "//ios/chrome/app/strings:ios_strings",
     "//ios/chrome/browser/content_suggestions/ui_bundled:ui_util",
@@ -82,6 +87,14 @@ source_set("ui") {
     "//ui/base",
     "//ui/color/dynamic_color",
     "//url",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("constants") {
+  sources = [
+    "home_customization_accessibility_identifiers.h",
+    "home_customization_accessibility_identifiers.mm",
   ]
   frameworks = [ "UIKit.framework" ]
 }

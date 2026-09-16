@@ -69,7 +69,6 @@ class VideoFrame;
 
 namespace blink {
 
-class CanvasResourceProvider;
 class CanvasElementHitTestRegion;
 class ComputedStyle;
 class Document;
@@ -198,7 +197,6 @@ class CORE_EXPORT CanvasRenderingContext
     NOTREACHED();
   }
   virtual bool IsPaintable() const = 0;
-  virtual bool IsHibernating() const { return false; }
   void DidDraw(CanvasPerformanceMonitor::DrawType draw_type) {
     const CanvasRenderingContextHost* const host = Host();
     return DidDraw(host ? SkIRect::MakeWH(host->width(), host->height())
@@ -281,10 +279,7 @@ class CORE_EXPORT CanvasRenderingContext
   virtual void LangAttributeChanged() {}
   virtual String GetIdFromControl(const Element* element) { return String(); }
   virtual int LayerCount() const { return 0; }
-  virtual bool IsCanvas2DResourceProviderValid() { NOTREACHED(); }
-  virtual CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() {
-    NOTREACHED();
-  }
+
   // If the ResourceProvider currently exists, replaces it with a newly-created
   // CanvasResourceProvider.
   virtual void DropAndRecreateExistingCanvas2DResourceProvider() {

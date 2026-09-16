@@ -1481,6 +1481,7 @@ interface OffscreenCanvasRenderingContext2D
     setter textRendering
     setter wordSpacing
 interface Origin
+    static method from
     static method fromURL
     static method parse
     attribute @@toStringTag
@@ -1774,6 +1775,7 @@ interface Request
     method clone
     method constructor
     method formData
+    method getRetryOptions
     method json
     method text
 interface Response
@@ -1803,14 +1805,33 @@ interface RestrictionTarget
 interface RtcReceivedPacket
     attribute @@toStringTag
     getter data
+    getter receiveTime
     method constructor
 interface RtcTransport
     attribute @@toStringTag
+    getter fingerprint
+    getter fingerprintDigestAlgorithm
     getter onicecandidate
+    method addRemoteCandidate
     method constructor
     method getReceivedPackets
     method sendPackets
+    method setRemoteDtlsParameters
+    method writable
     setter onicecandidate
+interface RtcTransportIceCandidate
+    attribute @@toStringTag
+    getter address
+    getter password
+    getter port
+    getter type
+    getter usernameFragment
+    method constructor
+    method toJSON
+interface RtcTransportIceEvent : Event
+    attribute @@toStringTag
+    getter candidate
+    method constructor
 interface Scheduler
     attribute @@toStringTag
     method constructor

@@ -436,7 +436,7 @@ TEST_F(ClientTagBasedRemoteUpdateHandlerTest,
   ProcessSingleUpdate(std::move(update));
   histogram_tester.ExpectUniqueSample(
       "Sync.DataTypeEntityConflictResolution.PREFERENCE",
-      ConflictResolution::kIgnoreLocalEncryption, /*expected_bucket_count=*/1);
+      ConflictResolution::kIgnoreLocalNoOpUpdate, /*expected_bucket_count=*/1);
 
   EXPECT_EQ(2U, db()->data_change_count());
   ASSERT_EQ(0U, bridge()->trimmed_specifics_change_count());
@@ -470,7 +470,7 @@ TEST_F(ClientTagBasedRemoteUpdateHandlerTest,
   ProcessSingleUpdate(std::move(update));
   histogram_tester.ExpectUniqueSample(
       "Sync.DataTypeEntityConflictResolution.PREFERENCE",
-      ConflictResolution::kIgnoreRemoteEncryption, /*expected_bucket_count=*/1);
+      ConflictResolution::kIgnoreRemoteNoOpUpdate, /*expected_bucket_count=*/1);
 
   EXPECT_EQ(1U, db()->data_change_count());
   ASSERT_EQ(0U, bridge()->trimmed_specifics_change_count());
@@ -505,6 +505,8 @@ TEST_F(ClientTagBasedRemoteUpdateHandlerTest,
   ASSERT_EQ(0U, ProcessorEntityCount());
   UpdateResponseData update = GeneratePrefUpdate("", "");
   ASSERT_TRUE(bridge()->SupportsGetStorageKey());
+  ASSERT_TRUE(bridge()->GetStorageKey(update.entity).empty());
+  ASSERT_FALSE(bridge()->IsEntityDataValid(update.entity));
   // Bridge will generate an empty storage key.
   ProcessSingleUpdate(std::move(update));
   // Update should be filtered out.

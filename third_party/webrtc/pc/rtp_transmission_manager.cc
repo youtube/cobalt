@@ -763,7 +763,7 @@ RtpTransmissionManager::FindReceiverById(const std::string& receiver_id) const {
   return nullptr;
 }
 
-MediaEngineInterface* RtpTransmissionManager::media_engine() const {
+const MediaEngineInterface* RtpTransmissionManager::media_engine() const {
   return context_->media_engine();
 }
 

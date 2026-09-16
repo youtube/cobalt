@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+#include <string>
+#include <tuple>
+
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -12,6 +17,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/point_conversions.h"
 
 using base::test::TestFuture;
@@ -23,20 +29,102 @@ namespace actor {
 
 namespace {
 
-class ActorTypeToolBrowserTest : public ActorToolsTest {
+// NOTE: A separate suite of UI interaction tests validates the
+// end-to-end integration from the Glic client, through the action proto
+// conversion, to the execution of this tool.
+//
+// For Glic integration coverage of these scenarios, see the interactive
+// UI tests in the chrome/browser/glic/host/ directory.
+class ActorTypeToolBrowserTest
+    : public ActorToolsTest,
+      public ::testing::WithParamInterface<
+          std::tuple<::features::ActorPaintStabilityMode,
+                     ::features::ActorGeneralPageStabilityMode>> {
  public:
-  ActorTypeToolBrowserTest() = default;
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    auto [paint_stability_mode, general_page_stability_mode] = info.param;
+    std::stringstream params_description;
+    params_description << DescribePaintStabilityMode(paint_stability_mode)
+                       << "_"
+                       << DescribeGeneralPageStabilityMode(
+                              general_page_stability_mode);
+    return params_description.str();
+  }
+
+  ActorTypeToolBrowserTest() {
+    auto [paint_stability_mode, general_page_stability_mode] = GetParam();
+    feature_list_.InitAndEnableFeatureWithParameters(
+        ::features::kGlicActor,
+        {{::features::kActorPaintStabilityMode.name,
+          ::features::kActorPaintStabilityMode.GetName(paint_stability_mode)},
+         {::features::kActorGeneralPageStabilityMode.name,
+          ::features::kActorGeneralPageStabilityMode.GetName(
+              general_page_stability_mode)}});
+  }
+
   ~ActorTypeToolBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     ActorToolsTest::SetUpOnMainThread();
     ASSERT_TRUE(embedded_test_server()->Start());
   }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
 };
+
+// Basic test of the TypeTool - ensure typed string containing composition
+// characters is entered into an input box.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
+                       TypeTool_TextInputCompositionCharacters) {
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  const std::string typed_string =
+      "Acute: ÁÉÍÓÚÝáéíóúý. Grave: ÀÈÌÒÙàèìòù. Umlaut: ÄËÏÖÜŸäëïöüÿ. "
+      "Tilde: ÃÑÕãñõ. Circumflex: ÂÊÎÔÛâêîôû. Cedilla: Çç.";
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/true);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(typed_string,
+            EvalJs(web_contents(), "document.getElementById('input').value"));
+}
+
+// Basic test of the TypeTool - ensure typed string containing composition
+// characters is entered into an input box.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
+                       TypeTool_TextInputAltGrCharacter) {
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  const std::string typed_string =
+      "Symbols: ¡§©®¶. Currency: ¢£¥. Ordinals: ¹²³. "
+      "Letters: ßæåøðþÆÅØÐÞ. Micro: µ.";
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/true);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(typed_string,
+            EvalJs(web_contents(), "document.getElementById('input').value"));
+}
 
 // Basic test of the TypeTool - ensure typed string is entered into an input
 // box.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_TextInput) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_TextInput) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -55,10 +143,32 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_TextInput) {
             EvalJs(web_contents(), "document.getElementById('input').value"));
 }
 
+// Basic test of the TypeTool - ensure typed string is entered into an input
+// box.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
+                       TypeTool_TextInputAnyCharacter) {
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  std::string typed_string = "你好こんにちはпривет";
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/true);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(typed_string,
+            EvalJs(web_contents(), "document.getElementById('input').value"));
+}
+
 // Ensure that if the page creates and focus on to a new input upon focusing on
 // the original target (even if the original target is readonly), type tool will
 // continue on to the new input.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_TextInputAtNewlyCreatedNode) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/type_dynamic_input.html");
@@ -89,7 +199,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 }
 
 // TypeTool fails when target is non-existent.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_NonExistentNode) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_NonExistentNode) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -106,7 +216,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_NonExistentNode) {
 }
 
 // TypeTool fails when target is disabled.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_DisabledInput) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_DisabledInput) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -149,7 +259,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_DisabledInput) {
 }
 
 // Ensure type tool sends the expected events to an input box.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_Events) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_Events) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -174,13 +284,43 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_Events) {
       // b
       "keydown,input,keyup,"
       // enter (causes submit to "click")
-      "keydown,change,click,keyup",
+      "keydown,click,keyup",
+      EvalJs(web_contents(), "getStableEventLog()"));
+}
+
+// Ensure type tool sends the expected events to an input box.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_EventsForDeadKey) {
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  // The log starts empty.
+  ASSERT_EQ("", EvalJs(web_contents(), "input_event_log.join(',')"));
+
+  std::string typed_string = "Áñ";
+
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/true);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(
+      // Á
+      "keydown,keyup,keydown,input,keyup,"
+      // ñ
+      "keydown,keyup,keydown,input,keyup,"
+      // enter (causes submit to "click")
+      "keydown,click,keyup",
       EvalJs(web_contents(), "getStableEventLog()"));
 }
 
 // Ensure the type tool can be used without text to send an enter key in an
 // input.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_EmptyText) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_EmptyText) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -205,7 +345,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_EmptyText) {
 }
 
 // Ensure the type tool correctly sends the enter key after input if specified.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_FollowByEnter) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_FollowByEnter) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -231,7 +371,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_FollowByEnter) {
       // a
       "keydown,input,keyup,"
       // enter (causes submit to "click")
-      "keydown,change,click,keyup",
+      "keydown,click,keyup",
       EvalJs(web_contents(), "getStableEventLog()"));
 
   ASSERT_TRUE(ExecJs(web_contents(), "input_event_log = []"));
@@ -255,7 +395,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_FollowByEnter) {
 
 // Ensure the type tool doesn't fail if the keydown event is handled (page
 // called preventDefault).
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_PageHandlesKeyEvents) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -276,7 +416,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure that the default mode is for the type tool to replace any existing
 // text in the targeted element.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_ReplacesText) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_ReplacesText) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -299,7 +439,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_ReplacesText) {
 
 // Ensure that the type tool still correctly replaces any existing text in the
 // targeted element when in a subframe.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_ReplacesTextInSubframe) {
   const GURL main_frame_url =
       embedded_test_server()->GetURL("/actor/simple_iframe.html");
@@ -334,7 +474,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure that if the page moves focus immediately to a different input box, the
 // type tool correctly operates on the new input box.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_FocusMovesFocus) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_FocusMovesFocus) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -371,7 +511,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_FocusMovesFocus) {
 
 // Basic test of the TypeTool coordinate target - ensure typed string is entered
 // into a node at the coordinate.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_TextInputAtCoordinate) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/type_input_coordinate.html");
@@ -413,7 +553,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure the type tool correctly sends the events to element at the
 // coordinates.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_EventsSentToCoordinates) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/type_input_coordinate.html");
@@ -479,7 +619,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure the type tool correctly sends the events to an unfocusable element at
 // the coordinates.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_EventsSentToUnfocusableCoordinate) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/type_input_coordinate.html");
@@ -519,7 +659,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 }
 
 // Ensure the type tool will fail if target coordinate is offscreen.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_SentToOffScreenCoordinates) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/type_input_coordinate.html");
@@ -543,7 +683,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure the type tool can send a type action to a DOMNodeId that isn't
 // an editable.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
                        TypeTool_DomNodeIdTargetsNonEditable) {
   const GURL url = embedded_test_server()->GetURL("/actor/type_non_input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -575,7 +715,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 
 // Ensure the type tool emits events at the expected intervals when typing
 // incrementally.
-IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_IncrementalTyping) {
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_IncrementalTyping) {
   if (!base::FeatureList::IsEnabled(features::kGlicActorIncrementalTyping)) {
     GTEST_SKIP() << "GlicActorIncrementalTyping feature is disabled";
   }
@@ -631,6 +771,141 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_IncrementalTyping) {
     }
   }
 }
+
+// Ensure the type tool functions when typing long string. It should boost the
+// typing speed but testing the speed is going to be flaky. Ensure we at least
+// have coverage that it works.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest,
+                       TypeTool_IncrementalTypingLong) {
+  if (!base::FeatureList::IsEnabled(features::kGlicActorIncrementalTyping)) {
+    GTEST_SKIP() << "GlicActorIncrementalTyping feature is disabled";
+  }
+
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  const std::string typed_string(
+      features::kGlicActorIncrementalTypingLongTextThreshold.Get() + 1ul, 'a');
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/false);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(typed_string,
+            EvalJs(web_contents(), "document.getElementById('input').value"));
+}
+
+class ActorTypeToolBrowserTestWithLongDelay : public ActorTypeToolBrowserTest {
+ public:
+  ActorTypeToolBrowserTestWithLongDelay() {
+    auto [paint_stability_mode, general_page_stability_mode] = GetParam();
+    feature_list_.Reset();
+    feature_list_.InitAndEnableFeatureWithParameters(
+        ::features::kGlicActor,
+        {{::features::kActorPaintStabilityMode.name,
+          ::features::kActorPaintStabilityMode.GetName(paint_stability_mode)},
+         {::features::kActorGeneralPageStabilityMode.name,
+          ::features::kActorGeneralPageStabilityMode.GetName(
+              general_page_stability_mode)},
+         {::features::kGlicActorKeyDownDuration.name, "10s"}});
+  }
+};
+
+// Ensure the type tool functions when typing very long string past the paste
+// threshold. The typing delay was set very long so the fact that action
+// finishes before time out indicates the usage of direct paste for long text.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTestWithLongDelay,
+                       TypeTool_IncrementalTypingLongTextPaste) {
+  if (!base::FeatureList::IsEnabled(features::kGlicActorIncrementalTyping)) {
+    GTEST_SKIP() << "GlicActorIncrementalTyping feature is disabled";
+  }
+
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  const std::string typed_string(
+      features::kGlicActorIncrementalTypingLongTextPasteThreshold.Get() + 1ul,
+      'a');
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/false);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(typed_string,
+            EvalJs(web_contents(), "document.getElementById('input').value"));
+}
+
+// Ensure the type tool delays the final enter key by the expected amount.
+IN_PROC_BROWSER_TEST_P(ActorTypeToolBrowserTest, TypeTool_FollowByEnterDelay) {
+  const GURL url = embedded_test_server()->GetURL("/actor/input.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  // The log starts empty.
+  ASSERT_EQ("", EvalJs(web_contents(), "input_event_log.join(',')"));
+
+  const std::string_view typed_string = "x";
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), typed_string,
+                      /*follow_by_enter=*/true);
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  // Check that the events are what we expect.
+  ASSERT_EQ(
+      "keydown,input,keyup,"  // x
+      "keydown,click,keyup",  // <enter>
+      EvalJs(web_contents(), "getStableEventLog()"));
+
+  base::Value::List timestamps =
+      EvalJs(web_contents(), "getStableEventLogTimes()").TakeValue().TakeList();
+
+  // 3 events for the 'x' char and 3 events for the <enter>.
+  ASSERT_EQ(timestamps.size(), 6ul);
+
+  const double x_key_up_ts = timestamps[2].GetDouble();
+  const double enter_key_down_ts = timestamps[3].GetDouble();
+
+  const base::TimeDelta x_up_to_enter_down_delta =
+      base::Milliseconds(enter_key_down_ts - x_key_up_ts);
+
+  // Check the delay between keydown and keyup.
+  EXPECT_GE(x_up_to_enter_down_delta,
+            features::kGlicActorTypeToolEnterDelay.Get());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    ActorTypeToolBrowserTest,
+    testing::Combine(
+        testing::Values(::features::ActorPaintStabilityMode::kDisabled,
+                        ::features::ActorPaintStabilityMode::kLogOnly,
+                        ::features::ActorPaintStabilityMode::kEnabled),
+        testing::ValuesIn(kActorGeneralPageStabilityModeValues)),
+    ActorTypeToolBrowserTest::DescribeParams);
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    ActorTypeToolBrowserTestWithLongDelay,
+    testing::Combine(
+        testing::Values(::features::ActorPaintStabilityMode::kDisabled,
+                        ::features::ActorPaintStabilityMode::kLogOnly,
+                        ::features::ActorPaintStabilityMode::kEnabled),
+        testing::ValuesIn(kActorGeneralPageStabilityModeValues)),
+    ActorTypeToolBrowserTest::DescribeParams);
 
 }  // namespace
 }  // namespace actor

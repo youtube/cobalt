@@ -92,6 +92,12 @@ class RenderFrameHostAndroid : public base::SupportsUserData::Data {
           remote_desktop_client_override_origin,
       const base::android::JavaParamRef<jobject>& callback) const;
 
+  void PerformReportWebAuthSecurityChecks(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jstring>&,
+      const base::android::JavaParamRef<jobject>&,
+      const base::android::JavaParamRef<jobject>& callback) const;
+
   jint GetLifecycleState(JNIEnv* env) const;
 
   void InsertVisualStateCallback(
@@ -105,6 +111,8 @@ class RenderFrameHostAndroid : public base::SupportsUserData::Data {
       const base::android::JavaParamRef<jobject>& jcallback);
 
   bool HasHitTestDataForTesting(JNIEnv* env);
+
+  void ViewSource(JNIEnv* env);
 
   RenderFrameHostImpl* render_frame_host() const { return render_frame_host_; }
 

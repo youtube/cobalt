@@ -10,23 +10,25 @@
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  quic::QuicFramer framer(quic::AllSupportedVersions(), quic::QuicTime::Zero(),
-                          quic::Perspective::IS_SERVER,
-                          quic::kQuicDefaultConnectionIdLength);
-  const char* const packet_bytes = reinterpret_cast<const char*>(data);
+namespace quic {
+namespace {
+void DoesNotCrash(absl::string_view data) {
+  QuicFramer framer(AllSupportedVersions(), QuicTime::Zero(),
+                    Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
 
   // Test the CryptoFramer.
-  absl::string_view crypto_input(packet_bytes, size);
-  std::unique_ptr<quic::CryptoHandshakeMessage> handshake_message(
-      quic::CryptoFramer::ParseMessage(crypto_input));
+  std::unique_ptr<CryptoHandshakeMessage> handshake_message(
+      CryptoFramer::ParseMessage(data));
 
   // Test the regular QuicFramer with the same input.
-  quic::test::NoOpFramerVisitor visitor;
+  test::NoOpFramerVisitor visitor;
   framer.set_visitor(&visitor);
-  quic::QuicEncryptedPacket packet(packet_bytes, size);
+  QuicEncryptedPacket packet(data.data(), data.length());
   framer.ProcessPacket(packet);
-
-  return 0;
 }
+FUZZ_TEST(QuicFramerFuzzer, DoesNotCrash);
+
+}  // namespace
+}  // namespace quic

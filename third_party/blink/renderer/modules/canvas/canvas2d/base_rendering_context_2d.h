@@ -166,7 +166,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   // before `transferToGPUTexture` is first called.
   V8GPUTextureFormat getTextureFormat() const;
 
-  virtual bool CanCreateCanvas2dResourceProvider() = 0;
+  virtual bool CanCreateResourceProvider() = 0;
+  virtual CanvasResourceProvider* GetOrCreateResourceProvider() = 0;
 
   String lang() const;
   void setLang(const String&);
@@ -250,6 +251,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
     on_restore_failed_callback_for_testing_ = std::move(callback);
   }
 
+  bool IsResourceProviderValid();
+
   HeapTaskRunnerTimer<BaseRenderingContext2D>
       dispatch_context_lost_event_timer_;
   HeapTaskRunnerTimer<BaseRenderingContext2D>
@@ -304,6 +307,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   bool context_restorable_{true};
 
  private:
+  virtual bool IsHibernating() const { return false; }
   virtual CanvasResourceProvider* GetResourceProvider() const { NOTREACHED(); }
   virtual void EnableAccelerationIfPossible() {}
   void DrawTextInternal(const String& text,

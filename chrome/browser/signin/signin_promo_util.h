@@ -9,6 +9,7 @@
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "extensions/buildflags/buildflags.h"
@@ -76,6 +77,33 @@ SignInPromoType GetSignInPromoTypeFromAccessPoint(
 void RecordSignInPromoShown(signin_metrics::AccessPoint access_point,
                             Profile* profile);
 
+// Structure containing information needed for the promos.
+struct ProfileMenuAvatarButtonPromoInfo {
+  // Different promo types that can be shown in the ProfileMenu and
+  // AvatarButton.
+  enum class Type {
+    kHistorySyncPromo,
+    kBatchUploadPromo,
+    kBatchUploadBookmarksPromo,
+    kBatchUploadWindows10DepreciationPromo,
+    kSyncPromo,
+  };
+
+  std::optional<Type> type = std::nullopt;
+  size_t local_data_count = 0;
+
+  friend bool operator==(const ProfileMenuAvatarButtonPromoInfo& info1,
+                         const ProfileMenuAvatarButtonPromoInfo& info2) =
+      default;
+};
+
+// Based on the `profile` current state, compute the data to be shown for the
+// promos, if any, based on the promo priority and the profile state. The promo
+// between the ProfileMenu and the AvatarButton should always be aligned.
+void ComputeProfileMenuAvatarButtonPromoInfo(
+    Profile& profile,
+    base::OnceCallback<void(ProfileMenuAvatarButtonPromoInfo)> result_callback);
+
 class SyncPromoIdentityPillManager : public signin::IdentityManager::Observer {
  public:
   explicit SyncPromoIdentityPillManager(
@@ -96,9 +124,9 @@ class SyncPromoIdentityPillManager : public signin::IdentityManager::Observer {
   SyncPromoIdentityPillManager& operator=(SyncPromoIdentityPillManager&&) =
       delete;
 
-  bool ShouldShowPromo() const;
-  void RecordPromoShown();
-  void RecordPromoUsed();
+  bool ShouldShowPromo(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
+  void RecordPromoShown(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
+  void RecordPromoUsed(ProfileMenuAvatarButtonPromoInfo::Type promo_type);
 
   // signin::IdentityManager::Observer:
   void OnIdentityManagerShutdown(IdentityManager* identity_manager) override;
@@ -110,7 +138,7 @@ class SyncPromoIdentityPillManager : public signin::IdentityManager::Observer {
   AccountInfo GetSignedInAccountInfo() const;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
-  const raw_ref<PrefService> pref_service_;
+  SigninPrefs signin_prefs_;
 
   const int max_shown_count_ = 0;
   const int max_used_count_ = 0;

@@ -21,6 +21,10 @@
 
 class BrowserView;
 
+namespace views {
+class Label;
+}
+
 // This enum is used for functions who rely on the state of the browser to alter
 // the appearance of the window frame.
 enum class BrowserFrameActiveState {
@@ -161,6 +165,13 @@ class BrowserFrameView : public views::FrameView {
   virtual gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const = 0;
 
+  // Lays out the window title for a web app within the given available space.
+  // Unlike the above GetBounds methods this is not just a method to return the
+  // bounds the title should occupy, since different implementations might also
+  // want to change other attributes of the title, such as alignment.
+  virtual void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                                       views::Label& window_title_label) const;
+
   // Returns the inset from the top of the window to the top of the client
   // view. For a tabbed browser, this is the space occupied by the tab strip.
   // For popup windows, this is the toolbar. For app windows, this is the
@@ -175,11 +186,12 @@ class BrowserFrameView : public views::FrameView {
 
   // Returns true if the top UI (tabstrip, toolbar) should be hidden because the
   // browser is in fullscreen mode.
-  virtual bool ShouldHideTopUIForFullscreen() const;
+  virtual bool ShouldHideTopUIInFullscreen() const;
 
-  // Returns whether the user is allowed to exit fullscreen on their own (some
-  // special modes lock the user in fullscreen).
-  virtual bool CanUserExitFullscreen() const;
+  // Returns true if a toolbar should be shown in the current browser, false if
+  // not. If this returns false, there is no reason to call e.g.
+  // `GetBoundsForWebAppFrameToolbar()`.
+  virtual bool ShouldShowWebAppFrameToolbar() const;
 
   // Determines whether the top of the frame is "condensed" (i.e., has less
   // vertical space). This is typically true when the window is maximized or
@@ -193,15 +205,6 @@ class BrowserFrameView : public views::FrameView {
   // color.
   bool HasVisibleBackgroundTabShapes(
       BrowserFrameActiveState active_state) const;
-
-  // Returns true if background tabs are ever visibly distinct from the frame,
-  // in either the active or inactive state.
-  bool EverHasVisibleBackgroundTabShapes() const;
-
-  // Returns true if strokes (outlines/separators) should be drawn around tabs.
-  // This is generally true, but false for some web apps that don't have a tab
-  // strip.
-  bool CanDrawStrokes() const;
 
   // Returns the color that should be used for text and icons in the title bar
   // (e.g., the window title and caption button icons).
@@ -251,9 +254,6 @@ class BrowserFrameView : public views::FrameView {
   // Returns the height of the translucent area at the top of the frame. Returns
   // 0 if the frame is opaque (not transparent) or in fullscreen.
   virtual int GetTranslucentTopAreaHeight() const;
-
-  // Used by TabContainerOverlayView to paint tab strip background.
-  virtual void PaintThemedFrame(gfx::Canvas* canvas) {}
 
   // Sets the bounds of `frame_`.
   virtual void SetFrameBounds(const gfx::Rect& bounds);

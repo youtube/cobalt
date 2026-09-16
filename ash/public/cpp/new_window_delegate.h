@@ -8,7 +8,9 @@
 #include <string>
 
 #include "ash/public/cpp/ash_public_export.h"
+#include "ash/webui/settings/public/constants/setting.mojom-shared.h"
 #include "base/functional/bind.h"
+#include "ui/display/types/display_constants.h"
 
 class GURL;
 

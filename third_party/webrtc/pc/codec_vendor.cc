@@ -9,7 +9,6 @@
  */
 #include "pc/codec_vendor.h"
 
-#include <cstddef>
 #include <map>
 #include <optional>
 #include <string>
@@ -834,7 +833,7 @@ RTCErrorOr<Codecs> CodecVendor::GetNegotiatedCodecsForAnswer(
 }
 
 CodecVendor::CodecVendor(
-    MediaEngineInterface* media_engine,
+    const MediaEngineInterface* media_engine,
     bool rtx_enabled,
     const FieldTrialsView& trials) {  // Null media_engine is permitted in
                                       // order to allow unit testing where

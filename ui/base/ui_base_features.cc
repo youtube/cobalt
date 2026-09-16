@@ -142,14 +142,7 @@ bool IsSystemCursorSizeSupported() {
 BASE_FEATURE(kSystemKeyboardLock, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables GPU rasterization for all UI drawing (where not blocklisted).
-BASE_FEATURE(kUiGpuRasterization,
-#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA) || \
-    BUILDFLAG(IS_WIN)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kUiGpuRasterization, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsUiGpuRasterizationEnabled() {
   return base::FeatureList::IsEnabled(kUiGpuRasterization);
@@ -292,6 +285,19 @@ bool IsSynchronousPageFlipTestingEnabled() {
 
 BASE_FEATURE(kResamplingScrollEventsExperimentalPrediction,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kResampleScrollEventsLatency, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const char kResampleLatencyModeFixedMs[] = "fixed_ms";
+const char kResampleLatencyModeFractional[] = "fractional";
+
+const base::FeatureParam<std::string> kResampleLatencyModeParam(
+    &kResampleScrollEventsLatency,
+    "mode",
+    kResampleLatencyModeFixedMs);
+
+const base::FeatureParam<double>
+    kResampleLatencyValueParam(&kResampleScrollEventsLatency, "value", -5.0);
 
 const char kPredictorNameLsq[] = "lsq";
 const char kPredictorNameKalman[] = "kalman";

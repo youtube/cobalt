@@ -37,6 +37,7 @@
 #include "components/tracing/common/tracing_switches.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
+#include "components/viz/host/persistent_cache_sandboxed_file_factory.h"
 #include "content/browser/browser_child_process_host_impl.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/child_process_launcher.h"
@@ -86,6 +87,7 @@
 #include "sandbox/policy/switches.h"
 #include "services/webnn/buildflags.h"
 #include "services/webnn/webnn_switches.h"
+#include "skia/buildflags.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
@@ -229,6 +231,8 @@ GpuTerminationStatus ConvertToGpuTerminationStatus(
       return GpuTerminationStatus::LAUNCH_FAILED;
     case base::TERMINATION_STATUS_OOM:
       return GpuTerminationStatus::OOM;
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
+      return GpuTerminationStatus::OOM;
     case base::TERMINATION_STATUS_MAX_ENUM:
       NOTREACHED();
       // Do not add default.
@@ -319,7 +323,7 @@ static const char* const kSwitchNames[] = {
     ash::switches::kRevenBranding,
     switches::kSchedulerBoostUrgent,
 #endif
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(USE_V4L2_CODEC)
     switches::kHardwareVideoDecodeFrameRate,
 #endif
 };
@@ -529,6 +533,22 @@ void BindDiscardableMemoryReceiverOnUI(
           discardable_memory::DiscardableSharedMemoryManager::Get()));
 }
 
+// Initialize PersistentCacheSandboxedFileFactory instance.
+// TODO(crbug.com/399642827): Consider moving this to
+// src/content/browser/browser_main_loop.cc once the persistent cache is used
+// for all cache types.
+void InitGpuPersistentCacheFileFactoryOnce() {
+#if BUILDFLAG(SKIA_USE_DAWN)
+  if (features::kSkiaGraphiteDawnUsePersistentCache.Get() &&
+      !viz::PersistentCacheSandboxedFileFactory::GetInstance()) {
+    base::FilePath cache_root_dir =
+        GetContentClient()->browser()->GetShaderDiskCacheDirectory();
+    viz::PersistentCacheSandboxedFileFactory::CreateInstance(
+        cache_root_dir.AppendASCII("PersistentCache"));
+  }
+#endif
+}
+
 }  // anonymous namespace
 
 // static
@@ -574,6 +594,10 @@ GpuProcessHost* GpuProcessHost::Get(GpuProcessKind kind, bool force_create) {
   if (BrowserMainRunner::ExitedMainMessageLoop()) {
     DLOG(ERROR) << "BrowserMainRunner::ExitedMainMessageLoop()";
     return nullptr;
+  }
+
+  if (kind != GPU_PROCESS_KIND_INFO_COLLECTION) {
+    InitGpuPersistentCacheFileFactoryOnce();
   }
 
   static int last_host_id = 0;
@@ -712,10 +736,9 @@ GpuProcessHost::GpuProcessHost(int host_id, GpuProcessKind kind)
   }
 #if !BUILDFLAG(IS_ANDROID)
   if (!in_process_ && kind != GPU_PROCESS_KIND_INFO_COLLECTION) {
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::MemoryPressureListenerTag::kGpuProcessHost,
-        base::BindRepeating(&GpuProcessHost::OnMemoryPressure,
-                            base::Unretained(this)));
+    memory_pressure_listener_registration_ =
+        std::make_unique<base::MemoryPressureListenerRegistration>(
+            FROM_HERE, base::MemoryPressureListenerTag::kGpuProcessHost, this);
   }
 #endif
 
@@ -857,6 +880,10 @@ GpuProcessHost::~GpuProcessHost() {
         unexpected_exit = true;
         break;
 #endif
+      case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
+        message += "evicted for memory.";
+        unexpected_exit = true;
+        break;
       case base::TERMINATION_STATUS_MAX_ENUM:
         NOTREACHED();
     }
@@ -899,10 +926,9 @@ bool GpuProcessHost::Init() {
         gpu_preferences));
     base::Thread::Options options;
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-    // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
-    // helper threads is reduced to 256KB to save virtual memory. We explicitly
-    // set the GPU main thread stack to 1MB for safety, as GPU workloads can
-    // vary and exceed 256KB.
+    // The default stack size for helper threads is reduced to 256KB to save
+    // virtual memory. We explicitly set the GPU main thread stack to 1MB for
+    // safety, as GPU workloads can vary and exceed 256KB.
     options.stack_size = 1024 * 1024;
 #endif
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -1361,7 +1387,7 @@ bool GpuProcessHost::LaunchGpuProcess() {
   process_->LaunchWithoutExtraCommandLineSwitches(
       std::move(delegate), std::move(cmd_line),
       /*file_data=*/
-      std::make_unique<ChildProcessLauncherFileData>(), true);
+      std::make_unique<ChildProcessLauncherFileData>());
   process_launched_ = true;
 
   if (kind_ == GPU_PROCESS_KIND_SANDBOXED) {
@@ -1463,8 +1489,7 @@ int GpuProcessHost::GetIDForTesting() const {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-void GpuProcessHost::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void GpuProcessHost::OnMemoryPressure(base::MemoryPressureLevel level) {
   gpu_host_->gpu_service()->OnMemoryPressure(level);
 }
 #endif

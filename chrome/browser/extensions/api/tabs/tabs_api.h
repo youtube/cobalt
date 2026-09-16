@@ -37,6 +37,7 @@ static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class BrowserWindowInterface;
 class GURL;
+class SessionID;
 class SkBitmap;
 class TabStripModel;
 
@@ -195,6 +196,11 @@ class WindowsCreateFunction : public ExtensionFunction {
   ~WindowsCreateFunction() override = default;
   ResponseAction Run() override;
   DECLARE_EXTENSION_FUNCTION("windows.create", WINDOWS_CREATE)
+
+ private:
+#if BUILDFLAG(IS_CHROMEOS)
+  void OnWindowCreatedAsynchronously(const SessionID& session_id);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 };
 class WindowsUpdateFunction : public ExtensionFunction {
   ~WindowsUpdateFunction() override = default;

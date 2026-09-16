@@ -742,12 +742,12 @@ IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
   screen->SetDisplayForNewWindows(display2);
   // Run the test in the browser in the non-primary display.
   // Open a browser on the secondary display, which is default for new windows.
-  CreateBrowser(profile());
+  BrowserWindowInterface* const new_browser = CreateBrowser(profile());
   // Close the browser which was already opened on the primary display.
   CloseBrowserSynchronously(browser());
   // Sets browser() to return the one created above, instead of the one which
   // was closed.
-  SelectFirstBrowser();
+  SetBrowser(new_browser);
   // The test will run in browser().
   ASSERT_TRUE(
       CreateExtensionAndRunTest("desktop/hit_test.js", kPermissionsWindows))
@@ -836,8 +836,8 @@ IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
       content::TracingController::CreateStringEndpoint(
           stop_tracing_future.GetCallback()));
 
-  std::optional<base::Value> trace_data =
-      base::JSONReader::Read(*stop_tracing_future.Take());
+  std::optional<base::Value> trace_data = base::JSONReader::Read(
+      *stop_tracing_future.Take(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(trace_data && trace_data->is_dict());
 
   const base::Value::List* trace_events =

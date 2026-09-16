@@ -50,6 +50,7 @@ COMPONENT_EXPORT(GOOGLE_APIS) extern const char kAuditRecordingOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kClearCutOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kFCMOAuthScope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kTachyonOAuthScope[];
+COMPONENT_EXPORT(GOOGLE_APIS) extern const char kSchoolToolsAuthScope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kPhotosOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kCastBackdropOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS)
@@ -157,6 +158,8 @@ COMPONENT_EXPORT(GOOGLE_APIS) extern const char kWebstoreOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kPushNotificationOAuth2Scope[];
 // OAuth2 scope for app license check.
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kLicenseCheckOAuth2Scope[];
+// OAuth2 scope for manta.
+COMPONENT_EXPORT(GOOGLE_APIS) extern const char kMantaOAuth2Scope[];
 
 // Constants for the Chrome Refresh Token Binding.
 inline constexpr std::string_view kTokenBindingAssertionSentinel =

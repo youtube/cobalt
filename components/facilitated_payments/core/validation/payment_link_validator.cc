@@ -16,14 +16,13 @@ namespace payments::facilitated {
 // When the list is being updated, please also update the payment link
 // spec at https://github.com/WICG/paymentlink/blob/main/index.bs, and
 // the public design at https://bit.ly/html-payment-link-dd.
-static constexpr std::array kValidPrefixes = std::to_array<std::string_view>({
-    "duitnow://paynet.com.my",
-    "shopeepay://shopeepay.com.my",
-    "tngd://tngdigital.com.my",
-    "https://www.itmx.co.th/facilitated-payment/prompt-pay",
-    "momo://app?",
+static constexpr std::array kValidPrefixes = std::to_array<std::string_view>(
+    {"duitnow://paynet.com.my", "shopeepay://shopeepay.com.my",
+     "tngd://tngdigital.com.my",
+     "https://www.itmx.co.th/facilitated-payment/prompt-pay", "momo://app?",
+     "https://api.doku.com/facilitated-payment/dana"
 
-});
+    });
 
 PaymentLinkValidator::PaymentLinkValidator() = default;
 
@@ -54,10 +53,14 @@ PaymentLinkValidator::Scheme PaymentLinkValidator::GetScheme(
   if (payment_link_url.SchemeIs("momo")) {
     return Scheme::kMomo;
   }
-  if (payment_link_url.path_piece() == "/facilitated-payment/prompt-pay" &&
+  if (payment_link_url.path() == "/facilitated-payment/prompt-pay" &&
       spec.starts_with(
           "https://www.itmx.co.th/facilitated-payment/prompt-pay")) {
     return Scheme::kPromptPay;
+  }
+  if (payment_link_url.path() == "/facilitated-payment/dana" &&
+      spec.starts_with("https://api.doku.com/facilitated-payment/dana")) {
+    return Scheme::kDana;
   }
   return Scheme::kInvalid;
 }

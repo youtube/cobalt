@@ -47,7 +47,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/history_resources.h"
 #include "chrome/grit/history_resources_map.h"
-#include "chrome/grit/locale_settings.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/config.h"
@@ -80,7 +79,7 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
       profile, chrome::kChromeUIHistoryHost);
 
   source->AddBoolean(
-      "useHistorySyncOptinScreen",
+      "replaceSyncPromosWithSignInPromos",
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos));
 
   HistoryUtil::PopulateCommonSourceForHistory(source, profile);
@@ -98,16 +97,17 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
       {"turnOnSyncPromo", IDS_HISTORY_TURN_ON_SYNC_PROMO},
       {"turnOnSyncPromoDesc", IDS_HISTORY_TURN_ON_SYNC_PROMO_DESC},
       {"turnOnSyncHistoryPromo", IDS_HISTORY_SYNC_HISTORY_PROMO},
-      {"turnOnSyncHistoryPromoDesc", IDS_HISTORY_SYNC_HISTORY_PROMO_DESC},
-      {"turnOnSignedInSyncHistoryPromo",
-       IDS_HISTORY_SIGNED_IN_SYNC_HISTORY_PROMO},
-  };
+      {"syncHistoryPromoBodySignedOut",
+       IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_OUT},
+      {"syncHistoryPromoBodyPendingSignIn",
+       IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN},
+      {"syncHistoryPromoBodyPendingSignInSyncHistoryOn",
+       IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN_SYNC_HISTORY_ON},
+      {"verifyItsYou", IDS_VERIFY_IT_IS_YOU}};
   source->AddLocalizedStrings(kStrings);
 
   source->AddLocalizedString("turnOnSyncHistoryButton",
                              IDS_HISTORY_SYNC_HISTORY_BUTTON);
-  source->AddLocalizedString("turnOnSignedInSyncHistoryPromoDesc",
-                             IDS_HISTORY_SIGNED_IN_SYNC_HISTORY_PROMO_DESC);
   source->AddString("accountPictureUrl",
                     profiles::GetPlaceholderAvatarIconUrl());
 
@@ -117,24 +117,19 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
   // the user's settings.
   source->AddString(
       "sidebarFooterGMAOnly",
-      l10n_util::GetStringFUTF16(
-          IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_ONLY,
-          l10n_util::GetStringUTF16(
-              IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY)));
+      l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_ONLY,
+                                 chrome::kMyActivityUrlInHistory));
   source->AddString(
       "sidebarFooterGAAOnly",
       l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GAA_ONLY,
                                  chrome::kMyActivityGeminiAppsUrl));
-  source->AddString("sidebarFooterGMAAndGAA",
-                    l10n_util::GetStringFUTF16(
-                        IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_AND_GAA,
-                        l10n_util::GetStringUTF16(
-                            IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY),
-                        chrome::kMyActivityGeminiAppsUrl));
+  source->AddString(
+      "sidebarFooterGMAAndGAA",
+      l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_AND_GAA,
+                                 chrome::kMyActivityUrlInHistory,
+                                 chrome::kMyActivityGeminiAppsUrl));
   // Links that are used in the messages above.
-  source->AddString("sidebarFooterGMALink",
-                    l10n_util::GetStringUTF16(
-                        IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY));
+  source->AddString("sidebarFooterGMALink", chrome::kMyActivityUrlInHistory);
   source->AddString("sidebarFooterGAALink", chrome::kMyActivityGeminiAppsUrl);
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -156,6 +151,13 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
       identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   AccountInfo account_info =
       signin_ui_util::GetSingleAccountForPromos(identity_manager);
+  source->AddString(
+      "turnOnSignedInSyncHistoryPromoBodySignInSyncOff",
+      l10n_util::GetStringFUTF16(
+          IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_IN_SYNC_OFF,
+          base::UTF8ToUTF16(account_info.email)));
+  source->AddString("accountName", account_info.full_name);
+  source->AddString("accountEmail", account_info.email);
   if (!has_primary_account && !account_info.IsEmpty()) {
     source->AddString("turnOnSyncButton",
                       l10n_util::GetStringFUTF16(

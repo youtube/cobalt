@@ -162,6 +162,8 @@ void CobaltVideoOverlayWindow::SetSkipAdButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetNextTrackButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetPreviousTrackButtonVisibility(
     bool is_visible) {}
+void CobaltVideoOverlayWindow::SetHidePictureInPictureButtonVisibility(
+    bool is_visible) {}
 void CobaltVideoOverlayWindow::SetMicrophoneMuted(bool muted) {}
 void CobaltVideoOverlayWindow::SetCameraState(bool turned_on) {}
 void CobaltVideoOverlayWindow::SetToggleMicrophoneButtonVisibility(
@@ -265,8 +267,8 @@ void CobaltVideoOverlayWindow::CompositorViewCreated(
                                                            java_activity_ref_);
 
   if (!j_window_android.is_null()) {
-    window_android_ = ui::WindowAndroid::FromJavaWindowAndroid(
-        base::android::JavaParamRef<jobject>(env, j_window_android.obj()));
+    window_android_ =
+        ui::WindowAndroid::FromJavaWindowAndroid(j_window_android);
     if (window_android_) {
       window_android_->AddObserver(this);
       if (window_android_->GetCompositor() &&

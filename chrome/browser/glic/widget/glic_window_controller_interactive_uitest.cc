@@ -171,41 +171,39 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, ButtonTogglesGlicWindow) {
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, TaskIconTogglesGlicWindow) {
   StartTaskAndShowActorTaskIcon();
-  RunTestSequence(
-      ObserveState(test::internal::kFloatyViewState, GetHostForActiveTab()),
-      OpenGlicWindow(GlicWindowMode::kDetached),
-      PressButton(kGlicActorTaskIconElementId),
-      WaitForState(test::internal::kFloatyViewState,
-                   mojom::CurrentView::kActuation),
-      CheckControllerHasWidget(true),
-      CheckControllerWidgetMode(GlicWindowMode::kDetached),
-      PressButton(kGlicActorTaskIconElementId),
-      InAnyContext(WaitForHide(kGlicViewElementId)),
-      CheckControllerHasWidget(false));
+  RunTestSequence(ObserveState(test::internal::kFloatyViewState, GetHost()),
+                  OpenGlicWindow(GlicWindowMode::kDetached),
+                  PressButton(kGlicActorTaskIconElementId),
+                  WaitForState(test::internal::kFloatyViewState,
+                               mojom::CurrentView::kActuation),
+                  CheckControllerHasWidget(true),
+                  CheckControllerWidgetMode(GlicWindowMode::kDetached),
+                  PressButton(kGlicActorTaskIconElementId),
+                  InAnyContext(WaitForHide(kGlicViewElementId)),
+                  CheckControllerHasWidget(false));
 }
 
 IN_PROC_BROWSER_TEST_F(
     GlicWindowControllerUiTest,
     GlicButtonAndTaskIconButtonTogglesConversationAndActuationView) {
   StartTaskAndShowActorTaskIcon();
-  RunTestSequence(
-      ObserveState(test::internal::kFloatyViewState, GetHostForActiveTab()),
-      OpenGlicWindow(GlicWindowMode::kDetached),
-      PressButton(kGlicActorTaskIconElementId),
-      WaitForState(test::internal::kFloatyViewState,
-                   mojom::CurrentView::kActuation),
-      CheckControllerHasWidget(true),
-      CheckControllerWidgetMode(GlicWindowMode::kDetached),
-      PressButton(kGlicButtonElementId),
-      WaitForState(test::internal::kFloatyViewState,
-                   mojom::CurrentView::kConversation),
-      CheckControllerHasWidget(true),
-      CheckControllerWidgetMode(GlicWindowMode::kDetached),
-      PressButton(kGlicActorTaskIconElementId),
-      WaitForState(test::internal::kFloatyViewState,
-                   mojom::CurrentView::kActuation),
-      CheckControllerHasWidget(true),
-      CheckControllerWidgetMode(GlicWindowMode::kDetached));
+  RunTestSequence(ObserveState(test::internal::kFloatyViewState, GetHost()),
+                  OpenGlicWindow(GlicWindowMode::kDetached),
+                  PressButton(kGlicActorTaskIconElementId),
+                  WaitForState(test::internal::kFloatyViewState,
+                               mojom::CurrentView::kActuation),
+                  CheckControllerHasWidget(true),
+                  CheckControllerWidgetMode(GlicWindowMode::kDetached),
+                  PressButton(kGlicButtonElementId),
+                  WaitForState(test::internal::kFloatyViewState,
+                               mojom::CurrentView::kConversation),
+                  CheckControllerHasWidget(true),
+                  CheckControllerWidgetMode(GlicWindowMode::kDetached),
+                  PressButton(kGlicActorTaskIconElementId),
+                  WaitForState(test::internal::kFloatyViewState,
+                               mojom::CurrentView::kActuation),
+                  CheckControllerHasWidget(true),
+                  CheckControllerWidgetMode(GlicWindowMode::kDetached));
 }
 
 constexpr char kActivateSurfaceIncompatibilityNotice[] =
@@ -390,7 +388,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kAttached),
       ClickMockGlicElement(kMockGlicClientHangButton, true),
-      ObserveState(test::internal::kGlicAppState, GetHostForActiveTab()),
+      ObserveState(test::internal::kGlicAppState, GetHost()),
       WaitForState(test::internal::kGlicAppState,
                    mojom::WebUiState::kUnresponsive),
       // Client should show error after showing the unresponsive UI for 5s.
@@ -434,7 +432,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
 
   base::HistogramTester histogram_tester;
   RunTestSequence(
-      ObserveState(test::internal::kGlicAppState, GetHostForActiveTab()),
+      ObserveState(test::internal::kGlicAppState, GetHost()),
       OpenGlicWindow(GlicWindowMode::kAttached),
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kReady),
       ObserveState(views::test::kCurrentWidgetFocus),
@@ -471,7 +469,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
                        InvalidatedAccountWhileLoadingGlic) {
   RunTestSequence(
-      ObserveState(test::internal::kGlicAppState, GetHostForActiveTab()),
+      ObserveState(test::internal::kGlicAppState, GetHost()),
       SimulateGlicHotkey(), CheckControllerHasWidget(true),
       ForceInvalidateAccount(), WaitForAndInstrumentGlic(kHostOnly),
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kSignIn),
@@ -489,7 +487,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
                        InvalidatedAccountSignInOnGlicOpenFlow) {
   RunTestSequence(
-      ObserveState(test::internal::kGlicAppState, GetHostForActiveTab()),
+      ObserveState(test::internal::kGlicAppState, GetHost()),
       ForceInvalidateAccount(), SimulateGlicHotkey(),
       CheckControllerHasWidget(false), InstrumentTab(kFirstTab),
       WaitForWebContentsReady(kFirstTab),
@@ -505,7 +503,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
                        AccountInvalidatedWhileGlicOpen) {
   RunTestSequence(
       SimulateGlicHotkey(), CheckControllerHasWidget(true),
-      ObserveState(test::internal::kGlicAppState, GetHostForActiveTab()),
+      ObserveState(test::internal::kGlicAppState, GetHost()),
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kReady),
       ForceInvalidateAccount(),
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kSignIn),
@@ -805,9 +803,8 @@ class GlicWindowControllerUnloadOnCloseTest
   ~GlicWindowControllerUnloadOnCloseTest() override = default;
 
   auto CheckWebUiContentsExist(bool exist) {
-    return CheckResult(
-        [this]() { return !!GetHostForActiveTab()->webui_contents(); }, exist,
-        "CheckWebUiContentsExist");
+    return CheckResult([this]() { return !!GetHost()->webui_contents(); },
+                       exist, "CheckWebUiContentsExist");
   }
 
  private:
@@ -838,8 +835,7 @@ class GlicWindowControllerWithMemoryPressureUiTest
     // web client before we've initialized the embedded test server and can set
     // the correct URL.
     GlicProfileManager::ForceMemoryPressureForTesting(
-        base::MemoryPressureMonitor::MemoryPressureLevel::
-            MEMORY_PRESSURE_LEVEL_CRITICAL);
+        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
     GlicWindowControllerUiTest::SetUp();
   }
 
@@ -852,8 +848,7 @@ class GlicWindowControllerWithMemoryPressureUiTest
   auto ResetMemoryPressure() {
     return Do([]() {
       GlicProfileManager::ForceMemoryPressureForTesting(
-          base::MemoryPressureMonitor::MemoryPressureLevel::
-              MEMORY_PRESSURE_LEVEL_NONE);
+          base::MEMORY_PRESSURE_LEVEL_NONE);
     });
   }
 
@@ -862,7 +857,7 @@ class GlicWindowControllerWithMemoryPressureUiTest
   }
 
   auto CheckWarmed() {
-    return Do([this]() { EXPECT_TRUE(window_controller().IsWarmed()); });
+    return Do([this]() { EXPECT_TRUE(GetWindowControllerImpl().IsWarmed()); });
   }
 
  private:

@@ -47,10 +47,14 @@ import os
 import pathlib
 import shlex
 import shutil
+import subprocess
 import sys
 import time
 import tempfile
 import traceback
+
+if sys.platform == 'darwin':
+  import plistlib
 
 # vpython-provided modules.
 # pylint: disable=import-error
@@ -101,6 +105,12 @@ BUNDLETOOL = THIRD_PARTY_DIR / 'android_build_tools/bundletool/cipd/bundletool.j
 GSUTIL_DIR = THIRD_PARTY_DIR / 'catapult/third_party/gsutil'
 PAGE_SETS_DATA = CHROMIUM_SRC_DIR / 'tools/perf/page_sets/data'
 PERF_TOOLS = ['benchmarks', 'executables', 'crossbench']
+
+# Constants for CBB support.
+# CBB uses a pseudo benchmark that retrieves the versions of alternative
+# browsers (Edge on Windows, or Safari on Mac) installed on the device.
+CBB_BROWSER_VERSIONS_BENCHMARK = 'browser_versions'
+CBB_BROWSER_VERSIONS_FILENAME = 'browser_versions.json'
 
 # See https://crbug.com/923564.
 # We want to switch over to using histograms for everything, but converting from
@@ -779,6 +789,10 @@ class CrossbenchTest(object):
         help='Connect to test device over TCP (used on Android desktop)')
     parser.add_argument('--device', help='The device to connect to')
     parser.add_argument(
+        '--disable-field-trial-config',
+        action='store_true',
+        help='Start Chrome with --disable-field-trial-config option')
+    parser.add_argument(
         '--extra-browser-args',
         dest='extra_browser_args_as_string',
         help='Additional arguments to pass to the browser when it starts')
@@ -917,8 +931,11 @@ class CrossbenchTest(object):
       # Required until crbug.com/41491492 and crbug.com/346323630 are fixed.
       default_args.append('--enable-features=DisablePrivacySandboxPrompts')
     if self.is_chrome and not self.is_android:
-      # See http://shortn/_xGSaVM9P5g
-      default_args.append('--enable-field-trial-config')
+      if self.cb_options.disable_field_trial_config:
+        default_args.append('--disable-field-trial-config')
+      else:
+        # See http://shortn/_xGSaVM9P5g
+        default_args.append('--enable-field-trial-config')
     if self.options.luci_chromium:
       default_args.append('--headless')
     return default_args
@@ -1202,6 +1219,81 @@ def _set_cwd():
   os.chdir(candidates[0])
 
 
+def get_browser_versions(isolated_out_dir):
+  """Detect versions of alternative browsers installed on the device.
+
+  Detect which version of Edge (and Safari in the future) is currently
+  installed. The result is saved in a file named CBB_BROWSER_VERSIONS_FILENAME
+  in the isolated output directory.
+  """
+  results = {}
+  if IsWindows():
+    channels = {
+        'stable':
+        'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+        'dev':
+        'C:/Program Files (x86)/Microsoft/Edge Dev/Application/msedge.exe',
+    }
+    for channel, path in channels.items():
+      cmd = [
+          'powershell', '-command',
+          f"(Get-Item '{path}').VersionInfo.ProductVersion"
+      ]
+      results[channel] = subprocess.run(cmd,
+                                        capture_output=True,
+                                        encoding='utf8',
+                                        check=True).stdout.strip()
+  elif sys.platform == 'darwin':
+    channels = {
+        'stable': {
+            'driver': '/usr/bin/safaridriver',
+            'prefix': 'Included with Safari ',
+        },
+        # pylint: disable=line-too-long
+        'technology-preview': {
+            'plist': '/Applications/Safari Technology Preview.app/Contents/Info.plist',
+            'driver': '/Applications/Safari Technology Preview.app/Contents/MacOS/safaridriver',
+            'prefix': 'Included with Safari Technology Preview ',
+        },
+        # pylint: enable=line-too-long
+    }
+    for channel, info in channels.items():
+      driver_version = subprocess.run([info['driver'], '--version'],
+                                      capture_output=True,
+                                      encoding='utf8',
+                                      check=True).stdout.strip()
+      prefix = info['prefix']
+      if not driver_version.startswith(prefix):
+        # pylint: disable=line-too-long
+        print(f'Missing expected prefix from Safari {channel} output: {driver_version}')
+        # pylint: enable=line-too-long
+        return 1
+      driver_version = driver_version[len(prefix):]
+      # For Safari stable, the version reported by safaridriver is complete and
+      # can be used as is. For Safari Technology Preview, however, the version
+      # reported by safaridriver is missing the main version (such as '26.0'),
+      # and we need to retrieve it from the app's plist file.
+      if plist_path := info.get('plist'):
+        plist = plistlib.loads(pathlib.Path(plist_path).read_bytes())
+        version = plist.get('CFBundleShortVersionString')
+        if not version:
+          print(f'Missing version info for Safari {channel}')
+          return 1
+        results[channel] = f'{version} {driver_version}'
+      else:
+        results[channel] = driver_version
+  else:
+    print('Only Windows OS and MacOS are supported')
+    return 1
+
+  with open(os.path.join(isolated_out_dir, CBB_BROWSER_VERSIONS_FILENAME),
+            'w') as f:
+    json.dump(results, f)
+    f.write('\n')
+
+  return 0
+
+
 def main(sys_args):
   sys.stdout.reconfigure(line_buffering=True)
   _set_cwd()
@@ -1265,6 +1357,8 @@ def main(sys_args):
         options.xvfb,
         results_label=options.results_label)
     test_results_files.append(output_paths.test_results)
+  elif options.benchmarks == CBB_BROWSER_VERSIONS_BENCHMARK:
+    overall_return_code = get_browser_versions(isolated_out_dir)
   elif options.benchmarks:
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:

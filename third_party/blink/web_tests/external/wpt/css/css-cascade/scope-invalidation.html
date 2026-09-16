@@ -867,3 +867,68 @@ test_scope_invalidation(document.currentScript, () => {
   assert_green(c);
 }, 'Relative selectors set with selectorText are relative to :scope and &');
 </script>
+
+<template>
+  <style>
+    @scope (.a .b) {
+      @scope(.c .d, .e .f) {
+        .g {
+          background-color: green;
+        }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div class=e>
+        <div class=f>
+          <div class=g>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let a = main.querySelector('.a');
+  let g = main.querySelector('.g');
+  assert_green(g);
+  a.classList.remove('a');
+  assert_not_green(g);
+  a.classList.add('a');
+  assert_green(g);
+}, 'Ancestor element affecting nested scope root (Through latter selector in list)')
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b .c) {
+      :scope .d .f{
+        background-color: green;
+      }
+    }
+    </style>
+
+  <div class=a>
+    <div class=b>
+      <div class=d>
+        <div class=c>
+          <div class=f>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  let f = main.querySelector('.f');
+  assert_not_green(f);
+  b.classList.remove('b');
+  assert_green(f);
+  b.classList.add('b');
+  assert_not_green(f);
+}, 'Parent element of subject affecting scope limit')
+</script>

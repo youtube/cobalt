@@ -37,7 +37,9 @@ final class ExtensionWindowControllerBridgeNativeUnitTestSupport {
         // BrowserWindowInterface pointer that ExtensionWindowControllerBridge depends on.
         mChromeAndroidTask =
                 ChromeAndroidTaskUnitTestSupport.createChromeAndroidTaskWithMockDeps(
-                                FAKE_CHROME_ANDROID_TASK_ID, /* mockNatives= */ false)
+                                FAKE_CHROME_ANDROID_TASK_ID,
+                                /* mockNatives= */ false,
+                                /* isPendingTask= */ false)
                         .mChromeAndroidTask;
 
         mExtensionWindowControllerBridge =
@@ -65,6 +67,11 @@ final class ExtensionWindowControllerBridgeNativeUnitTestSupport {
         mExtensionWindowControllerBridge.onTaskBoundsChanged(
                 // Native code doesn't need the new bounds, so what we pass here doesn't matter.
                 new Rect());
+    }
+
+    @CalledByNative
+    private void invokeOnTaskFocusChanged(boolean hasFocus) {
+        mExtensionWindowControllerBridge.onTaskFocusChanged(hasFocus);
     }
 
     @CalledByNative

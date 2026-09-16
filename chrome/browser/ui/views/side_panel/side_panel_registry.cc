@@ -46,13 +46,15 @@ SidePanelEntry* SidePanelRegistry::GetEntryForKey(
   return it == entries_.end() ? nullptr : it->get();
 }
 
-void SidePanelRegistry::ResetActiveEntry() {
-  active_entry_.reset();
+void SidePanelRegistry::ResetActiveEntryFor(SidePanelEntry::PanelType type) {
+  active_entries_[type].reset();
 }
 
-void SidePanelRegistry::ClearCachedEntryViews() {
+void SidePanelRegistry::ClearCachedEntryViews(SidePanelEntry::PanelType type) {
   for (auto const& entry : entries_) {
-    if (!active_entry_.has_value() || entry.get() != active_entry_.value()) {
+    if (entry->type() == type &&
+        (!active_entries_[type].has_value() ||
+         entry.get() != active_entries_[type].value())) {
       entry.get()->ClearCachedView();
     }
   }
@@ -87,9 +89,9 @@ bool SidePanelRegistry::Deregister(const SidePanelEntry::Key& key) {
 
   entry->RemoveObserver(this);
   entry->set_scope(nullptr);
-  if (active_entry_.has_value() &&
-      entry->key() == active_entry_.value()->key()) {
-    active_entry_.reset();
+  if (active_entries_[entry->type()].has_value() &&
+      entry->key() == active_entries_[entry->type()].value()->key()) {
+    active_entries_[entry->type()].reset();
   }
 
   // TODO(https://crbug.com/360163254): This is nullptr in
@@ -123,11 +125,16 @@ bool SidePanelRegistry::Deregister(const SidePanelEntry::Key& key) {
 }
 
 void SidePanelRegistry::SetActiveEntry(SidePanelEntry* entry) {
-  active_entry_ = entry;
+  active_entries_[entry->type()] = entry;
+}
+
+std::optional<SidePanelEntry*> SidePanelRegistry::GetActiveEntryFor(
+    SidePanelEntry::PanelType type) {
+  return active_entries_[type];
 }
 
 void SidePanelRegistry::OnEntryShown(SidePanelEntry* entry) {
-  active_entry_ = entry;
+  active_entries_[entry->type()] = entry;
 }
 
 const tabs::TabInterface& SidePanelRegistry::GetTabInterface() const {

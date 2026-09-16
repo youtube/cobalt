@@ -7,7 +7,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_features.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
 #include "chrome/browser/policy/dm_token_utils.h"
@@ -64,6 +63,7 @@ bool ContentAnalysisActionAllowsDataUse(TriggeredRule::Action action) {
       return true;
     case TriggeredRule::WARN:
     case TriggeredRule::BLOCK:
+    case TriggeredRule::FORCE_SAVE_TO_CLOUD:
       return false;
   }
 }

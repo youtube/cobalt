@@ -159,6 +159,8 @@ class SaveCardBubbleControllerImpl
   int GetSaveSuccessAnimationStringId() const override;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override;
+  bool CanBeReshown() const override;
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
@@ -215,6 +217,9 @@ class SaveCardBubbleControllerImpl
   // Hides the bubble if it currently being shown, and sets the bubble to
   // inactive, effectively ending the save card flow.
   void EndSaveCardPromptFlow();
+
+  // Logs metrics when the bubble is closed.
+  void LogBubbleCloseMetrics(PaymentsUiClosedReason reason);
 
   // Tied to the profile and outlive this object.
   const raw_ref<PaymentsDataManager> payments_data_manager_;

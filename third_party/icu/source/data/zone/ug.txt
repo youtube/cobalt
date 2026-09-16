@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ug{
     zoneStrings{
         "Africa:Sao_Tome"{
@@ -205,11 +205,6 @@ ug{
             lg{"جۇڭگو ۋاقتى"}
             ls{"جۇڭگو ئۆلچەملىك ۋاقتى"}
         }
-        "meta:Choibalsan"{
-            ld{"چويبالسان يازلىق ۋاقتى"}
-            lg{"چويبالسان ۋاقتى"}
-            ls{"چويبالسان ئۆلچەملىك ۋاقتى"}
-        }
         "meta:Christmas"{
             ls{"روژدېستۋو ئارىلى ۋاقتى"}
         }
@@ -411,9 +406,6 @@ ug{
             lg{"ئاۋمېن ۋاقتى"}
             ls{"ئاۋمېن ئۆلچەملىك ۋاقتى"}
         }
-        "meta:Macquarie"{
-            ls{"ماككۇۋارى ئاراللىرى ۋاقتى"}
-        }
         "meta:Magadan"{
             ld{"ماگادان يازلىق ۋاقتى"}
             lg{"ماگادان ۋاقتى"}
@@ -438,11 +430,6 @@ ug{
         }
         "meta:Mawson"{
             ls{"ماۋسون ۋاقتى"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"مېكسىكا غەربىي شىمالىي قىسىم يازلىق ۋاقتى"}
-            lg{"مېكسىكا غەربىي شىمالىي قىسىم ۋاقتى"}
-            ls{"مېكسىكا غەربىي شىمالىي قىسىم ئۆلچەملىك ۋاقتى"}
         }
         "meta:Mexico_Pacific"{
             ld{"مېكسىكا تىنچ ئوكيان يازلىق ۋاقتى"}

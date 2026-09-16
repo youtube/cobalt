@@ -94,6 +94,9 @@
   'shared-memory/async-synchronization-workers-terminated': [SKIP],
   'shared-memory/condition-async-wait-realm-disposed': [SKIP],
 
+  # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
+  'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -175,6 +178,7 @@
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'regress/regress-crbug-1276923': [PASS, SLOW],
   'regress/regress-390568195': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['arch != x64', SKIP]],
+  'regress/regress-447613219': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
@@ -982,6 +986,7 @@
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
   'regress/regress-crbug-1437346': [PASS,FAIL],
+  'regress/regress-449341185': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
@@ -1614,6 +1619,10 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/wasm-to-js-tierup': [SKIP],
   'wasm/deopt/deopt-debugging': [SKIP],
+
+  # This test runs a GC to guarantee that the module is deserialized instead of
+  # using the cached module; this does not work in multi-isolate mode.
+  'wasm/compiled-module-serialization': [SKIP],
 
   # The test enables the global profiler, and there can only exist one profiler
   # at a time.
@@ -2665,6 +2674,7 @@
   'icu-date-to-string': [FAIL],
   'regress/regress-5036': [FAIL],
   'regress/regress-793588': [FAIL],
+  'regress/regress-449341185': [FAIL],
   'tzoffset-transition-apia': [FAIL],
   'tzoffset-transition-lord-howe': [FAIL],
   'tzoffset-transition-moscow': [FAIL],
@@ -2886,17 +2896,6 @@
 }],  # 'wasm_random_fuzzers == False'
 
 ##############################################################################
-['leaptiering', {
-  # Skip tests that test the old tiering behavior.
-  'baseline/test-baseline': [SKIP],
-  'baseline/cross-realm': [SKIP],
-
-  # This test relies on the call of a second closure of a function running in
-  # the interpreter, instead of picking up the optimized code.
-  'compiler/regress-9945-2': [SKIP],
-}],  # 'leaptiering'
-
-##############################################################################
 ['variant == stress_wasm_stack_switching', {
   # TODO(thibaudm): Fix profiler.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
@@ -2958,6 +2957,9 @@
 
   # Requires lazy.
   'regress/regress-crbug-1407080': [SKIP],
+
+  # This test is not compatible with --fuzzing.
+  'regress/regress-435630464-verification-failure': [SKIP],
 
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],

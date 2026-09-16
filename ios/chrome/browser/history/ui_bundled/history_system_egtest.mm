@@ -14,13 +14,12 @@
 #import "components/browsing_data/core/pref_names.h"
 #import "components/sync/base/command_line_switches.h"
 #import "components/url_formatter/elide_url.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/history/ui_bundled/history_ui_constants.h"
 #import "ios/chrome/browser/menu/ui_bundled/menu_action_type.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
@@ -127,7 +126,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
   config.additional_args.push_back(std::string("--") +
                                    syncer::kSyncShortNudgeDelayForTest);
-  config.features_enabled.push_back(kIOSQuickDelete);
   return config;
 }
 
@@ -407,7 +405,8 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
 #pragma mark Multiwindow
 
-- (void)testHistorySyncInMultiwindow {
+// TODO(crbug.com/446382453): Deflake the test.
+- (void)FLAKY_testHistorySyncInMultiwindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

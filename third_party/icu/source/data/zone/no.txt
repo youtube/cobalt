@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 no{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -21,17 +21,11 @@ no{
         "Africa:Lome"{
             ec{"Lomé"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "America:Araguaina"{
             ec{"Araguaína"}
         }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia_Banderas"{
             ec{"Bahía Banderas"}
@@ -51,9 +45,6 @@ no{
         "America:Cuiaba"{
             ec{"Cuiabá"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Maceio"{
             ec{"Maceió"}
         }
@@ -68,9 +59,6 @@ no{
         }
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Nord-Dakota"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -98,9 +86,6 @@ no{
         }
         "Asia:Chita"{
             ec{"Tsjita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Choybalsan"}
         }
         "Asia:Damascus"{
             ec{"Damaskus"}
@@ -180,9 +165,6 @@ no{
         "Atlantic:South_Georgia"{
             ec{"Sør-Georgia"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"koordinert universaltid"}
         }
@@ -243,9 +225,6 @@ no{
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Uzjhorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikanstaten"}
         }
@@ -254,9 +233,6 @@ no{
         }
         "Europe:Warsaw"{
             ec{"Warszawa"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporizjzja"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -275,9 +251,6 @@ no{
         }
         "Indian:Maldives"{
             ec{"Maldivene"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Easter"{
             ec{"Påskeøya"}
@@ -498,11 +471,6 @@ no{
             lg{"kinesisk tid"}
             ls{"kinesisk normaltid"}
         }
-        "meta:Choibalsan"{
-            ld{"sommertid for Tsjojbalsan"}
-            lg{"tidssone for Tsjojbalsan"}
-            ls{"normaltid for Tsjojbalsan"}
-        }
         "meta:Christmas"{
             ls{"tidssone for Christmasøya"}
         }
@@ -682,6 +650,9 @@ no{
             lg{"Russisk (Petropavlovsk-Kamtsjatskij) tid"}
             ls{"Russisk (Petropavlovsk-Kamtsjatskij) normaltid"}
         }
+        "meta:Kazakhstan"{
+            ls{"kasakhstansk tid"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"østkasakhstansk tid"}
         }
@@ -720,9 +691,6 @@ no{
             lg{"Macau-tid"}
             ls{"Macau, standardtid"}
         }
-        "meta:Macquarie"{
-            ls{"tidssone for Macquarieøya"}
-        }
         "meta:Magadan"{
             ld{"sommertid for Magadan"}
             lg{"tidssone for Magadan"}
@@ -747,11 +715,6 @@ no{
         }
         "meta:Mawson"{
             ls{"tidssone for Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"sommertid for nordvestlige Mexico"}
-            lg{"tidssone for nordvestlige Mexico"}
-            ls{"normaltid for nordvestlige Mexico"}
         }
         "meta:Mexico_Pacific"{
             ld{"sommertid for den meksikanske Stillehavskysten"}

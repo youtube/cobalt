@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ar{
     Currencies{
         ADP{
@@ -1213,13 +1213,5 @@ ar{
             two{"(عملة غير معروفة)"}
             zero{"(عملة غير معروفة)"}
         }
-    }
-    CurrencyUnitPatterns{
-        few{"{0} {1}"}
-        many{"{0} {1}"}
-        one{"{0} {1}"}
-        other{"{0} {1}"}
-        two{"{0} {1}"}
-        zero{"{0} {1}"}
     }
 }

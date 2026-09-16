@@ -1,0 +1,26 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "persist_tab_context_browser_agent.h",
+    "persist_tab_context_browser_agent.mm",
+    "persist_tab_context_state_agent.h",
+    "persist_tab_context_state_agent.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/intelligence/features",
+    "//ios/chrome/browser/intelligence/persist_tab_context/metrics",
+    "//ios/chrome/browser/intelligence/proto_wrappers",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_observer",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/tabs/model:dependency_installer",
+    "//ios/web/public",
+  ]
+}

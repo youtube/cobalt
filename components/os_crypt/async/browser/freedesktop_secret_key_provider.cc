@@ -123,8 +123,8 @@ class FreedesktopSecretKeyProvider::Prompter
   using PromptCallback = base::OnceCallback<void(
       base::expected<T, FreedesktopSecretKeyProvider::ErrorDetail>)>;
 
-  template <dbus_utils::internal::StringLiteral ArgsSig,
-            dbus_utils::internal::StringLiteral RetsSig,
+  template <dbus_utils::SignatureLiteral ArgsSig,
+            dbus_utils::SignatureLiteral RetsSig,
             typename... Args>
   static void Prompt(scoped_refptr<dbus::Bus> bus,
                      dbus::ObjectProxy* object_proxy,
@@ -199,8 +199,8 @@ class FreedesktopSecretKeyProvider::Prompter
 
   void OnPromptCompletedSignal(dbus::Signal* signal) {
     dbus::MessageReader reader(signal);
-    auto dismissed = dbus_utils::internal::ReadValue<bool>(reader);
-    auto variant = dbus_utils::internal::ReadValue<dbus_utils::Variant>(reader);
+    auto dismissed = dbus_utils::ReadValue<bool>(reader);
+    auto variant = dbus_utils::ReadValue<dbus_utils::Variant>(reader);
     if (!dismissed.has_value() || !variant.has_value() ||
         reader.HasMoreData()) {
       LOG(ERROR) << "Failed to read Prompt.Completed signal args.";
@@ -242,11 +242,9 @@ class FreedesktopSecretKeyProvider::Prompter
 
 FreedesktopSecretKeyProvider::FreedesktopSecretKeyProvider(
     const std::string& password_store,
-    bool use_for_encryption,
     const std::string& product_name,
     scoped_refptr<dbus::Bus> bus)
     : password_store_(password_store),
-      use_for_encryption_(use_for_encryption),
       product_name_(product_name),
       bus_(std::move(bus)) {
   if (!bus_) {
@@ -275,7 +273,7 @@ void FreedesktopSecretKeyProvider::GetKey(KeyCallback callback) {
   default_collection_proxy_ = nullptr;
 
   if (password_store_ == "basic") {
-    // Use FallbackLinuxKeyProvider.
+    // Use PosixKeyProvider.
     FinalizeFailure(InitStatus::kDisabled, ErrorDetail::kNone);
   } else if (password_store_ == "gnome-libsecret") {
     InitializeFreedesktopSecretService();
@@ -318,7 +316,7 @@ void FreedesktopSecretKeyProvider::GetKey(KeyCallback callback) {
 }
 
 bool FreedesktopSecretKeyProvider::UseForEncryption() {
-  return use_for_encryption_;
+  return true;
 }
 
 bool FreedesktopSecretKeyProvider::IsCompatibleWithOsCryptSync() {
@@ -819,15 +817,13 @@ void FreedesktopSecretKeyProvider::RecordInitStatus(InitStatus status,
 void FreedesktopSecretKeyProvider::CloseSession() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (session_opened_) {
-    dbus_utils::CallMethod<"", "">(
-        session_proxy_, kSecretSessionInterface, kMethodClose,
-        base::BindOnce([](dbus_utils::CallMethodResult<>) {}));
+    dbus_utils::CallMethod<"", "">(session_proxy_, kSecretSessionInterface,
+                                   kMethodClose, base::DoNothing());
   }
   if (kwallet_handle_ != kKWalletInvalidHandle) {
-    dbus_utils::CallMethod<"ibs", "i">(
-        kwallet_proxy_, kKWalletInterface, kKWalletMethodClose,
-        base::BindOnce([](dbus_utils::CallMethodResultSig<"i">) {}),
-        kwallet_handle_, false, product_name_);
+    dbus_utils::CallMethod<"ibs", "i">(kwallet_proxy_, kKWalletInterface,
+                                       kKWalletMethodClose, base::DoNothing(),
+                                       kwallet_handle_, false, product_name_);
     kwallet_handle_ = kKWalletInvalidHandle;
   }
 }

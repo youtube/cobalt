@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 bs{
     zoneStrings{
         "Africa:Cairo"{
@@ -69,9 +69,6 @@ bs{
         "America:Puerto_Rico"{
             ec{"Portoriko"}
         }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
-        }
         "Asia:Almaty"{
             ec{"Almati"}
         }
@@ -107,9 +104,6 @@ bs{
         }
         "Asia:Brunei"{
             ec{"Bruneji"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Čojbalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -249,9 +243,6 @@ bs{
         "Atlantic:St_Helena"{
             ec{"Sveta Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Australia:Lord_Howe"{
             ec{"Lord Hau"}
         }
@@ -355,9 +346,6 @@ bs{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Užgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -366,9 +354,6 @@ bs{
         }
         "Europe:Warsaw"{
             ec{"Varšava"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporožje"}
         }
         "Europe:Zurich"{
             ec{"Cirih"}
@@ -574,11 +559,6 @@ bs{
             lg{"Kinesko vrijeme"}
             ls{"Kinesko standardno vrijeme"}
         }
-        "meta:Choibalsan"{
-            ld{"Čojbalsansko ljetno vrijeme"}
-            lg{"Čojbalsansko vrijeme"}
-            ls{"Čojbalsansko standardno vrijeme"}
-        }
         "meta:Christmas"{
             ls{"Vrijeme na Božićnom Ostrvu"}
         }
@@ -755,11 +735,14 @@ bs{
             lg{"Petropavlovsk-Kamčatski vreme"}
             ls{"Petropavlovsk-Kamčatski standardno vreme"}
         }
+        "meta:Kazakhstan"{
+            ls{"kazahstansko vrijeme"}
+        }
         "meta:Kazakhstan_Eastern"{
-            ls{"Istočnokazahstansko vrijeme"}
+            ls{"istočnokazahstansko vrijeme"}
         }
         "meta:Kazakhstan_Western"{
-            ls{"Zapadnokazahstansko vrijeme"}
+            ls{"zapadnokazahstansko vrijeme"}
         }
         "meta:Korea"{
             ld{"Korejsko ljetno vrijeme"}
@@ -775,7 +758,7 @@ bs{
             ls{"Krasnojarsko standardno vrijeme"}
         }
         "meta:Kyrgystan"{
-            ls{"Kirgistansko vrijeme"}
+            ls{"kirgistansko vrijeme"}
         }
         "meta:Lanka"{
             ls{"Lanka vreme"}
@@ -792,9 +775,6 @@ bs{
             ld{"Makao letnje računanje vremena"}
             lg{"Makao vreme"}
             ls{"Makao standardno vreme"}
-        }
-        "meta:Macquarie"{
-            ls{"Vrijeme na Ostrvu Makvori"}
         }
         "meta:Magadan"{
             ld{"Magadansko ljetno vrijeme"}
@@ -820,11 +800,6 @@ bs{
         }
         "meta:Mawson"{
             ls{"Vrijeme stanice Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Sjeverozapadno meksičko ljetno vrijeme"}
-            lg{"Sjeverozapadno meksičko vrijeme"}
-            ls{"Sjeverozapadno meksičko standardno vrijeme"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksičko pacifičko ljetno vrijeme"}
@@ -987,7 +962,7 @@ bs{
             ls{"Tajpejsko standardno vrijeme"}
         }
         "meta:Tajikistan"{
-            ls{"Tadžikistansko vrijeme"}
+            ls{"tadžikistansko vrijeme"}
         }
         "meta:Tokelau"{
             ls{"Vrijeme na Ostrvu Tokelau"}
@@ -1001,9 +976,9 @@ bs{
             ls{"Čučko vrijeme"}
         }
         "meta:Turkmenistan"{
-            ld{"Turkmenistansko ljetno vrijeme"}
-            lg{"Turkmenistansko vrijeme"}
-            ls{"Turkmenistansko standardno vrijeme"}
+            ld{"turkmenistansko ljetno vrijeme"}
+            lg{"turkmenistansko vrijeme"}
+            ls{"turkmenistansko standardno vrijeme"}
         }
         "meta:Tuvalu"{
             ls{"Tuvaluansko vrijeme"}
@@ -1014,9 +989,9 @@ bs{
             ls{"Urugvajsko standardno vrijeme"}
         }
         "meta:Uzbekistan"{
-            ld{"Uzbekistansko ljetno vrijeme"}
-            lg{"Uzbekistansko vrijeme"}
-            ls{"Uzbekistansko standardno vrijeme"}
+            ld{"uzbekistansko ljetno vrijeme"}
+            lg{"uzbekistansko vrijeme"}
+            ls{"uzbekistansko standardno vrijeme"}
         }
         "meta:Vanuatu"{
             ld{"Vanuatuansko ljetno vrijeme"}

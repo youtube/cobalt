@@ -30,6 +30,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "components/persistent_cache/backend_params.h"
 #include "components/startup_metric_utils/gpu/startup_metric_utils.h"
 #include "components/version_info/version_info.h"
 #include "components/viz/common/features.h"
@@ -53,7 +54,6 @@
 #include "gpu/ipc/common/memory_stats.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "gpu/ipc/service/image_decode_accelerator_worker.h"
 #include "gpu/vulkan/buildflags.h"
@@ -115,6 +115,7 @@
 
 #if BUILDFLAG(SKIA_USE_DAWN)
 #include "gpu/command_buffer/service/dawn_context_provider.h"
+#include "gpu/command_buffer/service/gpu_persistent_cache.h"
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
@@ -246,15 +247,23 @@ GpuServiceImpl::GpuServiceImpl(
     if (dawn_context_provider_) {
       // GpuServiceImpl holds the instance of DawnContextProvider, so it
       // outlives the DawnContextProvider.
-      auto cache_blob_callback = base::BindRepeating(
-          [](GpuServiceImpl* self, const std::string& key,
-             const std::string& blob) {
-            self->StoreBlobToDisk(gpu::kGraphiteDawnGpuDiskCacheHandle, key,
-                                  blob);
-          },
-          base::Unretained(this));
-      auto caching_interface = dawn_caching_interface_factory_->CreateInstance(
-          gpu::kGraphiteDawnGpuDiskCacheHandle, std::move(cache_blob_callback));
+      std::unique_ptr<gpu::webgpu::DawnCachingInterface> caching_interface;
+      if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+        caching_interface = dawn_caching_interface_factory_->CreateInstance(
+            gpu::kGraphiteDawnGpuDiskCacheHandle,
+            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn"));
+      } else {
+        auto cache_blob_callback = base::BindRepeating(
+            [](GpuServiceImpl* self, const std::string& key,
+               const std::string& blob) {
+              self->StoreBlobToDisk(gpu::kGraphiteDawnGpuDiskCacheHandle, key,
+                                    blob);
+            },
+            base::Unretained(this));
+        caching_interface = dawn_caching_interface_factory_->CreateInstance(
+            gpu::kGraphiteDawnGpuDiskCacheHandle,
+            std::move(cache_blob_callback));
+      }
       dawn_context_provider_->SetCachingInterface(std::move(caching_interface));
     }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
@@ -283,9 +292,6 @@ GpuServiceImpl::GpuServiceImpl(
   }
 #endif
 
-  gpu_memory_buffer_factory_ = gpu::GpuMemoryBufferFactory::CreateNativeType(
-      vulkan_context_provider(), io_runner_);
-
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
 }
 
@@ -294,10 +300,12 @@ GpuServiceImpl::PendingEstablishGpuChannelRequest::
     PendingEstablishGpuChannelRequest(int32_t client_id,
                                       uint64_t client_tracing_id,
                                       bool is_gpu_host,
+                                      bool enable_extra_handles_validation,
                                       EstablishGpuChannelCallback callback)
     : client_id(client_id),
       client_tracing_id(client_tracing_id),
       is_gpu_host(is_gpu_host),
+      enable_extra_handles_validation(enable_extra_handles_validation),
       callback(std::move(callback)) {}
 
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
@@ -349,18 +357,9 @@ GpuServiceImpl::~GpuServiceImpl() {
   if (watchdog_thread_)
     watchdog_thread_->OnGpuProcessTearDown();
 
-#if !BUILDFLAG(IS_ANDROID)
-  if (owned_shared_image_manager_) {
-    // Clear the SharedImageManager's raw_ptr to the GMB factory before
-    // destroying the latter below.
-    owned_shared_image_manager_->clear_gpu_memory_buffer_factory();
-  }
-#endif
-
   compositor_gpu_thread_.reset();
   media_gpu_channel_manager_.reset();
   gpu_channel_manager_.reset();
-  gpu_memory_buffer_factory_.reset();
 
   // WebNN must be destroyed before the scheduler is destroyed.
   webnn_context_provider_.reset();
@@ -898,6 +897,7 @@ bool GpuServiceImpl::IsExiting() const {
 void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
                                          uint64_t client_tracing_id,
                                          bool is_gpu_host,
+                                         bool enable_extra_handles_validation,
                                          EstablishGpuChannelCallback callback) {
   // This should always be called on the IO thread first.
   if (io_runner_->BelongsToCurrentThread()) {
@@ -922,7 +922,8 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     main_runner_->PostTask(
         FROM_HERE, base::BindOnce(&GpuServiceImpl::EstablishGpuChannel,
                                   weak_ptr_, client_id, client_tracing_id,
-                                  is_gpu_host, std::move(wrap_callback)));
+                                  is_gpu_host, enable_extra_handles_validation,
+                                  std::move(wrap_callback)));
     return;
   }
 
@@ -933,7 +934,8 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display && !display->IsInitialized()) {
     pending_establish_gpu_channel_requests_.push_back(
-        {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
+        {client_id, client_tracing_id, is_gpu_host,
+         enable_extra_handles_validation, std::move(callback)});
     return;
   }
 #endif
@@ -941,7 +943,7 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
       channel_token, client_id, client_tracing_id, is_gpu_host,
-      gpu_extra_info_);
+      enable_extra_handles_validation, gpu_extra_info_);
 
   if (!gpu_channel) {
     // This returns a null handle, which is treated by the client as a failure
@@ -974,6 +976,26 @@ void GpuServiceImpl::SetChannelClientPid(int32_t client_id,
   // this condition is reasonable.
   DCHECK_NE(client_pid, base::kNullProcessId);
   gpu_channel_manager_->SetChannelClientPid(client_id, client_pid);
+}
+
+void GpuServiceImpl::SetChannelPersistentCacheParams(
+    int32_t client_id,
+    const gpu::GpuDiskCacheHandle& handle,
+    persistent_cache::BackendParams backend_params) {
+  TRACE_EVENT2("gpu", "GpuServiceImpl::SetChannelPersistentCacheParams",
+               "client_id", client_id, "handle_type", GetHandleType(handle));
+#if BUILDFLAG(SKIA_USE_DAWN)
+  // TODO(399642827): Support other cache types.
+  CHECK_EQ(client_id, gpu::kGraphiteDawnClientId);
+  CHECK_EQ(GetHandleType(handle), gpu::GpuDiskCacheType::kDawnGraphite);
+  if (!dawn_context_provider_) {
+    return;
+  }
+
+  auto* cache = dawn_context_provider_->GetCachingInterface();
+  CHECK(cache);
+  cache->InitializePersistentCache(std::move(backend_params));
+#endif
 }
 
 void GpuServiceImpl::SetChannelDiskCacheHandle(
@@ -1213,7 +1235,9 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   for (auto& request : pending_requests) {
     if (display_ready) {
       EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                          request.is_gpu_host, std::move(request.callback));
+                          request.is_gpu_host,
+                          request.enable_extra_handles_validation,
+                          std::move(request.callback));
     } else {
       LOG(ERROR)
           << "Failed to initialize display on foreground, rejecting pending "
@@ -1237,8 +1261,7 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-void GpuServiceImpl::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void GpuServiceImpl::OnMemoryPressure(base::MemoryPressureLevel level) {
   // Forward the notification to the registry of MemoryPressureListeners.
   base::SingleThreadTaskRunner::GetMainThreadDefault()->PostTask(
       FROM_HERE,
@@ -1416,7 +1439,7 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   bool thread_safe_manager = true;
   owned_shared_image_manager_ = std::make_unique<gpu::SharedImageManager>(
       thread_safe_manager, display_context_on_another_thread,
-      gpu_memory_buffer_factory_.get());
+      vulkan_context_provider(), io_runner_);
 #if BUILDFLAG(IS_OZONE)
   owned_shared_image_manager_->SetSupportsOverlays(supports_overlays);
 #endif

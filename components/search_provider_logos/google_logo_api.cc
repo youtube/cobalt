@@ -47,7 +47,7 @@ GURL GetGoogleDoodleURL(const GURL& google_base_url) {
   replacements.SetPathStr("async/ddljson");
   // Make sure we use https rather than http (except for .cn).
   if (google_base_url.SchemeIs(url::kHttpScheme) &&
-      !base::EndsWith(google_base_url.host_piece(), ".cn",
+      !base::EndsWith(google_base_url.host(), ".cn",
                       base::CompareCase::INSENSITIVE_ASCII)) {
     replacements.SetSchemeStr(url::kHttpsScheme);
   }
@@ -135,7 +135,8 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(const GURL& base_url,
   // Default parsing failure to be true.
   *parsing_failed = true;
 
-  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(response_sp);
+  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
+      response_sp, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_json.has_value()) {
     LOG(WARNING) << parsed_json.error().message << " at "
                  << parsed_json.error().line << ":"

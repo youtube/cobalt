@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 mgo{
     AuxExemplarCharacters{"[c h l q v x]"}
     ExemplarCharacters{"[aà b {ch} d eè ə{ə̀} f g {gh} iì j k m n ŋ oò ɔ{ɔ̀} p r s t uù w y z ʼ]"}
@@ -63,13 +63,13 @@ mgo{
             dayNames{
                 format{
                     short{
-                        "1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
+                        "A1",
+                        "A2",
+                        "A3",
+                        "A4",
+                        "A5",
+                        "A6",
+                        "A7",
                     }
                     wide{
                         "Aneg 1",
@@ -83,13 +83,13 @@ mgo{
                 }
                 stand-alone{
                     narrow{
-                        "A1",
-                        "A2",
-                        "A3",
-                        "A4",
-                        "A5",
-                        "A6",
-                        "A7",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
                     }
                 }
             }

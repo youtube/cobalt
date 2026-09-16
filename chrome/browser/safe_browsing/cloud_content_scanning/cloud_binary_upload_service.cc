@@ -14,7 +14,6 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_features.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
@@ -26,9 +25,10 @@
 #include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/reporting_utils.h"
 #include "components/policy/core/common/management/management_service.h"
-#include "components/safe_browsing/content/browser/web_ui/web_ui_info_singleton.h"
+#include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safebrowsing_switches.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -433,6 +433,9 @@ void CloudBinaryUploadService::OnGetRequestData(Request::Id request_id,
     if (result == Result::FILE_ENCRYPTED) {
       request->set_is_content_encrypted(true);
     }
+    if (result == Result::FILE_TOO_LARGE) {
+      request->set_is_content_too_large(true);
+    }
   }
 
   if (!request->IsAuthRequest() && data.size == 0) {
@@ -521,7 +524,7 @@ void CloudBinaryUploadService::OnGetRequestData(Request::Id request_id,
   }
   upload_request->set_access_token(request->access_token());
 
-  WebUIInfoSingleton::GetInstance()->AddToDeepScanRequests(
+  WebUIContentInfoSingleton::GetInstance()->AddToDeepScanRequests(
       request->per_profile_request(), request->access_token(),
       upload_request->GetUploadInfo(), url.spec(),
       request->content_analysis_request());
@@ -619,10 +622,17 @@ void CloudBinaryUploadService::MaybeFinishRequest(Request::Id request_id) {
     *response.add_results() = std::move(tag_and_result.second);
   }
 
-  // Set `result` to be unknown, if the request is terminated with incomplete
+  // Set `result` to be INCOMPLETE_RESPONSE, if the request is terminated with incomplete
   // response.
-  Result result = ResponseIsComplete(request_id) ? Result::SUCCESS
-                                                 : Result::INCOMPLETE_RESPONSE;
+  Result result = Result::SUCCESS;
+  if (!ResponseIsComplete(request_id)) {
+    result = Result::INCOMPLETE_RESPONSE;
+  } else if (request->is_content_too_large()) {
+    result = Result::FILE_TOO_LARGE;
+  } else if (request->is_content_encrypted()) {
+    result = Result::FILE_ENCRYPTED;
+  }
+
   FinishRequest(request, result, std::move(response));
 }
 
@@ -656,10 +666,10 @@ void CloudBinaryUploadService::FinishRequest(
 
   // We add the request here in case we never actually uploaded anything, so
   // it wasn't added in OnGetRequestData
-  WebUIInfoSingleton::GetInstance()->AddToDeepScanRequests(
+  WebUIContentInfoSingleton::GetInstance()->AddToDeepScanRequests(
       request->per_profile_request(), request->access_token(), upload_info,
       request->GetUrlWithParams().spec(), request->content_analysis_request());
-  WebUIInfoSingleton::GetInstance()->AddToDeepScanResponses(
+  WebUIContentInfoSingleton::GetInstance()->AddToDeepScanResponses(
       active_tokens_[request->id()], ResultToString(result), response);
 
   request->FinishRequest(result, response);

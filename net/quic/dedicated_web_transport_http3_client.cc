@@ -59,10 +59,11 @@ constexpr base::FeatureParam<quic::CongestionControlType>
         /*default_value=*/quic::kCubicBytes,
         &kWebTransportCongestionControlAlgorithms};
 
-std::set<std::string> HostsFromOrigins(std::set<HostPortPair> origins) {
+std::set<std::string> HostsFromSchemeHostPorts(
+    const std::set<url::SchemeHostPort>& scheme_host_ports) {
   std::set<std::string> hosts;
-  for (const auto& origin : origins) {
-    hosts.insert(origin.host());
+  for (const auto& scheme_host_port : scheme_host_ports) {
+    hosts.insert(scheme_host_port.host());
   }
   return hosts;
 }
@@ -91,9 +92,11 @@ std::unique_ptr<quic::ProofVerifier> CreateProofVerifier(
     URLRequestContext* context,
     const WebTransportParameters& parameters) {
   if (parameters.server_certificate_fingerprints.empty()) {
-    std::set<std::string> hostnames_to_allow_unknown_roots = HostsFromOrigins(
-        context->quic_context()->params()->origins_to_force_quic_on);
-    if (context->quic_context()->params()->webtransport_developer_mode) {
+    std::set<std::string> hostnames_to_allow_unknown_roots =
+        HostsFromSchemeHostPorts(
+            context->quic_context()->params()->origins_to_force_quic_on);
+    if (context->quic_context()->params()->force_quic_everywhere ||
+        context->quic_context()->params()->webtransport_developer_mode) {
       hostnames_to_allow_unknown_roots.insert("");
     }
     return std::make_unique<ProofVerifierChromium>(
@@ -507,11 +510,13 @@ void DedicatedWebTransportHttp3Client::DoLoop(int rv) {
 int DedicatedWebTransportHttp3Client::DoInit() {
   if (!url_.is_valid())
     return ERR_INVALID_URL;
-  if (url_.scheme_piece() != url::kHttpsScheme)
+  if (url_.scheme() != url::kHttpsScheme) {
     return ERR_DISALLOWED_URL_SCHEME;
+  }
 
-  if (!IsPortAllowedForScheme(url_.EffectiveIntPort(), url_.scheme_piece()))
+  if (!IsPortAllowedForScheme(url_.EffectiveIntPort(), url_.scheme())) {
     return ERR_UNSAFE_PORT;
+  }
 
   if (!application_protocols_.empty() &&
       !webtransport::ValidateSubprotocolList(application_protocols_)) {
@@ -645,8 +650,8 @@ void DedicatedWebTransportHttp3Client::CreateConnection() {
   session_ = std::make_unique<DedicatedWebTransportHttp3ClientSession>(
       InitializeQuicConfig(*quic_context_->params()), supported_versions_,
       connection.release(),
-      quic::QuicServerId(url_.host(), url_.EffectiveIntPort()), &crypto_config_,
-      this);
+      quic::QuicServerId(url_.GetHost(), url_.EffectiveIntPort()),
+      &crypto_config_, this);
   if (!original_supported_versions_.empty()) {
     session_->set_client_original_supported_versions(
         original_supported_versions_);
@@ -773,8 +778,8 @@ int DedicatedWebTransportHttp3Client::DoSendRequest() {
   }
 
   quiche::HttpHeaderBlock headers;
-  DCHECK_EQ(url_.scheme(), url::kHttpsScheme);
-  headers[":scheme"] = url_.scheme();
+  DCHECK_EQ(url_.GetScheme(), url::kHttpsScheme);
+  headers[":scheme"] = url_.GetScheme();
   headers[":method"] = "CONNECT";
   headers[":authority"] = GetHostAndOptionalPort(url_);
   headers[":path"] = url_.PathForRequest();

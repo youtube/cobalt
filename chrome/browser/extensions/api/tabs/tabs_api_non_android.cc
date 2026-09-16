@@ -60,6 +60,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/incognito_allowed_url.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -128,6 +129,7 @@
 #include "ui/gfx/geometry/rect.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
 #include "ash/wm/window_pin_util.h"
 #include "chrome/browser/ash/boca/on_task/locked_quiz_session_manager_factory.h"
 #include "chrome/browser/ui/browser_command_controller.h"
@@ -167,6 +169,12 @@ constexpr char kWindowCreateCannotUseTabIdWithIwaError[] =
     "tab by its ID.";
 constexpr char kWindowCreateCannotMoveIwaTabError[] =
     "The tab of an Isolated Web App cannot be moved to a new window.";
+
+#if BUILDFLAG(IS_CHROMEOS)
+constexpr char kWindowCreateLockedFullscreenUrlCountMismatchError[] =
+    "When creating a new window in locked fullscreen mode, exactly one URL "
+    "should be supplied.";
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool IsValidStateForWindowsCreateFunction(
     const windows::Create::Params::CreateData* create_data) {
@@ -284,7 +292,14 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
           ? calling_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)
           : calling_profile;
 
+  if (!IsValidStateForWindowsCreateFunction(base::OptionalToPtr(create_data))) {
+    return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+  }
+
   // Look for optional tab id.
+  bool is_locked_fullscreen =
+      create_data &&
+      create_data->state == windows::WindowState::kLockedFullscreen;
   WindowController* source_window = nullptr;
   if (create_data && create_data->tab_id) {
     if (isolated_web_app_url_info.has_value()) {
@@ -329,10 +344,41 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
     if (DevToolsWindow::IsDevToolsWindow(web_contents)) {
       return RespondNow(Error(tabs_constants::kNotAllowedForDevToolsError));
     }
+
+#if BUILDFLAG(IS_CHROMEOS)
+    // Tabs cannot be moved to the OnTask system web app. Only relevant for
+    // locked fullscreen on ChromeOS.
+    if (is_locked_fullscreen &&
+        ash::features::IsBocaOnTaskLockedQuizMigrationEnabled()) {
+      return RespondNow(
+          Error(ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError));
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
-  if (!IsValidStateForWindowsCreateFunction(base::OptionalToPtr(create_data))) {
-    return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+  if (is_locked_fullscreen) {
+    if (!tabs_internal::ExtensionHasLockedFullscreenPermission(extension())) {
+      return RespondNow(
+          Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
+    }
+
+#if BUILDFLAG(IS_CHROMEOS)
+    // Set up and launch the OnTask system web app if applicable. The legacy
+    // setup leverages a regular browser instance today.
+    if (ash::features::IsBocaOnTaskLockedQuizMigrationEnabled()) {
+      if (urls.size() != 1) {
+        return RespondNow(
+            Error(kWindowCreateLockedFullscreenUrlCountMismatchError));
+      }
+      ash::boca::LockedQuizSessionManagerFactory::GetInstance()
+          ->GetForBrowserContext(calling_profile)
+          ->OpenLockedQuiz(
+              urls.front(),
+              base::BindOnce(
+                  &WindowsCreateFunction::OnWindowCreatedAsynchronously, this));
+      return RespondLater();
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   Browser::Type window_type = Browser::TYPE_NORMAL;
@@ -416,45 +462,45 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   }
 
   // Create a new BrowserWindow if possible.
-  if (Browser::GetCreationStatusForProfile(window_profile) !=
-      Browser::CreationStatus::kOk) {
+  if (GetBrowserWindowCreationStatusForProfile(*window_profile) !=
+      BrowserWindowInterface::CreationStatus::kOk) {
     return RespondNow(Error(ExtensionTabUtil::kBrowserWindowNotAllowed));
   }
-  Browser::CreateParams create_params(window_type, window_profile,
-                                      user_gesture());
+  BrowserWindowCreateParams create_params(window_type, *window_profile,
+                                          user_gesture());
+
   if (isolated_web_app_url_info.has_value()) {
+    create_params.type = BrowserWindowInterface::TYPE_APP;
+    create_params.app_name = web_app::GenerateApplicationNameFromAppId(
+        isolated_web_app_url_info->app_id());
     // For Isolated Web Apps, the actual navigating-to URL will be the app's
     // start_url to prevent deep-linking attacks, while the original URL will be
     // accessible via window.launchQueue; for this reason the browser is marked
     // trusted.
-    create_params = Browser::CreateParams::CreateForApp(
-        web_app::GenerateApplicationNameFromAppId(
-            isolated_web_app_url_info->app_id()),
-        /*trusted_source=*/true, window_bounds, window_profile, user_gesture());
-  } else if (extension_id.empty()) {
-    create_params.initial_bounds = window_bounds;
-  } else {
+    create_params.is_trusted_source = true;
+  } else if (!extension_id.empty()) {
     // extension_id is only set for CREATE_TYPE_POPUP.
-    create_params = Browser::CreateParams::CreateForAppPopup(
-        web_app::GenerateApplicationNameFromAppId(extension_id),
-        /*trusted_source=*/false, window_bounds, window_profile,
-        user_gesture());
+    create_params.type = BrowserWindowInterface::TYPE_APP_POPUP;
+    create_params.app_name =
+        web_app::GenerateApplicationNameFromAppId(extension_id);
+    create_params.is_trusted_source = false;
   }
+  create_params.initial_bounds = window_bounds;
   create_params.initial_show_state = ui::mojom::WindowShowState::kNormal;
+
   if (create_data && create_data->state != windows::WindowState::kNone) {
-    if (create_data->state == windows::WindowState::kLockedFullscreen &&
-        !tabs_internal::ExtensionHasLockedFullscreenPermission(extension())) {
-      return RespondNow(
-          Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
-    }
     create_params.initial_show_state =
         tabs_internal::ConvertToWindowShowState(create_data->state);
   }
 
-  Browser* new_window = Browser::Create(create_params);
+  BrowserWindowInterface* new_window =
+      CreateBrowserWindow(std::move(create_params));
   if (!new_window) {
     return RespondNow(Error(ExtensionTabUtil::kBrowserWindowNotAllowed));
   }
+  // NOTE: Even though `new_window` was returned, it may not be fully
+  // initialized on non-desktop platforms. See documentation on
+  // CreateBrowserWindow().
 
   auto create_nav_params =
       [&](const GURL& url) -> base::expected<NavigateParams, std::string> {
@@ -542,7 +588,8 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
           source_tab_strip->DetachTabAtForInsertion(tab_index);
       tab = detached_tab.get();
       TabStripModel* target_tab_strip =
-          ExtensionTabUtil::GetEditableTabStripModel(new_window);
+          ExtensionTabUtil::GetEditableTabStripModel(
+              new_window->GetBrowserForMigrationOnly());
       if (!target_tab_strip) {
         return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
       }
@@ -553,15 +600,15 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   // Create a new tab if the created window is still empty. Don't create a new
   // tab when it is intended to create an empty popup.
   if (!tab && urls.empty() && window_type == Browser::TYPE_NORMAL) {
-    chrome::NewTab(new_window);
+    chrome::NewTab(new_window->GetBrowserForMigrationOnly());
   }
   chrome::SelectNumberedTab(
-      new_window, 0,
+      new_window->GetBrowserForMigrationOnly(), 0,
       TabStripUserGestureDetails(
           TabStripUserGestureDetails::GestureType::kNone));
 
   if (focused) {
-    new_window->window()->Show();
+    new_window->GetWindow()->Show();
   } else {
     // Show an unfocused new window.
     BrowserWindowInterface* const last_active_bwi =
@@ -572,9 +619,9 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
     // the old active browser.
     if (last_active_bwi && last_active_bwi->IsActive()) {
       ScopedPinBrowserAtFront scoper(last_active_bwi);
-      new_window->window()->ShowInactive();
+      new_window->GetWindow()->ShowInactive();
     } else {
-      new_window->window()->ShowInactive();
+      new_window->GetWindow()->ShowInactive();
     }
   }
 
@@ -584,25 +631,27 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
 // TODO(crbug.com/40254339): Remove this workaround when linux is fixed.
 // TODO(crbug.com/40254339): Find a fix for wayland as well.
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
-  if (new_window->initial_show_state() ==
+  if (new_window->GetBrowserForMigrationOnly()->initial_show_state() ==
       ui::mojom::WindowShowState::kMinimized) {
-    new_window->window()->Minimize();
+    new_window->GetWindow()->Minimize();
   }
 #endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
 
   // Lock the window fullscreen only after the new tab has been created
   // (otherwise the tabstrip is empty), and window()->show() has been called
   // (otherwise that resets the locked mode for devices in tablet mode).
+  // TODO(crbug.com/438540029) - Remove once the migration is complete.
   if (create_data &&
       create_data->state == windows::WindowState::kLockedFullscreen) {
 #if BUILDFLAG(IS_CHROMEOS)
     ash::boca::LockedQuizSessionManagerFactory::GetInstance()
         ->GetForBrowserContext(calling_profile)
-        ->SetLockedFullscreenState(new_window, /*pinned=*/true);
+        ->SetLockedFullscreenState(new_window->GetBrowserForMigrationOnly(),
+                                   /*pinned=*/true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
-  if (new_window->profile()->IsOffTheRecord() &&
+  if (new_window->GetProfile()->IsOffTheRecord() &&
       !browser_context()->IsOffTheRecord() &&
       !include_incognito_information()) {
     // Don't expose incognito windows if extension itself works in non-incognito
@@ -615,6 +664,21 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
           *new_window, extension(), WindowController::kPopulateTabs,
           source_context_type())));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+void WindowsCreateFunction::OnWindowCreatedAsynchronously(
+    const SessionID& session_id) {
+  BrowserWindowInterface* const browser =
+      BrowserWindowInterface::FromSessionID(session_id);
+  if (!browser) {
+    RespondWithError(ExtensionTabUtil::kBrowserWindowNotAllowed);
+    return;
+  }
+  Respond(WithArguments(ExtensionTabUtil::CreateWindowValueForExtension(
+      *browser, extension(), WindowController::kPopulateTabs,
+      source_context_type())));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Tabs ------------------------------------------------------------------------
 

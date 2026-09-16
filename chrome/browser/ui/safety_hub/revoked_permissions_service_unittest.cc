@@ -51,6 +51,7 @@
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safety_check/safety_check.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/ukm/content/source_url_recorder.h"
 #include "components/ukm/test_ukm_recorder.h"
@@ -295,9 +296,7 @@ class RevokedPermissionsServiceTest
   void SetupRevokedUnusedPermissionSite(
       std::string url,
       base::TimeDelta lifetime =
-          content_settings::features::
-              kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold
-                  .Get()) {
+          safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold()) {
     content_settings::ContentSettingConstraints constraint(clock()->Now());
     constraint.set_lifetime(lifetime);
 
@@ -333,9 +332,7 @@ class RevokedPermissionsServiceTest
   void SetupRevokedAbusiveNotificationSite(
       std::string url,
       base::TimeDelta lifetime =
-          content_settings::features::
-              kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold
-                  .Get()) {
+          safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold()) {
     content_settings::ContentSettingConstraints constraint(clock()->Now());
     constraint.set_lifetime(lifetime);
     hcsm()->SetWebsiteSettingDefaultScope(
@@ -1326,8 +1323,7 @@ TEST_P(RevokedPermissionsServiceTest,
 
 TEST_P(RevokedPermissionsServiceTest, InitializeLatestResult) {
   const auto default_lifetime =
-      content_settings::features::
-          kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold.Get();
+      safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold();
   const auto shorter_lifetime = default_lifetime - base::Days(1);
   const auto longer_lifetime = default_lifetime + base::Days(1);
   const auto disruptive_revocations_lifetime = default_lifetime;
@@ -1462,6 +1458,11 @@ TEST_P(RevokedPermissionsServiceTest, PermissionsRevocationType) {
   SetupRevokedUnusedPermissionSite(url5);
   SetupRevokedDisruptiveNotificationSite(url5);
 
+  // Sixth site: abusive and disruptive notifications.
+  SetupAbusiveNotificationSite(url6, ContentSetting::CONTENT_SETTING_ASK);
+  SetupRevokedAbusiveNotificationSite(url6);
+  SetupRevokedDisruptiveNotificationSite(url6);
+
   auto new_service = std::make_unique<RevokedPermissionsService>(
       profile(), profile()->GetPrefs());
   std::optional<std::unique_ptr<SafetyHubResult>> opt_result =
@@ -1471,7 +1472,7 @@ TEST_P(RevokedPermissionsServiceTest, PermissionsRevocationType) {
       static_cast<RevokedPermissionsResult*>(opt_result.value().get());
   auto revoked_permissions = result->GetRevokedPermissions();
 
-  EXPECT_EQ(5U, revoked_permissions.size());
+  EXPECT_EQ(6U, revoked_permissions.size());
   // Verify the revocation types are correct.
   auto permission_1 = GetPermissionsDataByUrl(revoked_permissions, url1);
   EXPECT_EQ(permission_1.revocation_type,
@@ -1494,6 +1495,10 @@ TEST_P(RevokedPermissionsServiceTest, PermissionsRevocationType) {
   EXPECT_EQ(
       permission_5.revocation_type,
       PermissionsRevocationType::kUnusedPermissionsAndDisruptiveNotifications);
+
+  auto permission_6 = GetPermissionsDataByUrl(revoked_permissions, url6);
+  EXPECT_EQ(permission_6.revocation_type,
+            PermissionsRevocationType::kAbusiveNotificationPermissions);
 }
 
 TEST_P(RevokedPermissionsServiceTest, AutoRevocationSetting) {

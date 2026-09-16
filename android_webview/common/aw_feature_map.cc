@@ -36,6 +36,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &base::features::kPostGetMyMemoryStateToBackground,
     &sensitive_content::features::kSensitiveContent,
     &features::kWebViewBackForwardCache,
+    &features::kWebViewCacheBoundaryInterfaceMethods,
     &features::kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
     &features::kWebViewConnectToComponentProviderInBackground,
     &features::kWebViewDisableCHIPS,
@@ -49,7 +50,9 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewInvokeZoomPickerOnGSU,
     &features::kWebViewLazyFetchHandWritingIcon,
     &features::kWebViewMixedContentAutoupgrades,
+    &features::kWebViewMoveWorkToProviderInit,
     &features::kWebViewMuteAudio,
+    &features::kWebViewOptInToGmsBindServiceOptimization,
     &features::kWebViewPrefetchNativeLibrary,
     &features::kWebViewPreloadClasses,
     &features::kWebViewQuicConnectionTimeout,
@@ -63,7 +66,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewSkipInterceptsForPrefetch,
     &features::kWebViewStartupTasksYieldToNative,
     &features::kWebViewTestFeature,
-    &features::kWebViewUseBackgroundThreadForGms,
     &features::kWebViewUseInitialNetworkStateAtStartup,
     &features::kWebViewUseMetricsUploadService,
     &features::kWebViewUseMetricsUploadServiceOnlySdkRuntime,
@@ -72,7 +74,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewUseStartupTasksLogicP2,
     &features::kWebViewUseViewPositionObserverForInsets,
     &features::kWebViewWebauthn,
-    &features::kWebViewXRequestedWithHeaderControl,
     // keep-sorted end
 };
 

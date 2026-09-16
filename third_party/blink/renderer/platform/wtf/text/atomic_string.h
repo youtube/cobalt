@@ -86,10 +86,6 @@ class WTF_EXPORT AtomicString {
   StringImpl* Impl() const { return string_.Impl(); }
 
   bool Is8Bit() const { return string_.Is8Bit(); }
-  // Use Span16() instead.
-  UNSAFE_BUFFER_USAGE const UChar* Characters16() const {
-    return UNSAFE_TODO(string_.Characters16());
-  }
   wtf_size_t length() const { return string_.length(); }
   base::span<const LChar> Span8() const { return string_.Span8(); }
   base::span<const UChar> Span16() const { return string_.Span16(); }
@@ -214,6 +210,15 @@ class WTF_EXPORT AtomicString {
       Utf8ConversionMode mode = Utf8ConversionMode::kLenient) const {
     return StringView(*this).Utf8(mode);
   }
+  // Returns a std::u16string_view pointing this AtomicString.
+  // This should be called only if !Is8Bit().
+  //
+  // This function should be removed after enabling C++23 because
+  // std::u16string_view(Span16()) will work with C++23.
+  std::u16string_view View16() const LIFETIME_BOUND {
+    auto chars = Span16();
+    return std::u16string_view(chars.begin(), chars.end());
+  }
 
   size_t CharactersSizeInBytes() const {
     return string_.CharactersSizeInBytes();
@@ -262,22 +267,6 @@ inline bool operator==(const AtomicString& a, const char* b) {
 }
 inline bool operator==(const char* a, const AtomicString& b) {
   return b == a;
-}
-
-inline bool operator!=(const AtomicString& a, const AtomicString& b) {
-  return a.Impl() != b.Impl();
-}
-inline bool operator!=(const AtomicString& a, const String& b) {
-  return !(a == b);
-}
-inline bool operator!=(const String& a, const AtomicString& b) {
-  return !(a == b);
-}
-inline bool operator!=(const AtomicString& a, const char* b) {
-  return !(a == b);
-}
-inline bool operator!=(const char* a, const AtomicString& b) {
-  return !(a == b);
 }
 
 // Define external global variables for the commonly used atomic strings.

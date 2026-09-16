@@ -53,6 +53,11 @@ bool IsAccessibilityTextFormattingEnabled() {
   return base::FeatureList::IsEnabled(::features::kAccessibilityTextFormatting);
 }
 
+BASE_FEATURE(kAccessibilityLabeledBy, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityLabeledByEnabled() {
+  return base::FeatureList::IsEnabled(::features::kAccessibilityLabeledBy);
+}
+
 BASE_FEATURE(kAccessibilityTreeForViews, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsAccessibilityTreeForViewsEnabled() {
   return base::FeatureList::IsEnabled(::features::kAccessibilityTreeForViews);
@@ -316,21 +321,21 @@ bool IsAccessibilityManifestV3EnabledForEnhancedNetworkTts() {
 }
 
 BASE_FEATURE(kAccessibilityManifestV3EspeakNGTts,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForEspeakNGTts() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3EspeakNGTts);
 }
 
 BASE_FEATURE(kAccessibilityManifestV3GoogleTts,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForGoogleTts() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3GoogleTts);
 }
 
 BASE_FEATURE(kAccessibilityManifestV3AccessibilityCommon,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForAccessibilityCommon() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3AccessibilityCommon);
@@ -362,11 +367,17 @@ bool IsAccessibilityInlineLineSeparatorsEnabled() {
 }
 
 BASE_FEATURE(kAccessibilityMagnificationFollowsInputFocus,
-             "AccessibilityMagnificationFollowsInputFocus",
              base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsAccessibilityMagnificationFollowsInputEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityMagnificationFollowsInputFocus);
+}
+
+BASE_FEATURE(kAccessibilityMagnificationFollowsTextCursor,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityMagnificationFollowsTextCursorEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityMagnificationFollowsTextCursor);
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -386,11 +397,6 @@ bool IsScreenAIOCREnabled() {
   return base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled);
 }
 
-BASE_FEATURE(kAccessibilityService, base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAccessibilityServiceEnabled() {
-  return base::FeatureList::IsEnabled(::features::kAccessibilityService);
-}
-
 // This feature is only used for generating training data for Screen2x and
 // should never be used in any other circumstance, and should not be enabled by
 // default.
@@ -398,6 +404,11 @@ BASE_FEATURE(kDataCollectionModeForScreen2x, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsDataCollectionModeForScreen2xEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kDataCollectionModeForScreen2x);
+}
+
+BASE_FEATURE(kImmersiveReadingMode, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsImmersiveReadingModeEnabled() {
+  return base::FeatureList::IsEnabled(::features::kImmersiveReadingMode);
 }
 
 BASE_FEATURE(kMainNodeAnnotations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -451,6 +462,14 @@ BASE_FEATURE(kReadAnythingDocsLoadMoreButton,
 bool IsReadAnythingDocsLoadMoreButtonEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kReadAnythingDocsLoadMoreButton);
+}
+
+BASE_FEATURE(kReadAnythingWithReadability, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAnythingWithReadabilityEnabled() {
+  return base::FeatureList::IsEnabled(
+             ::features::kReadAnythingReadAloudTSTextSegmentation) &&
+         base::FeatureList::IsEnabled(::features::kReadAnythingWithReadability);
+  ;
 }
 
 // This feature is only for debug purposes and for security/privacy reasons,
@@ -516,11 +535,5 @@ bool IsWasmTtsEngineAutoInstallDisabled() {
       ::features::kWasmTtsEngineAutoInstallDisabled);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-BASE_FEATURE(kAccessibilityHitTestPointCopy, base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsAccessibilityHitTestPointCopyEnabled() {
-  return base::FeatureList::IsEnabled(
-      ::features::kAccessibilityHitTestPointCopy);
-}
 
 }  // namespace features

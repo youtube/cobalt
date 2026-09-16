@@ -50,19 +50,6 @@ std::string GetHttpMethodString(const HttpMethod& http_method) {
   return "";
 }
 
-HttpMethod GetHttpMethod(const std::string& http_method_string) {
-  if (http_method_string == "GET") {
-    return HttpMethod::kGet;
-  } else if (http_method_string == "POST") {
-    return HttpMethod::kPost;
-  } else if (http_method_string == "DELETE") {
-    return HttpMethod::kDelete;
-  } else if (http_method_string == "PUT") {
-    return HttpMethod::kPut;
-  }
-  return HttpMethod::kUndefined;
-}
-
 }  // namespace
 
 EndpointResponse::EndpointResponse() = default;
@@ -99,10 +86,12 @@ EndpointFetcher::RequestParams::Builder::Build() {
   // Perform consistency checks based on AuthType before building.
   switch (request_params_->auth_type_) {
     case OAUTH:
-      DCHECK(request_params_->oauth_consumer_name.has_value() &&
-             !request_params_->oauth_consumer_name->empty())
+      DCHECK(request_params_->oauth_consumer_id.has_value() ||
+             (request_params_->oauth_consumer_name.has_value() &&
+              !request_params_->oauth_consumer_name->empty()))
           << "OAUTH requests require oauth_consumer_name.";
-      DCHECK(!request_params_->oauth_scopes.empty())
+      DCHECK(request_params_->oauth_consumer_id.has_value() ||
+             !request_params_->oauth_scopes.empty())
           << "OAUTH requests require oauth_scopes.";
       DCHECK(request_params_->consent_level.has_value())
           << "OAUTH requests require consent_level.";
@@ -130,93 +119,6 @@ EndpointFetcher::EndpointFetcher(
         << "IdentityManager is required for OAUTH authentication.";
   }
 }
-
-EndpointFetcher::EndpointFetcher(
-    const scoped_refptr<network::SharedURLLoaderFactory>& url_loader_factory,
-    const std::string& oauth_consumer_name,
-    const GURL& url,
-    const std::string& http_method,
-    const std::string& content_type,
-    const std::vector<std::string>& scopes,
-    const base::TimeDelta& timeout,
-    const std::string& post_data,
-    const net::NetworkTrafficAnnotationTag& annotation_tag,
-    signin::IdentityManager* identity_manager,
-    signin::ConsentLevel consent_level)
-    : EndpointFetcher(oauth_consumer_name,
-                      url,
-                      http_method,
-                      content_type,
-                      scopes,
-                      timeout,
-                      post_data,
-                      annotation_tag,
-                      url_loader_factory,
-                      identity_manager,
-                      consent_level) {}
-
-EndpointFetcher::EndpointFetcher(
-    const scoped_refptr<network::SharedURLLoaderFactory>& url_loader_factory,
-    const GURL& url,
-    const std::string& content_type,
-    const base::TimeDelta& timeout,
-    const std::string& post_data,
-    const std::vector<std::string>& headers,
-    const std::vector<std::string>& cors_exempt_headers,
-    version_info::Channel channel,
-    const RequestParams request_params)
-    : url_loader_factory_(url_loader_factory),
-      identity_manager_(nullptr),
-      request_params_(EndpointFetcher::RequestParams::Builder(request_params)
-                          .SetAuthType(CHROME_API_KEY)
-                          .SetUrl(url)
-                          .SetContentType(content_type)
-                          .SetTimeout(timeout)
-                          .SetPostData(post_data)
-                          .SetHeaders(headers)
-                          .SetCorsExemptHeaders(cors_exempt_headers)
-                          .SetChannel(channel)
-                          .Build()) {}
-
-EndpointFetcher::EndpointFetcher(
-    const scoped_refptr<network::SharedURLLoaderFactory>& url_loader_factory,
-    const GURL& url,
-    const net::NetworkTrafficAnnotationTag& annotation_tag)
-    : url_loader_factory_(url_loader_factory),
-      identity_manager_(nullptr),
-      request_params_(EndpointFetcher::RequestParams::Builder(HttpMethod::kGet,
-                                                              annotation_tag)
-                          .SetAuthType(NO_AUTH)
-                          .SetTimeout(base::Milliseconds(0))
-                          .SetUrl(url)
-                          .Build()) {}
-
-EndpointFetcher::EndpointFetcher(
-    const std::string& oauth_consumer_name,
-    const GURL& url,
-    const std::string& http_method,
-    const std::string& content_type,
-    const std::vector<std::string>& scopes,
-    const base::TimeDelta& timeout,
-    const std::string& post_data,
-    const net::NetworkTrafficAnnotationTag& annotation_tag,
-    const scoped_refptr<network::SharedURLLoaderFactory>& url_loader_factory,
-    signin::IdentityManager* identity_manager,
-    signin::ConsentLevel consent_level)
-    : url_loader_factory_(url_loader_factory),
-      identity_manager_(identity_manager),
-      request_params_(
-          EndpointFetcher::RequestParams::Builder(GetHttpMethod(http_method),
-                                                  annotation_tag)
-              .SetAuthType(OAUTH)
-              .SetContentType(content_type)
-              .SetTimeout(timeout)
-              .SetPostData(post_data)
-              .SetOauthConsumerName(oauth_consumer_name)
-              .SetOauthScopes(scopes)
-              .SetConsentLevel(consent_level)
-              .SetUrl(url)
-              .Build()) {}
 
 // Protected constructor for mock objects (no specific dependencies are needed
 // here).
@@ -258,12 +160,21 @@ void EndpointFetcher::Fetch(EndpointFetcherCallback endpoint_fetcher_callback) {
           &EndpointFetcher::OnAuthTokenFetched, weak_ptr_factory_.GetWeakPtr(),
           std::move(endpoint_fetcher_callback));
 
-      access_token_fetcher_ = std::make_unique<
-          signin::PrimaryAccountAccessTokenFetcher>(
-          request_params_.oauth_consumer_name.value(), identity_manager_,
-          request_params_.oauth_scopes, std::move(token_callback),
-          signin::PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable,
-          *request_params_.consent_level);
+      if (request_params_.oauth_consumer_id.has_value()) {
+        access_token_fetcher_ = std::make_unique<
+            signin::PrimaryAccountAccessTokenFetcher>(
+            request_params_.oauth_consumer_id.value(), identity_manager_,
+            std::move(token_callback),
+            signin::PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable,
+            *request_params_.consent_level);
+      } else {
+        access_token_fetcher_ = std::make_unique<
+            signin::PrimaryAccountAccessTokenFetcher>(
+            request_params_.oauth_consumer_name.value(), identity_manager_,
+            request_params_.oauth_scopes, std::move(token_callback),
+            signin::PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable,
+            *request_params_.consent_level);
+      }
       break;
     }
     case CHROME_API_KEY:

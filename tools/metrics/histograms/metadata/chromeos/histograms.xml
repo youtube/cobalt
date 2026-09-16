@@ -248,7 +248,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </variants>
 
 <histogram name="ChromeOS.AnomalousProcCount.AttemptedMemfdExec"
-    units="processes" expires_after="2026-02-01">
+    units="processes" expires_after="2026-04-05">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -264,7 +264,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.AnomalousProcCount.ForbiddenIntersection.{Category}"
-    units="processes" expires_after="2026-02-01">
+    units="processes" expires_after="2026-04-05">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -1284,7 +1284,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.CWP.UploadPerf" units="reports"
-    expires_after="2025-10-20">
+    expires_after="2026-10-20">
   <owner>gmx@chromium.org</owner>
   <owner>cwp-team@google.com</owner>
   <summary>
@@ -1294,7 +1294,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.CWP.{PPath}.{PType}" units="failures"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>raging@google.com</owner>
   <owner>chromeos-memory@google.com</owner>
   <summary>
@@ -2031,7 +2031,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.AttachmentType.{Form}" enum="AttachmentType"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>wmahon@google.com</owner>
   <owner>chromeos-tango@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
@@ -2436,7 +2436,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Intents.LinkCapturingEvent2"
-    enum="LinkCapturingEvent" expires_after="2026-01-25">
+    enum="LinkCapturingEvent" expires_after="2026-03-29">
   <owner>vpao@google.com</owner>
   <owner>chromeos-apps-foundation-team@google.com</owner>
   <summary>
@@ -2461,7 +2461,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.K12UserAgeClassification.LogSegment"
-    enum="K12UserAgeClassificationMatrix" expires_after="2026-02-01">
+    enum="K12UserAgeClassificationMatrix" expires_after="2026-04-05">
   <owner>zifanzhang@google.com</owner>
   <owner>cros-client-wa@google.com</owner>
   <summary>Tracks the K12 user age classification.</summary>
@@ -2726,7 +2726,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Liveness.PingResult" enum="BooleanSuccess"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>iby@google.com</owner>
   <owner>xiyuan@google.com</owner>
   <summary>
@@ -2998,7 +2998,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Ownership.OwnerKeyUmaEvent" enum="OwnerKeyUmaEvent"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>miersh@google.com</owner>
   <owner>chromeos-commercial-networking@google.com</owner>
   <summary>
@@ -3134,7 +3134,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Regmon.PolicyHandlerTime" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>chiav@chromium.org</owner>
   <owner>crmullins@chromium.org</owner>
   <summary>
@@ -3144,7 +3144,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Regmon.PolicyViolation"
-    enum="NetworkAnnotationHashCodes" expires_after="2026-01-25">
+    enum="NetworkAnnotationHashCodes" expires_after="2026-03-29">
   <owner>chiav@chromium.org</owner>
   <owner>crmullins@chromium.org</owner>
   <summary>
@@ -3156,7 +3156,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Regmon.ReportViolationTime" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>chiav@chromium.org</owner>
   <owner>crmullins@chromium.org</owner>
   <summary>
@@ -3241,7 +3241,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SAML.Provider" enum="ChromeOSSamlProvider"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>mslus@chromium.org</owner>
   <owner>cros-3pidp@google.com</owner>
   <summary>Records SAML provider when SAML login flow is used.</summary>
@@ -3255,6 +3255,22 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     The number of passwords that were scraped during a Chrome OS login via SAML.
     This is set only when the Chrome Credentials Passing API is not used.
   </summary>
+</histogram>
+
+<histogram name="ChromeOS.SAML.{LoginOrUnlock}.SamlRedirectUsage"
+    enum="SamlRedirectEvent" expires_after="2026-01-25">
+  <owner>andreydav@google.com</owner>
+  <owner>cros-3pidp@google.com</owner>
+  <summary>
+    Tracks the usage of /samlredirect Gaia endpoint. This is recorded each time
+    when online auth is started with this endpoint during login or unlock.
+    Additionally, it records any time when a user switches from their default 3P
+    IdP page to the default Google sign-in page during such online auth flows.
+  </summary>
+  <token key="LoginOrUnlock">
+    <variant name="Login"/>
+    <variant name="Unlock"/>
+  </token>
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.LandlockEnabled" enum="Boolean"
@@ -3522,7 +3538,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SecurityAnomaly" enum="SecurityAnomaly"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>jorgelo@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -3534,8 +3550,9 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     so existing anomalies get recorded again after the two-hour window.
 
     Memfd execution attempts are checked every thirty seconds and new attempts
-    are recorded. memfd_create events are only recorded once per boot. Prior to
-    M111 memfd_create events were recorded up to ten times per boot.
+    are recorded. memfd_create evets are no longer recorded starting with M143.
+    memfd_create events were only recorded once per boot prior to M143, and up
+    to ten times per boot prior to M111.
   </summary>
 </histogram>
 
@@ -4951,7 +4968,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.WXMountCount" units="count"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>jorgelo@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>

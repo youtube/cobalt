@@ -847,7 +847,7 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage(
   constexpr auto kShouldInitialize =
       CanvasResourceProvider::ShouldInitialize::kNo;
 
-  std::unique_ptr<CanvasResourceProvider> resource_provider;
+  std::unique_ptr<CanvasResourceProviderSharedImage> resource_provider;
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     resource_provider = CanvasResourceProvider::CreateSharedImageProvider(
         size, GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
@@ -1835,61 +1835,6 @@ void WebGLRenderingContextBase::MarkLayerComposited() {
     GetDrawingBuffer()->SetBufferClearNeeded(true);
 }
 
-bool WebGLRenderingContextBase::
-    CanUseDrawingBufferSIWithoutCopyForLowLatency() {
-  if (!SharedGpuContext::IsGpuCompositingEnabled()) {
-    return false;
-  }
-
-  if (!Host()->LowLatencyEnabled()) {
-    return false;
-  }
-
-  // SharedGpuContext::IsGpuCompositingEnabled can potentially replace the
-  // context_provider_wrapper, so it's important to call that first as it can
-  // invalidate the weak pointer.
-  auto context_provider_wrapper = SharedGpuContext::ContextProviderWrapper();
-  auto size = Host()->Size();
-  auto format = GetSharedImageFormat();
-
-  bool using_webgl_image_chromium =
-      SharedGpuContext::MaySupportImageChromium() &&
-      (RuntimeEnabledFeatures::WebGLImageChromiumEnabled() ||
-       base::FeatureList::IsEnabled(features::kLowLatencyWebGLImageChromium));
-  bool using_swap_chain =
-      GetDrawingBuffer() && GetDrawingBuffer()->UsingSwapChain();
-  if (!using_swap_chain && !using_webgl_image_chromium) {
-    return false;
-  }
-
-  if (!context_provider_wrapper) {
-    return false;
-  }
-
-  const auto& capabilities =
-      context_provider_wrapper->ContextProvider().GetCapabilities();
-  if (size.width() > capabilities.max_texture_size ||
-      size.height() > capabilities.max_texture_size) {
-    return false;
-  }
-
-  const auto& shared_image_capabilities =
-      context_provider_wrapper->ContextProvider()
-          .SharedImageInterface()
-          ->GetCapabilities();
-
-  bool shared_image_format_supported =
-      gpu::IsFormatSupportedForSIWithNativeBuffer(format, capabilities);
-
-  // Either swap_chain or shared image should be supported for this be used.
-  if (!shared_image_capabilities.shared_image_swap_chain &&
-      !shared_image_format_supported) {
-    return false;
-  }
-
-  return true;
-}
-
 void WebGLRenderingContextBase::PageVisibilityChanged() {
   if (GetDrawingBuffer())
     GetDrawingBuffer()->SetIsInHiddenPage(!Host()->IsPageVisible());
@@ -1905,10 +1850,8 @@ scoped_refptr<ExternalCanvasResource>
 WebGLRenderingContextBase::ExportLowLatencyCanvasResource(
     SourceDrawingBuffer source_buffer) {
   CHECK(Host()->LowLatencyEnabled());
-
-  if (isContextLost() || !GetDrawingBuffer()) {
-    return nullptr;
-  }
+  CHECK(GetDrawingBuffer());
+  CHECK(!isContextLost());
 
   ClearIfComposited(kClearCallerOther);
 
@@ -1925,13 +1868,14 @@ scoped_refptr<StaticBitmapImage>
 WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
-  if (CanUseDrawingBufferSIWithoutCopyForLowLatency()) {
-    auto resource = ExportLowLatencyCanvasResource(source_buffer);
-    return resource ? resource->Bitmap() : nullptr;
-  }
-
   if (isContextLost() || !GetDrawingBuffer()) {
     return nullptr;
+  }
+
+  if (SharedGpuContext::IsGpuCompositingEnabled() &&
+      GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
+    auto resource = ExportLowLatencyCanvasResource(source_buffer);
+    return resource ? resource->Bitmap() : nullptr;
   }
 
   bool cleared_content = ClearIfComposited(kClearCallerOther) != kSkipped;
@@ -1962,7 +1906,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     }
   }
 
-  CanvasResourceProvider* resource_provider =
+  CanvasResourceProviderSharedImage* resource_provider =
       GetOrCreateCanvasResourceProvider();
   if (!resource_provider) {
     // As a last resort, try to create and return an unaccelerated snapshot.
@@ -2014,19 +1958,22 @@ scoped_refptr<CanvasResource>
 WebGLRenderingContextBase::PaintRenderingResultsToResource(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
-  if (CanUseDrawingBufferSIWithoutCopyForLowLatency()) {
+  if (isContextLost() || !GetDrawingBuffer()) {
+    return nullptr;
+  }
+
+  if (SharedGpuContext::IsGpuCompositingEnabled() &&
+      GetDrawingBuffer()->SupportsNoCopyExportForLowLatency()) {
     return ExportLowLatencyCanvasResource(source_buffer);
   }
 
   auto* resource_provider =
       PaintRenderingResultsToResourceProvider(source_buffer);
-  if (resource_provider) {
-    return resource_provider->ProduceCanvasResource(reason);
-  }
-  return nullptr;
+  return resource_provider ? resource_provider->ProduceCanvasResource(reason)
+                           : nullptr;
 }
 
-CanvasResourceProvider*
+CanvasResourceProviderSharedImage*
 WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
   // If `cached_snapshot_` is non-null, it means that
   // PaintRenderingResultsToSnapshot() was unable to populate
@@ -2049,7 +1996,6 @@ WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
       // have clear rect tracking in the shared image system to enforce this.
       constexpr auto kShouldInitialize =
           CanvasResourceProvider::ShouldInitialize::kNo;
-      CHECK(!CanUseDrawingBufferSIWithoutCopyForLowLatency());
       if (SharedGpuContext::IsGpuCompositingEnabled()) {
         gpu::SharedImageUsageSet shared_image_usage_flags =
             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
@@ -2088,8 +2034,6 @@ WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
 CanvasResourceProvider*
 WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
     SourceDrawingBuffer source_buffer) {
-  CHECK(!CanUseDrawingBufferSIWithoutCopyForLowLatency());
-
   TRACE_EVENT0(
       "blink",
       "WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider");
@@ -2115,7 +2059,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
     return resource_provider_.get();
   }
 
-  CanvasResourceProvider* resource_provider =
+  CanvasResourceProviderSharedImage* resource_provider =
       GetOrCreateCanvasResourceProvider();
   if (!resource_provider)
     return nullptr;
@@ -2144,7 +2088,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
 }
 
 bool WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBuffer(
-    CanvasResourceProvider* resource_provider,
+    CanvasResourceProviderSharedImage* resource_provider,
     SourceDrawingBuffer source_buffer) {
   DCHECK(resource_provider);
   DCHECK(!resource_provider->IsSingleBuffered());
@@ -6120,6 +6064,11 @@ void WebGLRenderingContextBase::TexImageHelperHTMLImageElement(
       SourceImageStatus status;
       image_for_render = image->GetSourceImageForCanvas(
           FlushReason::kWebGLTexImage, &status, gfx::SizeF(300, 150));
+      // Since the size of the source has not been previously validated,
+      // GetSourceImageForCanvas() can return nullptr.
+      if (!image_for_render) {
+        image_for_render = Image::NullImage();
+      }
     }
     // DrawImageIntoBuffer always respects orientation
     image_for_render = DrawImageIntoBufferForTexImage(
@@ -6903,16 +6852,11 @@ void WebGLRenderingContextBase::texElementImage2D(
     return;
   }
 
-  if (!IsDrawElementImageEligible(element, "texElementImage2D()",
-                                  exception_state)) {
-    return;
-  }
-
   canvas()->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kCanvasDrawElementImage);
 
-  // Canvas could have been removed after the layout update.
-  if (!canvas()) {
+  if (!IsDrawElementImageEligible(element, "texElementImage2D()",
+                                  exception_state)) {
     return;
   }
 

@@ -20,7 +20,6 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_test_base.h"
 #include "components/autofill/core/browser/metrics/ukm_metrics_test_utils.h"
 #include "components/autofill/core/browser/proto/api_v1.pb.h"
-#include "components/autofill/core/browser/test_utils/test_autofill_clock.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_data_test_api.h"
 #include "components/autofill/core/common/form_field_data.h"
@@ -71,23 +70,23 @@ class FormInteractionsUkmLoggerTest : public AutofillMetricsBaseTest,
   void TearDown() override { TearDownHelper(); }
 };
 
-// Test that we log the skip decisions for hidden/representational fields
-// correctly.
+// Test that we log the skip decisions for hidden fields correctly.
 TEST_F(FormInteractionsUkmLoggerTest,
        LogHiddenRepresentationalFieldSkipDecision) {
   RecreateProfile();
 
+  // Metric is going to be recorded only for non-focusable select fields.
   FormData form = CreateForm({
       CreateTestFormField("Name", "name", "",
-                          FormControlType::kInputText),  // no decision
+                          FormControlType::kInputText),  // don't record
       CreateTestFormField("Street", "street", "",
-                          FormControlType::kInputText),  // skips
+                          FormControlType::kInputText),  // don't record
       CreateTestFormField("City", "city", "",
-                          FormControlType::kInputText),  // skips
+                          FormControlType::kInputText),  // don't record
       CreateTestFormField("State", "state", "",
-                          FormControlType::kSelectOne),  // doesn't skip
+                          FormControlType::kSelectOne),  // record
       CreateTestFormField("Country", "country", "",
-                          FormControlType::kSelectOne)  // doesn't skip
+                          FormControlType::kSelectOne)  // don't record
   });
 
   test_api(form).field(1).set_is_focusable(false);
@@ -119,23 +118,12 @@ TEST_F(FormInteractionsUkmLoggerTest,
               Each(form.main_frame_origin().GetURL()));
   EXPECT_THAT(
       GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
-      UkmEventsAre({{// First event.
-                     {Ukm::kFormSignatureName, form_signature.value()},
+      UkmEventsAre({{{Ukm::kFormSignatureName, form_signature.value()},
                      {Ukm::kFieldSignatureName, field_signature[2].value()},
                      {Ukm::kFieldTypeGroupName, FieldTypeGroup::kAddress},
                      {Ukm::kFieldOverallTypeName, ADDRESS_HOME_STATE},
                      {Ukm::kHeuristicTypeName, ADDRESS_HOME_STATE},
                      {Ukm::kServerTypeName, ADDRESS_HOME_STATE},
-                     {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
-                     {Ukm::kHtmlFieldModeName, HtmlFieldMode::kNone},
-                     {Ukm::kIsSkippedName, false}},
-                    {// Second event.
-                     {Ukm::kFormSignatureName, form_signature.value()},
-                     {Ukm::kFieldSignatureName, field_signature[3].value()},
-                     {Ukm::kFieldTypeGroupName, FieldTypeGroup::kAddress},
-                     {Ukm::kFieldOverallTypeName, ADDRESS_HOME_COUNTRY},
-                     {Ukm::kHeuristicTypeName, ADDRESS_HOME_COUNTRY},
-                     {Ukm::kServerTypeName, ADDRESS_HOME_COUNTRY},
                      {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
                      {Ukm::kHtmlFieldModeName, HtmlFieldMode::kNone},
                      {Ukm::kIsSkippedName, false}}}));
@@ -1449,7 +1437,7 @@ INSTANTIATE_TEST_SUITE_P(
                     {UkmFocusedComplexFormType::
                          kIsInControlGroupOfConditionalAblationName,
                      0},
-                    {UkmFocusedComplexFormType::kDayInAblationWindowName, 10},
+                    {UkmFocusedComplexFormType::kDayInAblationWindowName, 2},
                     {UkmFocusedComplexFormType::
                          kIsAblationStudyInDryRunModeName,
                      0},
@@ -1506,7 +1494,7 @@ INSTANTIATE_TEST_SUITE_P(
                     {UkmFocusedComplexFormType::
                          kIsInControlGroupOfConditionalAblationName,
                      0},
-                    {UkmFocusedComplexFormType::kDayInAblationWindowName, 10},
+                    {UkmFocusedComplexFormType::kDayInAblationWindowName, 2},
                     // This is true due to dry-run mode.
                     {UkmFocusedComplexFormType::
                          kIsAblationStudyInDryRunModeName,
@@ -1534,9 +1522,8 @@ TEST_P(LogFocusedComplexFormAtFormRemoveTest, TestEmittedUKM) {
     scoped_feature_list.InitAndEnableFeatureWithParameters(
         features::kAutofillEnableAblationStudy, feature_parameters);
   }
-  constexpr base::Time arbitrary_default_time =
-      base::Time::FromSecondsSinceUnixEpoch(25);
-  TestAutofillClock test_clock(arbitrary_default_time);
+
+  task_environment_.FastForwardBy(base::Seconds(25));
 
   CreateCreditCards(
       /*include_local_credit_card=*/true,
@@ -1582,8 +1569,8 @@ TEST_P(LogFocusedComplexFormAtFormRemoveTest, TestEmittedUKM) {
       NOTREACHED();
     }
     // This simulates the callback from the renderer
-    // (AutofillManager::OnDidFillAutofillFormData).
-    FillAutofillFormData(form, base::TimeTicks::Now());
+    // (AutofillManager::OnDidAutofillForm).
+    AutofillForm(form, base::TimeTicks::Now());
   }
   if (GetParam().step_4_edit_after_autofill) {
     task_environment_.FastForwardBy(base::Milliseconds(1000));
@@ -1658,7 +1645,7 @@ TEST_F(FieldLogUkmMetricTest,
       TypingFieldLogEvent{.has_value_after_typing = OptionalBoolean::kTrue});
   // No typing on field 5.
 
-  FormInteractionsUkmLogger logger(autofill_client_.get());
+  FormInteractionsUkmLogger logger(&autofill_client());
   logger.LogAutofillFormWithExperimentalFieldsCountAtFormRemove(
       autofill_driver().GetPageUkmSourceId(), form_structure);
 

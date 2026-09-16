@@ -42,6 +42,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Chrome.DWriteFontProxy.GetFontFailedHResult" enum="Hresult"
+    expires_after="2026-08-31">
+  <owner>andresrperez@chromium.org</owner>
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>drott@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <summary>
+    The HResult of failed GetFont calls in
+    DWriteFontProxyImpl::GetFontFileHandles.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.DWriteFontProxy.GetFontFamilyFailedHResult"
+    enum="Hresult" expires_after="2026-08-31">
+  <owner>andresrperez@chromium.org</owner>
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>drott@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <summary>
+    The HResult of failed GetFontFamily calls in
+    DWriteFontProxyImpl::GetFontFileHandles.
+  </summary>
+</histogram>
+
 <histogram name="Chrome.DWriteFontProxy.WinLastError" enum="WinGetLastError"
     expires_after="2026-08-31">
   <owner>andresrperez@chromium.org</owner>
@@ -66,19 +90,22 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.Headless.Action" enum="HeadlessChromeAction"
-    expires_after="2023-12-31">
+    expires_after="M150">
   <owner>kvitekp@google.com</owner>
   <owner>headless-owners@chromium.org</owner>
+  <component>1456776</component>
   <summary>
     Records headless chrome action, e.g. remote debugging, screenshot, print to
     PDF, DOM dump. Reported once when the browser process is launched in
     headless mode. If more than one action is requested only one will be
     reported.
+
+    This histogram expired in December 2023 and was revived in M142.
   </summary>
 </histogram>
 
 <histogram name="Chrome.KAnonymityService.JoinSet.Action"
-    enum="KAnonymityServiceJoinSetAction" expires_after="2026-01-18">
+    enum="KAnonymityServiceJoinSetAction" expires_after="2026-03-22">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -102,7 +129,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.KAnonymityService.QuerySet.Action"
-    enum="KAnonymityServiceQuerySetAction" expires_after="2026-01-18">
+    enum="KAnonymityServiceQuerySetAction" expires_after="2026-03-22">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -127,7 +154,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.KAnonymityService.QuerySet.Size" units="count"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -367,7 +394,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChromeColors.ColorOnLoad" enum="ChromeColorsInfo"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>

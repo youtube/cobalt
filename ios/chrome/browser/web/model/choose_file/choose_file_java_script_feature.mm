@@ -12,12 +12,12 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_event.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_event_holder.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_util.h"
 #import "ios/web/public/js_messaging/script_message.h"
 
 namespace {
 const char kChooseFileScript[] = "choose_file";
-const char kChooseFileLegacyScript[] = "choose_file_legacy";
 const char kChooseFileScriptName[] = "ChooseFileHandler";
 
 // The type of attributes of the input element.
@@ -118,30 +118,12 @@ std::vector<std::string> ParseAttributeFromValue(
   return {};
 }
 
-// Returns the appropriate content world for ChooseFileJavaScriptFeature.
-web::ContentWorld GetContentWorld() {
-  if (base::FeatureList::IsEnabled(kIOSChooseFromDriveSimulatedClick)) {
-    return web::ContentWorld::kPageContentWorld;
-  } else {
-    return web::ContentWorld::kIsolatedWorld;
-  }
-}
-
-// Returns the appropriate script for ChooseFileJavaScriptFeature.
-std::string GetChooseFileScript() {
-  if (base::FeatureList::IsEnabled(kIOSChooseFromDriveSimulatedClick)) {
-    return kChooseFileScript;
-  } else {
-    return kChooseFileLegacyScript;
-  }
-}
-
 }  // namespace
 
 ChooseFileJavaScriptFeature::ChooseFileJavaScriptFeature()
-    : JavaScriptFeature(GetContentWorld(),
+    : JavaScriptFeature(web::ContentWorld::kPageContentWorld,
                         {FeatureScript::CreateWithFilename(
-                            GetChooseFileScript(),
+                            kChooseFileScript,
                             FeatureScript::InjectionTime::kDocumentEnd,
                             FeatureScript::TargetFrames::kAllFrames)}) {}
 
@@ -170,8 +152,11 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
 
   std::optional<double> accept_type = body_dict.FindDouble("acceptType");
   std::optional<bool> has_multiple = body_dict.FindBool("hasMultiple");
+  std::optional<bool> has_webkitdirectory =
+      body_dict.FindBool("hasWebkitdirectory");
   std::optional<bool> has_selected_file = body_dict.FindBool("hasSelectedFile");
-  if (!accept_type || !has_multiple || !has_selected_file) {
+  if (!accept_type || !has_multiple || !has_webkitdirectory ||
+      !has_selected_file) {
     return;
   }
   int accept_type_int = static_cast<int>(*accept_type);
@@ -183,7 +168,8 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
 
   LogChooseFileEvent(accept_type_int, *has_multiple, *has_selected_file);
 
-  if (base::FeatureList::IsEnabled(kIOSChooseFromDrive)) {
+  if (base::FeatureList::IsEnabled(kIOSChooseFromDrive) ||
+      base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
     std::vector<std::string> accept_file_extensions = ParseAttributeFromValue(
         body_dict, "fileExtensions", ParseAcceptAttributeFileExtensions);
     std::vector<std::string> accept_mime_types = ParseAttributeFromValue(
@@ -191,11 +177,23 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
     base::UmaHistogramBoolean(
         "IOS.Web.FileInput.EventDropped",
         ChooseFileEventHolder::GetInstance()->HasLastChooseFileEvent());
-    ChooseFileEvent event{*has_multiple, *has_selected_file,
-                          std::move(accept_file_extensions),
-                          std::move(accept_mime_types), web_state};
-    ChooseFileEventHolder::GetInstance()->SetLastChooseFileEvent(
-        std::move(event));
+    ChooseFileEvent event =
+        ChooseFileEvent::Builder()
+            .SetAllowMultipleFiles(*has_multiple)
+            .SetOnlyAllowDirectory(*has_webkitdirectory)
+            .SetHasSelectedFile(*has_selected_file)
+            .SetAcceptFileExtensions(std::move(accept_file_extensions))
+            .SetAcceptMimeTypes(std::move(accept_mime_types))
+            .SetWebState(web_state)
+            .Build();
+    if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+      ChooseFileTabHelper* tab_helper =
+          ChooseFileTabHelper::FromWebState(web_state);
+      tab_helper->SetLastChooseFileEvent(std::move(event));
+    } else {
+      ChooseFileEventHolder::GetInstance()->SetLastChooseFileEvent(
+          std::move(event));
+    }
   }
 }
 

@@ -56,7 +56,6 @@
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "api/transport/enums.h"
-#include "api/transport/network_control.h"
 #include "api/turn_customizer.h"
 #include "call/call.h"
 #include "call/payload_type_picker.h"
@@ -80,11 +79,11 @@
 #include "pc/rtp_transmission_manager.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/sdp_offer_answer.h"
+#include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
 #include "pc/transceiver_list.h"
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
@@ -446,15 +445,6 @@ class PeerConnection : public PeerConnectionInternal,
   int FeedbackAccordingToRfc8888CountForTesting() const;
   int FeedbackAccordingToTransportCcCountForTesting() const;
 
-  NetworkControllerInterface* GetNetworkController() override {
-    if (!worker_thread()->IsCurrent()) {
-      return worker_thread()->BlockingCall(
-          [this]() { return GetNetworkController(); });
-    }
-    RTC_DCHECK_RUN_ON(worker_thread());
-    RTC_DCHECK(call_);
-    return call_->GetTransportControllerSend()->GetNetworkController();
-  }
   PayloadTypePicker& payload_type_picker() override {
     return payload_type_picker_;
   }

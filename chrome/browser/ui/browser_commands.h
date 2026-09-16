@@ -108,11 +108,11 @@ void NewIncognitoWindow(Profile* profile);
 void CloseWindow(BrowserWindowInterface* browser);
 content::WebContents& NewTab(Browser* browser);
 void NewTabToRight(Browser* browser);
-void CloseTab(Browser* browser);
+void CloseTab(BrowserWindowInterface* browser);
 bool CanZoomIn(content::WebContents* contents);
 bool CanZoomOut(content::WebContents* contents);
 bool CanResetZoom(content::WebContents* contents);
-void RestoreTab(Browser* browser);
+void RestoreTab(BrowserWindowInterface* browser);
 void SelectNextTab(
     Browser* browser,
     TabStripUserGestureDetails gesture_detail = TabStripUserGestureDetails(
@@ -192,6 +192,8 @@ void FocusPreviousTabGroup(Browser* browser);
 // Takes all ungrouped tabs and places them in a new group.
 // Returns true if a group was made, and false otherwise.
 bool GroupAllUngroupedTabs(Browser* browser);
+// Creates a new tab at the end of the group which last had the active tab.
+void AddNewTabToRecentGroup(Browser* browser);
 
 void MuteSiteForKeyboardFocusedTab(Browser* browser);
 bool HasKeyboardFocusedTab(const Browser* browser);
@@ -254,6 +256,7 @@ void FindPrevious(Browser* browser);
 void FindInPage(Browser* browser, bool find_next, bool forward_direction);
 void ShowTabSearch(BrowserWindowInterface* bwi);
 void CloseTabSearch(Browser* browser);
+void ShowContextualTasksSidePanel(BrowserWindowInterface* browser);
 void ToggleVerticalTabs(Browser* browser);
 void ShowTabDeclutter(Browser* browser);
 bool CanCloseFind(Browser* browser);

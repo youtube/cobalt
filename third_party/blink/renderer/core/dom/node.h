@@ -404,7 +404,6 @@ class CORE_EXPORT Node : public EventTarget {
   }
   virtual PseudoId GetPseudoId() const { return kPseudoIdNone; }
   virtual PseudoId GetPseudoIdForStyling() const { return kPseudoIdNone; }
-  virtual const AtomicString& GetPseudoArgument() const { return g_null_atom; }
 
   CustomElementState GetCustomElementState() const {
     return static_cast<CustomElementState>(node_flags_ &
@@ -760,6 +759,7 @@ class CORE_EXPORT Node : public EventTarget {
   // https://dom.spec.whatwg.org/#concept-shadow-including-ancestor
   bool IsShadowIncludingAncestorOf(const Node&) const;
   bool ContainsIncludingHostElements(const Node&) const;
+  bool ContainsViaFlatTree(const Node&) const;
   Node* CommonAncestor(const Node&,
                        ContainerNode* (*parent)(const Node&)) const;
 

@@ -218,6 +218,9 @@ class BrowserTabStripController::TabContextMenuContents
     // `controller_`. So stop the highlights before executing the command.
     controller_->ExecuteCommandForTab(
         static_cast<TabStripModel::ContextMenuCommand>(command_id), tab_);
+    // Clearing reference to `tab_` avoids dangling pointers when executing
+    // commands results in the tab being destroyed.
+    tab_ = nullptr;
   }
 
  private:
@@ -443,7 +446,7 @@ void BrowserTabStripController::OnCloseTab(
 #if BUILDFLAG(IS_CHROMEOS)
   // Tabs cannot be closed when the app is in locked fullscreen, which is
   // available only on ChromeOS.
-  if (browser_view_->IsTrustedPinned()) {
+  if (browser_view_->IsLockedFullscreen()) {
     return;
   }
 #endif
@@ -555,7 +558,12 @@ void BrowserTabStripController::ToggleTabGroupCollapsedState(
       } else {
         // Create a new tab that will automatically be activated
         should_toggle_group = false;
-        CreateNewTab();
+        // We intentionally do not call CreateNewTab() here because it
+        // respects the IsNewTabAddsToActiveGroupEnabled() feature, which would
+        // add the new tab to the same group as the currently active tab.
+        // In the "collapse group" scenario, we want the new tab to be created
+        // outside of any group to avoid it being collapsed immediately.
+        model_->delegate()->AddTabAt(GURL(), -1, true);
       }
     } else {
       // If the active tab is not in the group that is toggling to collapse,
@@ -686,10 +694,18 @@ void BrowserTabStripController::OnStoppedDragging() {
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-  browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
-      ash::kIsDraggingTabsKey);
-  browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
-      ash::kTabDraggingSourceWindowKey);
+  // Clear the drag properties unless the drag browser's tabs got merged into
+  // another browser, in which case SplitViewController::TabDragWindowObserver
+  // still needs to read the properties. We detect this case by checking if the
+  // tab strip model is now empty. Since it was non-empty originally and the
+  // drag browser can't have any pending downloads. we know that it's about to
+  // get destroyed anyways.
+  if (!browser_view_->browser()->tab_strip_model()->empty()) {
+    browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
+        ash::kIsDraggingTabsKey);
+    browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
+        ash::kTabDraggingSourceWindowKey);
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
@@ -773,11 +789,16 @@ bool BrowserTabStripController::HasVisibleBackgroundTabShapes() const {
 }
 
 bool BrowserTabStripController::EverHasVisibleBackgroundTabShapes() const {
-  return GetFrameView()->EverHasVisibleBackgroundTabShapes();
+  return GetFrameView()->HasVisibleBackgroundTabShapes(
+             BrowserFrameActiveState::kActive) ||
+         GetFrameView()->HasVisibleBackgroundTabShapes(
+             BrowserFrameActiveState::kInactive);
 }
 
 bool BrowserTabStripController::CanDrawStrokes() const {
-  return GetFrameView()->CanDrawStrokes();
+  // Web apps should not draw strokes if they don't have a tab strip.
+  return !browser_view_->browser()->app_controller() ||
+         browser_view_->browser()->app_controller()->has_tab_strip();
 }
 
 SkColor BrowserTabStripController::GetFrameColor(

@@ -72,6 +72,7 @@ import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
@@ -109,6 +110,8 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
@@ -977,9 +980,10 @@ public class NewTabPage
 
     /**
      * Sets the listener for search box scroll changes.
+     *
      * @param listener The listener to be notified on changes.
      */
-    public void setSearchBoxScrollListener(OnSearchBoxScrollListener listener) {
+    public void setSearchBoxScrollListener(@Nullable OnSearchBoxScrollListener listener) {
         mNewTabPageLayout.setSearchBoxScrollListener(listener);
     }
 
@@ -1143,7 +1147,10 @@ public class NewTabPage
 
     @Override
     public String getUrl() {
-        return UrlConstants.NTP_URL;
+        Profile currentProfile = mTab.getProfile();
+        UrlConstantResolver urlConstantResolver =
+                UrlConstantResolverFactory.getForProfile(currentProfile);
+        return urlConstantResolver.getNtpUrl();
     }
 
     @Override
@@ -1167,7 +1174,7 @@ public class NewTabPage
                 && !mIsTablet
                 && isInSingleUrlBarMode()
                 && NtpCustomizationConfigManager.getInstance().getBackgroundImageType()
-                        != NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
+                        != NtpBackgroundImageType.DEFAULT;
     }
 
     @Override
@@ -1218,6 +1225,11 @@ public class NewTabPage
     public void reload() {
         mFeedSurfaceProvider.reload();
         mNewTabPageLayout.reload();
+    }
+
+    @Override
+    public int getTopInset() {
+        return mNewTabPageLayout.getTopInset();
     }
 
     // InvalidationAwareThumbnailProvider

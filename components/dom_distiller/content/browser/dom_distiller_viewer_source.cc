@@ -230,7 +230,8 @@ void DomDistillerViewerSource::StartDataRequest(
   if (remainder) {
     double scale = 1.0;
     if (base::StringToDouble(*remainder, &scale)) {
-      dom_distiller_service_->GetDistilledPagePrefs()->SetFontScaling(scale);
+      dom_distiller_service_->GetDistilledPagePrefs()->SetUserPrefFontScaling(
+          scale);
     }
   }
 
@@ -238,12 +239,12 @@ void DomDistillerViewerSource::StartDataRequest(
   // from |URLDataSource|. |web_contents| is the most convenient place to
   // obtain the full URL.
   // TODO(crbug.com/40095934): pass GURL in URLDataSource::StartDataRequest().
-  const std::string query = GURL("https://host/" + path).query();
+  const std::string query = GURL("https://host/" + path).GetQuery();
   GURL request_url = web_contents->GetVisibleURL();
   // The query should match what's seen in |web_contents|.
   // For javascript:window.open(), it's not the case, but it's not a supported
   // use case.
-  if (request_url.query() != query || request_url.path() != "/") {
+  if (request_url.GetQuery() != query || request_url.GetPath() != "/") {
     request_url = GURL();
   }
   RequestViewerHandle* request_viewer_handle =
@@ -277,7 +278,7 @@ void DomDistillerViewerSource::StartDataRequest(
 }
 
 std::string DomDistillerViewerSource::GetMimeType(const GURL& url) {
-  const std::string_view path = url.path_piece().substr(1);
+  const std::string_view path = url.path().substr(1);
   if (kViewerCssPath == path)
     return "text/css";
   if (kViewerLoadingImagePath == path)

@@ -66,15 +66,10 @@ void WaylandWpColorManagementSurface::OnSetColorSpace(
 
   auto* color_manager = connection_->wp_color_manager();
   wp_color_manager_v1_render_intent render_intent;
-  if (color_manager->IsSupportedRenderIntent(
-          WP_COLOR_MANAGER_V1_RENDER_INTENT_RELATIVE)) {
-    render_intent = WP_COLOR_MANAGER_V1_RENDER_INTENT_RELATIVE;
-  } else {
-    // The protocol mandates that perceptual is always supported.
-    CHECK(color_manager->IsSupportedRenderIntent(
-        WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL));
-    render_intent = WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL;
-  }
+  // The protocol mandates that perceptual is always supported.
+  CHECK(color_manager->IsSupportedRenderIntent(
+      WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL));
+  render_intent = WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL;
   wp_color_management_surface_v1_set_image_description(
       management_surface_.get(), image_description->object(), render_intent);
 }
@@ -98,6 +93,14 @@ void WaylandWpColorManagementSurface::OnPreferredChanged(
   auto* self = static_cast<WaylandWpColorManagementSurface*>(data);
   CHECK(self);
   CHECK_EQ(feedback_surface, self->feedback_surface_.get());
+
+  // Reset the previous image description before creating a new one.
+  // Per the color management protocol specification:
+  // "The client should stop using and destroy the image descriptions created
+  // by earlier invocations of this request for the associated wl_surface."
+  // This prevents "invalid object" errors when the compositor or client tries
+  // to reference the old object ID after it has been destroyed.
+  self->image_description_.reset();
 
   auto image_description_object = wl::Object<wp_image_description_v1>(
       wp_color_management_surface_feedback_v1_get_preferred(feedback_surface));

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "ash/webui/boca_ui/boca_ui.h"
+
+#include <memory>
 
 #include "ash/constants/ash_features.h"
 #include "ash/webui/boca_ui/boca_app_page_handler.h"
@@ -126,7 +127,7 @@ void BocaUI::Create(
       web_ui()->GetWebContents()->GetBrowserContext();
   CHECK(context);
   const std::string host_name =
-      web_ui()->GetWebContents()->GetVisibleURL().host();
+      web_ui()->GetWebContents()->GetVisibleURL().GetHost();
   auto auth_handler = std::make_unique<WebviewAuthHandler>(
       std::make_unique<WebviewAuthDelegate>(), context, host_name);
   auto* const profile = Profile::FromWebUI(web_ui());
@@ -147,7 +148,7 @@ void BocaUI::Create(
       BocaAppClient::Get()->GetSessionManager()->session_client_impl(),
       is_producer_);
   page_handler_impl_->SetSpotlightService(&spotlight_service_);
-  if (ash::features::IsBocaMarkerModeEnabled() && is_producer_) {
+  if (ash::features::IsAnnotatorModeEnabled() && is_producer_) {
     ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/true);
   }
 }

@@ -130,12 +130,12 @@ export class PeerConnectionUpdateTable {
         'transceiverModified'].includes(update.type)) {
       const data = JSON.parse(update.value);
       type += '(index=' + data.transceiverIndex + ', kind=' + data.kind + ')';
-    } else if (['iceconnectionstatechange', 'connectionstatechange',
-        'signalingstatechange'].includes(update.type)) {
+    } else if (['oniceconnectionstatechange', 'onconnectionstatechange',
+        'onsignalingstatechange'].includes(update.type)) {
       const fieldName = {
-        'iceconnectionstatechange' : 'iceconnectionstate',
-        'connectionstatechange' : 'connectionstate',
-        'signalingstatechange' : 'signalingstate',
+        'oniceconnectionstatechange' : 'iceconnectionstate',
+        'onconnectionstatechange' : 'connectionstate',
+        'onsignalingstatechange' : 'signalingstate',
       }[update.type];
       const el = peerConnectionElement.getElementsByClassName(fieldName)[0];
       const numberOfEvents = el.textContent.split(' => ').length;
@@ -156,10 +156,10 @@ export class PeerConnectionUpdateTable {
     details.appendChild(valueContainer);
 
     // Highlight ICE/DTLS failures and failure callbacks.
-    if ((update.type === 'iceconnectionstatechange' &&
-         update.value === 'failed') ||
-        (update.type === 'connectionstatechange' &&
-         update.value === 'failed') ||
+    if ((update.type === 'oniceconnectionstatechange' &&
+         update.value === '"failed"') ||
+        (update.type === 'onconnectionstatechange' &&
+         update.value === '"failed"') ||
         update.type.indexOf('OnFailure') !== -1 ||
         update.type === 'addIceCandidateFailed') {
       valueContainer.parentElement.classList.add('update-log-failure');

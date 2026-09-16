@@ -71,7 +71,8 @@ export class SettingsSyncControlsElement extends
         value: false,
         computed: 'syncControlsHidden_(' +
             'syncStatus.signedIn, syncStatus.disabled, ' +
-            'syncStatus.hasError, isAccountSettingsPage_)',
+            'syncStatus.hasError, isAccountSettingsPage_, ' +
+            'syncPrefs.localSyncEnabled)',
         reflectToAttribute: true,
       },
 
@@ -101,7 +102,8 @@ export class SettingsSyncControlsElement extends
       showSyncDisabledInformation: {
         type: Boolean,
         value: false,
-        computed: 'computeShowSyncDisabledInformation_(syncStatus.disabled)',
+        computed: 'computeShowSyncDisabledInformation_(syncStatus.disabled, ' +
+            'isAccountSettingsPage_)',
         reflectToAttribute: true,
       },
 
@@ -268,15 +270,22 @@ export class SettingsSyncControlsElement extends
   private disableTypeCheckBox_(
       syncStatus: SyncStatus, syncAllDataTypes: boolean,
       dataTypeManaged: boolean): boolean {
+    if (!syncStatus) {
+      return true;
+    }
+
+    if (dataTypeManaged) {
+      return true;
+    }
+
+    if (syncStatus.signedInState === SignedInState.SYNCING) {
+      return syncAllDataTypes;
+    }
+
     // Toggles should be disabled on the account settings page if sync is
     // disabled, or if the sync prefs are undefined, which is the case e.g.
     // right after startup.
-    if (this.isAccountSettingsPage_) {
-      return !syncStatus || syncStatus.disabled || !this.syncPrefs ||
-          dataTypeManaged;
-    }
-
-    return syncAllDataTypes || dataTypeManaged;
+    return syncStatus.disabled || !this.syncPrefs;
   }
 
   private showPolicyIndicator_(
@@ -334,11 +343,12 @@ export class SettingsSyncControlsElement extends
     // The account page is not shown when the user is not signed in or if they
     // are in sign in pending state, so we don't need to check for the signed in
     // state here. However, the controls should be hidden if there is a
-    // passphrase error.
+    // passphrase error or the user has local sync enabled.
     // <if expr="not is_chromeos">
     if (this.isAccountSettingsPage_) {
       return !!this.syncStatus.hasError ||
-          this.syncStatus.statusAction === StatusAction.ENTER_PASSPHRASE;
+          this.syncStatus.statusAction === StatusAction.ENTER_PASSPHRASE ||
+          (!!this.syncPrefs && this.syncPrefs.localSyncEnabled);
     }
     // </if>
 

@@ -171,7 +171,6 @@ void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                JSDispatchHandle handle) {
-#ifdef V8_ENABLE_LEAPTIERING
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
 
   // The JSDispatchTable is only marked during major GC so we can skip the
@@ -191,9 +190,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   // JSDispatchTable are not compacted and because the pointers stored in the
   // table entries are updated after compacting GC.
   static_assert(!JSDispatchTable::kSupportsCompaction);
-#else
-  UNREACHABLE();
-#endif
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
@@ -571,7 +567,6 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
 bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                     JSDispatchHandle handle,
                                                     WriteBarrierMode mode) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   if (mode == SKIP_WRITE_BARRIER &&
       WriteBarrier::IsRequired(host, jdt->GetCode(handle))) {
@@ -596,9 +591,6 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
     return true;
   }
   return !CurrentMarkingBarrier(host)->IsMarked(value);
-#else
-  return true;
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 #endif  // V8_VERIFY_WRITE_BARRIERS
@@ -616,19 +608,26 @@ WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
 
 WriteBarrierModeScope::WriteBarrierModeScope(Tagged<HeapObject> object,
                                              WriteBarrierMode mode)
-    : mode_(mode) {
+    : object_(object), mode_(mode) {
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     LocalHeap* local_heap = LocalHeap::Current();
     CHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
-    local_heap->write_barrier_mode_for_object_ = object.address();
+    CHECK(!object_.is_null());
+    local_heap->write_barrier_mode_for_object_ = object_.address();
   }
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 WriteBarrierModeScope::~WriteBarrierModeScope() {
 #if V8_VERIFY_WRITE_BARRIERS
-  if (v8_flags.verify_write_barriers) {
+  if (v8_flags.verify_write_barriers && mode_.has_value()) {
+    LocalHeap* local_heap = LocalHeap::Current();
+    if (object_.is_null()) {
+      CHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
+    } else {
+      CHECK_EQ(local_heap->write_barrier_mode_for_object_, object_.address());
+    }
     LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
   }
 #endif  // V8_VERIFY_WRITE_BARRIERS

@@ -107,6 +107,9 @@ class RtpTransport : public RtpTransportInternal {
   virtual void OnWritableState(PacketTransportInternal* packet_transport);
 
  private:
+  // Helper function for SetRt(c)pPacketTransport
+  void ChangePacketTransport(PacketTransportInternal* new_transport,
+                             PacketTransportInternal*& transport_to_change);
   void OnReadyToSend(PacketTransportInternal* transport);
   void OnSentPacket(PacketTransportInternal* packet_transport,
                     const SentPacketInfo& sent_packet);
@@ -136,7 +139,6 @@ class RtpTransport : public RtpTransportInternal {
   RtpHeaderExtensionMap header_extension_map_;
   // Guard against recursive "ready to send" signals
   bool processing_ready_to_send_ = false;
-  bool processing_sent_packet_ = false;
   ScopedTaskSafety safety_;
 };
 

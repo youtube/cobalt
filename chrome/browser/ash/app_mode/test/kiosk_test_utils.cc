@@ -39,13 +39,13 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/ash/login/app_launch_splash_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
+#include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "extensions/browser/app_window/app_window.h"
@@ -61,8 +61,6 @@
 namespace ash::kiosk::test {
 
 namespace {
-
-const char kTestUrl[] = "https://www.test.com";
 
 const extensions::Extension* FindInExtensionRegistry(Profile& profile,
                                                      std::string_view app_id) {
@@ -96,6 +94,34 @@ class SessionInitializedWaiter : public KioskAppManagerObserver {
       observation_{this};
 };
 
+// Waits for the browser window to be hidden or destroyed.
+class TestBrowserHiddenWaiter : public views::WidgetObserver {
+ public:
+  explicit TestBrowserHiddenWaiter(Browser* browser) {
+    EXPECT_TRUE(browser->window()->IsVisible());
+    widget_observation_.Observe(browser->GetBrowserView().GetWidget());
+  }
+
+  ~TestBrowserHiddenWaiter() override { widget_observation_.Reset(); }
+
+  [[nodiscard]] bool WaitUntilHidden() { return future_.Wait(); }
+
+ private:
+  void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override {
+    if (!visible) {
+      future_.SetValue();
+    }
+  }
+  void OnWidgetDestroying(views::Widget* widget) override {
+    widget_observation_.Reset();
+    future_.SetValue();
+  }
+
+  base::ScopedObservation<views::Widget, WidgetObserver> widget_observation_{
+      this};
+  base::test::TestFuture<void> future_;
+};
+
 content::WebContents* GetActiveWebContents(const Browser& browser) {
   return browser.tab_strip_model()->GetActiveWebContents();
 }
@@ -110,9 +136,10 @@ void AddWebContentsToBrowser(Browser& browser, Profile& profile) {
                                             AddTabTypes::ADD_ACTIVE);
 }
 
-void TriggerNavigation(content::WebContents* web_contents) {
+void TriggerNavigationToUrl(content::WebContents* web_contents,
+                            const GURL& url) {
   web_contents->GetController().LoadURLWithParams(
-      content::NavigationController::LoadURLParams(GURL(kTestUrl)));
+      content::NavigationController::LoadURLParams(url));
 }
 
 }  // namespace
@@ -277,13 +304,13 @@ bool PressBailoutAccelerator() {
       LoginAcceleratorAction::kAppLaunchBailout);
 }
 
-Browser* OpenA11ySettings(Profile& profile) {
+Browser* OpenA11ySettings(const user_manager::User& user) {
   auto& session = CHECK_DEREF(KioskController::Get().GetKioskSystemSession());
-  auto& settings_manager =
-      CHECK_DEREF(chrome::SettingsWindowManager::GetInstance());
+  auto& settings_manager = CHECK_DEREF(ash::SettingsAppManager::Get());
 
-  settings_manager.ShowOSSettings(
-      &profile, chromeos::settings::mojom::kManageAccessibilitySubpagePath);
+  settings_manager.Open(
+      user,
+      {.sub_page = chromeos::settings::mojom::kManageAccessibilitySubpagePath});
 
   EXPECT_FALSE(DidKioskCloseNewWindow());
 
@@ -298,6 +325,10 @@ bool DidKioskCloseNewWindow() {
   session.SetOnHandleBrowserCallbackForTesting(
       new_window_closed.GetRepeatingCallback());
   return new_window_closed.Take();
+}
+
+bool DidKioskHideNewWindow(Browser* browser) {
+  return TestBrowserHiddenWaiter(browser).WaitUntilHidden();
 }
 
 void CloseAppWindow(const KioskApp& app) {
@@ -361,18 +392,20 @@ AccountId CreateDeviceLocalAccountId(std::string_view account_id,
       policy::GenerateDeviceLocalAccountUserId(account_id, type)));
 }
 
-Browser& CreateRegularBrowser(Profile& profile) {
+Browser& CreateRegularBrowser(Profile& profile, const GURL& url) {
   Browser::CreateParams params(&profile, /*user_gesture=*/true);
   Browser& browser = CHECK_DEREF(Browser::Create(params));
   browser.window()->Show();
 
   AddWebContentsToBrowser(browser, profile);
-  TriggerNavigation(GetActiveWebContents(browser));
+  TriggerNavigationToUrl(GetActiveWebContents(browser), url);
 
   return browser;
 }
 
-Browser& CreatePopupBrowser(Profile& profile, const std::string& app_name) {
+Browser& CreatePopupBrowser(Profile& profile,
+                            const std::string& app_name,
+                            const GURL& url) {
   Browser::CreateParams params = Browser::CreateParams::CreateForAppPopup(
       app_name,
       /*trusted_source=*/true,
@@ -382,7 +415,7 @@ Browser& CreatePopupBrowser(Profile& profile, const std::string& app_name) {
   browser.window()->Show();
 
   AddWebContentsToBrowser(browser, profile);
-  TriggerNavigation(GetActiveWebContents(browser));
+  TriggerNavigationToUrl(GetActiveWebContents(browser), url);
 
   return browser;
 }

@@ -244,7 +244,6 @@ static_library("safe_browsing") {
       "//chrome/browser:browser_process",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/download",
-      "//chrome/browser/enterprise/connectors/analysis:features",
       "//chrome/browser/permissions:permissions_proto",
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
@@ -655,6 +654,15 @@ source_set("unit_tests") {
   ]
   if (is_android) {
     deps += [ "android:test_support" ]
+  }
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [ "safe_browsing_pref_change_handler_unittest.cc" ]
+
+    deps += [
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/toasts",
+      "//testing/gmock",
+    ]
   }
 }
 

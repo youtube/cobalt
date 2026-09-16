@@ -104,7 +104,8 @@
     _identityInteractionManager = nil;
     [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kInterrupted];
     // Do not use self after this line, the owner might delete this coordinator.
-    [self.delegate reauthFinishedWithResult:ReauthResult::kInterrupted];
+    [self.delegate reauthFinishedWithResult:ReauthResult::kInterrupted
+                                     gaiaID:nullptr];
   }
 }
 
@@ -118,11 +119,14 @@
 
   ReauthResult result;
   if (!error) {
-    GaiaId id = GaiaId(identity.gaiaID);
-    if (id == _account.gaia) {
+    GaiaId gaia_id = identity.gaiaId;
+    if (gaia_id == _account.gaia) {
       result = ReauthResult::kSuccess;
       [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCompleted];
     } else {
+      // This branch includes the case where `identity` is nil and where the
+      // user signed-in with a different identity than the one originally
+      // proposed.
       result = ReauthResult::kCancelledByUser;
       [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCancelled];
     }
@@ -135,7 +139,9 @@
   }
 
   // Do not use self after this line, the owner might delete this coordinator.
-  [self.delegate reauthFinishedWithResult:result];
+  GaiaId gaiaId(identity.gaiaID);
+  GaiaId* gaiaIdPointer = identity ? &gaiaId : nullptr;
+  [self.delegate reauthFinishedWithResult:result gaiaID:gaiaIdPointer];
 }
 
 - (void)recordReauthFlowEvent:(signin_metrics::ReauthFlowEvent)event {

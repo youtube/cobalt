@@ -56,6 +56,7 @@
 #include "content/public/common/content_paths.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_devtools_protocol_client.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "net/base/features.h"
@@ -725,6 +726,80 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
 
   EXPECT_EQ(QueryPermission(GetPrimaryMainFrame()), "granted");
   EXPECT_EQ(QueryPermission(GetFrame()), "prompt");
+}
+
+IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
+                       PermissionGrantedViaDevtools) {
+  SetBlockThirdPartyCookies(true);
+
+  content::TestDevToolsProtocolClient devtools_client;
+  devtools_client.AttachToWebContents(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  devtools_client.SendCommandSync("Browser.enable");
+
+  NavigateToPageWithFrame(kHostA);
+  NavigateFrameTo(kHostB, "/echoheader?cookie");
+
+  // Ensure that we do not currently have a granted permission
+  EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
+  EXPECT_EQ(QueryPermission(GetFrame()), "prompt");
+  EXPECT_THAT(content_settings()->GetTwoSiteRequests(
+                  ContentSettingsType::STORAGE_ACCESS),
+              IsEmpty());
+
+  auto test_storage_access = [&](bool expected_for_frame,
+                                 bool expected_for_other_frame) {
+    EXPECT_EQ(storage::test::RequestAndCheckStorageAccessForFrame(GetFrame()),
+              expected_for_frame);
+    EXPECT_EQ(QueryPermission(GetFrame()),
+              expected_for_frame ? "granted" : "prompt");
+    EXPECT_EQ(
+        ReadCookies(GetFrame(), kHostB),
+        expected_for_frame ? CookieBundle("cross-site=b.test") : kNoCookies);
+
+    // Check access for other frame
+    NavigateToPageWithFrame(kHostA);
+    NavigateFrameTo(kHostC, "/empty.html");
+    EXPECT_EQ(QueryPermission(GetFrame()),
+              expected_for_other_frame ? "granted" : "prompt");
+
+    // Ensure that after a navigation the permission state is preserved.
+    NavigateToPageWithFrame(kHostA);
+    NavigateFrameTo(kHostB, "/echoheader?cookie");
+    EXPECT_EQ(storage::test::RequestAndCheckStorageAccessForFrame(GetFrame()),
+              expected_for_frame);
+    EXPECT_EQ(QueryPermission(GetFrame()),
+              expected_for_frame ? "granted" : "prompt");
+    EXPECT_EQ(
+        ReadCookies(GetFrame(), kHostB),
+        expected_for_frame ? CookieBundle("cross-site=b.test") : kNoCookies);
+
+    devtools_client.SendCommandSync("Browser.resetPermissions");
+
+    EXPECT_EQ(QueryPermission(GetFrame()), "prompt");
+  };
+
+  devtools_client.SendCommandSync(
+      "Browser.setPermission",
+      base::Value::Dict()
+          .Set("setting", "granted")
+          .Set("permission",
+               base::Value::Dict().Set("name", "storage-access")));
+  test_storage_access(/*expected_for_frame=*/true,
+                      /*expected_for_other_frame=*/true);
+
+  devtools_client.SendCommandSync(
+      "Browser.setPermission",
+      base::Value::Dict()
+          .Set("setting", "granted")
+          .Set("origin", kOriginA)
+          .Set("embeddedOrigin", kOriginB)
+          .Set("permission",
+               base::Value::Dict().Set("name", "storage-access")));
+  test_storage_access(/*expected_for_frame=*/true,
+                      /*expected_for_other_frame=*/false);
+
+  devtools_client.DetachProtocolClient();
 }
 
 // Test that permissions.query changes to "granted" when a storage access
@@ -3156,11 +3231,12 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIAutograntsWithFedCMBrowserTest,
   constexpr char kPageWithPermissionPolicyHeader[] = "/page_with_header.html";
   content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](content::URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url.path() != kPageWithPermissionPolicyHeader) {
+        if (params->url_request.url.GetPath() !=
+            kPageWithPermissionPolicyHeader) {
           return false;
         }
 
-        CHECK_EQ(params->url_request.url.host_piece(), kHostB);
+        CHECK_EQ(params->url_request.url.host(), kHostB);
         content::URLLoaderInterceptor::WriteResponse(
             "HTTP/1.1 200 OK\n"
             "Content-type: text/html\n"
@@ -4086,7 +4162,7 @@ IN_PROC_BROWSER_TEST_P(StorageAccessAPIWindowOpenSubFrameTest,
       content::FrameMatchingPredicate(
           popin_web_contents->GetPrimaryPage(),
           base::BindRepeating([](content::RenderFrameHost* rfh) {
-            return rfh->GetLastCommittedURL().path_piece() == "/title1.html";
+            return rfh->GetLastCommittedURL().path() == "/title1.html";
           }));
 
   // Expect no first-party data for cross-origin popin subframes.

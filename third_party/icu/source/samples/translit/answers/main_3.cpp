@@ -9,7 +9,7 @@
  ***********************************************************************/
 
 #include "unicode/translit.h"
-#include "unicode/rbt.h"
+#include "rbt.h"
 #include "unicode/unistr.h"
 #include "unicode/calendar.h"
 #include "unicode/datefmt.h"
@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include "util.h"
 #include "unaccent.h"
+
+using icu::Transliterator;
 
 // RuleBasedTransliterator rules to remove accents from characters
 // so they can be displayed as ASCIIx
@@ -53,16 +55,19 @@ int main(int argc, char **argv) {
     defFmt->setCalendar(*cal);
 
     // Create a Greek-Latin Transliterator
-    greek_latin = Transliterator::createInstance("Greek-Latin");
-    if (greek_latin == 0) {
+    greek_latin = Transliterator::createInstance("Greek-Latin", UTRANS_FORWARD, status);
+    if (greek_latin == nullptr) {
         printf("ERROR: Transliterator::createInstance() failed\n");
         exit(1);
     }
 
     // Create a custom Transliterator
+    UParseError parseError;
     rbtUnaccent = new RuleBasedTransliterator("RBTUnaccent",
                                               UNACCENT_RULES,
                                               UTRANS_FORWARD,
+                                              nullptr,
+                                              parseError,
                                               status);
     check(status, "RuleBasedTransliterator::ct");
 

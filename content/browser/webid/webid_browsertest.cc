@@ -482,6 +482,7 @@ class WebIdIdPRegistryBrowserTest : public WebIdBrowserTest {
     features.push_back(net::features::kSplitCacheByNetworkIsolationKey);
     features.push_back(features::kFedCm);
     features.push_back(features::kFedCmIdPRegistration);
+    features.push_back(features::kFedCmLightweightMode);
 
     scoped_feature_list_.InitWithFeatures(features, {});
 
@@ -493,6 +494,42 @@ class WebIdIdPRegistryBrowserTest : public WebIdBrowserTest {
     return static_cast<InMemoryFederatedPermissionContext*>(
         context->GetFederatedIdentityPermissionContext());
   }
+
+  void NavigateToIdpToRegisterAndSetLoginStatus(const GURL& configURL) {
+    EXPECT_TRUE(NavigateToURL(shell(), configURL));
+
+    std::string script = R"(
+          (async () => {
+            await IdentityProvider.register(')" +
+                         configURL.spec() + R"(');
+            // The permission was accepted if the promise resolves.
+            return true;
+          }) ()
+      )";
+
+    EXPECT_EQ(true, EvalJs(shell(), script));
+
+    // Assert that the IdP was added to the Registry.
+    const std::vector<GURL>& registeredIdPs =
+        sharing_context()->GetRegisteredIdPs();
+    EXPECT_NE(
+        std::find(registeredIdPs.begin(), registeredIdPs.end(), configURL),
+        registeredIdPs.end());
+
+    // Set the login status and push accounts since we only support pushed
+    // accounts for registered IDPs.
+    static constexpr char set_status_script[] = R"(
+      (async () => {
+        await navigator.login.setStatus("logged-in", {accounts: [
+          {id: "not_real_account", name: "Test Name", email: "test@idp.example"}
+        ]});
+        return true;
+      })()
+    )";
+    EXPECT_EQ(true, EvalJs(shell(), set_status_script));
+  }
+
+  base::HistogramTester histogram_tester_;
 };
 
 class WebIdAuthzBrowserTest : public WebIdBrowserTest {
@@ -644,6 +681,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, RegisterIdP) {
 
   EXPECT_EQ(std::vector<GURL>{configURL},
             sharing_context()->GetRegisteredIdPs());
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Verify that the RP cannot register the IdP across origins.
@@ -699,6 +738,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, UnregisterIdP) {
   EXPECT_EQ(true, EvalJs(shell(), script));
 
   EXPECT_TRUE(sharing_context()->GetRegisteredIdPs().empty());
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Verify that an RP can request from registered IdPs.
@@ -721,25 +762,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, UseRegistry) {
             std::move(callback).Run(true);
           }));
 
-  // We navigate to the IdP's configURL so that we can run
-  // the script below with the IdP's origin as the top level
-  // first party context.
-  EXPECT_TRUE(NavigateToURL(shell(), configURL));
-
-  std::string script = R"(
-        (async () => {
-          await IdentityProvider.register(')" +
-                       configURL.spec() + R"(');
-          // The permission was accepted if the promise resolves.
-          return true;
-        }) ()
-    )";
-
-  EXPECT_EQ(true, EvalJs(shell(), script));
-
-  // Assert that the IdP was added to the Registry.
-  EXPECT_EQ(std::vector<GURL>{configURL},
-            sharing_context()->GetRegisteredIdPs());
+  NavigateToIdpToRegisterAndSetLoginStatus(configURL);
 
   // Navigate to the RP.
   EXPECT_TRUE(NavigateToURL(
@@ -763,6 +786,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, UseRegistry) {
   SetTestIdentityRequestDialogController("not_real_account");
 
   EXPECT_EQ(std::string(kToken), EvalJs(shell(), get_script));
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Verify that when type is requested, an IDP not matching it will not show
@@ -835,6 +860,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, RegistryWithTypeNoMatch) {
   idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
   EXPECT_EQ(expected_error, ExtractJsError(EvalJs(shell(), get_script)));
   ASSERT_TRUE(console_observer.Wait());
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Verify that when the type of the registered IdP matches the requested one,
@@ -859,21 +886,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, RegistryWithTypeMatch) {
             std::move(callback).Run(true);
           }));
 
-  // We navigate to the IdP's configURL so that we can run
-  // the script below with the IdP's origin as the top level
-  // first party context.
-  EXPECT_TRUE(NavigateToURL(shell(), configURL));
-
-  std::string script = R"(
-        (async () => {
-          await IdentityProvider.register(')" +
-                       configURL.spec() + R"(');
-          // The permission was accepted if the promise resolves.
-          return true;
-        }) ()
-    )";
-
-  EXPECT_EQ(true, EvalJs(shell(), script));
+  NavigateToIdpToRegisterAndSetLoginStatus(configURL);
 
   // Navigate to the RP.
   EXPECT_TRUE(NavigateToURL(
@@ -897,6 +910,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, RegistryWithTypeMatch) {
 
   SetTestIdentityRequestDialogController("not_real_account");
   EXPECT_EQ(std::string(kToken), EvalJs(shell(), get_script));
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Test that multiple IdPs can be registered and that the FedCM flow is
@@ -913,30 +928,13 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, MultipleRegisteredIdps) {
       static_cast<MockIdentityRequestDialogController*>(
           test_browser_client_->GetIdentityRequestDialogControllerForTests());
   EXPECT_CALL(*controller, RequestIdPRegistrationPermision)
-      .WillOnce(::testing::WithArg<1>(
+      .WillRepeatedly(::testing::WithArg<1>(
           [](base::OnceCallback<void(bool accepted)> callback) {
             std::move(callback).Run(true);
           }));
 
-  // We navigate to the IdP's configURL so that we can run
-  // the script below with the IdP's origin as the top level
-  // first party context.
-  EXPECT_TRUE(NavigateToURL(shell(), configURL));
-
-  std::string script = R"(
-        (async () => {
-          await IdentityProvider.register(')" +
-                       configURL.spec() + R"(');
-          // The permission was accepted if the promise resolves.
-          return true;
-        }) ()
-    )";
-
-  EXPECT_EQ(true, EvalJs(shell(), script));
-
-  // Assert that the IdP was added to the Registry.
-  EXPECT_EQ(std::vector<GURL>{configURL},
-            sharing_context()->GetRegisteredIdPs());
+  // Register the first IdP and push accounts.
+  NavigateToIdpToRegisterAndSetLoginStatus(configURL);
 
   // Register the second IdP.
   mock = std::make_unique<
@@ -952,16 +950,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, MultipleRegisteredIdps) {
           }));
 
   GURL otherConfigURL = https_server().GetURL("idp2.example", "/fedcm.json");
-  EXPECT_TRUE(NavigateToURL(shell(), otherConfigURL));
-  script = R"(
-        (async () => {
-          await IdentityProvider.register(')" +
-           otherConfigURL.spec() + R"(');
-          // The permission was accepted if the promise resolves.
-          return true;
-        }) ()
-    )";
-  EXPECT_EQ(true, EvalJs(shell(), script));
+  NavigateToIdpToRegisterAndSetLoginStatus(otherConfigURL);
 
   // Navigate to the RP.
   EXPECT_TRUE(NavigateToURL(
@@ -985,6 +974,80 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, MultipleRegisteredIdps) {
   SetTestIdentityRequestDialogController("not_real_account");
 
   EXPECT_EQ(std::string(kToken), EvalJs(shell(), get_script));
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
+}
+
+// Verify that if an IDP is registered but has no pushed accounts, the FedCM
+// call fails.
+IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, RegistryNoPushedAccounts) {
+  GURL configURL = GURL(BaseIdpUrl());
+  idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
+
+  auto mock = std::make_unique<
+      ::testing::NiceMock<MockIdentityRequestDialogController>>();
+  test_browser_client_->SetIdentityRequestDialogController(std::move(mock));
+
+  MockIdentityRequestDialogController* controller =
+      static_cast<MockIdentityRequestDialogController*>(
+          test_browser_client_->GetIdentityRequestDialogControllerForTests());
+
+  // Expects the account chooser to be opened. Selects the first account.
+  EXPECT_CALL(*controller, RequestIdPRegistrationPermision)
+      .WillOnce(::testing::WithArg<1>(
+          [](base::OnceCallback<void(bool accepted)> callback) {
+            std::move(callback).Run(true);
+          }));
+
+  // We navigate to the IdP's configURL so that we can run
+  // the script below with the IdP's origin as the top level
+  // first party context.
+  EXPECT_TRUE(NavigateToURL(shell(), configURL));
+
+  std::string script = R"(
+        (async () => {
+          await IdentityProvider.register(')" +
+                       configURL.spec() + R"(');
+          // The permission was accepted if the promise resolves.
+          return true;
+        }) ()
+    )";
+
+  EXPECT_EQ(true, EvalJs(shell(), script));
+
+  // Assert that the IdP was added to the Registry.
+  const std::vector<GURL>& registeredIdPs =
+      sharing_context()->GetRegisteredIdPs();
+  EXPECT_NE(std::find(registeredIdPs.begin(), registeredIdPs.end(), configURL),
+            registeredIdPs.end());
+
+  // Do not push accounts.
+
+  // Navigate to the RP.
+  EXPECT_TRUE(NavigateToURL(
+      shell(), https_server().GetURL(kRpHostName, "/title1.html")));
+
+  std::string get_script = R"(
+        (async () => {
+          var {token} = await navigator.credentials.get({
+            identity: {
+              providers: [{
+                nonce: "1234",
+                configURL: "any",
+                clientId: "https://rp.example",
+              }]
+            }
+          });
+          return token;
+        }) ()
+    )";
+
+  SetTestIdentityRequestDialogController("not_real_account");
+
+  std::string expected_error = "NetworkError: Error retrieving a token.";
+  EXPECT_EQ(expected_error, ExtractJsError(EvalJs(shell(), get_script)));
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest,
@@ -1017,6 +1080,8 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest,
             ExtractJsError(EvalJs(shell(), script)));
 
   EXPECT_TRUE(sharing_context()->GetRegisteredIdPs().empty());
+
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.AccountsRequestSent", 0);
 }
 
 // Verify that IDP sign-in headers work.
@@ -1371,7 +1436,8 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
                        NavigatorCredentialsApi) {
   base::Value kIdentityProviderResponse =
       base::JSONReader::Read(
-          R"({"vp_token": "token data" , "presentation_submission":"bar"})")
+          R"({"vp_token": "token data" , "presentation_submission":"bar"})",
+          base::JSON_PARSE_CHROMIUM_EXTENSIONS)
           .value();
 
   idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
@@ -1421,7 +1487,9 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
           test_browser_client_->GetDigitalIdentityProviderForTests());
 
   base::Value kResponse =
-      base::JSONReader::Read(R"({"token":"test-mdoc"})").value();
+      base::JSONReader::Read(R"({"token":"test-mdoc"})",
+                             base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+          .value();
 
   EXPECT_CALL(*digital_identity_provider, Get)
       .WillOnce(WithArg<3>(
@@ -1475,7 +1543,9 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
           [](DigitalIdentityProvider::DigitalIdentityCallback callback) {
             std::move(callback).Run(DigitalCredential(
                 "openid4vp",
-                base::JSONReader::Read(R"({"token":"test-mdoc"})").value()));
+                base::JSONReader::Read(R"({"token":"test-mdoc"})",
+                                       base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+                    .value()));
           }));
 
   RunDigitalIdentityValidRequest(shell());
@@ -1975,7 +2045,8 @@ class WebIdDelegationBrowserTest : public WebIdBrowserTest {
           EXPECT_TRUE(net::GetValueForKeyInQuery(query_url, "holder_key",
                                                  &holder_key_json));
 
-          auto holder_key_value = base::JSONReader::ReadDict(holder_key_json);
+          auto holder_key_value = base::JSONReader::ReadDict(
+              holder_key_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
           EXPECT_TRUE(holder_key_value);
           auto holder_key = sdjwt::Jwk::From(*holder_key_value);
           EXPECT_TRUE(holder_key);

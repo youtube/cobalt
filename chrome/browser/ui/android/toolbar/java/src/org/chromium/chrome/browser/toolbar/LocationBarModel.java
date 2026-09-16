@@ -30,7 +30,6 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.omnibox.ChromeAutocompleteSchemeClassifier;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
-import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.paint_preview.TabbedPaintPreview;
@@ -39,9 +38,9 @@ import org.chromium.chrome.browser.pdf.PdfUtils.PdfPageType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TrustedCdn;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -197,8 +196,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         mNtpDelegate = newTabPageDelegate;
         mUrlFormatter = urlFormatter;
         mOfflineStatus = offlineStatus;
-        mPrimaryColor =
-                SurfaceColorUpdateUtils.getDefaultThemeColor(context, /* isIncognito= */ false);
+        mPrimaryColor = ChromeColors.getDefaultThemeColor(context, /* isIncognito= */ false);
         mUrlForDisplay = "";
         mFormattedFullUrl = "";
         mToolbarPositionSupplier = toolbarPositionSupplier;
@@ -578,8 +576,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         mIsUsingBrandColor =
                 !isIncognitoBranded()
                         && mPrimaryColor
-                                != SurfaceColorUpdateUtils.getDefaultThemeColor(
-                                        mContext, isIncognitoBranded())
+                                != ChromeColors.getDefaultThemeColor(mContext, isIncognitoBranded())
                         && hasTab()
                         && !mTab.isNativePage();
     }
@@ -596,6 +593,9 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
 
     public void notifyPrimaryColorChanged() {
         for (LocationBarDataProvider.Observer observer : mLocationBarDataObservers) {
+            observer.onPrimaryColorChanged();
+        }
+        for (ToolbarDataProvider.Observer observer : mToolbarDataObservers) {
             observer.onPrimaryColorChanged();
         }
     }
@@ -709,11 +709,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
             return R.drawable.omnibox_info;
         }
 
-        boolean skipIconForNeutralState =
-                (mProfile != null
-                                && !SearchEngineUtils.getForProfile(mProfile)
-                                        .shouldShowSearchEngineLogo())
-                        || mNtpDelegate.isCurrentlyVisible();
+        boolean skipIconForNeutralState = mNtpDelegate.isCurrentlyVisible();
 
         return SecurityStatusIcon.getSecurityIconResource(
                 securityLevel,

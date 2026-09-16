@@ -111,7 +111,7 @@
   std::string userEmail = base::SysNSStringToUTF8(identity.userEmail);
   CoreAccountId accountID =
       IdentityManagerFactory::GetForProfile(profile)->PickAccountIdForAccount(
-          GaiaId(identity.gaiaID), userEmail);
+          identity.gaiaId, userEmail);
 
   policy::UserPolicySigninService* userPolicyService =
       policy::UserPolicySigninServiceFactory::GetForProfile(profile);
@@ -121,6 +121,7 @@
   __weak __typeof(self) weakSelf = self;
   userPolicyService->RegisterForPolicyWithAccountId(
       userEmail, accountID,
+      /*is_registration_for_management_consistency_check=*/false,
       base::BindOnce(^(const std::string& dmToken, const std::string& clientID,
                        const std::vector<std::string>& userAffiliationIDs) {
         [weakSelf didRegisterForUserPolicyWithDMToken:dmToken
@@ -180,7 +181,7 @@
   const std::string userEmail = base::SysNSStringToUTF8(identity.userEmail);
 
   AccountId accountID = AccountId::FromUserEmailGaiaId(
-      gaia::CanonicalizeEmail(userEmail), GaiaId(identity.gaiaID));
+      gaia::CanonicalizeEmail(userEmail), identity.gaiaId);
 
   std::vector<std::string> userAffiliationIDsVector;
   for (NSString* userAffiliationID in userAffiliationIDs) {

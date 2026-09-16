@@ -240,7 +240,6 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
     {ContentSettingsType::SUB_APP_INSTALLATION_PROMPTS, nullptr},
     {ContentSettingsType::DIRECT_SOCKETS, nullptr},
     {ContentSettingsType::REVOKED_ABUSIVE_NOTIFICATION_PERMISSIONS, nullptr},
-    {ContentSettingsType::TOP_LEVEL_TPCD_ORIGIN_TRIAL, nullptr},
     {ContentSettingsType::DISPLAY_MEDIA_SYSTEM_AUDIO, nullptr},
     {ContentSettingsType::STORAGE_ACCESS_HEADER_ORIGIN_TRIAL, nullptr},
     // TODO(crbug.com/368266658): Implement the UI for Direct Sockets PNA.
@@ -260,6 +259,7 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
     {ContentSettingsType::GEOLOCATION_WITH_OPTIONS, nullptr},
     {ContentSettingsType::DEVICE_ATTRIBUTES, nullptr},
     {ContentSettingsType::PERMISSION_ACTIONS_HISTORY, nullptr},
+    {ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL, nullptr},
 });
 
 static_assert(

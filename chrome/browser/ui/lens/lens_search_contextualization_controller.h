@@ -36,6 +36,10 @@ namespace optimization_guide {
 struct AIPageContentResult;
 }  // namespace optimization_guide
 
+namespace viz {
+struct CopyOutputBitmapWithMetadata;
+}  // namespace viz
+
 using GetIsContextualSearchboxCallback =
     lens::mojom::LensSidePanelPageHandler::GetIsContextualSearchboxCallback;
 
@@ -183,6 +187,9 @@ class LensSearchContextualizationController {
 
   bool IsActive() const { return state_ == State::kActive; }
 
+  // Returns the most recent viewport screenshot.
+  const SkBitmap& viewport_screenshot() { return viewport_screenshot_; }
+
  protected:
   // The page context eligibility API if it has been fetched. Can be nullptr.
   // This is marked protected so that it can be accessed by the test
@@ -326,8 +333,9 @@ class LensSearchContextualizationController {
                                       std::optional<uint32_t> pdf_current_page);
 
   // Fetches the bounding boxes of all images within the current viewport.
-  void FetchViewportImageBoundingBoxes(OnScreenshotTakenCallback callback,
-                                       const SkBitmap& bitmap);
+  void FetchViewportImageBoundingBoxes(
+      OnScreenshotTakenCallback callback,
+      const viz::CopyOutputBitmapWithMetadata& result);
 
   // Creates the mojo bounding boxes for the significant regions.
   std::vector<lens::mojom::CenterRotatedBoxPtr> ConvertSignificantRegionBoxes(

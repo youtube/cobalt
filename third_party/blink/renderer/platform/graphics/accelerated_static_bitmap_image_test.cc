@@ -56,7 +56,7 @@ scoped_refptr<StaticBitmapImage> CreateBitmap(
   auto client_si = gpu::ClientSharedImage::CreateForTesting(usage);
 
   return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-      std::move(client_si), GenTestSyncToken(100), 0, kPremul_SkAlphaType,
+      std::move(client_si), GenTestSyncToken(100), kPremul_SkAlphaType,
       SharedGpuContext::ContextProviderWrapper(),
       base::PlatformThread::CurrentRef(),
       base::MakeRefCounted<base::NullTaskRunner>(), base::DoNothing());
@@ -66,8 +66,6 @@ class AcceleratedStaticBitmapImageTest : public Test {
  public:
   void SetUp() override {
     context_provider_ = viz::TestContextProvider::CreateRaster();
-    context_provider_->UnboundTestRasterInterface()->set_gpu_rasterization(
-        true);
     InitializeSharedGpuContextRaster(context_provider_.get());
   }
   void TearDown() override {

@@ -15,6 +15,7 @@ const CALCULATOR: string = 'search-calculator-answer';
 const DOCUMENT_MATCH_TYPE: string = 'document';
 const HISTORY_CLUSTER_MATCH_TYPE: string = 'history-cluster';
 const PEDAL: string = 'pedal';
+const STARTER_PACK: string = 'starter-pack';
 
 export interface SearchboxIconElement {
   $: {
@@ -84,6 +85,14 @@ export class SearchboxIconElement extends CrLitElement {
       },
 
       /**
+       * Whether icon belongs to a starter pack match.
+       */
+      isStarterPack: {
+        type: Boolean,
+        reflect: true,
+      },
+
+      /**
        * Whether suggestion answer is of answer type weather. Weather answers
        * don't have the same background as other suggestion answers.
        */
@@ -145,20 +154,21 @@ export class SearchboxIconElement extends CrLitElement {
     };
   }
 
-  accessor backgroundImage: string;
+  accessor backgroundImage: string = '';
   accessor defaultIcon: string = '';
-  accessor hasIconContainerBackground: boolean;
+  accessor hasIconContainerBackground: boolean = false;
   accessor inSearchbox: boolean = false;
-  accessor isAnswer: boolean;
-  accessor isWeatherAnswer: boolean;
-  accessor isEnterpriseSearchAggregatorPeopleType: boolean;
-  accessor maskImage: string;
-  accessor match: AutocompleteMatch;
-  protected accessor iconStyle_: string;
-  protected accessor iconSrc_: string;
+  accessor isAnswer: boolean = false;
+  accessor isStarterPack = false;
+  accessor isWeatherAnswer: boolean = false;
+  accessor isEnterpriseSearchAggregatorPeopleType: boolean = false;
+  accessor maskImage: string = '';
+  accessor match: AutocompleteMatch|null = null;
+  protected accessor iconStyle_: string = '';
+  protected accessor iconSrc_: string = '';
   private accessor iconLoading_: boolean = false;
-  protected accessor showIconImg_: boolean;
-  protected accessor imageSrc_: string;
+  protected accessor showIconImg_: boolean = false;
+  protected accessor imageSrc_: string = '';
   private accessor imageLoading_: boolean = false;
   private accessor isLensSearchbox_: boolean =
       loadTimeData.getBoolean('isLensSearchbox');
@@ -173,6 +183,7 @@ export class SearchboxIconElement extends CrLitElement {
       this.isAnswer = this.computeIsAnswer_();
       this.isEnterpriseSearchAggregatorPeopleType =
           this.computeIsEnterpriseSearchAggregatorPeopleType_();
+      this.isStarterPack = this.computeIsStarterPack_();
       this.isWeatherAnswer = this.computeIsWeatherAnswer_();
       this.maskImage = this.computeMaskImage_();
     }
@@ -242,7 +253,7 @@ export class SearchboxIconElement extends CrLitElement {
   }
 
   private computeIsAnswer_(): boolean {
-    return this.match && !!this.match.answer;
+    return !!this.match && !!this.match.answer;
   }
 
   private computeIsWeatherAnswer_(): boolean {
@@ -255,7 +266,7 @@ export class SearchboxIconElement extends CrLitElement {
 
   private computeShowIconImg_(): boolean {
     // Lens searchbox should not use icon URL.
-    return !this.isLensSearchbox_ && this.match && !!this.match.iconUrl.url &&
+    return !this.isLensSearchbox_ && !!this.match && !!this.match.iconUrl.url &&
         !this.iconLoading_;
   }
 
@@ -264,10 +275,10 @@ export class SearchboxIconElement extends CrLitElement {
     if (this.isLensSearchbox_ && this.inSearchbox) {
       return `url(${this.defaultIcon})`;
     }
-    // Enterprise search aggregator people suggestions should show icon even in
-    // searchbox.
+    // Enterprise search aggregator people and starter pack suggestions should
+    // show icon even in searchbox.
     if (this.match &&
-        (!this.match.isRichSuggestion ||
+        (!this.match.isRichSuggestion || this.match.type === STARTER_PACK ||
          this.match.isEnterpriseSearchAggregatorPeopleType ||
          !this.inSearchbox)) {
       return `url(${this.match.iconPath})`;
@@ -292,10 +303,11 @@ export class SearchboxIconElement extends CrLitElement {
       return false;
     }
 
-    // Navigation suggestions should always use the background image, except
-    // for Lens searchboxes, which prefer to use the default icon in the mask
-    // image.
-    if (!this.isLensSearchbox_ && this.match && !this.match.isSearchType) {
+    // Navigation suggestions should always use the background image, except for
+    // Lens searchboxes and pedal/starter pack suggestions, which prefer to use
+    // the default icon in the mask image.
+    if (!this.isLensSearchbox_ && this.match && !this.match.isSearchType &&
+        this.match.type !== STARTER_PACK && this.match.type !== PEDAL) {
       return true;
     }
 
@@ -314,6 +326,7 @@ export class SearchboxIconElement extends CrLitElement {
       'drive_slides',
       'drive_video',
       'google_agentspace_logo',
+      'google_agentspace_logo_25',
       'google_g',
       'google_g_gradient',
       'note',
@@ -352,10 +365,18 @@ export class SearchboxIconElement extends CrLitElement {
   protected getContainerBgColor_(): string {
     // If the match has an image dominant color, show that color in place of the
     // image until it loads. This helps the image appear to load more smoothly.
-    return (this.imageLoading_ && this.match.imageDominantColor) ?
+    // After the image loads, the color is set to white. For most entity images,
+    // this won't be visible underneath the image. But there is an umcommon case
+    // where images are not square (generally in a landscape orientation) and
+    // this background can be seen underneath the image. Most of these images
+    // are logos with a white background, so this adjusts them to look similar
+    // the more common case of a square image with rounded corners.
+    return (this.imageLoading_ && this.match?.imageDominantColor) ?
         // .25 opacity matching c/b/u/views/omnibox/omnibox_match_cell_view.cc.
-        `${this.match.imageDominantColor}40` :
-        'transparent';
+        (this.match.imageDominantColor ?
+             `${this.match.imageDominantColor}40` :
+             'var(--cr-searchbox-match-icon-container-background-fallback)') :
+        'white';
   }
 
   protected onIconLoad_() {
@@ -366,18 +387,22 @@ export class SearchboxIconElement extends CrLitElement {
     this.imageLoading_ = false;
   }
 
-  // All pedals and AiS except weather should be have a background that
-  // matches theme.
+  // All pedals, starter pack suggestions, and AiS except weather should have
+  // a colored background container that matches the current theme.
   // TODO(niharm): Refactor logic in C++ and send via mojom in
   // "chrome/browser/ui/webui/searchbox/searchbox_handler.cc".
   private computeHasIconContainerBackground_(): boolean {
     if (this.match) {
       return this.match.type === PEDAL ||
           this.match.type === HISTORY_CLUSTER_MATCH_TYPE ||
-          this.match.type === CALCULATOR ||
+          this.match.type === CALCULATOR || this.match.type === STARTER_PACK ||
           (!!this.match.answer && !this.isWeatherAnswer);
     }
     return false;
+  }
+
+  private computeIsStarterPack_(): boolean {
+    return this.match?.type === STARTER_PACK;
   }
 }
 

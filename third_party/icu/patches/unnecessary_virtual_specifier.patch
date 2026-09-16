@@ -1,5 +1,5 @@
 diff --git a/source/common/unicode/uniset.h b/source/common/unicode/uniset.h
-index 84774d9f..d51dcc10 100644
+index 6b1ac9ba2..01ac901e3 100644
 --- a/source/common/unicode/uniset.h
 +++ b/source/common/unicode/uniset.h
 @@ -495,7 +495,7 @@ public:
@@ -15,8 +15,8 @@ index 84774d9f..d51dcc10 100644
       * @see Object#hashCode()
       * @stable ICU 2.0
       */
--    virtual int32_t hashCode(void) const;
-+    int32_t hashCode(void) const;
+-    virtual int32_t hashCode() const;
++    int32_t hashCode() const;
  
      /**
       * Get a UnicodeSet pointer from a USet
@@ -24,8 +24,8 @@ index 84774d9f..d51dcc10 100644
       * @stable ICU 2.0
       * @see getRangeCount
       */
--    virtual int32_t size(void) const;
-+    int32_t size(void) const;
+-    virtual int32_t size() const;
++    int32_t size() const;
  
      /**
       * Returns <tt>true</tt> if this set contains no elements.
@@ -33,8 +33,8 @@ index 84774d9f..d51dcc10 100644
       * @return <tt>true</tt> if this set contains no elements.
       * @stable ICU 2.0
       */
--    virtual UBool isEmpty(void) const;
-+    UBool isEmpty(void) const;
+-    virtual UBool isEmpty() const;
++    UBool isEmpty() const;
  
      /**
       * @return true if this set contains multi-character strings or the empty string.
@@ -65,7 +65,7 @@ index 84774d9f..d51dcc10 100644
                           int32_t& offset,
                           int32_t limit,
                           UBool incremental) override;
-@@ -1116,7 +1116,7 @@ public:
+@@ -1231,7 +1231,7 @@ public:
       * to this set.
       * @stable ICU 2.0
       */
@@ -74,7 +74,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Adds the specified character to this set if it is not already
-@@ -1222,7 +1222,7 @@ public:
+@@ -1337,7 +1337,7 @@ public:
       * @param end last character, inclusive, of range
       * @stable ICU 2.0
       */
@@ -83,7 +83,7 @@ index 84774d9f..d51dcc10 100644
  
  
      /**
-@@ -1260,7 +1260,7 @@ public:
+@@ -1375,7 +1375,7 @@ public:
       * from this set.
       * @stable ICU 2.0
       */
@@ -92,7 +92,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Removes the specified character from this set if it is present.
-@@ -1297,7 +1297,7 @@ public:
+@@ -1412,7 +1412,7 @@ public:
       * A frozen set will not be modified.
       * @stable ICU 2.0
       */
@@ -101,7 +101,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Complements the specified range in this set.  Any character in
-@@ -1311,7 +1311,7 @@ public:
+@@ -1426,7 +1426,7 @@ public:
       * @param end last character, inclusive, of range
       * @stable ICU 2.0
       */
@@ -110,7 +110,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Complements the specified character in this set.  The character
-@@ -1348,7 +1348,7 @@ public:
+@@ -1463,7 +1463,7 @@ public:
       * @see #add(UChar32, UChar32)
       * @stable ICU 2.0
       */
@@ -119,7 +119,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Retains only the elements in this set that are contained in the
-@@ -1361,7 +1361,7 @@ public:
+@@ -1476,7 +1476,7 @@ public:
       * @param c set that defines which elements this set will retain.
       * @stable ICU 2.0
       */
@@ -128,7 +128,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Removes from this set all of its elements that are contained in the
-@@ -1374,7 +1374,7 @@ public:
+@@ -1489,7 +1489,7 @@ public:
       *          this set.
       * @stable ICU 2.0
       */
@@ -137,7 +137,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Complements in this set all elements contained in the specified
-@@ -1386,7 +1386,7 @@ public:
+@@ -1501,7 +1501,7 @@ public:
       *          this set.
       * @stable ICU 2.4
       */
@@ -146,16 +146,16 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Removes all of the elements from this set.  This set will be
-@@ -1394,7 +1394,7 @@ public:
+@@ -1509,7 +1509,7 @@ public:
       * A frozen set will not be modified.
       * @stable ICU 2.0
       */
--    virtual UnicodeSet& clear(void);
-+    UnicodeSet& clear(void);
+-    virtual UnicodeSet& clear();
++    UnicodeSet& clear();
  
      /**
       * Close this set over the given attribute.  For the attribute
-@@ -1431,7 +1431,7 @@ public:
+@@ -1546,7 +1546,7 @@ public:
       * @return a reference to this set.
       * @stable ICU 4.2
       */
@@ -164,16 +164,16 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Iteration method that returns the number of ranges contained in
-@@ -1440,7 +1440,7 @@ public:
+@@ -1555,7 +1555,7 @@ public:
       * @see #getRangeEnd
       * @stable ICU 2.4
       */
--    virtual int32_t getRangeCount(void) const;
-+    int32_t getRangeCount(void) const;
+-    virtual int32_t getRangeCount() const;
++    int32_t getRangeCount() const;
  
      /**
       * Iteration method that returns the first character in the
-@@ -1449,7 +1449,7 @@ public:
+@@ -1564,7 +1564,7 @@ public:
       * @see #getRangeEnd
       * @stable ICU 2.4
       */
@@ -182,7 +182,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Iteration method that returns the last character in the
-@@ -1458,7 +1458,7 @@ public:
+@@ -1573,7 +1573,7 @@ public:
       * @see #getRangeEnd
       * @stable ICU 2.4
       */
@@ -191,7 +191,7 @@ index 84774d9f..d51dcc10 100644
  
      /**
       * Serializes this set into an array of 16-bit integers.  Serialization
-@@ -1516,7 +1516,7 @@ public:
+@@ -1631,7 +1631,7 @@ public:
       * A frozen set will not be modified.
       * @stable ICU 2.4
       */
@@ -201,7 +201,7 @@ index 84774d9f..d51dcc10 100644
      /**
       * Return the class ID for this class.  This is useful only for
 diff --git a/source/i18n/unicode/dtitvinf.h b/source/i18n/unicode/dtitvinf.h
-index 5b9a4535..15038cb4 100644
+index 5b9a45351..15038cb4a 100644
 --- a/source/i18n/unicode/dtitvinf.h
 +++ b/source/i18n/unicode/dtitvinf.h
 @@ -197,7 +197,7 @@ public:
@@ -223,7 +223,7 @@ index 5b9a4535..15038cb4 100644
      /**
       * Return true if another object is semantically unequal to this one.
 diff --git a/source/i18n/unicode/regex.h b/source/i18n/unicode/regex.h
-index cc2f9249..46f8cc52 100644
+index cc2f92492..46f8cc52d 100644
 --- a/source/i18n/unicode/regex.h
 +++ b/source/i18n/unicode/regex.h
 @@ -145,7 +145,7 @@ public:
@@ -847,7 +847,7 @@ index cc2f9249..46f8cc52 100644
                                                UErrorCode                      &status);
  
 diff --git a/source/i18n/unicode/tblcoll.h b/source/i18n/unicode/tblcoll.h
-index 43cf35d1..98d4d82e 100644
+index 0c65e897f..83c93a1c9 100644
 --- a/source/i18n/unicode/tblcoll.h
 +++ b/source/i18n/unicode/tblcoll.h
 @@ -242,7 +242,7 @@ public:

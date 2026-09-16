@@ -343,7 +343,7 @@ void bn_mod_exp_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
 
 void bn_mod_inverse0_prime_mont_small(BN_ULONG *r, const BN_ULONG *a,
                                       size_t num, const BN_MONT_CTX *mont) {
-  if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS) {
+  if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS || num == 0) {
     abort();
   }
 

@@ -21,7 +21,6 @@
 #include "ui/views/controls/menu/menu_config.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/layout/box_layout_view.h"
-#include "ui/views/metadata/view_factory_internal.h"
 #include "ui/views/view.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/widget/tooltip_manager.h"
@@ -87,6 +86,17 @@ gfx::Point GetWidgetOrigin(const gfx::Rect& context_menu,
 
   return gfx::Point(context_menu.x(),
                     context_menu.bottom() + kQuickAnswersAndMahiSpacing);
+}
+
+int CalculateCardWidth(const gfx::Rect& context_menu_bounds,
+                       ReadWriteCardsView* quick_answers_ui) {
+  int width = context_menu_bounds.width();
+
+  if (quick_answers_ui) {
+    width = std::max(width, quick_answers_ui->GetMinWidth().value_or(0));
+  }
+
+  return width;
 }
 
 }  // namespace
@@ -155,9 +165,10 @@ void ReadWriteCardsUiController::MaybeRelayout() {
 void ReadWriteCardsUiController::Relayout() {
   CHECK(widget_);
 
-  gfx::Size widget_size(context_menu_bounds_.width(),
-                        widget_->GetContentsView()->GetHeightForWidth(
-                            context_menu_bounds_.width()));
+  int width = CalculateCardWidth(context_menu_bounds_, quick_answers_ui());
+
+  gfx::Size widget_size(width,
+                        widget_->GetContentsView()->GetHeightForWidth(width));
 
   // Calculate maximum size to decide whether to put the widget above or below
   // the context menu. This is to avoid flipping the position of the widget for

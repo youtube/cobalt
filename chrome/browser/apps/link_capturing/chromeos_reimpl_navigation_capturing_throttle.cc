@@ -92,8 +92,8 @@ GURL RedirectUrlIfProjectorApp(Profile* profile,
 
   // Handle projector app redirection.
   std::string override_url = ash::kChromeUIUntrustedProjectorUrl;
-  if (url.path().length() > 1) {
-    override_url += url.path().substr(1);
+  if (url.GetPath().length() > 1) {
+    override_url += url.GetPath().substr(1);
   }
   std::stringstream ss;
   // Since ChromeOS doesn't reload an app if the URL doesn't change, the line
@@ -103,7 +103,7 @@ GURL RedirectUrlIfProjectorApp(Profile* profile,
   ss << override_url << "?timestamp=" << GetTickClock()->NowTicks();
 
   if (url.has_query()) {
-    ss << '&' << url.query();
+    ss << '&' << url.GetQuery();
   }
 
   GURL result(ss.str());
@@ -214,7 +214,7 @@ bool IsGoogleRedirectorUrl(const GURL& url) {
     return false;
   }
 
-  return url.path_piece() == "/url" && url.has_query();
+  return url.path() == "/url" && url.has_query();
 }
 
 // If the previous url and current url are not the same (AKA a redirection),

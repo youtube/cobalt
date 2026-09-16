@@ -109,8 +109,8 @@ class WebUITestWebUIControllerFactory : public WebUIControllerFactory {
   std::unique_ptr<WebUIController> CreateWebUIControllerForURL(
       WebUI* web_ui,
       const GURL& url) override {
-    std::string foo(url.path());
-    if (url.path() == "/nobinding/") {
+    std::string foo(url.GetPath());
+    if (url.GetPath() == "/nobinding/") {
       web_ui->SetBindings(BindingsPolicySet());
     }
     return HasWebUIScheme(url) ? std::make_unique<WebUIController>(web_ui)
@@ -467,20 +467,18 @@ IN_PROC_BROWSER_TEST_F(NetworkServiceOutOfProcessBrowserTest,
   network_service_test.FlushForTesting();
 
   mojo::ScopedAllowSyncCallForTesting allow_sync_call;
-  base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level =
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+  base::MemoryPressureLevel memory_pressure_level =
+      base::MEMORY_PRESSURE_LEVEL_NONE;
   network_service_test->GetLatestMemoryPressureLevel(&memory_pressure_level);
-  EXPECT_EQ(memory_pressure_level,
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  EXPECT_EQ(memory_pressure_level, base::MEMORY_PRESSURE_LEVEL_NONE);
 
   base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   base::RunLoop().RunUntilIdle();
   FlushNetworkServiceInstanceForTesting();
 
   network_service_test->GetLatestMemoryPressureLevel(&memory_pressure_level);
-  EXPECT_EQ(memory_pressure_level,
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  EXPECT_EQ(memory_pressure_level, base::MEMORY_PRESSURE_LEVEL_CRITICAL);
 }
 
 // Verifies that sync XHRs don't hang if the network service crashes.
@@ -648,7 +646,8 @@ class NetworkServiceBrowserCacheResetTest : public NetworkServiceBrowserTest {
             FILE_PATH_LITERAL("TestData"));
     std::string data;
     EXPECT_TRUE(base::ReadFileToString(data_file, &data));
-    auto json_data = base::JSONReader::Read(data);
+    auto json_data =
+        base::JSONReader::Read(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     ASSERT_TRUE(json_data.has_value());
     url = GURL(json_data->GetString());
     EXPECT_TRUE(url.is_valid());

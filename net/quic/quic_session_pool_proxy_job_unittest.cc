@@ -96,7 +96,7 @@ TEST_P(QuicSessionPoolProxyJobTest, CreateProxiedQuicSession) {
   socket_data
       .AddWrite("connect-udp",
                 ConstructConnectUdpRequestPacket(
-                    2, stream_id, proxy.host(),
+                    2, stream_id, proxy.GetHost(),
                     "/.well-known/masque/udp/www.example.org/443/", false))
       .Sync();
   socket_data.AddRead("server-settings", ConstructServerSettingsPacket(3));
@@ -601,7 +601,7 @@ TEST_P(QuicSessionPoolProxyJobTest,
   socket_data
       .AddWrite("connect-udp",
                 ConstructConnectUdpRequestPacket(
-                    2, stream_id, proxy.host(),
+                    2, stream_id, proxy.GetHost(),
                     "/.well-known/masque/udp/www.example.org/443/", false))
       .Sync();
   socket_data.AddRead("server-settings", ConstructServerSettingsPacket(3));
@@ -697,7 +697,7 @@ TEST_P(QuicSessionPoolProxyJobTest, RequestSessionAgainInCallback) {
   successful_request_socket_data
       .AddWrite("connect-udp",
                 ConstructConnectUdpRequestPacket(
-                    2, kStreamId, proxy.host(),
+                    2, kStreamId, proxy.GetHost(),
                     "/.well-known/masque/udp/www.example.org/443/", false))
       .Sync();
   successful_request_socket_data.AddRead("server-settings",
@@ -714,8 +714,8 @@ TEST_P(QuicSessionPoolProxyJobTest, RequestSessionAgainInCallback) {
   socket_factory_->AddSocketDataProvider(&successful_request_socket_data);
 
   auto proxy_chain = ProxyChain::ForIpProtection({
-      ProxyServer::FromSchemeHostAndPort(ProxyServer::SCHEME_QUIC,
-                                         proxy.host_piece(), 443),
+      ProxyServer::FromSchemeHostAndPort(ProxyServer::SCHEME_QUIC, proxy.host(),
+                                         443),
   });
   ASSERT_TRUE(proxy_chain.IsValid());
 

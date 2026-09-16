@@ -7,6 +7,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_provider.h"
 #include "components/omnibox/browser/mock_autocomplete_provider_client.h"
 #include "components/strings/grit/components_strings.h"
@@ -14,6 +15,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/omnibox_proto/entity_info.pb.h"
 #include "third_party/omnibox_proto/suggest_template_info.pb.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -44,6 +46,9 @@ const char* ToString(ActionType type) {
       return "Reviews";
     case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM:
       return "Aim";
+    case omnibox::
+        SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH:
+      return "TabSwitch";
     default:
       NOTREACHED();
   }
@@ -100,6 +105,14 @@ TEST_F(OmniboxActionInSuggestTest, CheckLabelsArePresentForKnownTypes) {
           IDS_OMNIBOX_ACTION_IN_SUGGEST_AIM_CONTENTS,
           IDS_ACC_OMNIBOX_ACTION_IN_SUGGEST_SUFFIX,
           IDS_OMNIBOX_ACTION_IN_SUGGEST_AIM_CONTENTS,
+      },
+      {
+          omnibox::
+              SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH,
+          IDS_OMNIBOX_ACTION_IN_SUGGEST_TAB_SWITCH_HINT,
+          IDS_OMNIBOX_ACTION_IN_SUGGEST_TAB_SWITCH_CONTENTS,
+          IDS_ACC_OMNIBOX_ACTION_IN_SUGGEST_SUFFIX,
+          IDS_OMNIBOX_ACTION_IN_SUGGEST_TAB_SWITCH_CONTENTS,
       }};
 
   for (const auto& test_case : test_cases) {
@@ -134,7 +147,8 @@ TEST_F(OmniboxActionInSuggestTest, ConversionFromAction) {
       omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CALL,
       omnibox::SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS,
       omnibox::SuggestTemplateInfo_TemplateAction_ActionType_REVIEWS,
-      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM};
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM,
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH};
 
   for (auto test_case : test_cases) {
     TemplateAction template_action;
@@ -210,6 +224,8 @@ TEST_F(OmniboxActionInSuggestTest, HistogramsRecording) {
     kWebsite,
     kReviews,
     kAim,
+    kLens,
+    kTabSwitch,
   };
 
   // Correlation between ActionType and UMA-recorded bucket.
@@ -227,6 +243,9 @@ TEST_F(OmniboxActionInSuggestTest, HistogramsRecording) {
        UmaTypeForTest::kReviews, "Omnibox.ActionInSuggest.UsageByType.Reviews"},
       {omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM,
        UmaTypeForTest::kAim, "Omnibox.ActionInSuggest.UsageByType.AIM"},
+      {omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH,
+       UmaTypeForTest::kTabSwitch,
+       "Omnibox.ActionInSuggest.UsageByType.TabSwitch"},
   };
 
   for (const auto& test_case : test_cases) {
@@ -267,3 +286,43 @@ TEST_F(OmniboxActionInSuggestTest, HistogramsRecording) {
     }
   }
 }
+
+TEST_F(OmniboxActionInSuggestTest, ShowAsActionButton) {
+  for (int type = TemplateAction::ActionType_MIN;
+       type <= TemplateAction::ActionType_MAX; type++) {
+    if (omnibox::SuggestTemplateInfo_TemplateAction_ActionType_IsValid(type) &&
+        type !=
+            omnibox::
+                SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH) {
+      TemplateAction template_action;
+      template_action.set_action_type(ActionType(type));
+      auto action = base::MakeRefCounted<OmniboxActionInSuggest>(
+          std::move(template_action), std::nullopt);
+      if (type ==
+          omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM) {
+        EXPECT_TRUE(action->show_as_action_button_);
+      } else {
+        EXPECT_FALSE(action->show_as_action_button_);
+      }
+    }
+  }
+}
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(OmniboxActionInSuggestTest, ShowAsActionButtonForTabSwitch) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      omnibox::kOmniboxImprovementForLFF, {
+                                              {"switch_to_tab_chip", "true"},
+                                          });
+  TemplateAction template_action;
+  template_action.set_action_type(
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH);
+  auto action = base::MakeRefCounted<OmniboxActionInSuggest>(
+      std::move(template_action), std::nullopt);
+  auto form_factor = ui::GetDeviceFormFactor();
+  EXPECT_EQ(form_factor == ui::DEVICE_FORM_FACTOR_PHONE ||
+                form_factor == ui::DEVICE_FORM_FACTOR_FOLDABLE,
+            action->show_as_action_button_);
+}
+#endif

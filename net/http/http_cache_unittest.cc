@@ -514,8 +514,8 @@ void RangeTransactionServer::RangeHandler(const HttpRequestInfo* request,
   }
 
   std::vector<HttpByteRange> ranges;
-  std::optional<std::string> range_header =
-      request->extra_headers.GetHeader(HttpRequestHeaders::kRange);
+  std::optional<std::string_view> range_header =
+      request->extra_headers.GetHeaderView(HttpRequestHeaders::kRange);
   if (!range_header || !HttpUtil::ParseRangeHeader(*range_header, &ranges) ||
       bad_200_ || ranges.size() != 1 ||
       (modified_ && request->extra_headers.HasHeader("If-Range"))) {
@@ -1103,7 +1103,7 @@ TEST_F(HttpCacheSimpleGetTest,
 
 // This test verifies that when the callback passed to SetConnectedCallback()
 // returns
-// `ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY`, the
+// `ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY`, the
 // cache entry is invalidated, and we'll retry the connection from the network.
 TEST_F(HttpCacheSimpleGetTest,
        ConnectedCallbackOnCacheHitReturnPrivateNetworkAccessBlockedError) {
@@ -1122,7 +1122,7 @@ TEST_F(HttpCacheSimpleGetTest,
     // connected callback error.
     ConnectedHandler connected_handler;
     connected_handler.set_result(
-        ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY);
+        ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY);
 
     auto transaction = cache.CreateTransaction();
     ASSERT_TRUE(transaction);
@@ -1136,7 +1136,7 @@ TEST_F(HttpCacheSimpleGetTest,
     EXPECT_THAT(
         callback.WaitForResult(),
         IsError(
-            ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY));
+            ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY));
 
     // Used the cache entry only.
     EXPECT_THAT(connected_handler.transports(),
@@ -2196,8 +2196,10 @@ TEST_F(HttpCacheTest, StaleWhileRevalidateTruncated) {
           if (first) {
             // We should first try sending an If-Range to verify this thing is
             // valid.
-            EXPECT_EQ(request->extra_headers.GetHeader("Range"), "bytes=10-10");
-            EXPECT_EQ(request->extra_headers.GetHeader("If-Range"), "foopy");
+            EXPECT_EQ(request->extra_headers.GetHeaderView("Range"),
+                      "bytes=10-10");
+            EXPECT_EQ(request->extra_headers.GetHeaderView("If-Range"),
+                      "foopy");
             response_status->assign("HTTP/1.1 206 Partial Content");
             response_headers->assign(
                 "Content-Range: bytes 10-10/20\n"
@@ -2206,7 +2208,8 @@ TEST_F(HttpCacheTest, StaleWhileRevalidateTruncated) {
             first = false;
           } else {
             // Now a range request to the second part.
-            EXPECT_EQ(request->extra_headers.GetHeader("Range"), "bytes=10-19");
+            EXPECT_EQ(request->extra_headers.GetHeaderView("Range"),
+                      "bytes=10-19");
             response_status->assign("HTTP/1.1 206 Partial Content");
             response_headers->assign(
                 "Content-Range: bytes 10-19/20\n"
@@ -12275,8 +12278,8 @@ void HttpCacheHugeResourceTest::LargeResourceTransactionHandler(
     std::string* response_status,
     std::string* response_headers,
     std::string* response_data) {
-  std::optional<std::string> if_range =
-      request->extra_headers.GetHeader(HttpRequestHeaders::kIfRange);
+  std::optional<std::string_view> if_range =
+      request->extra_headers.GetHeaderView(HttpRequestHeaders::kIfRange);
   if (!if_range) {
     // If there were no range headers in the request, we are going to just
     // return the entire response body.
@@ -12292,8 +12295,8 @@ void HttpCacheHugeResourceTest::LargeResourceTransactionHandler(
   // From this point on, we should be processing a valid byte-range request.
   EXPECT_EQ("\"foo\"", *if_range);
 
-  std::string range_header =
-      request->extra_headers.GetHeader(HttpRequestHeaders::kRange).value();
+  std::string_view range_header =
+      request->extra_headers.GetHeaderView(HttpRequestHeaders::kRange).value();
   std::vector<HttpByteRange> ranges;
 
   EXPECT_TRUE(HttpUtil::ParseRangeHeader(range_header, &ranges));

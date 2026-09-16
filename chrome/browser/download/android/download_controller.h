@@ -33,6 +33,8 @@
 #include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
 #include "components/safe_browsing/android/safe_browsing_api_handler_util.h"
 
+class DownloadUIModel;
+
 class DownloadController : public DownloadControllerBase {
  public:
   static DownloadController* GetInstance();
@@ -41,9 +43,6 @@ class DownloadController : public DownloadControllerBase {
   DownloadController& operator=(const DownloadController&) = delete;
 
   // DownloadControllerBase implementation.
-  void AcquireFileAccessPermission(
-      const content::WebContents::Getter& wc_getter,
-      AcquireFileAccessPermissionCallback callback) override;
   void CreateAndroidDownload(const content::WebContents::Getter& wc_getter,
                              const DownloadInfo& info) override;
 
@@ -94,15 +93,11 @@ class DownloadController : public DownloadControllerBase {
   void OnDangerousDownload(download::DownloadItem* item);
 
   // Shows the UI warnings from Safe Browsing malicious APK download check.
-  void ShowDangerousDownloadWarning(download::DownloadItem* item);
+  void ShowDangerousDownloadWarning(DownloadUIModel& model);
 
   // Helper methods to start android download on UI thread.
   void StartAndroidDownload(const content::WebContents::Getter& wc_getter,
                             const DownloadInfo& info);
-  void StartAndroidDownloadInternal(
-      const content::WebContents::Getter& wc_getter,
-      const DownloadInfo& info,
-      bool allowed);
 
   // Get profile key from download item.
   ProfileKey* GetProfileKey(download::DownloadItem* download_item);

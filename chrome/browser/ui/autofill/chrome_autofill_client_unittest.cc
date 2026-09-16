@@ -18,9 +18,9 @@
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
-#include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #include "chrome/browser/ui/autofill/edit_address_profile_dialog_controller_impl.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
@@ -35,6 +35,8 @@
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/mock_fast_checkout_client.h"
@@ -42,6 +44,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/ui/mock_autofill_suggestion_delegate.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_field_data.h"
@@ -74,6 +77,7 @@
 #include "chrome/browser/ui/android/autofill/autofill_save_card_delegate_android.h"
 #include "components/autofill/core/browser/payments/autofill_save_card_ui_info.h"
 #else
+#include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
@@ -131,6 +135,7 @@ class MockAutofillAccessibilityHelper : public AutofillAccessibilityHelper {
 };
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
 class MockAutofillFieldPromoController : public AutofillFieldPromoController {
  public:
   ~MockAutofillFieldPromoController() override = default;
@@ -139,6 +144,7 @@ class MockAutofillFieldPromoController : public AutofillFieldPromoController {
   MOCK_METHOD(bool, IsMaybeShowing, (), (const override));
   MOCK_METHOD(const base::Feature&, GetFeaturePromo, (), (const override));
 };
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // This test class is needed to make the constructor public.
 class TestChromeAutofillClient : public ChromeAutofillClient {
@@ -174,6 +180,7 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
 #endif
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   void SetUpIphForTesting(const base::Feature& feature_promo) {
     auto autofill_field_promo_controller =
         std::make_unique<MockAutofillFieldPromoController>();
@@ -185,10 +192,13 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
     client()->SetAutofillFieldPromoTesting(
         std::move(autofill_field_promo_controller));
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   void TearDown() override {
     // Avoid that the raw pointer becomes dangling.
+#if !BUILDFLAG(IS_ANDROID)
     autofill_field_promo_controller_ = nullptr;
+#endif  // !BUILDFLAG(IS_ANDROID)
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
@@ -201,9 +211,11 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
     return ContentAutofillDriver::GetForRenderFrameHost(rfh);
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   MockAutofillFieldPromoController* autofill_field_promo_controller() {
     return autofill_field_promo_controller_;
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
   // Helper function to set up mock accessibility helper for Android tests.
@@ -257,7 +269,9 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
       {.disable_server_communication = true}};
   base::test::ScopedFeatureList scoped_feature_list_{
       plus_addresses::features::kPlusAddressesEnabled};
+#if !BUILDFLAG(IS_ANDROID)
   raw_ptr<MockAutofillFieldPromoController> autofill_field_promo_controller_;
+#endif  // !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<MockAutofillAccessibilityHelper> mock_accessibility_helper_;
 #endif
@@ -503,6 +517,106 @@ TEST_F(ChromeAutofillClientTest, TriggerUserPerceptionOfAutofillAddressSurvey) {
                                                   field_filling_stats_data);
 }
 
+// Test that the Autofill AI filling journey survey calls the hats service with
+// the expected params.
+TEST_F(ChromeAutofillClientTest,
+       TriggerUserAutofillAiFillingJourneySurvey_Passport_SuggestionAccepted) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/{{features::kAutofillAiFillingSurvey,
+                             {{"autofill_ai_filling_survey_passport_trigger_id",
+                               "12345"}}}},
+      /*disabled_features=*/{});
+  MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile(), base::BindRepeating(&BuildMockHatsService)));
+  EXPECT_CALL(*mock_hats_service, CanShowAnySurvey)
+      .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*mock_hats_service,
+              LaunchDelayedSurveyForWebContents(
+                  kHatsSurveyTriggerAutofillAiFilling, _, _,
+                  Eq(SurveyBitsData({{"User accepted suggestion", true}})), _,
+                  _, _, _, Eq("12345"), _));
+
+  client()->TriggerAutofillAiFillingJourneySurvey(
+      /*suggestion_accepted=*/true, EntityType(EntityTypeName::kPassport));
+}
+
+TEST_F(
+    ChromeAutofillClientTest,
+    TriggerUserAutofillAiFillingJourneySurvey_NationalId_SuggestionDeclined) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{features::kAutofillAiFillingSurvey,
+        {{"autofill_ai_filling_survey_national_id_trigger_id", "12345"}}}},
+      /*disabled_features=*/{});
+  MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile(), base::BindRepeating(&BuildMockHatsService)));
+  EXPECT_CALL(*mock_hats_service, CanShowAnySurvey)
+      .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*mock_hats_service,
+              LaunchDelayedSurveyForWebContents(
+                  kHatsSurveyTriggerAutofillAiFilling, _, _,
+                  Eq(SurveyBitsData({{"User accepted suggestion", false}})), _,
+                  _, _, _, Eq("12345"), _));
+
+  client()->TriggerAutofillAiFillingJourneySurvey(
+      /*suggestion_accepted=*/false,
+      EntityType(EntityTypeName::kNationalIdCard));
+}
+
+// Test that the Autofill AI save prompt survey calls the hats service with
+// the expected params.
+TEST_F(ChromeAutofillClientTest,
+       TriggerUserAutofillAiSavePromptSurvey_Accepted) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/{{features::kAutofillAiSavePromptSurvey,
+                             {{"autofill_ai_walletable_entity_save_prompt_"
+                               "survey_accepted_trigger_id",
+                               "12345"}}}},
+      /*disabled_features=*/{});
+  MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile(), base::BindRepeating(&BuildMockHatsService)));
+  EXPECT_CALL(*mock_hats_service, CanShowAnySurvey)
+      .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*mock_hats_service, LaunchDelayedSurveyForWebContents(
+                                      kHatsSurveyTriggerAutofillAiSavePrompt, _,
+                                      _, _, _, _, _, _, Eq("12345"), _));
+
+  client()->TriggerAutofillAiSavePromptSurvey(
+      /*prompt_accepted=*/true);
+}
+
+TEST_F(ChromeAutofillClientTest,
+       TriggerUserAutofillAiSavePromptSurvey_Declined) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/{{features::kAutofillAiSavePromptSurvey,
+                             {{"autofill_ai_walletable_entity_save_prompt_"
+                               "survey_declined_trigger_id",
+                               "12345"}}}},
+      /*disabled_features=*/{});
+  MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile(), base::BindRepeating(&BuildMockHatsService)));
+  EXPECT_CALL(*mock_hats_service, CanShowAnySurvey)
+      .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*mock_hats_service, LaunchDelayedSurveyForWebContents(
+                                      kHatsSurveyTriggerAutofillAiSavePrompt, _,
+                                      _, _, _, _, _, _, Eq("12345"), _));
+
+  client()->TriggerAutofillAiSavePromptSurvey(
+      /*prompt_accepted=*/false);
+}
+
 TEST_F(ChromeAutofillClientTest,
        TriggerUserPerceptionOfAutofillCreditCardSurvey) {
   MockHatsService* mock_hats_service = static_cast<MockHatsService*>(
@@ -558,6 +672,7 @@ TEST_F(ChromeAutofillClientTest,
       /*on_confirmation_closed_callback=*/std::nullopt);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(ChromeAutofillClientTest, AutofillFieldIPH_NotShownByPromoController) {
   SetUpIphForTesting(feature_engagement::kIPHAutofillAiOptInFeature);
 
@@ -610,6 +725,7 @@ TEST_F(ChromeAutofillClientTest,
 
   testing::Mock::VerifyAndClearExpectations(autofill_field_promo_controller());
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class ChromeAutofillClientTestWithWindow : public BrowserWithTestWindowTest {
  public:

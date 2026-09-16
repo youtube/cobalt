@@ -66,6 +66,7 @@ import org.chromium.ui.listmenu.ListMenuUtils.AccessibilityListObserver;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.AttrUtils;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
 import org.chromium.ui.widget.RectProvider;
@@ -149,7 +150,7 @@ public abstract class TabOverflowMenuCoordinator<T> {
                     createAdapter(
                             modelList,
                             Set.of(),
-                            (model) -> {
+                            (model, view) -> {
                                 // Because ListMenuItemAdapter always uses the delegate if there is
                                 // one, we need to manually call click listeners.
                                 if (model.containsKey(CLICK_LISTENER)
@@ -236,7 +237,8 @@ public abstract class TabOverflowMenuCoordinator<T> {
             GradientDrawable outlineDrawable = new GradientDrawable();
             outlineDrawable.setShape(GradientDrawable.RECTANGLE);
             outlineDrawable.setCornerRadius(
-                    mContentView.getResources().getDimension(R.dimen.popup_bg_corner_radius_24dp));
+                    AttrUtils.getDimensionPixelSize(
+                            mContentView.getContext(), R.attr.popupBgCornerRadius));
             mContentView.setBackground(outlineDrawable);
             mContentView.setClipToOutline(true);
         }
@@ -450,7 +452,11 @@ public abstract class TabOverflowMenuCoordinator<T> {
         afterCreate();
         modelList.addObserver(
                 new AccessibilityListObserver(
-                        mMenuHolder.getContentView(), /* headerModelList= */ null, modelList));
+                        mMenuHolder.getContentView(),
+                        /* headerView= */ null,
+                        mMenuHolder.getContentView().findViewById(R.id.tab_group_action_menu_list),
+                        /* headerModelList= */ null,
+                        modelList));
         mMenuHolder.show();
     }
 

@@ -40,6 +40,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "components/url_pattern/simple_url_pattern_matcher.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
@@ -806,9 +807,30 @@ SourceTypeEnum SourceTypeFromString(const String& type) {
 
 }  // namespace
 
+// static
+InspectorNetworkAgent::URLPatternMatcher
+InspectorNetworkAgent::URLPatternMatcher::Create(const String& pattern,
+                                                 bool block) {
+  return {
+      .matcher =
+          ::url_pattern::SimpleUrlPatternMatcher::Create(pattern.Utf8(),
+                                                         /*base_url=*/nullptr)
+              .value_or(
+                  std::unique_ptr<::url_pattern::SimpleUrlPatternMatcher>()),
+      .block = block,
+  };
+}
+
 void InspectorNetworkAgent::Restore() {
   if (enabled_.Get())
     Enable();
+  for (const String& pattern : blocked_patterns_.Keys()) {
+    if (auto matcher =
+            URLPatternMatcher::Create(pattern, blocked_patterns_.Get(pattern));
+        matcher.matcher) {
+      blocked_pattern_matchers_.emplace_back(std::move(matcher));
+    }
+  }
 }
 
 static std::unique_ptr<protocol::Network::ResourceTiming> BuildObjectForTiming(
@@ -1170,10 +1192,10 @@ BuildObjectForResourceResponse(const ResourceResponse& response,
                 resource_load_timing->WorkerRouterEvaluationStart()));
       }
 
-      if (!resource_load_timing->WorkerCacheLokupStart().is_null()) {
+      if (!resource_load_timing->WorkerCacheLookupStart().is_null()) {
         load_timing->setWorkerCacheLookupStart(
             resource_load_timing->CalculateMillisecondDelta(
-                resource_load_timing->WorkerCacheLokupStart()));
+                resource_load_timing->WorkerCacheLookupStart()));
       }
     }
 
@@ -1220,8 +1242,18 @@ void InspectorNetworkAgent::Trace(Visitor* visitor) const {
 }
 
 void InspectorNetworkAgent::ShouldBlockRequest(const KURL& url, bool* result) {
-  if (blocked_urls_.IsEmpty())
+  if (blocked_patterns_.IsEmpty() && blocked_urls_.IsEmpty())
     return;
+
+  GURL gurl(url);
+  for (const auto& matcher : blocked_pattern_matchers_) {
+    if (matcher.matcher->Match(gurl)) {
+      if (matcher.block) {
+        *result = true;
+      }
+      return;
+    }
+  }
 
   String url_string = url.GetString();
   for (const String& blocked : blocked_urls_.Keys()) {
@@ -2402,10 +2434,41 @@ void InspectorNetworkAgent::getResponseBody(
 }
 
 protocol::Response InspectorNetworkAgent::setBlockedURLs(
+    std::unique_ptr<protocol::Array<protocol::Network::BlockPattern>>
+        url_patterns,
     std::unique_ptr<protocol::Array<String>> urls) {
+  Vector<URLPatternMatcher> blocked_pattern_matchers;
+
+  if (url_patterns) {
+    for (auto& pattern : *url_patterns) {
+      if (auto matcher = URLPatternMatcher::Create(pattern->getUrlPattern(),
+                                                   pattern->getBlock());
+          matcher.matcher) {
+        blocked_pattern_matchers.emplace_back(std::move(matcher));
+      } else {
+        return protocol::Response::InvalidParams(
+            "Pattern \"" + pattern->getUrlPattern().Utf8() +
+            "\" failed to parse as a URLPattern.");
+      }
+    }
+  }
+
   blocked_urls_.Clear();
-  for (const String& url : *urls)
-    blocked_urls_.Set(url, true);
+  blocked_patterns_.Clear();
+  std::swap(blocked_pattern_matchers_, blocked_pattern_matchers);
+
+  if (url_patterns) {
+    for (auto& pattern : *url_patterns) {
+      blocked_patterns_.Set(pattern->getUrlPattern(), pattern->getBlock());
+    }
+  }
+
+  if (urls) {
+    for (const String& url : *urls) {
+      blocked_urls_.Set(url, true);
+    }
+  }
+
   return protocol::Response::Success();
 }
 
@@ -2737,6 +2800,7 @@ InspectorNetworkAgent::InspectorNetworkAgent(
       cache_disabled_(&agent_state_, /*default_value=*/false),
       bypass_service_worker_(&agent_state_, /*default_value=*/false),
       blocked_urls_(&agent_state_, /*default_value=*/false),
+      blocked_patterns_(&agent_state_, /*default_value=*/false),
       extra_request_headers_(&agent_state_, /*default_value=*/String()),
       attach_debug_stack_enabled_(&agent_state_, /*default_value=*/false),
       total_buffer_size_(&agent_state_,

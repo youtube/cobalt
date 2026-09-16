@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -28,6 +29,8 @@ class AudioRendererSink {
  public:
   static const int kAudioSinkFramesAlignment = 256;
   static const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  static_assert(IsAligned(kDefaultAudioSinkMinFramesPerAppend,
+                          kAudioSinkFramesAlignment));
 
   class RenderCallback {
    public:
@@ -56,8 +59,6 @@ class AudioRendererSink {
 
   virtual bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const = 0;
-  virtual bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const = 0;
   virtual int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const = 0;
 
@@ -66,7 +67,6 @@ class AudioRendererSink {
                      int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,
-                     SbMediaAudioFrameStorageType audio_frame_storage_type,
                      SbAudioSinkFrameBuffers frame_buffers,
                      int frames_per_channel,
                      RenderCallback* render_callback) = 0;

@@ -35,6 +35,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/signin/public/identity_manager/test_accounts.h"
+#include "components/sync/base/features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/test_devtools_protocol_client.h"
 #include "net/dns/mock_host_resolver.h"
@@ -85,7 +86,7 @@ GlicE2ETest::GlicE2ETest() {
                             features::kGlicRollout,
                             contextual_cueing::kContextualCueing,
                             mojom::features::kZeroStateSuggestionsV2},
-      /*disabled_features=*/{});
+      /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos});
 }
 
 GlicE2ETest::~GlicE2ETest() = default;
@@ -306,15 +307,17 @@ void GlicE2ETest::ThrottleWebContentsNetwork(
 }
 
 void GlicE2ETest::ThrottleGlicNetwork() {
-  auto* glic_view =
-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile())
-          ->window_controller()
-          .GetGlicView();
-  CHECK(glic_view);
-  content::WebContents* web_contents =
-      glic_view->GetWebContents()->GetInnerWebContents()[0];
-  CHECK(web_contents);
-  ThrottleWebContentsNetwork(web_contents);
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
+  for (auto* host : glic_service->host_manager().GetAllHosts()) {
+    auto* webui_contents = host->webui_contents();
+    if (webui_contents) {
+      content::WebContents* inner_contents =
+          webui_contents->GetInnerWebContents()[0];
+      CHECK(inner_contents);
+      ThrottleWebContentsNetwork(inner_contents);
+    }
+  }
 }
 
 }  // namespace glic::test

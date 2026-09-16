@@ -33,6 +33,8 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck crbug.com/40147906
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck crbug.com/40147906
 #include "chrome/test/base/ui_test_utils.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -45,6 +47,8 @@ constexpr const char kRendererThrottleCreationResultMetricName[] =
     "FingerprintingProtection.RendererThrottleCreationResult";
 constexpr const char kRendererThrottleRedirectsMetricName[] =
     "FingerprintingProtection.RendererThrottleRedirects";
+
+constexpr const char kAllowedDomain[] = "allowed.com";
 
 // =================================== Tests ==================================
 //
@@ -403,8 +407,14 @@ IN_PROC_BROWSER_TEST_F(FingerprintingProtectionFilterBrowserTest,
   // included_script.html, unless the document is loaded from an allowed (not in
   // the blocklist) domain. This enables the third part of this test disallowing
   // a load only after the first redirect.
-  ASSERT_NO_FATAL_FAILURE(
-      SetRulesetToDisallowURLsWithSubstring("frame_with_included_script.html"));
+  auto allowed_substring =
+      subresource_filter::testing::CreateAllowlistSubstringRule(
+          embedded_test_server()->GetURL(kAllowedDomain, "/").spec());
+  auto disallowed_suffix = subresource_filter::testing::CreateSuffixRule(
+      "/frame_with_included_script.html");
+  ASSERT_NO_FATAL_FAILURE(SetRulesetWithRules(
+      {std::move(disallowed_suffix), std::move(allowed_substring)}));
+
   // `url` will load three subframes:
   //   1. frame_with_included_script.html
   //   2. frame_with_allowed_script.html
@@ -484,13 +494,6 @@ IN_PROC_BROWSER_TEST_F(FingerprintingProtectionFilterBrowserTest,
   // Finally, navigate the first subframe to an allowed URL that redirects to a
   // disallowed URL, and verify that the navigation gets blocked and the frame
   // collapsed.
-  //
-  // TODO(crbug.com/444949843): We are blocking URLs with the suffix
-  // "frame_with_included_script.html" which includes
-  // https://allowed.com/.../frame_with_included_script.html, so the code below
-  // isn't actually exercising the redirect logic because the request
-  // gets immediately blocked.
-  const char kAllowedDomain[] = "allowed.com";
   GURL disallowed_subdocument_url(
       GetCrossSiteTestUrl("/frame_with_included_script.html"));
   GURL redirect_to_disallowed_subdocument_url(embedded_test_server()->GetURL(
@@ -505,12 +508,9 @@ IN_PROC_BROWSER_TEST_F(FingerprintingProtectionFilterBrowserTest,
       kSubframeNames, kExpectOnlySecondSubframe));
 
   content::RenderFrameHost* frame = FindFrameByName(kSubframeNames[0]);
-  const auto last_committed_url = frame->GetLastCommittedURL();
-
   ASSERT_TRUE(frame);
-  AssertUrlContained(last_committed_url,
-                     redirect_to_disallowed_subdocument_url);
-  AssertUrlContained(last_committed_url, disallowed_subdocument_url);
+  const auto last_committed_url = frame->GetLastCommittedURL();
+  EXPECT_EQ(last_committed_url, disallowed_subdocument_url);
 
   ExpectFramesIncludedInLayout(kSubframeNames, kExpectOnlySecondSubframe);
 
@@ -555,10 +555,15 @@ IN_PROC_BROWSER_TEST_F(FingerprintingProtectionFilterDryRunBrowserTest,
   // Would disallow loading child frame documents that in turn would end up
   // loading included_script.js, unless the document is loaded from an allowed
   // (not in the blocklist) domain to enable the third part of the test dealing
-  // with redirects. However, in dry run mode, all framees are expected as
+  // with redirects. However, in dry run mode, all frames are expected as
   // nothing is blocked.
-  ASSERT_NO_FATAL_FAILURE(
-      SetRulesetToDisallowURLsWithSubstring("included_script.html"));
+  auto allowed_substring =
+      subresource_filter::testing::CreateAllowlistSubstringRule(
+          embedded_test_server()->GetURL(kAllowedDomain, "/").spec());
+  auto disallowed_suffix = subresource_filter::testing::CreateSuffixRule(
+      "/frame_with_included_script.html");
+  ASSERT_NO_FATAL_FAILURE(SetRulesetWithRules(
+      {std::move(disallowed_suffix), std::move(allowed_substring)}));
 
   ASSERT_TRUE(NavigateToDestination(url));
   NavigateSubframesToCrossOriginSite();
@@ -586,7 +591,6 @@ IN_PROC_BROWSER_TEST_F(FingerprintingProtectionFilterDryRunBrowserTest,
   // Finally, navigate the first subframe to an allowed URL that redirects to a
   // URL that would be disallowed, and verify that the navigation does not get
   // blocked and the frame doesn't collapse under dry run mode.
-  const char kAllowedDomain[] = "allowed.com";
   GURL disallowed_subdocument_url(
       GetCrossSiteTestUrl("/frame_with_included_script.html"));
   GURL redirect_to_disallowed_subdocument_url(embedded_test_server()->GetURL(
@@ -727,9 +731,10 @@ IN_PROC_BROWSER_TEST_F(
     SubframeDocumentLoadFiltering) {
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // TODO(https://crbug.com/358371545): Test console messaging for subframe
@@ -743,8 +748,13 @@ IN_PROC_BROWSER_TEST_F(
   // loading included_script.js, unless the document is loaded from an allowed
   // (not in the blocklist) domain. This enables the third part of this test
   // disallowing a load only after the first redirect.
-  ASSERT_NO_FATAL_FAILURE(
-      SetRulesetToDisallowURLsWithSubstring("frame_with_included_script.html"));
+  auto allowed_substring =
+      subresource_filter::testing::CreateAllowlistSubstringRule(
+          embedded_test_server()->GetURL(kAllowedDomain, "/").spec());
+  auto disallowed_suffix = subresource_filter::testing::CreateSuffixRule(
+      "/frame_with_included_script.html");
+  ASSERT_NO_FATAL_FAILURE(SetRulesetWithRules(
+      {std::move(disallowed_suffix), std::move(allowed_substring)}));
 
   ASSERT_TRUE(NavigateToDestination(url));
   NavigateSubframesToCrossOriginSite();
@@ -772,7 +782,6 @@ IN_PROC_BROWSER_TEST_F(
   // Finally, navigate the first subframe to an allowed URL that redirects to a
   // disallowed URL, and verify that the navigation gets blocked and the frame
   // collapsed.
-  const char kAllowedDomain[] = "allowed.com";
   GURL disallowed_subdocument_url(
       GetCrossSiteTestUrl("/frame_with_included_script.html"));
   GURL redirect_to_disallowed_subdocument_url(embedded_test_server()->GetURL(
@@ -783,12 +792,9 @@ IN_PROC_BROWSER_TEST_F(
       kSubframeNames, kExpectOnlySecondSubframe));
 
   content::RenderFrameHost* frame = FindFrameByName(kSubframeNames[0]);
-  const auto last_committed_url = frame->GetLastCommittedURL();
-
   ASSERT_TRUE(frame);
-  AssertUrlContained(last_committed_url,
-                     redirect_to_disallowed_subdocument_url);
-  AssertUrlContained(last_committed_url, disallowed_subdocument_url);
+  const auto last_committed_url = frame->GetLastCommittedURL();
+  EXPECT_EQ(last_committed_url, disallowed_subdocument_url);
 
   ExpectFramesIncludedInLayout(kSubframeNames, kExpectOnlySecondSubframe);
 
@@ -831,8 +837,9 @@ IN_PROC_BROWSER_TEST_F(
 
   // Open an incognito instance but keep using the non-incognito browser for
   // testing.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
-  SelectFirstBrowser();
+  SetBrowser(GetLastActiveBrowserWindowInterfaceWithAnyProfile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   ASSERT_NE(browser(), incognito);
 
   GURL url(GetTestUrl(kMultiPlatformTestFrameSetPath));
@@ -905,9 +912,10 @@ IN_PROC_BROWSER_TEST_F(
     PerformanceMeasurementsHistogramsAreRecorded) {
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   base::HistogramTester histogram_tester;
@@ -1062,9 +1070,10 @@ IN_PROC_BROWSER_TEST_F(
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Refresh exception code depends on eTLD+1, so we need to navigate to a
@@ -1187,9 +1196,10 @@ IN_PROC_BROWSER_TEST_F(
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Refresh exception code depends on eTLD+1, so we need to navigate to a
@@ -1319,9 +1329,10 @@ IN_PROC_BROWSER_TEST_F(FPFRefreshHeuristicExceptionBrowserTestParamEnabledBoth,
 
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Go to same URL.
@@ -1349,9 +1360,10 @@ IN_PROC_BROWSER_TEST_F(
   Profile* nonincognito_profile = browser()->profile();
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(nonincognito_profile);
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(nonincognito_profile);
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Refresh exception code depends on eTLD+1, so we need to navigate to a
@@ -1398,9 +1410,10 @@ IN_PROC_BROWSER_TEST_F(
       static_cast<int64_t>(ExceptionSource::REFRESH_HEURISTIC));
 
   // Close incognito and open nonincognito browser instance.
-  Browser* nonincognito = CreateBrowser(nonincognito_profile);
+  BrowserWindowInterface* const nonincognito =
+      CreateBrowser(nonincognito_profile);
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(nonincognito);
   ASSERT_EQ(browser(), nonincognito);
 
   // Go to same URL.
@@ -1492,9 +1505,10 @@ IN_PROC_BROWSER_TEST_F(FPFRefreshHeuristicExceptionBrowserTestParamDisabledBoth,
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Refresh exception code depends on eTLD+1, so we need to navigate to a
@@ -1558,9 +1572,10 @@ IN_PROC_BROWSER_TEST_F(
 
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   GURL url(GetTestUrl(kMultiPlatformTestFrameSetPath));
@@ -1569,8 +1584,13 @@ IN_PROC_BROWSER_TEST_F(
   // loading included_script.js, unless the document is loaded from an allowed
   // (not in the blocklist) domain. This enables the third part of this test
   // disallowing a load only after the first redirect.
-  ASSERT_NO_FATAL_FAILURE(
-      SetRulesetToDisallowURLsWithSubstring("included_script.html"));
+  auto allowed_substring =
+      subresource_filter::testing::CreateAllowlistSubstringRule(
+          embedded_test_server()->GetURL(kAllowedDomain, "/").spec());
+  auto disallowed_suffix = subresource_filter::testing::CreateSuffixRule(
+      "/frame_with_included_script.html");
+  ASSERT_NO_FATAL_FAILURE(SetRulesetWithRules(
+      {std::move(disallowed_suffix), std::move(allowed_substring)}));
 
   ASSERT_TRUE(NavigateToDestination(url));
   NavigateSubframesToCrossOriginSite();
@@ -1598,7 +1618,6 @@ IN_PROC_BROWSER_TEST_F(
   // Finally, navigate the first subframe to an allowed URL that redirects to a
   // disallowed URL, and verify that the navigation gets blocked and the frame
   // collapsed.
-  const char kAllowedDomain[] = "allowed.com";
   GURL disallowed_subdocument_url(
       GetCrossSiteTestUrl("/frame_with_included_script.html"));
   GURL redirect_to_disallowed_subdocument_url(embedded_test_server()->GetURL(
@@ -1609,12 +1628,9 @@ IN_PROC_BROWSER_TEST_F(
       kSubframeNames, kExpectOnlySecondSubframe));
 
   content::RenderFrameHost* frame = FindFrameByName(kSubframeNames[0]);
-  const auto last_committed_url = frame->GetLastCommittedURL();
-
   ASSERT_TRUE(frame);
-  AssertUrlContained(last_committed_url,
-                     redirect_to_disallowed_subdocument_url);
-  AssertUrlContained(last_committed_url, disallowed_subdocument_url);
+  const auto last_committed_url = frame->GetLastCommittedURL();
+  EXPECT_EQ(last_committed_url, disallowed_subdocument_url);
 
   ExpectFramesIncludedInLayout(kSubframeNames, kExpectOnlySecondSubframe);
 
@@ -1685,9 +1701,10 @@ IN_PROC_BROWSER_TEST_F(
 
   // Close normal browser and switch the test's browser instance to an incognito
   // instance.
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* const incognito =
+      CreateIncognitoBrowser(browser()->profile());
   CloseBrowserSynchronously(browser());
-  SelectFirstBrowser();
+  SetBrowser(incognito);
   ASSERT_EQ(browser(), incognito);
 
   // Disable FPP in TrackingProtectionSettings.

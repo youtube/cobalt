@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 en_CA{
     calendar{
         chinese{
@@ -244,7 +244,7 @@ en_CA{
                     }
                     narrow{
                         afternoon1{"aft"}
-                        am{"a.m."}
+                        am{"am"}
                         evening1{"eve"}
                         midnight{"mid"}
                         morning1{"mor"}

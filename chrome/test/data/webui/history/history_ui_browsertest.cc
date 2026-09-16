@@ -7,6 +7,7 @@
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
 #include "components/history_clusters/core/features.h"
 #include "components/history_embeddings/history_embeddings_features.h"
+#include "components/sync/base/features.h"
 #include "content/public/test/browser_test.h"
 
 #if BUILDFLAG(IS_CHROMEOS)

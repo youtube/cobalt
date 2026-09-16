@@ -8,12 +8,7 @@
 
 namespace blink {
 
-LayoutMasonry::LayoutMasonry(Element* element) : LayoutBlock(element) {
-  CHECK(element);
-  CHECK(element->GetComputedStyle());
-  masonry_track_sizing_direction_ =
-      element->GetComputedStyle()->MasonryTrackSizingDirection();
-}
+LayoutMasonry::LayoutMasonry(Element* element) : LayoutBlock(element) {}
 
 const GridLayoutData* LayoutMasonry::LayoutData() const {
   return LayoutGrid::GetGridLayoutDataFromFragments(this);
@@ -22,10 +17,12 @@ const GridLayoutData* LayoutMasonry::LayoutData() const {
 Vector<LayoutUnit> LayoutMasonry::GridTrackPositions(
     GridTrackSizingDirection track_direction) const {
   NOT_DESTROYED();
-  if (track_direction != masonry_track_sizing_direction_) {
+  if (track_direction != StyleRef().MasonryTrackSizingDirection()) {
     return {};
   }
-  return LayoutGrid::ComputeExpandedPositions(LayoutData(), track_direction);
+  return LayoutGrid::ComputeExpandedPositions(track_direction == kForColumns
+                                                  ? LayoutData()->Columns()
+                                                  : LayoutData()->Rows());
 }
 
 LayoutUnit LayoutMasonry::GridGap(
@@ -89,7 +86,7 @@ wtf_size_t LayoutMasonry::ExplicitGridEndForDirection(
 Vector<LayoutUnit, 1> LayoutMasonry::TrackSizesForComputedStyle(
     GridTrackSizingDirection track_direction) const {
   NOT_DESTROYED();
-  if (track_direction != masonry_track_sizing_direction_) {
+  if (track_direction != StyleRef().MasonryTrackSizingDirection()) {
     return {};
   }
   return LayoutGrid::CollectTrackSizesForComputedStyle(LayoutData(),

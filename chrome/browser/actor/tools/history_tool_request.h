@@ -9,7 +9,6 @@
 #include <string>
 
 #include "chrome/browser/actor/tools/tool_request.h"
-#include "chrome/common/actor.mojom-forward.h"
 #include "url/gurl.h"
 
 namespace actor {
@@ -32,6 +31,9 @@ class HistoryToolRequest : public TabToolRequest {
   CreateToolResult CreateTool(TaskId task_id,
                               ToolDelegate& tool_delegate) const override;
   std::string JournalEvent() const override;
+  std::optional<ObservationDelayController::PageStabilityConfig>
+  GetObservationPageStabilityConfig() const override;
+  bool RequiresUrlCheckInCurrentTab() const override;
 
   // Whether the navigation is backwards or forwards in session history.
   Direction direction_;

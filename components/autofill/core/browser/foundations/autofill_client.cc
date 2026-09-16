@@ -227,6 +227,16 @@ void AutofillClient::TriggerDeclinedSaveAddressReasonSurvey() {
   NOTIMPLEMENTED();
 }
 
+void AutofillClient::TriggerAutofillAiFillingJourneySurvey(
+    bool suggestion_accepted,
+    EntityType entity_type) {
+  NOTIMPLEMENTED();
+}
+
+void AutofillClient::TriggerAutofillAiSavePromptSurvey(bool prompt_accepted) {
+  NOTIMPLEMENTED();
+}
+
 std::unique_ptr<device_reauth::DeviceAuthenticator>
 AutofillClient::GetDeviceAuthenticator() {
   return nullptr;
@@ -305,12 +315,20 @@ void AutofillClient::ShowEntitySaveOrUpdateBubble(
     std::optional<EntityInstance> old_entity,
     EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback) {}
 
+void AutofillClient::ShowEmailVerifiedToast() {
+  NOTIMPLEMENTED();
+}
+
 OtpFieldDetector* AutofillClient::GetOtpFieldDetector() {
   return nullptr;
 }
 
 one_time_tokens::SmsOtpBackend* AutofillClient::GetSmsOtpBackend() const {
   return nullptr;
+}
+
+bool AutofillClient::DocumentUsedWebOTP() {
+  return false;
 }
 
 }  // namespace autofill

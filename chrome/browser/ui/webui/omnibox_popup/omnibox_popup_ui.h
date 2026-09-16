@@ -9,17 +9,18 @@
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/webui_config.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom-forward.h"
 
 class Profile;
-class RealboxHandler;
+class WebuiOmniboxHandler;
 
 namespace ui {
 class ColorChangeHandler;
@@ -28,18 +29,18 @@ class ColorChangeHandler;
 class OmniboxPopupUI;
 
 class OmniboxPopupUIConfig
-    : public content::DefaultWebUIConfig<OmniboxPopupUI> {
+    : public DefaultTopChromeWebUIConfig<OmniboxPopupUI> {
  public:
   OmniboxPopupUIConfig()
-      : DefaultWebUIConfig(content::kChromeUIScheme,
-                           chrome::kChromeUIOmniboxPopupHost) {}
+      : DefaultTopChromeWebUIConfig(content::kChromeUIScheme,
+                                    chrome::kChromeUIOmniboxPopupHost) {}
 
   // content::WebUIConfig:
   bool IsWebUIEnabled(content::BrowserContext* browser_context) override;
 };
 
 // The Web UI controller for the chrome://omnibox-popup.top-chrome.
-class OmniboxPopupUI : public ui::MojoWebUIController {
+class OmniboxPopupUI : public TopChromeWebUIController {
  public:
   explicit OmniboxPopupUI(content::WebUI* web_ui);
   OmniboxPopupUI(const OmniboxPopupUI&) = delete;
@@ -57,10 +58,12 @@ class OmniboxPopupUI : public ui::MojoWebUIController {
       mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
           pending_receiver);
 
-  RealboxHandler* handler() { return handler_.get(); }
+  WebuiOmniboxHandler* handler() { return handler_.get(); }
+
+  static constexpr std::string_view GetWebUIName() { return "OmniboxPopup"; }
 
  private:
-  std::unique_ptr<RealboxHandler> handler_;
+  std::unique_ptr<WebuiOmniboxHandler> handler_;
   std::unique_ptr<ui::ColorChangeHandler> color_provider_handler_;
   raw_ptr<Profile> profile_;
 

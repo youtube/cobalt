@@ -32,10 +32,12 @@ BASE_FEATURE(kSynchronizedScrolling,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kDeferImplInvalidation, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDeferImplInvalidation, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// TODO(crbug.com/446920991): Reduce back to 1 frame delay once we have a
+// separate delay for handling latency sensitive input.
 const base::FeatureParam<int> kDeferImplInvalidationFrames{
-    &kDeferImplInvalidation, "frames", 1};
+    &kDeferImplInvalidation, "frames", 4};
 
 // Note that kUseDMSAAForTiles only controls vulkan launch on android. We will
 // be using a separate flag to control the launch on GL.
@@ -72,9 +74,6 @@ BASE_FEATURE(kWaitForLateScrollEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kWaitForLateScrollEventsDeadlineRatio{
     &kWaitForLateScrollEvents, "deadline_ratio", 0.333};
-
-BASE_FEATURE(kDontAlwaysPushPictureLayerImpls,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPreserveDiscardableImageMapQuality,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -127,6 +126,9 @@ BASE_FEATURE(kPreventDuplicateImageDecodes, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInitImageDecodeLastUseTime, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThrottleMainFrameTo60Hz, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBoostFrameRateForUrgentMainFrame,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 void SetIsEligibleForThrottleMainFrameTo60Hz(bool is_eligible) {
   s_is_eligible_for_throttle_main_frame_to_60hz.store(
@@ -196,9 +198,12 @@ PROGRAMMATIC_SCROLL_ANIMATION_CURVE(0.4, 0.0, 0.0, 1.0, 1500);
 #endif
 #undef PROGRAMMATIC_SCROLL_ANIMATION_CURVE
 
-BASE_FEATURE(kSlimDirectReceiverIpc, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSlimDirectReceiverIpc, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOverscrollEffectOnNonRootScrollers,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink,

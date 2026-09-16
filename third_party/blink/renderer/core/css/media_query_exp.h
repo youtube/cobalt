@@ -169,9 +169,6 @@ class CORE_EXPORT MediaQueryExpValue {
         return base::ValuesEquivalent(ratio_, other.ratio_);
     }
   }
-  bool operator!=(const MediaQueryExpValue& other) const {
-    return !(*this == other);
-  }
 
   // Consume a MediaQueryExpValue for the provided feature, which must already
   // be lower-cased.
@@ -224,9 +221,6 @@ struct CORE_EXPORT MediaQueryExpComparison {
   bool operator==(const MediaQueryExpComparison& o) const {
     return value == o.value && op == o.op;
   }
-  bool operator!=(const MediaQueryExpComparison& o) const {
-    return !(*this == o);
-  }
 
   bool IsValid() const { return value.IsValid(); }
 
@@ -272,7 +266,6 @@ struct CORE_EXPORT MediaQueryExpBounds {
   bool operator==(const MediaQueryExpBounds& o) const {
     return left == o.left && right == o.right;
   }
-  bool operator!=(const MediaQueryExpBounds& o) const { return !(*this == o); }
 
   MediaQueryExpComparison left;
   MediaQueryExpComparison right;
@@ -289,6 +282,7 @@ class CORE_EXPORT MediaQueryExp {
                               bool supports_element_dependent);
   static MediaQueryExp Create(const AtomicString& media_feature,
                               const MediaQueryExpBounds&);
+  static MediaQueryExp Create(const AtomicString& custom_media);
   static MediaQueryExp Create(const MediaQueryExpValue& reference_value,
                               const MediaQueryExpBounds&);
   static MediaQueryExp Invalid() { return MediaQueryExp(); }
@@ -300,9 +294,10 @@ class CORE_EXPORT MediaQueryExp {
   bool IsValid() const { return type_ != Type::kInvalid; }
   bool HasMediaFeature() const { return type_ == Type::kMediaFeature; }
   bool HasStyleRange() const { return type_ == Type::kStyleRange; }
+  bool IsCustomMedia() const { return type_ == Type::kCustomMedia; }
 
   const AtomicString& MediaFeature() const {
-    DCHECK(HasMediaFeature());
+    DCHECK(HasMediaFeature() || IsCustomMedia());
     return media_feature_;
   }
 
@@ -314,9 +309,6 @@ class CORE_EXPORT MediaQueryExp {
   const MediaQueryExpBounds& Bounds() const { return bounds_; }
 
   bool operator==(const MediaQueryExp& other) const;
-  bool operator!=(const MediaQueryExp& other) const {
-    return !(*this == other);
-  }
 
   bool IsViewportDependent() const;
 
@@ -333,11 +325,13 @@ class CORE_EXPORT MediaQueryExp {
   unsigned GetUnitFlags() const;
 
  private:
-  enum class Type { kMediaFeature, kStyleRange, kInvalid };
+  enum class Type { kMediaFeature, kCustomMedia, kStyleRange, kInvalid };
 
   MediaQueryExp() = default;
   MediaQueryExp(const String& media_feature, const MediaQueryExpValue&);
-  MediaQueryExp(const String& media_feature, const MediaQueryExpBounds&);
+  MediaQueryExp(const String& media_feature,
+                const MediaQueryExpBounds&,
+                Type type);
   MediaQueryExp(const CSSUnparsedDeclarationValue& reference_value,
                 const MediaQueryExpBounds&);
 
@@ -371,7 +365,7 @@ class CORE_EXPORT MediaQueryExpNode
     kFeatureSticky = 1 << 7,
     kFeatureSnap = 1 << 8,
     kFeatureScrollable = 1 << 9,
-    kFeatureScrollDirection = 1 << 10,
+    kFeatureScrolled = 1 << 10,
     kFeatureAnchored = 1 << 11,
   };
 
@@ -403,7 +397,7 @@ class CORE_EXPORT MediaQueryFeatureExpNode : public MediaQueryExpNode {
   void Trace(Visitor*) const override;
 
   const String& Name() const {
-    DCHECK(HasMediaFeature());
+    DCHECK(HasMediaFeature() || IsCustomMedia());
     return exp_.MediaFeature();
   }
 
@@ -414,6 +408,7 @@ class CORE_EXPORT MediaQueryFeatureExpNode : public MediaQueryExpNode {
 
   bool HasMediaFeature() const { return exp_.HasMediaFeature(); }
   bool HasStyleRange() const { return exp_.HasStyleRange(); }
+  bool IsCustomMedia() const { return exp_.IsCustomMedia(); }
 
   const MediaQueryExpBounds& Bounds() const { return exp_.Bounds(); }
 

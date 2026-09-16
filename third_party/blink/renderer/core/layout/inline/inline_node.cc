@@ -165,7 +165,6 @@ class ReusingTextShaper final {
       return ShapeWithoutCache(start_item, font, end_offset);
     };
     if (allow_shape_cache_) {
-      DCHECK(RuntimeEnabledFeatures::LayoutNGShapeCacheEnabled());
       return font.PrimaryFont()->GetShapeCache().GetOrCreate(
           shaper_.GetText(), start_item.Direction(), ShapeFunc);
     }
@@ -1311,8 +1310,7 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
   String text_content_with_out_of_flow;
   wtf_size_t text_len = text_content.length();
   InlineItems& items = data->items;
-  if (data->HasFloatingOrOutOfFlowPositioned() &&
-      RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) [[unlikely]] {
+  if (data->HasFloatingOrOutOfFlowPositioned()) [[unlikely]] {
     StringBuilder builder;
     wtf_size_t last_offset = 0;
     for (const auto item_ptr : items) {
@@ -1355,7 +1353,6 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
     if (out_of_flow_items.empty()) {
       item_index = InlineItem::SetBidiLevel(items, item_index, end, level);
     } else {
-      DCHECK(RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled());
       wtf_size_t num_out_of_flow_in_this_run = 0;
       while (end > out_of_flow_items[out_of_flow_item_index].text_offset) {
 #if EXPENSIVE_DCHECKS_ARE_ON()
@@ -1374,7 +1371,6 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
 #if EXPENSIVE_DCHECKS_ARE_ON()
   if (!out_of_flow_items.empty()) {
     // Check the BiDi level for OOF items are set correctly.
-    DCHECK(RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled());
     DCHECK_EQ(out_of_flow_item_index, out_of_flow_items.size() - 1);
     out_of_flow_item_index = 0;
     for (const auto item_ptr : items) {
@@ -1398,14 +1394,10 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 }
 
-bool InlineNode::IsNGShapeCacheAllowed(
-    const String& text_content,
-    const Font* override_font,
-    const InlineItems& items,
-    ShapeResultSpacing<String>& spacing) const {
-  if (!RuntimeEnabledFeatures::LayoutNGShapeCacheEnabled()) {
-    return false;
-  }
+bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
+                                       const Font* override_font,
+                                       const InlineItems& items,
+                                       ShapeResultSpacing& spacing) const {
   // For consistency with similar usages of ShapeCache (e.g. canvas) and in
   // order to avoid caching bugs (e.g. with scripts having Arabic joining)
   // NGShapeCache is only enabled when the IFC is made of a single text item. To
@@ -1451,7 +1443,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
   InlineItem::CheckIndex(*items);
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 
-  ShapeResultSpacing<String> spacing(
+  ShapeResultSpacing spacing(
       text_content,
       /*allow_word_spacing_anywhere=*/IsSvgText() ||
           (RuntimeEnabledFeatures::WordSpacingWhiteSpacePreEnabled() &&

@@ -237,6 +237,8 @@ class CONTENT_EXPORT ChildProcessLauncher
 #if BUILDFLAG(IS_ANDROID)
     // Whether the process can use pre-warmed up connection.
     virtual bool CanUseWarmUpConnection();
+    // Whether the process should be set to the priority of a spare renderer.
+    virtual bool HasSpareRendererPriority();
 #endif
 
    protected:
@@ -265,8 +267,7 @@ class CONTENT_EXPORT ChildProcessLauncher
       scoped_refptr<base::RefCountedData<base::ReadOnlySharedMemoryRegion>>
           trace_config_memory_region = nullptr,
       scoped_refptr<base::RefCountedData<base::UnsafeSharedMemoryRegion>>
-          trace_output_memory_region = nullptr,
-      bool terminate_on_shutdown = true);
+          trace_output_memory_region = nullptr);
 
   ChildProcessLauncher(const ChildProcessLauncher&) = delete;
   ChildProcessLauncher& operator=(const ChildProcessLauncher&) = delete;

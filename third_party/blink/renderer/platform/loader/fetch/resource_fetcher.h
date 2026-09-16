@@ -392,8 +392,7 @@ class PLATFORM_EXPORT ResourceFetcher
   void CancelWebBundleSubresourceLoadersFor(
       const base::UnguessableToken& web_bundle_token);
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel) override;
+  void OnMemoryPressure(base::MemoryPressureLevel) override;
 
   void MaybeRecordLCPPSubresourceMetrics(const KURL& document_url);
 
@@ -401,7 +400,7 @@ class PLATFORM_EXPORT ResourceFetcher
   // changed such that the load should no longer be deferred.
   void ReloadImagesIfNotDeferred();
 
-  void MaybeStartSpeculativeImageDecode();
+  void StartSpeculativeImageDecodes();
 
   // Populates the provided request's permissions policy.
   void PopulateResourceRequestPermissionsPolicy(
@@ -429,6 +428,11 @@ class PLATFORM_EXPORT ResourceFetcher
       LcppDeferUnusedPreloadExcludedResourceType excluded_resource_type) {
     defer_unused_preload_excluded_resource_type_for_testing_ =
         excluded_resource_type;
+  }
+
+  base::TimeDelta total_taken_time_for_did_load_resource_from_memory_cache()
+      const {
+    return total_taken_time_for_did_load_resource_from_memory_cache_;
   }
 
  private:
@@ -511,8 +515,6 @@ class PLATFORM_EXPORT ResourceFetcher
   void StopFetchingIncludingKeepaliveLoaders();
 
   void MaybeSaveResourceToStrongReference(Resource* resource);
-
-  void SpeculativeImageDecodeFinished();
 
   enum class RevalidationPolicy {
     kUse,
@@ -745,6 +747,9 @@ class PLATFORM_EXPORT ResourceFetcher
       defer_unused_preload_preloaded_reason_for_testing_;
   features::LcppDeferUnusedPreloadExcludedResourceType
       defer_unused_preload_excluded_resource_type_for_testing_;
+
+  // The accumulated time taken by `DidLoadResourceFromMemoryCache()`.
+  base::TimeDelta total_taken_time_for_did_load_resource_from_memory_cache_;
 };
 
 class ResourceCacheValidationSuppressor {

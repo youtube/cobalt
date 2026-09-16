@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph.h"
@@ -145,6 +146,14 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     }                                                       \
   } while (false)
 
+#define GET_VALUE(variable, result)                                    \
+  do {                                                                 \
+    MaybeReduceResult res = (result);                                  \
+    CHECK(res.IsDoneWithValue());                                      \
+    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
+    variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
 #define GET_VALUE_OR_ABORT(variable, result)                           \
   do {                                                                 \
     MaybeReduceResult res = (result);                                  \
@@ -172,6 +181,11 @@ concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 template <typename BaseT>
 concept ReducerBaseWithEagerDeopt =
     requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
+
+template <typename BaseT>
+concept ReducerBaseWithUnconditonalDeopt = requires(BaseT* b) {
+  b->EmitUnconditionalDeopt(std::declval<DeoptimizeReason>());
+};
 
 template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
@@ -239,9 +253,9 @@ class MaglevReducer {
   // `post_create_input_initializer` function before the node is added to the
   // graph.
   template <typename NodeT, typename Function, typename... Args>
-  NodeT* AddNewNodeNoInputConversion(size_t input_count,
-                                     Function&& post_create_input_initializer,
-                                     Args&&... args);
+  ReduceResult AddNewNode(size_t input_count,
+                          Function&& post_create_input_initializer,
+                          Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
@@ -266,14 +280,30 @@ class MaglevReducer {
 
   void AddInitializedNodeToGraph(Node* node);
 
+  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
+  // since std::intializer_list can be converted to std::span.
+  template <typename NodeT, typename InputsT>
+  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
+
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      ValueNode* node, ValueNode** constant_node = nullptr);
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
+  std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<double> TryGetFloat64Constant(
-      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+      UseRepresentation use_repr, ValueNode* value,
+      TaggedToFloat64ConversionType conversion_type);
+
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
+                                     const MapContainer& maps);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 
   ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
                                            NodeType allowed_input_type);
+  ValueNode* BuildHoleyFloat64SilenceNumberNans(ValueNode* node);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -304,6 +334,8 @@ class MaglevReducer {
 
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
+
+  ValueNode* GetHoleyFloat64(ValueNode* value);
 
   ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
                                         NodeType allowed_input_type);
@@ -364,6 +396,10 @@ class MaglevReducer {
 
   void SetNewNodePosition(BasicBlockPosition position) {
     current_block_position_ = position;
+  }
+
+  BasicBlockPosition current_block_position() const {
+    return current_block_position_;
   }
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
@@ -517,11 +553,6 @@ class MaglevReducer {
       return UseReprHintRecording::kRecord;
     }
   }
-
-  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
-  // since std::intializer_list can be converted to std::span.
-  template <typename NodeT, typename InputsT>
-  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
 
   template <typename NodeT, typename InputsT>
   void SetNodeInputsOld(NodeT* node, InputsT inputs);

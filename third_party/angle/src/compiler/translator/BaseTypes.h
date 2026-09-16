@@ -941,7 +941,11 @@ enum TQualifier
     EvqPosition,
     EvqPointSize,
 
-    EvqDrawID,  // ANGLE_multi_draw
+    // ANGLE_base_vertex_base_instance_shader_builtin
+    EvqBaseVertex,
+    EvqBaseInstance,
+    // ANGLE_multi_draw
+    EvqDrawID,
 
     // built-ins read by fragment shader
     EvqFragCoord,
@@ -968,6 +972,8 @@ enum TQualifier
     // built-ins written by the shader_framebuffer_fetch_depth_stencil extension
     EvqLastFragDepth,
     EvqLastFragStencil,
+
+    EvqDepthRange,  // gl_DepthRange
 
     // GLSL ES 3.0 vertex output and fragment input
 
@@ -1382,7 +1388,7 @@ struct TLayoutQualifier
 
     // EXT_shader_framebuffer_fetch layout qualifiers.
     int inputAttachmentIndex;
-    bool noncoherent;
+    bool noncoherent;  // Also used by ANGLE_shader_pixel_local_storage.
 
     // KHR_blend_equation_advanced layout qualifiers.
     AdvancedBlendEquations advancedBlendEquations;
@@ -1523,8 +1529,10 @@ inline const char *getQualifierString(TQualifier q)
     case EvqParamConst:                return "const";
     case EvqInstanceID:                return "InstanceID";
     case EvqVertexID:                  return "VertexID";
-    case EvqPosition:                  return "Position";
-    case EvqPointSize:                 return "PointSize";
+    case EvqPosition:                  return "out"; // Per EXT_separate_shader_objects
+    case EvqPointSize:                 return "out"; // Per EXT_separate_shader_objects
+    case EvqBaseVertex:                return "BaseVertex";
+    case EvqBaseInstance:              return "BaseInstance";
     case EvqDrawID:                    return "DrawID";
     case EvqFragCoord:                 return "FragCoord";
     case EvqFrontFacing:               return "FrontFacing";
@@ -1542,6 +1550,7 @@ inline const char *getQualifierString(TQualifier q)
     case EvqLastFragData:              return "LastFragData";
     case EvqLastFragDepth:             return "LastFragDepthARM";
     case EvqLastFragStencil:           return "LastFragStencilARM";
+    case EvqDepthRange:                return "DepthRange";
     case EvqFragmentInOut:             return "inout";
     case EvqSmoothOut:                 return "smooth out";
     case EvqCentroidOut:               return "smooth centroid out";
@@ -1576,7 +1585,7 @@ inline const char *getQualifierString(TQualifier q)
     case EvqVolatile:                  return "volatile";
     case EvqGeometryIn:                return "in";
     case EvqGeometryOut:               return "out";
-    case EvqPerVertexIn:               return "gl_in";
+    case EvqPerVertexIn:               return "in";
     case EvqPrimitiveIDIn:             return "gl_PrimitiveIDIn";
     case EvqInvocationID:              return "gl_InvocationID";
     case EvqPrimitiveID:               return "gl_PrimitiveID";

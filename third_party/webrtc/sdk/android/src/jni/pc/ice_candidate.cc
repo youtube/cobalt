@@ -14,7 +14,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
-#include "pc/webrtc_sdp.h"
+#include "api/webrtc_sdp.h"
 #include "sdk/android/generated_peerconnection_jni/IceCandidate_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/pc/media_stream_track.h"
@@ -54,7 +54,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
     absl::string_view mid,
     const Candidate& candidate) {
-  std::string sdp = SdpSerializeCandidate(candidate);
+  std::string sdp = candidate.ToCandidateAttribute(true);
   RTC_CHECK(!sdp.empty()) << "got an empty ICE candidate";
   // sdp_mline_index is not used, pass an invalid value -1.
   return CreateJavaIceCandidate(env, mid, -1 /* sdp_mline_index */, sdp,

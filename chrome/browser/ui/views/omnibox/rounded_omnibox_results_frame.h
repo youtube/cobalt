@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_OMNIBOX_ROUNDED_OMNIBOX_RESULTS_FRAME_H_
 #define CHROME_BROWSER_UI_VIEWS_OMNIBOX_ROUNDED_OMNIBOX_RESULTS_FRAME_H_
 
+#include <memory>
+
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/insets.h"
@@ -20,7 +22,7 @@ class RoundedOmniboxResultsFrame : public views::View {
  public:
   RoundedOmniboxResultsFrame(views::View* contents,
                              LocationBarView* location_bar,
-                             bool is_webui = false);
+                             bool include_cutout = true);
   RoundedOmniboxResultsFrame(const RoundedOmniboxResultsFrame&) = delete;
   RoundedOmniboxResultsFrame& operator=(const RoundedOmniboxResultsFrame&) =
       delete;
@@ -31,13 +33,19 @@ class RoundedOmniboxResultsFrame : public views::View {
                                  views::Widget* widget);
 
   // The height of the location bar view part of the omnibox popup.
-  static int GetNonResultSectionHeight();
+  static int GetNonResultSectionHeight(bool include_cutout = true);
 
   // How the Widget is aligned relative to the location bar.
   static gfx::Insets GetLocationBarAlignmentInsets();
 
   // Returns the blur region taken up by the Omnibox popup shadows.
   static gfx::Insets GetShadowInsets();
+
+  // Removes the `contents_` view and returns ownership to the caller.
+  std::unique_ptr<views::View> ExtractContents();
+
+  // Returns the `contents_` view.
+  views::View* GetContents();
 
   // views::View:
   void Layout(PassKey) override;
@@ -53,7 +61,7 @@ class RoundedOmniboxResultsFrame : public views::View {
   raw_ptr<views::View> top_background_ = nullptr;
   raw_ptr<views::View> contents_host_ = nullptr;
   raw_ptr<views::View> contents_;
-  bool is_webui_ = false;
+  bool include_cutout_ = true;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_ROUNDED_OMNIBOX_RESULTS_FRAME_H_

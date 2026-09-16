@@ -12,16 +12,20 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
+#include "api/rtc_error.h"
+#include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -39,6 +43,23 @@ int EnsureValidMLineIndex(int sdp_mline_index) {
 }
 }  // namespace
 
+// static
+std::unique_ptr<IceCandidate> IceCandidate::Create(absl::string_view mid,
+                                                   int sdp_mline_index,
+                                                   absl::string_view sdp,
+                                                   SdpParseError* absl_nullable
+                                                       error /*= nullptr*/) {
+  RTCErrorOr<Candidate> c = Candidate::ParseCandidateString(sdp);
+  if (!c.ok()) {
+    if (error) {
+      error->line = sdp;
+      error->description = c.error().message();
+    }
+    return nullptr;
+  }
+  return std::make_unique<IceCandidate>(mid, sdp_mline_index, c.value());
+}
+
 IceCandidate::IceCandidate(absl::string_view sdp_mid,
                            int sdp_mline_index,
                            const Candidate& candidate)
@@ -51,24 +72,30 @@ IceCandidate::IceCandidate(absl::string_view sdp_mid,
 }
 
 void IceCandidateCollection::add(std::unique_ptr<IceCandidate> candidate) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   candidates_.push_back(std::move(candidate));
 }
 
 void IceCandidateCollection::add(IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   candidates_.push_back(absl::WrapUnique(candidate));
 }
 
 void IceCandidateCollection::Append(IceCandidateCollection collection) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_RUN_ON(&collection.sequence_checker_);
   candidates_.insert(candidates_.end(),
                      std::make_move_iterator(collection.candidates_.begin()),
                      std::make_move_iterator(collection.candidates_.end()));
 }
 
 const IceCandidate* IceCandidateCollection::at(size_t index) const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return candidates_[index].get();
 }
 
 bool IceCandidateCollection::HasCandidate(const IceCandidate* candidate) const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   const auto sdp_mid = candidate->sdp_mid();  // avoid string copy per entry.
   return absl::c_any_of(
       candidates_, [&](const std::unique_ptr<IceCandidate>& entry) {
@@ -84,8 +111,22 @@ bool IceCandidateCollection::HasCandidate(const IceCandidate* candidate) const {
       });
 }
 
-size_t JsepCandidateCollection::remove(const IceCandidate* candidate) {
+IceCandidateCollection IceCandidateCollection::Clone() const {
+  IceCandidateCollection new_collection;
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_RUN_ON(&new_collection.sequence_checker_);
+  new_collection.candidates_.reserve(candidates_.size());
+  for (const auto& candidate : candidates_) {
+    new_collection.candidates_.push_back(std::make_unique<IceCandidate>(
+        candidate->sdp_mid(), candidate->sdp_mline_index(),
+        candidate->candidate()));
+  }
+  return new_collection;
+}
+
+size_t IceCandidateCollection::remove(const IceCandidate* candidate) {
   RTC_DCHECK(candidate);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   auto iter =
       absl::c_find_if(candidates_, [&](const std::unique_ptr<IceCandidate>& c) {
         return c->candidate().MatchesForRemoval(candidate->candidate());
@@ -95,6 +136,14 @@ size_t JsepCandidateCollection::remove(const IceCandidate* candidate) {
     return 1u;
   }
   return 0u;
+}
+
+void IceCandidateCollection::RelinquishThreadOwnership() {
+  sequence_checker_.Detach();
+}
+
+std::string IceCandidate::ToString() const {
+  return candidate_.ToCandidateAttribute(true);
 }
 
 }  // namespace webrtc

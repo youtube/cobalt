@@ -5,9 +5,12 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_view_controller.h"
 
 #import "base/apple/foundation_util.h"
+#import "base/metrics/histogram_functions.h"
+#import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/home_customization/ui/background_collection_configuration.h"
 #import "ios/chrome/browser/home_customization/ui/background_customization_configuration.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_accessibility_identifiers.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_configuration_mutator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_cell.h"
@@ -61,12 +64,18 @@
 
   // The id of the selected background cell.
   NSString* _selectedBackgroundId;
+
+  // The number of times a background is selected from the recently used
+  // section.
+  int _recentBackgroundClickCount;
 }
 
 // Synthesized from HomeCustomizationViewControllerProtocol.
 @synthesize collectionView = _collectionView;
 @synthesize diffableDataSource = _diffableDataSource;
 @synthesize page = _page;
+@synthesize additionalViewWillTransitionToSizeHandler =
+    _additionalViewWillTransitionToSizeHandler;
 
 - (instancetype)init {
   self = [super init];
@@ -94,7 +103,25 @@
   // the UISheetPresentationController which presents it.
   self.view = _collectionView;
 
+  _collectionView.accessibilityIdentifier =
+      kHomeCustomizationMainViewAccessibilityIdentifier;
+
   [_collectionConfigurator configureNavigationBar];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+  base::UmaHistogramCounts10000(
+      "IOS.HomeCustomization.Background.RecentlyUsed.ClickCount",
+      _recentBackgroundClickCount);
+  [super viewWillDisappear:animated];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size
+       withTransitionCoordinator:
+           (id<UIViewControllerTransitionCoordinator>)coordinator {
+  if (_additionalViewWillTransitionToSizeHandler) {
+    _additionalViewWillTransitionToSizeHandler(size, coordinator);
+  }
 }
 
 #pragma mark - Private
@@ -163,8 +190,6 @@
         appendSectionsWithIdentifiers:@[ kCustomizationSectionBackground ]];
     [snapshot appendItemsWithIdentifiers:[self identifiersForBackgroundCells]
                intoSectionWithIdentifier:kCustomizationSectionBackground];
-    [snapshot appendItemsWithIdentifiers:@[ kBackgroundPickerCellIdentifier ]
-               intoSectionWithIdentifier:kCustomizationSectionBackground];
   }
 
   // Create toggles section and add items to it.
@@ -210,8 +235,10 @@
         verticalListSectionForLayoutEnvironment:layoutEnvironment];
   } else if (sectionIndex == backgroundCustomizationIdentifier) {
     CHECK(IsNTPBackgroundCustomizationEnabled());
+    CGSize windowSize = self.view.window.bounds.size;
     return [_collectionConfigurator
-        backgroundCellSectionForLayoutEnvironment:layoutEnvironment];
+        backgroundCellSectionForLayoutEnvironment:layoutEnvironment
+                                       windowSize:windowSize];
   } else if (sectionIndex == enterpriseIdentifier) {
     return [_collectionConfigurator
         verticalListSectionForLayoutEnvironment:layoutEnvironment];
@@ -341,6 +368,18 @@
 
   [self.customizationMutator
       applyBackgroundForConfiguration:backgroundConfiguration];
+
+  _recentBackgroundClickCount += 1;
+
+  if (backgroundConfiguration.backgroundStyle ==
+      HomeCustomizationBackgroundStyle::kDefault) {
+    base::RecordAction(base::UserMetricsAction(
+        "IOS.HomeCustomization.Background.ResetDefault.Tapped"));
+    return;
+  }
+
+  base::RecordAction(base::UserMetricsAction(
+      "IOS.HomeCustomization.Background.RecentlyUsed.Tapped"));
 }
 
 - (void)collectionView:(UICollectionView*)collectionView
@@ -387,10 +426,17 @@
     HomeCustomizationFramingCoordinates* framingCoordinates =
         backgroundConfiguration.userUploadedFramingCoordinates;
     __weak __typeof(self) weakSelf = self;
-    void (^imageHandler)(UIImage*) = ^(UIImage* image) {
+    void (^imageHandler)(UIImage*, UserUploadedImageError) = ^(
+        UIImage* image, UserUploadedImageError error) {
       [weakSelf handleLoadedUserUploadedImage:image
                            framingCoordinates:framingCoordinates
                                backgroundCell:backgroundCell];
+      if (!image) {
+        base::UmaHistogramEnumeration(
+            "IOS.HomeCustomization.Background.RecentlyUsed."
+            "ImageUserUploadedFetchError",
+            error);
+      }
     };
     [self.customizationMutator
         fetchBackgroundCustomizationUserUploadedImage:backgroundConfiguration
@@ -448,12 +494,26 @@
 // by the snapshot.
 - (NSArray<NSString*>*)identifiersForBackgroundCells {
   NSMutableArray<NSString*>* identifiers = [[NSMutableArray alloc] init];
+
+  NSUInteger indexAfterDefault = 0;
+
   for (NSString* key in _backgroundCollectionConfiguration.configurationOrder) {
-    if (![_backgroundCollectionConfiguration.configurations objectForKey:key]) {
+    id<BackgroundCustomizationConfiguration> configuration =
+        _backgroundCollectionConfiguration.configurations[key];
+    if (!configuration) {
       continue;
     }
+
     [identifiers addObject:key];
+
+    if (configuration.backgroundStyle ==
+        HomeCustomizationBackgroundStyle::kDefault) {
+      indexAfterDefault = identifiers.count;
+    }
   }
+
+  [identifiers insertObject:kBackgroundPickerCellIdentifier
+                    atIndex:indexAfterDefault];
 
   return [identifiers copy];
 }

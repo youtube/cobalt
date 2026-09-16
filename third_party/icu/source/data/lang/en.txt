@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 en{
     Keys{
         calendar{"Calendar"}
@@ -44,7 +44,7 @@ en{
     Languages{
         aa{"Afar"}
         ab{"Abkhazian"}
-        ace{"Achinese"}
+        ace{"Acehnese"}
         ach{"Acoli"}
         ada{"Adangme"}
         ady{"Adyghe"}
@@ -168,7 +168,6 @@ en{
         csw{"Swampy Cree"}
         cu{"Church Slavic"}
         cv{"Chuvash"}
-        cwd{"Woods Cree"}
         cy{"Welsh"}
         da{"Danish"}
         dak{"Dakota"}
@@ -253,7 +252,6 @@ en{
         gmh{"Middle High German"}
         gn{"Guarani"}
         goh{"Old High German"}
-        gom{"Goan Konkani"}
         gon{"Gondi"}
         gor{"Gorontalo"}
         got{"Gothic"}
@@ -271,7 +269,6 @@ en{
         hak{"Hakka Chinese"}
         haw{"Hawaiian"}
         hax{"Southern Haida"}
-        hdn{"Northern Haida"}
         he{"Hebrew"}
         hi{"Hindi"}
         hi_Latn{"Hindi (Latin)"}
@@ -298,7 +295,6 @@ en{
         ig{"Igbo"}
         ii{"Sichuan Yi"}
         ik{"Inupiaq"}
-        ike{"Eastern Canadian Inuktitut"}
         ikt{"Western Canadian Inuktitut"}
         ilo{"Iloko"}
         inh{"Ingush"}
@@ -484,7 +480,6 @@ en{
         oj{"Ojibwa"}
         ojb{"Northwestern Ojibwa"}
         ojc{"Central Ojibwa"}
-        ojg{"Eastern Ojibwa"}
         ojs{"Oji-Cree"}
         ojw{"Western Ojibwa"}
         oka{"Okanagan"}
@@ -708,6 +703,7 @@ en{
         zza{"Zaza"}
     }
     Languages%long{
+        cr{"Woods Cree"}
         zh{"Mandarin Chinese"}
         zh_Hans{"Simplified Mandarin Chinese"}
         zh_Hant{"Traditional Mandarin Chinese"}
@@ -722,6 +718,9 @@ en{
         sms{"Sami, Skolt"}
         yue{"Chinese, Cantonese"}
         zh{"Chinese, Mandarin"}
+    }
+    Languages%official{
+        mus{"Mvskoke"}
     }
     Languages%short{
         az{"Azeri"}
@@ -781,6 +780,7 @@ en{
         Elba{"Elbasan"}
         Elym{"Elymaic"}
         Ethi{"Ethiopic"}
+        Gara{"Garay"}
         Geok{"Georgian Khutsuri"}
         Geor{"Georgian"}
         Glag{"Glagolitic"}
@@ -790,6 +790,7 @@ en{
         Gran{"Grantha"}
         Grek{"Greek"}
         Gujr{"Gujarati"}
+        Gukh{"Gurung Khema"}
         Guru{"Gurmukhi"}
         Hanb{"Han with Bopomofo"}
         Hang{"Hangul"}
@@ -821,6 +822,7 @@ en{
         Knda{"Kannada"}
         Kore{"Korean"}
         Kpel{"Kpelle"}
+        Krai{"Kirat Rai"}
         Kthi{"Kaithi"}
         Lana{"Lanna"}
         Laoo{"Lao"}
@@ -863,6 +865,7 @@ en{
         Nshu{"Nüshu"}
         Ogam{"Ogham"}
         Olck{"Ol Chiki"}
+        Onao{"Ol Onal"}
         Orkh{"Orkhon"}
         Orya{"Odia"}
         Osge{"Osage"}
@@ -898,6 +901,7 @@ en{
         Sora{"Sora Sompeng"}
         Soyo{"Soyombo"}
         Sund{"Sundanese"}
+        Sunu{"Sunuwar"}
         Sylo{"Syloti Nagri"}
         Syrc{"Syriac"}
         Syre{"Estrangelo Syriac"}
@@ -919,7 +923,9 @@ en{
         Tibt{"Tibetan"}
         Tirh{"Tirhuta"}
         Tnsa{"Tangsa"}
+        Todr{"Todhri"}
         Toto{"Toto"}
+        Tutg{"Tulu-Tigalari"}
         Ugar{"Ugaritic"}
         Vaii{"Vai"}
         Visp{"Visible Speech"}
@@ -1027,7 +1033,6 @@ en{
             phonebook{"Phonebook Sort Order"}
             phonetic{"Phonetic Sort Order"}
             pinyin{"Pinyin Sort Order"}
-            reformed{"Reformed Sort Order"}
             search{"General-Purpose Search"}
             searchjl{"Search By Hangul Initial Consonant"}
             standard{"Standard Sort Order"}
@@ -1204,12 +1209,14 @@ en{
             ethi{"Ethiopic Numerals"}
             finance{"Financial Numerals"}
             fullwide{"Full-Width Digits"}
+            gara{"Garay Digits"}
             geor{"Georgian Numerals"}
             gong{"Gunjala Gondi digits"}
             gonm{"Masaram Gondi digits"}
             grek{"Greek Numerals"}
             greklow{"Greek Lowercase Numerals"}
             gujr{"Gujarati Digits"}
+            gukh{"Gurung Khema Digits"}
             guru{"Gurmukhi Digits"}
             hanidays{"Chinese Calendar Day-of-Month Numerals"}
             hanidec{"Chinese Decimal Numerals"}
@@ -1228,6 +1235,7 @@ en{
             kawi{"Kawi Digits"}
             khmr{"Khmer Digits"}
             knda{"Kannada Digits"}
+            krai{"Kirat Rai Digits"}
             lana{"Tai Tham Hora Digits"}
             lanatham{"Tai Tham Tham Digits"}
             laoo{"Lao Digits"}
@@ -1245,6 +1253,8 @@ en{
             mroo{"Mro Digits"}
             mtei{"Meetei Mayek Digits"}
             mymr{"Myanmar Digits"}
+            mymrepka{"Myanmar Eastern Pwo Karen Digits"}
+            mymrpao{"Myanmar Pao Digits"}
             mymrshan{"Myanmar Shan Digits"}
             mymrtlng{"Myanmar Tai Laing Digits"}
             nagm{"Nag Mundari Digits"}
@@ -1252,8 +1262,10 @@ en{
             newa{"Newa Digits"}
             nkoo{"N’Ko Digits"}
             olck{"Ol Chiki Digits"}
+            onao{"Ol Onal Digits"}
             orya{"Odia Digits"}
             osma{"Osmanya Digits"}
+            outlined{"Outlined Digits"}
             rohg{"Hanifi Rohingya digits"}
             roman{"Roman Numerals"}
             romanlow{"Roman Lowercase Numerals"}
@@ -1264,6 +1276,7 @@ en{
             sinh{"Sinhala Lith Digits"}
             sora{"Sora Sompeng Digits"}
             sund{"Sundanese Digits"}
+            sunu{"Sunuwar Digits"}
             takr{"Takri Digits"}
             talu{"New Tai Lue Digits"}
             taml{"Traditional Tamil Numerals"}

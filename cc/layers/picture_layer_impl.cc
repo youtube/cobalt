@@ -101,9 +101,7 @@ gfx::Rect SafeIntersectRects(const gfx::Rect& one, const gfx::Rect& two) {
 }  // namespace
 
 PictureLayerImpl::PictureLayerImpl(LayerTreeImpl* tree_impl, int id)
-    : LayerImpl(tree_impl,
-                id,
-                tree_impl->always_push_properties_on_picture_layers()) {
+    : LayerImpl(tree_impl, id) {
   layer_tree_impl()->RegisterPictureLayerImpl(this);
 }
 
@@ -619,8 +617,13 @@ bool PictureLayerImpl::UpdateTiles() {
   // only have the high-res tiling, so only clean up the active layer. This
   // cleans it up here in case AppendQuads didn't run.  If it did run, this
   // would not remove any additional tilings.
-  if (layer_tree_impl()->IsActiveTree())
+  // Note that we are currently disabling this optimization for TreesInViz case
+  // since it casuses flash during pinch zoom. More details on
+  // crbug.com/448683984.
+  if (layer_tree_impl()->IsActiveTree() &&
+      !layer_tree_impl()->settings().TreesInVizInClientProcess()) {
     CleanUpTilingsOnActiveLayer(last_append_quads_tilings_);
+  }
 
   UpdateIdealScales();
 

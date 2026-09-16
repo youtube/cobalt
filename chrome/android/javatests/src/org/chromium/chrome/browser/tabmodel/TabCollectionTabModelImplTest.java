@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -11,8 +14,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.clickFirstCardFromTabSwitcher;
+import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.MediumTest;
@@ -39,12 +46,16 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
+import org.chromium.chrome.browser.tabmodel.TabModelActionListener.DialogType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.page.WebPageStation;
+import org.chromium.components.browser_ui.widget.ActionConfirmationResult;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.content_public.browser.LoadUrlParams;
 
@@ -55,6 +66,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -100,6 +112,13 @@ public class TabCollectionTabModelImplTest {
                             });
                 });
         helper.waitForOnly();
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testTabStripCollection() {
+        assertNotNull(mCollectionModel.getTabStripCollection());
     }
 
     @Test
@@ -170,6 +189,7 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinAndUnpinTab() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1196,6 +1216,7 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInGroup() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1220,7 +1241,7 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {
                         assertEquals(tab1, movedTab);
-                        assertEquals(0, prevFilterIndex);
+                        assertEquals(1, prevFilterIndex);
                         didMoveOutOfGroup.notifyCalled();
                     }
 
@@ -1228,7 +1249,7 @@ public class TabCollectionTabModelImplTest {
                     public void didRemoveTabGroup(
                             int tabId, Token tabGroupId, @DidRemoveTabGroupReason int reason) {
                         assertEquals(groupId, tabGroupId);
-                        assertEquals(DidRemoveTabGroupReason.PIN, reason);
+                        assertEquals(DidRemoveTabGroupReason.UNGROUP, reason);
                         didRemoveGroup.notifyCalled();
                     }
                 };
@@ -1236,7 +1257,7 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.addTabGroupObserver(groupObserver);
-                    mRegularModel.pinTab(tab1.getId());
+                    mRegularModel.pinTab(tab1.getId(), /* showUngroupDialog= */ false);
                     mCollectionModel.removeTabGroupObserver(groupObserver);
                 });
 
@@ -1251,6 +1272,70 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testPinTabInGroup_ActionListener_Accept() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.createSingleTabGroup(tab1));
+        assertNotNull(tab1.getTabGroupId());
+        assertTabsInOrderAre(List.of(tab0, tab1));
+
+        TabModelActionListener listener = mock(TabModelActionListener.class);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.pinTab(tab1.getId(), /* showUngroupDialog= */ true, listener);
+                });
+
+        onViewWaiting(withText(R.string.delete_tab_group_action), /* checkRootDialog= */ true)
+                .perform(click());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    verify(listener)
+                            .onConfirmationDialogResult(
+                                    eq(DialogType.SYNC),
+                                    eq(ActionConfirmationResult.CONFIRMATION_POSITIVE));
+                    assertTrue(tab1.getIsPinned());
+                    assertNull(tab1.getTabGroupId());
+                    assertTabsInOrderAre(List.of(tab1, tab0));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testPinTabInGroup_ActionListener_Reject() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.createSingleTabGroup(tab1));
+        assertNotNull(tab1.getTabGroupId());
+        assertTabsInOrderAre(List.of(tab0, tab1));
+
+        TabModelActionListener listener = mock(TabModelActionListener.class);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.pinTab(tab1.getId(), /* showUngroupDialog= */ true, listener);
+                });
+
+        onViewWaiting(withText(R.string.cancel), /* checkRootDialog= */ true).perform(click());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    verify(listener)
+                            .onConfirmationDialogResult(
+                                    eq(DialogType.SYNC),
+                                    eq(ActionConfirmationResult.CONFIRMATION_NEGATIVE));
+                    assertFalse(tab1.getIsPinned());
+                    assertNotNull(tab1.getTabGroupId());
+                    assertTabsInOrderAre(List.of(tab0, tab1));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInMultiTabGroup() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1274,7 +1359,7 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {
                         assertEquals(tab0, movedTab);
-                        assertEquals(1, prevFilterIndex);
+                        assertEquals(0, prevFilterIndex);
                         didMoveOutOfGroup.notifyCalled();
                     }
 
@@ -1287,7 +1372,7 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     mCollectionModel.addTabGroupObserver(groupObserver);
 
-                    mRegularModel.pinTab(tab0.getId());
+                    mRegularModel.pinTab(tab0.getId(), /* showUngroupDialog= */ false);
 
                     mCollectionModel.removeTabGroupObserver(groupObserver);
 
@@ -1510,7 +1595,9 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab1, tab3), tab1, /* notify= */ false);
+                            List.of(tab1, tab3),
+                            tab1,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                 });
         assertTabsInOrderAre(List.of(tab0, tab1, tab3, tab2));
         Token tab1GroupId = tab1.getTabGroupId();
@@ -1599,7 +1686,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Create a group with tab0 and tab1.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab0.getTabGroupId();
                     assertNotNull(groupId);
 
@@ -1633,13 +1722,17 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create group 1 with tab0, tab1.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId1 = tab0.getTabGroupId();
                     assertNotNull(groupId1);
 
                     // Create group 2 with tab2, tab3.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2, tab3), tab2, /* notify= */ false);
+                            List.of(tab2, tab3),
+                            tab2,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId2 = tab2.getTabGroupId();
                     assertNotNull(groupId2);
 
@@ -1730,7 +1823,9 @@ public class TabCollectionTabModelImplTest {
                             };
                     mCollectionModel.addTabGroupObserver(observer);
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ true);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
                     mCollectionModel.removeTabGroupObserver(observer);
 
                     assertNotNull(tab0.getTabGroupId());
@@ -1754,13 +1849,15 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create a group with tab0 and tab1.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab0.getTabGroupId();
                     assertNotNull(groupId);
 
                     // Merge tab2 into the group.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2), tab0, /* notify= */ false);
+                            List.of(tab2), tab0, /* notify= */ MergeNotificationType.DONT_NOTIFY);
 
                     assertEquals(groupId, tab2.getTabGroupId());
                     assertTabsInOrderAre(List.of(tab0, tab1, tab2));
@@ -1783,13 +1880,17 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create group 1 with tab0, tab1.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId1 = tab0.getTabGroupId();
                     assertNotNull(groupId1);
 
                     // Create group 2 with tab2, tab3.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2, tab3), tab2, /* notify= */ false);
+                            List.of(tab2, tab3),
+                            tab2,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId2 = tab2.getTabGroupId();
                     assertNotNull(groupId2);
 
@@ -1807,7 +1908,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Merge group 1 into group 2.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab2, /* notify= */ true);
+                            List.of(tab0, tab1),
+                            tab2,
+                            /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
 
                     mCollectionModel.removeTabGroupObserver(observer);
 
@@ -1839,7 +1942,9 @@ public class TabCollectionTabModelImplTest {
                     // Merge tab0 and tab1, with tab0 as destination. tab0 is not in a group.
                     // The new group should adopt tab1's group ID.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
 
                     assertEquals(groupId, tab0.getTabGroupId());
                     assertEquals(groupId, tab1.getTabGroupId());
@@ -1896,7 +2001,8 @@ public class TabCollectionTabModelImplTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mCollectionModel.mergeListOfTabsToGroup(List.of(tab1, tab2), tab1, false);
+                    mCollectionModel.mergeListOfTabsToGroup(
+                            List.of(tab1, tab2), tab1, MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab1.getTabGroupId();
                     assertNotNull(groupId);
 
@@ -1918,7 +2024,8 @@ public class TabCollectionTabModelImplTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mCollectionModel.mergeListOfTabsToGroup(List.of(tab0, tab1), tab0, false);
+                    mCollectionModel.mergeListOfTabsToGroup(
+                            List.of(tab0, tab1), tab0, MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab0.getTabGroupId();
                     assertNotNull(groupId);
 
@@ -1944,12 +2051,20 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab2, tab3), tab2, false, null, null);
+                            List.of(tab2, tab3),
+                            tab2,
+                            MergeNotificationType.DONT_NOTIFY,
+                            null,
+                            null);
                     Token groupId = tab2.getTabGroupId();
                     assertNotNull(groupId);
 
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab1, tab5), tab2, false, /* indexInGroup= */ 1, null);
+                            List.of(tab1, tab5),
+                            tab2,
+                            MergeNotificationType.DONT_NOTIFY,
+                            /* indexInGroup= */ 1,
+                            null);
 
                     assertEquals(
                             "mTab1 should have joined the group.", groupId, tab1.getTabGroupId());
@@ -1973,12 +2088,20 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab2, tab3), tab2, false, null, null);
+                            List.of(tab2, tab3),
+                            tab2,
+                            MergeNotificationType.DONT_NOTIFY,
+                            null,
+                            null);
                     Token groupId = tab2.getTabGroupId();
                     assertNotNull(groupId);
 
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab1, tab5), tab2, false, /* indexInGroup= */ 0, null);
+                            List.of(tab1, tab5),
+                            tab2,
+                            MergeNotificationType.DONT_NOTIFY,
+                            /* indexInGroup= */ 0,
+                            null);
 
                     assertEquals(
                             "mTab1 should have joined the group.", groupId, tab1.getTabGroupId());
@@ -2002,15 +2125,67 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab1, tab2, tab3, tab4, tab5), tab1, false, null, null);
+                            List.of(tab1, tab2, tab3, tab4, tab5),
+                            tab1,
+                            MergeNotificationType.DONT_NOTIFY,
+                            null,
+                            null);
                     Token groupId = tab1.getTabGroupId();
                     assertNotNull(groupId);
 
                     mCollectionModel.mergeListOfTabsToGroupInternal(
-                            List.of(tab2, tab3, tab4), tab2, false, /* indexInGroup= */ 2, null);
+                            List.of(tab2, tab3, tab4),
+                            tab2,
+                            MergeNotificationType.DONT_NOTIFY,
+                            /* indexInGroup= */ 2,
+                            null);
 
                     assertTabsInOrderAre(List.of(tab0, tab1, tab2, tab3, tab4, tab5));
                 });
+    }
+
+    @Test
+    @MediumTest
+    public void testMergeListOfTabsToGroupInternal_CreateGroupAndShowUndoSnackbar()
+            throws TimeoutException {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        Tab tab2 = createTab();
+        Tab tab3 = createTab();
+        Tab tab4 = createTab();
+        Tab tab5 = createTab();
+        assertTabsInOrderAre(List.of(tab0, tab1, tab2, tab3, tab4, tab5));
+
+        AtomicReference<UndoGroupMetadata> undoGroupMetadataRef = new AtomicReference<>();
+        CallbackHelper showUndoSnackbarHelper = new CallbackHelper();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabGroupModelFilterObserver observer =
+                            new TabGroupModelFilterObserver() {
+                                @Override
+                                public void showUndoGroupSnackbar(
+                                        UndoGroupMetadata undoGroupMetadata) {
+                                    undoGroupMetadataRef.set(undoGroupMetadata);
+                                    showUndoSnackbarHelper.notifyCalled();
+                                }
+                            };
+                    mCollectionModel.addTabGroupObserver(observer);
+
+                    mCollectionModel.mergeListOfTabsToGroupInternal(
+                            List.of(tab1, tab2, tab3, tab4, tab5),
+                            tab1,
+                            MergeNotificationType.NOTIFY_ALWAYS,
+                            null,
+                            null);
+                    Token groupId = tab1.getTabGroupId();
+                    assertNotNull(groupId);
+
+                    mCollectionModel.removeTabGroupObserver(observer);
+                });
+
+        showUndoSnackbarHelper.waitForOnly();
+        assertNotNull(undoGroupMetadataRef.get());
     }
 
     @Test
@@ -2033,7 +2208,9 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create group 1 with tab0, tab1.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId1 = tab0.getTabGroupId();
                     assertNotNull(groupId1);
                     mCollectionModel.setTabGroupTitle(groupId1, group1Title);
@@ -2041,7 +2218,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Create group 2 with tab2, tab3.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2, tab3), tab2, /* notify= */ false);
+                            List.of(tab2, tab3),
+                            tab2,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId2 = tab2.getTabGroupId();
                     assertNotNull(groupId2);
                     mCollectionModel.setTabGroupTitle(groupId2, group2Title);
@@ -2062,7 +2241,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Merge group 1 into group 2.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab2, /* notify= */ true);
+                            List.of(tab0, tab1),
+                            tab2,
+                            /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
 
                     mCollectionModel.removeTabGroupObserver(observer);
 
@@ -2121,7 +2302,9 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create group with tab1, tab2.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2, tab3, tab4), tab2, /* notify= */ false);
+                            List.of(tab2, tab3, tab4),
+                            tab2,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab2.getTabGroupId();
                     assertNotNull(groupId);
                     assertTabsInOrderAre(List.of(tab0, tab1, tab2, tab3, tab4, tab5));
@@ -2139,7 +2322,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Merge group into the tab.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2, tab3, tab4), tab0, /* notify= */ true);
+                            List.of(tab2, tab3, tab4),
+                            tab0,
+                            /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
 
                     mCollectionModel.removeTabGroupObserver(observer);
 
@@ -2183,7 +2368,9 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     // Create group with tab1, tab2.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab1, tab2), tab1, /* notify= */ false);
+                            List.of(tab1, tab2),
+                            tab1,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab1.getTabGroupId();
                     assertNotNull(groupId);
                     assertTabsInOrderAre(List.of(tab0, tab1, tab2));
@@ -2201,7 +2388,9 @@ public class TabCollectionTabModelImplTest {
 
                     // Merge tab0 into the group.
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0), tab1, /* notify= */ true);
+                            List.of(tab0),
+                            tab1,
+                            /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
 
                     mCollectionModel.removeTabGroupObserver(observer);
 
@@ -2266,7 +2455,8 @@ public class TabCollectionTabModelImplTest {
                     mCollectionModel.addTabGroupObserver(observer);
 
                     // Merge group 1 into group 2.
-                    mCollectionModel.mergeListOfTabsToGroup(List.of(tab0), tab1, true);
+                    mCollectionModel.mergeListOfTabsToGroup(
+                            List.of(tab0), tab1, MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
                     mCollectionModel.removeTabGroupObserver(observer);
 
                     // Group 1 is now detached. Its title should still be available.
@@ -2476,7 +2666,9 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         mCollectionModel.mergeListOfTabsToGroup(
-                                tabs, destinationTab, /* notify= */ false));
+                                tabs,
+                                destinationTab,
+                                /* notify= */ MergeNotificationType.DONT_NOTIFY));
     }
 
     @Test
@@ -2491,14 +2683,16 @@ public class TabCollectionTabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab0, tab1), tab0, /* notify= */ false);
+                            List.of(tab0, tab1),
+                            tab0,
+                            /* notify= */ MergeNotificationType.DONT_NOTIFY);
                     Token groupId = tab0.getTabGroupId();
                     assertNotNull(groupId);
 
                     assertEquals(tab0.getId(), mCollectionModel.getGroupLastShownTabId(groupId));
 
                     mCollectionModel.mergeListOfTabsToGroup(
-                            List.of(tab2), tab0, /* notify= */ false);
+                            List.of(tab2), tab0, /* notify= */ MergeNotificationType.DONT_NOTIFY);
 
                     assertEquals(tab2.getId(), mCollectionModel.getGroupLastShownTabId(groupId));
                 });
@@ -2550,7 +2744,7 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     mRegularModel.addObserver(observer);
                     if (isPinned) {
-                        mRegularModel.pinTab(changedTab.getId());
+                        mRegularModel.pinTab(changedTab.getId(), /* showUngroupDialog= */ false);
                     } else {
                         mRegularModel.unpinTab(changedTab.getId());
                     }
@@ -2644,6 +2838,7 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testCloseTab_UndoPinnedTab() {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -2992,7 +3187,7 @@ public class TabCollectionTabModelImplTest {
         assertEquals(4, getCount());
         assertTabsInOrderAre(List.of(tab0, tab1, tab2, tab3));
 
-        assertEquals(tab0, getCurrentTab());
+        assertEquals(tab2, getCurrentTab());
         ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.removeObserver(observer));
     }
 

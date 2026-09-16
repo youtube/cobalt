@@ -1397,8 +1397,8 @@ enum WebFeature {
   kAnchorClickDispatchForNonConnectedNode = 1971,
   kHTMLParseErrorNestedForm = 1972,
   kFontShapingNotDefGlyphObserved = 1973,
-  kPostMessageOutgoingWouldBeBlockedByConnectSrc = 1974,
-  kPostMessageIncomingWouldBeBlockedByConnectSrc = 1975,
+  kOBSOLETE_PostMessageOutgoingWouldBeBlockedByConnectSrc = 1974,
+  kOBSOLETE_PostMessageIncomingWouldBeBlockedByConnectSrc = 1975,
   kCrossOriginPropertyAccess = 1977,
   kCrossOriginPropertyAccessFromOpener = 1978,
   kCredentialManagerCreate = 1979,
@@ -2202,7 +2202,7 @@ enum WebFeature {
   kV8XRSession_End_Method = 2911,
   kV8XRWebGLLayer_Constructor = 2912,
   kFetchKeepalive = 2913,
-  kCSSTransitionCancelledByRemovingStyle = 2914,
+  kOBSOLETE_CSSTransitionCancelledByRemovingStyle = 2914,
   kV8RTCRtpSender_SetStreams_Method = 2915,
   kCookieNoSameSite = 2916,
   kCookieInsecureAndSameSiteNone = 2917,
@@ -4901,10 +4901,12 @@ enum WebFeature {
   kSchedulerYieldNonTrivialInherit = 5590,
   kSchedulerYieldNonTrivialInheritCrossFrameIgnored = 5591,
   kLocalNetworkAccessPrivateAliasUse = 5592,
+  // The items above roughly this point are available in the M138 branch.
   kV8URLPattern_Generate_Method = 5593,
   kSelectMultipleSizeOne = 5594,
   kWebGPUFeatureLevelCompatibility = 5595,
   kOverscrollBehaviorOnNonScrollableScrollContainer = 5596,
+  // The items above roughly this point are available in the M139 branch.
   kInteractiveContentSummaryDescendant = 5597,
   kSpeculationRulesEagernessEager = 5598,
   kCSSSelectorPseudoNot = 5599,
@@ -4937,6 +4939,7 @@ enum WebFeature {
   kSharedWorkerStartOnAndroid = 5626,
   kLocalNetworkAccessWithinSharedWorker = 5627,
   kLocalNetworkAccessWithinDedicatedWorker = 5628,
+  // The items above roughly this point are available in the M140 branch.
   kCSSPseudoParentInScope = 5629,
   kInterestHintPseudoElement = 5630,
   kCookieStoreEmptyPath = 5631,
@@ -4962,6 +4965,7 @@ enum WebFeature {
   kV8WasmCustomDescriptors = 5651,
   kSRIIntegrityAttributeOnInlineScript = 5652,
   kCredentialsGetImmediateMediationWithPasswordsOnly = 5653,
+  // The items above roughly this point are available in the M141 branch.
   kCSSAtRuleRoute = 5654,
   kAbsposPositionTryFallbacksChange = 5655,
   kMulticastControllerJoinGroupFunction = 5656,
@@ -4977,6 +4981,15 @@ enum WebFeature {
   kOverscrollBehaviorWithOverflowHidden = 5666,
   kWebCodecsAv1EncodingWithQP = 5667,
   kExternalSVGDocumentResources = 5668,
+  kIndexedDBGetAllRecords = 5669,
+  kResolvedColumnRuleWidthWithNoneOrHiddenStyle = 5670,
+  kResolvedOutlineWidthWithNoneOrHiddenStyle = 5671,
+  kContextMenuEventDefaultPrevented = 5672,
+  kSmartCardEstablishContext = 5673,
+  kSmartCardConnect = 5674,
+  kNavigatorCPUPerformance = 5675,
+  kSelectionRemoveRangeNotFoundWouldThrow = 5676,
+  kNestedSvgCssSizingProperties = 5677,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

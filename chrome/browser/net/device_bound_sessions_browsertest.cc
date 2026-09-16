@@ -52,14 +52,17 @@ class DeviceBoundSessionAccessObserver : public content::WebContentsObserver {
   base::RepeatingCallback<void(const SessionAccess&)> on_access_callback_;
 };
 
-class DeviceBoundSessionBrowserTest : public InProcessBrowserTest {
+class DeviceBoundSessionBrowserTest : public InProcessBrowserTest,
+                                      public testing::WithParamInterface<bool> {
  public:
   DeviceBoundSessionBrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {net::features::kDeviceBoundSessions,
-         unexportable_keys::
-             kEnableBoundSessionCredentialsSoftwareKeysForManualTesting},
-        {});
+         {{"OriginTrialFeedback", GetParam() ? "true" : "false"}}},
+        {unexportable_keys::
+             kEnableBoundSessionCredentialsSoftwareKeysForManualTesting,
+         {}}};
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }
 
   void SetUpOnMainThread() override {
@@ -89,7 +92,9 @@ class DeviceBoundSessionBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+INSTANTIATE_TEST_SUITE_P(All, DeviceBoundSessionBrowserTest, testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest,
                        AccessCalledOnRegistrationFromNavigation) {
   base::test::TestFuture<SessionAccess> future;
   DeviceBoundSessionAccessObserver observer(
@@ -107,7 +112,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
   EXPECT_EQ(access.session_key.id, SessionKey::Id("session_id"));
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest,
                        AccessCalledOnRegistrationFromResource) {
   base::test::TestFuture<SessionAccess> future;
   DeviceBoundSessionAccessObserver observer(
@@ -128,7 +133,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
               testing::Contains(net::MatchesCookieWithName("auth_cookie")));
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterOnNavigation) {
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest, UseCounterOnNavigation) {
   WebFeatureHistogramTester histograms;
 
   content::WebContents* web_contents =
@@ -147,7 +152,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterOnNavigation) {
             1);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterOnResource) {
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest, UseCounterOnResource) {
   WebFeatureHistogramTester histograms;
 
   base::test::TestFuture<SessionAccess> future;
@@ -168,7 +173,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterOnResource) {
             1);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest,
                        UseCounterForNotDeferred) {
   WebFeatureHistogramTester histograms;
 
@@ -196,7 +201,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
             0);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterForDeferred) {
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest, UseCounterForDeferred) {
   WebFeatureHistogramTester histograms;
 
   content::WebContents* web_contents =
@@ -228,7 +233,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, UseCounterForDeferred) {
             1);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest,
                        UseCounterForMultipleRequestsOnePage) {
   WebFeatureHistogramTester histograms;
 
@@ -258,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
             1);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest,
                        UseCounterForMultipleRequestsTwoPages) {
   WebFeatureHistogramTester histograms;
 
@@ -297,7 +302,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
             2);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, NotDeferredLogs) {
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest, NotDeferredLogs) {
   base::HistogramTester histogram_tester;
 
   base::test::TestFuture<SessionAccess> future;
@@ -319,7 +324,7 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, NotDeferredLogs) {
       /*expected_count=*/1);
 }
 
-IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest, DeferredLogs) {
+IN_PROC_BROWSER_TEST_P(DeviceBoundSessionBrowserTest, DeferredLogs) {
   base::HistogramTester histogram_tester;
 
   content::WebContents* web_contents =

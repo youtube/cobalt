@@ -37,6 +37,7 @@
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio/echo_control.h"
 #include "api/audio/echo_detector_creator.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
@@ -2610,12 +2611,16 @@ class MockEchoControlFactory : public EchoControlFactory {
               Create,
               (const Environment&, int, int, int),
               (override));
+  MOCK_METHOD(std::unique_ptr<EchoControl>,
+              Create,
+              (const Environment&, int, int, int, NeuralResidualEchoEstimator*),
+              (override));
 };
 
 TEST(ApmConfiguration, EchoControlInjection) {
   // Verify that apm uses an injected echo controller if one is provided.
   auto echo_control_factory = std::make_unique<MockEchoControlFactory>();
-  EXPECT_CALL(*echo_control_factory, Create(_, _, _, _))
+  EXPECT_CALL(*echo_control_factory, Create(_, _, _, _, _))
       .WillOnce(WithoutArgs([] {
         auto ec = std::make_unique<test::MockEchoControl>();
         EXPECT_CALL(*ec, AnalyzeRender).Times(1);

@@ -18,13 +18,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.robolectric.Shadows.shadowOf;
-
-import android.app.Application;
-import android.content.Context;
-import android.os.UserManager;
-
-import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.After;
 import org.junit.Before;
@@ -34,16 +27,13 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 import org.robolectric.annotation.LooperMode;
-import org.robolectric.shadows.ShadowApplication;
 import org.robolectric.shadows.ShadowLooper;
 
-import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -182,14 +172,6 @@ public class SigninManagerImplTest {
                 .thenReturn(PrimaryAccountError.NO_ERROR);
 
         when(mNativeMock.getUserAcceptedAccountManagement(anyLong())).thenReturn(true);
-
-        doAnswer(
-                        (args) -> {
-                            ((Callback<Boolean>) args.getArgument(2)).onResult(true);
-                            return null;
-                        })
-                .when(mNativeMock)
-                .isAccountManaged(anyLong(), any(), any());
 
         doAnswer(
                         (args) -> {
@@ -537,13 +519,6 @@ public class SigninManagerImplTest {
         createSigninManager();
         when(mExternalAuthUtils.canUseGooglePlayServices()).thenReturn(true);
 
-        // Make sure that the user is not a demo user.
-        ShadowApplication shadowApplication =
-                shadowOf((Application) ApplicationProvider.getApplicationContext());
-        UserManager userManager = Mockito.mock(UserManager.class);
-        Mockito.when(userManager.isDemoUser()).thenReturn(false);
-        shadowApplication.setSystemService(Context.USER_SERVICE, userManager);
-
         assertTrue(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ true));
         assertTrue(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ false));
     }
@@ -552,13 +527,6 @@ public class SigninManagerImplTest {
     public void signInShouldNotBeSupportedWhenGooglePlayServicesIsRequiredAndNotAvailable() {
         createSigninManager();
         when(mExternalAuthUtils.canUseGooglePlayServices()).thenReturn(false);
-
-        // Make sure that the user is not a demo user.
-        ShadowApplication shadowApplication =
-                shadowOf((Application) ApplicationProvider.getApplicationContext());
-        UserManager userManager = Mockito.mock(UserManager.class);
-        Mockito.when(userManager.isDemoUser()).thenReturn(false);
-        shadowApplication.setSystemService(Context.USER_SERVICE, userManager);
 
         assertFalse(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ true));
     }

@@ -163,10 +163,9 @@ class URLCanonTest : public ::testing::Test {
     // First see if it is relative.
     bool is_relative;
     Component relative_component;
-    bool succeed_is_rel = IsRelativeURL(
-        relative_case.base.data(), parsed, relative_case.rel.data(),
-        relative_case.rel.size(), relative_case.is_base_hier, &is_relative,
-        &relative_component);
+    bool succeed_is_rel = IsRelativeUrl(
+        relative_case.base, parsed, relative_case.rel,
+        relative_case.is_base_hier, &is_relative, &relative_component);
 
     EXPECT_EQ(is_relative, relative_case.expected_is_relative);
     if (succeed_is_rel && is_relative) {
@@ -493,9 +492,9 @@ TEST_F(URLCanonHostTest, Host) {
        L"a\x200c"
        L"b\x200d"
        L"c",
-       "xn--abc-9m0ag",
-       Component(0, 13),
-       CanonHostInfo::NEUTRAL, -1, ""},
+       "a%E2%80%8Cb%E2%80%8Dc",
+       Component(0, 21),
+       CanonHostInfo::BROKEN, -1, ""},
 
       // ZWJ between Devanagari characters was still mapped away in UTS 46
       // transitional handling. IDNA 2008 gives xn--11bo0mv54g.
@@ -513,13 +512,12 @@ TEST_F(URLCanonHostTest, Host) {
        CanonHostInfo::NEUTRAL, -1, ""},
       // U+2132 (turned capital F) is disallowed. UTS 46, table 4, row (c)
       // Allowed in IDNA 2003, but the mapping changed after Unicode 3.2
-      {"\xe2\x84\xb2oo", L"\x2132oo", "%E2%84%B2oo", Component(0, 11),
-       CanonHostInfo::BROKEN, -1, ""},
+      {"\xe2\x84\xb2oo", L"\x2132oo", "xn--oo-3tu", Component(0, 10),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // U+2F868 (CJK Comp) is disallowed. UTS 46, table 4, row (d)
       // Allowed in IDNA 2003, but the mapping changed after Unicode 3.2
       {"\xf0\xaf\xa1\xa8\xe5\xa7\xbb.cn", L"\xd87e\xdc68\x59fb.cn",
-       "%F0%AF%A1%A8%E5%A7%BB.cn", Component(0, 24), CanonHostInfo::BROKEN, -1,
-       ""},
+       "xn--snl080h.cn", Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
       // Maps uppercase letters to lower case letters. UTS 46 table 4 row (e)
       {"M\xc3\x9cNCHEN", L"M\xdcNCHEN", "xn--mnchen-3ya", Component(0, 14),
        CanonHostInfo::NEUTRAL, -1, ""},
@@ -2854,12 +2852,11 @@ TEST_F(URLCanonTest, ResolveRelativeURL) {
       parsed = ParsePathURL(cur_case.base, false);
 
     // First see if it is relative.
-    int test_len = static_cast<int>(strlen(cur_case.test));
     bool is_relative;
     Component relative_component;
-    bool succeed_is_rel = IsRelativeURL(
-        cur_case.base, parsed, cur_case.test, test_len, cur_case.is_base_hier,
-        &is_relative, &relative_component);
+    bool succeed_is_rel =
+        IsRelativeUrl(cur_case.base, parsed, cur_case.test,
+                      cur_case.is_base_hier, &is_relative, &relative_component);
 
     EXPECT_EQ(cur_case.succeed_relative, succeed_is_rel) <<
         "succeed is rel failure on " << cur_case.test;

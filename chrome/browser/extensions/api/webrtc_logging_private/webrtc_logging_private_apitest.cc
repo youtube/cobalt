@@ -35,11 +35,14 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_builder.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "third_party/zlib/google/compression_utils.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using compression::GzipUncompress;
 using extensions::Extension;
@@ -998,15 +1001,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(SetUpPeerConnection(session_id));
   const int max_size_bytes = kMaxRemoteLogFileSizeBytes;
   constexpr bool expect_success = false;
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/445765670): Figure out why Android complains about the tab
-  // first, rather than the feature. It's probably related to how this test
-  // sets up its incognito web contents.
-  const std::string error_message =
-      extensions::ExtensionTabUtil::kTabNotFoundError;
-#else
   const std::string error_message = kStartRemoteLoggingFailureFeatureDisabled;
-#endif
   StartEventLogging(session_id, max_size_bytes, 0, kWebAppId, expect_success,
                     error_message);
 }

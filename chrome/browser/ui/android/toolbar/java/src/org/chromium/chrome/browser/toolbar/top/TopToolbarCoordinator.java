@@ -14,12 +14,14 @@ import android.widget.ImageButton;
 import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
@@ -61,7 +63,6 @@ import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.Drawing
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.TokenHolder;
-import org.chromium.ui.util.XrUtils;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -87,7 +88,7 @@ public class TopToolbarCoordinator implements Toolbar {
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private @Nullable ReloadButtonCoordinator mReloadButtonCoordinator;
     private @Nullable final BackButtonCoordinator mBackButtonCoordinator;
-    private @Nullable ObservableSupplier<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
+    private ObservableSupplier<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
 
     /** Null until {@link #initializeWithNative} is called. */
     private @Nullable TabStripTransitionCoordinator mTabStripTransitionCoordinator;
@@ -152,6 +153,7 @@ public class TopToolbarCoordinator implements Toolbar {
      * @param homeButtonDisplay The {@link HomeButtonDisplay} to manage the display and behavior of
      *     home button(s). Should be null on custom tabs.
      * @param topControlsStacker The TopControlsStacker for child objects to check state from.
+     * @param browserControlsStateProvider BrowserControlsStateProvider instance.
      */
     public TopToolbarCoordinator(
             ToolbarControlContainer controlContainer,
@@ -165,14 +167,14 @@ public class TopToolbarCoordinator implements Toolbar {
             IncognitoStateProvider incognitoStateProvider,
             MenuButtonCoordinator browsingModeMenuButtonCoordinator,
             ObservableSupplier<AppMenuButtonHelper> appMenuButtonHelperSupplier,
-            ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator,
+            @Nullable ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator,
             ObservableSupplier<Integer> tabCountSupplier,
             ObservableSupplier<Boolean> homepageEnabledSupplier,
             ObservableSupplier<Boolean> homepageNonNtpSupplier,
             Supplier<ResourceManager> resourceManagerSupplier,
             HistoryDelegate historyDelegate,
             boolean initializeWithIncognitoColors,
-            ObservableSupplier<Integer> constraintsSupplier,
+            ObservableSupplier<@Nullable Integer> constraintsSupplier,
             ObservableSupplier<Boolean> compositorInMotionSupplier,
             BrowserStateBrowserControlsVisibilityDelegate
                     browserStateBrowserControlsVisibilityDelegate,
@@ -188,7 +190,8 @@ public class TopToolbarCoordinator implements Toolbar {
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
             @Nullable HomeButtonDisplay homeButtonDisplay,
             @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
-            TopControlsStacker topControlsStacker) {
+            TopControlsStacker topControlsStacker,
+            BrowserControlsStateProvider browserControlsStateProvider) {
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
         mControlContainer = controlContainer;
@@ -243,7 +246,9 @@ public class TopToolbarCoordinator implements Toolbar {
                 browserStateBrowserControlsVisibilityDelegate,
                 layoutStateProviderSupplier,
                 fullscreenManager,
-                topControlsStacker);
+                topControlsStacker,
+                toolbarDataProvider,
+                browserControlsStateProvider);
         mToolbarLayout.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -300,8 +305,8 @@ public class TopToolbarCoordinator implements Toolbar {
     public void initializeWithNative(
             Profile profile,
             Runnable layoutUpdater,
-            OnClickListener bookmarkClickHandler,
-            OnClickListener customTabsBackClickHandler,
+            @Nullable OnClickListener bookmarkClickHandler,
+            @Nullable OnClickListener customTabsBackClickHandler,
             LayoutManager layoutManager,
             ObservableSupplier<@Nullable Tab> tabSupplier,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
@@ -325,7 +330,7 @@ public class TopToolbarCoordinator implements Toolbar {
         // which will become a visible artifact when the web contents background has a big
         // difference with the toolbar background color defined by system color theme. So we still
         // enable the overlay on XR devices. See https://crbug.com/377982076.
-        if (DeviceClassManager.enableFullscreen() || XrUtils.isXrDevice()) {
+        if (DeviceClassManager.enableFullscreen() || DeviceInfo.isXr()) {
             int layoutsToShowOn = LayoutType.BROWSING | LayoutType.TAB_SWITCHER;
             if (!NewTabAnimationUtils.isNewTabAnimationEnabled()) {
                 layoutsToShowOn |= LayoutType.SIMPLE_ANIMATION;
@@ -805,5 +810,9 @@ public class TopToolbarCoordinator implements Toolbar {
     /** Returns true if the toolbar contains keyboard focus. */
     public boolean containsKeyboardFocus() {
         return mToolbarLayout.getFocusedChild() != null;
+    }
+
+    public void onContentViewScrollingStateChanged(boolean scrolling) {
+        mControlContainer.onContentViewScrollingStateChanged(scrolling);
     }
 }

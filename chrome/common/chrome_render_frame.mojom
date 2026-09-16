@@ -113,4 +113,20 @@ interface ChromeRenderFrame {
   // journal will record the last committed URL in the logs.
   [EnableIfNot=is_android] StartActorJournal(
     pending_associated_remote<actor.mojom.JournalClient> client);
+
+  // Creates page stability monitor in the renderer to monitor for page
+  // stability. Multiple calls will clobber a PageStabilityMonitor previously
+  // created and it's the caller's responsibility to ensure the monitor is
+  // unneeded before creating a new one. This interface may be disconnected
+  // when the browser-side `ObservationDelayController` that owns the remote is
+  // destroyed. This could happen when the tool invocation failed and therefore
+  // there's no need to wait.
+  //
+  // `task_id` identifies the ID of the active actor tool.
+  // `supports_paint_stability` indicates whether to include paint stability in
+  // page stability heuristics.
+  [EnableIfNot=is_android]
+  CreatePageStabilityMonitor(
+    pending_receiver<actor.mojom.PageStabilityMonitor> monitor,
+    actor.mojom.TaskId task_id, bool supports_paint_stability);
 };

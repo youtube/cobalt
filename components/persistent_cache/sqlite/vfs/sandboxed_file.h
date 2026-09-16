@@ -5,11 +5,34 @@
 #ifndef COMPONENTS_PERSISTENT_CACHE_SQLITE_VFS_SANDBOXED_FILE_H_
 #define COMPONENTS_PERSISTENT_CACHE_SQLITE_VFS_SANDBOXED_FILE_H_
 
+#include <stdint.h>
+
 #include "base/component_export.h"
 #include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/memory/shared_memory_safety_checker.h"
+#include "base/memory/unsafe_shared_memory_region.h"
 #include "sql/sandboxed_vfs_file.h"
 
 namespace persistent_cache {
+
+// The lock shared state is encoded over 32-bits:
+//   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+//   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+//  +---+-+-+-----------------------+-------------------------------+
+//  |0|P|R|0|                     SHARED COUNT                      |
+//  +---+-+-+-----------------------+-------------------------------+
+//
+// Where
+//
+//   SHARED COUNT: The number of SHARED locks held by readers.
+//   R: The RESERVED lock is held. New shared locks are still permitted.
+//   P: The PENDING lock is held. No new shared locks are permitted while any
+//      process holds the PENDING lock.
+//
+// A process holds the EXCLUSIVE lock when it holds the PENDING lock and the
+// SHARED COUNT is zero.
+using LockState = base::subtle::SharedAtomic<uint32_t>;
 
 // Represents a file to be exposed to sql::Database via
 // SqliteSandboxedVfsDelegate.
@@ -22,7 +45,15 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
  public:
   enum class AccessRights { kReadWrite, kReadOnly };
 
-  SandboxedFile(base::File file, AccessRights access_rights);
+  // `file_path` is the optional path to the file. It may be omitted when
+  // `access_rights` is `kReadOnly` or if when `access_rights` is `kReadWrite`
+  // and `DuplicateFiles()` will never be used to obtain a read-only handle to
+  // the file.
+  SandboxedFile(base::File file,
+                base::FilePath file_path,
+                AccessRights access_rights,
+                base::WritableSharedMemoryMapping mapped_shared_lock =
+                    base::WritableSharedMemoryMapping());
   SandboxedFile(SandboxedFile& other) = delete;
   SandboxedFile& operator=(const SandboxedFile& other) = delete;
   SandboxedFile(SandboxedFile&& other) = delete;
@@ -53,6 +84,12 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
 
   AccessRights access_rights() const { return access_rights_; }
 
+  // Returns a handle to the file with either read-write or read-only access;
+  // or an invalid File in case of error. To emit a read-only handle from an
+  // instance with read-write access to the file, the path to the underlying
+  // file must have been provided at construction.
+  base::File DuplicateFile(AccessRights access_rights);
+
   // sqlite3_file implementation.
   int Close() override;
   int Read(void* buffer, int size, sqlite3_int64 offset) override;
@@ -76,13 +113,27 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
   int Fetch(sqlite3_int64 offset, int size, void** result) override;
   int Unfetch(sqlite3_int64 offset, void* fetch_result) override;
 
+  int LockModeForTesting() const { return sqlite_lock_mode_; }
+
  private:
+  // Returns a pointer to the lock state, which is shared across other instances
+  // of SandboxedFile via shared memory.
+  LockState& GetLockState();
+
+  // The path to the underlying file. Only set for the creator of the file; not
+  // for other consumers to which it has been shared.
+  const base::FilePath file_path_;
   base::File underlying_file_;
   base::File opened_file_;
-  AccessRights access_rights_;
+  const AccessRights access_rights_;
 
-  // One of the SQLite locking mode constants.
-  int sqlite_lock_mode_;
+  // One of the SQLite locking mode constants which represent the current lock
+  // state of this connection (see: https://www.sqlite.org/lockingv3.html).
+  int sqlite_lock_mode_ = SQLITE_LOCK_NONE;
+
+  // The actual shared locks across processes to implement the SQLite algorithm
+  // and from which `sqlite_lock_mode_` is coming from.
+  base::WritableSharedMemoryMapping mapped_shared_lock_;
 };
 
 }  // namespace persistent_cache

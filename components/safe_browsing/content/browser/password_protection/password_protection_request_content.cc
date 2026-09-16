@@ -12,10 +12,11 @@
 #include "components/safe_browsing/content/browser/client_side_detection_feature_cache.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_commit_deferring_condition.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_service.h"
-#include "components/safe_browsing/content/browser/web_ui/web_ui_info_singleton.h"
+#include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
 #include "components/safe_browsing/core/browser/password_protection/request_canceler.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -168,13 +169,14 @@ void PasswordProtectionRequestContent::MaybeLogPasswordReuseLookupEvent(
 
 void PasswordProtectionRequestContent::MaybeAddPingToWebUI(
     const std::string& oauth_token) {
-  web_ui_token_ = WebUIInfoSingleton::GetInstance()->AddToPGPings(
+  web_ui_token_ = WebUIContentInfoSingleton::GetInstance()->AddToPGPings(
       *request_proto_, oauth_token);
 }
 
 void PasswordProtectionRequestContent::MaybeAddResponseToWebUI(
     const LoginReputationClientResponse& response) {
-  WebUIInfoSingleton::GetInstance()->AddToPGResponses(web_ui_token_, response);
+  WebUIContentInfoSingleton::GetInstance()->AddToPGResponses(web_ui_token_,
+                                                             response);
 }
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -191,8 +193,6 @@ void PasswordProtectionRequestContent::GetDomFeatures() {
       ClientSideDetectionFeatureCache::FromWebContents(web_contents_);
   if (feature_cache_map) {
     if (password_protection_service()->IsExtendedReporting() &&
-        base::FeatureList::IsEnabled(
-            kClientSideDetectionDebuggingMetadataCache) &&
         trigger_type() == LoginReputationClientRequest::PASSWORD_REUSE_EVENT) {
       LoginReputationClientRequest::DebuggingMetadata* debugging_metadata =
           feature_cache_map->GetDebuggingMetadataForURL(main_frame_url());
@@ -408,7 +408,8 @@ void PasswordProtectionRequestContent::CollectVisualFeatures() {
 }
 
 void PasswordProtectionRequestContent::OnScreenshotTaken(
-    const SkBitmap& screenshot) {
+    const viz::CopyOutputBitmapWithMetadata& result) {
+  const SkBitmap& bitmap = result.bitmap;
   // Do the feature extraction on a worker thread, to avoid blocking the UI.
   auto ui_thread_callback = base::BindOnce(
       &PasswordProtectionRequestContent::OnVisualFeatureCollectionDone,
@@ -417,7 +418,7 @@ void PasswordProtectionRequestContent::OnScreenshotTaken(
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&ExtractVisualFeaturesAndReplyOnUIThread, screenshot,
+      base::BindOnce(&ExtractVisualFeaturesAndReplyOnUIThread, bitmap,
                      std::move(ui_thread_callback)));
 }
 

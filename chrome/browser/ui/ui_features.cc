@@ -44,12 +44,6 @@ BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
 BASE_FEATURE(kFewerUpdateConfirmations, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kDesktopNewTopAreaLayoutFeature,
-             "DesktopNewTopAreaLayout",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
 BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -127,6 +121,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kSideBySide,
                    "drop_target_hide_delay",
                    base::Milliseconds(100));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSideBySideShowNudgeDelay,
+                   &kSideBySide,
+                   "show_nudge_delay",
+                   base::Milliseconds(1000));
 BASE_FEATURE_PARAM(int,
                    kSideBySideDropTargetMinWidth,
                    &kSideBySide,
@@ -257,8 +256,6 @@ bool IsSideBySideKeyboardShortcutEnabled() {
   return base::FeatureList::IsEnabled(features::kSideBySide) &&
          base::FeatureList::IsEnabled(features::kSideBySideKeyboardShortcut);
 }
-
-BASE_FEATURE(kSidePanelResizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -574,6 +571,12 @@ BASE_FEATURE_PARAM(bool,
                    "sharing_hub",
                    false);
 
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationAiMode,
+                   &kPageActionsMigration,
+                   "ai_mode",
+                   false);
+
 BASE_FEATURE(kSavePasswordsContextualUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCompositorLoadingAnimations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -636,6 +639,12 @@ bool IsBookmarkTabGroupConversionEnabled() {
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kSessionRestoreInfobar, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(bool,
+                   kSetDefaultToContinueSession,
+                   &kSessionRestoreInfobar,
+                   "continue_session",
+                   false);
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -655,5 +664,7 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
       features::kAndroidAnimatedProgressBarInBrowser);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

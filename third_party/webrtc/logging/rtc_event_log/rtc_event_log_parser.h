@@ -40,7 +40,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -661,10 +660,6 @@ class ParsedRtcEventLog {
     return generic_packets_sent_;
   }
 
-  const std::vector<LoggedGenericAckReceived>& generic_acks_received() const {
-    return generic_acks_received_;
-  }
-
   // Media
   const std::map<uint32_t, std::vector<LoggedFrameDecoded>>& decoded_frames()
       const {
@@ -777,8 +772,6 @@ class ParsedRtcEventLog {
   ParseStatus StoreDtlsWritableState(const rtclog2::DtlsWritableState& proto);
   ParsedRtcEventLog::ParseStatus StoreFrameDecodedEvents(
       const rtclog2::FrameDecodedEvents& proto);
-  ParseStatus StoreGenericAckReceivedEvent(
-      const rtclog2::GenericAckReceived& proto);
   ParseStatus StoreGenericPacketReceivedEvent(
       const rtclog2::GenericPacketReceived& proto);
   ParseStatus StoreGenericPacketSentEvent(
@@ -921,7 +914,6 @@ class ParsedRtcEventLog {
 
   std::vector<LoggedGenericPacketReceived> generic_packets_received_;
   std::vector<LoggedGenericPacketSent> generic_packets_sent_;
-  std::vector<LoggedGenericAckReceived> generic_acks_received_;
 
   std::vector<LoggedRouteChangeEvent> route_change_events_;
   std::vector<LoggedRemoteEstimateEvent> remote_estimate_events_;

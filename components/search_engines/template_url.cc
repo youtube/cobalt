@@ -51,6 +51,7 @@
 #include "google_apis/google_api_keys.h"
 #include "net/base/mime_util.h"
 #include "net/base/url_util.h"
+#include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
 #include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 #include "ui/base/device_form_factor.h"
@@ -476,8 +477,9 @@ std::string TemplateURLRef::ReplaceSearchTerms(
   }
   if (!search_terms_args.additional_query_params.empty())
     query_params.push_back(search_terms_args.additional_query_params);
-  if (!gurl.query().empty())
-    query_params.push_back(gurl.query());
+  if (!gurl.GetQuery().empty()) {
+    query_params.push_back(gurl.GetQuery());
+  }
 
   if (type_ == SEARCH || type_ == SUGGEST) {
     auto regulatory_extension_type = owner_->GetRegulatoryExtensionType();
@@ -632,7 +634,7 @@ bool TemplateURLRef::ExtractSearchTermsFromURL(
     return false;
 
   // Host, port, and path must match.
-  if (url.host() != host_ || url.port() != port_ ||
+  if (url.GetHost() != host_ || url.GetPort() != port_ ||
       (!PathIsEqual(url) && (search_term_key_location_ != url::Parsed::PATH))) {
     return false;
   }
@@ -641,7 +643,7 @@ bool TemplateURLRef::ExtractSearchTermsFromURL(
   url::Component position;
 
   if (search_term_key_location_ == url::Parsed::PATH) {
-    source = url.path_piece();
+    source = url.path();
 
     // If the path does not contain the expected prefix and suffix, then this is
     // not a match.
@@ -656,9 +658,8 @@ bool TemplateURLRef::ExtractSearchTermsFromURL(
   } else {
     DCHECK(search_term_key_location_ == url::Parsed::QUERY ||
            search_term_key_location_ == url::Parsed::REF);
-    source = (search_term_key_location_ == url::Parsed::QUERY)
-                 ? url.query_piece()
-                 : url.ref_piece();
+    source = (search_term_key_location_ == url::Parsed::QUERY) ? url.query()
+                                                               : url.ref();
 
     url::Component query, key, value;
     query.len = static_cast<int>(source.size());
@@ -980,7 +981,7 @@ void TemplateURLRef::ParsePath(const std::string& path) const {
 }
 
 bool TemplateURLRef::PathIsEqual(const GURL& url) const {
-  std::string_view path = url.path_piece();
+  std::string_view path = url.path();
   if (!path_wildcard_present_)
     return path == path_prefix_;
   return ((path.length() >= path_prefix_.length() + path_suffix_.length()) &&
@@ -1003,29 +1004,29 @@ void TemplateURLRef::ParseHostAndSearchTermKey(
   if (!url.is_valid())
     return;
 
-  SearchTermLocation query_result(url.query_piece(), url::Parsed::QUERY);
-  SearchTermLocation ref_result(url.ref_piece(), url::Parsed::REF);
-  SearchTermLocation path_result(url.path_piece(), url::Parsed::PATH);
+  SearchTermLocation query_result(url.query(), url::Parsed::QUERY);
+  SearchTermLocation ref_result(url.ref(), url::Parsed::REF);
+  SearchTermLocation path_result(url.path(), url::Parsed::PATH);
   const bool in_query = query_result.found();
   const bool in_ref = ref_result.found();
   const bool in_path = path_result.found();
   if (in_query ? (in_ref || in_path) : (in_ref == in_path))
     return;  // No key or multiple keys found.  We only handle having one key.
 
-  host_ = url.host();
-  port_ = url.port();
+  host_ = url.GetHost();
+  port_ = url.GetPort();
   if (in_query) {
     search_term_key_location_ = url::Parsed::QUERY;
     search_term_key_ = query_result.key();
     search_term_value_prefix_ = query_result.value_prefix();
     search_term_value_suffix_ = query_result.value_suffix();
-    ParsePath(url.path());
+    ParsePath(url.GetPath());
   } else if (in_ref) {
     search_term_key_location_ = url::Parsed::REF;
     search_term_key_ = ref_result.key();
     search_term_value_prefix_ = ref_result.value_prefix();
     search_term_value_suffix_ = ref_result.value_suffix();
-    ParsePath(url.path());
+    ParsePath(url.GetPath());
   } else {
     DCHECK(in_path);
     search_term_key_location_ = url::Parsed::PATH;
@@ -1443,6 +1444,13 @@ std::string TemplateURLRef::HandleReplacements(
               break;
             }
 #endif
+            if (search_terms_args.page_classification ==
+                    metrics::OmniboxEventProto::NTP_REALBOX &&
+                search_terms_args.lens_overlay_suggest_inputs.has_value()) {
+              // No replacement. `gs_ri` is not recommended for contextual
+              // queries.
+              break;
+            }
             HandleReplacement(std::string(), "chrome-ext-ansg", replacement,
                               &url);
             break;
@@ -1723,7 +1731,7 @@ std::u16string TemplateURL::GenerateKeyword(const GURL& url) {
   // |url|'s hostname may be IDN-encoded. Before generating |keyword| from it,
   // convert to Unicode, so it won't look like a confusing punycode string.
   std::u16string keyword =
-      url_formatter::IDNToUnicode(url_formatter::StripWWW(url.host()));
+      url_formatter::IDNToUnicode(url_formatter::StripWWW(url.GetHost()));
   return base::i18n::ToLower(keyword);
 }
 
@@ -1817,16 +1825,32 @@ std::optional<std::string_view> TemplateURL::GetBaseBuiltinResourceId() const {
     return std::nullopt;
   }
 
+  // User-defined engines should not be decorated with branded icons.
+  if (data().prepopulate_id == 0) {
+    return std::nullopt;
+  }
+
   if (!base_builtin_resource_id_.has_value()) {
+    // 1. Attempt to identify the definition by keyword.
+    // This is going to handle 99% of the cases correctly, including Yahoo
+    // variants, where different countries may use different assets.
     const TemplateURLPrepopulateData::PrepopulatedEngine*
         reference_builtin_engine =
             TemplateURLPrepopulateData::GetPrepopulatedEngineFromBuiltInData(
-                data().prepopulate_id,
-                // We are deliberately not providing a list of regional engines.
-                // It would be useful to disambiguate between regional variants
-                // of some engines that could be using different icons. It is
-                // not a use case we have for now, so that's unnecessary.
+                data().keyword(),
                 /*regional_prepopulated_engines=*/{});
+
+    if (!reference_builtin_engine) {
+      // 2. Attempt to identify the definition by prepopulate_id.
+      // Failed to look up engine by keyword. Fall back to identifying engine by
+      // matching prepopulate id. This might cause some assets to be incorrectly
+      // assigned if the regional variant of a search engine expects to use a
+      // different asset which has not been supplied (see: Yahoo vs Yahoo JP).
+      reference_builtin_engine =
+          TemplateURLPrepopulateData::GetPrepopulatedEngineFromBuiltInData(
+              data().prepopulate_id,
+              /*regional_prepopulated_engines=*/{});
+    }
 
     if (reference_builtin_engine &&
         reference_builtin_engine->base_builtin_resource_id) {
@@ -2004,12 +2028,12 @@ bool TemplateURL::ReplaceSearchTermsInURL(
 
   std::string old_params;
   if (search_term_component == url::Parsed::QUERY) {
-    old_params = url.query();
+    old_params = url.GetQuery();
   } else if (search_term_component == url::Parsed::REF) {
-    old_params = url.ref();
+    old_params = url.GetRef();
   } else {
     DCHECK_EQ(search_term_component, url::Parsed::PATH);
-    old_params = url.path();
+    old_params = url.GetPath();
   }
 
   std::string new_params(old_params, 0, search_terms_position.begin);

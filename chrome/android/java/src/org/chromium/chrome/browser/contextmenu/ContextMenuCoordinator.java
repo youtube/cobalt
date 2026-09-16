@@ -42,9 +42,10 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
-import org.chromium.ui.listmenu.ListMenuFlyoutController;
-import org.chromium.ui.listmenu.ListMenuFlyoutController.FlyoutHandler;
-import org.chromium.ui.listmenu.ListMenuFlyoutController.FlyoutPopupEntry;
+import org.chromium.ui.hierarchicalmenu.FlyoutController;
+import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
+import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutPopupEntry;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.listmenu.ListMenuUtils.AccessibilityListObserver;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
@@ -82,16 +83,17 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
     private @Nullable ContextMenuChipController mChipController;
     private ContextMenuHeaderCoordinator mHeaderCoordinator;
 
-    private List<ContextMenuListView> mListViews;
+    private final List<ContextMenuListView> mListViews;
     private final float mTopContentOffsetPx;
 
     // A list of dialogs, paired with the parent `ListItem` if the dialog is a flyout.
-    private List<FlyoutPopupEntry<ContextMenuDialog>> mDialogs;
+    private final List<FlyoutPopupEntry<ContextMenuDialog>> mDialogs;
 
     private Runnable mOnMenuClosed;
     private final ContextMenuNativeDelegate mNativeDelegate;
     private final boolean mIsCustomItemPresent;
     private boolean mUsePopupWindow;
+    private boolean mRemovingPopups;
 
     /**
      * Constructor that also sets the content offset.
@@ -305,7 +307,8 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         popupMargin,
                         desiredPopupContentWidth,
                         dragDispatchingTargetView,
-                        contextMenuRect);
+                        contextMenuRect,
+                        /* onDismissCallback= */ null);
         dialog.setOnShowListener(dialogInterface -> onMenuShown.run());
         dialog.setOnDismissListener(
                 (dialogInterface) -> {
@@ -329,6 +332,12 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         this::dismiss,
                         mUsePopupWindow);
 
+        HierarchicalMenuController hierarchicalMenuController =
+                new HierarchicalMenuController(new ListMenuUtils.ListMenuKeyProvider(), this);
+
+        FlyoutController flyoutController = hierarchicalMenuController.getFlyoutController();
+        assert flyoutController != null;
+
         // The Integer here specifies the {@link ListItemType}.
         ModelList listItems =
                 mediator.updateAndGetModelList(
@@ -337,7 +346,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         // preview the page before initiating any actions. This is not needed for
                         // actions performed on the current page.
                         /* hasHeader= */ !params.getOpenedFromHighlight() && !params.isPage(),
-                        new ListMenuFlyoutController(this));
+                        flyoutController);
 
         ModelListAdapter adapter = createAdapter(listItems);
 
@@ -357,7 +366,12 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         mListViews.add(listView);
 
         listItems.addObserver(
-                new AccessibilityListObserver(listView, /* headerModelList= */ null, listItems));
+                new AccessibilityListObserver(
+                        listView,
+                        /* headerView= */ null,
+                        listView,
+                        /* headerModelList= */ null,
+                        listItems));
         mWebContentsObserver =
                 new WebContentsObserver(mWebContents) {
                     @Override
@@ -384,18 +398,30 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
 
     @Override
     public void removeFlyoutWindows(int clearFromIndex) {
-        assert clearFromIndex < mDialogs.size();
+        if (clearFromIndex >= mDialogs.size()) {
+            return;
+        }
+
+        // We want to avoid the dismiss listener calling this method when the dismissal
+        // originates from this method, to avoid loops.
+        mRemovingPopups = true;
 
         for (int i = clearFromIndex; i < mDialogs.size(); i++) {
             mDialogs.get(i).popupWindow.dismiss();
         }
 
+        mRemovingPopups = false;
+
         mDialogs.subList(clearFromIndex, mDialogs.size()).clear();
         mListViews.subList(clearFromIndex, mListViews.size()).clear();
+
+        if (mDialogs.size() > 0) {
+            mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocus(true);
+        }
     }
 
     @Override
-    public void addFlyoutWindow(ListItem item, View view) {
+    public void addFlyoutWindow(ListItem item, View view, int levelOfHoveredItem) {
         assert view != null;
         assert mUsePopupWindow;
 
@@ -409,8 +435,6 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         listView.setIsFlyout(true);
         mListViews.add(listView);
 
-        // TODO(crbug.com/438712903): Tell `ContextMenuDialog` that this should be positioned as a
-        // flyout popup and not a regular context menu window.
         ContextMenuDialog dialog =
                 createContextMenuDialog(
                         mActivity,
@@ -424,9 +448,19 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         /* popupMargin= */ null,
                         /* desiredPopupContentWidth= */ null,
                         /* dragDispatchingTargetView= */ null,
-                        calculateFlyoutAnchorRect(mActivity, mWindowAndroid, view));
+                        calculateFlyoutAnchorRect(mActivity, mWindowAndroid, view),
+                        () -> {
+                            if (!mRemovingPopups) {
+                                removeFlyoutWindows(levelOfHoveredItem + 1);
+                            }
+                        });
 
+        assert mDialogs.size() > 0;
+        mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocus(false);
+
+        dialog.setWindowFocus(true);
         dialog.show();
+
         mDialogs.add(new FlyoutPopupEntry(item, dialog));
     }
 
@@ -486,7 +520,8 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
             @Nullable Integer popupMargin,
             @Nullable Integer desiredPopupContentWidth,
             @Nullable View dragDispatchingTargetView,
-            Rect rect) {
+            Rect rect,
+            @Nullable Runnable onDismissCallback) {
         // TODO(sinansahin): Refactor ContextMenuDialog as well.
         final ContextMenuDialog dialog =
                 new ContextMenuDialog(
@@ -503,7 +538,8 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         desiredPopupContentWidth,
                         dragDispatchingTargetView,
                         rect,
-                        EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled());
+                        EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled(),
+                        onDismissCallback);
         dialog.setContentView(layout);
 
         return dialog;
@@ -516,11 +552,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         if (mChipController != null) {
             mChipController.dismissChipIfShowing();
         }
-        for (FlyoutPopupEntry<ContextMenuDialog> entry : mDialogs) {
-            entry.popupWindow.dismiss();
-        }
-        mDialogs = new ArrayList<>();
-        mListViews = new ArrayList<>();
+        removeFlyoutWindows(0);
     }
 
     Callback<ChipRenderParams> getChipRenderParamsCallbackForTesting(ChipDelegate chipDelegate) {

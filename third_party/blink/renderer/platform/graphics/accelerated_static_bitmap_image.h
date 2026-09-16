@@ -34,11 +34,6 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
   // |sync_token| is the token that must be waited on before reading the
   // contents of this shared image.
   //
-  // |shared_image_texture_id| is an optional texture bound to the shared image
-  // imported into the provided context. If provided the caller must ensure that
-  // the texture is bound to the shared image, stays alive and has a read lock
-  // on the shared image until the |release_callback| is invoked.
-  //
   // |context_provider| is the context that the shared image was created with.
   // |context_thread_ref| and |context_task_runner| refer to the thread the
   // context is bound to. If the image is created on a different thread than
@@ -54,7 +49,6 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
   CreateFromCanvasSharedImage(
       scoped_refptr<gpu::ClientSharedImage>,
       const gpu::SyncToken&,
-      GLuint shared_image_texture_id,
       SkAlphaType alpha_type,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       base::PlatformThreadRef context_thread_ref,
@@ -132,18 +126,9 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
   }
 
  private:
-  struct ReleaseContext {
-    scoped_refptr<MailboxRef> mailbox_ref;
-    GLuint texture_id = 0u;
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper;
-  };
-
-  static void ReleaseTexture(void* ctx);
-
   AcceleratedStaticBitmapImage(
       scoped_refptr<gpu::ClientSharedImage>,
       const gpu::SyncToken&,
-      GLuint shared_image_texture_id,
       SkAlphaType alpha_type,
       const ImageOrientation& orientation,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
@@ -152,15 +137,16 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
       viz::ReleaseCallback release_callback);
 
   void CreateImageFromMailboxIfNeeded();
-  void InitializeTextureBacking(GLuint shared_image_texture_id);
 
+  // Fields must be safe to destroy on any thread or invalidtaed in Transfer().
   scoped_refptr<gpu::ClientSharedImage> shared_image_;
   SkAlphaType alpha_type_;
 
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper_;
   scoped_refptr<MailboxRef> mailbox_ref_;
 
-  // The context this TextureBacking is bound to.
+  // The context `texture_backing_` is bound to. This and `texture_backing_` are
+  // thread-affine state that must be invalidated in Transfer().
   base::WeakPtr<WebGraphicsContext3DProviderWrapper>
       skia_context_provider_wrapper_;
   sk_sp<MailboxTextureBacking> texture_backing_;

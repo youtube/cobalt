@@ -38,8 +38,7 @@ class ModeledShapeOutlinesIterator {
     uint32_t group_index;
     // Guaranteeded to be non-empty.
     // TODO(367764863) Rewrite to base::raw_span.
-    RAW_PTR_EXCLUSION base::span<const ink::PartitionedMesh::VertexIndexPair>
-        outline;
+    RAW_PTR_EXCLUSION base::span<const ink::VertexIndexPair> outline;
   };
 
   explicit ModeledShapeOutlinesIterator(const ink::PartitionedMesh& shape)
@@ -68,9 +67,8 @@ class ModeledShapeOutlinesIterator {
   uint32_t outline_index_ = 0;
 };
 
-gfx::PointF GetVertexPosition(
-    base::span<const ink::Mesh> meshes,
-    const ink::PartitionedMesh::VertexIndexPair& vertex_index_pair) {
+gfx::PointF GetVertexPosition(base::span<const ink::Mesh> meshes,
+                              const ink::VertexIndexPair& vertex_index_pair) {
   ink::Point vertex_position =
       meshes[vertex_index_pair.mesh_index].VertexPosition(
           vertex_index_pair.vertex_index);
@@ -141,16 +139,14 @@ void SetBrushPropertiesForPath(const ink::Brush& brush, FPDF_PAGEOBJECT path) {
   const SkColor color = GetSkColorFromInkBrush(brush);
   CHECK_EQ(SkColorGetA(color), SK_AlphaOPAQUE);
 
-  CHECK_EQ(brush.CoatCount(), 1u);
-  const ink::BrushCoat& coat = brush.GetCoats()[0];
-  // third_party/ink/src/ink/brush/brush_tip.h says this can have a value up to
-  // 2.0f, but that should never be the case, as //pdf code never sets it that
-  // high.
-  CHECK_LE(coat.tip.opacity_multiplier, 1.0f);
+  // Ink says this can have a value up to 2.0f, but that should never be the
+  // case, as //pdf code never sets it that high.
+  const float opacity_multiplier = GetOpacityMultiplierFromBrush(brush);
+  CHECK_LE(opacity_multiplier, 1.0f);
 
-  bool result = FPDFPageObj_SetFillColor(path, SkColorGetR(color),
-                                         SkColorGetG(color), SkColorGetB(color),
-                                         coat.tip.opacity_multiplier * 255);
+  bool result =
+      FPDFPageObj_SetFillColor(path, SkColorGetR(color), SkColorGetG(color),
+                               SkColorGetB(color), opacity_multiplier * 255);
   CHECK(result);
 }
 

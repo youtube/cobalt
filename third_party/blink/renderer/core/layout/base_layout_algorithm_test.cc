@@ -79,25 +79,10 @@ const PhysicalBoxFragment* BaseLayoutAlgorithmTest::CurrentFragmentFor(
   return block_flow->GetPhysicalFragment(0);
 }
 
-void BaseLayoutAlgorithmTest::VerifyGapIntersections(
-    const Vector<GapIntersectionList>& expected_intersections,
-    const Vector<GapIntersectionList>& intersections) {
-  EXPECT_EQ(intersections.size(), expected_intersections.size());
-  for (size_t i = 0; i < intersections.size(); ++i) {
-    const auto& expected = expected_intersections[i];
-    const auto& actual = intersections[i];
-    EXPECT_EQ(actual.size(), expected.size());
-    for (size_t j = 0; j < actual.size(); ++j) {
-      EXPECT_EQ(actual[j].inline_offset, expected[j].inline_offset);
-      EXPECT_EQ(actual[j].block_offset, expected[j].block_offset);
-    }
-  }
-}
-
 void BaseLayoutAlgorithmTest::VerifyMainGaps(
     const Vector<MainGap>& expected_gaps,
     const Vector<MainGap>& gaps) {
-  EXPECT_EQ(gaps.size(), expected_gaps.size()) << "Main gap count mismatch";
+  ASSERT_EQ(gaps.size(), expected_gaps.size()) << "Main gap count mismatch";
   for (wtf_size_t i = 0; i < gaps.size(); ++i) {
     const auto& expected = expected_gaps[i];
     const auto& actual = gaps[i];
@@ -109,7 +94,7 @@ void BaseLayoutAlgorithmTest::VerifyMainGaps(
 void BaseLayoutAlgorithmTest::VerifyCrossGaps(
     const Vector<CrossGap>& expected_gaps,
     const Vector<CrossGap>& gaps) {
-  EXPECT_EQ(gaps.size(), expected_gaps.size()) << "Cross gap count mismatch";
+  ASSERT_EQ(gaps.size(), expected_gaps.size()) << "Cross gap count mismatch";
   for (wtf_size_t i = 0; i < gaps.size(); ++i) {
     const auto& expected = expected_gaps[i];
     const auto& actual = gaps[i];

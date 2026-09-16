@@ -5,19 +5,31 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/common/dense_set.h"
+#include "components/optimization_guide/proto/features/amount_extraction.pb.h"
 
 namespace autofill {
 class AutofillDriver;
 class BrowserAutofillManager;
-struct SuggestionsContext;
 }  // namespace autofill
+
+namespace optimization_guide {
+
+namespace proto {
+class AnnotatedPageContent;
+}  // namespace proto
+
+class ModelQualityLogEntry;
+struct OptimizationGuideModelExecutionResult;
+}  // namespace optimization_guide
 
 namespace autofill::payments {
 
@@ -36,6 +48,9 @@ namespace autofill::payments {
 // UI together. If not, it does nothing.
 class AmountExtractionManager {
  public:
+  using AmountExtractionResponse =
+      optimization_guide::proto::AmountExtractionResponse;
+
   // Enum for all features that require amount extraction.
   enum class EligibleFeature {
     // Buy now pay later uses the amount extracted by amount extraction to
@@ -50,9 +65,13 @@ class AmountExtractionManager {
       delete;
   virtual ~AmountExtractionManager();
 
-  // Timeout limit for the amount extraction in millisecond.
+  // Timeout limit for the regex-base amount extraction in millisecond.
   static constexpr base::TimeDelta kAmountExtractionWaitTime =
       base::Milliseconds(150);
+
+  // Timeout limit for the ai-based amount extraction in millisecond.
+  static constexpr base::TimeDelta kAiBasedAmountExtractionWaitTime =
+      base::Seconds(10);
 
   // This function attempts to convert a string representation of a monetary
   // value in dollars into a uint64_t by parsing it as a double and multiplying
@@ -65,31 +84,46 @@ class AmountExtractionManager {
   static std::optional<uint64_t> MaybeParseAmountToMonetaryMicroUnits(
       const std::string& amount);
 
+  // Validates the AmountExtractionResponse returned from the server-side AI.
+  // A valid response should be with a non-negative value for the field of
+  // `final_checkout_amount` and the field of `currency` should be from the
+  // standard ISO 4217 currency code.
+  bool IsValidAmountExtractionResponse(
+      const AmountExtractionResponse& response);
+
   // Returns the set of all eligible features that depend on amount extraction
   // result when:
-  //   Autofill is available in the given `SuggestionsContext`;
+  //   Autofill Payment Methods are enabled for the user;
   //   Autofill provides non-empty, non-suppressed suggestions;
   //   The form being interacted with is a credit card form but not the CVC
   //   field of the credit card form;
   //   There is a feature that can use amount extraction on the current
   //   checkout page;
   //   Amount Extraction feature is enabled;
-  DenseSet<EligibleFeature> GetEligibleFeatures(
-      const SuggestionsContext& context,
+  virtual DenseSet<EligibleFeature> GetEligibleFeatures(
+      bool is_autofill_payments_enabled,
       bool should_suppress_suggestions,
       bool has_suggestions,
+      FillingProduct filling_product,
       FieldType field_type) const;
+
+  // Fetch the page content for the AI-based amount extraction.
+  virtual void FetchAiPageContent();
+
+  // Callback function for `AutofillClient::GetAiPageContent`.
+  virtual void OnAiPageContentReceived(
+      std::optional<optimization_guide::proto::AnnotatedPageContent> result);
 
   // Trigger the search for the final checkout amount from the DOM of the
   // current page.
   virtual void TriggerCheckoutAmountExtraction();
 
-  void SetSearchRequestPendingForTesting(bool search_request_pending);
-
-  bool GetSearchRequestPendingForTesting();
+  // Trigger the search for the final checkout amount using server-side AI.
+  virtual void TriggerCheckoutAmountExtractionWithAi();
 
  private:
   friend class AmountExtractionManagerTest;
+  friend class AmountExtractionManagerTestApi;
 
   // Invoked after the amount extraction process completes.
   // `extracted_amount` provides the extracted amount upon success and an
@@ -98,6 +132,11 @@ class AmountExtractionManager {
   virtual void OnCheckoutAmountReceived(
       base::TimeTicks search_request_start_timestamp,
       const std::string& extracted_amount);
+
+  // Invoked once the amount extraction from the model executor is complete.
+  virtual void OnCheckoutAmountReceivedFromAi(
+      optimization_guide::OptimizationGuideModelExecutionResult result,
+      std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry);
 
   // Checks whether the current amount search has reached the timeout or not.
   // If so, cancel the ongoing search.
@@ -124,6 +163,19 @@ class AmountExtractionManager {
   // to avoid re-triggering amount extraction multiple times during an ongoing
   // search.
   bool search_request_pending_ = false;
+
+  // Member variable to store the fetched page content temporarily. This data is
+  // generated when credit card form is clicked and BNPL feature is available
+  // for this profile. It is about 10Kb in size depending on the merchant
+  // checkout page.
+  std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
+      ai_page_content_;
+
+  // Flag to indicate if an AI page content fetch is in progress. If set, do not
+  // trigger the next request to generate the page content. This is to avoid
+  // multiple page content requests when a user quickly clicks on the payment
+  // form multiple times or by scripts.
+  bool is_fetching_ai_page_content_ = false;
 
   base::WeakPtrFactory<AmountExtractionManager> weak_ptr_factory_{this};
 };

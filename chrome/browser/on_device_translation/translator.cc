@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/on_device_translation/pref_names.h"
 #include "chrome/browser/on_device_translation/service_controller.h"
@@ -121,15 +122,20 @@ void Translator::Translate(
 
 void Translator::TranslateStreamingCallback(
     mojo::RemoteSetElementId responder_id,
+    int total_translations,
     const std::optional<std::string>& output) {
   auto it = pending_translations_.find(responder_id);
-  if (it == pending_translations_.end()) {
-    NOTREACHED() << "Received a callback for a non-existent responder_id.";
-  }
 
   blink::mojom::ModelStreamingResponder* responder_ptr =
       responder_set_.Get(responder_id);
 
+  // This should only happen after the responder disconnected.
+  if (it == pending_translations_.end()) {
+    CHECK(!responder_ptr);
+    return;
+  }
+
+  // This indicates that the responder disconnected.
   if (!responder_ptr) {
     pending_translations_.erase(it);
     return;
@@ -144,7 +150,15 @@ void Translator::TranslateStreamingCallback(
     return;
   }
 
-  responder_ptr->OnStreaming(output.value());
+  // Each Translate() call strips leading and trailing whitespace.
+  // If this is the first sentence we are streaming, do not prepend a space.
+  // Otherwise, prepend a space to the chunk.
+  const int pending_translations = it->second;
+  if (pending_translations == total_translations) {
+    responder_ptr->OnStreaming(output.value());
+  } else {
+    responder_ptr->OnStreaming(base::StrCat({" ", output.value()}));
+  }
 
   if (--it->second == 0) {
     responder_ptr->OnCompletion(/*context_info=*/nullptr);
@@ -191,10 +205,12 @@ void Translator::TranslateStreaming(
 
   pending_translations_[responder_id] = sentences.size();
 
+  int total_translations = sentences.size();
   for (const auto& sentence : sentences) {
     translator_remote_->Translate(
         sentence, base::BindOnce(&Translator::TranslateStreamingCallback,
-                                 weak_ptr_factory_.GetWeakPtr(), responder_id));
+                                 weak_ptr_factory_.GetWeakPtr(), responder_id,
+                                 total_translations));
   }
 }
 

@@ -11,9 +11,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -59,13 +59,14 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManag
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.theme.BackgroundImageInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageView;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.toolbar.top.Toolbar;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.chrome.browser.ui.signin.PersonalizedSigninPromoView;
@@ -126,7 +127,8 @@ public class FeedSurfaceCoordinator
     private final long mEmbeddingSurfaceCreatedTimeNs;
 
     private FeedSurfaceMediator mMediator;
-
+    private final boolean mIsNtpCustomizationV2Enabled;
+    private @Nullable NtpBackgroundImageView mBackgroundImageView;
     private final UiConfig mUiConfig;
     private final FrameLayout mRootView;
     private boolean mIsActive;
@@ -174,7 +176,7 @@ public class FeedSurfaceCoordinator
     private final Callback<Integer> mTabStripHeightChangeCallback;
 
     // Used to handle padding adjustment when edge to edge is enabled.
-    private @Nullable EdgeToEdgePadAdjuster mEdgePadAdjuster;
+    private final EdgeToEdgePadAdjuster mEdgePadAdjuster;
     private final boolean mIsNewTabPageCustomizationEnabled;
     private @Nullable ImageButton mNtpCustomizationButton;
     private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
@@ -466,6 +468,11 @@ public class FeedSurfaceCoordinator
         mRecyclerView = setUpView();
         FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
 
+        mIsNtpCustomizationV2Enabled = ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled();
+        if (mIsNewTabPageCustomizationEnabled) {
+            addBackgroundImageView();
+        }
+
         // Pull-to-refresh set up.
         if (mSwipeRefreshLayout != null && mSwipeRefreshLayout.getParent() == null) {
             mSwipeRefreshLayout.addView(mRecyclerView);
@@ -508,17 +515,18 @@ public class FeedSurfaceCoordinator
             mRootView.addView(mNtpCustomizationButton);
         }
 
-        if (ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) {
+        if (mIsNtpCustomizationV2Enabled) {
             mNtpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
             mHomepageStateListener =
                     new NtpCustomizationConfigManager.HomepageStateListener() {
                         @Override
                         public void onBackgroundChanged(
-                                Drawable backgroundDrawable,
+                                Bitmap originalBitmap,
+                                @Nullable BackgroundImageInfo backgroundImageInfo,
                                 boolean fromInitialization,
                                 @NtpBackgroundImageType int oldType,
                                 @NtpBackgroundImageType int newType) {
-                            setBackground(backgroundDrawable);
+                            setBackground(originalBitmap, backgroundImageInfo, newType);
                         }
 
                         @Override
@@ -531,7 +539,7 @@ public class FeedSurfaceCoordinator
                         }
                     };
 
-            mNtpCustomizationConfigManager.addListener(mHomepageStateListener);
+            mNtpCustomizationConfigManager.addListener(mHomepageStateListener, activity);
         } else {
             setBackgroundColor(mDefaultBackgroundColor);
         }
@@ -618,24 +626,39 @@ public class FeedSurfaceCoordinator
         FeedSurfaceTracker.getInstance().trackSurface(this);
 
         // Set up edge to edge
-        if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
-            mEdgePadAdjuster =
-                    EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
-                            mRecyclerView, edgeToEdgeControllerSupplier);
-        }
+        mEdgePadAdjuster =
+                EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
+                        mRecyclerView, edgeToEdgeControllerSupplier);
 
         // Creates streams, initiates content changes.
         mMediator.updateContent();
     }
 
-    // Sets the background image for the embedder NTP.
-    private void setBackground(Drawable backgroundDrawable) {
-        assert backgroundDrawable != null;
+    private void addBackgroundImageView() {
+        mBackgroundImageView = new NtpBackgroundImageView(mActivity, mUiConfig);
+        FrameLayout.LayoutParams backgroundLayoutParams =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT);
+        mBackgroundImageView.setLayoutParams(backgroundLayoutParams);
 
-        mRecyclerView.setBackground(backgroundDrawable);
+        // Applies an opaque background color to prevent any views underneath from being visible.
+        mBackgroundImageView.setBackgroundColor(mDefaultBackgroundColor);
+        mRootView.addView(mBackgroundImageView);
+    }
+
+    // Sets the background image for the embedder NTP.
+    private void setBackground(
+            Bitmap originalBitmap,
+            @Nullable BackgroundImageInfo backgroundImageInfo,
+            @NtpBackgroundImageType int backgroundType) {
         if (mNtpHeader != null) {
             mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
         }
+
+        mRecyclerView.setBackgroundColor(Color.TRANSPARENT);
+        assumeNonNull(mBackgroundImageView)
+                .setBackground(originalBitmap, backgroundImageInfo, backgroundType);
     }
 
     /**
@@ -645,6 +668,10 @@ public class FeedSurfaceCoordinator
      */
     private void setBackgroundColor(@ColorInt int backgroundColor) {
         mRecyclerView.setBackgroundColor(backgroundColor);
+        if (mBackgroundImageView != null) {
+            mBackgroundImageView.setImageBitmap(null);
+        }
+
         if (mNtpHeader != null) {
             if (backgroundColor != mDefaultBackgroundColor) {
                 mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
@@ -772,6 +799,9 @@ public class FeedSurfaceCoordinator
         if (mNtpCustomizationConfigManager != null) {
             mNtpCustomizationConfigManager.removeListener(mHomepageStateListener);
             mHomepageStateListener = null;
+        }
+        if (mBackgroundImageView != null) {
+            mBackgroundImageView.destroy();
         }
     }
 
@@ -1414,5 +1444,9 @@ public class FeedSurfaceCoordinator
 
     FrameLayout getRootViewForTesting() {
         return mRootView;
+    }
+
+    public void setBackgroundImageViewForTesting(NtpBackgroundImageView backgroundImageView) {
+        mBackgroundImageView = backgroundImageView;
     }
 }

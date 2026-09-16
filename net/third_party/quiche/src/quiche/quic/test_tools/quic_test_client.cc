@@ -454,6 +454,14 @@ int64_t QuicTestClient::SendData(
 
 bool QuicTestClient::response_complete() const { return response_complete_; }
 
+QuicTime QuicTestClient::request_start_time() const {
+  return request_start_time_;
+}
+
+QuicTime QuicTestClient::response_end_time() const {
+  return response_end_time_;
+}
+
 int64_t QuicTestClient::response_body_size() const {
   return response_body_size_;
 }
@@ -518,6 +526,8 @@ QuicSpdyClientStream* QuicTestClient::GetOrCreateStream() {
   if (!latest_created_stream_) {
     SetLatestCreatedStream(client_->CreateClientStream());
     if (latest_created_stream_) {
+      request_start_time_ =
+          client()->client_session()->connection()->clock()->Now();
       latest_created_stream_->SetPriority(QuicStreamPriority(
           HttpStreamPriority{priority_, /* incremental = */ false}));
     }
@@ -546,6 +556,10 @@ const QuicTagValueMap& QuicTestClient::GetServerConfig() const {
       config->LookupOrCreate(client_->server_id());
   const CryptoHandshakeMessage* handshake_msg = state->GetServerConfig();
   return handshake_msg->tag_value_map();
+}
+
+const QuicConnectionStats& QuicTestClient::GetConnectionStats() const {
+  return client_->client_session()->connection()->GetStats();
 }
 
 bool QuicTestClient::connected() const { return client_->connected(); }
@@ -810,6 +824,10 @@ void QuicTestClient::ReadNextResponse() {
   stream_error_ = state.stream_error;
   response_ = state.response;
   response_complete_ = state.response_complete;
+  if (response_complete_) {
+    response_end_time_ =
+        client()->client_session()->connection()->clock()->Now();
+  }
   response_headers_complete_ = state.response_headers_complete;
   response_headers_ = state.response_headers.Clone();
   response_trailers_ = state.response_trailers.Clone();

@@ -17,6 +17,7 @@
 #include "chrome/browser/extensions/extension_browser_test_util.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/extensions/window_controller.h"
@@ -70,6 +71,8 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 namespace {
@@ -818,6 +821,8 @@ content::WebContents* ExtensionBrowserTest::PlatformOpenURLOffTheRecord(
     const GURL& url) {
 #if BUILDFLAG(IS_ANDROID)
   // Android doesn't have an OpenURLOffTheRecord() helper so we roll our own.
+  // TODO(crbug.com/424860292): Delete this code when CreateBrowserWindow()
+  // works on desktop Android for incognito windows.
   Profile* incognito_profile =
       this->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
   // Close any old incognito tabs before creating the new tab model.
@@ -910,7 +915,7 @@ ExtensionHost* ExtensionBrowserTest::FindHostWithPath(ProcessManager* manager,
   ExtensionHost* result_host = nullptr;
   int num_hosts = 0;
   for (ExtensionHost* host : manager->background_hosts()) {
-    if (host->GetLastCommittedURL().path() == path) {
+    if (host->GetLastCommittedURL().GetPath() == path) {
       EXPECT_FALSE(result_host);
       result_host = host;
     }
@@ -941,24 +946,13 @@ bool ExtensionBrowserTest::IsTabSelected(int index) {
 
 void ExtensionBrowserTest::CloseTabForWebContents(
     content::WebContents* web_contents) {
-#if BUILDFLAG(IS_ANDROID)
-  TabModel* tab_model = TabModelList::GetTabModelForWebContents(web_contents);
-  CHECK(tab_model);
-  for (int index = 0; index < tab_model->GetTabCount(); ++index) {
-    if (tab_model->GetWebContentsAt(index) == web_contents) {
-      tab_model->CloseTabAt(index);
-      return;
-    }
-  }
-  NOTREACHED() << "WebContents not found";
-#else
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
-  CHECK(browser);
-  int index = browser->tab_strip_model()->GetIndexOfWebContents(web_contents);
-  CHECK_GE(index, 0) << "WebContents not found";
-  return browser->tab_strip_model()->CloseWebContentsAt(
-      index, TabCloseTypes::CLOSE_NONE);
-#endif
+  content::WebContentsDestroyedWatcher destroyed_watcher(web_contents);
+  TabListInterface* tab_list = nullptr;
+  int tab_index = -1;
+  ASSERT_TRUE(ExtensionTabUtil::GetTabListInterface(*web_contents, &tab_list,
+                                                    &tab_index));
+  tab_list->CloseTab(tab_list->GetTab(tab_index)->GetHandle());
+  destroyed_watcher.Wait();
 }
 
 base::Value ExtensionBrowserTest::ExecuteScriptInBackgroundPage(

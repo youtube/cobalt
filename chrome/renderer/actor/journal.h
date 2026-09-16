@@ -10,6 +10,7 @@
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/actor/task_id.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 
@@ -25,8 +26,6 @@ namespace actor {
 // 3) Otherwise schedule a timer to send the contents of the buffer in 200ms.
 class Journal {
  public:
-  using TaskId = int32_t;
-
   Journal();
   ~Journal();
 
@@ -76,9 +75,11 @@ class Journal {
                    const std::string& event_name,
                    std::vector<mojom::JournalDetailsPtr> details);
 
+  // Sends any buffered log entries to the browser process immediately.
+  void SendLogBuffer();
+
  private:
   void AddJournalEntry(mojom::JournalEntryPtr journal_entry);
-  void SendLogBuffer();
 
   mojo::AssociatedRemote<mojom::JournalClient> client_;
   std::vector<mojom::JournalEntryPtr> log_buffer_;

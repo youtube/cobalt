@@ -168,8 +168,8 @@ class PreinstalledWebAppManagerBrowserTestBase
     url_loader_interceptor_ =
         std::make_unique<content::URLLoaderInterceptor>(base::BindRepeating(
             [](content::URLLoaderInterceptor::RequestParams* params) -> bool {
-              std::string relative_request = base::StrCat(
-                  {kBaseDataDir, params->url_request.url.path_piece()});
+              std::string relative_request =
+                  base::StrCat({kBaseDataDir, params->url_request.url.path()});
               base::FilePath relative_path =
                   base::FilePath().AppendASCII(relative_request);
 
@@ -247,8 +247,8 @@ class PreinstalledWebAppManagerBrowserTestBase
         PreinstalledWebAppManager::SetFileUtilsForTesting(file_utils.get());
 
     base::Value::List app_configs;
-    auto json_parse_result =
-        base::JSONReader::ReadAndReturnValueWithError(app_config_string);
+    auto json_parse_result = base::JSONReader::ReadAndReturnValueWithError(
+        app_config_string, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     EXPECT_TRUE(json_parse_result.has_value())
         << "JSON parse error: " << json_parse_result.error().message;
     if (!json_parse_result.has_value())
@@ -1254,8 +1254,11 @@ IN_PROC_BROWSER_TEST_F(PreinstalledWebAppManagerBrowserTest,
       "url": "https://policy-example.org/",
       "default_launch_container": "window"
     }])";
-    profile()->GetPrefs()->Set(prefs::kWebAppInstallForceList,
-                               base::JSONReader::Read(kWebAppPolicy).value());
+    profile()->GetPrefs()->Set(
+        prefs::kWebAppInstallForceList,
+        base::JSONReader::Read(kWebAppPolicy,
+                               base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+            .value());
     run_loop.Run();
   }
 

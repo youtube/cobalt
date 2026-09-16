@@ -190,7 +190,7 @@ namespace interpreter {
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
   V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
-    OperandType::kIdx)                                                         \
+    OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -444,7 +444,7 @@ namespace interpreter {
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
   /* Optimizing For..of */                                                     \
-  V(ForOfNext, ImplicitRegisterUse::kNone, OperandType::kReg,                  \
+  V(ForOfNext, ImplicitRegisterUse::kClobberAccumulator, OperandType::kReg,    \
     OperandType::kReg, OperandType::kRegOutPair)                               \
                                                                                \
   /* Update the pending message */                                             \

@@ -75,6 +75,8 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/android_info.h"
+#include "base/android/device_info.h"
 #include "base/android/jni_android.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/test/mock_overscroll_refresh_handler_android.h"
@@ -658,7 +660,8 @@ void HitTestRootWindowTransform(
 
 #if defined(USE_AURA)
 bool ConvertJSONToPoint(const std::string& str, gfx::PointF* point) {
-  std::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value =
+      base::JSONReader::Read(str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value)
     return false;
   base::Value::Dict* root = value->GetIfDict();
@@ -674,7 +677,8 @@ bool ConvertJSONToPoint(const std::string& str, gfx::PointF* point) {
 }
 
 bool ConvertJSONToRect(const std::string& str, gfx::Rect* rect) {
-  std::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value =
+      base::JSONReader::Read(str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value)
     return false;
   base::Value::Dict* root = value->GetIfDict();
@@ -3256,6 +3260,14 @@ class TooltipMonitor : public RenderWidgetHostViewBase::TooltipObserver {
 
 IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
                        CrossProcessTooltipTest) {
+#if BUILDFLAG(IS_ANDROID)
+  // Tooltips are only supported on desktop devices up to B.
+  if (base::android::android_info::sdk_int() <=
+          base::android::android_info::SDK_VERSION_BAKLAVA &&
+      !base::android::device_info::is_desktop()) {
+    return;
+  }
+#endif
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));

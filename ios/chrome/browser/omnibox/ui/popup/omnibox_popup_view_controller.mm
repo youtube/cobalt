@@ -133,12 +133,16 @@ const CGFloat kHeaderTopPadding = 16.0f;
 @implementation OmniboxPopupViewController {
   // The height of the bottom omnibox when attached to the keyboard.
   CGFloat _keyboardAttachedBottomOmniboxHeight;
+  // The context in which the omnibox is presented.
+  OmniboxPresentationContext _presentationContext;
 }
 
 @synthesize omniboxGuide = _omniboxGuide;
 
-- (instancetype)init {
+- (instancetype)initWithPresentationContext:
+    (OmniboxPresentationContext)presentationContext {
   if ((self = [super initWithNibName:nil bundle:nil])) {
+    _presentationContext = presentationContext;
     _forwardsScrollEvents = YES;
     _preselectedMatchGroupIndex = 0;
     _visibleSuggestionCount = 0;
@@ -273,8 +277,6 @@ const CGFloat kHeaderTopPadding = 16.0f;
          forCellReuseIdentifier:OmniboxPopupRowCellReuseIdentifier];
   [self.tableView registerClass:[UITableViewCell class]
          forCellReuseIdentifier:OmniboxPopupActionsRowCellReuseIdentifier];
-  [self.tableView registerClass:[UITableViewCell class]
-         forCellReuseIdentifier:OmniboxPopupAIModeRowCellReuseIdentifier];
   [self.tableView registerClass:[UITableViewHeaderFooterView class]
       forHeaderFooterViewReuseIdentifier:NSStringFromClass(
                                              [UITableViewHeaderFooterView
@@ -900,14 +902,6 @@ const CGFloat kHeaderTopPadding = 16.0f;
                                                     forIndexPath:indexPath];
         configuration =
             [OmniboxPopupActionsRowContentConfiguration cellConfiguration];
-      } else if (suggestion.hasAimShortcut) {
-        // Use a specific reusable cell to cache the AIM animation progress,
-        // preventing it from restarting when the aim suggestion position is
-        // shifted.
-        cell = [self.tableView dequeueReusableCellWithIdentifier:
-                                   OmniboxPopupAIModeRowCellReuseIdentifier
-                                                    forIndexPath:indexPath];
-        configuration = [OmniboxPopupRowContentConfiguration cellConfiguration];
       } else {
         cell = [self.tableView
             dequeueReusableCellWithIdentifier:OmniboxPopupRowCellReuseIdentifier
@@ -926,6 +920,7 @@ const CGFloat kHeaderTopPadding = 16.0f;
       configuration.semanticContentAttribute = self.semanticContentAttribute;
       configuration.faviconRetriever = self.faviconRetriever;
       configuration.imageRetriever = self.imageRetriever;
+      configuration.presentationContext = _presentationContext;
 
       [cell setContentConfiguration:configuration];
       cell.backgroundConfiguration =

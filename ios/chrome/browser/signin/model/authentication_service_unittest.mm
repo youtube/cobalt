@@ -219,7 +219,7 @@ class AuthenticationServiceTestBase : public PlatformTest {
         },
         mdm_error);
     fake_system_identity_manager()->SetGetAccessTokenCallback(
-        CoreAccountId::FromGaiaId(GaiaId(identity.gaiaID)), callback);
+        CoreAccountId::FromGaiaId(identity.gaiaId), callback);
     return mdm_error;
   }
 
@@ -322,8 +322,8 @@ TEST_P(AuthenticationServiceTest, TestDefaultGetPrimaryIdentity) {
 
 TEST_P(AuthenticationServiceTest, TestSignInAndGetPrimaryIdentity) {
   // Sign in.
-  authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kSigninPromo);
+  authentication_service()->SignIn(
+      identity(0), signin_metrics::AccessPoint::kFullscreenSigninPromo);
   VerifyLastSigninTimestamp();
 
   EXPECT_NSEQ(identity(0), authentication_service()->GetPrimaryIdentity(
@@ -339,7 +339,8 @@ TEST_P(AuthenticationServiceTest, TestSignInAndGetPrimaryIdentity) {
   EXPECT_TRUE(authentication_service()->HasPrimaryIdentity(
       signin::ConsentLevel::kSignin));
   histogram_tester_.ExpectUniqueSample(
-      "Signin.SignIn.Completed", signin_metrics::AccessPoint::kSigninPromo, 1);
+      "Signin.SignIn.Completed",
+      signin_metrics::AccessPoint::kFullscreenSigninPromo, 1);
 }
 
 // Tests that reauth prompt can be set and reset.
@@ -411,10 +412,10 @@ TEST_P(AuthenticationServiceTest, OnAddIdentity) {
   std::sort(accounts.begin(), accounts.end(), account_compare_func);
   ASSERT_EQ(2u, accounts.size());
   CoreAccountId gaiad_id_1 =
-      CoreAccountId::FromGaiaId(GaiaId(fake_system_identity1_.gaiaID));
+      CoreAccountId::FromGaiaId(fake_system_identity1_.gaiaId);
   EXPECT_EQ(gaiad_id_1, accounts[0].account_id);
   CoreAccountId gaiad_id_2 =
-      CoreAccountId::FromGaiaId(GaiaId(fake_system_identity2_.gaiaID));
+      CoreAccountId::FromGaiaId(fake_system_identity2_.gaiaId);
   EXPECT_EQ(gaiad_id_2, accounts[1].account_id);
 
   FakeSystemIdentity* fake_system_identity3 =
@@ -429,7 +430,7 @@ TEST_P(AuthenticationServiceTest, OnAddIdentity) {
   EXPECT_EQ(gaiad_id_1, accounts[0].account_id);
   EXPECT_EQ(gaiad_id_2, accounts[1].account_id);
   CoreAccountId gaiad_id_3 =
-      CoreAccountId::FromGaiaId(GaiaId(fake_system_identity3.gaiaID));
+      CoreAccountId::FromGaiaId(fake_system_identity3.gaiaId);
   EXPECT_EQ(gaiad_id_3, accounts[2].account_id);
 }
 
@@ -524,8 +525,7 @@ TEST_P(AuthenticationServiceTest, ManagedAccountSignOut_ClearDataFromSignin) {
     // kSeparateProfilesForManagedAccounts was enabled.
     GetApplicationContext()
         ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(
-            GaiaId(identity(2).gaiaID));
+        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
   }
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);
@@ -566,8 +566,7 @@ TEST_P(AuthenticationServiceTest,
     // kSeparateProfilesForManagedAccounts was enabled.
     GetApplicationContext()
         ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(
-            GaiaId(identity(2).gaiaID));
+        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
   }
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);
@@ -642,8 +641,7 @@ TEST_P(AuthenticationServiceTest, ManagedAccountSignOut_MigratedFromSyncing) {
     // kSeparateProfilesForManagedAccounts was enabled.
     GetApplicationContext()
         ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(
-            GaiaId(identity(2).gaiaID));
+        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
   }
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);

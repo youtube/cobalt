@@ -10,7 +10,6 @@
 
 #include "media/engine/fake_webrtc_call.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -390,7 +389,7 @@ void FakeVideoSendStream::SetSource(
       resolution_scaling_enabled_ = true;
       framerate_scaling_enabled_ = true;
       break;
-    case DegradationPreference::DISABLED:
+    case DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION:
       resolution_scaling_enabled_ = false;
       framerate_scaling_enabled_ = false;
       break;

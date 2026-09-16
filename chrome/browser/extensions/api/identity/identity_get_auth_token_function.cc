@@ -36,7 +36,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/signin/public/identity_manager/scope_set.h"
+#include "components/signin/public/identity_manager/oauth_consumer_ids.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -69,9 +69,6 @@
 namespace extensions {
 
 namespace {
-
-const char* const kExtensionsIdentityAPIOAuthConsumerName =
-    "extensions_identity_api";
 
 bool IsBrowserSigninAllowed(Profile* profile) {
   return profile->GetPrefs()->GetBoolean(prefs::kSigninAllowed);
@@ -117,6 +114,87 @@ CoreAccountInfo GetSigninPrimaryAccount(Profile* profile) {
 }
 
 }  // namespace
+
+class IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter
+    : public signin::IdentityManager::Observer {
+ public:
+  RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,
+                            base::OnceClosure callback);
+
+  // signin::IdentityManager::Observer:
+  void OnRefreshTokensLoaded() override;
+
+ private:
+  base::OnceClosure callback_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
+};
+
+#if BUILDFLAG(IS_CHROMEOS)
+
+class IdentityGetAuthTokenFunction::DeviceOAuth2TokenFetcher
+    : public OAuth2AccessTokenManager::Consumer {
+ public:
+  using CallbackType = base::OnceCallback<void(
+      const std::optional<std::string>& /*access_token*/,
+      base::Time /*expiration_time*/,
+      const GoogleServiceAuthError& /*error*/)>;
+
+  DeviceOAuth2TokenFetcher()
+      : OAuth2AccessTokenManager::Consumer("device_oauth2_token_service_ash") {}
+  ~DeviceOAuth2TokenFetcher() override = default;
+
+  // Starts requesting access token.
+  void StartRequest(CallbackType callback) {
+    request_ = DeviceOAuth2TokenServiceFactory::Get()->StartAccessTokenRequest(
+        {GaiaConstants::kAnyApiOAuth2Scope}, this);
+    callback_ = std::move(callback);
+  }
+
+  // OAuth2AccessTokenManager::Consumer:
+
+  void OnGetTokenSuccess(
+      const OAuth2AccessTokenManager::Request* request,
+      const OAuth2AccessTokenConsumer::TokenResponse& token_response) override {
+    if (callback_) {
+      std::move(callback_).Run(token_response.access_token,
+                               token_response.expiration_time,
+                               GoogleServiceAuthError::AuthErrorNone());
+    }
+  }
+
+  void OnGetTokenFailure(const OAuth2AccessTokenManager::Request* request,
+                         const GoogleServiceAuthError& error) override {
+    if (callback_) {
+      std::move(callback_).Run(std::nullopt, base::Time(), error);
+    }
+  }
+
+ private:
+  std::unique_ptr<OAuth2AccessTokenManager::Request> request_;
+  CallbackType callback_;
+};
+
+void IdentityGetAuthTokenFunction::StartDeviceAccessTokenRequest() {
+  device_oauth2_token_fetcher_ = std::make_unique<DeviceOAuth2TokenFetcher>();
+  // Since robot account refresh tokens are scoped down to [any-api] only,
+  // request access token for [any-api] instead of login.
+  device_oauth2_token_fetcher_->StartRequest(
+      base::BindOnce(&IdentityGetAuthTokenFunction::
+                         OnAccessTokenForDeviceAccountFetchCompleted,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void IdentityGetAuthTokenFunction::OnAccessTokenForDeviceAccountFetchCompleted(
+    const std::optional<std::string>& access_token,
+    base::Time expiration_time,
+    const GoogleServiceAuthError& error) {
+  device_oauth2_token_fetcher_.reset();
+  OnGetAccessTokenComplete(access_token, expiration_time, error);
+}
+
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 IdentityGetAuthTokenFunction::IdentityGetAuthTokenFunction() = default;
 
@@ -795,8 +873,7 @@ void IdentityGetAuthTokenFunction::StartTokenKeyAccountAccessTokenRequest() {
   token_key_account_access_token_fetcher_ =
       identity_manager->CreateAccessTokenFetcherForAccount(
           token_key_.account_info.account_id,
-          kExtensionsIdentityAPIOAuthConsumerName,
-          {GaiaConstants::kAnyApiOAuth2Scope},
+          signin::OAuthConsumerId::kExtensionsIdentityAPI,
           base::BindOnce(
               &IdentityGetAuthTokenFunction::OnAccessTokenFetchCompleted,
               base::Unretained(this)),
@@ -979,22 +1056,6 @@ IdentityGetAuthTokenFunction::GetErrorFromInteractivityStatus(
   return IdentityGetAuthTokenError(state);
 }
 
-class IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter
-    : public signin::IdentityManager::Observer {
- public:
-  RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,
-                            base::OnceClosure callback);
-
-  // signin::IdentityManager::Observer:
-  void OnRefreshTokensLoaded() override;
-
- private:
-  base::OnceClosure callback_;
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
-};
-
 IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter::
     RefreshTokensLoadedWaiter(signin::IdentityManager& identity_manager,
                               base::OnceClosure callback)
@@ -1010,70 +1071,5 @@ void IdentityGetAuthTokenFunction::RefreshTokensLoadedWaiter::
   identity_manager_observation_.Reset();
   std::move(callback_).Run();
 }
-
-#if BUILDFLAG(IS_CHROMEOS)
-
-class IdentityGetAuthTokenFunction::DeviceOAuth2TokenFetcher
-    : public OAuth2AccessTokenManager::Consumer {
- public:
-  using CallbackType = base::OnceCallback<void(
-      const std::optional<std::string>& /*access_token*/,
-      base::Time /*expiration_time*/,
-      const GoogleServiceAuthError& /*error*/)>;
-
-  DeviceOAuth2TokenFetcher()
-      : OAuth2AccessTokenManager::Consumer("device_oauth2_token_service_ash") {}
-  ~DeviceOAuth2TokenFetcher() override = default;
-
-  // Starts requesting access token.
-  void StartRequest(CallbackType callback) {
-    request_ = DeviceOAuth2TokenServiceFactory::Get()->StartAccessTokenRequest(
-        {GaiaConstants::kAnyApiOAuth2Scope}, this);
-    callback_ = std::move(callback);
-  }
-
-  // OAuth2AccessTokenManager::Consumer:
-
-  void OnGetTokenSuccess(
-      const OAuth2AccessTokenManager::Request* request,
-      const OAuth2AccessTokenConsumer::TokenResponse& token_response) override {
-    if (callback_) {
-      std::move(callback_).Run(token_response.access_token,
-                               token_response.expiration_time,
-                               GoogleServiceAuthError::AuthErrorNone());
-    }
-  }
-
-  void OnGetTokenFailure(const OAuth2AccessTokenManager::Request* request,
-                         const GoogleServiceAuthError& error) override {
-    if (callback_) {
-      std::move(callback_).Run(std::nullopt, base::Time(), error);
-    }
-  }
-
- private:
-  std::unique_ptr<OAuth2AccessTokenManager::Request> request_;
-  CallbackType callback_;
-};
-
-void IdentityGetAuthTokenFunction::StartDeviceAccessTokenRequest() {
-  device_oauth2_token_fetcher_ = std::make_unique<DeviceOAuth2TokenFetcher>();
-  // Since robot account refresh tokens are scoped down to [any-api] only,
-  // request access token for [any-api] instead of login.
-  device_oauth2_token_fetcher_->StartRequest(
-      base::BindOnce(&IdentityGetAuthTokenFunction::
-                         OnAccessTokenForDeviceAccountFetchCompleted,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void IdentityGetAuthTokenFunction::OnAccessTokenForDeviceAccountFetchCompleted(
-    const std::optional<std::string>& access_token,
-    base::Time expiration_time,
-    const GoogleServiceAuthError& error) {
-  device_oauth2_token_fetcher_.reset();
-  OnGetAccessTokenComplete(access_token, expiration_time, error);
-}
-
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace extensions

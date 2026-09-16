@@ -15,6 +15,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnDragListener;
 import android.view.View.OnLayoutChangeListener;
+import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.view.Window;
 import android.view.WindowManager;
@@ -31,6 +32,7 @@ import org.chromium.ui.animation.EmptyAnimationListener;
 import org.chromium.ui.dragdrop.DragEventDispatchHelper;
 import org.chromium.ui.dragdrop.DragEventDispatchHelper.DragEventDispatchDestination;
 import org.chromium.ui.interpolators.Interpolators;
+import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.FlyoutPopupSpecCalculator;
@@ -67,6 +69,8 @@ public class ContextMenuDialog extends AlwaysDismissedDialog {
 
     private final @Nullable Integer mPopupMargin;
     private final @Nullable Integer mDesiredPopupContentWidth;
+
+    private final @Nullable Runnable mOnDismissCallback;
 
     /**
      * View that is showing behind the context menu. If menu is shown as a popup without scrim, this
@@ -114,7 +118,8 @@ public class ContextMenuDialog extends AlwaysDismissedDialog {
             @Nullable Integer desiredPopupContentWidth,
             @Nullable View touchEventDelegateView,
             Rect rect,
-            boolean shouldPadForWindowInsets) {
+            boolean shouldPadForWindowInsets,
+            @Nullable Runnable onDismissCallback) {
         super(ownerActivity, theme, shouldPadForWindowInsets);
         mActivity = ownerActivity;
         mTopMarginPx = topMarginPx;
@@ -128,6 +133,7 @@ public class ContextMenuDialog extends AlwaysDismissedDialog {
         mDesiredPopupContentWidth = desiredPopupContentWidth;
         mTouchEventDelegateView = touchEventDelegateView;
         mRect = rect;
+        mOnDismissCallback = onDismissCallback;
     }
 
     @Override
@@ -229,7 +235,13 @@ public class ContextMenuDialog extends AlwaysDismissedDialog {
                                             // well. This is required when the popup is dismissed
                                             // through backpress / hardware accessories where the
                                             // #dismiss is not triggered by #onTouchEvent.
-                                            .addOnDismissListener(ContextMenuDialog.this::dismiss);
+                                            .addOnDismissListener(
+                                                    () -> {
+                                                        if (mOnDismissCallback != null) {
+                                                            mOnDismissCallback.run();
+                                                        }
+                                                        ContextMenuDialog.this.dismiss();
+                                                    });
 
                             if (mPopupMargin != null) {
                                 builder.setMargin(mPopupMargin);
@@ -391,5 +403,14 @@ public class ContextMenuDialog extends AlwaysDismissedDialog {
     @Nullable
     OnDragListener getOnDragListenerForTesting() {
         return mDragEventDispatchHelper;
+    }
+
+    /**
+     * Set the focus state for this dialog's content view.
+     *
+     * @param hasFocus Whether this dialog's content should have focus.
+     */
+    public void setWindowFocus(boolean hasFocus) {
+        ListMenuUtils.setWindowFocus((ViewGroup) mContentView, hasFocus);
     }
 }

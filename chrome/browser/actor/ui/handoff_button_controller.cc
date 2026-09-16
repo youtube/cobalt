@@ -10,6 +10,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
+#include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -37,6 +38,9 @@
 
 namespace {
 
+// A fixed vertical offset from the top of the window, used when the tab
+// strip is not visible.
+constexpr int kHandoffButtonTopOffset = 8;
 constexpr int kHandoffButtonPreferredHeight = 70;
 constexpr float kHandoffButtonShadowMargin = 15.0f;
 constexpr float kHandoffButtonCornerRadius = 48.0f;
@@ -286,7 +290,18 @@ gfx::Rect HandoffButtonController::GetHandoffButtonBounds(
   gfx::Size preferred_size = widget->GetContentsView()->GetPreferredSize();
   preferred_size.set_height(kHandoffButtonPreferredHeight);
 
+  // TODO(crbug.com/447624564): After migrating the Handoff button off the TDM,
+  // explore parenting the bounds of the widget on the contents webview bounds
+  // instead.
   auto* anchor_view = tab_interface_->GetBrowserWindowInterface()->GetWebView();
+  if (auto* window_controller = ActorUiWindowController::From(
+          tab_interface_->GetBrowserWindowInterface())) {
+    if (auto* contents_controller =
+            window_controller->GetControllerForWebContents(
+                tab_interface_->GetContents())) {
+      anchor_view = contents_controller->contents_container_view();
+    }
+  }
   if (!anchor_view) {
     return gfx::Rect(preferred_size);
   }
@@ -295,7 +310,16 @@ gfx::Rect HandoffButtonController::GetHandoffButtonBounds(
   const int x =
       anchor_bounds.x() + (anchor_bounds.width() - preferred_size.width()) / 2;
 
-  const int y = anchor_bounds.y() - preferred_size.height() / 2;
+  // Calculate the Y coordinate based on tab strip visibility.
+  const bool is_tab_strip_visible =
+      tab_interface_->GetBrowserWindowInterface()->IsTabStripVisible();
+
+  const int y =
+      is_tab_strip_visible
+          // Vertically center the button on the top edge of the anchor.
+          ? anchor_bounds.y() - preferred_size.height() / 2
+          // Position with a fixed offset from the top of the anchor.
+          : anchor_bounds.y() - kHandoffButtonTopOffset;
 
   return gfx::Rect({x, y}, preferred_size);
 }

@@ -20,6 +20,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/favicon_size.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "url/gurl.h"
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -140,7 +141,7 @@ TEST_F(LocationBarModelImplTest, FormatsReaderModeUrls) {
       dom_distiller::kDomDistillerScheme, http_url, "title");
   // Ensure the test is set up properly by checking the reader mode URL has
   // the reader mode scheme.
-  EXPECT_EQ(dom_distiller::kDomDistillerScheme, distilled.scheme());
+  EXPECT_EQ(dom_distiller::kDomDistillerScheme, distilled.GetScheme());
   delegate()->SetURL(distilled);
 
   // The user should see the same URL seen for the original article.

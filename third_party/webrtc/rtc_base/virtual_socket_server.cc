@@ -457,7 +457,7 @@ void VirtualSocket::SafetyBlock::PostConnect(TimeDelta delay,
         safety->socket_.SignalReadEvent(&safety->socket_);
         break;
       case Signal::kConnectEvent:
-        safety->socket_.SignalConnectEvent(&safety->socket_);
+        safety->socket_.NotifyConnectEvent(&safety->socket_);
         break;
     }
   };
@@ -509,7 +509,7 @@ void VirtualSocket::PostDisconnect(TimeDelta delay) {
     int error_to_signal = (socket->state_ == CS_CONNECTING) ? ECONNREFUSED : 0;
     socket->state_ = CS_CLOSED;
     socket->remote_addr_.Clear();
-    socket->SignalCloseEvent(socket, error_to_signal);
+    socket->NotifyCloseEvent(socket, error_to_signal);
   };
   server_->msg_queue_->PostDelayedTask(std::move(task), delay);
 }
@@ -787,7 +787,7 @@ bool VirtualSocketServer::CloseTcpConnections(
     return false;
   }
   // Signal the close event on the local connection first.
-  socket->SignalCloseEvent(socket, 0);
+  socket->NotifyCloseEvent(socket, 0);
 
   // Trigger the remote connection's close event.
   socket->Close();

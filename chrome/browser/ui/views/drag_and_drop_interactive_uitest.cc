@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -1082,7 +1083,7 @@ class DragAndDropBrowserTest : public InProcessBrowserTest,
   }
 
   void AssertTestPageIsLoaded() {
-    ASSERT_EQ(kTestPagePath, web_contents()->GetLastCommittedURL().path());
+    ASSERT_EQ(kTestPagePath, web_contents()->GetLastCommittedURL().GetPath());
   }
 
   std::unique_ptr<DragAndDropSimulator> drag_simulator_;
@@ -1207,7 +1208,7 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DragAndDropVirtualFiles) {
   ASSERT_TRUE(NavigateRightFrame("a.test", "drop_target.html"));
   // Prepare a test file with a known extension and temporary path.
   std::vector<std::pair<base::FilePath, std::string>> file_infos;
-  base::FilePath test_file = ui_test_utils::GetTestFilePath(
+  base::FilePath test_file = chrome_test_utils::GetTestFilePath(
       base::FilePath(), base::FilePath().AppendASCII("test_document.pdf"));
   file_infos.emplace_back(test_file, std::string("just some data"));
 
@@ -1275,8 +1276,9 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DragAndDropVirtualFiles) {
 
 // Scenario: drag a URL into the Omnibox.  This is a regression test for
 // https://crbug.com/670123.
-// TODO(crbug.com/344168586): Very flaky on linux-chromeos-rel bots.
-#if BUILDFLAG(IS_CHROMEOS) && defined(NDEBUG)
+// TODO(crbug.com/344168586): Very flaky on linux-chromeos-rel bots and
+// consistently failing on linux-chromeos-dbg.
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DropUrlIntoOmnibox DISABLED_DropUrlIntoOmnibox
 #else
 #define MAYBE_DropUrlIntoOmnibox DropUrlIntoOmnibox
@@ -1360,7 +1362,7 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DropFileFromOutside) {
   EXPECT_FALSE(ui_test_utils::IsViewFocused(browser(), VIEW_ID_TAB_CONTAINER));
 
   // Drag a file from outside the browser into/over the right frame.
-  base::FilePath dragged_file = ui_test_utils::GetTestFilePath(
+  base::FilePath dragged_file = chrome_test_utils::GetTestFilePath(
       base::FilePath(), base::FilePath().AppendASCII("title3.html"));
   ASSERT_TRUE(SimulateDragEnterToRightFrame(dragged_file));
 
@@ -1397,9 +1399,9 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DropMultipleFilesFromOutside) {
 
   // Drag files from outside the browser into/over the right frame.
   std::vector<ui::FileInfo> file_infos;
-  base::FilePath dragged_file_1 = ui_test_utils::GetTestFilePath(
+  base::FilePath dragged_file_1 = chrome_test_utils::GetTestFilePath(
       base::FilePath(), base::FilePath().AppendASCII("title1.html"));
-  base::FilePath dragged_file_2 = ui_test_utils::GetTestFilePath(
+  base::FilePath dragged_file_2 = chrome_test_utils::GetTestFilePath(
       base::FilePath(), base::FilePath().AppendASCII("title2.html"));
   file_infos.emplace_back(dragged_file_1, dragged_file_1.BaseName());
   file_infos.emplace_back(dragged_file_2, dragged_file_2.BaseName());

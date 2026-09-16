@@ -29,6 +29,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeStateProvider;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
@@ -75,9 +76,11 @@ public class NtpCustomizationMediator {
     private final boolean mNtpCustomizationForMvtFeatureEnabled;
     private @Nullable Profile mProfile;
     private @Nullable Integer mCurrentBottomSheet;
+    private boolean mShouldRecreate;
     private static @Nullable PrefService sPrefServiceForTest;
 
     public NtpCustomizationMediator(
+            Context context,
             BottomSheetController bottomSheetController,
             NtpCustomizationBottomSheetContent bottomSheetContent,
             PropertyModel viewFlipperPropertyModel,
@@ -105,6 +108,11 @@ public class NtpCustomizationMediator {
                     public void onSheetClosed(@BottomSheetController.StateChangeReason int reason) {
                         mBottomSheetContent.onSheetClosed();
                         mBottomSheetController.removeObserver(mBottomSheetObserver);
+                        // Notify to recreate activities if a new customized theme color is selected
+                        // or removed.
+                        if (mShouldRecreate) {
+                            NtpThemeStateProvider.getInstance().notifyApplyThemeChanges();
+                        }
                     }
                 };
         mBottomSheetController.addObserver(mBottomSheetObserver);
@@ -137,6 +145,11 @@ public class NtpCustomizationMediator {
             mBottomSheetController.requestShowContent(mBottomSheetContent, /* animate= */ true);
         }
         NtpCustomizationMetricsUtils.recordBottomSheetShown(type);
+    }
+
+    // Called when a customized theme color is selected or removed.
+    void onNewColorSelected(boolean isDifferentColor) {
+        mShouldRecreate = isDifferentColor;
     }
 
     /** Handles system back press and back button clicks on the bottom sheet. */

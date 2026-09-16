@@ -57,14 +57,31 @@ bool CanTryPolicyRegistration(std::optional<base::Time> last_failure_time) {
          switches::kPolicyDisclaimerRegistrationRetryDelay.Get();
 }
 
+bool IsSigninRegistration(signin_metrics::AccessPoint access_point) {
+  return access_point != signin_metrics::AccessPoint::
+                             kEnterpriseManagementDisclaimerAtStartup &&
+         access_point != signin_metrics::AccessPoint::
+                             kEnterpriseManagementDisclaimerAfterBrowserFocus;
+}
+
+bool AllowDisclaimer(signin_metrics::AccessPoint access_point) {
+  if (base::FeatureList::IsEnabled(switches::kEnforceManagementDisclaimer)) {
+    return true;
+  }
+  return access_point != signin_metrics::AccessPoint::
+                             kEnterpriseManagementDisclaimerAtStartup &&
+         access_point != signin_metrics::AccessPoint::
+                             kEnterpriseManagementDisclaimerAfterBrowserFocus &&
+         access_point != signin_metrics::AccessPoint::
+                             kEnterpriseManagementDisclaimerAfterSignin;
+}
+
 }  // namespace
 
 ProfileManagementDisclaimerService::ProfileManagementDisclaimerService(
     Profile* profile)
     : profile_(*profile),
       state_(std::make_unique<ResetableState>()),
-      skip_automatic_disclaimer_(!base::FeatureList::IsEnabled(
-          switches::kEnforceManagementDisclaimer)),
       signin_prefs_(*profile->GetPrefs()) {
   scoped_identity_manager_observation_.Observe(GetIdentityManager());
   scoped_browser_list_observation_.Observe(BrowserList::GetInstance());
@@ -155,6 +172,10 @@ void ProfileManagementDisclaimerService::
   // We should always know the access point that triggered the profile creation.
   CHECK_NE(access_point, signin_metrics::AccessPoint::kUnknown);
 
+  if (!AllowDisclaimer(access_point)) {
+    return;
+  }
+
   if (!state_->account_id.empty() && state_->account_id != account_id) {
     // If the account is different from the one we are already handling, reset
     // the state. This can happen if the account is removed and another one is
@@ -227,14 +248,6 @@ void ProfileManagementDisclaimerService::
 
   CHECK(!state_->profile_creation_controller);
 
-  // If the account is already registered for policy, we can check the result
-  // immediately. Otherwise, we need to register for policy updates.
-  if (!policy_fetch_tracker_by_account_id_.contains(account_id)) {
-    policy_fetch_tracker_by_account_id_[account_id] =
-        TurnSyncOnHelperPolicyFetchTracker::CreateInstance(&profile_.get(),
-                                                           info);
-  }
-
   // If the account cannot try to register for policies because of delays
   // between failures, we can reset the state and wait for another attempt.
   if (!CanTryPolicyRegistration(
@@ -245,19 +258,30 @@ void ProfileManagementDisclaimerService::
     return;
   }
 
-  auto& policy_fetch_tracker = policy_fetch_tracker_by_account_id_[account_id];
-  if (policy_fetch_tracker->GetPolicyRegistrationResult().has_value() &&
-      policy_fetch_tracker->GetPolicyRegistrationResult().value()) {
-    OnRegisteredForPolicy(
-        /*is_from_cached_registration_result=*/true,
-        policy_fetch_tracker->GetPolicyRegistrationResult().value());
+  // If the account is already registered for policy, we can check the result
+  // immediately. Otherwise, we need to register for policy updates.
+  bool has_cached_successful_registration_result =
+      policy_fetch_tracker_by_account_id_.contains(account_id) &&
+      policy_fetch_tracker_by_account_id_[account_id]
+          ->GetPolicyRegistrationResult()
+          .value_or(false);
+
+  if (has_cached_successful_registration_result) {
+    OnRegisteredForPolicy(/*is_from_cached_registration_result=*/true,
+                          /*is_managed_account=*/true);
     return;
   }
 
-  policy_fetch_tracker->RegisterForPolicy(
+  // Create a new tracker for the account, if it doesn't exist yet or if it had
+  // a cached failure. This will also reset any cached failure.
+  policy_fetch_tracker_by_account_id_[account_id] =
+      TurnSyncOnHelperPolicyFetchTracker::CreateInstance(&profile_.get(), info);
+
+  policy_fetch_tracker_by_account_id_[account_id]->RegisterForPolicy(
       base::BindOnce(&ProfileManagementDisclaimerService::OnRegisteredForPolicy,
                      weak_ptr_factory_.GetWeakPtr(),
-                     /*is_from_cached_registration_result=*/false));
+                     /*is_from_cached_registration_result=*/false),
+      !IsSigninRegistration(state_->access_point));
 }
 
 void ProfileManagementDisclaimerService::OnRegisteredForPolicy(
@@ -279,9 +303,6 @@ void ProfileManagementDisclaimerService::OnRegisteredForPolicy(
       signin_prefs_.SetPolicyDisclaimerLastRegistrationFailureTime(
           gaia_id, base::Time::Now());
     }
-    // No need to keep the tracker if the account is not managed anymore, it is
-    // already handled by the retry delay logic.
-    policy_fetch_tracker_by_account_id_.erase(state_->account_id);
     Reset();
     return;
   }
@@ -337,9 +358,6 @@ void ProfileManagementDisclaimerService::Reset() {
 
 void ProfileManagementDisclaimerService::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event) {
-  if (skip_automatic_disclaimer_) {
-    return;
-  }
   if (event.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
           signin::PrimaryAccountChangeEvent::Type::kCleared &&
       state_->account_id == GetPrimaryAccountInfo().account_id) {
@@ -386,9 +404,6 @@ void ProfileManagementDisclaimerService::OnExtendedAccountInfoUpdated(
 
 void ProfileManagementDisclaimerService::OnRefreshTokenUpdatedForAccount(
     const CoreAccountInfo& account_info) {
-  if (skip_automatic_disclaimer_ && state_->account_id.empty()) {
-    return;
-  }
   if (state_->access_point == signin_metrics::AccessPoint::kUnknown) {
     return;
   }
@@ -409,9 +424,6 @@ void ProfileManagementDisclaimerService::OnRefreshTokenUpdatedForAccount(
 
 void ProfileManagementDisclaimerService::OnBrowserSetLastActive(
     Browser* browser) {
-  if (skip_automatic_disclaimer_ && state_->account_id.empty()) {
-    return;
-  }
   if (browser->profile() != &profile_.get()) {
     return;
   }

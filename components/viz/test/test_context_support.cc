@@ -72,26 +72,8 @@ void TestContextSupport::CallAllSyncPointCallbacks() {
   sync_point_callbacks_.clear();
 }
 
-uint64_t TestContextSupport::ShareGroupTracingGUID() const {
-  NOTIMPLEMENTED();
-  return 0;
-}
-
 void TestContextSupport::SetErrorMessageCallback(
     base::RepeatingCallback<void(const char*, int32_t)> callback) {}
-
-bool TestContextSupport::ThreadSafeShallowLockDiscardableTexture(
-    uint32_t texture_id) {
-  NOTIMPLEMENTED();
-  return false;
-}
-void TestContextSupport::CompleteLockDiscardableTexureOnContextThread(
-    uint32_t texture_id) {}
-bool TestContextSupport::ThreadsafeDiscardableTextureIsDeletedForTracing(
-    uint32_t texture_id) {
-  NOTIMPLEMENTED();
-  return false;
-}
 
 base::span<uint8_t> TestContextSupport::MapTransferCacheEntry(
     uint32_t serialized_size) {
@@ -131,15 +113,5 @@ bool TestContextSupport::CanDecodeWithHardwareAcceleration(
     const cc::ImageHeaderMetadata* image_metadata) const {
   return false;
 }
-
-bool TestContextSupport::HasGrContextSupport() const {
-  return true;
-}
-
-void TestContextSupport::SetGrContext(GrDirectContext* gr) {}
-
-void TestContextSupport::WillCallGLFromSkia() {}
-
-void TestContextSupport::DidCallGLFromSkia() {}
 
 }  // namespace viz

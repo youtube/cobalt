@@ -20,7 +20,7 @@
           id="enableForAllSites"
           class="two-line"
           name="[[javascriptOptimizerSettingEnum_.ALLOWED]]"
-          pref="prefs.generated.javascript_optimizer"
+          pref="[[prefs.generated.javascript_optimizer]]"
           label="$i18n{siteSettingsJavascriptOptimizerAllowed}"
           sub-label="$i18n{siteSettingsJavascriptOptimizerAllowedSubLabel}"
           no-collapse>
@@ -31,9 +31,10 @@
             id="blockForUnfamiliarSites"
             class="two-line"
             name="[[javascriptOptimizerSettingEnum_.BLOCKED_FOR_UNFAMILIAR_SITES]]"
-            pref="prefs.generated.javascript_optimizer"
+            pref="[[prefs.generated.javascript_optimizer]]"
             label="$i18n{siteSettingsJavascriptOptimizerBlockedUnfamiliarSites}"
-            sub-label="$i18n{siteSettingsJavascriptOptimizerBlockedUnfamiliarSitesSubLabel}"
+            sub-label="[[getBlockForUnfamiliarSitesSubLabel_(
+                prefs.generated.javascript_optimizer.value)]]"
             no-collapse>
         </settings-collapse-radio-button>
       </template>
@@ -41,7 +42,7 @@
           id="blockForAllSites"
           class="two-line"
           name="[[javascriptOptimizerSettingEnum_.BLOCKED]]"
-          pref="prefs.generated.javascript_optimizer"
+          pref="[[prefs.generated.javascript_optimizer]]"
           label="$i18n{siteSettingsJavascriptOptimizerBlocked}"
           sub-label="$i18n{siteSettingsJavascriptOptimizerBlockedSubLabel}"
           no-collapse>

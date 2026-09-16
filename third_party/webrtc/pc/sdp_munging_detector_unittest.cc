@@ -10,7 +10,6 @@
 #include "pc/sdp_munging_detector.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -51,9 +50,11 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
+#include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
+#include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "pc/test/integration_test_helpers.h"
@@ -1443,6 +1444,25 @@ TEST_F(SdpMungingTest, NumberOfCandidates) {
       ElementsAre(Pair(SdpMungingType::kIceCandidateCount, 1)));
 }
 
+TEST_F(SdpMungingTest, Bandwidth) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_NE(media_description->bandwidth(), 100000);
+  media_description->set_bandwidth(100000);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kBandwidth, 1)));
+}
+
 #ifdef WEBRTC_HAVE_SCTP
 TEST_F(SdpMungingTest, NoMungingForDataChannels) {
   auto pc = CreatePeerConnection();
@@ -1453,5 +1473,36 @@ TEST_F(SdpMungingTest, NoMungingForDataChannels) {
       ElementsAre(Pair(SdpMungingType::kNoModification, 1)));
 }
 #endif  // WEBRTC_HAVE_SCTP
+
+TEST_F(SdpMungingTest, MungeNumberOfBundleGroups) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video", {});
+  pc->AddAudioTrack("audio", {});
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kBundle, 1)));
+}
+
+TEST_F(SdpMungingTest, MungeBundleGroupContent) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video", {});
+  pc->AddAudioTrack("audio", {});
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  ContentGroup group = *offer->description()->GetGroupByName(GROUP_TYPE_BUNDLE);
+  offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+  ASSERT_TRUE(group.RemoveContentName("1"));
+  offer->description()->AddGroup(group);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kBundle, 1)));
+}
 
 }  // namespace webrtc

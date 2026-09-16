@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/content_settings/generated_javascript_optimizer_pref.h"
 #include "chrome/browser/engagement/site_engagement_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -132,6 +133,7 @@ void SiteProtectionMetricsObserver::PrimaryPageChanged(content::Page& page) {
   url::Origin last_committed_origin = metrics_data->last_committed_origin;
   history_service_->GetLastVisitToOrigin(
       last_committed_origin, base::Time(), base::Time::Now() - base::Hours(4),
+      history::VisitQuery404sPolicy::kInclude404s,
       base::BindOnce(
           &SiteProtectionMetricsObserver::OnGotVisitToOriginOlderThan4HoursAgo,
           weak_factory_.GetWeakPtr(), std::move(metrics_data)),
@@ -140,7 +142,9 @@ void SiteProtectionMetricsObserver::PrimaryPageChanged(content::Page& page) {
 
 void SiteProtectionMetricsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (!AreV8OptimizationsDisabledOnUnfamiliarSites(*profile_->GetPrefs())) {
+  if (ComputeDefaultJavascriptOptimizerSetting(profile_) !=
+      content_settings::JavascriptOptimizerSetting::
+          kBlockedForUnfamiliarSites) {
     return;
   }
 
@@ -171,6 +175,7 @@ void SiteProtectionMetricsObserver::OnGotVisitToOriginOlderThan4HoursAgo(
   url::Origin last_committed_origin = metrics_data->last_committed_origin;
   history_service_->GetLastVisitToOrigin(
       last_committed_origin, base::Time(), base::Time::Now() - base::Days(1),
+      history::VisitQuery404sPolicy::kInclude404s,
       base::BindOnce(
           &SiteProtectionMetricsObserver::OnGotVisitToOriginOlderThanADayAgo,
           weak_factory_.GetWeakPtr(), std::move(metrics_data)),
@@ -281,6 +286,7 @@ void SiteProtectionMetricsObserver::OnGotHighConfidenceAllowlistResult(
     url::Origin last_committed_origin = metrics_data->last_committed_origin;
     history_service_->GetLastVisitToOrigin(
         last_committed_origin, base::Time(), *last_visit_time - base::Days(1),
+        history::VisitQuery404sPolicy::kInclude404s,
         base::BindOnce(&SiteProtectionMetricsObserver::
                            OnGotVisitToOriginOlderThanADayPriorToPreviousVisit,
                        weak_factory_.GetWeakPtr(), std::move(metrics_data)),

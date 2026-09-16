@@ -12,6 +12,7 @@
 #include "include/core/SkSize.h"
 #include "include/core/SkSpan.h"
 #include "include/private/base/SkTArray.h"
+#include "src/gpu/BufferWriter.h"
 #include "src/gpu/graphite/ComputeTypes.h"
 #include "src/gpu/graphite/compute/ComputeStep.h"
 
@@ -281,11 +282,9 @@ public:
 
     void prepareStorageBuffer(int resourceIndex,
                               const ComputeStep::ResourceDesc&,
-                              void* buffer,
-                              size_t bufferSize) const override {
+                              BufferWriter&& writer) const override {
         SkASSERT(resourceIndex == 5);
-        SkASSERT(fMaskLut.size() == bufferSize);
-        memcpy(buffer, fMaskLut.data(), fMaskLut.size());
+        writer.write(fMaskLut.data(), fMaskLut.size());
     }
 
 protected:

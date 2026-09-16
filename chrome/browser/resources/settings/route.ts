@@ -70,11 +70,11 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_AR = r.SITE_SETTINGS.createChild('ar');
   r.SITE_SETTINGS_AUTOMATIC_DOWNLOADS =
       r.SITE_SETTINGS.createChild('automaticDownloads');
-  if (loadTimeData.getBoolean('autoPictureInPictureEnabled')) {
+  if (loadTimeData.getBoolean('enableAutoPictureInPicture')) {
     r.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE =
         r.SITE_SETTINGS.createChild('autoPictureInPicture');
   }
-  if (loadTimeData.getBoolean('capturedSurfaceControlEnabled')) {
+  if (loadTimeData.getBoolean('enableCapturedSurfaceControl')) {
     r.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL =
         r.SITE_SETTINGS.createChild('capturedSurfaceControl');
   }
@@ -139,7 +139,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_WINDOW_MANAGEMENT =
       r.SITE_SETTINGS.createChild('windowManagement');
   r.SITE_SETTINGS_FILE_SYSTEM_WRITE = r.SITE_SETTINGS.createChild('filesystem');
-  if (loadTimeData.getBoolean('showPersistentPermissions')) {
+  if (loadTimeData.getBoolean('enablePersistentPermissions')) {
     r.SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS =
         r.SITE_SETTINGS_FILE_SYSTEM_WRITE.createChild('siteDetails');
   }
@@ -224,7 +224,23 @@ function createRoutes(): SettingsRoutes {
     r.FONTS = r.APPEARANCE.createChild('/fonts');
   }
 
-  if (visibility.autofill !== false) {
+  if (loadTimeData.getBoolean('enableYourSavedInfoSettingsPage')) {
+    if (visibility.yourSavedInfo !== false) {
+      r.YOUR_SAVED_INFO = r.BASIC.createSection(
+          '/yourSavedInfo', 'yourSavedInfo',
+          loadTimeData.getString('yourSavedInfoPageTitle'));
+
+      r.PAYMENTS = r.YOUR_SAVED_INFO.createChild('/payments');
+      r.ADDRESSES = r.YOUR_SAVED_INFO.createChild('/addresses');
+
+      // TODO(crbug.com/438666322): add routing for "Identity docs"
+      // TODO(crbug.com/438667363): add routing for "Travel"
+
+      // <if expr="is_win or is_macosx">
+      r.PASSKEYS = r.YOUR_SAVED_INFO.createChild('/passkeys');
+      // </if>
+    }
+  } else if (visibility.autofill !== false) {
     r.AUTOFILL = r.BASIC.createSection(
         '/autofill', 'autofill', loadTimeData.getString('autofillPageTitle'));
     r.PAYMENTS = r.AUTOFILL.createChild('/payments');

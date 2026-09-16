@@ -752,7 +752,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> opt_parent, int num_supertypes, bool shared);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index, bool shared,
-      WasmCodePointer call_target);
+      WasmCodePointer call_target, const wasm::CanonicalSig* sig);
   DirectHandle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,
       DirectHandle<Map> rtt, bool shared);
@@ -764,8 +764,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Code> export_wrapper,
       DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
-      DirectHandle<WasmInternalFunction> internal_function,
-      const wasm::CanonicalSig* sig, int wrapper_budget, wasm::Promise promise);
+      DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
+      wasm::Promise promise);
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
@@ -901,7 +901,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(
-      void* value, AllocationType allocation = AllocationType::kYoung);
+      void* value, ExternalPointerTag tag,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Create a CppHeapExternal object for V8's external API.
   Handle<CppHeapExternalObject> NewCppHeapExternal(

@@ -74,10 +74,6 @@
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#include "components/os_crypt/sync/os_crypt_mocker.h"
-#endif
-
 namespace password_manager {
 
 namespace {
@@ -413,7 +409,6 @@ class PasswordFormManagerTest : public testing::Test,
         password_manager::prefs::kBiometricAuthenticationBeforeFilling, true);
 #endif
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-    OSCryptMocker::SetUp();
     pref_service_.registry()->RegisterIntegerPref(
         password_manager::prefs::kRelaunchChromeBubbleDismissedCounter, 0);
 #endif
@@ -2993,8 +2988,7 @@ TEST_P(PasswordFormManagerTest, iOSPresavedGeneratedPassword) {
   // Use |generated_password| different from value in field to test that the
   // generated password is saved.
   const std::u16string generated_password = u"gen_pw";
-  FieldRendererId generation_element = password_field.renderer_id();
-  form_manager_->SetGenerationElement(generation_element);
+  form_manager_->SetGenerationElement(password_field.renderer_id());
 
   PasswordForm saved_form;
   EXPECT_CALL(form_saver, Save(_, IsEmpty(), std::u16string()))
@@ -3004,14 +2998,15 @@ TEST_P(PasswordFormManagerTest, iOSPresavedGeneratedPassword) {
 
   Mock::VerifyAndClearExpectations(&form_saver);
 
-  const std::u16string changed_password = generated_password + u"1";
+  const std::u16string changed_username = generated_password + u"1";
   EXPECT_CALL(form_saver, UpdateReplace(_, _, std::u16string(), _))
       .WillOnce(SaveArg<0>(&saved_form));
 
   form_manager_->UpdateStateOnUserInput(form_to_presave.renderer_id(),
-                                        generation_element, changed_password);
-  EXPECT_EQ(username_field.value(), saved_form.username_value);
-  EXPECT_EQ(changed_password, saved_form.password_value);
+                                        username_field.renderer_id(),
+                                        changed_username);
+  EXPECT_EQ(changed_username, saved_form.username_value);
+  EXPECT_EQ(generated_password, saved_form.password_value);
 }
 
 TEST_P(PasswordFormManagerTest, iOSUpdateStateWithoutPresaving) {
@@ -4870,6 +4865,7 @@ class MockPasswordSaveManager : public PasswordSaveManager {
               UpdateDateLastFilled,
               (const PasswordForm& password_form),
               (override));
+  MOCK_METHOD(void, SetShouldStoreActorLoginPermission, (), (override));
 };
 
 class PasswordFormManagerTestWithMockedSaver : public PasswordFormManagerTest {

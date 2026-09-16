@@ -326,8 +326,8 @@ LocalFrameMojoHandler::LocalFrameMojoHandler(blink::LocalFrame& frame)
       back_forward_cache_controller_host_remote_.BindNewEndpointAndPassReceiver(
           frame.GetTaskRunner(TaskType::kInternalDefault)));
 #if BUILDFLAG(IS_MAC)
-  // It should be bound before accessing TextInputHost which is the interface to
-  // respond to GetCharacterIndexAtPoint.
+  // It should be bound before accessing text_input_host_ which is the interface
+  // to respond to GetCharacterIndexAtPoint and GetFirstRectForRange.
   frame.GetBrowserInterfaceBroker().GetInterface(
       text_input_host_.BindNewPipeAndPassReceiver(
           frame.GetTaskRunner(TaskType::kInternalDefault)));
@@ -388,23 +388,6 @@ mojom::blink::BackForwardCacheControllerHost&
 LocalFrameMojoHandler::BackForwardCacheControllerHostRemote() {
   return *back_forward_cache_controller_host_remote_.get();
 }
-
-#if BUILDFLAG(IS_MAC)
-mojom::blink::TextInputHost& LocalFrameMojoHandler::TextInputHost() {
-  DCHECK(text_input_host_.is_bound());
-  return *text_input_host_.get();
-}
-
-void LocalFrameMojoHandler::ResetTextInputHostForTesting() {
-  text_input_host_.reset();
-}
-
-void LocalFrameMojoHandler::RebindTextInputHostForTesting() {
-  frame_->GetBrowserInterfaceBroker().GetInterface(
-      text_input_host_.BindNewPipeAndPassReceiver(
-          frame_->GetTaskRunner(TaskType::kInternalDefault)));
-}
-#endif
 
 mojom::blink::ReportingServiceProxy* LocalFrameMojoHandler::ReportingService() {
   if (!reporting_service_.is_bound()) {
@@ -525,9 +508,39 @@ void LocalFrameMojoHandler::GetTextSurroundingSelection(
                           surrounding_text.EndOffsetInTextContent());
 }
 
-void LocalFrameMojoHandler::SendInterventionReport(const String& id,
-                                                   const String& message) {
-  Intervention::GenerateReport(frame_, id, message);
+void LocalFrameMojoHandler::SendInterventionReport(
+    const String& id,
+    const String& message,
+    const std::optional<FrameToken>& child_frame_token) {
+  if (!child_frame_token) {
+    Intervention::GenerateReport(frame_, id, message);
+    return;
+  }
+
+  // If the intervention report pertains to a child frame, append details about
+  // the child frame to the message.
+  if (auto* child_frame = Frame::ResolveFrame(child_frame_token.value())) {
+    auto* child_frame_owner = To<HTMLFrameOwnerElement>(child_frame->Owner());
+    CHECK(child_frame_owner);
+
+    const AtomicString& src_value =
+        child_frame_owner->FastGetAttribute(html_names::kSrcAttr);
+    KURL url = child_frame_owner->GetDocument().CompleteURL(src_value);
+
+    // Any URLs in the report should strip the username, password, and fragment.
+    // https://w3c.github.io/reporting/#capability-urls
+    String sanitized_url = url.StrippedForUseAsReferrer();
+
+    StringBuilder builder;
+    builder.Append(message);
+    builder.Append(" (id=");
+    builder.Append(child_frame_owner->GetIdAttribute());
+    builder.Append(";url=");
+    builder.Append(sanitized_url);
+    builder.Append(")");
+
+    Intervention::GenerateReport(frame_, id, builder.ReleaseString());
+  }
 }
 
 void LocalFrameMojoHandler::SetFrameOwnerProperties(
@@ -977,7 +990,8 @@ void LocalFrameMojoHandler::JavaScriptExecuteRequestInIsolatedWorld(
 
 #if BUILDFLAG(IS_MAC)
 void LocalFrameMojoHandler::GetCharacterIndexAtPoint(const gfx::Point& point) {
-  frame_->GetCharacterIndexAtPoint(point);
+  text_input_host_->GotCharacterIndexAtPoint(
+      frame_->GetCharacterIndexAtPoint(point));
 }
 
 void LocalFrameMojoHandler::GetFirstRectForRange(const gfx::Range& range) {
@@ -1001,7 +1015,7 @@ void LocalFrameMojoHandler::GetFirstRectForRange(const gfx::Range& range) {
         base::checked_cast<uint32_t>(range.length()), rect);
   }
 
-  TextInputHost().GotFirstRectForRange(rect);
+  text_input_host_->GotFirstRectForRange(rect);
 }
 
 void LocalFrameMojoHandler::GetStringForRange(

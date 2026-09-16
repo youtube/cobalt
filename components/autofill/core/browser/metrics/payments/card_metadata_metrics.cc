@@ -280,9 +280,6 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
             CardBenefitFormEvent::
                 kSuggestionWithBenefitShownWithMultipleServerCards);
       }
-      LogBenefitFormEventForAllBenefitSourcesWithBenefitAvailableDeprecated(
-          context.instrument_ids_to_available_benefit_sources,
-          FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE);
       break;
     }
     case CardMetadataLoggingEvent::kSelected:
@@ -296,9 +293,6 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
               CardBenefitFormEvent::
                   kSuggestionWithBenefitSelectedWithMultipleServerCards);
         }
-        LogBenefitFormEventToBenefitSourceHistogramDeprecated(
-            context.selected_benefit_source,
-            FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_SELECTED_ONCE);
       } else {
         if (context.masked_server_card_count >= 2) {
           LogBenefitFormEventToMainBenefitHistogram(
@@ -306,9 +300,6 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
                   kSuggestionWithoutBenefitSelectedWithMultipleServerCards);
         }
       }
-      LogBenefitFormEventForAllBenefitSourcesWithBenefitAvailableDeprecated(
-          context.instrument_ids_to_available_benefit_sources,
-          FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_SELECTED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE);
       break;
     case CardMetadataLoggingEvent::kFilled:
       if (context.SelectedCardHasBenefitAvailable()) {

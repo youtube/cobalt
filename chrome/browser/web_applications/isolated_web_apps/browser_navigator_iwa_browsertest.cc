@@ -14,6 +14,8 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/types/expected.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
@@ -128,7 +130,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorIwaTest, NavigateCurrentTab) {
   params1.disposition = WindowOpenDisposition::CURRENT_TAB;
   ui_test_utils::NavigateToURL(&params1);
 
-  Browser* iwa_browser = params1.browser;
+  Browser* iwa_browser = params1.browser->GetBrowserForMigrationOnly();
   EXPECT_NE(iwa_browser, browser());
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 
@@ -170,7 +172,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorIwaTest, NavigateCurrentTab) {
   ui_test_utils::NavigateToURL(&params3);
 
   // Navigating a tab outside of the app's scope should create a new browser.
-  Browser* new_iwa_browser = params3.browser;
+  Browser* new_iwa_browser = params3.browser->GetBrowserForMigrationOnly();
   EXPECT_NE(iwa_browser, new_iwa_browser);
   EXPECT_NE(browser(), new_iwa_browser);
   EXPECT_EQ(3u, chrome::GetTotalBrowserCount());
@@ -225,9 +227,8 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorIwaTest, WindowOpenProtocol) {
   {
     // Eliminate all prompts/guards along the way.
     ExternalProtocolHandler::PermitLaunchUrl();
-    ExternalProtocolHandler::SetBlockState("meow", url_info2_->origin(),
-                                           ExternalProtocolHandler::DONT_BLOCK,
-                                           profile());
+    apps::AppServiceProxyFactory::GetForProfile(profile())
+        ->SetProtocolLinkPreference(url_info1_->app_id(), "meow");
     base::test::TestFuture<void> future;
     web_app::WebAppProvider::GetForWebApps(profile())
         ->scheduler()
@@ -308,7 +309,7 @@ IN_PROC_BROWSER_TEST_P(BrowserNavigatorIwaNewTabTest, NavigateNewTab) {
   params3.disposition = GetParam();
   ui_test_utils::NavigateToURL(&params3);
 
-  Browser* new_iwa_browser = params3.browser;
+  Browser* new_iwa_browser = params3.browser->GetBrowserForMigrationOnly();
   EXPECT_NE(new_iwa_browser, iwa_browser);
   EXPECT_NE(new_iwa_browser, browser());
   EXPECT_EQ(3u, chrome::GetTotalBrowserCount());

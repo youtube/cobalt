@@ -40,7 +40,6 @@ source_set("impl") {
 
 android_resources("java_resources") {
   sources = [
-    "java/res/drawable/bookmark_bar_item_ripple.xml",
     "java/res/values/dimens.xml",
     "java/res/values/ids.xml",
   ]
@@ -137,6 +136,7 @@ android_library("java") {
     "//chrome/browser/ui/android/signin:java",
     "//chrome/browser/ui/android/toolbar:java",
     "//chrome/browser/ui/messages/android:java",
+    "//chrome/browser/url_constants/android:java",
     "//chrome/browser/user_education:java",
     "//components/bookmarks/common/android:bookmarks_java",
     "//components/browser_ui/bottomsheet/android:java",

@@ -103,6 +103,7 @@
 #include "extensions/browser/updater/extension_cache.h"
 #include "extensions/browser/updater/extension_downloader.h"
 #include "extensions/browser/updater/manifest_fetch_data.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -125,6 +126,8 @@
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #endif
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 using content::BrowserContext;
 using content::BrowserThread;
 using extensions::mojom::ManifestLocation;
@@ -145,10 +148,11 @@ const char* const kObsoleteComponentExtensionIds[] = {
     "jcgeabjmjgoblfofpppfkcoakmfobdko",  // Video Player
 };
 
-const char kBlockLoadCommandline[] = "command_line";
-
 // ExtensionUnpublishedAvailability policy default value.
 constexpr int kAllowUnpublishedExtensions = 0;
+
+#if !BUILDFLAG(GOOGLE_CHROME_BRANDING) || BUILDFLAG(IS_CHROMEOS)
+const char kBlockLoadCommandline[] = "command_line";
 
 bool ShouldBlockCommandLineExtension(Profile& profile) {
   const base::Value::List& list =
@@ -161,6 +165,8 @@ bool ShouldBlockCommandLineExtension(Profile& profile) {
 
   return false;
 }
+#endif
+
 }  // namespace
 
 // ExtensionService.
@@ -396,12 +402,11 @@ void ExtensionService::LoadExtensionsFromCommandLineFlag(
 
   // Check that --load-extension is allowed.
   if (switch_name == switches::kLoadExtension) {
-    if (base::FeatureList::IsEnabled(
-            extensions_features::kDisableLoadExtensionCommandLineSwitch)) {
-      LOG(WARNING)
-          << "--load-extension is not allowed in Google Chrome, ignoring.";
-      return;
-    }
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+    LOG(WARNING)
+        << "--load-extension is not allowed in Google Chrome, ignoring.";
+    return;
+#else   // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
     if (safe_browsing::IsEnhancedProtectionEnabled(*profile_->GetPrefs())) {
       VLOG(1) << "--load-extension is not allowed for users opted into "
               << "Enhanced Safe Browsing, ignoring.";
@@ -415,6 +420,7 @@ void ExtensionService::LoadExtensionsFromCommandLineFlag(
           << "ExtensionInstallTypeBlocklist::command_line, ignoring.";
       return;
     }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
   } else if (base::FeatureList::IsEnabled(
                  extensions_features::
                      kDisableDisableExtensionsExceptCommandLineSwitch)) {

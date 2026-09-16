@@ -35,6 +35,7 @@
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/privacy_mode.h"
 #include "net/base/proxy_chain.h"
@@ -99,7 +100,14 @@ constexpr net::NetworkTrafficAnnotationTag
     )");
 
 const int kReadBufferSize = 8 * 1024;
+#if BUILDFLAG(IS_COBALT)
+// On living room devices (e.g. Android TV), short pauses (15-45s) between user
+// interactions are standard. Because TCP keep-alive maintains NAT state every
+// 45s, only connections idle for >60s require an HTTP/2 preface ping.
+const int kDefaultConnectionAtRiskOfLossSeconds = 60;
+#else
 const int kDefaultConnectionAtRiskOfLossSeconds = 10;
+#endif
 const int kHungIntervalSeconds = 10;
 
 // Default initial value for HTTP/2 SETTINGS.
@@ -3092,8 +3100,9 @@ void SpdySession::OnAltSvc(
     if (origin.empty())
       return;
     const GURL gurl(origin);
-    if (!gurl.is_valid() || gurl.host().empty())
+    if (!gurl.is_valid() || gurl.GetHost().empty()) {
       return;
+    }
     if (!gurl.SchemeIs(url::kHttpsScheme))
       return;
     SSLInfo ssl_info;
@@ -3101,7 +3110,7 @@ void SpdySession::OnAltSvc(
       return;
     }
     if (!CanPool(transport_security_state_, ssl_info, *ssl_config_service_,
-                 host_port_pair().host(), gurl.host_piece())) {
+                 host_port_pair().host(), gurl.host())) {
       return;
     }
     scheme_host_port = url::SchemeHostPort(gurl);

@@ -457,6 +457,15 @@ void BucketContext::RunTasks() {
   }
   if (CanClose() && closing_stage_ == ClosingState::kClosed) {
     ResetBackingStore();
+  } else if (ShouldUseSqlite()) {
+    // Since a `Database` may have just been destroyed, there may no longer be
+    // a need to keep `this` around. Note that this isn't necessary in LevelDB
+    // due to differences in `CanClose()`, although it likely wouldn't be
+    // harmful for LevelDB either. To be on the safe side, don't risk changing
+    // longstanding LevelDB behavior.
+    // TODO(crbug.com/419203257): consider revisiting this logic along with
+    // `CanOpportunisticallyClose()`.
+    MaybeStartClosing();
   }
 }
 
@@ -574,6 +583,21 @@ void BucketContext::Open(
     database_ptr = CreateAndAddDatabase(name);
   } else {
     database_ptr = it->second.get();
+
+    // The `Database` might have been forced closed by dev tools, in which case
+    // no new connections should be added. The `Database` should be deleted
+    // *soon* in this case, but the request can arrive while `RunTasks()` is
+    // still queued. We could try to reschedule this open() request, but if the
+    // open request had already made it to ConnectionCoordinator, it would be
+    // pruned and errors reported: see `ShouldPruneForForceClose()`. So do that
+    // here too.
+    if (!database_ptr->IsAcceptingConnections()) {
+      connection->factory_client->OnError(
+          DatabaseError(blink::mojom::IDBException::kAbortError,
+                        "The connection was closed."));
+      connection->database_callbacks->OnForcedClose();
+      return;
+    }
   }
 
   database_ptr->ScheduleOpenConnection(std::move(connection));
@@ -874,10 +898,8 @@ void BucketContext::OnDatabaseError(Database* database,
   const std::string error_message =
       message.empty() ? status.ToString() : message;
   if (ShouldUseSqlite()) {
-    // TODO(crbug.com/419203257): for now, database errors are most likely due
-    // to unimplemented functionality; in the future, we'll need to deal with
-    // corruption. Unlike in the LevelDB case, an error in one database doesn't
-    // indicate a problem with the entire bucket.
+    // Unlike in the LevelDB case, an error in one database doesn't indicate a
+    // problem with the entire bucket.
     CHECK(database);
     database->ForceCloseAndRunTasks(error_message);
   } else {

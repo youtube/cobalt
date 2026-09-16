@@ -18,9 +18,27 @@ namespace base::features {
 BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
 
 #if BUILDFLAG(IS_COBALT)
+// When enabled, Cobalt will handle TRIM_MEMORY_RUNNING_LOW and
+// TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
+
+// When enabled, overrides the memory pressure throttling cooldown (60s default)
+// with the configured cooldown_seconds parameter on Android.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
+
+// The throttling cooldown in seconds between memory pressure notifications when
+// kCobaltMemoryPressureCooldown is enabled.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                       kCobaltMemoryPressureCooldownSeconds);
+
+// When enabled, gates the CC image decode cache items limit via Finch feature
+// and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
@@ -40,6 +58,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kLowMemoryDeviceThresholdMB);
 // is to measure their aggregated impact.
 BASE_EXPORT BASE_DECLARE_FEATURE(kReducePPMs);
 
+BASE_EXPORT BASE_DECLARE_FEATURE(kStackScanMaxFramePointerToStackEndGap);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kStackScanMaxFramePointerToStackEndGapThresholdMB);
+
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOn3GbDevices);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
@@ -53,6 +76,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(
 BASE_EXPORT BASE_DECLARE_FEATURE(kPostGetMyMemoryStateToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindingChildServiceConnectionController);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUpdateStateBeforeUnbinding);
+BASE_EXPORT BASE_DECLARE_FEATURE(kUseIsUnboundCheck);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseSharedRebindServiceConnection);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundThreadPoolFieldTrial);
@@ -64,6 +88,8 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kLibraryPrefetcherMadviseLength);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kLibraryPrefetcherMadviseFallback);
 
 #endif
+
+BASE_EXPORT BASE_DECLARE_FEATURE(kUseTerminationStatusMemoryExhaustion);
 
 // Whether the ReducePPMs feature is enabled. Unlike
 // `FeatureList::IsEnabled(base::features::kReducePPMs)`, this can be called

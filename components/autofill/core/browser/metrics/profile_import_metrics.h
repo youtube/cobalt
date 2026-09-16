@@ -169,13 +169,20 @@ void LogSilentUpdatesProfileImportType(AutofillProfileImportType import_type);
 // Logs the user decision for importing a new profile with variants for ready
 // users (users who have at least one profile stored already) and non-ready
 // users. Besides this, decision is also recorded for the subset of ready users
-// who have a a quasi-duplicate profile stored, and also in a separate histogram
-// for all users.
+// who have a quasi-duplicate profile stored, and also in a separate histogram
+// for all users. Additionally, decision is logged for profiles extracted from
+// forms with split zip code fields.
 void LogNewProfileImportDecision(
     AutofillClient::AddressPromptUserDecision decision,
+    const ProfileImportMetadata& profile_import_metadata,
     const std::vector<const AutofillProfile*>& existing_profiles,
     const AutofillProfile& import_candidate,
     std::string_view app_locale);
+
+// Logs the user decision for importing a new profile created as a merge of
+// `kAccountNameEmail` with either `kAccountHome` or `kAccountWork` profile.
+void LogHomeWorkNameEmailMergeImportDecision(
+    AutofillClient::AddressPromptUserDecision decision);
 
 // Logs the user decision for updating an exiting profile with variants for
 // users who have a quasi-duplicate profile stored (that is not
@@ -185,6 +192,10 @@ void LogProfileUpdateImportDecision(
     const std::vector<const AutofillProfile*>& existing_profiles,
     const AutofillProfile& import_candidate,
     std::string_view app_locale);
+
+// Logs the user decision for saving a name email profile superset.
+void LogNameEmailSupersetImportDecision(
+    AutofillClient::AddressPromptUserDecision decision);
 
 // Logs the user decision for saving a home/work profile superset.
 void LogHomeAndWorkSupersetImportDecision(

@@ -9,9 +9,10 @@
 #import "base/memory/raw_ref.h"
 #import "base/scoped_multi_source_observation.h"
 #import "base/scoped_observation.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer.h"
-#import "ios/chrome/browser/tabs/model/features.h"
+#import "ios/web/common/features.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer.h"
 
@@ -26,7 +27,7 @@ bool WaitForRealizationToInstallDependencies(
       return true;
 
     case TabsDependencyInstaller::Policy::kAccordingToFeature:
-      return CreateTabHelperOnlyForRealizedWebStates();
+      return web::features::CreateTabHelperOnlyForRealizedWebStates();
   }
 }
 
@@ -234,10 +235,9 @@ TabsDependencyInstaller::~TabsDependencyInstaller() {
                                   "destroying a TabsDependencyInstaller.";
 }
 
-void TabsDependencyInstaller::StartObserving(WebStateList* web_state_list,
-                                             Policy policy) {
+void TabsDependencyInstaller::StartObserving(Browser* browser, Policy policy) {
   installation_helper_ = std::make_unique<TabsDependencyInstallationHelper>(
-      CHECK_DEREF(web_state_list), *this, policy);
+      CHECK_DEREF(browser->GetWebStateList()), *this, policy);
 }
 
 void TabsDependencyInstaller::StopObserving() {

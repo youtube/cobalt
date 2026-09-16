@@ -25,12 +25,12 @@
 #include "build/build_config.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "gpu/command_buffer/common/constants.h"
+#include "gpu/command_buffer/common/context_result.h"
 #include "gpu/command_buffer/common/shm_count.h"
+#include "gpu/command_buffer/service/framebuffer_completeness_cache.h"
 #include "gpu/command_buffer/service/gr_cache_controller.h"
 #include "gpu/command_buffer/service/gr_shader_cache.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
-#include "gpu/command_buffer/service/passthrough_discardable_manager.h"
-#include "gpu/command_buffer/service/service_discardable_manager.h"
 #include "gpu/command_buffer/service/service_utils.h"
 #include "gpu/command_buffer/service/shader_translator_cache.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
@@ -82,7 +82,8 @@ class DawnCachingInterfaceFactory;
 // managing the lifetimes of GPU channels and forwarding IPC requests from the
 // browser process to them based on the corresponding renderer ID.
 class GPU_IPC_SERVICE_EXPORT GpuChannelManager
-    : public raster::GrShaderCache::Client {
+    : public raster::GrShaderCache::Client,
+      public base::MemoryPressureListener {
  public:
   GpuChannelManager(
       const GpuPreferences& gpu_preferences,
@@ -117,6 +118,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
                                int client_id,
                                uint64_t client_tracing_id,
                                bool is_gpu_host,
+                               bool enable_extra_handles_validation,
                                const gfx::GpuExtraInfo& gpu_extra_info);
 
   void SetChannelClientPid(int client_id, base::ProcessId client_pid);
@@ -144,12 +146,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     return gpu_driver_bug_workarounds_;
   }
   const GpuFeatureInfo& gpu_feature_info() const { return gpu_feature_info_; }
-  ServiceDiscardableManager* discardable_manager() {
-    return &discardable_manager_;
-  }
-  PassthroughDiscardableManager* passthrough_discardable_manager() {
-    return &passthrough_discardable_manager_;
-  }
   gles2::Outputter* outputter();
   gles2::ProgramCache* program_cache();
   gles2::ShaderTranslatorCache* shader_translator_cache() {
@@ -312,8 +308,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   void DoWakeUpGpu();
 #endif
 
-  void HandleMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   // These objects manage channels to individual renderer processes. There is
   // one channel for each renderer process that has connected to this GPU
@@ -341,8 +337,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   gles2::FramebufferCompletenessCache framebuffer_completeness_cache_;
   scoped_refptr<gl::GLSurface> default_offscreen_surface_;
   GpuFeatureInfo gpu_feature_info_;
-  ServiceDiscardableManager discardable_manager_;
-  PassthroughDiscardableManager passthrough_discardable_manager_;
 #if BUILDFLAG(IS_ANDROID)
   // Last time we know the GPU was powered on. Global for tracking across all
   // transport surfaces.
@@ -357,7 +351,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   // shaders. Read by the browser process on GPU process crash.
   const raw_ptr<GpuProcessShmCount> use_shader_cache_shm_count_;
 
-  base::AsyncMemoryPressureListener memory_pressure_listener_;
+  base::AsyncMemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   // The SharedContextState is shared across all RasterDecoders. Note
   // that this class needs to be ref-counted to conveniently manage the lifetime

@@ -12,6 +12,7 @@
 <translation id="1036348656032585052">Tắt</translation>
 <translation id="1041322626941363065">Cảnh báo bạn nếu mật khẩu bị lộ trong một sự cố rò rỉ dữ liệu</translation>
 <translation id="104491362976654916">Trang ngoại tuyến</translation>
+<translation id="1046742265332833834">Giao diện màu xanh dương</translation>
 <translation id="1049743911850919806">Ẩn danh</translation>
 <translation id="1053651653201045802">Bạn đã đăng xuất. Hãy đăng nhập lại để sử dụng dấu trang, mật khẩu và nhiều nội dung khác trong tài khoản của bạn.</translation>
 <translation id="1054745118061919935">Bằng việc tiếp tục, bạn đồng ý với <ph name="BEGIN_LINK" />Điều khoản dịch vụ<ph name="END_LINK" />.</translation>
@@ -51,9 +52,9 @@
 <translation id="1179890706672152411">Bộ nhớ của bạn đã đầy</translation>
 <translation id="1181037720776840403">Xoá</translation>
 <translation id="1190609913194133056">Trung tâm thông báo</translation>
+<translation id="1199963004393929848">Giao diện màu xanh lục</translation>
 <translation id="1201402288615127009">Tiếp theo</translation>
 <translation id="1204075260022434100">{count,plural, =1{Đã lưu dấu trang vào "{title}" trong tài khoản {email} của bạn}other{Đã lưu {count} dấu trang vào "{title}" trong tài khoản {email} của bạn.}}</translation>
-<translation id="120431140543679678">Theo dõi</translation>
 <translation id="1207493287814084192">5:30 chiều</translation>
 <translation id="1217294226280635614">Chế độ xem chia đôi màn hình</translation>
 <translation id="1219674500290482172">Không thể kết nối Internet.</translation>
@@ -148,6 +149,7 @@
 <translation id="1540800554400757039">Địa chỉ 1</translation>
 <translation id="154312949627292154">Mở thẻ nhận được từ các thiết bị khác trên màn hình khoá.</translation>
 <translation id="1545749641540134597">Quét mã QR</translation>
+<translation id="1545757265410828525">Giá theo thời gian</translation>
 <translation id="1547610699249301703">Chia sẻ mật khẩu</translation>
 <translation id="1554477036522844996">Cửa sổ mới</translation>
 <translation id="1558391695376153246">Đóng các thẻ Ẩn danh</translation>
@@ -210,7 +212,6 @@
 <translation id="1807893857950749072">Cho phép thông báo của tính năng theo dõi giá…</translation>
 <translation id="1809929083618343438">Thao tác này sẽ xoá thông tin được chọn khỏi Chrome nhưng không xoá thông tin này khỏi Tài khoản Google của bạn.</translation>
 <translation id="1810976980198522421">Huỷ</translation>
-<translation id="1812514023095547458">Chọn màu</translation>
 <translation id="1815941218935345331">Mật mã</translation>
 <translation id="1818687879307252150">{count,plural, =0{Không có mật khẩu nào bị lộ}=1{{count} mật khẩu bị lộ}other{{count} mật khẩu bị lộ}}</translation>
 <translation id="1819374301217551116">Theo dõi giá và thông tin chi tiết</translation>
@@ -277,7 +278,6 @@
 <translation id="2015722694326466240">Để xem mật khẩu, trước tiên bạn phải đặt mật mã trên thiết bị của mình.</translation>
 <translation id="201759455285471444">Mở rộng nhóm thẻ.</translation>
 <translation id="202070562065520783">Giải thích nội dung này cho tôi</translation>
-<translation id="2021670401941426298">Để xóa nhật ký tìm kiếm, hãy xem hướng dẫn (nếu có) của công cụ tìm kiếm bạn đang dùng.</translation>
 <translation id="2044394949148788042">Mở lưới thẻ</translation>
 <translation id="2044681667265133332">Tài khoản <ph name="USER_EMAIL" /> do <ph name="HOSTED_DOMAIN" /> quản lý. Họ có thể xem một số thông tin. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">mục mới</translation>
@@ -296,7 +296,6 @@
 <translation id="2085876078937250610">Lưu…</translation>
 <translation id="2096239473850415494">Không thể tải xuống</translation>
 <translation id="2096716221239095980">Xoá mọi dữ liệu</translation>
-<translation id="2103075008456228677">Mở history.google.com</translation>
 <translation id="2104436223719117661">Nội dung tìm kiếm thịnh hành</translation>
 <translation id="21133533946938348">Ghim Thẻ</translation>
 <translation id="2117650889962717098">Duyệt web riêng tư bằng cách chuyển sang chế độ ẩn danh</translation>
@@ -343,7 +342,6 @@
 <translation id="2258326562203545455">{count,plural, =1{Bạn có thể lưu dấu trang vào Tài khoản Google {email} của mình.}other{Bạn có thể lưu dấu trang vào Tài khoản Google {email} của mình.}}</translation>
 <translation id="225943865679747347">Mã lỗi: <ph name="ERROR_CODE" /></translation>
 <translation id="2259659629660284697">Xuất mật khẩu...</translation>
-<translation id="2265069324308685684">Đang xoá dữ liệu duyệt web…</translation>
 <translation id="2267753748892043616">Thêm tài khoản</translation>
 <translation id="2268044343513325586">Tinh chỉnh</translation>
 <translation id="2271452184061378400">Các nhóm thẻ của bạn được lưu tại đây</translation>
@@ -385,6 +383,7 @@
 <translation id="2434405374328098816">Bạn đã lưu mật khẩu cho "<ph name="USERNAME" />" tại <ph name="WEBSITE" /></translation>
 <translation id="2434918313224755415">Bạn có thể cuộn sang trái để duyệt web ở chế độ Ẩn danh.</translation>
 <translation id="2435457462613246316">Hiện mật khẩu</translation>
+<translation id="2451607499823206582">Theo dõi</translation>
 <translation id="2458827363789845126">{count,plural, =1{{count} mục trong nhật ký}other{{count} mục trong nhật ký}}</translation>
 <translation id="2461070143328828326">Cài đặt mật khẩu</translation>
 <translation id="2462736546165239215">Bạn có thể xem toàn bộ nhật ký duyệt web của mình tại đây.</translation>
@@ -416,6 +415,7 @@
 <translation id="2542268842667970959">Ẩn tính năng "Kiểm tra an toàn"</translation>
 <translation id="2551153019974022505">Lỗi tài khoản</translation>
 <translation id="2559843230610279254">Nhóm thẻ, <ph name="GROUP_TITLE" />, <ph name="TABS_NUMBER" /> thẻ.</translation>
+<translation id="257088987046510401">Chủ đề</translation>
 <translation id="2573117291489209663">Xong</translation>
 <translation id="2577522251608256362">Vùng lân cận</translation>
 <translation id="2579713773888829241">Bộ nhớ dùng chung</translation>
@@ -447,15 +447,11 @@
 <translation id="2688535388040882469">Biểu ngữ</translation>
 <translation id="2690858294534178585">Máy ảnh đang được sử dụng</translation>
 <translation id="2691653761409724435">Ko khả dụng khi ngoại tuyến</translation>
-<translation id="2696180352517415858">Bạn sẽ không bị đăng xuất khỏi Tài khoản Google. <ph name="BEGIN_LINK" />Các hình thức hoạt động khác<ph name="END_LINK" /> có thể được lưu vào Tài khoản Google khi bạn đăng nhập. Bạn có thể xoá những dữ liệu này bất cứ lúc nào.
-
-
-Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nhật ký tìm kiếm, hãy xem hướng dẫn (nếu có) của công cụ tìm kiếm đó.</translation>
 <translation id="269819437389494246">Bạn có thể xem các trang mà mình đã truy cập hoặc xoá những trang này khỏi nhật ký</translation>
 <translation id="2704606927547763573">Đã sao chép</translation>
 <translation id="2708051474374549906">Khả năng bảo vệ chủ động theo thời gian thực trước các trang web, nội dung tải xuống và tiện ích nguy hiểm, dựa trên dữ liệu duyệt web được gửi tới Google</translation>
 <translation id="2709516037105925701">Tự động điền</translation>
-<translation id="271033894570825754">Mới</translation>
+<translation id="271033894570825754">Bộ sưu tập mới</translation>
 <translation id="2712929214961145009">Sans-Serif</translation>
 <translation id="2718352093833049315">Chỉ qua Wi-Fi</translation>
 <translation id="2721190673959776287">Ví dụ về thông tin trợ giúp chi tiết trong sản phẩm cho Bảng theo ngữ cảnh. Thông tin này sẽ xuất hiện nhiều lần trong ngày.</translation>
@@ -478,6 +474,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="2793703503584038325">Chọn một mật khẩu rồi nhấn vào biểu tượng "chia sẻ"</translation>
 <translation id="2797029671965852011">Hiện nhật ký</translation>
 <translation id="2797302972324086597">Mã quốc gia</translation>
+<translation id="2798263827270599246">Giao diện mặc định</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} tệp}other{{COUNT} tệp}}</translation>
 <translation id="2816149645002567541">Đã tạm dừng tải xuống</translation>
 <translation id="2816489851009559785">Trình đơn → Cài đặt → Trình duyệt mặc định</translation>
@@ -532,6 +529,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3032704072014531631">Bạn sẽ ngay lập tức mất quyền truy cập vào nhóm thẻ "<ph name="GROUP_NAME" />" và <ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) sẽ không thể tương tác với bạn trên các dịch vụ của Google nữa</translation>
 <translation id="3034496853223708513"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) sẽ ngay lập tức mất quyền truy cập vào nhóm thẻ "<ph name="GROUP_NAME" />" và không thể tương tác với bạn trên các dịch vụ của Google nữa</translation>
 <translation id="3037177537145227281">Đang theo dõi giá</translation>
+<translation id="3038136505713492417">Xác minh danh tính của bạn để sử dụng khoá truy cập trên thiết bị này</translation>
 <translation id="3039671569659952257">Xóa thư mục</translation>
 <translation id="3053332585453689122">Gửi các URL bạn truy cập và một mẫu nhỏ nội dung trang, nội dung tải xuống, hoạt động của tiện ích và thông tin hệ thống cho dịch vụ Duyệt web An toàn của Google để kiểm tra xem các nội dung đó có gây hại hay không.</translation>
 <translation id="3055102495753300780">Dung lượng lưu trữ thông tin</translation>
@@ -540,10 +538,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3072279342064724558">Mật khẩu đã tồn tại</translation>
 <translation id="3073258549280822127">Không hoạt động</translation>
 <translation id="3073633853887034268">Tôi hiểu</translation>
-<translation id="3076846064362030967">Bạn sẽ không bị đăng xuất khỏi Tài khoản Google. <ph name="BEGIN_LINK" />Các hình thức hoạt động khác<ph name="END_LINK" /> có thể được lưu vào Tài khoản Google khi bạn đăng nhập. Bạn có thể xóa những dữ liệu này bất cứ lúc nào.
-
-
-Để xóa nhật ký tìm kiếm, hãy xem hướng dẫn (nếu có) của công cụ tìm kiếm bạn đang dùng.</translation>
 <translation id="3080525922482950719">Bạn có thể lưu các trang để đọc vào lúc khác hoặc khi không có kết nối mạng</translation>
 <translation id="3081338492074632642">Đảm bảo mật khẩu bạn đang lưu khớp với mật khẩu dùng cho <ph name="WEBSITE" /></translation>
 <translation id="3087734570205094154">Dưới cùng</translation>
@@ -607,7 +601,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3344485292736684439">{count,plural, =1{Đã lưu dấu trang vào "{title}" trong tài khoản {email} của bạn}other{Đã lưu dấu trang vào "{title}" trong tài khoản {email} của bạn}}</translation>
 <translation id="334690320928261823">Các thẻ gần đây</translation>
 <translation id="3349031117032695619">Chặn cửa sổ bật lên</translation>
-<translation id="3349676726073650389">Các trang web và nội dung tìm kiếm mà bạn theo dõi sẽ được lưu trong Tài khoản Google của bạn. Bạn có thể quản lý các trang web/nội dung mà mình theo dõi trong phần cài đặt bất cứ lúc nào.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Đây là tài khoản được quản lý.</translation>
 <translation id="3365529507898144230">Lưu vào Photos</translation>
 <translation id="3371831930909698441">Có tính năng dịch. Các tùy chọn nằm ở gần cuối màn hình.</translation>
@@ -693,6 +686,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3750225824417196283">Trang thẻ ẩn danh mới</translation>
 <translation id="3751873026576444885">Dừng tìm kiếm về nội dung trên màn hình bằng Google Ống kính</translation>
 <translation id="3753408171347588045">Theo dõi giá</translation>
+<translation id="3753618528540214374">Giao diện màu xanh lục ánh lam</translation>
 <translation id="3762232513783804601">Dành riêng cho iPad</translation>
 <translation id="3768725474733206671">Mở lại thẻ đóng gần đây nhất</translation>
 <translation id="3779810277399252432">Không có kết nối Internet.</translation>
@@ -772,7 +766,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4026496154402824012">Để tắt, hãy chuyển đến phần <ph name="BEGIN_LINK" />Các lựa chọn mật khẩu<ph name="END_LINK" /></translation>
 <translation id="4028871427853484857">Lưu vào tài khoản…</translation>
 <translation id="4038354071007134711">Không ứng dụng nào trên thiết bị này có thể mở tệp.</translation>
-<translation id="4039829422386964954">Duyệt xem thư viện</translation>
 <translation id="4042870976416480368">Tìm trong trang</translation>
 <translation id="4045441967987592849">Mở lại</translation>
 <translation id="4047337302138771011">Chia sẻ mật khẩu của bạn</translation>
@@ -819,6 +812,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="422474357428465195">Mật khẩu của bạn có một số vấn đề có thể khiến bạn gặp rủi ro về bảo mật.</translation>
 <translation id="422477017457571619">Biện pháp bảo vệ dựa trên AI theo thời gian thực trước các trang web, tệp đã tải xuống và tiện ích nguy hiểm, dựa trên dữ liệu duyệt web được gửi tới Google</translation>
 <translation id="4231395118547300571">Đã bật thông báo của tính năng Kiểm tra an toàn</translation>
+<translation id="4232817129213135694">Thiết lập khoá truy cập cho thiết bị này</translation>
 <translation id="4237377247299956313">Nhấn vào <ph name="BEGIN_BOLD" />Ứng dụng trình duyệt mặc định<ph name="END_BOLD" /></translation>
 <translation id="4241893428331130998">Chưa lưu mật khẩu hoặc khoá truy cập nào</translation>
 <translation id="4242533952199664413">Mở phần cài đặt</translation>
@@ -826,6 +820,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4250680216510889253">Không</translation>
 <translation id="4253168017788158739">Ghi chú</translation>
 <translation id="4256782883801055595">Giấy phép nguồn mở</translation>
+<translation id="4258815194323378612">Để sau</translation>
 <translation id="4263576668337963058">Hiển thị các hành động có thể thực hiện trên trang</translation>
 <translation id="4267586310863245665">{COUNT,plural, =1{Bạn đã đóng {COUNT} cảnh báo}other{Bạn đã đóng {COUNT} cảnh báo}}</translation>
 <translation id="4268574628540273656">URL:</translation>
@@ -884,7 +879,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4488754974567924717">Nếu mật khẩu của bạn bị lộ, chúng tôi sẽ thông báo cho bạn</translation>
 <translation id="4489536976005181779">{count,plural, =1{Trang đã được thêm vào danh sách đọc trong tài khoản {email} của bạn}other{Các trang đã được thêm vào danh sách đọc trong tài khoản {email} của bạn}}</translation>
 <translation id="4493604894403585654">Bạn đã đăng nhập bằng <ph name="USER_EMAIL" />. Bạn có thể dừng đồng bộ hoá bất cứ lúc nào trong phần cài đặt. Google có thể cá nhân hoá dịch vụ Tìm kiếm và các dịch vụ khác dựa trên nhật ký của bạn.</translation>
-<translation id="4502423230170890588">Xóa khỏi thiết bị này</translation>
+<translation id="4502423230170890588">Xoá khỏi thiết bị này</translation>
 <translation id="4508750114462689118">Đóng quảng cáo đăng nhập</translation>
 <translation id="4509345063551561634">Vị trí:</translation>
 <translation id="4517684186578051919">Thông tin thiết bị</translation>
@@ -907,7 +902,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4601095002996233687">Quét kỹ càng để tìm nội dung tải xuống đáng ngờ.</translation>
 <translation id="4606247758155004938">Trình duyệt này do tổ chức của bạn quản lý.</translation>
 <translation id="4607887340472970274">Theo dõi giá</translation>
-<translation id="4611811151908969241">Ẩn tuỳ chọn Ngừng theo dõi <ph name="DOMAIN_NAME" /></translation>
 <translation id="461440297010471931">Tìm kiếm bằng Google</translation>
 <translation id="4619564267100705184">Xác minh danh tính của bạn</translation>
 <translation id="4621768135601674446">Mở các lựa chọn của Chế độ đọc</translation>
@@ -989,6 +983,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4869146460927742717">Vị trí của thanh địa chỉ</translation>
 <translation id="4870911314065352661">Đóng tất cả các thẻ?</translation>
 <translation id="4872664437015695612">Mở trong thư mục tệp đã tải xuống</translation>
+<translation id="4876237378696925987">Bắt đầu</translation>
 <translation id="4876305945144899064">Không có tên người dùng</translation>
 <translation id="4876665338492917862">Ðã mở vào <ph name="LAST_OPENING_DATE" /></translation>
 <translation id="4877597489778380935">Nhắc tôi sau</translation>
@@ -1040,6 +1035,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="5059136629401106827">OK</translation>
 <translation id="5062321486222145940">Cài đặt Google Drive</translation>
 <translation id="5067540696062462445">Tệp đã tải xuống</translation>
+<translation id="5070314445039955096">Các quyền của "<ph name="SITE_DOMAIN" />" sẽ được đặt lại thành tắt khi bạn rời khỏi trang web này</translation>
 <translation id="507187271399539513">{count,plural, =1{Phương thức thanh toán {position}/{count}}other{Phương thức thanh toán {position}/{count}}}</translation>
 <translation id="5075939510584558547">Lưu mà không mã hoá</translation>
 <translation id="5076534614343816664">Theo dõi giá</translation>
@@ -1062,6 +1058,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="514154868070499296">Phông chữ: <ph name="FONT" /></translation>
 <translation id="5145331760738811130">Rời khỏi trình chuyển đổi thẻ</translation>
 <translation id="5148717509369231739">Nhập từ Safari</translation>
+<translation id="5152483358138813104">Đăng nhập nhanh hơn trên các thiết bị</translation>
 <translation id="5157638238828697074">Đã xảy ra lỗi. Không thể mở ứng dụng.</translation>
 <translation id="5163417375525818870">PDF</translation>
 <translation id="5168414296986405587">Thiết kế cho iPadOS</translation>
@@ -1071,6 +1068,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="5177141896043341906">Bạn có <ph name="NUMBER_OF_PASSWORDS" /> mật khẩu yếu. Điều này có thể khiến bạn gặp rủi ro về bảo mật.</translation>
 <translation id="5181140330217080051">Đang tải xuống</translation>
 <translation id="5186185447130319458">Riêng tư</translation>
+<translation id="5189431381114029336">Lưu khoá truy cập đầu tiên của bạn</translation>
 <translation id="518997337573684769">Đang gửi báo cáo sự cố…</translation>
 <translation id="519530786644929958">Tải xuống không thành công và không thử lại được.</translation>
 <translation id="5197255632782567636">Internet</translation>
@@ -1235,7 +1233,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="5779117921996157216">{count,plural, =1{Bạn có {count} mật khẩu bị lộ. Điều này có thể khiến bạn gặp rủi ro về bảo mật. Hãy khắc phục ngay để giữ an toàn.}other{Bạn có {count} mật khẩu bị lộ. Điều này có thể khiến bạn gặp rủi ro về bảo mật. Hãy khắc phục ngay để giữ an toàn.}}</translation>
 <translation id="5791632441210678828">Nút sắp xếp cho Nguồn cấp dữ liệu đang theo dõi.</translation>
 <translation id="5803566855766646066">Bạn có chắc chắn muốn hủy thẻ mới này không?</translation>
-<translation id="5804012843049740908">Các mẹo thiết lập giúp bạn khai thác tối đa Chrome</translation>
 <translation id="5804241973901381774">Quyền</translation>
 <translation id="58081802114142635">Hoạt động của bạn giúp cải thiện AI của Google</translation>
 <translation id="5813223718099710537">Khi bạn dùng tính năng này, nội dung trên trang và URL sẽ được gửi đến Google. Bạn có thể tắt tính năng này trong phần cài đặt bất kỳ lúc nào.</translation>
@@ -1282,6 +1279,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="5971872012779224351">{count,plural, =1{Đã xoá 1 dấu trang}other{Đã xoá {count} dấu trang}}</translation>
 <translation id="5972844218283131174">Bỏ chọn tất cả</translation>
 <translation id="5977976211062815271">Trên thiết bị này</translation>
+<translation id="5986043348928676121">Tiếp theo</translation>
 <translation id="598634819525651074">Diện tích</translation>
 <translation id="5988097621740394599">Xem các mặt hàng giảm giá trong thẻ của bạn.</translation>
 <translation id="5988851877894965432">Mở URL trong Chrome</translation>
@@ -1299,7 +1297,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6045460247888249350">Thêm tiêu đề</translation>
 <translation id="6052269326659653305">Chuyển đổi hồ sơ</translation>
 <translation id="605721222689873409">YY</translation>
-<translation id="6059103953801602038">Các trang web bạn theo dõi sẽ được lưu trong Tài khoản Google của bạn. Bạn có thể quản lý các trang web đó trong phần Cài đặt của trang Khám phá.</translation>
 <translation id="6059830886158432458">Kiểm soát tin bài và hoạt động của bạn tại đây</translation>
 <translation id="6066301408025741299">Nhấn để hủy.</translation>
 <translation id="6074656473835429958">Nhận thông báo</translation>
@@ -1347,6 +1344,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6198252989419008588">Thay đổi mã PIN</translation>
 <translation id="6210079381482819663">Các thẻ bạn không dùng đến trong <ph name="THRESHOLD" /> ngày trở lên sẽ được chuyển đến đây. Bạn có thể thay đổi chế độ cài đặt này bất cứ lúc nào trong <ph name="BEGIN_LINK" />phần cài đặt<ph name="END_LINK" />.</translation>
 <translation id="6213281885682386884">Không tìm thấy địa chỉ nào</translation>
+<translation id="6218508144653756827">Giao diện màu hồng hoa vân anh</translation>
 <translation id="6218758465102657583">Di chuyển thanh địa chỉ lên đầu</translation>
 <translation id="6223816392543092032">Sử dụng dấu trang, danh sách trang web đã truy cập, mật khẩu và các chế độ cài đặt khác trên mọi thiết bị của bạn.</translation>
 <translation id="6225572914528673855">Thanh địa chỉ</translation>
@@ -1394,7 +1392,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="63519665078626091">Để sử dụng Trình kiểm tra web, hãy kết nối với Safari trên máy tính bằng cáp và truy cập iPad từ trình đơn Phát triển. Bạn có thể bật trình đơn phát triển trong mục Nâng cao của phần cài đặt Safari trên máy tính.</translation>
 <translation id="6355820183143562453">Ẩn thẻ theo dõi giá</translation>
 <translation id="6355820205320395730">Mật khẩu yếu thường dễ đoán. Hãy nhớ tạo mật khẩu mạnh. <ph name="BEGIN_LINK" />Xem các mẹo bảo mật khác.<ph name="END_LINK" /></translation>
-<translation id="6361848730467328243">Theo dõi <ph name="DOMAIN_NAME" /></translation>
 <translation id="6368038301482806847">Chọn một công cụ tìm kiếm trong danh sách.</translation>
 <translation id="6368102751067608420">Để xoá tất cả dữ liệu khỏi trình quản lý mật khẩu</translation>
 <translation id="6372558618707314581">Chuyển đến trang bất kỳ mà bạn muốn.</translation>
@@ -1439,6 +1436,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6523575793810663688">Chỉ cho tôi cách làm</translation>
 <translation id="6524082013156754186">Lưu vào tài khoản</translation>
 <translation id="6524918542306337007">Không dùng được Chế độ ẩn danh</translation>
+<translation id="6527208859483186860">nền số {position} trong tổng số {total} nền</translation>
 <translation id="6527303717912515753">Chia sẻ</translation>
 <translation id="6532106788206463496">Lưu thay đổi</translation>
 <translation id="6536759809440150308">Mở <ph name="GROUP_TITLE" />, nhóm có <ph name="NUMBER_OF_TABS" /> thẻ, <ph name="CREATION_TEXT" /></translation>
@@ -1449,7 +1447,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="656065428026159829">Xem thêm</translation>
 <translation id="6571070086367343653">Chỉnh sửa thẻ tín dụng</translation>
 <translation id="6574092468346088891">Bật thông báo của tính năng Kiểm tra an toàn</translation>
-<translation id="6574225511994820656">Bắt đầu thiết lập</translation>
 <translation id="6579867704846662339">Bạn có thể chọn mở URL nhận được từ các ứng dụng khác ở chế độ Ẩn danh.</translation>
 <translation id="6583087784430677195">Để tắt, hãy mở phần <ph name="BEGIN_LINK" />Cài đặt<ph name="END_LINK" /> rồi chuyển đến phần Tự động điền mật khẩu.</translation>
 <translation id="6585618849026997638">Bạn có thể thêm dấu trang để truy cập lại một trang mà bạn thấy quan trọng</translation>
@@ -1464,6 +1461,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="661266467055912436">Tăng độ bảo mật cho bạn và mọi người trên web.</translation>
 <translation id="6612912757320004438">Cho phép nhận thông báo về thẻ…</translation>
 <translation id="6617761071025228250">Xoá văn bản</translation>
+<translation id="6619015782482868078">Giao diện màu xanh lơ</translation>
 <translation id="6620279676667515405">Huỷ</translation>
 <translation id="6625830436658400045">Chế độ cài đặt đồng bộ hoá sẽ được khôi phục dựa trên lần sao lưu gần đây nhất. Bạn có thể chọn nội dung cần đồng bộ hoá trong phần <ph name="BEGIN_LINK" />cài đặt<ph name="END_LINK" /> bất cứ lúc nào.</translation>
 <translation id="6627583120233659107">Chỉnh sửa thư mục</translation>
@@ -1499,6 +1497,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6713676799463473249">Đã sửa đổi vào <ph name="LAST_MODIFICATION_DATE" /></translation>
 <translation id="6722623263381062480">Đã nhận thẻ</translation>
 <translation id="6723740634201835758">Trong Tài khoản Google của bạn</translation>
+<translation id="6724024423419410528">Màu</translation>
 <translation id="672735642903863329">Sử dụng dấu trang, mật khẩu và nhiều nội dung khác trên mọi thiết bị của bạn.</translation>
 <translation id="6729493062119577923">Hoạt động trong nhóm thẻ được chia sẻ</translation>
 <translation id="6732087373923685049">camera</translation>
@@ -1510,7 +1509,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6761393919622941301">Âm thanh</translation>
 <translation id="6770452996697898492">[ĐÃ ĐẶT CHỖ]</translation>
 <translation id="6779455296366983087">Hệ thống sẽ xoá dữ liệu duyệt web</translation>
-<translation id="6790502149545262384">Bạn sẽ sớm thấy các tin bài của <ph name="CHANNEL_NAME" /> khi mở một thẻ mới.</translation>
 <translation id="6791425686608802741">Nhấn vào "Thêm thẻ vào nhóm mới"</translation>
 <translation id="6794476726485507147">Chọn ngày và giờ bạn muốn nhận thông báo nhắc nhở truy cập lại trang này</translation>
 <translation id="6795481620482106033">Dữ liệu không hợp lệ</translation>
@@ -1562,6 +1560,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="69739764870135975">Nếu cũng đặt Google là công cụ tìm kiếm mặc định, thì bạn sẽ nhận được nội dung đề xuất phù hợp và có liên quan đến ngữ cảnh hơn</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">Từ trước đến nay</translation>
+<translation id="6980507581230208647">Giao diện màu hoa hồng</translation>
 <translation id="6983306615164277634">Bạn cũng có thể chạm và giữ thanh địa chỉ để thay đổi vị trí.</translation>
 <translation id="6987201788018524855">Khám phá những tính năng hữu ích mà bạn chưa biết</translation>
 <translation id="6989636517316575338">Hỏi về trang bất kỳ</translation>
@@ -1588,7 +1587,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="7091023926159231962">{count,plural, =1{Không nhập được {count} mật khẩu}other{Không nhập được {count} mật khẩu}}</translation>
 <translation id="7095110968493193530">Vào Trình quản lý mật khẩu của Google cho <ph name="EMAIL" /></translation>
 <translation id="7097046145876891318">Trong thanh địa chỉ, hãy nhấn vào giá theo thời gian để xem các mức giá thay đổi theo thời gian</translation>
-<translation id="7101580180124131336">Giờ đây, bạn có thể xem thông tin về <ph name="CHANNEL_NAME" /> và nội dung của kênh trong phần Đang theo dõi.</translation>
 <translation id="7102005569666697658">Đang tải xuống… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">Trình đơn → Cài đặt → Phương thức thanh toán</translation>
 <translation id="7108338896283013870">Ẩn</translation>
@@ -1607,6 +1605,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="7176183551031110427">Thu nhỏ</translation>
 <translation id="7186568385131859684">Kiểm soát cách Google sử dụng nhật ký duyệt web cùng với các dữ liệu khác của bạn trên các dịch vụ của Google</translation>
 <translation id="719133302483559673">Quản lý mối quan tâm và lựa chọn ưu tiên của bạn.</translation>
+<translation id="7191382490098297347">Hình ảnh trong thư viện ảnh</translation>
 <translation id="7203496777391039568">Dữ liệu của tổ chức bạn sẽ luôn được đảm bảo tính riêng tư và bảo mật</translation>
 <translation id="720399613139435155">Không dịch được</translation>
 <translation id="7204922488054642675">Tin tức được cá nhân hoá</translation>
@@ -1628,13 +1627,14 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="728025568708172005">Bắt đầu hướng dẫn</translation>
 <translation id="7280980607183752256">Không nhập được tệp này</translation>
 <translation id="7281202269687163394">Gemini và quyền riêng tư của bạn.</translation>
+<translation id="7282197670900591579">Giao diện màu vàng vỏ chanh</translation>
 <translation id="7293429513719260019">Chọn ngôn ngữ</translation>
 <translation id="7300448350764260141">Bổ sung một lớp bảo vệ trước các mối đe doạ trên mạng.</translation>
 <translation id="7311244614769792472">Không tìm thấy kết quả nào</translation>
 <translation id="7313347584264171202">Bạn sẽ thấy các thẻ ẩn danh ở đây</translation>
+<translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7334364820047587268">Bạn đã có mật khẩu cho các tài khoản này trong Trình quản lý mật khẩu của Google. Nếu bạn chọn nhập một trong các mật khẩu dưới đây, mật khẩu đó sẽ thay thế mật khẩu hiện tại.</translation>
 <translation id="7336264872878993241">Đã tải xuống <ph name="PERCENT" /> phần trăm</translation>
-<translation id="7346909386216857016">Ok</translation>
 <translation id="7352651011704765696">Đã xảy ra lỗi</translation>
 <translation id="7363349185727752629">Hướng dẫn về các lựa chọn liên quan đến quyền riêng tư</translation>
 <translation id="736564850024123010">Chuyển vị trí của thanh địa chỉ để có trải nghiệm phù hợp.</translation>
@@ -1663,9 +1663,10 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="7435356471928173109">Quản trị viên đã tắt</translation>
 <translation id="7437712592381799950">Bạn có thể vuốt lên để xem thêm nội dung phù hợp với mình.</translation>
 <translation id="7438473148803748807">Mọi người sẽ ngay lập tức mất quyền truy cập vào nhóm thẻ "<ph name="GROUP_NAME" />" và tất cả đường liên kết của lời mời đều sẽ bị vô hiệu hoá</translation>
-<translation id="7438481509621345350">Giờ đây, bạn sẽ thấy các tin bài của <ph name="CHANNEL_NAME" /> khi mở một thẻ mới.</translation>
+<translation id="7445682342344043969">Đã chặn cửa sổ bật lên</translation>
 <translation id="7451023311965289370">{count,plural, =1{Đã lưu dấu trang vào "{title}"}other{Đã lưu các dấu trang vào "{title}"}}</translation>
 <translation id="7451404862887877229">Nhấn vào "Quyền riêng tư và bảo mật" rồi nhấn vào "Duyệt web an toàn"</translation>
+<translation id="7452393099119876789">Bạn chỉ phải thực hiện thao tác này một lần.</translation>
 <translation id="7454057999980797137">Tiểu bang/quận</translation>
 <translation id="7458706065921255639">Chế độ cá nhân hoá và liên kết</translation>
 <translation id="745899714366929493">Cả ngày</translation>
@@ -1751,6 +1752,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="7749790401023484470">Bạn chưa chọn văn bản nào.</translation>
 <translation id="7757015014239760147">Không có tên người dùng ••••••••</translation>
 <translation id="775755486779745798">Tự động điền tháng hết hạn là <ph name="MONTH" /></translation>
+<translation id="7758789811447313947">Giao diện màu tím</translation>
 <translation id="7759809451544302770">Không bắt buộc</translation>
 <translation id="7765158879357617694">Di chuyển</translation>
 <translation id="7772032839648071052">Xác nhận cụm mật khẩu</translation>
@@ -1769,7 +1771,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="7815852444315004084">Tạm ẩn</translation>
 <translation id="7825973332242257878">Nhóm thẻ</translation>
 <translation id="7839994177130598711">Giờ đây, các thành viên gia đình bạn có thể sử dụng tên người dùng và mật khẩu của bạn khi dùng Trình quản lý mật khẩu của Google để đăng nhập vào <ph name="BEGIN_BOLD" /><ph name="WEBSITE" /><ph name="END_BOLD" />.</translation>
-<translation id="7840771868269352570">Mục đã chọn sẽ bị xóa.</translation>
 <translation id="7841180087127694526">Tìm kiếm văn bản đã sao chép</translation>
 <translation id="7841418003178675048">Chọn những thẻ bạn muốn thấy trên trang thẻ mới.</translation>
 <translation id="7845466610722898">Hiện Danh sách đọc</translation>
@@ -1815,6 +1816,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="797824194429476746">Thẻ sẽ vẫn mở trên thiết bị này nhưng nhóm sẽ bị xoá vĩnh viễn.</translation>
 <translation id="797874245254030665">Truy cập mật khẩu và khoá truy cập của bạn từ mọi ứng dụng</translation>
 <translation id="7982789257301363584">Mạng</translation>
+<translation id="798299424881500862">Giao diện màu cam</translation>
 <translation id="7987685713885608670">Để tăng mức độ an toàn, hãy mã hoá mật khẩu trên thiết bị trước khi lưu vào Trình quản lý mật khẩu của Google.</translation>
 <translation id="798991908416757345">Nhóm thẻ không có sẵn</translation>
 <translation id="7993170188789685695">Nhấn đúp để đóng thông báo này.</translation>
@@ -1834,7 +1836,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8035133914807600019">Thư mục mới...</translation>
 <translation id="8035412398498507358">Ảnh</translation>
 <translation id="8040407350301524547">Để biết các lựa chọn về tuyến đường, hãy nhấn vào "Xem đường đi".</translation>
-<translation id="804225253087497565"><ph name="BEGIN_LINK" />Nhật ký tìm kiếm<ph name="END_LINK" /> và <ph name="BEGIN_LINK" />các hình thức hoạt động khác<ph name="END_LINK" /> có thể được lưu vào Tài khoản Google khi bạn đăng nhập. Bạn có thể xóa những dữ liệu này bất cứ lúc nào.</translation>
 <translation id="804427445359061970">Tại đây, bạn sẽ thấy các thẻ mà bạn mở trên những thiết bị khác</translation>
 <translation id="8058655154417507695">Năm hết hạn</translation>
 <translation id="8059312861912872211">{count,plural, =1{{count} dấu trang}other{{count} dấu trang}}</translation>
@@ -1928,8 +1929,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8393700583063109961">Gửi tin nhắn</translation>
 <translation id="8393889347136007944">Các thẻ mà bạn đã không sử dụng trong <ph name="THRESHOLD" /> ngày</translation>
 <translation id="8395180897620197612">Ngừng ghi nhật ký</translation>
-<translation id="8395339334550012808">Sắp tới, bạn sẽ có thể xem thông tin về <ph name="CHANNEL_NAME" /> và nội dung của kênh trong phần Đang theo dõi.</translation>
-<translation id="8402673309244746971">Chuyển đến phần Đang theo dõi</translation>
 <translation id="8407669440184693619">Không tìm thấy mật khẩu nào cho trang web này</translation>
 <translation id="8407831512155324054">Mật khẩu của bạn có vẻ mạnh</translation>
 <translation id="8414283596511250978">Không bao giờ quên mật khẩu</translation>
@@ -1975,6 +1974,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8571019948162152515">Xoá "<ph name="FILENAME" />"?</translation>
 <translation id="8571213806525832805">4 tuần qua</translation>
 <translation id="8577056989960190117">Tự động điền năm hết hạn là <ph name="YEAR" /></translation>
+<translation id="8587001564479545614">Tạo mã PIN khôi phục</translation>
 <translation id="8588404856427128947">Đang tắt</translation>
 <translation id="8590286732816598906">Nhóm thẻ, <ph name="GROUP_TITLE" />, Trình đơn.</translation>
 <translation id="8600272508328041907">Chuyển sang Dịch toàn bộ trang</translation>
@@ -2034,7 +2034,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8750037785291841318">Bạn sẽ thấy các thẻ ở đây</translation>
 <translation id="8756969031206844760">Cập nhật mật khẩu?</translation>
 <translation id="8763613688786959833">Chuyển đến thẻ cuối cùng</translation>
-<translation id="8764015330924122850">Ngừng theo dõi <ph name="DOMAIN_NAME" /></translation>
 <translation id="8766790350274092814">Mật khẩu của <ph name="WEBSITE" /> và <ph name="SECOND_WEBSITE" /> sẽ bị xoá. Các tài khoản của bạn sẽ không bị xoá.</translation>
 <translation id="8775144690796719618">URL không hợp lệ</translation>
 <translation id="8781834595282316166">Thẻ mới trong nhóm</translation>
@@ -2053,7 +2052,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8829809207373502270">Khoá truy cập này không còn hoạt động nữa. Khoá đã bị xoá khỏi <ph name="WEBSITE" /> và sẽ sớm bị xoá khỏi đây. <ph name="BEGIN_LINK" />Giới thiệu về khoá truy cập<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Đóng tất cả các thẻ không hoạt động</translation>
 <translation id="8837654851594567190">Sắp xếp theo nhà xuất bản</translation>
-<translation id="8840513115188359703">Bạn sẽ không được đăng xuất khỏi Tài khoản Google của mình.</translation>
 <translation id="8848286253339013170">Đang lưu hình ảnh vào Google Photos cho <ph name="USER_EMAIL" />…</translation>
 <translation id="8849001918648564819">Đã ẩn</translation>
 <translation id="8855242995793521265">Gần như không ảnh hưởng đến tốc độ của trình duyệt hoặc thiết bị.</translation>
@@ -2095,9 +2093,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="8976382372951310360">Trợ giúp</translation>
 <translation id="8976414606286374109">Các thẻ sẽ được lưu vào Tài khoản Google của bạn.</translation>
 <translation id="8981454092730389528">Kiểm soát hoạt động trên Google</translation>
-<translation id="8984627322964256190">Ẩn tuỳ chọn Theo dõi <ph name="DOMAIN_NAME" /></translation>
 <translation id="8998289560386111590">Tính năng đăng nhập không hoạt động trên thiết bị của bạn</translation>
-<translation id="9000089900434778519">Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xóa nhật ký tìm kiếm, hãy xem hướng dẫn (nếu có) của công cụ tìm kiếm đó.</translation>
 <translation id="9000532564152265066">Tất cả các thẻ</translation>
 <translation id="9003677638446136377">Kiểm tra lại</translation>
 <translation id="9006453925669499173">Trình đơn → Thẻ ẩn danh mới</translation>
@@ -2171,7 +2167,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="952704832371081537">Huỷ</translation>
 <translation id="954667170699278022">Danh sách đọc</translation>
 <translation id="956218893102219091">Sử dụng thông tin vị trí chính xác của bạn để nhận được kết quả chính xác nhất từ Gemini, thay vì vị trí ước đoán dựa trên địa chỉ IP của bạn. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
-<translation id="959066944189734975">Bạn đang theo dõi <ph name="CHANNEL_NAME" /></translation>
 <translation id="961856697154696964">Xoá dữ liệu duyệt web</translation>
 <translation id="963102227019621224">Hoạt động trên web và ứng dụng</translation>
 <translation id="966593914872420832">Tìm kiếm bằng giọng nói</translation>

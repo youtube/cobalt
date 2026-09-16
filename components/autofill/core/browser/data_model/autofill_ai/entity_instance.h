@@ -7,6 +7,7 @@
 
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "base/compiler_specific.h"
@@ -15,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/optional_ref.h"
+#include "base/types/pass_key.h"
 #include "base/types/strong_alias.h"
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
@@ -39,7 +41,9 @@ namespace autofill {
 // Entity instances are loaded from a webdata table and exposed through
 // EntityDataManager.
 class AttributeInstance;
+struct AutofillFormatString;
 class EntityInstance;
+class EntityInstanceTestApi;
 class EntityTable;
 
 // An attribute instance is a typed string value with additional metadata.
@@ -70,7 +74,7 @@ class AttributeInstance final {
   // instance, formatted according to the given `app_locale`.
   //
   // For more control over the return value, see GetInfo().
-  std::u16string GetCompleteInfo(const std::string& app_locale) const {
+  std::u16string GetCompleteInfo(std::string_view app_locale) const {
     return GetInfo(type_.field_type(), app_locale, std::nullopt);
   }
 
@@ -93,8 +97,8 @@ class AttributeInstance final {
   // grammar of format strings.
   std::u16string GetInfo(
       FieldType field_type,
-      const std::string& app_locale,
-      base::optional_ref<const std::u16string> format_string) const;
+      std::string_view app_locale,
+      base::optional_ref<const AutofillFormatString> format_string) const;
 
   // Same as `GetInfo` but returns the value as stored with no formatting
   // whatsoever.
@@ -114,15 +118,19 @@ class AttributeInstance final {
   // See GetInfo() for the meaning of `field_type`.
   //
   // Currently, the `format_string` only matters for dates. Dates are updated
-  // incrementally, e.g., SetInfo(..., u"16", ..., u"DD", ...) only changes the
-  // day and does not reset the month or year. If `value` doesn't fully match
-  // the `format_string`, the function is a no-op, e.g.,
-  // SetInfo(..., u"16/12/2022", ..., u"DD", ...) is a no-op.
+  // incrementally, e.g.,
+  //   SetInfo(..., u"16", ...,
+  //           AutofillFormatString::FromDateFormat(u"DD"), ...);
+  // only changes the day and does not reset the month or year. If `value`
+  // doesn't fully match the `format_string`, e.g.
+  //   SetInfo(..., u"16/12/2022", ...,
+  //           AutofillFormatString::FromDateFormat(u"DD"), ...);
+  // the function is a no-op.
   // See AutofillField::format_string() for the grammar of format strings.
   void SetInfo(FieldType field_type,
                const std::u16string& value,
-               const std::string& app_locale,
-               std::u16string_view format_string,
+               std::string_view app_locale,
+               base::optional_ref<const AutofillFormatString> format_string,
                VerificationStatus status);
 
   // Similar to SetInfo() but without canonicalization: It does not accept
@@ -219,8 +227,8 @@ class EntityInstance final {
                  size_t use_count,
                  base::Time use_date,
                  RecordType record_type,
-                 AreAttributesReadOnly are_attributes_read_only =
-                     AreAttributesReadOnly(false));
+                 AreAttributesReadOnly are_attributes_read_only,
+                 std::string frecency_override);
 
   EntityInstance(const EntityInstance&);
   EntityInstance& operator=(const EntityInstance&);
@@ -232,6 +240,10 @@ class EntityInstance final {
   struct CompareByGuid;
 
   // Comparator that returns the entity with the higher frecency score.
+  // If both entities have non-empty frecency override, the one with the lowest
+  // lexicographical order of the override string will be first.
+  // If one entity has a non-empty frecency override and the other does not,
+  // the entity with the override will be first.
   struct FrecencyOrder {
    public:
     explicit FrecencyOrder(base::Time now);
@@ -245,6 +257,12 @@ class EntityInstance final {
   // submission.
   // `ImportOrder(x, y) == true` means `x` has higher priority than `y`.
   static bool ImportOrder(const EntityInstance& lhs, const EntityInstance& rhs);
+
+  // Comparator that ranks instances by their priority for server migration on
+  // form submission. `MigrationOrder(x, y) == true` means `x` has higher
+  // priority than `y`.
+  static bool MigrationOrder(const EntityInstance& lhs,
+                             const EntityInstance& rhs);
 
   const EntityType& type() const { return type_; }
 
@@ -290,6 +308,12 @@ class EntityInstance final {
   // Returns the type of storage used for the specific entity.
   RecordType record_type() const { return record_type_; }
 
+  // Returns the ordering override for the specific entity.
+  const std::string& frecency_override(
+      base::PassKey<EntityTable> pass_key) const {
+    return frecency_override_;
+  }
+
   struct EntityMergeability {
     EntityMergeability();
     EntityMergeability(std::vector<AttributeInstance> mergeable_attributes,
@@ -332,6 +356,8 @@ class EntityInstance final {
                          const EntityInstance&) = default;
 
  private:
+  friend class EntityInstanceTestApi;
+
   EntityType type_;
   base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
       attributes_;
@@ -342,6 +368,7 @@ class EntityInstance final {
   base::Time use_date_;
   RecordType record_type_;
   AreAttributesReadOnly are_attributes_read_only_;
+  std::string frecency_override_;
 };
 
 std::ostream& operator<<(std::ostream& os, const AttributeInstance& a);

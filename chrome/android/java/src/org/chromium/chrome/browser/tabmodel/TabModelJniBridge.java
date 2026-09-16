@@ -45,7 +45,6 @@ import org.chromium.url.Origin;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.Set;
 
 /** Bridges between the C++ and Java {@link TabModel} interfaces. */
@@ -159,13 +158,12 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     }
 
     @Override
-    public OptionalInt getNativeSessionIdForTesting() {
+    public @Nullable Integer getNativeSessionIdForTesting() {
         if (!isNativeInitialized()) {
-            return OptionalInt.empty();
+            return null;
         }
 
-        return OptionalInt.of(
-                TabModelJniBridgeJni.get().getSessionIdForTesting(mNativeTabModelJniBridge));
+        return TabModelJniBridgeJni.get().getSessionIdForTesting(mNativeTabModelJniBridge);
     }
 
     /**
@@ -179,8 +177,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         }
     }
 
-    protected void duplicateTabForTesting(Tab tab) {
-        TabModelJniBridgeJni.get()
+    protected Tab duplicateTabForTesting(Tab tab) {
+        return TabModelJniBridgeJni.get()
                 .duplicateTabForTesting( // IN-TEST
                         mNativeTabModelJniBridge, tab);
     }
@@ -459,10 +457,10 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      */
     @CalledByNative
     @VisibleForTesting
-    public void openTabProgrammatically(GURL url, int index) {
+    public @JniType("TabAndroid*") @Nullable Tab openTabProgrammatically(GURL url, int index) {
         LoadUrlParams loadParams = new LoadUrlParams(url);
 
-        getTabCreator(isIncognitoBranded())
+        return getTabCreator(isIncognitoBranded())
                 .createNewTab(
                         loadParams,
                         TabLaunchType.FROM_TAB_LIST_INTERFACE,
@@ -481,10 +479,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @return The new tab, if the duplication succeeded.
      */
     @CalledByNative
-    public @JniType("TabAndroid*") @Nullable Tab duplicateTab(
+    protected @JniType("TabAndroid*") @Nullable Tab duplicateTab(
             @JniType("TabAndroid*") Tab parentTab, WebContents webContents) {
-        // TODO(crbug.com/431997520): Insert tab next to parent instead of next to the other
-        // children tabs.
         return getTabCreator()
                 .createTabWithWebContents(
                         parentTab,
@@ -547,7 +543,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         @TabId int tabId = tab.getId();
         if (tabId == Tab.INVALID_TAB_ID) return;
 
-        pinTab(tabId);
+        pinTab(tabId, /* showUngroupDialog= */ false);
     }
 
     @CalledByNative
@@ -577,6 +573,15 @@ public abstract class TabModelJniBridge implements TabModelInternal {
 
     protected abstract void moveTabGroupToWindow(
             @JniType("base::Token") Token tabGroupId, Activity activity, int newIndex);
+
+    @Override
+    public int getPinnedTabsCount() {
+        // The index of the first non-pinned tab is equivalent to the number of pinned tabs.
+        // For example, if there are 3 pinned tabs at indices 0, 1, and 2, the first non-pinned
+        // tab will be at index 3. If all tabs are pinned, this will return getCount(). If no
+        // tabs are pinned, this will return 0.
+        return findFirstNonPinnedTabIndex();
+    }
 
     @Override
     public void setMuteSetting(List<Tab> tabs, boolean mute) {
@@ -630,7 +635,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 @JniType("std::vector<TabAndroid*>") List<Tab> tabs,
                 boolean mute);
 
-        void duplicateTabForTesting( // IN-TEST
+        @JniType("TabAndroid*")
+        Tab duplicateTabForTesting( // IN-TEST
                 long nativeTabModelJniBridge, @JniType("TabAndroid*") Tab tab);
 
         void moveTabToWindowForTesting( // IN-TEST

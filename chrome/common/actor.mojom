@@ -18,8 +18,8 @@ union ToolTarget {
 
   // An x,y pair representing a location relative to the origin at the top-left
   // corner of the local root frame (i.e. the blink::WebWidget/RenderWidget). In
-  // physical pixels.
-  gfx.mojom.Point coordinate;
+  // DIP.
+  gfx.mojom.Point coordinate_dip;
 };
 
 // Attributes of the Node target returned from hit test on last observed APC.
@@ -329,6 +329,9 @@ enum ActionResultCode {
   // The key down event for one of the chars was suppressed by Blink.
   kTypeKeyDownSuppressed = 704,
 
+  // The text to type is not valid UTF-8 string.
+  kTypeInvalidTextEncoding = 705,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////
@@ -353,6 +356,10 @@ enum ActionResultCode {
   // History navigation committed to an error page.
   kHistoryErrorPage = 805,
 
+  // The navigation entry at the current offset changed between validation and
+  // time of use.
+  kHistoryNavigationEntryChanged = 806,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////
@@ -372,15 +379,27 @@ enum ActionResultCode {
   // Neither the username, nor the password field could be filled.
   kLoginNoFillableFields = 903,
 
+  // The use of the password manager is not allowed on the page (e.g. blocked
+  // by enterprise policy).
+  kLoginFillingNotAllowed = 904,
+
+  // The page changed before the credential selected by the user was filled.
+  kLoginPageChangedDuringSelection = 905,
+
   // Please see the comment above about adding new values.
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:ActionResultCode)
 
+// The task ID associated with the tool invocation.
+struct TaskId {
+  int32 id;
+};
+
 // All information required to invoke a tool in the renderer.
 struct ToolInvocation {
   // The task ID owning this invocation.
-  int32 task_id;
+  TaskId task_id;
 
   // The action to carry out in this invocation.
   ToolAction action;
@@ -397,6 +416,10 @@ struct ToolInvocation {
 struct ActionResult {
   // A code with the outcome of the tool invocation.
   ActionResultCode code;
+
+  // Whether any action was taken on the page. This is used to know if we need
+  // to wait for the page to settle.
+  bool requires_page_stabilization;
 
   // If the code is not kOk, an English language message describing the error.
   string message;
@@ -439,7 +462,7 @@ struct JournalEntry {
   JournalEntryType type;
 
   // The task ID associated with this entry.
-  int32 task_id;
+  TaskId task_id;
 
   // The track the event should occur on.
   JournalTrack track;
@@ -459,4 +482,18 @@ struct JournalEntry {
 interface JournalClient {
   // New log messages are sent in batches to limit the frequency of calls.
   AddEntriesToJournal(array<JournalEntry> entries);
+};
+
+// Used to monitor page stability in the renderer. Implemented by
+// `actor::PageStabilityMonitor` and lives in the renderer process. The browser
+// queries this interface to learn when the current page associated with
+// `actor::PageStabilityMonitor` is stable.
+//
+// We CHECK that only one `NotifyWhenStable()` call is in flight at any given
+// time.
+//
+// `observation_delay` is the amount of time to wait when observing tool
+// execution before starting to wait for page stability.
+interface PageStabilityMonitor {
+  NotifyWhenStable(mojo_base.mojom.TimeDelta observation_delay) => ();
 };

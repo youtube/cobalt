@@ -116,7 +116,7 @@ JNI_ShellManager_AppendMigrationStatus(
     // This makes the migration telemetry accessible to the loaded web
     // app.
     GURL::Replacements replacements;
-    std::string query = url.query();
+    std::string query = url.GetQuery();
     if (!query.empty()) {
       query += "&";
     }

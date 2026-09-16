@@ -6,7 +6,6 @@
 import 'chrome://settings/lazy_load.js';
 
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {CrExpandButtonElement, CrInputElement, SettingsSyncEncryptionOptionsElement, SettingsSyncPageElement} from 'chrome://settings/lazy_load.js';
 // <if expr="not is_chromeos">
@@ -15,7 +14,7 @@ import type {CrDialogElement} from 'chrome://settings/lazy_load.js';
 import type {CrCollapseElement} from 'chrome://settings/lazy_load.js';
 import type {CrButtonElement, CrRadioButtonElement, CrRadioGroupElement} from 'chrome://settings/settings.js';
 import {MetricsBrowserProxyImpl} from 'chrome://settings/settings.js';
-import {OpenWindowProxyImpl, PageStatus, Router, routes, SignedInState, StatusAction, SyncBrowserProxyImpl} from 'chrome://settings/settings.js';
+import {loadTimeData, OpenWindowProxyImpl, PageStatus, Router, routes, SignedInState, StatusAction, SyncBrowserProxyImpl} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks, waitBeforeNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
@@ -159,9 +158,6 @@ suite('SyncSettings', function() {
     assertEquals(otherItems.querySelectorAll('cr-expand-button').length, 1);
 
     assertTrue(isChildVisible(syncPage, '#sync-advanced-row'));
-    // TODO(crbug.com/324091979): Remove once crbug.com/324091979 launched.
-    assertFalse(isChildVisible(syncPage, '#activityControlsLinkRowV1'));
-
     assertTrue(isChildVisible(syncPage, '#activityControlsLinkRowV2'));
     assertFalse(isChildVisible(syncPage, '#personalizationExpandButton'));
     assertTrue(isChildVisible(syncPage, '#syncDashboardLink'));
@@ -818,9 +814,6 @@ suite('EEAChoiceCountry', function() {
   });
 
   test('personalizationControlsVisibility', function() {
-    // TODO(crbug.com/324091979): Remove once crbug.com/324091979 launched.
-    assertFalse(isChildVisible(syncPage, '#activityControlsLinkRowV1'));
-
     assertFalse(isChildVisible(syncPage, '#activityControlsLinkRowV2'));
     assertTrue(isChildVisible(syncPage, '#personalizationExpandButton'));
   });
@@ -868,41 +861,3 @@ suite('EEAChoiceCountry', function() {
   });
 });
 
-// TODO(crbug.com/324091979): Remove once crbug.com/324091979 launched.
-suite('LinkedServicesDisabled', function() {
-  let syncPage: SettingsSyncPageElement;
-
-  suiteSetup(function() {
-    loadTimeData.overrideValues({
-      signinAllowed: true,
-      enableLinkedServicesSetting: false,
-    });
-  });
-
-  setup(function() {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    syncPage = document.createElement('settings-sync-page');
-    document.body.appendChild(syncPage);
-
-    // Start with Sync All with no encryption selected. Also, ensure
-    // that this is not a supervised user, so that Sync Passphrase is
-    // enabled.
-    webUIListenerCallback('sync-prefs-changed', getSyncAllPrefs());
-    syncPage.set('syncStatus', {
-      signedInState: SignedInState.SYNCING,
-      supervisedUser: false,
-      statusAction: StatusAction.NO_ACTION,
-    });
-    flush();
-  });
-
-  teardown(function() {
-    syncPage.remove();
-  });
-
-  test('personalizationControlsVisibility', function() {
-    assertTrue(isChildVisible(syncPage, '#activityControlsLinkRowV1'));
-    assertFalse(isChildVisible(syncPage, '#activityControlsLinkRowV2'));
-    assertFalse(isChildVisible(syncPage, '#personalizationExpandButton'));
-  });
-});

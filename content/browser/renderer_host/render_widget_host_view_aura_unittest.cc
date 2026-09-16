@@ -23,6 +23,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/null_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
@@ -663,8 +664,7 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
 
   void TearDown() override { TearDownEnvironment(); }
 
-  void SimulateMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level) {
+  void SimulateMemoryPressure(base::MemoryPressureLevel level) {
     // Here should be base::MemoryPressureListener::NotifyMemoryPressure, but
     // since the FrameEvictionManager is installing a MemoryPressureListener
     // which uses base::ObserverListThreadSafe, which furthermore remembers the
@@ -3430,8 +3430,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFramesWithMemoryPressure) {
   base::RunLoop().RunUntilIdle();
   EXPECT_HAS_FRAME(views[0]);
   // Using a lesser memory pressure event however, should evict.
-  SimulateMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  SimulateMemoryPressure(base::MEMORY_PRESSURE_LEVEL_MODERATE);
   base::RunLoop().RunUntilIdle();
   EXPECT_EVICTED(views[0]);
 
@@ -3439,8 +3438,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFramesWithMemoryPressure) {
   views[1]->Hide();
   base::RunLoop().RunUntilIdle();
   EXPECT_HAS_FRAME(views[1]);
-  SimulateMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  SimulateMemoryPressure(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   base::RunLoop().RunUntilIdle();
   EXPECT_EVICTED(views[1]);
 
@@ -4362,7 +4360,14 @@ TEST_F(RenderWidgetHostViewAuraOverscrollTest, OverscrollWithTouchEvents) {
   MoveTouchPoint(0, 65, 10);
   SendTouchEvent();
   events = GetAndResetDispatchedMessages();
-  EXPECT_EQ("TouchMove", GetMessageNames(events));
+  // When `SendEmptyGestureScrollUpdate` is enabled, `TouchMove` events are
+  // queued and not dispatched immediately. Otherwise, the `TouchMove` is
+  // dispatched right away.
+  if (base::FeatureList::IsEnabled(features::kSendEmptyGestureScrollUpdate)) {
+    EXPECT_EQ(0U, GetAndResetDispatchedMessages().size());
+  } else {
+    EXPECT_EQ("TouchMove", GetMessageNames(events));
+  }
   SendNotConsumedAcks(events);
 
   SimulateGestureScrollUpdateEvent(45, 0, 0);
@@ -4387,7 +4392,15 @@ TEST_F(RenderWidgetHostViewAuraOverscrollTest, OverscrollWithTouchEvents) {
   EXPECT_EQ(15.f, overscroll_delegate()->delta_x());
   EXPECT_EQ(0.f, overscroll_delegate()->delta_y());
   events = GetAndResetDispatchedMessages();
-  EXPECT_EQ("TouchMove", GetMessageNames(events));
+
+  // When `SendEmptyGestureScrollUpdate` is enabled, `TouchMove` events are
+  // queued and not dispatched immediately. Otherwise, the `TouchMove` is
+  // dispatched right away.
+  if (base::FeatureList::IsEnabled(features::kSendEmptyGestureScrollUpdate)) {
+    EXPECT_EQ(0U, GetAndResetDispatchedMessages().size());
+  } else {
+    EXPECT_EQ("TouchMove", GetMessageNames(events));
+  }
   SendNotConsumedAcks(events);
 
   SimulateGestureScrollUpdateEvent(-10, 0, 0);
@@ -6945,6 +6958,28 @@ class InputMethodStateAuraHandwritingTest : public InputMethodStateAuraTest {
   base::test::ScopedFeatureList scoped_feature_list_;
   StylusHandwritingWinTestHelper stylus_handwriting_win_test_helper_;
 };
+
+// This test checks the histograms logged by Stylus Handwriting.
+TEST_F(InputMethodStateAuraHandwritingTest, CheckHistograms) {
+  base::HistogramTester histogram_tester;
+
+  ui::StylusHandwritingPropertiesWin last_stylus_handwriting_properties;
+  StylusHandwritingControllerWin::OnFocusHandwritingTargetCallback
+      handwriting_callback;
+  StylusHandwritingControllerWin* instance =
+      StylusHandwritingControllerWin::GetInstance();
+  instance->OnStartStylusWriting(handwriting_callback,
+                                 last_stylus_handwriting_properties);
+  histogram_tester.ExpectBucketCount(
+      "Stylus.Handwriting.RequestHandwritingForPointer", 0, 1);
+
+  tab_view()->OnEditElementFocusedForStylusWriting(nullptr);
+  histogram_tester.ExpectBucketCount("Stylus.Handwriting.TSFFocus", 0, 1);
+
+  tab_view()->OnEditElementFocusedForStylusWriting(
+      CreateStylusWritingFocusResultForTesting());
+  histogram_tester.ExpectBucketCount("Stylus.Handwriting.TSFFocus", 1, 1);
+}
 
 // This test is for "proximate" character bounds GetTextExt behavior.
 TEST_F(InputMethodStateAuraHandwritingTest, GetProximateCharacterBounds) {

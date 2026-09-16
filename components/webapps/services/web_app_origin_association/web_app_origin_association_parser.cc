@@ -50,7 +50,8 @@ mojom::WebAppOriginAssociationPtr WebAppOriginAssociationParser::Parse(
   auto result =
       [&]() -> base::expected<mojom::WebAppOriginAssociationPtr, Result> {
     ASSIGN_OR_RETURN(auto parsed_data,
-                     base::JSONReader::ReadAndReturnValueWithError(data),
+                     base::JSONReader::ReadAndReturnValueWithError(
+                         data, base::JSON_PARSE_CHROMIUM_EXTENSIONS),
                      [&](base::JSONReader::Error error) {
                        AddErrorInfo(error.message, error.line, error.column);
                        return Result::kParseFailedInvalidJson;
@@ -153,7 +154,7 @@ bool WebAppOriginAssociationParser::UrlIsWithinScope(
     const GURL& url,
     const url::Origin& extended_origin) {
   return extended_origin.IsSameOriginWith(url) &&
-         url.path().starts_with(extended_origin.GetURL().path());
+         url.GetPath().starts_with(extended_origin.GetURL().GetPath());
 }
 
 }  // namespace webapps

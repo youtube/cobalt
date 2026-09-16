@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.dom_distiller;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
@@ -32,7 +33,9 @@ import org.chromium.base.task.TaskTraits;
 import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager.EntryPoint;
@@ -69,8 +72,12 @@ public class ReaderModeToolbarButtonControllerTest {
     @Mock private DistilledPagePrefs mDistilledPagePrefs;
     @Mock private ManagedBottomSheetController mBottomSheetController;
     @Mock private ReaderModeActionRateLimiter mReaderModeActionRateLimiter;
+    @Mock private ReaderModeIphController mReaderModeIphController;
 
     private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<ReaderModeIphController> mReaderModeIphControllerSupplier =
+            new ObservableSupplierImpl<>();
+
     private UserDataHost mUserDataHost;
     private UnownedUserDataHost mUnownedUserDataHost;
     private Context mContext;
@@ -104,6 +111,7 @@ public class ReaderModeToolbarButtonControllerTest {
         when(mMockActivityTabProvider.get()).thenReturn(mMockTab);
         when(mMockTab.getUserDataHost()).thenReturn(mUserDataHost);
         mUserDataHost.setUserData(ReaderModeManager.USER_DATA_KEY, mMockReaderModeManager);
+        mReaderModeIphControllerSupplier.set(mReaderModeIphController);
 
         when(mDomDistillerService.getDistilledPagePrefs()).thenReturn(mDistilledPagePrefs);
         when(mDomDistillerServiceFactoryJni.getForProfile(any())).thenReturn(mDomDistillerService);
@@ -115,7 +123,11 @@ public class ReaderModeToolbarButtonControllerTest {
 
     private ReaderModeToolbarButtonController createController() {
         return new ReaderModeToolbarButtonController(
-                mContext, mProfileSupplier, mMockActivityTabProvider, mMockModalDialogManager);
+                mContext,
+                mProfileSupplier,
+                mMockActivityTabProvider,
+                mMockModalDialogManager,
+                mReaderModeIphControllerSupplier);
     }
 
     @Test
@@ -190,6 +202,12 @@ public class ReaderModeToolbarButtonControllerTest {
     public void testReaderModeButton_timesOut() throws Exception {
         ReaderModeToolbarButtonController controller = createController();
 
+
+        when(mMockTab.getUrl()).thenReturn(new GURL("chrome-distiller://test"));
+        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(true);
+        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
+        assertTrue(controller.shouldShowButton(mMockTab));
+
         CallbackHelper callbackHelper = new CallbackHelper();
         ButtonDataProvider.ButtonDataObserver observer =
                 new ButtonDataProvider.ButtonDataObserver() {
@@ -202,8 +220,37 @@ public class ReaderModeToolbarButtonControllerTest {
                 };
         controller.addObserver(observer);
 
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                ReaderModeMetrics
+                                        .READER_MODE_CONTEXTUAL_PAGE_ACTION_EVENT_HISTOGRAM,
+                                ReaderModeMetrics.ReaderModeContextualPageActionEvent.TIME_OUT)
+                        .build();
+
         // Simulate the button being shown, and verify that the button is hidden after a delay.
         controller.onActionShown();
         callbackHelper.waitForNext();
+        assertFalse(controller.shouldShowButton(mMockTab));
+
+        watcher.assertExpected();
+    }
+
+    @Test
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
+    public void testReaderModeShouldShowButton_whenDistillInAppDisabled() throws Exception {
+        // When ReaderModeDistillInApp is disabled, the button should always be "available" to be
+        // shown. The actual showing of the button is driven through ReaderModeActionProvider.
+        ReaderModeToolbarButtonController controller = createController();
+
+        when(mMockTab.getUrl()).thenReturn(new GURL("chrome-distiller://test"));
+        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(true);
+        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
+        assertTrue(controller.shouldShowButton(mMockTab));
+
+        when(mMockTab.getUrl()).thenReturn(new GURL("http://test.com"));
+        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(false);
+        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
+        assertTrue(controller.shouldShowButton(mMockTab));
     }
 }

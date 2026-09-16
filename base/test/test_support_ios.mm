@@ -40,7 +40,7 @@ namespace {
 void PopulateUIWindow(UIWindow* window) {
   window.backgroundColor = UIColor.whiteColor;
   [window makeKeyAndVisible];
-  CGRect bounds = UIScreen.mainScreen.bounds;
+  CGRect bounds = window.windowScene.screen.bounds;
   // Add a label with the app name.
   UILabel* label = [[UILabel alloc] initWithFrame:bounds];
   label.text = NSProcessInfo.processInfo.processName;
@@ -158,16 +158,17 @@ bool IsSceneStartupEnabled() {
 // Returns true if the gtest output should be redirected to a file, then sent
 // to NSLog when complete. This redirection is used because gtest only writes
 // output to stdout, but results must be written to NSLog in order to show up in
-// the device log that is retrieved from the device by the host.
+// the device log that is retrieved from the device by the host. Output is not
+// redirected for simulators or tvOS.
 - (BOOL)shouldRedirectOutputToFile {
-#if !TARGET_OS_SIMULATOR
+#if TARGET_OS_SIMULATOR || BUILDFLAG(IS_IOS_TVOS)
+  return NO;
+#else
   // Tests in XCTest mode don't need to redirect output to a file because the
   // test result parser analyzes console output.
   return !base::ShouldRunIOSUnittestsWithXCTest() &&
          !base::debug::BeingDebugged();
-#else
-  return NO;
-#endif  // TARGET_OS_SIMULATOR
+#endif  // TARGET_OS_SIMULATOR || BUILDFLAG(IS_IOS_TVOS)
 }
 
 // Returns the path to the directory to store gtest output files.

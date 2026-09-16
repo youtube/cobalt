@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
@@ -89,7 +90,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
-#include "components/omnibox/browser/omnibox_view.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/send_tab_to_self/features.h"
@@ -313,7 +313,7 @@ void ToolbarView::Init() {
     // Add the pinned toolbar actions container so that downloads can be shown
     // in popups.
     pinned_toolbar_actions_container_ = container_view_->AddChildView(
-        std::make_unique<PinnedToolbarActionsContainer>(browser_view_));
+        std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
     container_view_->SetBackground(
         views::CreateSolidBackground(kColorLocationBarBackground));
     container_view_->SetLayoutManager(std::make_unique<views::FlexLayout>())
@@ -406,7 +406,7 @@ void ToolbarView::Init() {
   }
 
   pinned_toolbar_actions_container_ = container_view_->AddChildView(
-      std::make_unique<PinnedToolbarActionsContainer>(browser_view_));
+      std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
 
   if (features::HasTabSearchToolbarButton()) {
     tab_search_button_ =

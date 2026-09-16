@@ -535,7 +535,6 @@ set(
   include/openssl/asn1t.h
   include/openssl/base.h
   include/openssl/base64.h
-  include/openssl/bcm_public.h
   include/openssl/bio.h
   include/openssl/blake2.h
   include/openssl/blowfish.h
@@ -1173,6 +1172,20 @@ set(
 )
 
 set(
+  ENTROPY_MODULEWRAPPER_SOURCES
+
+  util/fipstools/acvp/entropy_modulewrapper/main.cc
+  util/fipstools/acvp/entropy_modulewrapper/modulewrapper.cc
+  util/fipstools/acvp/modulewrapper/proto.cc
+)
+
+set(
+  ENTROPY_MODULEWRAPPER_INTERNAL_HEADERS
+
+  util/fipstools/acvp/modulewrapper/modulewrapper.h
+)
+
+set(
   FUZZ_SOURCES
 
   fuzz/arm_cpuinfo.cc
@@ -1216,6 +1229,7 @@ set(
 
   util/fipstools/acvp/modulewrapper/main.cc
   util/fipstools/acvp/modulewrapper/modulewrapper.cc
+  util/fipstools/acvp/modulewrapper/proto.cc
 )
 
 set(

@@ -10,16 +10,18 @@
 #import "build/branding_buildflags.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/omnibox/browser/aim_eligibility_service_features.h"
 #import "components/regional_capabilities/regional_capabilities_switches.h"
+#import "components/safety_check/safety_check_pref_names.h"
 #import "components/search_engines/search_engines_switches.h"
 #import "components/segmentation_platform/public/features.h"
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
 #import "components/signin/public/base/signin_switches.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_cells_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/new_tab_page_app_interface.h"
@@ -185,7 +187,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
     // Disable AimServerEligibilityEnabledEn so that omnibox doesn't move and
     // shift offset.
     config.additional_args.push_back(base::StringPrintf(
-        "--disable-features=%s", omnibox::kAimServerEligibilityEnabledEn.name));
+        "--disable-features=%s", omnibox::kAimServerEligibilityEnabled.name));
   } else {
     // Show doodle to make sure tests cover async callback logic updating logo.
     // Note: This makes testPositionRestoredWithShiftingOffset and
@@ -229,7 +231,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [ChromeEarlGrey setBoolValue:YES forUserPref:prefs::kArticlesForYouEnabled];
 
   self.defaultSearchEngine = [SearchEnginesAppInterface defaultSearchEngine];
-  [NewTabPageAppInterface disableSetUpList];
+  [NewTabPageAppInterface disableTipsCards];
 }
 
 - (void)tearDownHelper {
@@ -1131,7 +1133,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // Check error to ensure module visibility in the Magic Stack.
   [ChromeEarlGrey
       setBoolValue:YES
-       forUserPref:prefs::kHomeCustomizationMagicStackSafetyCheckEnabled];
+       forUserPref:safety_check::prefs::kSafetyCheckHomeModuleEnabled];
   [ChromeEarlGrey
          setStringValue:NameForSafetyCheckState(
                             SafeBrowsingSafetyCheckState::kUnsafe)
@@ -1580,7 +1582,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [ChromeEarlGrey setBoolValue:YES
                    forUserPref:prefs::kHomeCustomizationMostVisitedEnabled];
   [ChromeEarlGrey setBoolValue:YES
-                   forUserPref:prefs::kHomeCustomizationMagicStackEnabled];
+                   forUserPref:ntp_tiles::prefs::kMagicStackHomeModuleEnabled];
 }
 
 #pragma mark - Matchers

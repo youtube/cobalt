@@ -146,27 +146,21 @@ COMPONENT_EXPORT(URL) void LockSchemeRegistries();
 // input (if any). The |compare| scheme must be a valid canonical scheme or
 // the result of the comparison is undefined.
 COMPONENT_EXPORT(URL)
-bool FindAndCompareScheme(const char* str,
-                          int str_len,
+bool FindAndCompareScheme(std::string_view str,
                           const char* compare,
                           Component* found_scheme);
+inline bool FindAndCompareScheme(const char* str,
+                                 int str_len,
+                                 const char* compare,
+                                 Component* found_scheme) {
+  return FindAndCompareScheme(
+      std::string_view(str, static_cast<size_t>(str_len)), compare,
+      found_scheme);
+}
 COMPONENT_EXPORT(URL)
-bool FindAndCompareScheme(const char16_t* str,
-                          int str_len,
+bool FindAndCompareScheme(std::u16string_view str,
                           const char* compare,
                           Component* found_scheme);
-inline bool FindAndCompareScheme(const std::string& str,
-                                 const char* compare,
-                                 Component* found_scheme) {
-  return FindAndCompareScheme(str.data(), static_cast<int>(str.size()),
-                              compare, found_scheme);
-}
-inline bool FindAndCompareScheme(const std::u16string& str,
-                                 const char* compare,
-                                 Component* found_scheme) {
-  return FindAndCompareScheme(str.data(), static_cast<int>(str.size()),
-                              compare, found_scheme);
-}
 
 // Returns true if the given scheme identified by |scheme| within |spec| is in
 // the list of known standard-format schemes (see AddStandardScheme).
@@ -227,15 +221,13 @@ COMPONENT_EXPORT(URL) bool HostIsIPAddress(std::string_view host);
 // output and parsed structures will still be filled and will be consistent,
 // but they will not represent a loadable URL.
 COMPONENT_EXPORT(URL)
-bool Canonicalize(const char* spec,
-                  int spec_len,
+bool Canonicalize(std::string_view spec,
                   bool trim_path_end,
                   CharsetConverter* charset_converter,
                   CanonOutput* output,
                   Parsed* output_parsed);
 COMPONENT_EXPORT(URL)
-bool Canonicalize(const char16_t* spec,
-                  int spec_len,
+bool Canonicalize(std::u16string_view spec,
                   bool trim_path_end,
                   CharsetConverter* charset_converter,
                   CanonOutput* output,
@@ -252,20 +244,16 @@ bool Canonicalize(const char16_t* spec,
 // Returns true if the output is valid, false if the input could not produce
 // a valid URL.
 COMPONENT_EXPORT(URL)
-bool ResolveRelative(const char* base_spec,
-                     int base_spec_len,
+bool ResolveRelative(std::string_view base_spec,
                      const Parsed& base_parsed,
-                     const char* relative,
-                     int relative_length,
+                     std::string_view relative,
                      CharsetConverter* charset_converter,
                      CanonOutput* output,
                      Parsed* output_parsed);
 COMPONENT_EXPORT(URL)
-bool ResolveRelative(const char* base_spec,
-                     int base_spec_len,
+bool ResolveRelative(std::string_view base_spec,
                      const Parsed& base_parsed,
-                     const char16_t* relative,
-                     int relative_length,
+                     std::u16string_view relative,
                      CharsetConverter* charset_converter,
                      CanonOutput* output,
                      Parsed* output_parsed);
@@ -275,16 +263,14 @@ bool ResolveRelative(const char* base_spec,
 //
 // Returns true if the resulting URL is valid.
 COMPONENT_EXPORT(URL)
-bool ReplaceComponents(const char* spec,
-                       int spec_len,
+bool ReplaceComponents(std::string_view spec,
                        const Parsed& parsed,
                        const Replacements<char>& replacements,
                        CharsetConverter* charset_converter,
                        CanonOutput* output,
                        Parsed* out_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceComponents(const char* spec,
-                       int spec_len,
+bool ReplaceComponents(std::string_view spec,
                        const Parsed& parsed,
                        const Replacements<char16_t>& replacements,
                        CharsetConverter* charset_converter,

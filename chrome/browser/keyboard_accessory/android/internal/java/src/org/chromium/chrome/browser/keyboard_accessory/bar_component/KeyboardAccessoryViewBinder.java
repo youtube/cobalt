@@ -9,6 +9,7 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATE_SUGGESTIONS_FROM_TOP;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ANIMATION_LISTENER;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS;
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BAR_ITEMS_FIXED;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISABLE_ANIMATIONS_FOR_TESTING;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DISMISS_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM;
@@ -22,10 +23,13 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.VISIBLE;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.TextView;
 
 import androidx.annotation.LayoutRes;
@@ -51,6 +55,7 @@ import org.chromium.components.browser_ui.widget.chips.ChipView;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.widget.ButtonCompat;
 import org.chromium.ui.widget.RectProvider;
 
 import java.util.function.Function;
@@ -81,11 +86,10 @@ class KeyboardAccessoryViewBinder {
             case BarItem.Type.TAB_LAYOUT:
                 return new SheetOpenerViewHolder(parent);
             case BarItem.Type.ACTION_BUTTON:
-                return new BarItemTextViewHolder(parent, R.layout.keyboard_accessory_action);
+            case BarItem.Type.DISMISS_CHIP:
+                return new BarItemTextViewHolder(parent, viewType);
             case BarItem.Type.ACTION_CHIP:
                 return new BarItemActionChipViewHolder(parent);
-            case BarItem.Type.DISMISS_CHIP:
-                return new BarItemTextViewHolder(parent, R.layout.keyboard_accessory_dismiss);
             default:
                 throw new IllegalStateException("Action type " + viewType + " was not handled!");
         }
@@ -106,6 +110,7 @@ class KeyboardAccessoryViewBinder {
 
     abstract static class BarItemViewHolder<T extends BarItem, V extends View>
             extends RecyclerView.ViewHolder {
+        private static final float LARGE_FONT_THRESHOLD = 1.3f;
 
         BarItemViewHolder(ViewGroup parent, @LayoutRes int layout) {
             this(LayoutInflater.from(parent.getContext()).inflate(layout, parent, false));
@@ -132,10 +137,14 @@ class KeyboardAccessoryViewBinder {
          * The opposite of {@link #bind}. Use this to free expensive resources or reset observers.
          */
         protected void recycle() {}
+
+        protected static boolean useLargeChips(Context context) {
+            return ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_ELEGANT_TEXT_HEIGHT)
+                    && context.getResources().getConfiguration().fontScale >= LARGE_FONT_THRESHOLD;
+        }
     }
 
     static class BarItemChipViewHolder extends BarItemViewHolder<AutofillBarItem, ChipView> {
-        private static final float LARGE_FONT_THRESHOLD = 1.3f;
         private final View mRootViewForIPH;
         private final KeyboardAccessoryView mKeyboardAccessory;
         private final Function<@Nullable AutofillSuggestion, @Nullable Drawable>
@@ -251,24 +260,20 @@ class KeyboardAccessoryViewBinder {
         @StyleRes
         private static int selectStyleForSuggestion(
                 Context context, @BarItem.Type int barItemType) {
-            final boolean useLargeChips =
-                    ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_ELEGANT_TEXT_HEIGHT)
-                            && context.getResources().getConfiguration().fontScale
-                                    >= LARGE_FONT_THRESHOLD;
             if (ChromeFeatureList.isEnabled(
                     ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
                 switch (barItemType) {
                     case BarItem.Type.LOYALTY_CARD_SUGGESTION:
                         // Loyalty cards suggestions have round icons.
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryLoyaltyCardLargeTwoLineChip
                                 : R.style.KeyboardAccessoryLoyaltyCardTwoLineChip;
                     case BarItem.Type.HOME_AND_WORK_SUGGESTION:
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryHomeAndWorkLargeTwoLineChip
                                 : R.style.KeyboardAccessoryHomeAndWorkTwoLineChip;
                     case BarItem.Type.SUGGESTION:
-                        return useLargeChips
+                        return useLargeChips(context)
                                 ? R.style.KeyboardAccessoryLargeTwoLineChip
                                 : R.style.KeyboardAccessoryTwoLineChip;
                     case BarItem.Type.ACTION_CHIP:
@@ -283,15 +288,15 @@ class KeyboardAccessoryViewBinder {
             switch (barItemType) {
                 case BarItem.Type.LOYALTY_CARD_SUGGESTION:
                     // Loyalty cards suggestions have round icons.
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryLoyaltyCardLargeChip
                             : R.style.KeyboardAccessoryLoyaltyCardChip;
                 case BarItem.Type.HOME_AND_WORK_SUGGESTION:
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryHomeAndWorkLargeChip
                             : R.style.KeyboardAccessoryHomeAndWorkChip;
                 case BarItem.Type.SUGGESTION:
-                    return useLargeChips
+                    return useLargeChips(context)
                             ? R.style.KeyboardAccessoryLargeChip
                             : R.style.KeyboardAccessoryChip;
                 case BarItem.Type.ACTION_CHIP:
@@ -306,8 +311,14 @@ class KeyboardAccessoryViewBinder {
     }
 
     static class BarItemTextViewHolder extends BarItemViewHolder<BarItem, TextView> {
-        BarItemTextViewHolder(ViewGroup parent, @LayoutRes int layout) {
-            super(parent, layout);
+        private final @BarItem.Type int mBarItemType;
+
+        BarItemTextViewHolder(ViewGroup parent, @BarItem.Type int barItemType) {
+            super(
+                    new ButtonCompat(
+                            parent.getContext(),
+                            selectStyleForSuggestion(parent.getContext(), barItemType)));
+            mBarItemType = barItemType;
         }
 
         @Override
@@ -316,12 +327,59 @@ class KeyboardAccessoryViewBinder {
             assert action != null : "Tried to bind item without action. Chose a wrong ViewHolder?";
             textView.setText(barItem.getCaptionId());
             textView.setOnClickListener(view -> action.getCallback().onResult(action));
+            // Margins can be either set in XML layouts or programmatically, they can't be part of
+            // the KeyboardAccessory* styles.
+            applyMargins(textView);
+        }
+
+        private void applyMargins(TextView textView) {
+            MarginLayoutParams params =
+                    new MarginLayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
+            Resources resources = textView.getContext().getResources();
+            switch (mBarItemType) {
+                case BarItem.Type.ACTION_BUTTON:
+                    if (!ChromeFeatureList.isEnabled(
+                            ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+                        params.setMarginEnd(
+                                resources.getDimensionPixelSize(
+                                        R.dimen.keyboard_accessory_bar_item_padding));
+                    }
+                    break;
+                case BarItem.Type.DISMISS_CHIP:
+                    params.setMarginEnd(
+                            resources.getDimensionPixelSize(
+                                    R.dimen.keyboard_accessory_dismiss_button_margin_end));
+                    break;
+                default:
+                    assert false : "Not a button item type: " + mBarItemType;
+            }
+            textView.setLayoutParams(params);
+        }
+
+        @StyleRes
+        private static int selectStyleForSuggestion(
+                Context context, @BarItem.Type int barItemType) {
+            switch (barItemType) {
+                case BarItem.Type.ACTION_BUTTON:
+                    if (ChromeFeatureList.isEnabled(
+                            ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+                        return useLargeChips(context)
+                                ? R.style.KeyboardAccessoryLargeTwoLineActionButtonThemeOverlay
+                                : R.style.KeyboardAccessoryTwoLineActionButtonThemeOverlay;
+                    }
+                    return R.style.KeyboardAccessoryActionButtonThemeOverlay;
+                case BarItem.Type.DISMISS_CHIP:
+                    return R.style.KeyboardAccessoryDismissButtonThemeOverlay;
+                default:
+                    assert false : "Not a button item type: " + barItemType;
+                    return 0;
+            }
         }
     }
 
     static class BarItemActionChipViewHolder extends BarItemViewHolder<BarItem, ChipView> {
         BarItemActionChipViewHolder(ViewGroup parent) {
-            super(new ChipView(parent.getContext(), null, 0, R.style.KeyboardAccessoryChip));
+            super(new ChipView(parent.getContext(), null, 0, selectStyle(parent.getContext())));
         }
 
         @Override
@@ -331,6 +389,18 @@ class KeyboardAccessoryViewBinder {
             if (action != null) {
                 chipView.setOnClickListener(view -> action.getCallback().onResult(action));
             }
+        }
+
+        private static @StyleRes int selectStyle(Context context) {
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+                return useLargeChips(context)
+                        ? R.style.KeyboardAccessoryLargeTwoLineChip
+                        : R.style.KeyboardAccessoryTwoLineChip;
+            }
+            return useLargeChips(context)
+                    ? R.style.KeyboardAccessoryLargeChip
+                    : R.style.KeyboardAccessoryChip;
         }
     }
 
@@ -364,8 +434,8 @@ class KeyboardAccessoryViewBinder {
      * @param propertyKey A {@link PropertyKey}.
      */
     static void bind(PropertyModel model, KeyboardAccessoryView view, PropertyKey propertyKey) {
-        if (propertyKey == BAR_ITEMS) {
-            // Intentionally empty. The adapter will observe changes to BAR_ITEMS.
+        if (propertyKey == BAR_ITEMS || propertyKey == BAR_ITEMS_FIXED) {
+            // Intentionally empty. The adapter will observe changes to bar items.
         } else if (propertyKey == DISABLE_ANIMATIONS_FOR_TESTING) {
             if (model.get(DISABLE_ANIMATIONS_FOR_TESTING)) {
                 view.disableAnimationsForTesting(); // IN-TEST

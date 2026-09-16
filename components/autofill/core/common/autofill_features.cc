@@ -33,6 +33,12 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, whitespace is discarded during normalization of a house
+// number field.
+// TODO(crbug.com/447111009): Remove when launched.
+BASE_FEATURE(kAutofillAddressDiscardWhitespaceInHouseNumber,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
 // after the user typed a certain number of characters that match some data
@@ -57,6 +63,11 @@ BASE_FEATURE(kAutofillAddressUserDeclinedSaveSurvey,
 BASE_FEATURE(kAutofillAddressUserPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, autofill will fill not skip filling fields that had an initial
+// value which was modified.
+BASE_FEATURE(kAutofillAllowFillingModifiedInitialValues,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled (and if `AutofillAiServerModel` is also enabled), this ignores
 // the `may_run_server_model` boolean sent by the Autofill server and, instead,
 // queries the server model for every encountered form that is not already
@@ -79,11 +90,61 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 #endif
 );
 
+// Kill switch: If enabled, MayPerformAutofillAiAction() also depends on two
+// prefs that enable/disable filling and import of identity-related and
+// travel-related entities.
+// TODO(crbug.com/450060416): Remove after M144 branch point (2025-01-12).
+BASE_FEATURE(kAutofillAiIdentityAndTravelPrefs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, no account-level capabilities are checked to determine whether
 // a user is eligible for AutofillAI.
 BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, a HaTS survey is shown after a walletable suggestion is
+// displayed and the form submitted. The survey does not require the suggestion
+// to be accepted.
+BASE_FEATURE(kAutofillAiFillingSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyVehicleInfoTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_vehicle_info_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyFlightReservationTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_flight_reservation_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyDriversLicenseTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_drivers_license_trigger_id", ""};
+const base::FeatureParam<std::string> kAutofillAiFillingSurveyPassportTriggerId{
+    &kAutofillAiFillingSurvey, "autofill_ai_filling_survey_passport_trigger_id",
+    ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyNationalIDTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_national_id_trigger_id", ""};
+const base::FeatureParam<std::string>
+    kAutofillAiFillingSurveyRedressNumberTriggerId{
+        &kAutofillAiFillingSurvey,
+        "autofill_ai_filling_survey_redress_number_trigger_id", ""};
+const base::FeatureParam<std::string> kAutofillAiFillingSurveyKTNTriggerId{
+    &kAutofillAiFillingSurvey, "autofill_ai_filling_survey_ktn_trigger_id", ""};
+
+// When enabled, a HaTS survey is shown after the save prompt for a walletable
+// entity was interacted with.
+BASE_FEATURE(kAutofillAiSavePromptSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string>
+    kAutofillAiSavePromptSurveyAcceptedTriggerId{
+        &kAutofillAiSavePromptSurvey,
+        "autofill_ai_walletable_entity_save_prompt_survey_accepted_trigger_id",
+        ""};
+const base::FeatureParam<std::string>
+    kAutofillAiSavePromptSurveyDeclinedTriggerId{
+        &kAutofillAiSavePromptSurvey,
+        "autofill_ai_walletable_entity_save_prompt_survey_declined_trigger_id",
+        ""};
 // Allows us to control which actions `kAutofillAiIgnoreCapabilityCheck` applies
 // to. If `kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions` is true, then
 // MES and MQLS interactions are still constrained by an account-level
@@ -198,6 +259,12 @@ const base::FeatureParam<bool> kAutofillAiServerModelUseCacheResults{
 BASE_FEATURE(kAutofillAiVoteForFormatStringsForAffixes,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, votes for the format of flight number fields are uploaded. For
+// example, if there is a flight number "LH89" on file, a submitted value of
+// "89" on a field with type `FLIGHT_RESERVATION_FLIGHT_NUMBER` uploads "N".
+BASE_FEATURE(kAutofillAiVoteForFormatStringsForFlightNumbers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the second iteration AutofillAI.
 BASE_FEATURE(kAutofillAiWithDataSchema,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
@@ -252,33 +319,6 @@ BASE_FEATURE(kAutofillDisableFilling, base::FEATURE_DISABLED_BY_DEFAULT);
 // Kill switch for Autofill address import.
 BASE_FEATURE(kAutofillDisableAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, autofill will use the new ranking algorithm for address profile
-// autofill suggestions.
-BASE_FEATURE(kAutofillEnableRankingFormulaAddressProfiles,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// The half life applied to the use count of profiles in the ranking formula.
-const base::FeatureParam<int>
-    kAutofillRankingFormulaAddressProfilesUsageHalfLife{
-        &kAutofillEnableRankingFormulaAddressProfiles,
-        "autofill_ranking_formula_address_profiles_usage_half_life", 20};
-
-// When enabled, autofill will use the new ranking algorithm for credit card
-// autofill suggestions.
-BASE_FEATURE(kAutofillEnableRankingFormulaCreditCards,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// The half life applied to the use count.
-const base::FeatureParam<int> kAutofillRankingFormulaCreditCardsUsageHalfLife{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_credit_cards_usage_half_life", 20};
-// The boost factor applied to ranking virtual cards.
-const base::FeatureParam<int> kAutofillRankingFormulaVirtualCardBoost{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_virtual_card_boost", 5};
-// The half life applied to the virtual card boost.
-const base::FeatureParam<int> kAutofillRankingFormulaVirtualCardBoostHalfLife{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_virtual_card_boost_half_life", 15};
-
 // Enables a new implementation for address field parsing that is based on
 // backtracking.
 BASE_FEATURE(kAutofillEnableAddressFieldParserNG,
@@ -326,11 +366,6 @@ BASE_FEATURE(kAutofillEnableLoyaltyCardsFilling,
 BASE_FEATURE(kAutofillEnableEmailOrLoyaltyCardsFilling,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the Blink renderer extracts forms only on admissible URLs.
-// TODO(crbug.com/409401613): Remove after M142 branch point (2025-09-29).
-BASE_FEATURE(kAutofillExtractOnlyOnAdmissibleUrls,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, only non-ad frames are extracted.
 // Otherwise, non-ad frames as well as *visible* ad frames are extracted.
 // "Extracted" means that FormFieldData::child_frames is populated, which is
@@ -360,7 +395,7 @@ BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
 // in order to reduce false positive classifications of city fields.
 // TODO(crbug.com/330508437): Clean up when launched.
 BASE_FEATURE(kAutofillImproveCityFieldClassification,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, focusing on a credit card number field that was traditionally
 // autofilled will yield all credit card suggestions.
@@ -430,12 +465,6 @@ BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillUseSubmittedFormInHtmlSubmission,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the ordering for rationalization and sectioning is the same for
-// server and heuristic predictions.
-// TODO(crbug.com/408497919): Remove when launched.
-BASE_FEATURE(kAutofillUnifyRationalizationAndSectioningOrder,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission
 // triggering events. See `AutofillAgent::GetSubmittedForm()` for more
@@ -455,12 +484,6 @@ BASE_FEATURE(kAutofillRelaxAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 // TODO(crbug.com/40281981): Remove when launched.
 BASE_FEATURE(kAutofillReplaceFormElementObserver,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, FormFieldData::is_visible is a heuristic for actual visibility on
-// Blink platforms.
-// Otherwise and on iOS, it's an alias for FormFieldData::is_focusable.
-// TODO(crbug.com/324199622) When abandoned, remove FormFieldData::is_visible.
-BASE_FEATURE(kAutofillDetectFieldVisibility, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, new heuristics are applied for disambiguating multiple possible
 // types in a form field. Otherwise, only the already established heuristic for
@@ -487,6 +510,20 @@ BASE_FEATURE(kAutofillSupportLastNamePrefix, base::FEATURE_DISABLED_BY_DEFAULT);
 // importing split zip codes from two adjacent fields.
 // TODO(crbug.com/369503318): Clean up when launched.
 BASE_FEATURE(kAutofillSupportSplitZipCode, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch: If true, FormFieldData::IsFocusable will allow returning false
+// for fields with role="presentation" html attribute.
+// TODO(crbug.com/444754999): Clean up after confirming this is safe after M143
+// release.
+BASE_FEATURE(kAutofillSupportPresentationRole,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Kill switch: If true, AutofillManager::AfterParsingFinishesDeprecated()
+// becomes the identity function. That is, it does not delay the callback until
+// after parsing has finished.
+// TODO(crbug.com/448144129): Clean up after M144 branch point (Dec 1, 2025).
+BASE_FEATURE(kAutofillSynchronousAfterParsing,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables extended zip code validation
 // and new zip code merging logic.
@@ -519,10 +556,11 @@ BASE_FEATURE_PARAM(bool,
 // special cases. See
 // `FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
 BASE_FEATURE_PARAM(bool,
-                   kAutofillModelPredictionsSmallFormRules,
-                   &kAutofillModelPredictions,
-                   "small_form_rules",
-                   false);
+    kAutofillModelPredictionsSmallFormRules,
+    &kAutofillModelPredictions,
+    "small_form_rules",
+    false);
+
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -673,13 +711,6 @@ const base::FeatureParam<int>
     kAutofillEnableCacheForRegexMatchingCacheSizeParam{
         &kAutofillEnableCacheForRegexMatching, "cache_size", 1000};
 
-// If enabled, AutofillType may be populated with multiple FieldTypes where all
-// but one FieldType are Autofill AI FieldTypes.
-// This is a kill switch.
-// TODO(crbug.com/432645177): Clean up when launched.
-BASE_FEATURE(kAutofillUnionTypesForAutofillAi,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAutofillUKMExperimentalFields, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kAutofillUKMExperimentalFieldsBucket0{
     &kAutofillUKMExperimentalFields, "autofill_experimental_regex_bucket0", ""};
@@ -817,11 +848,6 @@ BASE_FEATURE(kAutofillThirdPartyModeContentProvider,
 // Defines if the "Your Saved Info" page is eligible to be shown in Chrome
 // settings.
 BASE_FEATURE(kYourSavedInfoSettingsPage, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, the FieldClassificationModelHandler loads models with priority
-// USER_VISIBLE instead of BEST_EFFORT.
-BASE_FEATURE(kAutofillLoadModelWithHigherPriority,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace test {
 

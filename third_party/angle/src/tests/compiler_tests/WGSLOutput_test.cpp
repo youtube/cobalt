@@ -57,7 +57,6 @@ TEST_F(WGSLOutputTest, BasicTranslation)
 
         vec4 doFoo(Foo foo, float zw)
         {
-            // foo.x = foo.y;
             return vec4(foo.x, foo.y, zw, zw);
         }
 
@@ -196,6 +195,188 @@ fn wgslMain() -> ANGLE_Output_Annotated
   var ANGLE_output_annotated : ANGLE_Output_Annotated;
   ANGLE_output_annotated.outColor = ANGLE_output_global.outColor;
   ANGLE_output_annotated.gl_FragDepth_ = ANGLE_output_global.gl_FragDepth_;
+  return ANGLE_output_annotated;
+}
+)";
+    compile(shaderString);
+    EXPECT_TRUE(foundInCode(outputString.c_str()));
+}
+
+TEST_F(WGSLOutputTest, OverloadedFunctions)
+{
+    const std::string &shaderString =
+        R"(#version 310 es
+        precision highp float;
+
+        out vec4 outColor;
+
+        struct Foo {
+            float x;
+            float y;
+            vec3 multiArray[2][3];
+            mat3 aMatrix;
+        };
+
+        vec4 doFoo(Foo foo)
+        {
+            return vec4(foo.x, foo.y, 0.0, 0.0);
+        }
+
+        vec4 doFoo(Foo foo, float zw)
+        {
+            return vec4(foo.x, foo.y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[2] foo, float zw)
+        {
+            return vec4(foo[0].x, foo[0].y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[3] foo, float zw)
+        {
+            return vec4(foo[0].x, foo[0].y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[2][2] foo, float zw, mat2x2 a)
+        {
+            return vec4(foo[0][0].x, foo[0][0].y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[2][2] foo, float zw, mat2x2 a, bvec2 b)
+        {
+            return vec4(foo[0][0].x, foo[0][0].y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[2][2] foo, float zw, mat2x2 a, ivec2 b)
+        {
+            return vec4(foo[0][0].x, foo[0][0].y, zw, zw);
+        }
+
+        vec4 doFoo(Foo[2][2] foo, float zw, mat2x2 a, uvec2 b)
+        {
+            return vec4(foo[0][0].x, foo[0][0].y, zw, zw);
+        }
+
+        void main()
+        {
+            Foo foo;
+            doFoo(foo);
+            doFoo(foo, 3.0);
+            doFoo(Foo[2](foo, foo), 3.0);
+            doFoo(Foo[3](foo, foo, foo), 3.0);
+            doFoo(Foo[2][2](Foo[2](foo, foo), Foo[2](foo, foo)), 3.0,
+              mat2x2(1.0));
+            doFoo(Foo[2][2](Foo[2](foo, foo), Foo[2](foo, foo)), 3.0,
+              mat2x2(1.0), bvec2(true, false));
+            doFoo(Foo[2][2](Foo[2](foo, foo), Foo[2](foo, foo)), 3.0,
+              mat2x2(1.0), ivec2(1, 2));
+            doFoo(Foo[2][2](Foo[2](foo, foo), Foo[2](foo, foo)), 3.0,
+              mat2x2(1.0), uvec2(1, 2));
+
+            outColor = vec4(foo.x, 0.0, 0.0, 0.0);
+        })";
+    const std::string &outputString =
+        R"(diagnostic(warning,derivative_uniformity);
+struct ANGLE_Output_Global {
+  outColor : vec4<f32>,
+};
+
+var<private> ANGLE_output_global : ANGLE_Output_Global;
+
+struct ANGLE_Output_Annotated {
+  @location(@@@@@@) outColor : vec4<f32>,
+};
+
+@group(2) @binding(0) var<uniform> ANGLEUniforms : ANGLEUniformBlock;
+
+struct ANGLEDepthRangeParams
+{
+  near : f32,
+  far : f32,
+  diff : f32,
+};
+
+struct _uFoo
+{
+  _ux : f32,
+  _uy : f32,
+  _umultiArray : array<array<vec3<f32>, 3>, 2>,
+  _uaMatrix : mat3x3<f32>,
+};
+
+;
+
+struct ANGLEUniformBlock
+{
+  @align(16) acbBufferOffsets : vec2<u32>,
+  depthRange : vec2<f32>,
+  renderArea : u32,
+  flipXY : u32,
+  dither : u32,
+  misc : u32,
+};
+
+;
+
+fn _udoFoo(_ufoo : _uFoo) -> vec4<f32>
+{
+  return vec4<f32>((_ufoo)._ux, (_ufoo)._uy, 0.0f, 0.0f);
+}
+
+fn ANGLEfunc3006_udoFoo(_ufoo : _uFoo, _uzw : f32) -> vec4<f32>
+{
+  return vec4<f32>((_ufoo)._ux, (_ufoo)._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3009_udoFoo(_ufoo : array<_uFoo, 2>, _uzw : f32) -> vec4<f32>
+{
+  return vec4<f32>(((_ufoo)[0i])._ux, ((_ufoo)[0i])._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3012_udoFoo(_ufoo : array<_uFoo, 3>, _uzw : f32) -> vec4<f32>
+{
+  return vec4<f32>(((_ufoo)[0i])._ux, ((_ufoo)[0i])._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3015_udoFoo(_ufoo : array<array<_uFoo, 2>, 2>, _uzw : f32, _ua : mat2x2<f32>) -> vec4<f32>
+{
+  return vec4<f32>((((_ufoo)[0i])[0i])._ux, (((_ufoo)[0i])[0i])._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3019_udoFoo(_ufoo : array<array<_uFoo, 2>, 2>, _uzw : f32, _ua : mat2x2<f32>, _ub : vec2<bool>) -> vec4<f32>
+{
+  return vec4<f32>((((_ufoo)[0i])[0i])._ux, (((_ufoo)[0i])[0i])._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3024_udoFoo(_ufoo : array<array<_uFoo, 2>, 2>, _uzw : f32, _ua : mat2x2<f32>, _ub : vec2<i32>) -> vec4<f32>
+{
+  return vec4<f32>((((_ufoo)[0i])[0i])._ux, (((_ufoo)[0i])[0i])._uy, _uzw, _uzw);
+}
+
+fn ANGLEfunc3029_udoFoo(_ufoo : array<array<_uFoo, 2>, 2>, _uzw : f32, _ua : mat2x2<f32>, _ub : vec2<u32>) -> vec4<f32>
+{
+  return vec4<f32>((((_ufoo)[0i])[0i])._ux, (((_ufoo)[0i])[0i])._uy, _uzw, _uzw);
+}
+
+fn _umain()
+{
+  var _ufoo : _uFoo;
+  _udoFoo(_ufoo);
+  ANGLEfunc3006_udoFoo(_ufoo, 3.0f);
+  ANGLEfunc3009_udoFoo(array<_uFoo, 2>(_ufoo, _ufoo), 3.0f);
+  ANGLEfunc3012_udoFoo(array<_uFoo, 3>(_ufoo, _ufoo, _ufoo), 3.0f);
+  ANGLEfunc3015_udoFoo(array<array<_uFoo, 2>, 2>(array<_uFoo, 2>(_ufoo, _ufoo), array<_uFoo, 2>(_ufoo, _ufoo)), 3.0f, mat2x2<f32>(1.0f, 0.0f, 0.0f, 1.0f));
+  ANGLEfunc3019_udoFoo(array<array<_uFoo, 2>, 2>(array<_uFoo, 2>(_ufoo, _ufoo), array<_uFoo, 2>(_ufoo, _ufoo)), 3.0f, mat2x2<f32>(1.0f, 0.0f, 0.0f, 1.0f), vec2<bool>(true, false));
+  ANGLEfunc3024_udoFoo(array<array<_uFoo, 2>, 2>(array<_uFoo, 2>(_ufoo, _ufoo), array<_uFoo, 2>(_ufoo, _ufoo)), 3.0f, mat2x2<f32>(1.0f, 0.0f, 0.0f, 1.0f), vec2<i32>(1i, 2i));
+  ANGLEfunc3029_udoFoo(array<array<_uFoo, 2>, 2>(array<_uFoo, 2>(_ufoo, _ufoo), array<_uFoo, 2>(_ufoo, _ufoo)), 3.0f, mat2x2<f32>(1.0f, 0.0f, 0.0f, 1.0f), vec2<u32>(1u, 2u));
+  (ANGLE_output_global.outColor) = (vec4<f32>((_ufoo)._ux, 0.0f, 0.0f, 0.0f));
+}
+@fragment
+fn wgslMain() -> ANGLE_Output_Annotated
+{
+  _umain();
+  var ANGLE_output_annotated : ANGLE_Output_Annotated;
+  ANGLE_output_annotated.outColor = ANGLE_output_global.outColor;
   return ANGLE_output_annotated;
 }
 )";
@@ -465,7 +646,9 @@ fn _uwhileLoopDemo()
     {
       (_ui)++;
     }
-    if (!((_ui) < (5i)) { break; }
+    continuing {
+      break if !((_ui) < (5i));
+    }
   }
 }
 
@@ -480,6 +663,185 @@ fn _umain()
 fn wgslMain()
 {
   _umain();
+}
+)";
+    compile(shaderString);
+    EXPECT_TRUE(foundInCode(outputString.c_str()));
+}
+
+TEST_F(WGSLOutputTest, IncrementDecrement)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision highp float;
+
+        out vec4 color;
+
+        float globVar = 1.0;
+
+        void main()
+        {
+          for (int i = 0; i < 5; i++) {
+            color.x++;
+          }
+
+          uint i = 0u;
+          while (i++ < 5u) {
+            color.y++;
+          }
+
+          color++;
+
+          ivec4 iv = ivec4(1,2,3,4);
+          iv++;
+          ++iv;
+          color.x += float(iv.x);
+
+          mat2x2 m = mat2x2(4);
+          m++;
+
+          color.xy *= m;
+
+          mat2x2 m2 = m++;
+
+          color.xy *= m2;
+
+          color++;
+
+          globVar++;
+
+          color.x += globVar;
+        })";
+    const std::string &outputString =
+        R"(diagnostic(warning,derivative_uniformity);
+fn preIncPriv(x : ptr<private, vec4<i32>>) -> vec4<i32> {
+  (*x) += vec4<i32>(1);
+  return *x;
+}
+fn preIncFunc(x : ptr<function, vec4<i32>>) -> vec4<i32> {
+  (*x) += vec4<i32>(1);
+  return *x;
+}
+fn postIncPriv(x : ptr<private, f32>) -> f32 {
+  var old = *x;
+  (*x) += f32(1);
+  return old;
+}
+fn postIncFunc(x : ptr<function, f32>) -> f32 {
+  var old = *x;
+  (*x) += f32(1);
+  return old;
+}
+fn postIncPriv(x : ptr<private, mat2x2<f32>>) -> mat2x2<f32> {
+  var old = *x;
+  (*x) += mat2x2<f32>(1, 1, 1, 1);
+  return old;
+}
+fn postIncFunc(x : ptr<function, mat2x2<f32>>) -> mat2x2<f32> {
+  var old = *x;
+  (*x) += mat2x2<f32>(1, 1, 1, 1);
+  return old;
+}
+fn postIncPriv(x : ptr<private, vec4<f32>>) -> vec4<f32> {
+  var old = *x;
+  (*x) += vec4<f32>(1);
+  return old;
+}
+fn postIncFunc(x : ptr<function, vec4<f32>>) -> vec4<f32> {
+  var old = *x;
+  (*x) += vec4<f32>(1);
+  return old;
+}
+fn postIncPriv(x : ptr<private, vec4<i32>>) -> vec4<i32> {
+  var old = *x;
+  (*x) += vec4<i32>(1);
+  return old;
+}
+fn postIncFunc(x : ptr<function, vec4<i32>>) -> vec4<i32> {
+  var old = *x;
+  (*x) += vec4<i32>(1);
+  return old;
+}
+fn postIncPriv(x : ptr<private, u32>) -> u32 {
+  var old = *x;
+  (*x) += u32(1);
+  return old;
+}
+fn postIncFunc(x : ptr<function, u32>) -> u32 {
+  var old = *x;
+  (*x) += u32(1);
+  return old;
+}
+struct ANGLE_Output_Global {
+  color : vec4<f32>,
+};
+
+var<private> ANGLE_output_global : ANGLE_Output_Global;
+
+struct ANGLE_Output_Annotated {
+  @location(@@@@@@) color : vec4<f32>,
+};
+
+@group(2) @binding(0) var<uniform> ANGLEUniforms : ANGLEUniformBlock;
+
+struct ANGLEDepthRangeParams
+{
+  near : f32,
+  far : f32,
+  diff : f32,
+};
+
+;
+var<private> _uglobVar : f32 = (1.0f);
+
+struct ANGLEUniformBlock
+{
+  @align(16) acbBufferOffsets : vec2<u32>,
+  depthRange : vec2<f32>,
+  renderArea : u32,
+  flipXY : u32,
+  dither : u32,
+  misc : u32,
+};
+
+;
+
+fn _umain()
+{
+  for (var _ui : i32 = (0i); (_ui) < (5i); (_ui)++)
+  {
+    postIncFunc(&((ANGLE_output_global.color).x));
+  }
+  var _ui : u32 = (0u);
+  while ((postIncFunc(&(_ui))) < (5u))
+  {
+    postIncFunc(&((ANGLE_output_global.color).y));
+  }
+  postIncPriv(&(ANGLE_output_global.color));
+  var _uiv : vec4<i32> = (vec4<i32>(1i, 2i, 3i, 4i));
+  postIncFunc(&(_uiv));
+  preIncFunc(&(_uiv));
+  ((ANGLE_output_global.color).x) += (f32((_uiv).x));
+  var _um : mat2x2<f32> = (mat2x2<f32>(4.0f, 0.0f, 0.0f, 4.0f));
+  postIncFunc(&(_um));
+  var sbc1 : mat2x2<f32> = (_um);
+  ((ANGLE_output_global.color).x) = ((((ANGLE_output_global.color).xy) * (sbc1)).x);
+  ((ANGLE_output_global.color).y) = ((((ANGLE_output_global.color).xy) * (sbc1)).y);
+  var _um2 : mat2x2<f32> = (postIncFunc(&(_um)));
+  var sbc2 : mat2x2<f32> = (_um2);
+  ((ANGLE_output_global.color).x) = ((((ANGLE_output_global.color).xy) * (sbc2)).x);
+  ((ANGLE_output_global.color).y) = ((((ANGLE_output_global.color).xy) * (sbc2)).y);
+  postIncPriv(&(ANGLE_output_global.color));
+  postIncPriv(&(_uglobVar));
+  ((ANGLE_output_global.color).x) += (_uglobVar);
+}
+@fragment
+fn wgslMain() -> ANGLE_Output_Annotated
+{
+  _umain();
+  var ANGLE_output_annotated : ANGLE_Output_Annotated;
+  ANGLE_output_annotated.color = ANGLE_output_global.color;
+  return ANGLE_output_annotated;
 }
 )";
     compile(shaderString);

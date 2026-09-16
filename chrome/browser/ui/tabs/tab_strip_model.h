@@ -104,6 +104,7 @@ struct DetachedTabCollection {
 struct DetachedTab {
   DetachedTab(int index_before_any_removals,
               int index_at_time_of_removal,
+              bool was_pinned_at_time_of_removal,
               std::unique_ptr<tabs::TabModel> tab,
               TabStripModelChange::RemoveReason remove_reason,
               tabs::TabInterface::DetachReason tab_detach_reason,
@@ -124,6 +125,9 @@ struct DetachedTab {
   // tabs are being simultaneously removed, the index reflects previously
   // removed tabs in this batch.
   const int index_at_time_of_removal;
+
+  // True if this tab was pinned when it was removed from the tab strip.
+  const bool was_pinned_at_time_of_removal;
 
   // Reasons for detaching a tab. These may differ, for e.g. when a
   // tab is detached for re-insertion into a browser of different type,
@@ -276,13 +280,6 @@ class TabStripModel {
       int add_types,
       std::optional<tab_groups::TabGroupId> group = std::nullopt);
 
-  // Creates a group object so that group_model can link it with once group
-  // collection owns it.
-  // TODO(crbug.com/392952244): Remove this after replacing callers with
-  // detaching and attaching groups.
-  void AddTabGroup(const tab_groups::TabGroupId group_id,
-                   tab_groups::TabGroupVisualData visual_data);
-
   // Adds a TabModel from another tabstrip at the specified location. See
   // InsertWebContentsAt.
   int InsertDetachedTabAt(
@@ -357,11 +354,14 @@ class TabStripModel {
   // Detaches the WebContents at the specified index and immediately deletes it.
   void DetachAndDeleteWebContentsAt(int index);
 
+  std::vector<std::variant<std::unique_ptr<DetachedTab>,
+                           std::unique_ptr<DetachedTabCollection>>>
+  DetachTabsAndCollectionsForInsertion(const std::vector<int>& tab_indices);
+
   // Makes the tab at the specified index the active tab. |gesture_detail.type|
   // contains the gesture type that triggers the tab activation.
   // |gesture_detail.time_stamp| contains the timestamp of the user gesture, if
-  // any. If |index| refers to a tab in a split view, it won't be activated if
-  // the other tab is blocked.
+  // any.
   void ActivateTabAt(
       int index,
       TabStripUserGestureDetails gesture_detail = TabStripUserGestureDetails(
@@ -1359,9 +1359,7 @@ class TabStripModel {
       const std::optional<tab_groups::TabGroupId> group,
       bool pin);
 
-  // Returns whether a tab is eligible for activation. If a tab is in a split
-  // view then it cannot be activated if the other tab is blocked.
-  bool CanActivateTabAt(int index);
+  void NotifyForegroundTabsWillEnterBackground();
 
   // The WebContents data currently hosted within this TabStripModel. This must
   // be kept in sync with |selection_model_|.

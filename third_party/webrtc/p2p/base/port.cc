@@ -22,7 +22,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
@@ -80,29 +79,6 @@ PacketInfoProtocolType ConvertProtocolTypeToPacketInfoProtocolType(
 const int kPortTimeoutDelay = STUN_TOTAL_TIMEOUT + 5000;
 
 }  // namespace
-
-static const char* const PROTO_NAMES[] = {UDP_PROTOCOL_NAME, TCP_PROTOCOL_NAME,
-                                          SSLTCP_PROTOCOL_NAME,
-                                          TLS_PROTOCOL_NAME};
-
-const char* ProtoToString(ProtocolType proto) {
-  return PROTO_NAMES[proto];
-}
-
-std::optional<ProtocolType> StringToProto(absl::string_view proto_name) {
-  for (size_t i = 0; i <= PROTO_LAST; ++i) {
-    if (absl::EqualsIgnoreCase(PROTO_NAMES[i], proto_name)) {
-      return static_cast<ProtocolType>(i);
-    }
-  }
-  return std::nullopt;
-}
-
-// RFC 6544, TCP candidate encoding rules.
-const int DISCARD_PORT = 9;
-const char TCPTYPE_ACTIVE_STR[] = "active";
-const char TCPTYPE_PASSIVE_STR[] = "passive";
-const char TCPTYPE_SIMOPEN_STR[] = "so";
 
 Port::Port(const PortParametersRef& args, IceCandidateType type)
     : Port(args, type, 0, 0, true) {}

@@ -93,7 +93,6 @@ class CanvasResourceProviderTest : public Test {
   void SetUp() override {
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
     auto* test_raster = test_context_provider_->UnboundTestRasterInterface();
-    test_raster->set_gpu_rasterization(true);
     test_raster->set_max_texture_size(kMaxTextureSize);
     test_raster->set_supports_gpu_memory_buffer_format(
         gfx::BufferFormat::RGBA_8888, true);
@@ -265,7 +264,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
   EXPECT_FALSE(provider->IsSingleBuffered());
 }
 
-std::unique_ptr<CanvasResourceProvider> MakeCanvasResourceProvider(
+std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvasResourceProvider(
     RasterMode raster_mode,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper>
         context_provider_wrapper) {
@@ -305,8 +304,6 @@ TEST_F(CanvasResourceProviderTest,
   // conditions against the test raster interface.
   SharedGpuContext::Reset();
   auto raster_context_provider = viz::TestContextProvider::CreateRaster();
-  raster_context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(
-      true);
   InitializeSharedGpuContextRaster(raster_context_provider.get(),
                                    &image_decode_cache_,
                                    SetIsContextLost::kSetToFalse);
@@ -398,7 +395,7 @@ TEST_F(CanvasResourceProviderTest,
 TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnusedResources) {
   base::test::ScopedFeatureList feature_list{kCanvas2DReclaimUnusedResources};
 
-  std::unique_ptr<CanvasResourceProvider> provider =
+  auto provider =
       MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kTesting);
@@ -416,7 +413,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnusedResources) {
   // There is a ready-to-reuse resource
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime);
+      CanvasResourceProviderSharedImage::kUnusedResourceExpirationTime);
   // The resource is freed, don't repost the task.
   EXPECT_FALSE(provider->HasUnusedResourcesForTesting());
   EXPECT_FALSE(
@@ -428,7 +425,7 @@ TEST_F(CanvasResourceProviderTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(kCanvas2DReclaimUnusedResources);
 
-  std::unique_ptr<CanvasResourceProvider> provider =
+  auto provider =
       MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kTesting);
@@ -449,7 +446,7 @@ TEST_F(CanvasResourceProviderTest,
        CanvasResourceProviderUnusedResourcesAreNotCollectedWhenYoung) {
   base::test::ScopedFeatureList feature_list{kCanvas2DReclaimUnusedResources};
 
-  std::unique_ptr<CanvasResourceProvider> provider =
+  auto provider =
       MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kTesting);
@@ -465,7 +462,8 @@ TEST_F(CanvasResourceProviderTest,
   // There is a ready-to-reuse resource
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime - base::Seconds(1));
+      CanvasResourceProviderSharedImage::kUnusedResourceExpirationTime -
+      base::Seconds(1));
   // The reclaim task hasn't run yet.
   EXPECT_TRUE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
@@ -487,7 +485,7 @@ TEST_F(CanvasResourceProviderTest,
       provider->unused_resources_reclaim_timer_is_running_for_testing());
 
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime);
+      CanvasResourceProviderSharedImage::kUnusedResourceExpirationTime);
   // Now it's collected.
   EXPECT_FALSE(provider->HasUnusedResourcesForTesting());
   // And no new task is posted.
@@ -532,35 +530,6 @@ TEST_F(CanvasResourceProviderTest,
   provider->FlushCanvas(FlushReason::kTesting);
   EXPECT_EQ(original_shared_image,
             provider->Snapshot(FlushReason::kTesting)->GetSharedImage());
-}
-
-TEST_F(CanvasResourceProviderTest,
-       CanvasResourceProviderSharedImageCopyOnWriteDisabled) {
-  auto& fake_context = static_cast<FakeWebGraphicsContext3DProvider&>(
-      context_provider_wrapper_->ContextProvider());
-  auto caps = fake_context.GetCapabilities();
-  caps.disable_2d_canvas_copy_on_write = true;
-  fake_context.SetCapabilities(caps);
-
-  const gpu::SharedImageUsageSet shared_image_usage_flags =
-      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-
-  Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
-                                   CanvasPixelFormat::kUint8,
-                                   /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
-      gfx::Size(10, 10), color_params,
-      CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
-
-  ASSERT_TRUE(provider->IsValid());
-
-  // Disabling copy-on-write forces a copy each time the resource is queried.
-  auto resource = provider->ProduceCanvasResource(FlushReason::kTesting);
-  EXPECT_NE(resource->GetClientSharedImage()->mailbox(),
-            provider->ProduceCanvasResource(FlushReason::kTesting)
-                ->GetClientSharedImage()
-                ->mailbox());
 }
 
 TEST_F(CanvasResourceProviderTest, CanvasResourceProviderBitmap) {

@@ -46,7 +46,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -631,17 +630,6 @@ EventGenerator::NewGenericPacketReceived() {
   return std::make_unique<RtcEventGenericPacketReceived>(
       received_packet_number_++, prng_.Rand(40, 250));
 }
-std::unique_ptr<RtcEventGenericAckReceived>
-EventGenerator::NewGenericAckReceived() {
-  std::optional<int64_t> receive_timestamp = std::nullopt;
-  if (prng_.Rand(0, 2) > 0) {
-    receive_timestamp = prng_.Rand(0, 100000);
-  }
-  AckedPacket packet[1] = {{.packet_number = prng_.Rand(40, 250),
-                            .receive_acked_packet_time_ms = receive_timestamp}};
-  return std::move(RtcEventGenericAckReceived::CreateLogs(
-      received_packet_number_++, packet)[0]);
-}
 
 void EventGenerator::RandomizeRtpPacket(
     size_t payload_size,
@@ -1194,17 +1182,6 @@ void EventVerifier::VerifyLoggedGenericPacketReceived(
   EXPECT_EQ(original_event.packet_number(), logged_event.packet_number);
   EXPECT_EQ(static_cast<int>(original_event.packet_length()),
             logged_event.packet_length);
-}
-
-void EventVerifier::VerifyLoggedGenericAckReceived(
-    const RtcEventGenericAckReceived& original_event,
-    const LoggedGenericAckReceived& logged_event) const {
-  EXPECT_EQ(original_event.timestamp_ms(), logged_event.log_time_ms());
-  EXPECT_EQ(original_event.packet_number(), logged_event.packet_number);
-  EXPECT_EQ(original_event.acked_packet_number(),
-            logged_event.acked_packet_number);
-  EXPECT_EQ(original_event.receive_acked_packet_time_ms(),
-            logged_event.receive_acked_packet_time_ms);
 }
 
 void EventVerifier::VerifyLoggedRtcpPacketIncoming(

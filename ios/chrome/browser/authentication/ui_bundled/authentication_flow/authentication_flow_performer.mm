@@ -184,6 +184,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 
 - (void)fetchManagedStatus:(ProfileIOS*)profile
                forIdentity:(id<SystemIdentity>)identity {
+  CHECK(identity, base::NotFatalUntil::M147);
   SystemIdentityManager* systemIdentityManager =
       GetApplicationContext()->GetSystemIdentityManager();
   if (NSString* hostedDomain =
@@ -229,8 +230,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
       ->GetManagedAccountsSigninRestriction(
           identity_manager,
           identity_manager->PickAccountIdForAccount(
-              GaiaId(identity.gaiaID),
-              base::SysNSStringToUTF8(identity.userEmail)),
+              identity.gaiaId, base::SysNSStringToUTF8(identity.userEmail)),
           std::move(callback));
 }
 
@@ -244,7 +244,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
   std::optional<std::string> profileName =
       GetApplicationContext()
           ->GetAccountProfileMapper()
-          ->FindProfileNameForGaiaID(GaiaId(identity.gaiaID));
+          ->FindProfileNameForGaiaID(identity.gaiaId);
   if (!profileName.has_value()) {
     __weak __typeof(_delegate) weakDelegate = _delegate;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -280,7 +280,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 - (void)makePersonalProfileManagedWithIdentity:(id<SystemIdentity>)identity {
   GetApplicationContext()
       ->GetAccountProfileMapper()
-      ->MakePersonalProfileManagedWithGaiaID(GaiaId(identity.gaiaID));
+      ->MakePersonalProfileManagedWithGaiaID(identity.gaiaId);
   [_delegate didMakePersonalProfileManaged];
 }
 

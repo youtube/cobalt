@@ -9,20 +9,16 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, AutocompleteResult, OmniboxPopupSelection, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteMatch, AutocompleteResult, OmniboxPopupSelection} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {RenderType, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
-import {SearchboxBrowserProxy} from './searchbox_browser_proxy.js';
 import {getCss} from './searchbox_dropdown.css.js';
 import {getHtml} from './searchbox_dropdown.html.js';
 import type {SearchboxMatchElement} from './searchbox_match.js';
-import {decodeString16, renderTypeToClass, sideTypeToClass} from './utils.js';
+import {renderTypeToClass, sideTypeToClass} from './utils.js';
 
 // The '%' operator in JS returns negative numbers. This workaround avoids that.
 const remainder = (lhs: number, rhs: number) => ((lhs % rhs) + rhs) % rhs;
-
-const CHAR_TYPED_TO_PAINT = 'Realbox.CharTypedToRepaintLatency.ToPaint';
-const RESULT_CHANGED_TO_PAINT = 'Realbox.ResultChangedToRepaintLatency.ToPaint';
 
 export interface SearchboxDropdownElement {
   $: {
@@ -105,40 +101,15 @@ export class SearchboxDropdownElement extends CrLitElement {
 
   accessor canShowSecondarySide: boolean = false;
   accessor hadSecondarySide: boolean = false;
-  accessor hasSecondarySide: boolean;
-  accessor hasEmptyInput: boolean;
-  accessor result: AutocompleteResult;
+  accessor hasSecondarySide: boolean = false;
+  accessor hasEmptyInput: boolean = false;
+  accessor result: AutocompleteResult|null = null;
   accessor selectedMatchIndex: number = -1;
   accessor showThumbnail: boolean = false;
   private accessor showSecondarySide_: boolean = false;
 
   /** The list of selectable match elements. */
   private selectableMatchElements_: SearchboxMatchElement[] = [];
-  private resizeObserver_: ResizeObserver|null = null;
-  private pageHandler_: PageHandlerInterface;
-
-  constructor() {
-    super();
-    this.pageHandler_ = SearchboxBrowserProxy.getInstance().handler;
-  }
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.resizeObserver_ = new ResizeObserver(
-        (entries: ResizeObserverEntry[]) =>
-            this.pageHandler_.popupElementSizeChanged({
-              width: entries[0].contentRect.width,
-              height: entries[0].contentRect.height,
-            }));
-    this.resizeObserver_.observe(this.$.content);
-  }
-
-  override disconnectedCallback() {
-    if (this.resizeObserver_) {
-      this.resizeObserver_.disconnect();
-    }
-    super.disconnectedCallback();
-  }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
@@ -202,12 +173,16 @@ export class SearchboxDropdownElement extends CrLitElement {
     // If the updated selection is a new match, remove any remaining selection
     // on the previously selected match.
     if (oldSelection.line !== selection.line) {
-      this.selectableMatchElements[this.selectedMatchIndex]?.updateSelection(
-          selection);
+      const oldMatch = this.selectableMatchElements[this.selectedMatchIndex];
+      if (oldMatch) {
+        oldMatch.selection = selection;
+      }
     }
     this.selectIndex(selection.line);
-    this.selectableMatchElements[this.selectedMatchIndex]?.updateSelection(
-        selection);
+    const newMatch = this.selectableMatchElements[this.selectedMatchIndex];
+    if (newMatch) {
+      newMatch.selection = selection;
+    }
   }
 
   /**
@@ -249,26 +224,31 @@ export class SearchboxDropdownElement extends CrLitElement {
   }
 
   private onResultRepaint_() {
-    if (loadTimeData.getBoolean('reportMetrics')) {
-      const metricsReporter = MetricsReporterImpl.getInstance();
-      metricsReporter.measure('CharTyped')
-          .then(duration => {
-            metricsReporter.umaReportTime(CHAR_TYPED_TO_PAINT, duration);
-          })
-          .then(() => {
-            metricsReporter.clearMark('CharTyped');
-          })
-          .catch(() => {});  // Fail silently if 'CharTyped' is not marked.
-
-      metricsReporter.measure('ResultChanged')
-          .then(duration => {
-            metricsReporter.umaReportTime(RESULT_CHANGED_TO_PAINT, duration);
-          })
-          .then(() => {
-            metricsReporter.clearMark('ResultChanged');
-          })
-          .catch(() => {});  // Fail silently if 'ResultChanged' is not marked.
+    if (!loadTimeData.getBoolean('reportMetrics')) {
+      return;
     }
+
+    const metricsReporter = MetricsReporterImpl.getInstance();
+    metricsReporter.measure('CharTyped')
+        .then(duration => {
+          metricsReporter.umaReportTime(
+              loadTimeData.getString('charTypedToPaintMetricName'), duration);
+        })
+        .then(() => {
+          metricsReporter.clearMark('CharTyped');
+        })
+        .catch(() => {});  // Fail silently if 'CharTyped' is not marked.
+
+    metricsReporter.measure('ResultChanged')
+        .then(duration => {
+          metricsReporter.umaReportTime(
+              loadTimeData.getString('resultChangedToPaintMetricName'),
+              duration);
+        })
+        .then(() => {
+          metricsReporter.clearMark('ResultChanged');
+        })
+        .catch(() => {});  // Fail silently if 'ResultChanged' is not marked.
   }
 
   //============================================================================
@@ -295,7 +275,7 @@ export class SearchboxDropdownElement extends CrLitElement {
   }
 
   private computeHasEmptyInput_(): boolean {
-    return this.result && decodeString16(this.result.input) === '';
+    return !!this.result && this.result.input === '';
   }
 
   protected isSelected_(match: AutocompleteMatch): boolean {
@@ -324,7 +304,7 @@ export class SearchboxDropdownElement extends CrLitElement {
    */
   protected headerForGroup_(groupId: number): string {
     return this.result?.suggestionGroupsMap[groupId] ?
-        decodeString16(this.result.suggestionGroupsMap[groupId].header) :
+        this.result.suggestionGroupsMap[groupId].header :
         '';
   }
 

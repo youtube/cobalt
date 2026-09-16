@@ -68,7 +68,7 @@ import org.chromium.chrome.browser.translate.TranslateBridgeJni;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.bookmarks.BookmarkId;
-import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
@@ -93,7 +93,6 @@ import org.chromium.url.JUnitTestGURLs;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /** Unit tests for {@link AppMenuPropertiesDelegateImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -168,7 +167,7 @@ public class AppMenuPropertiesDelegateUnitTest {
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
         when(mTabModel.isIncognito()).thenReturn(false);
         when(mIncognitoTabModel.isIncognito()).thenReturn(true);
-        PageZoomBarCoordinator.setShouldShowMenuItemForTesting(false);
+        PageZoomUtils.setShouldShowMenuItemForTesting(false);
 
         UpdateMenuItemHelper.setInstanceForTesting(mUpdateMenuItemHelper);
         mMenuUiState = new MenuUiState();
@@ -379,14 +378,7 @@ public class AppMenuPropertiesDelegateUnitTest {
         Long clusterId = 1L;
         doReturn(
                         new ShoppingService.ProductInfo(
-                                "",
-                                new GURL(""),
-                                Optional.of(clusterId),
-                                Optional.empty(),
-                                "",
-                                0,
-                                "",
-                                Optional.empty()))
+                                "", new GURL(""), clusterId, null, "", 0, "", null))
                 .when(mShoppingService)
                 .getAvailableProductInfoForUrl(any());
         doReturn(true).when(mShoppingService).isSubscribedFromCache(any());

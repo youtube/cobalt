@@ -4,10 +4,13 @@
 
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
 
+#include <optional>
+
 #include "chrome/browser/actor/tools/navigate_tool.h"
 #include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor/actor_utils.h"
 
 namespace actor {
 
@@ -25,6 +28,7 @@ ToolRequest::CreateToolResult NavigateToolRequest::CreateTool(
   TabInterface* tab = GetTabHandle().Get();
   if (!tab) {
     return {/*tool=*/nullptr, MakeResult(mojom::ActionResultCode::kTabWentAway,
+                                         /*requires_page_stabilization=*/false,
                                          "The tab is no longer present.")};
   }
 
@@ -47,6 +51,15 @@ std::string NavigateToolRequest::JournalEvent() const {
 
 std::optional<url::Origin> NavigateToolRequest::AssociatedOriginGrant() const {
   return url::Origin::Create(url_);
+}
+
+std::optional<ObservationDelayController::PageStabilityConfig>
+NavigateToolRequest::GetObservationPageStabilityConfig() const {
+  if (UseGeneralPageStabilityNavigationTools()) {
+    return ObservationDelayController::PageStabilityConfig();
+  } else {
+    return std::nullopt;
+  }
 }
 
 }  // namespace actor

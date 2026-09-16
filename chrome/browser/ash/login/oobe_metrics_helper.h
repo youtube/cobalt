@@ -10,11 +10,20 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 
+class PrefService;
+
+namespace metrics {
+class MetricsService;
+}
+
 namespace ash {
+
+class LoginDisplayHostCommon;
 
 // Handles metrics for OOBE.
 class OobeMetricsHelper {
@@ -80,7 +89,21 @@ class OobeMetricsHelper {
     virtual void OnChoobeResumed() {}
   };
 
-  OobeMetricsHelper();
+  // For common use.
+  //
+  // `local_state` instance must be non-null and must outlive |this|.
+  // `metrics_service` instance can be null in tests.
+  OobeMetricsHelper(PrefService* local_state,
+                    ::metrics::MetricsService* metrics_service);
+
+  // Workaround of the timing issue for short term.
+  using LocalStateGetterCallback = base::RepeatingCallback<PrefService*()>;
+  using MetricsServiceGetterCallback =
+      base::RepeatingCallback<::metrics::MetricsService*()>;
+  OobeMetricsHelper(base::PassKey<LoginDisplayHostCommon>,
+                    LocalStateGetterCallback local_state_getter,
+                    MetricsServiceGetterCallback metrics_service_callback);
+
   ~OobeMetricsHelper();
   OobeMetricsHelper(const OobeMetricsHelper& other) = delete;
   OobeMetricsHelper& operator=(const OobeMetricsHelper&) = delete;
@@ -142,6 +165,8 @@ class OobeMetricsHelper {
   void RemoveObserver(Observer* observer);
 
  private:
+  void Initialize();
+
   void RecordUpdatedStepShownStatus(OobeScreenId screen,
                                     ScreenShownStatus status);
   void RecordUpdatedStepCompletionTime(OobeScreenId screen,
@@ -159,6 +184,9 @@ class OobeMetricsHelper {
   base::CallbackListSubscription stats_reporting_subscription_;
 
   base::ObserverList<Observer> observers_;
+
+  LocalStateGetterCallback local_state_getter_;
+  MetricsServiceGetterCallback metrics_service_getter_;
 };
 
 }  // namespace ash

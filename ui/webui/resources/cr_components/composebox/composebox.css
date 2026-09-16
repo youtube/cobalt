@@ -104,6 +104,8 @@
   --border-radius-transition: border-radius var(--collapse-duration)
     var(--emphasized-curve);
 
+  --lens-icon-animation-duration: 1100ms;
+
   border-radius: 30px;
   box-shadow: var(--cr-searchbox-shadow);
   font-size: var(--cr-composebox-font-size, 18px);
@@ -116,40 +118,7 @@
 }
 
 #errorScrim {
-  align-items: center;
-  background-color: var(--color-new-tab-page-composebox-error-scrim-background);
   border-radius: inherit;
-  color: var(--color-new-tab-page-composebox-error-scrim-foreground);
-  display: flex;
-  font-size: 16px;
-  flex-direction: column;
-  gap: 12px;
-  justify-content: center;
-  height: 100%;
-  position: absolute;
-  opacity: 0.90;
-  width: 100%;
-  z-index: 1;
-}
-
-#errorScrim > p {
-  margin: 0;
-}
-
-#dismissErrorButton {
-  --cr-button-background-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-background);
-  --cr-button-border-color:
-      var(--color-new-tab-page-composebox-error-scrim-foreground);
-  --cr-button-text-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-text);
-  --cr-icon-button-hover-background-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-background-hover);
-  border: none;
-  font-size: 14px;
-  gap: 4px;
-  height: 44px;
-  width: 122px;
 }
 
 #composebox {
@@ -193,12 +162,6 @@
   padding-bottom: var(--input-bottom-spacing);
   overflow: hidden;
   width: 100%;
-}
-
-#carousel {
-  padding-inline-start: var(--text-input-inline-start-spacing);
-  margin-bottom: 12px;
-  margin-top: 13px;
 }
 
 #textContainer {
@@ -326,39 +289,6 @@
   padding-bottom: 8px;
 }
 
-
-#contextEntrypoint {
-  color: var(--color-searchbox-results-foreground);
-  margin-inline-start: 6px;
-}
-
-#uploadContainer {
-  display: flex;
-  padding-inline-start: var(--text-input-inline-start-spacing);
-}
-
-:host([hide-file-inputs_]) #uploadContainer {
-  display: none;
-}
-
-.upload-icon {
-  --cr-icon-button-focus-outline-color:
-      var(--color-searchbox-results-icon-focused-outline);
-  --cr-icon-button-icon-size: 24px;
-  --cr-icon-button-hover-background-color:
-      var(--color-searchbox-results-background-hovered);
-  --cr-icon-button-size: 48px;
-  color: var(--color-new-tab-page-composebox-upload-button);
-}
-
-:host([inputs-disabled_]) .upload-icon {
-  color: var(--color-new-tab-page-composebox-upload-button-disabled);
-}
-
-#imageUploadButton {
-  --cr-icon-button-margin-start: -12px;
-}
-
 .action-icon {
   --cr-icon-button-focus-outline-color:
       var(--color-searchbox-results-icon-focused-outline);
@@ -396,20 +326,41 @@
   pointer-events: none;
 }
 
+@keyframes fade-out-in {
+  0% {
+    opacity: 0;
+  }
+
+  73% {
+    opacity: 0;
+  }
+}
+
 #lensIcon {
   --cr-icon-button-icon-size: 20px;
   --cr-icon-image: url(//resources/cr_components/searchbox/icons/camera.svg);
   bottom: var(--input-bottom-spacing);
   display: none;
-  pointer-events: auto;
+  opacity: 1;
   position: absolute;
-  right: 68px;
+  right: 16px;
+  top: 6px;
 }
 
 #lensIcon:focus-visible:focus {
   box-shadow: none;
   outline: 2px solid var(--color-searchbox-results-icon-focused-outline);
   outline-offset: 2px;
+}
+
+:host([expanded_]) #lensIcon {
+  animation: fade-out-in var(--lens-icon-animation-duration) linear;
+  right: 68px;
+  top: auto;
+}
+
+:host([lens-button-disabled_]) #lensIcon {
+  opacity: 0.3;
 }
 
 :host-context([dir='rtl']) #lensIcon {

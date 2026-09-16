@@ -130,7 +130,8 @@ TEST(SymbolizeInProcessHeapTest, NamedMappingAndroidTV) {
   std::string result_content;
   ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
 
-  auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
+  auto parsed = base::JSONReader::ReadAndReturnValueWithError(
+      result_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
   ASSERT_TRUE(parsed->is_dict());
 
@@ -220,7 +221,8 @@ TEST(SymbolizeInProcessHeapTest, EvergreenAnonymousMappingRDK) {
   std::string result_content;
   ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
 
-  auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
+  auto parsed = base::JSONReader::ReadAndReturnValueWithError(
+      result_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
 
   const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
@@ -311,7 +313,8 @@ TEST(SymbolizeInProcessHeapTest, MultiSegmentAndSerializedStringDumps) {
 
   std::string result_content;
   ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
-  auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
+  auto parsed = base::JSONReader::ReadAndReturnValueWithError(
+      result_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
 
   const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
@@ -403,8 +406,8 @@ TEST(SymbolizeInProcessHeapTest, CustomOutputPathAndSummaryExport) {
   // Verify summary JSON exists and contains expected metrics
   std::string summary_content;
   ASSERT_TRUE(base::ReadFileToString(summary_path, &summary_content));
-  auto parsed_summary =
-      base::JSONReader::ReadAndReturnValueWithError(summary_content);
+  auto parsed_summary = base::JSONReader::ReadAndReturnValueWithError(
+      summary_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed_summary.has_value());
   EXPECT_EQ(parsed_summary->GetDict().FindInt("total_snapshots"), 1);
   EXPECT_EQ(parsed_summary->GetDict().FindInt("symbolized_pcs"), 2);

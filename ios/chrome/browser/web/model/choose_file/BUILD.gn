@@ -8,6 +8,8 @@ source_set("choose_file") {
   sources = [
     "choose_file_controller.h",
     "choose_file_controller.mm",
+    "choose_file_controller_impl.h",
+    "choose_file_controller_impl.mm",
     "choose_file_event.h",
     "choose_file_event.mm",
     "choose_file_event_holder.h",
@@ -22,8 +24,8 @@ source_set("choose_file") {
   deps = [
     ":choose_file_file_utils",
     ":choose_file_js",
-    ":choose_file_legacy_js",
     "//base",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
@@ -49,6 +51,7 @@ source_set("choose_file_file_utils") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "choose_file_controller_impl_unittest.mm",
     "choose_file_controller_unittest.mm",
     "choose_file_java_script_feature_unittest.mm",
     "choose_file_tab_helper_unittest.mm",
@@ -59,9 +62,11 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/web/public/test",
     "//testing/gtest",
+    "//third_party/ocmock",
   ]
 }
 
@@ -84,15 +89,6 @@ compile_ts("choose_file_utils_js") {
 optimize_ts("choose_file_js") {
   visibility = [ ":choose_file" ]
   sources = [ "resources/choose_file.ts" ]
-  deps = [
-    ":choose_file_utils_js",
-    "//ios/web/public/js_messaging:util_scripts",
-  ]
-}
-
-optimize_ts("choose_file_legacy_js") {
-  visibility = [ ":choose_file" ]
-  sources = [ "resources/choose_file_legacy.ts" ]
   deps = [
     ":choose_file_utils_js",
     "//ios/web/public/js_messaging:util_scripts",

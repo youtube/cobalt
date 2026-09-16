@@ -7,10 +7,13 @@
 
 #include <limits.h>
 
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/signin/public/base/consent_level.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+
+namespace base {
+class TimeDelta;
+}  // namespace base
 
 namespace signin_metrics {
 
@@ -162,7 +165,7 @@ enum class AccessPoint : int {
   kDevicesPage = 12,
   // kCloudPrint = 13, no longer used.
   // kContentArea = 14, no longer used.
-  kSigninPromo = 15,
+  kFullscreenSigninPromo = 15,
   kRecentTabs = 16,
   // This should never have been used to get signin URL.
   kUnknown = 17,
@@ -281,7 +284,7 @@ enum class AccessPoint : int {
   kCollaborationLeaveOrDeleteTabGroup = 79,
   // Access point triggered when a user attempts to opt-in to history sync from
   // the history sync opt-in expanded pill (expanded on inactivity).
-  kHistorySyncOptinExpansionPillOnInactivity = 80,
+  // kHistorySyncOptinExpansionPillOnInactivity = 80, // no longer used
   // History sync education tip is shown on the NTP to users who have history
   // sync disabled. Android only.
   kHistorySyncEducationalTip = 81,
@@ -686,6 +689,10 @@ void LogSyncOptInStarted(AccessPoint access_point);
 // Logs a sync opt-in offered event (`Signin.SyncOptIn.Offered` histogram)
 // and its associated access point.
 void LogSyncOptInOffered(AccessPoint access_point);
+
+// Logs a sync opt-in offered event (`Signin.HistorySyncOptIn.Offered`
+// histogram) and its associated access point.
+void LogHistorySyncOptInOffered(AccessPoint access_point);
 
 // Logs that the sync settings were opened at the end of the sync opt-in flow,
 // and the associated access points.

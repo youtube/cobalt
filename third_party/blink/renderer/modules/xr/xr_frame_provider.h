@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/modules/xr/average_timer.h"
 #include "third_party/blink/renderer/modules/xr/xr_layer_shared_image_manager.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/xr_frame_transport_delegate.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/disallow_new_wrapper.h"
@@ -25,12 +26,11 @@ namespace blink {
 
 class LocalDOMWindow;
 class XRFrameTransport;
-class XRGPUProjectionLayer;
 class XRProjectionLayer;
 class XRSession;
 class XRSystem;
 class XRWebGLLayer;
-class XRWebGLLayerClient;
+class XrLayerClient;
 
 // This class manages requesting and dispatching frame updates, which includes
 // pose information for a given XRDevice.
@@ -62,10 +62,9 @@ class XRFrameProvider final : public GarbageCollected<XRFrameProvider> {
 
   void OnNonImmersiveVSync(double high_res_now_ms);
 
-  void SubmitWebGLLayer(XRWebGLLayerClient*, bool was_changed);
-  void UpdateWebGLLayerViewports(XRWebGLLayer*);
+  void SubmitLayer(XrLayerClient*, bool was_changed);
 
-  void SubmitWebGPULayer(XRGPUProjectionLayer*, bool was_queried);
+  void UpdateWebGLLayerViewports(XRWebGLLayer*);
 
   // Used for both WebGPU and WebGL layers.
   void UpdateLayerViewports(XRProjectionLayer*);

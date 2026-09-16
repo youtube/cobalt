@@ -4,10 +4,17 @@
 
 #import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 
+#import <WebKit/WebKit.h>
+
 #import "base/apple/foundation_util.h"
+#import "base/feature_list.h"
 #import "base/files/file_util.h"
+#import "base/metrics/histogram_functions.h"
 #import "base/task/thread_pool.h"
-#import "ios/chrome/browser/web/model/choose_file/choose_file_controller.h"
+#import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_controller_impl.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_event.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_file_utils.h"
 #import "ios/web/public/navigation/navigation_context.h"
 
@@ -52,6 +59,73 @@ void ChooseFileTabHelper::StopChoosingFiles(NSArray<NSURL*>* file_urls,
                                             allKeys]]]);
   controller_->SubmitSelection(file_urls, display_string, icon_image);
   controller_.reset();
+}
+
+void ChooseFileTabHelper::SetFileUploadPanelHandler(
+    id<FileUploadPanelCommands> file_upload_panel_handler) {
+  file_upload_panel_handler_ = file_upload_panel_handler;
+}
+
+void ChooseFileTabHelper::RunOpenPanel(
+    WKOpenPanelParameters* parameters,
+    WKFrameInfo* frame,
+    base::OnceCallback<void(NSArray<NSURL*>*)> completion)
+    API_AVAILABLE(ios(18.4)) {
+  CHECK(base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu));
+
+  std::optional<ChooseFileEvent> last_choose_file_event =
+      ResetLastChooseFileEvent();
+  base::UmaHistogramBoolean("IOS.Web.FileInput.EventMatched",
+                            last_choose_file_event.has_value());
+  if (last_choose_file_event.has_value()) {
+    if (!!last_choose_file_event->allow_multiple_files !=
+        !!parameters.allowsMultipleSelection) {
+      // If the `last_choose_file_event->allow_multiple_files` does not have the
+      // correct value according to `parameters`, overwrite it.
+      last_choose_file_event->allow_multiple_files =
+          parameters.allowsMultipleSelection;
+      base::UmaHistogramBoolean("IOS.Web.FileInput.MultipleAttributeMismatched",
+                                last_choose_file_event->allow_multiple_files);
+    }
+    if (!!last_choose_file_event->only_allow_directory !=
+        !!parameters.allowsDirectories) {
+      // If the `last_choose_file_event->only_allow_directory` does not have the
+      // correct value according to `parameters`, overwrite it.
+      last_choose_file_event->only_allow_directory =
+          parameters.allowsDirectories;
+      base::UmaHistogramBoolean(
+          "IOS.Web.FileInput.DirectoryAttributeMismatched",
+          last_choose_file_event->only_allow_directory);
+    }
+  } else {
+    // If no ChooseFileEvent could be found, create a default event from
+    // `parameters`.
+    last_choose_file_event =
+        ChooseFileEvent::Builder()
+            .SetWebState(observation_.GetSource())
+            .SetAllowMultipleFiles(parameters.allowsMultipleSelection)
+            .SetOnlyAllowDirectory(parameters.allowsDirectories)
+            .Build();
+  }
+
+  std::unique_ptr<ChooseFileController> choose_file_controller =
+      std::make_unique<ChooseFileControllerImpl>(
+          std::move(*last_choose_file_event), std::move(completion));
+  StartChoosingFiles(std::move(choose_file_controller));
+
+  [file_upload_panel_handler_ showFileUploadPanel];
+}
+
+void ChooseFileTabHelper::SetLastChooseFileEvent(ChooseFileEvent event) {
+  last_choose_file_event_ = std::move(event);
+}
+
+std::optional<ChooseFileEvent> ChooseFileTabHelper::ResetLastChooseFileEvent() {
+  return std::exchange(last_choose_file_event_, std::nullopt);
+}
+
+bool ChooseFileTabHelper::HasLastChooseFileEvent() const {
+  return last_choose_file_event_.has_value();
 }
 
 void ChooseFileTabHelper::AbortSelection() {

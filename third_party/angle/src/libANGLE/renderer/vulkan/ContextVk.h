@@ -413,13 +413,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         mGraphicsDirtyBits |= kIndexAndVertexDirtyBits;
     }
 
-    angle::Result onVertexArrayChange(const gl::AttributesMask enabledAttribDirtyBits);
-    angle::Result onVertexAttributeChange(size_t attribIndex,
-                                          GLuint stride,
-                                          GLuint divisor,
-                                          angle::FormatID format,
-                                          GLuint relativeOffset,
-                                          const vk::BufferHelper *vertexBuffer);
+    angle::Result onVertexArrayChange(const gl::AttributesMask dirtyAttribBits);
 
     void invalidateDefaultAttribute(size_t attribIndex);
     void invalidateDefaultAttributes(const gl::AttributesMask &dirtyMask);
@@ -891,7 +885,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     bool hasExcessPendingGarbage() const;
 
-    angle::Result onFramebufferBoundary(const gl::Context *contextGL);
+    angle::Result onFrameBoundary(const gl::Context *contextGL);
 
     uint32_t getCurrentFrameCount() const { return mShareGroupVk->getCurrentFrameCount(); }
 
@@ -965,8 +959,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         DIRTY_BIT_DYNAMIC_LOGIC_OP,
         DIRTY_BIT_DYNAMIC_PRIMITIVE_RESTART_ENABLE,
         // - In VK_KHR_fragment_shading_rate
-        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM,
-        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT,
+        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE,
 
         DIRTY_BIT_MAX,
     };
@@ -1059,9 +1052,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_DYNAMIC_PRIMITIVE_RESTART_ENABLE > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
-    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM > DIRTY_BIT_RENDER_PASS,
-                  "Render pass using dirty bit must be handled after the render pass dirty bit");
-    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT > DIRTY_BIT_RENDER_PASS,
+    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
 
     using DirtyBits = angle::BitSet<DIRTY_BIT_MAX>;
@@ -1298,11 +1289,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     angle::Result handleDirtyGraphicsDynamicPrimitiveRestartEnable(
         DirtyBits::Iterator *dirtyBitsIterator,
         DirtyBits dirtyBitMask);
-    angle::Result handleDirtyGraphicsDynamicFragmentShadingRateQCOM(
-        DirtyBits::Iterator *dirtyBitsIterator,
-        DirtyBits dirtyBitMask);
-    // EXT_fragment_shading_rate
-    angle::Result handleDirtyGraphicsDynamicFragmentShadingRateEXT(
+    angle::Result handleDirtyGraphicsDynamicFragmentShadingRate(
         DirtyBits::Iterator *dirtyBitsIterator,
         DirtyBits dirtyBitMask);
 
@@ -1451,8 +1438,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     void generateOutsideRenderPassCommandsQueueSerial();
     void generateRenderPassCommandsQueueSerial(QueueSerial *queueSerialOut);
-
-    angle::Result ensureInterfacePipelineCache();
 
     angle::ImageLoadContext mImageLoadContext;
 
@@ -1751,30 +1736,6 @@ ANGLE_INLINE angle::Result ContextVk::onIndexBufferChange(
     mGraphicsDirtyBits.set(DIRTY_BIT_INDEX_BUFFER);
     mLastIndexBufferOffset = reinterpret_cast<const void *>(angle::DirtyPointer);
     return endRenderPassIfTransformFeedbackBuffer(currentIndexBuffer);
-}
-
-ANGLE_INLINE angle::Result ContextVk::onVertexAttributeChange(size_t attribIndex,
-                                                              GLuint stride,
-                                                              GLuint divisor,
-                                                              angle::FormatID format,
-                                                              GLuint relativeOffset,
-                                                              const vk::BufferHelper *vertexBuffer)
-{
-    const GLuint staticStride =
-        mRenderer->getFeatures().useVertexInputBindingStrideDynamicState.enabled ? 0 : stride;
-
-    if (!getFeatures().supportsVertexInputDynamicState.enabled)
-    {
-        invalidateCurrentGraphicsPipeline();
-
-        ASSERT(divisor <= mRenderer->getMaxVertexAttribDivisor());
-        mGraphicsPipelineDesc->updateVertexInput(this, &mGraphicsPipelineTransition,
-                                                 static_cast<uint32_t>(attribIndex), staticStride,
-                                                 divisor, format, relativeOffset);
-    }
-
-    mGraphicsDirtyBits.set(DIRTY_BIT_VERTEX_BUFFERS);
-    return endRenderPassIfTransformFeedbackBuffer(vertexBuffer);
 }
 
 ANGLE_INLINE bool ContextVk::hasUnsubmittedUse(const vk::ResourceUse &use) const

@@ -4,13 +4,13 @@
 
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
+import {GlicRequestHeaderInjector} from '/shared/glic_request_headers.js';
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
 
 import type {BrowserProxyImpl} from './browser_proxy.js';
 import type {Subscriber} from './glic_api/glic_api.js';
 import {DetailedWebClientState, GlicApiHost, WebClientState} from './glic_api_impl/glic_api_host.js';
 import type {ApiHostEmbedder} from './glic_api_impl/glic_api_host.js';
-import {GlicRequestHeaderInjector} from './glic_request_headers.js';
 import {ObservableValue} from './observable.js';
 import type {ObservableValueReadOnly} from './observable.js';
 import {OneShotTimer} from './timer.js';
@@ -51,7 +51,11 @@ export type PageType =
     // A page that should be displayed.
     |'regular'
     // A error page that should be displayed.
-    |'guestError';
+    |'guestError'
+    // An error page that indicates access loss.
+    |'guestCaaError'
+    // The page could not be loaded.
+    |'loadError';
 
 // Calls from the webview to its owner.
 export interface WebviewDelegate {
@@ -61,6 +65,8 @@ export interface WebviewDelegate {
   webviewUnresponsive(): void;
   // Called when a page commits inside the webview.
   webviewPageCommit(pageType: PageType): void;
+  // Called when the webview redirects to an access error page.
+  webviewDeniedByAdmin(): void;
 }
 
 // To match needed pieces of tools/typescript/definitions/web_request.d.ts,
@@ -295,9 +301,10 @@ export class WebviewController {
 
     this.destroyHost(WebClientState.UNINITIALIZED);
 
-    if (this.webview.contentWindow) {
+    const origin = new URL(url).origin;
+    if (this.webview.contentWindow && origin !== 'null') {
       this.host = new GlicApiHost(
-          this.browserProxy, this.webview.contentWindow, new URL(url).origin,
+          this.browserProxy, this.webview.contentWindow, origin,
           this.hostEmbedder);
       this.hostSubscriber = this.host.getWebClientState().subscribe(state => {
         if (state === WebClientState.RESPONSIVE) {
@@ -308,7 +315,13 @@ export class WebviewController {
     }
     this.browserProxy.handler.webviewCommitted({url});
 
-    // TODO(https://crbug.com/388328847): Remove when login issues are resolved.
+    if (!this.host) {
+      this.delegate.webviewPageCommit('loadError');
+      return;
+    }
+
+    // TODO(https://crbug.com/388328847): Remove when login issues are
+    // resolved.
     if (url.startsWith('https://login.corp.google.com/') ||
         url.startsWith('https://accounts.google.com/') ||
         url.startsWith('https://accounts.googlers.com/') ||
@@ -344,6 +357,20 @@ export class WebviewController {
     event.stopPropagation();
   }
 
+  private urlMatchesAdminBlockedUrl(url: string) {
+    const adminBlockedRedirectPatterns =
+        loadTimeData.getString('adminBlockedRedirectPatterns');
+    if (!adminBlockedRedirectPatterns) {
+      return false;
+    }
+    if (adminBlockedRedirectPatterns.split(' ').some(
+            pattern => new URLPattern(pattern.trim()).test(url))) {
+      console.warn(`Admin blocked error page detected.`);
+      return true;
+    }
+    return false;
+  }
+
   private onBeforeRequest:
       ChromeEventFunctionType<typeof chrome.webRequest.onBeforeRequest> =
           (details) => {
@@ -351,6 +378,11 @@ export class WebviewController {
             if (details.frameId !== 0) {
               return {};
             }
+            if (this.urlMatchesAdminBlockedUrl(details.url)) {
+              this.delegate.webviewDeniedByAdmin();
+              return {cancel: true};
+            }
+
             return {cancel: !urlMatchesAllowedOrigin(details.url)};
           };
 }

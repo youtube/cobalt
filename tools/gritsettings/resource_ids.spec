@@ -97,6 +97,12 @@
     "includes": [2200],
     "structures": [2220],
   },
+  "chrome/browser/actor/resources/internal/browser_resources.grd": {
+    "structures": [2230],
+  },
+  "chrome/browser/actor/resources/browser_resources.grd": {
+    "structures": [2230],
+  },
   "chrome/browser/dev_ui_browser_resources.grd": {
     "includes": [2240],
   },
@@ -444,6 +450,10 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [4020],
   },
+    "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/glic/shared/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [4030],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/history/resources.grd": {
     "META": {"sizes": {"includes": [50]}},
     "includes": [4040],
@@ -509,7 +519,7 @@
     "includes": [4380],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/new_tab_footer/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
+    "META": {"sizes": {"includes": [15]}},
     "includes": [4390],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/new_tab_page/resources.grd": {
@@ -579,6 +589,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/quota_internals/quota_internals_resources.grd": {
     "META": {"sizes": {"includes": [20]}},
     "includes": [4660],
+  },
+   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/reload_button/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [4670],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/sandbox_internals/resources.grd": {
     "META": {"sizes": {"includes": [5],}},

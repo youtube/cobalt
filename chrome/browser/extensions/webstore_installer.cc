@@ -34,7 +34,6 @@
 #include "chrome/browser/download/download_stats.h"
 #include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/install_approval.h"
-#include "chrome/browser/extensions/install_tracker.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/extensions/install_verifier.h"
 #include "chrome/browser/extensions/manifest_check_level.h"
@@ -57,6 +56,7 @@
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/install/crx_install_error.h"
+#include "extensions/browser/install_tracker.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -133,7 +133,7 @@ base::FilePath GetDownloadFilePath(const base::FilePath& download_directory,
 void MaybeAppendAuthUserParameter(const std::string& authuser, GURL* url) {
   if (authuser.empty())
     return;
-  std::string old_query = url->query();
+  std::string old_query = url->GetQuery();
   url::Component query(0, old_query.length());
   url::Component key, value;
   // Ensure that the URL doesn't already specify an authuser parameter.

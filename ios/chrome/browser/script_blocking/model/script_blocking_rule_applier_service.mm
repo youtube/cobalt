@@ -104,7 +104,8 @@ void ScriptBlockingRuleApplierService::OnContentRuleListDataUpdated() {
       FingerprintingProtectionRuleListApplyTrigger::kComponentUpdate);
 }
 
-void ScriptBlockingRuleApplierService::OnTrackingProtectionExceptionsChanged() {
+void ScriptBlockingRuleApplierService::OnTrackingProtectionExceptionsChanged(
+    const GURL& first_party_url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   BuildAndApplyRules(
       FingerprintingProtectionRuleListApplyTrigger::kExceptionsChanged);
@@ -167,8 +168,8 @@ std::optional<std::string> ScriptBlockingRuleApplierService::BuildRules() {
   }
 
   // Read the base anti-fingerprinting blocklist.
-  std::optional<base::Value> rules_value =
-      base::JSONReader::Read(*base_rules_json);
+  std::optional<base::Value> rules_value = base::JSONReader::Read(
+      *base_rules_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 
   // If the base rule list is empty or invalid, there are no rules to apply.
   // An exception list is meaningless without a base list.

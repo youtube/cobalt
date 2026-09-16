@@ -23,7 +23,6 @@
 #include "gpu/command_buffer/service/gles2_cmd_decoder_unittest.h"
 #include "gpu/command_buffer/service/mocks.h"
 #include "gpu/command_buffer/service/program_manager.h"
-#include "gpu/command_buffer/service/service_discardable_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/test_image_backing.h"
 #include "gpu/command_buffer/service/test_helper.h"
@@ -3951,89 +3950,6 @@ TEST_P(WebGL2DecoderTest, TexSwizzleDisabled) {
     EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
     EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
   }
-}
-
-TEST_P(GLES2DecoderTest, TestInitDiscardableTexture) {
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  DoInitializeDiscardableTextureCHROMIUM(client_texture_id_);
-  EXPECT_EQ(1u, group().discardable_manager()->NumCacheEntriesForTesting());
-}
-
-TEST_P(GLES2DecoderTest, TestInitInvalidDiscardableTexture) {
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  DoInitializeDiscardableTextureCHROMIUM(0);
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  EXPECT_EQ(GL_INVALID_VALUE, GetGLError());
-}
-
-TEST_P(GLES2DecoderTest, TestInitDiscardableTextureWithInvalidArguments) {
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-
-  // Manually initialize an init command with an invalid buffer.
-  {
-    cmds::InitializeDiscardableTextureCHROMIUM cmd;
-    cmd.Init(client_texture_id_, kInvalidSharedMemoryId, 0);
-    EXPECT_EQ(error::kInvalidArguments, ExecuteCmd(cmd));
-    EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  }
-
-  // Manually initialize an init command with an out of bounds offset.
-  {
-    cmds::InitializeDiscardableTextureCHROMIUM cmd;
-    cmd.Init(client_texture_id_, shared_memory_id_, kInvalidSharedMemoryOffset);
-    EXPECT_EQ(error::kInvalidArguments, ExecuteCmd(cmd));
-    EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  }
-
-  // Manually initialize an init command with a non-atomic32-aligned offset.
-  {
-    cmds::InitializeDiscardableTextureCHROMIUM cmd;
-    cmd.Init(client_texture_id_, shared_memory_id_, 1);
-    EXPECT_EQ(error::kInvalidArguments, ExecuteCmd(cmd));
-    EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  }
-}
-
-TEST_P(GLES2DecoderTest, TestUnlockDiscardableTexture) {
-  const ContextGroup& context_group = group();
-  EXPECT_EQ(0u,
-            context_group.discardable_manager()->NumCacheEntriesForTesting());
-  DoInitializeDiscardableTextureCHROMIUM(client_texture_id_);
-  EXPECT_TRUE(context_group.discardable_manager()->IsEntryLockedForTesting(
-      client_texture_id_, context_group.texture_manager()));
-  DoUnlockDiscardableTextureCHROMIUM(client_texture_id_);
-  EXPECT_FALSE(context_group.discardable_manager()->IsEntryLockedForTesting(
-      client_texture_id_, context_group.texture_manager()));
-}
-
-TEST_P(GLES2DecoderTest, TestDeleteDiscardableTexture) {
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-  DoInitializeDiscardableTextureCHROMIUM(client_texture_id_);
-  EXPECT_EQ(1u, group().discardable_manager()->NumCacheEntriesForTesting());
-  DoDeleteTexture(client_texture_id_, kServiceTextureId);
-  EXPECT_EQ(0u, group().discardable_manager()->NumCacheEntriesForTesting());
-}
-
-TEST_P(GLES2DecoderManualInitTest,
-       TestDiscardableTextureUnusableWhileUnlocked) {
-  InitState init;
-  InitDecoder(init);
-
-  DoInitializeDiscardableTextureCHROMIUM(client_texture_id_);
-  DoBindTexture(GL_TEXTURE_2D, client_texture_id_, kServiceTextureId);
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-  EXPECT_CALL(*gl_, BindTexture(GL_TEXTURE_2D, 0)).RetiresOnSaturation();
-  DoUnlockDiscardableTextureCHROMIUM(client_texture_id_);
-  {
-    // Avoid DoBindTexture, as we expect failure.
-    cmds::BindTexture cmd;
-    cmd.Init(GL_TEXTURE_2D, client_texture_id_);
-    EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  }
-  EXPECT_EQ(GL_INVALID_OPERATION, GetGLError());
-  DoLockDiscardableTextureCHROMIUM(client_texture_id_);
-  DoBindTexture(GL_TEXTURE_2D, client_texture_id_, kServiceTextureId);
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
 }
 
 TEST_P(GLES2DecoderTest, CopySubTextureCHROMIUMTwiceClearsUnclearedTexture) {

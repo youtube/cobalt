@@ -94,7 +94,7 @@ bool IsURLExemptFromAnalysis(const GURL& url) {
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (url.SchemeIs(extensions::kExtensionScheme) &&
-      extension_misc::IsSystemUIApp(url.host_piece())) {
+      extension_misc::IsSystemUIApp(url.host())) {
     return true;
   }
 #endif
@@ -198,7 +198,7 @@ std::optional<AnalysisSettings> ConnectorsService::GetAnalysisSettings(
     return std::nullopt;
 
   if (url.SchemeIsBlob() || url.SchemeIsFileSystem()) {
-    GURL inner = url.inner_url() ? *url.inner_url() : GURL(url.path());
+    GURL inner = url.inner_url() ? *url.inner_url() : GURL(url.GetPath());
     return GetCommonAnalysisSettings(
         connectors_manager_->GetAnalysisSettings(inner, connector), connector);
   }

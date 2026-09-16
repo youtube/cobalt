@@ -8,8 +8,8 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor/task_id.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "extensions/browser/extension_function.h"
 
@@ -78,6 +78,7 @@ class ExperimentalActorPerformActionsFunction
   void OnActionsFinished(
       actor::TaskId task_id,
       base::TimeTicks start_time,
+      bool skip_async_observation_information,
       actor::mojom::ActionResultCode result_code,
       std::optional<size_t> index_of_failed_action,
       std::vector<actor::ActionResultWithLatencyInfo> action_results);

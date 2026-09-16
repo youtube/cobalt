@@ -41,7 +41,10 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
+#endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -151,7 +154,7 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
 
   // 2. Check the fragment part if it looks like a query (starts with '?')
   if (link_url.has_ref()) {
-    std::string ref = link_url.ref();
+    std::string ref = link_url.GetRef();
     if (!ref.empty() && ref[0] == '?') {
       // Skip the leading '?'
       if (check_query_string(std::string_view(ref).substr(1))) {
@@ -791,20 +794,24 @@ void Shell::Stop() {
 }
 
 void Shell::ShowDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
     devtools_frontend_ = devtools_frontend->GetWeakPtr();
   }
 
   devtools_frontend_->Activate();
+#endif
 }
 
 void Shell::CloseDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     return;
   }
   devtools_frontend_->Close();
   devtools_frontend_ = nullptr;
+#endif
 }
 
 void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {

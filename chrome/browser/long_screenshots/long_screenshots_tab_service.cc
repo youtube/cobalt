@@ -103,7 +103,7 @@ void LongScreenshotsTabService::CaptureTab(
   if (memory_monitor &&
       memory_monitor->GetCurrentPressureLevel(
           base::MemoryPressureMonitorTag::kLongScreenshotsTabService) >=
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE) {
+          base::MEMORY_PRESSURE_LEVEL_MODERATE) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_LongScreenshotsTabService_processCaptureTabStatus(
         env, java_ref_, Status::kLowMemoryDetected);
@@ -244,7 +244,7 @@ bool LongScreenshotsTabService::IsAmpUrl(const GURL& url) {
 
   // Check for "*.cdn.ampproject.org" URLs.
   if (url.DomainIs(kGoogleAmpCacheHost) &&
-      re2::RE2::FullMatch(url.path(), google_amp_cache_path_regex_)) {
+      re2::RE2::FullMatch(url.GetPath(), google_amp_cache_path_regex_)) {
     return true;
   }
 
@@ -252,13 +252,13 @@ bool LongScreenshotsTabService::IsAmpUrl(const GURL& url) {
   if (google_util::IsGoogleDomainUrl(
           url, google_util::DISALLOW_SUBDOMAIN,
           google_util::DISALLOW_NON_STANDARD_PORTS) &&
-      re2::RE2::FullMatch(url.path(), google_amp_viewer_path_regex_)) {
+      re2::RE2::FullMatch(url.GetPath(), google_amp_viewer_path_regex_)) {
     return true;
   }
 
   // Check for "news.google.com/articles/*".
   if (url.DomainIs(kGoogleNewsHost) &&
-      re2::RE2::FullMatch(url.path(), google_news_path_regex_)) {
+      re2::RE2::FullMatch(url.GetPath(), google_news_path_regex_)) {
     return true;
   }
 

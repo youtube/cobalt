@@ -50,6 +50,7 @@ import java.util.function.DoubleConsumer;
 @RunWith(BaseRobolectricTestRunner.class)
 @EnableFeatures({
     ChromeFeatureList.HISTORY_PANE_ANDROID,
+    ChromeFeatureList.ENABLE_ESCAPE_HANDLING_FOR_SECONDARY_ACTIVITIES
 })
 public class HistoryPaneUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();

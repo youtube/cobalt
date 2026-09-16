@@ -8,6 +8,7 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chromeos/constants/pref_names.h"
 #include "chromeos/dbus/power/power_manager_client.h"
@@ -15,8 +16,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
-#include "components/sync/service/sync_service.h"
-#include "components/sync/service/sync_service_observer.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_sync_service.h"
 #include "components/sync_device_info/device_info_tracker.h"
@@ -26,17 +25,14 @@ namespace ash {
 
 AutoSignOutService::AutoSignOutService(
     syncer::DeviceInfoSyncService* device_info_sync_service,
-    syncer::SyncService* sync_service,
     session_manager::SessionManager* session_manager,
     PrefService* prefs)
     : device_info_sync_service_(CHECK_DEREF(device_info_sync_service)),
-      sync_service_(CHECK_DEREF(sync_service)),
       session_manager_(CHECK_DEREF(session_manager)),
       prefs_(CHECK_DEREF(prefs)),
       initialization_time_(base::Time::Now()) {
   RegisterPrefListeners();
   UpdateObservations();
-  UpdateLocalDeviceInfoWhenReady();
 }
 
 AutoSignOutService::~AutoSignOutService() = default;
@@ -61,8 +57,9 @@ void AutoSignOutService::UpdateObservations() {
   if (prefs_->GetBoolean(chromeos::prefs::kAutoSignOutEnabled) ||
       prefs_->GetBoolean(chromeos::prefs::kFloatingSsoEnabled) ||
       prefs_->GetBoolean(chromeos::prefs::kFloatingWorkspaceV2Enabled)) {
-    if (!sync_service_observation_.IsObserving()) {
-      sync_service_observation_.Observe(&sync_service_.get());
+    if (!device_info_tracker_observation_.IsObserving()) {
+      device_info_tracker_observation_.Observe(
+          device_info_sync_service_->GetDeviceInfoTracker());
     }
     if (!session_manager_observation_.IsObserving()) {
       session_manager_observation_.Observe(&session_manager_.get());
@@ -71,10 +68,16 @@ void AutoSignOutService::UpdateObservations() {
       power_manager_client_observation_.Observe(
           chromeos::PowerManagerClient::Get());
     }
+    UpdateLocalDeviceInfoWhenReady();
+    // When one of the relevant policies is toggled, devices might not receive
+    // the policy value at the same time. One device might miss a new sign-in
+    // notification from another. To fix this, manually poll for device info
+    // changes.
+    OnDeviceInfoChange();
   } else {
     power_manager_client_observation_.Reset();
     session_manager_observation_.Reset();
-    sync_service_observation_.Reset();
+    device_info_tracker_observation_.Reset();
   }
 }
 
@@ -86,13 +89,21 @@ void AutoSignOutService::UpdateLocalDeviceInfoWhenReady() {
 
   if (local_device_info_provider->GetLocalDeviceInfo()) {
     UpdateLocalDeviceInfo();
-  } else {
-    CHECK(!local_device_info_ready_subscription_);
+  } else if (!local_device_info_ready_subscription_) {
     local_device_info_ready_subscription_ =
         local_device_info_provider->RegisterOnInitializedCallback(
-            base::BindRepeating(&AutoSignOutService::UpdateLocalDeviceInfo,
-                                weak_pointer_factory_.GetWeakPtr()));
+            base::BindRepeating(
+                &AutoSignOutService::OnLocalDeviceInfoProviderReady,
+                weak_pointer_factory_.GetWeakPtr()));
   }
+}
+
+// TODO(crbug.com/447113190): Change the way we update DeviceInfo so that we
+// don't need this PostTask.
+void AutoSignOutService::OnLocalDeviceInfoProviderReady() {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&AutoSignOutService::UpdateLocalDeviceInfo,
+                                weak_pointer_factory_.GetWeakPtr()));
 }
 
 void AutoSignOutService::UpdateLocalDeviceInfo() {
@@ -108,12 +119,7 @@ void AutoSignOutService::UpdateLocalDeviceInfo() {
   device_info_sync_service_->RefreshLocalDeviceInfo();
 }
 
-void AutoSignOutService::OnStateChanged(syncer::SyncService* sync) {
-  if (sync_service_->GetDownloadStatusFor(syncer::DataType::DEVICE_INFO) !=
-      syncer::SyncService::DataTypeDownloadStatus::kUpToDate) {
-    return;
-  }
-
+void AutoSignOutService::OnDeviceInfoChange() {
   std::vector<const syncer::DeviceInfo*> all_devices =
       device_info_sync_service_->GetDeviceInfoTracker()->GetAllDeviceInfo();
 
@@ -127,6 +133,7 @@ void AutoSignOutService::OnStateChanged(syncer::SyncService* sync) {
     if (device->auto_sign_out_last_signin_timestamp().has_value() &&
         device->auto_sign_out_last_signin_timestamp().value() >
             initialization_time_) {
+      LOG(WARNING) << "An automatic sign-out is about to be performed.";
       session_manager_->RequestSignOut();
       return;
     }

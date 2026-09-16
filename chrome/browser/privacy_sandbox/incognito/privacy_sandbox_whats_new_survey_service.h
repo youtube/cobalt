@@ -12,7 +12,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/hats/hats_service.h"
-#include "chrome/browser/ui/webui/whats_new/whats_new.mojom-data-view.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/web_contents.h"
 
@@ -21,6 +20,10 @@
 #endif
 
 namespace privacy_sandbox {
+
+// HaTS PSD key
+inline constexpr char kHasSeenActFeaturesPsdKey[] =
+    "Has seen Incognito tracking protection features on What's New page";
 
 // A service responsible for managing and potentially displaying a survey
 // to users after they have interacted with the "What's New" page, specifically
@@ -49,7 +52,7 @@ class PrivacySandboxWhatsNewSurveyService : public KeyedService {
 
   // Checks if the survey is enabled and if so, posts a task that launches a
   // delayed survey.
-  void MaybeShowSurvey(content::WebContents* web_contents);
+  void MaybeShowSurvey(content::WebContents* const web_contents);
 
  private:
   // Checks if the "What's New" survey feature is enabled.
@@ -68,12 +71,14 @@ class PrivacySandboxWhatsNewSurveyService : public KeyedService {
   void OnSurveyFailure();
 
   // Attempts to launch the HaTS survey for the given web_contents and trigger.
-  // Includes scroll depth as PSD, defaulting to "No data" if unavailable.
+  // Includes PSD informing whether ACT features were shown to the user.
   void LaunchSurveyWithPsd(
       base::WeakPtr<content::WebContents> web_contents_weak_ptr,
       const std::string& trigger);
 
   base::TimeDelta GetSurveyDelay();
+
+  SurveyStringData GetPsd(content::WebContents* const web_contents);
 
   raw_ptr<Profile> profile_;
   // Factory for creating weak pointers to this service.

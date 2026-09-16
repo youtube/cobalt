@@ -16,10 +16,8 @@
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "partition_alloc/buildflags.h"
-#include "partition_alloc/partition_alloc_base/time/time.h"
 #include "partition_alloc/partition_root.h"
 
 namespace base::features {
@@ -86,8 +84,6 @@ using PartitionAllocWithAdvancedChecksEnabledProcesses =
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocLargeThreadCacheSize);
-BASE_EXPORT int GetPartitionAllocLargeThreadCacheSizeValue();
-BASE_EXPORT int GetPartitionAllocLargeThreadCacheSizeValueForLowRAMAndroid();
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocLargeEmptySlotSpanRing);
 
@@ -101,15 +97,19 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kPartitionAllocSchedulerLoopQuarantineConfig);
 
+using PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses =
+    internal::PAFeatureEnabledProcesses;
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses,
+    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesParam);
+
 // Eventually zero out most PartitionAlloc memory. This is not meant as a
 // security guarantee, but to increase the compression ratio of PartitionAlloc's
 // fragmented super pages.
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory);
 
-// Whether to make PartitionAlloc use fewer memory regions. This matters on
-// Linux-based systems, where there is a per-process limit that we hit in some
-// cases. See the comment in PartitionBucket::SlotSpanCOmmitedSize() for detail.
-BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocFewerMemoryRegions);
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 using BackupRefPtrEnabledProcesses = internal::PAFeatureEnabledProcesses;
@@ -198,22 +198,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
     kPartialLowEndModeExcludePartitionAllocSupport);
 #endif
 
-BASE_EXPORT BASE_DECLARE_FEATURE(kEnableConfigurableThreadCacheMultiplier);
-BASE_EXPORT double GetThreadCacheMultiplier();
-BASE_EXPORT double GetThreadCacheMultiplierForAndroid();
-
-BASE_EXPORT BASE_DECLARE_FEATURE(kEnableConfigurableThreadCachePurgeInterval);
-extern const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMinPurgeInterval();
-extern const partition_alloc::internal::base::TimeDelta
-GetThreadCacheMaxPurgeInterval();
-extern const partition_alloc::internal::base::TimeDelta
-GetThreadCacheDefaultPurgeInterval();
-
-BASE_EXPORT BASE_DECLARE_FEATURE(
-    kEnableConfigurableThreadCacheMinCachedMemoryForPurging);
-BASE_EXPORT int GetThreadCacheMinCachedMemoryForPurgingBytes();
-
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocDisableBRPInBufferPartition);
 
 // When set, partitions use a larger ring buffer and free memory less
@@ -229,6 +213,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUseSmallSingleSlotSpans);
 #if PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
+
+#if BUILDFLAG(IS_COBALT)
+BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers);
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace base::features
 

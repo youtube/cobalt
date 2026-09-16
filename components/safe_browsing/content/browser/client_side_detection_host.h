@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -132,13 +133,14 @@ class ClientSideDetectionHost
         bool log_failed_eligibility_reason) = 0;
     // Gets the intelligent scan result from the on-device model. The callback
     // will return an empty optional if the on-device model is not available.
-    virtual void InquireOnDeviceModel(
+    // Returns a token that can be used to cancel the request. The token will be
+    // std::nullopt in case the inquiry fails immediately without start.
+    virtual std::optional<base::UnguessableToken> InquireOnDeviceModel(
         std::string rendered_texts,
         InquireOnDeviceModelDoneCallback callback) = 0;
-    // Resets the session that's created by the on-device model. Returns true if
-    // the session was reset. Does nothing and returns false if there is no
-    // session.
-    virtual bool ResetOnDeviceSession() = 0;
+    // Cancels a specific on-device model session. If the |session_id| is
+    // ongoing, it will return true, and false otherwise.
+    virtual bool CancelSession(const base::UnguessableToken& session_id) = 0;
     // Determines if a scam warning should be shown based on the intelligent
     // scan verdict.
     virtual bool ShouldShowScamWarning(
@@ -283,6 +285,12 @@ class ClientSideDetectionHost
       FeatureDisabledDoesNotTriggerPreclassificationChecks);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
                            ESBDisabledDoesNotTriggerPreclassificationChecks);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      EventDoesNotTriggerPreclassificationChecksWhenESBDisabled);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      CreditCardFormDoesNotStartPreclassificationOnHighSiteEngagement);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
                            CreditCardFormTriggersPreclassificationCheck);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
@@ -397,13 +405,22 @@ class ClientSideDetectionHost
     intelligent_scan_delegate_ = intelligent_scan_delegate;
   }
 
-  // A callback for when preclassification is started.
-  using PreclassificationStarted = base::RepeatingClosure;
+  // Callbacks for when preclassification is started/done.
+  using PreclassificationStarted =
+      base::RepeatingCallback<void(ClientSideDetectionType)>;
+  using PreclassificationDone =
+      base::RepeatingCallback<void(ClientSideDetectionType)>;
 
   // Sets a callback to be notified when preclassification is started.
   void set_preclassification_started_callback_for_testing(
       const PreclassificationStarted& callback) {
     preclassification_started_cb_for_testing_ = callback;
+  }
+
+  // Sets a callback to be notified when preclassification is done.
+  void set_preclassification_done_callback_for_testing(
+      const PreclassificationDone& callback) {
+    preclassification_done_cb_for_testing_ = callback;
   }
 
   // Check if CSD can get an access Token. Should be enabled only for ESB
@@ -534,6 +551,13 @@ class ClientSideDetectionHost
   // Callback settable by tests for verifying whether
   // MaybeStartPreClassification resulted in starting preclassification.
   PreclassificationStarted preclassification_started_cb_for_testing_;
+
+  // Callback settable by tests for verifying whether
+  // OnPhishingPreClassificationDone was called at the end of preclassification.
+  PreclassificationDone preclassification_done_cb_for_testing_;
+
+  // The session ID for the current intelligent scan request.
+  std::optional<base::UnguessableToken> intelligent_scan_session_id_;
 
   base::WeakPtrFactory<ClientSideDetectionHost> weak_factory_{this};
 };

@@ -358,6 +358,40 @@ TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
               Eq(0));
 }
 
+TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsedWithPrAnswer) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  callee()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        SetSdpType(sdp, SdpType::kPrAnswer);
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller()->pc()->signaling_state() ==
+                           PeerConnectionInterface::kHaveRemotePrAnswer;
+                  },
+                  IsTrue()),
+              IsRtcOk());
+  MediaExpectations media_expectations;
+  media_expectations.CalleeExpectsSomeAudio();
+  media_expectations.CalleeExpectsSomeVideo();
+  ASSERT_TRUE(ExpectNewFrames(media_expectations));
+  auto pc_internal = caller()->pc_internal();
+  EXPECT_THAT(
+      WaitUntil(
+          [&] {
+            return pc_internal->FeedbackAccordingToRfc8888CountForTesting();
+          },
+          Gt(0)),
+      IsRtcOk());
+  // There should be no transport-cc generated.
+  EXPECT_THAT(pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
+              Eq(0));
+}
+
 TEST_F(PeerConnectionCongestionControlTest, TransportCcGetsUsed) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Disabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());

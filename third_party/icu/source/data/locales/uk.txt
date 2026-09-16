@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 uk{
     AuxExemplarCharacters{"[{а́} {е́}ё {є́} {и́} {і́} {ї́} {о́} {у́} ъ ы э {ю́} {я́}]"}
     Ellipsis{
@@ -233,7 +233,7 @@ uk{
                 accusative{"Знайшли {0}"}
                 dative{"Це відповідає {0}"}
                 genitive{"Немає {0}"}
-                instrumental{"Вимірюється не {0}"}
+                instrumental{"Вимірюється {0}"}
                 locative{"Міститься в {0}"}
                 nominative{"Є {0}"}
             }
@@ -653,13 +653,13 @@ uk{
                         "сб",
                     }
                     wide{
-                        "неділю",
+                        "неділя",
                         "понеділок",
                         "вівторок",
-                        "середу",
+                        "середа",
                         "четвер",
-                        "пʼятницю",
-                        "суботу",
+                        "пʼятниця",
+                        "субота",
                     }
                 }
                 stand-alone{
@@ -672,15 +672,6 @@ uk{
                         "П",
                         "С",
                     }
-                    wide{
-                        "неділя",
-                        "понеділок",
-                        "вівторок",
-                        "середа",
-                        "четвер",
-                        "пʼятниця",
-                        "субота",
-                    }
                 }
             }
             dayPeriod{
@@ -688,12 +679,20 @@ uk{
                     abbreviated{
                         afternoon1{"дня"}
                         evening1{"вечора"}
-                        midnight{"опівночі"}
+                        midnight{"ночі"}
                         morning1{"ранку"}
                         night1{"ночі"}
-                        noon{"опівдні"}
+                        noon{"дня"}
                     }
                     narrow{
+                        afternoon1{"дня"}
+                        evening1{"вечора"}
+                        midnight{"ночі"}
+                        morning1{"ранку"}
+                        night1{"ночі"}
+                        noon{"дня"}
+                    }
+                    wide{
                         afternoon1{"дня"}
                         evening1{"вечора"}
                         midnight{"ночі"}
@@ -2345,10 +2344,10 @@ uk{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

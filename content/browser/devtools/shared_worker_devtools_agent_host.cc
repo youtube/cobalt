@@ -16,6 +16,7 @@
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/protocol/protocol.h"
 #include "content/browser/devtools/protocol/schema_handler.h"
+#include "content/browser/devtools/protocol/storage_handler.h"
 #include "content/browser/devtools/protocol/target_handler.h"
 #include "content/browser/devtools/shared_worker_devtools_manager.h"
 #include "content/browser/worker_host/shared_worker_host.h"
@@ -101,13 +102,16 @@ bool SharedWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::InspectorHandler>();
   session->CreateAndAddHandler<protocol::NetworkHandler>(
       GetId(), devtools_worker_token_, GetIOContext(),
-      base::BindRepeating([] {}), session->GetClient());
+      GetProcessHost()->GetStoragePartition(), base::BindRepeating([] {}),
+      session->GetClient());
   // TODO(crbug.com/40154954): support pushing updated loader factories down to
   // renderer.
   session->CreateAndAddHandler<protocol::FetchHandler>(
       GetIOContext(),
       base::BindRepeating([](base::OnceClosure cb) { std::move(cb).Run(); }));
   session->CreateAndAddHandler<protocol::SchemaHandler>();
+  session->CreateAndAddHandler<protocol::StorageHandler>(this,
+                                                         session->GetClient());
   session->CreateAndAddHandler<protocol::TargetHandler>(
       protocol::TargetHandler::AccessMode::kAutoAttachOnly, GetId(),
       auto_attacher_.get(), session);

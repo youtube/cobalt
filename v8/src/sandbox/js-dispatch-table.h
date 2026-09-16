@@ -207,11 +207,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // return a Tagged<Union<Code, BytecodeArray>>.
   inline Tagged<Code> GetCode(JSDispatchHandle handle);
 
-  // Retrieves the Code address stored in the entry referenced by the given
-  // handle. This is necessary to allow the GC to check whether the object has
-  // indeed been fully published before casting it to Code and using it.
-  inline Address GetCodePointerForGC(JSDispatchHandle handle);
-
   // Returns the address of the Code object stored in the specified entry.
   inline Address GetCodeAddress(JSDispatchHandle handle);
 
@@ -311,6 +306,11 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                                   std::ostream& os);
 
   static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
+
+  static bool MaybeValidJSDispatchHandle(uint32_t handle) {
+    return ((handle >> kJSDispatchHandleShift) << kJSDispatchHandleShift) ==
+           handle;
+  }
 
  private:
   static inline bool IsCompatibleCode(Tagged<Code> code,

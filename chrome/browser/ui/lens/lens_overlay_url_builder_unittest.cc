@@ -923,7 +923,7 @@ TEST_F(LensOverlayUrlBuilderTest, AddPDFScrollToParametersToUrl) {
   const GURL actual_url = AddPDFScrollToParametersToUrl(
       base_url, expected_text_fragments, expected_pdf_page_number);
   EXPECT_TRUE(base_url.EqualsIgnoringRef(actual_url));
-  EXPECT_EQ(actual_url.ref(),
+  EXPECT_EQ(actual_url.GetRef(),
             base::StringPrintf("page=%d:~:text=%s&text=%s&text=%s",
                                expected_pdf_page_number, "apples", "oranges",
                                "pineapples"));
@@ -932,15 +932,68 @@ TEST_F(LensOverlayUrlBuilderTest, AddPDFScrollToParametersToUrl) {
   const GURL actual_url_one_fragment = AddPDFScrollToParametersToUrl(
       base_url, expected_one_fragment, expected_pdf_page_number);
   EXPECT_TRUE(base_url.EqualsIgnoringRef(actual_url_one_fragment));
-  EXPECT_EQ(actual_url_one_fragment.ref(),
+  EXPECT_EQ(actual_url_one_fragment.GetRef(),
             base::StringPrintf("page=%d:~:text=%s", expected_pdf_page_number,
                                "apples"));
 
   const GURL actual_url_no_fragments =
       AddPDFScrollToParametersToUrl(base_url, {}, expected_pdf_page_number);
   EXPECT_TRUE(base_url.EqualsIgnoringRef(actual_url_no_fragments));
-  EXPECT_EQ(actual_url_no_fragments.ref(),
+  EXPECT_EQ(actual_url_no_fragments.GetRef(),
             base::StringPrintf("page=%d", expected_pdf_page_number));
+}
+
+TEST_F(LensOverlayUrlBuilderTest, ExtractTimeInSecondsFromQueryIfExists) {
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=10s")),
+            base::Seconds(10));
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=10")),
+            base::Seconds(10));
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=1s")),
+            base::Seconds(1));
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=1")),
+            base::Seconds(1));
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=60s")),
+            base::Seconds(60));
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test")),
+            std::nullopt);
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=s")),
+            std::nullopt);
+  EXPECT_EQ(lens::ExtractTimeInSecondsFromQueryIfExists(
+                GURL("https://www.youtube.com/watch?v=test&t=abcs")),
+            std::nullopt);
+}
+
+TEST_F(LensOverlayUrlBuilderTest, ExtractVideoNameIfExists) {
+  EXPECT_EQ(lens::ExtractVideoNameIfExists(
+                GURL("https://www.youtube.com/watch?v=VIDEO_ID")),
+            "VIDEO_ID");
+  EXPECT_EQ(lens::ExtractVideoNameIfExists(
+                GURL("https://www.youtube.com/embed/VIDEO_ID")),
+            "VIDEO_ID");
+  EXPECT_EQ(lens::ExtractVideoNameIfExists(GURL("https://www.google.com")),
+            std::nullopt);
+  EXPECT_EQ(
+      lens::ExtractVideoNameIfExists(GURL("https://www.google.com?v=VIDEO_ID")),
+      std::nullopt);
+  EXPECT_EQ(lens::ExtractVideoNameIfExists(
+                GURL("https://www.google.com/embed/VIDEO_ID")),
+            std::nullopt);
+  EXPECT_EQ(lens::ExtractVideoNameIfExists(
+                GURL("https://www.google.com/watch?v=VIDEO_ID")),
+            std::nullopt);
+  EXPECT_EQ(
+      lens::ExtractVideoNameIfExists(GURL("https://www.youtube.com/watch?v=")),
+      std::nullopt);
+  EXPECT_EQ(
+      lens::ExtractVideoNameIfExists(GURL("https://www.youtube.com/embed/")),
+      std::nullopt);
 }
 
 }  // namespace lens

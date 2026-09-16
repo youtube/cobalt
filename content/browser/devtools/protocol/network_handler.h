@@ -74,14 +74,14 @@ class NetworkHandler : public DevToolsDomainHandler,
 #endif  // BUILDFLAG(ENABLE_REPORTING)
                        public Network::Backend {
  public:
-  NetworkHandler(
-      const std::string& host_id,
-      const base::UnguessableToken& devtools_token,
-      DevToolsIOContext* io_context,
-      base::RepeatingClosure update_loader_factories_callback,
-      DevToolsAgentHostClient* client,
-      base::OnceClosure cleanup_after_modifications_callback =
-          base::OnceClosure());
+  NetworkHandler(const std::string& host_id,
+                 const base::UnguessableToken& devtools_token,
+                 DevToolsIOContext* io_context,
+                 StoragePartition* maybe_storage_partition,
+                 base::RepeatingClosure update_loader_factories_callback,
+                 DevToolsAgentHostClient* client,
+                 base::OnceClosure cleanup_after_modifications_callback =
+                     base::OnceClosure());
 
   NetworkHandler(const NetworkHandler&) = delete;
   NetworkHandler& operator=(const NetworkHandler&) = delete;
@@ -382,6 +382,15 @@ class NetworkHandler : public DevToolsDomainHandler,
                         const String& body,
                         bool is_base64_encoded);
 
+  void FedCmRequestWillBeSent(
+      const std::string& request_id,
+      const std::string& loader_id,
+      const network::ResourceRequest& request,
+      const std::optional<std::string>& request_body,
+      const GURL& initiator_url,
+      const std::optional<base::UnguessableToken>& frame_token,
+      base::TimeTicks timestamp);
+
  private:
   void OnLoadNetworkResourceFinished(DevToolsNetworkResourceLoader* loader,
                                      const net::HttpResponseHeaders* rh,
@@ -407,6 +416,7 @@ class NetworkHandler : public DevToolsDomainHandler,
 
   void GotAllCookies(std::unique_ptr<GetAllCookiesCallback> callback,
                      const std::vector<net::CanonicalCookie>& cookies);
+  void MaybeEnableDurableMessages();
 
   // TODO(dgozman): Remove this.
   const std::string host_id_;
@@ -423,6 +433,8 @@ class NetworkHandler : public DevToolsDomainHandler,
   bool enable_third_party_cookie_restriction_ = false;
   bool disable_third_party_cookie_metadata_ = false;
   bool disable_third_party_cookie_heuristics_ = false;
+  bool enable_durable_messages_ = false;
+  int durable_message_max_total_size_ = 0;
 
 #if BUILDFLAG(ENABLE_REPORTING)
   mojo::Receiver<network::mojom::ReportingApiObserver> reporting_receiver_;

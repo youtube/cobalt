@@ -7,8 +7,8 @@
 #import "components/data_sharing/public/group_data.h"
 #import "components/data_sharing/test_support/test_utils.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
@@ -101,7 +101,15 @@ void AddSharedGroup(BOOL owner,
 }
 
 // Tests that deleting a shared tab group from groups panel works.
-- (void)testSharedTabGroupsPanelDeleteSharedGroup {
+// TODO:(crbug.com/450935810): The test is flaky on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testSharedTabGroupsPanelDeleteSharedGroup \
+  FLAKY_testSharedTabGroupsPanelDeleteSharedGroup
+#else
+#define MAYBE_testSharedTabGroupsPanelDeleteSharedGroup \
+  testSharedTabGroupsPanelDeleteSharedGroup
+#endif
+- (void)MAYBE_testSharedTabGroupsPanelDeleteSharedGroup {
   AddSharedGroup(/*owner=*/YES, self.testServer);
 
   [[EarlGrey selectElementWithMatcher:TabGridTabGroupsPanelButton()]

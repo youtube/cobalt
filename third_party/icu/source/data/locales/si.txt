@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 si{
     AuxExemplarCharacters{"[\u200B\u200C\u200D ඎ ඏ ඐ ඦ ෳ]"}
     ExemplarCharacters{
@@ -319,13 +319,13 @@ si{
                     m{"a h.mm – h.mm"}
                 }
                 hmv{
-                    a{"a h.mm – a hhh.mm v"}
+                    a{"a h.mm – a h.mm v"}
                     h{"a h.mm – h.mm v"}
                     m{"a h.mm – h.mm v"}
                 }
                 hv{
                     a{"a h – a h v"}
-                    h{"a h – h vv"}
+                    h{"a h – h v"}
                 }
                 yM{
                     M{"G y-M – y-M"}

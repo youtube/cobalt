@@ -85,10 +85,9 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   base::TimeDelta GetWriteHead() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  void OnMemoryPressure(
-      base::TimeDelta media_time,
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
-      bool force_instant_gc);
+  void OnMemoryPressure(base::TimeDelta media_time,
+                        base::MemoryPressureLevel memory_pressure_level,
+                        bool force_instant_gc);
 
   // Signal to the stream that duration has changed to |duration|.
   void OnSetDuration(base::TimeDelta duration);
@@ -441,10 +440,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  void OnMemoryPressure(
-      base::TimeDelta currentMediaTime,
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
-      bool force_instant_gc);
 
   // Returns the current presentation duration.
   double GetDuration();

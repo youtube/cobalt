@@ -84,8 +84,7 @@ void FinishWait(base::WaitableEvent* waiter, bool* result_out, bool result) {
   waiter->Signal();
 }
 
-void OnRequestOverlayInfo(bool decoder_requires_restart_for_overlay,
-                          media::ProvideOverlayInfoCB overlay_info_cb) {
+void OnRequestOverlayInfo(media::ProvideOverlayInfoCB overlay_info_cb) {
   // Android overlays are not supported.
   if (overlay_info_cb)
     std::move(overlay_info_cb).Run(media::OverlayInfo());
@@ -451,8 +450,7 @@ void RTCVideoDecoderAdapter::Impl::RegisterDecodeCompleteCallback(
 }
 
 void RTCVideoDecoderAdapter::Impl::OnDecodeDone(media::DecoderStatus status) {
-  DVLOG(3) << __func__ << "(" << status.group() << ":"
-           << static_cast<int>(status.code()) << ")";
+  status.DebugLog(3);
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
 
   outstanding_decode_requests_--;

@@ -199,7 +199,7 @@ class WebState : public base::SupportsUserData {
 
   // Creates a new WebState from a serialized representation of the session.
   // `session_storage` must not be nil.
-  // TODO(crbug.com/40245950): remove when the optimised serialisation feature
+  // TODO(crbug.com/40945317): remove when the optimised serialisation feature
   // has been fully launched.
   static std::unique_ptr<WebState> CreateWithStorageSession(
       const CreateParams& params,
@@ -366,16 +366,6 @@ class WebState : public base::SupportsUserData {
   // Asynchronously executes `javaScript` in the main frame's context,
   // registering user interaction.
   virtual void ExecuteUserJavaScript(NSString* javaScript) = 0;
-
-  // Returns a unique identifier for this WebState that is stable across
-  // restart of the application (and across "undo" after a tab is closed).
-  // It is local to the device and not synchronized. This can be used as a key
-  // to identify locally this WebState (e.g. can be used as part of the name
-  // of the file that is used to store a snapshot of the WebState, or it can
-  // be used as a key in an NSDictionary).
-  //
-  // DEPRECATED: use GetUniqueIdentifier() instead.
-  virtual NSString* GetStableIdentifier() const = 0;
 
   // Returns a unique identifier for this WebState that is stable across
   // restart of the application (and across "undo" after a tab is closed).

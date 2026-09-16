@@ -46,6 +46,7 @@
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/prefetch_service_delegate.h"
 #include "content/public/browser/prerender_web_contents_delegate.h"
+#include "content/public/browser/process_selection_deferring_condition.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/responsiveness_calculator_delegate.h"
 #include "content/public/browser/sms_fetcher.h"
@@ -79,7 +80,6 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
-#include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/quota/quota_manager.h"
 #if BUILDFLAG(IS_COBALT)
 #include "storage/browser/quota/quota_settings.h"
@@ -106,10 +106,6 @@
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
 #endif
-
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 
 using AttributionReportType =
     content::ContentBrowserClient::AttributionReportingOsRegistrar;
@@ -1039,6 +1035,12 @@ ContentBrowserClient::CreateCommitDeferringConditionsForNavigation(
   return std::vector<std::unique_ptr<CommitDeferringCondition>>();
 }
 
+std::vector<std::unique_ptr<ProcessSelectionDeferringCondition>>
+ContentBrowserClient::CreateProcessSelectionDeferringConditionsForNavigation(
+    NavigationHandle& navigation_handle) {
+  return std::vector<std::unique_ptr<ProcessSelectionDeferringCondition>>();
+}
+
 std::unique_ptr<NavigationUIData> ContentBrowserClient::GetNavigationUIData(
     NavigationHandle* navigation_handle) {
   return nullptr;
@@ -1831,20 +1833,6 @@ bool ContentBrowserClient::UseOutermostMainFrameOrEmbedderForSubCaptureTargets()
   return false;
 }
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-void ContentBrowserClient::BindReadonlyVideoEffectsManager(
-    const std::string& device_id,
-    BrowserContext* browser_context,
-    mojo::PendingReceiver<media::mojom::ReadonlyVideoEffectsManager>
-        readonly_video_effects_manager) {}
-
-void ContentBrowserClient::BindVideoEffectsProcessor(
-    const std::string& device_id,
-    BrowserContext* browser_context,
-    mojo::PendingReceiver<video_effects::mojom::VideoEffectsProcessor>
-        video_effects_processor) {}
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-
 void ContentBrowserClient::PreferenceRankAudioDeviceInfos(
     BrowserContext* browser_context,
     blink::WebMediaDeviceInfoArray& infos) {}
@@ -1958,11 +1946,6 @@ void ContentBrowserClient::QueryInstalledWebAppsByManifestId(
   std::move(callback).Run(std::nullopt);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN)
-void ContentBrowserClient::OnUiaProviderRequested(bool uia_provider_enabled) {}
-void ContentBrowserClient::OnUiaProviderDisabled() {}
-#endif
 
 bool ContentBrowserClient::AllowNonActivatedCrossOriginPaintHolding() {
   return false;

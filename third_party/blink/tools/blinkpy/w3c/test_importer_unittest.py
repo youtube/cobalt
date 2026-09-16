@@ -58,6 +58,7 @@ class TestImporterTest(LoggingTestCase):
         host = MockHost()
         host.builders = BuilderList({
             'cq-builder-a': {
+                'main': 'tryserver.blink',
                 'port_name': 'linux-trusty',
                 'specifiers': ['Trusty', 'Release'],
                 'steps': {
@@ -66,6 +67,7 @@ class TestImporterTest(LoggingTestCase):
                 'is_try_builder': True,
             },
             'cq-builder-b': {
+                'main': 'tryserver.blink',
                 'port_name': 'mac-mac12',
                 'specifiers': ['Mac12', 'Release'],
                 'steps': {
@@ -98,7 +100,8 @@ class TestImporterTest(LoggingTestCase):
         return TestImporter(host,
                             github=github,
                             wpt_manifests=[manifest],
-                            buganizer_client=self.buganizer_client)
+                            buganizer_client=self.buganizer_client,
+                            builders=host.builders.all_try_builder_names())
 
     def test_update_expectations_for_cl_no_results(self):
         host = self.mock_host()
@@ -565,7 +568,8 @@ class TestImporterTest(LoggingTestCase):
                 NOAUTOREVERT=true
                 No-Export: true
                 Validate-Test-Flakiness: skip
-                Cq-Include-Trybots: luci.chromium.try:linux-blink-rel
+                Cq-Include-Trybots: luci.chromium.try:cq-builder-a
+                Cq-Include-Trybots: luci.chromium.try:cq-builder-b
                 """))
         self.assertEqual(host.executive.calls, [MANIFEST_INSTALL_CMD] +
                          [['git', 'log', '-1', '--format=%B']])

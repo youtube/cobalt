@@ -714,6 +714,7 @@ if (current_os == "linux" || is_android) {
       "../../api:sequence_checker",
       "../../api/environment",
       "../../api/task_queue",
+      "../../api/task_queue:pending_task_safety_flag",
       "../../api/units:data_rate",
       "../../api/video:encoded_image",
       "../../api/video:render_resolution",
@@ -833,6 +834,7 @@ if (current_os == "linux" || is_android) {
       "../../api:dtmf_sender_interface",
       "../../api:enable_media",
       "../../api:fec_controller_api",
+      "../../api:jsep",
       "../../api:libjingle_peerconnection_api",
       "../../api:make_ref_counted",
       "../../api:media_stream_interface",
@@ -1140,6 +1142,7 @@ if (current_os == "linux" || is_android) {
     deps = [
       ":base_jni",
       ":peerconnection_jni",
+      "../../api:jsep",
       "../../api:libjingle_peerconnection_api",
       "../../api:scoped_refptr",
       "../../api/video_codecs:video_codecs_api",

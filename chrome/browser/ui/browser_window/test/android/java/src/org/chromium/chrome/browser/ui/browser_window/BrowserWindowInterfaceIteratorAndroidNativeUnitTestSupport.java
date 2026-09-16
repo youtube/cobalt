@@ -27,7 +27,8 @@ final class BrowserWindowInterfaceIteratorAndroidNativeUnitTestSupport {
         when(tabModel.getProfile()).thenReturn(profile);
         var chromeAndroidTask =
                 ChromeAndroidTaskTrackerImpl.getInstance()
-                        .obtainTask(BrowserWindowType.NORMAL, activityWindowAndroid, tabModel);
+                        .obtainTask(
+                                BrowserWindowType.NORMAL, activityWindowAndroid, tabModel, null);
         return chromeAndroidTask.getOrCreateNativeBrowserWindowPtr();
     }
 

@@ -30,6 +30,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/test/test_extension_dir.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -45,6 +46,8 @@
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/browser.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using extensions::api_test_utils::RunFunctionAndReturnSingleResult;
 
@@ -90,7 +93,7 @@ const char kRemoveEverythingArguments[] =
 bool SetGaiaCookieForProfile(Profile* profile) {
   GURL google_url = GaiaUrls::GetInstance()->secure_google_url();
   auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
-      "SAPISID", std::string(), "." + google_url.host(), "/", base::Time(),
+      "SAPISID", std::string(), "." + google_url.GetHost(), "/", base::Time(),
       base::Time(), base::Time(), base::Time(),
       /*secure=*/true, false, net::CookieSameSite::NO_RESTRICTION,
       net::COOKIE_PRIORITY_DEFAULT);

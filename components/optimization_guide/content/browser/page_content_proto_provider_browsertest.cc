@@ -22,6 +22,7 @@
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/media_start_stop_observer.h"
 #include "content/shell/browser/shell.h"
+#include "content/shell/common/shell_switches.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "services/media_session/public/cpp/test/mock_media_session.h"
@@ -150,6 +151,9 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
 
     command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor, "1.0");
+
+    // Expose window.internals.setIsAdFrame for testing frame ad tagging.
+    command_line->AppendSwitch(switches::kExposeInternalsForTesting);
   }
 
   void SetPageContent(base::OnceClosure quit_closure,
@@ -397,6 +401,8 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL,
           optimization_guide::proto::CLICKABILITY_REASON_CLICK_HANDLER,
           optimization_guide::proto::CLICKABILITY_REASON_MOUSE_EVENTS,
+          optimization_guide::proto::CLICKABILITY_REASON_MOUSE_HOVER,
+          optimization_guide::proto::CLICKABILITY_REASON_MOUSE_CLICK,
           optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS,
           optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
           optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
@@ -411,6 +417,8 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL,
           optimization_guide::proto::CLICKABILITY_REASON_CLICK_HANDLER,
           optimization_guide::proto::CLICKABILITY_REASON_MOUSE_EVENTS,
+          optimization_guide::proto::CLICKABILITY_REASON_MOUSE_HOVER,
+          optimization_guide::proto::CLICKABILITY_REASON_MOUSE_CLICK,
           optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS,
           optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
           optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
@@ -611,7 +619,34 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
   AssertValidOrigin(iframe_data.frame_data().security_origin(),
                     ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
                         ->GetLastCommittedOrigin());
-  EXPECT_FALSE(iframe_data.likely_ad_frame());
+  EXPECT_FALSE(iframe.content_attributes().is_ad_related());
+
+  EXPECT_EQ(iframe.children_nodes().size(), 1);
+}
+
+// TODO(crbug.com/447642858): An end-to-end ad tagging test that uses the
+// subresource filter should be added.
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       AIPageContentAdIframe) {
+  LoadPage(https_server()->GetURL("a.com", "/iframe_ad.html"));
+
+  // Mark the iframe as an ad frame.
+  ASSERT_TRUE(content::ExecJs(web_contents(), R"(
+                          const iframe = document.getElementById('iframe1');
+                          window.internals.setIsAdFrame(iframe.contentDocument);
+                        )"));
+  LoadData();
+
+  EXPECT_EQ(page_content().root_node().children_nodes().size(), 1);
+
+  const auto& iframe = page_content().root_node().children_nodes()[0];
+  EXPECT_EQ(iframe.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& iframe_data = iframe.content_attributes().iframe_data();
+  AssertValidOrigin(iframe_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
+                        ->GetLastCommittedOrigin());
+  EXPECT_TRUE(iframe.content_attributes().is_ad_related());
 
   EXPECT_EQ(iframe.children_nodes().size(), 1);
 }
@@ -629,7 +664,7 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
   AssertValidOrigin(iframe_data.frame_data().security_origin(),
                     ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
                         ->GetLastCommittedOrigin());
-  EXPECT_FALSE(iframe_data.likely_ad_frame());
+  EXPECT_FALSE(iframe.content_attributes().is_ad_related());
 
   EXPECT_EQ(iframe.children_nodes().size(), 1);
 }
@@ -869,7 +904,7 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
   AssertValidOrigin(b_frame_data.frame_data().security_origin(),
                     ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
                         ->GetLastCommittedOrigin());
-  EXPECT_FALSE(b_frame_data.likely_ad_frame());
+  EXPECT_FALSE(b_frame.content_attributes().is_ad_related());
 
   const auto& b_frame_root =
       ContentRootNodeForFrameActionableMode(b_frame.children_nodes()[0]);
@@ -887,7 +922,7 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
   AssertValidOrigin(c_frame_data.frame_data().security_origin(),
                     ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 1)
                         ->GetLastCommittedOrigin());
-  EXPECT_FALSE(c_frame_data.likely_ad_frame());
+  EXPECT_FALSE(c_frame.content_attributes().is_ad_related());
 
   const auto& c_frame_root =
       ContentRootNodeForFrameActionableMode(c_frame.children_nodes()[0]);
@@ -925,7 +960,7 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
   AssertValidOrigin(same_site_frame_data.frame_data().security_origin(),
                     ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
                         ->GetLastCommittedOrigin());
-  EXPECT_FALSE(same_site_frame_data.likely_ad_frame());
+  EXPECT_FALSE(same_site_frame.content_attributes().is_ad_related());
 
   const auto& same_site_frame_root = ContentRootNodeForFrameActionableMode(
       same_site_frame.children_nodes()[0]);
@@ -944,7 +979,7 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
       cross_site_frame.content_attributes().iframe_data();
 
   // Ensure the frame data isn't populated and a redaction reason is included.
-  EXPECT_FALSE(cross_site_frame_data.likely_ad_frame());
+  EXPECT_FALSE(cross_site_frame.content_attributes().is_ad_related());
   EXPECT_FALSE(cross_site_frame_data.has_frame_data());
   EXPECT_TRUE(cross_site_frame_data.has_redacted_frame_metadata());
   EXPECT_EQ(cross_site_frame_data.redacted_frame_metadata().reason(),
@@ -999,7 +1034,7 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestFencedFrame,
   const auto& b_frame_data = b_frame.content_attributes().iframe_data();
   AssertValidOrigin(b_frame_data.frame_data().security_origin(),
                     fenced_frame_rfh->GetLastCommittedOrigin());
-  EXPECT_FALSE(b_frame_data.likely_ad_frame());
+  EXPECT_FALSE(b_frame.content_attributes().is_ad_related());
   EXPECT_EQ(b_frame.children_nodes().size(), 1);
   AssertHasText(b_frame.children_nodes()[0], "Non empty simple page\n\n");
   const auto& b_geometry = b_frame.content_attributes().geometry();
@@ -1020,19 +1055,19 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
   EXPECT_EQ(metadata().frame_metadata.size(), 3u);
 
   const auto& main_frame_metadata = metadata().frame_metadata[0];
-  EXPECT_EQ(main_frame_metadata->url.host(), "a.com");
+  EXPECT_EQ(main_frame_metadata->url.GetHost(), "a.com");
   EXPECT_EQ(main_frame_metadata->meta_tags.size(), 1u);
   EXPECT_EQ(main_frame_metadata->meta_tags[0]->name, "author");
   EXPECT_EQ(main_frame_metadata->meta_tags[0]->content, "George");
 
   const auto& child_frame_metadata1 = metadata().frame_metadata[1];
-  EXPECT_EQ(child_frame_metadata1->url.host(), "a.com");
+  EXPECT_EQ(child_frame_metadata1->url.GetHost(), "a.com");
   EXPECT_EQ(child_frame_metadata1->meta_tags.size(), 1u);
   EXPECT_EQ(child_frame_metadata1->meta_tags[0]->name, "author");
   EXPECT_EQ(child_frame_metadata1->meta_tags[0]->content, "Gary");
 
   const auto& child_frame_metadata2 = metadata().frame_metadata[2];
-  EXPECT_EQ(child_frame_metadata2->url.host(), "a.com");
+  EXPECT_EQ(child_frame_metadata2->url.GetHost(), "a.com");
   EXPECT_EQ(child_frame_metadata2->meta_tags.size(), 1u);
   EXPECT_EQ(child_frame_metadata2->meta_tags[0]->name, "author");
   EXPECT_EQ(child_frame_metadata2->meta_tags[0]->content, "Gary");

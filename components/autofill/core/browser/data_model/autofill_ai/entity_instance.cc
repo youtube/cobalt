@@ -8,8 +8,10 @@
 #include <ranges>
 #include <variant>
 
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_normalization_utils.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
@@ -21,6 +23,7 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/geo/country_names.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace autofill {
@@ -32,18 +35,14 @@ std::u16string NormalizeEntityValue(const AttributeInstance& attribute) {
       attribute.GetRawInfo(attribute.type().field_type()));
 }
 
-std::u16string Format(std::u16string s,
-                      base::optional_ref<const std::u16string> format_string) {
-  if (!format_string) {
-    return s;
-  }
-
+// Returns `s` in the demanded `format`. See `data_util::IsValidDateFormat` for
+// the valid `format` values.
+std::u16string FormatAffix(std::u16string s, std::u16string_view format) {
   // We parse the leading minus here rather than using `base::StringToInt()` to
   // avoid mixing signed and unsigned integers as this easily leads to
   // undefined behavior.
-  std::u16string_view format = *format_string;
   bool suffix = false;
-  if (format_string->starts_with(u"-")) {
+  if (format.starts_with(u"-")) {
     format = format.substr(1);
     suffix = true;
   }
@@ -57,6 +56,44 @@ std::u16string Format(std::u16string s,
     s = std::move(s).substr(offset < s.size() ? offset : 0);
   } else if (offset > 0) {
     s = std::move(s).substr(0, offset);
+  }
+  return s;
+}
+
+// Returns `s` in the demanded `format`. See
+// `data_util::IsValidFlightNumberFormat` for the valid `format` values.
+std::u16string FormatFlightNumber(std::u16string s,
+                                  std::u16string_view format) {
+  // Invalid flight number - do not attempt to format.
+  if (s.size() < 3) {
+    return s;
+  }
+
+  // The airline designator corresponds to the first two characters.
+  if (format == u"A") {
+    return s.substr(0, 2);
+  }
+  // The number is the remainder of the string.
+  if (format == u"N") {
+    return s.substr(2);
+  }
+  return s;
+}
+
+std::u16string Format(
+    std::u16string s,
+    base::optional_ref<const AutofillFormatString> format_string) {
+  if (!format_string) {
+    return s;
+  }
+
+  switch (format_string->type) {
+    case FormatString_Type_AFFIX:
+      return FormatAffix(std::move(s), format_string->value);
+    case FormatString_Type_FLIGHT_NUMBER:
+      return FormatFlightNumber(std::move(s), format_string->value);
+    case FormatString_Type_DATE:
+      break;
   }
   return s;
 }
@@ -88,8 +125,8 @@ AttributeInstance::~AttributeInstance() = default;
 
 std::u16string AttributeInstance::GetInfo(
     FieldType field_type,
-    const std::string& app_locale,
-    base::optional_ref<const std::u16string> format_string) const {
+    std::string_view app_locale,
+    base::optional_ref<const AutofillFormatString> format_string) const {
   field_type = GetNormalizedFieldType(field_type);
   return std::visit(
       absl::Overload{[&](const CountryInfo& country) {
@@ -99,7 +136,7 @@ std::u16string AttributeInstance::GetInfo(
                        // TODO(crbug.com/396325496): Consider falling back
                        // to a locale-specific format by relying on
                        // `app_locale`.
-                       return date.GetDate(format_string ? *format_string
+                       return date.GetDate(format_string ? format_string->value
                                                          : u"YYYY-MM-DD");
                      },
                      [&](const NameInfo&) { return GetRawInfo(field_type); },
@@ -147,11 +184,12 @@ VerificationStatus AttributeInstance::GetVerificationStatus(
       info_);
 }
 
-void AttributeInstance::SetInfo(FieldType field_type,
-                                const std::u16string& value,
-                                const std::string& app_locale,
-                                std::u16string_view format_string,
-                                VerificationStatus status) {
+void AttributeInstance::SetInfo(
+    FieldType field_type,
+    const std::u16string& value,
+    std::string_view app_locale,
+    base::optional_ref<const AutofillFormatString> format_string,
+    VerificationStatus status) {
   field_type = GetNormalizedFieldType(field_type);
   std::visit(
       absl::Overload{
@@ -166,7 +204,12 @@ void AttributeInstance::SetInfo(FieldType field_type,
               country = CountryInfo();
             }
           },
-          [&](DateInfo& date) { date.SetDate(value, format_string); },
+          [&](DateInfo& date) {
+            date.SetDate(value, format_string && format_string->type ==
+                                                     FormatString_Type_DATE
+                                    ? format_string->value
+                                    : u"");
+          },
           [&](NameInfo& name) {
             if (!name.GetSupportedTypes().contains(field_type)) {
               return;
@@ -228,7 +271,8 @@ EntityInstance::EntityInstance(
     size_t use_count,
     base::Time use_date,
     RecordType record_type,
-    AreAttributesReadOnly are_attributes_read_only)
+    AreAttributesReadOnly are_attributes_read_only,
+    std::string frecency_override)
     : type_(type),
       attributes_(std::move(attributes)),
       guid_(std::move(guid)),
@@ -237,7 +281,8 @@ EntityInstance::EntityInstance(
       use_count_(use_count),
       use_date_(use_date),
       record_type_(record_type),
-      are_attributes_read_only_(are_attributes_read_only) {
+      are_attributes_read_only_(are_attributes_read_only),
+      frecency_override_(std::move(frecency_override)) {
   DCHECK(!attributes_.empty());
   DCHECK(std::ranges::all_of(attributes_, [this](const AttributeInstance& a) {
     return type_ == a.type().entity_type();
@@ -255,6 +300,11 @@ bool EntityInstance::ImportOrder(const EntityInstance& lhs,
   return EntityType::ImportOrder(lhs.type(), rhs.type());
 }
 
+bool EntityInstance::MigrationOrder(const EntityInstance& lhs,
+                                    const EntityInstance& rhs) {
+  return lhs.use_date() > rhs.use_date();
+}
+
 std::ostream& operator<<(std::ostream& os, const AttributeInstance& a) {
   os << a.type() << ": " << '"'
      << a.GetInfo(a.type().field_type(), /*app_locale=*/"en-US",
@@ -267,6 +317,7 @@ std::ostream& operator<<(std::ostream& os, const EntityInstance& e) {
   os << "- name: " << '"' << e.type() << '"' << std::endl;
   os << "- nickname: " << '"' << e.nickname() << '"' << std::endl;
   os << "- guid: " << '"' << e.guid() << '"' << std::endl;
+  os << "- use date: " << '"' << e.use_date() << '"' << std::endl;
   os << "- date modified: " << '"' << e.date_modified() << '"' << std::endl;
   for (const AttributeInstance& a : e.attributes()) {
     os << "- attribute " << a << std::endl;
@@ -471,24 +522,38 @@ EntityInstance::FrecencyOrder::FrecencyOrder(base::Time now) : now_(now) {}
 bool EntityInstance::FrecencyOrder::operator()(
     const EntityInstance& lhs,
     const EntityInstance& rhs) const {
+  if (!lhs.frecency_override_.empty() || !rhs.frecency_override_.empty()) {
+    return std::pair(lhs.frecency_override_.empty(), lhs.frecency_override_) <
+           std::pair(rhs.frecency_override_.empty(), rhs.frecency_override_);
+  }
+
   // At days_since_last_use = 0, use_count = 0, the score is -1.
   // As days_since_last_use increases, the score becomes more negative.
   // As use_count increases, the score approaches 0.
-  auto get_ranking_score = [&](const EntityInstance& entity) {
+  auto get_ranking_score = [&](const EntityInstance& entity) -> double {
     int days_since_last_use = std::max(0, (now_ - entity.use_date()).InDays());
     // The numerator punishes old usages, since as days_since_last_use
     // grows, the score becomes smaller (note the negative sign). The
     // denominator softens this penalty by making it smaller the more often a
     // user has used an entity.
     return -log(static_cast<double>(days_since_last_use) + 2) /
-           log(entity.use_count() + 2);
+           log(static_cast<double>(entity.use_count()) + 2);
   };
 
-  const double lhs_score = get_ranking_score(lhs);
-  const double rhs_score = get_ranking_score(rhs);
+  // We use rounded values to express near equivalence.
+  //
+  // We cannot use `std::fabs(x - y) < kEpsilon` because that'd break
+  // transitivity of equivalence, which is required by std::sort().
+  //
+  // We don't need to worry about overflows because the maximum absolute value
+  // of get_ranking_score() is
+  //   std::log(std::numeric_limits<double>::max()) / std::log(2)
+  // which is ~1023.
+  static constexpr double kEpsilon = 0.00001;
+  const int32_t lhs_score = std::lround(get_ranking_score(lhs) / kEpsilon);
+  const int32_t rhs_score = std::lround(get_ranking_score(rhs) / kEpsilon);
 
-  const double kEpsilon = 0.00001;
-  if (std::fabs(lhs_score - rhs_score) > kEpsilon) {
+  if (lhs_score != rhs_score) {
     return lhs_score > rhs_score;
   }
   return lhs.use_date() > rhs.use_date();

@@ -455,7 +455,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     WebContentDecryptionModule* initial_cdm,
     media::RequestRoutingTokenCallback request_routing_token_cb,
     base::WeakPtr<media::MediaObserver> media_observer,
-    bool enable_instant_source_buffer_gc,
     bool embedded_media_experience_enabled,
     mojo::PendingRemote<media::mojom::blink::MediaMetricsProvider>
         metrics_provider,
@@ -484,7 +483,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
           this,
           media_task_runner_,
           media_log_.get(),
-          enable_instant_source_buffer_gc,
           std::move(demuxer_override))),
       tick_clock_(base::DefaultTickClock::GetInstance()),
       url_index_(url_index),
@@ -774,13 +772,6 @@ void WebMediaPlayerImpl::EnableOverlay() {
         &WebMediaPlayerImpl::OnOverlayRoutingToken, weak_this_));
     request_routing_token_cb_.Run(token_available_cb_.callback());
   }
-
-  // We have requested (and maybe already have) overlay information.  If the
-  // restarted decoder requests overlay information, then we'll defer providing
-  // it if it hasn't arrived yet.  Otherwise, this would be a race, since we
-  // don't know if the request for overlay info or restart will complete first.
-  if (decoder_requires_restart_for_overlay_)
-    ScheduleRestart();
 }
 
 void WebMediaPlayerImpl::DisableOverlay() {
@@ -790,11 +781,7 @@ void WebMediaPlayerImpl::DisableOverlay() {
     overlay_routing_token_is_pending_ = false;
     overlay_routing_token_ = media::OverlayInfo::RoutingToken();
   }
-
-  if (decoder_requires_restart_for_overlay_)
-    ScheduleRestart();
-  else
-    MaybeSendOverlayInfoToDecoder();
+  MaybeSendOverlayInfoToDecoder();
 }
 
 void WebMediaPlayerImpl::EnteredFullscreen() {
@@ -808,15 +795,7 @@ void WebMediaPlayerImpl::EnteredFullscreen() {
     EnableOverlay();
   }
 
-  // We send this only if we can send multiple calls.  Otherwise, either (a)
-  // we already sent it and we don't have a callback anyway (we reset it when
-  // it's called in restart mode), or (b) we'll send this later when the surface
-  // actually arrives.  GVD assumes that the first overlay info will have the
-  // routing information.  Note that we set `is_fullscreen_` earlier, so that
-  // if EnableOverlay() can include fullscreen info in case it sends the overlay
-  // info before returning.
-  if (!decoder_requires_restart_for_overlay_)
-    MaybeSendOverlayInfoToDecoder();
+  MaybeSendOverlayInfoToDecoder();
 }
 
 void WebMediaPlayerImpl::ExitedFullscreen() {
@@ -827,9 +806,7 @@ void WebMediaPlayerImpl::ExitedFullscreen() {
   if (!always_enable_overlays_ && overlay_enabled_)
     DisableOverlay();
 
-  // See EnteredFullscreen for why we do this.
-  if (!decoder_requires_restart_for_overlay_)
-    MaybeSendOverlayInfoToDecoder();
+  MaybeSendOverlayInfoToDecoder();
 }
 
 void WebMediaPlayerImpl::BecameDominantVisibleContent(bool is_dominant) {
@@ -1688,12 +1665,12 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitData(
 
 #if BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
 
-void WebMediaPlayerImpl::AddMediaTrack(const media::MediaTrack& track) {
-  client_->AddMediaTrack(track);
+void WebMediaPlayerImpl::AddTrack(const media::MediaTrack& track) {
+  client_->AddTrack(track);
 }
 
-void WebMediaPlayerImpl::RemoveMediaTrack(const media::MediaTrack& track) {
-  client_->RemoveMediaTrack(track);
+void WebMediaPlayerImpl::RemoveTrack(const media::MediaTrack& track) {
+  client_->RemoveTrack(track);
 }
 
 #endif  // BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -2506,6 +2483,9 @@ void WebMediaPlayerImpl::OnVideoConfigChange(
       pipeline_metadata_.video_decoder_config.codec() != config.codec();
   const bool codec_profile_change =
       pipeline_metadata_.video_decoder_config.profile() != config.profile();
+  const bool hdr_change =
+      pipeline_metadata_.video_decoder_config.color_space_info().IsHDR() !=
+      config.color_space_info().IsHDR();
 
   pipeline_metadata_.video_decoder_config = config;
 
@@ -2517,8 +2497,14 @@ void WebMediaPlayerImpl::OnVideoConfigChange(
         pipeline_metadata_.video_decoder_config.codec());
   }
 
-  if (codec_change || codec_profile_change)
+  if (hdr_change) {
+    watch_time_reporter_->OnHdrChanged(
+        pipeline_metadata_.video_decoder_config.color_space_info().IsHDR());
+  }
+
+  if (codec_change || codec_profile_change) {
     UpdateSecondaryProperties();
+  }
 
   if (video_decode_stats_reporter_ && codec_profile_change)
     CreateVideoDecodeStatsReporter();
@@ -2862,7 +2848,6 @@ void WebMediaPlayerImpl::OnOverlayRoutingToken(
 }
 
 void WebMediaPlayerImpl::OnOverlayInfoRequested(
-    bool decoder_requires_restart_for_overlay,
     media::ProvideOverlayInfoCB provide_overlay_info_cb) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -2870,30 +2855,15 @@ void WebMediaPlayerImpl::OnOverlayInfoRequested(
   // info. If we get a null cb, a previously initialized decoder is
   // unregistering for overlay info updates.
   if (!provide_overlay_info_cb) {
-    decoder_requires_restart_for_overlay_ = false;
     provide_overlay_info_cb_.Reset();
     return;
   }
 
-  // If `decoder_requires_restart_for_overlay` is true, we must restart the
-  // pipeline for fullscreen transitions. The decoder is unable to switch
-  // surfaces otherwise. If false, we simply need to tell the decoder about the
-  // new surface and it will handle things seamlessly.
-  // For encrypted video we pretend that the decoder doesn't require a restart
-  // because it needs an overlay all the time anyway. We'll switch into
-  // `always_enable_overlays_` mode below.
-  decoder_requires_restart_for_overlay_ =
-      (overlay_mode_ == OverlayMode::kUseAndroidOverlay && is_encrypted_)
-          ? false
-          : decoder_requires_restart_for_overlay;
   provide_overlay_info_cb_ = std::move(provide_overlay_info_cb);
 
-  // If the decoder doesn't require restarts for surface transitions, and we're
-  // using AndroidOverlay mode, we can always enable the overlay and the decoder
-  // can choose whether or not to use it. Otherwise, we'll restart the decoder
-  // and enable the overlay on fullscreen transitions.
-  if (overlay_mode_ == OverlayMode::kUseAndroidOverlay &&
-      !decoder_requires_restart_for_overlay_) {
+  // If we're using AndroidOverlay mode, we can always enable the overlay and
+  // the decoder can choose whether or not to use it.
+  if (overlay_mode_ == OverlayMode::kUseAndroidOverlay) {
     always_enable_overlays_ = true;
     if (!overlay_enabled_)
       EnableOverlay();
@@ -2924,12 +2894,7 @@ void WebMediaPlayerImpl::MaybeSendOverlayInfoToDecoder() {
     overlay_info_.routing_token = overlay_routing_token_;
   }
 
-  // If restart is required, the callback is one-shot only.
-  if (decoder_requires_restart_for_overlay_) {
-    std::move(provide_overlay_info_cb_).Run(overlay_info_);
-  } else {
-    provide_overlay_info_cb_.Run(overlay_info_);
-  }
+  provide_overlay_info_cb_.Run(overlay_info_);
 }
 
 std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
@@ -3526,6 +3491,8 @@ void WebMediaPlayerImpl::CreateWatchTimeReporter() {
       frame_->GetTaskRunner(TaskType::kInternalMedia));
   watch_time_reporter_->OnVolumeChange(volume_);
   watch_time_reporter_->OnDurationChanged(GetPipelineMediaDuration());
+  watch_time_reporter_->OnHdrChanged(
+      pipeline_metadata_.video_decoder_config.color_space_info().IsHDR());
 
   if (delegate_->IsPageHidden()) {
     watch_time_reporter_->OnHidden();

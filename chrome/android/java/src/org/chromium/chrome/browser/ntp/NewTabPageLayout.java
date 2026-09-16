@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.ntp;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -18,7 +17,6 @@ import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import androidx.annotation.RawRes;
 import androidx.annotation.VisibleForTesting;
@@ -56,9 +54,9 @@ import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesCoordinator;
+import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup.Delegate;
-import org.chromium.chrome.browser.suggestions.tile.TilesLinearLayout;
 import org.chromium.chrome.browser.tab_ui.InvalidationAwareThumbnailProvider;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
@@ -142,20 +140,13 @@ public class NewTabPageLayout extends LinearLayout
 
     private FeedSurfaceScrollDelegate mScrollDelegate;
 
-    private final int mTileViewWidth;
-    private @Nullable Integer mInitialTileNum;
-    private @Nullable Boolean mIsMvtAllFilledLandscape;
-    private @Nullable Boolean mIsMvtAllFilledPortrait;
-    private final int mTileViewIntervalPaddingTablet;
-    private final int mTileViewEdgePaddingTablet;
+    private boolean mMvtContentFits;
     private float mTransitionEndOffset;
     private boolean mIsTablet;
     private ObservableSupplier<Integer> mTabStripHeightSupplier;
     private boolean mIsInNarrowWindowOnTablet;
     // This variable is only valid when the NTP surface is in tablet mode.
     private boolean mIsInMultiWindowModeOnTablet;
-    private View mFakeSearchBoxLayout;
-    private TextView mFakeSearchBoxEditText;
     private Callback<Logo> mOnLogoAvailableCallback;
     private boolean mIsComposeplateEnabled;
     private boolean mIsComposeplateV2Enabled;
@@ -183,12 +174,6 @@ public class NewTabPageLayout extends LinearLayout
         super(context, attrs);
         mContext = context;
         Resources resources = getResources();
-        mTileViewWidth = resources.getDimensionPixelOffset(R.dimen.tile_view_width);
-        mTileViewIntervalPaddingTablet =
-                resources.getDimensionPixelOffset(R.dimen.tile_view_padding_interval_tablet);
-        mTileViewEdgePaddingTablet =
-                resources.getDimensionPixelOffset(R.dimen.tile_view_padding_edge_tablet);
-
         mNtpSearchBoxTopMarginWithoutLogo =
                 resources.getDimensionPixelSize(R.dimen.mvt_container_top_margin);
         mNtpSearchBoxTransitionStartOffset =
@@ -212,8 +197,6 @@ public class NewTabPageLayout extends LinearLayout
         // TODO(crbug.com/347509698): Remove the log statements after fixing the bug.
         Log.i(TAG, "NewTabPageLayout.onFinishInflate before insertSiteSectionView");
 
-        mFakeSearchBoxLayout = findViewById(R.id.search_box);
-        mFakeSearchBoxEditText = findViewById(R.id.search_box_text);
         initializeSiteSectionView();
 
         Log.i(TAG, "NewTabPageLayout.onFinishInflate after insertSiteSectionView");
@@ -332,7 +315,7 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     public void enableSearchBoxEditText(boolean enable) {
-        mFakeSearchBoxEditText.setEnabled(enable);
+        mSearchBoxCoordinator.enableSearchBoxEditText(enable);
     }
 
     /**
@@ -382,7 +365,8 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void initializeDseIconView(boolean shouldShowDesIconView) {
-        mDseIconView = mFakeSearchBoxLayout.findViewById(R.id.search_box_engine_icon);
+        View fakeSearchBoxLayout = findViewById(R.id.search_box);
+        mDseIconView = fakeSearchBoxLayout.findViewById(R.id.search_box_engine_icon);
         if (mIsOmniboxMobileParityUpdateV2Enabled) {
             // Configures icon rounding.
             mDseIconView.setOutlineProvider(
@@ -433,20 +417,13 @@ public class NewTabPageLayout extends LinearLayout
         mDseIconView.setVisibility(visibility);
 
         if (isVisible) {
-            mFakeSearchBoxLayout.setPaddingRelative(
-                    mFakeSearchBoxStartPaddingWithDseLogo,
-                    mFakeSearchBoxLayout.getPaddingTop(),
-                    mFakeSearchBoxLayout.getPaddingEnd(),
-                    mFakeSearchBoxLayout.getPaddingBottom());
-            mFakeSearchBoxEditText.setTextAppearance(
+            mSearchBoxCoordinator.setStartPadding(mFakeSearchBoxStartPaddingWithDseLogo);
+            mSearchBoxCoordinator.setSearchBoxTextAppearance(
                     R.style.TextAppearance_FakeSearchBoxTextMedium);
         } else {
-            mFakeSearchBoxLayout.setPaddingRelative(
-                    mFakeSearchBoxStartPadding,
-                    mFakeSearchBoxLayout.getPaddingTop(),
-                    mFakeSearchBoxLayout.getPaddingEnd(),
-                    mFakeSearchBoxLayout.getPaddingBottom());
-            mFakeSearchBoxEditText.setTextAppearance(R.style.TextAppearance_FakeSearchBoxText);
+            mSearchBoxCoordinator.setStartPadding(mFakeSearchBoxStartPadding);
+            mSearchBoxCoordinator.setSearchBoxTextAppearance(
+                    R.style.TextAppearance_FakeSearchBoxText);
         }
     }
 
@@ -695,31 +672,12 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     /** Updates the width of the MV tiles container when used in NTP on the tablet. */
-    private void calculateTabletMvtWidth(int widthMeasureSpec) {
+    private void calculateTabletMvtWidth(int totalWidth) {
         if (mMvTilesContainerLayout.getVisibility() == GONE) return;
 
-        if (mInitialTileNum == null) {
-            mInitialTileNum =
-                    ((TilesLinearLayout) findViewById(R.id.mv_tiles_layout)).getTileCount();
-        }
-
-        int currentOrientation = getResources().getConfiguration().orientation;
-        if ((currentOrientation == Configuration.ORIENTATION_LANDSCAPE
-                        && mIsMvtAllFilledLandscape == null)
-                || (currentOrientation == Configuration.ORIENTATION_PORTRAIT
-                        && mIsMvtAllFilledPortrait == null)) {
-            boolean isAllFilled =
-                    mInitialTileNum * mTileViewWidth
-                                    + (mInitialTileNum - 1) * mTileViewIntervalPaddingTablet
-                                    + 2 * mTileViewEdgePaddingTablet
-                            <= widthMeasureSpec;
-            if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-                mIsMvtAllFilledLandscape = isAllFilled;
-            } else {
-                mIsMvtAllFilledPortrait = isAllFilled;
-            }
-            updateMvtOnTablet();
-        }
+        MostVisitedTilesLayout mvTilesLayout = findViewById(R.id.mv_tiles_layout);
+        mMvtContentFits = mvTilesLayout.contentFitsOnTablet(totalWidth);
+        updateMvtOnTablet();
     }
 
     public void onSwitchToForeground() {
@@ -886,7 +844,7 @@ public class NewTabPageLayout extends LinearLayout
         for (int i = 0; i < getChildCount(); i++) {
             View view = getChildAt(i);
             view.setTranslationY(translationY);
-            if (view == mFakeSearchBoxLayout) return;
+            if (view.getId() == R.id.search_box) return;
         }
     }
 
@@ -982,9 +940,8 @@ public class NewTabPageLayout extends LinearLayout
         mCurrentNtpFakeSearchBoxTransitionStartOffset =
                 getNtpSearchBoxTransitionStartOffset(showFakeSearchBoxWithoutLogo);
 
-        MarginLayoutParams params = (MarginLayoutParams) mFakeSearchBoxLayout.getLayoutParams();
-        params.topMargin = showFakeSearchBoxWithoutLogo ? mNtpSearchBoxTopMarginWithoutLogo : 0;
-        mFakeSearchBoxLayout.setLayoutParams(params);
+        int topMargin = showFakeSearchBoxWithoutLogo ? mNtpSearchBoxTopMarginWithoutLogo : 0;
+        mSearchBoxCoordinator.setTopMargin(topMargin);
 
         if (mLogoCoordinator != null) {
             mLogoCoordinator.setTopMargin(getLogoMargin(/* isTopMargin= */ true));
@@ -1034,7 +991,7 @@ public class NewTabPageLayout extends LinearLayout
      *
      * @param listener The listener to be notified on changes.
      */
-    void setSearchBoxScrollListener(OnSearchBoxScrollListener listener) {
+    void setSearchBoxScrollListener(@Nullable OnSearchBoxScrollListener listener) {
         mSearchBoxScrollListener = listener;
         if (mSearchBoxScrollListener != null) updateSearchBoxOnScroll();
     }
@@ -1210,9 +1167,6 @@ public class NewTabPageLayout extends LinearLayout
         mVoiceSearchButtonClickListener = null;
         mSearchBoxScrollListener = null;
         mComposeplateUrlSupplier = null;
-
-        mFakeSearchBoxEditText = null;
-        mFakeSearchBoxLayout = null;
     }
 
     MostVisitedTilesCoordinator getMostVisitedTilesCoordinatorForTesting() {
@@ -1284,14 +1238,10 @@ public class NewTabPageLayout extends LinearLayout
     private void updateMvtOnTablet() {
         MarginLayoutParams marginLayoutParams =
                 (MarginLayoutParams) mMvTilesContainerLayout.getLayoutParams();
-        marginLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            if (mIsMvtAllFilledLandscape != null && mIsMvtAllFilledLandscape) {
-                marginLayoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            }
-        } else if (mIsMvtAllFilledPortrait != null && mIsMvtAllFilledPortrait) {
-            marginLayoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-        }
+        marginLayoutParams.width =
+                mMvtContentFits
+                        ? ViewGroup.LayoutParams.WRAP_CONTENT
+                        : ViewGroup.LayoutParams.MATCH_PARENT;
 
         int lateralPaddingId =
                 mIsInNarrowWindowOnTablet
@@ -1331,7 +1281,7 @@ public class NewTabPageLayout extends LinearLayout
 
     @Override
     public void onSearchBoxHintTextChanged(@Nullable String newHint) {
-        mFakeSearchBoxEditText.setHint(newHint);
+        mSearchBoxCoordinator.setSearchBoxHintText(newHint);
     }
 
     /**
@@ -1362,6 +1312,11 @@ public class NewTabPageLayout extends LinearLayout
                 getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow) + mTopInset,
                 getPaddingEnd(),
                 getPaddingBottom());
+    }
+
+    /** Returns the top inset of the NTP. */
+    int getTopInset() {
+        return mTopInset;
     }
 
     private boolean isInSingleUrlMode() {

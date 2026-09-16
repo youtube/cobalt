@@ -10,6 +10,8 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_theme.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
@@ -19,8 +21,6 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
@@ -516,16 +516,9 @@ void OmniboxSuggestionButtonRowView::UpdateFromModel() {
     SetPillButtonVisibility(keyword_button_,
                             OmniboxPopupSelection::KEYWORD_MODE);
     if (keyword_button_->GetVisible()) {
-      std::u16string keyword;
-      std::u16string keyword_placeholder;
-      bool is_keyword_hint = false;
-      match().GetKeywordUIState(
-          popup_view_->controller()->client()->GetTemplateURLService(),
-          popup_view_->controller()->client()->IsHistoryEmbeddingsEnabled(),
-          &keyword, &keyword_placeholder, &is_keyword_hint);
-
+      CHECK(!match().associated_keyword.empty());
       const auto names = SelectedKeywordView::GetKeywordLabelNames(
-          keyword,
+          match().associated_keyword,
           popup_view_->controller()->client()->GetTemplateURLService());
       keyword_button_->SetText(names.full_name);
       keyword_button_->GetViewAccessibility().SetName(

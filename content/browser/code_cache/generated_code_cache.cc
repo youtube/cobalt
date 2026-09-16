@@ -58,9 +58,10 @@ void CheckValidResource(const GURL& resource_url,
   bool resource_url_is_chrome_or_chrome_untrusted =
       resource_url.SchemeIs(content::kChromeUIScheme) ||
       resource_url.SchemeIs(content::kChromeUIUntrustedScheme);
-  DCHECK(resource_url.SchemeIsHTTPOrHTTPS() ||
-         resource_url_is_chrome_or_chrome_untrusted ||
-         blink::CommonSchemeRegistry::IsExtensionScheme(resource_url.scheme()));
+  DCHECK(
+      resource_url.SchemeIsHTTPOrHTTPS() ||
+      resource_url_is_chrome_or_chrome_untrusted ||
+      blink::CommonSchemeRegistry::IsExtensionScheme(resource_url.GetScheme()));
 
   // The chrome and chrome-untrusted schemes are only used with the WebUI
   // code cache type.
@@ -77,12 +78,12 @@ void CheckValidContext(const GURL& origin_lock,
   bool origin_lock_is_chrome_or_chrome_untrusted =
       origin_lock.SchemeIs(content::kChromeUIScheme) ||
       origin_lock.SchemeIs(content::kChromeUIUntrustedScheme);
-  DCHECK(
-      origin_lock.is_empty() ||
-      ((origin_lock.SchemeIsHTTPOrHTTPS() ||
-        origin_lock_is_chrome_or_chrome_untrusted ||
-        blink::CommonSchemeRegistry::IsExtensionScheme(origin_lock.scheme())) &&
-       !url::Origin::Create(origin_lock).opaque()));
+  DCHECK(origin_lock.is_empty() ||
+         ((origin_lock.SchemeIsHTTPOrHTTPS() ||
+           origin_lock_is_chrome_or_chrome_untrusted ||
+           blink::CommonSchemeRegistry::IsExtensionScheme(
+               origin_lock.GetScheme())) &&
+          !url::Origin::Create(origin_lock).opaque()));
 
   // The chrome and chrome-untrusted schemes are only used with the WebUI
   // code cache type.
@@ -512,16 +513,9 @@ void GeneratedCodeCache::WriteEntry(const GURL& url,
 
 #if BUILDFLAG(IS_COBALT)
   if (cache_type_ == CodeCacheType::kJavaScript) {
-    // We skip caching below experimental thresholds (16KB) to preserve
-    // cache slots for heavy core bundles. Cache switch evaluations statically
-    // once per runtime process to avoid redundant map lookups.
-    static const size_t kMinBytecodeSize = [] {
-      auto* command_line = base::CommandLine::ForCurrentProcess();
-      if (command_line->HasSwitch("enable-http-and-v8-cache-tuning")) {
-        return 16384;
-      }
-      return 1024;
-    }();
+    // We skip caching below experimental thresholds to preserve
+    // cache slots for heavy core bundles.
+    constexpr size_t kMinBytecodeSize = 1024;
     if (data.size() < kMinBytecodeSize) {
       return;
     }

@@ -36,10 +36,10 @@ private:
 public:
     CmdPattern(const char * pattern):pat(pattern,""){
     }
-    virtual long getOperationsPerIteration(){
+    long getOperationsPerIteration() override {
         return 1;
     }
-    virtual void call(UErrorCode* pErrorCode){
+    void call(UErrorCode* pErrorCode) override {
         set.applyPattern(pat, *pErrorCode);
     }
 };
@@ -56,22 +56,22 @@ public:
         bs.clearAll();
         for (UChar32 cp=0; cp<0x110000; ++cp) {
             if (u_charType(cp) == prop) {
-                bs.set((int32_t) cp);
+                bs.set(static_cast<int32_t>(cp));
                 ++total;
             }
         }
     }
-    virtual long getOperationsPerIteration(){
+    long getOperationsPerIteration() override {
         return total;
     }
 
-    virtual void call(UErrorCode* pErrorCode){
+    void call(UErrorCode* pErrorCode) override {
         (this->*op)();
     }
     void add(){
         us.clear();
         for (UChar32 cp=0; cp<0x110000; ++cp) {
-            if (bs.get((int32_t) cp)) {
+            if (bs.get(static_cast<int32_t>(cp))) {
                 us.add(cp);
             }
         }
@@ -101,7 +101,7 @@ public:
     UsetPerformanceTest(int32_t argc, const char *argv[], UErrorCode &status) :UPerfTest(argc,argv,status){
     }
 
-    virtual UPerfFunction* runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = nullptr ){
+    UPerfFunction* runIndexedTest(int32_t index, UBool exec, const char*& name, char* par = nullptr) override {
         switch (index) {
             case 0: name = "titlecase_letter_add"; 
                 if (exec) return new CmdOp(U_TITLECASE_LETTER, &CmdOp::add) ; break;

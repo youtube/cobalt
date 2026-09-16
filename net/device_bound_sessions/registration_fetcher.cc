@@ -20,6 +20,7 @@
 #include "net/device_bound_sessions/session_binding_utils.h"
 #include "net/device_bound_sessions/session_challenge_param.h"
 #include "net/device_bound_sessions/session_json_utils.h"
+#include "net/device_bound_sessions/session_key.h"
 #include "net/device_bound_sessions/url_fetcher.h"
 #include "net/log/net_log_event_type.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -31,15 +32,13 @@ namespace net::device_bound_sessions {
 namespace {
 
 const char* GetSessionIdHeaderName() {
-  return base::FeatureList::IsEnabled(
-             net::features::kDeviceBoundSessionsOriginTrialFeedback)
+  return net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
              ? "Sec-Secure-Session-Id"
              : "Sec-Session-Id";
 }
 
 const char* GetJwtSessionHeaderName() {
-  return base::FeatureList::IsEnabled(
-             net::features::kDeviceBoundSessionsOriginTrialFeedback)
+  return net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
              ? "Secure-Session-Response"
              : "Sec-Session-Response";
 }
@@ -59,6 +58,7 @@ void RecordHttpResponseOrErrorCode(const char* metric_name,
 
 void OnDataSigned(
     crypto::SignatureVerifier::SignatureAlgorithm algorithm,
+    const std::vector<uint8_t>& pubkey,
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     std::string header_and_payload,
     base::OnceCallback<
@@ -71,12 +71,13 @@ void OnDataSigned(
 
   const std::vector<uint8_t>& signature = result.value();
   std::optional<std::string> registration_token =
-      AppendSignatureToHeaderAndPayload(header_and_payload, algorithm,
+      AppendSignatureToHeaderAndPayload(header_and_payload, algorithm, pubkey,
                                         signature);
   std::move(callback).Run(std::move(registration_token));
 }
 
 void SignChallengeWithKey(
+    bool is_for_refresh,
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     unexportable_keys::UnexportableKeyId& key_id,
     const GURL& registration_url,
@@ -86,31 +87,44 @@ void SignChallengeWithKey(
     base::OnceCallback<
         void(std::optional<RegistrationFetcher::RegistrationToken>)> callback) {
   auto expected_algorithm = unexportable_key_service.GetAlgorithm(key_id);
+  if (!expected_algorithm.has_value()) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+
   auto expected_public_key =
       unexportable_key_service.GetSubjectPublicKeyInfo(key_id);
-  if (!expected_algorithm.has_value() || !expected_public_key.has_value()) {
+  if (!expected_public_key.has_value()) {
     std::move(callback).Run(std::nullopt);
     return;
   }
 
-  std::optional<std::string> optional_header_and_payload =
-      CreateKeyRegistrationHeaderAndPayload(
-          challenge, registration_url, expected_algorithm.value(),
-          expected_public_key.value(), base::Time::Now(),
-          std::move(authorization), std::move(session_identifier));
+  std::optional<std::string> header_and_payload;
+  if (!features::kDeviceBoundSessionsOriginTrialFeedback.Get()) {
+    header_and_payload = CreateLegacyKeyRegistrationHeaderAndPayload(
+        challenge, registration_url, expected_algorithm.value(),
+        expected_public_key.value(), base::Time::Now(),
+        std::move(authorization), std::move(session_identifier));
+  } else if (is_for_refresh) {
+    header_and_payload =
+        CreateKeyRefreshHeaderAndPayload(challenge, expected_algorithm.value());
+  } else {
+    header_and_payload = CreateKeyRegistrationHeaderAndPayload(
+        challenge, expected_algorithm.value(), expected_public_key.value(),
+        std::move(authorization));
+  }
 
-  if (!optional_header_and_payload.has_value()) {
+  if (!header_and_payload.has_value()) {
     std::move(callback).Run(std::nullopt);
     return;
   }
 
-  std::string header_and_payload =
-      std::move(optional_header_and_payload.value());
   unexportable_key_service.SignSlowlyAsync(
-      key_id, base::as_byte_span(header_and_payload), kTaskPriority,
-      /*max_retries=*/0,
+      key_id, base::as_byte_span(*header_and_payload), kTaskPriority,
+      /*max_retries=*/3,
       base::BindOnce(&OnDataSigned, expected_algorithm.value(),
-                     std::ref(unexportable_key_service), header_and_payload,
+                     std::move(expected_public_key).value(),
+                     std::ref(unexportable_key_service), *header_and_payload,
                      std::move(callback)));
 }
 
@@ -165,6 +179,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   RegistrationFetcherImpl(
       const GURL& fetcher_endpoint,
       std::optional<std::string> session_identifier,
+      SessionService& session_service,
       unexportable_keys::UnexportableKeyService& key_service,
       const URLRequestContext* context,
       const IsolationInfo& isolation_info,
@@ -172,6 +187,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       const std::optional<url::Origin>& original_request_initiator)
       : fetcher_endpoint_(fetcher_endpoint),
         session_identifier_(std::move(session_identifier)),
+        session_service_(session_service),
         key_service_(key_service),
         context_(context),
         isolation_info_(isolation_info),
@@ -184,8 +200,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
           key_id) {
     if (!key_id.has_value()) {
-      RunCallback(
-          RegistrationResult(SessionError{SessionError::ErrorType::kKeyError}));
+      RunCallback(RegistrationResult(SessionError{SessionError::kKeyError}));
       // `this` may be deleted.
       return;
     }
@@ -204,10 +219,11 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       number_of_challenges_++;
       if (number_of_challenges_ < kMaxChallenges) {
         AttemptChallengeSigning();
+        // `this` may be deleted.
         return;
       } else {
-        RunCallback(RegistrationResult(
-            SessionError{SessionError::ErrorType::kTooManyChallenges}));
+        RunCallback(
+            RegistrationResult(SessionError{SessionError::kTooManyChallenges}));
         // `this` may be deleted.
         return;
       }
@@ -238,6 +254,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       RegistrationCompleteCallback callback) override {
     // Using mock fetcher for testing.
     if (g_mock_fetcher) {
+      // `this` may be deleted.
       std::move(callback).Run(nullptr, g_mock_fetcher->Run());
       return;
     }
@@ -252,6 +269,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
                                  GetWeakPtr(),
                                  registration_params.TakeChallenge(),
                                  registration_params.TakeAuthorization())));
+    // `this` may be deleted.
   }
 
   void StartFetchWithFederatedKey(
@@ -261,6 +279,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       RegistrationCompleteCallback callback) override {
     // Using mock fetcher for testing.
     if (g_mock_fetcher) {
+      // `this` may be deleted.
       std::move(callback).Run(nullptr, g_mock_fetcher->Run());
       return;
     }
@@ -271,9 +290,11 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     key_id_ = key_id;
     provider_url_ = provider_url;
 
-    if (!features::kDeviceBoundSessionsCheckFederatedRegistration.Get()) {
+    if (!features::kDeviceBoundSessionsFederatedRegistrationCheckWellKnown
+             .Get()) {
       StartFetch(request_params.TakeChallenge(),
                  request_params.TakeAuthorization());
+      // `this` may be deleted.
       return;
     }
 
@@ -296,29 +317,23 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
 
   void StartFetchWithExistingKey(
       RegistrationRequestParam& request_params,
-      unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-          key_id,
+      unexportable_keys::UnexportableKeyId key_id,
       RegistrationCompleteCallback callback) override {
     // Using mock fetcher for testing.
     if (g_mock_fetcher) {
       std::move(callback).Run(nullptr, g_mock_fetcher->Run());
-      return;
-    }
-
-    if (!key_id.has_value()) {
-      std::move(callback).Run(
-          nullptr,
-          RegistrationResult(SessionError{SessionError::ErrorType::kKeyError}));
+      // `this` may be deleted.
       return;
     }
 
     CHECK(callback_.is_null());
     callback_ = std::move(callback);
 
-    key_id_ = *key_id;
+    key_id_ = key_id;
 
     StartFetch(request_params.TakeChallenge(),
                request_params.TakeAuthorization());
+    // `this` may be deleted.
   }
 
  private:
@@ -327,7 +342,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       std::optional<std::string> authorization) {
     SessionError::ErrorType error =
         OnProviderWellKnownRequestCompleteInternal();
-    if (error != SessionError::ErrorType::kSuccess) {
+    if (error != SessionError::kSuccess) {
       RunCallback(RegistrationResult(SessionError{error}));
       // `this` may be deleted.
       return;
@@ -357,36 +372,36 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
         url_fetcher_->net_error(), response_code);
 
     if (url_fetcher_->net_error() != OK) {
-      return SessionError::ErrorType::kSessionProviderWellKnownUnavailable;
+      return SessionError::kSessionProviderWellKnownUnavailable;
     }
 
     if (!headers || headers->response_code() != 200) {
-      return SessionError::ErrorType::kSessionProviderWellKnownUnavailable;
+      return SessionError::kSessionProviderWellKnownUnavailable;
     }
 
     std::optional<WellKnownParams> maybe_params =
         ParseWellKnownJson(url_fetcher_->data_received());
     if (!maybe_params.has_value()) {
-      return SessionError::ErrorType::kSessionProviderWellKnownMalformed;
+      return SessionError::kSessionProviderWellKnownMalformed;
     }
 
     if (maybe_params->provider_origin.has_value()) {
-      return SessionError::ErrorType::kSessionProviderWellKnownMalformed;
+      return SessionError::kSessionProviderWellKnownMalformed;
     }
 
     std::string target_origin =
         url::Origin::Create(fetcher_endpoint_).Serialize();
     if (!maybe_params->relying_origins.has_value() ||
         !base::Contains(*maybe_params->relying_origins, target_origin)) {
-      return SessionError::ErrorType::kFederatedNotAuthorized;
+      return SessionError::kFederatedNotAuthorized;
     }
 
     if (!WithinOriginLabelLimit(*maybe_params->relying_origins,
                                 target_origin)) {
-      return SessionError::ErrorType::kTooManyRelyingOriginLabels;
+      return SessionError::kTooManyRelyingOriginLabels;
     }
 
-    return SessionError::ErrorType::kSuccess;
+    return SessionError::kSuccess;
   }
 
   void OnRelyingPartyWellKnownRequestComplete(
@@ -394,13 +409,14 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       std::optional<std::string> authorization) {
     SessionError::ErrorType error =
         OnRelyingPartyWellKnownRequestCompleteInternal();
-    if (error != SessionError::ErrorType::kSuccess) {
+    if (error != SessionError::kSuccess) {
       RunCallback(RegistrationResult(SessionError{error}));
       // `this` may be deleted.
       return;
     }
 
     StartFetch(std::move(challenge), std::move(authorization));
+    // `this` may be deleted.
   }
 
   SessionError::ErrorType OnRelyingPartyWellKnownRequestCompleteInternal() {
@@ -411,57 +427,55 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
         url_fetcher_->net_error(), response_code);
 
     if (url_fetcher_->net_error() != OK) {
-      return SessionError::ErrorType::kRelyingPartyWellKnownUnavailable;
+      return SessionError::kRelyingPartyWellKnownUnavailable;
     }
 
     if (!headers || headers->response_code() != 200) {
-      return SessionError::ErrorType::kRelyingPartyWellKnownUnavailable;
+      return SessionError::kRelyingPartyWellKnownUnavailable;
     }
 
     std::optional<WellKnownParams> maybe_params =
         ParseWellKnownJson(url_fetcher_->data_received());
     if (!maybe_params.has_value()) {
-      return SessionError::ErrorType::kRelyingPartyWellKnownMalformed;
+      return SessionError::kRelyingPartyWellKnownMalformed;
     }
 
     if (maybe_params->relying_origins.has_value()) {
-      return SessionError::ErrorType::kRelyingPartyWellKnownMalformed;
+      return SessionError::kRelyingPartyWellKnownMalformed;
     }
 
     if (!maybe_params->provider_origin.has_value() ||
         url::Origin::Create(provider_url_).Serialize() !=
             *maybe_params->provider_origin) {
-      return SessionError::ErrorType::kFederatedNotAuthorized;
+      return SessionError::kFederatedNotAuthorized;
     }
 
-    return SessionError::ErrorType::kSuccess;
+    return SessionError::kSuccess;
   }
 
-  static constexpr size_t kMaxSigningFailures = 2;
   static constexpr size_t kMaxChallenges = 5;
 
   void AttemptChallengeSigning() {
-    SignChallengeWithKey(
-        *key_service_, *key_id_, fetcher_endpoint_, *current_challenge_,
-        current_authorization_, session_identifier_,
-        base::BindOnce(&RegistrationFetcherImpl::OnRegistrationTokenCreated,
-                       GetWeakPtr()));
+    base::OnceCallback<void(
+        std::optional<RegistrationFetcher::RegistrationToken>)>
+        callback = base::BindOnce(
+            &RegistrationFetcherImpl::OnRegistrationTokenCreated, GetWeakPtr());
+
+    SignChallengeWithKey(IsForRefreshRequest(), *key_service_, *key_id_,
+                         fetcher_endpoint_, *current_challenge_,
+                         current_authorization_, session_identifier_,
+                         std::move(callback));
+    // `this` may be deleted.
   }
 
   void OnRegistrationTokenCreated(
       std::optional<RegistrationFetcher::RegistrationToken>
           registration_token) {
     if (!registration_token) {
-      number_of_signing_failures_++;
-      if (number_of_signing_failures_ < kMaxSigningFailures) {
-        AttemptChallengeSigning();
-        return;
-      } else {
-        RunCallback(RegistrationResult(
-            SessionError{SessionError::ErrorType::kSigningError}));
-        // `this` may be deleted.
-        return;
-      }
+      RunCallback(
+          RegistrationResult(SessionError{SessionError::kSigningError}));
+      // `this` may be deleted.
+      return;
     }
 
     url_fetcher_ = std::make_unique<URLFetcher>(context_, fetcher_endpoint_,
@@ -493,19 +507,42 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     }
   }
 
-  void OnChallengeNeeded(
-      std::optional<std::vector<SessionChallengeParam>> challenge_params) {
-    if (!challenge_params || challenge_params->empty()) {
-      RunCallback(RegistrationResult(
-          SessionError{SessionError::ErrorType::kInvalidChallenge}));
-      // `this` may be deleted.
-      return;
-    }
+  void OnChallengeNeeded() {
+    if (features::kDeviceBoundSessionsOriginTrialFeedback.Get()) {
+      if (!session_identifier_.has_value()) {
+        RunCallback(RegistrationResult(
+            SessionError{SessionError::kPersistentHttpError}));
+        // `this` may be deleted.
+        return;
+      }
+      const Session* session = session_service_->GetSession(SessionKey{
+          SchemefulSite(fetcher_endpoint_), Session::Id(*session_identifier_)});
+      if (!session || !session->cached_challenge().has_value()) {
+        RunCallback(
+            RegistrationResult(SessionError{SessionError::kInvalidChallenge}));
+        // `this` may be deleted.
+        return;
+      }
 
-    // TODO(crbug.com/438783634): Log if there is more than one challenge
-    // TODO(crbug.com/438783634): Handle if session identifiers don't match
-    const std::string& challenge = (*challenge_params)[0].challenge();
-    StartFetch(challenge, std::nullopt);
+      StartFetch(*session->cached_challenge(), std::nullopt);
+      // `this` may be deleted.
+    } else {
+      auto challenge_params =
+          device_bound_sessions::SessionChallengeParam::CreateIfValid(
+              fetcher_endpoint_, url_fetcher_->request().response_headers());
+      if (challenge_params.empty()) {
+        RunCallback(
+            RegistrationResult(SessionError{SessionError::kInvalidChallenge}));
+        // `this` may be deleted.
+        return;
+      }
+
+      // TODO(crbug.com/438783634): Log if there is more than one challenge
+      // TODO(crbug.com/438783634): Handle if session identifiers don't match
+      const std::string& challenge = challenge_params[0].challenge();
+      StartFetch(challenge, std::nullopt);
+      // `this` may be deleted.
+    }
   }
 
   void OnRequestComplete() {
@@ -519,48 +556,47 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
                                   response_code);
 
     if (url_fetcher_->net_error() != OK) {
-      RunCallback(
-          RegistrationResult(SessionError{SessionError::ErrorType::kNetError}));
-      // *this is deleted here.
+      RunCallback(RegistrationResult(SessionError{SessionError::kNetError}));
+      // `this` may be deleted.
       return;
     }
 
-    if (response_code == 401) {
-      auto challenge_params =
-          device_bound_sessions::SessionChallengeParam::CreateIfValid(
-              fetcher_endpoint_, headers);
-      OnChallengeNeeded(std::move(challenge_params));
-      // *this is preserved here.
+    if ((features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
+         response_code == 403) ||
+        (!features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
+         response_code == 401)) {
+      OnChallengeNeeded();
+      // `this` may be deleted.
       return;
     }
 
     if (response_code < 200) {
-      RunCallback(RegistrationResult(
-          SessionError{SessionError::ErrorType::kPersistentHttpError}));
-      // *this is deleted here
+      RunCallback(
+          RegistrationResult(SessionError{SessionError::kPersistentHttpError}));
+      // `this` may be deleted.
       return;
     } else if (response_code == 407) {
       // Proxy errors are treated as network errors
-      RunCallback(
-          RegistrationResult(SessionError{SessionError::ErrorType::kNetError}));
-      // *this is deleted here
+      RunCallback(RegistrationResult(SessionError{SessionError::kNetError}));
+      // `this` may be deleted.
       return;
     } else if (300 <= response_code && response_code < 500) {
-      RunCallback(RegistrationResult(
-          SessionError{SessionError::ErrorType::kPersistentHttpError}));
-      // *this is deleted here
+      RunCallback(
+          RegistrationResult(SessionError{SessionError::kPersistentHttpError}));
+      // `this` may be deleted.
       return;
     } else if (response_code >= 500) {
-      RunCallback(RegistrationResult(
-          SessionError{SessionError::ErrorType::kTransientHttpError}));
-      // *this is deleted here
+      RunCallback(
+          RegistrationResult(SessionError{SessionError::kTransientHttpError}));
+      // `this` may be deleted.
       return;
     }
 
     if (url_fetcher_->data_received().empty()) {
       RunCallback(
-          RegistrationResult(RegistrationResult::NoSessionConfigChange()));
-      // *this is deleted here.
+          RegistrationResult(RegistrationResult::NoSessionConfigChange(),
+                             url_fetcher_->maybe_stored_cookies()));
+      // `this` may be deleted.
       return;
     }
 
@@ -570,7 +606,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
                                     url_fetcher_->data_received());
     if (!params_or_error.has_value()) {
       RunCallback(RegistrationResult(std::move(params_or_error).error()));
-      // *this is deleted here.
+      // `this` may be deleted.
       return;
     }
 
@@ -578,20 +614,30 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
         Session::CreateIfValid(params_or_error.value());
     if (!session_or_error.has_value()) {
       RunCallback(RegistrationResult(std::move(session_or_error).error()));
-      // *this is deleted here.
+      // `this` may be deleted.
       return;
+    }
+
+    // Re-process challenge headers now that a session exists so that cached
+    // challenges work for the registration case as well.
+    auto challenge_params =
+        device_bound_sessions::SessionChallengeParam::CreateIfValid(
+            fetcher_endpoint_, headers);
+    for (const SessionChallengeParam& challenge_param : challenge_params) {
+      if (challenge_param.session_id() == *(*session_or_error)->id()) {
+        (*session_or_error)->set_cached_challenge(challenge_param.challenge());
+      }
     }
 
     // The registration endpoint is required to be same-site with the
     // session. Therefore we don't need any FirstPartySetMetadata.
-    if (base::FeatureList::IsEnabled(
-            features::kDeviceBoundSessionsOriginTrialFeedback) &&
+    if (features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
         !(*session_or_error)
              ->CanSetBoundCookie(url_fetcher_->request(),
                                  FirstPartySetMetadata())) {
       RunCallback(RegistrationResult{
-          SessionError{SessionError::ErrorType::kBoundCookieSetForbidden}});
-      // *this is deleted here.
+          SessionError{SessionError::kBoundCookieSetForbidden}});
+      // `this` may be deleted.
       return;
     }
 
@@ -600,13 +646,12 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     // that this subdomain is allowed to register a session for the
     // whole site.
     if (features::kDeviceBoundSessionsCheckSubdomainRegistration.Get() &&
-        base::FeatureList::IsEnabled(
-            features::kDeviceBoundSessionsOriginTrialFeedback) &&
+        features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
         !IsForRefreshRequest() && params_or_error->scope.include_site &&
         // Skip all validations if the fetcher endpoint is not a subdomain but
         // rather the top-level site (which matches the origin when including
         // the site).
-        fetcher_endpoint_.host() != (*session_or_error)->origin().host()) {
+        fetcher_endpoint_.GetHost() != (*session_or_error)->origin().host()) {
       GURL::Replacements replacements;
       replacements.SetPathStr("/.well-known/device-bound-sessions");
       replacements.SetHostStr((*session_or_error)->origin().host());
@@ -628,14 +673,14 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     }
 
     RunCallback(RegistrationResult(std::move(session_or_error)));
-    // *this is deleted here
+    // `this` may be deleted.
   }
 
   void OnSubdomainRegistrationWellKnownRequestComplete(
       std::unique_ptr<Session> session) {
     RunCallback(OnSubdomainRegistrationWellKnownRequestCompleteInternal(
         std::move(session)));
-    // *this is deleted here.
+    // `this` may be deleted.
   }
 
   RegistrationResult OnSubdomainRegistrationWellKnownRequestCompleteInternal(
@@ -648,26 +693,26 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
 
     if (url_fetcher_->net_error() != OK) {
       return RegistrationResult(SessionError{
-          SessionError::ErrorType::kSubdomainRegistrationWellKnownUnavailable});
+          SessionError::kSubdomainRegistrationWellKnownUnavailable});
     }
 
     if (!headers || headers->response_code() != 200) {
       return RegistrationResult(SessionError{
-          SessionError::ErrorType::kSubdomainRegistrationWellKnownUnavailable});
+          SessionError::kSubdomainRegistrationWellKnownUnavailable});
     }
 
     std::optional<WellKnownParams> maybe_params =
         ParseWellKnownJson(url_fetcher_->data_received());
     if (!maybe_params.has_value()) {
-      return RegistrationResult(SessionError{
-          SessionError::ErrorType::kSubdomainRegistrationWellKnownMalformed});
+      return RegistrationResult(
+          SessionError{SessionError::kSubdomainRegistrationWellKnownMalformed});
     }
 
     if (!maybe_params->registering_origins.has_value() ||
         !base::Contains(*maybe_params->registering_origins,
                         url::Origin::Create(fetcher_endpoint_).Serialize())) {
-      return RegistrationResult(SessionError{
-          SessionError::ErrorType::kSubdomainRegistrationUnauthorized});
+      return RegistrationResult(
+          SessionError{SessionError::kSubdomainRegistrationUnauthorized});
     }
 
     return RegistrationResult(std::move(session));
@@ -676,6 +721,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   void RunCallback(RegistrationResult registration_result) {
     AddNetLogResult(registration_result);
     std::move(callback_).Run(this, std::move(registration_result));
+    // `this` may be deleted.
   }
 
   void AddNetLogResult(const RegistrationResult& registration_result) {
@@ -714,6 +760,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   GURL fetcher_endpoint_;
   // Populated iff this is a refresh request (not a registration request).
   std::optional<std::string> session_identifier_;
+  const raw_ref<SessionService> session_service_;
   const raw_ref<unexportable_keys::UnexportableKeyService> key_service_;
   std::optional<unexportable_keys::UnexportableKeyId> key_id_;
   raw_ptr<const URLRequestContext> context_;
@@ -729,7 +776,6 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   GURL provider_url_;
   std::optional<std::string> current_challenge_;
   std::optional<std::string> current_authorization_;
-  size_t number_of_signing_failures_ = 0;
   size_t number_of_challenges_ = 0;
 
   base::WeakPtrFactory<RegistrationFetcherImpl> weak_ptr_factory_{this};
@@ -740,6 +786,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
 // static
 std::unique_ptr<RegistrationFetcher> RegistrationFetcher::CreateFetcher(
     RegistrationRequestParam& request_params,
+    SessionService& session_service,
     unexportable_keys::UnexportableKeyService& key_service,
     const URLRequestContext* context,
     const IsolationInfo& isolation_info,
@@ -747,8 +794,8 @@ std::unique_ptr<RegistrationFetcher> RegistrationFetcher::CreateFetcher(
     const std::optional<url::Origin>& original_request_initiator) {
   return std::make_unique<RegistrationFetcherImpl>(
       request_params.TakeRegistrationEndpoint(),
-      request_params.TakeSessionIdentifier(), key_service, context,
-      isolation_info, net_log_source, original_request_initiator);
+      request_params.TakeSessionIdentifier(), session_service, key_service,
+      context, isolation_info, net_log_source, original_request_initiator);
 }
 
 void RegistrationFetcher::SetFetcherForTesting(FetcherType* func) {
@@ -756,12 +803,11 @@ void RegistrationFetcher::SetFetcherForTesting(FetcherType* func) {
   g_mock_fetcher = func;
 }
 
-void RegistrationFetcher::CreateTokenAsyncForTesting(
+// static
+void RegistrationFetcher::CreateRegistrationTokenAsyncForTesting(
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     std::string challenge,
-    const GURL& registration_url,
     std::optional<std::string> authorization,
-    std::optional<std::string> session_identifier,
     base::OnceCallback<
         void(std::optional<RegistrationFetcher::RegistrationToken>)> callback) {
   static constexpr crypto::SignatureVerifier::SignatureAlgorithm
@@ -771,9 +817,8 @@ void RegistrationFetcher::CreateTokenAsyncForTesting(
       kSupportedAlgos, kTaskPriority,
       base::BindOnce(
           [](unexportable_keys::UnexportableKeyService& key_service,
-             const GURL& registration_url, const std::string& challenge,
+             const std::string& challenge,
              std::optional<std::string>&& authorization,
-             std::optional<std::string>&& session_identifier,
              base::OnceCallback<void(
                  std::optional<RegistrationFetcher::RegistrationToken>)>
                  callback,
@@ -785,13 +830,12 @@ void RegistrationFetcher::CreateTokenAsyncForTesting(
             }
 
             SignChallengeWithKey(
-                key_service, key_result.value(), registration_url, challenge,
-                std::move(authorization), std::move(session_identifier),
-                std::move(callback));
+                /*is_for_refresh=*/false, key_service, key_result.value(),
+                GURL(), challenge, std::move(authorization),
+                /*session_identifier=*/std::nullopt, std::move(callback));
           },
-          std::ref(unexportable_key_service), registration_url,
-          std::move(challenge), std::move(authorization),
-          std::move(session_identifier), std::move(callback)));
+          std::ref(unexportable_key_service), std::move(challenge),
+          std::move(authorization), std::move(callback)));
 }
 
 }  // namespace net::device_bound_sessions

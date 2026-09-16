@@ -1,9 +1,9 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ia{
     Countries{
-        001{"Mundo"}
+        001{"mundo"}
         002{"Africa"}
         003{"America del Nord"}
         005{"America del Sud"}
@@ -85,6 +85,7 @@ ia{
         CN{"China"}
         CO{"Colombia"}
         CP{"Insula Clipperton"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Cuba"}
         CV{"Capo Verde"}

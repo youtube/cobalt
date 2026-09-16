@@ -36,8 +36,6 @@ import org.chromium.ui.test.util.DeviceRestriction;
 // In phones, the New Window option in the app menu is only enabled when already in multi-window or
 // multi-display mode with Chrome not running in an adjacent window.
 @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-// TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
-@DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
 public class MultiWindowAppMenuTest {
     @Rule
     public FreshCtaTransitTestRule mCtaTestRule =
@@ -56,6 +54,8 @@ public class MultiWindowAppMenuTest {
 
     @Test
     @LargeTest
+    // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testOpenNewWindow_fromIncognitoNtp() {
         IncognitoNewTabPageStation pageInFirstWindow =
                 mCtaTestRule.startOnBlankPage().openNewIncognitoTabFast();

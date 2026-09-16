@@ -661,9 +661,6 @@ Chromium is unable to recover your settings.
         <message name="IDS_SAME_VERSION_REPAIR_FAILED" desc="Error displayed if installation fails due to Chrome running.">
           Can not install the same Chromium version that is currently running. Please close Chromium and try again.
         </message>
-        <message name="IDS_SETUP_PATCH_FAILED" desc="Error message when setup.exe fails to patch itself.">
-          Installation failed due to unspecified error. Please download Chromium again.
-        </message>
         <message name="IDS_INSTALL_OS_NOT_SUPPORTED" desc="Error displayed if OS is not supported">
           Chromium requires Windows 10 or higher.
         </message>
@@ -1029,10 +1026,22 @@ Chromium is unable to recover your settings.
             <message name="IDS_CUSTOMIZE_CHROME" desc="In Title Case: The text label of the Customize Chrome menu item">
               C&amp;ustomize Your Chromium
             </message>
+            <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="In Title Case: The title of the Other Chrome profiles section">
+              Other Chromium Profiles
+            </message>
+            <message name="IDS_MANAGE_CHROME_PROFILES" desc="In Title Case: The text label of the manage chrome profile item">
+              &amp;Manage Chromium Profiles
+            </message>
           </then>
           <else>
             <message name="IDS_CUSTOMIZE_CHROME" desc="The text label of the Customize Chrome menu item">
               C&amp;ustomize your Chromium
+            </message>
+            <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="The title of the Other Chrome profiles section">
+              Other Chromium profiles
+            </message>
+            <message name="IDS_MANAGE_CHROME_PROFILES" desc="The text label of the manage chrome profile item">
+              &amp;Manage Chromium profiles
             </message>
           </else>
         </if>
@@ -1225,7 +1234,7 @@ Chromium is unable to recover your settings.
           To stay safer online with your parent’s choices, sign in to Chromium
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER" desc="This string is the body text of a reminder message, which is intended to help users understand that they have been signed in to Chromium. The user previously signed in to a Google service (like Gmail or Maps), and saw the Chrome Signin Bubble intercept; when asked whether the user wanted to sign in to Chromium as well, the user selected yes. After a period of time, this reminder message appears at the top right of Chromium (pointing at the Profile Menu) to remind the user that they made this choice a while ago. This body text string comes after the 'Welcome back, USER_NAME' string. We are focusing on the benefit that user enjoys, now that they're signed in to Chromium. The tone should be welcoming.">
-          While you're signed in, you can use your passwords and more from your Google Account in Chromium. You can change this at any time in settings.
+          While you're signed in, you can use your passwords and more from your Google Account in Chromium. You can change this anytime in settings.
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER_SCREENREADER" desc="This string is the accessibility text of a reminder message, which is intended to help users understand that they have been signed in to Chrome.">
           While you're signed in, you can use your passwords and more from your Google Account in Chromium. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Google services settings.
@@ -1353,7 +1362,7 @@ Chromium is unable to recover your settings.
       </if>
 
       <message name="IDS_APP_ALSO_DELETE_APPS_DATA" desc="Checkbox text to ask the user during uninstall; Whether they want to remove associated data for the app being uninstalled. Only used when uninstalling an app associated with a particular website.">
-        Remove this apps data from Chromium
+        Remove this app's data from Chromium
       </message>
 
       <!-- App shortcuts -->
@@ -1781,6 +1790,10 @@ Chromium is unable to recover your settings.
           desc="The message on the toast prompting the user to share their thoughts by sending feedback.">
           Share your thoughts
         </message>
+        <message name="IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE_ALT"
+          desc="The message on the toast asking the user if the results are useful and to send feedback.">
+          Are these results useful?
+        </message>
         <message name="IDS_LENS_OVERLAY_SEND_FEEDBACK_BUTTON_LABEL"
           desc="The label for the button that on click opens a feedback form for the user to send feedback about the feature.">
           Send feedback
@@ -2106,6 +2119,13 @@ Chromium is unable to recover your settings.
           desc="Default query for Lens searchbox to request help with the current page context.">
           help me with this
         </message>
+        <message name="IDS_LENS_CONTEXTUAL_SEARCH_ZERO_STATE_QUERY"
+          is_accessibility_with_no_ui="true"
+          desc="Default query for Lens searchbox to request help with the current page context in a low intent state.">
+          **Summarize:** In a single sentence under 30 words, describe the primary subject and purpose of the content in the screenshot.
+
+          **Suggest Questions:** Generate a bulleted list of 3-5 thought-provoking questions a user could ask to better understand the screenshot. These questions should include at least one that is specifically about a visual object, its design, or its placement.
+        </message>
 
         <!-- AI Mode Strings -->
         <message name="IDS_LENS_COMPOSEBOX_HINT_TEXT"
@@ -2411,7 +2431,7 @@ Chromium is unable to recover your settings.
         Speeds up sites with Chromium's V8 engine but makes Chromium slightly less resistant to attacks
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_ALLOWED_SUB_LABEL" desc="Sub-label for the enabled option of the JavaScript optimizer content setting.">
-        Chromium runs faster and features that use JavaScript should work as designed (recommended)
+        Chromium runs faster and features that use JavaScript should work as designed
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_SUB_LABEL" desc="Sub-label for the disabled option of the JavaScript optimizer content setting.">
         Reduces performance but makes Chromium more resistant to attacks
@@ -2781,11 +2801,26 @@ Chromium is unable to recover your settings.
         <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_BETA" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered and the Glic window is open. It indicates that this is the Beta version of the browser.">
           Close Gemini (Beta)
         </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered.">
+          Toggle Gemini in Chromium
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_CANARY" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered. It indicates that this is the Canary version of the browser.">
+          Toggle Gemini (Canary)
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_DEV" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered. It indicates that this is the Dev version of the browser.">
+          Toggle Gemini (Dev)
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_BETA" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered. It indicates that this is the Beta version of the browser.">
+          Toggle Gemini (Beta)
+        </message>
         <message name="IDS_GLIC_STATUS_ICON_MENU_SHOW" translateable="false" desc="This is the menu item for showing the glic UI.">
           Open Gemini in Chromium
         </message>
         <message name="IDS_GLIC_STATUS_ICON_MENU_CLOSE" translateable="false" desc="This is the menu item for closing the Glic window.">
           Close Gemini in Chromium
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_MENU_TOGGLE" translateable="false" desc="This is the menu item for toggling the glic UI.">
+          Toggle Gemini in Chromium
         </message>
         <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" translateable="false" desc="This is the text of the glic ineligible profile notice.">
           To use Gemini in Chromium, sign in with a different Google Account
@@ -2880,6 +2915,24 @@ Chromium is unable to recover your settings.
           Sign in faster to sites using saved passwords for Chromium on iOS
         </message>
       </if>
+
+      <!--Default Search Engine Reset Notification-->
+      <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_TITLE"
+         desc="Title of the notification shown when Chromium resets the default search engine (DSE) due to preference tampering.">
+        Your settings were changed by an unknown app
+      </message>
+      <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_BODY"
+         desc="Body text of the notification shown when Chromium resets the default search engine, explaining that a change from outside Chromium was detected.">
+        Your default search engine was changed from outside of Chromium. To protect you, Chromium reset it.
+      </message>
+      <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_GOT_IT_BUTTON"
+         desc="Label for the 'Got it' button in the default search engine reset notification, which dismisses the UI.">
+        Got it
+      </message>
+      <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_LEARN_MORE_BUTTON"
+         desc="Label for the 'Learn more' button in the default search engine reset notification, which opens a help center article.">
+        Learn more
+      </message>
     </messages>
   </release>
 </grit>

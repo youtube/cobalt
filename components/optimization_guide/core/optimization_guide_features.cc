@@ -75,9 +75,6 @@ BASE_FEATURE(kPreventLongRunningPredictionModels,
 BASE_FEATURE(kOverrideNumThreadsForModelExecution,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kOptGuideEnableXNNPACKDelegateWithTFLite,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Killswitch for fetching on search results from a remote Optimization Guide
 // Service.
 BASE_FEATURE(kOptimizationGuideFetchingForSRP,
@@ -86,12 +83,6 @@ BASE_FEATURE(kOptimizationGuideFetchingForSRP,
 
 // Kill switch for disabling model quality logging.
 BASE_FEATURE(kModelQualityLogging, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables fetching personalized metadata from the Optimization Guide Service
-// (on-demand fetching).
-BASE_FEATURE(kOptimizationGuidePersonalizedFetching,
-             "OptimizationPersonalizedHintsFetching",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // An emergency kill switch feature to stop serving certain model versions per
 // optimization target. This is useful in exceptional situations when a bad
@@ -139,9 +130,6 @@ BASE_FEATURE(kOnDeviceModelFetchPerformanceClassEveryStartup,
 // would be unavailable otherwise. This is meant for development and test
 // purposes only.
 BASE_FEATURE(kAiSettingsPageForceAvailable, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable AI settings page integration with Privacy Guide.
-BASE_FEATURE(kPrivacyGuideAiSettings, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOnDeviceModelPerformanceParams, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -262,25 +250,7 @@ bool ShouldPersistHintsToDisk() {
 
 RequestContextSet GetAllowedContextsForPersonalizedMetadata() {
   RequestContextSet allowed_contexts;
-  if (!base::FeatureList::IsEnabled(kOptimizationGuidePersonalizedFetching)) {
-    return allowed_contexts;
-  }
-  base::FieldTrialParams params;
-  if (base::GetFieldTrialParamsByFeature(kOptimizationGuidePersonalizedFetching,
-                                         &params) &&
-      params.contains("allowed_contexts")) {
-    for (const auto& context_str : base::SplitString(
-             base::GetFieldTrialParamValueByFeature(
-                 kOptimizationGuidePersonalizedFetching, "allowed_contexts"),
-             ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
-      proto::RequestContext context;
-      if (proto::RequestContext_Parse(context_str, &context)) {
-        allowed_contexts.Put(context);
-      }
-    }
-  } else {
-    allowed_contexts.Put(proto::RequestContext::CONTEXT_PAGE_INSIGHTS_HUB);
-  }
+  allowed_contexts.Put(proto::RequestContext::CONTEXT_PAGE_INSIGHTS_HUB);
   return allowed_contexts;
 }
 
@@ -393,10 +363,6 @@ std::optional<int> OverrideNumThreadsForOptTarget(
 
   // Cap to the number of CPUs on the device.
   return std::min(num_threads, base::SysInfo::NumberOfProcessors());
-}
-
-bool TFLiteXNNPACKDelegateEnabled() {
-  return base::FeatureList::IsEnabled(kOptGuideEnableXNNPACKDelegateWithTFLite);
 }
 
 std::map<proto::OptimizationTarget, std::set<int64_t>>
@@ -660,10 +626,6 @@ std::vector<uint32_t> GetOnDeviceModelAllowedAdaptationRanks() {
 
 bool ShouldEnableOptimizationGuideIconView() {
   return base::FeatureList::IsEnabled(kOptimizationGuideIconView);
-}
-
-bool IsPrivacyGuideAiSettingsEnabled() {
-  return base::FeatureList::IsEnabled(kPrivacyGuideAiSettings);
 }
 
 }  // namespace features

@@ -25,6 +25,8 @@
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/permissions/notifications_engagement_service.h"
+#include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
+#include "components/safety_check/safety_check.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "url/gurl.h"
@@ -59,11 +61,6 @@ constexpr char kRevocationResultHistogram[] =
 
 const base::TimeDelta kIgnoreExpirationOutsideSafetyHub = base::Days(90);
 const base::TimeDelta kIgnoreExpirationInsideSafetyHub = base::Days(365);
-
-base::TimeDelta GetRevocationsLifetime() {
-  return content_settings::features::
-      kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold.Get();
-}
 
 std::optional<RevocationState> GetRevocationState(
     const base::Value::Dict& dict) {
@@ -232,11 +229,13 @@ void DisruptiveNotificationPermissionsManager::ContentSettingHelper::
           kVersionStr,
           features::kSafetyHubDisruptiveNotificationRevocationExperimentVersion
               .Get());
-      lifetime = GetRevocationsLifetime();
+      lifetime =
+          safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold();
       break;
     case RevocationState::kRevoked:
       revocation_state_string = kRevokeStr;
-      lifetime = GetRevocationsLifetime();
+      lifetime =
+          safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold();
       break;
     case RevocationState::kIgnoreInsideSH:
       revocation_state_string = kIgnoreInsideSafetyHubStr;
@@ -248,7 +247,8 @@ void DisruptiveNotificationPermissionsManager::ContentSettingHelper::
       break;
     case RevocationState::kAcknowledged:
       revocation_state_string = kAcknowledgedStr;
-      lifetime = GetRevocationsLifetime();
+      lifetime =
+          safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold();
       break;
   }
   dict.Set(kRevokedStatusDictKeyStr, revocation_state_string);
@@ -491,7 +491,8 @@ void DisruptiveNotificationPermissionsManager::ReportDailyRunMetrics() {
   base::Time now = clock_->Now();
   for (const auto& [url, revocation_entry] :
        ContentSettingHelper(*hcsm_).GetAllEntries()) {
-    if (now - revocation_entry.timestamp > GetRevocationsLifetime()) {
+    if (now - revocation_entry.timestamp >
+        safety_check::GetUnusedSitePermissionsRevocationCleanUpThreshold()) {
       // Since ignored entries don't expire while revoked do, report entries
       // only for a limited amount of time in order to ensure that the
       // distribution makes sense.
@@ -571,6 +572,10 @@ void DisruptiveNotificationPermissionsManager::RevokeNotifications(
       "Settings.SafetyHub.DisruptiveNotificationRevocations."
       "HasReportedMetricsBeforeRevocation",
       revocation_entry.has_reported_proposal);
+  safe_browsing::SafeBrowsingMetricsCollector::
+      LogSafeBrowsingNotificationRevocationSourceHistogram(
+          safe_browsing::NotificationRevocationSource::
+              kDisruptiveAutoRevocation);
 }
 
 void DisruptiveNotificationPermissionsManager::DisplayNotification() {
@@ -925,6 +930,22 @@ bool DisruptiveNotificationPermissionsManager::
       ContentSettingHelper(*hcsm).GetRevocationEntry(url);
   return revocation_entry &&
          revocation_entry->revocation_state == RevocationState::kRevoked;
+}
+
+// static
+bool DisruptiveNotificationPermissionsManager::
+    IsUrlIgnoredForRevokedDisruptiveNotification(HostContentSettingsMap* hcsm,
+                                                 const GURL& url) {
+  std::optional<RevocationEntry> revocation_entry =
+      ContentSettingHelper(*hcsm).GetRevocationEntry(url);
+
+  if (!revocation_entry) {
+    return false;
+  }
+  return revocation_entry->revocation_state ==
+             RevocationState::kIgnoreInsideSH ||
+         revocation_entry->revocation_state ==
+             RevocationState::kIgnoreOutsideSH;
 }
 
 void DisruptiveNotificationPermissionsManager::UpdateNotificationPermission(

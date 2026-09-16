@@ -6,12 +6,14 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/save_to_drive/account_chooser_controller.h"
 #include "chrome/browser/ui/views/save_to_drive/account_chooser_test_util.h"
 #include "chrome/browser/ui/views/save_to_drive/account_chooser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -27,6 +29,8 @@ namespace {
 
 using ::save_to_drive::testing::GetTestAccount;
 using ::save_to_drive::testing::GetTestAccounts;
+
+constexpr char kAvatarUrl[] = "https://avatar.com/avatar.png";
 
 AccountChosenCallback GetOnAccountChosenCallback(
     const AccountInfo& expected_account,
@@ -126,9 +130,9 @@ class AccountChooserControllerInteractiveUiTest
     persisted_account.full_name = account.full_name;
     persisted_account.account_image = account.account_image;
     identity_test_env->UpdateAccountInfoForAccount(persisted_account);
-    signin::SimulateAccountImageFetch(
-        identity_test_env->identity_manager(), persisted_account.account_id,
-        "https://avatar.com/avatar.png", persisted_account.account_image);
+    signin::SimulateAccountImageFetch(identity_test_env->identity_manager(),
+                                      persisted_account.account_id, kAvatarUrl,
+                                      persisted_account.account_image);
     return persisted_account;
   }
 
@@ -147,14 +151,29 @@ class AccountChooserControllerInteractiveUiTest
             "Expect two browsers."),
         Check(
             []() {
-              return BrowserList::GetInstance()->get(1)->is_type_popup();
+              return ui_test_utils::FindMatchingBrowsers(
+                         [](BrowserWindowInterface* browser) {
+                           return browser->GetType() ==
+                                  BrowserWindowInterface::Type::TYPE_POPUP;
+                         })
+                         .size() == 1;
             },
             "Expect second browser is popup."));
   }
 
   // Must be called after VerifyPopupOpened().
   auto ClosePopup() {
-    return Do([]() { BrowserList::GetInstance()->get(1)->window()->Close(); });
+    return Do([]() {
+      BrowserWindowInterface* const popup_browser =
+          ui_test_utils::FindMatchingBrowsers(
+              [](BrowserWindowInterface* browser) {
+                return browser->GetType() ==
+                       BrowserWindowInterface::Type::TYPE_POPUP;
+              })
+              .front();
+      CHECK(popup_browser);
+      popup_browser->GetWindow()->Close();
+    });
   }
 
   auto VerifyPopupClosed() {
@@ -168,8 +187,6 @@ class AccountChooserControllerInteractiveUiTest
     return Do([this, &account]() {
       AccountInfo persisted_account =
           MakeAccountAvailableInIdentityTestEnv(account);
-      account_chooser_controller_->OnExtendedAccountInfoUpdated(
-          persisted_account);
     });
   }
 
@@ -180,9 +197,53 @@ class AccountChooserControllerInteractiveUiTest
       signin::IdentityTestEnvironment* identity_test_env =
           identity_test_environment_adaptor_->identity_test_env();
       identity_test_env->RemoveRefreshTokenForAccount(account->account_id);
-      account_chooser_controller_->OnRefreshTokenRemovedForAccount(
-          account->account_id);
     });
+  }
+
+  auto MakePrimaryAccountAvailable(const AccountInfo& account,
+                                   AccountInfo* persisted_account) {
+    return Do([this, &account, persisted_account]() {
+      signin::IdentityTestEnvironment* identity_test_env =
+          identity_test_environment_adaptor_->identity_test_env();
+      *persisted_account = identity_test_env->MakePrimaryAccountAvailable(
+          account.email, signin::ConsentLevel::kSignin);
+      persisted_account->full_name = account.full_name;
+      persisted_account->account_image = account.account_image;
+      identity_test_env->UpdateAccountInfoForAccount(*persisted_account);
+      signin::SimulateAccountImageFetch(
+          identity_test_env->identity_manager(), persisted_account->account_id,
+          kAvatarUrl, persisted_account->account_image);
+    });
+  }
+
+  auto MakePrimaryAccountAvailableWithInvalidRefreshToken(
+      const AccountInfo& account,
+      AccountInfo* persisted_account) {
+    return Steps(MakePrimaryAccountAvailable(account, persisted_account),
+                 Do([this]() {
+                   signin::IdentityTestEnvironment* identity_test_env =
+                       identity_test_environment_adaptor_->identity_test_env();
+                   identity_test_env->SetInvalidRefreshTokenForPrimaryAccount();
+                 }));
+  }
+
+  auto SetRefreshTokenForPrimaryAccount() {
+    return Do([this]() {
+      signin::IdentityTestEnvironment* identity_test_env =
+          identity_test_environment_adaptor_->identity_test_env();
+      identity_test_env->SetRefreshTokenForPrimaryAccount();
+    });
+  }
+
+  auto MakePrimaryAccountAvailableWithValidRefreshToken(
+      const AccountInfo& account,
+      AccountInfo* persisted_account) {
+    return Steps(MakePrimaryAccountAvailable(account, persisted_account),
+                 SetRefreshTokenForPrimaryAccount());
+  }
+
+  auto DestroyAccountChooserController() {
+    return Do([this]() { account_chooser_controller_.reset(); });
   }
 
  protected:
@@ -350,6 +411,52 @@ IN_PROC_BROWSER_TEST_F(AccountChooserControllerInteractiveUiTest,
           // Arbitrarily remove the one account.
           &persisted_account),
       VerifyPopupOpened());
+}
+
+// Steps:
+// 1. Call GetAccount with a signed out primary account.
+// 2. Verify the popup window is shown.
+// 3. Sign into the primary account.
+// 4. Verify the account chooser is shown.
+IN_PROC_BROWSER_TEST_F(AccountChooserControllerInteractiveUiTest,
+                       SignedOutPrimaryAccount) {
+  AccountInfo account = GetTestAccount("pothos", "test.com", /*gaia_id=*/1);
+  AccountInfo persisted_primary_account;
+  RunTestSequence(CreateAccountChooserController(),
+                  MakePrimaryAccountAvailableWithInvalidRefreshToken(
+                      account, &persisted_primary_account),
+                  GetAccount(base::DoNothing()), VerifyPopupOpened(),
+                  SetRefreshTokenForPrimaryAccount(),
+                  WaitForShow(AccountChooserView::kTopViewId));
+}
+
+// Steps:
+// 1. Call GetAccount with no accounts.
+// 2. Sign into the primary account.
+// 3. Verify the account chooser is shown.
+IN_PROC_BROWSER_TEST_F(AccountChooserControllerInteractiveUiTest,
+                       SignIntoPrimaryAccount) {
+  AccountInfo account = GetTestAccount("pothos", "test.com", /*gaia_id=*/1);
+  AccountInfo persisted_primary_account;
+  RunTestSequence(CreateAccountChooserController(),
+                  GetAccount(base::DoNothing()), VerifyPopupOpened(),
+                  MakePrimaryAccountAvailableWithValidRefreshToken(
+                      account, &persisted_primary_account),
+                  WaitForShow(AccountChooserView::kTopViewId));
+}
+
+// Steps:
+// 1. Call GetAccount with one account.
+// 2. Destroy the account chooser controller.
+IN_PROC_BROWSER_TEST_F(AccountChooserControllerInteractiveUiTest,
+                       DestroyAccountChooserController) {
+  AccountInfo account = GetTestAccount("pothos", "test.com", /*gaia_id=*/1);
+  RunTestSequence(CreateAccountChooserController(),
+                  MakeAccountAvailable(account),
+                  GetAccount(/*on_account_chosen_callback=*/base::DoNothing()),
+                  WaitForShow(AccountChooserView::kTopViewId),
+                  DestroyAccountChooserController(),
+                  WaitForHide(AccountChooserView::kTopViewId));
 }
 
 }  // namespace

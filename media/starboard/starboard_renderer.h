@@ -132,8 +132,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
-  using RequestOverlayInfoCallBack =
-      base::RepeatingCallback<void(bool restart_for_transitions)>;
+  using RequestOverlayInfoCallBack = base::RepeatingCallback<void()>;
 #endif  // BUILDFLAG(IS_ANDROID)
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,

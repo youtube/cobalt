@@ -3701,17 +3701,23 @@ void AXObject::UpdateCachedAttributeValuesIfNeeded(
   bool is_aria_hidden = ComputeIsAriaHidden();
   bool is_in_menu_list_subtree = ComputeIsInMenuListSubtree();
   bool is_descendant_of_disabled_node = ComputeIsDescendantOfDisabledNode();
+  bool is_ignored_as_inside_inactive_scroll_marker_tab =
+      ComputeIsIgnoredAsInsideInactiveScrollMarkerTab();
   bool is_changing_inherited_values = false;
   if (cached_is_inert_ != is_inert ||
       cached_is_aria_hidden_ != is_aria_hidden ||
       cached_is_in_menu_list_subtree_ != is_in_menu_list_subtree ||
       cached_is_descendant_of_disabled_node_ !=
-          is_descendant_of_disabled_node) {
+          is_descendant_of_disabled_node ||
+      cached_is_ignored_as_inside_inactive_scroll_marker_tab_ !=
+          is_ignored_as_inside_inactive_scroll_marker_tab) {
     is_changing_inherited_values = true;
     cached_is_inert_ = is_inert;
     cached_is_aria_hidden_ = is_aria_hidden;
     cached_is_in_menu_list_subtree_ = is_in_menu_list_subtree;
     cached_is_descendant_of_disabled_node_ = is_descendant_of_disabled_node;
+    cached_is_ignored_as_inside_inactive_scroll_marker_tab_ =
+        is_ignored_as_inside_inactive_scroll_marker_tab;
   }
 
   // Must be after inert computation, because focusability depends on that, but
@@ -3986,33 +3992,13 @@ bool AXObject::ComputeIsInertViaStyle(const ComputedStyle* style,
                : false;
   }
   // TODO(szager): This method is n^2 -- it recurses into itself via
-  // ComputeIsInert(), and InertRoot() does as well. This is only the case if
-  // CSSInert runtime flag is disabled.
+  // ComputeIsInert().
   if (style) {
     if (style->IsInert()) {
       if (ignored_reasons) {
-        if (!RuntimeEnabledFeatures::CSSInertEnabled()) {
-          // With CSSInert disabled, the inert attribute causes the style to be
-          // IsHTMLInert. With CSSInert enabled, the inert attribute instead has
-          // a UA style rule that sets the interactivity property, which
-          // cascades along interactivity declarations from other sources, so it
-          // does not make sense to look for InertRoot() separately. The
-          // interactivity value is handled generally where kAXInertStyle is
-          // pushed below.
-          const AXObject* ax_inert_root = InertRoot();
-          if (ax_inert_root == this) {
-            ignored_reasons->push_back(IgnoredReason(kAXInertElement));
-            return true;
-          }
-          if (ax_inert_root) {
-            ignored_reasons->push_back(
-                IgnoredReason(kAXInertSubtree, ax_inert_root));
-            return true;
-          }
-        }
         if (style->IsHTMLInert()) {
           // HTML inertness is either forced by a modal dialog or a fullscreen
-          // element (see AdjustStyleForInert).
+          // element (see ApplyInertness in style_resolver.cc).
           Document& document = GetNode()->GetDocument();
           if (HTMLDialogElement* dialog = document.ActiveModalDialog()) {
             if (AXObject* dialog_object = AXObjectCache().Get(dialog)) {
@@ -4029,11 +4015,9 @@ bool AXObject::ComputeIsInertViaStyle(const ComputedStyle* style,
             }
           }
         }
-        if (RuntimeEnabledFeatures::CSSInertEnabled()) {
-          // Inertness set by interactivity:inert
-          ignored_reasons->push_back(IgnoredReason(kAXInertStyle));
-          return true;
-        }
+        // Inertness set by interactivity:inert
+        ignored_reasons->push_back(IgnoredReason(kAXInertStyle));
+        return true;
       }
       return true;
     } else if (IsBlockedByAriaModalDialog(ignored_reasons)) {
@@ -4054,26 +4038,6 @@ bool AXObject::ComputeIsInertViaStyle(const ComputedStyle* style,
 
   // Either GetNode() is null, or it's locked by content-visibility, or we
   // failed to obtain a ComputedStyle. Make a guess iterating the ancestors.
-  if (!RuntimeEnabledFeatures::CSSInertEnabled()) {
-    // See the comment for the InertRoot() when style is non-null. Looking at
-    // elements with the inert attribute inside a non-rendered subtree does not
-    // make sense on its own as the inertness of that element could be affected
-    // by interactivity declarations that would have applied to the style if it
-    // was computed. Instead we traverse to ancestor at the end of this function
-    // to find the closest ancestor with a ComputedStyle where we can check the
-    // computed interactivity.
-    if (const AXObject* ax_inert_root = InertRoot()) {
-      if (ignored_reasons) {
-        if (ax_inert_root == this) {
-          ignored_reasons->push_back(IgnoredReason(kAXInertElement));
-        } else {
-          ignored_reasons->push_back(
-              IgnoredReason(kAXInertSubtree, ax_inert_root));
-        }
-      }
-      return true;
-    }
-  }
   if (IsBlockedByAriaModalDialog(ignored_reasons)) {
     if (ignored_reasons)
       ignored_reasons->push_back(IgnoredReason(kAXAriaModalDialog));
@@ -4227,29 +4191,6 @@ const AXObject* AXObject::AriaHiddenRoot() const {
   return IsAriaHidden() ? FindAncestorWithAriaHidden(this) : nullptr;
 }
 
-const AXObject* AXObject::InertRoot() const {
-  const AXObject* object = this;
-  while (object && !object->IsAXNodeObject())
-    object = object->ParentObject();
-
-  DCHECK(object);
-
-  Node* node = object->GetNode();
-  if (!node)
-    return nullptr;
-  auto* element = DynamicTo<Element>(node);
-  if (!element)
-    element = FlatTreeTraversal::ParentElement(*node);
-
-  while (element) {
-    if (element->IsInertRoot())
-      return AXObjectCache().Get(element);
-    element = FlatTreeTraversal::ParentElement(*element);
-  }
-
-  return nullptr;
-}
-
 bool AXObject::IsDescendantOfDisabledNode() {
   CheckCanAccessCachedValues();
 
@@ -4370,6 +4311,11 @@ void AXObject::AnnotateXrHitTestOrder(const Document& document,
 
 bool AXObject::ComputeIsIgnoredButIncludedInTree() {
   CHECK(!IsDetached());
+
+  // Nothing inside an inactive scroll marker's tab is included in the tree.
+  if (InsideOriginatingElementForInactiveScrollMarkerInTabsMode()) {
+    return false;
+  }
 
   // If an inline text box is ignored, it is never included in the tree.
   if (IsAXInlineTextBox()) {
@@ -5865,7 +5811,6 @@ const AXObject* AXObject::AncestorMenuList() const {
     if (ax_menu_list->IsMenuList()) {
       DCHECK(IsA<HTMLSelectElement>(ax_menu_list->GetNode()));
       DCHECK(To<HTMLSelectElement>(ax_menu_list->GetNode())->UsesMenuList());
-      DCHECK(!To<HTMLSelectElement>(ax_menu_list->GetNode())->IsMultiple());
       return ax_menu_list;
     }
   }
@@ -6074,7 +6019,7 @@ ax::mojom::blink::Role AXObject::DetermineAriaRole() const {
       role = ax::mojom::blink::Role::kTextFieldWithComboBox;
     } else if (auto* select_element =
                    DynamicTo<HTMLSelectElement>(*GetNode())) {
-      if (select_element->UsesMenuList() && !select_element->IsMultiple()) {
+      if (select_element->UsesMenuList()) {
         // This is a select element. Don't set the aria role for it.
         role = ax::mojom::blink::Role::kUnknown;
       }
@@ -7149,17 +7094,19 @@ gfx::Point AXObject::MaximumScrollOffset() const {
   return gfx::PointAtOffsetFromOrigin(area->MaximumScrollOffsetInt());
 }
 
-void AXObject::SetScrollOffset(const gfx::Point& offset) const {
+void AXObject::SetScrollOffset(const gfx::Point& offset,
+                               cc::ScrollSourceType source_type) const {
   ScrollableArea* area = GetScrollableAreaIfScrollable();
   if (!area)
     return;
 
   // TODO(bokan): This should potentially be a UserScroll.
   area->SetScrollOffset(ScrollOffset(offset.OffsetFromOrigin()),
-                        mojom::blink::ScrollType::kProgrammatic);
+                        mojom::blink::ScrollType::kProgrammatic, source_type);
 }
 
-void AXObject::Scroll(ax::mojom::blink::Action scroll_action) const {
+void AXObject::Scroll(ax::mojom::blink::Action scroll_action,
+                      cc::ScrollSourceType source_type) const {
   AXObject* offset_container = nullptr;
   gfx::RectF bounds;
   gfx::Transform container_transform;
@@ -7214,7 +7161,7 @@ void AXObject::Scroll(ax::mojom::blink::Action scroll_action) const {
       NOTREACHED();
   }
 
-  SetScrollOffset(gfx::Point(x, y));
+  SetScrollOffset(gfx::Point(x, y), source_type);
 
   if (!RuntimeEnabledFeatures::
           SynthesizedKeyboardEventsForAccessibilityActionsEnabled())
@@ -7590,7 +7537,10 @@ bool AXObject::PerformAction(const ui::AXActionData& action_data) {
     case ax::mojom::blink::Action::kSetAccessibilityFocus:
       return InternalSetAccessibilityFocusAction();
     case ax::mojom::blink::Action::kSetScrollOffset:
-      SetScrollOffset(action_data.target_point);
+      // TODO(crbug.com/414556050): Figure out if this can be called for
+      // relative scrolls.
+      SetScrollOffset(action_data.target_point,
+                      cc::ScrollSourceType::kAbsoluteScroll);
       return true;
     case ax::mojom::blink::Action::kSetSequentialFocusNavigationStartingPoint:
       return RequestSetSequentialFocusNavigationStartingPointAction();
@@ -7606,7 +7556,7 @@ bool AXObject::PerformAction(const ui::AXActionData& action_data) {
     case ax::mojom::blink::Action::kScrollLeft:
     case ax::mojom::blink::Action::kScrollRight:
     case ax::mojom::blink::Action::kScrollUp:
-      Scroll(action_data.action);
+      Scroll(action_data.action, cc::ScrollSourceType::kRelativeScroll);
       return true;
     case ax::mojom::blink::Action::kStitchChildTree:
       if (action_data.child_tree_id == ui::AXTreeIDUnknown()) {
@@ -8822,10 +8772,6 @@ bool operator==(const AXObject& first, const AXObject& second) {
     return true;
   }
   return false;
-}
-
-bool operator!=(const AXObject& first, const AXObject& second) {
-  return !(first == second);
 }
 
 bool operator<(const AXObject& first, const AXObject& second) {

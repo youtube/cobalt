@@ -13,7 +13,10 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "base/time/time.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 
 class GoogleServiceAuthError;
 class GURL;
@@ -38,7 +41,6 @@ class SharedURLLoaderFactory;
 
 namespace signin {
 class AccessTokenFetcher;
-class IdentityManager;
 struct AccessTokenInfo;
 }  // namespace signin
 
@@ -58,7 +60,7 @@ enum class DriveUploaderType {
 // Drive, and notifying the caller about the upload progress. Destroying the
 // DriveUploader will cancel the upload if it is in progress. This class should
 // only be used on the UI thread.
-class DriveUploader {
+class DriveUploader : public signin::IdentityManager::Observer {
  public:
   // Callback to be invoked periodically when there is progress in the Save to
   // Drive upload process.
@@ -73,12 +75,12 @@ class DriveUploader {
                 ContentReader* content_reader);
   DriveUploader(const DriveUploader&) = delete;
   DriveUploader& operator=(const DriveUploader&) = delete;
-  virtual ~DriveUploader();
+  ~DriveUploader() override;
 
   // Starts the upload process. This function should be called only once.
   void Start();
 
-  DriveUploaderType get_drive_uploader_type_for_testing() const;
+  DriveUploaderType get_drive_uploader_type() const;
 
   void set_oauth_headers_for_testing(std::vector<std::string> oauth_headers);
 
@@ -117,6 +119,12 @@ class DriveUploader {
   void OnFetchParentFolder(
       std::unique_ptr<endpoint_fetcher::EndpointResponse> response);
 
+  // Notifies through `progress_callback_` the latest upload progress. This
+  // method will throttle the progress updates to avoid spamming the extension.
+  // `uploaded_bytes` is the number of bytes that have been uploaded so far and
+  // `total_bytes` is the total number of bytes that need to be uploaded.
+  void NotifyUploadInProgress(size_t uploaded_bytes, size_t total_bytes);
+
   // Notifies through `progress_callback_` that the upload succeeded.
   // `response` is the response from the Drive API that contains the uploaded
   // file metadata.
@@ -133,6 +141,10 @@ class DriveUploader {
   void NotifyError(
       extensions::api::pdf_viewer_private::SaveToDriveErrorType error_type);
 
+  // signin::IdentityManager::Observer:
+  void OnRefreshTokenRemovedForAccount(
+      const CoreAccountId& account_id) override;
+
   const std::vector<std::string>& oauth_headers() const;
 
   const DriveUploaderType drive_uploader_type_;
@@ -148,6 +160,12 @@ class DriveUploader {
 
  private:
   std::vector<std::string> oauth_headers_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      scoped_identity_manager_observation_{this};
+  // The last time an upload progress update was sent to the extension. This is
+  // used to throttle the upload in progress updates.
+  base::TimeTicks last_upload_in_progress_update_time_;
 
   base::WeakPtrFactory<DriveUploader> weak_ptr_factory_{this};
 };

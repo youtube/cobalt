@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "All/PoissonAllocationSamplerLoadFactorTest.BalanceSampledAddressesSet/*",
     "All/SequenceManagerTest.*",
     "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/IO_pump",
     "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/UI_pump",
@@ -13,8 +14,10 @@
     "AlternateTestParams.*",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/0",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
+    "BaseThreadLocalStorageDeathTest.VerifyDeathIfAllocationFails",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
+    "FileErrorOrDeathTest.ConstValue",
     "FilePathWatcherTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/0",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
@@ -40,6 +43,7 @@
     "ThreadGroupProfilerTest.*",
     "TraceEventTestFixture.DataCapturedManyThreads",
     "TransliteratorTest.HiraganaKatakanaCorrect",
-    "TransliteratorTest.KatakanaHiraganaCorrect"
+    "TransliteratorTest.KatakanaHiraganaCorrect",
+    "WatchHangsInScopeBlockingTest.ScopeBlocksDuringCapture"
   ]
 }

@@ -62,7 +62,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/change_profile/change_profile_signout_continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/features.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin/promo/signin_fullscreen_promo_scene_agent.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/promo/fullscreen_signin_promo_scene_agent.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_in_progress.h"
@@ -117,7 +117,6 @@
 #import "ios/chrome/browser/policy/model/policy_watcher_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/policy/ui_bundled/idle/idle_timeout_policy_scene_agent.h"
 #import "ios/chrome/browser/policy/ui_bundled/signin_policy_scene_agent.h"
-#import "ios/chrome/browser/policy/ui_bundled/user_policy_scene_agent.h"
 #import "ios/chrome/browser/policy/ui_bundled/user_policy_util.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager_factory.h"
@@ -125,13 +124,13 @@
 #import "ios/chrome/browser/promos_manager/ui_bundled/utils.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_main_coordinator.h"
+#import "ios/chrome/browser/safari_data_import/model/features.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/screenshot/model/screenshot_delegate.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service_factory.h"
 #import "ios/chrome/browser/sessions/model/session_saving_scene_agent.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/passwords_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/passwords_mediator.h"
@@ -141,7 +140,7 @@
 #import "ios/chrome/browser/shared/coordinator/default_browser_promo/non_modal_default_browser_promo_scheduler_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_ui_provider.h"
-#import "ios/chrome/browser/shared/coordinator/scene/widget_context.h"
+#import "ios/chrome/browser/shared/coordinator/scene/url_context.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
@@ -235,14 +234,6 @@
 #endif
 
 namespace {
-
-// TODO(crbug.com/429351158): Remove
-// kMakeKeyAndVisibleBeforeMainCoordinatorStart feature. Killswitch, can be
-// removed around February 2024. If enabled, createInitialUI will call
-// makeKeyAndVisible before mainCoordinator start. When disabled, this fix
-// resolves a flicker when starting the app in light mode
-BASE_FEATURE(kMakeKeyAndVisibleBeforeMainCoordinatorStart,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Feature to control whether Search Intents (Widgets, Application
 // Shortcuts menu) forcibly open a new tab, rather than reusing an
@@ -707,7 +698,7 @@ void OnListFamilyMembersResponse(
   BOOL widgetsForMIMEnabled = BUILDFLAG(ENABLE_WIDGETS_FOR_MIM);
   if (widgetsForMIMEnabled || IsShareExtensionForMultiprofileEnabled()) {
     // Find the first context that requires an account change.
-    WidgetContext* context = [self findContextRequiringAccountChange:contexts];
+    URLContext* context = [self findContextRequiringAccountChange:contexts];
     // Perform profile switching if needed.
     if ([self changeProfileForContext:context contexts:contexts openURL:NO]) {
       return YES;
@@ -981,7 +972,7 @@ void OnListFamilyMembersResponse(
 
   if (widgetsForMIMEnabled || IsShareExtensionForMultiprofileEnabled()) {
     // Find the first context that requires an account change.
-    WidgetContext* context = [self findContextRequiringAccountChange:contexts];
+    URLContext* context = [self findContextRequiringAccountChange:contexts];
     // Perform profile switching if needed.
     if ([self changeProfileForContext:context contexts:contexts openURL:YES]) {
       // Don't open the URLs if the profile was changed.
@@ -993,7 +984,7 @@ void OnListFamilyMembersResponse(
 }
 
 // Returns YES if a profile change was triggered.
-- (BOOL)changeProfileForContext:(WidgetContext*)context
+- (BOOL)changeProfileForContext:(URLContext*)context
                        contexts:(NSSet<UIOpenURLContext*>*)contexts
                         openURL:(BOOL)openURL {
   if (!context) {
@@ -1031,11 +1022,17 @@ void OnListFamilyMembersResponse(
     // always open the URL in the continuation in this scenario.
     openURL = YES;
   }
+  ChangeProfileReason reason;
+  if ([self shareExtensionURLEligibleForAccountChange:context.context.URL]) {
+    reason = ChangeProfileReason::kSwitchAccountsFromShareExtension;
+  } else {
+    reason = ChangeProfileReason::kSwitchAccountsFromWidget;
+  }
 
   [changeProfileHandler
       changeProfile:*profileName
            forScene:self.sceneState
-             reason:ChangeProfileReason::kSwitchAccountsFromWidget
+             reason:reason
        continuation:CreateChangeProfileAuthenticationContinuation(
                         context, contexts, openURL)];
   return YES;
@@ -1075,7 +1072,7 @@ void OnListFamilyMembersResponse(
                          @"/%s", app_group::kChromeAppGroupXCallbackCommand]];
 }
 
-- (WidgetContext*)findContextRequiringAccountChange:
+- (URLContext*)findContextRequiringAccountChange:
     (NSSet<UIOpenURLContext*>*)URLContexts {
   signin::IdentityManager* identityManager =
       IdentityManagerFactory::GetForProfile(self.profile->GetOriginalProfile());
@@ -1104,16 +1101,15 @@ void OnListFamilyMembersResponse(
     }
 
     if ([newGaiaID isEqualToString:app_group::kNoAccount] && gaiaInApp.length) {
-      return
-          [[WidgetContext alloc] initWithContext:context
+      return [[URLContext alloc] initWithContext:context
                                           gaiaID:newGaiaID
                                             type:AccountSwitchType::kSignOut];
     }
     if (![newGaiaID isEqualToString:gaiaInApp] &&
         ![newGaiaID isEqualToString:app_group::kNoAccount]) {
-      return [[WidgetContext alloc] initWithContext:context
-                                             gaiaID:newGaiaID
-                                               type:AccountSwitchType::kSignIn];
+      return [[URLContext alloc] initWithContext:context
+                                          gaiaID:newGaiaID
+                                            type:AccountSwitchType::kSignIn];
     }
   }
   return nil;
@@ -1254,7 +1250,7 @@ void OnListFamilyMembersResponse(
   if (level == SceneActivationLevelForegroundActive &&
       profileInitStage == ProfileInitStage::kFinal) {
     if (!IsFullscreenSigninPromoManagerMigrationEnabled()) {
-      [self tryPresentSigninUpgradePromo];
+      [self tryPresentFullscreenSigninPromo];
     }
 
     if ([self handleExternalIntents]) {
@@ -1346,27 +1342,6 @@ void OnListFamilyMembersResponse(
                     applicationCommandsHandler:applicationCommandsHandler
                    policyChangeCommandsHandler:policyChangeCommandsHandler]];
 
-  PrefService* prefService = profile->GetPrefs();
-  AuthenticationService* authService =
-      AuthenticationServiceFactory::GetForProfile(profile);
-
-  policy::UserCloudPolicyManager* userPolicyManager =
-      profile->GetUserCloudPolicyManager();
-  if (IsUserPolicyNotificationNeeded(authService, prefService,
-                                     userPolicyManager)) {
-    policy::UserPolicySigninService* userPolicyService =
-        policy::UserPolicySigninServiceFactory::GetForProfile(profile);
-    [sceneState
-        addAgent:[[UserPolicySceneAgent alloc]
-                        initWithSceneUIProvider:self
-                                    authService:authService
-                     applicationCommandsHandler:applicationCommandsHandler
-                                    prefService:prefService
-                                    mainBrowser:mainBrowser
-                                  policyService:userPolicyService
-                              userPolicyManager:userPolicyManager]];
-  }
-
   enterprise_idle::IdleService* idleService =
       enterprise_idle::IdleServiceFactory::GetForProfile(profile);
   id<SnackbarCommands> snackbarCommandsHandler =
@@ -1421,9 +1396,12 @@ void OnListFamilyMembersResponse(
                            initWithPromosManager:promosManager]];
 
   if (IsFullscreenSigninPromoManagerMigrationEnabled()) {
+    AuthenticationService* authService =
+        AuthenticationServiceFactory::GetForProfile(profile);
+    PrefService* prefService = profile->GetPrefs();
     [sceneState
         addAgent:
-            [[SigninFullscreenPromoSceneAgent alloc]
+            [[FullscreenSigninPromoSceneAgent alloc]
                 initWithPromosManager:promosManager
                           authService:authService
                       identityManager:IdentityManagerFactory::GetForProfile(
@@ -1498,11 +1476,6 @@ void OnListFamilyMembersResponse(
       _webStateListForwardingObserver.get());
   _mainWebStateObserver->Observe(self.mainInterface.browser->GetWebStateList());
 
-  if (base::FeatureList::IsEnabled(
-          kMakeKeyAndVisibleBeforeMainCoordinatorStart)) {
-    [self.sceneState.window makeKeyAndVisible];
-  }
-
   _mainCoordinator = [[TabGridCoordinator alloc]
       initWithApplicationCommandEndpoint:self
                           regularBrowser:self.mainInterface.browser
@@ -1512,14 +1485,11 @@ void OnListFamilyMembersResponse(
 
   [_mainCoordinator start];
 
-  if (!base::FeatureList::IsEnabled(
-          kMakeKeyAndVisibleBeforeMainCoordinatorStart)) {
-    // Enables UI initializations to query the keyWindow's size. Do this after
-    // `mainCoordinator start` as it sets self.window.rootViewController to work
-    // around crbug.com/850387, causing a flicker if -makeKeyAndVisible has been
-    // called.
-    [self.sceneState.window makeKeyAndVisible];
-  }
+  // Enables UI initializations to query the keyWindow's size. Do this after
+  // `mainCoordinator start` as it sets self.window.rootViewController to work
+  // around crbug.com/850387, causing a flicker if -makeKeyAndVisible has been
+  // called.
+  [self.sceneState.window makeKeyAndVisible];
 
   if (!self.sceneState.profileState.startupInformation.isFirstRun) {
     [self reconcileEulaAsAccepted];
@@ -1741,8 +1711,8 @@ void OnListFamilyMembersResponse(
   });
 }
 
-// Returns YES if the sign-in upgrade promo should be presented.
-- (BOOL)shouldPresentSigninUpgradePromo {
+// Returns YES if the fullscreen sign-in promo should be presented.
+- (BOOL)shouldPresentFullscreenSigninPromo {
   if (![self isTabAvailableToPresentViewController]) {
     return NO;
   }
@@ -1763,22 +1733,24 @@ void OnListFamilyMembersResponse(
     return NO;
   }
   // Don't show the promo if already presented.
-  if (self.sceneState.profileState.appState.signinUpgradePromoPresentedOnce) {
+  if (self.sceneState.profileState.appState
+          .fullscreenSigninPromoPresentedOnce) {
     return NO;
   }
   return YES;
 }
 
-// Presents the sign-in upgrade promo.
-- (void)tryPresentSigninUpgradePromo {
+// Presents the fullscreen sign-in  promo.
+- (void)tryPresentFullscreenSigninPromo {
   // It is possible during a slow asynchronous call that the user changes their
   // state so as to no longer be eligible for sign-in promos. Return early in
   // this case.
-  if (![self shouldPresentSigninUpgradePromo]) {
+  if (![self shouldPresentFullscreenSigninPromo]) {
     return;
   }
-  self.sceneState.profileState.appState.signinUpgradePromoPresentedOnce = YES;
-  [self showSigninUpgradePromoWithCompletion:nil];
+  self.sceneState.profileState.appState.fullscreenSigninPromoPresentedOnce =
+      YES;
+  [self showFullscreenSigninPromoWithCompletion:nil];
 }
 
 - (BOOL)canHandleIntents {
@@ -1887,7 +1859,7 @@ void OnListFamilyMembersResponse(
 
 #pragma mark - ApplicationCommands
 
-- (void)showSigninUpgradePromoWithCompletion:
+- (void)showFullscreenSigninPromoWithCompletion:
     (SigninCoordinatorCompletionCallback)dismissalCompletion {
   DCHECK(!self.signinCoordinator)
       << "self.signinCoordinator: "
@@ -1895,13 +1867,13 @@ void OnListFamilyMembersResponse(
   Browser* browser = self.mainInterface.browser;
   [self stopSigninCoordinatorWithCompletionAnimated:NO];
   self.signinCoordinator = [SigninCoordinator
-      upgradeSigninPromoCoordinatorWithBaseViewController:self.mainInterface
-                                                              .viewController
-                                                  browser:browser
-                                             contextStyle:SigninContextStyle::
-                                                              kDefault
-                        changeProfileContinuationProvider:
-                            DoNothingContinuationProvider()];
+      fullscreenSigninPromoCoordinatorWithBaseViewController:self.mainInterface
+                                                                 .viewController
+                                                     browser:browser
+                                                contextStyle:
+                                                    SigninContextStyle::kDefault
+                           changeProfileContinuationProvider:
+                               DoNothingContinuationProvider()];
   [self startSigninCoordinatorWithCompletion:dismissalCompletion];
 }
 
@@ -1985,6 +1957,21 @@ void OnListFamilyMembersResponse(
   self.settingsNavigationController =
       [SettingsNavigationController privacyControllerForBrowser:browser
                                                        delegate:self];
+  [baseViewController presentViewController:self.settingsNavigationController
+                                   animated:YES
+                                 completion:nil];
+}
+
+- (void)showTrackingProtectionSettingsFromViewController:
+    (UIViewController*)baseViewController {
+  if (self.settingsNavigationController) {
+    return;
+  }
+
+  Browser* browser = self.mainInterface.browser;
+  self.settingsNavigationController = [SettingsNavigationController
+      trackingProtectionControllerForBrowser:browser
+                                    delegate:self];
   [baseViewController presentViewController:self.settingsNavigationController
                                    animated:YES
                                  completion:nil];
@@ -2555,7 +2542,7 @@ using UserFeedbackDataCallback =
     return;
   }
   CHECK(ShouldShowSafariDataImportEntryPoint(
-      self.currentInterface.browser->GetProfile()));
+      self.currentInterface.browser->GetProfile()->GetPrefs()));
   BOOL presentOverSettings = self.settingsNavigationController &&
                              entryPoint == SafariDataImportEntryPoint::kSetting;
   UIViewController* baseViewController = presentOverSettings
@@ -2864,24 +2851,6 @@ using UserFeedbackDataCallback =
       [SettingsNavigationController defaultBrowserControllerForBrowser:browser
                                                               delegate:self
                                                           sourceForUMA:source];
-  [baseViewController presentViewController:self.settingsNavigationController
-                                   animated:YES
-                                 completion:nil];
-}
-
-- (void)showClearBrowsingDataSettings {
-  CHECK(!IsIosQuickDeleteEnabled());
-
-  UIViewController* baseViewController = self.currentInterface.viewController;
-  if (self.settingsNavigationController) {
-    [self.settingsNavigationController showClearBrowsingDataSettings];
-    return;
-  }
-  Browser* browser = self.mainInterface.browser;
-
-  self.settingsNavigationController = [SettingsNavigationController
-      clearBrowsingDataControllerForBrowser:browser
-                                   delegate:self];
   [baseViewController presentViewController:self.settingsNavigationController
                                    animated:YES
                                  completion:nil];
@@ -3380,15 +3349,9 @@ using UserFeedbackDataCallback =
   __weak CommandDispatcher* weakDispatcher =
       self.mainInterface.browser->GetCommandDispatcher();
   ProceduralBlock openQuickDeleteBlock = ^{
-    if (IsIosQuickDeleteEnabled()) {
-      id<QuickDeleteCommands> quickDeleteHandler =
-          HandlerForProtocol(weakDispatcher, QuickDeleteCommands);
-      [quickDeleteHandler showQuickDeleteAndCanPerformTabsClosureAnimation:YES];
-    } else {
-      id<SettingsCommands> settingsHandler =
-          HandlerForProtocol(weakDispatcher, SettingsCommands);
-      [settingsHandler showClearBrowsingDataSettings];
-    }
+    id<QuickDeleteCommands> quickDeleteHandler =
+        HandlerForProtocol(weakDispatcher, QuickDeleteCommands);
+    [quickDeleteHandler showQuickDeleteAndCanPerformTabsClosureAnimation:YES];
   };
 
   if (self.currentInterface.incognito) {

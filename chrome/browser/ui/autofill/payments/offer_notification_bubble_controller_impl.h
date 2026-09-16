@@ -71,6 +71,7 @@ class OfferNotificationBubbleControllerImpl
   void DismissNotification();
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override {}
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
@@ -99,8 +100,7 @@ class OfferNotificationBubbleControllerImpl
   // Hides the bubble if it is visible and resets the bubble shown timestamp.
   // `should_show_icon` decides whether the icon should be visible after the
   // bubble is dismissed.
-  void HideBubbleAndClearTimestamp(bool should_show_icon,
-                                   bool show_next_bubble);
+  void HideBubbleAndClearTimestamp(bool should_show_icon);
 
   // For testing.
   void SetEventObserverForTesting(ObserverForTest* observer) {

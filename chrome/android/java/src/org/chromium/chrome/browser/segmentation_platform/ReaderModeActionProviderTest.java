@@ -42,6 +42,7 @@ import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtils;
 import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtilsJni;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeActionRateLimiter;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeMetrics;
 import org.chromium.chrome.browser.dom_distiller.TabDistillabilityProvider;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -181,6 +182,12 @@ public class ReaderModeActionProviderTest {
                                 "DomDistiller.Android.AnyPageSignalWithinTimeout", true)
                         .expectBooleanRecord(
                                 "DomDistiller.Android.DistillablePageSignalWithinTimeout", true)
+                        // First step in the CPA funnel which shows the page is eligible for
+                        // distillation.
+                        .expectIntRecord(
+                                ReaderModeMetrics
+                                        .READER_MODE_CONTEXTUAL_PAGE_ACTION_EVENT_HISTOGRAM,
+                                ReaderModeMetrics.ReaderModeContextualPageActionEvent.ELIGIBLE)
                         .expectAnyRecord("DomDistiller.Time.TimeToProvideResultToAccumulator")
                         .build();
         setReaderModeBackendSignal(true);
@@ -255,7 +262,21 @@ public class ReaderModeActionProviderTest {
         var provider = new ReaderModeActionProvider(mButtonVisibilitySupplier);
         provider.onActionShown(mMockTab, AdaptiveToolbarButtonVariant.READER_MODE);
         shadowOf(Looper.getMainLooper()).runOneTask();
-        verify(mMockReaderModeManager).onContextualPageActionShown(mButtonVisibilitySupplier);
+        verify(mMockReaderModeManager).onContextualPageActionShown(mButtonVisibilitySupplier, true);
+        clearInvocations(mMockReaderModeManager);
+    }
+
+    @Test
+    public void testOnActionShownActionShownInvokedForTimedOutAccumulator() {
+        when(mMockSignalAccumulator.hasTimedOut()).thenReturn(true);
+        var provider = new ReaderModeActionProvider(mButtonVisibilitySupplier);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        ShadowLooper.idleMainLooper();
+        provider.onActionShown(mMockTab, AdaptiveToolbarButtonVariant.UNKNOWN);
+        shadowOf(Looper.getMainLooper()).runOneTask();
+
+        verify(mMockReaderModeManager)
+                .onContextualPageActionShown(mButtonVisibilitySupplier, false);
         clearInvocations(mMockReaderModeManager);
     }
 
@@ -326,7 +347,22 @@ public class ReaderModeActionProviderTest {
                 .runReadabilityHeuristicsOnWebContents(
                         any(), readabilityHeuristicCallbackCaptor.capture());
         Assert.assertNotNull(readabilityHeuristicCallbackCaptor.getValue());
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                ReaderModeMetrics
+                                        .READER_MODE_CONTEXTUAL_PAGE_ACTION_EVENT_HISTOGRAM,
+                                ReaderModeMetrics.ReaderModeContextualPageActionEvent.ELIGIBLE)
+                        .expectIntRecord(
+                                ReaderModeMetrics
+                                        .READER_MODE_CONTEXTUAL_PAGE_ACTION_EVENT_HISTOGRAM,
+                                ReaderModeMetrics.ReaderModeContextualPageActionEvent.SUPPRESSED)
+                        .build();
+
         readabilityHeuristicCallbackCaptor.getValue().onResult(true);
+
+        watcher.assertExpected();
         verify(mMockSignalAccumulator, Mockito.times(0))
                 .setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
     }
@@ -348,5 +384,14 @@ public class ReaderModeActionProviderTest {
         ShadowLooper.idleMainLooper();
 
         verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+    }
+
+    @Test
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP + ":show_cpa/false")
+    public void testActionNotVisibleWhenParamDisabled() {
+        when(mReaderModeActionRateLimiter.isActionSuppressed()).thenReturn(true);
+        var provider = new ReaderModeActionProvider(mButtonVisibilitySupplier);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, false);
     }
 }

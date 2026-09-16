@@ -28,26 +28,29 @@
 #include <cstdint>
 
 static bool one_contour(const SkPath& path) {
-    SkSTArenaAlloc<256> allocator;
-    int verbCount = path.countVerbs();
-    uint8_t* verbs = (uint8_t*) allocator.makeArrayDefault<uint8_t>(verbCount);
-    (void) path.getVerbs({verbs, verbCount});
-    for (int index = 1; index < verbCount; ++index) {
-        if (verbs[index] == SkPath::kMove_Verb) {
+    const auto raw = SkPathPriv::Raw(path);
+    if (!raw) {
+        return false;
+    }
+
+    const auto verbs = raw->verbs();
+    for (size_t i = 1; i < verbs.size(); ++i) {
+        if (verbs[i] == SkPathVerb::kMove) {
             return false;
         }
     }
+
     return true;
 }
 
 void SkOpBuilder::ReversePath(SkPath* path) {
-    SkPath temp;
-    SkPoint lastPt;
-    SkAssertResult(path->getLastPt(&lastPt));
-    temp.moveTo(lastPt);
-    temp.reversePathTo(*path);
+    auto lastPt = path->getLastPt();
+    SkASSERT(lastPt.has_value());
+    SkPathBuilder temp;
+    temp.moveTo(*lastPt);
+    SkPathPriv::ReversePathTo(&temp, *path);
     temp.close();
-    *path = temp;
+    *path = temp.detach();
 }
 
 bool SkOpBuilder::FixWinding(SkPath* path) {
@@ -186,12 +189,14 @@ std::optional<SkPath> SkOpBuilder::resolve() {
         reset();
         return result;
     }
-    SkPath sum;
+    SkPathBuilder sum;
     for (int index = 0; index < count; ++index) {
-        if (!Simplify(fPathRefs[index], &fPathRefs[index])) {
+        auto result = Simplify(fPathRefs[index]);
+        if (!result.has_value()) {
             reset();
             return {};
         }
+        fPathRefs[index] = *result;
         if (!fPathRefs[index].isEmpty()) {
             // convert the even odd result back to winding form before accumulating it
             if (!FixWinding(&fPathRefs[index])) {
@@ -202,9 +207,5 @@ std::optional<SkPath> SkOpBuilder::resolve() {
     }
     reset();
 
-    SkPath result;
-    if (Simplify(sum, &result)) {
-        return result;
-    }
-    return {};
+    return Simplify(sum.detach());
 }

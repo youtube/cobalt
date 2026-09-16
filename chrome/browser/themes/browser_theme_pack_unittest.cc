@@ -213,7 +213,9 @@ void BrowserThemePackTest::VerifyColorMap(
 }
 
 void BrowserThemePackTest::LoadColorJSON(const std::string& json) {
-  LoadColorDictionary(&base::JSONReader::Read(json)->GetDict());
+  LoadColorDictionary(
+      &base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+           ->GetDict());
 }
 
 void BrowserThemePackTest::LoadColorDictionary(const base::Value::Dict* value) {
@@ -222,7 +224,9 @@ void BrowserThemePackTest::LoadColorDictionary(const base::Value::Dict* value) {
 }
 
 void BrowserThemePackTest::LoadTintJSON(const std::string& json) {
-  LoadTintDictionary(&base::JSONReader::Read(json)->GetDict());
+  LoadTintDictionary(
+      &base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+           ->GetDict());
 }
 
 void BrowserThemePackTest::LoadTintDictionary(const base::Value::Dict* value) {
@@ -230,7 +234,9 @@ void BrowserThemePackTest::LoadTintDictionary(const base::Value::Dict* value) {
 }
 
 void BrowserThemePackTest::LoadDisplayPropertiesJSON(const std::string& json) {
-  LoadDisplayPropertiesDictionary(&base::JSONReader::Read(json)->GetDict());
+  LoadDisplayPropertiesDictionary(
+      &base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+           ->GetDict());
 }
 
 void BrowserThemePackTest::LoadDisplayPropertiesDictionary(
@@ -256,7 +262,8 @@ void BrowserThemePackTest::ResetTabGroupColorPaletteShades() {
 void BrowserThemePackTest::LoadTabGroupColorPaletteShadesJSON(
     const std::string& json) {
   LoadTabGroupColorPaletteShadesDictionary(
-      &base::JSONReader::Read(json)->GetDict());
+      &base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+           ->GetDict());
 }
 
 void BrowserThemePackTest::LoadTabGroupColorPaletteShadesDictionary(
@@ -324,11 +331,12 @@ void BrowserThemePackTest::BuildFromUnpackedExtension(
       deserializer.Deserialize(nullptr, &error);
   EXPECT_EQ("", error);
   ASSERT_TRUE(valid_value.get() && valid_value->is_dict());
+  std::u16string utf16_error;
   scoped_refptr<Extension> extension(Extension::Create(
       extension_path, extensions::mojom::ManifestLocation::kInvalidLocation,
-      valid_value->GetDict(), Extension::NO_FLAGS, &error));
+      valid_value->GetDict(), Extension::NO_FLAGS, &utf16_error));
   ASSERT_TRUE(extension.get());
-  ASSERT_EQ("", error);
+  ASSERT_EQ(u"", utf16_error);
   BrowserThemePack::BuildFromExtension(extension.get(), pack);
 }
 

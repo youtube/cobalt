@@ -502,9 +502,12 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        /*arg_min_max_output=*/
        {DataTypeConstraint::kInt32To64, SupportedRanks::UpTo(8)},
        // BatchNormalization is emulated by sub, mul, add and div ops that only
-       // support max rank up to 5.
+       // support max rank up to 5. Because `SerializeBatchNormalization()`
+       // emulation code accesses input size along axis, input cannot be a
+       // scalar:
+       // https://source.chromium.org/chromium/chromium/src/+/main:services/webnn/tflite/graph_builder_tflite.cc;l=3556;drc=7b1dd7749fbb05ea8469492fe5c03c27fef75e38
        /*batch_normalization_input=*/
-       {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(5)},
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::NonScalarUpTo(5)},
        /*batch_normalization_mean=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
        /*cast_input=*/
@@ -512,7 +515,10 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        // Polyfilled using MIN and MAX.
        /*clamp_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(5)},
-       /*concat_inputs=*/{kAllDataTypesExceptUint4, SupportedRanks::UpTo(8)},
+       // Scalar is not supported:
+       // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/concatenation.h;l=38;drc=31b46e86a93151ca1192009863818d4eaf5df831
+       /*concat_inputs=*/
+       {kAllDataTypesExceptUint4, SupportedRanks::NonScalarUpTo(8)},
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/conv.cc
        /*conv2d_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)},
@@ -620,8 +626,10 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        /*elu_input=*/{kFloat16To32AndInt8, SupportedRanks::UpTo(5)},
        /*expand_input=*/
        {kFloat16To32AndInts8To32AndInt64, SupportedRanks::UpTo(8)},
+       // Scalar is not supported:
+       // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/gather.h;l=43;drc=49db932a0bdfca060c3e8b0d063a7e8c9f5d2fa5
        /*gather_input=*/
-       {kFloat16To32AndInt8To64AndUint8, SupportedRanks::UpTo(8)},
+       {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
        /*gather_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
         SupportedRanks::UpTo(8)},
@@ -4632,6 +4640,7 @@ auto GraphBuilderTflite::SerializeElementsCoordinates(
     int32_t axis) -> base::expected<int32_t, std::string> {
   const std::vector<uint32_t> indices_strides =
       CalculateStrides(indices_dimensions);
+  CHECK_EQ(indices_dimensions.size(), input_dimensions.size());
   const size_t indices_rank = indices_strides.size();
 
   // Clamp the values in `indices` to be in range of `-N` (inclusive) to `N`
@@ -4687,16 +4696,32 @@ auto GraphBuilderTflite::SerializeGatherElements(
 
   ASSIGN_OR_RETURN(const TensorInfo& input_tensor_info,
                    SerializeInputTensorInfo(gather_elements.input_operand_id));
-  ASSIGN_OR_RETURN(
-      const TensorIndex indices_tensor_index,
-      SerializeElementsCoordinates<int64_t>(
-          indices_operand.descriptor.shape(),
-          GetConstantInt64Value(gather_elements.indices_operand_id),
-          input_tensor_info.dimensions, gather_elements.axis));
-  const TensorIndex output_tensor_index =
-      SerializeOutputTensorInfo(gather_elements.output_operand_id).index;
-  return SerializeGatherNDOperation(input_tensor_info.index,
-                                    indices_tensor_index, output_tensor_index);
+
+  const base::FixedArray<int64_t> indices_value =
+      GetConstantInt64Value(gather_elements.indices_operand_id);
+  ASSIGN_OR_RETURN(const TensorIndex indices_tensor_index,
+                   SerializeElementsCoordinates<int64_t>(
+                       indices_operand.descriptor.shape(), indices_value,
+                       input_tensor_info.dimensions, gather_elements.axis));
+  const TensorInfo& output_tensor_info =
+      SerializeOutputTensorInfo(gather_elements.output_operand_id);
+  // The emulated GatherND will always output a tensor with one dimension
+  // because the shape of the indices tensor is 2D [flat_indices_size,
+  // input_rank], while GatherElements requires output tensor shape being the
+  // same as indices tensor, so we need to insert a reshape.
+  //
+  // For example, if the input shape is [4, 2, 2],  the indices are [1, 2, 2]
+  // and axis = 0, then the output shape of gatherND will be [4] that is
+  // calculated with ResizeTensor. The output tensor needs to be reshaped to [1,
+  // 2, 2].
+  const TensorIndex gather_nd_tensor_index = SerializeTemporaryTensor(
+      {base::checked_cast<int32_t>(indices_value.size())},
+      input_tensor_info.data_type);
+  operators_.emplace_back(SerializeGatherNDOperation(
+      input_tensor_info.index, indices_tensor_index, gather_nd_tensor_index));
+  return SerializeReshapeOperation(gather_nd_tensor_index,
+                                   output_tensor_info.index,
+                                   output_tensor_info.dimensions);
 }
 
 auto GraphBuilderTflite::SerializeGatherND(const mojom::GatherND& gather_nd)

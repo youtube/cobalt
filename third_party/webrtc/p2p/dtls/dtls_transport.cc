@@ -623,8 +623,14 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
         OnReadPacket(transport, packet, /* piggybacked= */ false);
       });
 
-  ice_transport_->SignalSentPacket.connect(
-      this, &DtlsTransportInternalImpl::OnSentPacket);
+  ice_transport_->SubscribeSentPacket(
+      this,
+      [this, flag = safety_flag_.flag()](PacketTransportInternal* transport,
+                                         const SentPacketInfo& info) {
+        if (flag->alive()) {
+          OnSentPacket(transport, info);
+        }
+      });
   ice_transport_->SubscribeReadyToSend(
       this,
       [this](PacketTransportInternal* transport) { OnReadyToSend(transport); });
@@ -846,7 +852,7 @@ void DtlsTransportInternalImpl::OnSentPacket(
     PacketTransportInternal* /* transport */,
     const SentPacketInfo& sent_packet) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  SignalSentPacket(this, sent_packet);
+  NotifySentPacket(this, sent_packet);
 }
 
 void DtlsTransportInternalImpl::OnReadyToSend(

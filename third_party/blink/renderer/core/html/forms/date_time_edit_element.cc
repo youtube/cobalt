@@ -45,7 +45,6 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/text/date_time_format.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
-#include "third_party/blink/renderer/platform/wtf/date_math.h"
 
 namespace blink {
 
@@ -70,8 +69,9 @@ class DateTimeEditBuilder : private DateTimeFormat::TokenHandler {
   inline const StepRange& GetStepRange() const {
     return parameters_.step_range;
   }
-  DateTimeNumericFieldElement::Step CreateStep(double ms_per_field_unit,
-                                               double ms_per_field_size) const;
+  DateTimeNumericFieldElement::Step CreateStep(
+      base::TimeDelta per_field_unit,
+      base::TimeDelta per_field_size) const;
 
   // DateTimeFormat::TokenHandler functions.
   void VisitField(DateTimeFormat::FieldType, int) final;
@@ -150,15 +150,11 @@ bool DateTimeEditBuilder::Build(const String& format_string) {
 }
 
 bool DateTimeEditBuilder::NeedMillisecondField() const {
+  static constexpr int kMillisecondsPerSecond =
+      static_cast<int>(base::Time::kMillisecondsPerSecond);
   return date_value_.Millisecond() ||
-         !GetStepRange()
-              .Minimum()
-              .Remainder(static_cast<int>(kMsPerSecond))
-              .IsZero() ||
-         !GetStepRange()
-              .Step()
-              .Remainder(static_cast<int>(kMsPerSecond))
-              .IsZero();
+         !GetStepRange().Minimum().Remainder(kMillisecondsPerSecond).IsZero() ||
+         !GetStepRange().Step().Remainder(kMillisecondsPerSecond).IsZero();
 }
 
 void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
@@ -184,7 +180,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeHour11: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerHour, kMsPerHour * 12);
+          CreateStep(base::Hours(1), base::Hours(12));
       DateTimeFieldElement* field =
           MakeGarbageCollected<DateTimeHour11FieldElement>(
               document, EditElement(), hour23_range_, step);
@@ -198,7 +194,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeHour12: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerHour, kMsPerHour * 12);
+          CreateStep(base::Hours(1), base::Hours(12));
       DateTimeFieldElement* field =
           MakeGarbageCollected<DateTimeHour12FieldElement>(
               document, EditElement(), hour23_range_, step);
@@ -212,7 +208,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeHour23: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerHour, kMsPerDay);
+          CreateStep(base::Hours(1), base::Days(1));
       DateTimeFieldElement* field =
           MakeGarbageCollected<DateTimeHour23FieldElement>(
               document, EditElement(), hour23_range_, step);
@@ -226,7 +222,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeHour24: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerHour, kMsPerDay);
+          CreateStep(base::Hours(1), base::Days(1));
       DateTimeFieldElement* field =
           MakeGarbageCollected<DateTimeHour24FieldElement>(
               document, EditElement(), hour23_range_, step);
@@ -240,7 +236,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeMinute: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerMinute, kMsPerHour);
+          CreateStep(base::Minutes(1), base::Hours(1));
       DateTimeNumericFieldElement* field =
           MakeGarbageCollected<DateTimeMinuteFieldElement>(
               document, EditElement(), minute_range_, step);
@@ -315,7 +311,7 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
 
     case DateTimeFormat::kFieldTypeSecond: {
       DateTimeNumericFieldElement::Step step =
-          CreateStep(kMsPerSecond, kMsPerMinute);
+          CreateStep(base::Seconds(1), base::Minutes(1));
       DateTimeNumericFieldElement* field =
           MakeGarbageCollected<DateTimeSecondFieldElement>(
               document, EditElement(), second_range_, step);
@@ -333,7 +329,8 @@ void DateTimeEditBuilder::VisitField(DateTimeFormat::FieldType field_type,
     }
 
     case DateTimeFormat::kFieldTypeFractionalSecond: {
-      DateTimeNumericFieldElement::Step step = CreateStep(1, kMsPerSecond);
+      DateTimeNumericFieldElement::Step step =
+          CreateStep(base::Milliseconds(1), base::Seconds(1));
       DateTimeNumericFieldElement* field =
           MakeGarbageCollected<DateTimeMillisecondFieldElement>(
               document, EditElement(), millisecond_range_, step);
@@ -429,10 +426,11 @@ bool DateTimeEditBuilder::ShouldHourFieldDisabled() const {
     return false;
   }
 
-  const Decimal decimal_ms_per_day(static_cast<int>(kMsPerDay));
+  const Decimal decimal_ms_per_day(
+      static_cast<int>(base::Time::kMillisecondsPerDay));
   Decimal hour_part_of_minimum =
       (GetStepRange().StepBase().Abs().Remainder(decimal_ms_per_day) /
-       static_cast<int>(kMsPerHour))
+       static_cast<int>(base::Hours(1).InMilliseconds()))
           .Floor();
   return hour_part_of_minimum == date_value_.Hour() &&
          GetStepRange().Step().Remainder(decimal_ms_per_day).IsZero();
@@ -443,7 +441,8 @@ bool DateTimeEditBuilder::ShouldMillisecondFieldDisabled() const {
       millisecond_range_.minimum == date_value_.Millisecond())
     return true;
 
-  const Decimal decimal_ms_per_second(static_cast<int>(kMsPerSecond));
+  const Decimal decimal_ms_per_second(
+      static_cast<int>(base::Time::kMillisecondsPerSecond));
   return GetStepRange().StepBase().Abs().Remainder(decimal_ms_per_second) ==
              date_value_.Millisecond() &&
          GetStepRange().Step().Remainder(decimal_ms_per_second).IsZero();
@@ -454,10 +453,11 @@ bool DateTimeEditBuilder::ShouldMinuteFieldDisabled() const {
       minute_range_.minimum == date_value_.Minute())
     return true;
 
-  const Decimal decimal_ms_per_hour(static_cast<int>(kMsPerHour));
+  const Decimal decimal_ms_per_hour(
+      static_cast<int>(base::Hours(1).InMilliseconds()));
   Decimal minute_part_of_minimum =
       (GetStepRange().StepBase().Abs().Remainder(decimal_ms_per_hour) /
-       static_cast<int>(kMsPerMinute))
+       static_cast<int>(base::Minutes(1).InMilliseconds()))
           .Floor();
   return minute_part_of_minimum == date_value_.Minute() &&
          GetStepRange().Step().Remainder(decimal_ms_per_hour).IsZero();
@@ -468,10 +468,11 @@ bool DateTimeEditBuilder::ShouldSecondFieldDisabled() const {
       second_range_.minimum == date_value_.Second())
     return true;
 
-  const Decimal decimal_ms_per_minute(static_cast<int>(kMsPerMinute));
+  const Decimal decimal_ms_per_minute(
+      static_cast<int>(base::Minutes(1).InMilliseconds()));
   Decimal second_part_of_minimum =
       (GetStepRange().StepBase().Abs().Remainder(decimal_ms_per_minute) /
-       static_cast<int>(kMsPerSecond))
+       static_cast<int>(base::Time::kMillisecondsPerSecond))
           .Floor();
   return second_part_of_minimum == date_value_.Second() &&
          GetStepRange().Step().Remainder(decimal_ms_per_minute).IsZero();
@@ -511,10 +512,12 @@ DateTimeEditElement& DateTimeEditBuilder::EditElement() const {
 }
 
 DateTimeNumericFieldElement::Step DateTimeEditBuilder::CreateStep(
-    double ms_per_field_unit,
-    double ms_per_field_size) const {
-  const Decimal ms_per_field_unit_decimal(static_cast<int>(ms_per_field_unit));
-  const Decimal ms_per_field_size_decimal(static_cast<int>(ms_per_field_size));
+    base::TimeDelta per_field_unit,
+    base::TimeDelta per_field_size) const {
+  const Decimal ms_per_field_unit_decimal(
+      static_cast<int>(per_field_unit.InMilliseconds()));
+  const Decimal ms_per_field_size_decimal(
+      static_cast<int>(per_field_size.InMilliseconds()));
   Decimal step_milliseconds = GetStepRange().Step();
   DCHECK(!ms_per_field_unit_decimal.IsZero());
   DCHECK(!ms_per_field_size_decimal.IsZero());

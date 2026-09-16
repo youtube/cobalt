@@ -74,6 +74,7 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "components/sync/base/features.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
@@ -461,6 +462,13 @@ void InlineSigninHelper::CreateSyncStarter(const std::string& refresh_token) {
           signin_metrics::SourceForRefreshTokenOperation::
               kInlineLoginHandler_Signin);
 
+  // TODO(crbug.com/419539610): Reconsider if we want to show the history sync
+  // promo instead of stopping here.
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    return;
+  }
+
   std::unique_ptr<TurnSyncOnHelper::Delegate> delegate =
       std::make_unique<ForcedSigninTurnSyncOnHelperDelegate>(browser);
 
@@ -511,7 +519,7 @@ void InlineLoginHandlerImpl::SetExtraInitParams(base::Value::Dict& params) {
 
   const GURL& url = GaiaUrls::GetInstance()->embedded_signin_url();
   params.Set("clientId", GaiaUrls::GetInstance()->oauth2_chrome_client_id());
-  params.Set("gaiaPath", url.path().substr(1));
+  params.Set("gaiaPath", url.GetPath().substr(1));
 
 #if BUILDFLAG(IS_WIN)
   if (reason == HandlerSigninReason::kFetchLstOnly) {
@@ -544,7 +552,7 @@ void InlineLoginHandlerImpl::SetExtraInitParams(base::Value::Dict& params) {
 
     GURL windows_url = GaiaUrls::GetInstance()->embedded_setup_windows_url();
     // Redirect to specified gaia endpoint path for GCPW:
-    std::string windows_endpoint_path = windows_url.path().substr(1);
+    std::string windows_endpoint_path = windows_url.GetPath().substr(1);
     // Redirect to specified gaia endpoint path for GCPW:
     std::string gcpw_endpoint_path;
     if (net::GetValueForKeyInQuery(

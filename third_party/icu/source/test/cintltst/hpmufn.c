@@ -62,7 +62,7 @@ static int32_t gMutexFailures = 0;
  *    The ICU data directory must be preserved across these operations.
  *    Here is a helper function to assist with that.
  */
-static char *safeGetICUDataDirectory() {
+static char *safeGetICUDataDirectory(void) {
     const char *dataDir = u_getDataDirectory();  /* Returned string vanashes with u_cleanup */
     char *retStr = NULL;
     if (dataDir != NULL) {
@@ -116,13 +116,13 @@ static void * U_CALLCONV myMemRealloc(const void *context, void *mem, size_t siz
     }
     retPtr = realloc(p, size+sizeof(ctest_AlignedMemory));
     if (retPtr != NULL) {
-        p += sizeof(ctest_AlignedMemory);
+        retPtr += sizeof(ctest_AlignedMemory);
     }
     return retPtr;
 }
 
 
-static void TestHeapFunctions() {
+static void TestHeapFunctions(void) {
     UErrorCode       status = U_ZERO_ERROR;
     UResourceBundle *rb     = NULL;
     char            *icuDataDir;

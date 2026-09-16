@@ -29,6 +29,10 @@ BASE_FEATURE(kAdditionalOpaqueOriginEnforcements,
 // IME sends composition texts.
 BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the caret browsing a11y feature - can use arrow keys to navigate
+// through web pages.
+BASE_FEATURE(kAndroidCaretBrowsing, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // DevTools frontend for Android.
 BASE_FEATURE(kAndroidDevToolsFrontend, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -223,6 +227,11 @@ const char kCookieDeprecationLabelName[] = "label";
 
 const char kCookieDeprecationTestingDisableAdsAPIsName[] = "disable_ads_apis";
 
+// Kill switch for Cookie Deprecation labels, also gated on
+// kCookieDeprecationFacilitatedTesting.
+BASE_FEATURE(kCookieDeprecationFacilitatedTestingLabels,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Adiitional FeatureParams for CookieDeprecationFacilitatedTesting are defined
 // in chrome/browser/tpcd/experiment/tpcd_experiment_features.cc.
 
@@ -396,28 +405,36 @@ BASE_FEATURE(kFedCmAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables usage of the FedCM Delegation API.
 BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the spec-compliant 'error' attribute in IdentityCredentialError while
+// deprecating the legacy 'code' attribute.
+BASE_FEATURE(kFedCmErrorAttribute, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables usage of the FedCM IdP Registration API.
-BASE_FEATURE(kFedCmIdPRegistration,
-             "FedCmIdPregistration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmIdPRegistration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // For cross-site iframes, sends the top-level origin to the IDP and parses
 // an optional returned boolean indicating whether it is part of the same
 // client to allow for UI decisions based on the boolean.
-BASE_FEATURE(kFedCmIframeOrigin, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables usage of the FedCM API with metrics endpoint at the same time.
-BASE_FEATURE(kFedCmMetricsEndpoint, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables bypassing the well-known file enforcement.
-BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmIframeOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Lightweight FedCM Mode
 BASE_FEATURE(kFedCmLightweightMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables usage of the FedCM API with metrics endpoint at the same time.
+BASE_FEATURE(kFedCmMetricsEndpoint, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables Nonce usage in Params
 BASE_FEATURE(kFedCmNonceInParams, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether FedCM requires explicit endpoint declaration in well-known
+// files when client_metadata is used. When enabled, accounts_endpoint and
+// login_url must be present in .well-known/web-identity for privacy validation.
+BASE_FEATURE(kFedCmWellKnownEndpointValidation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables bypassing the well-known file enforcement.
+BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables browser-side focus verification when crossing fenced boundaries.
 BASE_FEATURE(kFencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -526,9 +543,6 @@ BASE_FEATURE(kIsolateFencedFrames, base::FEATURE_DISABLED_BY_DEFAULT);
 // kIsolateOriginsFieldTrialParamName.
 BASE_FEATURE(kIsolateOrigins, base::FEATURE_DISABLED_BY_DEFAULT);
 const char kIsolateOriginsFieldTrialParamName[] = "OriginsList";
-
-// Enable lazy initialization of the media controls.
-BASE_FEATURE(kLazyInitializeMediaControls, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If this is enabled, LoadingPredictor restricts the number of preconnects for
 // the same destination to one.
@@ -868,7 +882,7 @@ constexpr base::FeatureParam<double> kProcessPerSiteMainFrameTotalMemoryLimit{
 // it doesn't require a developer opt-in.
 //
 // crbug.com/1472634 for more details.
-BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
 // prioritize the response processing for the network request over the
@@ -1328,7 +1342,7 @@ BASE_FEATURE(kEnableExclusiveAccessManager, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Sets IO threads to kInteractive all the time.
@@ -1366,6 +1380,18 @@ const base::FeatureParam<std::string> kForcedOffCapturingAppsOnFirstNavigation{
 
 const base::FeatureParam<std::string> kForcedOffCapturingAppsUserSetting{
     &kPwaNavigationCapturing, "user_settings_forced_off_apps", ""};
+
+// Enables overriding the default subframe process shutdown delay via the
+// "delay_seconds" field trial parameter. This allows for experimentation with
+// different timeout values for keeping subframe processes alive for potential
+// reuse.
+BASE_FEATURE(kSubframeProcessShutdownDelay, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Specifies the custom shutdown delay in seconds to use when the
+// kSubframeProcessShutdownDelay feature is enabled.
+// Default value, matching the original kSubframeProcessShutdownDelay.
+const base::FeatureParam<int> kSubframeProcessShutdownDelaySeconds{
+    &kSubframeProcessShutdownDelay, "delay_seconds", 2};
 
 namespace {
 enum class VideoCaptureServiceConfiguration {

@@ -59,7 +59,6 @@
 
 namespace gpu {
 class DawnContextProvider;
-class GpuMemoryBufferFactory;
 class GpuWatchdogThread;
 class ImageDecodeAcceleratorWorker;
 class Scheduler;
@@ -166,12 +165,17 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void EstablishGpuChannel(int32_t client_id,
                            uint64_t client_tracing_id,
                            bool is_gpu_host,
+                           bool enable_extra_handles_validation,
                            EstablishGpuChannelCallback callback) override;
   void SetChannelClientPid(int32_t client_id,
                            base::ProcessId client_pid) override;
   void SetChannelDiskCacheHandle(
       int32_t client_id,
       const gpu::GpuDiskCacheHandle& handle) override;
+  void SetChannelPersistentCacheParams(
+      int32_t client_id,
+      const gpu::GpuDiskCacheHandle& handle,
+      persistent_cache::BackendParams backend_params) override;
   void OnDiskCacheHandleDestoyed(
       const gpu::GpuDiskCacheHandle& handle) override;
   void CloseChannel(int32_t client_id) override;
@@ -225,8 +229,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void OnBackgrounded() override;
   void OnForegrounded() override;
 #if !BUILDFLAG(IS_ANDROID)
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level) override;
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 #endif
 #if BUILDFLAG(IS_APPLE)
   void BeginCATransaction() override;
@@ -524,8 +527,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
 
   std::unique_ptr<webnn::WebNNContextProviderImpl> webnn_context_provider_;
 
-  std::unique_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
-
   // An event that will be signalled when we shutdown. On some platforms it
   // comes from external sources.
   std::unique_ptr<base::WaitableEvent> owned_shutdown_event_;
@@ -574,6 +575,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
     PendingEstablishGpuChannelRequest(int32_t client_id,
                                       uint64_t client_tracing_id,
                                       bool is_gpu_host,
+                                      bool enable_extra_handles_validation,
                                       EstablishGpuChannelCallback callback);
     PendingEstablishGpuChannelRequest(
         PendingEstablishGpuChannelRequest&& other);
@@ -584,6 +586,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
     int32_t client_id;
     uint64_t client_tracing_id;
     bool is_gpu_host;
+    bool enable_extra_handles_validation;
     EstablishGpuChannelCallback callback;
   };
 

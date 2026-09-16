@@ -89,6 +89,10 @@ const getPrecisionTolerance = (graphResources, intermediateOperands) => {
         toleranceValue += getGemmPrecisionTolerance(op, graphResources,
             intermediateOperands).value;
         break;
+      case 'matmul':
+        toleranceValue += getMatmulPrecisionTolerance(op, graphResources,
+            intermediateOperands).value;
+        break;
       case 'softmax':
         toleranceValue += getSoftmaxPrecisionTolerance(
                               op, graphResources, intermediateOperands)
@@ -697,14 +701,19 @@ function validateContextSupportsGraph(context, graph) {
   const supportLimits = context.opSupportLimits();
   const castOpSupportLimits = supportLimits.cast;
   const inputDataTypes = supportLimits.input.dataTypes;
+  const inputRankRange = supportLimits.input.rankRange;
   const constantDataTypes = supportLimits.constant.dataTypes;
+  const constantRankRange = supportLimits.constant.rankRange;
   const outputDataTypes = supportLimits.output.dataTypes;
+  const outputRankRange = supportLimits.output.rankRange;
 
   function validateInputOrConstantDataTypeAndRank(
       inputName, operatorSupportLimits, operand) {
     const inputDescriptor = graph.inputs[inputName].descriptor;
     const inputDataType = inputDescriptor.dataType;
+    const inputRank = inputDescriptor.shape.length;
     if (inputDescriptor.constant) {
+      // Check graph constant data type
       if (!constantDataTypes.includes(inputDataType) &&
           !findCompatibleType(
               inputDataType, constantDataTypes, castOpSupportLimits)) {
@@ -712,7 +721,18 @@ function validateContextSupportsGraph(context, graph) {
             `Unsupported data type, constant '${operand}' data type ${
                 inputDataType} must be one of [${constantDataTypes}].`);
       }
+
+      // Check graph constant rank
+      if (inputRank < constantRankRange.min) {
+        throw new TypeError(`Unsupported rank ${inputRank} for constant '${
+            operand}' (must be at least ${constantRankRange.min}).`);
+      }
+      if (inputRank > constantRankRange.max) {
+        throw new TypeError(`Unsupported rank ${inputRank} for constant '${
+            operand}' (must be at most ${constantRankRange.max}).`);
+      }
     } else {
+      // Check graph input data type
       if (!inputDataTypes.includes(inputDataType) &&
           !findCompatibleType(
               inputDataType, inputDataTypes, castOpSupportLimits)) {
@@ -720,9 +740,20 @@ function validateContextSupportsGraph(context, graph) {
             `Unsupported data type, input '${operand}' data type ${
                 inputDataType} must be one of [${inputDataTypes}].`);
       }
+
+      // Check graph input rank
+      if (inputRank < inputRankRange.min) {
+        throw new TypeError(`Unsupported rank ${inputRank} for input '${
+            operand}' (must be at least ${inputRankRange.min}).`);
+      }
+      if (inputRank > inputRankRange.max) {
+        throw new TypeError(`Unsupported rank ${inputRank} for input '${
+            operand}' (must be at most ${inputRankRange.max}).`);
+      }
     }
 
     const operandSupportLimits = operatorSupportLimits[operand];
+    // Check operand data type
     const inputOperandDataTypes = operandSupportLimits.dataTypes;
     if (!inputOperandDataTypes.includes(inputDataType) &&
         !findCompatibleType(
@@ -732,7 +763,7 @@ function validateContextSupportsGraph(context, graph) {
               inputDataType} must be one of [${inputOperandDataTypes}].`);
     }
 
-    const inputRank = inputDescriptor.shape.length;
+    // Check operand rank
     const limitsRankRange = operandSupportLimits.rankRange;
     if (inputRank < limitsRankRange.min) {
       throw new TypeError(`Unsupported rank ${inputRank} for argument ${
@@ -745,9 +776,13 @@ function validateContextSupportsGraph(context, graph) {
     }
   }
 
-  function validateOutputDataType(outputName, operatorSupportLimits, operand) {
+  function validateOutputDataTypeAndRank(
+      outputName, operatorSupportLimits, operand) {
     const outputDataType =
         graph.expectedOutputs[outputName].descriptor.dataType;
+    const outputRank =
+        graph.expectedOutputs[outputName].descriptor.shape.length;
+    // Check graph output data type
     if (!outputDataTypes.includes(outputDataType) &&
         !findCompatibleType(
             outputDataType, outputDataTypes, castOpSupportLimits)) {
@@ -756,6 +791,17 @@ function validateContextSupportsGraph(context, graph) {
               outputDataType} must be one of [${outputDataTypes}].`);
     }
 
+    // Check graph output rank
+    if (outputRank < outputRankRange.min) {
+      throw new TypeError(`Unsupported rank ${outputRank} for output '${
+          operand}' (must be at least ${outputRankRange.min}).`);
+    }
+    if (outputRank > outputRankRange.max) {
+      throw new TypeError(`Unsupported rank ${outputRank} for output '${
+          operand}' (must be at most ${outputRankRange.max}).`);
+    }
+
+    // Check output operand data type
     const outputOperandDataTypes = operatorSupportLimits[operand].dataTypes;
     if (!outputOperandDataTypes.includes(outputDataType) &&
         !findCompatibleType(
@@ -763,6 +809,17 @@ function validateContextSupportsGraph(context, graph) {
       throw new TypeError(
           `Unsupported data type, output '${operand}' data type ${
               outputDataType} must be one of [${outputOperandDataTypes}].`);
+    }
+
+    // Check output operand rank
+    const outputOperandRankRange = operatorSupportLimits[operand].rankRange;
+    if (outputRank < outputOperandRankRange.min) {
+      throw new TypeError(`Unsupported rank ${outputRank} for output '${
+          operand}' (must be at least ${outputOperandRankRange.min}).`);
+    }
+    if (outputRank > outputOperandRankRange.max) {
+      throw new TypeError(`Unsupported rank ${outputRank} for output '${
+          operand}' (must be at most ${outputOperandRankRange.max}).`);
     }
   }
 
@@ -780,10 +837,10 @@ function validateContextSupportsGraph(context, graph) {
             // intermediate output
             continue;
           }
-          validateOutputDataType(
+          validateOutputDataTypeAndRank(
               operator.outputs, operatorSupportLimits, 'output');
         } else if (operand === 'outputs') {
-          // multiples output operands
+          // multiple output operands of split operator
           assert(
               Array.isArray(operator.outputs),
               `the outputs of ${operatorName} should be a string array.`);
@@ -795,8 +852,18 @@ function validateContextSupportsGraph(context, graph) {
               // intermediate output
               continue;
             }
-            validateOutputDataType(
+            validateOutputDataTypeAndRank(
                 outputName, operatorSupportLimits, 'outputs');
+          }
+        } else if (/output[0-2]/.test(operand)) {
+          // multiple output operands of gru/lstm/lstmCell operators
+          assert(
+              Array.isArray(operator.outputs),
+              `the outputs of ${operatorName} should be a string array.`);
+          const index = parseInt(operand.match(/output([0-2])/)[1]);
+          if (index < operator.outputs.length) {
+            validateOutputDataTypeAndRank(
+                operator.outputs[index], operatorSupportLimits, operand);
           }
         } else {
           // input operand(s)
@@ -1044,6 +1111,24 @@ const getGemmPrecisionTolerance =
   return {metricType: 'ULP', value: toleranceValueDict[expectedDataType]};
 };
 
+const getMatmulPrecisionTolerance =
+    (op, graphResources, intermediateOperands) => {
+  const {inputs} = graphResources;
+  const args = op.arguments;
+  let shapeA;
+  const indexA = args[0][Object.keys(args[0])[0]];
+  if (inputs[indexA]) {
+    shapeA = inputs[indexA].descriptor.shape;
+  } else {
+    shapeA = intermediateOperands[indexA].shape;
+  }
+  const tolerance = shapeA[shapeA.length - 1] * 2;
+  const toleranceValueDict = {float32: tolerance, float16: tolerance};
+  const expectedDataType =
+      getExpectedDataTypeOfSingleOutput(graphResources.expectedOutputs);
+  return {metricType: 'ULP', value: toleranceValueDict[expectedDataType]};
+};
+
 const getConv2dPrecisionTolerance =
     (op, graphResources, intermediateOperands) => {
   // number of reduced input elements multiplied by filter and summed (a sliding
@@ -1260,12 +1345,12 @@ const getResample2dPrecisionTolerance =
 
 let minimumDataTypeSet;
 
-function checkMinimum(descriptor, operandMinimumLimits, isInput = true) {
+function checkMinimum(descriptor, operandMinimumLimits) {
   const targetRank = descriptor.shape.length;
   const targetDataType = descriptor.dataType;
   let isMinimum = operandMinimumLimits.dataTypes.includes(targetDataType);
 
-  if (isMinimum && isInput) {
+  if (isMinimum) {
     isMinimum = operandMinimumLimits.rankRange.min <= targetRank &&
         targetRank <= operandMinimumLimits.rankRange.max;
   }
@@ -1275,24 +1360,30 @@ function checkMinimum(descriptor, operandMinimumLimits, isInput = true) {
 
 function getOutputMinimumLimits(operatorsResources, outputOperandName) {
   let operatorName;
-  let outputsName;
+  let outputName;
   for (let operator of operatorsResources) {
     if (typeof operator.outputs === 'string' &&
         operator.outputs === outputOperandName) {
       operatorName = operator.name;
-      outputsName = 'output';
+      outputName = 'output';
       break;
     } else if (
         Array.isArray(operator.outputs) &&
         operator.outputs.includes(outputOperandName)) {
       // Current gru, lstm, lstmCell and split operators have multiple outputs
       operatorName = operator.name;
-      outputsName = 'outputs';
+      if (minimumDataTypeSet[operatorName].hasOwnProperty('outputs')) {
+        // for split operator
+        outputName = 'outputs';
+      } else {
+        // for gru, lstm, lstmCell operators
+        outputName = `output${operator.outputs.indexOf(outputOperandName)}`;
+      }
       break;
     }
   }
 
-  return minimumDataTypeSet[operatorName][outputsName];
+  return minimumDataTypeSet[operatorName][outputName];
 }
 
 async function getMinimumDataTypeSetJson() {
@@ -1367,7 +1458,7 @@ function isMinimumTest(test) {
   for (let [outputOperandName, value] of Object.entries(outputsResources)) {
     const outputMinimumLimits =
         getOutputMinimumLimits(graphResources.operators, outputOperandName)
-    isMinimum = checkMinimum(value.descriptor, outputMinimumLimits, false);
+    isMinimum = checkMinimum(value.descriptor, outputMinimumLimits);
     if (!isMinimum) {
       return isMinimum;
     }

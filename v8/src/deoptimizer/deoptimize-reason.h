@@ -32,6 +32,7 @@ namespace internal {
   V(GreaterThanMaxFastElementArray,                                            \
     "length is greater than the maximum for fast elements array")              \
   V(Hole, "hole")                                                              \
+  V(HoleOrUndefined, "hole or undefined")                                      \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForArrayLiteral,                                   \
     "Insufficient type feedback for array literal")                            \
@@ -172,7 +173,10 @@ constexpr bool AlwaysPreserveDeoptReason(DeoptimizeReason reason) {
 #undef CASE
     return true;
     default:
-      return false;
+      // OSR related deopt handling (e.g., not discarding optimized code on OSR
+      // deopt) relies on checking the deoptimization reason, so we need to
+      // preserve the OSR related deopt reasons.
+      return IsDeoptimizationWithoutCodeInvalidation(reason);
   }
 }
 

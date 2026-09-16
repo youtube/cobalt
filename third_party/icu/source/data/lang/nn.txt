@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 nn{
     %%Parent{"no"}
     Keys{
@@ -33,7 +33,6 @@ nn{
         ebu{"embu"}
         egy{"gammalegyptisk"}
         elx{"elamite"}
-        fil{"filippinsk"}
         fro{"gammalfransk"}
         frs{"austfrisisk"}
         fur{"friulisk"}
@@ -120,7 +119,6 @@ nn{
         Perm{"gammalpermisk"}
         Phlp{"salmepahlavi"}
         Sgnw{"teiknskrift"}
-        Syrc{"syriakisk"}
         Syre{"syriakisk (estrangelo-variant)"}
         Syrj{"syriakisk (vestleg variant)"}
         Syrn{"syriakisk (austleg variant)"}

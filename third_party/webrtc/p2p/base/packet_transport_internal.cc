@@ -26,6 +26,7 @@ PacketTransportInternal::PacketTransportInternal()
     : writable_state_trampoline_(this),
       ready_to_send_trampoline_(this),
       receiving_state_trampoline_(this),
+      sent_packet_trampoline_(this),
       network_route_changed_trampoline_(this) {}
 
 PacketTransportInternal::~PacketTransportInternal() = default;

@@ -29,25 +29,32 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/history_clusters/history_clusters_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/omnibox/clipboard_utils.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_container_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -55,8 +62,6 @@
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_text_util.h"
@@ -125,8 +130,6 @@
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/browser_process.h"
 #endif
-
-static_assert(!BUILDFLAG(IS_IOS));
 
 namespace {
 
@@ -559,18 +562,22 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   model()->ConsumeCtrlKey();
 }
 
-PageActionIconView* OmniboxViewViews::GetAiModePageActionIconView() const {
+IconLabelBubbleView* OmniboxViewViews::GetAiModePageActionIconView() const {
   // Verify location bar is fully initialized because the
   // page_action_icon_controller may not be ready yet.
   if (!location_bar_view_ || !location_bar_view_->IsInitialized()) {
     return nullptr;
+  }
+  if (IsPageActionMigrated(PageActionIconType::kAiMode)) {
+    return location_bar_view_->page_action_container()->GetPageActionView(
+        kActionAiMode);
   }
   return location_bar_view_->page_action_icon_controller()->GetIconView(
       PageActionIconType::kAiMode);
 }
 
 void OmniboxViewViews::ApplyFocusRingToAimButton(bool force_focus) {
-  PageActionIconView* icon_view = GetAiModePageActionIconView();
+  IconLabelBubbleView* icon_view = GetAiModePageActionIconView();
   if (!icon_view) {
     return;
   }
@@ -597,7 +604,7 @@ void OmniboxViewViews::ApplyFocusRingToAimButton(bool force_focus) {
 }
 
 bool OmniboxViewViews::AimButtonVisible() const {
-  PageActionIconView* aim_icon_view = GetAiModePageActionIconView();
+  IconLabelBubbleView* aim_icon_view = GetAiModePageActionIconView();
   return aim_icon_view && aim_icon_view->GetVisible();
 }
 
@@ -613,10 +620,6 @@ int OmniboxViewViews::GetUnelidedTextWidth() const {
   const auto width = GetTextWidth();
   GetRenderText()->SetElideBehavior(elide_behavior);
   return width;
-}
-
-bool OmniboxViewViews::IsImeComposing() const {
-  return IsIMEComposing();
 }
 
 gfx::Size OmniboxViewViews::GetMinimumSize() const {
@@ -1198,10 +1201,6 @@ gfx::NativeView OmniboxViewViews::GetNativeView() const {
   return GetWidget()->GetNativeView();
 }
 
-gfx::NativeView OmniboxViewViews::GetRelativeWindowForPopup() const {
-  return GetWidget()->GetTopLevelWidget()->GetNativeView();
-}
-
 int OmniboxViewViews::GetWidth() const {
   return location_bar_view_ ? location_bar_view_->width() : 0;
 }
@@ -1637,24 +1636,28 @@ void OmniboxViewViews::OnBlur() {
     RevertAll();
   }
 
-  model()->OnWillKillFocus();
+  // If the full WebUI popup is enabled, it's expected to take focus.
+  // In this case, we should NOT close the popup when the omnibox view
+  // is blurred, because the focus is simply moving to the popup itself.
+  if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
+    model()->OnWillKillFocus();
 
-  // If ZeroSuggest is active, and there is evidence that there is a text
-  // update to show, revert to ensure that update is shown now.  Otherwise,
-  // at least call CloseOmniboxPopup(), so that if ZeroSuggest is in the
-  // midst of running but hasn't yet opened the popup, it will be halted.
-  // If we fully reverted in this case, we'd lose the cursor/highlight
-  // information saved above.
-  if (!model()->user_input_in_progress() && model()->PopupIsOpen() &&
-      GetText() != model()->GetPermanentDisplayText()) {
-    RevertAll();
-  } else {
-    CloseOmniboxPopup();
+    // If ZeroSuggest is active, and there is evidence that there is a text
+    // update to show, revert to ensure that update is shown now.  Otherwise,
+    // at least call CloseOmniboxPopup(), so that if ZeroSuggest is in the
+    // midst of running but hasn't yet opened the popup, it will be halted.
+    // If we fully reverted in this case, we'd lose the cursor/highlight
+    // information saved above.
+    if (!model()->user_input_in_progress() && model()->PopupIsOpen() &&
+        GetText() != model()->GetPermanentDisplayText()) {
+      RevertAll();
+    } else {
+      CloseOmniboxPopup();
+    }
+
+    // Tell the model to reset itself.
+    model()->OnKillFocus();
   }
-
-  // Tell the model to reset itself.
-  model()->OnKillFocus();
-
   // Deselect the text. Ensures the cursor is an I-beam.
   SetSelectedRange(gfx::Range(GetCursorPosition()));
 
@@ -1680,7 +1683,7 @@ void OmniboxViewViews::OnBlur() {
   render_text->SetWhitespaceElision(false);
   render_text->SetDisplayOffset(0);
 
-  // |location_bar_view_| can be null in tests.
+  // `location_bar_view_` can be null in tests.
   if (location_bar_view_) {
     location_bar_view_->OnOmniboxBlurred();
 
@@ -2368,8 +2371,18 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
 }
 
 bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
-  return omnibox_feature_configs::AiModeOmniboxEntryPoint::Get().enabled &&
-         model()->is_caret_visible();
+  // `location_bar_view_` can be null in tests.
+  if (!location_bar_view_) {
+    return false;
+  }
+
+  const auto* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(
+          location_bar_view_->profile());
+  const bool is_aim_entrypoint_enabled =
+      OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service);
+
+  return is_aim_entrypoint_enabled && model()->is_caret_visible();
 }
 
 bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
@@ -2380,6 +2393,7 @@ bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
       !AimButtonVisible()) {
     return false;
   }
+
   // The placeholder text should only be shown when the omnibox is visibly
   // focused and the popup selection state is normal (i.e. no popup buttons are
   // focused and we are not in keyword mode). The hint text will be shown on NTP

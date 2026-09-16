@@ -110,6 +110,10 @@
 
 #pragma mark - Accessors
 
+- (SafariDataImportStage)importStage {
+  return _containerViewController.importStage;
+}
+
 - (SafariDataImportImportMediator*)mediator {
   if (!_mediator) {
     /// Use original profile as the user has explicitly requested this operation
@@ -163,14 +167,10 @@
     NSString* description = l10n_util::GetNSString(
         IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_DESCRIPTION);
     NSString* buttonText = l10n_util::GetNSString(IDS_OK);
-    __weak __typeof(self) weakSelf = self;
-    UIAlertAction* dismiss = [UIAlertAction
-        actionWithTitle:buttonText
-                  style:UIAlertActionStyleDefault
-                handler:^(UIAlertAction* action) {
-                  [weakSelf.errorAlert dismissViewControllerAnimated:YES
-                                                          completion:nil];
-                }];
+    UIAlertAction* dismiss =
+        [UIAlertAction actionWithTitle:buttonText
+                                 style:UIAlertActionStyleDefault
+                               handler:nil];
     _errorAlert = [UIAlertController
         alertControllerWithTitle:title
                          message:description
@@ -216,7 +216,7 @@
 #pragma mark - PromoStyleViewControllerDelegate
 
 - (void)didTapPrimaryActionButton {
-  switch (_containerViewController.importStage) {
+  switch (self.importStage) {
     case SafariDataImportStage::kNotStarted:
       if ([self showFilePicker]) {
         [self transitionToNextImportStage];
@@ -244,18 +244,16 @@
 #pragma mark - SafariDataImportImportStageTransitionHandler
 
 - (void)transitionToNextImportStage {
-  CHECK_NE(_containerViewController.importStage,
-           SafariDataImportStage::kImported)
+  CHECK_NE(self.importStage, SafariDataImportStage::kImported)
       << "No next import stage.";
-  int nextImportStageInt =
-      static_cast<int>(_containerViewController.importStage) + 1;
+  int nextImportStageInt = static_cast<int>(self.importStage) + 1;
   _containerViewController.email = self.mediator.email;
   _containerViewController.importStage =
       static_cast<SafariDataImportStage>(nextImportStageInt);
 }
 
 - (void)resetToInitialImportStage:(BOOL)userInitiated {
-  SafariDataImportStage currentStage = _containerViewController.importStage;
+  SafariDataImportStage currentStage = self.importStage;
   CHECK_EQ(currentStage, SafariDataImportStage::kFileLoading)
       << "Not supported for stage: " << static_cast<int>(currentStage);
   /// If the user has not explicitly canceled the import, alert the user that
@@ -374,7 +372,7 @@
 
 /// Dismisses Safari import workflow.
 - (void)dismissWorkflow {
-  RecordSafariDataImportEndsAtImportStage(_containerViewController.importStage);
+  RecordSafariDataImportEndsAtImportStage(self.importStage);
   [self.delegate safariDataImportCoordinatorWillDismissWorkflow:self];
 }
 

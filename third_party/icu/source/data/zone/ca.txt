@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 ca{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -27,9 +27,6 @@ ca{
         "Africa:Ndjamena"{
             ec{"N’Djamena"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Trípoli"}
         }
@@ -41,9 +38,6 @@ ca{
         }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Belem"{
             ec{"Belém"}
@@ -68,9 +62,6 @@ ca{
         }
         "America:Cuiaba"{
             ec{"Cuiabá"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Eirunepe"{
             ec{"Eirunepé"}
@@ -101,9 +92,6 @@ ca{
         }
         "America:Panama"{
             ec{"Panamà"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -264,9 +252,6 @@ ca{
         "Atlantic:St_Helena"{
             ec{"Saint Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"Temps universal coordinat"}
         }
@@ -350,9 +335,6 @@ ca{
         "Europe:Ulyanovsk"{
             ec{"Uliànovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Újhorod"}
-        }
         "Europe:Vatican"{
             ec{"Vaticà"}
         }
@@ -364,9 +346,6 @@ ca{
         }
         "Europe:Warsaw"{
             ec{"Varsòvia"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporíjia"}
         }
         "Europe:Zurich"{
             ec{"Zúric"}
@@ -405,18 +384,18 @@ ca{
             ls{"Hora de l’Afganistan"}
         }
         "meta:Africa_Central"{
-            ls{"Hora de l’Àfrica Central"}
+            ls{"Hora de l’Àfrica central"}
         }
         "meta:Africa_Eastern"{
-            ls{"Hora de l’Àfrica Oriental"}
+            ls{"Hora de l’Àfrica oriental"}
         }
         "meta:Africa_Southern"{
-            ls{"Hora estàndard del sud de l’Àfrica"}
+            ls{"Hora estàndard de l’Àfrica meridional"}
         }
         "meta:Africa_Western"{
-            ld{"Hora d’estiu de l’Àfrica Occidental"}
-            lg{"Hora de l’Àfrica Occidental"}
-            ls{"Hora estàndard de l’Àfrica Occidental"}
+            ld{"Hora d’estiu de l’Àfrica occidental"}
+            lg{"Hora de l’Àfrica occidental"}
+            ls{"Hora estàndard de l’Àfrica occidental"}
         }
         "meta:Alaska"{
             ld{"Hora d’estiu d’Alaska"}
@@ -450,7 +429,7 @@ ca{
         }
         "meta:Anadyr"{
             ld{"Horari d’estiu d’Anadyr"}
-            lg{"Hora d’Anadyr"}
+            lg{"Hora d’Anàdir"}
             ls{"Hora estàndard d’Anadyr"}
         }
         "meta:Apia"{
@@ -484,9 +463,9 @@ ca{
             ls{"Hora estàndard de l’Atlàntic"}
         }
         "meta:Australia_Central"{
-            ld{"Hora d’estiu d’Austràlia Central"}
-            lg{"Hora d’Austràlia Central"}
-            ls{"Hora estàndard d’Austràlia Central"}
+            ld{"Hora d’estiu d’Austràlia central"}
+            lg{"Hora d’Austràlia central"}
+            ls{"Hora estàndard d’Austràlia central"}
         }
         "meta:Australia_CentralWestern"{
             ld{"Hora d’estiu d’Austràlia centre-occidental"}
@@ -494,14 +473,14 @@ ca{
             ls{"Hora estàndard d’Austràlia centre-occidental"}
         }
         "meta:Australia_Eastern"{
-            ld{"Hora d’estiu d’Austràlia Oriental"}
-            lg{"Hora d’Austràlia Oriental"}
-            ls{"Hora estàndard d’Austràlia Oriental"}
+            ld{"Hora d’estiu d’Austràlia oriental"}
+            lg{"Hora d’Austràlia oriental"}
+            ls{"Hora estàndard d’Austràlia oriental"}
         }
         "meta:Australia_Western"{
-            ld{"Hora d’estiu d’Austràlia Occidental"}
-            lg{"Hora d’Austràlia Occidental"}
-            ls{"Hora estàndard d’Austràlia Occidental"}
+            ld{"Hora d’estiu d’Austràlia occidental"}
+            lg{"Hora d’Austràlia occidental"}
+            ls{"Hora estàndard d’Austràlia occidental"}
         }
         "meta:Azerbaijan"{
             ld{"Hora d’estiu de l’Azerbaidjan"}
@@ -555,11 +534,6 @@ ca{
             lg{"Hora de la Xina"}
             ls{"Hora estàndard de la Xina"}
         }
-        "meta:Choibalsan"{
-            ld{"Hora d’estiu de Choibalsan"}
-            lg{"Hora de Choibalsan"}
-            ls{"Hora estàndard de Choibalsan"}
-        }
         "meta:Christmas"{
             ls{"Hora de Kiritimati"}
         }
@@ -599,28 +573,28 @@ ca{
             ls{"Hora de l’Equador"}
         }
         "meta:Europe_Central"{
-            ld{"Hora d’estiu del Centre d’Europa"}
-            lg{"Hora del Centre d’Europa"}
-            ls{"Hora estàndard del Centre d’Europa"}
+            ld{"Hora d’estiu d’Europa central"}
+            lg{"Hora d’Europa central"}
+            ls{"Hora estàndard d’Europa central"}
             sd{"CEST"}
             sg{"CET"}
             ss{"CET"}
         }
         "meta:Europe_Eastern"{
-            ld{"Hora d’estiu de l’Est d’Europa"}
-            lg{"Hora de l’Est d’Europa"}
-            ls{"Hora estàndard de l’Est d’Europa"}
+            ld{"Hora d’estiu d’Europa oriental"}
+            lg{"Hora d’Europa oriental"}
+            ls{"Hora estàndard d’Europa oriental"}
             sd{"EEST"}
             sg{"EET"}
             ss{"EET"}
         }
         "meta:Europe_Further_Eastern"{
-            ls{"Hora de l’Extrem Orient Europeu"}
+            ls{"Hora de l’extrem oriental d’Europa"}
         }
         "meta:Europe_Western"{
-            ld{"Hora d’estiu de l’Oest d’Europa"}
-            lg{"Hora de l’Oest d’Europa"}
-            ls{"Hora estàndard de l’Oest d’Europa"}
+            ld{"Hora d’estiu d’Europa occidental"}
+            lg{"Hora d’Europa occidental"}
+            ls{"Hora estàndard d’Europa occidental"}
             sd{"WEST"}
             sg{"WET"}
             ss{"WET"}
@@ -639,10 +613,10 @@ ca{
             ls{"Hora de la Guaiana Francesa"}
         }
         "meta:French_Southern"{
-            ls{"Hora d’Antàrtida i França del Sud"}
+            ls{"Hora d’Antàrtida i de les Terres Australs Antàrtiques Franceses"}
         }
         "meta:GMT"{
-            ls{"Hora del Meridià de Greenwich"}
+            ls{"Hora del meridià de Greenwich"}
             ss{"GMT"}
         }
         "meta:Galapagos"{
@@ -733,6 +707,9 @@ ca{
             lg{"Hora de Kamtxatka"}
             ls{"Hora estàndard de Petropavlovsk de Kamtxatka"}
         }
+        "meta:Kazakhstan"{
+            ls{"Hora del Kazakhstan"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Hora de l’est del Kazakhstan"}
         }
@@ -768,9 +745,6 @@ ca{
             lg{"Hora de Macau"}
             ls{"Hora estàndard de Macau"}
         }
-        "meta:Macquarie"{
-            ls{"Hora de Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Hora d’estiu de Magadan"}
             lg{"Hora de Magadan"}
@@ -795,11 +769,6 @@ ca{
         }
         "meta:Mawson"{
             ls{"Hora de Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Hora d’estiu del nord-oest de Mèxic"}
-            lg{"Hora del nord-oest de Mèxic"}
-            ls{"Hora estàndard del nord-oest de Mèxic"}
         }
         "meta:Mexico_Pacific"{
             ld{"Hora d’estiu del Pacífic de Mèxic"}

@@ -212,9 +212,14 @@ void WebContentsObserverProxy::DOMContentLoaded(
 }
 
 void WebContentsObserverProxy::OnFirstContentfulPaintInPrimaryMainFrame() {
+  Page& primaryPage = web_contents()->GetPrimaryPage();
+  std::optional<base::TimeDelta> loadTime =
+      static_cast<PageImpl&>(primaryPage)
+          .GetFirstContentfulPaintInMainDocumentLoadTime();
+  DCHECK(loadTime);
   Java_WebContentsObserverProxy_firstContentfulPaintInPrimaryMainFrame(
-      AttachCurrentThread(), java_observer_,
-      web_contents()->GetPrimaryPage().GetJavaPage());
+      AttachCurrentThread(), java_observer_, primaryPage.GetJavaPage(),
+      loadTime->InMicroseconds());
 }
 
 void WebContentsObserverProxy::NavigationEntryCommitted(
@@ -359,13 +364,12 @@ void WebContentsObserverProxy::OnWebContentsLostFocus(RenderWidgetHost*) {
 }
 
 void WebContentsObserverProxy::OnFocusChangedInPage(
-    FocusedNodeDetails* details) {
-  CHECK(details);
-  const gfx::Rect& bounds = details->node_bounds_in_root_view;
+    const FocusedNodeDetails& details) {
+  const gfx::Rect& bounds = details.node_bounds_in_root_view;
   JNIEnv* env = AttachCurrentThread();
   Java_WebContentsObserverProxy_onFocusChangedInPage(
-      env, java_observer_, details->is_editable_node, bounds.x(), bounds.y(),
-      bounds.right(), bounds.bottom(), static_cast<jint>(details->focus_type));
+      env, java_observer_, details.is_editable_node, bounds.x(), bounds.y(),
+      bounds.right(), bounds.bottom(), static_cast<jint>(details.focus_type));
 }
 
 void WebContentsObserverProxy::MediaSessionCreated(MediaSession* session) {
@@ -375,6 +379,11 @@ void WebContentsObserverProxy::MediaSessionCreated(MediaSession* session) {
       static_cast<MediaSessionImpl*>(session)
           ->GetMediaSessionAndroid()
           ->GetJavaObject());
+}
+
+void WebContentsObserverProxy::WasDiscarded() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_WebContentsObserverProxy_wasDiscarded(env, java_observer_);
 }
 
 void WebContentsObserverProxy::DidUpdateAudioMutingState(bool muted) {

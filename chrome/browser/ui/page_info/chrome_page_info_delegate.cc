@@ -12,6 +12,7 @@
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
+#include "chrome/browser/permissions/permission_actions_history_factory.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
@@ -224,8 +225,7 @@ bool ChromePageInfoDelegate::CreateInfoBarDelegate(
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(web_contents_);
   if (infobar_manager) {
-    auto* delegate = PageInfoInfoBarDelegate::Create(infobar_manager);
-    delegate->set_reload_type(reload_type);
+    PageInfoInfoBarDelegate::Create(infobar_manager, reload_type);
     return true;
   }
   return false;
@@ -368,6 +368,11 @@ std::u16string ChromePageInfoDelegate::GetSubjectName(const GURL& url) {
 permissions::PermissionDecisionAutoBlocker*
 ChromePageInfoDelegate::GetPermissionDecisionAutoblocker() {
   return PermissionDecisionAutoBlockerFactory::GetForProfile(GetProfile());
+}
+
+permissions::PermissionActionsHistory*
+ChromePageInfoDelegate::GetPermissionActionsHistory() {
+  return PermissionActionsHistoryFactory::GetForProfile(GetProfile());
 }
 
 StatefulSSLHostStateDelegate*

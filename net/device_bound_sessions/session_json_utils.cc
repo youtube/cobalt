@@ -4,8 +4,10 @@
 
 #include "net/device_bound_sessions/session_json_utils.h"
 
+#include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/types/expected_macros.h"
+#include "net/base/features.h"
 
 namespace net::device_bound_sessions {
 
@@ -27,7 +29,15 @@ base::expected<SessionParams::Scope, SessionError> ParseScope(
   SessionParams::Scope scope;
 
   std::optional<bool> include_site = scope_dict.FindBool("include_site");
-  scope.include_site = include_site.value_or(false);
+  if (features::kDeviceBoundSessionsOriginTrialFeedback.Get()) {
+    if (!include_site.has_value()) {
+      return base::unexpected{
+          SessionError{SessionError::kInvalidScopeIncludeSite}};
+    }
+    scope.include_site = *include_site;
+  } else {
+    scope.include_site = include_site.value_or(false);
+  }
   const std::string* origin = scope_dict.FindString("origin");
   scope.origin = origin ? *origin : "";
   const base::Value::List* specifications_list =
@@ -39,8 +49,7 @@ base::expected<SessionParams::Scope, SessionError> ParseScope(
   for (const auto& specification : *specifications_list) {
     const base::Value::Dict* specification_dict = specification.GetIfDict();
     if (!specification_dict) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidScopeRule});
+      return base::unexpected(SessionError{SessionError::kInvalidScopeRule});
     }
 
     const std::string* type = specification_dict->FindString("type");
@@ -48,8 +57,7 @@ base::expected<SessionParams::Scope, SessionError> ParseScope(
         FindStringWithDefault(*specification_dict, "domain", "*");
     std::string path = FindStringWithDefault(*specification_dict, "path", "/");
     if (!type || domain.empty() || path.empty()) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidScopeRule});
+      return base::unexpected(SessionError{SessionError::kInvalidScopeRule});
     }
     SessionParams::Scope::Specification::Type rule_type =
         SessionParams::Scope::Specification::Type::kInclude;
@@ -58,8 +66,7 @@ base::expected<SessionParams::Scope, SessionError> ParseScope(
     } else if (*type == "exclude") {
       rule_type = SessionParams::Scope::Specification::Type::kExclude;
     } else {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidScopeRule});
+      return base::unexpected(SessionError{SessionError::kInvalidScopeRule});
     }
 
     scope.specifications.push_back(SessionParams::Scope::Specification{
@@ -76,20 +83,17 @@ ParseCredentials(const base::Value::List& credentials_list) {
     SessionParams::Credential credential;
     const base::Value::Dict* credential_dict = json_credential.GetIfDict();
     if (!credential_dict) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidCredentials});
+      return base::unexpected(SessionError{SessionError::kInvalidCredentials});
     }
     const std::string* type = credential_dict->FindString("type");
     if (!type || *type != "cookie") {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidCredentials});
+      return base::unexpected(SessionError{SessionError::kInvalidCredentials});
     }
     const std::string* name = credential_dict->FindString("name");
     std::string attributes =
         FindStringWithDefault(*credential_dict, "attributes", "");
     if (!name || name->empty()) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidCredentials});
+      return base::unexpected(SessionError{SessionError::kInvalidCredentials});
     }
 
     cookie_credentials.push_back(
@@ -109,31 +113,27 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
   std::optional<base::Value::Dict> maybe_root = base::JSONReader::ReadDict(
       response_json, base::JSON_PARSE_RFC, /*max_depth=*/5u);
   if (!maybe_root) {
-    return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidConfigJson});
+    return base::unexpected(SessionError{SessionError::kInvalidConfigJson});
   }
 
   std::string* session_id = maybe_root->FindString("session_identifier");
   if (!session_id || session_id->empty()) {
-    return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidSessionId});
+    return base::unexpected(SessionError{SessionError::kInvalidSessionId});
   }
 
   if (expected_session_id.has_value() && *expected_session_id != *session_id) {
-    return base::unexpected(
-        SessionError{SessionError::ErrorType::kMismatchedSessionId});
+    return base::unexpected(SessionError{SessionError::kMismatchedSessionId});
   }
 
   std::optional<bool> continue_value = maybe_root->FindBool("continue");
   if (continue_value.has_value() && *continue_value == false) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kServerRequestedTermination});
+        SessionError{SessionError::kServerRequestedTermination});
   }
 
   base::Value::Dict* scope_dict = maybe_root->FindDict("scope");
   if (!scope_dict) {
-    return base::unexpected(
-        SessionError{SessionError::ErrorType::kMissingScope});
+    return base::unexpected(SessionError{SessionError::kMissingScope});
   }
   ASSIGN_OR_RETURN(SessionParams::Scope scope, ParseScope(*scope_dict));
 
@@ -147,8 +147,7 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
   }
 
   if (credentials.empty()) {
-    return base::unexpected(
-        SessionError{SessionError::ErrorType::kNoCredentials});
+    return base::unexpected(SessionError{SessionError::kNoCredentials});
   }
 
   std::vector<std::string> allowed_refresh_initiators;
@@ -158,7 +157,7 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
     for (base::Value& initiator : *initiator_list) {
       if (!initiator.is_string()) {
         return base::unexpected(
-            SessionError{SessionError::ErrorType::kInvalidRefreshInitiators});
+            SessionError{SessionError::kInvalidRefreshInitiators});
       }
 
       allowed_refresh_initiators.emplace_back(std::move(initiator.GetString()));

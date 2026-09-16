@@ -147,7 +147,8 @@ bool ShouldRepromptFromFeatureParams(
   }
 
   std::optional<base::Value::Dict> reprompt_params_json =
-      base::JSONReader::ReadDict(reprompt_params);
+      base::JSONReader::ReadDict(reprompt_params,
+                                 base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   // Not a valid JSON.
   if (!reprompt_params_json) {
     base::UmaHistogramEnumeration(kSearchEngineChoiceRepromptHistogram,
@@ -328,7 +329,7 @@ bool IsChoiceImported(const ChoiceCompletionMetadata& completion_metadata,
 
 bool ManagementStatusEligibleForChoiceScreen(
     const regional_capabilities::ChoiceScreenEligibilityConfig& config,
-    policy::ManagementService& management_service) {
+    policy::ManagementService& platform_management_service) {
   if (!base::FeatureList::IsEnabled(
           switches::kChoiceScreenEligibilityCheckManagementStatus)) {
     return true;
@@ -338,15 +339,7 @@ bool ManagementStatusEligibleForChoiceScreen(
     return true;
   }
 
-  switch (management_service.GetManagementAuthorityTrustworthiness()) {
-    case policy::ManagementAuthorityTrustworthiness::NONE:
-      return true;
-    case policy::ManagementAuthorityTrustworthiness::LOW:
-    case policy::ManagementAuthorityTrustworthiness::TRUSTED:
-    case policy::ManagementAuthorityTrustworthiness::FULLY_TRUSTED:
-      return false;
-  }
-  NOTREACHED();
+  return !platform_management_service.IsManaged();
 }
 
 // Checks account properties against the eligibility config to determine if the
@@ -412,14 +405,14 @@ SearchEngineChoiceService::SearchEngineChoiceService(
     regional_capabilities::RegionalCapabilitiesService& regional_capabilities,
     TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
     signin::IdentityManager& identity_manager,
-    policy::ManagementService& management_service)
+    policy::ManagementService& platform_management_service)
     : client_(std::move(client)),
       profile_prefs_(profile_prefs),
       local_state_(local_state),
       regional_capabilities_service_(regional_capabilities),
       prepopulate_data_resolver_(prepopulate_data_resolver),
       identity_manager_(identity_manager),
-      management_service_(management_service) {}
+      platform_management_service_(platform_management_service) {}
 
 SearchEngineChoiceService::~SearchEngineChoiceService() = default;
 
@@ -934,7 +927,7 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
 
   // 3.1: Check eligibility based on management status.
   if (!ManagementStatusEligibleForChoiceScreen(eligibility_config,
-                                               *management_service_)) {
+                                               *platform_management_service_)) {
     return ChoiceStatus::kManaged;
   }
 

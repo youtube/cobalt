@@ -382,7 +382,8 @@ class ObserverLogger : public RenderProcessHostObserver {
 };
 
 // Flaky on Android. http://crbug.com/759514.
-#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_WIN) && !defined(NDEBUG))
 #define MAYBE_AllProcessExitedCallsBeforeAnyHostDestroyedCalls \
   DISABLED_AllProcessExitedCallsBeforeAnyHostDestroyedCalls
 #else
@@ -861,7 +862,7 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
     // Isolate host so that the first and second navigation are guaranteed to
     // be in different processes.
     IsolateOriginsForTesting(embedded_test_server(), shell()->web_contents(),
-                             {kTestUrl.host()});
+                             {kTestUrl.GetHost()});
   }
   EXPECT_TRUE(NavigateToURL(shell(), kTestUrl));
 
@@ -926,7 +927,7 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
     // Isolate host so that the first and second navigation are guaranteed to
     // be in different processes.
     IsolateOriginsForTesting(embedded_test_server(), shell()->web_contents(),
-                             {kTestUrl.host()});
+                             {kTestUrl.GetHost()});
   }
 
   EXPECT_TRUE(NavigateToURL(shell(), kTestUrl));
@@ -1304,6 +1305,40 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, ConstructedButNotInitializedYet) {
   // Cleanup the resources acquired by the test.
   process->Cleanup();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// This test verifies that the process priority can be correctly set before
+// initializing the RenderProcessHost after introducing
+// MaybeUpdateSpareRendererPriorityOnReady.
+IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
+                       SetSpareRendererPriorityBeforeInitialization) {
+  using ChildBindingState = base::android::ChildBindingState;
+  RenderProcessHostImpl* process = static_cast<RenderProcessHostImpl*>(
+      RenderProcessHostImpl::CreateSpareRenderProcessHost(
+          ShellContentBrowserClient::Get()->browser_context(), nullptr));
+
+  // Before Init(), the priority is not updated yet.
+  EXPECT_TRUE(process->HasSpareRendererPriority());
+  EXPECT_EQ(process->GetEffectiveImportance(), ChildProcessImportance::NORMAL);
+  EXPECT_EQ(process->GetEffectiveChildBindingState(),
+            ChildBindingState::UNBOUND);
+
+  RenderProcessHostWatcher watcher(
+      process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_READY);
+  process->Init();
+  watcher.Wait();
+
+  EXPECT_TRUE(process->HasSpareRendererPriority());
+  if (base::FeatureList::IsEnabled(features::kSpareRendererProcessPriority)) {
+    // After Init(), the priority should be updated.
+    EXPECT_EQ(process->GetEffectiveImportance(),
+              ChildProcessImportance::NORMAL);
+    EXPECT_EQ(process->GetEffectiveChildBindingState(),
+              ChildBindingState::WAIVED);
+  }
+  process->Cleanup();
+}
+#endif
 
 class DiscardFrameBrowserTest : public RenderProcessHostTestBase,
                                 public WebContentsObserver {
@@ -2286,11 +2321,25 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, ReuseSiteURLChanges) {
     EXPECT_NE(root->current_frame_host()->GetProcess(),
               site_instance->GetProcess());
 
+    RenderFrameDeletedObserver observer(
+        shell()->web_contents()->GetPrimaryMainFrame());
     // Reload. Getting a RenderProcessHost with the
     // kReusePendingOrCommittedSite policy should now return the process of
     // the main RFH, as it is now registered with the modified site URL.
     shell()->web_contents()->GetController().Reload(ReloadType::NORMAL, false);
     EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+    // TODO(crbug.com/40192071): At this point, the main frame should swap to a
+    // new SiteInstance with the modified site URL, but it unexpectedly stays in
+    // the old SiteInstance and process. Without waiting for the RFH
+    // destruction, most of the subsequent expectations still accidentally pass,
+    // except for the one about no process reuse after the custom
+    // ContentBrowserClient is removed. For now, work around this by waiting for
+    // the old RFH to be deleted here, which avoids the main frame process being
+    // associated with the old site URL and later interfering with process reuse
+    // decisions. When this bug is fixed, this observer should be removed, and
+    // new expectations should be added here to ensure that we swap to a fresh
+    // SiteInstance and process after the reload
+    observer.WaitUntilDeleted();
     site_instance =
         SiteInstanceImpl::CreateReusableInstanceForTesting(context, kUrl);
     EXPECT_EQ(root->current_frame_host()->GetProcess(),
@@ -2663,7 +2712,7 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
    public:
     // ContentBrowserTestContentBrowserClient:
     bool DisallowV8FeatureFlagOverridesForSite(const GURL& site_url) override {
-      return site_url.host() == "a.com";
+      return site_url.GetHost() == "a.com";
     }
   };
   DisallowV8FeatureOverridesContentBrowserClient content_browser_client;

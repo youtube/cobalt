@@ -8,13 +8,14 @@
 #include <variant>
 
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/cloud_binary_upload_service_factory.h"
+#include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/strings.h"
 #include "components/enterprise/connectors/core/analysis_settings.h"
 #include "components/safe_browsing/core/common/safebrowsing_switches.h"
@@ -265,6 +266,11 @@ void BinaryUploadService::Request::set_is_content_encrypted(
   content_analysis_request_.set_is_content_encrypted(is_content_encrypted);
 }
 
+void BinaryUploadService::Request::set_is_content_too_large(
+    bool is_content_too_large) {
+  is_content_too_large_ = is_content_too_large;
+}
+
 void BinaryUploadService::Request::set_blocking(bool blocking) {
   content_analysis_request_.set_blocking(blocking);
 }
@@ -379,6 +385,14 @@ bool BinaryUploadService::Request::image_paste() const {
 
 void BinaryUploadService::Request::set_image_paste(bool image_paste) {
   image_paste_ = image_paste;
+}
+
+bool BinaryUploadService::Request::is_content_too_large() const {
+  return is_content_too_large_;
+}
+
+bool BinaryUploadService::Request::is_content_encrypted() const {
+  return content_analysis_request_.is_content_encrypted();
 }
 
 void BinaryUploadService::Request::StartRequest() {

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 brx{
     Countries{
         001{"बुहुम"}
@@ -146,6 +146,7 @@ brx{
         IL{"इज्राईल"}
         IM{"आयोल अफ मेन"}
         IN{"भारत"}
+        IO{"ब्रिटिशनि भारतारि लैथो बाहागो"}
         IQ{"ईराक"}
         IR{"ईरान"}
         IS{"आइसलेण्ड"}

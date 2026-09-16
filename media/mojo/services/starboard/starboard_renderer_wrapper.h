@@ -151,7 +151,7 @@ class StarboardRendererWrapper
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client);
 #if BUILDFLAG(IS_ANDROID)
-  void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
+  void OnRequestOverlayInfoByStarboard();
 #endif  // BUILDFLAG(IS_ANDROID)
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider();

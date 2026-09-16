@@ -123,10 +123,10 @@ class BASE_EXPORT WaitableEvent {
   void declare_only_used_while_idle() { only_used_while_idle_ = true; }
 
   // Wait, synchronously, on multiple events.
-  //   waitables: an array of WaitableEvent pointers
-  //   count: the number of elements in @waitables
+  //   waitables: a span of WaitableEvent pointers
   //
-  // returns: the index of a WaitableEvent which has been signaled.
+  // returns: the index of a WaitableEvent within the span which has been
+  //          signaled.
   //
   // You MUST NOT delete any of the WaitableEvent objects while this wait is
   // happening, however WaitMany's return "happens after" the |Signal| call
@@ -134,7 +134,7 @@ class BASE_EXPORT WaitableEvent {
   //
   // If more than one WaitableEvent is signaled to unblock WaitMany, the lowest
   // index among them is returned.
-  NOT_TAIL_CALLED static size_t WaitMany(span<WaitableEvent*> waitables);
+  NOT_TAIL_CALLED static size_t WaitMany(base::span<WaitableEvent*> waitables);
 
   // For asynchronous waiting, see WaitableEventWatcher
 
@@ -175,7 +175,7 @@ class BASE_EXPORT WaitableEvent {
   // the actual signaling and waiting).
   void SignalImpl();
   bool TimedWaitImpl(TimeDelta wait_delta);
-  static size_t WaitManyImpl(WaitableEvent** waitables, size_t count);
+  static size_t WaitManyImpl(base::span<WaitableEvent*> waitables);
 
 #if BUILDFLAG(IS_WIN)
   win::ScopedHandle handle_;
@@ -249,15 +249,14 @@ class BASE_EXPORT WaitableEvent {
     ~WaitableEventKernel();
   };
 
-  typedef std::pair<WaitableEvent*, size_t> WaiterAndIndex;
+  using WaiterAndIndex = std::pair<WaitableEvent*, size_t>;
 
   // When dealing with arrays of WaitableEvent*, we want to sort by the address
   // of the WaitableEvent in order to have a globally consistent locking order.
   // In that case we keep them, in sorted order, in an array of pairs where the
   // second element is the index of the WaitableEvent in the original,
   // unsorted, array.
-  static size_t EnqueueMany(WaiterAndIndex* waitables,
-                            size_t count,
+  static size_t EnqueueMany(base::span<WaiterAndIndex> waitables,
                             Waiter* waiter);
 
   bool SignalAll();

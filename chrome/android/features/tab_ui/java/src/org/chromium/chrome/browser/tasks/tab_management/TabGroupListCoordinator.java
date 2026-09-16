@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.hub.PaneManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
@@ -33,10 +34,8 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.messaging.MessagingBackendService;
@@ -72,7 +71,7 @@ public class TabGroupListCoordinator {
     private final TabListFaviconProvider mTabListFaviconProvider;
 
     private final TabGroupListMediator mTabGroupListMediator;
-    private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
+    private EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
 
     /**
      * @param context Used to load resources and views.
@@ -196,11 +195,9 @@ public class TabGroupListCoordinator {
                         tabGroupRemovedMessageMediator,
                         persistentVersioningMessageMediator);
 
-        if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
-            mEdgeToEdgePadAdjuster =
-                    EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
-                            mView.getRecyclerView(), edgeToEdgeSupplier);
-        }
+        mEdgeToEdgePadAdjuster =
+                EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
+                        mView.getRecyclerView(), edgeToEdgeSupplier);
     }
 
     /** Returns the root view of this component, allowing the parent to anchor in the hierarchy. */
@@ -209,6 +206,7 @@ public class TabGroupListCoordinator {
     }
 
     /** Permanently cleans up this component. */
+    @SuppressWarnings("NullAway")
     public void destroy() {
         mTabGroupListMediator.destroy();
         mSimpleRecyclerViewAdapter.destroy();
@@ -220,6 +218,7 @@ public class TabGroupListCoordinator {
     }
 
     private static boolean enableContainment() {
-        return SurfaceColorUpdateUtils.isTabGroupListContainmentEnabled();
+        return ChromeFeatureList.sGridTabSwitcherSurfaceColorUpdate.isEnabled()
+                && ChromeFeatureList.sTabGroupListContainment.getValue();
     }
 }

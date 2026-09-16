@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/audio/audio_device.h"
+#include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
@@ -77,6 +78,7 @@ class MostlyMockVoiceEngineInterface : public VoiceEngineInterface {
               (const FieldTrialsView*),
               (const, override));
   MOCK_METHOD(void, Init, (), (override));
+  MOCK_METHOD(void, Terminate, (), (override));
   MOCK_METHOD(scoped_refptr<AudioState>, GetAudioState, (), (const, override));
   MOCK_METHOD(std::vector<Codec>&, LegacySendCodecs, (), (const, override));
   MOCK_METHOD(std::vector<Codec>&, LegacyRecvCodecs, (), (const, override));

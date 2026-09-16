@@ -407,7 +407,7 @@ AwContents::~AwContents() {
     // TODO(timvolodine): consider moving NotifyMemoryPressure to
     // AwContentsLifecycleNotifier (crbug.com/522988).
     base::MemoryPressureListener::NotifyMemoryPressure(
-        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   }
   browser_view_renderer_.SetCurrentCompositorFrameConsumer(nullptr);
   AwContentsLifecycleNotifier::GetInstance().OnWebViewDestroyed(this);
@@ -1726,7 +1726,7 @@ void AwContents::PrimaryPageChanged(content::Page& page) {
   // the issue for the context.
   prerender_handles_.clear();
 
-  std::string scheme = page.GetMainDocument().GetLastCommittedURL().scheme();
+  std::string scheme = page.GetMainDocument().GetLastCommittedURL().GetScheme();
   const url::Origin& origin = page.GetMainDocument().GetLastCommittedOrigin();
   std::string etld_plus1 =
       net::registry_controlled_domains::GetDomainAndRegistry(

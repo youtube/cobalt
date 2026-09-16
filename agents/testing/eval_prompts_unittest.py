@@ -5,6 +5,7 @@
 """Tests for eval_prompts."""
 
 import io
+import itertools
 import os
 import pathlib
 import subprocess
@@ -14,403 +15,9 @@ from unittest import mock
 from pyfakefs import fake_filesystem_unittest
 
 import eval_prompts
+import results
 
 # pylint: disable=protected-access
-
-
-class FromNpmPromptfooInstallationUnittest(fake_filesystem_unittest.TestCase):
-    """Unit tests for FromNpmPromptfooInstallation."""
-
-    def setUp(self):
-        self.setUpPyfakefs()
-
-    @mock.patch('subprocess.run')
-    def test_setup(self, mock_run):
-        """Tests that setup runs the correct npm commands."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromNpmPromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), '0.42.0')
-        installation.setup()
-
-        mock_run.assert_has_calls([
-            mock.call(['npm', 'init', '-y'],
-                      cwd=pathlib.Path('/tmp/promptfoo'),
-                      check=True),
-            mock.call(['npm', 'install', 'promptfoo@0.42.0'],
-                      cwd=pathlib.Path('/tmp/promptfoo'),
-                      check=True),
-        ])
-
-    def test_installed_true(self):
-        """Tests that installed is true when the executable exists."""
-        self.fs.create_file('/tmp/promptfoo/node_modules/.bin/promptfoo')
-        installation = eval_prompts.FromNpmPromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'latest')
-        self.assertTrue(installation.installed)
-
-    def test_installed_false(self):
-        """Tests that installed is false when the executable does not exist."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromNpmPromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'latest')
-        self.assertFalse(installation.installed)
-
-    @mock.patch('subprocess.run')
-    def test_run(self, mock_run):
-        """Tests that run calls the promptfoo executable."""
-        self.fs.create_file('/tmp/promptfoo/node_modules/.bin/promptfoo')
-        installation = eval_prompts.FromNpmPromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'latest')
-        installation.run(['eval', '-c', 'config.yaml'], cwd='/tmp/test')
-        executable = '/tmp/promptfoo/node_modules/.bin/promptfoo'
-        mock_run.assert_called_once_with(
-            [str(pathlib.Path(executable)), 'eval', '-c', 'config.yaml'],
-            cwd='/tmp/test',
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT)
-
-    def test_cleanup(self):
-        """Tests that cleanup removes the installation directory."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromNpmPromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'latest')
-        installation.cleanup()
-        self.assertFalse(pathlib.Path('/tmp/promptfoo').exists())
-
-
-class FromSourcePromptfooInstallationUnittest(fake_filesystem_unittest.TestCase
-                                              ):
-    """Unit tests for FromSourcePromptfooInstallation."""
-
-    def setUp(self):
-        self.setUpPyfakefs()
-
-    @mock.patch('subprocess.run')
-    def test_setup(self, mock_run):
-        """Tests that setup runs the correct git and npm commands."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromSourcePromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'my-rev')
-        installation.setup()
-
-        mock_run.assert_has_calls([
-            mock.call([
-                'git', 'clone', 'https://github.com/promptfoo/promptfoo',
-                pathlib.Path('/tmp/promptfoo')
-            ],
-                      check=True),
-            mock.call(['git', 'checkout', 'my-rev'],
-                      check=True,
-                      cwd=pathlib.Path('/tmp/promptfoo')),
-            mock.call(['npm', 'install'],
-                      check=True,
-                      cwd=pathlib.Path('/tmp/promptfoo')),
-            mock.call(['npm', 'run', 'build'],
-                      check=True,
-                      cwd=pathlib.Path('/tmp/promptfoo')),
-        ])
-
-    def test_installed_true(self):
-        """Tests that installed is true when .git directory exists."""
-        self.fs.create_dir('/tmp/promptfoo/.git')
-        installation = eval_prompts.FromSourcePromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'main')
-        self.assertTrue(installation.installed)
-
-    def test_installed_false(self):
-        """Tests that installed is false when .git directory does not exist."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromSourcePromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'main')
-        self.assertFalse(installation.installed)
-
-    @mock.patch('subprocess.run')
-    def test_run(self, mock_run):
-        """Tests that run calls node with the correct script."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromSourcePromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'main')
-        installation.run(['eval', '-c', 'config.yaml'], cwd='/tmp/test')
-        main_js = '/tmp/promptfoo/dist/src/main.js'
-        mock_run.assert_called_once_with(
-            [str(pathlib.Path(main_js)), 'eval', '-c', 'config.yaml'],
-            cwd='/tmp/test',
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT)
-
-    def test_cleanup(self):
-        """Tests that cleanup removes the installation directory."""
-        self.fs.create_dir('/tmp/promptfoo')
-        installation = eval_prompts.FromSourcePromptfooInstallation(
-            pathlib.Path('/tmp/promptfoo'), 'main')
-        installation.cleanup()
-        self.assertFalse(pathlib.Path('/tmp/promptfoo').exists())
-
-
-class SetupPromptfooUnittest(fake_filesystem_unittest.TestCase):
-    """Unit tests for _setup_promptfoo."""
-
-    def setUp(self):
-        self.setUpPyfakefs()
-
-    @mock.patch('eval_prompts.FromNpmPromptfooInstallation')
-    @mock.patch('eval_prompts.FromSourcePromptfooInstallation')
-    def test_use_npm_with_version(self, mock_src_install, mock_npm_install):
-        """Tests that npm is used when a version is provided."""
-        self.fs.create_dir('/tmp/promptfoo')
-        mock_npm_instance = mock_npm_install.return_value
-        eval_prompts._setup_promptfoo(pathlib.Path('/tmp/promptfoo'), None,
-                                      '0.42.0')
-        mock_npm_install.assert_called_once_with(
-            pathlib.Path('/tmp/promptfoo'), '0.42.0')
-        mock_src_install.assert_called_once_with(
-            pathlib.Path('/tmp/promptfoo'), None)
-        mock_npm_instance.cleanup.assert_called_once()
-        mock_npm_instance.setup.assert_called_once()
-
-    @mock.patch('eval_prompts.FromNpmPromptfooInstallation')
-    @mock.patch('eval_prompts.FromSourcePromptfooInstallation')
-    def test_use_src_with_revision(self, mock_src_install, mock_npm_install):
-        """Tests that source is used when a revision is provided."""
-        self.fs.create_dir('/tmp/promptfoo')
-        mock_src_instance = mock_src_install.return_value
-        eval_prompts._setup_promptfoo(pathlib.Path('/tmp/promptfoo'), 'my-rev',
-                                      None)
-        mock_npm_install.assert_called_once_with(
-            pathlib.Path('/tmp/promptfoo'), None)
-        mock_src_install.assert_called_once_with(
-            pathlib.Path('/tmp/promptfoo'), 'my-rev')
-        mock_src_instance.cleanup.assert_called_once()
-        mock_src_instance.setup.assert_called_once()
-
-    @mock.patch('eval_prompts.FromNpmPromptfooInstallation')
-    @mock.patch('eval_prompts.FromSourcePromptfooInstallation')
-    def test_no_args_detect_existing_src(self, mock_src_install,
-                                         mock_npm_install):
-        """Tests that an existing source installation is detected."""
-        self.fs.create_dir('/tmp/promptfoo')
-        mock_src_instance = mock_src_install.return_value
-        mock_src_instance.installed = True
-        mock_npm_instance = mock_npm_install.return_value
-        mock_npm_instance.installed = False
-
-        result = eval_prompts._setup_promptfoo(pathlib.Path('/tmp/promptfoo'),
-                                               None, None)
-
-        self.assertEqual(result, mock_src_instance)
-        mock_src_instance.cleanup.assert_not_called()
-        mock_src_instance.setup.assert_not_called()
-        mock_npm_instance.cleanup.assert_not_called()
-        mock_npm_instance.setup.assert_not_called()
-
-    @mock.patch('eval_prompts.FromNpmPromptfooInstallation')
-    @mock.patch('eval_prompts.FromSourcePromptfooInstallation')
-    def test_no_args_detect_existing_npm(self, mock_src_install,
-                                         mock_npm_install):
-        """Tests that an existing npm installation is detected."""
-        self.fs.create_dir('/tmp/promptfoo')
-        mock_src_instance = mock_src_install.return_value
-        mock_src_instance.installed = False
-        mock_npm_instance = mock_npm_install.return_value
-        mock_npm_instance.installed = True
-
-        result = eval_prompts._setup_promptfoo(pathlib.Path('/tmp/promptfoo'),
-                                               None, None)
-
-        self.assertEqual(result, mock_npm_instance)
-        mock_src_instance.cleanup.assert_not_called()
-        mock_src_instance.setup.assert_not_called()
-        mock_npm_instance.cleanup.assert_not_called()
-        mock_npm_instance.setup.assert_not_called()
-
-    @mock.patch('eval_prompts.FromNpmPromptfooInstallation')
-    @mock.patch('eval_prompts.FromSourcePromptfooInstallation')
-    def test_no_args_no_existing_installs(self, mock_src_install,
-                                          mock_npm_install):
-        """Tests that source is used when no installation is found."""
-        self.fs.create_dir('/tmp/promptfoo')
-        mock_src_instance = mock_src_install.return_value
-        mock_src_instance.installed = False
-
-        def setup_effect():
-            mock_src_instance.installed = True
-
-        mock_src_instance.setup.side_effect = setup_effect
-        mock_npm_instance = mock_npm_install.return_value
-        mock_npm_instance.installed = False
-
-        result = eval_prompts._setup_promptfoo(pathlib.Path('/tmp/promptfoo'),
-                                               None, None)
-
-        self.assertEqual(result, mock_src_instance)
-        mock_src_instance.cleanup.assert_called_once()
-        mock_src_instance.setup.assert_called_once()
-        mock_npm_instance.cleanup.assert_not_called()
-        mock_npm_instance.setup.assert_not_called()
-
-
-class WorkDirUnittest(fake_filesystem_unittest.TestCase):
-    """Unit tests for the WorkDir class."""
-
-    def setUp(self):
-        self.setUpPyfakefs()
-        self.fs.create_dir('/tmp/src')
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_enter_btrfs(self, mock_check_call, _mock_call, _mock_rmtree):
-        """Tests that a btrfs snapshot is created when btrfs is true."""
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=False,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=True)
-        with workdir as w:
-            self.assertEqual(w, workdir)
-
-        mock_check_call.assert_called_once_with(
-            [
-                'btrfs',
-                'subvol',
-                'snapshot',
-                pathlib.Path('/tmp/src'),
-                pathlib.Path('/tmp/workdir'),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-        )
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_enter_no_btrfs(self, mock_check_call, _mock_call, _mock_rmtree):
-        """Tests that gclient-new-workdir is called when btrfs is false."""
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=False,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=False)
-        with workdir as w:
-            self.assertEqual(w, workdir)
-
-        mock_check_call.assert_called_once_with(
-            [
-                'gclient-new-workdir.py',
-                pathlib.Path('/tmp/src'),
-                pathlib.Path('/tmp/workdir'),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-        )
-
-    def test_enter_exists_no_force(self):
-        """Tests that an error is raised if the workdir exists."""
-        self.fs.create_dir('/tmp/workdir')
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=False,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=False)
-        with self.assertRaises(FileExistsError):
-            with workdir:
-                pass
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_enter_exists_force(self, _mock_check_call, mock_call,
-                                _mock_rmtree):
-        """Tests that the workdir is removed if it exists and force is on."""
-        self.fs.create_dir('/tmp/workdir')
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=False,
-                                       verbose=False,
-                                       force=True,
-                                       btrfs=True)
-        with workdir:
-            pass
-
-        mock_call.assert_called_once_with(
-            [
-                'sudo',
-                '-n',
-                'btrfs',
-                'subvolume',
-                'delete',
-                pathlib.Path('/tmp/workdir'),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-        )
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_exit_clean_btrfs(self, _mock_check_call, mock_call, _mock_rmtree):
-        """Tests that the workdir is removed when clean is true w/ btrfs ."""
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=True,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=True)
-        with workdir:
-            pass
-
-        mock_call.assert_called_once_with(
-            [
-                'sudo',
-                'btrfs',
-                'subvolume',
-                'delete',
-                pathlib.Path('/tmp/workdir'),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-        )
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_exit_clean_no_btrfs(self, _mock_check_call, _mock_call,
-                                 mock_rmtree):
-        """Tests that the workdir is removed when clean is True w/o btrfs."""
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=True,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=False)
-        with workdir:
-            pass
-
-        mock_rmtree.assert_called_once_with(pathlib.Path('/tmp/workdir'))
-
-    @mock.patch('shutil.rmtree')
-    @mock.patch('subprocess.call')
-    @mock.patch('subprocess.check_call')
-    def test_exit_no_clean(self, _mock_check_call, mock_call, mock_rmtree):
-        """Tests that the workdir is not cleaned up when clean is False."""
-        workdir = eval_prompts.WorkDir('workdir',
-                                       pathlib.Path('/tmp/src'),
-                                       clean=False,
-                                       verbose=False,
-                                       force=False,
-                                       btrfs=False)
-        with workdir:
-            pass
-
-        mock_call.assert_not_called()
-        mock_rmtree.assert_not_called()
 
 
 class CheckUncommittedChangesUnittest(fake_filesystem_unittest.TestCase):
@@ -468,38 +75,11 @@ class BuildChromiumUnittest(fake_filesystem_unittest.TestCase):
         """Tests that the correct commands are called to build chromium."""
         eval_prompts._build_chromium('/tmp/src')
         mock_check_call.assert_has_calls([
-            mock.call(['gn', 'gen', 'out/Default'], cwd='/tmp/src'),
+            mock.call(
+                ['gn', 'gen', 'out/Default', '--args=use_remoteexec=true'],
+                cwd='/tmp/src'),
             mock.call(['autoninja', '-C', 'out/Default'], cwd='/tmp/src'),
         ])
-
-
-class CheckBtrfsUnittest(fake_filesystem_unittest.TestCase):
-    """Unit tests for the `_check_btrfs` function."""
-
-    def setUp(self):
-        self.setUpPyfakefs()
-
-    def tearDown(self):
-        eval_prompts._check_btrfs.cache_clear()
-
-    @mock.patch('subprocess.run')
-    def test_check_btrfs_is_btrfs(self, mock_run):
-        """Tests that btrfs is detected correctly."""
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=['stat', '-c', '%i', '/tmp'], returncode=0, stdout='256\n')
-        with self.assertNoLogs():
-            self.assertTrue(eval_prompts._check_btrfs('/tmp'))
-
-    @mock.patch('subprocess.run')
-    def test_check_btrfs_is_not_btrfs(self, mock_run):
-        """Tests that non-btrfs is detected correctly."""
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=['stat', '-c', '%i', '/tmp'], returncode=0, stdout='123\n')
-        with self.assertLogs(level='WARNING') as cm:
-            self.assertFalse(eval_prompts._check_btrfs('/tmp'))
-            self.assertIn(
-                'Warning: This is not running in a btrfs environment',
-                cm.output[0])
 
 
 class DiscoverTestcaseFilesUnittest(fake_filesystem_unittest.TestCase):
@@ -508,7 +88,8 @@ class DiscoverTestcaseFilesUnittest(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
 
-    @mock.patch('eval_prompts.CHROMIUM_SRC', pathlib.Path('/chromium/src'))
+    @mock.patch('eval_prompts.constants.CHROMIUM_SRC',
+                pathlib.Path('/chromium/src'))
     def test_discover_testcase_files(self):
         """Tests that testcase files are discovered correctly."""
         self.fs.create_file(
@@ -678,110 +259,218 @@ class GetTestsToRunUnittest(fake_filesystem_unittest.TestCase):
 
     def setUp(self):
         self.setUpPyfakefs()
+        discover_patcher = mock.patch('eval_prompts._discover_testcase_files')
+        self.mock_discover_testcase_files = discover_patcher.start()
+        self.addCleanup(discover_patcher.stop)
 
-    @mock.patch('eval_prompts._discover_testcase_files')
-    @mock.patch('eval_prompts._determine_shard_values')
-    def test_get_tests_to_run_no_sharding_no_filter(
-            self, mock_determine_shard_values, mock_discover_testcase_files):
+        determine_shard_patcher = mock.patch(
+            'eval_prompts._determine_shard_values')
+        self.mock_determine_shard_values = determine_shard_patcher.start()
+        self.addCleanup(determine_shard_patcher.stop)
+
+        constants_patcher = mock.patch('eval_prompts.constants.CHROMIUM_SRC',
+                                       pathlib.Path('/chromium/src'))
+        self.mock_constants = constants_patcher.start()
+        self.addCleanup(constants_patcher.stop)
+
+    def test_get_tests_to_run_no_sharding_no_filter(self):
         """Tests that all tests are returned with no sharding or filtering."""
-        mock_determine_shard_values.return_value = (0, 1)
-        mock_discover_testcase_files.return_value = [
-            pathlib.Path('/test/a.yaml'),
-            pathlib.Path('/test/b.yaml'),
-            pathlib.Path('/test/c.yaml'),
+        self.mock_determine_shard_values.return_value = (0, 1)
+        self.mock_discover_testcase_files.return_value = [
+            pathlib.Path('/chromium/src/test/a.yaml'),
+            pathlib.Path('/chromium/src/test/b.yaml'),
+            pathlib.Path('/chromium/src/test/c.yaml'),
         ]
 
         result = eval_prompts._get_tests_to_run(None, None, None)
         self.assertEqual(len(result), 3)
-        self.assertIn(pathlib.Path('/test/a.yaml'), result)
-        self.assertIn(pathlib.Path('/test/b.yaml'), result)
-        self.assertIn(pathlib.Path('/test/c.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/a.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/b.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/c.yaml'), result)
 
-    @mock.patch('eval_prompts._discover_testcase_files')
-    @mock.patch('eval_prompts._determine_shard_values')
-    def test_get_tests_to_run_with_filter(self, mock_determine_shard_values,
-                                          mock_discover_testcase_files):
+    def test_get_tests_to_run_with_filter(self):
         """Tests that tests are filtered correctly."""
-        mock_determine_shard_values.return_value = (0, 1)
-        mock_discover_testcase_files.return_value = [
-            pathlib.Path('/test/a.yaml'),
-            pathlib.Path('/test/b.yaml'),
-            pathlib.Path('/test/c.yaml'),
+        self.mock_determine_shard_values.return_value = (0, 1)
+        self.mock_discover_testcase_files.return_value = [
+            pathlib.Path('/chromium/src/test/a.yaml'),
+            pathlib.Path('/chromium/src/test/b.yaml'),
+            pathlib.Path('/chromium/src/test/c.yaml'),
         ]
 
-        result = eval_prompts._get_tests_to_run(None, None, 'b.yaml')
+        result = eval_prompts._get_tests_to_run(None, None, '*/b.yaml')
         self.assertEqual(len(result), 1)
-        self.assertIn(pathlib.Path('/test/b.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/b.yaml'), result)
 
-    @mock.patch('eval_prompts._discover_testcase_files')
-    @mock.patch('eval_prompts._determine_shard_values')
-    def test_get_tests_to_run_with_sharding(self, mock_determine_shard_values,
-                                            mock_discover_testcase_files):
+    def test_get_tests_to_run_with_multiple_filters(self):
+        """Tests that tests are filtered correctly with multiple filters."""
+        self.mock_determine_shard_values.return_value = (0, 1)
+        self.mock_discover_testcase_files.return_value = [
+            pathlib.Path('/chromium/src/test/a.yaml'),
+            pathlib.Path('/chromium/src/test/b.yaml'),
+            pathlib.Path('/chromium/src/test/c.yaml'),
+        ]
+
+        result = eval_prompts._get_tests_to_run(None, None,
+                                                '*/a.yaml::*/c.yaml')
+        self.assertEqual(len(result), 2)
+        self.assertIn(pathlib.Path('/chromium/src/test/a.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/c.yaml'), result)
+
+    def test_get_tests_to_run_with_sharding(self):
         """Tests that tests are sharded correctly."""
-        mock_determine_shard_values.return_value = (1, 2)
-        mock_discover_testcase_files.return_value = [
-            pathlib.Path('/test/a.yaml'),
-            pathlib.Path('/test/b.yaml'),
-            pathlib.Path('/test/c.yaml'),
-            pathlib.Path('/test/d.yaml'),
+        self.mock_determine_shard_values.return_value = (1, 2)
+        self.mock_discover_testcase_files.return_value = [
+            pathlib.Path('/chromium/src/test/a.yaml'),
+            pathlib.Path('/chromium/src/test/b.yaml'),
+            pathlib.Path('/chromium/src/test/c.yaml'),
+            pathlib.Path('/chromium/src/test/d.yaml'),
         ]
 
         result = eval_prompts._get_tests_to_run(1, 2, None)
         self.assertEqual(len(result), 2)
         # The list is sorted before sharding
-        self.assertIn(pathlib.Path('/test/b.yaml'), result)
-        self.assertIn(pathlib.Path('/test/d.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/b.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/d.yaml'), result)
 
-    @mock.patch('eval_prompts._discover_testcase_files')
-    @mock.patch('eval_prompts._determine_shard_values')
-    def test_get_tests_to_run_with_sharding_and_filter(
-            self, mock_determine_shard_values, mock_discover_testcase_files):
+    def test_get_tests_to_run_with_sharding_and_filter(self):
         """Tests that tests are filtered and then sharded correctly."""
-        mock_determine_shard_values.return_value = (0, 2)
-        mock_discover_testcase_files.return_value = [
-            pathlib.Path('/test/a.yaml'),
-            pathlib.Path('/test/b.yaml'),
-            pathlib.Path('/test/c.yaml'),
-            pathlib.Path('/test/d_filtered.yaml'),
-            pathlib.Path('/test/e_filtered.yaml'),
+        self.mock_determine_shard_values.return_value = (0, 2)
+        self.mock_discover_testcase_files.return_value = [
+            pathlib.Path('/chromium/src/test/a.yaml'),
+            pathlib.Path('/chromium/src/test/b.yaml'),
+            pathlib.Path('/chromium/src/test/c.yaml'),
+            pathlib.Path('/chromium/src/test/d_filtered.yaml'),
+            pathlib.Path('/chromium/src/test/e_filtered.yaml'),
         ]
 
-        result = eval_prompts._get_tests_to_run(0, 2, 'filtered')
+        result = eval_prompts._get_tests_to_run(0, 2, '*filtered*')
         self.assertEqual(len(result), 1)
-        self.assertIn(pathlib.Path('/test/d_filtered.yaml'), result)
+        self.assertIn(pathlib.Path('/chromium/src/test/d_filtered.yaml'),
+                      result)
 
-    @mock.patch('eval_prompts._discover_testcase_files')
-    @mock.patch('eval_prompts._determine_shard_values')
-    def test_get_tests_to_run_no_tests_found(self, mock_determine_shard_values,
-                                             mock_discover_testcase_files):
+    def test_get_tests_to_run_no_tests_found(self):
         """Tests that an empty list is returned when no tests are found."""
-        mock_determine_shard_values.return_value = (0, 1)
-        mock_discover_testcase_files.return_value = []
+        self.mock_determine_shard_values.return_value = (0, 1)
+        self.mock_discover_testcase_files.return_value = []
 
         result = eval_prompts._get_tests_to_run(None, None, None)
         self.assertEqual(len(result), 0)
 
 
-class GetGclientRootUnittest(unittest.TestCase):
-    """Unit tests for the `_get_gclient_root` function."""
+class ReadPassKConfigUnittest(fake_filesystem_unittest.TestCase):
+    """Unit tests for the `_read_pass_k_config` function."""
 
-    def tearDown(self):
-        eval_prompts._get_gclient_root.cache_clear()
+    def setUp(self):
+        """Sets up the fake filesystem."""
+        self.setUpPyfakefs()
 
-    @mock.patch('subprocess.run')
-    def test_get_gclient_root_success(self, mock_run):
-        """Tests that the gclient root is returned on success."""
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=['gclient', 'root'], returncode=0, stdout='/path/to/root\n')
-        result = eval_prompts._get_gclient_root()
-        self.assertEqual(result, pathlib.Path('/path/to/root'))
+    def test_empty_config(self):
+        """Tests that default values are returned for an empty config."""
+        self.fs.create_file('test.yaml', contents='{}')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
 
-    @mock.patch('subprocess.run')
-    def test_get_gclient_root_failure(self, mock_run):
-        """Tests that an exception is raised on failure."""
-        mock_run.side_effect = subprocess.CalledProcessError(1, 'gclient root')
-        with self.assertRaises(subprocess.CalledProcessError):
-            eval_prompts._get_gclient_root()
+    def test_no_tests_key(self):
+        """Tests that default values are returned when 'tests' is missing."""
+        self.fs.create_file('test.yaml', contents='foo: bar')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_empty_tests_list(self):
+        """Tests that default values are returned for an empty 'tests' list."""
+        self.fs.create_file('test.yaml', contents='tests: []')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_no_metadata(self):
+        """Tests that default values are returned for tests with no metadata."""
+        self.fs.create_file('test.yaml', contents='tests:\n  - foo: bar')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_empty_metadata(self):
+        """Tests that default values are returned for empty metadata."""
+        self.fs.create_file('test.yaml', contents='tests:\n  - metadata: {}')
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_with_settings(self):
+        """Tests that pass@k settings are read correctly."""
+        yaml_with_settings = """
+tests:
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+"""
+        self.fs.create_file('test.yaml', contents=yaml_with_settings)
+        config = eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+        self.assertEqual(config.runs_per_test, 5)
+        self.assertEqual(config.pass_k_threshold, 3)
+
+    def test_first_test_has_settings(self):
+        """Tests that settings are read from the first test with metadata."""
+        yaml_first_test_has_settings = """
+tests:
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+  - metadata:
+      runs_per_test: 10
+      pass_k_threshold: 8
+"""
+        self.fs.create_file('test.yaml', contents=yaml_first_test_has_settings)
+        with self.assertLogs(level='WARNING') as cm:
+            config = eval_prompts._read_pass_k_config(
+                pathlib.Path('test.yaml'))
+            self.assertIn('Settings on other tests will be ignored',
+                          cm.output[0])
+        self.assertEqual(config.runs_per_test, 5)
+        self.assertEqual(config.pass_k_threshold, 3)
+
+    def test_later_test_has_settings(self):
+        """Tests that settings are read from the first test with metadata."""
+        yaml_later_test_has_settings = """
+tests:
+  - {}
+  - metadata:
+      runs_per_test: 5
+      pass_k_threshold: 3
+"""
+        self.fs.create_file('test.yaml', contents=yaml_later_test_has_settings)
+        with self.assertLogs(level='WARNING') as cm:
+            config = eval_prompts._read_pass_k_config(
+                pathlib.Path('test.yaml'))
+            self.assertIn('Settings on other tests will be ignored',
+                          cm.output[0])
+        self.assertEqual(config.runs_per_test, 1)
+        self.assertEqual(config.pass_k_threshold, 1)
+
+    def test_invalid_runs_type(self):
+        """Tests that a ValueError is raised for a non-integer runs_per_test."""
+        yaml_invalid_runs = """
+tests:
+  - metadata:
+      runs_per_test: "5"
+"""
+        self.fs.create_file('test.yaml', contents=yaml_invalid_runs)
+        with self.assertRaisesRegex(ValueError, 'must be an integer'):
+            eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
+
+    def test_invalid_threshold_type(self):
+        """Tests that a ValueError is raised for a non-integer value."""
+        yaml_invalid_threshold = """
+tests:
+  - metadata:
+      pass_k_threshold: 3.5
+"""
+        self.fs.create_file('test.yaml', contents=yaml_invalid_threshold)
+        with self.assertRaisesRegex(ValueError, 'must be an integer'):
+            eval_prompts._read_pass_k_config(pathlib.Path('test.yaml'))
 
 
 class PerformChromiumSetupUnittest(unittest.TestCase):
@@ -790,8 +479,8 @@ class PerformChromiumSetupUnittest(unittest.TestCase):
     @mock.patch('eval_prompts._build_chromium')
     @mock.patch('eval_prompts._check_uncommitted_changes')
     @mock.patch('subprocess.run')
-    @mock.patch('eval_prompts._check_btrfs')
-    @mock.patch('eval_prompts._get_gclient_root')
+    @mock.patch('checkout_helpers.check_btrfs')
+    @mock.patch('checkout_helpers.get_gclient_root')
     def test_perform_chromium_setup_build_btrfs(self, mock_get_gclient_root,
                                                 mock_check_btrfs,
                                                 mock_subprocess_run,
@@ -813,8 +502,8 @@ class PerformChromiumSetupUnittest(unittest.TestCase):
     @mock.patch('eval_prompts._build_chromium')
     @mock.patch('eval_prompts._check_uncommitted_changes')
     @mock.patch('subprocess.run')
-    @mock.patch('eval_prompts._check_btrfs')
-    @mock.patch('eval_prompts._get_gclient_root')
+    @mock.patch('checkout_helpers.check_btrfs')
+    @mock.patch('checkout_helpers.get_gclient_root')
     def test_perform_chromium_setup_no_build_no_btrfs(
             self, mock_get_gclient_root, mock_check_btrfs, mock_subprocess_run,
             mock_check_uncommitted_changes, mock_build_chromium):
@@ -834,8 +523,8 @@ class PerformChromiumSetupUnittest(unittest.TestCase):
     @mock.patch('eval_prompts._build_chromium')
     @mock.patch('eval_prompts._check_uncommitted_changes')
     @mock.patch('subprocess.run')
-    @mock.patch('eval_prompts._check_btrfs')
-    @mock.patch('eval_prompts._get_gclient_root')
+    @mock.patch('checkout_helpers.check_btrfs')
+    @mock.patch('checkout_helpers.get_gclient_root')
     def test_perform_chromium_setup_btrfs_force(self, mock_get_gclient_root,
                                                 mock_check_btrfs,
                                                 mock_subprocess_run,
@@ -855,45 +544,55 @@ class PerformChromiumSetupUnittest(unittest.TestCase):
         mock_build_chromium.assert_called_once_with(pathlib.Path('/root/src'))
 
 
-@mock.patch('eval_prompts.CHROMIUM_SRC', pathlib.Path('/chromium/src'))
-@mock.patch('eval_prompts.result_types')
-class ReportResultUnittest(unittest.TestCase):
-    """Unit tests for the `_report_result` function."""
+class FetchSandboxImageUnittest(unittest.TestCase):
+    """Unit tests for the `_fetch_sandbox_image` function."""
 
     def setUp(self):
-        self.result_sink_client = mock.Mock()
+        self.subprocess_run_patcher = mock.patch('subprocess.run')
+        self.mock_subprocess_run = self.subprocess_run_patcher.start()
+        self.addCleanup(self.subprocess_run_patcher.stop)
 
-    def test_report_result_success(self, mock_result_types):
-        """Tests that a passing result is reported correctly."""
-        mock_result_types.PASS = 'PASS'
-        eval_prompts._report_result(
-            result_sink_client=self.result_sink_client,
-            success=True,
-            test_log='Success',
-            test_path=pathlib.Path('/chromium/src/test/a.yaml'),
-            duration=1.23)
-        self.result_sink_client.Post.assert_called_once_with(
-            test_id='test/a.yaml',
-            status='PASS',
-            duration=1230.0,
-            test_log='Success',
-            test_file='//test/a.yaml')
+        self.get_gemini_version_patcher = mock.patch(
+            'eval_prompts.gemini_helpers.get_gemini_version')
+        self.mock_get_gemini_version = self.get_gemini_version_patcher.start()
+        self.addCleanup(self.get_gemini_version_patcher.stop)
 
-    def test_report_result_failure(self, mock_result_types):
-        """Tests that a failing result is reported correctly."""
-        mock_result_types.FAIL = 'FAIL'
-        eval_prompts._report_result(
-            result_sink_client=self.result_sink_client,
-            success=False,
-            test_log='Failure',
-            test_path=pathlib.Path('/chromium/src/test/b.yaml'),
-            duration=4.56)
-        self.result_sink_client.Post.assert_called_once_with(
-            test_id='test/b.yaml',
-            status='FAIL',
-            duration=4560.0,
-            test_log='Failure',
-            test_file='//test/b.yaml')
+        self.mock_get_gemini_version.return_value = '1.2.3'
+
+    def test_fetch_sandbox_image_success(self):
+        """Tests that _fetch_sandbox_image returns true on success."""
+        with self.assertLogs(level='INFO') as cm:
+            result = eval_prompts._fetch_sandbox_image()
+            self.assertTrue(result)
+            self.assertIn('Pre-fetching sandbox image', cm.output[0])
+
+        self.mock_subprocess_run.assert_called_once_with(
+            [
+                'docker', 'pull',
+                'us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:1.2.3'
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+
+    def test_fetch_sandbox_image_get_version_fails(self):
+        """Tests that _fetch_sandbox_image returns false on failure."""
+        self.mock_get_gemini_version.return_value = None
+        with self.assertLogs(level='ERROR') as cm:
+            result = eval_prompts._fetch_sandbox_image()
+            self.assertFalse(result)
+            self.assertIn('Failed to get gemini version', cm.output[0])
+
+    def test_fetch_sandbox_image_docker_pull_fails(self):
+        """Tests that _fetch_sandbox_image returns false on failure."""
+        error = subprocess.CalledProcessError(returncode=1, cmd='docker')
+        error.stdout = 'mocked output'
+        self.mock_subprocess_run.side_effect = error
+        with self.assertLogs(level='ERROR') as cm:
+            result = eval_prompts._fetch_sandbox_image()
+            self.assertFalse(result)
+            self.assertIn('Failed to pre-fetch sandbox image', cm.output[0])
+            self.assertIn('mocked output', cm.output[0])
 
 
 class RunPromptEvalTestsUnittest(unittest.TestCase):
@@ -917,6 +616,11 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.args.verbose = False
         self.args.sandbox = False
         self.args.print_output_on_success = False
+        self.args.retries = 0
+        self.args.parallel_workers = 1
+        self.args.gemini_cli_bin = None
+        self.args.promptfoo_bin = None
+        self.args.isolated_script_test_repeat = 0
 
     def _setUpPatches(self):
         """Set up patches for the tests."""
@@ -924,24 +628,13 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.mock_stdout = stdout_patcher.start()
         self.addCleanup(stdout_patcher.stop)
 
-        try_init_client_patcher = mock.patch(
-            'eval_prompts.result_sink.TryInitClient')
-        self.mock_try_init_client = try_init_client_patcher.start()
-        self.mock_try_init_client.return_value = None
-        self.addCleanup(try_init_client_patcher.stop)
+        worker_pool_patcher = mock.patch('eval_prompts.workers.WorkerPool')
+        self.mock_worker_pool = worker_pool_patcher.start()
+        self.addCleanup(worker_pool_patcher.stop)
 
-        workdir_patcher = mock.patch('eval_prompts.WorkDir')
-        self.mock_workdir = workdir_patcher.start()
-        mock_workdir_instance = (
-            self.mock_workdir.return_value.__enter__.return_value)
-        mock_workdir_instance.path = pathlib.Path('/workdir')
-        self.addCleanup(workdir_patcher.stop)
-
-        setup_promptfoo_patcher = mock.patch('eval_prompts._setup_promptfoo')
+        setup_promptfoo_patcher = mock.patch(
+            'promptfoo_installation.setup_promptfoo')
         self.mock_setup_promptfoo = setup_promptfoo_patcher.start()
-        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
-        mock_promptfoo_instance.run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout='Success')
         self.addCleanup(setup_promptfoo_patcher.stop)
 
         perform_chromium_setup_patcher = mock.patch(
@@ -957,28 +650,14 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         ]
         self.addCleanup(get_tests_to_run_patcher.stop)
 
-        get_gclient_root_patcher = mock.patch('eval_prompts._get_gclient_root')
-        self.mock_get_gclient_root = get_gclient_root_patcher.start()
-        self.mock_get_gclient_root.return_value = pathlib.Path('/root')
-        self.addCleanup(get_gclient_root_patcher.stop)
-
-        check_btrfs_patcher = mock.patch('eval_prompts._check_btrfs')
-        self.mock_check_btrfs = check_btrfs_patcher.start()
-        self.mock_check_btrfs.return_value = True
-        self.addCleanup(check_btrfs_patcher.stop)
-
-        get_terminal_size_patcher = mock.patch('shutil.get_terminal_size')
-        self.mock_get_terminal_size = get_terminal_size_patcher.start()
-        self.mock_get_terminal_size.return_value = os.terminal_size((80, 24))
-        self.addCleanup(get_terminal_size_patcher.stop)
-
         subprocess_run_patcher = mock.patch('subprocess.run')
         self.mock_subprocess_run = subprocess_run_patcher.start()
         self.addCleanup(subprocess_run_patcher.stop)
 
-        report_result_patcher = mock.patch('eval_prompts._report_result')
-        self.mock_report_result = report_result_patcher.start()
-        self.addCleanup(report_result_patcher.stop)
+        fetch_sandbox_image_patcher = mock.patch(
+            'eval_prompts._fetch_sandbox_image')
+        self.mock_fetch_sandbox_image = fetch_sandbox_image_patcher.start()
+        self.addCleanup(fetch_sandbox_image_patcher.stop)
 
     def test_run_prompt_eval_tests_no_tests(self):
         """Tests that the function returns 1 if there are no tests to run."""
@@ -988,42 +667,49 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
 
     def test_run_prompt_eval_tests_one_test_pass(self):
         """Tests running a single passing test."""
-        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+        with self.assertLogs(level='INFO') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn('Successfully ran 1 tests', cm.output[-1])
 
         self.mock_perform_chromium_setup.assert_called_once_with(force=False,
                                                                  build=True)
         self.mock_setup_promptfoo.assert_called_once()
-        self.mock_workdir.assert_called_once_with('workdir',
-                                                  pathlib.Path('/root'), True,
-                                                  False, False, True)
-        self.mock_setup_promptfoo.return_value.run.assert_called_once()
+        self.mock_worker_pool.assert_called_once()
+        self.mock_worker_pool.return_value.queue_tests.assert_called_once_with(
+            [pathlib.Path('/test/a.yaml')])
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            assert_called_once()
+        self.mock_worker_pool.return_value.shutdown_blocking.assert_called_once(
+        )
         self.assertEqual(returncode, 0)
-        self.assertEqual(self.mock_stdout.getvalue(), '')
 
     def test_run_prompt_eval_tests_one_test_fail(self):
         """Tests running a single failing test."""
-        self.mock_check_btrfs.return_value = False
-
-        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
-        mock_promptfoo_instance.run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=1, stdout='Failure')
+        failed_test = results.TestResult(test_file='test',
+                                         success=False,
+                                         duration=1,
+                                         test_log='')
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = [
+                failed_test
+            ]
 
         self.args.no_build = True
         self.args.no_clean = True
         self.args.verbose = True
-        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+        with self.assertLogs(level='WARNING') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn(
+                '0 tests ran successfully and 1 failed after 0 additional '
+                'tries', cm.output[-3])
+            self.assertIn('Failed tests:', cm.output[-2])
+            self.assertIn('  test', cm.output[-1])
 
         self.mock_perform_chromium_setup.assert_called_once_with(force=False,
                                                                  build=False)
-        self.mock_workdir.assert_called_once_with('workdir',
-                                                  pathlib.Path('/root'), False,
-                                                  True, False, False)
-        mock_promptfoo_instance.run.assert_called_once()
-        self.assertIn('--var', mock_promptfoo_instance.run.call_args[0][0])
-        self.assertIn('verbose=True',
-                      mock_promptfoo_instance.run.call_args[0][0])
         self.assertEqual(returncode, 1)
-        self.assertEqual(self.mock_stdout.getvalue(), 'Failure')
 
     def test_run_prompt_eval_tests_multiple_tests_one_fail(self):
         """Tests running multiple tests where one fails."""
@@ -1032,97 +718,387 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
             pathlib.Path('/test/b.yaml'),
             pathlib.Path('/test/c.yaml'),
         ]
+        failed_test = results.TestResult(test_file='test',
+                                         success=False,
+                                         duration=1,
+                                         test_log='')
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = [
+                failed_test
+            ]
 
-        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
-        mock_promptfoo_instance.run.side_effect = [
-            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
-            subprocess.CompletedProcess(args=[], returncode=1, stdout=''),
-            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
-        ]
-
-        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+        with self.assertLogs(level='WARNING') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn(
+                '2 tests ran successfully and 1 failed after 0 additional '
+                'tries', cm.output[-3])
+            self.assertIn('Failed tests:', cm.output[-2])
+            self.assertIn('  test', cm.output[-1])
 
         self.mock_perform_chromium_setup.assert_called_once_with(force=False,
                                                                  build=True)
-        self.assertEqual(mock_promptfoo_instance.run.call_count, 3)
         self.assertEqual(returncode, 1)
 
     def test_run_prompt_eval_tests_sandbox_prefetch_fails(self):
-        """Tests that _run_prompt_eval_tests exits if sandbox pre-fetch
-        fails."""
+        """Tests that _run_prompt_eval_tests exits and logs output if sandbox
+        pre-fetch fails."""
         self.args.sandbox = True
-        self.mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-            returncode=1, cmd='gemini')
-
-        with self.assertLogs(level='ERROR') as cm:
-            result = eval_prompts._run_prompt_eval_tests(self.args)
-            self.assertEqual(result, 1)
-            self.assertIn('Failed to pre-fetch sandbox image', cm.output[0])
+        self.mock_fetch_sandbox_image.return_value = False
+        result = eval_prompts._run_prompt_eval_tests(self.args)
+        self.assertEqual(result, 1)
 
     def test_run_prompt_eval_tests_with_sandbox_enabled(self):
         """Tests that _run_prompt_eval_tests calls pre-fetch and passes sandbox
         var when enabled."""
         self.args.sandbox = True
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+        self.mock_fetch_sandbox_image.return_value = True
 
         eval_prompts._run_prompt_eval_tests(self.args)
 
-        self.mock_subprocess_run.assert_called_once_with(
-            ['gemini', '--sandbox'],
-            input='',
-            text=True,
-            check=True,
-            capture_output=True,
-            cwd=mock.ANY,
-        )
-        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
-        mock_promptfoo_instance.run.assert_called_once()
-        command = mock_promptfoo_instance.run.call_args[0][0]
-        self.assertIn('--var', command)
-        self.assertIn('sandbox=True', command)
+        self.mock_fetch_sandbox_image.assert_called_once()
+        self.mock_worker_pool.assert_called_once()
+        self.assertTrue(self.mock_worker_pool.call_args[0][2].sandbox)
 
     def test_run_prompt_eval_tests_with_sandbox_disabled(self):
         """Tests that _run_prompt_eval_tests does not call pre-fetch or pass
         sandbox var when disabled."""
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
         eval_prompts._run_prompt_eval_tests(self.args)
 
         self.mock_subprocess_run.assert_not_called()
-        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
-        mock_promptfoo_instance.run.assert_called_once()
-        command = mock_promptfoo_instance.run.call_args[0][0]
-        for arg in command:
-            self.assertNotIn('sandbox', arg)
+        self.mock_worker_pool.assert_called_once()
+        self.assertFalse(self.mock_worker_pool.call_args[0][2].sandbox)
 
-    def test_run_prompt_eval_tests_print_output_on_success(self):
-        """Tests that output is printed on success with the right arg."""
-        self.args.print_output_on_success = True
-        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+    def test_run_prompt_eval_tests_retry_pass(self):
+        """Tests that a test that passes on retry is recorded as a success."""
+        self.args.retries = 1
+        failed_test = results.TestResult(test_file='test',
+                                         success=False,
+                                         duration=1,
+                                         test_log='')
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            side_effect = [
+                [failed_test],
+                [],
+            ]
 
-        self.assertEqual(returncode, 0)
-        self.assertEqual(self.mock_stdout.getvalue(), 'Success')
-
-    def test_run_prompt_eval_tests_with_result_sink_client(self):
-        """Tests that results are reported when a client is available."""
-        mock_client = mock.Mock()
-        self.mock_try_init_client.return_value = mock_client
-
-        with mock.patch('time.time') as mock_time:
-            mock_time.side_effect = [1.0, 2.5]
+        with self.assertLogs(level='INFO') as cm:
             returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn('Successfully ran 1 tests', cm.output[-1])
 
+        self.assertEqual(
+            self.mock_worker_pool.return_value.queue_tests.call_count, 2)
         self.assertEqual(returncode, 0)
-        self.mock_report_result.assert_called_once_with(
-            result_sink_client=mock_client,
-            success=True,
-            test_log='Success',
-            test_path=pathlib.Path('/test/a.yaml'),
-            duration=1.5)
 
-    def test_run_prompt_eval_tests_no_result_sink_client(self):
-        """Tests that results are not reported when no client is available."""
+    def test_run_prompt_eval_tests_retry_fail(self):
+        """Tests that a test that fails all retries is recorded as a fail."""
+        self.args.retries = 2
+        failed_test = results.TestResult(test_file='test',
+                                         success=False,
+                                         duration=1,
+                                         test_log='')
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = [
+                failed_test
+            ]
+
+        with self.assertLogs(level='WARNING') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn(
+                '0 tests ran successfully and 1 failed after 2 additional '
+                'tries', cm.output[-3])
+
+        self.assertEqual(
+            self.mock_worker_pool.return_value.queue_tests.call_count, 3)
+        self.assertEqual(returncode, 1)
+
+    def test_run_prompt_eval_tests_no_retry_on_pass(self):
+        """Tests that a passing test is not retried."""
+        self.args.retries = 5
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+
+        with self.assertLogs(level='INFO') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn('Successfully ran 1 tests', cm.output[-1])
+
+        self.assertEqual(
+            self.mock_worker_pool.return_value.queue_tests.call_count, 1)
+        self.assertEqual(returncode, 0)
+
+    def test_run_prompt_eval_tests_with_custom_bins(self):
+        """Tests that custom binaries are used when provided."""
+        self.args.promptfoo_bin = pathlib.Path('/custom/promptfoo')
+        self.args.gemini_cli_bin = pathlib.Path('/custom/gemini')
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+
+        with mock.patch(
+                'promptfoo_installation.PreinstalledPromptfooInstallation'
+        ) as mock_preinstalled:
+            eval_prompts._run_prompt_eval_tests(self.args)
+            mock_preinstalled.assert_called_once_with(
+                pathlib.Path('/custom/promptfoo'))
+
+        self.mock_setup_promptfoo.assert_not_called()
+        self.mock_worker_pool.assert_called_once()
+        self.assertEqual(self.mock_worker_pool.call_args[0][2].gemini_cli_bin,
+                         pathlib.Path('/custom/gemini'))
+
+    def test_run_prompt_eval_tests_with_repeat(self):
+        """Tests that tests are repeated correctly."""
+        self.args.isolated_script_test_repeat = 3
+        self.mock_get_tests_to_run.return_value = [
+            pathlib.Path('/test/a.yaml')
+        ]
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+
+        with self.assertLogs(level='INFO') as cm:
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertIn('Successfully ran 4 tests', cm.output[-1])
+
+        self.mock_worker_pool.return_value.queue_tests.assert_called_once_with(
+            [pathlib.Path('/test/a.yaml')] * 4)
+        self.assertEqual(returncode, 0)
+
+    def test_run_prompt_eval_tests_full_parallel(self):
+        """Tests that a -1 parallel workers makes a worker for each test."""
+        self.mock_get_tests_to_run.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+        ]
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
+        self.args.parallel_workers = -1
+
         returncode = eval_prompts._run_prompt_eval_tests(self.args)
-
+        self.mock_worker_pool.assert_called_with(3, mock.ANY, mock.ANY,
+                                                 mock.ANY)
         self.assertEqual(returncode, 0)
-        self.mock_report_result.assert_not_called()
+
+
+class ParseArgsUnittest(unittest.TestCase):
+    """Unit tests for the `_parse_args` function."""
+
+    def setUp(self):
+        """Set up patches for the tests."""
+        argv_patcher = mock.patch('sys.argv', new_callable=list)
+        self.mock_argv = argv_patcher.start()
+        self.addCleanup(argv_patcher.stop)
+
+    def test_parse_args_no_args(self):
+        """Tests that default values are correct with no arguments."""
+        self.mock_argv[:] = ['eval_prompts.py']
+        args = eval_prompts._parse_args()
+        self.assertFalse(args.no_clean)
+        self.assertFalse(args.force)
+        self.assertFalse(args.no_build)
+        self.assertFalse(args.verbose)
+        self.assertFalse(args.print_output_on_success)
+        self.assertIsNone(args.isolated_script_test_output)
+        self.assertIsNone(args.isolated_script_test_perf_output)
+        self.assertIsNone(args.filter)
+        self.assertIsNone(args.shard_index)
+        self.assertIsNone(args.total_shards)
+        self.assertIsNone(args.promptfoo_bin)
+        self.assertIsNone(args.promptfoo_version)
+        self.assertIsNone(args.promptfoo_revision)
+        self.assertFalse(args.sandbox)
+        self.assertIsNone(args.gemini_cli_bin)
+        self.assertEqual(args.parallel_workers, 1)
+        self.assertEqual(args.retries, 0)
+        self.assertEqual(args.isolated_script_test_repeat, 0)
+
+    def test_parse_args_all_checkout_args(self):
+        """Tests that all checkout arguments are parsed correctly."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--no-clean', '--force', '--no-build'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertTrue(args.no_clean)
+        self.assertTrue(args.force)
+        self.assertTrue(args.no_build)
+
+    def test_parse_args_all_output_args(self):
+        """Tests that all output arguments are parsed correctly."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--verbose', '--print-output-on-success'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertTrue(args.verbose)
+        self.assertTrue(args.print_output_on_success)
+
+    def test_parse_args_all_test_selection_args(self):
+        """Tests that all test selection arguments are parsed correctly."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--filter', 'my_filter', '--shard-index', '1',
+            '--total-shards', '3'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.filter, 'my_filter')
+        self.assertEqual(args.shard_index, 1)
+        self.assertEqual(args.total_shards, 3)
+
+    def test_parse_args_isolated_script_test_filter(self):
+        """Tests the --isolated-script-test-filter argument."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--isolated-script-test-filter', 'iso_filter'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.filter, 'iso_filter')
+
+    def test_parse_args_filter_exclusive_group(self):
+        """Tests that filter arguments are mutually exclusive."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--filter', 'a',
+            '--isolated-script-test-filter', 'b'
+        ]
+        # stderr mocked to silence the automatic help output by the parser when
+        # parsing fails.
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_all_gemini_cli_args(self):
+        """Tests that all gemini-cli arguments are parsed correctly."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--sandbox', '--gemini-cli-bin',
+            '/path/to/gemini'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertTrue(args.sandbox)
+        self.assertEqual(args.gemini_cli_bin, pathlib.Path('/path/to/gemini'))
+
+    def test_parse_args_all_test_runner_args(self):
+        """Tests that all test runner arguments are parsed correctly."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--parallel-workers', '4', '--retries', '2',
+            '--isolated-script-test-repeat', '3'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.parallel_workers, 4)
+        self.assertEqual(args.retries, 2)
+        self.assertEqual(args.isolated_script_test_repeat, 3)
+
+    def test_parse_args_full_parallel_args(self):
+        """Tests that all test runner arguments are parsed correctly."""
+        self.mock_argv[:] = ['eval_prompts.py', '--parallel-workers', '-1']
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.parallel_workers, -1)
+
+    def test_parse_args_isolated_script_test_launcher_retry_limit(self):
+        """Tests the --isolated-script-test-launcher-retry-limit argument."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--isolated-script-test-launcher-retry-limit',
+            '3'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.retries, 3)
+
+    def test_parse_args_retries_exclusive_group(self):
+        """Tests that retry arguments are mutually exclusive."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--retries', '2',
+            '--isolated-script-test-launcher-retry-limit', '3'
+        ]
+        # stderr mocked to silence the automatic help output by the parser when
+        # parsing fails.
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_promptfoo_bin(self):
+        """Tests --promptfoo-bin."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--promptfoo-bin', '/path/to/promptfoo'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.promptfoo_bin,
+                         pathlib.Path('/path/to/promptfoo'))
+
+    def test_parse_args_promptfoo_version(self):
+        """Tests --install-promptfoo-from-npm with a version."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--install-promptfoo-from-npm', '0.40.0'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.promptfoo_version, '0.40.0')
+
+    def test_parse_args_promptfoo_revision(self):
+        """Tests --install-promptfoo-from-src with a revision."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--install-promptfoo-from-src', 'my-rev'
+        ]
+        args = eval_prompts._parse_args()
+        self.assertEqual(args.promptfoo_revision, 'my-rev')
+
+    def test_parse_args_promptfoo_exclusive_group(self):
+        """Tests that mutually exclusive promptfoo arguments raise an error."""
+        arg_groups = [
+            ['--promptfoo-bin', '/path/to/promptfoo'],
+            ['--install-promptfoo-from-npm'],
+            ['--install-promptfoo-from-src'],
+        ]
+        for arg_group1, arg_group2 in itertools.combinations(arg_groups, 2):
+            with self.subTest(args1=arg_group1, args2=arg_group2):
+                self.mock_argv[:] = (['eval_prompts.py'] + arg_group1 +
+                                     arg_group2)
+                # stderr mocked to silence the automatic help output by the
+                # parser when parsing fails.
+                with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+                    eval_prompts._parse_args()
+
+    def test_parse_args_negative_shard_index(self):
+        """Tests that a negative shard_index raises an error."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--shard-index', '-1', '--total-shards', '2'
+        ]
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_zero_total_shards(self):
+        """Tests that a total_shards of zero raises an error."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--shard-index', '0', '--total-shards', '0'
+        ]
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_shard_index_only(self):
+        """Tests that providing only shard_index raises an error."""
+        self.mock_argv[:] = ['eval_prompts.py', '--shard-index', '1']
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_total_shards_only(self):
+        """Tests that providing only total_shards raises an error."""
+        self.mock_argv[:] = ['eval_prompts.py', '--total-shards', '2']
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_zero_parallel_workers(self):
+        """Tests that zero parallel_workers raises an error."""
+        self.mock_argv[:] = ['eval_prompts.py', '--parallel-workers', '0']
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_negative_retries(self):
+        """Tests that negative retries raises an error."""
+        self.mock_argv[:] = ['eval_prompts.py', '--retries', '-1']
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
+    def test_parse_args_negative_repeat(self):
+        """Tests that negative repeat raises an error."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--isolated-script-test-repeat', '-1'
+        ]
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            eval_prompts._parse_args()
+
 
 
 if __name__ == '__main__':

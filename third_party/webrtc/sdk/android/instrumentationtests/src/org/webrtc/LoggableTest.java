@@ -22,13 +22,13 @@ import org.webrtc.Logging.Severity;
 import org.webrtc.PeerConnectionFactory;
 
 public class LoggableTest {
-  private static String TAG = "LoggableTest";
-  private static String NATIVE_FILENAME_TAG = "loggable_test.cc";
+  private static final String TAG = "LoggableTest";
+  private static final String NATIVE_FILENAME_TAG = "loggable_test.cc";
 
   private static class MockLoggable implements Loggable {
-    private ArrayList<String> messages = new ArrayList<>();
-    private ArrayList<Severity> sevs = new ArrayList<>();
-    private ArrayList<String> tags = new ArrayList<>();
+    private final ArrayList<String> messages = new ArrayList<>();
+    private final ArrayList<Severity> sevs = new ArrayList<>();
+    private final ArrayList<String> tags = new ArrayList<>();
 
     @Override
     public void onLogMessage(String message, Severity sev, String tag) {

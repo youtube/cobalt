@@ -90,23 +90,34 @@ class PermissionActionsHistory : public KeyedService {
   // Registers the preferences related to blocklisting in the given PrefService.
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
-  // Checks if a heuristic grant should be made for the given permission on
-  // the `request_origin`. This is based on the number of consecutive temporary
-  // grants.
-  bool CheckAutoGrantAndRecordTemporaryGrant(const GURL& request_origin,
-                                             ContentSettingsType permission);
+  // Incrementally records the number of temporary grants and the timestamp of
+  // the most recent temporary grant for a given `permission` type at
+  // `url` by one. Returns `true` if the counter reaches the
+  // threshold and auto-grant is activated; otherwise, it returns `false`.
+  bool RecordTemporaryGrant(const GURL& url, ContentSettingsType permission);
 
   // Resets the heuristic data for the given URL and permission, for
   // example when the user manually resets permissions.
   void ResetHeuristicData(const GURL& url, ContentSettingsType permission);
 
-  // Sets the heuristic auto grant for |permission| on |request_origin| and
-  // notifies observers.
-  void SetAutoGrantHeuristically(const GURL& request_origin,
-                                 ContentSettingsType permission);
+  // Same as above, but cleans the slate for all permissions and for all URLs
+  // matching |filter|.
+  void ResetHeuristicData(
+      base::RepeatingCallback<bool(const GURL& url)> filter);
+
+  // Checks if a permission has been heuristically auto-granted. If
+  // `needs_update` is true, update the auto-granted stored data if exists.
+  // `needs_update` is expected to be true, it is only set `false` from test
+  // code.
+  bool CheckHeuristicallyAutoGranted(const GURL& request_origin,
+                                     ContentSettingsType permission,
+                                     bool needs_update = true);
 
   void AddObserver(Observer* obs);
   void RemoveObserver(Observer* obs);
+
+  int GetTemporaryGrantCountForTesting(const GURL& request_origin,
+                                       ContentSettingsType permission);
 
  private:
   std::vector<Entry> GetHistoryInternal(const base::Time& begin,

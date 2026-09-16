@@ -60,8 +60,7 @@
 
 // Tests that the search engine choice dialog is always visible when the app
 // goes to background and foreground.
-// TODO(crbug.com/356534232): Re-enable after fixing flakiness.
-- (void)FLAKY_testMoveToBackgroundAndToForeground {
+- (void)testMoveToBackgroundAndToForeground {
   [SearchEngineChoiceEarlGreyUI verifySearchEngineChoiceScreenIsDisplayed];
   [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
   [SearchEngineChoiceEarlGreyUI verifySearchEngineChoiceScreenIsDisplayed];
@@ -70,13 +69,6 @@
 // Tests that search engine choice dialog is moved to the other active scene
 // when the current scene is removed.
 - (void)testOpenSecondWindow {
-  // TODO(crbug.com/443718522): Re-enable the test.
-#if !TARGET_OS_SIMULATOR
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-#endif
-
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }
@@ -159,8 +151,7 @@
 }
 
 // Test that the snippet can be expanded or collapsed.
-// TODO(crbug.com/333519732): Fix this flaky test.
-- (void)FLAKY_testUserActionWhenExpandingSnippetChevron {
+- (void)testUserActionWhenExpandingSnippetChevron {
   // Checks that the choice screen is shown
   [SearchEngineChoiceEarlGreyUI verifySearchEngineChoiceScreenIsDisplayed];
   if ([ChromeEarlGrey isIPadIdiom]) {

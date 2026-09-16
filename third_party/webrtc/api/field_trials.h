@@ -11,6 +11,7 @@
 #ifndef API_FIELD_TRIALS_H_
 #define API_FIELD_TRIALS_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
@@ -19,6 +20,7 @@
 #include "absl/strings/string_view.h"
 #include "api/field_trials_registry.h"
 #include "api/field_trials_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/containers/flat_map.h"
 
 namespace webrtc {
@@ -51,9 +53,9 @@ class FieldTrials : public FieldTrialsRegistry {
   explicit FieldTrials(absl::string_view s);
 
   FieldTrials(const FieldTrials&);
-  FieldTrials(FieldTrials&&) = default;
-  FieldTrials& operator=(const FieldTrials&) = default;
-  FieldTrials& operator=(FieldTrials&&) = default;
+  FieldTrials(FieldTrials&&);
+  FieldTrials& operator=(const FieldTrials&);
+  FieldTrials& operator=(FieldTrials&&);
 
   ~FieldTrials() override = default;
 
@@ -73,11 +75,16 @@ class FieldTrials : public FieldTrialsRegistry {
 
   // Create a copy of this view.
   std::unique_ptr<FieldTrialsView> CreateCopy() const override {
-    auto copy = std::make_unique<FieldTrials>(*this);
-#ifndef NDEBUG
-    copy->get_value_called_ = false;
+    // We don't need to reset get_value_called_ on the returned copy
+    // since it is a FieldTrialsView that has no mutable methods.
+    return std::make_unique<FieldTrials>(*this);
+  }
+
+  void AssertGetValueNotCalled() const {
+#if RTC_DCHECK_IS_ON
+    RTC_DCHECK(!get_value_called_)
+        << "FieldTrials are immutable once first Lookup has been performed";
 #endif
-    return copy;
   }
 
  private:
@@ -86,8 +93,12 @@ class FieldTrials : public FieldTrialsRegistry {
 
   std::string GetValue(absl::string_view key) const override;
 
-#ifndef NDEBUG
-  mutable bool get_value_called_ = false;
+#if RTC_DCHECK_IS_ON
+  // Keep track of if GetValue() has been called.
+  // This is used to enforce immutability by DCHECK:ing
+  // that modification are performed once get_value_called_
+  // is true.
+  mutable std::atomic<bool> get_value_called_ = false;
 #endif
 
   flat_map<std::string, std::string> key_value_map_;

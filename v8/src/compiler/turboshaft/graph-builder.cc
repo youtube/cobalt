@@ -1210,16 +1210,16 @@ OpIndex GraphBuilder::Process(
           CheckTaggedInputParametersOf(node->op());
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind;
       switch (params.mode()) {
-#define CASE(mode)                                                       \
+#define CHECKED_TAGGED_TO_CASE(mode)                                     \
   case CheckTaggedInputMode::k##mode:                                    \
     from_kind =                                                          \
         ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::k##mode; \
     break;
-        CASE(AdditiveSafeInteger)
-        CASE(Number)
-        CASE(NumberOrBoolean)
-        CASE(NumberOrOddball)
-#undef CASE
+        CHECKED_TAGGED_TO_CASE(AdditiveSafeInteger)
+        CHECKED_TAGGED_TO_CASE(Number)
+        CHECKED_TAGGED_TO_CASE(NumberOrBoolean)
+        CHECKED_TAGGED_TO_CASE(NumberOrOddball)
+#undef CHECKED_TAGGED_TO_CASE
       }
       return __ ConvertJSPrimitiveToUntaggedOrDeopt(
           Map(node->InputAt(0)), dominating_frame_state, from_kind,
@@ -1986,8 +1986,8 @@ OpIndex GraphBuilder::Process(
       // EffectControlLinearizer used to use `node->op()->properties()` to
       // construct the builtin call descriptor for this operation. However, this
       // always seemed to be `kEliminatable` so the Turboshaft
-      // BuiltinCallDescriptor's for those builtins have this property
-      // hard-coded.
+      // BuiltinCallDescriptor's for those builtins have this
+      // property hard-coded.
       DCHECK_EQ(node->op()->properties(), Operator::kEliminatable);
       return __ NewArgumentsElements(Map(node->InputAt(0)), p.arguments_type(),
                                      p.formal_parameter_count());
@@ -2145,7 +2145,8 @@ OpIndex GraphBuilder::Process(
       return __ Float64SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
     case IrOpcode::kTypeOf:
-      return __ CallBuiltin_Typeof(isolate, Map(node->InputAt(0)));
+      return __ template CallBuiltin<builtin::Typeof>(
+          {.object = Map(node->InputAt(0))});
 
     case IrOpcode::kFastApiCall: {
       DCHECK(dominating_frame_state.valid());
@@ -2172,7 +2173,6 @@ OpIndex GraphBuilder::Process(
 #define ELSE_UNREACHABLE                                    \
   ELSE {                                                    \
     __ RuntimeAbort(AbortReason::kFastCallFallbackInvalid); \
-    __ Unreachable();                                       \
   }
         switch (return_type) {
           case CTypeInfo::Type::kVoid:
@@ -2429,9 +2429,10 @@ OpIndex GraphBuilder::Process(
         allocated_type =
             __ HeapConstant(type.AllocateOnHeap(isolate->factory()));
       }
-      __ CallBuiltin_CheckTurbofanType(isolate, __ NoContextConstant(),
-                                       Map(node->InputAt(0)), allocated_type,
-                                       __ TagSmi(node->id()));
+      __ CallBuiltin<builtin::CheckTurbofanType>(
+          __ NoContextConstant(), {.value = Map(node->InputAt(0)),
+                                   .expected_type = allocated_type,
+                                   .node_id = __ TagSmi(node->id())});
       return OpIndex::Invalid();
     }
 

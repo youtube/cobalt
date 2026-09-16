@@ -182,11 +182,9 @@ TEST(FieldTrials, Immutable) {
   c.Set("Audio", "Enabled");
 
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-#ifndef NDEBUG
   // But FieldTrials that have been read from,
   // must not be modified (as documented in FieldTrialsView).
   EXPECT_DEATH(f.Set("Audio", "Enabled"), "");
-#endif
 #endif
 }
 

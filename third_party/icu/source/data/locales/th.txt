@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 th{
     AuxExemplarCharacters{"[\u200B]"}
     ExemplarCharacters{
@@ -988,6 +988,7 @@ th{
                 }
                 MMMd{
                     M{"d MMM – d MMM"}
+                    d{"d–d MMM"}
                 }
                 Md{
                     M{"d/M – d/M"}
@@ -2037,10 +2038,10 @@ th{
                 "[%％﹪ ٪]",
                 "[‰ ؉]",
                 "[\$＄﹩]",
-                "[£ ₤]",
+                "[£￡ ₤]",
                 "[¥￥]",
                 "[₩￦]",
-                "[₹ ₨ {Rp} {Rs}]",
+                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

@@ -21,4 +21,5 @@ bool InfoBarShownMaxTimes(const PrefService* prefs) {
          kSessionRestoreInfoBarMaxTimesToShow;
 }
 
+
 }  // namespace session_restore_infobar

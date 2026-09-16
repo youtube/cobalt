@@ -103,6 +103,10 @@ BASE_DECLARE_FEATURE(kEnableWebHidInWebView);
 // If enabled, disables unpacked extensions if developer mode is off.
 BASE_DECLARE_FEATURE(kExtensionDisableUnsupportedDeveloper);
 
+// Allow e.g. .css files to use default_locale messages in WAR files via GUID.
+// TODO(crbug.com/435609878): Remove after m142. It's for safe m141 back merge.
+BASE_DECLARE_FEATURE(kExtensionLocalizationGuid);
+
 // A replacement key for declaring icons, in addition to supporting dark mode.
 BASE_DECLARE_FEATURE(kExtensionIconVariants);
 
@@ -172,9 +176,6 @@ BASE_DECLARE_FEATURE(kLaunchWindowsNativeHostsDirectly);
 // input without needing keyword mode.
 BASE_DECLARE_FEATURE(kExperimentalOmniboxLabs);
 
-// To investigate signal beacon loss in crrev.com/c/2262402.
-BASE_DECLARE_FEATURE(kReportKeepaliveUkm);
-
 // Reports Extensions.WebRequest.KeepaliveRequestFinished when enabled.
 // Automatically disable extensions not included in the Safe Browsing CRX
 // allowlist if the user has turned on Enhanced Safe Browsing (ESB). The
@@ -237,8 +238,6 @@ BASE_DECLARE_FEATURE(kDeclarativeNetRequestHeaderSubstitution);
 // line switch.
 BASE_DECLARE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch);
 
-// Disables loading extensions via the `--load-extension` command line switch.
-BASE_DECLARE_FEATURE(kDisableLoadExtensionCommandLineSwitch);
 
 // Disables the `--extensions-on-chrome-urls` flag's functionality on
 // `chrome://` URLs. Extension can still run on extension URLs using the new

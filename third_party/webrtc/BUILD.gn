@@ -78,6 +78,7 @@ if (!build_with_chromium) {
         "video:screenshare_loopback",
         "video:sv_loopback",
         "video:video_loopback",
+        "video/timing:video_timing_tests",
       ]
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]
@@ -834,6 +835,9 @@ group("poison_environment_construction") {
 }
 
 group("poison_software_video_codecs") {
+}
+
+group("poison_default_neural_residual_echo_estimator") {
 }
 
 if (!build_with_chromium) {

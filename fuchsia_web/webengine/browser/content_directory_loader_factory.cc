@@ -187,7 +187,8 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     if (MapFile(std::move(metadata_channel), &metadata_mmap)) {
       std::optional<base::Value> metadata_parsed = base::JSONReader::Read(
           std::string_view(reinterpret_cast<char*>(metadata_mmap.data()),
-                           metadata_mmap.length()));
+                           metadata_mmap.length()),
+          base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 
       if (metadata_parsed && metadata_parsed->is_dict()) {
         const auto& dict = metadata_parsed->GetDict();
@@ -371,13 +372,13 @@ void ContentDirectoryLoaderFactory::CreateLoaderAndStart(
 
   // Fuchsia paths do not support the notion of absolute paths, so strip the
   // leading slash from the URL's path fragment.
-  std::string_view requested_path = request.url.path_piece();
+  std::string_view requested_path = request.url.path();
   DCHECK(base::StartsWith(requested_path, "/"));
   requested_path.remove_prefix(1);
 
   fidl::InterfaceHandle<fuchsia::io::Node> file_handle;
   net::Error open_result = OpenFileFromDirectory(
-      request.url.DeprecatedGetOriginAsURL().host(),
+      request.url.DeprecatedGetOriginAsURL().GetHost(),
       base::FilePath(requested_path), file_handle.NewRequest());
   if (open_result != net::OK) {
     mojo::Remote<network::mojom::URLLoaderClient>(std::move(client))
@@ -391,7 +392,7 @@ void ContentDirectoryLoaderFactory::CreateLoaderAndStart(
   // ContentDirectoryURLLoader::Start().
   fidl::InterfaceHandle<fuchsia::io::Node> metadata_handle;
   open_result = OpenFileFromDirectory(
-      request.url.DeprecatedGetOriginAsURL().host(),
+      request.url.DeprecatedGetOriginAsURL().GetHost(),
       base::FilePath(base::StrCat({requested_path, "._metadata"})),
       metadata_handle.NewRequest());
   if (open_result != net::OK) {

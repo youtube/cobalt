@@ -61,15 +61,19 @@
 #include "content/browser/attribution_reporting/storable_source.h"
 #include "content/browser/attribution_reporting/store_source_result.mojom.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/handler_helpers.h"
 #include "content/browser/devtools/protocol/network.h"
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
+#include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#include "content/browser/devtools/shared_worker_devtools_agent_host.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/interest_group_manager_impl.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -420,8 +424,11 @@ class StorageHandler::QuotaManagerObserver
   mojo::Receiver<storage::mojom::QuotaManagerObserver> receiver_{this};
 };
 
-StorageHandler::StorageHandler(DevToolsAgentHostClient* client)
-    : DevToolsDomainHandler(Storage::Metainfo::domainName), client_(client) {}
+StorageHandler::StorageHandler(DevToolsAgentHostImpl* host,
+                               DevToolsAgentHostClient* client)
+    : DevToolsDomainHandler(Storage::Metainfo::domainName),
+      host_(host),
+      client_(client) {}
 
 StorageHandler::~StorageHandler() {
   DCHECK(!cache_storage_observer_);
@@ -550,25 +557,7 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_150
-Response StorageHandler::SerializeStorageKey(
-    RenderFrameHostImpl* rfh,
-    std::string* serialized_storage_key) const {
-  if (!rfh) {
-    return Response::ServerError("Internal error: RenderFrameHost is null");
-  }
-  const blink::StorageKey& storage_key = rfh->GetStorageKey();
-  if (storage_key.origin().opaque()) {
-    return Response::ServerError(
-        "Frame corresponds to an opaque origin and its storage key cannot be "
-        "serialized");
-  }
-  *serialized_storage_key = storage_key.Serialize();
-  return Response::Success();
-}
-#endif
-
-Response StorageHandler::GetStorageKeyForFrame(
+Response StorageHandler::GetStorageKeyForFrameInternal(
     const std::string& frame_id,
     std::string* serialized_storage_key) {
   if (!frame_host_) {
@@ -579,10 +568,6 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_150
-  return SerializeStorageKey(node->current_frame_host(),
-                             serialized_storage_key);
-#else
   RenderFrameHostImpl* rfh = node->current_frame_host();
   if (rfh->GetStorageKey().origin().opaque()) {
     return Response::ServerError(
@@ -591,29 +576,62 @@ Response StorageHandler::GetStorageKeyForFrame(
   }
   *serialized_storage_key = rfh->GetStorageKey().Serialize();
   return Response::Success();
-#endif
 }
 
-#if CHROMIUM_MILESTONE_LE_150
+// TODO(crbug.com/445966299): This method is deprecated and
+// will be removed once all clients, including the DevTools frontend, have
+// migrated to using GetStorageKey.
+Response StorageHandler::GetStorageKeyForFrame(
+    const std::string& frame_id,
+    std::string* serialized_storage_key) {
+  return GetStorageKeyForFrameInternal(frame_id, serialized_storage_key);
+}
+
 Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
                                        std::string* serialized_storage_key) {
-#if BUILDFLAG(IS_COBALT)
   if (frame_id.has_value()) {
-    return GetStorageKeyForFrame(frame_id.value(), serialized_storage_key);
+    return GetStorageKeyForFrameInternal(frame_id.value(),
+                                         serialized_storage_key);
   }
 
-  if (frame_host_) {
-    return SerializeStorageKey(frame_host_, serialized_storage_key);
+  if (!host_) {
+    return Response::InvalidParams("DevToolsAgentHost not found");
   }
 
-  return Response::ServerError(
-      "Could not determine storage key for the target (workers not supported "
-      "yet in this implementation).");
-#else
-  return Response::ServerError("Not implemented");
-#endif
+  std::optional<blink::StorageKey> storage_key;
+
+  const std::string& type = host_->GetType();
+
+  if (type == content::DevToolsAgentHost::kTypeServiceWorker) {
+    auto* service_worker_agent_host =
+        static_cast<content::ServiceWorkerDevToolsAgentHost*>(host_.get());
+    storage_key = service_worker_agent_host->GetStorageKey();
+  } else if (type == content::DevToolsAgentHost::kTypeDedicatedWorker) {
+    auto* dedicated_worker_agent_host =
+        static_cast<content::DedicatedWorkerDevToolsAgentHost*>(host_.get());
+    storage_key = dedicated_worker_agent_host->GetStorageKey();
+  } else if (type == content::DevToolsAgentHost::kTypeSharedWorker) {
+    auto* shared_worker_agent_host =
+        static_cast<content::SharedWorkerDevToolsAgentHost*>(host_.get());
+    storage_key = shared_worker_agent_host->GetStorageKey();
+  } else {
+    return Response::InvalidParams(
+        "Target is not a supported worker type for storage inspection.");
+  }
+
+  if (!storage_key.has_value()) {
+    return Response::ServerError(
+        "Could not determine storage key for the target.");
+  }
+  if (storage_key->origin().opaque()) {
+    return Response::ServerError(
+        "Target corresponds to an opaque origin and its storage key cannot be "
+        "serialized");
+  }
+
+  *serialized_storage_key = storage_key.value().Serialize();
+  return Response::Success();
 }
-#endif
 
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {

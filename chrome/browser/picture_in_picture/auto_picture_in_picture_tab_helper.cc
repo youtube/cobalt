@@ -51,12 +51,17 @@ AutoPictureInPictureTabHelper::AutoPictureInPictureTabHelper(
       base::BindRepeating(&AutoPictureInPictureTabHelper::OnTabActivatedChanged,
                           base::Unretained(this)));
 
+  // On non-Android platforms, we observe the internal AudioFocusManager to
+  // track audio focus state. Android has a native system-wide AudioManager,
+  // so this observer is never notified and is not used.
+#if !BUILDFLAG(IS_ANDROID)
   // Connect to receive audio focus events.
   mojo::Remote<media_session::mojom::AudioFocusManager> audio_focus_remote;
   content::GetMediaSessionService().BindAudioFocusManager(
       audio_focus_remote.BindNewPipeAndPassReceiver());
   audio_focus_remote->AddObserver(
       audio_focus_observer_receiver_.BindNewPipeAndPassRemote());
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Connect to receive media session updates if the media session already
   // exists. If it does not, then we'll become an observer in
@@ -135,6 +140,22 @@ void AutoPictureInPictureTabHelper::MaybeRecordPictureInPictureChanged(
       clock_->NowTicks() - current_enter_pip_time_.value();
   current_enter_pip_time_ = std::nullopt;
 
+  // Calculate total playback time for the duration of the pip window.
+  std::optional<base::TimeDelta> total_playback_time = std::nullopt;
+  if (current_pip_playback_time_) {
+    // Start with the existing recorded PiP playback time.
+    total_playback_time = current_pip_playback_time_.value();
+
+    if (playing_start_time_) {
+      // Add additional time elapsed since the video started playing in PiP.
+      total_playback_time.value() +=
+          clock_->NowTicks() - playing_start_time_.value();
+    }
+  }
+  // Reset playback time related fields.
+  playing_start_time_ = std::nullopt;
+  current_pip_playback_time_ = std::nullopt;
+
   if (auto_pip_trigger_reason_ ==
       media::PictureInPictureEventsInfo::AutoPipReason::kVideoConferencing) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
@@ -171,6 +192,13 @@ void AutoPictureInPictureTabHelper::MaybeRecordPictureInPictureChanged(
         "Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2."
         "MediaPlayback.TotalTimeV2",
         total_pip_time, base::Milliseconds(1), base::Hours(10), 100);
+    if (total_playback_time) {
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2."
+          "MediaPlayback.TotalPlaybackTime",
+          total_playback_time.value(), base::Milliseconds(1), base::Hours(10),
+          100);
+    }
   } else if (auto_pip_trigger_reason_ == media::PictureInPictureEventsInfo::
                                              AutoPipReason::kBrowserInitiated) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
@@ -275,6 +303,7 @@ void AutoPictureInPictureTabHelper::MediaPictureInPictureChanged(
   }
 
   if (AreAutoPictureInPicturePreconditionsMet()) {
+    current_pip_playback_time_ = base::TimeDelta();
     is_in_auto_picture_in_picture_ = true;
     auto_picture_in_picture_activation_time_ = base::TimeTicks();
     MaybeRecordPictureInPictureChanged(true);
@@ -283,6 +312,9 @@ void AutoPictureInPictureTabHelper::MediaPictureInPictureChanged(
     // should immediately close the auto picture-in-picture.
     if (is_tab_activated_) {
       MaybeExitAutoPictureInPicture();
+    } else if (is_playing_) {
+      // Media is playing, start the watch time timer.
+      playing_start_time_ = clock_->NowTicks();
     }
   }
 }
@@ -318,6 +350,7 @@ void AutoPictureInPictureTabHelper::OnTabActivatedChanged(
   }
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void AutoPictureInPictureTabHelper::OnFocusGained(
     media_session::mojom::AudioFocusRequestStatePtr session) {
   if (has_audio_focus_) {
@@ -346,12 +379,43 @@ void AutoPictureInPictureTabHelper::OnFocusLost(
   }
   has_audio_focus_ = (request_id != session->request_id);
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void AutoPictureInPictureTabHelper::MediaSessionInfoChanged(
     media_session::mojom::MediaSessionInfoPtr session_info) {
-  is_playing_ =
+  // On Android, audio focus is managed by the operating system. The
+  // MediaSession state is the source of truth as it reflects focus changes from
+  // the Android system's AudioManager.
+#if BUILDFLAG(IS_ANDROID)
+  has_audio_focus_ =
+      session_info &&
+      session_info->state ==
+          media_session::mojom::MediaSessionInfo::SessionState::kActive;
+#endif  // BUILDFLAG(IS_ANDROID)
+  const bool is_playing =
       session_info && session_info->playback_state ==
                           media_session::mojom::MediaPlaybackState::kPlaying;
+
+  // If the playing state hasn't changed, nothing more to do.
+  if (is_playing_ == is_playing) {
+    return;
+  }
+  is_playing_ = is_playing;
+
+  // Watch time tracking is only relevant if we are currently in Auto PiP.
+  if (!is_in_auto_picture_in_picture_) {
+    return;
+  }
+
+  if (is_playing_) {
+    // Media started playing: record the start time.
+    playing_start_time_ = clock_->NowTicks();
+  } else if (playing_start_time_) {
+    // Media paused/stopped: calculate and accumulate watch time.
+    current_pip_playback_time_.value() +=
+        clock_->NowTicks() - playing_start_time_.value();
+    playing_start_time_ = std::nullopt;
+  }
 }
 
 void AutoPictureInPictureTabHelper::MediaSessionActionsChanged(
@@ -786,9 +850,13 @@ AutoPictureInPictureTabHelper::CreateOverlayPermissionViewIfNeeded(
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
-void AutoPictureInPictureTabHelper::OnQuickDismissal() {
-  // A "quick dismissal" is when the user closes the PiP window shortly after it
-  // appeared. This is a signal that they may not want auto-PiP for this site.
+void AutoPictureInPictureTabHelper::OnPictureInPictureDismissed() {
+  // An auto-PiP window is considered "dismissed" by the user if it's closed
+  // shortly after appearing ("quick dismissal") or if the "hide" button is
+  // clicked. Both actions signal that the user may not want auto-PiP for this
+  // site, so we increment the dismissal count to potentially embargo the
+  // feature.
+  //
   // We only count dismissals if the tab is not active, to avoid counting cases
   // where the PiP window is automatically closed when switching back to the
   // tab.

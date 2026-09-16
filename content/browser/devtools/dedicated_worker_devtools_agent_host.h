@@ -13,7 +13,10 @@
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "content/browser/devtools/worker_or_worklet_devtools_agent_host.h"
-#include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
+
+namespace blink {
+class StorageKey;
+}  // namespace blink
 
 namespace content {
 
@@ -38,6 +41,8 @@ class DedicatedWorkerDevToolsAgentHost final
       const base::UnguessableToken& devtools_worker_token,
       const std::string& parent_id,
       base::OnceCallback<void(DevToolsAgentHostImpl*)> destroyed_callback);
+
+  std::optional<blink::StorageKey> GetStorageKey();
 
   void DisconnectIfNotCreated();
 

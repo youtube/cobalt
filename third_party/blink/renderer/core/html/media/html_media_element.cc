@@ -2389,10 +2389,12 @@ void HTMLMediaElement::SetReadyState(ReadyState state) {
           }
         }
         if (default_audio_track) {
-          default_audio_track->setEnabled(true);
+          default_audio_track->setEnabled(true,
+                                          TrackBase::ChangeSource::kInitial);
         }
         if (default_video_track) {
-          default_video_track->setSelected(true);
+          default_video_track->setSelected(true,
+                                           TrackBase::ChangeSource::kInitial);
         }
       }
     }
@@ -3418,7 +3420,8 @@ AudioTrackList& HTMLMediaElement::audioTracks() {
   return *audio_tracks_;
 }
 
-void HTMLMediaElement::AudioTrackChanged(AudioTrack* track) {
+void HTMLMediaElement::AudioTrackChanged(AudioTrack* track,
+                                         TrackBase::ChangeSource source) {
   DVLOG(3) << "audioTrackChanged(" << *this
            << ") trackId= " << String(track->id())
            << " enabled=" << base::ToString(track->enabled())
@@ -3433,8 +3436,10 @@ void HTMLMediaElement::AudioTrackChanged(AudioTrack* track) {
   if (media_source_attachment_)
     media_source_attachment_->OnTrackChanged(media_source_tracer_, track);
 
-  if (!audio_tracks_timer_.IsActive())
+  if (source != TrackBase::ChangeSource::kDemuxer &&
+      !audio_tracks_timer_.IsActive()) {
     audio_tracks_timer_.StartOneShot(base::TimeDelta(), FROM_HERE);
+  }
 }
 
 void HTMLMediaElement::AudioTracksTimerFired(TimerBase*) {
@@ -3452,7 +3457,9 @@ VideoTrackList& HTMLMediaElement::videoTracks() {
   return *video_tracks_;
 }
 
-void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
+void HTMLMediaElement::SelectedVideoTrackChanged(
+    VideoTrack* track,
+    TrackBase::ChangeSource source) {
   DVLOG(3) << "selectedVideoTrackChanged(" << *this << ") selectedTrackId="
            << (track->selected() ? String(track->id()) : "none");
 
@@ -3461,17 +3468,20 @@ void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
 
   videoTracks().ScheduleChangeEvent();
 
-  if (media_source_attachment_)
+  if (media_source_attachment_) {
     media_source_attachment_->OnTrackChanged(media_source_tracer_, track);
+  }
 
-  if (track->selected()) {
-    web_media_player_->SelectedVideoTrackChanged(track->id());
-  } else {
-    web_media_player_->SelectedVideoTrackChanged(std::nullopt);
+  if (source != TrackBase::ChangeSource::kDemuxer) {
+    if (track->selected()) {
+      web_media_player_->SelectedVideoTrackChanged(track->id());
+    } else {
+      web_media_player_->SelectedVideoTrackChanged(std::nullopt);
+    }
   }
 }
 
-void HTMLMediaElement::AddMediaTrack(const media::MediaTrack& track) {
+void HTMLMediaElement::AddTrack(const media::MediaTrack& track) {
   switch (track.type()) {
     case media::MediaTrack::Type::kVideo: {
       bool enabled = track.enabled() && videoTracks().selectedIndex() == -1;
@@ -3494,7 +3504,7 @@ void HTMLMediaElement::AddMediaTrack(const media::MediaTrack& track) {
   }
 }
 
-void HTMLMediaElement::RemoveMediaTrack(const media::MediaTrack& track) {
+void HTMLMediaElement::RemoveTrack(const media::MediaTrack& track) {
   switch (track.type()) {
     case media::MediaTrack::Type::kVideo: {
       videoTracks().Remove(String::FromUTF8(track.track_id().value()));
@@ -4487,47 +4497,38 @@ MediaControls* HTMLMediaElement::GetMediaControls() const {
   return media_controls_.Get();
 }
 
-void HTMLMediaElement::EnsureMediaControls() {
-  if (GetMediaControls())
-    return;
-
-  ShadowRoot& shadow_root = EnsureUserAgentShadowRoot();
-  UseCounterMuteScope scope(*this);
-  media_controls_ =
-      CoreInitializer::GetInstance().CreateMediaControls(*this, shadow_root);
-
-  // The media controls should be inserted after the text track container,
-  // so that they are rendered in front of captions and subtitles. This check
-  // is verifying the contract.
-  AssertShadowRootChildren(shadow_root);
-}
-
 void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
 
-  bool native_controls = ShouldShowControls();
+  // It might be nice to lazily initialize only the controls we need when they
+  // are actually visible, but cursory tests don't show any memory improvements.
+  if (!media_controls_) {
+    ShadowRoot& shadow_root = EnsureUserAgentShadowRoot();
+    UseCounterMuteScope scope(*this);
+    media_controls_ =
+        CoreInitializer::GetInstance().CreateMediaControls(*this, shadow_root);
 
-  // When LazyInitializeMediaControls is enabled, initialize the controls only
-  // if native controls should be used or if using the cast overlay.
-  if (!RuntimeEnabledFeatures::LazyInitializeMediaControlsEnabled() ||
-      RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() ||
-      native_controls) {
-    EnsureMediaControls();
-
-    // TODO(mlamouri): this doesn't sound needed but the following tests, on
-    // Android fails when removed:
-    // fullscreen/compositor-touch-hit-rects-fullscreen-video-controls.html
-    GetMediaControls()->Reset();
+    // The media controls should be inserted after the text track container,
+    // so that they are rendered in front of captions and subtitles. This check
+    // is verifying the contract.
+    AssertShadowRootChildren(shadow_root);
+  } else {
+    // This is necessary if controls change visibility because many of the state
+    // computations within MediaControlsImpl key off the visibility state.
+    media_controls_->Reset();
   }
 
-  if (native_controls)
-    GetMediaControls()->MaybeShow();
-  else if (GetMediaControls())
-    GetMediaControls()->Hide();
+  bool native_controls = ShouldShowControls();
+  if (native_controls) {
+    media_controls_->MaybeShow();
+  } else if (media_controls_) {
+    media_controls_->Hide();
+  }
 
-  if (web_media_player_)
+  if (web_media_player_) {
     web_media_player_->OnHasNativeControlsChanged(native_controls);
+  }
 }
 
 CueTimeline& HTMLMediaElement::GetCueTimeline() {
@@ -4665,14 +4666,14 @@ void HTMLMediaElement::CreatePlaceholderTracksIfNecessary() {
   // Create a placeholder audio track if the player says it has audio but it
   // didn't explicitly announce the tracks.
   if (HasAudio() && !audioTracks().length()) {
-    AddMediaTrack(media::MediaTrack::CreateAudioTrack(
+    AddTrack(media::MediaTrack::CreateAudioTrack(
         "audio", media::MediaTrack::AudioKind::kMain, "Audio Track", "", true));
   }
 
   // Create a placeholder video track if the player says it has video but it
   // didn't explicitly announce the tracks.
   if (HasVideo() && !videoTracks().length()) {
-    AddMediaTrack(media::MediaTrack::CreateVideoTrack(
+    AddTrack(media::MediaTrack::CreateVideoTrack(
         "video", media::MediaTrack::VideoKind::kMain, "Video Track", "", true));
   }
 }

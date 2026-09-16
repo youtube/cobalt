@@ -6,6 +6,7 @@
 #define DEVICE_FIDO_WIN_FAKE_WEBAUTHN_API_H_
 
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <vector>
@@ -18,7 +19,7 @@
 #include "device/fido/public_key_credential_user_entity.h"
 #include "device/fido/virtual_fido_device.h"
 #include "device/fido/win/webauthn_api.h"
-#include "third_party/microsoft_webauthn/webauthn.h"
+#include "third_party/microsoft_webauthn/src/webauthn.h"
 
 namespace device {
 
@@ -27,13 +28,15 @@ namespace device {
 //
 // The fake supports injecting discoverable and non-discoverable credentials
 // that can be challenged via AuthenticatorGetAssertion().
-// AuthenticatorMakeCredential() returns a mock response and does not actually
-// create a credential.
 //
 // Tests can inject a FakeWinWebAuthnApi via VirtualFidoDeviceFactory.
 class COMPONENT_EXPORT(DEVICE_FIDO) FakeWinWebAuthnApi : public WinWebAuthnApi {
  public:
   using RegistrationData = VirtualFidoDevice::RegistrationData;
+
+  static constexpr std::array<uint8_t, kAaguidLength> kTestWindowsAaguid = {
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
+       0x0d, 0x0e, 0x0f, 0x10}};
 
   FakeWinWebAuthnApi();
   ~FakeWinWebAuthnApi() override;

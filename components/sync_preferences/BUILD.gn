@@ -65,6 +65,7 @@ source_set("common_syncable_prefs_database") {
     "//components/metrics",
     "//components/metrics/demographics",
     "//components/ntp_tiles",
+    "//components/ntp_tiles:pref_names",
     "//components/omnibox/browser",
     "//components/password_manager/core/common",
     "//components/payments/core",
@@ -73,6 +74,7 @@ source_set("common_syncable_prefs_database") {
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/saved_tab_groups/public",
     "//components/sharing_message",
+    "//components/sync_preferences/cross_device_pref_tracker/prefs",
     "//components/translate/core/browser",
     "//components/variations/service",
   ]

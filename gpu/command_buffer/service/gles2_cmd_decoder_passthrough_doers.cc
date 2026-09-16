@@ -30,7 +30,6 @@
 #include "gpu/command_buffer/service/gpu_fence_manager.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/multi_draw_manager.h"
-#include "gpu/command_buffer/service/passthrough_discardable_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
@@ -1103,10 +1102,6 @@ error::Error GLES2DecoderPassthroughImpl::DoDeleteTextures(
       resources_->texture_shared_image_map.erase(client_id);
       UpdateTextureBinding(texture->target(), client_id, nullptr);
     }
-
-    // Notify the discardable manager that the texture is deleted
-    group_->passthrough_discardable_manager()->DeleteTexture(client_id,
-                                                             group_.get());
   }
   return DeleteHelper(
       non_mailbox_client_ids.size(), non_mailbox_client_ids.data(),
@@ -4938,51 +4933,6 @@ GLES2DecoderPassthroughImpl::DoSetReadbackBufferShadowAllocationINTERNAL(
 error::Error GLES2DecoderPassthroughImpl::DoMaxShaderCompilerThreadsKHR(
     GLuint count) {
   api()->glMaxShaderCompilerThreadsKHRFn(count);
-  return error::kNoError;
-}
-
-error::Error
-GLES2DecoderPassthroughImpl::DoInitializeDiscardableTextureCHROMIUM(
-    GLuint texture_id,
-    ServiceDiscardableHandle&& discardable_handle) {
-  scoped_refptr<TexturePassthrough> texture_passthrough;
-  if (!resources_->texture_object_map.GetServiceID(texture_id,
-                                                   &texture_passthrough) ||
-      texture_passthrough == nullptr) {
-    InsertError(GL_INVALID_VALUE, "Invalid texture ID");
-    return error::kNoError;
-  }
-
-  group_->passthrough_discardable_manager()->InitializeTexture(
-      texture_id, group_.get(), texture_passthrough->estimated_size(),
-      std::move(discardable_handle));
-
-  return error::kNoError;
-}
-
-error::Error GLES2DecoderPassthroughImpl::DoLockDiscardableTextureCHROMIUM(
-    GLuint texture_id) {
-  if (!group_->passthrough_discardable_manager()->LockTexture(texture_id,
-                                                              group_.get())) {
-    InsertError(GL_INVALID_VALUE, "Texture ID not initialized");
-    return error::kNoError;
-  }
-
-  return error::kNoError;
-}
-
-error::Error GLES2DecoderPassthroughImpl::DoUnlockDiscardableTextureCHROMIUM(
-    GLuint texture_id) {
-  TexturePassthrough* texture_to_unbind = nullptr;
-  if (!group_->passthrough_discardable_manager()->UnlockTexture(
-          texture_id, group_.get(), &texture_to_unbind)) {
-    InsertError(GL_INVALID_VALUE, "Texture ID not initialized");
-    return error::kNoError;
-  }
-
-  if (texture_to_unbind != nullptr) {
-    UpdateTextureBinding(texture_to_unbind->target(), texture_id, nullptr);
-  }
   return error::kNoError;
 }
 

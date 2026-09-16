@@ -1076,6 +1076,48 @@ public class TabGridItemTouchHelperCallbackUnitTest {
 
     @Test
     @EnableFeatures(ChromeFeatureList.TAB_ARCHIVAL_DRAG_DROP_ANDROID)
+    public void onHoverAndDropPinnedTabOverArchivalCard() {
+        setupItemTouchHelperCallback(false);
+        addArchivedMessageCard();
+        mModel.get(POSITION1).model.set(IS_PINNED, true);
+
+        AtomicInteger recordedTabId = new AtomicInteger(TabModel.INVALID_TAB_INDEX);
+
+        mItemTouchHelperCallback.setOnDropOnArchivalMessageCardEventListener(recordedTabId::set);
+        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
+
+        // Simulate the selection of card#1 in TabListModel.
+        mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
+
+        // Pretend a drag over the archived message card has started.
+        mItemTouchHelperCallback.onChildDraw(
+                mCanvas,
+                mRecyclerView,
+                mMockViewHolder1,
+                4,
+                8,
+                ItemTouchHelper.ACTION_STATE_DRAG,
+                true);
+        assertEquals(
+                AnimationStatus.CARD_RESTORE,
+                mModel.get(ARCHIVED_MSG_CARD_POSITION).model.get(CARD_ANIMATION_STATUS));
+
+        // Return to original position.
+        mItemTouchHelperCallback.onChildDraw(
+                mCanvas,
+                mRecyclerView,
+                mMockViewHolder1,
+                0,
+                0,
+                ItemTouchHelper.ACTION_STATE_DRAG,
+                true);
+        assertEquals(
+                AnimationStatus.CARD_RESTORE,
+                mModel.get(ARCHIVED_MSG_CARD_POSITION).model.get(CARD_ANIMATION_STATUS));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_ARCHIVAL_DRAG_DROP_ANDROID)
     public void onHoverOverArchivalCard_sharedTabGroup() {
         when(mTabGroupColorViewProvider.hasCollaborationId()).thenReturn(true);
         when(mTab1.getTabGroupId()).thenReturn(Token.createRandom());
@@ -1361,6 +1403,56 @@ public class TabGridItemTouchHelperCallbackUnitTest {
 
         // Verify that tab1 is moved to index 3.
         verify(mTabGroupModelFilter).moveRelatedTabs(TAB1_ID, 3);
+    }
+
+    @Test
+    public void canDropOver_pinnedAndUnpinned() {
+        setupItemTouchHelperCallback(false);
+
+        // A pinned tab cannot be dropped on an unpinned tab.
+        mMockViewHolder1.model.set(IS_PINNED, true);
+        mMockViewHolder2.model.set(IS_PINNED, false);
+        assertFalse(
+                mItemTouchHelperCallback.canDropOver(
+                        mRecyclerView, mMockViewHolder1, mMockViewHolder2));
+
+        // An unpinned tab cannot be dropped on a pinned tab.
+        assertFalse(
+                mItemTouchHelperCallback.canDropOver(
+                        mRecyclerView, mMockViewHolder2, mMockViewHolder1));
+
+        // A pinned tab can be dropped on another pinned tab.
+        mMockViewHolder2.model.set(IS_PINNED, true);
+        assertTrue(
+                mItemTouchHelperCallback.canDropOver(
+                        mRecyclerView, mMockViewHolder1, mMockViewHolder2));
+
+        // An unpinned tab can be dropped on another unpinned tab.
+        mMockViewHolder1.model.set(IS_PINNED, false);
+        mMockViewHolder2.model.set(IS_PINNED, false);
+        assertTrue(
+                mItemTouchHelperCallback.canDropOver(
+                        mRecyclerView, mMockViewHolder1, mMockViewHolder2));
+    }
+
+    @Test
+    public void onDragTab_Hovered_pinnedTab() {
+        // Setup: tab1 is pinned, tab2 is not.
+        mMockViewHolder1.model.set(IS_PINNED, true);
+        mMockViewHolder2.model.set(IS_PINNED, false);
+
+        // Drag pinned card#1 rightwards to hover on unpinned card#2.
+        verifyDrag(mMockViewHolder1, 5, 0, POSITION2, AnimationStatus.CARD_RESTORE);
+
+        // Drag unpinned card#2 leftwards to hover on pinned card#1.
+        verifyDrag(mMockViewHolder2, -5, 0, POSITION1, AnimationStatus.CARD_RESTORE);
+
+        // Setup: tab1 and tab2 are pinned.
+        mMockViewHolder1.model.set(IS_PINNED, true);
+        mMockViewHolder2.model.set(IS_PINNED, true);
+
+        // Drag pinned card#1 rightwards to hover on pinned card#2.
+        verifyDrag(mMockViewHolder1, 5, 0, POSITION2, AnimationStatus.CARD_RESTORE);
     }
 
     private void verifyDrag(

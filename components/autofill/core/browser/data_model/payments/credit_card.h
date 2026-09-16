@@ -249,8 +249,8 @@ class CreditCard : public FormGroup {
   bool IsDeletable() const;
 
   // FormGroup:
-  void GetMatchingTypes(const std::u16string& text,
-                        const std::string& app_locale,
+  void GetMatchingTypes(std::u16string_view text,
+                        std::string_view app_locale,
                         FieldTypeSet* matching_types) const override;
   using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
@@ -339,16 +339,13 @@ class CreditCard : public FormGroup {
   // Returns true if expiration date for `this` card is the same as `other`.
   [[nodiscard]] bool HasSameExpirationDateAs(const CreditCard& other) const;
 
-  // Calculates the ranking score used for ranking the card suggestion. If
-  // `use_frecency` is true we use the new ranking algorithm.
-  double GetRankingScore(base::Time current_time,
-                         bool use_frecency = false) const;
+  // Calculates the ranking score used for ranking the card suggestion.
+  double GetRankingScore(base::Time current_time) const;
 
   // Compares two credit cards and returns if the current card has a greater
   // ranking score than `other`.
   bool HasGreaterRankingThan(const CreditCard& other,
-                             base::Time comparison_time,
-                             bool use_frecency = false) const;
+                             base::Time comparison_time) const;
 
   // Equality operators compare GUIDs, origins, and the contents.
   // Usage metadata (use count, use date, modification date) are NOT compared.

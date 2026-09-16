@@ -193,30 +193,11 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                            int src_y,
                            int plane_index,
                            void* dst_pixels) override;
-  GLuint CreateAndConsumeForGpuRaster(const gpu::Mailbox& mailbox) override;
-  GLuint CreateAndConsumeForGpuRaster(
-      const scoped_refptr<gpu::ClientSharedImage>& shared_image) override;
-  void DeleteGpuRasterTexture(GLuint texture) override;
-  void BeginGpuRaster() override;
-  void EndGpuRaster() override;
-  void BeginSharedImageAccessDirectCHROMIUM(GLuint texture,
-                                            GLenum mode) override;
-  void EndSharedImageAccessDirectCHROMIUM(GLuint texture) override;
-
-  void InitializeDiscardableTextureCHROMIUM(GLuint texture) override;
-  void UnlockDiscardableTextureCHROMIUM(GLuint texture) override;
-  bool LockDiscardableTextureCHROMIUM(GLuint texture) override;
 
   // ContextSupport implementation.
   void SetAggressivelyFreeResources(bool aggressively_free_resources) override;
-  uint64_t ShareGroupTracingGUID() const override;
   void SetErrorMessageCallback(
       base::RepeatingCallback<void(const char*, int32_t)> callback) override;
-  bool ThreadSafeShallowLockDiscardableTexture(uint32_t texture_id) override;
-  void CompleteLockDiscardableTexureOnContextThread(
-      uint32_t texture_id) override;
-  bool ThreadsafeDiscardableTextureIsDeletedForTracing(
-      uint32_t texture_id) override;
   base::span<uint8_t> MapTransferCacheEntry(uint32_t serialized_size) override;
   void UnmapAndCreateTransferCacheEntry(uint32_t type, uint32_t id) override;
   bool ThreadsafeLockTransferCacheEntry(uint32_t type, uint32_t id) override;
@@ -305,8 +286,10 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
 #if BUILDFLAG(IS_COBALT)
   // Fast path for Cobalt in-process direct raster. Passes a pointer payload
   // wrapping the finalized DisplayItemList and image transfer cache IDs to
-  // the GPU raster decoder, bypassing PaintOp serialization.
-  void RasterCHROMIUMInProcess(
+  // the GPU raster decoder, bypassing PaintOp serialization. Returns false if
+  // any unsupported features (e.g. gainmap images) require fallback to
+  // standard serialization.
+  bool RasterCHROMIUMInProcess(
       const cc::DisplayItemList* list,
       cc::ImageProvider* provider,
       const gfx::Size& content_size,

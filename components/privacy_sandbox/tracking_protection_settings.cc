@@ -21,6 +21,9 @@
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/privacy_sandbox/tracking_protection_settings_observer.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "net/base/features.h"
 #include "url/gurl.h"
 
@@ -81,20 +84,9 @@ TrackingProtectionSettings::TrackingProtectionSettings(
 #if !BUILDFLAG(IS_IOS)
   // It's possible enterprise status changed while profile was shut down.
   OnEnterpriseControlForPrefsChanged();
-
-  if (IsTrackingProtection3pcdEnabled() &&
-      base::FeatureList::IsEnabled(kRollBackModeB)) {
-    // Only show rollback UI to users whose new state will be allow 3PCs.
-    if (!pref_service_->GetBoolean(prefs::kBlockAll3pcToggleEnabled) &&
-        // The `CookieControlsMode` enum cannot be used due to a circular
-        // dependency, so hardcode the value for block 3PCs.
-        pref_service_->GetInteger(prefs::kCookieControlsMode) != 1) {
-      pref_service_->SetBoolean(prefs::kShowRollbackUiModeB, true);
-    }
-    base::UmaHistogramBoolean(
-        "Privacy.3PCD.RollbackNotice.ShouldShow",
-        pref_service_->GetBoolean(prefs::kShowRollbackUiModeB));
-    pref_service_->SetBoolean(prefs::kTrackingProtection3pcdEnabled, false);
+  // Set Mode B pref to force rollback flow.
+  if (privacy_sandbox::kRollBackModeBForced.Get()) {
+    pref_service_->SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
   }
 #endif
 }
@@ -114,7 +106,8 @@ void TrackingProtectionSettings::OnContentSettingChanged(
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsTypeSet content_type_set) {
   if (content_type_set.Contains(ContentSettingsType::TRACKING_PROTECTION)) {
-    OnTrackingProtectionExceptionsChanged();
+    OnTrackingProtectionExceptionsChanged(
+        secondary_pattern.ToRepresentativeUrl());
   }
 }
 
@@ -251,9 +244,10 @@ void TrackingProtectionSettings::OnTrackingProtection3pcdPrefChanged() {
   }
 }
 
-void TrackingProtectionSettings::OnTrackingProtectionExceptionsChanged() {
+void TrackingProtectionSettings::OnTrackingProtectionExceptionsChanged(
+    const GURL& first_party_url) {
   for (auto& observer : observers_) {
-    observer.OnTrackingProtectionExceptionsChanged();
+    observer.OnTrackingProtectionExceptionsChanged(first_party_url);
   }
 }
 
@@ -265,6 +259,38 @@ void TrackingProtectionSettings::AddObserver(
 void TrackingProtectionSettings::RemoveObserver(
     TrackingProtectionSettingsObserver* observer) {
   observers_.RemoveObserver(observer);
+}
+
+void MaybeSetRollbackPrefsModeB(syncer::SyncService* sync_service,
+                                PrefService* prefs) {
+  // Only set prefs if:
+  // 1. User is in Mode B and rollback feature is enabled.
+  if (!prefs->GetBoolean(prefs::kTrackingProtection3pcdEnabled) ||
+      !base::FeatureList::IsEnabled(kRollBackModeB)) {
+    return;
+  }
+  // 2. We are not waiting for pref sync updates.
+  if (sync_service && sync_service->IsSyncFeatureEnabled() &&
+      sync_service->GetUserSettings()->GetSelectedTypes().Has(
+          syncer::UserSelectableType::kPreferences) &&
+      sync_service->GetDownloadStatusFor(syncer::DataType::PREFERENCES) ==
+          syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates) {
+    return;
+  }
+
+  // Hardcoded as using CookieControlsMode creates a circular dependency.
+  const int kBlockThirdParty = 1;
+  bool allowed_3pcs =
+      !prefs->GetBoolean(prefs::kBlockAll3pcToggleEnabled) &&
+      prefs->GetInteger(prefs::kCookieControlsMode) != kBlockThirdParty;
+  if (!allowed_3pcs) {
+    prefs->SetInteger(prefs::kCookieControlsMode, kBlockThirdParty);
+  }
+  // If 3PCs are allowed then we should show the notice.
+  prefs->SetBoolean(prefs::kShowRollbackUiModeB, allowed_3pcs);
+  base::UmaHistogramBoolean("Privacy.3PCD.RollbackNotice.ShouldShow",
+                            allowed_3pcs);
+  prefs->SetBoolean(prefs::kTrackingProtection3pcdEnabled, false);
 }
 
 }  // namespace privacy_sandbox

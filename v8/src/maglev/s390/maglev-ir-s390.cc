@@ -52,6 +52,28 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ lgfr(out, out);
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ AddS32(out, value, Operand(1));
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ SubS32(out, value, Operand(1));
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -870,6 +892,20 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   DoubleRegister value = ToDoubleRegister(input());
   // The hole value is a signalling NaN, so just silence it to get the float64
   // value.
+  __ lzdr(kDoubleRegZero);
+  __ SubF64(value, value, kDoubleRegZero);
+}
+
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
   __ lzdr(kDoubleRegZero);
   __ SubF64(value, value, kDoubleRegZero);
 }

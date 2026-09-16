@@ -26,6 +26,7 @@
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/script_executor.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/utils/content_script_utils.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -47,6 +48,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "pdf/pdf_features.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -128,10 +131,6 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, MainFrameTests) {
       << message_;
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/371432404): Most of the tests in this file are skipped on
-// desktop Android because they use the chrome.webNavigation API, which hasn't
-// been ported yet.
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, SubFramesTests) {
   OpenURLInCurrentTab(
       embedded_test_server()->GetURL("a.com", "/iframe_cross_site.html"));
@@ -162,7 +161,6 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, NestedWebContents) {
   // From there, the test continues in the JS.
   ASSERT_TRUE(RunExtensionTest("scripting/nested_web_contents")) << message_;
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_PDF)
 class ScriptingAPIOopifPdfTest : public ScriptingAPITest {
@@ -186,9 +184,6 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPIOopifPdfTest, PdfFrames) {
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/371432404): Skipped on desktop Android because the test uses
-// the chrome.webNavigation API, which hasn't been ported yet.
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSInjection) {
   OpenURLInCurrentTab(
       embedded_test_server()->GetURL("example.com", "/simple.html"));
@@ -205,7 +200,6 @@ IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSInjection) {
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, CSSRemoval) {
   ASSERT_TRUE(RunExtensionTest("scripting/remove_css")) << message_;
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ScriptingAPITest, RegisterContentScripts) {
   ASSERT_TRUE(RunExtensionTest("scripting/register_scripts")) << message_;

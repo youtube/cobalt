@@ -12,8 +12,12 @@ source_set("feature_list") {
 
 source_set("public") {
   sources = [
+    "context_decorator.cc",
+    "context_decorator.h",
     "contextual_task.cc",
     "contextual_task.h",
+    "contextual_task_context.cc",
+    "contextual_task_context.h",
     "contextual_tasks_service.cc",
     "contextual_tasks_service.h",
   ]
@@ -22,14 +26,20 @@ source_set("public") {
     "//base",
     "//components/keyed_service/core",
     "//components/sessions:session_id",
+    "//ui/gfx",
     "//url",
   ]
+
+  public_deps = [ ":feature_list" ]
 }
 
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "contextual_task_unittest.cc" ]
+  sources = [
+    "contextual_task_context_unittest.cc",
+    "contextual_task_unittest.cc",
+  ]
 
   deps = [
     ":public",

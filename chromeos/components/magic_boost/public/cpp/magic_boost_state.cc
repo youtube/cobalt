@@ -21,6 +21,20 @@ MagicBoostState* MagicBoostState::Get() {
   return g_magic_boost_state;
 }
 
+// Run precondition checks for providing Help Me Read feature. This is using
+// CHECKs internally as we can know which condition has failed from crash
+// report, i.e., instead of returning bool and to CHECK() from caller.
+// static
+void MagicBoostState::AssertPreconditionsOfHelpMeReadOrCrash() {
+  auto* magic_boost_state = Get();
+  CHECK(magic_boost_state);
+  CHECK(magic_boost_state->IsUserEligibleForGenAIFeatures());
+  CHECK(magic_boost_state->magic_boost_enabled().value());
+  CHECK(magic_boost_state->hmr_enabled().value());
+  CHECK_EQ(magic_boost_state->hmr_consent_status().value(),
+           HMRConsentStatus::kApproved);
+}
+
 MagicBoostState::MagicBoostState() {
   CHECK(!g_magic_boost_state);
   g_magic_boost_state = this;
@@ -135,6 +149,22 @@ void MagicBoostState::NotifyOnIsDeleting() {
   for (auto& observer : observers_) {
     observer.OnIsDeleting();
   }
+}
+
+std::ostream& operator<<(std::ostream& os, HMRConsentStatus status) {
+  switch (status) {
+    case HMRConsentStatus::kApproved:
+      return os << "kApproved";
+    case HMRConsentStatus::kDeclined:
+      return os << "kDeclined";
+    case HMRConsentStatus::kPendingDisclaimer:
+      return os << "kPendingDisclaimer";
+    case HMRConsentStatus::kUnset:
+      return os << "kUnset";
+  }
+
+  CHECK(false) << "Invalid HMRConsentStatus enum class value provided: "
+               << static_cast<int>(status);
 }
 
 }  // namespace chromeos

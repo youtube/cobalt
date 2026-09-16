@@ -50,7 +50,7 @@ constexpr std::string_view kMetadataContentType =
     "Content-Type: application/json; charset=UTF-8";
 constexpr std::string_view kParentFolderUrl =
     "https://www.googleapis.com/drive/v3beta/files";
-constexpr std::string_view kSuggestedFolderName = "Saved From Chrome";
+constexpr std::string_view kSuggestedFolderName = "Saved from Chrome";
 
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotationTag =
     net::DefineNetworkTrafficAnnotation("save_to_drive", R"(
@@ -92,14 +92,17 @@ constexpr base::TimeDelta kDefaultTimeout = base::Seconds(30);
 constexpr std::string_view kErrorReasonQuotaExceeded = "quotaExceeded";
 constexpr std::string_view kErrorStorageQuotaExceeded = "storageQuotaExceeded";
 
+constexpr base::TimeDelta kUploadInProgressUpdateDispatchInterval =
+    base::Milliseconds(500);
+
 std::optional<DriveUploader::Item> ParseClientFolderResponse(
     std::unique_ptr<endpoint_fetcher::EndpointResponse> endpoint_response) {
   if (!endpoint_response || endpoint_response->response.empty() ||
       endpoint_response->http_status_code != net::HTTP_OK) {
     return std::nullopt;
   }
-  std::optional<base::Value::Dict> dict =
-      base::JSONReader::ReadDict(endpoint_response->response);
+  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(
+      endpoint_response->response, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return std::nullopt;
   }
@@ -126,8 +129,8 @@ SaveToDriveProgress CreateSuccessProgress(
   if (endpoint_response.response.empty()) {
     return progress;
   }
-  std::optional<base::Value::Dict> dict =
-      base::JSONReader::ReadDict(endpoint_response.response);
+  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(
+      endpoint_response.response, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return progress;
   }
@@ -200,6 +203,7 @@ void DriveUploader::Start() {
     NotifyError(SaveToDriveErrorType::kOauthError);
     return;
   }
+  scoped_identity_manager_observation_.Observe(identity_manager_);
   access_token_fetcher_ = identity_manager_->CreateAccessTokenFetcherForAccount(
       account_info_.account_id, signin::OAuthConsumerId::kSaveToDrive,
       base::BindOnce(&DriveUploader::OnFetchAccessToken,
@@ -287,7 +291,7 @@ DriveUploader::CreateEndpointFetcher(
       /*request_params=*/std::move(request_params));
 }
 
-DriveUploaderType DriveUploader::get_drive_uploader_type_for_testing() const {
+DriveUploaderType DriveUploader::get_drive_uploader_type() const {
   return drive_uploader_type_;
 }
 
@@ -298,6 +302,23 @@ void DriveUploader::set_oauth_headers_for_testing(
 
 const std::vector<std::string>& DriveUploader::oauth_headers() const {
   return oauth_headers_;
+}
+
+void DriveUploader::NotifyUploadInProgress(size_t uploaded_bytes,
+                                           size_t total_bytes) {
+  const base::TimeTicks now = base::TimeTicks::Now();
+  if (now - last_upload_in_progress_update_time_ <
+      kUploadInProgressUpdateDispatchInterval) {
+    return;
+  }
+  last_upload_in_progress_update_time_ = now;
+
+  SaveToDriveProgress progress;
+  progress.status = SaveToDriveStatus::kUploadInProgress;
+  progress.error_type = SaveToDriveErrorType::kNoError;
+  progress.file_size_bytes = total_bytes;
+  progress.uploaded_bytes = uploaded_bytes;
+  progress_callback_.Run(std::move(progress));
 }
 
 void DriveUploader::NotifyUploadSuccess(
@@ -316,6 +337,13 @@ void DriveUploader::NotifyError(SaveToDriveErrorType error_type) {
   progress.status = SaveToDriveStatus::kUploadFailed;
   progress.error_type = error_type;
   progress_callback_.Run(std::move(progress));
+}
+
+void DriveUploader::OnRefreshTokenRemovedForAccount(
+    const CoreAccountId& account_id) {
+  if (account_info_.account_id == account_id) {
+    NotifyError(SaveToDriveErrorType::kOauthError);
+  }
 }
 
 }  // namespace save_to_drive

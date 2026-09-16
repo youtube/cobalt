@@ -723,12 +723,11 @@ class MODULES_EXPORT WebGLRenderingContextBase
       std::unique_ptr<WebGraphicsContext3DProvider>,
       const Platform::WebGLContextInfo&);
   void SetupFlags();
-  bool CopyRenderingResultsFromDrawingBuffer(CanvasResourceProvider*,
+  bool CopyRenderingResultsFromDrawingBuffer(CanvasResourceProviderSharedImage*,
                                              SourceDrawingBuffer);
 
   // CanvasRenderingContext implementation.
   bool IsComposited() const override { return true; }
-  bool CanUseDrawingBufferSIWithoutCopyForLowLatency();
   void PageVisibilityChanged() override;
   void SizeChanged() override;
   scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
@@ -1986,7 +1985,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
       SourceDrawingBuffer source_buffer);
 
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider();
+  CanvasResourceProviderSharedImage* GetOrCreateCanvasResourceProvider();
 
   // Attempts to paint the most recent rendering results into a
   // CanvasResourceProvider. Returns the CanvasResourceProvider if the paint

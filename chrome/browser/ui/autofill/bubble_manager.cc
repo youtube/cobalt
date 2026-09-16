@@ -15,22 +15,31 @@
 namespace autofill {
 
 // static
-std::unique_ptr<BubbleManager> BubbleManager::Create() {
-  return base::WrapUnique<BubbleManager>(new BubbleManagerImpl());
+std::unique_ptr<BubbleManager> BubbleManager::Create(tabs::TabInterface* tab) {
+  return base::WrapUnique<BubbleManager>(new BubbleManagerImpl(tab));
 }
 
 // static
 BubbleManager* BubbleManager::GetForWebContents(
     content::WebContents* web_contents) {
+  return GetForTab(tabs::TabInterface::MaybeGetFromContents(web_contents));
+}
+
+// static
+BubbleManager* BubbleManager::GetForTab(tabs::TabInterface* tab_interface) {
   CHECK(base::FeatureList::IsEnabled(
       autofill::features::kAutofillShowBubblesBasedOnPriorities));
-  tabs::TabInterface* const tab_interface =
-      tabs::TabInterface::MaybeGetFromContents(web_contents);
   if (!tab_interface) {
     return nullptr;
   }
 
-  return tab_interface->GetTabFeatures()->autofill_bubble_manager();
+  tabs::TabFeatures* tab_features = tab_interface->GetTabFeatures();
+  if (!tab_features) {
+    // The TabFeatures object might be destroyed during WebContents teardown.
+    return nullptr;
+  }
+
+  return tab_features->autofill_bubble_manager();
 }
 
 }  // namespace autofill

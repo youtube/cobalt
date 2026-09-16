@@ -66,10 +66,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.GridCard
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.SavedTabGroupUndoBarController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
@@ -424,7 +422,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
             mCurrentTabGroupModelFilterSupplier;
     private final DestroyChecker mDestroyChecker = new DestroyChecker();
 
-    private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
+    private EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
     private TabListRecyclerView mDialogRecyclerView;
     private WeakReference<TabListRecyclerView> mTabSwitcherRecyclerView;
     private @TabActionState int mTabActionState = TabActionState.CLOSABLE;
@@ -513,21 +511,13 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         mShadowView.init(
                 mActivity.getColor(R.color.toolbar_shadow_color), FadingShadow.POSITION_BOTTOM);
 
-        // TODO(crbug.com/410040707): Set the color in the layout file.
-        getCloseAllTabsButtonContainer()
-                .setBackgroundColor(
-                        SurfaceColorUpdateUtils.getGridTabSwitcherBackgroundColor(
-                                mActivity, /* isIncognito= */ false));
-
         // Initialize the confirmation dialog for when the last archived tab is removed.
         mActionConfirmationDialog = new ActionConfirmationDialog(mActivity, mModalDialogManager);
 
         mEdgeToEdgeSupplier = edgeToEdgeSupplier;
-        if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
-            mEdgeToEdgePadAdjuster =
-                    EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
-                            getCloseAllTabsButtonContainer(), mEdgeToEdgeSupplier);
-        }
+        mEdgeToEdgePadAdjuster =
+                EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
+                        getCloseAllTabsButtonContainer(), mEdgeToEdgeSupplier);
 
         mTabGroupSyncService = tabGroupSyncService;
         mPaneManagerSupplier = paneManagerSupplier;

@@ -81,7 +81,6 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
     int32_t kRouteId =
         static_cast<int32_t>(GpuChannelReservedRoutes::kMaxValue) + 1;
     auto init_params = mojom::CreateCommandBufferParams::New();
-    init_params->share_group_id = IPC::mojom::kRoutingIdNone;
     init_params->stream_id = 0;
     init_params->stream_priority = SchedulingPriority::kNormal;
     init_params->attribs =
@@ -130,7 +129,7 @@ TEST_F(GpuChannelManagerTest, EstablishChannel) {
   ASSERT_TRUE(channel_manager());
   GpuChannel* channel = channel_manager()->EstablishChannel(
       base::UnguessableToken::Create(), kClientId, kClientTracingId, false,
-      gfx::GpuExtraInfo());
+      false, gfx::GpuExtraInfo());
   EXPECT_TRUE(channel);
   EXPECT_EQ(channel_manager()->LookupChannel(kClientId), channel);
 }

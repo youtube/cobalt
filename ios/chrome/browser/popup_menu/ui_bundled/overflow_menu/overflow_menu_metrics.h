@@ -77,7 +77,7 @@ enum class IOSOverflowMenuAction {
   kNewTab = 1,
   kNewIncognitoTab = 2,
   kNewWindow = 3,
-  kFollow = 4,
+  // kFollow = 4, // Deprecated M143.
   kBookmark = 5,
   kReadingList = 6,
   kClearBrowsingData = 7,
@@ -95,7 +95,8 @@ enum class IOSOverflowMenuAction {
   kReaderMode = 19,
   kAskBWG = 20,
   kHideToolbars = 21,
-  kMaxValue = kHideToolbars
+  kTabGroup = 22,
+  kMaxValue = kTabGroup,
 };
 // LINT.ThenChange(overflow_menu_constants.h:actionType)
 

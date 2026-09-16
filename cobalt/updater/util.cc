@@ -16,6 +16,7 @@
 
 #include <sys/stat.h>
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -30,8 +31,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/update_client/utils.h"
-#include "crypto/secure_hash.h"
-#include "crypto/sha2.h"
+#include "crypto/hash.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/system.h"
@@ -246,42 +246,17 @@ std::string GetLibrarySha256(int index) {
 
     filepath = base::FilePath(installation_path.data());
   }
-
   filepath = filepath.AppendASCII("lib").AppendASCII("libcobalt.so");
   base::File source_file(filepath,
                          base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!source_file.IsValid()) {
-    LOG(ERROR) << "GetLibrarySha256(): Unable to open source file: "
+
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  if (!crypto::hash::HashFile(crypto::hash::kSha256, &source_file, hash)) {
+    LOG(ERROR) << "GetLibrarySha256(): error reading from: "
                << filepath.value();
     return "";
   }
-
-  const size_t kBufferSize = 32768;
-  // TODO(b/452143961): Fix the discrepancy between char and uint8_t
-  std::vector<char> buffer(kBufferSize);
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
-  std::unique_ptr<crypto::SecureHash> hasher(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-
-  while (true) {
-    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
-    if (bytes_read < 0) {
-      LOG(ERROR) << "GetLibrarySha256(): error reading from: "
-                 << filepath.value();
-
-      return "";
-    }
-
-    if (bytes_read == 0) {
-      break;
-    }
-
-    hasher->Update(&buffer[0], bytes_read);
-  }
-
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return base::HexEncode(actual_hash, sizeof(actual_hash));
+  return base::HexEncode(hash);
 }
 
 }  // namespace updater

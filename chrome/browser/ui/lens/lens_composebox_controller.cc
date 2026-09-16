@@ -6,6 +6,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/lens/lens_composebox_handler.h"
+#include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_coordinator.h"
 #include "chrome/browser/ui/lens/lens_search_contextualization_controller.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_mime_type.h"
+#include "components/lens/lens_payload_construction.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 
@@ -69,9 +71,16 @@ void LensComposeboxController::IssueComposeboxQuery(
   if (!lens::IsAimM3Enabled(profile_)) {
     return;
   }
+
+  // Record that a query was submitted. This should be first in this method to
+  // ensure it is recorded even if the query is queued to be issued later.
+  GetSessionMetricsLogger()->OnAimQuerySubmitted();
+
   // Can only issue a query if the remote UI supports the DEFAULT feature.
   if (remote_ui_capabilities_.empty() ||
       !remote_ui_capabilities_.contains(lens::FeatureCapability::DEFAULT)) {
+    // Store the query and issue it again once the handshake completes.
+    pending_query_text_ = query_text;
     return;
   }
 
@@ -120,6 +129,8 @@ void LensComposeboxController::OnFocusChanged(bool focused) {
 }
 
 void LensComposeboxController::CloseUI() {
+  ResetAimHandshake();
+  pending_query_text_.reset();
   composebox_handler_.reset();
 }
 
@@ -149,7 +160,22 @@ void LensComposeboxController::OnAimMessage(
     lens_search_controller_->lens_overlay_side_panel_coordinator()
         ->AimHandshakeReceived();
     GetSessionMetricsLogger()->OnAimHandshakeCompleted();
+
+    // If there was a pending query, issue it now that the handshake is
+    // complete.
+    if (pending_query_text_.has_value()) {
+      IssueComposeboxQuery(pending_query_text_.value());
+      pending_query_text_.reset();
+    }
   }
+}
+
+void LensComposeboxController::ResetAimHandshake() {
+  remote_ui_capabilities_.clear();
+}
+
+void LensComposeboxController::ShowLensSelectionOverlay() {
+  lens_search_controller_->OpenLensOverlayInCurrentSession();
 }
 
 lens::LensSessionMetricsLogger*
@@ -175,13 +201,23 @@ lens::ClientToAimMessage LensComposeboxController::BuildSubmitQueryMessage(
       lens_search_controller_->lens_overlay_query_controller();
   LensSearchContextualizationController* contextualization_controller =
       lens_search_controller_->lens_search_contextualization_controller();
+  LensOverlayController* overlay_controller =
+      lens_search_controller_->lens_overlay_controller();
   lens_image_query_data->set_search_session_id(
       query_controller->search_session_id());
+
+  const auto& primary_content_type =
+      contextualization_controller->primary_content_type();
+  const auto media_type =
+      overlay_controller->HasRegionSelection()
+          ? lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE
+          : MimeTypeToMediaType(primary_content_type,
+                                /*has_viewport_screenshot=*/true);
   lens_image_query_data->mutable_request_id()->CopyFrom(
-      *query_controller->GetNextRequestId(
-          lens::RequestIdUpdateMode::kSearchUrl));
-  lens_image_query_data->set_visual_input_type(LensMimeTypeToVisualInputType(
-      contextualization_controller->primary_content_type()));
+      *query_controller->GetNextRequestId(lens::RequestIdUpdateMode::kSearchUrl,
+                                          media_type));
+  lens_image_query_data->set_visual_input_type(
+      LensMimeTypeToVisualInputType(primary_content_type));
   return client_to_aim_message;
 }
 

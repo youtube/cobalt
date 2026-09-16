@@ -26,6 +26,7 @@ source_set("set_up_list") {
     ":constants",
     ":utils",
     "//base",
+    "//components/ntp_tiles:pref_names",
     "//components/password_manager/core/common:features",
     "//components/prefs",
     "//components/prefs/ios",
@@ -109,6 +110,7 @@ source_set("utils") {
   ]
   deps = [
     "//base",
+    "//components/ntp_tiles:pref_names",
     "//components/prefs",
     "//ios/chrome/browser/ntp/model:features",
     "//ios/chrome/browser/ntp/model:set_up_list_prefs",
@@ -131,7 +133,6 @@ source_set("unit_tests") {
     "//components/feature_engagement/test:test_support",
     "//components/segmentation_platform/embedder/default_model",
     "//components/segmentation_platform/public",
-    "//components/segmentation_platform/public:test_support",
     "//components/segmentation_platform/public:test_support",
     "//components/sync_device_info:test_support",
     "//ios/chrome/app/strings",
@@ -160,7 +161,7 @@ source_set("eg2_tests") {
   deps = [
     ":constants",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/authentication/ui_bundled:eg_test_support+eg2",
+    "//ios/chrome/browser/authentication/test:eg_test_support+eg2",
     "//ios/chrome/browser/content_suggestions/ui_bundled:eg_test_support+eg2",
     "//ios/chrome/browser/first_run/ui_bundled:constants",
     "//ios/chrome/browser/ntp/model:features",

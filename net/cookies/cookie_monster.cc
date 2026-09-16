@@ -775,7 +775,7 @@ void CookieMonster::GetCookieListWithOptions(
     // Retrieve the domain, check this domain to see if this is the first
     // time it is entering legacy mode, if it is delete all aliasing cookies
     // within this domain.
-    CheckAndActivateLegacyScopeBehavior(url.host_piece());
+    CheckAndActivateLegacyScopeBehavior(url.host());
     std::vector<CanonicalCookie*> cookie_ptrs =
         FindCookiesForRegistryControlledHost(url);
 
@@ -1288,7 +1288,7 @@ CookieMonster::FindCookiesForRegistryControlledHost(
   Time current_time = Time::Now();
 
   // Retrieve all cookies for a given key
-  const std::string key(GetKey(url.host_piece()));
+  const std::string key(GetKey(url.host()));
 
   std::vector<CanonicalCookie*> cookies;
   for (CookieMapItPair its = cookie_map->equal_range(key);
@@ -2680,7 +2680,7 @@ bool CookieMonster::HasCookieableScheme(const GURL& url) {
   if (!is_cookieable) {
     // The scheme didn't match any in our allowed list.
     DVLOG(net::cookie_util::kVlogPerCookieMonster)
-        << "WARNING: Unsupported cookie scheme: " << url.scheme();
+        << "WARNING: Unsupported cookie scheme: " << url.GetScheme();
   }
   return is_cookieable;
 }
@@ -2939,7 +2939,7 @@ void CookieMonster::RecordPeriodicFirstPartySetsStats(
           DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
           if (!site.has_registrable_domain_or_host())
             return acc;
-          return acc + cookies_.count(GetKey(site.GetURL().host()));
+          return acc + cookies_.count(GetKey(site.GetURL().GetHost()));
         });
     base::UmaHistogramCustomCounts("Cookie.PerFirstPartySetCount", sample, 0,
                                    4000, 50);
@@ -2966,7 +2966,7 @@ void CookieMonster::DoCookieCallback(base::OnceClosure callback) {
 
 void CookieMonster::DoCookieCallbackForURL(base::OnceClosure callback,
                                            const GURL& url) {
-  DoCookieCallbackForHostOrDomain(std::move(callback), url.host_piece());
+  DoCookieCallbackForHostOrDomain(std::move(callback), url.host());
 }
 
 void CookieMonster::DoCookieCallbackForHostOrDomain(
@@ -3023,7 +3023,7 @@ CookieMonster::IsCookieSentToSamePortThatSetIt(
   if (source_port == destination_port)
     return CookieSentToSamePort::kYes;
 
-  const std::string& destination_scheme = destination.scheme();
+  const std::string& destination_scheme = destination.GetScheme();
   bool destination_port_is_default =
       url::DefaultPortForScheme(destination_scheme) == destination_port;
 
@@ -3049,7 +3049,7 @@ std::optional<bool> CookieMonster::SiteHasCookieInOtherPartition(
     const net::SchemefulSite& site,
     const CookiePartitionKey& partition_key) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::string domain = site.GetURL().host();
+  std::string domain = site.GetURL().GetHost();
   if (store_ && !finished_fetching_all_cookies_ &&
       !keys_loaded_.count(domain)) {
     return std::nullopt;

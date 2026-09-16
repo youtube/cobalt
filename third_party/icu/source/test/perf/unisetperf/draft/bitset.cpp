@@ -22,9 +22,16 @@
 *   Uses the original set for supplementary code points.
 */
 
+#include "unicode/uniset.h"
+#include "unicode/uobject.h"
+#include "unicode/usetiter.h"
 #include "unicode/utypes.h"
 #include "unicont.h"
 #include "cmemory.h" // for UPRV_LENGTHOF
+
+using icu::UObject;
+using icu::UnicodeSet;
+using icu::UnicodeSetIterator;
 
 /*
  * Hash table for up to 1k 64-bit words, for 1 bit per BMP code point.
@@ -49,12 +56,12 @@ struct BMPBitHash : public UObject {
      * Map at most 1k=0x400 different keys with this data structure.
      */
     uint16_t map(int64_t key) {
-        int32_t hash=(int32_t)(key>>55)&0x1ff;
-        hash^=(int32_t)(key>>44)&0x7ff;
-        hash^=(int32_t)(key>>33)&0x7ff;
-        hash^=(int32_t)(key>>22)&0x7ff;
-        hash^=(int32_t)(key>>11)&0x7ff;
-        hash^=(int32_t)key&0x7ff;
+        int32_t hash = static_cast<int32_t>(key >> 55) & 0x1ff;
+        hash ^= static_cast<int32_t>(key >> 44) & 0x7ff;
+        hash ^= static_cast<int32_t>(key >> 33) & 0x7ff;
+        hash ^= static_cast<int32_t>(key >> 22) & 0x7ff;
+        hash ^= static_cast<int32_t>(key >> 11) & 0x7ff;
+        hash ^= static_cast<int32_t>(key) & 0x7ff;
         for(;;) {
             if(values[hash]==0xffff) {
                 // Unused slot.
@@ -152,7 +159,7 @@ public:
         }
 
         if(bitHash->countKeys()>UPRV_LENGTHOF(shortBits)) {
-            bits=(int64_t *)uprv_malloc(bitHash->countKeys()*8);
+            bits = static_cast<int64_t*>(uprv_malloc(bitHash->countKeys() * 8));
         }
         if(bits!=nullptr) {
             bitHash->invert(bits);
@@ -162,16 +169,16 @@ public:
             return;
         }
 
-        latin1Set[0]=(uint32_t)bits[0];
-        latin1Set[1]=(uint32_t)(bits[0]>>32);
-        latin1Set[2]=(uint32_t)bits[1];
-        latin1Set[3]=(uint32_t)(bits[1]>>32);
-        latin1Set[4]=(uint32_t)bits[2];
-        latin1Set[5]=(uint32_t)(bits[2]>>32);
-        latin1Set[6]=(uint32_t)bits[3];
-        latin1Set[7]=(uint32_t)(bits[3]>>32);
+        latin1Set[0] = static_cast<uint32_t>(bits[0]);
+        latin1Set[1] = static_cast<uint32_t>(bits[0] >> 32);
+        latin1Set[2] = static_cast<uint32_t>(bits[1]);
+        latin1Set[3] = static_cast<uint32_t>(bits[1] >> 32);
+        latin1Set[4] = static_cast<uint32_t>(bits[2]);
+        latin1Set[5] = static_cast<uint32_t>(bits[2] >> 32);
+        latin1Set[6] = static_cast<uint32_t>(bits[3]);
+        latin1Set[7] = static_cast<uint32_t>(bits[3] >> 32);
 
-        restSet.remove(0, 0xffff);
+        restSet->remove(0, 0xffff);
     }
 
     ~BitSet() {
@@ -181,11 +188,11 @@ public:
         delete restSet;
     }
 
-    UBool contains(UChar32 c) const {
-        if((uint32_t)c<=0xff) {
-            return (UBool)((latin1Set[c>>5]&((uint32_t)1<<(c&0x1f)))!=0);
-        } else if((uint32_t)c<0xffff) {
-            return (UBool)((bits[c>>6]&(INT64_C(1)<<(c&0x3f)))!=0);
+    UBool contains(UChar32 c) const override {
+        if (static_cast<uint32_t>(c) <= 0xff) {
+            return (latin1Set[c >> 5] & (static_cast<uint32_t>(1) << (c & 0x1f))) != 0;
+        } else if (static_cast<uint32_t>(c) < 0xffff) {
+            return (bits[c >> 6] & (INT64_C(1) << (c & 0x3f))) != 0;
         } else {
             return restSet->contains(c);
         }
@@ -196,7 +203,7 @@ private:
     int64_t shortBits[32];
     int64_t *bits;
 
-    uint32_t latin1Bits[8];
+    uint32_t latin1Set[8];
 
     UnicodeSet *restSet;
 };

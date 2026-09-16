@@ -272,7 +272,7 @@ class FragmentPaintPropertyTreeBuilder {
   ALWAYS_INLINE bool NeedsEffect() const;
   ALWAYS_INLINE bool NeedsEffectFor2DScaleTransform() const;
   ALWAYS_INLINE bool EffectCanUseCurrentClipAsOutputClip() const;
-  ALWAYS_INLINE void UpdateViewTransitionSubframeRootEffect();
+  ALWAYS_INLINE void UpdateViewTransitionScopeRootEffect();
   ALWAYS_INLINE void UpdateViewTransitionEffect();
   ALWAYS_INLINE void UpdateViewTransitionClip();
   ALWAYS_INLINE const EffectPaintPropertyNodeOrAlias*
@@ -622,11 +622,14 @@ static bool NeedsPaintOffsetTranslation(
     // PaintOffsetTranslationForBackdropFilterWithInlineElement is enabled,
     // inline elements with backdrop-filter are also included to fix paint
     // offset issue (see crbug.com/40716515). For now because of
-    // crbug.com/780242, this is limited to LayoutBlocks and LayoutReplaceds
+    // crbug.com/40547515, this is limited to LayoutBlocks and LayoutReplaceds
     // that won't be escaped by floating objects and column spans when finding
-    // their containing blocks. TODO(crbug.com/780242): This can be avoided if
+    // their containing blocks. TODO(crbug.com/40547515): This can be avoided if
     // we have fully correct paint property tree states for floating objects
     // and column spans.
+    if (RuntimeEnabledFeatures::PaintOffsetTranslationForCompositedEnabled()) {
+      return true;
+    }
     bool include_inline_for_backdrop_filter =
         RuntimeEnabledFeatures::
             PaintOffsetTranslationForBackdropFilterWithInlineElementEnabled() &&
@@ -1574,12 +1577,36 @@ static bool NeedsEffectForViewTransition(const LayoutObject& object) {
          !object.IsLayoutView();
 }
 
+static ViewTransition* GetTransitionNeedingScopeRootEffect(
+    const LayoutObject& object) {
+  if (object.IsLayoutView()) {
+    if (!IsInLocalSubframe(object)) {
+      // Document transitions in the main frame or a local root frame don't need
+      // a scope snapshot during the callback, because they pause the compositor
+      // instead (ProxyMain::SetPauseRendering).
+      return nullptr;
+    }
+    return ViewTransitionUtils::GetTransition(object.GetDocument());
+  }
+  if (object.IsDocumentElement()) {
+    // For a document transition, the document element owns the transition
+    // pseudos, but the LayoutView creates the scope root effect.
+    return nullptr;
+  }
+  Element* element = DynamicTo<Element>(object.GetNode());
+  if (!element || element->IsPseudoElement()) {
+    // The transition pseudos shouldn't create the scope root effect.
+    return nullptr;
+  }
+  // See if there is a scoped transition running on this scope element.
+  return ViewTransitionUtils::GetTransition(*element);
+}
+
 // Scale transforms need effects so that they can be considered for
 // promotion to render surfaces if possible to improve quality of
 // renerdering. See crbug.com/40084005.
 bool FragmentPaintPropertyTreeBuilder::NeedsEffectFor2DScaleTransform() const {
-  if (!RuntimeEnabledFeatures::RenderSurfaceFor2DScaleTransformEnabled() ||
-      object_.IsLayoutReplaced()) {
+  if (object_.IsLayoutReplaced()) {
     return false;
   }
   if (object_.StyleRef().HasWillChangeTransformHint() ||
@@ -1987,30 +2014,24 @@ void FragmentPaintPropertyTreeBuilder::UpdateElementCaptureEffect() {
   context_.current_effect = properties_->ElementCaptureEffect();
 }
 
-void FragmentPaintPropertyTreeBuilder::
-    UpdateViewTransitionSubframeRootEffect() {
+void FragmentPaintPropertyTreeBuilder::UpdateViewTransitionScopeRootEffect() {
   if (NeedsPaintPropertyUpdate()) {
-    // TODO(crbug.com/405117383): Update for scoped.
-    const bool needs_node =
-        object_.IsLayoutView() && IsInLocalSubframe(object_) &&
-        ViewTransitionUtils::GetTransition(object_.GetDocument());
-
+    ViewTransition* transition = GetTransitionNeedingScopeRootEffect(object_);
     bool needs_full_invalidation = false;
 
-    if (needs_node) {
+    if (transition) {
       EffectPaintPropertyNode::State state;
       state.local_transform_space = context_.current.transform;
       state.output_clip = context_.current.clip;
       state.compositor_element_id = CompositorElementIdFromUniqueObjectId(
           object_.UniqueId(),
           CompositorElementIdNamespace::kViewTransitionSubframeRoot);
-      if (const auto& layer =
-              ViewTransitionUtils::GetTransition(object_.GetDocument())
-                  ->GetScopeSnapshotLayer()) {
+      if (const auto& layer = transition->GetScopeSnapshotLayer()) {
         state.view_transition_element_resource_id =
             layer->ViewTransitionResourceId();
       }
 
+      // TODO(crbug.com/405117383): Rename ViewTransitionSubframeRootEffect.
       auto change_type = properties_->UpdateViewTransitionSubframeRootEffect(
           *context_.current_effect, std::move(state), {});
       needs_full_invalidation =
@@ -3554,7 +3575,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateForSelf() {
       UpdateTransform();
     }
     UpdateElementCaptureEffect();
-    UpdateViewTransitionSubframeRootEffect();
+    UpdateViewTransitionScopeRootEffect();
 
     UpdateViewTransitionEffect();
     UpdateViewTransitionClip();

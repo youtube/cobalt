@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
@@ -344,6 +345,7 @@ struct PassportEntityOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-000000000000";
   std::string_view nickname = "Passie";
   base::Time date_modified = kJune2017;
+  base::Time use_date = kJune2017;
   std::string_view app_locale = "en-US";
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
@@ -372,6 +374,7 @@ struct DriversLicenseOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-100000000000";
   std::string_view nickname = "License";
   base::Time date_modified = kJune2017;
+  base::Time use_date = kJune2017;
   std::string_view app_locale = "en-US";
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
@@ -398,6 +401,7 @@ struct VehicleOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-200000000000";
   std::string_view nickname = "Vehicle";
   base::Time date_modified = kJune2017;
+  base::Time use_date = kJune2017;
   std::string_view app_locale = "en-US";
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
@@ -420,6 +424,7 @@ struct NationalIdCardOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-300000000000";
   std::string_view nickname = "IdCard";
   std::string_view app_locale = "en-US";
+  base::Time use_date = kJune2017;
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
@@ -437,6 +442,7 @@ struct KnownTravelerNumberOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-400000000000";
   std::string_view nickname = "Known Traveler Number";
   std::string_view app_locale = "en-US";
+  base::Time use_date = kJune2017;
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
@@ -453,6 +459,7 @@ struct RedressNumberOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-500000000000";
   std::string_view nickname = "RedressNumber";
   std::string_view app_locale = "en-US";
+  base::Time use_date = kJune2017;
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
@@ -465,16 +472,18 @@ EntityInstance GetRedressNumberEntityInstance(
 
 template <typename = void>
 struct FlightReservationOptionsT {
-  const char16_t* flight_number = u"987654321";
+  const char16_t* flight_number = u"AA123";
   const char16_t* ticket_number = u"123123456";
-  const char16_t* confirmation_code = u"0123";
+  const char16_t* confirmation_code = u"AB4KW5";
   const char16_t* name = u"John Doe";
   const char16_t* departure_airport = u"MUC";
   const char16_t* arrival_airport = u"BEY";
+  std::optional<base::Time> departure_time = std::nullopt;
   std::string_view guid = "00000000-0000-4000-8000-500000000000";
   std::string_view nickname = "FlightReservation";
   std::string_view app_locale = "en-US";
   base::Time date_modified = kJune2017;
+  base::Time use_date = kJune2017;
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
@@ -610,6 +619,21 @@ BnplIssuer GetTestUnlinkedBnplIssuer();
 // fake data using `id` as the `PaymentInstrumentCreationOption.id`.
 sync_pb::PaymentInstrumentCreationOption
 CreatePaymentInstrumentCreationOptionWithBnplIssuer(const std::string& id);
+
+// For the key metrics as used for different data types, this struct allows to
+// define expectations. The values are marked optional. `std::nullopt` means
+// that no value was recorded to the histogram.
+struct SingleSubmissionKeyMetricExpectations {
+  std::optional<bool> readiness;
+  std::optional<bool> acceptance;
+  std::optional<bool> assistance;
+  std::optional<bool> correctness;
+};
+
+void VerifySingleSubmissionKeyMetricExpectations(
+    const base::HistogramTester& histogram_tester,
+    absl::string_view form_type_name,
+    const SingleSubmissionKeyMetricExpectations& expectations);
 
 }  // namespace test
 }  // namespace autofill

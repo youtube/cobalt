@@ -21,8 +21,10 @@
 #include "base/logging.h"
 #include "base/metrics/field_trial.h"
 #include "base/process/launch.h"
+#include "base/trace_event/trace_event.h"
 #include "content/browser/child_process_launcher.h"
 #include "content/browser/child_process_launcher_helper_posix.h"
+#include "content/browser/memory_pressure/user_level_memory_pressure_signal_generator.h"
 #include "content/browser/posix_file_descriptor_info_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -134,6 +136,7 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
     const base::LaunchOptions* options,
     std::unique_ptr<PosixFileDescriptorInfo> files_to_register,
     bool can_use_warm_up_connection,
+    bool is_spare_renderer,
     bool* is_synchronous_launch,
     int* launch_result) {
   DCHECK(!options);
@@ -177,7 +180,7 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
   AddRef();  // Balanced by OnChildProcessStarted.
   java_peer_.Reset(Java_ChildProcessLauncherHelperImpl_createAndStart(
       env, reinterpret_cast<intptr_t>(this), j_argv, j_file_infos,
-      can_use_warm_up_connection));
+      can_use_warm_up_connection, is_spare_renderer));
 
   client_task_runner_->PostTask(
       FROM_HERE,
@@ -220,6 +223,8 @@ ChildProcessTerminationInfo ChildProcessLauncherHelper::GetTerminationInfo(
     // processes. So there is no need for base::GetTerminationInfo.
     info.status = base::TERMINATION_STATUS_NORMAL_TERMINATION;
   }
+  info.memory_pressure_metrics =
+      UserLevelMemoryPressureSignalGenerator::GetLatestMemoryMetrics();
   return info;
 }
 
@@ -301,6 +306,10 @@ void ChildProcessLauncherHelper::DumpProcessStack(
 void ChildProcessLauncherHelper::SetRenderProcessPriorityOnLauncherThread(
     base::Process process,
     const RenderProcessPriority& priority) {
+  TRACE_EVENT(
+      "content",
+      "ChildProcessLauncherHelper::SetRenderProcessPriorityOnLauncherThread",
+      "pid", process.Handle());
   JNIEnv* env = AttachCurrentThread();
   DCHECK(env);
   Java_ChildProcessLauncherHelperImpl_setPriority(

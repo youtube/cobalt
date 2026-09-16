@@ -374,6 +374,10 @@ class Heap final {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, size_t byte_size);
 
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+#endif
+
   enum class StackScanMode { kNone, kFull, kSelective };
   StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
@@ -501,6 +505,8 @@ class Heap final {
     return Tagged<Object>(
         native_contexts_list_.load(std::memory_order_acquire));
   }
+
+  V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
 
   void set_allocation_sites_list(
       Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
@@ -826,11 +832,9 @@ class Heap final {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -921,8 +925,9 @@ class Heap final {
   void EnqueueDirtyJSFinalizationRegistry(
       Tagged<JSFinalizationRegistry> finalization_registry,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
-                         Tagged<Object> target)>
-          gc_notify_updated_slot);
+                         Tagged<HeapObject> target)>
+          gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
   MaybeDirectHandle<JSFinalizationRegistry>
   DequeueDirtyJSFinalizationRegistry();
@@ -968,7 +973,9 @@ class Heap final {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
       PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes);
+          PerformHeapLimitCheck::kYes,
+      PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
+          PerformIneffectiveMarkCompactCheck::kYes);
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
@@ -1091,7 +1098,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
-      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
+      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR,
+      const char* reason = "missing reason");
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
 
@@ -1798,6 +1806,7 @@ class Heap final {
 
   void CheckHeapLimitReached();
   bool ReachedHeapLimit();
+  bool HasConsecutiveIneffectiveMarkCompact() const;
 
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();
@@ -1944,7 +1953,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline size_t OldGenerationSpaceAvailable() {
+  inline uint64_t OldGenerationAllocationLimitConsumedBytes() {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
@@ -1952,7 +1961,11 @@ class Heap final {
       // regular old gen bytes. This is historic behavior.
       bytes += AllocatedExternalMemorySinceMarkCompact();
     }
+    return bytes;
+  }
 
+  inline size_t OldGenerationSpaceAvailable() {
+    uint64_t bytes = OldGenerationAllocationLimitConsumedBytes();
     if (old_generation_allocation_limit() <= bytes) return 0;
     return old_generation_allocation_limit() - static_cast<size_t>(bytes);
   }
@@ -2041,7 +2054,9 @@ class Heap final {
     kHardLimit,
     kFallbackForEmbedderLimit
   };
-  IncrementalMarkingLimit IncrementalMarkingLimitReached();
+
+  std::pair<IncrementalMarkingLimit, const char*>
+  IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
 
@@ -2049,11 +2064,52 @@ class Heap final {
 
   void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
   void RecomputeLimitsAfterLoadingIfNeeded();
+
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
+
+  struct LimitsComputationBoundaries {
+    size_t minimum_old_generation_allocation_limit = 0;
+    size_t maximum_old_generation_allocation_limit = SIZE_MAX;
+
+    size_t minimum_global_allocation_limit = 0;
+    size_t maximum_global_allocation_limit = SIZE_MAX;
+
+    size_t bounded_old_generation_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_old_generation_allocation_limit,
+                maximum_old_generation_allocation_limit);
+      const size_t capped =
+          std::min(val, maximum_old_generation_allocation_limit);
+      return std::max(capped, minimum_old_generation_allocation_limit);
+    }
+
+    size_t bounded_global_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_global_allocation_limit,
+                maximum_global_allocation_limit);
+      const size_t capped = std::min(val, maximum_global_allocation_limit);
+      return std::max(capped, minimum_global_allocation_limit);
+    }
+
+    static LimitsComputationBoundaries AtLeastCurrentLimits(Heap* heap) {
+      return {
+          .minimum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .minimum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+
+    static LimitsComputationBoundaries AtMostCurrentLimits(Heap* heap) {
+      return {
+          .maximum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .maximum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+  };
+
+  LimitsComputationResult UpdateAllocationLimits(
+      LimitsComputationBoundaries boundaries,
+      const char* caller = __builtin_FUNCTION());
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2259,10 +2315,8 @@ class Heap final {
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-#endif  // V8_ENABLE_LEAPTIERING
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
@@ -2287,7 +2341,7 @@ class Heap final {
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
-  int consecutive_ineffective_mark_compacts_ = 0;
+  std::atomic<int> consecutive_ineffective_mark_compacts_ = 0;
 
   static const uintptr_t kMmapRegionMask = 0xFFFFFFFFu;
   uintptr_t mmap_region_base_ = 0;
@@ -2492,6 +2546,10 @@ class Heap final {
   // The amount of physical memory on the device passed in by the embedder. If
   // no value was provided this will be 0.
   uint64_t physical_memory_;
+
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track_;
+#endif
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
@@ -2754,6 +2812,12 @@ class WeakObjectRetainer {
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Tagged<Object> RetainAs(Tagged<Object> object) = 0;
+
+  // Return whether updated slots should be recorded.
+  virtual bool ShouldRecordSlots() const = 0;
+
+  virtual void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                          Tagged<HeapObject> object) = 0;
 };
 
 // -----------------------------------------------------------------------------

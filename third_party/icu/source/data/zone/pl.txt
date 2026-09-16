@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 pl{
     zoneStrings{
         "Africa:Abidjan"{
@@ -66,17 +66,11 @@ pl{
         "Africa:Porto-Novo"{
             ec{"Porto Novo"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "Africa:Tripoli"{
             ec{"Trypolis"}
         }
         "Africa:Windhoek"{
             ec{"Windhuk"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bahia"{
             ec{"Salvador"}
@@ -102,9 +96,6 @@ pl{
         "America:Cuiaba"{
             ec{"Cuiabá"}
         }
-        "America:Curacao"{
-            ec{"Curaçao"}
-        }
         "America:Dominica"{
             ec{"Dominika"}
         }
@@ -125,9 +116,6 @@ pl{
         }
         "America:Jamaica"{
             ec{"Jamajka"}
-        }
-        "America:Kentucky:Monticello"{
-            ec{"Monticello"}
         }
         "America:Maceio"{
             ec{"Maceió"}
@@ -158,9 +146,6 @@ pl{
         }
         "America:Puerto_Rico"{
             ec{"Portoryko"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -215,9 +200,6 @@ pl{
         }
         "Asia:Chita"{
             ec{"Czyta"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Czojbalsan"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
@@ -378,9 +360,6 @@ pl{
         "Atlantic:St_Helena"{
             ec{"Święta Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"uniwersalny czas koordynowany"}
         }
@@ -496,9 +475,6 @@ pl{
         "Europe:Ulyanovsk"{
             ec{"Uljanowsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Użgorod"}
-        }
         "Europe:Vatican"{
             ec{"Watykan"}
         }
@@ -516,9 +492,6 @@ pl{
         }
         "Europe:Zagreb"{
             ec{"Zagrzeb"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporoże"}
         }
         "Europe:Zurich"{
             ec{"Zurych"}
@@ -549,9 +522,6 @@ pl{
         }
         "Indian:Mayotte"{
             ec{"Majotta"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Bougainville"{
             ec{"Wyspa Bougainville’a"}
@@ -731,11 +701,6 @@ pl{
             lg{"czas Chiny"}
             ls{"Chiny (czas standardowy)"}
         }
-        "meta:Choibalsan"{
-            ld{"Czojbalsan (czas letni)"}
-            lg{"czas Czojbalsan"}
-            ls{"Czojbalsan (czas standardowy)"}
-        }
         "meta:Christmas"{
             ls{"czas Wyspa Bożego Narodzenia"}
         }
@@ -908,6 +873,9 @@ pl{
             lg{"czas Pietropawłowsk Kamczacki"}
             ls{"czas standardowy Pietropawłowsk Kamczacki"}
         }
+        "meta:Kazakhstan"{
+            ls{"czas Kazachstan"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"czas Kazachstan Wschodni"}
         }
@@ -938,9 +906,6 @@ pl{
             lg{"czas Lord Howe"}
             ls{"Lord Howe (czas standardowy)"}
         }
-        "meta:Macquarie"{
-            ls{"czas Macquarie"}
-        }
         "meta:Magadan"{
             ld{"Magadan (czas letni)"}
             lg{"czas Magadan"}
@@ -965,11 +930,6 @@ pl{
         }
         "meta:Mawson"{
             ls{"czas Mawson"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Meksyk Północno-Zachodni (czas letni)"}
-            lg{"czas Meksyk Północno-Zachodni"}
-            ls{"Meksyk Północno-Zachodni (czas standardowy)"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksyk (czas pacyficzny letni)"}

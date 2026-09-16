@@ -30,12 +30,13 @@ BASE_DECLARE_FEATURE(kAdSamplerTriggerFeature);
 // Enables adding warning shown timestamp to client safe browsing report.
 BASE_DECLARE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport);
 
+// Enables automatic revocation of notification permissions after the user has
+// received a number of notifications with a suspicious verdict from the
+// on-device model.
+BASE_DECLARE_FEATURE(kAutoRevokeSuspiciousNotification);
+
 // Enables Bundled Security Settings UI on chrome://settings/security
 BASE_DECLARE_FEATURE(kBundledSecuritySettings);
-
-// Create a response containing the brand and the intent of the page using the
-// on-device model LLM.
-BASE_DECLARE_FEATURE(kClientSideDetectionBrandAndIntentForScamDetection);
 
 // Expand CSPP beyond phishing and trigger when clipboard copy API is called on
 // the page.
@@ -52,15 +53,13 @@ BASE_DECLARE_FEATURE(kClientSideDetectionCreditCardForm);
 extern const base::FeatureParam<double> kCsdCreditCardFormHCAcceptanceRate;
 // Sets the percentage of credit card forms that trigger a CSD ping.
 extern const base::FeatureParam<double> kCsdCreditCardFormSampleRate;
-
-BASE_DECLARE_FEATURE(kClientSideDetectionDebuggingMetadataCache);
+// Sets the maximum site engagement allowed when sending a CSD ping.
+// The int value corresponds to the value of blink::mojom::EngagementLevel
+// (//third_party/blink/public/mojom/site_engagement/site_engagement.mojom).
+extern const base::FeatureParam<int> kCsdCreditCardFormMaxSiteEngagement;
 
 // Killswitch for Llama forced trigger info redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch);
-
-// Expand CSPP beyond phishing and trigger when keyboard or pointer lock request
-// occurs on the page.
-BASE_DECLARE_FEATURE(kClientSideDetectionKeyboardPointerLockRequest);
 
 // Killswitch for client side phishing detection. Since client side models are
 // run on a large fraction of navigations, crashes due to the model are very
@@ -74,10 +73,6 @@ BASE_DECLARE_FEATURE(kClientSideDetectionKillswitch);
 // RTLookupResponse asks to scan the page.
 BASE_DECLARE_FEATURE(
     kClientSideDetectionLlamaForcedTriggerInfoForScamDetection);
-
-// Expand CSD-Phishing beyond phishing and trigger when a notification prompt
-// occurs on the page.
-BASE_DECLARE_FEATURE(kClientSideDetectionNotificationPrompt);
 
 // Extract only the visual features during the phishing classifier.
 BASE_DECLARE_FEATURE(kClientSideDetectionOnlyExtractVisualFeatures);
@@ -104,10 +99,6 @@ BASE_DECLARE_FEATURE(kClientSideDetectionSendLlamaForcedTriggerInfo);
 // Show a warning to the user based on the
 // IntelligentScanVerdict::SCAM_EXPERIMENT_VERDICT_2.
 BASE_DECLARE_FEATURE(kClientSideDetectionShowLlamaScamVerdictWarning);
-
-// Show a warning to the user that factors in the IntelligentScanVerdict from
-// ClientPhishingResponse.
-BASE_DECLARE_FEATURE(kClientSideDetectionShowScamVerdictWarning);
 
 #if BUILDFLAG(IS_ANDROID)
 // Show a warning to the user that factors in the IntelligentScanVerdict from

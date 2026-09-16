@@ -22,11 +22,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_util.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/browser_app_launcher.h"
 #include "chrome/browser/ash/app_list/app_service/app_service_app_item.h"
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
@@ -46,20 +46,21 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
-#include "components/omnibox/browser/omnibox_view.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -652,27 +653,35 @@ IN_PROC_BROWSER_TEST_F(SystemWebAppManagerMultiDesktopLaunchBrowserTest,
           ProfileMetrics::DELETE_PROFILE_USER_MANAGER);
 
   {
-    auto launch_params = apps::AppLaunchParams(
-        app_id2, apps::LaunchContainer::kLaunchContainerWindow,
-        WindowOpenDisposition::CURRENT_TAB,
-        apps::LaunchSource::kFromAppListGrid);
-    content::WebContents* web_contents =
-        apps::AppServiceProxyFactory::GetForProfile(profile2)
-            ->BrowserAppLauncher()
-            ->LaunchAppWithParamsForTesting(std::move(launch_params));
-    EXPECT_EQ(web_contents, nullptr);
+    web_app::WebAppProvider* provider =
+        web_app::WebAppProvider::GetForLocalAppsUnchecked(profile2);
+    base::test::TestFuture<base::WeakPtr<Browser>,
+                           base::WeakPtr<content::WebContents>,
+                           apps::LaunchContainer>
+        future;
+    provider->scheduler().LaunchAppWithCustomParams(
+        apps::AppLaunchParams(app_id2,
+                              apps::LaunchContainer::kLaunchContainerWindow,
+                              WindowOpenDisposition::CURRENT_TAB,
+                              apps::LaunchSource::kFromAppListGrid),
+        future.GetCallback());
+    EXPECT_FALSE(future.template Get<1>().get());
   }
 
   {
-    auto launch_params = apps::AppLaunchParams(
-        app_id1, apps::LaunchContainer::kLaunchContainerWindow,
-        WindowOpenDisposition::CURRENT_TAB,
-        apps::LaunchSource::kFromAppListGrid);
-    content::WebContents* web_contents =
-        apps::AppServiceProxyFactory::GetForProfile(profile1)
-            ->BrowserAppLauncher()
-            ->LaunchAppWithParamsForTesting(std::move(launch_params));
-    EXPECT_NE(web_contents, nullptr);
+    web_app::WebAppProvider* provider =
+        web_app::WebAppProvider::GetForLocalAppsUnchecked(profile1);
+    base::test::TestFuture<base::WeakPtr<Browser>,
+                           base::WeakPtr<content::WebContents>,
+                           apps::LaunchContainer>
+        future;
+    provider->scheduler().LaunchAppWithCustomParams(
+        apps::AppLaunchParams(app_id1,
+                              apps::LaunchContainer::kLaunchContainerWindow,
+                              WindowOpenDisposition::CURRENT_TAB,
+                              apps::LaunchSource::kFromAppListGrid),
+        future.GetCallback());
+    EXPECT_TRUE(future.template Get<1>().get());
   }
 }
 

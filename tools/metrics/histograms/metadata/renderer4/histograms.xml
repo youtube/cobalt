@@ -128,7 +128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer4.GpuImageUploadState.FirstLockWasted"
-    enum="BooleanWasted" expires_after="2026-02-01">
+    enum="BooleanWasted" expires_after="2026-04-05">
   <owner>vmpstr@chromium.org</owner>
   <owner>thiabaud@google.com</owner>
   <summary>
@@ -193,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer4.MainThreadGestureScrollReason2"
-    enum="MainThreadScrollingReason2" expires_after="2026-01-18">
+    enum="MainThreadScrollingReason2" expires_after="2026-03-22">
   <owner>flackr@chromium.org</owner>
   <owner>pdr@chromium.org</owner>
   <owner>input-dev@chromium.org</owner>
@@ -212,7 +212,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer4.MainThreadWheelScrollReason2"
-    enum="MainThreadScrollingReason2" expires_after="2026-01-18">
+    enum="MainThreadScrollingReason2" expires_after="2026-03-22">
   <owner>flackr@chromium.org</owner>
   <owner>pdr@chromium.org</owner>
   <owner>input-dev@chromium.org</owner>

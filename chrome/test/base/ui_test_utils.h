@@ -7,6 +7,7 @@
 
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -151,13 +152,6 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
     int number_of_navigations,
     WindowOpenDisposition disposition,
     int browser_test_flags);
-
-// Generate the file path for testing a particular test.
-// The file for the tests is all located in
-// test_root_directory/dir/<file>
-// The returned path is base::FilePath format.
-base::FilePath GetTestFilePath(const base::FilePath& dir,
-                               const base::FilePath& file);
 
 // Generate the URL for testing a particular test.
 // HTML for the tests is all located in
@@ -371,12 +365,17 @@ void WaitForBrowserSetLastActive(
 // Send the given text to the omnibox and wait until it's updated.
 void SendToOmniboxAndSubmit(
     BrowserWindowInterface* browser,
-    const std::string& input,
+    std::string_view input,
     base::TimeTicks match_selection_timestamp = base::TimeTicks());
 
 // Gets the first browser that is not in the specified set.
 Browser* GetBrowserNotInSet(
     const std::set<BrowserWindowInterface*>& excluded_browsers);
+
+// Returns a list of browsers for which `matcher` returns true.
+using BrowserMatcher = base::FunctionRef<bool(BrowserWindowInterface*)>;
+std::vector<BrowserWindowInterface*> FindMatchingBrowsers(
+    BrowserMatcher matcher);
 
 // Gets the size and value of the cookie string for |url| in the given tab.
 // Can be called from any thread.

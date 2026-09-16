@@ -16,11 +16,10 @@
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_detail_text_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -90,8 +89,6 @@ bool TooNarrowForBanner(UIView* view) {
   NSLayoutConstraint* _tableViewHeightConstraint;
   UITableViewDiffableDataSource<NSNumber*, NSNumber*>* _dataSource;
   NSDiffableDataSourceSnapshot* _snapshot;
-  ChromeTableViewStyler* _tableViewStyler;
-  ChromeTableViewStyler* _highlightTableViewStyler;
   // The `viewWillLayoutSubviews` is invoked on creation, dismissal, and
   // backward navigation of the NotificationsBannerViewController. To prevent
   // the view controller styling aspects of the view that will be carried over
@@ -236,7 +233,6 @@ bool TooNarrowForBanner(UIView* view) {
                                       itemIdentifier.integerValue)];
            }];
 
-  RegisterTableViewCell<TableViewSwitchCell>(_tableView);
   [TableViewCellContentConfiguration legacyRegisterCellForTableView:_tableView];
 
   [_dataSource applySnapshot:self.snapshot animatingDifferences:NO];
@@ -373,15 +369,11 @@ bool TooNarrowForBanner(UIView* view) {
                                       item:(TableViewItem*)item
                             itemIdentifier:
                                 (NotificationsItemIdentifier)itemIdentifier {
-  TableViewSwitchCell* cell =
-      DequeueTableViewCell<TableViewSwitchCell>(tableView);
+  LegacyTableViewCell* cell =
+      [TableViewCellContentConfiguration legacyDequeueTableViewCell:tableView];
   TableViewSwitchItem* switchItem =
       base::apple::ObjCCastStrict<TableViewSwitchItem>(item);
   [self configureCell:cell item:switchItem identifier:itemIdentifier];
-  cell.switchView.tag = itemIdentifier;
-  [cell.switchView addTarget:self
-                      action:@selector(switchAction:)
-            forControlEvents:UIControlEventValueChanged];
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   return cell;
 }
@@ -394,47 +386,17 @@ bool TooNarrowForBanner(UIView* view) {
       [TableViewCellContentConfiguration legacyDequeueTableViewCell:_tableView];
   TableViewMultiDetailTextItem* detailItem =
       base::apple::ObjCCastStrict<TableViewMultiDetailTextItem>(item);
-  [detailItem configureCell:cell withStyler:[self tableViewStyler]];
+  [detailItem configureCell:cell
+                 withStyler:[[ChromeTableViewStyler alloc] init]];
   cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
   cell.accessibilityTraits |= UIAccessibilityTraitButton;
   return cell;
-}
-
-// Called when switch is toggled.
-- (void)switchAction:(UISwitch*)sender {
-  TableViewItem* item =
-      [self tableItemForItemIdentifier:static_cast<NotificationsItemIdentifier>(
-                                           sender.tag)];
-  TableViewSwitchItem* switchItem =
-      base::apple::ObjCCastStrict<TableViewSwitchItem>(item);
-  DCHECK(switchItem);
-  [self.modelDelegate didToggleSwitchItem:switchItem withValue:sender.isOn];
 }
 
 // Updates the tableView's height constraint.
 - (void)updateTableViewHeightConstraint {
   [_tableView layoutIfNeeded];
   _tableViewHeightConstraint.constant = _tableView.contentSize.height;
-}
-
-// ChromeTableViewStyler for the cells.
-- (ChromeTableViewStyler*)tableViewStyler {
-  if (!_tableViewStyler) {
-    _tableViewStyler = [[ChromeTableViewStyler alloc] init];
-    _tableViewStyler.cellBackgroundColor =
-        [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
-  }
-  return _tableViewStyler;
-}
-
-// Styler for highlighted cells.
-- (ChromeTableViewStyler*)highlightTableViewStyler {
-  if (!_highlightTableViewStyler) {
-    _highlightTableViewStyler = [[ChromeTableViewStyler alloc] init];
-    _highlightTableViewStyler.cellBackgroundColor =
-        [UIColor colorNamed:kBlueHaloColor];
-  }
-  return _highlightTableViewStyler;
 }
 
 // Configures the banner based on the view's size.
@@ -461,10 +423,12 @@ bool TooNarrowForBanner(UIView* view) {
 - (void)configureCell:(LegacyTableViewCell*)cell
                  item:(TableViewItem*)item
            identifier:(NotificationsItemIdentifier)identifier {
-  ChromeTableViewStyler* styler = identifier == self.highlightedItem
-                                      ? [self highlightTableViewStyler]
-                                      : [self tableViewStyler];
+  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
   [item configureCell:cell withStyler:styler];
+  cell.backgroundColor =
+      (identifier == self.highlightedItem)
+          ? [UIColor colorNamed:kBlueHaloColor]
+          : [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
 }
 
 @end

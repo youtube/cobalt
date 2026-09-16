@@ -39,15 +39,13 @@ namespace net::device_bound_sessions {
 class SessionStore;
 
 struct DeferredURLRequest {
-  DeferredURLRequest(const URLRequest* request,
-                     SessionService::RefreshCompleteCallback callback);
+  explicit DeferredURLRequest(SessionService::RefreshCompleteCallback callback);
   DeferredURLRequest(DeferredURLRequest&& other) noexcept;
 
   DeferredURLRequest& operator=(DeferredURLRequest&& other) noexcept;
 
   ~DeferredURLRequest();
 
-  raw_ptr<const URLRequest> request = nullptr;
   base::ElapsedTimer timer;
   SessionService::RefreshCompleteCallback callback;
 };
@@ -103,7 +101,11 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   base::ScopedClosureRunner AddObserver(
       const GURL& url,
       base::RepeatingCallback<void(const SessionAccess&)> callback) override;
-  Session* GetSession(const SessionKey& session_key) const;
+  const Session* GetSession(const SessionKey& session_key) const override;
+
+  // The `SessionService` implementation has a const-qualified accessor
+  // for sessions. This overload allows for non-const access as well.
+  Session* GetSession(const SessionKey& session_key);
 
  private:
   friend class SessionServiceImplWithStoreTest;
@@ -134,6 +136,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void OnLoadSessionsComplete(SessionsMap sessions);
 
   void OnRegistrationComplete(OnAccessCallback on_access_callback,
+                              bool is_google_subdomain_for_histograms,
                               RegistrationFetcher* fetcher,
                               RegistrationResult result);
   void OnRefreshRequestCompletion(OnAccessCallback on_access_callback,
@@ -142,8 +145,12 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
                                   RegistrationResult result);
 
   void AddSession(const SchemefulSite& site, std::unique_ptr<Session> session);
-  void UnblockDeferredRequests(const SessionKey& session_key,
-                               RefreshResult result);
+  void UnblockDeferredRequests(
+      const SessionKey& session_key,
+      RefreshResult result,
+      std::optional<bool> is_proactive_refresh_candidate = std::nullopt,
+      std::optional<base::TimeDelta> minimum_proactive_refresh_threshold =
+          std::nullopt);
 
   // Get all the unexpired sessions for a given site. This also removes
   // expired sessions for the site and extends the TTL of used sessions.
@@ -186,7 +193,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Callback after unwrapping a session key. `on_access_callback` is
   // used to notify the browser that this request led to usage of a
   // session.
-  void OnSessionKeyRestored(URLRequest* request,
+  void OnSessionKeyRestored(base::WeakPtr<URLRequest> request,
                             const SessionKey& session_key,
                             OnAccessCallback on_access_callback,
                             Session::KeyIdOrError key_id_or_error);

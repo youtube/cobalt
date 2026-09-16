@@ -12,6 +12,7 @@
 #include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/functional/callback_helpers.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -716,6 +717,10 @@ void FetchCallback(
         (fetch_result.annotated_page_content_result.value().end_time -
          start_time)
             .InMilliseconds());
+    base::UmaHistogramMediumTimes(
+        "Actor.PageContext.APC.Duration",
+        fetch_result.annotated_page_content_result.value().end_time -
+            fetch_context_time);
   }
 
   {
@@ -727,6 +732,9 @@ void FetchCallback(
     latency_step->set_latency_stop_ms(
         (fetch_result.screenshot_result.value().end_time - start_time)
             .InMilliseconds());
+    base::UmaHistogramMediumTimes(
+        "Actor.PageContext.Screenshot.Duration",
+        fetch_result.screenshot_result.value().end_time - fetch_context_time);
   }
 
   // TODO(khushalsagar): Remove this once consumers use ActionResults for script
@@ -747,6 +755,7 @@ void BuildActionsResultWithObservations(
     std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results,
     const ActorTask& task,
+    bool skip_async_observation_information,
     base::OnceCallback<
         void(std::unique_ptr<apc::ActionsResult>,
              std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>)>
@@ -784,7 +793,9 @@ void BuildActionsResultWithObservations(
           (*action_result.result->execution_end_time - actions_start_time)
               .InMilliseconds());
     }
-    {
+    // Don't report a page stabilization time if the start and end
+    // are the same. Not every tool needs stabilization.
+    if (*action_result.result->execution_end_time != action_result.end_time) {
       apc::ActionsResult_LatencyInformation_LatencyStep* latency_step =
           latency_info->add_latency_steps();
       latency_step->mutable_page_stabilization()->set_action_index(i);
@@ -813,12 +824,11 @@ void BuildActionsResultWithObservations(
     }
   }
 
-  absl::flat_hash_set<tabs::TabInterface*> tabs_to_fetch;
+  absl::flat_hash_map<tabs::TabInterface*, apc::TabObservation*> tabs_to_fetch;
 
   for (const tabs::TabHandle& handle : task.GetLastActedTabs()) {
     // Include a TabObservation entry for acted on tabs. If the tab no longer
     // exists or the fetch context failed, the observation will be empty.
-    // TODO(crbug.com/392167142): Check for a crashed tab here.
     // TODO(crbug.com/434263095): We should probably avoid capturing
     // observations if an action fails with kUrlBlocked. That might be better
     // implemented by not putting the tab into the LastActedTabs set.
@@ -835,29 +845,51 @@ void BuildActionsResultWithObservations(
                                           .Add("tabId", handle.raw_value())
                                           .AddError("TabWentAway")
                                           .Build());
+    } else if (!tab->GetContents()
+                    ->GetPrimaryMainFrame()
+                    ->IsRenderFrameLive()) {
+      // TODO(crbug.com/392167142): We should also handle the crashed subframes.
+      // However we don't want unrelated subframe crash to terminate the task.
+      apc::TabObservation* tab_observation = response->add_tabs();
+      tab_observation->set_id(handle.raw_value());
+      tab_observation->set_result(
+          apc::TabObservation::TAB_OBSERVATION_PAGE_CRASHED);
+      actor_service->GetJournal().Log(GURL(), task.id(),
+                                      actor::mojom::JournalTrack::kActor,
+                                      "TabObservationFailed",
+                                      JournalDetailsBuilder()
+                                          .Add("tabId", handle.raw_value())
+                                          .AddError("Page crashed")
+                                          .Build());
     } else {
-      tabs_to_fetch.insert(tab);
+      apc::TabObservation* tab_observation = response->add_tabs();
+      tabs_to_fetch.emplace(tab, tab_observation);
+      tab_observation->set_id(tab->GetHandle().raw_value());
+      if (skip_async_observation_information) {
+        tab_observation->set_result(apc::TabObservation::TAB_OBSERVATION_OK);
+      }
     }
   }
+  base::UmaHistogramCounts1000("Actor.PageContext.TabCount",
+                               tabs_to_fetch.size());
 
-  apc::ActionsResult* raw_response = response.get();
+  if (skip_async_observation_information) {
+    std::move(callback).Run(std::move(response), std::move(journal_entry));
+    return;
+  }
   base::RepeatingClosure barrier = base::BarrierClosure(
       tabs_to_fetch.size(),
       base::BindOnce(std::move(callback), std::move(response),
                      std::move(journal_entry)));
-
-  for (tabs::TabInterface* tab : tabs_to_fetch) {
-    apc::TabObservation* tab_observation = raw_response->add_tabs();
-    tab_observation->set_id(tab->GetHandle().raw_value());
-
-    // tab_observation can be Unretained because the underlying APC is owned by
-    // the barrier which is ref-counted.
+  for (auto& [tab, tab_observation] : tabs_to_fetch) {
+    // tab_observation can be Unretained because the underlying APC is owned
+    // by the barrier which is ref-counted.
     actor_service->RequestTabObservation(
         *tab, task.id(),
         base::BindOnce(FetchCallback, profile->GetWeakPtr(), task.id(), barrier,
-                       base::Unretained(tab_observation), action_results,
-                       actions_start_time, base::TimeTicks::Now(),
-                       base::Unretained(latency_info)));
+                       base::Unretained(tab_observation),
+                       action_results, actions_start_time,
+                       base::TimeTicks::Now(), base::Unretained(latency_info)));
   }
 }
 

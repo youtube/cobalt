@@ -31,7 +31,6 @@
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
 #include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -80,7 +79,6 @@ class EventGenerator {
   std::unique_ptr<RtcEventDtlsTransportState> NewDtlsTransportState();
   std::unique_ptr<RtcEventDtlsWritableState> NewDtlsWritableState();
   std::unique_ptr<RtcEventFrameDecoded> NewFrameDecodedEvent(uint32_t ssrc);
-  std::unique_ptr<RtcEventGenericAckReceived> NewGenericAckReceived();
   std::unique_ptr<RtcEventGenericPacketReceived> NewGenericPacketReceived();
   std::unique_ptr<RtcEventGenericPacketSent> NewGenericPacketSent();
   std::unique_ptr<RtcEventIceCandidatePair> NewIceCandidatePair();
@@ -242,10 +240,6 @@ class EventVerifier {
   void VerifyLoggedGenericPacketReceived(
       const RtcEventGenericPacketReceived& original_event,
       const LoggedGenericPacketReceived& logged_event) const;
-
-  void VerifyLoggedGenericAckReceived(
-      const RtcEventGenericAckReceived& original_event,
-      const LoggedGenericAckReceived& logged_event) const;
 
   template <typename EventType, typename ParsedType>
   void VerifyLoggedRtpPacket(const EventType& /* original_event */,

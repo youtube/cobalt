@@ -10,6 +10,7 @@
 #include "services/webnn/ort/environment.h"
 #include "services/webnn/ort/ort_session_options.h"
 #include "services/webnn/ort/scoped_ort_types.h"
+#include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/webnn_context_impl.h"
 
@@ -23,8 +24,25 @@ namespace ort {
 // for creating a `GraphImplOrt` which uses ONNX Runtime for inference.
 class ContextImplOrt final : public WebNNContextImpl {
  public:
-  ContextImplOrt(mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
-                 WebNNContextProviderImpl* context_provider,
+  // Constructs a new `ContextImplOrt`. Must be called on `owning_task_runner`.
+  static scoped_refptr<WebNNContextImpl> Create(
+      mojo::PendingReceiver<mojom::WebNNContext> receiver,
+      base::WeakPtr<WebNNContextProviderImpl> context_provider,
+      const EpWorkarounds& ep_workarounds,
+      mojom::CreateContextOptionsPtr options,
+      mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
+      mojo::ScopedDataPipeProducerHandle read_tensor_producer,
+      scoped_refptr<Environment> env,
+      gpu::CommandBufferId command_buffer_id,
+      std::unique_ptr<ScopedSequence> sequence,
+      scoped_refptr<gpu::MemoryTracker> memory_tracker,
+      scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+      gpu::SharedImageManager* shared_image_manager,
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+      ScopedTrace scoped_trace);
+
+  ContextImplOrt(mojo::PendingReceiver<mojom::WebNNContext> receiver,
+                 base::WeakPtr<WebNNContextProviderImpl> context_provider,
                  const EpWorkarounds& ep_workarounds,
                  mojom::CreateContextOptionsPtr options,
                  mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
@@ -32,7 +50,10 @@ class ContextImplOrt final : public WebNNContextImpl {
                  scoped_refptr<Environment> env,
                  gpu::CommandBufferId command_buffer_id,
                  std::unique_ptr<ScopedSequence> sequence,
-                 scoped_refptr<gpu::SchedulerTaskRunner> task_runner);
+                 scoped_refptr<gpu::MemoryTracker> memory_tracker,
+                 scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+                 gpu::SharedImageManager* shared_image_manager,
+                 scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
   ContextImplOrt(const WebNNContextImpl&) = delete;
   ContextImplOrt& operator=(const ContextImplOrt&) = delete;
@@ -47,10 +68,6 @@ class ContextImplOrt final : public WebNNContextImpl {
 
   scoped_refptr<SessionOptions> session_options() const {
     return session_options_;
-  }
-
-  bool is_external_data_supported() const {
-    return is_external_data_supported_;
   }
 
  private:
@@ -70,18 +87,16 @@ class ContextImplOrt final : public WebNNContextImpl {
                    mojom::TensorInfoPtr tensor_info) override;
 
   base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
-  CreateTensorFromMailboxImpl(
+  CreateTensorFromSharedImageImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
       mojom::TensorInfoPtr tensor_info,
-      gpu::Mailbox mailbox) override;
+      std::unique_ptr<gpu::WebNNTensorRepresentation> representation) override;
 
   scoped_refptr<Environment> env_;
 
   // The session options are shared among all the sessions created by this
   // context.
   scoped_refptr<SessionOptions> session_options_;
-
-  const bool is_external_data_supported_;
 
   base::WeakPtrFactory<ContextImplOrt> weak_factory_{this};
 };

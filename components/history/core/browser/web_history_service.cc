@@ -364,8 +364,8 @@ std::optional<base::Value::Dict> WebHistoryService::ReadResponse(
   if (request->GetResponseCode() != net::HTTP_OK) {
     return std::nullopt;
   }
-  std::optional<base::Value> value =
-      base::JSONReader::Read(request->GetResponseBody());
+  std::optional<base::Value> value = base::JSONReader::Read(
+      request->GetResponseBody(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (value && value->is_dict()) {
     return std::move(*value).TakeDict();
   }
@@ -481,7 +481,7 @@ void WebHistoryService::QueryOtherFormsOfBrowsingHistory(
                                        channel);
   GURL::Replacements replace_path;
   std::string new_path =
-      url.path() + kQueryOtherFormsOfBrowsingHistoryUrlSuffix;
+      url.GetPath() + kQueryOtherFormsOfBrowsingHistoryUrlSuffix;
   replace_path.SetPathStr(new_path);
   url = url.ReplaceComponents(replace_path);
   DCHECK(url.is_valid());

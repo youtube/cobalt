@@ -134,6 +134,9 @@ public class OmniboxFeatures {
     public static final CachedFlag sOmniboxMultimodalInput =
             newFlag(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT, FeatureState.DISABLED);
 
+    public static final BooleanCachedFeatureParam sAimToggleOnly =
+            newBooleanParam(sOmniboxMultimodalInput, "aim_toggle_only", false);
+
     public static final CachedFlag sMultilineEditField =
             newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.DISABLED);
 
@@ -151,7 +154,7 @@ public class OmniboxFeatures {
                     sRemoveSearchReadyOmnibox, "remove_sro_including_verbatim_match", false);
 
     public static final BooleanCachedFeatureParam sOmniboxParityRetrieveBuiltInEngineIcon =
-            newBooleanParam(sOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", false);
+            newBooleanParam(sOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", true);
 
     public static final IntCachedFeatureParam sGeolocationRequestTimeoutMinutes =
             newIntParam(
@@ -203,6 +206,10 @@ public class OmniboxFeatures {
     // This parameter enables the hub search entrypoints on the tab groups pane.
     public static final BooleanCachedFeatureParam sAndroidHubSearchEnableOnTabGroupsPane =
             newBooleanParam(sAndroidHubSearchTabGroups, "enable_hub_search_tab_groups_pane", true);
+
+    // This parameter enables showing the switch-to-tab chip on large form factors.
+    public static final BooleanCachedFeatureParam sOmniboxImprovementForLFFSwitchToTabChip =
+            newBooleanParam(sOmniboxImprovementForLFF, "switch_to_tab_chip", false);
 
     // Omnibox Diagnostics
     private static final CachedFlag sDiagnostics =

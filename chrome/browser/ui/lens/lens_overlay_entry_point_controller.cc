@@ -10,6 +10,7 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
+#include "chrome/browser/ui/lens/lens_overlay_side_panel_coordinator.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/lens/lens_url_matcher.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -110,6 +112,19 @@ void LensOverlayEntryPointController::Initialize(
       lens::features::GetLensOverlayEduUrlPathMatchBlockFilters(),
       lens::features::GetLensOverlayEduUrlForceAllowedMatchPatterns(),
       lens::features::GetLensOverlayEduHashedDomainBlockFilters());
+
+  if (lens::features::IsLensOverlayOptimizationFilterEnabled()) {
+    optimization_guide_decider_ =
+        OptimizationGuideKeyedServiceFactory::GetForProfile(
+            browser_window_interface_->GetProfile());
+    if (optimization_guide_decider_) {
+      optimization_guide_decider_->RegisterOptimizationTypes(
+          {optimization_guide::proto::OptimizationType::
+               LENS_OVERLAY_EDU_ACTION_CHIP_BLOCKLIST,
+           optimization_guide::proto::OptimizationType::
+               LENS_OVERLAY_EDU_ACTION_CHIP_ALLOWLIST});
+    }
+  }
 }
 
 LensOverlayEntryPointController::~LensOverlayEntryPointController() {
@@ -198,6 +213,23 @@ bool LensOverlayEntryPointController::IsUrlEduEligible(const GURL& url) const {
   if (!IsEnabled()) {
     return false;
   }
+
+  if (optimization_guide_decider_) {
+    bool allowed_by_allowlist =
+        optimization_guide_decider_->CanApplyOptimization(
+            url,
+            optimization_guide::proto::LENS_OVERLAY_EDU_ACTION_CHIP_BLOCKLIST,
+            /*optimization_metadata=*/nullptr) ==
+        optimization_guide::OptimizationGuideDecision::kTrue;
+    bool allowed_by_blocklist =
+        optimization_guide_decider_->CanApplyOptimization(
+            url,
+            optimization_guide::proto::LENS_OVERLAY_EDU_ACTION_CHIP_ALLOWLIST,
+            /*optimization_metadata=*/nullptr) ==
+        optimization_guide::OptimizationGuideDecision::kTrue;
+    return allowed_by_allowlist && allowed_by_blocklist;
+  }
+
   return edu_url_matcher_->IsMatch(url);
 }
 
@@ -207,8 +239,6 @@ void LensOverlayEntryPointController::InvokeAction(
     const actions::ActionInvocationContext& context) {
   LensSearchController* search_controller =
       LensSearchController::From(active_tab);
-  LensOverlayController* overlay_controller =
-      active_tab->GetTabFeatures()->lens_overlay_controller();
 
   std::underlying_type_t<page_actions::PageActionTrigger> page_action_trigger =
       context.GetProperty(page_actions::kPageActionTriggerKey);
@@ -241,7 +271,11 @@ void LensOverlayEntryPointController::InvokeAction(
 
   // Toggle the Lens overlay. There's no need to show or hide the side
   // panel as the overlay controller will handle that.
-  if (overlay_controller->IsOverlayActive()) {
+  const auto* entry_point_controller =
+      active_tab->GetBrowserWindowInterface()
+          ->GetFeatures()
+          .lens_overlay_entry_point_controller();
+  if (entry_point_controller->IsOverlayActive()) {
     search_controller->CloseLensAsync(
         lens::LensOverlayDismissalSource::kToolbar);
   } else {
@@ -340,12 +374,22 @@ void LensOverlayEntryPointController::UpdatePageActionState() {
 }
 
 bool LensOverlayEntryPointController::IsOverlayActive() const {
-  const auto* active_tab = browser_window_interface_->GetActiveTabInterface();
+  // TODO(crbug.com/404941800): Rename this function to make it clear that it
+  // checks both the overlay and the side panel being active.
+  auto* active_tab = browser_window_interface_->GetActiveTabInterface();
   if (!active_tab) {
     return false;
   }
-  const auto* controller =
-      active_tab->GetTabFeatures()->lens_overlay_controller();
+
+  LensSearchController* search_controller =
+      LensSearchController::From(active_tab);
+  LensOverlaySidePanelCoordinator* side_panel_coordinator =
+      search_controller->lens_overlay_side_panel_coordinator();
+  if (side_panel_coordinator && side_panel_coordinator->IsEntryShowing()) {
+    return true;
+  }
+
+  const auto* controller = search_controller->lens_overlay_controller();
   return controller && controller->IsOverlayActive();
 }
 

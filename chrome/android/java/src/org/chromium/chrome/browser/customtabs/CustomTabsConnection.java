@@ -104,7 +104,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -1128,7 +1127,7 @@ public class CustomTabsConnection {
      * @param session Session extracted from the intent.
      * @param intent incoming intent.
      */
-    public void onHandledIntent(SessionHolder<?> session, Intent intent) {
+    public void onHandledIntent(@Nullable SessionHolder<?> session, Intent intent) {
         String url = IntentHandler.getUrlFromIntent(intent);
         if (TextUtils.isEmpty(url)) {
             return;
@@ -1170,7 +1169,7 @@ public class CustomTabsConnection {
     }
 
     private void maybePreconnectToRedirectEndpoint(
-            SessionHolder<?> session, String url, Intent intent) {
+            @Nullable SessionHolder<?> session, String url, Intent intent) {
         // For the preconnection to not be a no-op, we need more than just the native library.
         if (!ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()) {
             return;
@@ -1193,7 +1192,7 @@ public class CustomTabsConnection {
 
     @VisibleForTesting
     @ParallelRequestStatus
-    int handleParallelRequest(SessionHolder<?> session, Intent intent) {
+    int handleParallelRequest(@Nullable SessionHolder<?> session, Intent intent) {
         int status = maybeStartParallelRequest(session, intent);
         RecordHistogram.recordEnumeratedHistogram(
                 "CustomTabs.ParallelRequestStatusOnStart",
@@ -1230,7 +1229,7 @@ public class CustomTabsConnection {
      * @return Whether the request was started, with reason in case of failure.
      */
     private @ParallelRequestStatus int maybeStartParallelRequest(
-            SessionHolder<?> session, Intent intent) {
+            @Nullable SessionHolder<?> session, Intent intent) {
         ThreadUtils.assertOnUiThread();
 
         if (!intent.hasExtra(PARALLEL_REQUEST_URL_KEY)) return ParallelRequestStatus.NO_REQUEST;
@@ -1284,7 +1283,7 @@ public class CustomTabsConnection {
      * @return Number of prefetch requests that have been sent.
      */
     @VisibleForTesting
-    int maybePrefetchResources(SessionHolder<?> session, Intent intent) {
+    int maybePrefetchResources(@Nullable SessionHolder<?> session, Intent intent) {
         ThreadUtils.assertOnUiThread();
 
         if (!mClientManager.getAllowResourcePrefetchForSession(session)) return 0;
@@ -1330,7 +1329,7 @@ public class CustomTabsConnection {
      * @return Whether {@code session} can create a parallel request for a given {@code referrer}.
      */
     @VisibleForTesting
-    boolean canDoParallelRequest(SessionHolder<?> session, Uri referrer) {
+    boolean canDoParallelRequest(@Nullable SessionHolder<?> session, Uri referrer) {
         ThreadUtils.assertOnUiThread();
         Origin origin = Origin.create(referrer);
         if (origin == null) return false;
@@ -1380,7 +1379,7 @@ public class CustomTabsConnection {
     /**
      * @return Whether the given package name is that of a first-party application.
      */
-    public boolean isFirstParty(String packageName) {
+    public boolean isFirstParty(@Nullable String packageName) {
         if (packageName == null) return false;
         return ExternalAuthUtils.getInstance().isGoogleSigned(packageName);
     }
@@ -1597,10 +1596,10 @@ public class CustomTabsConnection {
     }
 
     /**
-     * @see {@link notifyNavigationEvent(SessionHolder, int, Optional<int>)}
+     * @see {@link notifyNavigationEvent(SessionHolder, int, int)}
      */
     public boolean notifyNavigationEvent(@Nullable SessionHolder<?> session, int navigationEvent) {
-        return notifyNavigationEvent(session, navigationEvent, Optional.empty());
+        return notifyNavigationEvent(session, navigationEvent, /* errorCode= */ null);
     }
 
     /**
@@ -1610,17 +1609,17 @@ public class CustomTabsConnection {
      *
      * @param session The Binder object identifying the session.
      * @param navigationEvent The navigation event code, defined in {@link CustomTabsCallback}
-     * @param errorCode Network error code. Empty if there was no error or the error code is not in
+     * @param errorCode Network error code. Null if there was no error or the error code is not in
      *     the list of error codes that should be passed to the embedder.
      * @return true for success.
      */
     public boolean notifyNavigationEvent(
-            @Nullable SessionHolder<?> session, int navigationEvent, Optional<Integer> errorCode) {
+            @Nullable SessionHolder<?> session, int navigationEvent, @Nullable Integer errorCode) {
         BrowserCallbackWrapper callback = mClientManager.getCallbackForSession(session);
         if (callback == null) return false;
         try {
             Bundle extra = getExtrasBundleForNavigationEventForSession(session);
-            if (errorCode.isPresent()) extra.putInt("navigationEventErrorCode", errorCode.get());
+            if (errorCode != null) extra.putInt("navigationEventErrorCode", errorCode);
             callback.onNavigationEvent(navigationEvent, extra);
         } catch (Exception e) {
             // Catching all exceptions is really bad, but we need it here,

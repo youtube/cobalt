@@ -178,6 +178,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     // Showing an overlay without results.
     kOverlay,
 
+    // TODO(crbug.com/450638028): Remove this state and only keep kOverlay.
     // Showing an overlay with results.
     kOverlayAndResults,
 
@@ -270,6 +271,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Returns true if the overlay is currently in the process of closing.
   bool IsOverlayClosing();
+
+  // Returns true if the overlay has a region selection.
+  bool HasRegionSelection() const;
 
   // Pass a result frame URL to load in the side panel.
   void LoadURLInResultsFrame(const GURL& url);
@@ -373,6 +377,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Returns the current thumbnail URI for testing.
   const std::string& GetThumbnailForTesting();
+
+  // Clears the region selection for testing.
+  void ClearRegionSelectionForTesting();
 
   // Handles the event where text was modified in the searchbox for testing.
   void OnTextModifiedForTesting();
@@ -560,6 +567,11 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // side panel is bound.
   void HideOverlayAndMaybeSetHiddenState();
 
+  // Should only be called when the overlay is in kHidden state. This will
+  // reshow the overlay using the current viewport screenshot and page context
+  // on the live page.
+  void ReshowOverlay();
+
  private:
   // Data class for constructing overlay and storing overlay state for
   // kSuspended state.
@@ -671,36 +683,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       AutocompleteMatchType::Type match_type,
       bool is_zero_prefix_suggestion,
       lens::LensOverlayInvocationSource invocation_source);
-
-  // Fetches the bounding boxes of all images within the current viewport.
-  void FetchViewportImageBoundingBoxes(
-      std::optional<base::TimeTicks> bounding_box_start_time,
-      const SkBitmap& bitmap);
-
-  // Gets the current page number if viewing a PDF.
-  void GetPdfCurrentPage(
-      mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
-          chrome_render_frame,
-      int attempt_id,
-      const SkBitmap& bitmap,
-      std::optional<base::TimeTicks> bounding_box_start_time,
-      const std::vector<gfx::Rect>& bounds);
-
-  // Called once a screenshot has been captured. This should trigger transition
-  // to kOverlay. As this process is asynchronous, there are edge cases that can
-  // result in multiple in-flight screenshot attempts. We record the
-  // `attempt_id` for each attempt so we can ignore all but the most recent
-  // attempt.
-  // `chrome_render_frame` is added to keep the InterfacePtr alive during the
-  // IPC call in FetchViewportImageBoundingBoxes().
-  void DidCaptureScreenshot(
-      mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
-          chrome_render_frame,
-      int attempt_id,
-      const SkBitmap& bitmap,
-      const std::vector<gfx::Rect>& bounds,
-      std::optional<base::TimeTicks> pdf_page_start_time,
-      std::optional<uint32_t> pdf_current_page);
 
   // Process the bitmap and creates all necessary data to initialize the
   // overlay. Happens on a separate thread to prevent main thread from hanging.
@@ -935,6 +917,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // points since the state of the overlay has changed.
   void UpdateEntryPointsState();
 
+  // Notifies the side panel whether the overlay is showing.
+  void NotifyIsOverlayShowing(bool is_showing);
+
   // Callback to run when the partial page text is retrieved from the PDF.
   void OnPdfPartialPageTextRetrieved(
       std::vector<std::u16string> pdf_pages_text);
@@ -955,8 +940,18 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
                          const std::vector<gfx::Rect>& all_bounds,
                          std::optional<uint32_t> pdf_current_page);
 
+  // Part 2 of reshowing the overlay. Called after the screenshot and page
+  // context has been updated.
+  void ReshowOverlayPart2();
+  // Part 3 of reshowing the overlay. Called after the RGB bitmap has been
+  // created.
+  void ReshowOverlayPart3(const SkBitmap& rgb_bitmap);
+
   // Shorthand to grab the LensSearchboxController for this instance of Lens.
   lens::LensSearchboxController* GetLensSearchboxController();
+
+  // Shorthand to grab the LensOverlaySidePanelCoordinator for this instance of Lens.
+  lens::LensOverlaySidePanelCoordinator* GetLensOverlaySidePanelCoordinator();
 
   // Shorthand to grab the LensSearchContextualizationController for this
   // instance of Lens.
@@ -1156,6 +1151,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // be assumed to be non-null.
   raw_ptr<SidePanelCoordinator> side_panel_coordinator_ = nullptr;
 
+  // TODO(crbug.com/450336818): Remove this field and use the
+  // LensSearchController to get the side panel coordinator.
   // Side panel coordinator for the side panel coordinator that controls the
   // results side panel. Guaranteed to exist if the overlay is not `kOff`.
   raw_ptr<lens::LensOverlaySidePanelCoordinator>

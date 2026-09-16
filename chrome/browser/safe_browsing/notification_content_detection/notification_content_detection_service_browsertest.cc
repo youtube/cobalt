@@ -41,6 +41,7 @@
 #include "content/public/test/browser_test.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/notifications/platform_notification_data.h"
+#include "third_party/blink/public/mojom/notifications/notification.mojom.h"
 #include "third_party/blink/public/mojom/site_engagement/site_engagement.mojom.h"
 
 namespace safe_browsing {
@@ -144,7 +145,7 @@ class NotificationContentDetectionBrowserTest
 
     // Set up allowlisted and non-allowlisted URLs.
     SetNotificationsGlobalCacheListDomainsForTesting(
-        {GURL(kAllowlistedUrl).host()});
+        {GURL(kAllowlistedUrl).GetHost()});
     SetURLHighConfidenceAllowlistMatch(GURL(kAllowlistedUrl),
                                        /*match_allowlist=*/true);
     SetURLHighConfidenceAllowlistMatch(GURL(kNonAllowlistedUrl),
@@ -589,7 +590,8 @@ IN_PROC_BROWSER_TEST_P(
   std::unique_ptr<NotificationHandler> handler =
       std::make_unique<PersistentNotificationHandler>();
   handler->DisableNotifications(browser()->profile(), GURL(kNonAllowlistedUrl),
-                                /*notification_id=*/std::nullopt);
+                                /*notification_id=*/std::nullopt,
+                                /*is_suspicious=*/false);
   NotificationPermissionContext::UpdatePermission(
       browser()->profile(), GURL(kNonAllowlistedUrl), CONTENT_SETTING_ALLOW);
 

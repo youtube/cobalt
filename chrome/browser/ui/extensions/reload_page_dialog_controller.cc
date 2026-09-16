@@ -10,25 +10,39 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/ui/extensions/extension_dialog_utils.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_icon_placeholder.h"
 #include "extensions/browser/image_loader.h"
+#include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
+#include "ui/base/models/image_model.h"
+#include "ui/color/color_provider.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "components/messages/android/message_dispatcher_bridge.h"
+#include "components/messages/android/message_enums.h"
+#include "components/messages/android/message_wrapper.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace {
 
 // Whether the dialog should be accepted without showing it on tests.
 std::optional<bool> g_accept_bubble_for_testing_ = std::nullopt;
+
+// The size of the extension icon.
+constexpr int kIconSize = extension_misc::EXTENSION_ICON_SMALLISH;
 
 std::u16string GetTitle(
     const std::vector<extensions::ReloadPageDialogController::ExtensionInfo>&
@@ -89,27 +103,42 @@ void ReloadPageDialogController::TriggerShow(
     return;
   }
 
+  int extensions_count = extensions.size();
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, the multi-extension reload page message uses a generic
+  // puzzle-piece icon, so we don't need to load the individual extension icons.
+  // We can just show the message immediately.
+  if (extensions.size() > 1) {
+    for (const Extension* extension : extensions) {
+      ExtensionInfo extension_info;
+      extension_info.id = extension->id();
+      extension_info.name = extension->name();
+      extensions_info_.push_back(extension_info);
+    }
+    Show();
+    return;
+  }
+#endif
+
   // We need to load the icon for each extension before showing the dialog.
   // Since icon loading is asynchronous, we use a BarrierClosure. It acts as
   // a counter and will call this->Show() only after all icon-loading callbacks
   // have completed.
-  int extensions_count = extensions.size();
   base::RepeatingClosure barrier_closure = base::BarrierClosure(
       extensions_count, base::BindOnce(&ReloadPageDialogController::Show,
                                        weak_ptr_factory_.GetWeakPtr()));
-  const int icon_size = extension_misc::EXTENSION_ICON_SMALLISH;
   auto* image_loader = ImageLoader::Get(browser_context_);
 
   for (const Extension* extension : extensions) {
     ExtensionResource icon = IconsInfo::GetIconResource(
-        extension, icon_size, ExtensionIconSet::Match::kBigger);
+        extension, kIconSize, ExtensionIconSet::Match::kBigger);
     if (icon.empty()) {
       gfx::Image placeholder_icon =
-          ExtensionIconPlaceholder::CreateImage(icon_size, extension->name());
+          ExtensionIconPlaceholder::CreateImage(kIconSize, extension->name());
       OnExtensionIconLoaded(extension->id(), extension->name(), barrier_closure,
                             placeholder_icon);
     } else {
-      gfx::Size max_size(icon_size, icon_size);
+      gfx::Size max_size(kIconSize, kIconSize);
       image_loader->LoadImageAsync(
           extension, icon, max_size,
           base::BindOnce(&ReloadPageDialogController::OnExtensionIconLoaded,
@@ -127,6 +156,38 @@ ReloadPageDialogController::AcceptDialogForTesting(bool accept_dialog) {
 }
 
 void ReloadPageDialogController::Show() {
+#if BUILDFLAG(IS_ANDROID)
+  message_ = std::make_unique<messages::MessageWrapper>(
+      messages::MessageIdentifier::RELOAD_PAGE,
+      base::BindOnce(&ReloadPageDialogController::OnAcceptSelected,
+                     weak_ptr_factory_.GetWeakPtr()),
+      base::DoNothing());
+
+  message_->SetTitle(GetTitle(extensions_info_));
+  message_->SetPrimaryButtonText(
+      l10n_util::GetStringUTF16(IDS_EXTENSION_RELOAD_PAGE_BUBBLE_OK_BUTTON));
+
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kExtensionsMenuAccessControl)) {
+    int extensions_count = extensions_info_.size();
+    if (extensions_count == 1 && !extensions_info_[0].icon.IsEmpty()) {
+      message_->SetIcon(extensions_info_[0].icon.AsBitmap());
+    } else {
+      // For multiple extensions, set the icon to the extensions puzzle icon.
+      message_->SetIcon(
+          gfx::Image(
+              ui::ImageModel::FromVectorIcon(vector_icons::kExtensionIcon,
+                                             ui::kColorIcon, kIconSize)
+                  .Rasterize(&web_contents_->GetColorProvider()))
+              .AsBitmap());
+    }
+  }
+
+  messages::MessageDispatcherBridge::Get()->EnqueueMessage(
+      message_.get(), web_contents_, messages::MessageScopeType::NAVIGATION,
+      messages::MessagePriority::kNormal);
+
+#else
   ui::DialogModel::Builder dialog_builder;
   dialog_builder.SetTitle(GetTitle(extensions_info_))
       .AddOkButton(base::BindOnce(&ReloadPageDialogController::OnAcceptSelected,
@@ -146,7 +207,7 @@ void ReloadPageDialogController::Show() {
     if (extensions_count == 1) {
       dialog_builder.SetIcon(
           ui::ImageModel::FromImage(extensions_info_[0].icon));
-    } else if (extensions_count > 1) {
+    } else {
       for (auto extension_info : extensions_info_) {
         dialog_builder.AddMenuItem(
             ui::ImageModel::FromImage(extension_info.icon),
@@ -165,6 +226,7 @@ void ReloadPageDialogController::Show() {
 
   ShowDialog(web_contents_->GetTopLevelNativeWindow(), extension_ids,
              dialog_builder.Build());
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void ReloadPageDialogController::OnExtensionIconLoaded(

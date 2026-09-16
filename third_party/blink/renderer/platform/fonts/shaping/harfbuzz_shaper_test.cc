@@ -945,7 +945,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacing) {
   ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
   float width = result->Width();
 
-  ShapeResultSpacing<String> spacing(string);
+  ShapeResultSpacing spacing(string);
   FontDescription font_description;
   font_description.SetLetterSpacing(Length::Fixed(-5));
   spacing.SetSpacing(font_description);
@@ -962,7 +962,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacingTo0) {
   ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
   float char_width = result->Width() / string.length();
 
-  ShapeResultSpacing<String> spacing(string);
+  ShapeResultSpacing spacing(string);
   FontDescription font_description;
   font_description.SetLetterSpacing(Length::Fixed(-char_width));
   spacing.SetSpacing(font_description);
@@ -979,7 +979,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacingToNegative) {
   ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
   float char_width = result->Width() / string.length();
 
-  ShapeResultSpacing<String> spacing(string);
+  ShapeResultSpacing spacing(string);
   FontDescription font_description;
   font_description.SetLetterSpacing(Length::Fixed(-2 * char_width));
   spacing.SetSpacing(font_description);
@@ -2118,13 +2118,9 @@ TEST_F(HarfBuzzShaperTest, ShapeVerticalWithSubpixelPositionIsRounded) {
   }
 }
 
-// Broken on Apple platforms: https://crbug.com/1194323
-#if BUILDFLAG(IS_APPLE)
-#define MAYBE_EmojiPercentage DISABLED_EmojiPercentage
-#else
-#define MAYBE_EmojiPercentage EmojiPercentage
-#endif
-TEST_F(HarfBuzzShaperTest, MAYBE_EmojiPercentage) {
+// As the comment indicate, this test is not valid when Noto Color Emoji from
+// the third_party directory is updated to Unicode 13 or newer.
+TEST_F(HarfBuzzShaperTest, DISABLED_EmojiPercentage) {
 #if BUILDFLAG(IS_WIN)
   if (base::win::OSInfo::GetInstance()->version() >=
       base::win::Version::WIN11) {

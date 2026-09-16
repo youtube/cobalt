@@ -172,7 +172,6 @@ void SupervisedUserSettingsService::SetActive(bool active) {
   } else {
     RemoveLocalSetting(supervised_user::kSigninAllowed);
     RemoveLocalSetting(supervised_user::kCookiesAlwaysAllowed);
-    RemoveLocalSetting(supervised_user::kGeolocationDisabled);
   }
 
   InformSubscribers();
@@ -319,8 +318,8 @@ SupervisedUserSettingsService::MergeDataAndStartSyncing(
     DCHECK_EQ(SUPERVISED_USER_SETTINGS, sync_data.GetDataType());
     const ::sync_pb::ManagedUserSettingSpecifics& supervised_user_setting =
         sync_data.GetSpecifics().managed_user_setting();
-    std::optional<base::Value> value =
-        JSONReader::Read(supervised_user_setting.value());
+    std::optional<base::Value> value = JSONReader::Read(
+        supervised_user_setting.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     // Wrongly formatted input will cause null values.
     // SetKey below requires non-null values.
     if (!value) {
@@ -414,7 +413,8 @@ SupervisedUserSettingsService::ProcessSyncChanges(
       case SyncChange::ACTION_ADD:
       case SyncChange::ACTION_UPDATE: {
         std::optional<base::Value> value =
-            JSONReader::Read(supervised_user_setting.value());
+            JSONReader::Read(supervised_user_setting.value(),
+                             base::JSON_PARSE_CHROMIUM_EXTENSIONS);
         if (old_value) {
           DLOG_IF(WARNING, change_type == SyncChange::ACTION_ADD)
               << "Value for key " << key << " already exists";

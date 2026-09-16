@@ -72,15 +72,6 @@ public class WebContentsDelegateAndroid {
     public void rendererResponsive() {}
 
     @CalledByNative
-    public void webContentsCreated(
-            WebContents sourceWebContents,
-            long openerRenderProcessId,
-            long openerRenderFrameId,
-            String frameName,
-            GURL targetUrl,
-            WebContents newWebContents) {}
-
-    @CalledByNative
     public boolean shouldCreateWebContents(GURL targetUrl) {
         return true;
     }
@@ -280,7 +271,7 @@ public class WebContentsDelegateAndroid {
      * @param url The target URL of the prerendering navigation.
      */
     @CalledByNative
-    public @UserAgentOverrideOption int shouldOverrideUserAgentForPrerender2(GURL url) {
+    public @UserAgentOverrideOption int shouldOverrideUserAgentForPreloading(GURL url) {
         // Inherit UA override of the last committed navigation regardless of URL as fallback.
         return UserAgentOverrideOption.INHERIT;
     }

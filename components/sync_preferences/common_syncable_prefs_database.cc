@@ -29,6 +29,7 @@
 #include "components/sharing_message/pref_names.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
+#include "components/sync_preferences/cross_device_pref_tracker/prefs/cross_device_pref_names.h"
 #include "components/translate/core/browser/translate_pref_names.h"
 #include "components/translate/core/browser/translate_prefs.h"
 #include "components/variations/service/google_groups_manager_prefs.h"
@@ -142,6 +143,14 @@ enum {
   kAutofillNameAndEmailProfileSignature = 93,
   kAutofillNameAndEmailProfileNotSelectedCounter = 94,
   kAutofillAiLastVersionDeduped = 96,
+  kCrossDeviceOmniboxIsInBottomPosition = 97,
+  kAutofillWasNameAndEmailProfileUsed = 98,
+  kCrossDeviceCrossPlatformPromosIOS16thActiveDay = 99,
+  kCrossDeviceSafetyCheckHomeModuleEnabled = 100,
+  kAutofillAiIdentityEntitiesEnabled = 101,
+  kAutofillAiTravelEntitiesEnabled = 102,
+  kCrossDeviceTabResumptionHomeModuleEnabled = 103,
+  kAutofillAmountExtractionAiTermsSeen = 104,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -164,8 +173,14 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kAutofillLastVersionDeduped,
          {syncable_prefs_ids::kAutofillLastVersionDeduped, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAiIdentityEntitiesEnabled,
+         {syncable_prefs_ids::kAutofillAiIdentityEntitiesEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
         {autofill::prefs::kAutofillAiLastVersionDeduped,
          {syncable_prefs_ids::kAutofillAiLastVersionDeduped,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAiTravelEntitiesEnabled,
+         {syncable_prefs_ids::kAutofillAiTravelEntitiesEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
         {autofill::prefs::kAutofillProfileEnabled,
          {syncable_prefs_ids::kAutofillProfileEnabled, syncer::PREFERENCES,
@@ -177,6 +192,11 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           MergeBehavior::kNone}},
         {autofill::prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
          {syncable_prefs_ids::kAutofillNameAndEmailProfileNotSelectedCounter,
+          syncer::PRIORITY_PREFERENCES,
+          PrefSensitivity::kExemptFromUserControlWhileSignedIn,
+          MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillWasNameAndEmailProfileUsed,
+         {syncable_prefs_ids::kAutofillWasNameAndEmailProfileUsed,
           syncer::PRIORITY_PREFERENCES,
           PrefSensitivity::kExemptFromUserControlWhileSignedIn,
           MergeBehavior::kNone}},
@@ -253,6 +273,22 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {prefs::kCookieControlsMode,
          {syncable_prefs_ids::kCookieControlsMode, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {prefs::kCrossDeviceCrossPlatformPromosIOS16thActiveDay,
+         {syncable_prefs_ids::kCrossDeviceCrossPlatformPromosIOS16thActiveDay,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceOmniboxIsInBottomPosition,
+         {syncable_prefs_ids::kCrossDeviceOmniboxIsInBottomPosition,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceSafetyCheckHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceSafetyCheckHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceTabResumptionHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceTabResumptionHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
         {prefs::kSafeBrowsingEnabled,
          {syncable_prefs_ids::kSafeBrowsingEnabled, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
@@ -386,6 +422,9 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           MergeBehavior::kNone}},
         {prefs::kFingerprintingProtectionEnabled,
          {syncable_prefs_ids::kFingerprintingProtectionEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillAmountExtractionAiTermsSeen,
+         {syncable_prefs_ids::kAutofillAmountExtractionAiTermsSeen,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
     });
 

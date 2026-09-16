@@ -25,6 +25,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/open_search_description_document_handler.mojom.h"
@@ -60,6 +61,7 @@
 #include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/public/web/web_frame_content_dumper.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_node.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -74,6 +76,7 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/accessibility/read_anything/read_anything_app_controller.h"
 #include "chrome/renderer/actor/journal.h"
+#include "chrome/renderer/actor/page_stability_monitor.h"
 #include "chrome/renderer/actor/tool_executor.h"
 #include "chrome/renderer/searchbox/searchbox_extension.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -247,10 +250,23 @@ void ChromeRenderFrameObserver::ReadyToCommitNavigation(
 }
 
 void ChromeRenderFrameObserver::DidSetPageLifecycleState(
-    bool restoring_from_bfcache) {
-  if (restoring_from_bfcache && translate_agent_) {
+    blink::BFCacheStateChange bfcache_change) {
+  if (bfcache_change == blink::BFCacheStateChange::kRestoredFromBFCache &&
+      translate_agent_) {
     translate_agent_->RenewPageRegistration();
   }
+#if !BUILDFLAG(IS_ANDROID)
+  if (bfcache_change == blink::BFCacheStateChange::kStoredToBFCache) {
+    // Reset actor state if entering the BFCache
+    page_stability_monitor_.reset();
+    tool_executor_.reset();
+
+    // Flush any remaining log entries which may have been added in the
+    // destructors above. Don't reset the actor journal since it is only created
+    // from the constructor.
+    actor_journal_->SendLogBuffer();
+  }
+#endif
 }
 
 void ChromeRenderFrameObserver::DidFinishLoad() {
@@ -633,6 +649,21 @@ void ChromeRenderFrameObserver::StartActorJournal(
     mojo::PendingAssociatedRemote<actor::mojom::JournalClient> client) {
   actor_journal_->Bind(std::move(client));
 }
+
+void ChromeRenderFrameObserver::CreatePageStabilityMonitor(
+    mojo::PendingReceiver<actor::mojom::PageStabilityMonitor> monitor,
+    const actor::TaskId& task_id,
+    bool supports_paint_stability) {
+  if (features::kActorGeneralPageStabilityMode.Get() ==
+      features::ActorGeneralPageStabilityMode::kDisabled) {
+    return;
+  }
+
+  page_stability_monitor_ = std::make_unique<actor::PageStabilityMonitor>(
+      *render_frame(), supports_paint_stability, task_id, *actor_journal_);
+  page_stability_monitor_->Bind(std::move(monitor));
+}
+
 #endif
 
 void ChromeRenderFrameObserver::SetClientSidePhishingDetection() {

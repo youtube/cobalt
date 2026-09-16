@@ -5,7 +5,10 @@
 #ifndef CHROME_BROWSER_GLIC_PUBLIC_GLIC_INSTANCE_H_
 #define CHROME_BROWSER_GLIC_PUBLIC_GLIC_INSTANCE_H_
 
+#include "base/callback_list.h"
+#include "base/functional/callback.h"
 #include "base/uuid.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 
 namespace glic {
 
@@ -22,6 +25,12 @@ class UIDelegate {
   virtual ~UIDelegate() = default;
 
   virtual bool IsShowing() const = 0;
+
+  // Register for this callback to detect UI changes to the instance.
+  using StateChangeCallback =
+      base::RepeatingCallback<void(bool, mojom::CurrentView view)>;
+  virtual base::CallbackListSubscription RegisterStateChange(
+      StateChangeCallback callback) = 0;
 };
 
 }  // namespace glic_instance_internal
@@ -34,6 +43,12 @@ class GlicInstance : public glic_instance_internal::UIDelegate {
 
   // Get this instance's Host which manages the chrome://glic WebContents.
   virtual Host& host() = 0;
+
+  // Whether the instance's active embedder is attached to a chrome window.
+  virtual bool IsAttached() = 0;
+
+  // Gets the window size of the active embedder.
+  virtual gfx::Size GetPanelSize() = 0;
 
   // Get this instance's unique identifier.
   virtual const InstanceId& id() const = 0;

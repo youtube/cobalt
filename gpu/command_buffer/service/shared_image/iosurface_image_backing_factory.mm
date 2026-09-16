@@ -8,7 +8,6 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
@@ -22,7 +21,7 @@
 #include "gpu/command_buffer/service/skia_utils.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_finch_features.h"
-#include "ui/gfx/buffer_format_util.h"
+#include "ui/gfx/buffer_types.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/mac/io_surface.h"
 #include "ui/gl/buildflags.h"
@@ -98,12 +97,13 @@ bool IsPixelDataValid(viz::SharedImageFormat format,
     return true;
   }
   // If we have initial data to upload, ensure it is sized appropriately
-  size_t estimated_size;
-  if (!viz::ResourceSizes::MaybeSizeInBytes(size, format, &estimated_size)) {
+
+  auto estimated_size = format.MaybeEstimatedSizeInBytes(size);
+  if (!estimated_size) {
     LOG(ERROR) << "Failed to calculate SharedImage size";
     return false;
   }
-  if (pixel_data.size() != estimated_size) {
+  if (pixel_data.size() != estimated_size.value()) {
     LOG(ERROR) << "Initial data does not have expected size.";
     return false;
   }
@@ -173,6 +173,21 @@ IOSurfaceImageBackingFactory::IOSurfaceImageBackingFactory(
 }
 
 IOSurfaceImageBackingFactory::~IOSurfaceImageBackingFactory() = default;
+
+// static
+gfx::GpuMemoryBufferHandle
+IOSurfaceImageBackingFactory::CreateGpuMemoryBufferHandle(
+    const gfx::Size& size,
+    viz::SharedImageFormat format) {
+  base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface =
+      gfx::CreateIOSurface(size, format, /*should_clear=*/true);
+  if (!io_surface) {
+    LOG(ERROR) << "Failed to allocate IOSurface.";
+    return {};
+  }
+
+  return gfx::GpuMemoryBufferHandle(std::move(io_surface));
+}
 
 std::unique_ptr<SharedImageBacking>
 IOSurfaceImageBackingFactory::CreateSharedImage(

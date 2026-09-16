@@ -58,10 +58,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kWaitForLateScrollEvents);
 CC_BASE_EXPORT extern const base::FeatureParam<double>
     kWaitForLateScrollEventsDeadlineRatio;
 
-// When enabled we stop always pushing PictureLayerImpl properties on
-// tree Activation. See crbug.com/40335690.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kDontAlwaysPushPictureLayerImpls);
-
 // When enabled, image quality settings will be preserved in the discardable
 // image map.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kPreserveDiscardableImageMapQuality);
@@ -154,6 +150,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kInitImageDecodeLastUseTime);
 // frame production to 60Hz.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60Hz);
 
+// When main frame production is throttled, whether the throttling should be
+// paused for some duration after an urgent main frame request is processed.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBoostFrameRateForUrgentMainFrame);
+
 // We only want to test the feature value if the client satisfies an eligibility
 // criteria, as testing the value enters the client into an experimental group,
 // and we only want the groups (including control) to only contain eligibilie
@@ -217,6 +217,9 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimDirectReceiverIpc);
 // containers.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(
     kOverscrollBehaviorRespectedOnAllScrollContainers);
+
+// When enabled, the overscroll effect will display on non-root scrollers.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kOverscrollEffectOnNonRootScrollers);
 
 // A kill switch in case skipping finish causes unexpected issues.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink);

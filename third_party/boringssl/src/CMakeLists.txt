@@ -706,6 +706,8 @@ endif()
 if(FIPS)
   add_executable(modulewrapper ${MODULEWRAPPER_SOURCES})
   target_link_libraries(modulewrapper crypto)
+  add_executable(entropy_modulewrapper ${ENTROPY_MODULEWRAPPER_SOURCES})
+  target_link_libraries(entropy_modulewrapper crypto)
 endif()
 
 add_executable(bssl ${BSSL_SOURCES})

@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 fi{
     zoneStrings{
         "Africa:Addis_Ababa"{
@@ -24,17 +24,11 @@ fi{
         "Africa:Ndjamena"{
             ec{"N’Djamena"}
         }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
-        }
         "America:Araguaina"{
             ec{"Araguaína"}
         }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
-        }
-        "America:Asuncion"{
-            ec{"Asunción"}
         }
         "America:Bogota"{
             ec{"Bogotá"}
@@ -44,9 +38,6 @@ fi{
         }
         "America:Cuiaba"{
             ec{"Cuiabá"}
-        }
-        "America:Curacao"{
-            ec{"Curaçao"}
         }
         "America:Eirunepe"{
             ec{"Eirunepé"}
@@ -77,9 +68,6 @@ fi{
         }
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Pohjois-Dakota"}
-        }
-        "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
         }
         "America:Santarem"{
             ec{"Santarém"}
@@ -137,9 +125,6 @@ fi{
         }
         "Asia:Chita"{
             ec{"Tšita"}
-        }
-        "Asia:Choibalsan"{
-            ec{"Tšoibalsa"}
         }
         "Asia:Damascus"{
             ec{"Damaskos"}
@@ -234,9 +219,6 @@ fi{
         "Atlantic:St_Helena"{
             ec{"Saint Helena"}
         }
-        "Australia:Currie"{
-            ec{"Currie"}
-        }
         "Etc:UTC"{
             ls{"UTC-yleisaika"}
         }
@@ -320,9 +302,6 @@ fi{
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
-        "Europe:Uzhgorod"{
-            ec{"Užgorod"}
-        }
         "Europe:Vatican"{
             ec{"Vatikaani"}
         }
@@ -334,9 +313,6 @@ fi{
         }
         "Europe:Warsaw"{
             ec{"Varsova"}
-        }
-        "Europe:Zaporozhye"{
-            ec{"Zaporižžja"}
         }
         "Europe:Zurich"{
             ec{"Zürich"}
@@ -358,9 +334,6 @@ fi{
         }
         "Indian:Maldives"{
             ec{"Malediivit"}
-        }
-        "Indian:Reunion"{
-            ec{"Réunion"}
         }
         "Pacific:Chatham"{
             ec{"Chathamsaaret"}
@@ -566,11 +539,6 @@ fi{
             lg{"Kiinan aika"}
             ls{"Kiinan normaaliaika"}
         }
-        "meta:Choibalsan"{
-            ld{"Tšoibalsan kesäaika"}
-            lg{"Tšoibalsan aika"}
-            ls{"Tšoibalsan normaaliaika"}
-        }
         "meta:Christmas"{
             ls{"Joulusaaren aika"}
         }
@@ -737,6 +705,9 @@ fi{
             lg{"Kamtšatkan aika"}
             ls{"Kamtšatkan normaaliaika"}
         }
+        "meta:Kazakhstan"{
+            ls{"Kazakstanin aika"}
+        }
         "meta:Kazakhstan_Eastern"{
             ls{"Itä-Kazakstanin aika"}
         }
@@ -775,9 +746,6 @@ fi{
             lg{"Macaon aika"}
             ls{"Macaon normaaliaika"}
         }
-        "meta:Macquarie"{
-            ls{"Macquariensaaren aika"}
-        }
         "meta:Magadan"{
             ld{"Magadanin kesäaika"}
             lg{"Magadanin aika"}
@@ -802,11 +770,6 @@ fi{
         }
         "meta:Mawson"{
             ls{"Mawsonin aika"}
-        }
-        "meta:Mexico_Northwest"{
-            ld{"Luoteis-Meksikon kesäaika"}
-            lg{"Luoteis-Meksikon aika"}
-            ls{"Luoteis-Meksikon normaaliaika"}
         }
         "meta:Mexico_Pacific"{
             ld{"Meksikon Tyynenmeren kesäaika"}

@@ -10,12 +10,15 @@
 #ifndef API_DATAGRAM_CONNECTION_H_
 #define API_DATAGRAM_CONNECTION_H_
 
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/ref_count.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/system/rtc_export.h"
 
@@ -29,11 +32,26 @@ namespace webrtc {
 // networking internals.
 class RTC_EXPORT DatagramConnection : public RefCountInterface {
  public:
+  enum class WireProtocol {
+    kDtls,
+    kDtlsSrtp,
+  };
+
   class Observer {
    public:
     virtual ~Observer() = default;
     virtual void OnCandidateGathered(const Candidate& candidate) = 0;
-    virtual void OnPacketReceived(ArrayView<const uint8_t> data) = 0;
+
+    struct PacketMetadata {
+      Timestamp receive_time;
+    };
+    virtual void OnPacketReceived(ArrayView<const uint8_t> data,
+                                  PacketMetadata metadata) {
+      OnPacketReceived(data);
+    }
+    // TODO(crbug.com/443019066): Migrate to version containing metadata.
+    virtual void OnPacketReceived(ArrayView<const uint8_t> data) {}
+
     // Notification of an asynchronous failure to an earlier call to SendPacket.
     // TODO(crbug.com/443019066): Associate this with a specific send call.
     virtual void OnSendError() = 0;

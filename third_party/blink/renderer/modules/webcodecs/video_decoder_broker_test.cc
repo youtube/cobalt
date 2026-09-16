@@ -9,6 +9,7 @@
 
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -425,6 +426,8 @@ TEST_F(VideoDecoderBrokerTest, Init_DenyAcceleration) {
 }
 
 TEST_F(VideoDecoderBrokerTest, Decode_MultipleAccelerationPreferences) {
+  base::test::ScopedFeatureList enabled_features_{
+      media::kResolutionBasedDecoderPriority};
   V8TestingScope v8_scope;
   ExecutionContext* execution_context = v8_scope.GetExecutionContext();
 
@@ -461,17 +464,13 @@ TEST_F(VideoDecoderBrokerTest, Decode_MultipleAccelerationPreferences) {
   ASSERT_EQ(3U, output_frames_.size());
   EXPECT_TRUE(IsPlatformDecoder());
 
+  // Reinitializing with a smaller resolution should use the software decoder.
   auto normal_config = media::TestVideoConfig::Normal(media::VideoCodec::kVP8);
   InitializeDecoder(normal_config);
-  // VideoDecoderBroker doesn't have any inherent preference for software
-  // decoders based on resolution, so we'll still end up with a hardware
-  // decoder even though this is a small size clip.
-  // TODO(crbug.com/361823989): We should update the VideoDecoderBroker to
-  // always enable resolution based priority in DecoderSelector.
-  DecodeBuffer(media::CreateFakeVideoBufferForTest(
-      normal_config, base::TimeDelta(), base::Milliseconds(33)));
+  DecodeBuffer(media::ReadTestDataFile("vp8-I-frame-320x120"));
   DecodeBuffer(media::DecoderBuffer::CreateEOSBuffer());
   ASSERT_EQ(4U, output_frames_.size());
+  EXPECT_FALSE(IsPlatformDecoder());
 
   ResetDecoder();
 }

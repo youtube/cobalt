@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/types/optional_ref.h"
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_result.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -28,13 +29,12 @@ MATCHER_P(PermissionDescriptorToPermissionTypeMatcher, permission_type, "") {
 namespace content {
 
 // A helper method that gives access to
-// content/browser/PermissionControllerImpl::SetOverrideForDevTools to //content
+// content/browser/PermissionControllerImpl::SetPermissionOverride to //content
 // embedders in tests.
-// TODO(crbug.com/434726996): Update SetPermissionControllerOverrideForDevTools
-// to accept a requesting and embedding origin.
-void SetPermissionControllerOverrideForDevTools(
+void SetPermissionControllerOverride(
     PermissionController* permission_controller,
-    const std::optional<url::Origin>& origin,
+    base::optional_ref<const url::Origin> requesting_origin,
+    base::optional_ref<const url::Origin> embedding_origin,
     blink::PermissionType permission,
     const blink::mojom::PermissionStatus& status);
 

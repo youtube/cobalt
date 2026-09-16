@@ -33,6 +33,8 @@
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/web/web_label_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_element.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_behavior.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_to_options.h"
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
 #include "third_party/blink/renderer/core/clipboard/data_transfer.h"
 #include "third_party/blink/renderer/core/clipboard/data_transfer_access_policy.h"
@@ -391,12 +393,17 @@ gfx::Vector2dF WebElement::GetScrollOffset() const {
 
 bool WebElement::SetScrollOffset(const gfx::Vector2dF& offset) {
   Element* element = Unwrap<Element>();
-  return element->SetScrollOffset(offset);
+  ScrollToOptions* scroll_to_options = ScrollToOptions::Create();
+  scroll_to_options->setLeft(offset.x());
+  scroll_to_options->setTop(offset.y());
+  scroll_to_options->setBehavior(V8ScrollBehavior::Enum::kInstant);
+  return element->SetScrollOffset(scroll_to_options);
 }
 
 void WebElement::ScrollIntoViewIfNeeded() {
-  LayoutBox* box = GetScrollingBox();
-  if (!box) {
+  Element* element = Unwrap<Element>();
+  LayoutObject* layout_object = element->GetLayoutObject();
+  if (!layout_object) {
     return;
   }
 
@@ -421,7 +428,8 @@ void WebElement::ScrollIntoViewIfNeeded() {
   // User scrolling to ensure only user scrollable scrollers are affected.
   params->type = mojom::blink::ScrollType::kUser;
   scroll_into_view_util::ScrollRectToVisible(
-      *box, box->AbsoluteBoundingBoxRectForScrollIntoView(), std::move(params));
+      *layout_object, layout_object->AbsoluteBoundingBoxRectForScrollIntoView(),
+      std::move(params));
 }
 
 bool WebElement::HasScrollBehaviorSmooth() const {

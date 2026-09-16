@@ -289,7 +289,7 @@
 - (void)startReauthFlowWithIdentity:(id<SystemIdentity>)identity {
   // TODO(crbug.com/391342053): Add logging.
   CoreAccountInfo account;
-  account.gaia = GaiaId(identity.gaiaID);
+  account.gaia = identity.gaiaId;
   account.email = base::SysNSStringToUTF8(identity.userEmail);
   if (self.reauthCoordinator.viewWillPersist) {
     // In case of double tap, let the first reauth proceed.
@@ -506,10 +506,18 @@
 
 #pragma mark - SigninReauthCoordinatorDelegate
 
-- (void)reauthFinishedWithResult:(ReauthResult)result {
+- (void)reauthFinishedWithResult:(ReauthResult)result gaiaID:(GaiaId*)gaiaID {
   [self stopReauthCoordinator];
   if (result == ReauthResult::kSuccess) {
-    [self startSignIn];
+    ChromeAccountManagerService* accountManagerService =
+        ChromeAccountManagerServiceFactory::GetForProfile(self.profile);
+    BOOL identityValid =
+        accountManagerService->IsValidIdentity(self.selectedIdentity);
+    BOOL identityEqual = [self.defaultAccountCoordinator.selectedIdentity.gaiaID
+        isEqualToString:gaiaID->ToNSString()];
+    if (identityValid && identityEqual && result == ReauthResult::kSuccess) {
+      [self startSignIn];
+    }
   }
 }
 

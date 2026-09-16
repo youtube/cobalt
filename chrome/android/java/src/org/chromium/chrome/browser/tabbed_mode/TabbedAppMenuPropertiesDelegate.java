@@ -58,12 +58,17 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuItemState;
+import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
-import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
+import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.components.browser_ui.accessibility.PageZoomManager;
+import org.chromium.components.browser_ui.accessibility.PageZoomMenuItemCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomProperties;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -75,6 +80,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.ModelListAdapter;
+import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 
@@ -88,7 +94,11 @@ import java.util.function.Supplier;
 /** An {@link AppMenuPropertiesDelegateImpl} for ChromeTabbedActivity. */
 @NullMarked
 public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateImpl {
-    @IntDef({TabbedAppMenuItemType.UPDATE_ITEM, TabbedAppMenuItemType.NEW_INCOGNITO_TAB})
+    @IntDef({
+        TabbedAppMenuItemType.UPDATE_ITEM,
+        TabbedAppMenuItemType.NEW_INCOGNITO_TAB,
+        TabbedAppMenuItemType.ZOOM_ITEM
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface TabbedAppMenuItemType {
         /** Regular Android menu item that contains a title and an icon if icon is specified. */
@@ -99,6 +109,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
          * It is different from the regular menu item because it contains two separate buttons.
          */
         int NEW_INCOGNITO_TAB = AppMenuHandler.AppMenuItemType.NUM_ENTRIES + 1;
+
+        /** Menu item that has a title and two buttons. */
+        int ZOOM_ITEM = AppMenuHandler.AppMenuItemType.NUM_ENTRIES + 2;
     }
 
     AppMenuDelegate mAppMenuDelegate;
@@ -118,6 +131,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
     private final CallbackController mIncognitoReauthCallbackController = new CallbackController();
 
+    private final PageZoomMenuItemCoordinator mPageZoomMenuItemCoordinator;
+
     public TabbedAppMenuPropertiesDelegate(
             Context context,
             ActivityTabProvider activityTabProvider,
@@ -132,7 +147,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
             OneshotSupplier<IncognitoReauthController> incognitoReauthControllerOneshotSupplier,
-            Supplier<ReadAloudController> readAloudControllerSupplier) {
+            Supplier<ReadAloudController> readAloudControllerSupplier,
+            PageZoomManager pageZoomManager) {
         super(
                 context,
                 activityTabProvider,
@@ -147,6 +163,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         mFeedLauncher = feedLauncher;
         mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
+        mPageZoomMenuItemCoordinator = new PageZoomMenuItemCoordinator(pageZoomManager);
 
         incognitoReauthControllerOneshotSupplier.onAvailable(
                 mIncognitoReauthCallbackController.makeCancelable(
@@ -170,6 +187,11 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 TabbedAppMenuItemType.NEW_INCOGNITO_TAB,
                 new LayoutViewBuilder(R.layout.custom_view_menu_item),
                 IncognitoMenuItemViewBinder::bind);
+
+        modelListAdapter.registerType(
+                TabbedAppMenuItemType.ZOOM_ITEM,
+                new LayoutViewBuilder(R.layout.page_zoom_menu_item),
+                PageZoomMenuItemViewBinder::bind);
     }
 
     @Override
@@ -252,7 +274,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         maybeAddDividerLine(modelList, R.id.divider_line_id);
 
         // Open History
-        modelList.add(buildHistoryItem());
+        if (!IncognitoUtils.shouldOpenIncognitoAsWindow() || !isIncognitoShowing()) {
+            modelList.add(buildHistoryItem());
+        }
 
         // Tinker Tank
         if (shouldShowTinkerTank()) modelList.add(buildTinkerTankItem());
@@ -285,6 +309,11 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Disable page zoom menu item on Reading Mode pages.
         if (shouldShowPageZoomItem(currentTab) && !isReaderModeShowing(currentTab)) {
             modelList.add(buildPageZoomItem(currentTab));
+            // Divider
+            modelList.add(
+                    new MVCListAdapter.ListItem(
+                            AppMenuHandler.AppMenuItemType.DIVIDER,
+                            buildModelForDivider(R.id.divider_line_id)));
         }
 
         // Share
@@ -662,11 +691,40 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     private boolean shouldShowPageZoomItem(Tab currentTab) {
         return currentTab != null
                 && shouldShowWebContentsDependentMenuItem(currentTab)
-                && PageZoomBarCoordinator.shouldShowMenuItem();
+                && PageZoomUtils.shouldShowZoomMenuItem();
+    }
+
+    private boolean shouldShowLFFPageZoomItem() {
+        return ChromeFeatureList.sAndroidZoomIndicator.isEnabled()
+                && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
+    }
+
+    private PropertyModel buildNewPageZoomModel() {
+        PropertyKey[] keys =
+                PropertyModel.concatKeys(
+                        AppMenuItemProperties.ALL_KEYS, PageZoomProperties.ALL_KEYS_FOR_MENU_ITEM);
+        Drawable icon =
+                shouldShowIconBeforeItem()
+                        ? AppCompatResources.getDrawable(mContext, R.drawable.ic_zoom)
+                        : null;
+        PropertyModel model =
+                populateBaseModelForTextItem(new PropertyModel.Builder(keys), R.id.page_zoom_id)
+                        .with(
+                                AppMenuItemProperties.TITLE,
+                                mContext.getString(R.string.page_zoom_menu_title))
+                        .with(AppMenuItemProperties.MENU_ITEM_ID, R.id.page_zoom_id)
+                        .with(AppMenuItemProperties.ICON, icon)
+                        .build();
+        return model;
     }
 
     private MVCListAdapter.ListItem buildPageZoomItem(Tab currentTab) {
         assert shouldShowPageZoomItem(currentTab);
+        if (shouldShowLFFPageZoomItem()) {
+            PropertyModel model = buildNewPageZoomModel();
+            mPageZoomMenuItemCoordinator.setModel(model);
+            return new MVCListAdapter.ListItem(TabbedAppMenuItemType.ZOOM_ITEM, model);
+        }
         return new MVCListAdapter.ListItem(
                 AppMenuHandler.AppMenuItemType.STANDARD,
                 buildModelForStandardMenuItem(
@@ -685,11 +743,27 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         shouldShowIconBeforeItem() ? R.drawable.ic_file_download_white_24dp : 0));
     }
 
+    /** Determines whether the "Print" menu item should be shown for a given tab. */
     private boolean shouldShowPrintItem(@Nullable Tab currentTab) {
-        return currentTab != null
-                && ShareUtils.shouldEnableShare(currentTab)
-                && DeviceInfo.isDesktop()
-                && UserPrefs.get(currentTab.getProfile()).getBoolean(Pref.PRINTING_ENABLED);
+        // A tab must exist to print from it.
+        if (currentTab == null) {
+            return false;
+        }
+
+        // Check if sharing (which includes printing) is generally enabled for this tab's content.
+        boolean canShareTab = ShareUtils.shouldEnableShare(currentTab);
+
+        // Check if printing is specifically enabled in user preferences for the current profile.
+        Profile profile = currentTab.getProfile();
+        boolean isPrintingEnabled = UserPrefs.get(profile).getBoolean(Pref.PRINTING_ENABLED);
+
+        // Show print item if we're on a desktop device or if the current tab is displaying a native
+        // PDF.
+        NativePage nativePage = currentTab.getNativePage();
+        boolean isPdfPage = nativePage != null && nativePage.isPdf();
+        boolean isEligibleForPrint = DeviceInfo.isDesktop() || isPdfPage;
+
+        return canShareTab && isPrintingEnabled && isEligibleForPrint;
     }
 
     private MVCListAdapter.ListItem buildPrintItem(Tab currentTab) {
@@ -703,9 +777,22 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowReaderModeItem(@Nullable Tab currentTab) {
-        return currentTab != null
-                && (DomDistillerFeatures.showAlwaysOnEntryPoint()
-                        || DomDistillerFeatures.sReaderModeDistillInApp.isEnabled());
+        if (currentTab == null) {
+            return false;
+        }
+
+        GURL url = currentTab.getUrl();
+        boolean isChromeOrNativePage =
+                url.getScheme().equals(UrlConstants.CHROME_SCHEME)
+                        || url.getScheme().equals(UrlConstants.CHROME_NATIVE_SCHEME)
+                        || currentTab.isNativePage();
+
+        if (isChromeOrNativePage) {
+            return false;
+        }
+
+        return (DomDistillerFeatures.showAlwaysOnEntryPoint()
+                || DomDistillerFeatures.sReaderModeDistillInApp.isEnabled());
     }
 
     private MVCListAdapter.ListItem buildReaderModeItem(Tab currentTab) {
@@ -893,11 +980,17 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
     @VisibleForTesting
     boolean shouldShowIconRow() {
-        boolean shouldShowIconRow =
-                mIsTablet
-                        ? mDecorView.getWidth()
-                                < DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(mContext)
-                        : true;
+        boolean shouldShowIconRow = true;
+        if (mIsTablet) {
+            boolean widthOnTabletBelowMinimum =
+                    mDecorView.getWidth()
+                            < DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(mContext);
+            boolean appMenuIconsHiddenForWidth =
+                    ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()
+                            && mToolbarManager.areAnyToolbarComponentsMissingForWidth(
+                                    ToolbarUtils.APP_MENU_ICON_ROW_COMPONENTS);
+            shouldShowIconRow = widthOnTabletBelowMinimum || appMenuIconsHiddenForWidth;
+        }
 
         final boolean isMenuButtonOnTop = mToolbarManager != null;
         shouldShowIconRow &= isMenuButtonOnTop;

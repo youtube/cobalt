@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 cs{
     Keys{
         calendar{"Kalendář"}
@@ -92,6 +92,7 @@ cs{
         bjn{"bandžarština"}
         bkm{"kom"}
         bla{"siksika"}
+        blo{"aniiština"}
         bm{"bambarština"}
         bn{"bengálština"}
         bo{"tibetština"}
@@ -223,7 +224,6 @@ cs{
         gmh{"hornoněmčina (středověká)"}
         gn{"guaranština"}
         goh{"hornoněmčina (stará)"}
-        gom{"konkánština (Goa)"}
         gon{"góndština"}
         gor{"gorontalo"}
         got{"gótština"}
@@ -333,6 +333,7 @@ cs{
         kv{"komijština"}
         kw{"kornština"}
         kwk{"kvakiutština"}
+        kxv{"kúvi"}
         ky{"kyrgyzština"}
         la{"latina"}
         lad{"ladinština"}
@@ -621,13 +622,13 @@ cs{
         und{"neznámý jazyk"}
         ur{"urdština"}
         uz{"uzbečtina"}
-        vai{"vai"}
         ve{"venda"}
         vec{"benátština"}
         vep{"vepština"}
         vi{"vietnamština"}
         vls{"vlámština (západní)"}
         vmf{"němčina (mohansko-franské dialekty)"}
+        vmw{"makhuwština"}
         vo{"volapük"}
         vot{"votština"}
         vro{"võruština"}
@@ -643,6 +644,7 @@ cs{
         xal{"kalmyčtina"}
         xh{"xhoština"}
         xmf{"mingrelština"}
+        xnr{"kángrí"}
         xog{"sogština"}
         yao{"jaoština"}
         yap{"japština"}
@@ -928,7 +930,6 @@ cs{
             phonebook{"Řazení telefonního seznamu"}
             phonetic{"Fonetické řazení"}
             pinyin{"Řazení podle pchin-jinu"}
-            reformed{"Reformované řazení"}
             search{"Obecné hledání"}
             searchjl{"Vyhledávat podle počáteční souhlásky písma hangul"}
             standard{"Standardní řazení"}

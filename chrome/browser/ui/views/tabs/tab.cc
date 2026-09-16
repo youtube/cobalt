@@ -318,7 +318,7 @@ Tab::~Tab() {
   tab_close_button_observer_.reset();
   if (controller_->HoverCardIsShowingForTab(this)) {
     controller_->UpdateHoverCard(
-        nullptr, TabSlotController::HoverCardUpdateType::kViewRemoved);
+        nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
   }
 }
 
@@ -451,6 +451,7 @@ void Tab::Layout(PassKey) {
     }
     alert_indicator_button_->SetBoundsRect(bounds);
   }
+  alert_indicator_button_->UpdateAlertIndicatorAnimation();
   alert_indicator_button_->SetVisible(showing_alert_indicator_);
 
   // Size the title to fill the remaining width and use all available height.
@@ -907,7 +908,7 @@ void Tab::ActiveStateChanged() {
 void Tab::AlertStateChanged() {
   if (controller_->HoverCardIsShowingForTab(this)) {
     controller_->UpdateHoverCard(
-        this, TabSlotController::HoverCardUpdateType::kViewDataChanged);
+        this, TabSlotController::HoverCardUpdateType::kTabDataChanged);
   }
   DeprecatedLayoutImmediately();
 }

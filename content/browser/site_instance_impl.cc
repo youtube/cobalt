@@ -27,6 +27,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_or_resource_context.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/process_allocation_context.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_ui_controller_factory.h"
 #include "content/public/common/content_client.h"
@@ -341,7 +342,8 @@ scoped_refptr<SiteInstanceImpl> SiteInstanceImpl::CreateForTesting(
 // static
 bool SiteInstanceImpl::ShouldAssignSiteForUrlInfo(const UrlInfo& url_info) {
   // Only empty document schemes can leave SiteInstances unassigned.
-  if (!base::Contains(url::GetEmptyDocumentSchemes(), url_info.url.scheme())) {
+  if (!base::Contains(url::GetEmptyDocumentSchemes(),
+                      url_info.url.GetScheme())) {
     return true;
   }
 
@@ -1725,11 +1727,7 @@ void SiteInstanceImpl::IncrementActiveDocumentCount(
     // increment the count.
     return;
   }
-  if (active_document_counts_.contains(url_derived_site_info)) {
-    active_document_counts_[url_derived_site_info]++;
-  } else {
-    active_document_counts_[url_derived_site_info] = 1;
-  }
+  active_document_counts_[url_derived_site_info]++;
 }
 
 void SiteInstanceImpl::DecrementActiveDocumentCount(
@@ -1741,17 +1739,20 @@ void SiteInstanceImpl::DecrementActiveDocumentCount(
     // won't contain the SiteInfo, so just return early here.
     return;
   }
-  CHECK(active_document_counts_.contains(url_derived_site_info));
-  active_document_counts_[url_derived_site_info]--;
-  if (active_document_counts_[url_derived_site_info] == 0) {
+  auto it = active_document_counts_.find(url_derived_site_info);
+  CHECK(it != active_document_counts_.end());
+  auto& count = it->second;
+  --count;
+  if (count == 0) {
     active_document_counts_.erase(url_derived_site_info);
   }
 }
 
 size_t SiteInstanceImpl::GetActiveDocumentCount(
     const SiteInfo& url_derived_site_info) {
-  if (active_document_counts_.contains(url_derived_site_info)) {
-    return active_document_counts_[url_derived_site_info];
+  if (auto it = active_document_counts_.find(url_derived_site_info);
+      it != active_document_counts_.end()) {
+    return it->second;
   }
   return 0;
 }

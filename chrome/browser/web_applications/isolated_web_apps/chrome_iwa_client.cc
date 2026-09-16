@@ -94,7 +94,7 @@ void GetIwaSourceForRequestImpl(
     if (const auto& source =
             IsolatedWebAppPendingInstallInfo::FromWebContents(*web_contents)
                 .source()) {
-      if (request.url.path() == kInstallPagePath) {
+      if (request.url.GetPath() == kInstallPagePath) {
         std::move(callback).Run(
             GeneratedResponse{.response_body = kInstallPageContent});
       } else {
@@ -116,7 +116,7 @@ void GetIwaSourceForRequestImpl(
         // succeeds, we send the request to the updated version. If it fails, we
         // send the request to the previous version and rely on the update
         // system to retry the update at a later point.
-        base::IgnoreArgs<IsolatedWebAppUpdateApplyTask::CompletionStatus>(
+        base::IgnoreArgs<IsolatedWebAppApplyUpdateCommandResult>(
             base::BindOnce(&GetIwaSource, profile, iwa_id)
                 .Then(std::move(callback))));
     return;

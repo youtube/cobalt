@@ -39,14 +39,6 @@ consoles.console_view(
     name = "chromium.rust",
 )
 
-def rust_fyi_configs(*args):
-    # Enables off-by-default GN configs to build extra experimental Rust
-    # components.
-    return list(args) + [
-        "enable_rust_mojo",
-        "enable_rust_mojom_bindings",
-    ]
-
 ci.builder(
     name = "android-rust-arm32-rel",
     builder_spec = builder_config.builder_spec(
@@ -67,14 +59,14 @@ ci.builder(
         android_config = builder_config.android_config(config = "base_config"),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "release_try_builder",
             "minimal_symbols",
             "remoteexec",
             "android_builder",
             "android_fastbuild",
             "arm",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -84,7 +76,6 @@ ci.builder(
             # TODO(crbug.com/40201737): Cover `rust_native_tests` here.
         ],
         additional_compile_targets = [
-            "mojo_rust",
             "rust_build_tests",
         ],
         mixins = [
@@ -117,13 +108,13 @@ ci.builder(
         android_config = builder_config.android_config(config = "base_config"),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "debug_builder",
             "remoteexec",
             "android_builder",
             "android_fastbuild",
             "arm64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -133,7 +124,6 @@ ci.builder(
             # TODO(crbug.com/40201737): Cover `rust_native_tests` here.
         ],
         additional_compile_targets = [
-            "mojo_rust",
             "rust_build_tests",
         ],
         mixins = [
@@ -166,14 +156,14 @@ ci.builder(
         android_config = builder_config.android_config(config = "base_config"),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "release_try_builder",
             "minimal_symbols",
             "remoteexec",
             "android_builder",
             "android_fastbuild",
             "arm64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -183,7 +173,6 @@ ci.builder(
             # TODO(crbug.com/40201737): Cover `rust_native_tests` here.
         ],
         additional_compile_targets = [
-            "mojo_rust",
             "rust_build_tests",
         ],
         mixins = [
@@ -211,12 +200,12 @@ ci.builder(
         ),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "debug_builder",
             "remoteexec",
             "linux",
             "x64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -224,9 +213,6 @@ ci.builder(
             "rust_native_tests",
         ],
         additional_compile_targets = [
-            "mojo_rust",
-            "mojo_rust_integration_unittests",
-            "mojo_rust_unittests",
             "rust_build_tests",
         ],
         mixins = [
@@ -256,13 +242,13 @@ ci.builder(
         ),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "release_try_builder",
             "minimal_symbols",
             "remoteexec",
             "linux",
             "x64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -270,9 +256,6 @@ ci.builder(
             "rust_native_tests",
         ],
         additional_compile_targets = [
-            "mojo_rust",
-            "mojo_rust_integration_unittests",
-            "mojo_rust_unittests",
             "rust_build_tests",
         ],
         mixins = [
@@ -300,12 +283,12 @@ ci.builder(
         ),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "debug_builder",
             "remoteexec",
             "mac",
             "x64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -313,9 +296,6 @@ ci.builder(
             "rust_native_tests",
         ],
         additional_compile_targets = [
-            "mojo_rust",
-            "mojo_rust_integration_unittests",
-            "mojo_rust_unittests",
             "rust_build_tests",
         ],
         mixins = [
@@ -345,12 +325,12 @@ ci.builder(
         ),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "debug_builder",
             "remoteexec",
             "win",
             "x64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -358,9 +338,6 @@ ci.builder(
             "rust_native_tests",
         ],
         additional_compile_targets = [
-            "mojo_rust",
-            "mojo_rust_integration_unittests",
-            "mojo_rust_unittests",
             "rust_build_tests",
         ],
         mixins = [
@@ -390,13 +367,13 @@ ci.builder(
         ),
     ),
     gn_args = gn_args.config(
-        configs = rust_fyi_configs(
+        configs = [
             "release_try_builder",
             "minimal_symbols",
             "remoteexec",
             "win",
             "x64",
-        ),
+        ],
     ),
     targets = targets.bundle(
         targets = [
@@ -404,9 +381,6 @@ ci.builder(
             "rust_native_tests",
         ],
         additional_compile_targets = [
-            "mojo_rust",
-            "mojo_rust_integration_unittests",
-            "mojo_rust_unittests",
             "rust_build_tests",
         ],
         mixins = [

@@ -346,8 +346,8 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
       url::Origin* result);
 
   // Stores the v8-optimization state for the passed-in `browsing_instance_id`
-  // and `process_lock_origin`.
-  void AddV8OptimizationDisabledStateForOrigin(
+  // and `process_lock_origin` if the state isn't already cached.
+  void AddV8OptimizationDisabledStateForOriginIfNotCached(
       const BrowsingInstanceId& browsing_instance_id,
       const url::Origin& process_lock_origin,
       bool are_v8_optimizations_disabled);
@@ -1039,12 +1039,17 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
           GUARDED_BY(origins_isolation_opt_in_lock_);
 
   // A map to track origins that have been isolated within a given
-  // BrowsingInstance, or that have been loaded in a BrowsingInstance
-  // without isolation, but that have requested isolation in at least one other
+  // BrowsingInstance, or that have been loaded in a BrowsingInstance without
+  // isolation, but that have requested isolation in at least one other
   // BrowsingInstance. Origins loaded without isolation are tracked to make sure
   // we don't try to isolate the origin in the associated BrowsingInstance at a
   // later time, in order to keep the isolation consistent over the lifetime of
   // the BrowsingInstance.
+  //
+  // Note that this map does not currently distinguish between a non-sandboxed
+  // origin and a precursor of a sandboxed origin, even though that's not
+  // technically necessary. See https://crbug.com/446157743 and
+  // https://crbug.com/40910871.
   base::flat_map<BrowsingInstanceId, std::vector<OriginAgentClusterOptInEntry>>
       origin_isolation_by_browsing_instance_
           GUARDED_BY(origins_isolation_opt_in_lock_);

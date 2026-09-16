@@ -35,7 +35,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/actor/actor_util.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/background/background_contents.h"
@@ -70,7 +70,6 @@
 #include "chrome/browser/printing/background_printing_manager.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
-#include "chrome/browser/profiles/nuke_profile_directory_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_destroyer.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -111,6 +110,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -144,14 +144,12 @@
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/status_bubble_views.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-#include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
-#include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
-#include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
@@ -197,7 +195,6 @@
 #include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
-#include "components/user_manager/user_manager.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/color_chooser.h"
@@ -237,7 +234,6 @@
 #include "net/base/filename_util.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
-#include "third_party/blink/public/mojom/frame/frame.mojom.h"
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
@@ -266,7 +262,6 @@
 #include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "components/session_manager/core/session_manager.h"
 #endif
 
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
@@ -337,36 +332,11 @@ const extensions::Extension* GetExtensionForOrigin(
 
   const extensions::Extension* extension =
       extensions::ExtensionRegistry::Get(profile)->enabled_extensions().GetByID(
-          security_origin.host());
+          security_origin.GetHost());
   DCHECK(extension);
   return extension;
 #else
   return nullptr;
-#endif
-}
-
-bool IsOnKioskSplashScreen() {
-#if BUILDFLAG(IS_CHROMEOS)
-  session_manager::SessionManager* session_manager =
-      session_manager::SessionManager::Get();
-  if (!session_manager) {
-    return false;
-  }
-  // We have to check this way because of CHECK() in UserManager::Get().
-  if (!user_manager::UserManager::IsInitialized()) {
-    return false;
-  }
-  user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  if (!user_manager->IsLoggedInAsAnyKioskApp()) {
-    return false;
-  }
-  if (session_manager->session_state() !=
-      session_manager::SessionState::LOGIN_PRIMARY) {
-    return false;
-  }
-  return true;
-#else
-  return false;
 #endif
 }
 
@@ -449,6 +419,25 @@ base::FunctionRef<bool(const Browser*)> MaybeLazyIsFullscreen(
   // In the control branch, eagerly evaluate ShouldHideUIForFullscreen.
   return browser->ShouldHideUIForFullscreen() ? &AlwaysReturnTrue
                                               : &AlwaysReturnFalse;
+}
+
+bool HasActorTask(Profile* profile, content::RenderFrameHost* rfh) {
+  auto* actor_service = actor::ActorKeyedService::Get(profile);
+  if (!actor_service) {
+    return false;
+  }
+
+  auto* wc = content::WebContents::FromRenderFrameHost(rfh);
+  if (!wc) {
+    return false;
+  }
+
+  const auto* tab_interface = tabs::TabInterface::MaybeGetFromContents(wc);
+  if (!tab_interface) {
+    return false;
+  }
+
+  return !actor_service->GetTaskFromTab(*tab_interface).is_null();
 }
 
 }  // namespace
@@ -548,22 +537,9 @@ Browser::CreateParams Browser::CreateParams::CreateForDevTools(
 // Browser, Constructors, Creation, Showing:
 
 // static
-Browser::CreationStatus Browser::GetCreationStatusForProfile(Profile* profile) {
-  if (!g_browser_process || g_browser_process->IsShuttingDown()) {
-    return CreationStatus::kErrorNoProcess;
-  }
-
-  if (!IncognitoModePrefs::CanOpenBrowser(profile) ||
-      !profile->AllowsBrowserWindows() ||
-      IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
-    return CreationStatus::kErrorProfileUnsuitable;
-  }
-
-  if (IsOnKioskSplashScreen()) {
-    return CreationStatus::kErrorLoadingKiosk;
-  }
-
-  return CreationStatus::kOk;
+BrowserWindowInterface::CreationStatus Browser::GetCreationStatusForProfile(
+    Profile* profile) {
+  return GetBrowserWindowCreationStatusForProfile(*profile);
 }
 
 // static
@@ -693,6 +669,15 @@ Browser::Browser(const CreateParams& params)
 }
 
 Browser::~Browser() {
+  if (!is_delete_scheduled_) {
+    // Guarantee the Browser has performed the necessary cleanup in the
+    // `OnWindowClosing()` lifecycle hook. This may not be invoked during
+    // Browser shutdown specifically in cases where clients directly reset
+    // the Browser unique_ptr.
+    force_skip_warning_user_on_close_ = true;
+    OnWindowClosing();
+  }
+
   BrowserList::RemoveBrowser(this);
   window_.reset();
 
@@ -1471,6 +1456,8 @@ void Browser::FullscreenTopUIStateChanged() {
 void Browser::OnFindBarVisibilityChanged() {
   if (!IsPageActionMigrated(PageActionIconType::kFind)) {
     window()->UpdatePageActionIcon(PageActionIconType::kFind);
+  } else {
+    GetFeatures().GetFindBarController()->UpdatePageAction();
   }
 
   GetCommandController()->FindBarVisibilityChanged();
@@ -2354,9 +2341,9 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
     }
 
     if ((url.SchemeIs(content::kChromeUIScheme) &&
-         url.host_piece() == chrome::kChromeUINewTabHost) ||
+         url.host() == chrome::kChromeUINewTabHost) ||
         (virtual_url.SchemeIs(content::kChromeUIScheme) &&
-         virtual_url.host_piece() == chrome::kChromeUINewTabHost)) {
+         virtual_url.host() == chrome::kChromeUINewTabHost)) {
       return true;
     }
 
@@ -2387,11 +2374,12 @@ bool Browser::IsWebContentsCreationOverridden(
     const GURL& opener_url,
     const std::string& frame_name,
     const GURL& target_url) {
-  if (actor::IsActorOperatingOnWebContents(
-          profile(), content::WebContents::FromRenderFrameHost(opener))) {
-    // If an ExecutionEngine is acting on the opener, prevent it from creating
-    // a new WebContents. We'll instead force the navigation to happen in the
-    // same tab.
+  if (HasActorTask(profile(), opener)) {
+    // If an ExecutionEngine is acting on the opener, prevent it from creating a
+    // new WebContents. We'll instead force the navigation to happen in the same
+    // tab. Note, we do this even if the task isn't active (e.g. paused) so that
+    // a user action on behalf of the actor has the same behavior since the
+    // resumed task will still be fixed to the tab.
     return true;
   }
 
@@ -2411,7 +2399,7 @@ WebContents* Browser::CreateCustomWebContents(
     const content::StoragePartitionConfig& partition_config,
     content::SessionStorageNamespace* session_storage_namespace) {
   if (auto* opener_contents = content::WebContents::FromRenderFrameHost(opener);
-      actor::IsActorOperatingOnWebContents(profile(), opener_contents)) {
+      HasActorTask(profile(), opener)) {
     // If an ExecutionEngine is acting on the opener, we force the navigation
     // to happen in the same tab.
     content::NavigationController::LoadURLParams params(target_url);
@@ -2978,19 +2966,6 @@ void Browser::SetWebContentsBlocked(content::WebContents* web_contents,
 web_modal::WebContentsModalDialogHost* Browser::GetWebContentsModalDialogHost(
     content::WebContents* web_contents) {
   return window_->GetWebContentsModalDialogHostFor(web_contents);
-}
-
-void Browser::OnWebContentsModalDialogShown(
-    content::WebContents* web_contents) {
-  // Check that the WebContents isn't already active to avoid re-entrancy in
-  // TabStripModel when activating a tab triggers a dialog to show.
-  if (base::FeatureList::IsEnabled(features::kSideBySide) &&
-      tab_strip_model_->GetActiveWebContents() != web_contents) {
-    const int tab_index = tab_strip_model_->GetIndexOfWebContents(web_contents);
-    if (tab_strip_model_->IsTabInForeground(tab_index)) {
-      tab_strip_model_->ActivateTabAt(tab_index);
-    }
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -34,13 +34,19 @@ void ScriptToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
   f.Apply(*this);
 }
 
-mojom::ToolActionPtr ScriptToolRequest::ToMojoToolAction() const {
+mojom::ToolActionPtr ScriptToolRequest::ToMojoToolAction(
+    content::RenderFrameHost& frame) const {
   auto script = mojom::ScriptToolAction::New(name_, input_arguments_);
   return mojom::ToolAction::NewScriptTool(std::move(script));
 }
 
 std::unique_ptr<PageToolRequest> ScriptToolRequest::Clone() const {
   return std::make_unique<ScriptToolRequest>(*this);
+}
+
+std::optional<ObservationDelayController::PageStabilityConfig>
+ScriptToolRequest::GetObservationPageStabilityConfig() const {
+  return std::nullopt;
 }
 
 }  // namespace actor

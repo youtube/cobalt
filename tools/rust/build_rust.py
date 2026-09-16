@@ -76,6 +76,11 @@ EXCLUDED_TESTS = [
     os.path.join('tests', 'codegen-llvm', 'common_prim_int_ptr.rs'),
     # Temporarily disabled due to https://crbug.com/433249564
     os.path.join('tests', 'codegen-llvm', 'enum', 'enum-discriminant-eq.rs'),
+    # Temporarily disabled due to https://crbug.com/446928953
+    os.path.join('tests', 'codegen-llvm', 'issues',
+                 'issue-122600-ptr-discriminant-update.rs'),
+    os.path.join('tests', 'codegen-llvm', 'vec_pop_push_noop.rs'),
+    os.path.join('tests', 'codegen-llvm', 'vecdeque_pop_push.rs'),
 ]
 EXCLUDED_TESTS_WINDOWS = [
     # Temporarily disabled due to https://crbug.com/379308086
@@ -648,17 +653,9 @@ def GitApplyCherryPicks():
     # with `GitMoveSubmoduleBranch()`.
     #############################
 
-    # TODO(https://crbug.com/441524277): remove revert after resolving issue upstream
-    GitRevert(RUST_SRC_DIR, '8ea3b093819aabd92a605b42989341da0c97c0d6')
-
-    # TODO(crbug.com/442444725): Remove once
-    # https://github.com/rust-lang/rust/pull/146116 lands and we roll past it.
-    GitCherryPick(RUST_SRC_DIR, '4ecca581fad73c51d7c7a78c4b97a3ada2ca5249',
-                  'https://github.com/rust-lang/rust.git')
-
-    # TODO(crbug.com/442112342): Remove once
-    # https://github.com/rust-lang/rust/pull/146133 lands and we roll past it.
-    GitCherryPick(RUST_SRC_DIR, '916b55e08217ca14dabec0169067ed8d6523bf6e',
+    # TODO(crbug.com/446690349): Remove once
+    # https://github.com/rust-lang/rust/pull/146905 lands and we roll past it.
+    GitCherryPick(RUST_SRC_DIR, 'f9c040b7318f86e54fc57119ba5e0664df117600',
                   'https://github.com/rust-lang/rust.git')
 
     print('Finished applying cherry-picks.')
@@ -759,10 +756,10 @@ def main():
     args, rest = parser.parse_known_args()
 
     if args.entire_toolchain:
-      args.build_bindgen = True
-      args.build_vet = True
-      args.build_crubit = True
-      args.gnrt_stdlib = True
+        args.build_bindgen = True
+        args.build_vet = True
+        args.build_crubit = True
+        args.gnrt_stdlib = True
 
     if sys.platform == 'win32':
         if args.sh:
@@ -951,6 +948,7 @@ def main():
               'w',
               encoding='utf-8') as log:
         if args.build_bindgen:
+            print('Building bindgen...')
             build_cmd = [
                 sys.executable,
                 os.path.join(THIS_DIR, 'build_bindgen.py')
@@ -958,6 +956,7 @@ def main():
             TeeCmd(build_cmd, log)
 
         if args.build_vet:
+            print('Building vet...')
             build_cmd = [
                 sys.executable,
                 os.path.join(THIS_DIR, 'build_vet.py')
@@ -965,6 +964,7 @@ def main():
             TeeCmd(build_cmd, log)
 
         if args.build_crubit:
+            print('Building crubit...')
             build_cmd = [
                 sys.executable,
                 os.path.join(THIS_DIR, 'build_crubit.py')
@@ -975,7 +975,9 @@ def main():
             TeeCmd(build_cmd, log, fail_hard=False)
 
         if args.gnrt_stdlib:
+            print('Building gnrt...')
             InstallRustBetaSysroot(checkout_revision, [RustTargetTriple()])
+            print('Beta sysroot installed.')
             build_cmd = [
                 sys.executable,
                 os.path.join(THIS_DIR, 'gnrt_stdlib.py'), '--skip-prep'

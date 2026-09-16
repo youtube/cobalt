@@ -9,6 +9,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_safe_browsing_checker_client.h"
 #include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -19,7 +20,10 @@
 #include "services/media_session/public/mojom/audio_focus.mojom.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+
+#if !BUILDFLAG(IS_ANDROID)
 #include "ui/views/bubble/bubble_border.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace permissions {
 class PermissionDecisionAutoBlockerBase;
@@ -41,7 +45,10 @@ class MediaEngagementService;
 class AutoPictureInPictureTabHelper
     : public content::WebContentsObserver,
       public content::WebContentsUserData<AutoPictureInPictureTabHelper>,
+// On Android, audio focus is observed via MediaSessionInfoChanged.
+#if !BUILDFLAG(IS_ANDROID)
       public media_session::mojom::AudioFocusObserver,
+#endif  // !BUILDFLAG(IS_ANDROID)
       public media_session::mojom::MediaSessionObserver {
  public:
   // Delay used by `AutoPictureInPictureSafeBrowsingCheckerClient` to check
@@ -69,12 +76,14 @@ class AutoPictureInPictureTabHelper
   // activated and unactivated.
   void OnTabActivatedChanged(bool is_tab_activated);
 
+#if !BUILDFLAG(IS_ANDROID)
   // media_session::mojom::AudioFocusObserver:
   void OnFocusGained(
       media_session::mojom::AudioFocusRequestStatePtr session) override;
   void OnFocusLost(
       media_session::mojom::AudioFocusRequestStatePtr session) override;
   void OnRequestIdReleased(const base::UnguessableToken& request_id) override {}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // media_session::mojom::MediaSessionObserver:
   void MediaSessionInfoChanged(
@@ -162,8 +171,9 @@ class AutoPictureInPictureTabHelper
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  // Called from Java when the user closes the PiP window soon after it opened.
-  void OnQuickDismissal();
+  // Called from Java when the user dismissed the PiP window either soon after
+  // it opened or using the hide button.
+  void OnPictureInPictureDismissed();
 
   int GetDismissCountForTesting(const GURL& url);
 
@@ -173,12 +183,6 @@ class AutoPictureInPictureTabHelper
   void set_has_high_engagement_for_testing(bool value) {
     has_high_engagement_for_testing_ = value;
   }
-
-  // Manually sets the audio focus state for testing. This is necessary for
-  // Android JNI tests because programmatically playing media may not properly
-  // acquire audio focus. This allows tests to mimic the real-world conditions
-  // required for auto-PiP to trigger.
-  void set_has_audio_focus_for_testing(bool value) { has_audio_focus_ = value; }
 #endif  // BUILDFLAG(IS_ANDROID)
 
   media::PictureInPictureEventsInfo::AutoPipReason GetAutoPipTriggerReason()
@@ -371,10 +375,12 @@ class AutoPictureInPictureTabHelper
   // `AutoPictureInPictureSafeBrowsingCheckerClient`.
   bool has_safe_url_ = false;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Connections with the media session service to listen for audio focus
   // updates and control media sessions.
   mojo::Receiver<media_session::mojom::AudioFocusObserver>
       audio_focus_observer_receiver_{this};
+#endif  // !BUILDFLAG(IS_ANDROID)
   mojo::Receiver<media_session::mojom::MediaSessionObserver>
       media_session_observer_receiver_{this};
 
@@ -396,6 +402,12 @@ class AutoPictureInPictureTabHelper
   // Set to the current time when `this` calls the MediaSession
   // `EnterAutoPictureInPicture` method.
   std::optional<base::TimeTicks> current_enter_pip_time_;
+
+  // Set to the current time when the media starts playing.
+  std::optional<base::TimeTicks> playing_start_time_;
+
+  // The total accumulated playback time in picture in picture.
+  std::optional<base::TimeDelta> current_pip_playback_time_;
 
   // The total accumulated time spent in picture in picture due to video
   // conferencing. The accumulated time does not differentiate between the

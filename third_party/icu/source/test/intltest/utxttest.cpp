@@ -76,7 +76,7 @@ static uint32_t m_seed = 1;
 static uint32_t m_rand()
 {
     m_seed = m_seed * 1103515245 + 12345;
-    return (uint32_t)(m_seed/65536) % 32768;
+    return (m_seed / 65536) % 32768;
 }
 
 
@@ -105,9 +105,9 @@ void  UTextTest::TextTest() {
         for (j=0; j<i; j++) {
             if (j+0x30 == 0x5c) {
                 // backslash.  Needs to be escaped
-                s.append((char16_t)0x5c);
+                s.append(static_cast<char16_t>(0x5c));
             }
-            s.append(char16_t(j+0x30));
+            s.append(static_cast<char16_t>(j + 0x30));
         }
         TestString(s);
     }
@@ -116,9 +116,9 @@ void  UTextTest::TextTest() {
    //    looking for glitches at buffer boundaries
     for (i=1; i<60; i++) {
         s.truncate(0);
-        s.append((char16_t)0x41);
+        s.append(static_cast<char16_t>(0x41));
         for (j=0; j<i; j++) {
-            s.append(UChar32(j+0x11000));
+            s.append(static_cast<UChar32>(j + 0x11000));
         }
         TestString(s);
     }
@@ -446,11 +446,10 @@ void UTextTest::TestCopyMove(const UnicodeString &us, UText *ut, UBool move,
         // Compare the results of the two parallel tests
         int32_t  usi = 0;    // UnicodeString position, utf-16 index.
         int64_t  uti = 0;    // UText position, native index.
-        int32_t  cpi;        // char32 position (code point index)
         UChar32  usc;        // code point from Unicode String
         UChar32  utc;        // code point from UText
         utext_setNativeIndex(targetUT, 0);
-        for (cpi=0; ; cpi++) {
+        for (;;) {
             usc = targetUS.char32At(usi);
             utc = utext_next32(targetUT);
             if (utc < 0) {
@@ -522,12 +521,11 @@ void UTextTest::TestReplace(
     //
     int32_t  usi = 0;    // UnicodeString position, utf-16 index.
     int64_t  uti = 0;    // UText position, native index.
-    int32_t  cpi;        // char32 position (code point index)
     UChar32  usc;        // code point from Unicode String
     UChar32  utc;        // code point from UText
     int64_t  expectedNativeLength = 0;
     utext_setNativeIndex(targetUT, 0);
-    for (cpi=0; ; cpi++) {
+    for (;;) {
         usc = targetUS.char32At(usi);
         utc = utext_next32(targetUT);
         if (utc < 0) {
@@ -882,7 +880,7 @@ void UTextTest::ErrorTest()
         UText ut = UTEXT_INITIALIZER;
         UText  *utp;
         UnicodeString s1("Hello, World");
-        char16_t s2[] = {(char16_t)0x41, (char16_t)0x42, (char16_t)0};
+        char16_t s2[] = {static_cast<char16_t>(0x41), static_cast<char16_t>(0x42), static_cast<char16_t>(0)};
         const char  *s3 = "\x66\x67\x68";
 
         utp = utext_openUnicodeString(&ut, &s1, &status);
@@ -1217,8 +1215,8 @@ void UTextTest::FreezeTest() {
     //
 
     UnicodeString  ustr("Hello, World.");
-    const char u8str[] = {char(0x31), (char)0x32, (char)0x33, 0};
-    const char16_t u16str[] = {(char16_t)0x31, (char16_t)0x32, (char16_t)0x44, 0};
+    const char u8str[] = {static_cast<char>(0x31), static_cast<char>(0x32), static_cast<char>(0x33), 0};
+    const char16_t u16str[] = {static_cast<char16_t>(0x31), static_cast<char16_t>(0x32), static_cast<char16_t>(0x44), 0};
 
     UErrorCode status = U_ZERO_ERROR;
     UText  *ut        = nullptr;
@@ -1385,7 +1383,7 @@ openFragmentedUnicodeString(UText *ut, UnicodeString *s, UErrorCode *status) {
     fragmentFuncs.clone  = cloneFragmentedUnicodeString;
     ut->pFuncs = &fragmentFuncs;
 
-    ut->chunkContents = (char16_t *)&ut->b;
+    ut->chunkContents = reinterpret_cast<char16_t*>(&ut->b);
     ut->pFuncs->access(ut, 0, true);
     return ut;
 }
@@ -1518,7 +1516,7 @@ void UTextTest::Ticket10983() {
 
 void UTextTest::Ticket12130() {
     UErrorCode status = U_ZERO_ERROR;
-    
+
     const char *text8 =
         "Fundamentally, computers just deal with numbers. They store letters and other characters "
         "by assigning a number for each one. Before Unicode was invented, there were hundreds "
@@ -1551,7 +1549,7 @@ void UTextTest::Ticket12130() {
         if (expectedni != ni) {
             errln("%s:%d utext_getNativeIndex() expected %d, got %d", __FILE__, __LINE__, expectedni, ni);
         }
-        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) { 
+        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) {
             errln("%s:%d utext_extract() failed. expected \"%s\", got \"%s\"",
                     __FILE__, __LINE__, CStr(str.tempSubString(startIdx, 20))(), CStr(UnicodeString(extractBuffer))());
         }
@@ -1560,7 +1558,7 @@ void UTextTest::Ticket12130() {
 
     // Similar utext extract, this time with the string length provided to the UText in advance,
     // and a buffer of larger than required capacity.
-   
+
     utext_openUChars(&ut, ustr, str.length(), &status);
     for (int32_t startIdx = 0; startIdx<str.length(); ++startIdx) {
         int32_t endIdx = startIdx + 20;
@@ -1578,7 +1576,7 @@ void UTextTest::Ticket12130() {
         if (expectedni != ni) {
             errln("%s:%d utext_getNativeIndex() expected %d, got %d", __FILE__, __LINE__, expectedni, ni);
         }
-        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) { 
+        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) {
             errln("%s:%d utext_extract() failed. expected \"%s\", got \"%s\"",
                     __FILE__, __LINE__, CStr(str.tempSubString(startIdx, 20))(), CStr(UnicodeString(extractBuffer))());
         }
@@ -1596,18 +1594,18 @@ void UTextTest::Ticket13344() {
 
     assertSuccess("UTextTest::Ticket13344-status", status);
     UTEXT_SETNATIVEINDEX(ut.getAlias(), 3);
-    assertEquals("UTextTest::Ticket13344-lead", (int64_t)3, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-lead", static_cast<int64_t>(3), utext_getNativeIndex(ut.getAlias()));
     UTEXT_SETNATIVEINDEX(ut.getAlias(), 4);
-    assertEquals("UTextTest::Ticket13344-trail", (int64_t)3, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-trail", static_cast<int64_t>(3), utext_getNativeIndex(ut.getAlias()));
     UTEXT_SETNATIVEINDEX(ut.getAlias(), 5);
-    assertEquals("UTextTest::Ticket13344-bmp", (int64_t)5, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-bmp", static_cast<int64_t>(5), utext_getNativeIndex(ut.getAlias()));
 
     utext_setNativeIndex(ut.getAlias(), 3);
-    assertEquals("UTextTest::Ticket13344-lead-2", (int64_t)3, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-lead-2", static_cast<int64_t>(3), utext_getNativeIndex(ut.getAlias()));
     utext_setNativeIndex(ut.getAlias(), 4);
-    assertEquals("UTextTest::Ticket13344-trail-2", (int64_t)3, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-trail-2", static_cast<int64_t>(3), utext_getNativeIndex(ut.getAlias()));
     utext_setNativeIndex(ut.getAlias(), 5);
-    assertEquals("UTextTest::Ticket13344-bmp-2", (int64_t)5, utext_getNativeIndex(ut.getAlias()));
+    assertEquals("UTextTest::Ticket13344-bmp-2", static_cast<int64_t>(5), utext_getNativeIndex(ut.getAlias()));
 }
 
 // ICU-21653 UText does not handle access callback that changes chunk size
@@ -1623,10 +1621,10 @@ static const char16_t testAccessText[] = { // text with surrogates at chunk boun
     0xE070,0xe071,0xe072,0xD83D,0xDE00,0xe075,0xe076,0xe077, 0xe078,0xe079,0xe07a,0xD83D,0xDE00,0xe07d,0xe07e,0xD802, // 112-127, unpaired lead at 127
 };
 
-static const UChar32 testAccess32Text[] = { // same as above in UTF32
+static const UChar32 testAccess32Text[] = { // same as above in UTF32, surrogate pairs coalesce...
     0xDC00,0xe001,0xe002,0x1F600,0xe005,0xe006,0xe007, 0xe008,0xe009,0xe00a,0x1F600,0xe00d,0xe00e,0xe00f, // 000-013, unpaired trail at 0
     0xE010,0xe011,0xe012,0x1F600,0xe015,0xe016,0xe017, 0xe018,0xe019,0xe01a,0x1F600,0xe01d,0xe01e,0x10001, // 014-027, nonBMP at 27, will split in chunks
-           0xe021,0xe022,0x1F600,0xe025,0xe026,0xe027, 0xe028,0xe029,0xe02a,0x1F600,0xe02d,0xe02e,0xe02f, // 028-040
+    /*---*/0xe021,0xe022,0x1F600,0xe025,0xe026,0xe027, 0xe028,0xe029,0xe02a,0x1F600,0xe02d,0xe02e,0xe02f, // 028-040
     0xe030,0xe031,0xe032,0x1F600,0xe035,0xe036,0xe037, 0xe038,0xe039,0xe03a,0x1F600,0xe03d,0xe03e,0xe03f, // 041-054
     0xDC02,0xe041,0xe042,0x1F600,0xe045,0xe046,0xe047, 0xe048,0xe049,0xe04a,0x1F600,0xe04d,0xe04e,0xe04f, // 055-068, unpaired trail at 55
     0xe050,0xe051,0xe052,0x1F600,0xe055,0xe056,0xe057, 0xe058,0xe059,0xe05a,0x1F600,0xe05d,0xe05e,0xD801, // 069-082, unpaired lead at 82
@@ -1692,7 +1690,7 @@ static const OffsetAndChar testAccess32Entries[] = { // sequence of offsets to t
 //    depending on kTextAccessGapSize
 static UBool
 ustrTextAccessModChunks(UText *ut, int64_t index, UBool forward) {
-    const char16_t *str = (const char16_t *)ut->context;
+    const char16_t* str = static_cast<const char16_t*>(ut->context);
     int64_t length = ut->a;
 
     // pin the requested index to the bounds of the string
@@ -1704,7 +1702,7 @@ ustrTextAccessModChunks(UText *ut, int64_t index, UBool forward) {
     if (forward) {
         if (index < ut->chunkNativeLimit && index >= ut->chunkNativeStart) {
             /* Already inside the buffer. Set the new offset. */
-            ut->chunkOffset = (int32_t)(index - ut->chunkNativeStart);
+            ut->chunkOffset = static_cast<int32_t>(index - ut->chunkNativeStart);
             return true;
         }
         if (index >= length && ut->chunkNativeLimit == length) {
@@ -1716,7 +1714,7 @@ ustrTextAccessModChunks(UText *ut, int64_t index, UBool forward) {
     else {
         if (index <= ut->chunkNativeLimit && index > ut->chunkNativeStart) {
             /* Already inside the buffer. Set the new offset. */
-            ut->chunkOffset = (int32_t)(index - ut->chunkNativeStart);
+            ut->chunkOffset = static_cast<int32_t>(index - ut->chunkNativeStart);
             return true;
         }
         if (index == 0 && ut->chunkNativeStart == 0) {
@@ -1761,7 +1759,7 @@ u32NativeLength(UText *ut) {
 
 /**
  * Map from the current char16_t offset within the current text chunk to
- *  the corresponding native index in the original source text.
+ * the corresponding native index in the original source text.
  * @return Absolute (native) index corresponding to chunkOffset in the current chunk.
  *         The returned native index should always be to a code point boundary.
  */
@@ -1769,7 +1767,7 @@ u32NativeLength(UText *ut) {
 // 2. assumes that pointer to offset map is in
 static int64_t
 u32MapOffsetToNative(const UText *ut) {
-    const int64_t* offsetMap = (const int64_t*)ut->p;
+    const int64_t* offsetMap = static_cast<const int64_t*>(ut->p);
     int64_t u16Offset = offsetMap[ut->chunkNativeStart] + ut->chunkOffset;
     int64_t index = ut->a;
     while (u16Offset < offsetMap[index]) {
@@ -1781,14 +1779,14 @@ u32MapOffsetToNative(const UText *ut) {
 /**
  * Map from a native index to a char16_t offset within a text chunk.
  * Behavior is undefined if the native index does not fall within the
- *   current chunk.
+ * current chunk.
  * @param nativeIndex Absolute (native) text index, chunk->start<=index<=chunk->limit.
  * @return            Chunk-relative UTF-16 offset corresponding to the specified native
  *                    index.
  */
 static int32_t
 u32MapNativeIndexToUTF16(const UText *ut, int64_t index) {
-    const int64_t* offsetMap = (const int64_t*)ut->p;
+    const int64_t* offsetMap = static_cast<const int64_t*>(ut->p);
     if (index <= ut->chunkNativeStart) {
         return 0;
     } else if (index >= ut->chunkNativeLimit) {
@@ -1799,14 +1797,14 @@ u32MapNativeIndexToUTF16(const UText *ut, int64_t index) {
 
 static void
 u32Close(UText *ut) {
-    uprv_free((void*)ut->p);
+    uprv_free(const_cast<void*>(ut->p));
 }
 
 static UBool
 u32Access(UText *ut, int64_t index, UBool forward) {
     int64_t length = ut->a;
-    const int64_t* offsetMap = (const int64_t*)ut->p;
-    const char16_t *u16 = (const char16_t *)ut->q;
+    const int64_t* offsetMap = static_cast<const int64_t*>(ut->p);
+    const char16_t* u16 = static_cast<const char16_t*>(ut->q);
 
     // pin the requested index to the bounds of the string
     if (index < 0) {
@@ -1817,7 +1815,7 @@ u32Access(UText *ut, int64_t index, UBool forward) {
     if (forward) {
         if (index < ut->chunkNativeLimit && index >= ut->chunkNativeStart) {
             /* Already inside the buffer. Set the new offset. */
-            ut->chunkOffset = (int32_t)(index - ut->chunkNativeStart);
+            ut->chunkOffset = static_cast<int32_t>(index - ut->chunkNativeStart);
             return true;
         }
         if (index >= length && ut->chunkNativeLimit == length) {
@@ -1829,7 +1827,7 @@ u32Access(UText *ut, int64_t index, UBool forward) {
     else {
         if (index <= ut->chunkNativeLimit && index > ut->chunkNativeStart) {
             /* Already inside the buffer. Set the new offset. */
-            ut->chunkOffset = (int32_t)(index - ut->chunkNativeStart);
+            ut->chunkOffset = static_cast<int32_t>(index - ut->chunkNativeStart);
             return true;
         }
         if (index == 0 && ut->chunkNativeStart == 0) {
@@ -1912,7 +1910,7 @@ utext_openUChar32s(UText *ut, const UChar32 *s, int64_t length, const char16_t *
     }
     ut = utext_setup(ut, 0, status);
     if (U_SUCCESS(*status)) {
-        int64_t* offsetMap = (int64_t*)uprv_malloc((length+1)*sizeof(int64_t));
+        int64_t* offsetMap = static_cast<int64_t*>(uprv_malloc((length + 1) * sizeof(int64_t)));
         if (offsetMap == nullptr) {
             *status = U_MEMORY_ALLOCATION_ERROR;
             return nullptr;
@@ -1940,7 +1938,6 @@ utext_openUChar32s(UText *ut, const UChar32 *s, int64_t length, const char16_t *
 }
 
 
-
 void UTextTest::AccessChangesChunkSize() {
     UErrorCode status = U_ZERO_ERROR;
     UText ut = UTEXT_INITIALIZER;
@@ -1962,43 +1959,43 @@ void UTextTest::AccessChangesChunkSize() {
     ut.pFuncs = &textFuncs;
 
     // do test
-	const OffsetAndChar *testEntryPtr = testAccessEntries;
-	int32_t testCount = UPRV_LENGTHOF(testAccessEntries);
-	for (; testCount-- > 0; testEntryPtr++) {
-	    utext_setNativeIndex(&ut, testEntryPtr->nativeOffset);
-	    int64_t beforeOffset = utext_getNativeIndex(&ut);
-	    UChar32 uchar = utext_current32(&ut);
-	    int64_t afterOffset = utext_getNativeIndex(&ut);
-	    if (uchar != testEntryPtr->expectChar || afterOffset != beforeOffset) {
-	        errln("utext_current32 unexpected behavior for u16, test case %lld: expected char %04X at offset %lld, got %04X at %lld;\n"
-	            "chunkNativeStart %lld chunkNativeLimit %lld nativeIndexingLimit %d chunkLength %d chunkOffset %d",
-	            (int64_t)(testEntryPtr-testAccessEntries), testEntryPtr->expectChar, beforeOffset, uchar, afterOffset,
-	            ut.chunkNativeStart, ut.chunkNativeLimit, ut.nativeIndexingLimit, ut.chunkLength, ut.chunkOffset);
-	    }
-	}
-	utext_close(&ut);
-	
-	ut = UTEXT_INITIALIZER;
-	utext_openUChar32s(&ut, testAccess32Text, UPRV_LENGTHOF(testAccess32Text), testAccessText, &status);
+    const OffsetAndChar *testEntryPtr = testAccessEntries;
+    int32_t testCount = UPRV_LENGTHOF(testAccessEntries);
+    for (; testCount-- > 0; testEntryPtr++) {
+        utext_setNativeIndex(&ut, testEntryPtr->nativeOffset);
+        int64_t beforeOffset = utext_getNativeIndex(&ut);
+        UChar32 uchar = utext_current32(&ut);
+        int64_t afterOffset = utext_getNativeIndex(&ut);
+        if (uchar != testEntryPtr->expectChar || afterOffset != beforeOffset) {
+            errln("utext_current32 unexpected behavior for u16, test case %lld: expected char %04X at offset %lld, got %04X at %lld;\n"
+                "chunkNativeStart %lld chunkNativeLimit %lld nativeIndexingLimit %d chunkLength %d chunkOffset %d",
+                static_cast<int64_t>(testEntryPtr - testAccessEntries), testEntryPtr->expectChar, beforeOffset, uchar, afterOffset,
+                ut.chunkNativeStart, ut.chunkNativeLimit, ut.nativeIndexingLimit, ut.chunkLength, ut.chunkOffset);
+        }
+    }
+    utext_close(&ut);
+
+    ut = UTEXT_INITIALIZER;
+    utext_openUChar32s(&ut, testAccess32Text, UPRV_LENGTHOF(testAccess32Text), testAccessText, &status);
     if (U_FAILURE(status)) {
         errln("utext_openUChar32s failed: %s", u_errorName(status));
         return;
     }
     // do test
-	testEntryPtr = testAccess32Entries;
-	testCount = UPRV_LENGTHOF(testAccess32Entries);
-	for (; testCount-- > 0; testEntryPtr++) {
-	    utext_setNativeIndex(&ut, testEntryPtr->nativeOffset);
-	    int64_t beforeOffset = utext_getNativeIndex(&ut);
-	    UChar32 uchar = utext_current32(&ut);
-	    int64_t afterOffset = utext_getNativeIndex(&ut);
-	    if (uchar != testEntryPtr->expectChar || afterOffset != beforeOffset) {
-	        errln("utext_current32 unexpected behavior for u32, test case %lld: expected char %04X at offset %lld, got %04X at %lld;\n"
-	            "chunkNativeStart %lld chunkNativeLimit %lld nativeIndexingLimit %d chunkLength %d chunkOffset %d",
-	            (int64_t)(testEntryPtr-testAccess32Entries), testEntryPtr->expectChar, beforeOffset, uchar, afterOffset,
-	            ut.chunkNativeStart, ut.chunkNativeLimit, ut.nativeIndexingLimit, ut.chunkLength, ut.chunkOffset);
-	    }
-	}
-	utext_close(&ut);
+    testEntryPtr = testAccess32Entries;
+    testCount = UPRV_LENGTHOF(testAccess32Entries);
+    for (; testCount-- > 0; testEntryPtr++) {
+        utext_setNativeIndex(&ut, testEntryPtr->nativeOffset);
+        int64_t beforeOffset = utext_getNativeIndex(&ut);
+        UChar32 uchar = utext_current32(&ut);
+        int64_t afterOffset = utext_getNativeIndex(&ut);
+        if (uchar != testEntryPtr->expectChar || afterOffset != beforeOffset) {
+            errln("utext_current32 unexpected behavior for u32, test case %lld: expected char %04X at offset %lld, got %04X at %lld;\n"
+                "chunkNativeStart %lld chunkNativeLimit %lld nativeIndexingLimit %d chunkLength %d chunkOffset %d",
+                static_cast<int64_t>(testEntryPtr - testAccess32Entries), testEntryPtr->expectChar, beforeOffset, uchar, afterOffset,
+                ut.chunkNativeStart, ut.chunkNativeLimit, ut.nativeIndexingLimit, ut.chunkLength, ut.chunkOffset);
+        }
+    }
+    utext_close(&ut);
 }
 

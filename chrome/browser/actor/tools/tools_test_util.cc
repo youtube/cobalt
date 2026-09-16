@@ -61,6 +61,7 @@ void MockActorLoginService::GetCredentials(
 void MockActorLoginService::AttemptLogin(
     tabs::TabInterface* tab,
     const actor_login::Credential& credential,
+    bool should_store_permission,
     actor_login::LoginStatusResultOrErrorReply callback) {
   last_credential_used_ = credential;
   std::move(callback).Run(login_status_);
@@ -175,6 +176,22 @@ std::unique_ptr<ExecutionEngine> ActorToolsTest::CreateExecutionEngine(
   return std::make_unique<ExecutionEngine>(profile);
 }
 
+// static
+std::string ActorToolsGeneralPageStabilityTest::DescribeParam(
+    const testing::TestParamInfo<ParamType>& info) {
+  return DescribeGeneralPageStabilityMode(info.param);
+}
+
+ActorToolsGeneralPageStabilityTest::ActorToolsGeneralPageStabilityTest() {
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      ::features::kGlicActor,
+      {{::features::kActorGeneralPageStabilityMode.name,
+        ::features::kActorGeneralPageStabilityMode.GetName(GetParam())}});
+}
+
+ActorToolsGeneralPageStabilityTest::~ActorToolsGeneralPageStabilityTest() =
+    default;
+
 gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
                                  std::string_view query) {
   double width =
@@ -203,6 +220,29 @@ gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
           .ExtractDouble();
 
   return gfx::RectF(x, y, width, height);
+}
+
+std::string DescribeGeneralPageStabilityMode(
+    features::ActorGeneralPageStabilityMode mode) {
+  switch (mode) {
+    case features::ActorGeneralPageStabilityMode::kDisabled:
+      return "Disabled";
+    case features::ActorGeneralPageStabilityMode::kNavigateAndHistoryEnabled:
+      return "NavigateAndHistoryEnabled";
+    case features::ActorGeneralPageStabilityMode::kAllEnabled:
+      return "AllEnabled";
+  }
+}
+
+std::string DescribePaintStabilityMode(features::ActorPaintStabilityMode mode) {
+  switch (mode) {
+    case features::ActorPaintStabilityMode::kDisabled:
+      return "Disabled";
+    case features::ActorPaintStabilityMode::kLogOnly:
+      return "LogOnly";
+    case features::ActorPaintStabilityMode::kEnabled:
+      return "Enabled";
+  }
 }
 
 }  // namespace actor

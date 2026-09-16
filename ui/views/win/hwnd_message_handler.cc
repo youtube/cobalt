@@ -70,9 +70,10 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/resize_utils.h"
-#include "ui/gfx/icon_util.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/path_win.h"
 #include "ui/gfx/win/hwnd_util.h"
+#include "ui/gfx/win/icon_util.h"
 #include "ui/gfx/win/rendering_window_manager.h"
 #include "ui/latency/latency_info.h"
 #include "ui/native_theme/native_theme_win.h"
@@ -2096,9 +2097,6 @@ LRESULT HWNDMessageHandler::OnGetObject(UINT message,
       if (ui::AXPlatform::GetInstance().IsUiaProviderEnabled()) {
         // Return the IRawElementProviderSimple for the window's client area to
         // a UI Automation client.
-        ui::AXPlatform::GetInstance().OnUiaProviderRequested(
-            /*uia_provider_enabled=*/true);
-
         Microsoft::WRL::ComPtr<IRawElementProviderSimple> root;
         ax_fragment_root_->GetNativeViewAccessible()->QueryInterface(
             IID_PPV_ARGS(&root));
@@ -2110,8 +2108,6 @@ LRESULT HWNDMessageHandler::OnGetObject(UINT message,
 
       // The UIA Provider is not enabled. The client will most likely try again
       // for OBJID_CLIENT.
-      ui::AXPlatform::GetInstance().OnUiaProviderRequested(
-          /*uia_provider_enabled=*/false);
       break;
 
     case OBJID_CLIENT:

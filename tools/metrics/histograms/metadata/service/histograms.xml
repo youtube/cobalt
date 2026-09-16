@@ -150,8 +150,8 @@ chromium-metrics-reviews@google.com.
 <histogram name="ServiceWorker.AbortPaymentEvent.Time" units="ms"
     expires_after="2024-10-18">
   <owner>rouslan@chromium.org</owner>
-  <owner>chrome-payments-team@google.com</owner>
-  <owner>jinho.bang@samsung.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>zino@chromium.org</owner>
   <summary>
     The time taken between dispatching an AbortPaymentEvent to a Service Worker
     and receiving a message that it finished handling the event. Includes the
@@ -257,8 +257,8 @@ chromium-metrics-reviews@google.com.
 <histogram name="ServiceWorker.CanMakePaymentEvent.Time" units="ms"
     expires_after="2024-10-18">
   <owner>rouslan@chromium.org</owner>
-  <owner>chrome-payments-team@google.com</owner>
-  <owner>jinho.bang@samsung.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>zino@chromium.org</owner>
   <summary>
     The time taken between dispatching an CanMakePaymentEvent to a Service
     Worker and receiving a message that it finished handling the event. Includes
@@ -490,7 +490,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.FetchEvent.{Resource}.FetchResponseFrom"
-    enum="ServiceWorkerFetchResponseFrom" expires_after="2026-02-01">
+    enum="ServiceWorkerFetchResponseFrom" expires_after="2026-04-05">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -507,7 +507,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.FetchEvent.{Resource}.RaceNetworkRequest.IsCloningDataFinishedBeforeResponseComplete"
-    enum="Boolean" expires_after="2026-01-18">
+    enum="Boolean" expires_after="2026-03-22">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -526,7 +526,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.FetchEvent.{Resource}.RaceNetworkRequest.Redirect"
-    enum="Boolean" expires_after="2026-01-25">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -614,7 +614,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.GetClient.SharedWorkerScript.IsBlob"
-    enum="Boolean" expires_after="2026-01-18">
+    enum="Boolean" expires_after="2026-03-22">
   <owner>yyanagisawa@google.com</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1222,7 +1222,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.MaybeStartWorker.RunningStatusByPurpose_{ServiceWorkerEventType}"
-    enum="EmbeddedWorkerStatus" expires_after="2025-12-28">
+    enum="EmbeddedWorkerStatus" expires_after="2026-03-29">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1315,8 +1315,8 @@ chromium-metrics-reviews@google.com.
 <histogram name="ServiceWorker.PaymentRequestEvent.Time" units="ms"
     expires_after="2026-08-25">
   <owner>rouslan@chromium.org</owner>
-  <owner>chrome-payments-team@google.com</owner>
-  <owner>jinho.bang@samsung.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>zino@chromium.org</owner>
   <summary>
     The time taken between dispatching an PaymentRequestEvent to a Service
     Worker and receiving a message that it finished handling the event. Includes
@@ -1357,7 +1357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.Registration.Delete.Result.{DeleteInitiator}"
-    enum="ServiceWorkerStatusCode" expires_after="2026-01-23">
+    enum="ServiceWorkerStatusCode" expires_after="2026-03-29">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1478,7 +1478,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.SharedWorker.ResourceFetch.FromBlob"
-    enum="Boolean" expires_after="2026-02-01">
+    enum="Boolean" expires_after="2026-04-05">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1491,7 +1491,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.SharedWorker.ResourceFetch.UseServiceWorker"
-    enum="Boolean" expires_after="2026-02-01">
+    enum="Boolean" expires_after="2026-04-05">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1503,7 +1503,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.SharedWorkerScript.IsBlob" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1774,7 +1774,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.StaticRouter.{Resource}.CacheLookupDuration"
-    units="microseconds" expires_after="2026-01-18">
+    units="microseconds" expires_after="2026-03-22">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1849,7 +1849,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.Storage.ReadInitialDataFromDB.Time" units="ms"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>

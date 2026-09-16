@@ -19,6 +19,7 @@
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_manager.h"
 #include "ui/gfx/android/java_bitmap.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/strings/grit/ui_strings.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -250,7 +251,7 @@ void ModalDialogWrapper::BuildPropertyModel() {
   if (!menu_item_icons.empty()) {
     ScopedJavaLocalRef<jclass> bitmap_class =
         base::android::GetClass(env, "android/graphics/Bitmap");
-    ScopedJavaLocalRef<jobjectArray> java_icons_array(
+    auto java_icons_array = ScopedJavaLocalRef<jobjectArray>::Adopt(
         env, env->NewObjectArray(menu_item_icons.size(), bitmap_class.obj(),
                                  nullptr));
     for (size_t i = 0; i < menu_item_icons.size(); ++i) {

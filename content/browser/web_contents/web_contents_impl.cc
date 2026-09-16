@@ -1734,20 +1734,6 @@ WebContentsImpl* WebContentsImpl::FromOuterFrameTreeNode(
       ->node_.GetInnerWebContentsInFrame(frame_tree_node);
 }
 
-bool WebContentsImpl::OnMessageReceived(RenderFrameHostImpl* render_frame_host,
-                                        const IPC::Message& message) {
-  OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::OnMessageReceived",
-                        "render_frame_host", render_frame_host);
-
-  for (auto& observer : observers_.observer_list()) {
-    if (observer.OnMessageReceived(message, render_frame_host)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 std::string WebContentsImpl::GetTitleForMediaControls() {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::GetTitleForMediaControls");
 
@@ -2861,6 +2847,7 @@ bool WebContentsImpl::IsCrashed() {
     case base::TERMINATION_STATUS_ABNORMAL_TERMINATION:
     case base::TERMINATION_STATUS_PROCESS_WAS_KILLED:
     case base::TERMINATION_STATUS_OOM:
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
     case base::TERMINATION_STATUS_LAUNCH_FAILED:
 #if BUILDFLAG(IS_CHROMEOS)
     case base::TERMINATION_STATUS_PROCESS_WAS_KILLED_BY_OOM:
@@ -3306,6 +3293,11 @@ void WebContentsImpl::AttachInnerWebContentsImpl(
       inner_render_manager->current_frame_host();
   RenderViewHostImpl* inner_render_view_host =
       inner_main_frame->render_view_host();
+  RenderFrameHostImpl* inner_speculative_frame =
+      inner_render_manager->speculative_frame_host();
+  RenderViewHostImpl* inner_speculative_render_view_host =
+      inner_speculative_frame ? inner_speculative_frame->render_view_host()
+                              : nullptr;
   auto* outer_render_manager =
       render_frame_host_impl->frame_tree_node()->render_manager();
 
@@ -3330,6 +3322,16 @@ void WebContentsImpl::AttachInnerWebContentsImpl(
       prev_rwhv->Destroy();
     }
   }
+  // Do the same for speculative render frame host's view.
+  if (inner_speculative_frame) {
+    RenderWidgetHostViewBase* prev_speculative_rwhv =
+        static_cast<RenderWidgetHostViewBase*>(
+            inner_speculative_frame->GetView());
+    if (prev_speculative_rwhv &&
+        !prev_speculative_rwhv->IsRenderWidgetHostViewChildFrame()) {
+      prev_speculative_rwhv->Destroy();
+    }
+  }
 
   // When the WebContents being initialized has not already navigated, the
   // browser side Render{View,Frame}Host must be initialized and the
@@ -3343,6 +3345,20 @@ void WebContentsImpl::AttachInnerWebContentsImpl(
   if (!inner_render_manager->GetRenderWidgetHostView()) {
     inner_web_contents_impl->CreateRenderWidgetHostViewForRenderManager(
         inner_render_view_host);
+  }
+  // Do the same for speculative render frame host.
+  if (inner_speculative_render_view_host) {
+    inner_render_manager->InitRenderView(
+        inner_speculative_frame->GetSiteInstance()->group(),
+        inner_speculative_render_view_host,
+        /*proxy=*/nullptr, /*navigation_metrics_token=*/std::nullopt);
+    RenderWidgetHostViewBase* speculative_rwhv =
+        static_cast<RenderWidgetHostViewBase*>(
+            inner_speculative_frame->GetView());
+    if (!speculative_rwhv) {
+      inner_web_contents_impl->CreateRenderWidgetHostViewForRenderManager(
+          inner_speculative_render_view_host);
+    }
   }
 
   inner_web_contents_impl->RecursivelyUnregisterRenderWidgetHostViews();
@@ -9049,11 +9065,11 @@ double WebContentsImpl::GetPendingZoomLevel(RenderWidgetHostImpl* rwh) {
   }
 #if BUILDFLAG(IS_ANDROID)
   return HostZoomMapForRenderFrameHost(rfh)
-      ->GetZoomLevelForHostAndSchemeAndroid(url.scheme(),
+      ->GetZoomLevelForHostAndSchemeAndroid(url.GetScheme(),
                                             net::GetHostOrSpecFromURL(url));
 #else
   return HostZoomMapForRenderFrameHost(rfh)->GetZoomLevelForHostAndScheme(
-      url.scheme(), net::GetHostOrSpecFromURL(url));
+      url.GetScheme(), net::GetHostOrSpecFromURL(url));
 #endif
 }
 
@@ -10128,7 +10144,7 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
                                 focus_type};
   BrowserAccessibilityStateImpl::GetInstance()->OnFocusChangedInPage(details);
   observers_.NotifyObservers(&WebContentsObserver::OnFocusChangedInPage,
-                             &details);
+                             details);
 }
 
 bool WebContentsImpl::DidAddMessageToConsole(
@@ -11644,16 +11660,6 @@ void WebContentsImpl::SetVisibilityForChildViews(bool visible) {
 }
 
 void WebContentsImpl::HandleColorRelatedStateChanges() {
-  if (blink::ColorProviderColorMaps color_maps = GetColorProviderColorMaps();
-      color_maps_ != color_maps) {
-    color_maps_.swap(color_maps);
-    ExecutePageBroadcastMethodForAllPages([this](RenderViewHostImpl* rvh) {
-      if (auto& broadcast = rvh->GetAssociatedPageBroadcast()) {
-        broadcast->UpdateColorProviders(color_maps_);
-      }
-    });
-  }
-
   if (const auto* const theme = ui::NativeTheme::GetInstanceForWeb();
       prefers_reduced_transparency_ != theme->prefers_reduced_transparency() ||
       inverted_colors_ != theme->inverted_colors() ||
@@ -11662,6 +11668,24 @@ void WebContentsImpl::HandleColorRelatedStateChanges() {
           ->WebPreferencesNeedUpdateForColorRelatedStateChanges(
               *this, *GetPrimaryMainFrame()->GetSiteInstance())) {
     NotifyPreferencesChanged();
+  }
+
+  // Update color providers after applying any pending WebPreferences changes.
+  // This is done because WebPreferences changes (e.g. `in_forced_colors`) might
+  // not trigger an invalidation in Blink, but color provider changes will
+  // always trigger invalidation. Therefore, we want to update color providers
+  // after we have the right states for the web preferences so we can use the
+  // right color providers in Blink to paint. This also handles scenarios where
+  // the forced colors state remains the same, but the `forced_colors_map` is
+  // updated due to changes in the forced colors mode theme.
+  if (blink::ColorProviderColorMaps color_maps = GetColorProviderColorMaps();
+      color_maps_ != color_maps) {
+    color_maps_.swap(color_maps);
+    ExecutePageBroadcastMethodForAllPages([this](RenderViewHostImpl* rvh) {
+      if (auto& broadcast = rvh->GetAssociatedPageBroadcast()) {
+        broadcast->UpdateColorProviders(color_maps_);
+      }
+    });
   }
 }
 
@@ -12064,7 +12088,7 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
       no_vary_search_hint,
       /*initiator_render_frame_host=*/nullptr, GetWeakPtr(), page_transition,
       should_warm_up_compositor, should_prepare_paint_tree,
-      /*should_pause_javascript_execution=*/false,
+      blink::mojom::SpeculationAction::kPrerender,
       std::move(url_match_predicate),
       std::move(prerender_navigation_handle_callback),
       base::WrapRefCounted(

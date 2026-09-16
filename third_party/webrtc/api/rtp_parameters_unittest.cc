@@ -10,6 +10,7 @@
 
 #include "api/rtp_parameters.h"
 
+#include <string>
 #include <vector>
 
 #include "test/gtest.h"
@@ -301,4 +302,22 @@ TEST(RtpExtensionTest, FindHeaderExtensionByUri) {
                          extensions, kExtensionUri2,
                          RtpExtension::Filter::kRequireEncryptedExtension));
 }
+
+TEST(CodecParameterMap, ParsesKeyValueFmtpParameterSet) {
+  std::string params = "key1=value1;key2=value2";
+  CodecParameterMap codec_params;
+  ASSERT_TRUE(ParseFmtpParameterSet(params, codec_params).ok());
+  EXPECT_EQ(2U, codec_params.size());
+  EXPECT_EQ(codec_params["key1"], "value1");
+  EXPECT_EQ(codec_params["key2"], "value2");
+}
+
+TEST(CodecParameterMap, ParsesNonKeyValueFmtpParameterSet) {
+  std::string params = "not-in-key-value-format";
+  CodecParameterMap codec_params;
+  ASSERT_TRUE(ParseFmtpParameterSet(params, codec_params).ok());
+  EXPECT_EQ(1U, codec_params.size());
+  EXPECT_EQ(codec_params[""], "not-in-key-value-format");
+}
+
 }  // namespace webrtc

@@ -37,7 +37,6 @@ import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.OmniboxFeatures;
@@ -55,7 +54,6 @@ import org.chromium.ui.modelutil.PropertyModel;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Coordinator that handles the interactions with the autocomplete system. */
@@ -68,7 +66,7 @@ public class AutocompleteCoordinator
     private final AutocompleteMediator mMediator;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final OmniboxSuggestionsDropdownAdapter mAdapter;
-    private final Optional<PreWarmingRecycledViewPool> mRecycledViewPool;
+    private final @Nullable PreWarmingRecycledViewPool mRecycledViewPool;
     private @Nullable OmniboxSuggestionsContainer mContainer;
     private @Nullable OmniboxSuggestionsDropdown mDropdown;
     private final ObserverList<OmniboxSuggestionsDropdownScrollListener> mScrollListenerList =
@@ -93,9 +91,7 @@ public class AutocompleteCoordinator
             @Nullable Supplier<ShareDelegate> shareDelegateSupplier,
             LocationBarDataProvider locationBarDataProvider,
             ObservableSupplier<Profile> profileObservableSupplier,
-            Callback<Tab> bringToForegroundCallback,
             Callback<String> bringTabGroupToForegroundCallback,
-            Supplier<TabWindowManager> tabWindowManagerSupplier,
             BookmarkState bookmarkState,
             OmniboxActionDelegate omniboxActionDelegate,
             @Nullable OmniboxSuggestionsDropdownScrollListener scrollListener,
@@ -132,9 +128,7 @@ public class AutocompleteCoordinator
                         activityTabSupplier,
                         shareDelegateSupplier,
                         locationBarDataProvider,
-                        bringToForegroundCallback,
                         bringTabGroupToForegroundCallback,
-                        tabWindowManagerSupplier,
                         bookmarkState,
                         omniboxActionDelegate,
                         lifecycleDispatcher,
@@ -178,9 +172,9 @@ public class AutocompleteCoordinator
         mAdapter = new OmniboxSuggestionsDropdownAdapter(listItems);
 
         if (!OmniboxFeatures.sAsyncViewInflation.isEnabled()) {
-            mRecycledViewPool = Optional.of(new PreWarmingRecycledViewPool(mAdapter, context));
+            mRecycledViewPool = new PreWarmingRecycledViewPool(mAdapter, context);
         } else {
-            mRecycledViewPool = Optional.empty();
+            mRecycledViewPool = null;
         }
 
         // https://crbug.com/966227 Set initial layout direction ahead of inflating the suggestions.
@@ -189,7 +183,9 @@ public class AutocompleteCoordinator
 
     /** Clean up resources used by this class. */
     public void destroy() {
-        mRecycledViewPool.ifPresent(p -> p.destroy());
+        if (mRecycledViewPool != null) {
+            mRecycledViewPool.destroy();
+        }
         mProfileSupplier.removeObserver(mProfileChangeCallback);
         mMediator.destroy();
         if (mContainer != null) {
@@ -205,7 +201,7 @@ public class AutocompleteCoordinator
      */
     @Override
     public void setOmniboxSuggestionsVisualStateObserver(
-            Optional<OmniboxSuggestionsVisualStateObserver> omniboxSuggestionsVisualStateObserver) {
+            @Nullable OmniboxSuggestionsVisualStateObserver omniboxSuggestionsVisualStateObserver) {
         mMediator.setOmniboxSuggestionsVisualStateObserver(omniboxSuggestionsVisualStateObserver);
     }
 
@@ -234,7 +230,9 @@ public class AutocompleteCoordinator
                         container.findViewById(R.id.omnibox_suggestions_dropdown);
 
                 dropdown.setAdapter(mAdapter);
-                mRecycledViewPool.ifPresent(p -> dropdown.setRecycledViewPool(p));
+                if (mRecycledViewPool != null) {
+                    dropdown.setRecycledViewPool(mRecycledViewPool);
+                }
                 mHolder = new SuggestionListViewHolder(suggestionsContainer, dropdown);
                 for (int i = 0; i < mCallbacks.size(); i++) {
                     mCallbacks.get(i).onResult(mHolder);
@@ -300,7 +298,9 @@ public class AutocompleteCoordinator
     /** Signals that native initialization has completed. */
     public void onNativeInitialized() {
         mMediator.onNativeInitialized();
-        mRecycledViewPool.ifPresent(p -> p.onNativeInitialized());
+        if (mRecycledViewPool != null) {
+            mRecycledViewPool.onNativeInitialized();
+        }
     }
 
     /**
@@ -423,14 +423,10 @@ public class AutocompleteCoordinator
      * @param profile The profile to expand the query for.
      * @param query The query to be expanded into a fully qualified URL if appropriate.
      * @return The AutocompleteMatch for a default / top match. This may be either SEARCH match
-     *     built with the user's default search engine, or a NAVIGATION match. The call might return
-     *     null if it is invoked before Native libraries are initialized, or if the Profile is
-     *     invalid.
+     *     built with the user's default search engine, or a NAVIGATION match.
      */
     public static @Nullable AutocompleteMatch classify(Profile profile, String query) {
-        return AutocompleteController.getForProfile(profile)
-                .map(a -> a.classify(query))
-                .orElse(null);
+        return AutocompleteController.getForProfile(profile).classify(query);
     }
 
     /**

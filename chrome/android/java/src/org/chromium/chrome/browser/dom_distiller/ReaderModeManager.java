@@ -30,6 +30,7 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
@@ -125,6 +126,21 @@ public class ReaderModeManager extends EmptyTabObserver
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:DomDistillerEntryPoint)
+
+    /** Possible tab types for reader mode entry points. */
+    @IntDef({
+        EntryPointTabType.REGULAR_TAB,
+        EntryPointTabType.CUSTOM_TAB,
+        EntryPointTabType.INCOGNITO_TAB,
+        EntryPointTabType.INCOGNITO_CUSTOM_TAB,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EntryPointTabType {
+        int REGULAR_TAB = 0;
+        int CUSTOM_TAB = 1;
+        int INCOGNITO_TAB = 2;
+        int INCOGNITO_CUSTOM_TAB = 3;
+    }
 
     /** Possible states that the distiller can be in on a web page. */
     @IntDef({
@@ -603,6 +619,7 @@ public class ReaderModeManager extends EmptyTabObserver
                 if (mMessageShown) {
                     return;
                 }
+
                 showReaderModeMessage(messageDispatcher);
                 mMessageShown = true;
             }
@@ -692,7 +709,32 @@ public class ReaderModeManager extends EmptyTabObserver
                     AdaptiveToolbarButtonVariant.READER_MODE,
                     AdaptiveToolbarButtonVariant.MAX_VALUE);
         }
-        ReaderModeMetrics.recordReaderModeEntryPoint(entryPoint);
+        recordEntryPointMetric(entryPoint);
+    }
+
+    private void recordEntryPointMetric(@EntryPoint int entryPoint) {
+        @EntryPointTabType int entryPointTabType;
+        boolean isIncognito = mTab.isIncognito();
+        boolean isOrWillBeCustomTab = mTab.isCustomTab() || shouldDistillInCustomTab();
+        Activity activity = TabUtils.getActivity(mTab);
+        Intent intent = (activity != null) ? activity.getIntent() : null;
+        // Incognito CCT does not return true when checking mTab.isIncognito().
+        boolean isIncognitoCustomTab =
+                (intent != null)
+                        && IntentUtils.safeGetBooleanExtra(
+                                intent, IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
+                        && isOrWillBeCustomTab;
+
+        if (isIncognitoCustomTab) {
+            entryPointTabType = EntryPointTabType.INCOGNITO_CUSTOM_TAB;
+        } else if (isOrWillBeCustomTab) {
+            entryPointTabType = EntryPointTabType.CUSTOM_TAB;
+        } else if (isIncognito) {
+            entryPointTabType = EntryPointTabType.INCOGNITO_TAB;
+        } else {
+            entryPointTabType = EntryPointTabType.REGULAR_TAB;
+        }
+        ReaderModeMetrics.recordReaderModeEntryPoint(entryPoint, entryPointTabType);
     }
 
     private boolean shouldDistillInCustomTab() {
@@ -801,6 +843,8 @@ public class ReaderModeManager extends EmptyTabObserver
         String distillerUrl =
                 DomDistillerUrlUtils.getDistillerViewUrlFromUrl(
                         DISTILLER_SCHEME, url.getSpec(), webContents.getTitle());
+        // Override default accessibility zoom for custom tab distillation.
+        DomDistillerTabUtils.overrideDefaultZoomForReaderModePage(webContents, distillerUrl);
 
         assertNonNull(activity);
         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
@@ -873,7 +917,10 @@ public class ReaderModeManager extends EmptyTabObserver
      * @return Whether reader mode should trigger through messages.
      */
     public static boolean shouldUseReaderModeMessages(Tab tab) {
-        return tab != null && (tab.isCustomTab() || tab.isIncognito());
+        // Messages are explicitly disabled for in-app distillation.
+        return !DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
+                && tab != null
+                && (tab.isCustomTab() || tab.isIncognito());
     }
 
     /**
@@ -970,9 +1017,11 @@ public class ReaderModeManager extends EmptyTabObserver
      * contextual page action UI is enabled to update the rate limiting logic and to suppress the
      * message prompt if the current tab is a CCT.
      *
-     * @param showCpaButton Whether the reader mode UI is the current CPA being shown.
+     * @param showCpaButton Whether the CPA button can be shown in the UI
+     * @param isReaderMode Whether the chose action is reader mode type.
      */
-    public void onContextualPageActionShown(OneshotSupplier<Boolean> showCpaButton) {
+    public void onContextualPageActionShown(
+            OneshotSupplier<Boolean> showCpaButton, boolean isReaderMode) {
         // If the feature is enabled and the tab is a custom tab, the manager should be aware if the
         // displayed contextual page action is the reader one. Once determined, #tryShowingPrompt
         // can successfully decide between showing a message prompt or suppressing it in favor of
@@ -981,8 +1030,12 @@ public class ReaderModeManager extends EmptyTabObserver
             mHasBeenNotifiedOfCpa = true;
             showCpaButton.runSyncOrOnAvailable(
                     show -> {
-                        mIsReaderModeButtonShowingOnToolbar = show;
-                        if (show) {
+                        mIsReaderModeButtonShowingOnToolbar = isReaderMode && show;
+                        if (isReaderMode) {
+                            RecordHistogram.recordBooleanHistogram(
+                                    "Android.ReaderModeCpa.Shown", show);
+                        }
+                        if (mIsReaderModeButtonShowingOnToolbar) {
                             markUrlAsShown();
                         } else {
                             tryShowingPrompt();

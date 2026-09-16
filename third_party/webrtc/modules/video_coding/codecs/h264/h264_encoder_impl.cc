@@ -51,6 +51,7 @@
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "modules/video_coding/utility/simulcast_utility.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/experiments/psnr_experiment.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
@@ -199,8 +200,8 @@ H264EncoderImpl::H264EncoderImpl(const Environment& env,
       encoded_image_callback_(nullptr),
       has_reported_init_(false),
       has_reported_error_(false),
-      calculate_psnr_(
-          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")) {
+      psnr_experiment_(env.field_trials()),
+      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()) {
   downscaled_buffers_.reserve(kMaxSimulcastStreams - 1);
   encoded_images_.reserve(kMaxSimulcastStreams);
   encoders_.reserve(kMaxSimulcastStreams);
@@ -467,8 +468,8 @@ int32_t H264EncoderImpl::Encode(
   RTC_DCHECK_EQ(configurations_[0].height, frame_buffer->height());
 
 #ifdef WEBRTC_ENCODER_PSNR_STATS
-  bool calculate_psnr =
-      calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(input_frame);
+  bool calculate_psnr = psnr_experiment_.IsEnabled() &&
+                        psnr_frame_sampler_.ShouldBeSampled(input_frame);
 #endif
 
   // Encode image for each layer.

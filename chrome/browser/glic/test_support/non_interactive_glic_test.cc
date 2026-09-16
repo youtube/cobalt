@@ -4,15 +4,21 @@
 
 #include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
 
+#include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
+
 namespace glic {
 
-NonInteractiveGlicTest::NonInteractiveGlicTest() = default;
+NonInteractiveGlicTest::NonInteractiveGlicTest() {
+  GlicFocusedBrowserManager::SetTestingModeForTesting(true);
+}
 
 NonInteractiveGlicTest::NonInteractiveGlicTest(
     const base::FieldTrialParams& glic_params,
     const GlicTestEnvironmentConfig& glic_config)
     : test::InteractiveGlicTestT<InteractiveBrowserTest>(glic_params,
-                                                         glic_config) {}
+                                                         glic_config) {
+  GlicFocusedBrowserManager::SetTestingModeForTesting(true);
+}
 
 NonInteractiveGlicTest::~NonInteractiveGlicTest() = default;
 

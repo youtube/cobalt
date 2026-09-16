@@ -138,7 +138,6 @@ void WebContentsModalDialogManager::BlockWebContentsInteraction(bool blocked) {
 }
 
 void WebContentsModalDialogManager::ShowNextDialog() {
-  delegate_->OnWebContentsModalDialogShown(web_contents());
   child_dialogs_.front().manager->Show();
 }
 

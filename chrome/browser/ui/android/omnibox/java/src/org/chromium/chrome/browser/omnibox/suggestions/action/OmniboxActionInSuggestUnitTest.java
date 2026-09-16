@@ -37,6 +37,7 @@ import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateI
 import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.omnibox.action.OmniboxActionId;
+import org.chromium.ui.mojom.WindowOpenDisposition;
 
 import java.util.List;
 
@@ -49,7 +50,8 @@ public class OmniboxActionInSuggestUnitTest {
                     SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE,
                     SuggestTemplateInfo.TemplateAction.ActionType.DIRECTIONS_VALUE,
                     SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE,
-                    SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE);
+                    SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE,
+                    SuggestTemplateInfo.TemplateAction.ActionType.CHROME_TAB_SWITCH_VALUE);
     private static final SuggestTemplateInfo.TemplateAction EMPTY_INFO =
             SuggestTemplateInfo.TemplateAction.getDefaultInstance();
 
@@ -68,6 +70,7 @@ public class OmniboxActionInSuggestUnitTest {
                             "accessibility",
                             kesemActionType,
                             "",
+                            /* tabId= */ 0,
                             /* showAsActionButton= */ false);
             assertNotEquals(OmniboxAction.DEFAULT_ICON, action.icon);
         }
@@ -84,6 +87,7 @@ public class OmniboxActionInSuggestUnitTest {
                             "accessibility",
                             kesemActionType.getNumber(),
                             "",
+                            /* tabId= */ 0,
                             /* showAsActionButton= */ false);
             assertEquals(OmniboxAction.DEFAULT_ICON, action.icon);
         }
@@ -100,6 +104,7 @@ public class OmniboxActionInSuggestUnitTest {
                                 "",
                                 SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE,
                                 "",
+                                /* tabId= */ 0,
                                 /* showAsActionButton= */ false));
     }
 
@@ -114,6 +119,7 @@ public class OmniboxActionInSuggestUnitTest {
                                 "",
                                 SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE,
                                 "",
+                                /* tabId= */ 0,
                                 /* showAsActionButton= */ false));
     }
 
@@ -135,7 +141,8 @@ public class OmniboxActionInSuggestUnitTest {
                                         "accessibility",
                                         null,
                                         R.style.TextAppearance_ChipText,
-                                        /* showAsActionButton= */ false) {
+                                        /* showAsActionButton= */ false,
+                                        WindowOpenDisposition.CURRENT_TAB) {
                                     @Override
                                     public void execute(OmniboxActionDelegate d) {}
                                 }));
@@ -151,6 +158,7 @@ public class OmniboxActionInSuggestUnitTest {
                                 "accessibility",
                                 SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE,
                                 "",
+                                /* tabId= */ 0,
                                 /* showAsActionButton= */ false));
     }
 
@@ -159,7 +167,13 @@ public class OmniboxActionInSuggestUnitTest {
             SuggestTemplateInfo.TemplateAction.ActionType type, Intent intent) {
         var uri = intent.toUri(Intent.URI_INTENT_SCHEME);
         return new OmniboxActionInSuggest(
-                0, "wink", "accessibility", type.getNumber(), uri, /* showAsActionButton= */ false);
+                0,
+                "wink",
+                "accessibility",
+                type.getNumber(),
+                uri,
+                /* tabId= */ 0,
+                /* showAsActionButton= */ false);
     }
 
     @Test
@@ -337,5 +351,27 @@ public class OmniboxActionInSuggestUnitTest {
         assertNotNull(url);
         assertEquals(UrlConstants.CHROME_DINO_URL, url);
         verifyNoMoreInteractions(mDelegate);
+    }
+
+    @Test
+    public void getDisposition() {
+        for (var actionType : sKnownActionTypes) {
+            var action =
+                    new OmniboxActionInSuggest(
+                            0,
+                            "hint",
+                            "accessibility",
+                            actionType,
+                            "",
+                            /* tabId= */ 0,
+                            /* showAsActionButton= */ false);
+            assertEquals(
+                    actionType
+                                    == SuggestTemplateInfo.TemplateAction.ActionType
+                                            .CHROME_TAB_SWITCH_VALUE
+                            ? WindowOpenDisposition.SWITCH_TO_TAB
+                            : WindowOpenDisposition.CURRENT_TAB,
+                    action.disposition);
+        }
     }
 }

@@ -346,6 +346,9 @@ int asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
   }
 }
 
+static int asn1_marshal_string_with_type(CBB *out, const ASN1_STRING *in,
+                                         int type);
+
 int asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
   switch (in->type) {
     case V_ASN1_OBJECT:
@@ -374,7 +377,10 @@ int asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
     case V_ASN1_SEQUENCE:
     case V_ASN1_SET:
     case V_ASN1_OTHER:
-      return asn1_marshal_any_string(out, in->value.asn1_string);
+      // If |in->type| and the underlying |ASN1_STRING| type don't match, use
+      // |in->type|. See b/446993031.
+      return asn1_marshal_string_with_type(out, in->value.asn1_string,
+                                           in->type);
     default:
       // |ASN1_TYPE|s can have type -1 when default-constructed.
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
@@ -382,8 +388,9 @@ int asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
   }
 }
 
-int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in) {
-  switch (in->type) {
+static int asn1_marshal_string_with_type(CBB *out, const ASN1_STRING *in,
+                                         int type) {
+  switch (type) {
     case V_ASN1_INTEGER:
     case V_ASN1_NEG_INTEGER:
       return asn1_marshal_integer(out, in, CBS_ASN1_INTEGER);
@@ -419,4 +426,8 @@ int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
       return 0;
   }
+}
+
+int asn1_marshal_any_string(CBB *out, const ASN1_STRING *in) {
+  return asn1_marshal_string_with_type(out, in, in->type);
 }

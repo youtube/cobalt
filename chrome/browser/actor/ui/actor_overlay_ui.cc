@@ -20,7 +20,8 @@ namespace actor::ui {
 
 bool ActorOverlayUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return features::kGlicActorUiOverlay.Get();
+  return features::kGlicActorUiOverlay.Get() &&
+         !browser_context->IsOffTheRecord();
 }
 
 ActorOverlayUI::ActorOverlayUI(content::WebUI* web_ui)
@@ -56,6 +57,15 @@ void ActorOverlayUI::SetOverlayBackground(bool is_visible) {
   }
 
   handler_->SetOverlayBackground(is_visible);
+}
+
+bool ActorOverlayUI::IsActorOverlayWebContents(
+    content::WebContents* web_contents) {
+  if (auto* web_ui = web_contents->GetWebUI()) {
+    return web_ui->GetController() &&
+           web_ui->GetController()->GetType() == &kWebUIControllerType;
+  }
+  return false;
 }
 
 }  // namespace actor::ui

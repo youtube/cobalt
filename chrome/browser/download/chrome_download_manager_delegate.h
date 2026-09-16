@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <deque>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,7 +41,6 @@
 #endif
 
 #if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
-#include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #endif
 
@@ -51,10 +51,22 @@ namespace content {
 class DownloadManager;
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 namespace extensions {
 class CrxInstaller;
 class CrxInstallError;
+}
+#endif
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+namespace enterprise_obfuscation {
+enum class Error;
+}
+#endif
+
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
+namespace safe_browsing {
+class DownloadProtectionService;
 }
 #endif
 
@@ -294,7 +306,7 @@ class ChromeDownloadManagerDelegate
       const base::FilePath& suggested_path,
       DownloadTargetDeterminerDelegate::ConfirmationCallback callback);
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // Called when CrxInstaller in running_crx_installs_ finishes installation.
   void OnInstallerDone(const base::UnguessableToken& token,
                        content::DownloadOpenDelayedCallback callback,
@@ -392,17 +404,17 @@ class ChromeDownloadManagerDelegate
   // If history database fails to initialize, this will always be kInvalidId.
   // Otherwise, the first available download id is assigned from history
   // database, and incremented by one for each download.
-  uint32_t next_download_id_;
+  uint32_t next_download_id_ = download::DownloadItem::kInvalidId;
 
   // Whether |next_download_id_| is retrieved from history db.
-  bool next_id_retrieved_;
+  bool next_id_retrieved_ = false;
 
   // The |GetNextId| callbacks that may be cached before loading the download
   // database.
   IdCallbackVector id_callbacks_;
   std::unique_ptr<DownloadPrefs> download_prefs_;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // CRX installs that are currently in progress.
   std::map<base::UnguessableToken, scoped_refptr<extensions::CrxInstaller>>
       running_crx_installs_;
@@ -412,7 +424,7 @@ class ChromeDownloadManagerDelegate
   std::deque<base::OnceClosure> file_picker_callbacks_;
 
   // Whether a file picker dialog is showing.
-  bool is_file_picker_showing_;
+  bool is_file_picker_showing_ = false;
 
   base::WeakPtrFactory<ChromeDownloadManagerDelegate> weak_ptr_factory_{this};
 };

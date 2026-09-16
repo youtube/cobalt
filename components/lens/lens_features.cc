@@ -103,6 +103,18 @@ BASE_FEATURE(kLensOverlayForceEmptyCsbQuery, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLensSidePanelEnableWebviewResults,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensAimSuggestions, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensSearchZeroStateCsb, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensVideoCitations, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensUpdatedFeedbackEntrypoint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayOptimizationFilter, base::FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
+    &kLensUpdatedFeedbackEntrypoint, "feedback-toast-timeout-ms", 3000};
 const base::FeatureParam<int> kLensOverlayMinRamMb{&kLensOverlay, "min_ram_mb",
                                                    /*default=value=*/-1};
 const base::FeatureParam<std::string> kActivityUrl{
@@ -280,7 +292,7 @@ constexpr base::FeatureParam<bool> kEnableEarlyInteractionOptimization{
     true};
 
 constexpr base::FeatureParam<bool> kUseInnerTextAsContext{
-    &kLensOverlayContextualSearchbox, "use-inner-text-as-context", true};
+    &kLensOverlayContextualSearchbox, "use-inner-text-as-context", false};
 
 constexpr base::FeatureParam<bool> kUseApcAsContext{
     &kLensOverlayContextualSearchbox, "use-apc-as-context", true};
@@ -495,6 +507,9 @@ const base::FeatureParam<std::string>
 const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic{
     &kLensOverlayEduActionChip, "disabled-by-glic", true};
 
+const base::FeatureParam<int> kLensOverlayEduActionChipMaxShownCount{
+    &kLensOverlayEduActionChip, "max-shown-count", 3};
+
 constexpr base::FeatureParam<std::string> kLensOverlayStraightToSrpQuery{
     &kLensOverlayStraightToSrp, "query", ""};
 
@@ -529,6 +544,9 @@ constexpr base::FeatureParam<bool>
     kLensOverlayTextSelectionContextMenuEntrypointContextualize{
         &kLensOverlayTextSelectionContextMenuEntrypoint, "contextualize",
         false};
+
+constexpr base::FeatureParam<std::string> kZeroStateCsbQuery{
+    &kLensSearchZeroStateCsb, "zero-state-csb-query", ""};
 
 std::string GetHomepageURLForLens() {
   return kHomepageURLForLens.Get();
@@ -1024,6 +1042,10 @@ bool GetShouldComposeboxContextualizeOnFocus() {
          kContextualizeOnFocus.Get();
 }
 
+bool GetAimSuggestionsEnabled() {
+  return base::FeatureList::IsEnabled(kLensAimSuggestions);
+}
+
 bool ShouldCloseOverlayOnAimTransition() {
   return base::FeatureList::IsEnabled(kLensSearchAimM3) &&
          kCloseOverlayOnAimTransition.Get();
@@ -1130,6 +1152,10 @@ bool IsLensOverlayEduActionChipDisabledByGlic() {
   return kLensOverlayEduActionChipDisabledByGlic.Get();
 }
 
+int GetLensOverlayEduActionChipMaxShownCount() {
+  return kLensOverlayEduActionChipMaxShownCount.Get();
+}
+
 bool IsLensOverlayKeyboardSelectionEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayKeyboardSelection);
 }
@@ -1165,6 +1191,34 @@ bool IsLensOverlayForceEmptyCsbQueryEnabled() {
 
 bool IsLensSidePanelWebviewResultsEnabled() {
   return base::FeatureList::IsEnabled(kLensSidePanelEnableWebviewResults);
+}
+
+bool IsLensSearchZeroStateCsbEnabled() {
+  return base::FeatureList::IsEnabled(kLensSearchZeroStateCsb);
+}
+
+std::string GetZeroStateCsbQuery() {
+  return IsLensSearchZeroStateCsbEnabled() ? kZeroStateCsbQuery.Get() : "";
+}
+
+bool IsLensVideoCitationsEnabled() {
+  return base::FeatureList::IsEnabled(kLensVideoCitations);
+}
+
+bool IsLensUpdatedFeedbackEnabled() {
+  return base::FeatureList::IsEnabled(kLensUpdatedFeedbackEntrypoint);
+}
+
+int GetLensUpdatedFeedbackToastTimeoutMs() {
+  if (!IsLensUpdatedFeedbackEnabled()) {
+    return 0;
+  }
+
+  return kLensUpdatedFeedbackToastTimeoutMs.Get();
+}
+
+bool IsLensOverlayOptimizationFilterEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayOptimizationFilter);
 }
 
 }  // namespace lens::features

@@ -87,7 +87,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.DeletedUserProfiles" units="profiles"
-    expires_after="2025-09-20">
+    expires_after="2026-09-20">
   <owner>simmonsjosh@google.com</owner>
   <owner>src/ui/file_manager/OWNERS</owner>
   <summary>
@@ -150,7 +150,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.Errors" enum="CryptohomeError"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>apronin@chromium.org</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>Cryptohome errors.</summary>
@@ -388,7 +388,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.OOPMountOperationResult"
-    enum="CryptohomeOOPMountOperationResult" expires_after="2026-02-01">
+    enum="CryptohomeOOPMountOperationResult" expires_after="2026-04-05">
   <owner>sarthakkukreti@google.com</owner>
   <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
@@ -422,7 +422,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Cryptohome.RestoreSELinuxContextResultForHome"
     enum="BooleanSuccess" expires_after="2025-10-01">
-  <owner>hardikgoyal@chromium.org</owner>
   <owner>jorgelo@chromium.org</owner>
   <summary>
     The result of a cryptohome restore SELinux context operation of user home
@@ -433,7 +432,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Cryptohome.RestoreSELinuxContextResultForShadow"
     enum="BooleanSuccess" expires_after="2025-10-01">
-  <owner>hardikgoyal@chromium.org</owner>
+  <owner>jadmanski@chromium.org</owner>
   <owner>jorgelo@chromium.org</owner>
   <summary>
     The result of a cryptohome restore SELinux context operation of shadow
@@ -481,7 +480,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToGenerateEccAuthValue" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>yich@google.com</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>
@@ -630,7 +629,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{Action}AuthBlockType"
-    enum="CryptohomeAuthBlockType" expires_after="2026-01-18">
+    enum="CryptohomeAuthBlockType" expires_after="2026-03-22">
   <owner>yich@google.com</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>
@@ -644,8 +643,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{AuthBlockType}.PrepareForRemovalResult"
-    enum="CryptohomeCryptoError" expires_after="2025-09-15">
-  <owner>hardikgoyal@chromium.org</owner>
+    enum="CryptohomeCryptoError" expires_after="2026-09-15">
+  <owner>jadmanski@chromium.org</owner>
   <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Records the result of PrepareForRemoval() call of an auth factor. Reported
@@ -655,8 +654,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{AuthBlockType}.RevokeCredentialResult"
-    enum="HwsecRetryActionEnum" expires_after="2025-09-24">
-  <owner>hardikgoyal@chromium.org</owner>
+    enum="HwsecRetryActionEnum" expires_after="2026-09-24">
+  <owner>jadmanski@chromium.org</owner>
   <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Records the result of credentials revocation Revoke() method, which removes
@@ -795,7 +794,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{ErrorOperation}{AuthFactorType}.HashedStack"
-    enum="CryptohomeErrorHashed" expires_after="2025-09-07">
+    enum="CryptohomeErrorHashed" expires_after="2026-09-07">
   <owner>zuan@chromium.org</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>

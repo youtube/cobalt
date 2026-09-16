@@ -21,6 +21,7 @@ class GlicLegacySidePanelCoordinator;
 
 namespace tabs {
 class GlicActorTaskIconController;
+class GlicActorNudgeController;
 }  // namespace tabs
 #endif
 
@@ -49,6 +50,7 @@ class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
 class DevtoolsUIController;
+class EmbedderBrowserWindowFeatures;
 class ExtensionKeybindingRegistryViews;
 class ExclusiveAccessManager;
 class FindBarController;
@@ -58,6 +60,7 @@ class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
 class IncognitoClearBrowsingDataDialogCoordinator;
 class ImmersiveModeController;
+class IOSPromoController;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class PinnedToolbarActionsController;
@@ -80,6 +83,7 @@ class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
 class WebUIBrowserSidePanelUI;
+class ZoomBubbleCoordinator;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -96,6 +100,9 @@ class PinInfoBarController;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 class ProfileCustomizationBubbleSyncController;
+namespace session_restore_infobar {
+class SessionRestoreInfobarController;
+}
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -127,6 +134,10 @@ class BrowserCommandController;
 namespace commerce {
 class ProductSpecificationsEntryPointController;
 }  // namespace commerce
+
+namespace contextual_tasks {
+class ContextualTasksSidePanelCoordinator;
+}  // namespace contextual_tasks
 
 namespace tabs {
 class GlicNudgeController;
@@ -178,6 +189,10 @@ class AcceleratorProvider;
 namespace web_app {
 class AppBrowserController;
 }  // namespace web_app
+
+namespace omnibox {
+class AiModePageActionController;
+}  // namespace omnibox
 
 // This class owns the core controllers for features that are scoped to a given
 // browser window on desktop.
@@ -426,6 +441,7 @@ class BrowserWindowFeatures {
   profile_customization_bubble_sync_controller() {
     return profile_customization_bubble_sync_controller_.get();
   }
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   // Get the FindBarController for this browser window, creating it if it does
@@ -451,6 +467,7 @@ class BrowserWindowFeatures {
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
   }
+
   const ImmersiveModeController* immersive_mode_controller() const {
     return immersive_mode_controller_.get();
   }
@@ -517,6 +534,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<FullscreenControlHost> fullscreen_control_host_;
 
+  std::unique_ptr<IOSPromoController> ios_promo_controller_;
+
   std::unique_ptr<lens::LensOverlayEntryPointController>
       lens_overlay_entry_point_controller_;
 
@@ -582,6 +601,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
 
+  std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
+
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
@@ -592,6 +613,9 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   std::unique_ptr<ProfileCustomizationBubbleSyncController>
       profile_customization_bubble_sync_controller_;
+
+  std::unique_ptr<session_restore_infobar::SessionRestoreInfobarController>
+      session_restore_infobar_controller_;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
@@ -599,11 +623,15 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorTaskIconController>
       glic_actor_task_icon_controller_;
+  std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
   std::unique_ptr<glic::GlicLegacySidePanelCoordinator>
       glic_side_panel_coordinator_;
 #endif
+
+  std::unique_ptr<contextual_tasks::ContextualTasksSidePanelCoordinator>
+      contextual_tasks_side_panel_coordinator_;
 
   std::unique_ptr<tab_groups::MostRecentSharedTabUpdateStore>
       most_recent_shared_tab_update_store_;
@@ -721,6 +749,14 @@ class BrowserWindowFeatures {
   raw_ptr<ui::AcceleratorProvider> accelerator_provider_;
 
   std::unique_ptr<FindBarOwner> find_bar_owner_;
+
+  std::unique_ptr<omnibox::AiModePageActionController>
+      ai_mode_page_action_controller_;
+
+  // Keep this member last to ensure embedder features are torn down first, in
+  // reverse order of initialization.
+  std::unique_ptr<EmbedderBrowserWindowFeatures>
+      embedder_browser_window_features_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

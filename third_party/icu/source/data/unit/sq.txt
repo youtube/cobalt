@@ -1,6 +1,6 @@
 ﻿// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
+// Generated using tools/cldr/cldr-to-icu/
 sq{
     units{
         acceleration{
@@ -197,6 +197,11 @@ sq{
                 one{"{0} përdhjetëmijë"}
                 other{"{0} përdhjetëmijë"}
             }
+            portion-per-1e9{
+                dnam{"pjesë për miliard"}
+                one{"{0} pjesë për miliard"}
+                other{"{0} pjesë për miliard"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -300,6 +305,12 @@ sq{
                 dnam{"nanosekonda"}
                 one{"{0} nanosekondë"}
                 other{"{0} nanosekonda"}
+            }
+            night{
+                dnam{"net"}
+                one{"{0} natë"}
+                other{"{0} net"}
+                per{"{0}/natë"}
             }
             quarter{
                 dnam{"çerekë"}
@@ -742,9 +753,9 @@ sq{
                 other{"{0} milimetra mërkuri"}
             }
             pascal{
-                dnam{"paskalë"}
+                dnam{"paskal"}
                 one{"{0} paskal"}
-                other{"{0} paskalë"}
+                other{"{0} paskal"}
             }
             pound-force-per-square-inch{
                 dnam{"paund për inç në katror"}
@@ -966,7 +977,7 @@ sq{
             }
             quart-imperial{
                 dnam{"çerekë imperialë"}
-                one{"{0} çerek imperialë"}
+                one{"{0} çerek imperial"}
                 other{"{0} çerekë imperialë"}
             }
             tablespoon{
@@ -990,12 +1001,10 @@ sq{
         }
         angle{
             arc-minute{
-                dnam{"hark-min"}
                 one{"{0}′"}
                 other{"{0}′"}
             }
             arc-second{
-                dnam{"hark-sek"}
                 one{"{0}″"}
                 other{"{0}″"}
             }
@@ -1007,7 +1016,6 @@ sq{
         }
         concentr{
             mole{
-                dnam{"molë"}
                 one{"{0} mol"}
                 other{"{0} molë"}
             }
@@ -1065,6 +1073,12 @@ sq{
             minute{
                 per{"{0}/min"}
             }
+            night{
+                dnam{"net"}
+                one{"{0} natë"}
+                other{"{0} net"}
+                per{"{0}/natë"}
+            }
             quarter{
                 one{"{0} çer."}
                 other{"{0} çer."}
@@ -1081,7 +1095,7 @@ sq{
         }
         graphics{
             dot{
-                dnam{"pika"}
+                dnam{"pikë"}
                 one{"{0} pikë"}
                 other{"{0} pika"}
             }
@@ -1293,6 +1307,12 @@ sq{
                 one{"{0} muaj"}
                 other{"{0} muaj"}
                 per{"{0}/muaj"}
+            }
+            night{
+                dnam{"net"}
+                one{"{0} natë"}
+                other{"{0} net"}
+                per{"{0}/natë"}
             }
             quarter{
                 dnam{"çer."}

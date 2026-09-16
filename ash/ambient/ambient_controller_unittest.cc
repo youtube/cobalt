@@ -60,8 +60,6 @@
 #include "chromeos/ash/components/assistant/buildflags.h"
 #include "chromeos/ash/components/dbus/dlcservice/dlcservice.pb.h"
 #include "chromeos/ash/components/dbus/dlcservice/fake_dlcservice_client.h"
-#include "chromeos/ash/services/assistant/public/cpp/features.h"
-#include "chromeos/ash/services/libassistant/public/cpp/assistant_interaction_metadata.h"
 #include "chromeos/dbus/power_manager/suspend.pb.h"
 #include "net/base/url_util.h"
 #include "ui/base/user_activity/user_activity_detector.h"
@@ -2261,7 +2259,7 @@ TEST_F(AmbientControllerTest, RendersCorrectViewForVideo) {
   EXPECT_TRUE(web_view->current_url().SchemeIsFile());
   const base::FilePath video_html_full_path =
       base::FilePath(kTestDlcRootPath).Append(kTimeOfDayVideoHtmlSubPath);
-  EXPECT_EQ(web_view->current_url().path(), video_html_full_path.value());
+  EXPECT_EQ(web_view->current_url().GetPath(), video_html_full_path.value());
   std::string video_file_requested;
   ASSERT_TRUE(net::GetValueForKeyInQuery(web_view->current_url(), "video_file",
                                          &video_file_requested));
@@ -2291,7 +2289,7 @@ TEST_F(AmbientControllerTest, RendersCorrectViewForVideo) {
       GetContainerView()->GetViewByID(kAmbientVideoWebView));
   ASSERT_TRUE(web_view);
   EXPECT_TRUE(web_view->current_url().SchemeIsFile());
-  EXPECT_EQ(web_view->current_url().path(), video_html_full_path.value());
+  EXPECT_EQ(web_view->current_url().GetPath(), video_html_full_path.value());
   ASSERT_TRUE(net::GetValueForKeyInQuery(web_view->current_url(), "video_file",
                                          &video_file_requested));
   EXPECT_EQ(video_file_requested, kTimeOfDayCloudsVideo);
