@@ -101,9 +101,9 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
           }
         }
 #if BUILDFLAG(IS_STARBOARD)
-        // On Starboard, default to 0 (disable CC image cache items limit,
-        // previously set via cobalt_switch_defaults_starboard).
-        return static_cast<size_t>(0);
+        // On Starboard, default to 15 items (1 active TV shelf row + lookahead
+        // tiles), unlocking 60 FPS scrolling without increasing peak memory.
+        return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
             2000);  // kNormalMaxItemsInCacheForGpu default
