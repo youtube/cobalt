@@ -51,10 +51,12 @@ Unpacker::Result::Result() = default;
 
 #if BUILDFLAG(IS_STARBOARD)
 Unpacker::Unpacker(const std::string& app_id,
+                   const std::string& prod_id,
                    const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
     : app_id_(app_id),
+      prod_id_(prod_id),
       result_(crx_operation_result),
 #if !defined(IN_MEMORY_UPDATES)
       path_(crx_operation_result.response),
@@ -65,12 +67,13 @@ Unpacker::Unpacker(const std::string& app_id,
 Unpacker::~Unpacker() = default;
 
 void Unpacker::Unpack(const std::string& app_id,
+                      const std::string& prod_id,
                       const std::vector<uint8_t>& pk_hash,
                       const OperationResult& crx_operation_result,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
                       base::OnceCallback<void(const Result& result)> callback) {
-  base::WrapRefCounted(new Unpacker(app_id, crx_operation_result,
+  base::WrapRefCounted(new Unpacker(app_id, prod_id, crx_operation_result,
                                     std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
@@ -151,12 +154,6 @@ void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   unzip_begin_time_ = base::TimeTicks::Now();
-<<<<<<< HEAD
-  if (!CreateTempDirectory(
-          base::StrCat(
-              {prod_id_, FILE_PATH_LITERAL("_chrome_Unpacker_BeginUnzipping")}),
-          &unpack_path_)) {
-=======
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
   unpack_path_ = result_.installation_dir;
@@ -165,9 +162,10 @@ void Unpacker::BeginUnzipping() {
   unpack_path_ = path_.DirName();
 #endif  // defined(IN_MEMORY_UPDATES)
 #else  // BUILDFLAG(IS_STARBOARD)
-  if (!CreateTempDirectory(FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"),
-                           &unpack_path_)) {
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (!CreateTempDirectory(
+          base::StrCat(
+              {prod_id_, FILE_PATH_LITERAL("_chrome_Unpacker_BeginUnzipping")}),
+          &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
     EndUnpacking(UnpackerError::kUnzipPathError,
                  ::logging::GetLastSystemErrorCode());

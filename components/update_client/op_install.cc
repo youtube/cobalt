@@ -246,13 +246,10 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
             const std::string& id,
-<<<<<<< HEAD
             const std::string& prod_id,
-=======
 #if BUILDFLAG(IS_STARBOARD)
             const OperationResult& crx_operation_result,
 #else
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             const base::FilePath& crx_file,
 #endif
             std::unique_ptr<Unzipper> unzipper,
@@ -348,7 +345,7 @@ base::OnceClosure InstallOperation(
                                        crx_operation_result),
                         std::move(install_params), installer, progress_callback,
                         metadata, next_version, id, crx_operation_result),
-         id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
+         id, prod_id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
          base::unexpected(UnpackerError::kCrxCacheNotProvided));
 #else
   crx_cache->Put(
@@ -361,12 +358,8 @@ base::OnceClosure InstallOperation(
                              std::move(installer_result_callback),
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
-<<<<<<< HEAD
           id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
-=======
-          id, crx_file, std::move(unzipper), pk_hash, crx_format));
 #endif
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

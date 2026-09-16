@@ -80,6 +80,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // Begins the actual unpacking of the files. Calls `callback` with the result.
 #if BUILDFLAG(IS_STARBOARD)
   static void Unpack(const std::string& app_id,
+                     const std::string& prod_id,
                      const std::vector<uint8_t>& pk_hash,
                      const OperationResult& crx_operation_result,
                      std::unique_ptr<Unzipper> unzipper,
@@ -104,6 +105,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // of the CRX.
 #if BUILDFLAG(IS_STARBOARD)
   Unpacker(const std::string& app_id,
+           const std::string& prod_id,
            const OperationResult& crx_operation_result,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
@@ -142,14 +144,11 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   void EndUnpacking(UnpackerError error, int extended_error = 0);
 
   const std::string app_id_;
-<<<<<<< HEAD
   const base::FilePath::StringType prod_id_;
-=======
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult result_;
 #endif
 #if !defined(IN_MEMORY_UPDATES)
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::FilePath path_;
 #endif
   std::unique_ptr<Unzipper> unzipper_;
