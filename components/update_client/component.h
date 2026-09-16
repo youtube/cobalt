@@ -419,7 +419,7 @@ class Component {
   base::FilePath payload_path_;
 #endif
 
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // The byte counts below are valid for the current url being fetched.
   // |total_bytes| is equal to the size of the CRX file and |downloaded_bytes|
   // represents how much has been downloaded up to that point. A value of -1

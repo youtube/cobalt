@@ -92,7 +92,7 @@ interface StarboardRendererClientExtension {
 };
 
 [EnableIf=is_win]
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Extension of the mojo::Renderer communication layer for MediaFoundation-based
 // Renderer.
 // This allows the MediaFoundationRendererClient in the render process to call

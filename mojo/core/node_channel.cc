@@ -928,7 +928,7 @@ void NodeChannel::InitializeLocalCapabilities() {
     SetLocalCapabilities(kNodeCapabilitySupportsUpgrade);
   }
 #endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace core

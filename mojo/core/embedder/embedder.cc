@@ -88,7 +88,7 @@ void InitFeatures() {
   bool shared_mem_enabled =
       base::FeatureList::IsEnabled(kMojoLinuxChannelSharedMem);
   int num_pages = kMojoLinuxChannelSharedMemPages.Get();
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (num_pages < 0) {
     num_pages = 4;
   } else if (num_pages > 128) {

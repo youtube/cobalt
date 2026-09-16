@@ -189,7 +189,7 @@ bool IsPreloadScanningEnabled(Document* document) {
   }
 #endif  // BUILDFLAG(IS_COBALT)
   if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame())
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return false;
   }
   return document->GetSettings() &&

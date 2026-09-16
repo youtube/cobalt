@@ -104,7 +104,7 @@ class NetworkFetcher {
 #if BUILDFLAG(IS_STARBOARD)
   virtual void Cancel() = 0;
 #endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 class NetworkFetcherFactory

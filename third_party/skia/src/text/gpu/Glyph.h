@@ -39,7 +39,7 @@ public:
 =======
     Glyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format)
             : fPackedID(packedGlyphID), fMaskFormat(format) {}
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     const SkPackedGlyphID       fPackedID;
     const skgpu::MaskFormat     fMaskFormat;

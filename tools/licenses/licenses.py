@@ -383,7 +383,7 @@ SPECIAL_CASES = {
         "URL": "https://musl.libc.org/",
         "License": "MIT",
         "License File": ["/third_party/musl/COPYRIGHT"],
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     },
 }
 

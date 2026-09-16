@@ -596,7 +596,7 @@ test("gpu_unittests") {
   if (is_linux || is_chromeos || is_android) {
 =======
   if (is_linux && !is_starboard || is_chromeos || is_android) {
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     sources += [ "command_buffer/service/gpu_fence_manager_unittest.cc" ]
   }
 

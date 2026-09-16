@@ -191,7 +191,7 @@ class MockCrxDownloaderFactory : public CrxDownloaderFactory {
 =======
       bool /* background_download_enabled */) const override {
 #endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return crx_downloader_;
   }
 

@@ -7,7 +7,7 @@
 
 import typing
 
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 from collections.abc import Iterator
 import html
 from xml.dom import minidom
@@ -21,7 +21,7 @@ from xml.dom import minidom
 DomTree = minidom.Element | minidom.Document
 =======
 DomTree = typing.Union[minidom.Element, minidom.Document]
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 _ELEMENT_NODE = minidom.Node.ELEMENT_NODE
 

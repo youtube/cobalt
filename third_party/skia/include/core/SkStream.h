@@ -449,7 +449,7 @@ private:
 
     sk_sp<SkData>   fData;
     size_t          fOffset;
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     using INHERITED = SkStreamMemory;
 };

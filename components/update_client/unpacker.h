@@ -149,7 +149,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   OperationResult result_;
 #endif
 #if !defined(IN_MEMORY_UPDATES)
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::FilePath path_;
 #endif
   std::unique_ptr<Unzipper> unzipper_;
