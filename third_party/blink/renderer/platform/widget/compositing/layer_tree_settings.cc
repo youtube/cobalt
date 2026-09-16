@@ -242,7 +242,8 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.is_for_scalable_page = is_for_scalable_page;
 
   settings.main_frame_before_activation_enabled =
-      cmd.HasSwitch(::switches::kEnableMainFrameBeforeActivation);
+      cmd.HasSwitch(::switches::kEnableMainFrameBeforeActivation) ||
+      base::FeatureList::IsEnabled(::features::kCobaltMainFrameBeforeActivation);
 
   // Checkerimaging is not supported for synchronous single-threaded mode, which
   // is what the renderer uses if its not threaded.
@@ -611,6 +612,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   std::tie(settings.tiling_interest_area_padding,
            settings.skewport_extrapolation_limit_in_screen_pixels) =
       GetTilingInterestAreaSizes();
+
+  if (base::FeatureList::IsEnabled(::features::kCobaltZeroSkewportTargetTime)) {
+    settings.gpu_rasterization_skewport_target_time_in_seconds = 0.0f;
+    settings.skewport_target_time_in_seconds = 0.0f;
+  }
 
   settings.dynamic_safe_area_insets_on_scroll_enabled =
       RuntimeEnabledFeatures::DynamicSafeAreaInsetsOnScrollEnabled();
