@@ -363,7 +363,7 @@ int UtilityMain(MainFunctionParams parameters) {
       break;
 #endif  // BUILDFLAG(IS_LINUX)
 #endif  // !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of dc168278aab (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 158c37c2b1f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kShapeDetection:
       pre_sandbox_hook =
