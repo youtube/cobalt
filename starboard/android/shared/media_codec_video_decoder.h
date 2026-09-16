@@ -30,6 +30,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
+#include "starboard/android/shared/tunnel_mode_config.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
@@ -68,10 +69,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     std::string max_video_capabilities;
   };
 
-  struct TunnelModeConfig {
-    std::optional<int> audio_session_id;
-    bool force_secure_pipeline = false;
-  };
+  using TunnelModeConfig = starboard::TunnelModeConfig;
 
   struct PipelineConfig {
     int max_input_size = 0;
@@ -90,7 +88,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
       const StreamConfig& stream_config,
-      const TunnelModeConfig& tunnel_mode_config,
+      const std::optional<TunnelModeConfig>& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
       const PlatformOptions& platform_options);
 
@@ -98,7 +96,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   CreateForTesting(std::unique_ptr<MediaCodec::Factory> media_codec_factory,
                    JobQueue* job_queue,
                    const StreamConfig& stream_config,
-                   const TunnelModeConfig& tunnel_mode_config,
+                   const std::optional<TunnelModeConfig>& tunnel_mode_config,
                    const PipelineConfig& pipeline_config,
                    const PlatformOptions& platform_options);
 
@@ -107,7 +105,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
       JobQueue* job_queue,
       const StreamConfig& stream_config,
-      const TunnelModeConfig& tunnel_mode_config,
+      const std::optional<TunnelModeConfig>& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
       const PlatformOptions& platform_options,
       std::string* error_message);
@@ -185,6 +183,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool require_software_codec_;
 
   const std::optional<int> tunnel_mode_audio_session_id_;
+  const bool enable_vsp_adjustment_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
@@ -292,7 +291,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
       JobQueue* job_queue,
       const StreamConfig& stream_config,
-      const TunnelModeConfig& tunnel_mode_config,
+      const std::optional<TunnelModeConfig>& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
       const PlatformOptions& platform_options);
 

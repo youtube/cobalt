@@ -32,6 +32,9 @@ class VideoRenderAlgorithm {
  public:
   virtual ~VideoRenderAlgorithm() {}
 
+  // Returns true if video renderer VSP adjustment is enabled.
+  virtual bool IsVspAdjustmentEnabled() const { return false; }
+
   // |draw_frame_cb| can be empty.  When it is empty, this function simply runs
   // the frame picking algorithm without calling |draw_frame_cb| to render the
   // frame explicitly.

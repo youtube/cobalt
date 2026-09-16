@@ -31,6 +31,7 @@
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/tunnel_mode_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -148,9 +149,8 @@ bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(
-      std::optional<int> tunnel_mode_audio_session_id,
+      const std::optional<TunnelModeConfig>& tunnel_mode_config,
       bool allow_audio_writing_on_pause,
-      bool enable_video_renderer_vsp_adjustment,
       bool allow_flush_during_seek,
       bool pause_using_audio_track_state)
       : AudioRendererSinkImpl(
@@ -167,6 +167,12 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
               auto type = static_cast<AudioTrackAudioSinkType*>(
                   SbAudioSinkImpl::GetPreferredType());
 
+              std::optional<int> tunnel_mode_audio_session_id =
+                  tunnel_mode_config
+                      ? std::make_optional(
+                            tunnel_mode_config->audio_session_id())
+                      : std::nullopt;
+
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
                   frame_buffers, frame_buffers_size_in_frames,
@@ -175,9 +181,9 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   /*is_web_audio=*/false, allow_audio_writing_on_pause,
                   pause_using_audio_track_state, context);
             }),
-        is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
+        is_tunnel_mode_enabled_(tunnel_mode_config.has_value()),
         enable_video_renderer_vsp_adjustment_(
-            enable_video_renderer_vsp_adjustment),
+            tunnel_mode_config && tunnel_mode_config->enable_vsp_adjustment()),
         allow_flush_during_seek_(allow_flush_during_seek) {}
 
   bool AllowOverflowAudioSamples() const override {
@@ -403,12 +409,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      constexpr std::optional<int> kTunnelModeAudioSessionId = std::nullopt;
-      constexpr bool kForceSecurePipelineUnderTunnelMode = false;
+      constexpr std::optional<TunnelModeConfig> kTunnelModeConfig =
+          std::nullopt;
 
       auto video_decoder = CreateVideoDecoder(
-          creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+          creation_parameters, kTunnelModeConfig, max_video_input_size);
       if (video_decoder) {
         auto video_decoder_impl = std::move(video_decoder.value());
         auto video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
@@ -451,58 +456,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
-    std::optional<int> tunnel_mode_audio_session_id = std::nullopt;
-    bool enable_tunnel_mode = false;
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
-        creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-#if !BUILDFLAG(IS_STARBOARD)
-      const bool force_tunnel_mode =
-          FeatureList::IsEnabled(features::kForceTunnelMode);
-#else
-      const bool force_tunnel_mode = false;
-#endif
-      enable_tunnel_mode =
-          force_tunnel_mode ||
-          (video_mime_type &&
-           video_mime_type->GetParamBoolValue("tunnelmode", false));
-
-      SB_LOG(INFO) << "Tunnel mode is "
-                   << (enable_tunnel_mode ? "enabled. " : "disabled. ")
-                   << "Video mime parameter \"tunnelmode\" value: "
-                   << (video_mime_type ? video_mime_type->GetParamStringValue(
-                                             "tunnelmode", "<not provided>")
-                                       : "<not provided>")
-                   << (force_tunnel_mode ? ", force tunnel mode is on." : ".");
-    } else {
-      SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
-                   << "Audio codec: "
-                   << GetMediaAudioCodecName(creation_parameters.audio_codec())
-                   << ", Video codec: "
-                   << GetMediaVideoCodecName(creation_parameters.video_codec())
-                   << ". Tunnel mode is disabled.";
-    }
-
-    bool force_secure_pipeline_under_tunnel_mode = false;
-    if (enable_tunnel_mode) {
-      if (IsTunnelModeSupported(creation_parameters,
-                                &force_secure_pipeline_under_tunnel_mode)) {
-        tunnel_mode_audio_session_id =
-            GenerateAudioSessionId(creation_parameters);
-        SB_LOG(INFO) << "Generated tunnel mode audio session id "
-                     << ToString(tunnel_mode_audio_session_id);
-      } else {
-        SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
-      }
-    } else {
-      SB_LOG(INFO) << "Tunnel mode not enabled.";
-    }
-
-    if (!tunnel_mode_audio_session_id) {
-      SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
-    } else {
-      SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
-                   << *tunnel_mode_audio_session_id << '.';
-    }
+    const std::optional<TunnelModeConfig> tunnel_mode_config =
+        CreateTunnelModeConfig(creation_parameters, video_mime_type);
+    SB_LOG(INFO) << tunnel_mode_config;
 
     const auto& experimental_features =
         creation_parameters.experimental_features();
@@ -547,17 +503,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
 
+    const bool enable_video_renderer_vsp_adjustment =
+        tunnel_mode_config && tunnel_mode_config->enable_vsp_adjustment();
+    SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
+        << "enable_video_renderer_vsp_adjustment is set to true.";
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       // TODO: b/500811542 - Connect to H5VCC.
       const bool allow_audio_writing_on_pause =
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause);
       SB_LOG_IF(INFO, allow_audio_writing_on_pause)
           << "allow_audio_writing_on_pause is set to true.";
-
-      const bool enable_video_renderer_vsp_adjustment =
-          experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
-      SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
-          << "enable_video_renderer_vsp_adjustment is set to true.";
 
       const bool pause_using_audio_track_state =
           experimental_features.GetBool(kMediaPauseUsingAudioTrackState);
@@ -597,8 +553,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment,
+              tunnel_mode_config, allow_audio_writing_on_pause,
               allow_flush_audio_track_during_seek,
               pause_using_audio_track_state);
     }
@@ -611,21 +566,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
-      if (experimental_features.GetBool(
-              kMediaEnableVideoRendererVspAdjustment) &&
+      if (enable_video_renderer_vsp_adjustment &&
           !experimental_features.GetBool(kMediaAllowAudioWritingOnPause)) {
         return Failure(
             "Video renderer vsp adjustment needs to be enabled with audio "
             "writing on pause.");
       }
 
-      if (!tunnel_mode_audio_session_id) {
-        force_secure_pipeline_under_tunnel_mode = false;
-      }
-
       auto video_decoder_result = CreateVideoDecoder(
-          creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+          creation_parameters, tunnel_mode_config, max_video_input_size);
       if (video_decoder_result) {
         auto video_decoder_impl = std::move(video_decoder_result.value());
         components.video.render_algorithm =
@@ -643,8 +592,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
   NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool force_secure_pipeline_under_tunnel_mode,
+      const std::optional<TunnelModeConfig>& tunnel_mode_config,
       int max_video_input_size) {
     auto experimental_features = creation_parameters.experimental_features();
 
@@ -690,7 +638,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.decode_target_graphics_context_provider(),
          creation_parameters.surface_view(),
          creation_parameters.max_video_capabilities()},
-        {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
+        tunnel_mode_config,
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
          experimental_features},
         {reset_delay_usec, flush_delay_usec});
@@ -770,6 +718,72 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "Failed to generate audio session id for tunnel mode.";
 
     return tunnel_mode_audio_session_id;
+  }
+
+  std::optional<TunnelModeConfig> CreateTunnelModeConfig(
+      const CreationParameters& creation_parameters,
+      const std::optional<MimeType>& video_mime_type) {
+    if (creation_parameters.audio_codec() == kSbMediaAudioCodecNone ||
+        creation_parameters.video_codec() == kSbMediaVideoCodecNone) {
+      SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
+                   << "Audio codec: "
+                   << GetMediaAudioCodecName(creation_parameters.audio_codec())
+                   << ", Video codec: "
+                   << GetMediaVideoCodecName(creation_parameters.video_codec())
+                   << ". Tunnel mode is disabled.";
+      return std::nullopt;
+    }
+
+    // Compressed audio passthrough does not support tunnel mode.
+    if (creation_parameters.audio_codec() == kSbMediaAudioCodecAc3 ||
+        creation_parameters.audio_codec() == kSbMediaAudioCodecEac3) {
+      SB_LOG(INFO)
+          << "Tunnel mode is disabled for compressed audio passthrough.";
+      return std::nullopt;
+    }
+
+#if !BUILDFLAG(IS_STARBOARD)
+    const bool force_tunnel_mode =
+        FeatureList::IsEnabled(features::kForceTunnelMode);
+#else
+    const bool force_tunnel_mode = false;
+#endif
+    const bool enable_tunnel_mode =
+        force_tunnel_mode ||
+        (video_mime_type &&
+         video_mime_type->GetParamBoolValue("tunnelmode", false));
+
+    SB_LOG(INFO) << "Tunnel mode is "
+                 << (enable_tunnel_mode ? "enabled. " : "disabled. ")
+                 << "Video mime parameter \"tunnelmode\" value: "
+                 << (video_mime_type ? video_mime_type->GetParamStringValue(
+                                           "tunnelmode", "<not provided>")
+                                     : "<not provided>")
+                 << (force_tunnel_mode ? ", force tunnel mode is on." : ".");
+
+    if (!enable_tunnel_mode) {
+      return std::nullopt;
+    }
+
+    bool force_secure_pipeline = false;
+    if (!IsTunnelModeSupported(creation_parameters, &force_secure_pipeline)) {
+      SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
+      return std::nullopt;
+    }
+
+    auto audio_session_id = GenerateAudioSessionId(creation_parameters);
+    if (!audio_session_id.has_value()) {
+      SB_LOG(WARNING) << "Failed to generate tunnel mode audio session id.";
+      return std::nullopt;
+    }
+
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
+    const bool enable_vsp_adjustment =
+        experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
+
+    return TunnelModeConfig(*audio_session_id, force_secure_pipeline,
+                            enable_vsp_adjustment);
   }
 
  private:
