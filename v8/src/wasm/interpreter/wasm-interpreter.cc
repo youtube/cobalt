@@ -5742,29 +5742,29 @@ class Handlers : public HandlersBase {
   static bool DoRefCast(WasmRef ref, ValueType ref_type, HeapType target_type,
                         bool null_succeeds,
                         WasmInterpreterRuntime* wasm_runtime) {
-    if (target_type.has_index()) {
+    if (target_type.is_index()) {
       DirectHandle<Map> rtt =
           wasm_runtime->RttCanon(target_type.ref_index().index);
       return wasm_runtime->SubtypeCheck(ref, ref_type, rtt,
                                         target_type.ref_index(), null_succeeds);
     } else {
-      switch (target_type.generic_kind()) {
-        case GenericKind::kEq:
+      switch (target_type.representation()) {
+        case HeapType::kEq:
           return wasm_runtime->RefIsEq(ref, ref_type, null_succeeds);
-        case GenericKind::kI31:
+        case HeapType::kI31:
           return wasm_runtime->RefIsI31(ref, ref_type, null_succeeds);
-        case GenericKind::kStruct:
+        case HeapType::kStruct:
           return wasm_runtime->RefIsStruct(ref, ref_type, null_succeeds);
-        case GenericKind::kArray:
+        case HeapType::kArray:
           return wasm_runtime->RefIsArray(ref, ref_type, null_succeeds);
-        case GenericKind::kString:
+        case HeapType::kString:
           return wasm_runtime->RefIsString(ref, ref_type, null_succeeds);
-        case GenericKind::kNone:
-        case GenericKind::kNoExtern:
-        case GenericKind::kNoFunc:
+        case HeapType::kNone:
+        case HeapType::kNoExtern:
+        case HeapType::kNoFunc:
           DCHECK(null_succeeds);
           return wasm_runtime->IsNullTypecheck(ref, ref_type);
-        case GenericKind::kAny:
+        case HeapType::kAny:
           // Any may never need a cast as it is either implicitly convertible or
           // never convertible for any given type.
         default:
@@ -8805,7 +8805,10 @@ bool WasmBytecodeGenerator::TypeCheckAlwaysFails(ValueType obj_type,
   return (types_unrelated &&
           (!null_succeeds || !obj_type.is_nullable() ||
            obj_type.is_string_view() || expected_type.is_string_view())) ||
-         (!null_succeeds && expected_type.is_none_type());
+         (!null_succeeds &&
+          (expected_type.representation() == HeapType::kNone ||
+           expected_type.representation() == HeapType::kNoFunc ||
+           expected_type.representation() == HeapType::kNoExtern));
 }
 
 #ifdef DEBUG

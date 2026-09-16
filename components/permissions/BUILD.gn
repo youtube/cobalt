@@ -222,14 +222,6 @@ source_set("permissions") {
       "//third_party/jni_zero",
       "//ui/android",
     ]
-
-    if (is_cobalt) {
-      sources -= [
-        "android/permissions_android_feature_map.cc",
-        "android/permissions_android_feature_map.h",
-      ]
-      deps += [ "//components/permissions/android:core" ]
-    }
   } else {
     sources += [
       "bluetooth_chooser_controller.cc",

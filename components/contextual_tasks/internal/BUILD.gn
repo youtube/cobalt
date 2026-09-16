@@ -46,14 +46,6 @@ source_set("internal") {
     "//ui/gfx",
     "//url",
   ]
-
-  if (is_cobalt) {
-    # TODO(b/561957092): remove this at the 145.7577 roll, where
-    # https://crrev.com/c/7234178 moves account_utils to public. Cobalt sets
-    # build_with_tflite_lib false, which drops the re2 re-export upstream
-    # reaches through omnibox.
-    deps += [ "//third_party/re2" ]
-  }
 }
 
 source_set("unit_tests") {

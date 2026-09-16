@@ -34,13 +34,8 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     TrackId track_id) {
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      return StreamParserBuffer::FromExternalMemory(
-          alloc->CopyFrom(data, type), is_key_frame, type, track_id);
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       return StreamParserBuffer::FromExternalMemory(
           alloc->CopyFrom(data), is_key_frame, type, track_id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
   return base::MakeRefCounted<StreamParserBuffer>(
@@ -107,11 +102,7 @@ StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    : DecoderBuffer(type, data.data(), data.size()), type_(type), track_id_(track_id) {
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(data), type_(type), track_id_(track_id) {
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
   // duration to force clients to set them? Today they end up being zero which
   // is both a common and valid value and could lead to bugs.

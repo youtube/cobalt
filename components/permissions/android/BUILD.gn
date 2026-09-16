@@ -238,23 +238,6 @@ android_library("core_java") {
   ]
 }
 
-if (is_cobalt) {
-  source_set("core") {
-    sources = [
-      "permissions_android_feature_map.cc",
-      "permissions_android_feature_map.h",
-    ]
-    deps = [
-      ":core_jni",
-      "//base",
-      "//components/content_settings/core/common:features",
-      "//components/permissions:permissions_common",
-      "//media",
-      "//third_party/blink/public/common",
-    ]
-  }
-}
-
 robolectric_library("components_permissions_junit_tests") {
   sources = [
     "junit/src/org/chromium/components/permissions/PermissionDialogCustomViewBinderTest.java",

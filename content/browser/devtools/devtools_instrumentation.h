@@ -18,9 +18,7 @@
 #include "base/values.h"
 #include "content/browser/devtools/devtools_device_request_prompt_info.h"
 #include "content/browser/devtools/devtools_throttle_handle.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/protocol/emulation_handler.h"
-#endif
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/interest_group/devtools_enums.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
@@ -32,7 +30,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/filter/source_stream_type.h"
-#include "net/http/http_request_headers.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/cookie_manager.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
@@ -254,7 +251,6 @@ void OnAuctionWorkletNetworkRequestComplete(
     const std::string& request_id,
     const network::URLLoaderCompletionStatus& status);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id);
 
 void OnInterestGroupAuctionEventOccurred(
@@ -269,7 +265,6 @@ void OnInterestGroupAuctionNetworkRequestCreated(
     InterestGroupAuctionFetchType type,
     const std::string& request_id,
     const std::vector<std::string>& devtools_auction_ids);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 bool ShouldBypassCSP(const NavigationRequest& nav_request);
 bool ShouldBypassCertificateErrors();

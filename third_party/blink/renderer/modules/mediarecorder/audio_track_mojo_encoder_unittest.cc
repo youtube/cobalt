@@ -28,10 +28,6 @@
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_recorder.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/mojo/mojom/renderer_extensions.mojom.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 using ::testing::ElementsAre;
 
 namespace blink {
@@ -162,19 +158,6 @@ class TestInterfaceFactory final : public media::mojom::InterfaceFactory {
     NOTREACHED();
   }
 #endif  // BUILDFLAG(IS_WIN)
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void CreateStarboardRenderer(
-      mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
-      const media::StarboardRendererConfig& config,
-      mojo::PendingReceiver<media::mojom::Renderer> receiver,
-      mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
-          renderer_extension_receiver,
-      mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
-          client_extension_remote){
-    NOTREACHED();
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   TestAudioEncoder audio_encoder_;

@@ -26,14 +26,7 @@ void UpdateWebRTCMethodCount(RTCAPIName api_name) {
 }
 
 PerSessionWebRTCAPIMetrics::~PerSessionWebRTCAPIMetrics() {
-#if BUILDFLAG(IS_STARBOARD)
-  // TODO: b/554096932 - In Starboard, PerSessionWebRTCAPIMetrics is lazily
-  // initialized on worker/media threads but destroyed by the AtExitManager on
-  // the main UI thread during shutdown, causing this thread check to fail.
-  // Investigate using a Leaky singleton or explicit destruction.
-#else
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#endif
 }
 
 // static
