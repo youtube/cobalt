@@ -57,6 +57,7 @@
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/near_matcher.h"
 #include "test/rtcp_packet_parser.h"
 #include "test/time_controller/simulated_time_controller.h"
 
@@ -91,10 +92,6 @@ enum : int {
   kTransportSequenceNumberExtensionId,
   kTransmissionOffsetExtensionId,
 };
-
-MATCHER_P2(Near, value, margin, "") {
-  return value - margin <= arg && arg <= value + margin;
-}
 
 class RtcpRttStatsTestImpl : public RtcpRttStats {
  public:
@@ -444,8 +441,7 @@ TEST_F(RtpRtcpImpl2Test, Rtt) {
   AdvanceTime(kOneWayNetworkDelay);
 
   // Verify RTT.
-  EXPECT_THAT(sender_.impl_->LastRtt(),
-              Near(2 * kOneWayNetworkDelay, TimeDelta::Millis(1)));
+  EXPECT_THAT(sender_.impl_->LastRtt(), Near(2 * kOneWayNetworkDelay));
 
   // Verify RTT from rtt_stats config.
   EXPECT_EQ(0, sender_.rtt_stats_.LastProcessedRtt());

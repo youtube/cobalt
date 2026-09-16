@@ -182,6 +182,9 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean("composeboxShowContextMenuDescription", true);
   // Send event when escape is pressed.
   html_source->AddBoolean("composeboxCloseByEscape", true);
+  html_source->AddBoolean("composeboxShowRecentTabChip", false);
+  // Enable submit button.
+  html_source->AddBoolean("composeboxShowSubmit", true);
 
   // Add strings for post message communication with the remote UI.
   lens::ClientToAimMessage handshake_ping;

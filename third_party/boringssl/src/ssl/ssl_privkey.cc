@@ -506,9 +506,9 @@ const char *SSL_get_signature_algorithm_name(uint16_t sigalg,
 }
 
 size_t SSL_get_all_signature_algorithm_names(const char **out, size_t max_out) {
-  const char *kPredefinedNames[] = {"ecdsa_sha256", "ecdsa_sha384",
-                                    "ecdsa_sha512"};
-  return GetAllNames(out, max_out, kPredefinedNames,
+  const char *const kPredefinedNames[] = {"ecdsa_sha256", "ecdsa_sha384",
+                                          "ecdsa_sha512"};
+  return GetAllNames(out, max_out, Span(kPredefinedNames),
                      &SignatureAlgorithmName::name,
                      Span(kSignatureAlgorithmNames));
 }

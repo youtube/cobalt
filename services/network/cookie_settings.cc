@@ -50,7 +50,6 @@ bool ShouldApply3pcdRelatedReasons(const net::CanonicalCookie& cookie) {
          !cookie.IsPartitioned();
 }
 
-
 bool IsValidType(ContentSettingsType type) {
   // ContentSettingsType::TPCD_METADATA_GRANTS settings are managed by the
   // `network::tpcd::metadata::Manager` and are considered valid ContentSettings
@@ -73,7 +72,6 @@ net::CookieInclusionStatus::ExemptionReason GetExemptionReason(
   using ExemptionReason = net::CookieInclusionStatus::ExemptionReason;
   switch (allow_mechanism) {
     case AllowMechanism::kAllowByExplicitSetting:
-    case AllowMechanism::kAllowByTrackingProtectionException:
       return ExemptionReason::kUserSetting;
     case AllowMechanism::kAllowBy3PCDHeuristics:
       return ExemptionReason::k3PCDHeuristics;
@@ -245,10 +243,10 @@ bool CookieSettings::ShouldAlwaysAllowCookies(
     const GURL& url,
     const GURL& first_party_url) const {
   return (base::Contains(secure_origin_cookies_allowed_schemes_,
-                         first_party_url.GetScheme()) &&
+                         first_party_url.scheme()) &&
           url.SchemeIsCryptographic()) ||
          (base::Contains(matching_scheme_cookies_allowed_schemes_,
-                         url.GetScheme()) &&
+                         url.scheme()) &&
           url.SchemeIs(first_party_url.scheme()));
 }
 

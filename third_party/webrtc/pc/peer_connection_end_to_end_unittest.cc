@@ -38,9 +38,9 @@
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
-#include "media/sctp/sctp_transport_internal.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/physical_socket_server.h"
@@ -63,7 +63,6 @@
 
 using ::testing::_;
 using ::testing::AtLeast;
-using ::testing::Invoke;
 using ::testing::StrictMock;
 using ::testing::Values;
 
@@ -272,28 +271,28 @@ std::unique_ptr<AudioDecoder> CreateForwardingMockDecoder(
       std::make_unique<ForwardingMockDecoder>(std::move(real_decoder));
   EXPECT_CALL(*mock_decoder, Channels())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke([dec] { return dec->Channels(); }));
+      .WillRepeatedly([dec] { return dec->Channels(); });
   EXPECT_CALL(*mock_decoder, DecodeInternal(_, _, _, _, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(
+      .WillRepeatedly(
           [dec](const uint8_t* encoded, size_t encoded_len, int sample_rate_hz,
                 int16_t* decoded, AudioDecoder::SpeechType* speech_type) {
             return dec->Decode(encoded, encoded_len, sample_rate_hz,
                                std::numeric_limits<size_t>::max(), decoded,
                                speech_type);
-          }));
+          });
   EXPECT_CALL(*mock_decoder, Die());
-  EXPECT_CALL(*mock_decoder, HasDecodePlc()).WillRepeatedly(Invoke([dec] {
+  EXPECT_CALL(*mock_decoder, HasDecodePlc()).WillRepeatedly([dec] {
     return dec->HasDecodePlc();
-  }));
+  });
   EXPECT_CALL(*mock_decoder, PacketDuration(_, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke([dec](const uint8_t* encoded, size_t encoded_len) {
+      .WillRepeatedly([dec](const uint8_t* encoded, size_t encoded_len) {
         return dec->PacketDuration(encoded, encoded_len);
-      }));
+      });
   EXPECT_CALL(*mock_decoder, SampleRateHz())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke([dec] { return dec->SampleRateHz(); }));
+      .WillRepeatedly([dec] { return dec->SampleRateHz(); });
 
   return std::move(mock_decoder);
 }
@@ -304,15 +303,14 @@ scoped_refptr<AudioDecoderFactory> CreateForwardingMockDecoderFactory(
       make_ref_counted<StrictMock<MockAudioDecoderFactory>>();
   EXPECT_CALL(*mock_decoder_factory, GetSupportedDecoders())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke([real_decoder_factory] {
+      .WillRepeatedly([real_decoder_factory] {
         return real_decoder_factory->GetSupportedDecoders();
-      }));
+      });
   EXPECT_CALL(*mock_decoder_factory, IsSupportedDecoder(_))
       .Times(AtLeast(1))
-      .WillRepeatedly(
-          Invoke([real_decoder_factory](const SdpAudioFormat& format) {
-            return real_decoder_factory->IsSupportedDecoder(format);
-          }));
+      .WillRepeatedly([real_decoder_factory](const SdpAudioFormat& format) {
+        return real_decoder_factory->IsSupportedDecoder(format);
+      });
   EXPECT_CALL(*mock_decoder_factory, Create)
       .Times(AtLeast(2))
       .WillRepeatedly(

@@ -284,7 +284,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define HARMONY_INPROGRESS(V) \
   HARMONY_INPROGRESS_BASE(V)  \
   V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")
-#define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
+#define JAVASCRIPT_INPROGRESS_FEATURES(V) \
+  JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)  \
+  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
@@ -296,10 +298,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                    \
-  HARMONY_STAGED_BASE(V)                     \
-  V(harmony_remove_intl_locale_info_getters, \
-    "Remove Obsoleted Intl Locale Info getters")
+#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -323,7 +322,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_base_64, "Uint8Array to/from base64 and hex")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_SHIPPING(V)                  \
+  HARMONY_SHIPPING_BASE(V)                   \
+  V(harmony_remove_intl_locale_info_getters, \
+    "Remove Obsoleted Intl Locale Info getters")
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -527,6 +529,16 @@ DEFINE_IMPLICATION(precise_object_pinning, scavenger_precise_object_pinning)
 DEFINE_BOOL(scavenger_promote_quarantined_pages, true,
             "Quarantined pages in the intermediate generation will be promoted "
             "to old space")
+
+DEFINE_BOOL(scavenger_chaos_mode, false,
+            "Scavenger will ignore age when making promotion decisions and "
+            "instead choose objects to be promoted at random. This only "
+            "applies to non-large objects.")
+DEFINE_UINT(
+    scavenger_chaos_mode_threshold, 50,
+    "Percentage of non-large young objects that will be promoted during "
+    "Scavenger in chaos mode")
+DEFINE_REQUIREMENT(v8_flags.scavenger_chaos_mode_threshold <= 100)
 
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
@@ -940,8 +952,8 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
 #if defined(V8_ENABLE_WEBASSEMBLY) && V8_STATIC_ROOTS_BOOL
-DEFINE_EXPERIMENTAL_FEATURE(unmap_holes, "unmap the page containing the holes.")
-DEFINE_IMPLICATION(experimental_fuzzing, unmap_holes)
+DEFINE_BOOL(unmap_holes, false, "unmap the page containing the holes.")
+DEFINE_IMPLICATION(fuzzing, unmap_holes)
 DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
                             "assert that we always check for holes by value, "
                             "never dereferencing their map.")
@@ -999,7 +1011,7 @@ DEFINE_BOOL(
     "reducing GCs.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
-DEFINE_UINT(high_end_android_physical_memory_threshold, UINT_MAX,
+DEFINE_UINT(high_end_android_physical_memory_threshold, 8,
             "Enables high-end mode for devices with more than X GB of physical "
             "memory (if X greater than 0).")
 
@@ -2311,7 +2323,7 @@ DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
 DEFINE_BOOL(incremental_marking_start_user_visible, true,
             "Starts incremental marking with kUserVisible priority.")
-DEFINE_BOOL(incremental_marking_always_user_visible, false,
+DEFINE_BOOL(incremental_marking_always_user_visible, true,
             "Always posts incremental marking with kUserVisible priority.")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
            "threshold for starting incremental marking via a task in percent "
@@ -2408,6 +2420,13 @@ DEFINE_GENERIC_IMPLICATION(
     trace_gc_object_stats,
     TracingFlags::gc_stats.store(
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
+
+#ifdef V8_COMPRESS_POINTERS
+DEFINE_BOOL(trace_gc_object_stats_all_objects, false,
+            "trace all objects on each gc (warning: large output)")
+DEFINE_IMPLICATION(trace_gc_object_stats_all_objects, trace_gc_object_stats)
+#endif  // V8_COMPRESS_POINTERS
+
 DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
 DEFINE_NEG_NEG_IMPLICATION(incremental_marking, concurrent_marking)
 DEFINE_NEG_NEG_IMPLICATION(parallel_marking, concurrent_marking)
@@ -2680,6 +2699,12 @@ DEFINE_BOOL(riscv_b_extension, false,
 DEFINE_BOOL(
     use_aliases, true,
     "use aliases for instruction mnemonics when printing code (RISCV only)")
+
+#ifdef USE_SIMULATOR
+DEFINE_BOOL(sim_abort_on_shadowstack_mismatch, true,
+            "Stop execution when shadowstack match fails in the "
+            "riscv simulator.")
+#endif
 #endif
 
 // Controlling source positions for Torque/CSA code.
@@ -3040,8 +3065,6 @@ DEFINE_BOOL(adjust_os_scheduling_parameters, true,
             "adjust OS specific scheduling params for the isolate")
 DEFINE_BOOL(experimental_flush_embedded_blob_icache, true,
             "Used in an experiment to evaluate icache flushing on certain CPUs")
-DEFINE_BOOL(allow_allocation_in_fast_api_call, true,
-            "Allow allocations in fast API calls.")
 
 // Flags for short builtin calls feature
 #if V8_SHORT_BUILTIN_CALLS
@@ -3118,8 +3141,9 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
 
-DEFINE_BOOL(enable_experimental_regexp_engine, false,
-            "recognize regexps with 'l' flag, run them on experimental engine")
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_experimental_regexp_engine,
+    "recognize regexps with 'l' flag, run them on experimental engine")
 DEFINE_BOOL(default_to_experimental_regexp_engine, false,
             "run regexps with the experimental engine where possible")
 DEFINE_IMPLICATION(default_to_experimental_regexp_engine,
@@ -3134,9 +3158,10 @@ DEFINE_UINT64(experimental_regexp_engine_capture_group_opt_max_memory_usage,
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 
-DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, false,
-            "fall back to a breadth-first regexp engine on excessive "
-            "backtracking")
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_experimental_regexp_engine_on_excessive_backtracks,
+    "fall back to a breadth-first regexp engine on excessive "
+    "backtracking")
 DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
             "number of backtracks during regexp execution before fall back "
             "to experimental engine if "
@@ -3374,6 +3399,10 @@ DEFINE_BOOL(
     handle_weak_ref_weakly_in_minor_gc, false,
     "Enables weak handling of WeakRef and FinalizationRegistry in minor GCs.")
 DEFINE_NEG_IMPLICATION(minor_ms, handle_weak_ref_weakly_in_minor_gc)
+DEFINE_NEG_IMPLICATION(scavenger_precise_object_pinning,
+                       handle_weak_ref_weakly_in_minor_gc)
+DEFINE_NEG_IMPLICATION(scavenger_conservative_object_pinning,
+                       handle_weak_ref_weakly_in_minor_gc)
 
 //
 // Dev shell flags

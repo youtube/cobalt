@@ -9,6 +9,7 @@
 #include "base/test/test_future.h"
 #include "cc/test/pixel_test_utils.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
@@ -896,7 +897,20 @@ IN_PROC_BROWSER_TEST_F(GlicBorderViewUiTest, FocusedTabChangeEffectTime) {
   EXPECT_EQ(effect_time_before_tab_switching, effect_time_after_tab_switching);
 }
 
-IN_PROC_BROWSER_TEST_F(GlicBorderViewUiTest,
+class GlicBorderViewWithActorGlowUiTest : public GlicBorderViewUiTest {
+ public:
+  GlicBorderViewWithActorGlowUiTest() {
+    features_.InitAndEnableFeatureWithParameters(
+        features::kGlicActorUi,
+        {{features::kGlicActorUiStandaloneBorderGlow.name, "false"}});
+  }
+  ~GlicBorderViewWithActorGlowUiTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList features_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicBorderViewWithActorGlowUiTest,
                        ActorGlowShowsBorderWhenIndicatorIsOff) {
   auto* border = browser()
                      ->window()
@@ -925,6 +939,7 @@ IN_PROC_BROWSER_TEST_F(GlicBorderViewUiTest,
   std::vector<std::unique_ptr<actor::ToolRequest>> actions;
   actions.push_back(actor::MakeWaitRequest());
   actor_keyed_service->PerformActions(task_id, std::move(actions),
+                                      actor::ActorTaskMetadata(),
                                       result_future.GetCallback());
   EXPECT_EQ(result_future.Get<0>(), actor::mojom::ActionResultCode::kOk);
 
@@ -939,6 +954,57 @@ IN_PROC_BROWSER_TEST_F(GlicBorderViewUiTest,
   // Poll until the border is no longer showing.
   ASSERT_TRUE(base::test::RunUntil([&]() { return !border->IsShowing(); }));
 
+  EXPECT_FALSE(border->IsShowing());
+  EXPECT_FALSE(border->GetVisible());
+}
+
+class GlicBorderViewStandaloneGlowUiTest : public GlicBorderViewUiTest {
+ public:
+  GlicBorderViewStandaloneGlowUiTest() {
+    features_.InitAndEnableFeatureWithParameters(
+        features::kGlicActorUi,
+        {{features::kGlicActorUiStandaloneBorderGlow.name, "true"}});
+  }
+  ~GlicBorderViewStandaloneGlowUiTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList features_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    GlicBorderViewStandaloneGlowUiTest,
+    ActorGlowHidesBorderWhenIndicatorIsOffAndStandaloneIsOn) {
+  auto* border = browser()
+                     ->window()
+                     ->AsBrowserView()
+                     ->GetActiveContentsContainerView()
+                     ->glic_border_view();
+  ASSERT_TRUE(border);
+  EXPECT_FALSE(border->GetVisible());
+
+  // Ensure the border is not showing initially.
+  EXPECT_FALSE(border->IsShowing());
+
+  // Get the actor keyed service.
+  auto* actor_keyed_service =
+      actor::ActorKeyedService::Get(browser()->profile());
+  ASSERT_TRUE(actor_keyed_service);
+
+  // Create a new task.
+  const actor::TaskId task_id = actor_keyed_service->CreateTask();
+  actor_keyed_service->GetTask(task_id)->AddTab(
+      browser()->GetActiveTabInterface()->GetHandle(), base::DoNothing());
+
+  // Perform an action to trigger the glow.
+  actor::PerformActionsFuture result_future;
+  std::vector<std::unique_ptr<actor::ToolRequest>> actions;
+  actions.push_back(actor::MakeWaitRequest());
+  actor_keyed_service->PerformActions(task_id, std::move(actions),
+                                      actor::ActorTaskMetadata(),
+                                      result_future.GetCallback());
+  EXPECT_EQ(result_future.Get<0>(), actor::mojom::ActionResultCode::kOk);
+
+  // Verify the border is not showing.
   EXPECT_FALSE(border->IsShowing());
   EXPECT_FALSE(border->GetVisible());
 }

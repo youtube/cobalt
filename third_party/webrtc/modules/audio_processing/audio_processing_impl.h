@@ -220,6 +220,7 @@ class AudioProcessingImpl : public AudioProcessing {
     bool RenderFullBandProcessingActive() const;
     bool RenderMultiBandProcessingActive() const;
     bool HighPassFilteringRequired() const;
+    bool EchoControllerEnabled() const;
 
    private:
     const bool capture_post_processor_enabled_ = false;
@@ -451,7 +452,6 @@ class AudioProcessingImpl : public AudioProcessing {
     // because the capture processing number of channels is mutable and is
     // tracked by the capture_audio_.
     StreamConfig capture_processing_format;
-    int split_rate;
     bool echo_path_gain_change;
     float prev_pre_adjustment_gain;
     int playout_volume;
@@ -470,15 +470,12 @@ class AudioProcessingImpl : public AudioProcessing {
   struct ApmCaptureNonLockedState {
     ApmCaptureNonLockedState()
         : capture_processing_format(kSampleRate16kHz),
-          split_rate(kSampleRate16kHz),
           stream_delay_ms(0) {}
     // Only the rate and samples fields of capture_processing_format_ are used
     // because the forward processing number of channels is mutable and is
     // tracked by the capture_audio_.
     StreamConfig capture_processing_format;
-    int split_rate;
     int stream_delay_ms;
-    bool echo_controller_enabled = false;
   } capture_nonlocked_;
 
   struct ApmRenderState {

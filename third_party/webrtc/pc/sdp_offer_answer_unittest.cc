@@ -1781,6 +1781,34 @@ TEST_P(SdpOfferAnswerDirectionTest, IncompatibleDirection) {
             std::get<2>(GetParam()));
 }
 
+TEST_P(SdpOfferAnswerDirectionTest, IncompatibleDirectionRejected) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::VIDEO);
+  EXPECT_TRUE(transceiver->SetDirectionWithError(std::get<0>(GetParam())).ok());
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  ASSERT_THAT(callee->pc()->GetTransceivers(), SizeIs(1));
+  auto callee_transceiver = callee->pc()->GetTransceivers()[0];
+  EXPECT_TRUE(callee_transceiver
+                  ->SetDirectionWithError(RtpTransceiverDirection::kInactive)
+                  .ok());
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  // Modify the answer and reject it. This can happen e.g. with
+  // a rejected m-line that lacks a direction which defaults to "sendrecv".
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  ContentInfo& content = answer->description()->contents()[0];
+  EXPECT_EQ(content.media_description()->direction(),
+            RtpTransceiverDirection::kInactive);
+  content.media_description()->set_direction(std::get<1>(GetParam()));
+  content.rejected = true;
+
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+}
+
 INSTANTIATE_TEST_SUITE_P(SdpOfferAnswerDirectionTest,
                          SdpOfferAnswerDirectionTest,
                          ::testing::Values(

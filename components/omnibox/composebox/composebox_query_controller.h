@@ -152,6 +152,11 @@ class ComposeboxQueryController {
       return request_id_.get();
     }
 
+    // Gets a pointer to the viewport request ID for this request for testing.
+    lens::LensOverlayRequestId* GetViewportRequestIdForTesting() {
+      return viewport_request_id_.get();
+    }
+
    private:
     friend class ComposeboxQueryController;
     friend class ComposeboxQueryControllerIOS;
@@ -165,6 +170,11 @@ class ComposeboxQueryController {
 
     // The request ID for this request. Set by StartFileUploadFlow().
     std::unique_ptr<lens::LensOverlayRequestId> request_id_;
+
+    // The request ID for the viewport associated with this request, if it is
+    // different from the request ID. Set by StartFileUploadFlow() when
+    // use_separate_request_ids_for_multi_context_viewport_images_ is true.
+    std::unique_ptr<lens::LensOverlayRequestId> viewport_request_id_;
 
     // The headers to attach to the request. Will be set asynchronously after
     // StartFileUploadFlow() is called.
@@ -211,6 +221,28 @@ class ComposeboxQueryController {
     std::map<std::string, std::string> additional_params;
   };
 
+  // Struct containing configuration params for the query controller.
+  struct QueryControllerConfigParams {
+   public:
+    // Whether to send the `lns_surface` parameter in search URLs.
+    bool send_lns_surface = false;
+    // If `send_lns_surface` is true, whether to suppress the `lns_surface`
+    // parameter if there is no image upload. Does nothing if `send_lns_surface`
+    // is false.
+    bool suppress_lns_surface_param_if_no_image = true;
+    // Whether to enable the multi-context input flow.
+    bool enable_multi_context_input_flow = false;
+    // Whether to enable viewport images.
+    bool enable_viewport_images = false;
+    // Whether or not to send viewport images with separate request ids from
+    // their associated page context, for the multi-context input flow.
+    // Does nothing if `enable_multi_context_input_flow` is false or if
+    // `enable_viewport_images` is false.
+    bool use_separate_request_ids_for_multi_context_viewport_images = true;
+    // Whether or not to clear state upon starting a new session.
+    bool clear_previous_state_on_session_start = false;
+  };
+
   ComposeboxQueryController(
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -218,19 +250,25 @@ class ComposeboxQueryController {
       std::string locale,
       TemplateURLService* template_url_service,
       variations::VariationsClient* variations_client,
-      bool send_lns_surface,
-      bool enable_multi_context_input_flow,
-      bool enable_viewport_images);
+      std::unique_ptr<QueryControllerConfigParams> config_params);
   virtual ~ComposeboxQueryController();
 
   // Session management. Virtual for testing.
   virtual void NotifySessionStarted();
   virtual void NotifySessionAbandoned();
 
+  // Returns the next request ID for the given update mode and media type.
+  // Updates the suggest inputs with the new request ID.
   std::unique_ptr<lens::LensOverlayRequestId> GetNextRequestId(
       lens::RequestIdUpdateMode update_mode,
       lens::MimeType mime_type,
       lens::LensOverlayRequestId_MediaType media_type);
+
+  // Returns a request id to use for the viewport image upload request for the
+  // given file info, setting the viewport request id on the file info if it is
+  // different from the request id.
+  lens::LensOverlayRequestId GetRequestIdForViewportImage(
+      const base::UnguessableToken& file_token);
 
   // Called when a query has been submitted. `query_start_time` is the time
   // that the user clicked the submit button.
@@ -256,8 +294,9 @@ class ComposeboxQueryController {
   // Clear entire file cache.
   virtual void ClearFiles();
 
-  // Clears the suggest inputs.
-  virtual void ClearSuggestInputs();
+  // Resets the suggest inputs, setting it to the suggest inputs for the
+  // last file if there is only one attached file remaining.
+  virtual void ResetSuggestInputs();
 
   int num_files_in_request() { return num_files_in_request_; }
 
@@ -281,7 +320,7 @@ class ComposeboxQueryController {
   // Creates the request body proto for an image and calls the callback with the
   // request.
   virtual void CreateImageUploadRequest(
-      const base::UnguessableToken& file_token,
+      lens::LensOverlayRequestId request_id,
       const std::vector<uint8_t>& image_data,
       std::optional<lens::ImageEncodingOptions> options,
       RequestBodyProtoCreatedCallback callback);
@@ -327,6 +366,15 @@ class ComposeboxQueryController {
   scoped_refptr<base::TaskRunner> create_request_task_runner_;
 
  private:
+  // Clears all state for this session.
+  void ClearAllState();
+
+  // Updates the internal suggest inputs state with the given file's request id.
+  // Updates the file upload status to kProcessingSuggestSignalsReady if the
+  // inputs are ready and the status is kProcessing.
+  void UpdateSuggestInputsForFileIfReady(
+      const base::UnguessableToken& file_token);
+
   // Fetches the OAuth headers and calls the callback with the headers. If the
   // OAuth cannot be retrieved (like if the user is not logged in), the callback
   // will be called with an empty vector. Returns the access token fetcher
@@ -470,6 +518,11 @@ class ComposeboxQueryController {
   // `lns_surface` parameter.
   bool send_lns_surface_;
 
+  // If `send_lns_surface_` is true, whether to suppress the `lns_surface`
+  // parameter if there is no image upload. Does nothing if `send_lns_surface_`
+  // is false.
+  bool suppress_lns_surface_param_if_no_image_;
+
   // Whether or not to use the multiple-input id request generation flow.
   bool enable_multi_context_input_flow_;
 
@@ -477,6 +530,15 @@ class ComposeboxQueryController {
   // TODO(crbug.com/448647393): Remove this once the server supports viewport
   // images for multi-context input.
   bool enable_viewport_images_;
+
+  // Whether or not to send viewport images with separate request ids from
+  // their associated page context, for the multi-context input flow.
+  // Does nothing if `enable_multi_context_input_flow_` is false or if
+  // `enable_viewport_images_` is false.
+  bool use_separate_request_ids_for_multi_context_viewport_images_;
+
+  // Whether or not to clear state upon starting a new session.
+  bool clear_previous_state_on_session_start_;
 
   lens::proto::LensOverlaySuggestInputs suggest_inputs_;
 

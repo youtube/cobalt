@@ -63,7 +63,6 @@ import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
-import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
@@ -88,6 +87,7 @@ import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorLi
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.webapps.AddToHomescreenCoordinator;
@@ -229,8 +229,8 @@ class LocationBarMediator
     private @Nullable SearchEngineUtils mSearchEngineUtils;
     private @Nullable AddToHomescreenCoordinator mAddToHomescreenCoordinatorForTesting;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
-    private final ObservableSupplier<@NavigationFulfillmentType Integer>
-            mNavigationFulfillmentTypeSupplier;
+    private final ObservableSupplier<@AutocompleteRequestType Integer>
+            mAutocompleteRequestTypeSupplier;
 
     private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mInstallButtonToolbarWidthConsumer;
@@ -256,8 +256,7 @@ class LocationBarMediator
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             @Nullable BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
-            ObservableSupplier<@NavigationFulfillmentType Integer>
-                    navigationFulfillmentTypeSupplier,
+            ObservableSupplier<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator) {
         mContext = context;
         mLocationBarLayout = locationBarLayout;
@@ -282,8 +281,8 @@ class LocationBarMediator
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mBrowserControlsStateProvider = browserControlsStateProvider;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
-        mNavigationFulfillmentTypeSupplier = navigationFulfillmentTypeSupplier;
-        mNavigationFulfillmentTypeSupplier.addObserver(
+        mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
+        mAutocompleteRequestTypeSupplier.addObserver(
                 mCallbackController.makeCancelable((v) -> updateButtonVisibility()));
         mPageZoomIndicatorCoordinator = pageZoomIndicatorCoordinator;
         if (mPageZoomIndicatorCoordinator != null) {
@@ -294,19 +293,27 @@ class LocationBarMediator
         mBookmarkButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
+                        mIsTablet,
                         this::shouldShowBookmarkButton,
                         this::updateBookmarkButtonVisibility);
         mInstallButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
                         mContext,
+                        mIsTablet,
                         this::shouldShowInstallButton,
                         this::updateInstallButtonVisibility);
         mMicButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
-                        mContext, this::shouldShowMicButton, this::updateMicButtonVisibility);
+                        mContext,
+                        mIsTablet,
+                        this::shouldShowMicButton,
+                        this::updateMicButtonVisibility);
         mLensButtonToolbarWidthConsumer =
                 new ButtonToolbarWidthConsumer(
-                        mContext, this::shouldShowLensButton, this::updateLensButtonVisibility);
+                        mContext,
+                        mIsTablet,
+                        this::shouldShowLensButton,
+                        this::updateLensButtonVisibility);
     }
 
     /**
@@ -1428,7 +1435,7 @@ class LocationBarMediator
 
     @VisibleForTesting
     boolean shouldShowMicButton() {
-        if (mNavigationFulfillmentTypeSupplier.get() != NavigationFulfillmentType.DEFAULT) {
+        if (mAutocompleteRequestTypeSupplier.get() != AutocompleteRequestType.SEARCH) {
             return false;
         }
 
@@ -1454,7 +1461,7 @@ class LocationBarMediator
 
     @VisibleForTesting
     boolean shouldShowLensButton() {
-        if (mNavigationFulfillmentTypeSupplier.get() != NavigationFulfillmentType.DEFAULT) {
+        if (mAutocompleteRequestTypeSupplier.get() != AutocompleteRequestType.SEARCH) {
             return false;
         }
 
@@ -2019,9 +2026,9 @@ class LocationBarMediator
                         mContext, mWindowAndroid, mProfileSupplier.get());
     }
 
-    public ObservableSupplier<@NavigationFulfillmentType Integer>
-            getNavigationFulfillmentTypeSupplier() {
-        return mNavigationFulfillmentTypeSupplier;
+    public ObservableSupplier<@AutocompleteRequestType Integer>
+            getAutocompleteRequestTypeSupplier() {
+        return mAutocompleteRequestTypeSupplier;
     }
 
     @Override
@@ -2049,13 +2056,16 @@ class LocationBarMediator
         private final int mButtonWidth;
         private final Supplier<Boolean> mShouldShowButton;
         private final Runnable mUpdateButtonVisibility;
+        private final boolean mIsTablet;
         private boolean mHasSpaceToShow;
 
         ButtonToolbarWidthConsumer(
                 Context context,
+                boolean isTablet,
                 Supplier<Boolean> shouldShowButton,
                 Runnable updateButtonVisibility) {
             mShouldShowButton = shouldShowButton;
+            mIsTablet = isTablet;
             mUpdateButtonVisibility = updateButtonVisibility;
             mButtonWidth =
                     context.getResources()
@@ -2063,7 +2073,7 @@ class LocationBarMediator
         }
 
         boolean hasSpaceToShow() {
-            if (!ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()) {
+            if (!mIsTablet || !ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()) {
                 return true;
             }
             return mHasSpaceToShow;
@@ -2078,7 +2088,7 @@ class LocationBarMediator
         public int updateVisibility(int availableWidth) {
             assert ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled();
 
-            if (mShouldShowButton.get() && availableWidth >= mButtonWidth) {
+            if (availableWidth >= mButtonWidth) {
                 mHasSpaceToShow = true;
                 mUpdateButtonVisibility.run();
                 return mButtonWidth;

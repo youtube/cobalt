@@ -227,11 +227,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
       uint32_t ssrc,
       VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) override;
 
-  void SetSendCodecChangedCallback(
-      absl::AnyInvocable<void()> callback) override {
-    send_codec_changed_callback_ = std::move(callback);
-  }
-
   void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) override {
     ssrc_list_changed_callback_ = std::move(callback);
@@ -612,11 +607,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
   std::vector<RtpSource> GetSources(uint32_t ssrc) const override;
 
-  void SetReceiverFeedbackParameters(bool lntf_enabled,
-                                     bool nack_enabled,
-                                     RtcpMode rtcp_mode,
-                                     std::optional<int> rtx_time) override;
-
  private:
   class WebRtcVideoReceiveStream;
   struct ChangedReceiverParameters {
@@ -627,6 +617,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     // This allows us to recreate the FlexfecReceiveStream separately from the
     // VideoReceiveStreamInterface when the FlexFEC payload type is changed.
     std::optional<int> flexfec_payload_type;
+    std::optional<RtcpMode> rtcp_mode;
   };
 
   // Finds VideoReceiveStreamInterface corresponding to ssrc. Aware of

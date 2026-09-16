@@ -325,6 +325,7 @@ CreateInputDataFromAnnotatedPageContent(
       break;
     case FileUploadStatus::kNotUploaded:
     case FileUploadStatus::kProcessing:
+    case FileUploadStatus::kProcessingSuggestSignalsReady:
     case FileUploadStatus::kUploadStarted:
       // No-op, as the state is already `Uploading`.
       return;
@@ -610,8 +611,8 @@ CreateInputDataFromAnnotatedPageContent(
                isSearchQuery:(BOOL)isSearchQuery
          userInputInProgress:(BOOL)userInputInProgress {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  // Update mic button visibility.
-  [self.consumer hideMicButton:text.length()];
+  // Update lens and mic button visibility.
+  [self.consumer hideLensAndMicButton:text.length()];
 }
 
 #pragma mark - Private helpers

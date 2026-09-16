@@ -310,7 +310,8 @@ rtc_library("rate_tracker") {
   ]
   deps = [
     ":checks",
-    ":timeutils",
+    "../api/units:time_delta",
+    "../api/units:timestamp",
   ]
 }
 
@@ -2055,6 +2056,7 @@ if (rtc_include_tests) {
         "../system_wrappers",
         "../test:create_test_environment",
         "../test:fileutils",
+        "../test:near_matcher",
         "../test:test_main",
         "../test:test_support",
         "../test:wait_until",

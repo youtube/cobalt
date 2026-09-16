@@ -45,7 +45,6 @@
 #include "logging/rtc_event_log/events/rtc_event_video_receive_stream_config.h"
 #include "logging/rtc_event_log/events/rtc_event_video_send_stream_config.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
-#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/app.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/bye.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
@@ -295,6 +294,10 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
       return EncodeBweUpdateLossBased(rtc_event);
     }
 
+    case RtcEvent::Type::BweUpdateScream: {
+      return "";
+    }
+
     case RtcEvent::Type::DtlsTransportState: {
       return "";
     }
@@ -376,8 +379,6 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
       RTC_DCHECK_NOTREACHED();
       break;
     case RtcEvent::Type::RouteChangeEvent:
-    case RtcEvent::Type::GenericPacketReceived:
-    case RtcEvent::Type::GenericPacketSent:
     case RtcEvent::Type::FrameDecoded:
     case RtcEvent::Type::NetEqSetMinimumDelay:
       // These are unsupported in the old format, but shouldn't crash.
@@ -408,21 +409,20 @@ std::string RtcEventLogEncoderLegacy::EncodeAudioNetworkAdaptation(
 
   auto* audio_network_adaptation =
       rtclog_event.mutable_audio_network_adaptation();
-  if (event.config().bitrate_bps)
-    audio_network_adaptation->set_bitrate_bps(*event.config().bitrate_bps);
-  if (event.config().frame_length_ms)
-    audio_network_adaptation->set_frame_length_ms(
-        *event.config().frame_length_ms);
-  if (event.config().uplink_packet_loss_fraction) {
+  if (event.bitrate_bps())
+    audio_network_adaptation->set_bitrate_bps(*event.bitrate_bps());
+  if (event.frame_length_ms())
+    audio_network_adaptation->set_frame_length_ms(*event.frame_length_ms());
+  if (event.uplink_packet_loss_fraction()) {
     audio_network_adaptation->set_uplink_packet_loss_fraction(
-        *event.config().uplink_packet_loss_fraction);
+        *event.uplink_packet_loss_fraction());
   }
-  if (event.config().enable_fec)
-    audio_network_adaptation->set_enable_fec(*event.config().enable_fec);
-  if (event.config().enable_dtx)
-    audio_network_adaptation->set_enable_dtx(*event.config().enable_dtx);
-  if (event.config().num_channels)
-    audio_network_adaptation->set_num_channels(*event.config().num_channels);
+  if (event.enable_fec())
+    audio_network_adaptation->set_enable_fec(*event.enable_fec());
+  if (event.enable_dtx())
+    audio_network_adaptation->set_enable_dtx(*event.enable_dtx());
+  if (event.num_channels())
+    audio_network_adaptation->set_num_channels(*event.num_channels());
 
   return Serialize(&rtclog_event);
 }

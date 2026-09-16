@@ -213,9 +213,9 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
         .WillByDefault(Invoke(&fake_decoder_, &test::FakeDecoder::Release));
     ON_CALL(mock_transport_, SendRtcp)
         .WillByDefault(
-            Invoke([this](ArrayView<const uint8_t> packet, ::testing::Unused) {
+            [this](ArrayView<const uint8_t> packet, ::testing::Unused) {
               return rtcp_packet_parser_.Parse(packet);
-            }));
+            });
   }
 
   ~VideoReceiveStream2Test() override {
@@ -1012,11 +1012,12 @@ TEST_P(VideoReceiveStream2Test, FramesFastForwardOnSystemHalt) {
                             .Build();
   InSequence seq;
   EXPECT_CALL(mock_decoder_, Decode(test::RtpTimestamp(kFirstRtpTimestamp), _))
-      .WillOnce(testing::DoAll(Invoke([&] {
-                                 // System halt will be simulated in the decode.
-                                 time_controller_.AdvanceTime(k30FpsDelay * 2);
-                               }),
-                               DefaultDecodeAction()));
+      .WillOnce(testing::DoAll(
+          [&] {
+            // System halt will be simulated in the decode.
+            time_controller_.AdvanceTime(k30FpsDelay * 2);
+          },
+          DefaultDecodeAction()));
   EXPECT_CALL(mock_decoder_,
               Decode(test::RtpTimestamp(RtpTimestampForFrame(2)), _));
   video_receive_stream_->OnCompleteFrame(std::move(key_frame));

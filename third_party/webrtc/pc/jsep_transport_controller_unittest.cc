@@ -65,6 +65,7 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -72,6 +73,9 @@
 
 namespace webrtc {
 namespace {
+
+using ::testing::ElementsAre;
+using ::testing::Pair;
 
 constexpr TimeDelta kTimeout = TimeDelta::Millis(100);
 const char kIceUfrag1[] = "u0001";
@@ -2832,6 +2836,38 @@ TEST_F(JsepTransportControllerTest,
       transport_controller_->SuggestPayloadType(kAudioMid1, local_other_codec);
   ASSERT_TRUE(other_pt.ok());
   EXPECT_NE(other_pt.value(), remote_opus_pt);
+}
+
+TEST_F(JsepTransportControllerTest, RtpTransportCountHistogramNoBundle) {
+  metrics::Reset();
+  CreateJsepTransportController(JsepTransportController::Config());
+  auto description = CreateSessionDescriptionWithoutBundle();
+  transport_controller_->SetLocalDescription(SdpType::kOffer, description.get(),
+                                             nullptr);
+  transport_controller_->SetRemoteDescription(
+      SdpType::kAnswer, description.get(), description.get());
+  EXPECT_METRIC_EQ(
+      1, metrics::NumSamples("WebRTC.PeerConnection.RtpTransportCount"));
+  // We expect 2 transports
+  EXPECT_METRIC_THAT(
+      metrics::Samples("WebRTC.PeerConnection.RtpTransportCount"),
+      ElementsAre(Pair(2, 1)));
+}
+
+TEST_F(JsepTransportControllerTest, RtpTransportCountHistogramWithBundleGroup) {
+  metrics::Reset();
+  CreateJsepTransportController(JsepTransportController::Config());
+  auto description = CreateSessionDescriptionWithBundleGroup();
+  transport_controller_->SetLocalDescription(SdpType::kOffer, description.get(),
+                                             nullptr);
+  transport_controller_->SetRemoteDescription(
+      SdpType::kAnswer, description.get(), description.get());
+  EXPECT_METRIC_EQ(
+      1, metrics::NumSamples("WebRTC.PeerConnection.RtpTransportCount"));
+  // We expect 1 transport
+  EXPECT_METRIC_THAT(
+      metrics::Samples("WebRTC.PeerConnection.RtpTransportCount"),
+      ElementsAre(Pair(1, 1)));
 }
 
 }  // namespace

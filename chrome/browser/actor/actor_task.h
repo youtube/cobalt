@@ -16,6 +16,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task_delegate.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
@@ -27,7 +29,6 @@
 class Profile;
 namespace actor {
 
-class ActorKeyedService;
 class ExecutionEngine;
 namespace ui {
 class UiEventDispatcher;
@@ -46,7 +47,8 @@ class ActorTask {
   ActorTask(Profile* profile,
             std::unique_ptr<ExecutionEngine> execution_engine,
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
-            webui::mojom::TaskOptionsPtr options = nullptr);
+            webui::mojom::TaskOptionsPtr options = nullptr,
+            base::WeakPtr<ActorTaskDelegate> delegate = nullptr);
   ActorTask(const ActorTask&) = delete;
   ActorTask& operator=(const ActorTask&) = delete;
   ~ActorTask();
@@ -188,7 +190,9 @@ class ActorTask {
 
   TaskId id_;
 
-  std::string title_;
+  // The title does not change for the duration of a task.
+  const std::string title_;
+
   // A timer for the current state.
   base::ElapsedTimer current_state_timer_;
   // An accumulation of elapsed times for previous "active" states.
@@ -203,6 +207,9 @@ class ActorTask {
   size_t actions_in_current_state_ = 0;
   // Running number of actions this task has taken.
   size_t total_number_of_actions_ = 0;
+
+  // Delegate for task-related events.
+  base::WeakPtr<ActorTaskDelegate> delegate_;
 
   base::WeakPtrFactory<ui::UiEventDispatcher> ui_weak_ptr_factory_;
   base::WeakPtrFactory<ActorTask> weak_ptr_factory_{this};

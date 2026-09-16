@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/extensions/extension_action_view_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_action_view_delegate_views.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
@@ -48,17 +49,8 @@ class WebUIBrowserExtensionsContainer::ActionInfo
   }
 
   // ToolbarActionViewDelegate:
-  content::WebContents* GetCurrentWebContents() const override {
-    return browser_->tab_strip_model()->GetActiveWebContents();
-  }
-
   void UpdateState() override {
     extensions_container_->NotifyOfOneAction(controller_->GetId());
-  }
-
-  void ShowContextMenuAsFallback() override {
-    extensions_container_->ShowContextMenu(ui::mojom::MenuSourceType::kNone,
-                                           controller()->GetId());
   }
 
   // ToolbarActionViewDelegateViews:
@@ -80,7 +72,8 @@ class WebUIBrowserExtensionsContainer::ActionInfo
 
   extensions_bar::mojom::ExtensionActionInfoPtr ToMojo(
       WebUIBrowserWindow& window) const {
-    content::WebContents* web_contents = GetCurrentWebContents();
+    content::WebContents* web_contents =
+        browser_->tab_strip_model()->GetActiveWebContents();
     auto result = extensions_bar::mojom::ExtensionActionInfo::New();
     result->id = controller_->GetId();
     result->accessible_name =
@@ -290,6 +283,18 @@ void WebUIBrowserExtensionsContainer::UpdateToolbarActionHoverCard(
   NOTIMPLEMENTED();
 }
 
+void WebUIBrowserExtensionsContainer::ShowContextMenuAsFallback(
+    const extensions::ExtensionId& action_id) {
+  ShowContextMenu(ui::mojom::MenuSourceType::kNone, action_id);
+}
+
+void WebUIBrowserExtensionsContainer::OnPopupShown(
+    const extensions::ExtensionId& action_id,
+    bool by_user) {}
+
+void WebUIBrowserExtensionsContainer::OnPopupClosed(
+    const extensions::ExtensionId& action_id) {}
+
 void WebUIBrowserExtensionsContainer::CollapseConfirmation() {
   NOTIMPLEMENTED();
 }
@@ -417,7 +422,10 @@ void WebUIBrowserExtensionsContainer::CreateActionForId(
     const ToolbarActionsModel::ActionId& action_id) {
   auto action_info = std::make_unique<ActionInfo>(
       *this, browser_.get(),
-      ExtensionActionViewController::Create(action_id, &browser_.get(), this));
+      ExtensionActionViewController::Create(
+          action_id, &browser_.get(), this,
+          std::make_unique<ExtensionActionPlatformDelegateViews>(
+              &browser_.get(), this)));
   action_info->controller()->RegisterCommand();
   actions_[action_id] = std::move(action_info);
 }

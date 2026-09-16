@@ -28,6 +28,7 @@
 #include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/near_matcher.h"
 
 namespace webrtc {
 namespace {
@@ -51,10 +52,6 @@ constexpr int kLargeDeltaSize = 2;
 constexpr TimeDelta kDeltaLimit = 0xFF * TransportFeedback::kDeltaTick;
 constexpr TimeDelta kBaseTimeTick = TransportFeedback::kDeltaTick * (1 << 8);
 constexpr TimeDelta kBaseTimeWrapPeriod = kBaseTimeTick * (1 << 24);
-
-MATCHER_P2(Near, value, max_abs_error, "") {
-  return value - max_abs_error <= arg && arg <= value + max_abs_error;
-}
 
 MATCHER(IsValidFeedback, "") {
   rtcp::CommonHeader rtcp_header;

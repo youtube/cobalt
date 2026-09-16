@@ -59,8 +59,10 @@ bool DoCanonicalizeStandardURL(const URLComponentSource<CHAR>& source,
       new_parsed->password.reset();
     }
 
-    success &= CanonicalizeHost(source.host, parsed.host,
-                                output, &new_parsed->host);
+    success &= CanonicalizeHost(
+        std::basic_string_view<CHAR>(
+            source.host, parsed.host.is_valid() ? parsed.host.end() : 0),
+        parsed.host, output, &new_parsed->host);
 
     // Host must not be empty for standard URLs.
     if (parsed.host.is_empty())
@@ -71,8 +73,9 @@ bool DoCanonicalizeStandardURL(const URLComponentSource<CHAR>& source,
       int default_port = DefaultPortForScheme(std::string_view(
           &UNSAFE_TODO(output->data()[new_parsed->scheme.begin]),
           new_parsed->scheme.len));
-      success &= CanonicalizePort(source.port, parsed.port, default_port,
-                                  output, &new_parsed->port);
+      success &=
+          CanonicalizePort(parsed.port.maybe_as_string_view_on(source.port),
+                           default_port, output, &new_parsed->port);
     } else {
       new_parsed->port.reset();
     }

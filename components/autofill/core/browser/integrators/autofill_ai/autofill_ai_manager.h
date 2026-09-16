@@ -9,6 +9,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_logger.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_attribute.h"
@@ -62,10 +63,11 @@ class AutofillAiManager {
   // TODO(crbug.com/389629573): The "On*" methods below are used only for
   // logging purposes. Explore different approaches.
 
-  virtual void OnSuggestionsShown(const FormStructure& form,
-                                  const AutofillField& field,
-                                  DenseSet<EntityType> suggested_entity_types,
-                                  ukm::SourceId ukm_source_id);
+  virtual void OnSuggestionsShown(
+      const FormStructure& form,
+      const AutofillField& field,
+      base::span<const Suggestion> shown_suggestions,
+      ukm::SourceId ukm_source_id);
   virtual void OnFormSeen(const FormStructure& form);
   virtual void OnDidFillSuggestion(
       const EntityInstance& entity,
@@ -86,8 +88,9 @@ class AutofillAiManager {
     // generate the suggestions shown.
     DenseSet<EntityType> suggested_entity_types;
     std::optional<EntityType> entity_type_accepted;
+    // The types of the field where the suggestion was shown or accepted.
+    FieldTypeSet autofill_ai_field_types;
   };
-
   const size_t kSuggestionInteractionCacheMaxSize = 5;
 
   // Strike database related methods:
@@ -188,7 +191,8 @@ class AutofillAiManager {
   // Keeps suggestions details about the five most recent forms the user has
   // interacted with.
   base::LRUCache<FormGlobalId, UserSuggestionInteractionDetails>
-      user_suggestion_interactions_per_form{kSuggestionInteractionCacheMaxSize};
+      user_suggestion_interactions_per_form_{
+          kSuggestionInteractionCacheMaxSize};
 
   base::WeakPtrFactory<AutofillAiManager> weak_ptr_factory_{this};
 };

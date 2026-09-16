@@ -772,24 +772,24 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
   const auto paint_image = image->PaintImageForCurrentFrame();
   const auto sk_image_info = paint_image.GetSkImageInfo();
   auto sk_color_space = sk_image_info.refColorSpace();
-  if (!sk_color_space)
+  if (!sk_color_space) {
     sk_color_space = SkColorSpace::MakeSRGB();
-
-  auto gfx_color_space = gfx::ColorSpace(*sk_color_space);
-  if (!gfx_color_space.IsValid()) {
-    exception_state.ThrowTypeError("Invalid color space");
-    return nullptr;
   }
 
+  gfx::ColorSpace gfx_color_space;
   if (sk_image_info.colorType() == kRGBA_F16_SkColorType &&
+      paint_image.GetContentColorUsage() == gfx::ContentColorUsage::kHDR &&
       SkColorSpace::Equals(sk_color_space.get(),
                            SkColorSpace::MakeSRGBLinear().get())) {
-    // TODO(crbug.com/438675262): |sk_color_type| converts to
-    // gfx::ColorSpace::TransferID::LINEAR while it should actually be
-    // gfx::ColorSpace::TransferID::LINEAR_HDR. Waiting for gfx::ColorSpace
-    // to be removed.
-    // Replace with SRGBLinear with LINEAR_HDR transfer ID.
+    // This creates a color space with the LINEAR_HDR transfer function. SDR
+    // content will convert to LINEAR in the lower branch.
     gfx_color_space = gfx::ColorSpace::CreateSRGBLinear();
+  } else {
+    gfx_color_space = gfx::ColorSpace(*sk_color_space);
+    if (!gfx_color_space.IsValid()) {
+      exception_state.ThrowTypeError("Invalid color space");
+      return nullptr;
+    }
   }
 
   const auto orientation = image->Orientation().Orientation();
@@ -1308,8 +1308,11 @@ void VideoFrame::ConvertAndCopyToRGB(scoped_refptr<media::VideoFrame> frame,
   media::PaintCanvasVideoRenderer::PaintParams paint_params;
   paint_params.dest_rect = gfx::RectF(src_rect.size());
   auto context_provider = GetRasterContextProvider();
-  renderer.Paint(std::move(frame), &canvas, flags, paint_params,
-                 context_provider.get());
+
+  // GetRasterContextProvider() returns the SharedGPUContext's provider, which
+  // always supports `gpu_rasterization`.
+  renderer.PaintOOPR(std::move(frame), &canvas, flags, paint_params,
+                     context_provider.get());
 }
 
 bool VideoFrame::CopyToAsync(
@@ -1476,7 +1479,6 @@ scoped_refptr<Image> VideoFrame::GetSourceImageForCanvas(
 
   const auto dest_rect = gfx::Rect(resource_provider_size);
   auto image = CreateImageFromVideoFrame(local_handle->frame(),
-                                         /*allow_zero_copy_images=*/true,
                                          resource_provider,
                                          /*video_renderer=*/nullptr, dest_rect);
   if (!image) {
@@ -1576,13 +1578,8 @@ ScriptPromise<ImageBitmap> VideoFrame::CreateImageBitmap(
   auto* resource_provider =
       provider_cache.CreateProvider(resource_provider_size);
 
-  // We disable zero copy images since the ImageBitmap spec says created bitmaps
-  // are copies. Many other paths can avoid doing this w/o issue, but hardware
-  // decoders may have a limited number of outputs, so not making a copy becomes
-  // an observable issues to clients.
   const auto dest_rect = gfx::Rect(resource_provider_size);
   auto image = CreateImageFromVideoFrame(local_handle->frame(),
-                                         /*allow_zero_copy_images=*/false,
                                          resource_provider,
                                          /*video_renderer=*/nullptr, dest_rect);
   if (!image) {

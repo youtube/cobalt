@@ -30,8 +30,9 @@
 
 bool OmniboxPopupUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup) ||
-         base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug);
+  return base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup) ||
+         base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
+         base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup);
 }
 
 OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
@@ -44,6 +45,9 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui));
 
   source->AddBoolean("isTopChromeSearchbox", true);
+  source->AddBoolean(
+      "omniboxPopupDebugEnabled",
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug));
 
   source->AddBoolean("reportMetrics", true);
   source->AddString("charTypedToPaintMetricName",

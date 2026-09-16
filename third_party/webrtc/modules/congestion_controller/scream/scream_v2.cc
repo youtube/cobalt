@@ -11,6 +11,7 @@
 #include "modules/congestion_controller/scream/scream_v2.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "api/environment/environment.h"
@@ -20,6 +21,7 @@
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
@@ -79,6 +81,10 @@ DataRate ScreamV2::OnTransportPacketsFeedback(
   delay_based_congestion_control_.OnTransportPacketsFeedback(msg);
   UpdateL4SAlpha(msg);
   UpdateRefWindowAndTargetRate(msg);
+  env_.event_log().Log(std::make_unique<RtcEventBweUpdateScream>(
+      ref_window_, msg.data_in_flight, target_rate_, msg.smoothed_rtt,
+      delay_based_congestion_control_.queue_delay(),
+      /*l4s_marked_permille*/ l4s_alpha_ * 1000));
   return target_rate_;
 }
 

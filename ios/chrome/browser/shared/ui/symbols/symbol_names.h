@@ -170,6 +170,7 @@ extern NSString* const kCopyActionSymbol;
 extern NSString* const kPasteActionSymbol;
 extern NSString* const kPlusRectangleSymbol;
 extern NSString* const kNewWindowActionSymbol;
+extern NSString* const kEyedropperSymbol;
 extern NSString* const kShowActionSymbol;
 extern NSString* const kHideActionSymbol;
 extern NSString* const kFindInPageActionSymbol;
@@ -193,6 +194,7 @@ extern NSString* const kShareSymbol;
 extern NSString* const kXMarkSymbol;
 extern NSString* const kXMarkSquareSymbol;
 extern NSString* const kXMarkSquareFillSymbol;
+extern NSString* const kXMarkCircleSymbol;
 extern NSString* const kXMarkCircleFillSymbol;
 extern NSString* const kPlusSymbol;
 extern NSString* const kSearchSymbol;
@@ -319,6 +321,9 @@ extern NSString* const kKeySymbol;
 extern NSString* const kTextDocument;
 extern NSString* const kPhotoOnRectangleSymbol;
 extern NSString* const kSystemCameraSymbol;
+extern NSString* const kTextJustifyLeftSymbol;
+extern NSString* const kVideoSymbol;
+extern NSString* const kWaveformSymbol;
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

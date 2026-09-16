@@ -756,9 +756,18 @@ void OpenSSLAdapter::OnCloseEvent(Socket* socket, int err) {
 }
 
 bool OpenSSLAdapter::SSLPostConnectionCheck(SSL* ssl, absl::string_view host) {
-  bool is_valid_cert_name =
-      openssl::VerifyPeerCertMatchesHost(ssl, host) &&
+  bool cert_verified = false;
+#ifdef WEBRTC_USE_CRYPTO_BUFFER_CALLBACK
+  // When using CRYPTO_BUFFER callback, SSL_get_verify_result cannot be called
+  // as it requires X509 method. Rely on custom_cert_verifier_status_ instead.
+  cert_verified = custom_cert_verifier_status_;
+#else
+  cert_verified =
       (SSL_get_verify_result(ssl) == X509_V_OK || custom_cert_verifier_status_);
+#endif
+
+  bool is_valid_cert_name =
+      openssl::VerifyPeerCertMatchesHost(ssl, host) && cert_verified;
 
   if (!is_valid_cert_name && ignore_bad_cert_) {
     RTC_DLOG(LS_WARNING) << "Other TLS post connection checks failed. "

@@ -680,31 +680,16 @@ bool TabStripActionContainer::GetIsShowingGlicNudge() {
 #endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
-void TabStripActionContainer::TriggerGlicActorTaskIconCheckTasksNudge() {
 #if BUILDFLAG(ENABLE_GLIC)
+void TabStripActionContainer::TriggerGlicActorNudge(
+    const std::u16string nudge_text) {
   CHECK(glic_actor_task_icon_);
-  // Make sure the task icon is visible, for example if another window was
-  // opened after the CheckTask state was sent.
   ShowGlicActorTaskIcon();
-  glic_actor_task_icon_->ShowCheckTasksLabel();
+  glic_actor_task_icon_->ShowNudgeLabel(nudge_text);
+  HighlightGlicActorTaskIcon();
   ShowTabStripNudge(glic_actor_task_icon_);
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }
-
-void TabStripActionContainer::TriggerGlicActorTaskIconCompleteTasksNudge() {
-#if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic_actor_task_icon_);
-  // Make sure the task icon is visible, for example if another window was
-  // opened after the CompleteTask state was sent.
-  ShowGlicActorTaskIcon();
-  glic_actor_task_icon_->ShowCompleteTasksLabel();
-  ShowTabStripNudge(glic_actor_task_icon_);
-#else
-  NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_GLIC)
-}
 
 void TabStripActionContainer::ShowGlicActorTaskIcon() {
 #if BUILDFLAG(ENABLE_GLIC)
@@ -721,6 +706,7 @@ void TabStripActionContainer::ShowGlicActorTaskIcon() {
   // When kGlicActorUiNudgeRedesign is enabled, the GlicButton should be to the
   // left of the GlicActorTaskIcon.
   if (features::kGlicActorUiNudgeRedesign.Get()) {
+    glic_actor_task_icon_->SetVisible(true);
     glic_actor_button_container_->ReorderChildView(glic_button_, 0u);
   }
 
@@ -744,9 +730,6 @@ void TabStripActionContainer::HideGlicActorTaskIcon() {
   glic_button_ = AddChildView(std::move(glic_button_));
   glic_actor_button_container_->SetVisible(false);
   UpdateGlicActorButtonContainerBorders();
-  // Unhighlight the GlicButton on hide as "toggle" behavior is no longer
-  // applicable.
-  UnhighlightGlicButton();
 #if !BUILDFLAG(IS_MAC)
   // Re-add the separator so it's ordered after the GlicButton.
   separator_ = AddChildView(std::move(separator_));
@@ -779,24 +762,6 @@ void TabStripActionContainer::UnhighlightGlicActorTaskIcon() {
   CHECK(glic_actor_task_icon_);
 
   glic_actor_task_icon_->SetDefaultColors();
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
-}
-
-void TabStripActionContainer::HighlightGlicButton() {
-#if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic_button_);
-  glic_button_->HighlightGlicButton();
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
-}
-
-void TabStripActionContainer::UnhighlightGlicButton() {
-#if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic_button_);
-  glic_button_->SetDefaultColors();
 #else
   NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_GLIC)

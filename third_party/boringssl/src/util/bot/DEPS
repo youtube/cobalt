@@ -38,7 +38,7 @@ vars = {
   # infra/3pp/tools/go/linux-amd64
   'go_version': 'version:3@1.25.1',
   # infra/3pp/tools/perl/windows-amd64
-  'perl_version': 'version:3@5.38.2.2',
+  'perl_version': 'version:3@5.42.0.1',
   # chrome_internal/third_party/sdk/windows, but if an update switches this to a
   # new major VS release, keep some bots at the older version.
   'windows_sdk_version': 'uploaded:2024-01-11',

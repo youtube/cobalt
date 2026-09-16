@@ -543,12 +543,10 @@ rtc_source_set("packet_socket_factory") {
   deps = [
     ":async_dns_resolver",
     "../rtc_base:async_packet_socket",
-    "../rtc_base:checks",
     "../rtc_base:socket_address",
     "../rtc_base:ssl",
     "../rtc_base/system:rtc_export",
     "environment",
-    "//third_party/abseil-cpp/absl/memory",
   ]
 }
 
@@ -1673,6 +1671,20 @@ if (rtc_include_tests) {
     ]
   }
 
+  rtc_library("mock_datagram_connection") {
+    visibility = [ "*" ]
+    testonly = true
+    sources = [ "test/mock_datagram_connection.h" ]
+    deps = [
+      ":array_view",
+      ":candidate",
+      ":datagram_connection",
+      "../p2p:transport_description",
+      "//test:test_support",
+      "//testing/gmock",
+    ]
+  }
+
   rtc_library("mock_datagram_connection_observer") {
     visibility = [ "*" ]
     testonly = true
@@ -1809,6 +1821,8 @@ if (rtc_include_tests) {
       ":mock_audio_mixer",
       ":mock_audio_sink",
       ":mock_data_channel",
+      ":mock_datagram_connection",
+      ":mock_datagram_connection_observer",
       ":mock_dtmf_sender",
       ":mock_frame_decryptor",
       ":mock_frame_encryptor",

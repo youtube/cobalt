@@ -33,6 +33,8 @@
 #include "api/test/mock_audio_mixer.h"
 #include "api/test/mock_audio_sink.h"
 #include "api/test/mock_data_channel.h"
+#include "api/test/mock_datagram_connection.h"
+#include "api/test/mock_datagram_connection_observer.h"
 #include "api/test/mock_dtmf_sender.h"
 #include "api/test/mock_frame_decryptor.h"
 #include "api/test/mock_frame_encryptor.h"

@@ -1263,7 +1263,6 @@ TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {
 class RTCStatsRtpLifetimeTest : public RTCStatsIntegrationTest {
  public:
   RTCStatsRtpLifetimeTest() : RTCStatsIntegrationTest() {
-    // Field trial "WebRTC-RTP-Lifetime" is enabled-by-default.
     EXPECT_TRUE(caller_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
                                   CreateBuiltinAudioDecoderFactory()));
     EXPECT_TRUE(callee_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),

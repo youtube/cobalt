@@ -201,9 +201,4 @@ WebGraphicsContext3DProviderImpl::RasterContextProvider() const {
   return provider_.get();
 }
 
-unsigned int WebGraphicsContext3DProviderImpl::GetGrGLTextureFormat(
-    viz::SharedImageFormat format) const {
-  return provider_->GetGrGLTextureFormat(format);
-}
-
 }  // namespace content

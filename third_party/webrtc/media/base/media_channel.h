@@ -241,9 +241,6 @@ class MediaSendChannelInterface {
   // Called whenever the list of sending SSRCs changes.
   virtual void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) = 0;
-  // TODO(bugs.webrtc.org/13931): Remove when configuration is more sensible
-  virtual void SetSendCodecChangedCallback(
-      absl::AnyInvocable<void()> callback) = 0;
 };
 
 class MediaReceiveChannelInterface {
@@ -1012,10 +1009,6 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // Clear recordable encoded frame callback for `ssrc`
   virtual void ClearRecordableEncodedFrameCallback(uint32_t ssrc) = 0;
   virtual bool GetStats(VideoMediaReceiveInfo* stats) = 0;
-  virtual void SetReceiverFeedbackParameters(bool lntf_enabled,
-                                             bool nack_enabled,
-                                             RtcpMode rtcp_mode,
-                                             std::optional<int> rtx_time) = 0;
   virtual bool AddDefaultRecvStreamForTesting(const StreamParams& sp) = 0;
 };
 

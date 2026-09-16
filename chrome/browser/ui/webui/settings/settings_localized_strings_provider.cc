@@ -795,8 +795,8 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_1},
       {"glicDefaultTabAccessConsider1",
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_1},
-      {"glicDefaultTabAccessConsider1LearnMoreLabel",
-       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_1_LEARN_MORE_LABEL},
+      {"glicDefaultTabAccessConsider2",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_2},
       {"glicPersonalContextSettingLabel", IDS_SETTINGS_GLIC_PERSONAL_CONTEXT},
       {"glicPersonalContextSettingSublabel",
        IDS_SETTINGS_GLIC_PERSONAL_CONTEXT_LABEL},
@@ -1229,12 +1229,25 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                         Profile* profile,
                         content::WebContents* web_contents) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
-      {"autofillPageTitle", IDS_SETTINGS_AUTOFILL_AND_PASSWORDS},
       {"yourSavedInfoPageTitle", IDS_SETTINGS_YOUR_SAVED_INFO},
       {"yourSavedInfoPageDescription",
        IDS_SETTINGS_YOUR_SAVED_INFO_DESCRIPTION},
+      {"yourSavedInfoAutofillSettingsLabel",
+       IDS_SETTINGS_YOUR_SAVED_INFO_AUTOFILL_SETTINGS_LABEL},
+      {"yourSavedInfoAutofillSettingsDescription",
+       IDS_SETTINGS_YOUR_SAVED_INFO_AUTOFILL_SETTINGS_DESCRIPTION},
       {"yourSavedInfoRelatedServicesTitle",
        IDS_SETTINGS_RELATED_SERVICES_TITLE},
+      {"identityDocsCardTitle", IDS_AUTOFILL_IDENTITY_DOCS_TITLE},
+      {"yourSavedInfoDriverLicenseChip",
+       IDS_AUTOFILL_AI_DRIVERS_LICENSE_ENTITY_NAME},
+      {"yourSavedInfoNationalIdChip",
+       IDS_AUTOFILL_AI_NATIONAL_ID_CARD_ENTITY_NAME},
+      {"yourSavedInfoPassportChip", IDS_AUTOFILL_AI_PASSPORT_ENTITY_NAME},
+      {"travelCardTitle", IDS_AUTOFILL_TRAVEL_TITLE},
+      {"yourSavedInfoVehiclesChip", IDS_AUTOFILL_AI_VEHICLES_TITLE},
+      {"yourSavedInfoTravelInfoChip", IDS_AUTOFILL_AI_TRAVEL_INFO_TITLE},
+      {"yourSavedInfoFlightReservationsChip", IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE},
       {"passwordsDescription", IDS_SETTINGS_PASSWORD_MANAGER_DESCRIPTION},
       {"genericCreditCard", IDS_AUTOFILL_CC_GENERIC},
       {"creditCards", IDS_AUTOFILL_PAYMENT_METHODS},
@@ -1307,6 +1320,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_AUTOFILL_EDIT_ADDRESS_REQUIRED_FIELD_FORM_ERROR},
       {"editAddressRequiredFieldsError",
        IDS_AUTOFILL_EDIT_ADDRESS_REQUIRED_FIELDS_FORM_ERROR},
+      {"creditAndDebitCardTitle",
+       IDS_SETTINGS_CREDIT_AND_DEBIT_CARD_TITLE},
       {"creditCardExpiration", IDS_SETTINGS_CREDIT_CARD_EXPIRATION_DATE},
       {"creditCardName", IDS_SETTINGS_NAME_ON_CREDIT_CARD},
       {"creditCardNickname", IDS_SETTINGS_CREDIT_CARD_NICKNAME},
@@ -1329,6 +1344,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"addPaymentMethodCreditOrDebitCard",
        IDS_SETTINGS_ADD_PAYMENT_METHOD_CREDIT_OR_DEBIT_CARD},
       {"addPaymentMethodIban", IDS_SETTINGS_ADD_PAYMENT_METHOD_IBAN},
+      {"ibanTitle", IDS_AUTOFILL_SAVE_IBAN_LABEL},
       {"ibanSavedToThisDeviceOnly",
        IDS_SETTINGS_IBAN_SAVED_TO_THIS_DEVICE_ONLY},
       {"addIbanTitle", IDS_SETTINGS_ADD_IBAN_TITLE},
@@ -1340,6 +1356,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"editIban", IDS_SETTINGS_IBAN_EDIT},
       {"removeLocalIbanConfirmationTitle",
        IDS_SETTINGS_LOCAL_IBAN_REMOVE_CONFIRMATION_TITLE},
+      {"loyaltyCardsTitle", IDS_AUTOFILL_LOYALTY_CARDS_SUBMENU_TITLE},
       {"remotePaymentMethodsLinkLabel",
        IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL},
       {"remoteWalletPassesLinkLabel",
@@ -1355,6 +1372,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_PASSWORD_MANAGER_LEAK_HELP_MESSAGE},
       {"passwordsLeakDetectionSignedOutEnabledDescription",
        IDS_SETTINGS_PASSWORDS_LEAK_DETECTION_SIGNED_OUT_ENABLED_DESC},
+      {"passwordsLabel", IDS_SETTINGS_SAFETY_CHECK_PASSWORDS_PRIMARY_LABEL},
+      {"passkeysLabel", IDS_AUTOFILL_PASSKEYS_TITLE},
       {"editPasskeySiteLabel", IDS_SETTINGS_PASSKEYS_SITE_LABEL},
       {"editPasskeyUsernameLabel",
        IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_USERNAME_LABEL},
@@ -1561,6 +1580,15 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
 
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
+  html_source->AddLocalizedString(
+      "autofillPageTitle",
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoSettingsPage) ||
+              base::FeatureList::IsEnabled(
+                  autofill::features::kYourSavedInfoBrandingInSettings)
+          ? IDS_SETTINGS_YOUR_SAVED_INFO
+          : IDS_SETTINGS_AUTOFILL_AND_PASSWORDS);
+
   html_source->AddString(
       "addressesSublabel",
       l10n_util::GetStringUTF8(
@@ -1716,7 +1744,7 @@ void AddPersonalizationOptionsStrings(content::WebUIDataSource* html_source) {
       {"searchSuggestPrefDesc", IDS_SETTINGS_SUGGEST_PREF_DESC},
       {"searchAggregatorSuggestPref", IDS_SETTINGS_SEARCH_AGGREGATOR_PREF},
       {"searchAggregatorSuggestPrefDesc",
-        IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC},
+       IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC},
       {"priceEmailNotificationsPref", IDS_PRICE_TRACKING_SETTINGS_TITLE},
       {"priceEmailNotificationsPrefDesc",
        IDS_PRICE_TRACKING_SETTINGS_EMAIL_DESCRIPTION},
@@ -1737,13 +1765,13 @@ void AddPersonalizationOptionsStrings(content::WebUIDataSource* html_source) {
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
-  #if !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS)
   html_source->AddLocalizedString(
       "signinAllowedDescription",
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
           ? IDS_SETTINGS_SIGNIN_ALLOWED_DESC_2
           : IDS_SETTINGS_SIGNIN_ALLOWED_DESC);
-  #endif
+#endif
 }
 
 void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
@@ -1785,8 +1813,7 @@ void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
 #else
   html_source->AddLocalizedString(
       "peopleSignInSyncPagePromptSecondaryWithNoAccount",
-      base::FeatureList::IsEnabled(
-          syncer::kReplaceSyncPromosWithSignInPromos)
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
           ? IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS
           : IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT);
 #endif
@@ -1932,10 +1959,9 @@ void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
           : IDS_SETTINGS_PEOPLE_SIGN_IN_PROMPT_SECONDARY_WITH_ACCOUNT);
   html_source->AddLocalizedString(
       "peopleSignInPromptSecondaryWithNoAccount",
-      base::FeatureList::IsEnabled(
-        syncer::kReplaceSyncPromosWithSignInPromos)
-        ? IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS
-        : IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT);
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS
+          : IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT);
   html_source->AddLocalizedString(
       "profileNameAndPicture",
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
@@ -2295,7 +2321,8 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
                              .spec());
 }
 
-void AddPrivacyGuideStrings(content::WebUIDataSource* html_source) {
+void AddPrivacyGuideStrings(content::WebUIDataSource* html_source,
+                            Profile* profile) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"privacyGuideLabel", IDS_SETTINGS_PRIVACY_GUIDE_LABEL},
       {"privacyGuideSublabel", IDS_SETTINGS_PRIVACY_GUIDE_SUBLABEL},
@@ -2348,10 +2375,16 @@ void AddPrivacyGuideStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_PRIVACY_GUIDE_MSBB_PRIVACY_DESCRIPTION2},
       {"privacyGuideHistorySyncCardHeader",
        IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_CARD_HEADER},
+      {"privacyGuideHistoryAndTabsSyncCardHeader",
+       IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_AND_TABS_SYNC_CARD_HEADER},
       {"privacyGuideHistorySyncSettingLabel",
        IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_SETTING_LABEL},
+      {"privacyGuideHistoryAndTabsSyncSettingLabel",
+       IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_AND_TABS_SYNC_SETTING_LABEL},
       {"privacyGuideHistorySyncFeatureDescription1",
        IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_FEATURE_DESCRIPTION1},
+      {"privacyGuideHistoryAndTabsSyncFeatureDescription1",
+       IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_AND_TABS_SYNC_FEATURE_DESCRIPTION1},
       {"privacyGuideHistorySyncFeatureDescription2",
        IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_FEATURE_DESCRIPTION2},
       {"privacyGuideHistorySyncPrivacyDescription1",
@@ -3879,7 +3912,7 @@ void AddLocalizedStrings(content::WebUIDataSource* html_source,
   AddOnStartupStrings(html_source);
   AddPeopleStrings(html_source, profile);
   AddPrivacySandboxStrings(html_source, profile);
-  AddPrivacyGuideStrings(html_source);
+  AddPrivacyGuideStrings(html_source, profile);
   AddPrivacyStrings(html_source, profile);
   AddSafetyHubStrings(html_source);
   AddShortcutInputStrings(html_source);

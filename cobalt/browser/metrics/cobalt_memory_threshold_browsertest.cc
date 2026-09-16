@@ -46,12 +46,13 @@ class CobaltMemoryThresholdBrowserTest
   void OnMemoryDumpReceived(
       base::OnceClosure quit,
       const std::string& scenario_name,
-      bool success,
+      memory_instrumentation::mojom::RequestOutcome outcome,
       std::unique_ptr<memory_instrumentation::GlobalMemoryDump> dump) {
     // ScopedClosureRunner guarantees quit.Run() is called when this function
     // ends, no matter how it exits (failure, etc.)
     base::ScopedClosureRunner quit_runner(std::move(quit));
-    if (!success || !dump) {
+    if (outcome != memory_instrumentation::mojom::RequestOutcome::kSuccess ||
+        !dump) {
       ADD_FAILURE() << "Failed to receive memory dump.";
       return;
     }

@@ -38,6 +38,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
+import org.chromium.base.Log;
 import org.chromium.base.MathUtils;
 import org.chromium.base.UnguessableToken;
 import org.chromium.base.metrics.RecordHistogram;
@@ -111,6 +112,8 @@ public class PictureInPictureActivity extends AsyncInitializationActivity {
 
     static final String PICTURE_IN_PICTURE_ACTION_HISTOGRAM =
             "Media.PictureInPicture.Android.Action";
+
+    private static final String TAG = "PiPActivity";
 
     // Used to filter media buttons' remote action intents.
     private static final String MEDIA_ACTION =
@@ -286,7 +289,7 @@ public class PictureInPictureActivity extends AsyncInitializationActivity {
                             requestCode++,
                             MediaSessionAction.EXIT_PICTURE_IN_PICTURE,
                             R.drawable.ic_headphones_24dp,
-                            R.string.accessibility_go_to_background,
+                            R.string.accessibility_listen_in_the_background,
                             /* controlState= */ null);
             mMicrophone =
                     new ToggleRemoteAction(
@@ -926,7 +929,13 @@ public class PictureInPictureActivity extends AsyncInitializationActivity {
 
     @SuppressLint("NewApi")
     private void updatePictureInPictureParams() {
-        setPictureInPictureParams(getPictureInPictureParams());
+        try {
+            setPictureInPictureParams(getPictureInPictureParams());
+        } catch (IllegalStateException e) {
+            // This exception is expected if the activity is finishing or destroyed. This can
+            // happen if PiP activity is destroyed immediately after it's triggered.
+            Log.e(TAG, "Failed to set PiP params.", e);
+        }
     }
 
     @CalledByNative

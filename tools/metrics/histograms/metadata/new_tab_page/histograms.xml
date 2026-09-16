@@ -40,6 +40,11 @@ chromium-metrics-reviews@google.com.
   <variant name=".RecentTabs" summary="Recent (offline) tabs"/>
 </variants>
 
+<variants name="InputComponentType">
+  <variant name="Composebox"/>
+  <variant name="Realbox"/>
+</variants>
+
 <variants name="ModuleToggleState">
   <variant name="TurnOffModule"/>
   <variant name="TurnOnModule"/>
@@ -73,6 +78,10 @@ chromium-metrics-reviews@google.com.
   <variant name=".google_calendar" summary="Module ID for Google Calendar"/>
   <variant name=".history_clusters"
       summary="Module ID for History Clusters module"/>
+  <variant name=".microsoft_authentication"
+      summary="Module ID for Microsoft Authentication"/>
+  <variant name=".microsoft_files" summary="Module ID for Microsoft Files"/>
+  <variant name=".outlook_calendar" summary="Module ID for Outlook Calendar"/>
   <variant name=".shopping_tasks" summary="Module ID for Shopping Tasks"/>
   <variant name=".tab_resumption" summary="Module ID for Tab Resumption"/>
 </variants>
@@ -509,6 +518,8 @@ chromium-metrics-reviews@google.com.
   <token key="FileState">
     <variant name="NotUploaded" summary="File not uploaded"/>
     <variant name="Processing" summary="File upload processing"/>
+    <variant name="ProcessingSuggestSignalsReady"
+        summary="File upload processing and suggest signals ready"/>
     <variant name="Unknown" summary="Unknown"/>
     <variant name="UploadFailed" summary="File upload failed"/>
     <variant name="UploadStarted" summary="File upload started"/>
@@ -538,6 +549,43 @@ chromium-metrics-reviews@google.com.
     Tracks the total number of times a tab is added as context through the
     composebox context menu. This metric is recorded regardless of whether or
     not a query was issued with the tab.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Tools.CreateImages" enum="AimToolState"
+    expires_after="2026-06-10">
+  <owner>ananyaseelam@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the number of times the create images tool selected or deselected in
+    the composebox. The metric is only recorded when the create images tool chip
+    or the create images dropdown item in the composebox context menu is
+    selected.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Tools.DeepSearch" enum="AimToolState"
+    expires_after="2026-06-10">
+  <owner>ananyaseelam@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the number of times the deep search tool selected or deselected in
+    the composebox. The metric is only recorded when the deep search tool chip
+    or the deep search dropdown item in the composebox context menu is selected.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Tools.SubmissionType"
+    enum="ComposeboxSubmissionType" expires_after="2026-06-10">
+  <owner>ananyaseelam@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks whether the user submitted a query using a tool or model or through a
+    suggestion. This metric is recorded only once the user has submitted the
+    query and navigated to AIM.
   </summary>
 </histogram>
 
@@ -1227,7 +1275,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.MicrosoftAuth.AuthError"
-    enum="NTPMicrosoftAuthError" expires_after="2026-02-06">
+    enum="NTPMicrosoftAuthError" expires_after="2026-04-12">
   <owner>rtatum@google.com</owner>
   <owner>pauladedeji@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1240,7 +1288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.MicrosoftAuth.AuthStarted"
-    enum="NTPMicrosoftAuthType" expires_after="2026-02-06">
+    enum="NTPMicrosoftAuthType" expires_after="2026-04-12">
   <owner>rtatum@google.com</owner>
   <owner>pauladedeji@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1504,7 +1552,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Modules.ImpressionRatio{NewTabPageModules}"
-    units="perdecage" expires_after="2026-02-09">
+    units="perdecage" expires_after="2026-04-12">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1916,7 +1964,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NewTabPage.OneGoogleBar.RequestLatency{NewTabPage_OneGoogleBar_RequestLatency}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1933,7 +1981,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.OneGoogleBar.ShownTime" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2589,6 +2637,21 @@ chromium-metrics-reviews@google.com.
     search engine, Incognito and Guest mode NTPs are not considered 1P and don't
     log this histogram.
   </summary>
+</histogram>
+
+<histogram name="NewTabPage.{InputComponentType}.ContextMenuEntry.Clicked"
+    enum="BooleanOccurred" expires_after="2026-03-29">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Number of times the context menu entrypoint on the {InputComponentType} was
+    clicked. Recorded when the context menu is clicked. This does not mean that
+    a file was added, just simply that the entrypoint was clicked.
+  </summary>
+  <token key="InputComponentType" variants="InputComponentType">
+    <variant name=""/>
+  </token>
 </histogram>
 
 </histograms>

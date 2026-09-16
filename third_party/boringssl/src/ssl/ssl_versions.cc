@@ -90,7 +90,7 @@ bool ssl_method_supports_version(const SSL_PROTOCOL_METHOD *method,
 // The following functions map between API versions and wire versions. The
 // public API works on wire versions.
 
-static const char *kUnknownVersion = "unknown";
+static const char *const kUnknownVersion = "unknown";
 
 struct VersionInfo {
   uint16_t version;

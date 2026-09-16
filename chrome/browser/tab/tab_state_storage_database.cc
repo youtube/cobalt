@@ -4,6 +4,8 @@
 
 #include "chrome/browser/tab/tab_state_storage_database.h"
 
+#include <memory>
+
 #include "base/check.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -71,6 +73,35 @@ bool InitSchema(sql::Database* db, sql::MetaTable* meta_table) {
 
 }  // namespace
 
+TabStateStorageDatabase::Transaction::Transaction(
+    std::unique_ptr<sql::Transaction> transaction)
+    : transaction_(std::move(transaction)) {}
+
+TabStateStorageDatabase::Transaction::~Transaction() {
+  if (transaction_) {
+    transaction_->Rollback();
+  }
+}
+
+bool TabStateStorageDatabase::Transaction::Begin() {
+  DCHECK(transaction_) << "Transaction already closed.";
+  return transaction_->Begin();
+}
+
+void TabStateStorageDatabase::Transaction::Rollback() {
+  DCHECK(transaction_) << "Transaction already closed.";
+  transaction_.release()->Rollback();
+}
+
+bool TabStateStorageDatabase::Transaction::IsOpen() {
+  return transaction_.get() != nullptr;
+}
+
+bool TabStateStorageDatabase::Transaction::Commit() {
+  DCHECK(transaction_) << "Transaction already closed.";
+  return transaction_.release()->Commit();
+}
+
 TabStateStorageDatabase::TabStateStorageDatabase(
     const base::FilePath& profile_path)
     : profile_path_(profile_path),
@@ -108,16 +139,13 @@ bool TabStateStorageDatabase::Initialize() {
   return true;
 }
 
-bool TabStateStorageDatabase::SaveNode(int id,
+bool TabStateStorageDatabase::SaveNode(Transaction* transaction,
+                                       int id,
                                        TabStorageType type,
                                        std::string payload,
                                        std::string children) {
   CHECK(db_);
-
-  sql::Transaction transaction(db_.get());
-  if (!transaction.Begin()) {
-    return false;
-  }
+  DCHECK(transaction && transaction->IsOpen());
 
   static constexpr char kInsertTabSql[] =
       "INSERT OR REPLACE INTO nodes"
@@ -134,11 +162,53 @@ bool TabStateStorageDatabase::SaveNode(int id,
   write_statement.BindBlob(2, std::move(payload));
   write_statement.BindBlob(3, std::move(children));
 
-  if (!write_statement.Run()) {
-    DLOG(ERROR) << "Could not write to tabs table.";
-    return false;
-  }
-  return transaction.Commit();
+  return write_statement.Run();
+}
+
+bool TabStateStorageDatabase::SaveNodeChildren(Transaction* transaction,
+                                               int id,
+                                               std::string children) {
+  CHECK(db_);
+  DCHECK(transaction && transaction->IsOpen());
+
+  static constexpr char kUpdateChildrenSql[] =
+      "UPDATE nodes"
+      "SET children = ?"
+      "WHERE id = ?";
+
+  DCHECK(db_->IsSQLValid(kUpdateChildrenSql));
+
+  sql::Statement write_statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kUpdateChildrenSql));
+
+  write_statement.BindInt(0, id);
+  write_statement.BindBlob(1, std::move(children));
+
+  return write_statement.Run();
+}
+
+bool TabStateStorageDatabase::RemoveNode(Transaction* transaction, int id) {
+  CHECK(db_);
+  DCHECK(transaction && transaction->IsOpen());
+
+  static constexpr char kDeleteChildrenSql[] =
+      "DELETE FROM nodes"
+      "WHERE id = ?";
+
+  DCHECK(db_->IsSQLValid(kDeleteChildrenSql));
+
+  sql::Statement write_statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kDeleteChildrenSql));
+
+  write_statement.BindInt(0, id);
+  return write_statement.Run();
+}
+
+std::unique_ptr<TabStateStorageDatabase::Transaction>
+TabStateStorageDatabase::CreateTransaction() {
+  std::unique_ptr<sql::Transaction> sql_transaction =
+      std::make_unique<sql::Transaction>(db_.get());
+  return std::make_unique<Transaction>(std::move(sql_transaction));
 }
 
 std::vector<NodeState> TabStateStorageDatabase::LoadAllNodes() {
@@ -151,8 +221,8 @@ std::vector<NodeState> TabStateStorageDatabase::LoadAllNodes() {
     NodeState entry;
     entry.id = select_statement.ColumnInt(0);
     entry.type = static_cast<TabStorageType>(select_statement.ColumnInt(1));
-    select_statement.ColumnBlobAsString(2, &entry.payload);
-    select_statement.ColumnBlobAsString(3, &entry.children);
+    entry.payload = select_statement.ColumnBlobAsString(2);
+    entry.children = select_statement.ColumnBlobAsString(3);
     entries.emplace_back(std::move(entry));
   }
   return entries;

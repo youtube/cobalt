@@ -264,6 +264,7 @@ rtc_library("jsep_transport_collection") {
     "../rtc_base:logging",
     "../rtc_base:macromagic",
     "../rtc_base/system:no_unique_address",
+    "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

@@ -90,7 +90,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
                                   base::Unretained(this)));
 
       // Observe changes in the floaty state.
-      glic_service->window_controller().AddStateObserver(this);
+      glic_service->GetSingleInstanceWindowController().AddStateObserver(this);
     }
 
     // Subscribe to changes in the set of pinned tabs.
@@ -109,7 +109,9 @@ class GlicTabUnderlineView::UnderlineViewUpdater
   UnderlineViewUpdater& operator=(const UnderlineViewUpdater&) = delete;
   ~UnderlineViewUpdater() override {
     if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-      GetGlicKeyedService()->window_controller().RemoveStateObserver(this);
+      GetGlicKeyedService()
+          ->GetSingleInstanceWindowController()
+          .RemoveStateObserver(this);
     }
   }
 
@@ -206,7 +208,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
   void PanelStateChanged(const glic::mojom::PanelState& panel_state,
                          const PanelStateContext& context) override {
     UpdateUnderlineView(
-        panel_state.kind == mojom::PanelState::Kind::kHidden
+        panel_state.kind == mojom::PanelStateKind::kHidden
             ? UpdateUnderlineReason::kPanelStateChanged_PanelHidden
             : UpdateUnderlineReason::kPanelStateChanged_PanelShowing);
   }

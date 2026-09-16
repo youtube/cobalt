@@ -416,8 +416,6 @@ external/wpt/css/css-text/text-transform/text-transform-full-size-kana-004.html 
 external/wpt/css/css-text/text-transform/text-transform-full-size-kana-005.html [ Skip ]
 external/wpt/css/css-text/text-transform/text-transform-full-size-kana-006.html [ Skip ]
 external/wpt/css/css-text/text-transform/text-transform-full-size-kana-007.html [ Skip ]
-external/wpt/css/css-text/text-transform/text-transform-fullwidth-008.html [ Skip ]
-external/wpt/css/css-text/text-transform/text-transform-fullwidth-009.html [ Skip ]
 external/wpt/css/css-text/word-boundary/* [ Skip ]
 external/wpt/css/css-text/writing-system/writing-system-line-break-001.html [ Skip ]
 external/wpt/css/css-text/writing-system/writing-system-line-break-002.html [ Skip ]
@@ -1723,6 +1721,10 @@ crbug.com/40241779 virtual/view-transition-mpa-serialization/external/wpt/css/cs
 crbug.com/40241779 virtual/view-transition-wide-gamut/external/wpt/css/css-view-transitions/navigation/* [ Skip ]
 # Scoped view transitions are incompatible with mpa serialization.
 crbug.com/40267386 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/scoped/* [ Skip ]
+
+# waitUntil() should be tested separately for the navigation serialization.
+crbug.com/346976175 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/view-transition-waituntil-animation-manipulation.html [ Skip ]
+crbug.com/346976175 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/view-transition-waituntil-finished-promise.html [ Skip ]
 
 # This test requests a screenshot capture inside the updateDOMCallback assuming
 # this will end the test. The ViewTransition API suppresses rendering while this

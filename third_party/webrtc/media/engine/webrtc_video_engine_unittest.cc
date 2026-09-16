@@ -176,11 +176,6 @@ constexpr size_t kNumSimulcastStreams = 3;
 constexpr char kUnsupportedExtensionName[] =
     "urn:ietf:params:rtp-hdrext:unsupported";
 
-Codec RemoveFeedbackParams(Codec&& codec) {
-  codec.feedback_params = FeedbackParams();
-  return std::move(codec);
-}
-
 void VerifyCodecHasDefaultFeedbackParams(const Codec& codec,
                                          bool lntf_expected) {
   EXPECT_EQ(lntf_expected, codec.HasFeedbackParam(FeedbackParam(
@@ -2741,12 +2736,6 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
              receive_channel_.get()](const std::set<uint32_t>& choices) {
           receive_channel->ChooseReceiverReportSsrc(choices);
         });
-    send_channel_->SetSendCodecChangedCallback([this]() {
-      receive_channel_->SetReceiverFeedbackParameters(
-          send_channel_->SendCodecHasLntf(), send_channel_->SendCodecHasNack(),
-          send_channel_->SendCodecRtcpMode(),
-          send_channel_->SendCodecRtxTime());
-    });
     send_channel_->OnReadyToSend(true);
     receive_channel_->SetReceive(true);
     last_ssrc_ = 123;
@@ -3450,45 +3439,6 @@ TEST_F(WebRtcVideoChannelWithRtcpLossNotificationTest,
   TestLossNotificationState(true);
 }
 
-TEST_F(WebRtcVideoChannelWithRtcpLossNotificationTest,
-       LossNotificationCanBeEnabledAndDisabled) {
-  AssignDefaultCodec();
-  VerifyCodecHasDefaultFeedbackParams(*default_codec_, true);
-
-  {
-    VideoSenderParameters parameters;
-    parameters.codecs = engine_->LegacySendCodecs();
-    EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
-    EXPECT_TRUE(send_channel_->SetSend(true));
-  }
-
-  // Start with LNTF enabled.
-  FakeVideoSendStream* send_stream =
-      AddSendStream(StreamParams::CreateLegacy(1));
-  ASSERT_TRUE(send_stream->GetConfig().rtp.lntf.enabled);
-  FakeVideoReceiveStream* recv_stream =
-      AddRecvStream(StreamParams::CreateLegacy(1));
-  ASSERT_TRUE(recv_stream->GetConfig().rtp.lntf.enabled);
-
-  // Verify that LNTF is turned off when send(!) codecs without LNTF are set.
-  VideoSenderParameters parameters;
-  parameters.codecs.push_back(RemoveFeedbackParams(GetEngineCodec("VP8")));
-  EXPECT_TRUE(parameters.codecs[0].feedback_params.params().empty());
-  EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
-  recv_stream = fake_call_->GetVideoReceiveStreams()[0];
-  EXPECT_FALSE(recv_stream->GetConfig().rtp.lntf.enabled);
-  send_stream = fake_call_->GetVideoSendStreams()[0];
-  EXPECT_FALSE(send_stream->GetConfig().rtp.lntf.enabled);
-
-  // Setting the default codecs again, including VP8, turns LNTF back on.
-  parameters.codecs = engine_->LegacySendCodecs();
-  EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
-  recv_stream = fake_call_->GetVideoReceiveStreams()[0];
-  EXPECT_TRUE(recv_stream->GetConfig().rtp.lntf.enabled);
-  send_stream = fake_call_->GetVideoSendStreams()[0];
-  EXPECT_TRUE(send_stream->GetConfig().rtp.lntf.enabled);
-}
-
 TEST_F(WebRtcVideoChannelTest, NackIsEnabledByDefault) {
   AssignDefaultCodec();
   VerifyCodecHasDefaultFeedbackParams(*default_codec_, false);
@@ -3511,33 +3461,6 @@ TEST_F(WebRtcVideoChannelTest, NackIsEnabledByDefault) {
   // Nack history size should match between sender and receiver.
   EXPECT_EQ(send_stream->GetConfig().rtp.nack.rtp_history_ms,
             recv_stream->GetConfig().rtp.nack.rtp_history_ms);
-}
-
-TEST_F(WebRtcVideoChannelTest, NackCanBeEnabledAndDisabled) {
-  FakeVideoSendStream* send_stream = AddSendStream();
-  FakeVideoReceiveStream* recv_stream = AddRecvStream();
-
-  EXPECT_GT(recv_stream->GetConfig().rtp.nack.rtp_history_ms, 0);
-  EXPECT_GT(send_stream->GetConfig().rtp.nack.rtp_history_ms, 0);
-
-  // Verify that NACK is turned off when send(!) codecs without NACK are set.
-  VideoSenderParameters parameters;
-  parameters.codecs.push_back(RemoveFeedbackParams(GetEngineCodec("VP8")));
-  EXPECT_TRUE(parameters.codecs[0].feedback_params.params().empty());
-  EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
-  recv_stream = fake_call_->GetVideoReceiveStreams()[0];
-  EXPECT_EQ(0, recv_stream->GetConfig().rtp.nack.rtp_history_ms);
-  send_stream = fake_call_->GetVideoSendStreams()[0];
-  EXPECT_EQ(0, send_stream->GetConfig().rtp.nack.rtp_history_ms);
-
-  // Verify that NACK is turned on when setting default codecs since the
-  // default codecs have NACK enabled.
-  parameters.codecs = engine_->LegacySendCodecs();
-  EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
-  recv_stream = fake_call_->GetVideoReceiveStreams()[0];
-  EXPECT_GT(recv_stream->GetConfig().rtp.nack.rtp_history_ms, 0);
-  send_stream = fake_call_->GetVideoSendStreams()[0];
-  EXPECT_GT(send_stream->GetConfig().rtp.nack.rtp_history_ms, 0);
 }
 
 // This test verifies that new frame sizes reconfigures encoders even though not
@@ -5832,26 +5755,6 @@ TEST_F(WebRtcVideoChannelTest, TestSetSendRtcpReducedSize) {
 
   // Create a new stream and ensure it picks up the reduced size mode.
   FakeVideoSendStream* stream2 = AddSendStream();
-  EXPECT_EQ(RtcpMode::kReducedSize, stream2->GetConfig().rtp.rtcp_mode);
-}
-
-// This test verifies that the RTCP reduced size mode is properly applied to
-// receive video streams.
-TEST_F(WebRtcVideoChannelTest, TestSetRecvRtcpReducedSize) {
-  // Create stream, expecting that default mode is "compound".
-  FakeVideoReceiveStream* stream1 = AddRecvStream();
-  EXPECT_EQ(RtcpMode::kCompound, stream1->GetConfig().rtp.rtcp_mode);
-
-  // Now enable reduced size mode.
-  // TODO(deadbeef): Once "recv_parameters" becomes "receiver_parameters",
-  // the reduced_size flag should come from that.
-  send_parameters_.rtcp.reduced_size = true;
-  EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
-  stream1 = fake_call_->GetVideoReceiveStreams()[0];
-  EXPECT_EQ(RtcpMode::kReducedSize, stream1->GetConfig().rtp.rtcp_mode);
-
-  // Create a new stream and ensure it picks up the reduced size mode.
-  FakeVideoReceiveStream* stream2 = AddRecvStream();
   EXPECT_EQ(RtcpMode::kReducedSize, stream2->GetConfig().rtp.rtcp_mode);
 }
 

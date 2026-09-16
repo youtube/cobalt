@@ -101,7 +101,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 // the AutofillAI is disabled.
 [[nodiscard]] bool IsRelevantForDataTransparency(AutofillAiAction action) {
   switch (action) {
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kImport:
@@ -132,6 +133,9 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   }
 
   switch (action) {
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
+      return is_enabled(features::kAutofillAiWalletVehicleRegistration) ||
+             is_enabled(features::kAutofillAiWalletFlightReservation);
     case AutofillAiAction::kIphForOptIn:
       return is_enabled(feature_engagement::kIPHAutofillAiOptInFeature);
     case AutofillAiAction::kServerClassificationModel:
@@ -141,7 +145,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
              features::kAutofillAiServerModelUseCacheResults.Get();
     case AutofillAiAction::kImportToWallet:
       return is_enabled(features::kAutofillAiWalletVehicleRegistration);
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kFilling:
@@ -160,15 +164,18 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     const syncer::SyncService* sync_service,
     std::string* debug_message) {
   switch (action) {
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kImportToWallet:
       return sync_service &&
              sync_service->GetUserSettings()->GetSelectedTypes().Has(
                  syncer::UserSelectableType::kPayments) &&
-             sync_service->GetActiveDataTypes().Has(syncer::AUTOFILL_VALUABLE);
+             sync_service->GetActiveDataTypes().Has(
+                 syncer::AUTOFILL_VALUABLE) &&
+             sync_service->IsSyncFeatureEnabled();
     case AutofillAiAction::kIphForOptIn:
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kFilling:
@@ -234,7 +241,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
                  features::kAutofillAiIdentityAndTravelPrefs);
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kListEntityInstancesInSettings:
@@ -287,7 +295,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   const bool user_opted_in = GetAutofillAiOptInStatus(client);
   // Note that the policy can become disabled even after a user has opted in.
   switch (action) {
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kFilling:
@@ -296,6 +304,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
       return policy_pref_enabled && user_opted_in;
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kImportToWallet:
       return policy_pref_enabled && user_opted_in &&
              client.IsImportingToWalletEnabled();
@@ -351,7 +360,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       return true;
     }
     switch (action) {
-      case AutofillAiAction::kAddEntityInstanceInSettings:
+      case AutofillAiAction::kAddLocalEntityInstanceInSettings:
+      case AutofillAiAction::kAddServerEntityInstanceInSettings:
       case AutofillAiAction::kCrowdsourcingVote:
       case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
       case AutofillAiAction::kFilling:
@@ -392,7 +402,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     std::string* debug_message) {
   // Off-the-record.
   switch (action) {
-    case AutofillAiAction::kAddEntityInstanceInSettings:
+    case AutofillAiAction::kAddLocalEntityInstanceInSettings:
+    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kImport:

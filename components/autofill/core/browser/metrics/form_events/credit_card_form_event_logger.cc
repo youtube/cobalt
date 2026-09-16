@@ -28,6 +28,7 @@
 #include "components/autofill/core/browser/metrics/payments/virtual_card_standalone_cvc_suggestion_metrics.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
+#include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
@@ -147,7 +148,7 @@ void CreditCardFormEventLogger::OnDidShowSuggestions(
   }
 
   if (!has_logged_suggestions_shown_on_bnpl_eligible_merchant_ &&
-      payments::BnplManager::IsEligibleForBnpl(owner_->client())) {
+      payments::IsEligibleForBnpl(owner_->client())) {
     LogBnplFormEvent(BnplFormEvent::kSuggestionsShown);
     has_logged_suggestions_shown_on_bnpl_eligible_merchant_ = true;
   }
@@ -409,27 +410,13 @@ void CreditCardFormEventLogger::OnDidFillFormFillingSuggestion(
       CardMetadataLoggingEvent::kFilled, metadata_logging_context_,
       HasBeenLogged(has_logged_form_filling_suggestion_filled_));
 
-  // Log masked server card filled events for benefits.
-  if (latest_filled_card_was_masked_server_card_) {
-    if (metadata_logging_context_.SelectedCardHasBenefitAvailable()) {
-      Log(FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_FILLED,
-          form);
-    }
-
-    if (!has_logged_masked_server_card_suggestion_filled_) {
-      has_logged_masked_server_card_suggestion_filled_ = true;
-      if (metadata_logging_context_.SelectedCardHasBenefitAvailable()) {
-        Log(FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_FILLED_ONCE,
-            form);
-      }
-      // Log when a masked server card was filled after benefits were shown.
-      if (metadata_logging_context_.DidShowCardWithBenefitAvailable()) {
-        Log(FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_FILLED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
-            form);
-        LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent::kFilled,
-                                       metadata_logging_context_);
-      }
-    }
+  // Log when a masked server card was filled after benefits were shown.
+  if (latest_filled_card_was_masked_server_card_ &&
+      !has_logged_masked_server_card_suggestion_filled_ &&
+      metadata_logging_context_.DidShowCardWithBenefitAvailable()) {
+    has_logged_masked_server_card_suggestion_filled_ = true;
+    LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent::kFilled,
+                                   metadata_logging_context_);
   }
 
   const FieldType field_type = field.Type().GetCreditCardType();
@@ -720,20 +707,10 @@ void CreditCardFormEventLogger::LogFormSubmitted(const FormStructure& form) {
   }
 
   // Log masked server card submitted events for benefits.
-  if (latest_filled_card_was_masked_server_card_) {
-    if (metadata_logging_context_.SelectedCardHasBenefitAvailable()) {
-      Log(FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_SUBMITTED_ONCE,
-          form);
-    }
-    // Log when a form is submitted after a suggestion for a card with benefits
-    // was shown. The user may have selected a card other than the card with
-    // benefits.
-    if (metadata_logging_context_.DidShowCardWithBenefitAvailable()) {
-      Log(FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_SUBMITTED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
-          form);
-      LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent::kSubmitted,
-                                     metadata_logging_context_);
-    }
+  if (latest_filled_card_was_masked_server_card_ &&
+      metadata_logging_context_.DidShowCardWithBenefitAvailable()) {
+    LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent::kSubmitted,
+                                   metadata_logging_context_);
   }
 
   // Log if a card info retrieval enrolled card was filled before form

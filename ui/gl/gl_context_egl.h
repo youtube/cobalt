@@ -48,7 +48,6 @@ class GL_EXPORT GLContextEGL : public GLContextReal {
 #if !BUILDFLAG(IS_COBALT)
   void Destroy();
 #endif
-  void ReleaseBackpressureFences();
 
   EGLContext context_ = nullptr;
   raw_ptr<GLDisplayEGL> gl_display_ = nullptr;

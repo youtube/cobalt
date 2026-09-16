@@ -88,6 +88,7 @@ bool EnforceSplitBandHpf(const FieldTrialsView& field_trials) {
 }
 
 // Identify the native processing rate that best handles a sample rate.
+// Always returns one of 16000, 32000 and 48000 Hz.
 int SuitableProcessRate(int minimum_rate,
                         int max_splitting_rate,
                         bool band_splitting_required) {
@@ -333,7 +334,16 @@ void SetDownmixMethod(AudioBuffer& buffer, DownmixMethod method) {
   }
 }
 
+bool NeedEchoController(const AudioProcessing::Config& config,
+                        bool has_echo_control_factory) {
+  // For legacy reasons, having an echo control factory overrides the config.
+  return (config.echo_canceller.enabled &&
+          !config.echo_canceller.mobile_mode) ||
+         has_echo_control_factory;
+}
+
 constexpr int kUnspecifiedDataDumpInputVolume = -100;
+constexpr int kBandSplitRate = AudioProcessing::kSampleRate16kHz;
 
 }  // namespace
 
@@ -430,6 +440,10 @@ bool AudioProcessingImpl::SubmoduleStates::HighPassFilteringRequired() const {
          noise_suppressor_enabled_;
 }
 
+bool AudioProcessingImpl::SubmoduleStates::EchoControllerEnabled() const {
+  return echo_controller_enabled_;
+}
+
 AudioProcessingImpl::AudioProcessingImpl(const Environment& env)
     : AudioProcessingImpl(env,
                           /*config=*/{},
@@ -501,10 +515,6 @@ AudioProcessingImpl::AudioProcessingImpl(
   }
 
   RTC_LOG(LS_INFO) << "AudioProcessing: " << config_.ToString();
-
-  // Mark Echo Controller enabled if a factory is injected.
-  capture_nonlocked_.echo_controller_enabled =
-      static_cast<bool>(echo_control_factory_);
 
   Initialize();
 }
@@ -635,13 +645,15 @@ void AudioProcessingImpl::InitializeLocked(const ProcessingConfig& config) {
       max_splitting_rate,
       submodule_states_.CaptureMultiBandSubModulesActive() ||
           submodule_states_.RenderMultiBandSubModulesActive());
-  RTC_DCHECK_NE(8000, capture_processing_rate);
+  RTC_DCHECK(capture_processing_rate == 16000 ||
+             capture_processing_rate == 32000 ||
+             capture_processing_rate == 48000);
 
   capture_nonlocked_.capture_processing_format =
       StreamConfig(capture_processing_rate);
 
   int render_processing_rate;
-  if (!capture_nonlocked_.echo_controller_enabled) {
+  if (!submodule_states_.EchoControllerEnabled()) {
     render_processing_rate = SuitableProcessRate(
         std::min(formats_.api_format.reverse_input_stream().sample_rate_hz(),
                  formats_.api_format.reverse_output_stream().sample_rate_hz()),
@@ -651,18 +663,9 @@ void AudioProcessingImpl::InitializeLocked(const ProcessingConfig& config) {
   } else {
     render_processing_rate = capture_processing_rate;
   }
-
-  // If the forward sample rate is 8 kHz, the render stream is also processed
-  // at this rate.
-  if (capture_nonlocked_.capture_processing_format.sample_rate_hz() ==
-      kSampleRate8kHz) {
-    render_processing_rate = kSampleRate8kHz;
-  } else {
-    render_processing_rate =
-        std::max(render_processing_rate, static_cast<int>(kSampleRate16kHz));
-  }
-
-  RTC_DCHECK_NE(8000, render_processing_rate);
+  RTC_DCHECK(render_processing_rate == 16000 ||
+             render_processing_rate == 32000 ||
+             render_processing_rate == 48000);
 
   if (submodule_states_.RenderMultiBandSubModulesActive()) {
     // By default, downmix the render stream to mono for analysis. This has been
@@ -679,16 +682,6 @@ void AudioProcessingImpl::InitializeLocked(const ProcessingConfig& config) {
     formats_.render_processing_format = StreamConfig(
         formats_.api_format.reverse_input_stream().sample_rate_hz(),
         formats_.api_format.reverse_input_stream().num_channels());
-  }
-
-  if (capture_nonlocked_.capture_processing_format.sample_rate_hz() ==
-          kSampleRate32kHz ||
-      capture_nonlocked_.capture_processing_format.sample_rate_hz() ==
-          kSampleRate48kHz) {
-    capture_nonlocked_.split_rate = kSampleRate16kHz;
-  } else {
-    capture_nonlocked_.split_rate =
-        capture_nonlocked_.capture_processing_format.sample_rate_hz();
   }
 
   InitializeLocked();
@@ -766,7 +759,9 @@ void AudioProcessingImpl::ApplyConfig(const AudioProcessing::Config& config) {
 
   // Reinitialization must happen after all submodule configuration to avoid
   // additional reinitializations on the next capture / render processing call.
-  if (pipeline_config_changed) {
+  bool reinitialization_needed =
+      UpdateActiveSubmoduleStates() || pipeline_config_changed;
+  if (reinitialization_needed) {
     InitializeLocked(formats_.api_format);
   }
 }
@@ -783,8 +778,7 @@ int AudioProcessingImpl::proc_fullband_sample_rate_hz() const {
 }
 
 int AudioProcessingImpl::proc_split_sample_rate_hz() const {
-  // Used as callback from submodules, hence locking is not allowed.
-  return capture_nonlocked_.split_rate;
+  return kBandSplitRate;
 }
 
 size_t AudioProcessingImpl::num_reverse_channels() const {
@@ -801,7 +795,7 @@ size_t AudioProcessingImpl::num_proc_channels() const {
   // Used as callback from submodules, hence locking is not allowed.
   const bool multi_channel_capture = config_.pipeline.multi_channel_capture &&
                                      constants_.multi_channel_capture_support;
-  if (capture_nonlocked_.echo_controller_enabled && !multi_channel_capture) {
+  if (submodule_states_.EchoControllerEnabled() && !multi_channel_capture) {
     return 1;
   }
   return num_output_channels();
@@ -1879,7 +1873,7 @@ bool AudioProcessingImpl::UpdateActiveSubmoduleStates() {
       !!submodules_.noise_suppressor, !!submodules_.gain_control,
       !!submodules_.gain_controller2,
       config_.pre_amplifier.enabled || config_.capture_level_adjustment.enabled,
-      capture_nonlocked_.echo_controller_enabled);
+      NeedEchoController(config_, !!echo_control_factory_));
 }
 
 void AudioProcessingImpl::InitializeHighPassFilter(bool forced_reset) {
@@ -1909,9 +1903,14 @@ void AudioProcessingImpl::InitializeHighPassFilter(bool forced_reset) {
 }
 
 void AudioProcessingImpl::InitializeEchoController() {
+  submodules_.echo_controller.reset();
+  capture_.linear_aec_output.reset();
+  submodules_.post_filter.reset();
+  submodules_.echo_control_mobile.reset();
+  aecm_render_signal_queue_.reset();
+
   bool use_echo_controller =
-      echo_control_factory_ ||
-      (config_.echo_canceller.enabled && !config_.echo_canceller.mobile_mode);
+      NeedEchoController(config_, !!echo_control_factory_);
 
   if (use_echo_controller) {
     // Create and activate the echo controller.
@@ -1946,11 +1945,7 @@ void AudioProcessingImpl::InitializeEchoController() {
       capture_.linear_aec_output = std::make_unique<AudioBuffer>(
           kLinearOutputRateHz, num_proc_channels(), kLinearOutputRateHz,
           num_proc_channels(), kLinearOutputRateHz, num_proc_channels());
-    } else {
-      capture_.linear_aec_output.reset();
     }
-
-    capture_nonlocked_.echo_controller_enabled = true;
 
     if (!env_.field_trials().IsEnabled("WebRTC-PostFilterKillSwitch")) {
       // Only creates a PostFilter if current sample-rate is high enough to
@@ -1959,49 +1954,35 @@ void AudioProcessingImpl::InitializeEchoController() {
           proc_sample_rate_hz(), num_proc_channels());
     }
 
-    submodules_.echo_control_mobile.reset();
-    aecm_render_signal_queue_.reset();
     return;
   }
 
-  submodules_.echo_controller.reset();
-  capture_nonlocked_.echo_controller_enabled = false;
-  capture_.linear_aec_output.reset();
-
-  if (!config_.echo_canceller.enabled) {
-    submodules_.echo_control_mobile.reset();
-    aecm_render_signal_queue_.reset();
+  if (!(config_.echo_canceller.enabled && config_.echo_canceller.mobile_mode)) {
     return;
   }
 
-  if (config_.echo_canceller.mobile_mode) {
-    // Create and activate AECM.
-    size_t max_element_size =
-        std::max(static_cast<size_t>(1),
-                 kMaxAllowedValuesOfSamplesPerBand *
-                     EchoControlMobileImpl::NumCancellersRequired(
-                         num_output_channels(), num_reverse_channels()));
+  // Create and activate AECM.
+  size_t max_element_size =
+      std::max(static_cast<size_t>(1),
+               kMaxAllowedValuesOfSamplesPerBand *
+                   EchoControlMobileImpl::NumCancellersRequired(
+                       num_output_channels(), num_reverse_channels()));
 
-    std::vector<int16_t> template_queue_element(max_element_size);
+  std::vector<int16_t> template_queue_element(max_element_size);
 
-    aecm_render_signal_queue_.reset(
-        new SwapQueue<std::vector<int16_t>, RenderQueueItemVerifier<int16_t>>(
-            kMaxNumFramesToBuffer, template_queue_element,
-            RenderQueueItemVerifier<int16_t>(max_element_size)));
+  aecm_render_signal_queue_.reset(
+      new SwapQueue<std::vector<int16_t>, RenderQueueItemVerifier<int16_t>>(
+          kMaxNumFramesToBuffer, template_queue_element,
+          RenderQueueItemVerifier<int16_t>(max_element_size)));
 
-    aecm_render_queue_buffer_.resize(max_element_size);
-    aecm_capture_queue_buffer_.resize(max_element_size);
+  aecm_render_queue_buffer_.resize(max_element_size);
+  aecm_capture_queue_buffer_.resize(max_element_size);
 
-    submodules_.echo_control_mobile.reset(new EchoControlMobileImpl());
+  submodules_.echo_control_mobile.reset(new EchoControlMobileImpl());
 
-    submodules_.echo_control_mobile->Initialize(proc_split_sample_rate_hz(),
-                                                num_reverse_channels(),
-                                                num_output_channels());
-    return;
-  }
-
-  submodules_.echo_control_mobile.reset();
-  aecm_render_signal_queue_.reset();
+  submodules_.echo_control_mobile->Initialize(proc_split_sample_rate_hz(),
+                                              num_reverse_channels(),
+                                              num_output_channels());
 }
 
 void AudioProcessingImpl::InitializeGainController1() {
@@ -2188,7 +2169,7 @@ void AudioProcessingImpl::WriteAecDumpConfigMessage(bool forced) {
   if (!!submodules_.render_pre_processor) {
     experiments_description += "RenderPreProcessor;";
   }
-  if (capture_nonlocked_.echo_controller_enabled) {
+  if (submodule_states_.EchoControllerEnabled()) {
     experiments_description += "EchoController;";
   }
   if (config_.gain_controller2.enabled) {
@@ -2307,7 +2288,6 @@ AudioProcessingImpl::ApmCaptureState::ApmCaptureState()
       capture_output_used_last_frame(true),
       key_pressed(false),
       capture_processing_format(kSampleRate16kHz),
-      split_rate(kSampleRate16kHz),
       echo_path_gain_change(false),
       prev_pre_adjustment_gain(-1.0f),
       playout_volume(-1),

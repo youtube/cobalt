@@ -18213,6 +18213,86 @@ TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
+// Regression test for b/440033781.
+TEST_P(QuicConnectionTest, DispatcherAckedOpportunisticAck) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  if (!GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
+  set_perspective(Perspective::IS_SERVER);
+  connection_.RemoveEncrypter(ENCRYPTION_FORWARD_SECURE);
+
+  DispatcherSentPacket sent_packet{
+      /*sent=*/QuicPacketNumber(1),
+      /*received=*/QuicPacketNumber(1), /*largest_acked=*/QuicPacketNumber(1),
+      /*sent_time=*/clock_.Now(), /*bytes_sent=*/80};
+  connection_.AddDispatcherSentPackets(absl::MakeSpan(&sent_packet, 1));
+
+  QuicFrames peer_frames;
+  EXPECT_CALL(connection_, OnSerializedPacket)
+      .WillRepeatedly([&](SerializedPacket packet) {
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      });
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent);
+  peer_frames.push_back(QuicFrame(QuicPingFrame()));
+  peer_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(0, peer_frames, ENCRYPTION_INITIAL);
+
+  QuicAckFrame peer_ack_frame;
+  peer_ack_frame.largest_acked = QuicPacketNumber(1);
+  peer_ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  peer_ack_frame.packets.Add(QuicPacketNumber(1));
+  peer_frames.clear();
+  peer_frames.push_back(QuicFrame(&peer_ack_frame));
+  peer_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  EXPECT_CALL(visitor_, OnConnectionClosed);
+  ProcessFramesPacketAtLevel(1, peer_frames, ENCRYPTION_INITIAL);
+
+  // If quic_fail_on_empty_ack is false, this will trigger a BUG.
+  connection_.SendCryptoData(ENCRYPTION_INITIAL, /*length=*/1000, /*offset=*/0);
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
+// Regression test for b/443473227.
+TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  // Test will fail if this flag is false.
+  SetQuicReloadableFlag(quic_disconnect_early_exit, true);
+  // Path validation must occur after the handshake is confirmed.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Avoid packets being held to coalesce.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  // Silence nagging that connection_ isn't sending retransmittable frames.
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame).Times(AnyNumber());
+
+  // Build a big ACK frame by processing widely spaced packets.
+  // Must be encoded in 8 bytes when a gap.
+  uint64_t packet_number_increment = 0x40000002;
+  // Test passes if <= 134.
+  uint64_t max_packet_number = packet_number_increment * 135ULL;
+  // Make an ACK frame that is too large to fit in a single packet.
+  for (uint64_t packet_number = packet_number_increment;
+       packet_number < max_packet_number;
+       packet_number += packet_number_increment) {
+    ProcessPacket(packet_number);
+  }
+
+  QuicFrames peer_frames;
+  peer_frames.push_back(QuicFrame(QuicPathChallengeFrame()));
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-109);
+  EXPECT_CALL(visitor_, OnConnectionClosed);
+  ProcessFramesPacketAtLevel(max_packet_number, peer_frames,
+                             ENCRYPTION_FORWARD_SECURE);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

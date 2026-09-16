@@ -104,8 +104,13 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   DCHECK(!node->Is<Identity>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
   // Automatically convert node to the same representation of current_node.
-  current_value->OverwriteWithIdentityTo(reducer_.ConvertInputTo(
-      node, current_value->properties().value_representation()));
+  ReduceResult result = reducer_.ConvertInputTo(
+      node, current_value->properties().value_representation());
+  if (result.IsDoneWithAbort()) {
+    reducer_.graph()->set_may_have_unreachable_blocks(true);
+    return ProcessResult::kTruncateBlock;
+  }
+  current_value->OverwriteWithIdentityTo(result.value());
   return ProcessResult::kRemove;
 }
 
@@ -1553,6 +1558,12 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToFloat64(
+    UnsafeHoleyFloat64ToFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
     HoleyFloat64ToMaybeNanFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1860,6 +1871,14 @@ ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow(
 ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow(
     Int32MultiplyWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kMultiply>(node));
+  if (auto lhs_range = GetRange(node->input_node(0))) {
+    if (auto rhs_range = GetRange(node->input_node(1))) {
+      if (Range::Mul(*lhs_range, *rhs_range).IsInt32()) {
+        return ReplaceWith<Int32Multiply>(
+            {node->input_node(0), node->input_node(1)});
+      }
+    }
+  }
   return ProcessResult::kContinue;
 }
 

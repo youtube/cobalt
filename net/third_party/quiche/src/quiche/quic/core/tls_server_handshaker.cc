@@ -50,6 +50,7 @@
 #include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
@@ -485,10 +486,9 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   size_t params_bytes_len;
 
   // Make sure we use the right TLS extension codepoint.
-  uint16_t extension_type = TLSEXT_TYPE_quic_transport_parameters_standard;
-  if (session()->version().UsesLegacyTlsExtension()) {
-    extension_type = TLSEXT_TYPE_quic_transport_parameters_legacy;
-  }
+  uint16_t extension_type = session()->version().UsesLegacyTlsExtension()
+                                ? TLSEXT_TYPE_quic_transport_parameters_legacy
+                                : TLSEXT_TYPE_quic_transport_parameters;
   // When using early select cert callback, SSL_get_peer_quic_transport_params
   // can not be used to retrieve the client's transport parameters, but we can
   // use SSL_early_callback_ctx_extension_get to do that.
@@ -973,6 +973,16 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname);
     if (!ValidateHostname(hostname)) {
+      if (GetQuicReloadableFlag(quic_delay_connection_close_on_invalid_sni)) {
+        std::string error_details;
+        const bool success =
+            ProcessTransportParameters(client_hello, &error_details);
+        if (success) {
+          QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_but_tp_succeeded);
+        } else {
+          QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_and_tp_failed);
+        }
+      }
       CloseConnection(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME,
                       absl::StrCat("Invalid SNI provided: ", hostname));
       return ssl_select_cert_error;

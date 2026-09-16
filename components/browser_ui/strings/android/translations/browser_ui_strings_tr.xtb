@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Devam</translation>
 <translation id="2379925928934107488">Mümkünse Chrome koyu tema kullandığında sitelere de koyu tema uygulayın</translation>
 <translation id="2390272837142897736">Yakınlaştırmayı artır</translation>
+<translation id="2397689164757137845">İzin veriliyor • Tam</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Tam</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ve <ph name="NUM_MORE" /> tanesi için daha izin verildi}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ve <ph name="NUM_MORE" /> tanesi için daha izin verildi}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Yardım ve geri bildirim</translation>
 <translation id="2501278716633472235">Geri dön</translation>
 <translation id="2533138527374486328">Bu düğme açıkken siteler yerel ağınızdaki cihazlara bağlanmak isteyebilir. Düğme kapalıyken siteler yerel ağınızdaki cihazlara bağlanamaz.</translation>
+<translation id="2536779053640817375">Şu anda izin veriliyor • Tam</translation>
 <translation id="2544997614631598250">Koyu tema rengi</translation>
 <translation id="2546283357679194313">Çerezler ve site verileri</translation>
 <translation id="2570922361219980984">Konum erişimi bu cihaz için de kapalı. Konum erişimini <ph name="BEGIN_LINK" />Android Ayarları<ph name="END_LINK" />'ndan açın.</translation>
@@ -442,6 +444,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="5876056640971328065">Videoyu duraklat</translation>
 <translation id="5877248419911025165">Tüm istekleri daralt</translation>
 <translation id="5878945009165002849">Kimlik hizmetlerinden gelen oturum açma istemlerini engelleyin</translation>
+<translation id="588258955323874662">Tam ekran</translation>
 <translation id="5884085660368669834">Site tercihi</translation>
 <translation id="5887687176710214216">En son dün ziyaret edildi</translation>
 <translation id="5908617755156109052">Sitelerin, çevremin 3D haritasını oluşturmasına veya kameramın konumunu takip etmesine izin verme</translation>
@@ -569,6 +572,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="7406113532070524618">Bu ayar çalışırken kimliğinizin belirlenmesine veya sitelerin tarama geçmişinizi görmesine izin verilmez. Ancak siteler, doğrulama kapsamında az miktarda bilgi paylaşabilir</translation>
 <translation id="7409735910987429903">Siteler reklam göstermek için pop-up'lar gönderebilir veya yönlendirmeler kullanarak sizi ziyaret etmek istemeyebileceğiniz web sitelerine yönlendirebilir</translation>
 <translation id="7412160840120117304">Birincil Renk (Onaltılık)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Yakınlaştır}other{Yakınlaştır: %%<ph name="ZOOM_PERCENTAGE_NUMBER" />}}</translation>
 <translation id="7423098979219808738">Önce sor</translation>
 <translation id="7423538860840206698">Pano okuma engellendi</translation>
 <translation id="7425915948813553151">Siteler için koyu tema</translation>
@@ -700,7 +704,6 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="8803526663383843427">Açık olduğunda</translation>
 <translation id="8805385115381080995">Sitelerin gerçek bir kişi olduğunuzu doğrulamanızı isteme olasılığı daha düşük olduğundan daha hızlı bir göz atma deneyimi yaşarsınız</translation>
 <translation id="8816026460808729765">Sitelerin sensörlere erişimini engelle</translation>
-<translation id="884765916894384048">Arka plana gönder</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Üçüncü taraf çerezlerine geçici olarak izin vermeyi deneyin. Bu durumda, internette gezinirken daha az korunursunuz ancak site özelliklerinin beklendiği gibi çalışma olasılığı daha yüksektir.</translation>
 <translation id="8889294078294184559">Siz sitelere göz atarken siteler de Chrome'dan kontrol ederek ziyaret ettiğiniz önceki bir siteden büyük olasılıkla gerçek bir kişi olduğunuzu doğrular</translation>

@@ -40,6 +40,7 @@
 #include "logging/rtc_event_log/events/rtc_event_audio_send_stream_config.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_loss_based.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
 #include "logging/rtc_event_log/events/rtc_event_probe_cluster_created.h"
 #include "logging/rtc_event_log/events/rtc_event_probe_result_failure.h"
@@ -314,12 +315,12 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationBitrate) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
+      AudioEncoderRuntimeConfig runtime_config;
       const int bitrate_bps =
           checked_cast<int>(prng_.Rand(0, std::numeric_limits<int32_t>::max()));
-      runtime_config->bitrate_bps = bitrate_bps;
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      runtime_config.bitrate_bps = bitrate_bps;
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -332,11 +333,11 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationFrameLength) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
+      AudioEncoderRuntimeConfig runtime_config;
       const int frame_length_ms = prng_.Rand(1, 1000);
-      runtime_config->frame_length_ms = frame_length_ms;
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      runtime_config.frame_length_ms = frame_length_ms;
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -351,10 +352,10 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationPacketLoss) {
     if (i == 0 || !force_repeated_fields_) {
       // To simplify the test, we just check powers of two.
       const float plr = std::pow(0.5f, prng_.Rand(1, 8));
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
-      runtime_config->uplink_packet_loss_fraction = plr;
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      AudioEncoderRuntimeConfig runtime_config;
+      runtime_config.uplink_packet_loss_fraction = plr;
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -367,10 +368,10 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationFec) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
-      runtime_config->enable_fec = prng_.Rand<bool>();
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      AudioEncoderRuntimeConfig runtime_config;
+      runtime_config.enable_fec = prng_.Rand<bool>();
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -383,8 +384,8 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationDtx) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
-      runtime_config->enable_dtx = prng_.Rand<bool>();
+      AudioEncoderRuntimeConfig runtime_config;
+      runtime_config.enable_dtx = prng_.Rand<bool>();
       events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
           std::move(runtime_config));
     } else {
@@ -399,10 +400,10 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationChannels) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
-      runtime_config->num_channels = prng_.Rand(1, 2);
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      AudioEncoderRuntimeConfig runtime_config;
+      runtime_config.num_channels = prng_.Rand(1, 2);
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -415,17 +416,17 @@ TEST_P(RtcEventLogEncoderTest, RtcEventAudioNetworkAdaptationAll) {
       event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
     if (i == 0 || !force_repeated_fields_) {
-      auto runtime_config = std::make_unique<AudioEncoderRuntimeConfig>();
-      runtime_config->bitrate_bps =
+      AudioEncoderRuntimeConfig runtime_config;
+      runtime_config.bitrate_bps =
           checked_cast<int>(prng_.Rand(0, std::numeric_limits<int32_t>::max()));
-      runtime_config->frame_length_ms = prng_.Rand(1, 1000);
-      runtime_config->uplink_packet_loss_fraction =
+      runtime_config.frame_length_ms = prng_.Rand(1, 1000);
+      runtime_config.uplink_packet_loss_fraction =
           std::pow(0.5f, prng_.Rand(1, 8));
-      runtime_config->enable_fec = prng_.Rand<bool>();
-      runtime_config->enable_dtx = prng_.Rand<bool>();
-      runtime_config->num_channels = prng_.Rand(1, 2);
-      events[i] = std::make_unique<RtcEventAudioNetworkAdaptation>(
-          std::move(runtime_config));
+      runtime_config.enable_fec = prng_.Rand<bool>();
+      runtime_config.enable_dtx = prng_.Rand<bool>();
+      runtime_config.num_channels = prng_.Rand(1, 2);
+      events[i] =
+          std::make_unique<RtcEventAudioNetworkAdaptation>(runtime_config);
     } else {
       events[i] = events[0]->Copy();
     }
@@ -618,53 +619,27 @@ TEST_P(RtcEventLogEncoderTest, RtcEventBweUpdateLossBased) {
   }
 }
 
-TEST_P(RtcEventLogEncoderTest, RtcEventGenericPacketReceived) {
-  if (encoding_type_ == RtcEventLog::EncodingType::Legacy) {
-    return;
-  }
+TEST_P(RtcEventLogEncoderTest, RtcEventBweUpdateScream) {
   std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder();
-  std::vector<std::unique_ptr<RtcEventGenericPacketReceived>> events(
-      event_count_);
+  std::vector<std::unique_ptr<RtcEventBweUpdateScream>> events(event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
-    events[i] = (i == 0 || !force_repeated_fields_)
-                    ? gen_.NewGenericPacketReceived()
-                    : events[0]->Copy();
+    events[i] = (i == 0 || !force_repeated_fields_) ? gen_.NewBweUpdateScream()
+                                                    : events[0]->Copy();
     history_.push_back(events[i]->Copy());
   }
 
   encoded_ += encoder->EncodeBatch(history_.begin(), history_.end());
   ASSERT_TRUE(parsed_log_.ParseString(encoded_).ok());
 
-  const auto& packets_received = parsed_log_.generic_packets_received();
-  ASSERT_EQ(packets_received.size(), event_count_);
-
-  for (size_t i = 0; i < event_count_; ++i) {
-    verifier_.VerifyLoggedGenericPacketReceived(*events[i],
-                                                packets_received[i]);
-  }
-}
-
-TEST_P(RtcEventLogEncoderTest, RtcEventGenericPacketSent) {
+  const auto& bwe_scream_updates = parsed_log_.bwe_scream_updates();
   if (encoding_type_ == RtcEventLog::EncodingType::Legacy) {
+    ASSERT_EQ(bwe_scream_updates.size(), 0u);
     return;
   }
-  std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder();
-  std::vector<std::unique_ptr<RtcEventGenericPacketSent>> events(event_count_);
+
+  ASSERT_EQ(bwe_scream_updates.size(), event_count_);
   for (size_t i = 0; i < event_count_; ++i) {
-    events[i] = (i == 0 || !force_repeated_fields_)
-                    ? gen_.NewGenericPacketSent()
-                    : events[0]->Copy();
-    history_.push_back(events[i]->Copy());
-  }
-
-  encoded_ += encoder->EncodeBatch(history_.begin(), history_.end());
-  ASSERT_TRUE(parsed_log_.ParseString(encoded_).ok());
-
-  const auto& packets_sent = parsed_log_.generic_packets_sent();
-  ASSERT_EQ(packets_sent.size(), event_count_);
-
-  for (size_t i = 0; i < event_count_; ++i) {
-    verifier_.VerifyLoggedGenericPacketSent(*events[i], packets_sent[i]);
+    verifier_.VerifyLoggedBweScreamUpdate(*events[i], bwe_scream_updates[i]);
   }
 }
 

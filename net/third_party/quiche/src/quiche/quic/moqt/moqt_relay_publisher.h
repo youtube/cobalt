@@ -14,7 +14,7 @@
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/namespace_publisher_multimap.h"
+#include "quiche/quic/moqt/relay_namespace_tree.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -33,8 +33,14 @@ class MoqtRelayPublisher : public MoqtPublisher {
   absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
 
-  void AddNamespaceListener(NamespaceListener* /*listener*/) override {}
-  void RemoveNamespaceListener(NamespaceListener* /*listener*/) override {}
+  void AddNamespaceSubscriber(const TrackNamespace& track_namespace,
+                              MoqtSessionInterface* session) {
+    namespace_publishers_.AddSubscriber(track_namespace, session);
+  }
+  void RemoveNamespaceSubscriber(const TrackNamespace& track_namespace,
+                                 MoqtSessionInterface* session) {
+    namespace_publishers_.RemoveSubscriber(track_namespace, session);
+  }
 
   // There is a new default upstream session. When there is no other namespace
   // information, requests will route here.
@@ -55,8 +61,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
                               MoqtSessionInterface* session);
 
  private:
-  quiche::QuicheWeakPtr<MoqtSessionInterface> GetUpstream(
-      TrackNamespace& track_namespace);
+  MoqtSessionInterface* GetUpstream(TrackNamespace& track_namespace);
 
   absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtRelayTrackPublisher>>
       tracks_;
@@ -64,7 +69,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
   // An indexed map of namespace to a map of sessions. The key to the inner map
   // is indexed by a raw pointer, to make it easier to find entries when
   // deleting.
-  NamespacePublisherMultimap namespace_publishers_;
+  RelayNamespaceTree namespace_publishers_;
 
   // TODO(martinduke): Add a map of Namespaces to namespace listeners.
 

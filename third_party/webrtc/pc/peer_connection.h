@@ -59,6 +59,7 @@
 #include "api/turn_customizer.h"
 #include "call/call.h"
 #include "call/payload_type_picker.h"
+#include "media/base/media_engine.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
@@ -610,6 +611,8 @@ class PeerConnection : public PeerConnectionInternal,
 
   void SetSctpTransportName(std::string sctp_transport_name);
 
+  MediaEngineInterface* media_engine() const RTC_RUN_ON(worker_thread());
+
   std::function<void(const webrtc::CopyOnWriteBuffer& packet,
                      int64_t packet_time_us)>
   InitializeRtcpCallback();
@@ -671,6 +674,8 @@ class PeerConnection : public PeerConnectionInternal,
   // The unique_ptr belongs to the worker thread, but the Call object manages
   // its own thread safety.
   std::unique_ptr<Call> call_ RTC_GUARDED_BY(worker_thread());
+  std::unique_ptr<ConnectionContext::MediaEngineReference> media_engine_ref_
+      RTC_GUARDED_BY(worker_thread());
   ScopedTaskSafety signaling_thread_safety_;
   scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   scoped_refptr<PendingTaskSafetyFlag> worker_thread_safety_;

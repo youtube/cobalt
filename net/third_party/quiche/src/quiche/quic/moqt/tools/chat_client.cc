@@ -45,6 +45,9 @@ void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters,
     moqt::MoqtResponseCallback callback) {
+  if (!session_is_open_) {
+    return;
+  }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
     std::move(callback)(std::nullopt);
@@ -96,8 +99,8 @@ ChatClient::ChatClient(const quic::QuicServerId& server_id,
                        absl::string_view localhost,
                        quic::QuicEventLoop* event_loop)
     : my_track_name_(ConstructTrackName(chat_id, username, localhost)),
-      event_loop_(event_loop),
       remote_track_visitor_(this),
+      event_loop_(event_loop),
       interface_(std::move(interface)) {
   if (event_loop_ == nullptr) {
     quic::QuicDefaultClock* clock = quic::QuicDefaultClock::Get();

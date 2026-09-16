@@ -142,6 +142,14 @@ chromium-metrics-reviews@google.com.
   <variant name="MF_MEDIA_ENGINE_ERR_SRC_NOT_SUPPORTED"/>
 </variants>
 
+<variants name="RenderedVideoFrameDetectionResultReason">
+  <variant name="Detected"/>
+  <variant name="NotDetected"/>
+  <variant name="UnknownByPlaybackEnd"/>
+  <variant name="UnknownByPlaybackError"/>
+  <variant name="UnknownByShutdown"/>
+</variants>
+
 <variants name="RendererType">
   <variant name="MediaFoundationRenderer"/>
   <variant name="RendererImpl"/>
@@ -1076,7 +1084,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.CrasInputStreamOpenSuccess"
-    enum="CrasInputStreamOpenSuccess" expires_after="2026-02-10">
+    enum="CrasInputStreamOpenSuccess" expires_after="2026-04-12">
   <owner>peah@chromium.org</owner>
   <owner>hychao@chromium.org</owner>
   <owner>olka@chromium.org</owner>
@@ -1787,7 +1795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.{Type}.Glitches2" units="glitches"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>olka@chromium.org</owner>
   <owner>saza@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -2278,7 +2286,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioService.AudioManagerStartupTime" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -3596,19 +3604,6 @@ chromium-metrics-reviews@google.com.
   <summary>The time spent to load a library MediaFoundation CDM.</summary>
 </histogram>
 
-<!-- Widevine in hardware secure mode only -->
-
-<histogram
-    name="Media.EME.MediaFoundationCdm.Widevine.HardwareSecure.Initialize"
-    enum="Hresult" expires_after="2026-01-15">
-  <owner>xhwang@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    HRESULT of MediaFoundationCdm initialization when using Widevine in hardware
-    secure mode. Only reported on failures.
-  </summary>
-</histogram>
-
 <histogram
     name="Media.EME.MediaFoundationCdm.{KeySystem}.HardwareSecure.FirstInitialize"
     enum="Hresult" expires_after="2026-03-22">
@@ -3616,8 +3611,20 @@ chromium-metrics-reviews@google.com.
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
     HRESULT of the first (and only the first) MediaFoundationCdm initialization
-    in a MeidaFoundationService process when using {KeySystem} in hardware
+    in a MediaFoundationService process when using {KeySystem} in hardware
     secure mode. Reported on both successes and failures.
+  </summary>
+  <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationCdm.{KeySystem}.HardwareSecure.Initialize"
+    enum="Hresult" expires_after="2026-01-15">
+  <owner>vpasupathy@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    HRESULT of MediaFoundationCdm initialization when using {KeySystem} in
+    hardware secure mode. Only reported on failures.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
@@ -4721,7 +4728,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.EnumerateDevices.Latency" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -4733,7 +4740,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.EnumerateDevices.Result"
-    enum="EnumerateDevicesResult" expires_after="2026-02-09">
+    enum="EnumerateDevicesResult" expires_after="2026-04-12">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -4830,7 +4837,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.Latency" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -5008,6 +5015,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Media.MediaFoundationRenderer.RenderedVideoFrameDetectionResult.TimeTo.{ResultReason}"
+    units="ms" expires_after="2026-03-22">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Time in milliseconds from when MediaFoundationRenderer reports the result
+    whether one or more rendered video frame within the given time for
+    {ResultReason}. Only reported once per playback.
+  </summary>
+  <token key="ResultReason" variants="RenderedVideoFrameDetectionResultReason"/>
+</histogram>
+
 <histogram name="Media.MediaHistory.DatabaseExists" enum="Boolean"
     expires_after="2026-03-15">
   <owner>evliu@google.com</owner>
@@ -5040,7 +5060,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.MediaRecorder.Codec" enum="MediaRecorderCodec"
+<histogram name="Media.MediaRecorder.Codec" enum="MediaRecorderVideoCodecImpl"
     expires_after="2026-02-22">
   <owner>clarissagarvey@chromium.org</owner>
   <owner>chromeos-gfx-video@chromium.org</owner>
@@ -5048,6 +5068,26 @@ chromium-metrics-reviews@google.com.
     The codec and hardware/software variant used by MediaRecorder, recorded once
     when the VideoTrackRecorder initializes the encoder.
   </summary>
+</histogram>
+
+<histogram name="Media.MediaRecorder.Codec.{Query}.{Result}"
+    enum="MediaRecorderVideoCodec" expires_after="2026-05-01">
+  <owner>handellm@google.com</owner>
+  <owner>guidou@google.com</owner>
+  <summary>
+    Codec queried through MediaRecorder{Query} where the result is {Result}.
+    Logged when the call is made.
+  </summary>
+  <token key="Query">
+    <variant name="EncodingInfo" summary="EncodingInfo"/>
+    <variant name="IsTypeSupported" summary=".isTypeSupported"/>
+    <variant name="MediaRecorderCtor" summary="ctor"/>
+    <variant name="Test" summary="Test"/>
+  </token>
+  <token key="Result">
+    <variant name="Supported" summary="supported"/>
+    <variant name="Unsupported" summary="unsupported"/>
+  </token>
 </histogram>
 
 <histogram name="Media.MediaRecorder.HasCorrectAV1CodecString"
@@ -6382,7 +6422,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Session.PictureInPicture.TotalTimeForSession" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6397,7 +6437,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Session.PictureInPicture.TotalTimeForSessionV2"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6884,7 +6924,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Capture.Mac.CameraSystemPermission.UserMedia"
-    enum="SystemMediaCapturePermission" expires_after="2026-02-09">
+    enum="SystemMediaCapturePermission" expires_after="2026-04-12">
   <owner>toprice@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>

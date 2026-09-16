@@ -82,7 +82,7 @@ try_.builder(
         },
         # Catches a couple of CLs per week that are either actionable or
         # worthy of discussion.
-        "size_threshold_mib": 250,
+        "size_threshold_mib": 200,
     },
     tryjob = try_.job(),
 )
@@ -523,7 +523,7 @@ try_.builder(
     coverage_test_types = ["unit", "overall"],
     tryjob = try_.job(
         location_filters = [
-            "chrome/browser/.+(ui|browser)test.+",
+            "chrome/browser/.+uitest.+",
             "chrome/browser/ui/views/.+test.+",
             "chrome/browser/ui/views/tabs/.+",
             "testing/xvfb\\.py",

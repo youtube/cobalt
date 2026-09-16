@@ -4578,7 +4578,8 @@ bool tls1_choose_signature_algorithm(SSL_HANDSHAKE *hs,
   }
 
   Span<const uint16_t> sigalgs =
-      cred->sigalgs.empty() ? Span(kSignSignatureAlgorithms) : cred->sigalgs;
+      cred->sigalgs.empty() ? Span<const uint16_t>(kSignSignatureAlgorithms)
+                            : Span<const uint16_t>(cred->sigalgs);
   for (uint16_t sigalg : sigalgs) {
     if (!ssl_pkey_supports_algorithm(ssl, cred->pubkey.get(), sigalg,
                                      /*is_verify=*/false)) {

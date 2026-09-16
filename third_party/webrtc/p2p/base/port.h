@@ -267,6 +267,9 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // Downstream code uses this signal. We will continue firing it along with the
   // callback list. The signal can be deleted once all downstream usages are
   // replaced with the new CallbackList implementation.
+  void NotifyCandidateReady(Port* port, const Candidate& candidate) {
+    SignalCandidateReady(port, candidate);
+  }
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
   // Provides all of the above information in one handy object.
   const std::vector<Candidate>& Candidates() const override;
@@ -278,6 +281,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // SignalPortComplete is sent when port completes the task of candidates
   // allocation.
   void SubscribePortComplete(absl::AnyInvocable<void(Port*)> callback);
+  void NotifyPortComplete(Port* port) { SignalPortComplete(port); }
   sigslot::signal1<Port*> SignalPortComplete;
 
   // This signal sent when port fails to allocate candidates and this port
@@ -286,6 +290,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // this signal as other candidates might be usefull in establishing the
   // connection.
   void SubscribePortError(absl::AnyInvocable<void(Port*)> callback);
+  void NotifyPortError(Port* port) { SignalPortError(port); }
   // Downstream code uses this signal. We will continue firing it along with the
   // callback list. The signal can be deleted once all downstream usages are
   // replaced with the new CallbackList implementation.

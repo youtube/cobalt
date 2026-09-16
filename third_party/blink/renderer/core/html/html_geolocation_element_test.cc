@@ -17,9 +17,11 @@
 #include "third_party/blink/public/strings/grit/permission_element_strings.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_init.h"
+#include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
@@ -230,17 +232,27 @@ class HTMLGeolocationElementTest : public HTMLGeolocationElementTestBase {
   TestPermissionService* permission_service() { return &permission_service_; }
 
   HTMLGeolocationElement* CreateGeolocationElement(
-      bool precise_location = false) {
+      bool precise_accuracy_mode = false) {
     HTMLGeolocationElement* geolocation_element =
         MakeGarbageCollected<HTMLGeolocationElement>(GetDocument());
-    if (precise_location) {
-      geolocation_element->setAttribute(html_names::kPreciselocationAttr,
-                                        AtomicString(""));
+    if (precise_accuracy_mode) {
+      geolocation_element->setAttribute(html_names::kAccuracymodeAttr,
+                                        AtomicString("precise"));
     }
     GetDocument().body()->AppendChild(geolocation_element);
     GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
     GetDocument().View()->UpdateAllLifecyclePhasesForTest();
     return geolocation_element;
+  }
+
+  void CheckAppearance(HTMLGeolocationElement* element,
+                       const String& expected_text,
+                       bool is_spinning) {
+    GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+    GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+    EXPECT_EQ(expected_text,
+              element->permission_text_span_for_testing()->innerText());
+    EXPECT_EQ(is_spinning, element->SpinningIconTimerForTesting().IsActive());
   }
 
  private:
@@ -278,20 +290,18 @@ TEST_F(HTMLGeolocationElementTest, GeolocationTranslateInnerText) {
                                       AtomicString(data.lang_attr_value));
     permission_service()->NotifyPermissionStatusChange(
         PermissionName::GEOLOCATION, MojoPermissionStatus::ASK);
-    GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-    GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-    EXPECT_EQ(
-        data.expected_text_ask,
-        geolocation_element->permission_text_span_for_testing()->innerText());
+    CheckAppearance(geolocation_element, data.expected_text_ask,
+                    /*is_spinning*/ false);
 
     permission_service()->NotifyPermissionStatusChange(
         PermissionName::GEOLOCATION, MojoPermissionStatus::GRANTED);
-    GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-    GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+    // Simulate success response
+    task_environment().FastForwardBy(base::Seconds(3));
+    geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+
     // Text should NOT change to the "allowed" string.
-    EXPECT_EQ(
-        data.expected_text_ask,
-        geolocation_element->permission_text_span_for_testing()->innerText());
+    CheckAppearance(geolocation_element, data.expected_text_ask,
+                    /*is_spinning*/ false);
   }
 }
 
@@ -299,7 +309,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationSetInnerTextAfterRegistration) {
   const struct {
     MojoPermissionStatus status;
     String expected_text;
-    bool precise_location = false;
+    bool precise_accuracy_mode = false;
   } kTestData[] = {
       {MojoPermissionStatus::ASK, kGeolocationString},
       {MojoPermissionStatus::DENIED, kGeolocationString},
@@ -309,7 +319,8 @@ TEST_F(HTMLGeolocationElementTest, GeolocationSetInnerTextAfterRegistration) {
       {MojoPermissionStatus::GRANTED, kPreciseGeolocationString, true},
   };
   for (const auto& data : kTestData) {
-    auto* geolocation_element = CreateGeolocationElement(data.precise_location);
+    auto* geolocation_element =
+        CreateGeolocationElement(data.precise_accuracy_mode);
     permission_service()->set_initial_statuses({data.status});
     EXPECT_TRUE(base::test::RunUntil([&]() {
       return geolocation_element->is_registered_in_browser_process();
@@ -320,11 +331,65 @@ TEST_F(HTMLGeolocationElementTest, GeolocationSetInnerTextAfterRegistration) {
   }
 }
 
+TEST_F(HTMLGeolocationElementTest,
+       GeolocationPreciseLocationAttributeDoesNotChangeText) {
+  auto* geolocation_element = CreateGeolocationElement();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return geolocation_element->is_registered_in_browser_process();
+  }));
+  String initial_text =
+      geolocation_element->permission_text_span_for_testing()->innerText();
+  geolocation_element->setAttribute(html_names::kPreciselocationAttr,
+                                    AtomicString(""));
+  EXPECT_EQ(
+      initial_text,
+      geolocation_element->permission_text_span_for_testing()->innerText());
+}
+
+TEST_F(HTMLGeolocationElementTest,
+       GeolocationPreciseLocationAttributeCamelCaseDoesNotChangeText) {
+  auto* geolocation_element = CreateGeolocationElement();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return geolocation_element->is_registered_in_browser_process();
+  }));
+  String initial_text =
+      geolocation_element->permission_text_span_for_testing()->innerText();
+  geolocation_element->setAttribute(AtomicString("pReCiSeLoCaTiOn"),
+                                    AtomicString(""));
+  EXPECT_EQ(
+      initial_text,
+      geolocation_element->permission_text_span_for_testing()->innerText());
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationAccuracyMode) {
+  auto* geolocation_element = CreateGeolocationElement();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return geolocation_element->is_registered_in_browser_process();
+  }));
+  geolocation_element->setAttribute(html_names::kAccuracymodeAttr,
+                                    AtomicString("precise"));
+  EXPECT_EQ(
+      kPreciseGeolocationString,
+      geolocation_element->permission_text_span_for_testing()->innerText());
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationAccuracyModeCaseInsensitive) {
+  auto* geolocation_element = CreateGeolocationElement();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return geolocation_element->is_registered_in_browser_process();
+  }));
+  geolocation_element->setAttribute(html_names::kAccuracymodeAttr,
+                                    AtomicString("PrEcIsE"));
+  EXPECT_EQ(
+      kPreciseGeolocationString,
+      geolocation_element->permission_text_span_for_testing()->innerText());
+}
+
 TEST_F(HTMLGeolocationElementTest, GeolocationStatusChange) {
   const struct {
     MojoPermissionStatus status;
     String expected_text;
-    bool precise_location = false;
+    bool precise_accuracy_mode = false;
   } kTestData[] = {
       {MojoPermissionStatus::ASK, kGeolocationString},
       {MojoPermissionStatus::DENIED, kGeolocationString},
@@ -333,7 +398,8 @@ TEST_F(HTMLGeolocationElementTest, GeolocationStatusChange) {
       {MojoPermissionStatus::DENIED, kPreciseGeolocationString, true},
       {MojoPermissionStatus::GRANTED, kPreciseGeolocationString, true}};
   for (const auto& data : kTestData) {
-    auto* geolocation_element = CreateGeolocationElement(data.precise_location);
+    auto* geolocation_element =
+        CreateGeolocationElement(data.precise_accuracy_mode);
     EXPECT_TRUE(base::test::RunUntil([&]() {
       return geolocation_element->is_registered_in_browser_process();
     }));
@@ -354,119 +420,266 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
 
   // 1. Test GetCurrentPosition
   geolocation_element->GetCurrentPosition();
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Text should remain "using" even if permission is granted.
   permission_service()->NotifyPermissionStatusChange(
       PermissionName::GEOLOCATION, MojoPermissionStatus::GRANTED);
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Simulate success response
   task_environment().FastForwardBy(base::Seconds(3));
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kGeolocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_FALSE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
 
   // 2. Test GetCurrentPosition with error response
   geolocation_element->GetCurrentPosition();
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Simulate error response
   task_environment().FastForwardBy(base::Seconds(3));
   geolocation_element->CurrentPositionCallback(base::unexpected(nullptr));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kGeolocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_FALSE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
 
   // 3. Test that the spinning icon and "using" text are displayed for at
   // least 2 seconds, even if the response is received earlier.
   geolocation_element->GetCurrentPosition();
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Fast forward time by 1 second.
   task_environment().FastForwardBy(base::Seconds(1));
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Simulate receiving a response after 1 second.
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Fast forward time by another 1.1 seconds, making the total time > 2
   // seconds.
   task_environment().FastForwardBy(base::Seconds(1.1));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kGeolocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_FALSE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
 
   // 4. Test that the spinning icon and "using" text are displayed until a
   // response is received, even if it takes longer than 2 seconds.
   geolocation_element->GetCurrentPosition();
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_TRUE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 
   // Fast forward time by 2.1 seconds.
   task_environment().FastForwardBy(base::Seconds(2.1));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kUsingLocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_FALSE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ false);
 
   // Simulate receiving a response after 2.1 seconds.
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // Dispatch a click event under granted.
+  auto* event = Event::Create(event_type_names::kDOMActivate);
+  geolocation_element->DefaultEventHandler(*event);
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  task_environment().FastForwardBy(base::Seconds(3));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationWatchPositionAppearance) {
+  auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kWatchAttr, AtomicString(""));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return geolocation_element->is_registered_in_browser_process();
+  }));
+
+  // 1. Call WatchPosition and check initial spinning.
+  geolocation_element->WatchPosition();
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // 2. After 1s, simulate a position update. Spinning should continue because
+  // it's re-triggered.
+  task_environment().FastForwardBy(base::Seconds(1));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // 3. After another 2.1s, spinning should stop.
+  task_environment().FastForwardBy(base::Seconds(2.1));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // 4. Simulate another position update, it should start spinning again.
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // 5. Remove watch attribute.
+  geolocation_element->removeAttribute(html_names::kWatchAttr);
+  // Let the current spinning finish.
+  task_environment().FastForwardBy(base::Seconds(2.1));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // 6. Simulate another position update. It should NOT start spinning again.
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationGrantedClickBehavior) {
+  CachedPermissionStatus::From(GetDocument().domWindow())
+      ->SetPermissionStatusMap({{blink::mojom::PermissionName::GEOLOCATION,
+                                 MojoPermissionStatus::GRANTED}});
+
+  // Test with kWatchAttr
+  auto* geolocation_element_watch = CreateGeolocationElement();
+  geolocation_element_watch->setAttribute(html_names::kWatchAttr,
+                                          AtomicString(""));
+  auto* event_watch = Event::Create(event_type_names::kDOMActivate);
+  geolocation_element_watch->DefaultEventHandler(*event_watch);
+  CheckAppearance(geolocation_element_watch, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // Test without kWatchAttr
+  auto* geolocation_element_get_position = CreateGeolocationElement();
+  auto* event_get_position = Event::Create(event_type_names::kDOMActivate);
+  geolocation_element_get_position->DefaultEventHandler(*event_get_position);
+  CheckAppearance(geolocation_element_get_position, kUsingLocationString,
+                  /*is_spinning*/ true);
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationAutolocate) {
+  CachedPermissionStatus::From(GetDocument().domWindow())
+      ->SetPermissionStatusMap({{blink::mojom::PermissionName::GEOLOCATION,
+                                 MojoPermissionStatus::GRANTED}});
+
+  auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kAutolocateAttr,
+                                    AtomicString(""));
+
+  // Should trigger GetCurrentPosition automatically.
+  // This will result in "Using location..." text and spinning icon.
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // Fast forward time to let the spinning stop.
+  task_environment().FastForwardBy(base::Seconds(2.1));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationAutolocateWatch) {
+  CachedPermissionStatus::From(GetDocument().domWindow())
+      ->SetPermissionStatusMap({{blink::mojom::PermissionName::GEOLOCATION,
+                                 MojoPermissionStatus::GRANTED}});
+
+  auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kAutolocateAttr,
+                                    AtomicString(""));
+  geolocation_element->setAttribute(html_names::kWatchAttr, AtomicString(""));
+
+  // Should trigger WatchPosition automatically.
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // With watch, it should re-trigger spinning.
+  // Let's simulate a position update.
+  task_environment().FastForwardBy(base::Seconds(1));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+}
+
+TEST_F(HTMLGeolocationElementTest, GeolocationAutolocateTriggersOnce) {
+  CachedPermissionStatus::From(GetDocument().domWindow())
+      ->SetPermissionStatusMap({{blink::mojom::PermissionName::GEOLOCATION,
+                                 MojoPermissionStatus::GRANTED}});
+
+  auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kAutolocateAttr,
+                                    AtomicString(""));
+
+  // Should trigger GetCurrentPosition automatically.
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // Let it finish.
+  task_environment().FastForwardBy(base::Seconds(2.1));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // Trigger lifecycle update again. It should not trigger autolocate again.
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+}
+
+TEST_F(HTMLGeolocationElementTest,
+       RequestLocationAfterClickAndPermissionChanged) {
+  // This test simulates the following scenario:
+  // 1. A geolocation element with `autolocate` is present.
+  // 2. Permission is initially granted, so request location triggers and
+  // succeeds.
+  //    This sets an internal flag `is_autolocate_triggered_` to true.
+  // 3. Permission is then revoked by the user (e.g. in page settings).
+  // 4. The user clicks the element to grant permission again.
+  // 5. After permission is granted, request location should trigger again.
+
+  // Start with permission GRANTED.
+  CachedPermissionStatus::From(GetDocument().domWindow())
+      ->SetPermissionStatusMap({{blink::mojom::PermissionName::GEOLOCATION,
+                                 MojoPermissionStatus::GRANTED}});
+  // Request location  should trigger automatically due to autolocate.
+  auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kAutolocateAttr,
+                                    AtomicString(""));
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+
+  // Let it finish.
+  task_environment().FastForwardBy(base::Seconds(2.1));
+  geolocation_element->CurrentPositionCallback(base::ok(nullptr));
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // Revoke permission.
+  permission_service()->NotifyPermissionStatusChange(
+      PermissionName::GEOLOCATION, MojoPermissionStatus::ASK);
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(
-      kGeolocationString,
-      geolocation_element->permission_text_span_for_testing()->innerText());
-  EXPECT_FALSE(geolocation_element->SpinningIconTimerForTesting().IsActive());
+
+  // Simulate a click. This should trigger a permission prompt.
+  auto* event = Event::Create(event_type_names::kDOMActivate);
+  geolocation_element->DefaultEventHandler(*event);
+
+  // Grant permission.
+  permission_service()->NotifyPermissionStatusChange(
+      PermissionName::GEOLOCATION, MojoPermissionStatus::GRANTED);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+
+  // Request location should trigger again.
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
 }
 
 class HTMLGeolocationElementSimTest : public SimTest {
  public:
-  HTMLGeolocationElementSimTest() = default;
+  HTMLGeolocationElementSimTest()
+      : SimTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
  protected:
   void SetUp() override {
@@ -486,15 +699,9 @@ class HTMLGeolocationElementSimTest : public SimTest {
 
   TestPermissionService* permission_service() { return &permission_service_; }
 
-  HTMLGeolocationElement* CreateGeolocationElement(
-      Document& document,
-      std::optional<const char*> precise_location = std::nullopt) {
+  HTMLGeolocationElement* CreateGeolocationElement(Document& document) {
     HTMLGeolocationElement* geolocation_element =
         MakeGarbageCollected<HTMLGeolocationElement>(document);
-    if (precise_location.has_value()) {
-      geolocation_element->setAttribute(html_names::kPreciselocationAttr,
-                                        AtomicString(precise_location.value()));
-    }
     document.body()->AppendChild(geolocation_element);
     document.UpdateStyleAndLayout(DocumentUpdateReason::kTest);
     GetDocument().View()->UpdateAllLifecyclePhasesForTest();

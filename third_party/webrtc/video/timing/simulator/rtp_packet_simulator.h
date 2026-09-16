@@ -26,12 +26,12 @@ class RtpPacketSimulator {
   RtpPacketSimulator(const RtpPacketSimulator&) = delete;
   RtpPacketSimulator& operator=(const RtpPacketSimulator&) = delete;
 
-  // Builds a simulated `RtpPacketReceived` from a `LoggedRtpPacketIncoming`.
+  // Builds a simulated `RtpPacketReceived` from a `LoggedRtpPacket`.
   // Notably, the simulated arrival time is taken from `env_.clock()` and not
   // from `logged_packet.log_time()`. This allows the caller to provide its own
   // clock offset, that might be different from the logged time base.
   RtpPacketReceived SimulateRtpPacketReceived(
-      const LoggedRtpPacketIncoming& logged_packet) const;
+      const LoggedRtpPacket& logged_packet) const;
 
  private:
   const Environment env_;

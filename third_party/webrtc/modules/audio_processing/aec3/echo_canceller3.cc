@@ -22,6 +22,7 @@
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
@@ -725,10 +726,6 @@ void EchoCanceller3::RenderWriter::Insert(const AudioBuffer& input) {
   RTC_DCHECK_EQ(AudioBuffer::kSplitBandSize, input.num_frames_per_band());
   RTC_DCHECK_EQ(num_bands_, input.num_bands());
   RTC_DCHECK_EQ(num_channels_, input.num_channels());
-
-  // TODO(bugs.webrtc.org/8759) Temporary work-around.
-  if (num_bands_ != input.num_bands())
-    return;
 
   data_dumper_->DumpWav("aec3_render_input", AudioBuffer::kSplitBandSize,
                         &input.split_bands_const(0)[0][0], 16000, 1);

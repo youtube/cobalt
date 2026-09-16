@@ -95,6 +95,10 @@ source_set("browser_tests") {
     if (is_chrome_branded) {
       sources += [ "media_router/cast_feedback_ui_browsertest.cc" ]
     }
+
+    if (enable_compose) {
+      deps += [ "//chrome/browser/compose" ]
+    }
   }
 
   if (enable_dice_support) {
@@ -302,6 +306,7 @@ source_set("interactive_ui_tests") {
       "cr_components/cr_components_interactive_test.cc",
       "downloads/downloads_focus_test.cc",
       "history/history_focus_test.cc",
+      "lens/lens_side_panel_pixel_interactive_ui_test.cc",
       "new_tab_page/new_tab_page_focus_test.cc",
       "password_manager/password_manager_focus_test.cc",
       "settings/settings_focus_test.cc",
@@ -354,7 +359,10 @@ source_set("interactive_ui_tests") {
 
   if (enable_compose) {
     sources += [ "compose/compose_focus_test.cc" ]
-    deps += [ "//components/compose/core/browser:features" ]
+    deps += [
+      "//chrome/browser/compose",
+      "//components/compose/core/browser:features",
+    ]
   }
 }
 

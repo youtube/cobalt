@@ -1459,6 +1459,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
 enum class PerformHeapLimitCheck { kYes, kNo };
 enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
 
+enum class RequestedGCKind : uint8_t { kMajor = 1, kLastResort = 1 << 1 };
+
 class AllocationHint final {
  public:
   AllocationHint() = default;
@@ -2737,6 +2739,7 @@ enum IsolateAddressId {
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
+  V(TrapResume)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {

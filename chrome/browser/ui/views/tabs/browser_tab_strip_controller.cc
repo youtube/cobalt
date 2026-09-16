@@ -632,8 +632,8 @@ void BrowserTabStripController::OnDropIndexUpdate(
   }
 }
 
-void BrowserTabStripController::CreateNewTab() {
-  chrome::NewTab(GetBrowser());
+void BrowserTabStripController::CreateNewTab(NewTabTypes context) {
+  chrome::NewTab(GetBrowser(), context);
 }
 
 void BrowserTabStripController::CreateNewTabWithLocation(
@@ -656,8 +656,8 @@ void BrowserTabStripController::OnStartedDragging(bool dragging_window) {
     // revealed if the user is attempting to attach a tab to a tabstrip
     // belonging to an immersive fullscreen window.
     immersive_reveal_lock_ =
-        browser_view_->immersive_mode_controller()->GetRevealedLock(
-            ImmersiveModeController::ANIMATE_REVEAL_NO);
+        ImmersiveModeController::From(browser_view_->browser())
+            ->GetRevealedLock(ImmersiveModeController::ANIMATE_REVEAL_NO);
   }
 
   browser_view_->browser_widget()->SetTabDragKind(

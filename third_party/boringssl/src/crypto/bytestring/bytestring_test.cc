@@ -31,6 +31,18 @@
 
 namespace {
 
+TEST(CBSTest, CtorFromSpan) {
+  const uint8_t buf[4] = "foo";
+
+  auto span_from_static_extent = bssl::Span<const uint8_t, 4>(buf);
+  CBS cbs_from_static_extent(span_from_static_extent);
+  EXPECT_EQ(4u, CBS_len(&cbs_from_static_extent));
+
+  auto span_from_dynamic_extent = bssl::Span<const uint8_t>(buf);
+  CBS cbs_from_dynamic_extent(span_from_dynamic_extent);
+  EXPECT_EQ(4u, CBS_len(&cbs_from_dynamic_extent));
+}
+
 TEST(CBSTest, Skip) {
   static const uint8_t kData[] = {1, 2, 3};
   CBS data;

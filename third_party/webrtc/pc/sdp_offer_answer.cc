@@ -326,6 +326,9 @@ RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
   RTC_DCHECK(local_contents.size() == remote_contents.size());
 
   for (size_t i = 0; i < local_contents.size(); i++) {
+    if (remote_contents[i].rejected) {
+      continue;
+    }
     RtpTransceiverDirection local_direction =
         local_contents[i].media_description()->direction();
     RtpTransceiverDirection remote_direction =
@@ -5814,7 +5817,7 @@ bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
 }
 
 bool SdpOfferAnswerHandler::ConfiguredForMedia() const {
-  return context_->media_engine();
+  return context_->is_configured_for_media();
 }
 
 }  // namespace webrtc

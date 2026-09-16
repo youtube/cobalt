@@ -36,10 +36,8 @@ using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::MockFunction;
-using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Return;
-using ::testing::SetArgPointee;
 
 namespace webrtc {
 
@@ -617,6 +615,41 @@ TEST_F(AudioEncoderCopyRedTest, LargeTimestampGap) {
 
   // The old packet will be dropped.
   EXPECT_EQ(encoded_.size(), 1u + 200u);
+}
+
+TEST_F(AudioEncoderCopyRedTest, AvoidRedundantNonSpeechEncoding) {
+  const int primary_payload_type = red_payload_type_ + 1;
+
+  AudioEncoder::EncodedInfo info;
+  info.encoded_bytes = 1;
+  info.encoded_timestamp = timestamp_;
+  info.payload_type = primary_payload_type;
+  info.speech = false;
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(Invoke(MockAudioEncoder::FakeEncoding(info)));
+  Encode();
+
+  // Previous packet was non-speech and should not be used as redundant
+  // encoding.
+  timestamp_ += 960;
+  info.encoded_timestamp = timestamp_;
+  info.encoded_bytes = 100;
+  info.speech = true;
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(Invoke(MockAudioEncoder::FakeEncoding(info)));
+  Encode();
+  EXPECT_EQ(encoded_.size(), 1u + 100u);
+  EXPECT_TRUE(encoded_info_.redundant.empty());
+
+  // Non-speech packet can still have redundant encoding.
+  timestamp_ += 960;
+  info.encoded_timestamp = timestamp_;
+  info.encoded_bytes = 200;
+  info.speech = false;
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(Invoke(MockAudioEncoder::FakeEncoding(info)));
+  Encode();
+  EXPECT_EQ(encoded_.size(), 5u + 100u + 200u);
 }
 
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)

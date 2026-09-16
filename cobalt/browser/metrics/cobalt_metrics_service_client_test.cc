@@ -222,7 +222,8 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
         memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
 
     // Manually trigger ReceivedMemoryDump with our dummy dump.
-    ReceivedMemoryDump(true, std::move(global_dump));
+    ReceivedMemoryDump(memory_instrumentation::mojom::RequestOutcome::kSuccess,
+                       std::move(global_dump));
   }
 
  protected:

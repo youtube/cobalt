@@ -647,7 +647,7 @@ void collect_lifted_expressions(SkSpan<const ShaderNode*> nodes,
 
         collect_lifted_expressions(node->children(), childArgs, lifted);
     }
-};
+}
 
 std::vector<LiftedExpression> collect_lifted_expressions(SkSpan<const ShaderNode*> nodes) {
     std::vector<LiftedExpression> lifted;
@@ -825,10 +825,8 @@ std::string dst_read_strategy_to_str(DstReadStrategy strategy) {
             return "ReadFromInput";
         case DstReadStrategy::kFramebufferFetch:
             return "FramebufferFetch";
-        default:
-            SkUNREACHABLE;
     }
-    return "";
+    SkUNREACHABLE;
 }
 } // anonymous
 

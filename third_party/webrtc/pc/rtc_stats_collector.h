@@ -214,11 +214,9 @@ class RTCStatsCollector : public RefCountInterface {
       RTCStatsReport* report) const;
   void ProduceAudioRTPStreamStats_n(Timestamp timestamp,
                                     const RtpTransceiverStatsInfo& stats,
-                                    bool spec_lifetime,
                                     RTCStatsReport* report) const;
   void ProduceVideoRTPStreamStats_n(Timestamp timestamp,
                                     const RtpTransceiverStatsInfo& stats,
-                                    bool spec_lifetime,
                                     RTCStatsReport* report) const;
   // Produces `RTCTransportStats`.
   void ProduceTransportStats_n(

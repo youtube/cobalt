@@ -192,19 +192,8 @@ BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
         goto end;
       }
     } else {
-      if (!BN_pseudo_rand(y, BN_num_bits(p), 0, 0)) {
+      if (!BN_rand_range_ex(y, 22, p)) {
         goto end;
-      }
-      if (BN_ucmp(y, p) >= 0) {
-        if (BN_usub(y, y, p)) {
-          goto end;
-        }
-      }
-      // now 0 <= y < |p|
-      if (BN_is_zero(y)) {
-        if (!BN_set_word(y, i)) {
-          goto end;
-        }
       }
     }
 

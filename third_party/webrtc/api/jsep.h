@@ -186,9 +186,6 @@ class IceCandidateCollection final {
       RTC_GUARDED_BY(sequence_checker_);
 };
 
-// TODO: webrtc:406795492 - Deprecate.
-using JsepCandidateCollection = IceCandidateCollection;
-
 // Enum that describes the type of the SessionDescriptionInterface.
 // Corresponds to RTCSdpType in the WebRTC specification.
 // https://w3c.github.io/webrtc-pc/#dom-rtcsdptype
@@ -218,53 +215,13 @@ void AbslStringify(Sink& sink, SdpType sdp_type) {
 RTC_EXPORT std::optional<SdpType> SdpTypeFromString(
     const std::string& type_str);
 
-// TODO: bugs.webrtc.org/442220720 - This class is temporarily here while
-// SessionDescriptionInterface transforms from a pure interface into a simple
-// non-virtual class. The purpose of `SessionDescriptionInternal` is to provide
-// protected methods to classes currently inheriting from
-// SessionDescriptionInterface, the basic implementation that satisified the
-// interface. Once the migration of the implementation is complete, the
-// SessionDescriptionInterface class can be made non-virtual, final and
-// SessionDescriptionInternal can effectively be renamed to
-// SessionDescriptionInterface. The reason for all of this is that access to and
-// modification of the internal state needs to be made thread aware so that
-// concurrent operations aren't executed on different threads or that the
-// state can be declared const when no known modifications are pending.
-class SessionDescriptionInternal {
- public:
-  explicit SessionDescriptionInternal(
-      SdpType type,
-      absl_nullable std::unique_ptr<SessionDescription> description,
-      absl::string_view id,
-      absl::string_view version);
-
-  ~SessionDescriptionInternal();
-
- protected:
-  // Only meant for the SessionDescriptionInterface implementation.
-  SdpType sdp_type() const { return sdp_type_; }
-  absl::string_view id() const { return id_; }
-  absl::string_view version() const { return version_; }
-  const SessionDescription* description() const { return description_.get(); }
-  SessionDescription* description() { return description_.get(); }
-  size_t mediasection_count() const;
-
-
- private:
-  const SdpType sdp_type_;
-  const std::string id_;
-  const std::string version_;
-  absl_nullable const std::unique_ptr<SessionDescription> description_;
-};
-
 // Class representation of an SDP session description.
 //
 // An instance of this interface is supposed to be owned by one class at a time
 // and is therefore not expected to be thread safe.
 //
 // An instance can be created by CreateSessionDescription.
-class RTC_EXPORT SessionDescriptionInterface final
-    : public SessionDescriptionInternal {
+class RTC_EXPORT SessionDescriptionInterface final {
  public:
   static std::unique_ptr<SessionDescriptionInterface> Create(
       SdpType type,
@@ -289,13 +246,12 @@ class RTC_EXPORT SessionDescriptionInterface final
   // with the same values as the old object.
   std::unique_ptr<SessionDescriptionInterface> Clone() const;
 
+  absl::string_view id() const { return id_; }
+  absl::string_view version() const { return version_; }
+
   // Only for use internally.
-  SessionDescription* description() {
-    return SessionDescriptionInternal::description();
-  }
-  const SessionDescription* description() const {
-    return SessionDescriptionInternal::description();
-  }
+  const SessionDescription* description() const { return description_.get(); }
+  SessionDescription* description() { return description_.get(); }
 
   // Get the session id and session version, which are defined based on
   // RFC 4566 for the SDP o= line.
@@ -304,10 +260,10 @@ class RTC_EXPORT SessionDescriptionInterface final
 
   // Returns the type of this session description as an SdpType. Descriptions of
   // the various types are found in the SdpType documentation.
-  SdpType GetType() const { return sdp_type(); }
+  SdpType GetType() const { return sdp_type_; }
 
   // TODO(steveanton): Remove this in favor of `GetType` that returns SdpType.
-  std::string type() const { return SdpTypeToString(sdp_type()); }
+  std::string type() const { return SdpTypeToString(sdp_type_); }
 
   // Adds the specified candidate to the description.
   //
@@ -327,7 +283,7 @@ class RTC_EXPORT SessionDescriptionInterface final
   bool RemoveCandidate(const IceCandidate* candidate);
 
   // Returns the number of m= sections in the session description.
-  size_t number_of_mediasections() const { return mediasection_count(); }
+  size_t number_of_mediasections() const;
 
   // Returns a collection of all candidates that belong to a certain m=
   // section.
@@ -372,21 +328,20 @@ class RTC_EXPORT SessionDescriptionInterface final
       absl::string_view version,
       std::vector<IceCandidateCollection> candidates = {});
 
- protected:
-  // This method is necessarily `protected`, and not private, while
-  // the SessionDescriptionInterface implementation is being consolidated
-  // into a single class.
-  const SequenceChecker* sequence_checker() const { return &sequence_checker_; }
-
  private:
   bool IsValidMLineIndex(int index) const;
   bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
   int GetMediasectionIndex(absl::string_view mid) const;
 
+  const SdpType sdp_type_;
+  const std::string id_;
+  const std::string version_;
+  absl_nullable const std::unique_ptr<SessionDescription> description_;
+
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
       SequenceChecker::kDetached};
   std::vector<IceCandidateCollection> candidate_collection_
-      RTC_GUARDED_BY(sequence_checker());
+      RTC_GUARDED_BY(sequence_checker_);
 };
 
 // Creates a SessionDescriptionInterface based on the SDP string and the type.
@@ -394,18 +349,18 @@ class RTC_EXPORT SessionDescriptionInterface final
 // If using the signature with `error_out`, details of the parsing error may be
 // written to `error_out` if it is not null.
 RTC_EXPORT std::unique_ptr<SessionDescriptionInterface>
-CreateSessionDescription(SdpType type, const std::string& sdp);
+CreateSessionDescription(SdpType type, absl::string_view sdp);
 RTC_EXPORT std::unique_ptr<SessionDescriptionInterface>
 CreateSessionDescription(SdpType type,
-                         const std::string& sdp,
+                         absl::string_view sdp,
                          SdpParseError* error_out);
 
 // Creates a SessionDescriptionInterface based on a parsed SDP structure and the
 // given type, ID and version.
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
-    const std::string& session_id,
-    const std::string& session_version,
+    absl::string_view session_id,
+    absl::string_view session_version,
     std::unique_ptr<SessionDescription> description);
 
 // Creates a rollback session description object (SdpType::kRollback).

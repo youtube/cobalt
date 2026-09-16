@@ -475,7 +475,7 @@ WebRtcVoiceEngine::WebRtcVoiceEngine(
     scoped_refptr<AudioProcessing> audio_processing,
     std::unique_ptr<AudioFrameProcessor> audio_frame_processor)
     : env_(env),
-      minimized_remsampling_on_mobile_trial_enabled_(
+      minimized_resampling_on_mobile_trial_enabled_(
           env_.field_trials().IsEnabled(
               "WebRTC-Audio-MinimizeResamplingOnMobile")),
       payload_types_in_transport_trial_enabled_(
@@ -533,9 +533,6 @@ void WebRtcVoiceEngine::Init() {
 
   adm_helpers::Init(adm());
 
-  // Connect the ADM to our audio path.
-  adm()->RegisterAudioCallback(audio_state()->audio_transport());
-
   // Set default engine options.
   {
     AudioOptions options;
@@ -554,6 +551,12 @@ void WebRtcVoiceEngine::Init() {
     options.audio_jitter_buffer_min_delay_ms = 0;
     ApplyOptions(options);
   }
+
+  // Connect the ADM to our audio path. It's important to do this after applying
+  // the configuration so that the audio callback receives calls with the
+  // correct init options already applied.
+  adm()->RegisterAudioCallback(audio_state()->audio_transport());
+
   initialized_ = true;
 }
 
@@ -637,7 +640,7 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
   // performed inside the audio processing module on mobile platforms by
   // whenever possible turning off the fixed AGC mode and the high-pass filter.
   // (https://bugs.chromium.org/p/webrtc/issues/detail?id=6181).
-  if (minimized_remsampling_on_mobile_trial_enabled_) {
+  if (minimized_resampling_on_mobile_trial_enabled_) {
     options.auto_gain_control = false;
     RTC_LOG(LS_INFO) << "Disable AGC according to field trial.";
     if (!(options.noise_suppression.value_or(false) ||
@@ -1561,10 +1564,6 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
 
   send_codecs_ = codecs;
 
-  if (send_codec_changed_callback_) {
-    send_codec_changed_callback_();
-  }
-
   return true;
 }
 
@@ -1885,12 +1884,6 @@ bool WebRtcVoiceSendChannel::SenderNonSenderRttEnabled() const {
     return false;
   }
   return send_codec_spec_->enable_non_sender_rtt;
-}
-
-void WebRtcVoiceSendChannel::SetSendCodecChangedCallback(
-    absl::AnyInvocable<void()> callback) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  send_codec_changed_callback_ = std::move(callback);
 }
 
 void WebRtcVoiceSendChannel::FillSendCodecStats(

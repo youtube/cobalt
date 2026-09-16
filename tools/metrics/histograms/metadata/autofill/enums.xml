@@ -242,6 +242,7 @@ Called by update_autofill_enums.py.-->
   <int value="7" label="FilledCardInformation"/>
   <int value="8" label="Password"/>
   <int value="9" label="WalletablePassConsent"/>
+  <int value="10" label="WalletablePassSave"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/autofill/bubble_controller_base.h:BubbleType) -->
@@ -2400,14 +2401,14 @@ Called by update_autofill_enums.py.-->
       label="(DEPRECATED) Suggestion for a masked server card with no benefit
              available was selected (once)"/>
   <int value="97"
-      label="Suggestion for a masked server card with a benefit available was
-             filled"/>
+      label="(DEPRECATED) Suggestion for a masked server card with a benefit
+             available was filled"/>
   <int value="98"
       label="(DEPRECATED) Suggestion for a masked server card with no benefit
              available was filled"/>
   <int value="99"
-      label="Suggestion for a masked server card with a benefit available was
-             filled (once)"/>
+      label="(DEPRECATED) Suggestion for a masked server card with a benefit
+             available was filled (once)"/>
   <int value="100"
       label="(DEPRECATED) Suggestion for a masked server card with no benefit
              available was filled (once)"/>
@@ -2420,8 +2421,8 @@ Called by update_autofill_enums.py.-->
              for masked server card with no benefit available was filled
              (once)"/>
   <int value="103"
-      label="Form was submitted after a suggestion for a masked server card
-             with a benefit available was filled (once)"/>
+      label="(DEPRECATED) Form was submitted after a suggestion for a masked
+             server card with a benefit available was filled (once)"/>
   <int value="104"
       label="(DEPRECATED) Form was submitted after a suggestion for a masked
              server card with no benefit available was filled (once)"/>
@@ -2430,11 +2431,12 @@ Called by update_autofill_enums.py.-->
              after suggestions containing cards with a benefit available were
              shown (once)"/>
   <int value="106"
-      label="Suggestion for a masked server card was filled after suggestions
-             containing cards with a benefit available were shown (once)"/>
+      label="(DEPRECATED) Suggestion for a masked server card was filled
+             after suggestions containing cards with a benefit available were
+             shown (once)"/>
   <int value="107"
-      label="Form was submitted after suggestions containing cards with a
-             benefit available were shown (once)"/>
+      label="(DEPRECATED) Form was submitted after suggestions containing
+             cards with a benefit available were shown (once)"/>
   <int value="108" label="Local card suggestion selected"/>
   <int value="109" label="Local card suggestion selected (once)"/>
 </enum>
@@ -3184,9 +3186,11 @@ Called by update_autofill_enums.py.-->
   <int value="22" label="RemoveFormValueForElementName: Failure"/>
   <int value="30" label="AddAutofillProfile: Success"/>
   <int value="31" label="AddAutofillProfile: Failure"/>
+  <int value="32" label="AddAutofillProfile: GetFailure"/>
   <int value="40" label="UpdateAutofillProfile: Success"/>
   <int value="41" label="UpdateAutofillProfile: ReadFailure"/>
   <int value="42" label="UpdateAutofillProfile: WriteFailure"/>
+  <int value="43" label="UpdateAutofillProfile: GetFailure"/>
   <int value="50" label="RemoveAutofillProfile: Success"/>
   <int value="51" label="RemoveAutofillProfile: ReadFailure"/>
   <int value="52" label="RemoveAutofillProfile: WriteFailure"/>

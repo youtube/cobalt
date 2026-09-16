@@ -21,6 +21,7 @@ namespace blink {
 namespace {
 // The minimum time that the spinning icon should be displayed.
 constexpr base::TimeDelta kMinimumSpinningIconTime = base::Seconds(2);
+const char kAccuracyModePrecise[] = "precise";
 }  // namespace
 
 HTMLGeolocationElement::HTMLGeolocationElement(Document& document)
@@ -100,24 +101,102 @@ Geolocation* HTMLGeolocationElement::GetGeolocation() {
 
 void HTMLGeolocationElement::AttributeChanged(
     const AttributeModificationParams& params) {
-  // The autolocate and the watch attributes are exclusive to the geolocation
-  // element, other attributes will be handled by the HTMLPermissionElement.
-  if (params.name == html_names::kAutolocateAttr) {
+  // The "preciselocation" attribute does not have a special meaning on the
+  // geolocation element. It is handled by the generic HTMLElement attribute
+  // changed function to avoid the special handling in HTMLPermissionElement.
+  // TODO(crbug.com/450801233): Remove this when the "preciselocation"
+  // attribute is removed entirely along with the "geolocation" permission
+  // element type.
+  if (params.name == html_names::kPreciselocationAttr) {
+    HTMLElement::AttributeChanged(params);
+    return;
+  } else if (params.name == html_names::kAutolocateAttr) {
+    if (!params.new_value) {
+      did_autolocate_trigger_request = false;
+    } else {
+      MaybeTriggerAutolocate(ForceAutolocate::kNo);
+    }
+  } else if (params.name == html_names::kWatchAttr) {
+    if (!params.new_value) {
+      ClearWatch();
+    }
+  } else if (params.name == html_names::kAccuracymodeAttr &&
+             EqualIgnoringASCIICase(params.new_value, kAccuracyModePrecise)) {
+    SetPreciseLocation();
+  }
+
+  // If it's not a geolocation element specific attribute, the base class
+  // permission element can handle attributes.
+  HTMLPermissionElement::AttributeChanged(params);
+}
+
+void HTMLGeolocationElement::DidFinishLifecycleUpdate(
+    const LocalFrameView& view) {
+  HTMLPermissionElement::DidFinishLifecycleUpdate(view);
+  if (FastHasAttribute(html_names::kAutolocateAttr)) {
+    MaybeTriggerAutolocate(ForceAutolocate::kNo);
+  }
+}
+
+void HTMLGeolocationElement::DefaultEventHandler(Event& event) {
+  // We consume the click event here if the permission is already granted
+  // and propagate any other events to the parent HTMLPermissionElement.
+  if (event.type() == event_type_names::kDOMActivate && PermissionsGranted()) {
+    if (FastHasAttribute(html_names::kAutolocateAttr)) {
+      MaybeTriggerAutolocate(ForceAutolocate::kYes);
+    } else {
+      RequestGeolocation();
+    }
+    return;
+  }
+  HTMLPermissionElement::DefaultEventHandler(event);
+}
+
+void HTMLGeolocationElement::OnPermissionStatusChange(
+    mojom::blink::PermissionName permission_name,
+    mojom::blink::PermissionStatus status) {
+  HTMLPermissionElement::OnPermissionStatusChange(permission_name, status);
+  if (status != mojom::blink::PermissionStatus::GRANTED) {
+    did_autolocate_trigger_request = false;
+    ClearWatch();
+    return;
+  }
+
+  if (FastHasAttribute(html_names::kAutolocateAttr)) {
+    MaybeTriggerAutolocate(HasPendingPermissionRequest()
+                               ? ForceAutolocate::kYes
+                               : ForceAutolocate::kNo);
+  } else if (HasPendingPermissionRequest()) {
+    RequestGeolocation();
+  }
+}
+
+void HTMLGeolocationElement::RequestGeolocation() {
+  if (FastHasAttribute(html_names::kWatchAttr)) {
+    WatchPosition();
+  } else {
     GetCurrentPosition();
   }
-  if (params.name == html_names::kWatchAttr) {
-    if (params.new_value) {
-      WatchPosition();
-    } else {
-      auto* geolocation = GetGeolocation();
-      if (!geolocation) {
-        return;
-      }
-      geolocation->clearWatch(watch_id_);
-      watch_id_ = 0;
-    }
+}
+
+void HTMLGeolocationElement::ClearWatch() {
+  if (!watch_id_) {
+    return;
   }
-  HTMLPermissionElement::AttributeChanged(params);
+  if (auto* geolocation = GetGeolocation()) {
+    geolocation->clearWatch(watch_id_);
+    watch_id_ = 0;
+  }
+}
+
+void HTMLGeolocationElement::MaybeTriggerAutolocate(ForceAutolocate force) {
+  CHECK(FastHasAttribute(html_names::kAutolocateAttr));
+  if (force == ForceAutolocate::kYes ||
+      (!did_autolocate_trigger_request && IsRenderered() &&
+       PermissionsGranted())) {
+    did_autolocate_trigger_request = true;
+    RequestGeolocation();
+  }
 }
 
 void HTMLGeolocationElement::GetCurrentPosition() {
@@ -126,10 +205,7 @@ void HTMLGeolocationElement::GetCurrentPosition() {
     return;
   }
 
-  is_geolocation_request_in_progress_ = true;
-  spinning_started_time_ = base::TimeTicks::Now();
-  spinning_icon_timer_.StartOneShot(kMinimumSpinningIconTime, FROM_HERE);
-  UpdateAppearance();
+  StartSpinning(RequestInProgress::kYes);
   auto* dom_window = GetDocument().domWindow();
   if (!dom_window) {
     return;
@@ -144,12 +220,24 @@ void HTMLGeolocationElement::GetCurrentPosition() {
 
 void HTMLGeolocationElement::WatchPosition() {
   auto* geolocation = GetGeolocation();
-  if (!geolocation) {
+  if (!geolocation && !WebTestSupport::IsRunningWebTest()) {
     return;
   }
-  watch_id_ = geolocation->WatchPosition(
-      blink::BindRepeating(&HTMLGeolocationElement::CurrentPositionCallback,
-                           WrapWeakPersistent(this)));
+
+  StartSpinning(RequestInProgress::kYes);
+
+  if (!WebTestSupport::IsRunningWebTest()) {
+    if (watch_id_) {
+      geolocation->clearWatch(watch_id_);
+    }
+    watch_id_ = geolocation->WatchPosition(
+        blink::BindRepeating(&HTMLGeolocationElement::CurrentPositionCallback,
+                             WrapWeakPersistent(this)));
+  } else {
+    // In web tests, we don't have a real geolocation service.
+    // Set a dummy watch_id to simulate success.
+    watch_id_ = 1;
+  }
 }
 void HTMLGeolocationElement::CurrentPositionCallback(
     base::expected<Geoposition*, GeolocationPositionError*> position) {
@@ -164,6 +252,10 @@ void HTMLGeolocationElement::CurrentPositionCallback(
   }
   EnqueueEvent(*Event::CreateCancelableBubble(event_type_names::kLocation),
                TaskType::kUserInteraction);
+
+  if (watch_id_ != 0) {
+    StartSpinning(RequestInProgress::kNo);
+  }
 }
 
 void HTMLGeolocationElement::SpinningIconTimerFired(TimerBase*) {
@@ -175,6 +267,16 @@ void HTMLGeolocationElement::MaybeStopSpinning() {
     spinning_icon_timer_.Stop();
     UpdateAppearance();
   }
+}
+
+void HTMLGeolocationElement::StartSpinning(
+    RequestInProgress request_in_progress) {
+  if (request_in_progress == RequestInProgress::kYes) {
+    is_geolocation_request_in_progress_ = true;
+  }
+  spinning_started_time_ = base::TimeTicks::Now();
+  spinning_icon_timer_.StartOneShot(kMinimumSpinningIconTime, FROM_HERE);
+  UpdateAppearance();
 }
 
 }  // namespace blink

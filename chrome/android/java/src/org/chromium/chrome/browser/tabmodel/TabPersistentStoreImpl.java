@@ -16,7 +16,6 @@ import android.util.SparseIntArray;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.CallbackUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.StreamUtil;
@@ -1241,11 +1240,6 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
     }
 
     @Override
-    public void resumeSaveTabList() {
-        resumeSaveTabList(CallbackUtils.emptyRunnable());
-    }
-
-    @Override
     public void resumeSaveTabList(Runnable onSaveTabListRunnable) {
         boolean shouldTriggerSave =
                 !ChromeFeatureList.sTabModelInitFixes.isEnabled()
@@ -1683,13 +1677,13 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
     }
 
     @Override
-    public void cleanupStateFile(int instanceId) {
+    public void cleanupStateFile(int windowId) {
         mPersistencePolicy.cleanupInstanceState(
-                instanceId,
+                windowId,
                 (TabPersistenceFileInfo result) -> {
                     // Delete the instance state file (tab_stateX) as well.
                     deleteFileAsync(
-                            TabbedModeTabPersistencePolicy.getMetadataFileNameForIndex(instanceId));
+                            TabbedModeTabPersistencePolicy.getMetadataFileNameForIndex(windowId));
 
                     // |result| can be null if the task gets cancelled.
                     if (result == null) return;

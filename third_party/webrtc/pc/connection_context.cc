@@ -86,10 +86,21 @@ scoped_refptr<ConnectionContext> ConnectionContext::Create(
       new ConnectionContext(env, dependencies));
 }
 
+// Access to the media engine operations is constrained to the worker thread.
+// This accessor via `MediaEngineReference` is provided to help ensure that a
+// reference is held and that the call is being issued on the worker thread.
+MediaEngineInterface* ConnectionContext::MediaEngineReference::media_engine()
+    const {
+  RTC_DCHECK_RUN_ON(c_->worker_thread());
+  RTC_DCHECK(c_->media_engine_w());
+  return c_->media_engine_w();
+}
+
 ConnectionContext::ConnectionContext(
     const Environment& env,
     PeerConnectionFactoryDependencies* dependencies)
-    : network_thread_(MaybeStartNetworkThread(dependencies->network_thread,
+    : is_configured_for_media_(dependencies->media_factory != nullptr),
+      network_thread_(MaybeStartNetworkThread(dependencies->network_thread,
                                               owned_socket_factory_,
                                               owned_network_thread_)),
       worker_thread_(dependencies->worker_thread,
@@ -102,7 +113,7 @@ ConnectionContext::ConnectionContext(
       signaling_thread_(MaybeWrapThread(dependencies->signaling_thread,
                                         wraps_current_thread_)),
       media_engine_(
-          dependencies->media_factory != nullptr
+          is_configured_for_media_
               ? dependencies->media_factory->CreateMediaEngine(env,
                                                                *dependencies)
               : nullptr),
@@ -205,6 +216,11 @@ ConnectionContext::~ConnectionContext() {
 
   if (wraps_current_thread_)
     ThreadManager::Instance()->UnwrapCurrentThread();
+}
+
+MediaEngineInterface* ConnectionContext::media_engine_w() {
+  RTC_DCHECK_RUN_ON(worker_thread());
+  return media_engine_.get();
 }
 
 void ConnectionContext::AddRefMediaEngine() {

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/signin/history_sync_optin_service.h"
 
 #include "base/notreached.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/enterprise/signin/profile_management_disclaimer_service.h"
 #include "chrome/browser/enterprise/signin/profile_management_disclaimer_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
+#include "chrome/browser/ui/webui/signin/history_sync_optin_helper.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -63,9 +65,48 @@ HistorySyncOptinService::HistorySyncOptinService(Profile* profile)
       IdentityManagerFactory::GetForProfile(profile_));
 }
 
+void HistorySyncOptinService::SetDelegateForTesting(
+    std::unique_ptr<HistorySyncOptinHelper::Delegate> delegate) {
+  history_sync_optin_delegate_for_testing_ = std::move(delegate);
+}
+
 HistorySyncOptinService::~HistorySyncOptinService() = default;
 
 bool HistorySyncOptinService::StartHistorySyncOptinFlow(
+    const AccountInfo& account_info,
+    std::unique_ptr<HistorySyncOptinHelper::Delegate> delegate,
+    signin_metrics::AccessPoint access_point) {
+  bool should_start =
+      Initialize(account_info, std::move(delegate), access_point);
+  if (!should_start) {
+    return false;
+  }
+  history_sync_optin_helper_->StartHistorySyncOptinFlow();
+  return true;
+}
+
+bool HistorySyncOptinService::
+    ResumeShowHistorySyncOptinScreenFlowForManagedUser(
+        const AccountInfo& account_info,
+        std::unique_ptr<HistorySyncOptinHelper::Delegate> delegate,
+        signin_metrics::AccessPoint access_point) {
+  bool should_start =
+      Initialize(account_info, std::move(delegate), access_point);
+  CHECK(should_start);
+  history_sync_optin_helper_
+      ->ResumeShowHistorySyncOptinScreenFlowForManagedAccount(account_info);
+  return true;
+}
+
+void HistorySyncOptinService::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void HistorySyncOptinService::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+bool HistorySyncOptinService::Initialize(
     const AccountInfo& account_info,
     std::unique_ptr<HistorySyncOptinHelper::Delegate> delegate,
     signin_metrics::AccessPoint access_point) {
@@ -73,7 +114,12 @@ bool HistorySyncOptinService::StartHistorySyncOptinFlow(
     // Another flow is already in progress, abort the new flow.
     return false;
   }
-  history_sync_optin_delegate_ = std::move(delegate);
+  if (history_sync_optin_delegate_for_testing_) {
+    history_sync_optin_delegate_ =
+        std::move(history_sync_optin_delegate_for_testing_);
+  } else {
+    history_sync_optin_delegate_ = std::move(delegate);
+  }
 
   CHECK(history_sync_optin_delegate_);
   signin::IdentityManager* identity_manager =
@@ -83,7 +129,6 @@ bool HistorySyncOptinService::StartHistorySyncOptinFlow(
       history_sync_optin_delegate_.get(),
       HistorySyncOptinHelper::LaunchContext::kInBrowser, access_point);
   history_sync_optin_observation_.Observe(history_sync_optin_helper_.get());
-  history_sync_optin_helper_->StartHistorySyncOptinFlow();
   return true;
 }
 
@@ -96,10 +141,17 @@ void HistorySyncOptinService::Reset() {
   history_sync_optin_observation_.Reset();
   history_sync_optin_helper_.reset();
   history_sync_optin_delegate_.reset();
+  for (Observer& observer : observers_) {
+    observer.OnHistorySyncOptinServiceReset();
+  }
 }
 
 void HistorySyncOptinService::OnHistorySyncOptinHelperFlowFinished() {
-  Reset();
+  // As the history_sync_optin_helper_ finishes the flow, it will be destroyed
+  // by this call. Post a task to avoid re-entrant calls.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&HistorySyncOptinService::Reset,
+                                weak_ptr_factory_.GetWeakPtr()));
 }
 
 void HistorySyncOptinService::OnPrimaryAccountChanged(

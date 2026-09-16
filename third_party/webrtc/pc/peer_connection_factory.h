@@ -141,7 +141,9 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetEqFactory> neteq_factory_;
   std::unique_ptr<Metronome> decode_metronome_ RTC_GUARDED_BY(worker_thread());
   std::unique_ptr<Metronome> encode_metronome_ RTC_GUARDED_BY(worker_thread());
-  bool aec_dump_active_ RTC_GUARDED_BY(worker_thread()) = false;
+  // While AEC dump is ongoing, we retain a reference to the media engine.
+  std::unique_ptr<ConnectionContext::MediaEngineReference> media_engine_ref_
+      RTC_GUARDED_BY(worker_thread());
 };
 
 }  // namespace webrtc

@@ -14,7 +14,6 @@
 #include <memory>
 #include <vector>
 
-#include "absl/functional/any_invocable.h"
 #include "api/sequence_checker.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/units/time_delta.h"
@@ -27,7 +26,8 @@
 #include "rtc_base/thread_annotations.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "video/timing/simulator/test_utils.h"
+#include "video/timing/simulator/test/matchers.h"
+#include "video/timing/simulator/test/simulated_time_test_fixture.h"
 
 namespace webrtc::video_timing_simulator {
 namespace {

@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import collections
-import enum
 import functools
 import logging
 import pathlib
@@ -11,7 +10,6 @@ import pickle
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 
@@ -20,6 +18,8 @@ from graph import CompileStatus
 from graph import Header
 from graph import IncludeDir
 from graph import calculate_rdeps
+from platforms import Cpu
+from platforms import Os
 import modulemap
 
 _FRAMEWORK = ' (framework directory)'
@@ -55,26 +55,6 @@ def _maybe_cache(fn):
   return new_fn
 
 
-class Os(str, enum.Enum):
-  Android = 'android'
-  Fuchsia = 'fuchsia'
-  Ios = 'ios'
-  Linux = 'linux'
-  Mac = 'mac'
-  Win = 'win'
-
-  @property
-  def is_apple(self):
-    return self == Os.Mac or self == Os.Ios
-
-
-class Cpu(str, enum.Enum):
-  x86 = 'x86'
-  x64 = 'x64'
-  arm = 'arm'
-  arm64 = 'arm64'
-
-
 class Compiler:
 
   def __init__(self, *, source_root: pathlib.Path, gn_out: pathlib.Path,
@@ -87,7 +67,8 @@ class Compiler:
 
     self.os = os
     self.cpu = cpu
-    self.sysroot_dir = IncludeDir.SysrootModule if self.os.is_apple else IncludeDir.Sysroot
+    self.sysroot_dir = IncludeDir.SysrootModule if self.os.is_apple else \
+      IncludeDir.Sysroot
     self.sysroot = None
 
   # __eq__ and __hash__ are required for functools.cache to work correctly.
@@ -98,16 +79,18 @@ class Compiler:
     return hash(self.gn_out)
 
   def _parse_depfile(self, content: str) -> list[pathlib.Path]:
+    deps = content.replace('\\\n', '').split(': ', 1)[1]
+    deps = deps.replace('\\ ', ':SPACE:')
     files = []
     # The file will look like:
-    # /dev/null: <blah>.cc \
-    # <main include> \
-    # <other includes> \
-    # So we need [1:] to ensure it doesn't have a dependency on itself.
-    for line in content.rstrip().split('\n')[1:]:
+    # /dev/null: foo.h bar.cc \
+    # baz.h \
+    # <other includes>
+    for dep in deps.split():
       # Remove both the trailing newlines and any escapes in the file names.
-      p = pathlib.Path(self.gn_out, line.replace('\\', '').strip(' '))
-      files.append(p.resolve())
+      p = pathlib.Path(self.gn_out, dep.replace(':SPACE:', ' ')).resolve()
+      if p.suffix != '.txt' and p.suffix != '.cc':
+        files.append(p)
     return files
 
   def _clang_arg(self, arg: str) -> str:
@@ -152,8 +135,8 @@ class Compiler:
         text=True,
         cwd=self.source_root,
         stdout=subprocess.PIPE,
-        # Strip the -o /dev/null with [:-2]
-        # Windows requires it to be at the end, otherwise it writes to {output}.obj.
+        # Strip the -o /dev/null with [:-2]. Windows requires it to be at the
+        # end, otherwise it writes to {output}.obj.
     ).stdout.rstrip().replace('\\', '').split(' ')[:-2]
 
   @functools.cached_property
@@ -312,7 +295,8 @@ class Compiler:
 
       if (kind, rel) not in graph:
         # If we're seeing it for the first time here, but it's from another
-        # include dir, it must not be in the module map, so it should be treated as textual.
+        # include dir, it must not be in the module map, so it should be treated
+        # as textual.
         graph[(kind, rel)] = Header(include_dir=kind,
                                     rel=rel,
                                     textual=kind != IncludeDir.Sysroot)
@@ -331,12 +315,14 @@ class Compiler:
               textual=to_kind != IncludeDir.Sysroot,
           )
           graph[(to_kind, to_rel)] = dep
-          # Skip compiling textual headers - we'll calculate their dependencies after the fact.
+          # Skip compiling textual headers - we'll calculate their dependencies
+          # after the fact.
           if not dep.textual:
             visit(to_rel)
         state.deps.append(dep)
 
-      state.compile_status = CompileStatus.Success if ps.returncode == 0 else CompileStatus.Failure
+      state.compile_status = CompileStatus.Success if ps.returncode == 0 else \
+        CompileStatus.Failure
       if ps.returncode == 0:
         logging.debug('Compiled %s', state.pretty_name)
       elif any([
@@ -383,8 +369,8 @@ class Compiler:
         intersection = set.intersection(
             *[set(rdep.deps) for rdep in rdeps[header]])
         # For libcxx/foo.h -> builtin/foo.h -> sysroot/foo.h
-        # Despite the fact that builtin/foo.h should appear all the time, we need
-        # to filter it out for sysroot/foo.h.
+        # Despite the fact that builtin/foo.h should appear all the time, we
+        # need to filter it out for sysroot/foo.h.
         header.deps = [
             dep for dep in intersection
             if dep.rel != header.rel or dep.include_dir > header.include_dir

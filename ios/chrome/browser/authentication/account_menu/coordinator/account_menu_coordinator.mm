@@ -361,7 +361,8 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)mediatorWantsToBeDismissed:(AccountMenuMediator*)mediator
-                        withResult:(SigninCoordinatorResult)signinResult
+             withCancelationReason:
+                 (signin_ui::CancelationReason)cancelationReason
                     signedIdentity:(id<SystemIdentity>)signedIdentity
                    userTappedClose:(BOOL)userTappedClose {
   CHECK_EQ(mediator, _mediator);
@@ -645,7 +646,8 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 #pragma mark - SigninReauthCoordinatorDelegate
 
-- (void)reauthFinishedWithResult:(ReauthResult)result gaiaID:(GaiaId*)gaiaID {
+- (void)reauthFinishedWithResult:(ReauthResult)result
+                          gaiaID:(const GaiaId*)gaiaID {
   // We expect the user reauthentified in the current account, so there is
   // nothing to do in this callback.
   [self stopReauthCoordinator];

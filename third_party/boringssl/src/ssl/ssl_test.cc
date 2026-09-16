@@ -10932,7 +10932,8 @@ TEST(SSLTest, ParseClientHello) {
         // record_size_limit
         0x00, 0x1c, 0x00, 0x02, 0x40, 0x01};
 
-    auto in = dtls ? Span(kClientHelloDTLS) : Span(kClientHelloTLS);
+    auto in = dtls ? Span<const uint8_t>(kClientHelloDTLS)
+                   : Span<const uint8_t>(kClientHelloTLS);
     SSL_CLIENT_HELLO client_hello;
     ASSERT_TRUE(
         SSL_parse_client_hello(ssl.get(), &client_hello, in.data(), in.size()));
