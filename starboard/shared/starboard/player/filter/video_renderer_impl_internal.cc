@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -35,6 +36,24 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
+
+// Interval at which the progress of a stream change is polled.
+const int64_t kStreamChangeCheckInterval = 5'000;  // 5ms
+
+bool Equal(const SbMediaMasteringMetadata& lhs,
+           const SbMediaMasteringMetadata& rhs) {
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+}
+
+// Whether |color_metadata| describes the default, non HDR color space.
+bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
+         color_metadata.transfer == kSbMediaTransferIdBt709 &&
+         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
+         color_metadata.range == kSbMediaRangeIdLimited &&
+         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
+}
 
 }  // namespace
 
@@ -151,6 +170,17 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
 
   need_more_input_.store(false);
 
+  if (changing_stream_.load()) {
+    stream_change_input_buffers_.insert(stream_change_input_buffers_.end(),
+                                        input_buffers.begin(),
+                                        input_buffers.end());
+    return;
+  }
+
+  if (TryToStartStreamChange(input_buffers)) {
+    return;
+  }
+
   auto write_to_decoder = [&](const InputBuffers& buffers) {
     input_buffers_sent_.fetch_add(static_cast<int32_t>(buffers.size()));
     decoder_->WriteInputBuffers(buffers);
@@ -250,6 +280,10 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
   pending_input_buffers_.clear();
   pending_end_of_stream_ = false;
+  changing_stream_.store(false);
+  stream_change_drained_.store(false);
+  stream_change_input_buffers_.clear();
+  color_metadata_ = std::nullopt;
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
   if (preroll_timeout != std::numeric_limits<int64_t>::max()) {
@@ -298,7 +332,8 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
       number_of_frames_.load() <
           static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
       !end_of_stream_written_.load() && need_more_input_.load() &&
-      pending_input_buffers_.empty() && !pending_end_of_stream_;
+      pending_input_buffers_.empty() && !pending_end_of_stream_ &&
+      !changing_stream_.load();
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   if (can_accept_more_data) {
     last_can_accept_more_data = CurrentMonotonicTime();
@@ -356,6 +391,14 @@ void VideoRendererImpl::OnDecoderStatus(
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     last_output_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
+    if (changing_stream_.load() && frame->is_end_of_stream()) {
+      // The decoder finished draining the outgoing stream.  This end of stream
+      // only terminates that stream, so it is consumed here instead of being
+      // reported as the end of the playback.
+      stream_change_drained_.store(true);
+      return;
+    }
 
     SB_DCHECK(first_input_written_);
 
@@ -519,6 +562,78 @@ void VideoRendererImpl::WritePendingInputs() {
     // send the end-of-stream signal.
     pending_end_of_stream_ = false;
     WriteEndOfStream();
+  }
+}
+
+bool VideoRendererImpl::TryToStartStreamChange(
+    const InputBuffers& input_buffers) {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(!changing_stream_.load());
+
+  const auto& stream_info = input_buffers.front()->video_stream_info();
+  bool is_hdr = !IsIdentity(stream_info.color_metadata);
+
+  if (!color_metadata_.has_value()) {
+    // This is the first stream of the playback, the decoder configures itself
+    // for it.  Record it as the baseline to compare the next ones against.
+    color_metadata_ = stream_info.color_metadata;
+    return false;
+  }
+
+  bool was_hdr = !IsIdentity(*color_metadata_);
+  color_metadata_ = stream_info.color_metadata;
+
+  // Only a transition between HDR and SDR requires a new decoder for now.
+  if (was_hdr == is_hdr) {
+    return false;
+  }
+  if (!decoder_->CanChangeStream()) {
+    return false;
+  }
+
+  SB_LOG(INFO) << "Video stream changed at " << input_buffers.front()->timestamp()
+               << ", draining " << number_of_frames_.load() << " frames.";
+
+  changing_stream_.store(true);
+  stream_change_drained_.store(false);
+  stream_change_input_buffers_ = input_buffers;
+  decoder_->PrepareStreamChange();
+  Schedule(std::bind(&VideoRendererImpl::CheckStreamChange, this),
+           kStreamChangeCheckInterval);
+  return true;
+}
+
+void VideoRendererImpl::CheckStreamChange() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!changing_stream_.load()) {
+    return;
+  }
+
+  // The outgoing stream is fully displayed once the decoder has drained and
+  // the frames it produced have all been rendered or dropped.  This waits for
+  // as long as the outgoing stream has content left to play.
+  if (!stream_change_drained_.load() || number_of_frames_.load() != 0) {
+    Schedule(std::bind(&VideoRendererImpl::CheckStreamChange, this),
+             kStreamChangeCheckInterval);
+    return;
+  }
+
+  FinishStreamChange();
+}
+
+void VideoRendererImpl::FinishStreamChange() {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(changing_stream_.load());
+
+  decoder_->CommitStreamChange();
+
+  changing_stream_.store(false);
+  stream_change_drained_.store(false);
+
+  InputBuffers input_buffers = std::move(stream_change_input_buffers_);
+  stream_change_input_buffers_.clear();
+  if (!input_buffers.empty()) {
+    WriteSamples(input_buffers);
   }
 }
 
