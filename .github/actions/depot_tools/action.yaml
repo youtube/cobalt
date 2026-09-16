@@ -92,11 +92,7 @@ runs:
         PLATFORM: ${{ matrix.platform }}
       run: |
         if ! grep -q "target_os" .gclient; then
-<<<<<<< HEAD
-          if [[ "${PLATFORM}" == *"android"* ]] || [[ "${PLATFORM}" == *"aosp"* ]]; then
-=======
           if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
->>>>>>> f38c292aad3 (ci: Move the aosp evergreen build under evergreen-arm-softfp (#12707))
             echo "target_os=['android']" >> .gclient
           elif [[ "${PLATFORM}" == *"tvos"* ]]; then
             echo "target_os=['ios']" >> .gclient
