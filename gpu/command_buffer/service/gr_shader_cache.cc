@@ -227,8 +227,7 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
 #if BUILDFLAG(IS_COBALT)
   // In Cobalt, we bypass this restriction and allow caching unless
   // the process explicitly specifies the 'incognito' flag.
-  if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0 &&
-      base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
     return;
   }
 #else
