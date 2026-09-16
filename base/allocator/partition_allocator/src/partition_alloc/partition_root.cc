@@ -1049,6 +1049,10 @@ void PartitionRoot::Init(PartitionOptions opts) {
     scheduler_loop_quarantine_for_advanced_memory_safety_checks.Configure(
         scheduler_loop_quarantine_root,
         opts.scheduler_loop_quarantine_for_advanced_memory_safety_checks_config);
+#if BUILDFLAG(IS_COBALT)
+    settings.scheduler_loop_quarantine_global_config =
+        opts.scheduler_loop_quarantine_global_config;
+#endif  // BUILDFLAG(IS_COBALT)
     settings.scheduler_loop_quarantine_thread_local_config =
         opts.scheduler_loop_quarantine_thread_local_config;
 
