@@ -266,6 +266,53 @@ def remove_duplicate_sb_args(
     return _merge_args(cobalt_json_args, override_args)
 
 
+def _get_container_devtools_host(
+    device_id: Optional[str], device_ip: Optional[str]
+) -> str:
+    """Returns the address on the device that exposes Cobalt's DevTools port.
+
+    Cobalt runs in a Dobby container with its own network namespace, so the
+    device's own 127.0.0.1 does NOT serve port 9222. The container sits behind
+    a NAT on the dobby0 bridge (typically 100.64.11.2, gateway 100.64.11.1).
+    Falls back to "localhost" for non-containerized (root.mode == "Local")
+    setups.
+    """
+    # Preferred: the DNAT rule Dobby installs for the forwarded port.
+    probe = (
+        "iptables -t nat -L -n 2>/dev/null | grep -m1 'dpt:9222' "
+        "| grep -oE 'to:[0-9.]+:9222' | head -n1 | cut -d: -f2"
+    )
+    try:
+        out = run_remote_command(probe, device_id, device_ip, check=False,
+                                 verbose=False).strip()
+        # Ignore a loopback DNAT target; we want the container address.
+        if out and out.count(".") == 3 and not out.startswith("127."):
+            return out
+    except Exception:
+        pass
+
+    # Fallback: read the container's own source address from its netns.
+    probe2 = (
+        "PID=$(DobbyTool info YouTube 2>/dev/null | sed -n '/\"pids\"/,/]/p' "
+        "| grep -oE '[0-9]{2,}' | tail -n1); "
+        "[ -n \"$PID\" ] && awk 'NR>1{print $2}' /proc/$PID/net/tcp "
+        "| cut -d: -f1 | grep -v '^0100007F$' | grep -v '^00000000$' | head -n1"
+    )
+    try:
+        hexip = run_remote_command(probe2, device_id, device_ip, check=False,
+                                   verbose=False).strip()
+        if len(hexip) == 8:
+            octets = [int(hexip[i:i + 2], 16) for i in (6, 4, 2, 0)]
+            return ".".join(str(o) for o in octets)
+    except Exception:
+        pass
+
+    print("[WARNING] Could not determine the Cobalt container IP; falling back "
+          "to localhost. If DevTools is unreachable, confirm root.mode and that "
+          "--remote-debugging-address=0.0.0.0 was applied.")
+    return "localhost"
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -278,6 +325,7 @@ def launch_on_device(
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
     remote_cmds = [f"cd {remote_dir}"]
+    setup_devtools_forwarding = False
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]
@@ -321,13 +369,31 @@ def launch_on_device(
                 
                 script_args = []
                 if devtools:
+                    # Cobalt runs inside a Dobby container (root.mode ==
+                    # "Container"), which has its own network namespace.
+                    # --remote-debugging-address=0.0.0.0 is REQUIRED: without it
+                    # Chrome binds only to the container's own 127.0.0.1 and the
+                    # port is unreachable from the host. --remote-allow-origins=*
+                    # lets the DevTools frontend attach over the forwarded port.
                     script_args.append("--remote-debugging-port=9222")
+                    script_args.append("--remote-debugging-address=0.0.0.0")
+                    script_args.append("--remote-allow-origins=*")
 
                 user_override_args = param if param else []
 
                 config["sbmainargs"] = remove_duplicate_sb_args(
                     cobalt_json_args, script_args, user_override_args
                 )
+
+                if devtools:
+                    # Keep the DIAL/production launch topology: containerized.
+                    # Port 9222 is reached via the container's NAT address on the
+                    # dobby0 bridge (see _get_container_devtools_host below).
+                    root_cfg = config.setdefault("root", {})
+                    if root_cfg.get("mode") != "Container":
+                        print(f"[INFO] Pinning root.mode "
+                              f"'{root_cfg.get('mode')}' -> 'Container'.")
+                        root_cfg["mode"] = "Container"
 
                 # Set configuration
                 rpc_set_config = json.dumps({
@@ -362,23 +428,7 @@ def launch_on_device(
             remote_cmds.append(f"curl -X POST http://127.0.0.1:9998/jsonrpc -d '{rpc_deeplink_json}'")
 
         if devtools:
-            print("[INFO] Setting up DevTools port forwarding...")
-            if device_id:
-                run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
-            elif device_ip:
-                ssh_tunnel_cmd = [
-                    "ssh",
-                    "-q",
-                    "-fN",
-                    "-L",
-                    "9222:localhost:9222",
-                    f"root@{device_ip}",
-                ]
-                try:
-                    subprocess.Popen(ssh_tunnel_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                except Exception as e:
-                    print(f"[WARNING] Failed to start SSH tunnel: {e}")
-            print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
+            setup_devtools_forwarding = True
 
 
     full_cmd = " && ".join(remote_cmds)
@@ -387,6 +437,35 @@ def launch_on_device(
     if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
         print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
         print("[WARNING] Please check the physical device state. It might be in setup/Out-of-Box Experience (OOBE) mode or not connected to a network.")
+
+    # Forwarding must run *after* activation: the Dobby container (and its NAT
+    # address) does not exist until the plugin is actually started.
+    if setup_devtools_forwarding:
+        print("[INFO] Setting up DevTools port forwarding...")
+        # Give Cobalt a moment to bind the port inside the container.
+        time.sleep(5)
+        if device_id:
+            run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
+        elif device_ip:
+            devtools_host = _get_container_devtools_host(device_id, device_ip)
+            print(f"[INFO] Forwarding localhost:9222 -> {devtools_host}:9222 on the device.")
+            # Drop any stale tunnel holding port 9222 locally.
+            run_command(["pkill", "-f", "9222:.*:9222"], check=False)
+            ssh_tunnel_cmd = [
+                "ssh",
+                "-q",
+                "-fN",
+                "-o", "ExitOnForwardFailure=yes",
+                "-o", "ServerAliveInterval=30",
+                "-L",
+                f"9222:{devtools_host}:9222",
+                f"root@{device_ip}",
+            ]
+            try:
+                subprocess.Popen(ssh_tunnel_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e:
+                print(f"[WARNING] Failed to start SSH tunnel: {e}")
+        print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
 
 
 def parse_args() -> argparse.Namespace:
@@ -744,7 +823,9 @@ def main() -> None:
         run_remote_command("systemctl restart wpeframework", device_id, device_ip, sleep_time=5)
         print("=== Cleaning up DevTools ports on host ===")
         # Always try to kill SSH tunnel on host
-        run_command(["pkill", "-f", "9222:localhost:9222"], check=False)
+        # Matches both the legacy "9222:localhost:9222" form and the
+        # container-targeted "9222:<container-ip>:9222" form.
+        run_command(["pkill", "-f", "9222:.*:9222"], check=False)
         # Try to remove ADB forward if we have a device_id
         if device_id:
             run_command(["adb", "-s", device_id, "forward", "--remove", "tcp:9222"], check=False)
