@@ -53,10 +53,18 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     support_type_ = type;
   }
 
+  // Controls the verdict returned by CanChangeType(), which gates
+  // SourceBuffer.changeType() via ChunkDemuxer::CanChangeType().
+  void SetCanChangeType(bool can_change_type) {
+    base::AutoLock lock(lock_);
+    can_change_type_ = can_change_type;
+  }
+
   void ClearIntercepted() {
     base::AutoLock lock(lock_);
     intercepted_mimes_.clear();
     intercepted_key_systems_.clear();
+    intercepted_change_type_mimes_.clear();
   }
 
   std::vector<std::string> GetInterceptedMimes() const {
@@ -67,6 +75,13 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   std::vector<std::string> GetInterceptedKeySystems() const {
     base::AutoLock lock(lock_);
     return intercepted_key_systems_;
+  }
+
+  // Returns the MIME types passed as |new_mime| to CanChangeType(), i.e. the
+  // targets of SourceBuffer.changeType() calls.
+  std::vector<std::string> GetInterceptedChangeTypeMimes() const {
+    base::AutoLock lock(lock_);
+    return intercepted_change_type_mimes_;
   }
 
   SbMediaSupportType CanPlayMimeAndKeySystem(
@@ -86,8 +101,12 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   }
 
   bool CanChangeType(const char* /*current_mime*/,
-                     const char* /*new_mime*/) const override {
-    return true;
+                     const char* new_mime) const override {
+    base::AutoLock lock(lock_);
+    if (new_mime) {
+      intercepted_change_type_mimes_.push_back(new_mime);
+    }
+    return can_change_type_;
   }
 
   int GetAudioOutputCount() const override { return 1; }
@@ -120,8 +139,10 @@ class TestSbMediaInterface : public media::SbMediaInterface {
  private:
   mutable base::Lock lock_;
   SbMediaSupportType support_type_ = kSbMediaSupportTypeNotSupported;
+  bool can_change_type_ = true;
   mutable std::vector<std::string> intercepted_mimes_;
   mutable std::vector<std::string> intercepted_key_systems_;
+  mutable std::vector<std::string> intercepted_change_type_mimes_;
 };
 
 }  // namespace
@@ -420,6 +441,11 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       test_media_interface_.GetInterceptedMimes();
   EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
   EXPECT_TRUE(base::Contains(intercepted, kChangedMime));
+
+  // changeType() must also forward the unmodified MIME string to the Starboard
+  // codec transition check, via ChunkDemuxer::CanChangeType().
+  EXPECT_TRUE(base::Contains(
+      test_media_interface_.GetInterceptedChangeTypeMimes(), kChangedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -456,6 +482,44 @@ IN_PROC_BROWSER_TEST_F(
       test_media_interface_.GetInterceptedMimes();
   EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
   EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
+}
+
+// Unlike the test above, which is rejected by the isTypeSupported() probe, this
+// verifies the second gate: the target MIME is supported, but the Starboard
+// codec transition check rejects the switch.
+IN_PROC_BROWSER_TEST_F(
+    CustomMimeTypeBrowserTest,
+    SourceBufferChangeType_CodecTransitionRejectedThrowsNotSupportedError) {
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetCanChangeType(false);
+
+  const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
+  const char kChangedMime[] =
+      "video/webm; codecs=\"vp9\"; width=3840; height=2160; tunnelmode=true";
+
+  std::string script = base::StringPrintf(
+      R"(
+        (async () => {
+          const ms = new MediaSource();
+          const video = document.createElement('video');
+          video.src = URL.createObjectURL(ms);
+          await new Promise(resolve => ms.addEventListener('sourceopen', resolve, {once: true}));
+          const sb = ms.addSourceBuffer('%s');
+          try {
+            sb.changeType('%s');
+            return false;
+          } catch (e) {
+            return e.name === 'NotSupportedError';
+          }
+        })()
+      )",
+      kInitialMime, kChangedMime);
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
+
+  // The raw MIME must still reach the codec transition check unmodified.
+  EXPECT_TRUE(base::Contains(
+      test_media_interface_.GetInterceptedChangeTypeMimes(), kChangedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
