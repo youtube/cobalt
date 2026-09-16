@@ -13,7 +13,6 @@ component("sync") {
     "//chrome/browser",
     "//chrome/browser/ui",
     "//chrome/test:test_support",
-    "//cobalt/browser",
     "//components/os_crypt/async/browser:dpapi_key_provider",
     "//components/os_crypt/async/browser:freedesktop_secret_key_provider",
     "//components/os_crypt/async/browser:keychain_key_provider",

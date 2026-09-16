@@ -178,7 +178,8 @@ GrDrawOpAtlas::ErrorCode GrAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph,
     }
     SkASSERT(glyph != nullptr);
 
-    MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyph->fMaskFormat);
+    MaskFormat glyphFormat = Glyph::FormatFromSkGlyph(skGlyph.maskFormat());
+    MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyphFormat);
     int bytesPerPixel = MaskFormatBytesPerPixel(expectedMaskFormat);
 
     int padding;
@@ -298,7 +299,7 @@ std::tuple<bool, int> GlyphVector::regenerateAtlasForGanesh(
 
     uint64_t currentAtlasGen = atlasManager->atlasGeneration(maskFormat);
 
-    this->packedGlyphIDToGlyph(target->strikeCache(), maskFormat);
+    this->packedGlyphIDToGlyph(target->strikeCache());
 
     if (fAtlasGeneration != currentAtlasGen) {
         // Calculate the texture coordinates for the vertexes during first use (fAtlasGeneration
