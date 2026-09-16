@@ -16,11 +16,7 @@ import logging
 import os
 import re
 import sys
-<<<<<<< HEAD
-from typing import TypedDict
-=======
 from typing import Optional, TypedDict
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 import xml.dom.minidom
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
