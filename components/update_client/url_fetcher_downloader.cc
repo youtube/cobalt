@@ -82,8 +82,7 @@ UrlFetcherDownloader::UrlFetcherDownloader(
     scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
     const std::string& prod_id)
     : CrxDownloader(std::move(successor)),
-<<<<<<< HEAD
-      network_fetcher_factory_(network_fetcher_factory),
+network_fetcher_factory_(network_fetcher_factory),
 #if BUILDFLAG(IS_WIN)
       prod_id_(base::UTF8ToWide(prod_id))
 #else   // BUILDFLAG(IS_WIN)
@@ -91,11 +90,7 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 #endif  // BUILDFLAG(IS_WIN)
 {
 }
-=======
-      network_fetcher_factory_(network_fetcher_factory) {}
 #endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
 
 

@@ -36,14 +36,9 @@ class UrlFetcherDownloader : public CrxDownloader {
 #else
   UrlFetcherDownloader(
       scoped_refptr<CrxDownloader> successor,
-<<<<<<< HEAD
-      scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
+scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
       const std::string& prod_id);
-=======
-      scoped_refptr<NetworkFetcherFactory> network_fetcher_factory);
-#endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  UrlFetcherDownloader(const UrlFetcherDownloader&) = delete;
+#endif  UrlFetcherDownloader(const UrlFetcherDownloader&) = delete;
   UrlFetcherDownloader& operator=(const UrlFetcherDownloader&) = delete;
 
  private:

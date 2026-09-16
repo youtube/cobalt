@@ -402,8 +402,6 @@ class Component {
   // The error reported by the update checker.
   int update_check_error_ = 0;
 
-<<<<<<< HEAD
-=======
 #if defined(IN_MEMORY_UPDATES)
   // TODO(b/b/444006168): use std::vector<uint8_t>
   // To hold the CRX package in memory. The component owns this string
@@ -417,10 +415,7 @@ class Component {
   base::FilePath installation_dir_;
 #else
   base::FilePath payload_path_;
-#endif
-
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // The byte counts below are valid for the current url being fetched.
+#endif  // The byte counts below are valid for the current url being fetched.
   // |total_bytes| is equal to the size of the CRX file and |downloaded_bytes|
   // represents how much has been downloaded up to that point. A value of -1
   // means that the byte count is unknown.

@@ -18,8 +18,6 @@
 
 namespace blink {
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 namespace {
 const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
@@ -40,10 +38,7 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 void DecommitFreeableMemory() {
   CHECK(IsMainThread());
   ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-}
-
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-// static
+}// static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;
 
 // static

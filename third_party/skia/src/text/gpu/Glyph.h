@@ -34,13 +34,8 @@ public:
         SkUNREACHABLE;
     }
 
-<<<<<<< HEAD
-    explicit Glyph(SkPackedGlyphID packedGlyphID) : fPackedID(packedGlyphID) {}
-=======
-    Glyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format)
+Glyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format)
             : fPackedID(packedGlyphID), fMaskFormat(format) {}
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
     const SkPackedGlyphID       fPackedID;
     const skgpu::MaskFormat     fMaskFormat;
     skgpu::AtlasLocator         fAtlasLocator;

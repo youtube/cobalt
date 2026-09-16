@@ -2,12 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Helpers to parse content of xml files."""
-<<<<<<< HEAD
-=======
-
-import typing
-
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 from collections.abc import Iterator
 import html
 from xml.dom import minidom
@@ -17,12 +11,7 @@ from xml.dom import minidom
 # The implementation of Node type is possible with extra runtime checks, however
 # using a more specific type makes the intent clearer and avoids potential
 # warnings about attributes like `tagName` not being present on all Node types.
-<<<<<<< HEAD
 DomTree = minidom.Element | minidom.Document
-=======
-DomTree = typing.Union[minidom.Element, minidom.Document]
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
 _ELEMENT_NODE = minidom.Node.ELEMENT_NODE
 
 

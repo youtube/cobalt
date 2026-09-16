@@ -608,11 +608,9 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-=======
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -629,7 +627,4 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltDynamicMojoPipeSizing,
                    "media_size",
                    512 * 1024);
-#endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}  // namespace network::features
+#endif  // BUILDFLAG(IS_COBALT)}  // namespace network::features

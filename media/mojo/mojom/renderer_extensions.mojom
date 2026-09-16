@@ -41,8 +41,6 @@ struct FramePoolInitializationParameters {
 };
 
 [EnableIf=is_win]
-<<<<<<< HEAD
-=======
 // Extension of the mojo:RendererClient communication layer for Media
 // Foundation based Renderer.
 // This allows the MF_CDM utility process to call the blink Renderer process
@@ -91,9 +89,7 @@ interface StarboardRendererClientExtension {
   RequestOverlayInfo();
 };
 
-[EnableIf=is_win]
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-// Extension of the mojo::Renderer communication layer for MediaFoundation-based
+[EnableIf=is_win]// Extension of the mojo::Renderer communication layer for MediaFoundation-based
 // Renderer.
 // This allows the MediaFoundationRendererClient in the render process to call
 // into the MediaFoundationRenderer in the MediaFoundationService (utility/LPAC)

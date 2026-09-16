@@ -142,15 +142,11 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   void EndUnpacking(UnpackerError error, int extended_error = 0);
 
   const std::string app_id_;
-<<<<<<< HEAD
-  const base::FilePath::StringType prod_id_;
-=======
+const base::FilePath::StringType prod_id_;
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult result_;
 #endif
-#if !defined(IN_MEMORY_UPDATES)
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  base::FilePath path_;
+#if !defined(IN_MEMORY_UPDATES)  base::FilePath path_;
 #endif
   std::unique_ptr<Unzipper> unzipper_;
   base::OnceCallback<void(const Result& result)> callback_;

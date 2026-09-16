@@ -440,17 +440,8 @@ private:
     SkMemoryStream* onDuplicate() const override;
     SkMemoryStream* onFork() const override;
 
-<<<<<<< HEAD
-    sk_sp<const SkData> fData;
+sk_sp<const SkData> fData;
     size_t fOffset;
-=======
-    /** Serves as the key in the cache when the mmap cache is enabled */
-    const SkString  fPath;
-
-    sk_sp<SkData>   fData;
-    size_t          fOffset;
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
     using INHERITED = SkStreamMemory;
 };
 

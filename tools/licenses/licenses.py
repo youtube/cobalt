@@ -351,15 +351,14 @@ SPECIAL_CASES = {
         "License": "Apache 2.0",
         "License File": ["//third_party/dawn/third_party/khronos/LICENSE"],
     },
-<<<<<<< HEAD
-    # This entry is for the integration tests.
+# This entry is for the integration tests.
     os.path.join('third_party', 'sample3'): {
         "Name": "Sample 3",
         "URL": "https://sample3",
         "Shipped": "yes",
         "License": "Apache 2.0",
         "License File": ["//third_party/sample3/the_license"],
-=======
+    },
     os.path.join('starboard', 'contrib', 'rdk', 'src', 'third_party', 'starboard'): {
         "Name": "RDK",
         "URL": "https://github.com/rdkcentral/rdk",
@@ -382,9 +381,7 @@ SPECIAL_CASES = {
         "Name": "musl",
         "URL": "https://musl.libc.org/",
         "License": "MIT",
-        "License File": ["/third_party/musl/COPYRIGHT"],
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    },
+        "License File": ["/third_party/musl/COPYRIGHT"],    },
 }
 
 # These buildtools/third_party directories only contain

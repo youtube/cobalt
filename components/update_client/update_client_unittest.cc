@@ -185,14 +185,8 @@ class MockCrxDownloaderFactory : public CrxDownloaderFactory {
       scoped_refptr<Configurator> config) const override {
 #else
   scoped_refptr<CrxDownloader> MakeCrxDownloader(
-<<<<<<< HEAD
-      const std::string& /*prod_id*/,
-      bool /*background_download_enabled*/) const override {
-=======
-      bool /* background_download_enabled */) const override {
-#endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    return crx_downloader_;
+bool /* background_download_enabled */) const override {
+#endif    return crx_downloader_;
   }
 
   scoped_refptr<CrxDownloader> crx_downloader_;

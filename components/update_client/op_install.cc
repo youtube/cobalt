@@ -246,14 +246,10 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
             const std::string& id,
-<<<<<<< HEAD
-            const std::string& prod_id,
-=======
+const std::string& prod_id,
 #if BUILDFLAG(IS_STARBOARD)
             const OperationResult& crx_operation_result,
-#else
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-            const base::FilePath& crx_file,
+#else            const base::FilePath& crx_file,
 #endif
             std::unique_ptr<Unzipper> unzipper,
             const std::vector<uint8_t>& pk_hash,
@@ -361,13 +357,8 @@ base::OnceClosure InstallOperation(
                              std::move(installer_result_callback),
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
-<<<<<<< HEAD
-          id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
-=======
-          id, crx_file, std::move(unzipper), pk_hash, crx_format));
-#endif
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  return base::DoNothing();
+id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
+#endif  return base::DoNothing();
 }
 
 }  // namespace update_client
