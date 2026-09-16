@@ -103,6 +103,43 @@ class SymbolizerRunner:
       binary: Optional[str] = None) -> Optional[List[Tuple[str, str]]]:
     """Resolves an offset to symbol frames.
 
+    Input Protocol:
+      The LLVM symbolizer (llvm-symbolizer) accepts interactive queries on stdin
+      in two primary formats:
+      1. Default binary mode: If a default binary was specified when launching
+         the symbolizer (via --obj=<default_library>), passing just the
+         address/offset suffices:
+           Format: "<hex_or_dec_address>\n"
+           Example: "0x12345\n"
+      2. Multi-binary / module-override mode: When querying an explicit binary
+         or overriding the default object, llvm-symbolizer accepts the binary
+         path enclosed in quotes followed by the address/offset:
+           Format: '"<binary_path>" <hex_or_dec_address>\n'
+           Example: '"/lib/x86_64-linux-gnu/libc.so.6" 0x12345\n'
+           Example: '"out/libcobalt.so" 0x5a120\n'
+
+    Output Protocol:
+      For each input query, llvm-symbolizer responds on stdout with one or more
+      pairs of lines followed by an empty newline ('\n') marking the end of the
+      records for that query:
+        Line 2N:   Function name (demangled, e.g. "CobaltMain" or "??" if
+                   unresolved).
+        Line 2N+1: Source location (e.g. "cobalt/browser/main.cc:123:4" or
+                   "??:0:0").
+      When inlining is enabled (--inlines), multiple pairs are returned
+      representing the inline expansion chain from the innermost function to
+      the concrete caller:
+        Example stdout for inlined frame:
+          inlined_child_func()
+          cobalt/browser/helper.h:45:10
+          outer_caller_func()
+          cobalt/browser/main.cc:120:5
+          \n
+      Example stdout for an unresolvable address:
+          ??
+          ??:0:0
+          \n
+
     Args:
       offset: Numeric offset or hex/decimal string.
       binary: Path to the binary containing the offset. If omitted, uses
@@ -129,9 +166,12 @@ class SymbolizerRunner:
 
     try:
       self._ensure_proc()
+      # Construct query according to llvm-symbolizer stdin protocol:
       if binary:
+        # Module-override format: '"<path>" <offset>\n'
         query = f'"{binary}" {hex(offset_int)}\n'
       elif self._default_library:
+        # Default module format: '<offset>\n'
         query = f'{hex(offset_int)}\n'
       else:
         return None
@@ -139,6 +179,8 @@ class SymbolizerRunner:
       self._proc.stdin.write(query)
       self._proc.stdin.flush()
 
+      # Read lines until an empty line ('\n') is encountered, which signals
+      # the end of the records for this query in llvm-symbolizer's protocol.
       raw_lines = []
       while True:
         line = self._proc.stdout.readline()
@@ -152,6 +194,7 @@ class SymbolizerRunner:
       if not raw_lines:
         return None
 
+      # Parse interleaved pairs: (function_name, source_file_and_line).
       frames = []
       for i in range(0, len(raw_lines), 2):
         func = raw_lines[i]

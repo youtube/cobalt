@@ -33,30 +33,20 @@ if _SRC_DIR not in sys.path:
 from starboard.tools.symbolize.detector import StreamingSessionTracker  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import FormatRegistry  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import RawFormatHandler  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.json_processor import process_test_summary_json  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.runner import DEFAULT_SYMBOLIZER as _SYMBOLIZER  # pylint: disable=wrong-import-position
+from starboard.tools.symbolize.runner import SymbolizerRunner  # pylint: disable=wrong-import-position
+
+# Backward-compatibility re-exports for external callers and tests.
+# pylint: disable=unused-import
 from starboard.tools.symbolize.formats import _RE_ANDROID  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import _RE_ASAN_MODE1 as _RE_ASAN  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import _RE_COBALT  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import _RE_GDB  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.formats import _RE_RAW  # pylint: disable=wrong-import-position
-from starboard.tools.symbolize.json_processor import process_test_summary_json  # pylint: disable=wrong-import-position
-from starboard.tools.symbolize.runner import DEFAULT_SYMBOLIZER as _SYMBOLIZER  # pylint: disable=wrong-import-position
-from starboard.tools.symbolize.runner import SymbolizerRunner  # pylint: disable=wrong-import-position
 from starboard.tools.symbolize.runner import _SymbolizerRunner  # pylint: disable=wrong-import-position
 
-__all__ = [
-    '_SymbolizerRunner',
-    'SymbolizerRunner',
-    '_Symbolize',
-    'symbolize_stream',
-    'symbolize_string',
-    'main',
-    '_RE_ASAN',
-    '_RE_ANDROID',
-    '_RE_COBALT',
-    '_RE_RAW',
-    '_RE_GDB',
-    '_SYMBOLIZER',
-]
+# pylint: enable=unused-import
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,invalid-name,unused-argument
@@ -143,7 +133,8 @@ def _Symbolize(filename: Optional[str] = None,
         out.write(line)
         continue
 
-      formatted_lines = handler.format(frame_match, results, offset)
+      formatted_lines = handler.format(
+          frame_match, results, offset, strip_prefixes=strip_prefixes)
       for fl in formatted_lines:
         out.write(fl)
 

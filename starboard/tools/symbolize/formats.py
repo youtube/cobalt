@@ -19,19 +19,44 @@ import os
 import re
 from typing import List, Optional, Tuple, Union
 
+# Matches AddressSanitizer unknown module frames:
+# Example: '    #0 0x7f48e7a45000  (<unknown module>)'
+# Example with syslog prefix:
+#   '[syslog]    #0 0x7f48e7a45000  (<unknown module>)'
 _RE_ASAN_MODE1 = re.compile(
     r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s+\(<unknown\s+module>\)(.*)')
+
+# Matches AddressSanitizer named module frames with explicit offset:
+# Example: '    #1 0x7f48e7a46000  (libcobalt.so+0x12345)'
 _RE_ASAN_MODE2 = re.compile(
     r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s+\((.*?)\+0x([a-fA-F0-9]+)\)(.*)')
+
+# Matches Android tombstone and logcat stack lines:
+# Example: '    #00 pc 000000000001a450  /system/lib64/libc.so'
+# Example: '    #01 pc 0x5a120  /data/app/.../base.apk!libcobalt.so (abort+168)'
 _RE_ANDROID = re.compile(
     r'^(.*?)(#[0-9]{1,3})\s+pc\s+(?:0x)?([a-fA-F0-9]+)\s+(.*)$')
+
+# Matches standard Cobalt stack dump frames:
+# Example: '        <unknown> [0x7f48e7a45000]'
+# Example: '        CobaltCrashFunc(int) [0x7f48e7a45000]'
 _RE_COBALT = re.compile(
-    r'^(.*?(?:\s|\t|^))(<unknown>|[^\s\[\]]+(?:\(.*?\))?)\s+'
-    r'\[(0x[0-9a-fA-F]+)\]\s*$')
+    r'^(.*?(?:\t|\s{2,}))?(<unknown>|.+?)\s+\[(0x[0-9a-fA-F]+)\]\s*$')
+
+# Matches inverted Cobalt stack dump frames (address before symbol):
+# Example: '        0x7f48e7a45000 [<unknown>]'
+# Example: '        0x7f48e7a45000 [CobaltCrashFunc]'
 _RE_COBALT_INVERTED = re.compile(r'^(.*?(?:\s|\t|^))(0x[0-9a-fA-F]+)\s+'
                                  r'\[(.*?)\]\s*$')
+
+# Matches standalone raw hexadecimal addresses:
+# Example: '0x7f48e7a45000'
 _RE_RAW = re.compile(r'^(0x[a-fA-F0-9]+)$')
-_RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s*')
+
+# Matches GDB backtrace frames:
+# Example: '#1 0x7f48e7a45000 in ?? ()'
+# Example: '    #0  0x00007ffff7a2a000 in main ()'
+_RE_GDB = re.compile(r'^(.*?)(#[0-9]{1,3})\s+(0x[a-fA-F0-9]+)\s+in\s+(.*?)$')
 
 
 def normalize_symbol_results(
@@ -71,7 +96,23 @@ def strip_path_prefix(file_line: str,
 
 @dataclasses.dataclass
 class FrameMatch:
-  """Structured representation of a matched stack frame."""
+  """Structured representation of a matched stack frame.
+
+  Attributes:
+    original_line: The full, unmodified source line as read from the input.
+    prefix: Any leading text before the frame content (e.g. syslog tag, logcat
+      header, or indentation whitespace).
+    frame_index_str: The frame numbering token including hash prefix
+      (e.g. '#0', '#01'), or None if the format does not specify frame numbers.
+    address: The numerical memory address or file offset parsed from the frame.
+    explicit_offset: Pre-computed relative offset if explicitly provided by the
+      format (e.g. from 'lib.so+0xoffset' or Android 'pc 0x...'), bypassing
+      base address calculation.
+    binary: The filename or path of the binary associated with this frame
+      (e.g. 'libcobalt.so'), or None if unknown or using default library.
+    extra: Ancillary metadata captured from the line (e.g. existing symbol
+      name, trailing details, or remainder of the line).
+  """
   original_line: str
   prefix: str
   frame_index_str: Optional[str]
@@ -89,14 +130,24 @@ class FormatHandler(abc.ABC):
     """Returns parsed frame metadata if the line matches this format."""
 
   @abc.abstractmethod
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     """Formats symbolized frames preserving the input style."""
 
 
 class AsanMode1FormatHandler(FormatHandler):
-  """Handles ASan '(<unknown module>)' frames."""
+  """Handles ASan '(<unknown module>)' frames.
+
+  Supported input format:
+      <prefix>#<frame> <address> (<unknown module>)<extra>
+  Example input:
+      '    #0 0x7f48e7a45000  (<unknown module>)'
+  Example output:
+      '    #0 0x12345 in CobaltCrashFunc() cobalt/browser/main.cc:123\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_ASAN_MODE1.match(line)
@@ -109,9 +160,11 @@ class AsanMode1FormatHandler(FormatHandler):
         address=int(m.group(3), 0),
         extra=m.group(4))
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs or '?' in pairs[0][0]:
       return [match.original_line]
@@ -121,7 +174,7 @@ class AsanMode1FormatHandler(FormatHandler):
     lines = []
     for i, (func, raw_file_line) in enumerate(pairs):
       idx = f'#{frame_num + i}'
-      file_line = strip_path_prefix(raw_file_line)
+      file_line = strip_path_prefix(raw_file_line, prefixes=strip_prefixes)
       file_str = f' {file_line}' if file_line and '?' not in file_line else ''
       lines.append(
           f'{match.prefix}{idx} {hex(resolved_offset)} in {func}{file_str}\n')
@@ -129,7 +182,15 @@ class AsanMode1FormatHandler(FormatHandler):
 
 
 class AsanMode2FormatHandler(FormatHandler):
-  """Handles ASan '(binary+0xoffset)' frames."""
+  """Handles ASan '(binary+0xoffset)' frames with explicit offsets.
+
+  Supported input format:
+      <prefix>#<frame> <address> (<binary>+0x<offset>)<extra>
+  Example input:
+      '    #1 0x7f48e7a46000  (libcobalt.so+0x12345)'
+  Example output:
+      '    #1 0x7f48e7a46000 in CobaltParentFunc() cobalt/browser/main.cc:456\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_ASAN_MODE2.match(line)
@@ -144,9 +205,11 @@ class AsanMode2FormatHandler(FormatHandler):
         binary=m.group(4),
         extra=m.group(6))
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs or '?' in pairs[0][0]:
       return [match.original_line]
@@ -156,7 +219,7 @@ class AsanMode2FormatHandler(FormatHandler):
     lines = []
     for i, (func, raw_file_line) in enumerate(pairs):
       idx = f'#{frame_num + i}'
-      file_line = strip_path_prefix(raw_file_line)
+      file_line = strip_path_prefix(raw_file_line, prefixes=strip_prefixes)
       file_str = f' {file_line}' if file_line and '?' not in file_line else ''
       lines.append(
           f'{match.prefix}{idx} {hex(match.address)} in {func}{file_str}\n')
@@ -164,7 +227,16 @@ class AsanMode2FormatHandler(FormatHandler):
 
 
 class AndroidFormatHandler(FormatHandler):
-  """Handles Android logcat and tombstone lines ('pc 0x...')."""
+  """Handles Android logcat and tombstone lines ('pc 0x...').
+
+  Supported input format:
+      <prefix>#<frame> pc <offset> <binary_and_details>
+  Example inputs:
+      '    #00 pc 000000000001a450  /system/lib64/libc.so'
+      '    #01 pc 0x5a120  /data/app/.../base.apk!libcobalt.so (abort+168)'
+  Example output:
+      '    #00 pc 0x1a450 in abort bionic/libc/bionic/abort.cpp:49\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_ANDROID.match(line)
@@ -185,33 +257,48 @@ class AndroidFormatHandler(FormatHandler):
         binary=binary,
         extra=extra)
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs or '?' in pairs[0][0]:
       return [match.original_line]
 
     lines = []
-    for func, raw_file_line in pairs:
-      file_line = strip_path_prefix(raw_file_line)
+    for i, (func, raw_file_line) in enumerate(pairs):
+      file_line = strip_path_prefix(raw_file_line, prefixes=strip_prefixes)
       file_str = f' {file_line}' if file_line and '?' not in file_line else ''
       extra_str = f' ({match.extra})' if match.extra else ''
+      inlined_str = ' (inlined)' if i > 0 else ''
       lines.append(
           f'{match.prefix}{match.frame_index_str} pc {hex(resolved_offset)} '
-          f'in {func}{file_str}{extra_str}\n')
+          f'in {func}{file_str}{extra_str}{inlined_str}\n')
     return lines
 
 
 class CobaltFormatHandler(FormatHandler):
-  """Handles Cobalt stack dumps ('<unknown> [0x...]' or '0x... [<symbol>]')."""
+  """Handles Cobalt stack dumps in standard and inverted formats.
+
+  Supported input formats:
+      Standard: <prefix><symbol_or_unknown> [<address>]
+      Inverted: <prefix><address> [<symbol_or_unknown>]
+  Example inputs:
+      '        <unknown> [0x7f48e7a45000]'
+      '        CobaltCrashFunc(int) [0x7f48e7a45000]'
+      '        0x7f48e7a45000 [<unknown>]'
+      '        0x7f48e7a45000 [CobaltCrashFunc]'
+  Example output:
+      '        0x12345 [CobaltCrashFunc(int)]\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_COBALT.match(line)
     if m:
       return FrameMatch(
           original_line=line,
-          prefix=m.group(1),
+          prefix=m.group(1) or '',
           frame_index_str=None,
           address=int(m.group(3), 0),
           extra=m.group(2))
@@ -219,25 +306,39 @@ class CobaltFormatHandler(FormatHandler):
     if m:
       return FrameMatch(
           original_line=line,
-          prefix=m.group(1),
+          prefix=m.group(1) or '',
           frame_index_str=None,
           address=int(m.group(2), 0),
           extra=m.group(3))
     return None
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs or '?' in pairs[0][0]:
       return [match.original_line]
 
-    prefix = match.prefix or '        '
-    return [f'{prefix}{hex(resolved_offset)} [{pairs[0][0]}]\n']
+    prefix = match.prefix if match.prefix is not None else '        '
+    lines = []
+    for i, (func, _) in enumerate(pairs):
+      inlined_str = ' (inlined)' if i > 0 else ''
+      lines.append(f'{prefix}{hex(resolved_offset)} [{func}]{inlined_str}\n')
+    return lines
 
 
 class RawFormatHandler(FormatHandler):
-  """Handles standalone raw hexadecimal addresses ('0x...')."""
+  """Handles standalone raw hexadecimal addresses.
+
+  Supported input format:
+      0x<address>
+  Example input:
+      '0x7f48e7a45000'
+  Example output:
+      '0x12345 CobaltCrashFunc() in cobalt/browser/main.cc:123\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_RAW.match(line.strip())
@@ -249,20 +350,35 @@ class RawFormatHandler(FormatHandler):
         frame_index_str=None,
         address=int(m.group(1), 0))
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs:
       return [match.original_line]
-    func, raw_file_line = pairs[0]
-    file_line = strip_path_prefix(raw_file_line)
-    file_str = f' in {file_line}' if file_line and '?' not in file_line else ''
-    return [f'{hex(resolved_offset)} {func}{file_str}\n']
+    lines = []
+    for i, (func, raw_file_line) in enumerate(pairs):
+      file_line = strip_path_prefix(raw_file_line, prefixes=strip_prefixes)
+      file_str = (f' in {file_line}'
+                  if file_line and '?' not in file_line else '')
+      inlined_str = ' (inlined)' if i > 0 else ''
+      lines.append(f'{hex(resolved_offset)} {func}{file_str}{inlined_str}\n')
+    return lines
 
 
 class GdbFormatHandler(FormatHandler):
-  """Handles GDB stack trace lines ('#1 0x... in ?? ()')."""
+  """Handles GDB backtrace frames.
+
+  Supported input format:
+      <prefix>#<frame> <address> in <symbol_or_unknown>
+  Example inputs:
+      '#1 0x7f48e7a45000 in ?? ()'
+      '    #0  0x00007ffff7a2a000 in main ()'
+  Example output:
+      '#1 0x12345 in CobaltCrashFunc() cobalt/browser/main.cc:123\n'
+  """
 
   def match(self, line: str) -> Optional[FrameMatch]:
     m = _RE_GDB.match(line)
@@ -272,21 +388,26 @@ class GdbFormatHandler(FormatHandler):
         original_line=line,
         prefix=m.group(1),
         frame_index_str=m.group(2),
-        address=int(m.group(3), 0))
+        address=int(m.group(3), 0),
+        extra=m.group(4))
 
-  def format(self, match: FrameMatch, results: Union[List[Tuple[str, str]],
-                                                     List[str]],
-             resolved_offset: int) -> List[str]:
+  def format(self,
+             match: FrameMatch,
+             results: Union[List[Tuple[str, str]], List[str]],
+             resolved_offset: int,
+             strip_prefixes: Optional[List[str]] = None) -> List[str]:
     pairs = normalize_symbol_results(results)
     if not pairs or '?' in pairs[0][0]:
       return [match.original_line]
-    func, raw_file_line = pairs[0]
-    file_line = strip_path_prefix(raw_file_line)
-    file_str = f' {file_line}' if file_line and '?' not in file_line else ''
-    return [
-        f'{match.prefix}{match.frame_index_str} {hex(resolved_offset)} in '
-        f'{func}{file_str}\n'
-    ]
+    lines = []
+    for i, (func, raw_file_line) in enumerate(pairs):
+      file_line = strip_path_prefix(raw_file_line, prefixes=strip_prefixes)
+      file_str = f' {file_line}' if file_line and '?' not in file_line else ''
+      inlined_str = ' (inlined)' if i > 0 else ''
+      lines.append(
+          f'{match.prefix}{match.frame_index_str} {hex(resolved_offset)} in '
+          f'{func}{file_str}{inlined_str}\n')
+    return lines
 
 
 class FormatRegistry:

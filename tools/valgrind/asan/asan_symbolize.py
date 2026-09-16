@@ -5,9 +5,8 @@
 # found in the LICENSE file.
 """Symbolizes sanitizer reports and test summary JSON files.
 
-Delegates core symbolization to starboard.tools.symbolize for high performance
-and multi-binary session tracking while preserving backward compatibility for
-Chromium test launcher workflows.
+Uses starboard.tools.symbolize for interactive llvm-symbolizer execution,
+multi-binary session tracking, and test launcher summary processing.
 """
 
 import argparse
@@ -50,6 +49,8 @@ class LineBuffered:
 def disable_buffering():
   """Makes this process and child processes stdout unbuffered."""
   if not os.environ.get('PYTHONUNBUFFERED'):
+    # Since sys.stdout is a C++ object, it's impossible to do
+    # sys.stdout.write = lambda...
     sys.stdout = LineBuffered(sys.stdout)
     os.environ['PYTHONUNBUFFERED'] = 'x'
 
@@ -58,6 +59,8 @@ def set_symbolizer_path():
   """Set the path to the llvm-symbolize binary in the Chromium source tree."""
   if not os.environ.get('LLVM_SYMBOLIZER_PATH'):
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Assume this script resides three levels below src/ (i.e.
+    # src/tools/valgrind/asan/).
     src_root = os.path.join(script_dir, '..', '..', '..')
     symbolizer_path = os.path.join(src_root, 'third_party', 'llvm-build',
                                    'Release+Asserts', 'bin', 'llvm-symbolizer')
@@ -66,11 +69,13 @@ def set_symbolizer_path():
 
 
 def is_hash_name(name):
+  """Checks if a binary filename is a hex hash (used on swarming test bots)."""
   match = re.match('[0-9a-f]+$', name)
   return bool(match)
 
 
 def split_path(path):
+  """Splits a file path into its individual directory components."""
   ret = []
   while True:
     head, tail = os.path.split(path)
@@ -80,14 +85,19 @@ def split_path(path):
 
 
 def chrome_product_dir_path(exe_path):
+  """Finds the product directory containing an executable or macOS app bundle."""
   if exe_path is None:
     return None
   path_parts = split_path(exe_path)
+  # Make sure the product dir path isn't empty if |exe_path| consists of
+  # a single component.
   if len(path_parts) == 1:
     path_parts = ['.'] + path_parts
   for index, part in enumerate(path_parts):
     if part.endswith('.app'):
       return os.path.join(*path_parts[:index])
+  # If the executable isn't an .app bundle, it's a commandline binary that
+  # resides right in the product dir.
   return os.path.join(*path_parts[:-1])
 
 
@@ -95,6 +105,7 @@ inode_path_cache = {}
 
 
 def find_inode_at_path(inode, path):
+  """Finds a file matching the given inode number within the specified path."""
   if inode in inode_path_cache:
     return inode_path_cache[inode]
   cmd = ['find', path, '-inum', str(inode)]
@@ -102,12 +113,34 @@ def find_inode_at_path(inode, path):
   lines = find_line.split('\n')
   ret = None
   if lines:
+    # `find` may give us several paths (e.g. 'Chromium Framework' in the
+    # product dir and 'Chromium Framework' inside 'Chromium.app',
+    # chrome_dsym_hints() will produce correct .dSYM path for any of them.
     ret = lines[0]
   inode_path_cache[inode] = ret
   return ret
 
 
+# Construct a path to the .dSYM bundle for the given binary.
+# There are three possible cases for binary location in Chromium:
+# 1. The binary is a standalone executable or dynamic library in the product
+#    dir, the debug info is in "binary.dSYM" in the product dir.
+# 2. The binary is a standalone framework or .app bundle, the debug info is in
+#    "Framework.framework.dSYM" or "App.app.dSYM" in the product dir.
+# 3. The binary is a framework or an .app bundle within another .app bundle
+#    (e.g. Outer.app/Contents/Versions/1.2.3.4/Inner.app), and the debug info
+#    is in Inner.app.dSYM in the product dir.
+# The first case is handled by llvm-symbolizer, so we only need to construct
+# .dSYM paths for .app bundles and frameworks.
+# We're assuming that there're no more than two nested bundles in the binary
+# path. Only one of these bundles may be a framework and frameworks cannot
+# contain other bundles.
 def chrome_dsym_hints(binary):
+  """Locates potential macOS .dSYM debug symbol bundles for a given binary.
+
+  Inspects the binary path for enclosing .app or .framework bundles and returns
+  the corresponding .dSYM bundle directory.
+  """
   path_parts = split_path(binary)
   app_positions = []
   framework_positions = []
@@ -121,13 +154,17 @@ def chrome_dsym_hints(binary):
   assert len(bundle_positions) <= 2, \
       "The path contains more than two nested bundles: %s" % binary
   if len(bundle_positions) == 0:
+    # Case 1: this is a standalone executable or dylib.
     return []
   assert (not (len(app_positions) == 1 and
                len(framework_positions) == 1 and
                app_positions[0] > framework_positions[0])), \
       "The path contains an app bundle inside a framework: %s" % binary
+  # Cases 2 and 3. The outermost bundle (which is the only bundle in the case 2)
+  # is located in the product dir.
   outermost_bundle = bundle_positions[0]
   product_dir = path_parts[:outermost_bundle]
+  # In case 2 this is the same as |outermost_bundle|.
   innermost_bundle = bundle_positions[-1]
   dsym_path = product_dir + [path_parts[innermost_bundle]]
   result = '%s.dSYM' % os.path.join(*dsym_path)
@@ -141,21 +178,23 @@ class JSONTestRunSymbolizer:
     self.symbolization_loop = symbolization_loop
 
   def symbolize_snippet(self, snippet):
+    """Processes a multi-line snippet through the symbolization loop."""
     symbolized_lines = []
     for line in snippet.split('\n'):
       symbolized_lines += self.symbolization_loop.process_line(line)
     return '\n'.join(symbolized_lines)
 
   def symbolize(self, test_run):
+    """Decodes, symbolizes, and updates an individual test run snippet."""
     original_snippet = base64.b64decode(
         test_run['output_snippet_base64']).decode('utf-8', 'replace')
 
     # replace non-ascii character with '?'.
-    original_snippet = ''.join(i if i <= '~' else '?'
-                               for i in original_snippet)
+    original_snippet = ''.join(i if i <= '~' else '?' for i in original_snippet)
 
     symbolized_snippet = self.symbolize_snippet(original_snippet)
     if symbolized_snippet == original_snippet:
+      # No sanitizer reports in snippet.
       return
 
     test_run['original_output_snippet'] = test_run['output_snippet']
@@ -169,6 +208,7 @@ class JSONTestRunSymbolizer:
 
 
 def symbolize_snippets_in_json(filename, symbolization_loop):
+  """Parses a test summary JSON file, symbolizes crash snippets, and rewrites it."""
   with open(filename, 'r', encoding='utf-8') as f:
     json_data = json.load(f)
 
@@ -189,6 +229,12 @@ class macOSBinaryNameFilterPlugin(asan_symbolize.AsanSymbolizerPlugIn):
     self.product_dir_path = ''
 
   def filter_binary_path(self, binary_path):
+    # Work around https://crbug.com/444835.
+    # When running tests on OSX swarming servers, ASan sometimes prints paths to
+    # files in cache (ending with SHA1 filenames) instead of paths to hardlinks
+    # to those files in the product dir.
+    # For a given |binary_path|, macOSBinaryNameFilterPlugin returns one of the
+    # hardlinks to the same inode in |product_dir_path|.
     basename = os.path.basename(binary_path)
     if is_hash_name(basename) and self.product_dir_path:
       inode = os.stat(binary_path).st_ino
@@ -221,6 +267,7 @@ class CheckUTF8:
 
 
 def main():
+  """CLI entry point for sanitizer report and test summary symbolization."""
   parser = argparse.ArgumentParser(description='Symbolize sanitizer reports.')
   parser.add_argument(
       '--test-summary-json-file',
@@ -256,6 +303,8 @@ def main():
   set_symbolizer_path()
 
   strip_prefixes = list(args.strip_path_prefix or [])
+  # Most source paths for Chromium binaries start with
+  # /path/to/src/out/Release/../../
   strip_prefixes.append('Release/../../')
 
   with SymbolizerRunner(default_library=args.extra_binary) as runner:

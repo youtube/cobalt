@@ -16,6 +16,8 @@
 import base64
 import binascii
 import json
+import os
+import tempfile
 from typing import Callable, Iterable
 
 # Signatures indicating that a log snippet may contain symbolizable traces.
@@ -61,7 +63,7 @@ def process_test_run(test_run: dict,
   if not has_stack_trace_signature(decoded):
     return False
 
-  # Replace non-ascii characters with '?' to match legacy test runner behavior.
+  # Replace non-ascii characters with '?' for ASCII-safe test summary output.
   sanitized = ''.join(c if c <= '\x7e' else '?' for c in decoded)
 
   lines = sanitized.splitlines(keepends=True)
@@ -93,7 +95,14 @@ def process_test_summary_json(json_path: str,
         if process_test_run(test_run, symbolize_fn, processor_tag):
           modified_count += 1
 
-  with open(json_path, 'w', encoding='utf-8') as f:
-    json.dump(data, f, indent=3, sort_keys=True)
+  if modified_count == 0:
+    return 0
 
+  dir_name = os.path.dirname(os.path.abspath(json_path))
+  with tempfile.NamedTemporaryFile(
+      'w', dir=dir_name, delete=False, encoding='utf-8') as tf:
+    json.dump(data, tf, indent=3, sort_keys=True)
+    temp_path = tf.name
+
+  os.replace(temp_path, json_path)
   return modified_count
