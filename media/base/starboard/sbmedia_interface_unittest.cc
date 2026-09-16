@@ -23,6 +23,9 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+namespace {
+
 using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::DoAll;
@@ -30,9 +33,6 @@ using ::testing::IsNull;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-
-namespace media {
-namespace {
 
 // A mock implementation of SbMediaInterface for unit testing the media
 // pipeline's interaction with the Starboard media layer. This class is

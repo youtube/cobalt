@@ -220,10 +220,18 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
       &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
       weak_factory_.GetWeakPtr(), media_resource, client);
 
+  // |video_geometry_setter_service_| is optional: GpuServiceFactory passes
+  // nullptr whenever the embedder's ContentGpuClient does not provide a
+  // VideoGeometrySetterService (e.g. in single-process configurations and in
+  // tests). Without the else branch below, OnSubscribeToVideoGeometryChange()
+  // would never run, so the underlying renderer would never be initialized and
+  // |init_cb| would never be invoked, hanging initialization forever. The
+  // callback is posted rather than run inline to keep Initialize() completion
+  // asynchronous on both paths.
   if (video_geometry_setter_service_) {
     video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
         video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
-    DCHECK(video_geometry_change_subcriber_remote_);
+    CHECK(video_geometry_change_subcriber_remote_);
     video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
         overlay_plane_id_,
         video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
