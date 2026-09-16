@@ -180,16 +180,12 @@ bool BackgroundScanMainFrameOnly() {
 }
 
 bool IsPreloadScanningEnabled(Document* document) {
-<<<<<<< HEAD
-  if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame()) {
-=======
 #if BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(features::kCobaltBypassHTMLPreloadScanner)) {
     return false;
   }
 #endif  // BUILDFLAG(IS_COBALT)
-  if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame())
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame()) {
     return false;
   }
   return document->GetSettings() &&
