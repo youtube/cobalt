@@ -39,14 +39,14 @@ jobs:
         with:
           path: src
           ref: ${{ matrix.branch.target }}
-          fetch-depth: 1000
+          fetch-depth: 200
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Prepare Cherry Pick Branch
         env:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
           TARGET_BRANCH: ${{ matrix.branch.target }}
-          FETCH_DEPTH: 1000
+          FETCH_DEPTH: 200
         run: |
           set -x
 
