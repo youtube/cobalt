@@ -107,7 +107,7 @@ public class StartupGuardPersistenceTest {
   }
 
   @Test
-  public void testDisarmMaintainsDiskFileForDelayedConsistency() throws Exception {
+  public void testDisarmDeletesDiskFileOnHealthyExit() throws Exception {
     StartupGuard guard = StartupGuard.getInstance();
     guard.initializePersistenceInternal(mContext, mContext.getFilesDir());
     guard.setStartupMilestone(4);
@@ -116,8 +116,9 @@ public class StartupGuardPersistenceTest {
     // Unarm the watchdog (representing a successful initialization)
     guard.disarm();
 
-    // The state file MUST remain on disk to allow the C++ analyzer on the next boot
-    // to record these successful milestones.
-    assertTrue("Disk file was inappropriately wiped on clean exit", mStateFile.exists());
+    // The state file MUST be deleted on a clean exit, because C++ records these
+    // milestones natively during a healthy session. We only want previous.bin generated
+    // on a real watchdog hang crash!
+    assertTrue("Disk file was not wiped on clean exit", !mStateFile.exists());
   }
 }

@@ -85,7 +85,34 @@ IN_PROC_BROWSER_TEST_F(JavaStartupMetricsMissingTest,
   EXPECT_FALSE(base::PathExists(prev_state_file_));
 }
 
-// 3. Corrupted Data Test
+// 3. Clean/Healthy Exit Test (File Deleted by Disarm)
+class JavaStartupMetricsHealthyExitTest
+    : public JavaStartupMetricsBrowserTestBase {
+  void WriteTestData() override {
+    // Simulate Java layer turning on and logging milestones
+    uint64_t fake_status = (1ULL << 1) | (1ULL << 3);
+    std::string data(reinterpret_cast<const char*>(&fake_status), 8);
+    base::WriteFile(prev_state_file_, data);
+
+    // Simulate Java layer successfully reaching native initialization and
+    // disarming
+    base::DeleteFile(prev_state_file_);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(JavaStartupMetricsHealthyExitTest,
+                       IgnoresTelemetryOnHealthyExit) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 1, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 2, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 3, 0);
+  histogram_tester_->ExpectBucketCount("Cobalt.Startup.MilestoneReached", 4, 0);
+  EXPECT_FALSE(base::PathExists(prev_state_file_));
+}
+
+// 4. Corrupted Data Test
 class JavaStartupMetricsCorruptTest : public JavaStartupMetricsBrowserTestBase {
   void WriteTestData() override {
     // Write only 4 bytes instead of the required 8

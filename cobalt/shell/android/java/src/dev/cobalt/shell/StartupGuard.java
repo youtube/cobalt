@@ -52,6 +52,7 @@ public class StartupGuard {
 
   // Backing memory-mapped file for Phase 1 cross-layer UMA persistence
   private MappedByteBuffer mStartupStateBuffer = null;
+  private File mStateFile = null;
 
   // Private constructor prevents direct instantiation from other classes
   private StartupGuard() {
@@ -76,6 +77,14 @@ public class StartupGuard {
 
   @VisibleForTesting
   public void initializePersistenceInternal(Context context, @Nullable File baseDir) {
+    synchronized (mStateLock) {
+      if (mStartupStateBuffer != null) {
+        // Refrain from re-initializing more than once per JVM process to prevent incorrectly
+        // renaming the current sessions's file and erroneously reporting a crash on next boot.
+        return;
+      }
+    }
+
     try {
       // Default to Chromium's data directory so it matches C++ DIR_ANDROID_APP_DATA.
       File dir = baseDir != null ? baseDir : new File(PathUtils.getDataDirectory());
@@ -104,6 +113,7 @@ public class StartupGuard {
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         synchronized (mStateLock) {
+          mStateFile = file;
           mStartupStateBuffer = buffer;
           mStartupStateBuffer.putLong(0, mStartupStatus.get());
         }
@@ -190,7 +200,18 @@ public class StartupGuard {
   public void disarm() {
     if (mIsArmed.compareAndSet(/* expect= */ true, /* update= */ false)) {
       mHandler.removeCallbacks(mCrashRunnable);
+      cleanupStateFileOnSuccess();
       Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
+    }
+  }
+
+  private void cleanupStateFileOnSuccess() {
+    synchronized (mStateLock) {
+      if (mStateFile != null && mStateFile.exists()) {
+        if (!mStateFile.delete()) {
+          Log.w(TAG, "Failed to cleanup startup state file on healthy exit.");
+        }
+      }
     }
   }
 
@@ -212,6 +233,7 @@ public class StartupGuard {
       mStartupStatus.set(0);
       mIsArmed.set(false);
       mStartupStateBuffer = null;
+      mStateFile = null;
     }
   }
 }
