@@ -100,9 +100,13 @@ public class StartupGuard {
       try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
           FileChannel channel = raf.getChannel()) {
         // MappedByteBuffer defaults to big-endian, we strictly need little-endian for C++.
-        mStartupStateBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 8);
-        mStartupStateBuffer.order(ByteOrder.LITTLE_ENDIAN);
-        mStartupStateBuffer.putLong(0, 0);
+        MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 8);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        synchronized (mStateLock) {
+          mStartupStateBuffer = buffer;
+          mStartupStateBuffer.putLong(0, mStartupStatus.get());
+        }
       }
     } catch (IOException e) {
       Log.e(TAG, "Failed to map startup state file: " + e.getMessage());
