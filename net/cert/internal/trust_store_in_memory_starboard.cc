@@ -84,31 +84,24 @@ std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() 
     
     base::FilePath cert_path = GetCertificateDirPath().Append(dir_entry.data());
     std::string cert_buffer;
-    if (!base::ReadFileToString(cert_path, &cert_buffer)) {
-      DLOG(ERROR) << "Failed to read cert file: " << cert_path;
-      continue;
-    }
+    CHECK(base::ReadFileToString(cert_path, &cert_buffer))
+        << "ssl/certs/" << cert_path.value() << " failed to open.";
     bssl::PEMTokenizer pem_tokenizer(cert_buffer, {kCertificateHeader});
-    if (!pem_tokenizer.GetNext()) {
-      DLOG(ERROR) << "Failed to parse PEM from cert file: " << cert_path;
-      continue;
-    }
+    CHECK(pem_tokenizer.GetNext()) << "Failed to parse PEM from cert file: "
+                                   << cert_path.value();
     std::string decoded(pem_tokenizer.data());
+    CHECK(!pem_tokenizer.GetNext()) << "Multiple certificates found in "
+                                    << cert_path.value();
     auto crypto_buffer = x509_util::CreateCryptoBuffer(decoded);
-    if (!crypto_buffer) {
-      DLOG(ERROR) << "Failed to create crypto buffer for " << cert_path;
-      continue;
-    }
+    CHECK(crypto_buffer) << "Failed to create crypto buffer for "
+                         << cert_path.value();
     bssl::CertErrors errors;
     auto parsed = bssl::ParsedCertificate::Create(
         std::move(crypto_buffer), x509_util::DefaultParseCertificateOptions(),
         &errors);
-    if (!parsed) {
-      LOG(ERROR) << "Failed to parse certificate " << cert_path << ": "
-                 << errors.ToDebugString();
-    } else {
-      certs.push_back(parsed);
-    }
+    CHECK(parsed) << "Failed to parse certificate " << cert_path.value()
+                  << ": " << errors.ToDebugString();
+    certs.push_back(parsed);
   }
   closedir(sb_certs_directory);
   return certs;

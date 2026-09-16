@@ -24,13 +24,13 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jni_zero.CalledByNative;
 
 /** Helper class that requests the record audio permission. */
 public class AudioPermissionRequester {
   private final Holder<Activity> mActivityHolder;
-  // Only use in synchronized methods.
-  private boolean mRequestAudioPermissionStarted;
+  private final AtomicBoolean mRequestAudioPermissionStarted = new AtomicBoolean(false);
 
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
     this.mActivityHolder = activityHolder;
@@ -41,7 +41,7 @@ public class AudioPermissionRequester {
    * if the permission is not granted yet and starts to request the RECORD_AUDIO permission.
    */
   @CalledByNative
-  public synchronized boolean requestRecordAudioPermission() {
+  public boolean requestRecordAudioPermission() {
     Activity activity = mActivityHolder.get();
     if (activity == null) {
       return false;
@@ -52,23 +52,22 @@ public class AudioPermissionRequester {
       return true;
     }
 
-    if (!mRequestAudioPermissionStarted) {
+    if (mRequestAudioPermissionStarted.compareAndSet(false, true)) {
       ActivityCompat.requestPermissions(
           activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
-      mRequestAudioPermissionStarted = true;
     }
 
     return false;
   }
 
   /** Handles the RECORD_AUDIO request result. */
-  public synchronized void onRequestPermissionsResult(
+  public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     if (requestCode == R.id.rc_record_audio) {
       boolean success =
           grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
       Log.i(TAG, "RECORD_AUDIO permission request " + (success ? "GRANTED" : "DENIED"));
-      mRequestAudioPermissionStarted = false;
+      mRequestAudioPermissionStarted.set(false);
     }
   }
 }

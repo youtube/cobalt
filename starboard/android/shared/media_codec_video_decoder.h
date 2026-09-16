@@ -36,6 +36,7 @@
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
+#include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -80,7 +81,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   };
 
   struct PlatformOptions {
-    bool force_big_endian_hdr_metadata = false;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
   };
@@ -101,8 +101,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                    const TunnelModeConfig& tunnel_mode_config,
                    const PipelineConfig& pipeline_config,
                    const PlatformOptions& platform_options);
-
-  static void SetVideoFramePoolEnabled(bool enabled);
 
   MediaCodecVideoDecoder(
       PassKey<MediaCodecVideoDecoder>,
@@ -178,16 +176,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
-  const std::string max_video_capabilities_;
+  std::optional<Size> max_video_size_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
-
-  // Force endianness of HDR Metadata.
-  const bool force_big_endian_hdr_metadata_;
 
   const std::optional<int> tunnel_mode_audio_session_id_;
 
@@ -218,9 +213,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Enable the workaround to ignore stale/dirty MediaCodec callback messages
   // queued on the main thread during a flush.
   const bool ignore_mediacodec_callbacks_during_flushing_;
+  const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;
   const bool fix_need_more_input_backpressure_;
+  const int max_pending_inputs_size_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

@@ -29,43 +29,33 @@
 namespace cobalt {
 namespace {
 
-TEST(SymbolizeInProcessHeapTest, RunSymbolizerPipeline) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+base::FilePath GetSymbolizerScriptPath() {
+  base::FilePath source_root;
+  EXPECT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
+  return source_root.AppendASCII("cobalt")
+      .AppendASCII("tools")
+      .AppendASCII("performance")
+      .AppendASCII("memory")
+      .AppendASCII("symbolize_in_process_heap.py");
+}
 
-  // 1. Create a mock Trace JSON File
-  base::FilePath trace_path = temp_dir.GetPath().AppendASCII("trace.json");
-  std::string trace_content = R"({
-    "traceEvents": [
-      {
-        "name": "periodic_interval",
-        "args": {
-          "dumps": "{\"heaps_v2\":{\"maps\":{\"strings\":[{\"string\":\"pc:7f801000\"},{\"string\":\"pc:7f802000\"},{\"string\":\"pc:7F801000\"},{\"string\":\"pc:7f890000\"},{\"string\":\"normal_string\"}]}}}"
-        }
-      }
-    ],
-    "metadata": "mapping: \"mf\":\"libchrobalt.so\",\"pf\":5,\"sa\":\"7f800000\",\"sz\":\"20000\""
-  })";
-  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
-
-  // 2. Create an empty mock library file
-  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libchrobalt.so");
-  ASSERT_TRUE(base::WriteFile(lib_path, ""));
-
-  // 3. Create a mock llvm-symbolizer executable python script
-  base::FilePath symbolizer_path =
-      temp_dir.GetPath().AppendASCII("mock_symbolizer.py");
-  std::string symbolizer_content = R"(#!/usr/bin/env python3
+void CreateMockSymbolizer(const base::FilePath& symbolizer_path) {
+  const std::string symbolizer_content = R"(#!/usr/bin/env python3
 import sys
 for line in sys.stdin:
   arg = line.strip()
-  if arg == "0x1000":
+  if arg == "0x1000" or arg == "0x0":
     print("my_func_1")
     print("/home/user/cobalt/cobalt/dom/document.cc:42")
     print("")
-  elif arg == "0x2000":
+  elif arg == "0x2000" or arg == "0x1000":
     print("??")
     print("??:0")
+    print("")
+  else:
+    print("generic_symbol")
+    print("base/memory/ref_counted.cc:10")
     print("")
 )";
   ASSERT_TRUE(base::WriteFile(symbolizer_path, symbolizer_content));
@@ -73,20 +63,57 @@ for line in sys.stdin:
       symbolizer_path, base::FILE_PERMISSION_READ_BY_USER |
                            base::FILE_PERMISSION_WRITE_BY_USER |
                            base::FILE_PERMISSION_EXECUTE_BY_USER));
+}
 
-  // 4. Resolve the path of symbolize_in_process_heap.py
-  base::FilePath source_root;
-  ASSERT_TRUE(
-      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
-  base::FilePath script_path = source_root.AppendASCII("cobalt")
-                                   .AppendASCII("tools")
-                                   .AppendASCII("performance")
-                                   .AppendASCII("memory")
-                                   .AppendASCII("symbolize_in_process_heap.py");
+// Test 1: Android TV / Desktop Linux named mapped file in process_mmaps
+TEST(SymbolizeInProcessHeapTest, NamedMappingAndroidTV) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
-  // 5. Execute symbolize_in_process_heap.py using Command Line
+  base::FilePath trace_path = temp_dir.GetPath().AppendASCII("trace.json");
+  const std::string trace_content = R"({
+    "traceEvents": [
+      {
+        "name": "periodic_interval",
+        "args": {
+          "dumps": {
+            "heaps_v2": {
+              "maps": {
+                "strings": [
+                  {"string": "pc:7f801000"},
+                  {"string": "pc:7f802000"},
+                  {"string": "pc:7f801000"},
+                  {"string": "pc:7f890000"},
+                  {"string": "normal_string"}
+                ]
+              }
+            },
+            "process_mmaps": {
+              "vm_regions": [
+                {
+                  "sa": "7f800000",
+                  "sz": "20000",
+                  "pf": 5,
+                  "mf": "/data/app/dev.cobalt/lib/arm64/libcobalt.so"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  })";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libcobalt.so");
+  ASSERT_TRUE(base::WriteFile(lib_path, ""));
+
+  base::FilePath symbolizer_path =
+      temp_dir.GetPath().AppendASCII("mock_symbolizer.py");
+  CreateMockSymbolizer(symbolizer_path);
+
   base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
-  cmd.AppendArgPath(script_path);
+  cmd.AppendArgPath(GetSymbolizerScriptPath());
   cmd.AppendArgPath(trace_path);
   cmd.AppendArg("-l");
   cmd.AppendArgPath(lib_path);
@@ -98,9 +125,8 @@ for line in sys.stdin:
   bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
 
   EXPECT_TRUE(success) << "Failed to run python symbolization script.";
-  EXPECT_EQ(0, exit_code) << "Python script failed with output:\n" << output;
+  EXPECT_EQ(0, exit_code) << "Script output:\n" << output;
 
-  // 6. Read back trace and verify contents
   std::string result_content;
   ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
 
@@ -108,30 +134,16 @@ for line in sys.stdin:
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
   ASSERT_TRUE(parsed->is_dict());
 
-  const base::Value::Dict& dict = parsed->GetDict();
-  const base::Value::List* events = dict.FindList("traceEvents");
+  const base::Value::List* events = parsed->GetDict().FindList("traceEvents");
   ASSERT_TRUE(events != nullptr);
   ASSERT_EQ(events->size(), 1u);
 
-  const base::Value::Dict& event = (*events)[0].GetDict();
-  const base::Value::Dict* args = event.FindDict("args");
-  ASSERT_TRUE(args != nullptr);
+  const base::Value::Dict* dumps =
+      (*events)[0].GetDict().FindDictByDottedPath("args.dumps");
+  ASSERT_TRUE(dumps != nullptr);
 
-  const std::string* dumps_str = args->FindString("dumps");
-  ASSERT_TRUE(dumps_str != nullptr);
-
-  auto dumps_parsed = base::JSONReader::ReadAndReturnValueWithError(*dumps_str);
-  ASSERT_TRUE(dumps_parsed.has_value()) << dumps_parsed.error().message;
-  ASSERT_TRUE(dumps_parsed->is_dict());
-  const base::Value::Dict& dumps = dumps_parsed->GetDict();
-
-  const base::Value::Dict* heaps_v2 = dumps.FindDict("heaps_v2");
-  ASSERT_TRUE(heaps_v2 != nullptr);
-
-  const base::Value::Dict* maps = heaps_v2->FindDict("maps");
-  ASSERT_TRUE(maps != nullptr);
-
-  const base::Value::List* strings = maps->FindList("strings");
+  const base::Value::List* strings =
+      dumps->FindListByDottedPath("heaps_v2.maps.strings");
   ASSERT_TRUE(strings != nullptr);
   ASSERT_EQ(strings->size(), 5u);
 
@@ -143,6 +155,259 @@ for line in sys.stdin:
             "my_func_1 (cobalt/dom/document.cc:42)");
   EXPECT_EQ(*((*strings)[3].GetDict().FindString("string")), "pc:7f890000");
   EXPECT_EQ(*((*strings)[4].GetDict().FindString("string")), "normal_string");
+}
+
+// Test 2: RDK Evergreen anonymous memory correlation (mf: "")
+TEST(SymbolizeInProcessHeapTest, EvergreenAnonymousMappingRDK) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path = temp_dir.GetPath().AppendASCII("rdk_trace.json");
+  const std::string trace_content = R"({
+    "traceEvents": [
+      {
+        "name": "periodic_interval",
+        "args": {
+          "dumps": {
+            "heaps_v2": {
+              "maps": {
+                "strings": [
+                  {"string": "pc:e5bb8000"},
+                  {"string": "pc:e5bb9000"},
+                  {"string": "normal_unaffected_string"}
+                ]
+              }
+            },
+            "process_mmaps": {
+              "vm_regions": [
+                {
+                  "sa": "e5bb8000",
+                  "sz": "5000000",
+                  "pf": 5,
+                  "mf": ""
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  })";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libcobalt.so");
+  ASSERT_TRUE(base::WriteFile(lib_path, ""));
+
+  base::FilePath symbolizer_path =
+      temp_dir.GetPath().AppendASCII("mock_symbolizer.py");
+  CreateMockSymbolizer(symbolizer_path);
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(GetSymbolizerScriptPath());
+  cmd.AppendArgPath(trace_path);
+  cmd.AppendArg("-l");
+  cmd.AppendArgPath(lib_path);
+  cmd.AppendArg("-s");
+  cmd.AppendArgPath(symbolizer_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success) << "Failed to run python symbolization script.";
+  EXPECT_EQ(0, exit_code) << "Script output:\n" << output;
+
+  std::string result_content;
+  ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
+
+  auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
+  ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
+
+  const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
+      "traceEvents[0].args.dumps.heaps_v2.maps.strings");
+  ASSERT_TRUE(strings != nullptr);
+  ASSERT_EQ(strings->size(), 3u);
+
+  EXPECT_EQ(*((*strings)[0].GetDict().FindString("string")),
+            "my_func_1 (cobalt/dom/document.cc:42)");
+  EXPECT_EQ(*((*strings)[2].GetDict().FindString("string")),
+            "normal_unaffected_string");
+}
+
+// Test 3: Already symbolized or empty trace exits with code 0
+TEST(SymbolizeInProcessHeapTest, AlreadySymbolizedTrace) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("resolved_trace.json");
+  const std::string trace_content =
+      "{\"traceEvents\": [{\"name\": \"periodic_interval\", \"args\": "
+      "{\"dumps\": {\"heaps_v2\": {\"maps\": {\"strings\": ["
+      "{\"string\": \"malloc (base/allocator/allocator.cc:10)\"},"
+      "{\"string\": \"v8::internal::Heap::Allocate()\"}"
+      "]}}}}}]}";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libcobalt.so");
+  ASSERT_TRUE(base::WriteFile(lib_path, ""));
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(GetSymbolizerScriptPath());
+  cmd.AppendArgPath(trace_path);
+  cmd.AppendArg("-l");
+  cmd.AppendArgPath(lib_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(0, exit_code);
+  EXPECT_NE(output.find("No unresolved raw program counters"),
+            std::string::npos);
+}
+
+// Test 4: Multi-segment library mappings and serialized JSON string dumps
+TEST(SymbolizeInProcessHeapTest, MultiSegmentAndSerializedStringDumps) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("multiseg_trace.json");
+  const std::string trace_content = R"({
+    "traceEvents": [
+      {
+        "name": "periodic_interval",
+        "args": {
+          "dumps": "{\"heaps_v2\":{\"maps\":{\"strings\":[{\"string\":\"pc:e1397000\"},{\"string\":\"pc:e505b000\"}]}},\"process_mmaps\":{\"vm_regions\":[{\"sa\":\"e505a000\",\"sz\":\"1e1000\",\"mf\":\"/data/app/libchrobalt.so\"},{\"sa\":\"e1396000\",\"sz\":\"3cc4000\",\"mf\":\"/data/app/libchrobalt.so\"}]}}"
+        }
+      }
+    ]
+  })";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libchrobalt.so");
+  ASSERT_TRUE(base::WriteFile(lib_path, ""));
+
+  base::FilePath symbolizer_path =
+      temp_dir.GetPath().AppendASCII("mock_symbolizer.py");
+  CreateMockSymbolizer(symbolizer_path);
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(GetSymbolizerScriptPath());
+  cmd.AppendArgPath(trace_path);
+  cmd.AppendArg("-l");
+  cmd.AppendArgPath(lib_path);
+  cmd.AppendArg("-s");
+  cmd.AppendArgPath(symbolizer_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(0, exit_code) << "Script output:\n" << output;
+
+  std::string result_content;
+  ASSERT_TRUE(base::ReadFileToString(trace_path, &result_content));
+  auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
+  ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
+
+  const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
+      "traceEvents[0].args.dumps.heaps_v2.maps.strings");
+  ASSERT_TRUE(strings != nullptr);
+  ASSERT_EQ(strings->size(), 2u);
+  EXPECT_EQ(*((*strings)[0].GetDict().FindString("string")),
+            "my_func_1 (cobalt/dom/document.cc:42)");
+}
+
+// Test 5: Custom output path (-o) and machine-readable summary export
+TEST(SymbolizeInProcessHeapTest, CustomOutputPathAndSummaryExport) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("input_trace.json");
+  base::FilePath out_trace_path =
+      temp_dir.GetPath().AppendASCII("symbolized_trace.json");
+  base::FilePath summary_path = temp_dir.GetPath().AppendASCII("summary.json");
+
+  const std::string trace_content = R"({
+    "traceEvents": [
+      {
+        "name": "periodic_interval",
+        "args": {
+          "dumps": {
+            "heaps_v2": {
+              "maps": {
+                "strings": [
+                  {"string": "pc:7f801000"},
+                  {"string": "normal_string"}
+                ]
+              }
+            },
+            "process_mmaps": {
+              "vm_regions": [
+                {
+                  "sa": "7f800000",
+                  "sz": "20000",
+                  "pf": 5,
+                  "mf": "/data/app/libcobalt.so"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  })";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath lib_path = temp_dir.GetPath().AppendASCII("libcobalt.so");
+  ASSERT_TRUE(base::WriteFile(lib_path, ""));
+
+  base::FilePath symbolizer_path =
+      temp_dir.GetPath().AppendASCII("mock_symbolizer.py");
+  CreateMockSymbolizer(symbolizer_path);
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(GetSymbolizerScriptPath());
+  cmd.AppendArgPath(trace_path);
+  cmd.AppendArg("-l");
+  cmd.AppendArgPath(lib_path);
+  cmd.AppendArg("-o");
+  cmd.AppendArgPath(out_trace_path);
+  cmd.AppendArg("-s");
+  cmd.AppendArgPath(symbolizer_path);
+  cmd.AppendArg("--export_summary_json");
+  cmd.AppendArgPath(summary_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(0, exit_code) << "Script output:\n" << output;
+
+  // Verify input trace was preserved (not mutated in-place)
+  std::string in_content;
+  ASSERT_TRUE(base::ReadFileToString(trace_path, &in_content));
+  EXPECT_NE(in_content.find("pc:7f801000"), std::string::npos);
+
+  // Verify output trace exists and is symbolized
+  std::string out_content;
+  ASSERT_TRUE(base::ReadFileToString(out_trace_path, &out_content));
+  EXPECT_NE(out_content.find("my_func_1"), std::string::npos);
+
+  // Verify summary JSON exists and contains expected metrics
+  std::string summary_content;
+  ASSERT_TRUE(base::ReadFileToString(summary_path, &summary_content));
+  auto parsed_summary =
+      base::JSONReader::ReadAndReturnValueWithError(summary_content);
+  ASSERT_TRUE(parsed_summary.has_value());
+  EXPECT_EQ(parsed_summary->GetDict().FindInt("total_snapshots"), 1);
+  EXPECT_EQ(parsed_summary->GetDict().FindInt("symbolized_pcs"), 2);
 }
 
 }  // namespace

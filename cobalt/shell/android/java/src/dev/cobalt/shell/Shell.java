@@ -51,13 +51,6 @@ public class Shell {
   public static final String TAG = "cobalt";
   private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
-  // Stylus handwriting: Setting this ime option instructs stylus writing service to restrict
-  // capturing writing events slightly outside the Url bar area. This is needed to prevent stylus
-  // handwriting in inputs in web content area that are very close to url bar area, from being
-  // committed to Url bar's Edit text. Ex: google.com search field.
-  private static final String IME_OPTION_RESTRICT_STYLUS_WRITING_AREA =
-      "restrictDirectWritingArea=true";
-
   private WebContents mWebContents;
   private WebContents mSplashScreenWebContents;
   private NavigationController mNavigationController;
@@ -68,7 +61,6 @@ public class Shell {
   private @Nullable WindowAndroid mWindow;
   private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
 
-  private boolean mLoading;
   private boolean mIsFullscreen;
   private boolean mIsActivityVisible;
 
@@ -168,9 +160,6 @@ public class Shell {
   }
 
   @CalledByNative
-  private void onUpdateUrl(String url) {}
-
-  @CalledByNative
   private void onLoadProgressChanged(double progress) {}
 
   @CalledByNative
@@ -179,11 +168,6 @@ public class Shell {
   @CalledByNative
   private boolean isFullscreenForTabOrPending() {
     return mIsFullscreen;
-  }
-
-  @CalledByNative
-  private void setIsLoading(boolean loading) {
-    mLoading = loading;
   }
 
   /**
@@ -269,16 +253,6 @@ public class Shell {
     mOverlayModeChangedCallbackForTesting = callback;
     ResettersForTesting.register(() -> mOverlayModeChangedCallbackForTesting = null);
   }
-
-  /**
-   * Enable/Disable navigation(Prev/Next) button if navigation is allowed/disallowed in respective
-   * direction.
-   *
-   * @param controlId Id of button to update
-   * @param enabled enable/disable value
-   */
-  @CalledByNative
-  private void enableUiControl(int controlId, boolean enabled) {}
 
   /**
    * @return The {@link WebContents} currently managing the content shown by this Shell.

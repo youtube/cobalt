@@ -69,6 +69,8 @@ class TestDeployRdk(unittest.TestCase):
         mock.patch("time.sleep").start()
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
@@ -94,17 +96,15 @@ class TestDeployRdk(unittest.TestCase):
         """Verifies targets and tar command for plugin mode."""
         self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        # Check targets built: cobalt_loader, loader_app and loader_app_rdk_plugin
+        # Check targets built: cobalt_loader
         build_call = next(call for call in self.mock_run.call_args_list 
                          if "autoninja" in str(call))
         targets = build_call[0][0]
         self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertIn("loader_app_rdk_plugin", targets)
 
         # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
         tar_call = next(call for call in self.mock_run.call_args_list 
@@ -116,37 +116,11 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
         self.assertIn("libloader_app.so", tar_args)
 
-    def test_executable_mode_packaging(self):
-        """Verifies targets and tar command for executable mode."""
-        self.mock_run.side_effect = lambda *args, **kwargs: ""
-
-        argv = ["deploy_rdk.py", "--mode", "executable", "--force-deploy"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        # Check targets built: cobalt_loader and loader_app
-        build_call = next(call for call in self.mock_run.call_args_list 
-                         if "autoninja" in str(call))
-        targets = build_call[0][0]
-        self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertNotIn("loader_app_rdk_plugin", targets)
-
-        # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
-        tar_call = next(call for call in self.mock_run.call_args_list 
-                       if "tar" in str(call))
-        tar_args = tar_call[0][0]
-        self.assertIn("-czvf", tar_args)
-        self.assertIn("-T", tar_args)
-        self.assertIn("-C", tar_args)
-        self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
-        self.assertNotIn("libloader_app.so", tar_args)
-
     def test_plugin_mode_launch(self):
         """Verifies plugin mode uses deactivate -> sleep -> activate sequence."""
         self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--run", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -175,7 +149,7 @@ class TestDeployRdk(unittest.TestCase):
 
         self.mock_run.side_effect = run_cmd_mock
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy", "--deeplink", "v=dQw4w9WgXcQ"]
+        argv = ["deploy_rdk.py", "--run", "--force-deploy", "--deeplink", "v=dQw4w9WgXcQ"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -187,33 +161,6 @@ class TestDeployRdk(unittest.TestCase):
         activate_call = next((call for call in self.mock_run.call_args_list 
                              if "Controller.1.activate" in str(call)), None)
         self.assertIsNotNone(activate_call)
-
-    def test_deeplink_in_executable_mode_fails(self):
-        """Verifies --deeplink in executable mode fails and exits."""
-        argv = ["deploy_rdk.py", "--mode", "executable", "--run", "--deeplink", "v=123"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        self.mock_exit.assert_called_once_with(1)
-
-    def test_executable_mode_remote_dir(self):
-        """Verifies executable mode uses the correct remote directory."""
-        self.mock_run.side_effect = lambda *args, **kwargs: ""
-
-        argv = ["deploy_rdk.py", "--mode", "executable", "--run", "--force-deploy"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        found_executable_dir = False
-        for call_args in self.mock_run.call_args_list:
-            cmd_arg = str(call_args[0][0])
-            if "/data/out_loader_app_executable" in cmd_arg:
-                found_executable_dir = True
-
-        self.assertTrue(
-            found_executable_dir,
-            "Executable mode did not use /data/out_loader_app_executable",
-        )
 
     def test_only_lib_flag(self):
         """Verifies that --only-lib pushes the lz4 file to correct folder."""
@@ -262,6 +209,7 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("--no-rbe", gn_call[0][0])
 
 
+
 class TestDeployRdkDeviceDetection(unittest.TestCase):
     """Unit tests for the device auto-detection logic in deploy_rdk script."""
 
@@ -282,6 +230,8 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
         # Mock filesystem
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
@@ -547,55 +497,31 @@ class TestRemoveDuplicateSbArgs(unittest.TestCase):
         result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
         self.assertEqual(result, ["--v=1", "--enable-heap-profiling"])
 
-    def test_space_separated_key_value(self):
-        """Verifies deduplication of space-separated --key value arguments."""
-        # When sb_args has space-separated key and value
-        sb_args = ["--bar", "old_val", "--v=1"]
-        new_args = ["--bar=new_val"]
-        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
-        self.assertEqual(result, ["--v=1", "--bar=new_val"])
-
-        # When both sb_args and new_args use space-separated key and value
-        sb_args = ["--bar", "old_val", "--v=1"]
-        new_args = ["--bar", "new_val"]
-        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
-        self.assertEqual(result, ["--v=1", "--bar", "new_val"])
-
-    def test_all_three_flag_types_combined(self):
-        """Verifies deduplication when inline, valueless, and space-separated flags are all present and overridden."""
+    def test_combined_inline_and_boolean_flags(self):
+        """Verifies deduplication when inline and boolean flags are present and overridden."""
         sb_args = [
             "--foo=old_inline",
             "--bar",
-            "--baz", "old_space_val",
             "--keep=123",
         ]
         new_args = [
             "--foo=new_inline",
             "--bar",
-            "--baz=new_space_val",
         ]
         result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
         expected = [
             "--keep=123",
             "--foo=new_inline",
             "--bar",
-            "--baz=new_space_val",
         ]
         self.assertEqual(result, expected)
 
-    def test_single_string_space_arg(self):
-        """Verifies deduplication when arguments contain internal spaces like '--bar 1'."""
-        # Single string with space in sb_args overridden by equals syntax
-        res1 = deploy_rdk.remove_duplicate_sb_args(["--bar 1", "--v=1"], ["--bar=2"])
-        self.assertEqual(res1, ["--v=1", "--bar=2"])
-
-        # Equals syntax in sb_args overridden by single string with space
-        res2 = deploy_rdk.remove_duplicate_sb_args(["--bar=1", "--v=1"], ["--bar 2"])
-        self.assertEqual(res2, ["--v=1", "--bar 2"])
-
-        # Two-item space arg in sb_args overridden by single string with space
-        res3 = deploy_rdk.remove_duplicate_sb_args(["--bar", "1", "--v=1"], ["--bar 2"])
-        self.assertEqual(res3, ["--v=1", "--bar 2"])
+    def test_double_dash_separator(self):
+        """Verifies that the double-dash separator '--' is not treated as a flag key and filtered out."""
+        sb_args = ["--v=1", "--", "positional_arg"]
+        new_args = ["--v=2"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--", "positional_arg", "--v=2"])
 
     def test_positional_param_rejection(self):
         """Verifies parse_args fails when positional arguments are passed to --param."""

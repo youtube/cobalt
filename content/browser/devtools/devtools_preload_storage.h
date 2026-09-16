@@ -5,6 +5,13 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_PRELOAD_STORAGE_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_PRELOAD_STORAGE_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/devtools_preload_storage_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/prerender/prerender_metrics.h"
@@ -77,5 +84,7 @@ class DevToolsPreloadStorage : public DocumentUserData<DevToolsPreloadStorage> {
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_PRELOAD_STORAGE_H_

@@ -221,16 +221,10 @@ class MockDemuxerStream : public DemuxerStream {
   VideoDecoderConfig video_decoder_config() override;
   MOCK_METHOD0(EnableBitstreamConverter, void());
   MOCK_METHOD0(SupportsConfigChanges, bool());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void set_audio_decoder_config(const AudioDecoderConfig& config);
   void set_video_decoder_config(const VideoDecoderConfig& config);
   void set_liveness(StreamLiveness liveness);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void set_mime_type(const std::string& mime_type);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   Type type_ = DemuxerStream::Type::UNKNOWN;

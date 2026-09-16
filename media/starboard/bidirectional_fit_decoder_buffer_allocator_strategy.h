@@ -38,39 +38,20 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
                                      allocation_increment) {}
 
   // Constructs a strategy with explicit decommit configurations.
-  // |enable_decommit_on_idle|: Whether to perform any decommits when idle.
-  // |retain_blocks|: Number of blocks to keep fully committed when idle.
-  // |conservative_decommit_blocks|: Number of blocks beyond retain blocks to
-  // lazily decommit (e.g. using MADV_FREE if supported). Any blocks beyond
-  // these are aggressively decommitted (e.g. using MADV_DONTNEED).
-  // |aggressive_decommit_on_suspend|: Whether to aggressively decommit all idle
-  // blocks when app is suspended.
-  // |allocate_with_page_alignment|: Whether fallback allocations align to page
-  // boundary. |memset_on_reclaim|: Whether to zero out fallback blocks on
-  // reclamation. |mark_as_cold_on_reclaim|: Whether to advise MADV_COLD on
-  // reclamation.
-  BidirectionalFitDecoderBufferAllocatorStrategy(
-      size_t initial_capacity,
-      size_t allocation_increment,
-      bool enable_decommit_on_idle,
-      size_t retain_blocks,
-      size_t conservative_decommit_blocks,
-      bool aggressive_decommit_on_suspend,
-      bool allocate_with_page_alignment,
-      bool memset_on_reclaim,
-      bool mark_as_cold_on_reclaim)
-      : fallback_allocator_(enable_decommit_on_idle,
-                            allocate_with_page_alignment),
+  explicit BidirectionalFitDecoderBufferAllocatorStrategy(
+      const DecoderBufferAllocator::Strategy::ExperimentConfig& config)
+      : fallback_allocator_(config.enable_decommit_on_idle,
+                            config.allocate_with_page_alignment),
         bidirectional_fit_allocator_(&fallback_allocator_,
-                                     initial_capacity,
+                                     config.initial_capacity,
                                      kSmallAllocationThreshold,
-                                     allocation_increment,
-                                     enable_decommit_on_idle,
-                                     retain_blocks,
-                                     conservative_decommit_blocks,
-                                     aggressive_decommit_on_suspend,
-                                     memset_on_reclaim,
-                                     mark_as_cold_on_reclaim) {}
+                                     config.allocation_increment,
+                                     config.enable_decommit_on_idle,
+                                     config.retain_blocks,
+                                     config.conservative_decommit_blocks,
+                                     config.aggressive_decommit_on_suspend,
+                                     config.memset_on_reclaim,
+                                     config.mark_as_cold_on_reclaim) {}
 
   void* Allocate(DemuxerStream::Type type, size_t size) override {
     return bidirectional_fit_allocator_.Allocate(size);

@@ -86,7 +86,6 @@ class MojoRendererBypassBridge
   VideoDecoderConfig GetVideoConfig() const;
   bool SupportsConfigChanges(DemuxerStream::Type type) const;
   StreamLiveness GetLiveness(DemuxerStream::Type type) const;
-  std::string GetMimeType(DemuxerStream::Type type) const;
   void EnableBitstreamConverter(DemuxerStream::Type type);
 
  private:

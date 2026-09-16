@@ -30,11 +30,26 @@
 // limitations under the License.
 
 #include "starboard/media.h"
+#include "starboard/audio_sink.h"
 
-#include "third_party/starboard/rdk/shared/rdkservices.h"
+#include <cstring>
+
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+
+using namespace third_party::starboard::rdk::shared;
 
 bool SbMediaGetAudioConfiguration(
     int output_index,
-    SbMediaAudioConfiguration* out_configuration) {
-  return starboard::DeviceInfo::GetAudioConfiguration(output_index, out_configuration);
+    SbMediaAudioConfiguration* out_audio_configuration) {
+  if (!out_audio_configuration) {
+    return false;
+  }
+  bool ret = platform::device().audio_configuration(output_index, out_audio_configuration).value_or(false);
+  if (!ret && output_index == 0) {
+    memset(out_audio_configuration, 0, sizeof(SbMediaAudioConfiguration));
+    out_audio_configuration->coding_type = kSbMediaAudioCodingTypePcm;
+    out_audio_configuration->number_of_channels = SbAudioSinkGetMaxChannels();
+    ret = true;
+  }
+  return ret;
 }

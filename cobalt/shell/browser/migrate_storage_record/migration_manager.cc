@@ -15,6 +15,7 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -794,7 +795,7 @@ Task MigrationManager::LocalStorageTask(
 
           LOG(INFO) << "Put for key: " << key_str;
           shared_state->storage_area->Put(
-              key, value, absl::nullopt, "migration",
+              key, value, std::nullopt, "migration",
               base::BindOnce(
                   [](base::RepeatingClosure barrier, std::string key_str,
                      scoped_refptr<MigrationState> state,

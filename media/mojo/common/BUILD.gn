@@ -27,6 +27,7 @@ source_set("common") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
+      "starboard/empty_media_resource.h",
       "starboard/mojo_renderer_bypass_bridge.cc",
       "starboard/mojo_renderer_bypass_bridge.h",
     ]

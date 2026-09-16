@@ -39,8 +39,12 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
+#endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -55,13 +59,17 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/overlay_window.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
+#include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
 #include "net/base/url_util.h"
@@ -91,6 +99,8 @@ using ::starboard::StarboardBridge;
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #endif
+
+#include "starboard/system.h"
 
 namespace content {
 
@@ -207,6 +217,17 @@ ShellPlatformDelegate* g_platform = nullptr;
 
 std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+std::atomic<bool> Shell::has_hidden_system_splash_screen_{false};
+
+void Shell::MaybeHideSystemSplashScreen() {
+  if (!has_hidden_system_splash_screen_.exchange(true)) {
+    SbSystemHideSplashScreen();
+  }
+}
+
+void Shell::ResetSystemSplashScreenForTesting() {
+  has_hidden_system_splash_screen_.store(false);
+}
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
@@ -410,12 +431,6 @@ void Shell::SetShellCreatedCallback(
 }
 
 // static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
-}
-
-// static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
   for (Shell* window : windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
@@ -551,6 +566,10 @@ void Shell::PrimaryMainDocumentElementAvailable() {
     updater_module->MarkSuccessful();
   }
 #endif
+}
+
+void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MaybeHideSystemSplashScreen();
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
@@ -774,34 +793,25 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
     devtools_frontend_ = devtools_frontend->GetWeakPtr();
   }
 
   devtools_frontend_->Activate();
+#endif
 }
 
 void Shell::CloseDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     return;
   }
   devtools_frontend_->Close();
   devtools_frontend_ = nullptr;
+#endif
 }
 
 void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
@@ -877,12 +887,6 @@ WebContents* Shell::OpenURLFromTab(
   }
 
   return target;
-}
-
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
 }
 
 void Shell::EnterFullscreenModeForTab(
@@ -966,13 +970,6 @@ bool Shell::CanOverscrollContent() {
 #endif
 }
 
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
-}
-
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
@@ -1005,8 +1002,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
@@ -1040,7 +1038,20 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  return PictureInPictureResult::kNotSupported;
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
+  return PictureInPictureWindowManager::GetInstance()
+      .EnterVideoPictureInPicture(web_contents);
+}
+
+void Shell::ExitPictureInPicture() {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return;
+  }
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -1143,6 +1154,19 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
   if (visibility == Visibility::VISIBLE && pending_focus_) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
+  }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
   }
 }
 

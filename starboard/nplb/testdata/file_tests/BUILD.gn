@@ -41,7 +41,8 @@ if (is_android && !is_androidtv) {
     renaming_destinations = []
     foreach(_output, renaming_sources) {
       renaming_destinations +=
-          [ rebase_path(_output, sb_static_contents_output_data_dir) ]
+          [ "app/cobalt/content/" +
+            rebase_path(_output, sb_static_contents_output_data_dir) ]
     }
 
     deps = [ ":nplb_file_tests_data" ]

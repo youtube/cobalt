@@ -66,6 +66,7 @@ const std::unordered_map<std::string, std::string>
         {"tnoop18", "{E5928F71-A5BF-4C0E-6719-4BF8EA16570E}"},
         {"tseries118", "{F6A39082-B6C0-4D1F-782A-5C09FB27681F}"},
         {"tseries218", "{07B4A193-C7D1-4E20-893B-6D1A0C387920}"},
+        {"tzst18", "{F5D9E8D0-4E5F-4A9B-B0C1-2D3E4F5A6B7C}"},
 };
 
 const char kDefaultManifestVersion[] = "1.0.0";

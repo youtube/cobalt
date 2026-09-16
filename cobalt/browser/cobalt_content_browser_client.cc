@@ -66,6 +66,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -86,7 +87,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -224,7 +226,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    absl::optional<int64_t> startup_timestamp,
+    std::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
@@ -281,6 +283,19 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
 }
 #endif
 
+std::unique_ptr<content::VideoOverlayWindow>
+CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
+    content::VideoPictureInPictureWindowController* controller) {
+  // TODO: b/532158001 - Support PiP on Linux.
+  // PiP is currently only supported on Android. On other platforms, calling
+  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+#if BUILDFLAG(IS_ANDROID)
+  return content::VideoOverlayWindow::Create(controller);
+#else   // BUILDFLAG(IS_ANDROID)
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
@@ -293,7 +308,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return nullptr;
 #else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
@@ -311,15 +326,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
-  // Default compiled javascript quota in Cobalt 25 is 3 MB:
+  // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
-  // YouTube TV.
-  size_t size = 3 * 1024 * 1024;
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-optimized-v8-code-cache")) {
-    size = 5 * 1024 * 1024;
-  }
+  // Increased to 5 MB for Cobalt 27+.
+  size_t size = 5 * 1024 * 1024;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -356,11 +366,11 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     content::SiteInstance& main_frame_site,
     blink::web_pref::WebPreferences* prefs) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !defined(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
       web_contents, main_frame_site, prefs);
 }
@@ -450,6 +460,12 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
+  // Avoid closing idle HTTP/2 sessions on memory pressure signals. On resource-
+  // constrained TV hardware, PartitionAlloc memory compaction cycles repeatedly
+  // trigger memory pressure, which otherwise results in high connection churn
+  // and aborted session spikes (ERR_ABORTED).
+  network_context_params->disable_idle_sockets_close_on_memory_pressure = true;
+
   // All consumers of the main NetworkContext must provide
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
   // per-site basis.
@@ -478,10 +494,14 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
-    LOG(INFO) << "Creating UpdaterModule singleton.";
-    updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      LOG(INFO) << "Creating UpdaterModule singleton.";
+      updater::UpdaterModule::CreateInstance(
+          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+          GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    } else {
+      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+    }
   }
 #endif
 }
@@ -593,15 +613,27 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     return;
   }
   auto* web_contents = web_contents_observer_->web_contents();
-  CHECK(web_contents);
+  if (!web_contents) {
+    std::move(callback).Run();
+    return;
+  }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
-  CHECK(rfh);
+  if (!rfh) {
+    std::move(callback).Run();
+    return;
+  }
   auto* storage_partition = rfh->GetStoragePartition();
-  CHECK(storage_partition);
+  if (!storage_partition) {
+    std::move(callback).Run();
+    return;
+  }
   // Flushes localStorage.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
+  if (!cookie_manager) {
+    std::move(callback).Run();
+    return;
+  }
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
@@ -616,10 +648,20 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto* global_features = GlobalFeatures::GetInstance();
   auto* experiment_config_manager =
       global_features->experiment_config_manager();
+
+  // It is critical that GetExperimentConfigType() is evaluated after
+  // InstantiateFieldTrialList(), because the latter triggers
+  // CleanExitBeacon::Initialize(), which reads the 'Variations' beacon file
+  // from DIR_CACHE and increments/syncs the crash streak into
+  // metrics_local_state.
+  // ExperimentConfigManager can then see the true crash streak and fall back
+  // to Safe Mode when needed.
   auto config_type = experiment_config_manager->GetExperimentConfigType();
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
+
+  global_features->InitializeActiveConfigData(config_type);
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);

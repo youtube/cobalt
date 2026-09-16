@@ -144,16 +144,6 @@ StreamLiveness MojoRendererBypassBridge::GetLiveness(
   return stream ? stream->liveness() : StreamLiveness::kUnknown;
 }
 
-std::string MojoRendererBypassBridge::GetMimeType(
-    DemuxerStream::Type type) const {
-  base::AutoLock auto_lock(lock_);
-  if (!active_) {
-    return "";
-  }
-  DemuxerStream* stream = GetStreamLocked(type);
-  return stream ? stream->mime_type() : "";
-}
-
 void MojoRendererBypassBridge::EnableBitstreamConverter(
     DemuxerStream::Type type) {
   if (!client_task_runner_->RunsTasksInCurrentSequence()) {

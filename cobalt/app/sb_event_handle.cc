@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/run_loop.h"
 #include "build/buildflag.h"
 #include "cobalt/app/app_event_delegate.h"
@@ -34,6 +35,7 @@ void SbEventHandle(const SbEvent* event) {
   }
 
   if (event->type == kSbEventTypeStop) {
+    // Wait for the Stop transition to complete natively before teardown.
     base::RunLoop run_loop;
     s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
     s_lifecycle_delegate->HandleEvent(event);
@@ -46,6 +48,21 @@ void SbEventHandle(const SbEvent* event) {
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+    LOG(INFO) << "Application Stopped";
+  } else if (event->type == kSbEventTypeFreeze) {
+    // Wait for the Freeze transition to complete natively before
+    // allowing SbEventHandle to return, ensuring event callbacks
+    // (such as FreezeDone) are invoked only after Cobalt has truly
+    // reached the frozen state and released its resources.
+    base::RunLoop run_loop;
+
+    // Note: SetQuitClosure receives the callback to explicitly quit this local
+    // run_loop, it does NOT quit the application. This simply unblocks
+    // SbEventHandle to safely return and allow the OS to suspend the
+    // still-living process in the background.
+    s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
+    s_lifecycle_delegate->HandleEvent(event);
+    run_loop.Run();
   } else {
     s_lifecycle_delegate->HandleEvent(event);
   }

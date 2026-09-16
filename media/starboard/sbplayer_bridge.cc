@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -30,6 +31,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -219,9 +221,7 @@ SbPlayerBridge::SbPlayerBridge(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config,
-    const std::string& audio_mime_type,
     const VideoDecoderConfig& video_config,
-    const std::string& video_mime_type,
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
@@ -291,10 +291,10 @@ SbPlayerBridge::SbPlayerBridge(
   video_stream_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
-    UpdateAudioConfig(audio_config, audio_mime_type);
+    UpdateAudioConfig(audio_config);
   }
   if (video_config.IsValidConfig()) {
-    UpdateVideoConfig(video_config, video_mime_type);
+    UpdateVideoConfig(video_config);
     SendColorSpaceHistogram();
   }
 
@@ -327,8 +327,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   }
 }
 
-void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -336,14 +335,12 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_mime_type_ = mime_type;
   audio_stream_info_ = MediaAudioConfigToSbMediaAudioStreamInfo(
-      audio_config_, audio_mime_type_.c_str());
+      audio_config_, audio_config_.mime_type().c_str());
   LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
-void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
@@ -357,11 +354,10 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
       static_cast<int>(video_config_.natural_size().height());
   video_stream_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_stream_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.color_space_info(),
-                                  video_config_.hdr_metadata(), mime_type);
-  video_mime_type_ = mime_type;
-  video_stream_info_.mime = video_mime_type_.c_str();
+  video_stream_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata(),
+      video_config_.mime_type());
+  video_stream_info_.mime = video_config_.mime_type().c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }
@@ -559,24 +555,6 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   *frame_height = video_stream_info_.frame_height;
 }
 
-TimeDelta SbPlayerBridge::GetDuration() {
-  DCHECK(is_url_based_);
-
-  if (state_ == kSuspended) {
-    return TimeDelta();
-  }
-
-  DCHECK(SbPlayerIsValid(player_));
-
-  SbPlayerInfo info;
-  sbplayer_interface_->GetInfo(player_, &info);
-  if (info.duration == SB_PLAYER_NO_DURATION) {
-    // URL-based player may not have loaded asset yet, so map no duration to 0.
-    return TimeDelta();
-  }
-  return base::Microseconds(info.duration);
-}
-
 TimeDelta SbPlayerBridge::GetStartDate() {
   DCHECK(is_url_based_);
 
@@ -671,10 +649,21 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     const unsigned char* init_data,
     unsigned int init_data_length) {
   SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
-  DCHECK(
-      !sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.is_null());
-  sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.Run(
-      init_data_type, init_data, init_data_length);
+  auto data_span = base::span(init_data, init_data_length);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnEncryptedMediaInitDataEncountered,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     std::string(init_data_type),
+                     std::vector<uint8_t>(data_span.begin(), data_span.end())));
+}
+
+void SbPlayerBridge::OnEncryptedMediaInitDataEncountered(
+    std::string init_data_type,
+    std::vector<uint8_t> init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
+  on_encrypted_media_init_data_encountered_cb_.Run(init_data_type, init_data);
 }
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
@@ -1022,7 +1011,7 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(out_info);
   DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
-         out_info->media_time);
+         out_info->media_time || out_info->duration);
 
   if (state_ == kSuspended) {
     if (out_info->video_frames_decoded) {
@@ -1033,6 +1022,9 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
     }
     if (out_info->media_time) {
       *out_info->media_time = preroll_timestamp_;
+    }
+    if (out_info->duration) {
+      *out_info->duration = kNoTimestamp;
     }
   } else {
     DCHECK(SbPlayerIsValid(player_));
@@ -1048,6 +1040,13 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
     }
     if (out_info->video_frames_dropped) {
       *out_info->video_frames_dropped = info.dropped_video_frames;
+    }
+    if (out_info->duration) {
+      if (info.duration == SB_PLAYER_NO_DURATION) {
+        *out_info->duration = kNoTimestamp;
+      } else {
+        *out_info->duration = base::Microseconds(info.duration);
+      }
     }
   }
 

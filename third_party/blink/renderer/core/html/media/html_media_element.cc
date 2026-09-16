@@ -130,7 +130,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS
@@ -306,8 +306,19 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_IOS_TVOS)
+    // content_type_str is empty for src-attribute loads. Use the MIME
+    // type for data: URLs extracted by MimeTypeFromDataURL() so
+    // CanPlayMimeAndKeySystem receives a valid type instead of an
+    // empty string.
+    auto ascii = content_type_str.empty() ? content_mime_type.Ascii()
+                                          : content_type_str.Ascii();
+#else
+    auto ascii = content_type_str.Ascii();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
     SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     MIMETypeRegistry::SupportsType result;
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -320,8 +331,7 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
         result = MIMETypeRegistry::kSupported;
         break;
     }
-    LOG(INFO) << __func__ << "(" << content_type_str.Ascii() << ") -> "
-              << result;
+    LOG(INFO) << __func__ << "(" << ascii << ") -> " << result;
     return result;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return MIMETypeRegistry::SupportsMediaMIMEType(content_mime_type,
@@ -420,8 +430,10 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
               << "\' is unsupported.";
     result = MIMETypeRegistry::kNotSupported;
   } else {
-    const SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+    auto ascii = content_type.Raw().Ascii();
+    SbMediaSupportType support_type =
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
         result = MIMETypeRegistry::kNotSupported;

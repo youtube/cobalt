@@ -72,7 +72,7 @@ class MediaCodecBridge {
   private volatile boolean mIsFlushing = false;
   private final boolean mEnableIgnoreCallbacksDuringFlushing;
 
-  private MediaCodec.Callback mCallback;
+  private final MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
   private double mOperatingRate = mPlaybackRate * mFps;
@@ -80,7 +80,7 @@ class MediaCodecBridge {
   private final boolean mIsTunnelingPlayback;
   private final boolean mEnableFrameRendererListener;
 
-  private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
+  private final MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
@@ -214,8 +214,7 @@ class MediaCodecBridge {
         float maxMasteringLuminance,
         float minMasteringLuminance,
         int maxCll,
-        int maxFall,
-        boolean forceBigEndianHdrMetadata) {
+        int maxFall) {
       this.colorRange = colorRange;
       this.colorStandard = colorStandard;
       this.colorTransfer = colorTransfer;
@@ -230,12 +229,7 @@ class MediaCodecBridge {
       // This logic is inspired by
       // https://cs.android.com/android/_/android/platform/external/exoplayer/+/3423b4bbfffbb62b5f2d8f16cfdc984dc107cd02:tree/library/extractor/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java;l=2200-2215;drc=9af07bc62f8115cbaa6f1178ce8aa3533d2b9e29.
       ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25);
-      // Force big endian in case the HDR metadata causes problems in production.
-      if (forceBigEndianHdrMetadata) {
-        hdrStaticInfo.order(ByteOrder.BIG_ENDIAN);
-      } else {
-        hdrStaticInfo.order(ByteOrder.LITTLE_ENDIAN);
-      }
+      hdrStaticInfo.order(ByteOrder.LITTLE_ENDIAN);
 
       hdrStaticInfo.put((byte) 0);
       hdrStaticInfo.putShort((short) ((primaryRChromaticityX * MAX_CHROMATICITY) + 0.5f));
@@ -387,6 +381,8 @@ class MediaCodecBridge {
       } else {
         mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
       }
+    } else {
+      mFrameRendererListener = null;
     }
 
     if (mIsTunnelingPlayback) {

@@ -51,6 +51,14 @@ BASE_FEATURE(kUseGles2ForOopR,
              "UseGles2ForOopR",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+// Enables zero-copy, direct in-process rasterization for Cobalt by bypassing
+// PaintOp buffer serialization and transfer cache caching.
+BASE_FEATURE(kCobaltInProcessDirectRaster,
+             "CobaltInProcessDirectRaster",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // More aggressive behavior for the shader cache: increase size, and do not
 // purge as much in case of memory pressure.
 BASE_FEATURE(kAggressiveShaderCacheLimits,

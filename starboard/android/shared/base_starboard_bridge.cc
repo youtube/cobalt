@@ -92,11 +92,20 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
     ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+#if BUILDFLAG(IS_STARBOARD)
+    // Just initialize file_internal directories and asset manager here,
+    // ApplicationAOSP will be created in SbRunStarboardMain
+    SbFileAndroidInitialize(std::move(asset_manager),
+                            ConvertJavaStringToUTF8(env, j_files_dir),
+                            ConvertJavaStringToUTF8(env, j_cache_dir),
+                            ConvertJavaStringToUTF8(env, j_native_library_dir));
+#else
     g_native_app_instance = new ApplicationAndroid(
         std::move(command_line), std::move(asset_manager),
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
+#endif
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
@@ -180,23 +189,6 @@ void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
 #endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
-jboolean JNI_BaseStarboardBridge_IsReleaseBuild(JNIEnv* env) {
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return true;
-#else
-  return false;
-#endif
-}
-
-jboolean JNI_BaseStarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
-// OFFICIAL_BUILD is set for Cobalt QA and Gold releases
-#if defined(OFFICIAL_BUILD)
-  return false;
-#else
-  return true;
-#endif
-}
-
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -234,21 +226,15 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
-ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_BaseStarboardBridge_getSupportedHdrTypes(env,
-                                                       j_starboard_bridge_);
-}
-
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url) {
+                                         const std::string& url,
+                                         bool disable_dismiss_button) {
   SB_DCHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url));
+      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
@@ -308,6 +294,15 @@ SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
 SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return false;
+  }
+  return Java_BaseStarboardBridge_getWasLowMemoryKilled(
+             env, j_starboard_bridge_) == JNI_TRUE;
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
@@ -429,11 +424,10 @@ ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
       ConvertUTF8ToJavaString(env, service_name));
 }
 
-void StarboardBridge::CloseCobaltService(JNIEnv* env,
-                                         const char* service_name) {
+void StarboardBridge::CloseCobaltService(JNIEnv* env, jlong native_service) {
   SB_CHECK(env);
-  Java_BaseStarboardBridge_closeCobaltService(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+  Java_BaseStarboardBridge_closeCobaltService(env, j_starboard_bridge_,
+                                              native_service);
 }
 
 bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {

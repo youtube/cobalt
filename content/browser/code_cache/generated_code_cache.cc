@@ -481,19 +481,9 @@ void GeneratedCodeCache::WriteEntry(const GURL& url,
 
 #if BUILDFLAG(IS_COBALT)
   if (cache_type_ == CodeCacheType::kJavaScript) {
-    // We skip caching below experimental thresholds (1KB, 16KB) to preserve
-    // cache slots for heavy core bundles. Cache switch evaluations statically
-    // once per runtime process to avoid redundant map lookups.
-    static const size_t kMinBytecodeSize = [] {
-      auto* command_line = base::CommandLine::ForCurrentProcess();
-      if (command_line->HasSwitch("enable-http-and-v8-cache-tuning")) {
-        return 16384;
-      }
-      if (command_line->HasSwitch("enable-optimized-v8-code-cache")) {
-        return 1024;
-      }
-      return 0;
-    }();
+    // We skip caching below experimental thresholds to preserve
+    // cache slots for heavy core bundles.
+    constexpr size_t kMinBytecodeSize = 1024;
     if (data.size() < kMinBytecodeSize) {
       return;
     }

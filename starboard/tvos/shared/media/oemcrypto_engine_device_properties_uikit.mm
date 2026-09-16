@@ -88,7 +88,7 @@ void OEMCrypto_AlwaysEnforceOutputProtection() {
 
 class CryptoEngineUikit : public CryptoEngine {
  public:
-  explicit CryptoEngineUikit(scoped_ptr<FileSystem> file_system)
+  explicit CryptoEngineUikit(scoped_ptr<wvcdm::FileSystem> file_system)
       : CryptoEngine(file_system) {}
 
   OEMCrypto_HDCP_Capability config_current_hdcp_capability() override {
@@ -110,7 +110,7 @@ class CryptoEngineUikit : public CryptoEngine {
 };
 
 CryptoEngine* CryptoEngine::MakeCryptoEngine(
-    scoped_ptr<FileSystem> file_system) {
+    scoped_ptr<wvcdm::FileSystem> file_system) {
   return new CryptoEngineUikit(file_system);
 }
 

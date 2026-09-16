@@ -14,6 +14,8 @@
 
 #include "content/browser/renderer_host/frame_tree.h"
 
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
@@ -69,8 +71,8 @@ EvalJsResult GetOriginFromRenderer(FrameTreeNode* node) {
 // Expect that frame_name, id and src match the node's values.
 void ExpectAttributesEq(FrameTreeNode* node,
                         const std::string& frame_name,
-                        const absl::optional<std::string> id,
-                        const absl::optional<std::string> src) {
+                        const std::optional<std::string> id,
+                        const std::optional<std::string> src) {
   EXPECT_EQ(frame_name, node->frame_name());
   EXPECT_EQ(id, node->html_id());
   EXPECT_EQ(src, node->html_src());
@@ -135,7 +137,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
 
   // Check that the root node is properly created.
   ASSERT_EQ(3UL, root->child_count());
-  ExpectAttributesEq(root, std::string(), absl::nullopt, absl::nullopt);
+  ExpectAttributesEq(root, std::string(), std::nullopt, std::nullopt);
 
   ASSERT_EQ(2UL, root->child_at(0)->child_count());
   ExpectAttributesEq(root->child_at(0), "1-1-name", "1-1-id", "1-1.html");
@@ -154,7 +156,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
 
   root = wc->GetPrimaryFrameTree().root();
   EXPECT_EQ(0UL, root->child_count());
-  ExpectAttributesEq(root, std::string(), absl::nullopt, absl::nullopt);
+  ExpectAttributesEq(root, std::string(), std::nullopt, std::nullopt);
 }
 
 // Frame attributes of iframe elements are correctly tracked in FrameTree.
@@ -169,7 +171,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
 
   // Check that the root node is properly created.
   ASSERT_EQ(3UL, root->child_count());
-  ExpectAttributesEq(root, std::string(), absl::nullopt, absl::nullopt);
+  ExpectAttributesEq(root, std::string(), std::nullopt, std::nullopt);
 
   ASSERT_EQ(2UL, root->child_at(0)->child_count());
   ExpectAttributesEq(root->child_at(0), "1-1-name", "1-1-id", "1-1.html");
@@ -199,7 +201,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameNameVSWindowName) {
 
   // Check that the root node is properly created.
   ASSERT_EQ(3UL, root->child_count());
-  EXPECT_EQ(absl::nullopt, root->html_name());
+  EXPECT_EQ(std::nullopt, root->html_name());
   EXPECT_EQ(std::string(), root->frame_name());
 
   ASSERT_EQ(2UL, root->child_at(0)->child_count());
@@ -271,7 +273,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_InsertFrameInTree) {
 
   // Check that the root node is properly created.
   ASSERT_EQ(3UL, root->child_count());
-  ExpectAttributesEq(root, std::string(), absl::nullopt, absl::nullopt);
+  ExpectAttributesEq(root, std::string(), std::nullopt, std::nullopt);
 
   ASSERT_EQ(2UL, root->child_at(0)->child_count());
   ExpectAttributesEq(root->child_at(0), "1-1-name", "1-1-id", "1-1.html");

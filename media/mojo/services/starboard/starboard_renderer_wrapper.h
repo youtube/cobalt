@@ -16,6 +16,8 @@
 #define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
 #include <functional>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -23,6 +25,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
@@ -92,7 +95,7 @@ class StarboardRendererWrapper
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
   base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
 
@@ -138,6 +141,13 @@ class StarboardRendererWrapper
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
   void OnGetSbWindowHandle();
+#if BUILDFLAG(IS_IOS_TVOS)
+  void OnEncryptedMediaInitData(const std::string& init_data_type,
+                                const std::vector<uint8_t>& init_data);
+  void OnDurationChange(base::TimeDelta duration);
+  void OnBufferedTimeRangesChange(base::TimeDelta start,
+                                  base::TimeDelta length);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client);
 #if BUILDFLAG(IS_ANDROID)

@@ -14,33 +14,22 @@
 
 #include <stdint.h>
 
+#include "starboard/aosp/shared/application_aosp.h"
 #include "starboard/event.h"
 
-extern "C" void SbEventCancel(SbEventId /*event_id*/) {}
+extern "C" void SbEventCancel(SbEventId event_id) {
+  starboard::Application::Get()->Cancel(event_id);
+}
 
-extern "C" SbEventId SbEventSchedule(SbEventCallback /*callback*/,
-                                     void* /*context*/,
-                                     int64_t /*delay_usec*/) {
-  return kSbEventIdInvalid;
+extern "C" SbEventId SbEventSchedule(SbEventCallback callback,
+                                     void* context,
+                                     int64_t delay_usec) {
+  return starboard::Application::Get()->Schedule(callback, context, delay_usec);
 }
 
 extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
                                             char** argv,
                                             SbEventHandleCallback callback) {
-  SbEventStartData start_data = {};
-  start_data.argument_values = argv;
-  start_data.argument_count = argc;
-  start_data.link = nullptr;
-
-  SbEvent start_event = {};
-  start_event.type = kSbEventTypeStart;
-  start_event.data = &start_data;
-  callback(&start_event);
-
-  SbEvent stop_event = {};
-  stop_event.type = kSbEventTypeStop;
-  stop_event.data = nullptr;
-  callback(&stop_event);
-
-  return 0;
+  starboard::ApplicationAOSP application(callback);
+  return application.Run(argc, argv);
 }

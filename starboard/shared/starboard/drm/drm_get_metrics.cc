@@ -20,17 +20,23 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
-  if (size == NULL) {
+  if (size == nullptr) {
     SB_DLOG(WARNING) << "|size| cannot be NULL.";
-    return NULL;
+    return nullptr;
   }
 
   *size = 0;
 
   if (!SbDrmSystemIsValid(drm_system)) {
     SB_DLOG(WARNING) << "Invalid drm system";
-    return NULL;
+    return nullptr;
   }
 
-  return drm_system->GetMetrics(size);
+  std::optional<std::string_view> metrics = drm_system->GetMetrics();
+  if (!metrics) {
+    return nullptr;
+  }
+
+  *size = static_cast<int>(metrics->size());
+  return metrics->data();
 }

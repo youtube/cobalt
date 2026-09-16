@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/android/jni_android.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/notimplemented.h"
@@ -118,6 +119,14 @@ void H5vccSystemImpl::HideSplashScreen() {
   LOG(INFO) << "H5vccSystem HideSplashScreen.";
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge::GetInstance()->HideSplashScreen(env);
+}
+
+void H5vccSystemImpl::GetWasLowMemoryKilled(
+    GetWasLowMemoryKilledCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::move(callback).Run(
+      StarboardBridge::GetInstance()->GetWasLowMemoryKilled(env));
 }
 
 }  // namespace h5vcc_system

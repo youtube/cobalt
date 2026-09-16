@@ -14,6 +14,8 @@
 
 #include "content/public/browser/media_session.h"
 
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
@@ -40,7 +42,6 @@
 #include "services/media_session/public/cpp/features.h"
 #include "services/media_session/public/cpp/test/audio_focus_test_util.h"
 #include "services/media_session/public/cpp/test/mock_media_session.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -83,7 +84,7 @@ class MediaImageGetterHelper {
   }
 
   base::RunLoop run_loop_;
-  absl::optional<SkBitmap> bitmap_;
+  std::optional<SkBitmap> bitmap_;
 };
 
 // Integration tests for content::MediaSession that do not take into

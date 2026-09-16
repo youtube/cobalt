@@ -201,8 +201,6 @@ std::ostream& operator<<(std::ostream& os,
             << ToString(options.require_secured_decoder)
             << ", require_software_codec="
             << ToString(options.require_software_codec)
-            << ", force_big_endian_hdr_metadata="
-            << ToString(options.force_big_endian_hdr_metadata)
             << ", tunnel_mode_audio_session_id="
             << ToString(options.tunnel_mode_audio_session_id) << "}";
 }

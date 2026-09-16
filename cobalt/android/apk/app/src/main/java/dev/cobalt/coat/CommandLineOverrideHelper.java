@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import androidx.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -31,17 +32,6 @@ import org.chromium.base.CommandLine;
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
 
-  /** Param class to simplify #getFlagOverrides method signature */
-  public static class CommandLineOverrideHelperParams {
-    public CommandLineOverrideHelperParams(boolean isOfficialBuild, String[] commandLineArgs) {
-      mIsOfficialBuild = isOfficialBuild;
-      mCommandLineArgs = commandLineArgs;
-    }
-
-    private boolean mIsOfficialBuild;
-    private String[] mCommandLineArgs;
-  }
-
   // This can be returned as a list, since it does not need to be a single
   // string object. The others can be combined into a single String because
   // they need to be enclosed in the feature's enable/disable header.
@@ -54,8 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Disable rescaling Webpage.
-    paramOverrides.add("--force-device-scale-factor=1");
     // Enable low end device mode.
     paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
@@ -76,8 +64,8 @@ public final class CommandLineOverrideHelper {
     }
     // Hide scrollbars to avoid memory allocation.
     paramOverrides.add("--hide-scrollbars");
-    // Force GPU memory available to 64MB.
-    paramOverrides.add("--force-gpu-mem-available-mb=64");
+    // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
+    paramOverrides.add("--use-custom-android-fonts-xml");
 
     return paramOverrides;
   }
@@ -87,18 +75,12 @@ public final class CommandLineOverrideHelper {
 
     // Trades a little V8 performance for significant memory savings.
     paramOverrides.add("--optimize-for-size");
-    // Set max old space size to 512MB.
-    paramOverrides.add("--max-old-space-size=512");
 
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
 
     // Disable v8 concurrent marking by default.
     paramOverrides.add("--no-concurrent-marking");
-
-    // Disable v8 optimizing compilers (maglev, turbofan, sparkplug).
-    paramOverrides.add("--disable-optimizing-compilers");
-    paramOverrides.add("--no-sparkplug");
 
     return paramOverrides;
   }
@@ -135,6 +117,14 @@ public final class CommandLineOverrideHelper {
     // Disable FontSrcLocalMatching lookup table.
     paramOverrides.add("FontSrcLocalMatching");
 
+    // Disable deferring audio focus until audible for Starboard/Cobalt:
+    // 1. Cobalt runs on living-room/TV devices where playback is user-initiated
+    // and should acquire audio focus immediately.
+    // 2. Starboard renders audio directly to native audio sinks, bypassing
+    // Chromium's AudioStreamMonitor, so WebContents is never reported as
+    // audible, meaning deferred audio focus is never executed.
+    paramOverrides.add("DeferAudioFocusUntilAudible");
+
     return paramOverrides;
   }
 
@@ -148,68 +138,58 @@ public final class CommandLineOverrideHelper {
     return paramOverrides;
   }
 
-  public static void getFlagOverrides(CommandLineOverrideHelperParams params) {
+  public static void getFlagOverrides(@NonNull List<String> commandLineArgs) {
     List<String> cliOverrides = getDefaultCommandLineOverridesList();
     StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
     StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
     StringJoiner disableFeatureOverrides = getDefaultDisableFeatureOverridesList();
     StringJoiner blinkEnableFeatureOverrides = getDefaultBlinkEnableFeatureOverridesList();
+    StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
-    if (params != null) {
-      if (!params.mIsOfficialBuild) {
-        cliOverrides.add(
-            "--remote-allow-origins=" + "https://chrome-devtools-frontend.appspot.com");
+    for (String param : commandLineArgs) {
+      if (param == null || param.isEmpty()) {
+        continue;
+      }
+      String[] parts = param.split("=", 2);
+      if (parts.length != 2) {
+        cliOverrides.add(param);
+        continue;
       }
 
-      if (params.mCommandLineArgs != null) {
-        for (String param : params.mCommandLineArgs) {
-          if (param == null || param.isEmpty()) {
-            continue; // Skip null or empty params
-          }
-          String[] parts = param.split("=", 2);
-          if (parts.length == 2) {
-            String key = parts[0];
-            String value = parts[1];
-            String[] values = value.split(";");
-            for (String v : values) {
-              if (key.equals("--js-flags")) {
-                jsFlagOverrides.add(v);
-              } else if (key.equals("--enable-features")) {
-                enableFeatureOverrides.add(v);
-              } else if (key.equals("--disable-features")) {
-                disableFeatureOverrides.add(v);
-              } else if (key.equals("--enable-blink-features")) {
-                blinkEnableFeatureOverrides.add(v);
-              } else if (key.equals("--enable-h5vcc-settings")) {
-                enableH5vccSettings.add(v);
-              } else {
-                cliOverrides.add(param);
-                break; // Avoid adding the same param multiple times
-              }
-            }
-          } else {
-            cliOverrides.add(param);
-          }
+      String key = parts[0];
+      String value = parts[1];
+      for (String v : value.split(";")) {
+        if (key.equals("--js-flags")) {
+          jsFlagOverrides.add(v);
+        } else if (key.equals("--enable-features")) {
+          enableFeatureOverrides.add(v);
+        } else if (key.equals("--disable-features")) {
+          disableFeatureOverrides.add(v);
+        } else if (key.equals("--enable-blink-features")) {
+          blinkEnableFeatureOverrides.add(v);
+        } else if (key.equals("--trace-startup")) {
+          traceStartupOverrides.add(v);
+        } else if (key.equals("--enable-h5vcc-settings")) {
+          enableH5vccSettings.add(v);
+        } else {
+          cliOverrides.add(param);
+          break; // Avoid adding the same param multiple times
         }
       }
     }
-    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(new String[] {"--js-flags=" + jsFlagOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-features=" + enableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--disable-features=" + disableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
-    if (enableH5vccSettings.length() > 0) {
-      CommandLine.getInstance()
-          .appendSwitchesAndArguments(
-              new String[] {"--enable-h5vcc-settings=" + enableH5vccSettings.toString()});
+
+    cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
+    cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
+    cliOverrides.add("--disable-features=" + disableFeatureOverrides.toString());
+    cliOverrides.add("--enable-blink-features=" + blinkEnableFeatureOverrides.toString());
+    if (traceStartupOverrides.length() > 0) {
+      cliOverrides.add("--trace-startup=" + traceStartupOverrides.toString());
     }
+    if (enableH5vccSettings.length() > 0) {
+      cliOverrides.add("--enable-h5vcc-settings=" + enableH5vccSettings.toString());
+    }
+
+    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
   }
 }

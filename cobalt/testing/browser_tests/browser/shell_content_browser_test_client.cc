@@ -14,6 +14,7 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,7 +109,7 @@ class ShellControllerImpl : public mojom::ShellController {
     if (command_line.HasSwitch(name)) {
       std::move(callback).Run(command_line.GetSwitchValueASCII(name));
     } else {
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
     }
   }
 

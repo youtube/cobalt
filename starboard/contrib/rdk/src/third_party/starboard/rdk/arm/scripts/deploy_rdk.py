@@ -18,62 +18,14 @@ This script handles the full lifecycle of building, packaging, deploying,
 and launching Cobalt (as a plugin or executable) or Cobalt tests on RDK.
 
 Usage Examples:
-  1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
+  1. Build and deploy as Cobalt plugin (default: config: qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Deploy a pre-built package and run it:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --out-dir ~/Downloads/evergreen-arm-hardfp-rdk_qa/ --skip-build --run
-
-  3. Build, deploy, and RUN Cobalt plugin on device:
+  2. Build, deploy, and RUN Cobalt plugin or tests on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
-
-  4. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  5. Build and deploy as standalone executable (loader_app):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
-
-  6. Force deploy and run even if artifacts are up-to-date:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
-
-  7. Reset RDK display and restart WPEFramework (fixes stuck displays/frozen sessions):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
-
-  8. Deploy only the libcobalt library:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
-
-  9. View filtered application logs (YouTube/Cobalt):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
-
-  10. Follow application logs in real-time (journalctl -f):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
-
-  11. View raw global OS/system logs (journalctl):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --system-logs
-
-  12. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
-
-  13. Download and install cross-compilation toolchain:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
-
-  14. Revert active Cobalt loader configuration to Cobalt 25:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
-
-  15. Launch Cobalt plugin with a deep link (e.g. video ID or URL parameter):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --deeplink "v=dQw4w9WgXcQ"
-  
-  16. Run Cobalt executable with native in-process heap profiling:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py \
-        --mode executable --run --config devel \
-        --param \
-          --enable-heap-profiling \
-          --memlog=all \
-          --memlog-stack-mode=native-with-thread-names \
-          --trace-startup=disabled-by-default-memory-infra \
-          --trace-startup-duration=15 \
-          --trace-startup-format=json \
-          --trace-startup-file=/tmp/trace_event.json
+  (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
 import argparse
@@ -94,7 +46,6 @@ os.environ.pop("GEMINI_CLI", None)
 # Constants
 PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
-EXECUTABLE_REMOTE_DIR = "/data/out_loader_app_executable"
 TEST_REMOTE_DIR = "/data/test"
 MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
@@ -188,12 +139,12 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
     print(f"=== Configuring {platform} ({config}) ===")
     cmd = [
         "python3", "cobalt/build/gn.py", "-p", platform, "-C", config,
-        "--out_directory",
         str(out_dir)
     ]
     if no_rbe:
         cmd.append("--no-rbe")
     run_command(cmd)
+
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
@@ -219,16 +170,14 @@ def package_and_deploy(
     device_ip: Optional[str],
     out_dir: Path,
     remote_dir: str,
-    deps_file: Optional[Path],
-    mode: str,
-) -> None:
+    deps_file: Optional[Path], is_test: bool) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
     if deps_file and deps_file.exists():
         tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-        if mode == "plugin":
+        if not is_test:
             tar_cmd.append("libloader_app.so")
         build_info = out_dir / "gen/build_info.json"
         if build_info.exists():
@@ -241,9 +190,27 @@ def package_and_deploy(
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
+    if not remote_dir or remote_dir == "/":
+        print(f"Error: remote_dir '{remote_dir}' is invalid or dangerous for cleanup.")
+        sys.exit(1)
+    print("=== Cleaning previous remote deployment ===")
+    # Remove old app directories and binaries, ignoring errors if they don't exist
+    run_remote_command(
+        f"rm -rf {remote_dir}/app {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
+        device_id, device_ip, check=False)
+
     run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
     push_to_device(archive_name, f"{remote_dir}/", device_id, device_ip)
     Path(archive_name).unlink(missing_ok=True)
+
+    print("=== Extracting archive on device ===")
+    extract_cmds = [
+        f"cd {remote_dir}",
+        "tar -xzf archive.tar.gz",
+        "rm archive.tar.gz",
+        f"chmod -R 777 {remote_dir}",
+    ]
+    run_remote_command(" && ".join(extract_cmds), device_id, device_ip)
 
 
 def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str]) -> None:
@@ -254,34 +221,22 @@ def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str
 
 
 def _extract_flag_key(arg: str) -> str:
-    """Extracts option key from flag string (e.g. '--foo' from '--foo=val', '--foo val', or '--foo')."""
-    return arg.split("=", 1)[0].split()[0]
+    """Extracts option key from flag string (e.g. '--foo' from '--foo=val' or '--foo')."""
+    return arg.split("=", 1)[0]
 
 
 def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List[str]:
     """Filters flags from base_args whose option keys match any flag in override_args."""
-    override_keys = set()
-    for arg in override_args:
-        if arg.startswith("--"):
-            override_keys.add(_extract_flag_key(arg))
-
-    filtered_args = []
-    i = 0
-    while i < len(base_args):
-        arg = base_args[i]
-        if arg.startswith("--"):
-            key = _extract_flag_key(arg)
-            if key in override_keys:
-                # Key is overridden by override_args. Skip this flag.
-                if "=" not in arg and " " not in arg and (i + 1 < len(base_args)) and not base_args[i + 1].startswith("--"):
-                    i += 1  # Skip space-separated value item (e.g. '1' in '--foo 1' or '--foo', '1')
-            else:
-                filtered_args.append(arg)
-        else:
-            filtered_args.append(arg)
-        i += 1
-
-    return filtered_args
+    override_keys = {
+        _extract_flag_key(arg)
+        for arg in override_args
+        if arg.startswith("--")
+    }
+    return [
+        arg
+        for arg in base_args
+        if not (arg.startswith("--") and _extract_flag_key(arg) in override_keys)
+    ]
 
 
 def _merge_args(base_args: List[str], override_args: List[str]) -> List[str]:
@@ -315,9 +270,7 @@ def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
     remote_dir: str,
-    extract_archive: bool,
     test_name: Optional[str],
-    mode: str,
     devtools: bool = False,
     param: Optional[List[str]] = None,
     deeplink: Optional[str] = None,
@@ -325,14 +278,6 @@ def launch_on_device(
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
     remote_cmds = [f"cd {remote_dir}"]
-
-    if extract_archive:
-        # Ensure unprivileged container users have access to extracted artifacts.
-        remote_cmds += [
-            "tar -xzf archive.tar.gz",
-            "rm archive.tar.gz",
-            f"chmod -R 777 {remote_dir}",
-        ]
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]
@@ -353,7 +298,7 @@ def launch_on_device(
             "rdkDisplay remove",
             "sleep 2",
         ]
-    elif mode == "plugin":
+    else:
         if devtools:
             print("[INFO] Enabling DevTools support...")
 
@@ -434,16 +379,7 @@ def launch_on_device(
                 except Exception as e:
                     print(f"[WARNING] Failed to start SSH tunnel: {e}")
             print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
-    else:
-        remote_cmds += [
-            "rdkDisplay remove || true",
-            "sleep 2",
-            "rdkDisplay create",
-            "sleep 2",
-            f"XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app {' '.join(param)}" if param else "XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app",
-            "rdkDisplay remove",
-            "sleep 2",
-        ]
+
 
     full_cmd = " && ".join(remote_cmds)
     output = run_remote_command(f"bash -l -c \"{full_cmd}\"", device_id, device_ip)
@@ -457,12 +393,6 @@ def parse_args() -> argparse.Namespace:
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(
         description="Build and deploy Cobalt to RDK.")
-    parser.add_argument(
-        "--mode",
-        choices=["executable", "plugin"],
-        default="plugin",
-        help="Deploy as standalone executable or plugin (default).",
-    )
     parser.add_argument(
         "--only-lib", action="store_true", help="Deploy only libcobalt.lz4.")
     parser.add_argument(
@@ -497,11 +427,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force deployment even if up-to-date.",
     )
+
     parser.add_argument(
         "--deeplink",
         type=str,
         dest="deeplink",
-        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt when launching in plugin mode.",
+        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt.",
     )
     parser.add_argument(
         "--reset",
@@ -765,8 +696,8 @@ def main() -> None:
     """Main execution flow."""
     args = parse_args()
 
-    if args.deeplink and (args.mode != "plugin" or args.tests):
-        print("Error: --deeplink is only supported when running in plugin mode (without --tests).")
+    if args.deeplink and args.tests:
+        print("Error: --deeplink is only supported when running the Cobalt plugin (not tests).")
         sys.exit(1)
 
     if args.setup_toolchain:
@@ -822,7 +753,7 @@ def main() -> None:
             return
 
     assert_software_version(device_id, device_ip, MIN_SYSTEM_SOFTWARE_VERSION)
-    if args.mode == "plugin" and not args.tests:
+    if not args.tests:
         check_and_switch_cobalt_version(device_id, device_ip)
 
     # Setup Build Paths
@@ -835,18 +766,13 @@ def main() -> None:
         deps_file = out_dir / f"{args.tests}_loader.runtime_deps"
     elif args.only_lib:
         targets = ["cobalt"]
-        remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader", "loader_app"]
+        targets = ["cobalt_loader"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
-        
-        if args.mode == "plugin":
-            targets.append("loader_app_rdk_plugin")
-            remote_dir = DEFAULT_REMOTE_DIR
-        else:
-            remote_dir = EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
 
     if not args.skip_build:
         rdk_home = os.environ.get("RDK_HOME")
@@ -881,7 +807,6 @@ def main() -> None:
 
     skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and remote_dir_exists)
 
-    deployed_archive = False
     if skip_deployment:
         print("=== Skipping deployment ===")
         if not args.run:
@@ -890,8 +815,7 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
-            deployed_archive = True
+            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, is_test=bool(args.tests))
 
     if args.run:
         ensure_dolby_vision_policy(device_id, device_ip)
@@ -899,12 +823,10 @@ def main() -> None:
             device_id,
             device_ip,
             remote_dir,
-            deployed_archive,
             args.tests,
-            "executable" if args.tests else args.mode,
-            config != "gold" and args.mode == "plugin" and not args.tests,
-            args.param,
-            args.deeplink,
+            devtools=(config != "gold" and not args.tests),
+            param=args.param,
+            deeplink=args.deeplink,
         )
 
     print("=== Finished ===")

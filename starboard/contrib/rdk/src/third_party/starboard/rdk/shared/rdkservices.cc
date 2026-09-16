@@ -22,6 +22,7 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -32,8 +33,6 @@
 
 #include <interfaces/json/JsonData_HDRProperties.h>
 #include <interfaces/json/JsonData_PlayerProperties.h>
-#include <interfaces/json/JsonData_DeviceIdentification.h>
-#include <interfaces/json/JsonData_DeviceInfo.h>
 
 #ifdef HAS_SECURITY_AGENT
 #include <securityagent/securityagent.h>
@@ -56,20 +55,29 @@
 
 MODULE_NAME_DECLARATION(BUILD_REFERENCE);
 
-using namespace  WPEFramework;
+using namespace WPEFramework;
 
+namespace third_party {
 namespace starboard {
+namespace rdk {
+namespace shared {
+
+using ::starboard::ApplicationRdk;
+using ::starboard::ScopedFile;
+using ::starboard::AudioConfigurationChanged;
+using ::starboard::GetMediaAudioConnectorName;
+using ::starboard::MimeSupportabilityCache;
 
 namespace {
 
 const uint32_t kDefaultTimeoutMs = 100;
 const char kDisplayInfoCallsign[] = "DisplayInfo.1";
 const char kPlayerInfoCallsign[] = "PlayerInfo.1";
-const char kDeviceIdentificationCallsign[] = "DeviceIdentification.1";
 const char kNetworkCallsign[] = "org.rdk.Network.1";
 const char kTTSCallsign[] = "org.rdk.TextToSpeech.1";
 const char kAuthServiceCallsign[] = "org.rdk.AuthService.1";
 const char kUserSetingsCallsign[] = "org.rdk.UserSettings.1";
+const char kUserPreferencesCallsign[] = "org.rdk.UserPreferences.1";
 const char kDeviceInfoCallsign[] = "DeviceInfo.1";
 const char kBluetoothCallsign[] = "org.rdk.Bluetooth.1";
 
@@ -213,34 +221,9 @@ struct VariableTimeout {
   }
 };
 
-struct DeviceIdImpl {
-  DeviceIdImpl() {
-    JsonData::DeviceIdentification::DeviceidentificationData data;
-    uint32_t rc = ServiceLink(kDeviceIdentificationCallsign)
-      .Get(2000, "deviceidentification", data);
-    if (Core::ERROR_NONE == rc) {
-      chipset = data.Chipset.Value();
-      firmware_version = data.Firmwareversion.Value();
-      std::replace(chipset.begin(), chipset.end(), ' ', '-');
-    }
-    if (Core::ERROR_NONE != rc) {
-      #if defined(SB_PLATFORM_CHIPSET_MODEL_NUMBER_STRING)
-      chipset = SB_PLATFORM_CHIPSET_MODEL_NUMBER_STRING;
-      #endif
-      #if defined(SB_PLATFORM_FIRMWARE_VERSION_STRING)
-      firmware_version = SB_PLATFORM_FIRMWARE_VERSION_STRING;
-      #endif
-    }
-  }
-  std::string chipset;
-  std::string firmware_version;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(DeviceIdImpl, GetDeviceIdImpl);
-
 struct AccessibilityImpl {
 private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   SbAccessibilityDisplaySettings display_settings_ { };
   SbAccessibilityCaptionSettings caption_settings_ { };
   bool is_voice_guidance_enabled_ { false };
@@ -250,10 +233,13 @@ public:
     memset(&display_settings_, 0, sizeof(display_settings_));
     memset(&caption_settings_, 0, sizeof(caption_settings_));
 
+    display_settings_.has_high_contrast_text_setting = true;
+    caption_settings_.supports_is_enabled = true;
+
     if (ServiceLink::enableEnvOverrides()) {
       std::string envValue;
       if (Core::SystemInfo::GetEnvironment("AccessibilitySettings_json", envValue) == true) {
-        SetSettings(envValue);
+        SetSettings(envValue, false);
 
         std::string test;
         bool r = GetSettings(test);
@@ -265,7 +251,7 @@ public:
     }
   }
 
-  void SetSettings(const std::string& json) {
+  void SetSettings(const std::string& json, bool notify_app) {
     SB_LOG(INFO) << "Updating accessibility settings: " << json;
 
     JsonData::Accessibility::AccessibilityData settings;
@@ -332,6 +318,17 @@ public:
       display_settings_.is_high_contrast_text_enabled =
         settings.TextDisplay.IsHighContrastTextEnabled.Value();
     }
+
+    if (!notify_app)
+      return;
+
+    if (auto* app = ::starboard::ApplicationRdk::Get(); app != nullptr) {
+      if (was_cc_enabled != caption_settings_.is_enabled)
+        app->InjectAccessibilityCaptionSettingsChanged();
+
+      if (was_highcontrast_enabled != display_settings_.is_high_contrast_text_enabled)
+        app->InjectAccessibilitySettingsChanged();
+    }
   }
 
   bool GetSettings(std::string& out_json) {
@@ -369,29 +366,27 @@ public:
     return settings.ToString(out_json);
   }
 
-  bool GetCaptionSettings(SbAccessibilityCaptionSettings* out) {
-    if (out) {
-      std::lock_guard lock(mutex_);
-      memcpy(out, &caption_settings_,  sizeof(caption_settings_));
-      return true;
-    }
-    return false;
+  bool GetCaptionSettings(SbAccessibilityCaptionSettings& out) const {
+    std::lock_guard lock(mutex_);
+    memcpy(&out, &caption_settings_, sizeof(caption_settings_));
+    return true;
   }
 
-  bool GetDisplaySettings(SbAccessibilityDisplaySettings* out) {
-    if (out) {
-      std::lock_guard lock(mutex_);
-      memcpy(out, &display_settings_,  sizeof(display_settings_));
-      return true;
-    }
-    return false;
+  bool GetDisplaySettings(SbAccessibilityDisplaySettings& out) const {
+    std::lock_guard lock(mutex_);
+    memcpy(&out, &display_settings_, sizeof(display_settings_));
+    return true;
   }
 
   void SetCaptionEnabled(bool enabled, bool notify_on_change = true) {
     {
       std::lock_guard lock(mutex_);
-       notify_on_change &= (caption_settings_.is_enabled != enabled);
-       caption_settings_.is_enabled = enabled;
+      notify_on_change &= (caption_settings_.is_enabled != enabled);
+      caption_settings_.is_enabled = enabled;
+    }
+    if (notify_on_change && ApplicationRdk::Get()) {
+      SB_LOG(INFO) << "Accessibility closed caption setting changed, enabled = " << enabled;
+      ApplicationRdk::Get()->InjectAccessibilityCaptionSettingsChanged();
     }
   }
 
@@ -400,6 +395,10 @@ public:
       std::lock_guard lock(mutex_);
       notify_on_change &= (display_settings_.is_high_contrast_text_enabled != enabled);
       display_settings_.is_high_contrast_text_enabled = enabled;
+    }
+    if (notify_on_change && ApplicationRdk::Get()) {
+      SB_LOG(INFO) << "Accessibility high contrast text setting changed, enabled = " << enabled;
+      ApplicationRdk::Get()->InjectAccessibilitySettingsChanged();
     }
   }
 
@@ -411,11 +410,11 @@ public:
     }
     if (notify_on_change && ApplicationRdk::Get()) {
       SB_LOG(INFO) << "Accessibility voice guidance setting changed, enabled = " << enabled;
-      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
+      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged();
     }
   }
 
-  bool GetVoiceGuidanceEnabled() {
+  bool GetVoiceGuidanceEnabled() const {
     std::lock_guard lock(mutex_);
     return is_voice_guidance_enabled_;
   }
@@ -543,6 +542,10 @@ public:
     return is_enabled_.load() || GetAccessibility()->GetVoiceGuidanceEnabled();
   }
 
+  bool IsAvailable() {
+    return true;
+  }
+
   void Refresh() {
     if (!needs_refresh_.load())
       return;
@@ -599,193 +602,6 @@ public:
 
 SB_ONCE_INITIALIZE_FUNCTION(TextToSpeechImpl, GetTextToSpeech);
 
-struct SystemPropertiesImpl {
-  struct SystemPropertiesData : public Core::JSON::Container {
-    SystemPropertiesData()
-      : Core::JSON::Container() {
-      Add(_T("modelname"), &ModelName);
-      Add(_T("brandname"), &BrandName);
-      Add(_T("modelyear"), &ModelYear);
-      Add(_T("chipsetmodelnumber"), &ChipsetModelNumber);
-      Add(_T("firmwareversion"), &FirmwareVersion);
-      Add(_T("integratorname"), &IntegratorName);
-      Add(_T("friendlyname"), &FriendlyName);
-      Add(_T("devicetype"), &DeviceType);
-    }
-    SystemPropertiesData(const SystemPropertiesData&) = delete;
-    SystemPropertiesData& operator=(const SystemPropertiesData&) = delete;
-
-    Core::JSON::String ModelName;
-    Core::JSON::String BrandName;
-    Core::JSON::String ModelYear;
-    Core::JSON::String ChipsetModelNumber;
-    Core::JSON::String FirmwareVersion;
-    Core::JSON::String IntegratorName;
-    Core::JSON::String FriendlyName;
-    Core::JSON::String DeviceType;
-  };
-
-  void SetSettings(const std::string& json) {
-    std::lock_guard lock(mutex_);
-    Core::OptionalType<Core::JSON::Error> error;
-    if ( !props_.FromString(json, error) ) {
-      props_.Clear();
-      SB_LOG(ERROR) << "Failed to parse systemproperties settings, error: "
-                    << (error.IsSet() ? Core::JSON::ErrorDisplayMessage(error.Value()): "Unknown");
-      return;
-    }
-  }
-
-  bool GetSettings(std::string& out_json) {
-    std::lock_guard lock(mutex_);
-    return props_.ToString(out_json);
-  }
-
-  bool GetModelName(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.ModelName.IsSet() && !props_.ModelName.Value().empty()) {
-      out = props_.ModelName.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetBrandName(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.BrandName.IsSet() && !props_.BrandName.Value().empty()) {
-      out = props_.BrandName.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetModelYear(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.ModelYear.IsSet() && !props_.ModelYear.Value().empty()) {
-      out = props_.ModelYear.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetChipset(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.ChipsetModelNumber.IsSet() && !props_.ChipsetModelNumber.Value().empty()) {
-      out = props_.ChipsetModelNumber.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetFirmwareVersion(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.FirmwareVersion.IsSet() && !props_.FirmwareVersion.Value().empty()) {
-      out = props_.FirmwareVersion.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetIntegratorName(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.IntegratorName.IsSet() && !props_.IntegratorName.Value().empty()) {
-      out = props_.IntegratorName.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetFriendlyName(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.FriendlyName.IsSet() && !props_.FriendlyName.Value().empty()) {
-      out = props_.FriendlyName.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetDeviceType(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.DeviceType.IsSet() && !props_.DeviceType.Value().empty()) {
-      out = props_.DeviceType.Value();
-      return true;
-    }
-    return false;
-  }
-
-private:
-  std::mutex mutex_;
-  SystemPropertiesData props_;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(SystemPropertiesImpl, GetSystemProperties);
-
-struct AdvertisingIdImpl {
-  struct AdvertisingData : public Core::JSON::Container {
-    AdvertisingData()
-      : Core::JSON::Container() {
-      Add(_T("ifa"), &Ifa);
-      Add(_T("ifa_type"), &IfaType);
-      Add(_T("lmt"), &Lmt);
-    }
-    AdvertisingData(const AdvertisingData&) = delete;
-    AdvertisingData& operator=(const AdvertisingData&) = delete;
-
-    Core::JSON::String Ifa;
-    Core::JSON::String IfaType;
-    Core::JSON::String Lmt;
-  };
-
-  void SetSettings(const std::string& json) {
-    std::lock_guard lock(mutex_);
-    Core::OptionalType<Core::JSON::Error> error;
-    if ( !props_.FromString(json, error) ) {
-      props_.Clear();
-      SB_LOG(ERROR) << "Failed to parse advertisingid settings, error: "
-                    << (error.IsSet() ? Core::JSON::ErrorDisplayMessage(error.Value()): "Unknown");
-      return;
-    }
-  }
-
-  bool GetSettings(std::string& out_json) {
-    std::lock_guard lock(mutex_);
-    return props_.ToString(out_json);
-  }
-
-  bool GetIfa(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.Ifa.IsSet() && !props_.Ifa.Value().empty()) {
-      out = props_.Ifa.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetIfaType(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.IfaType.IsSet() && !props_.IfaType.Value().empty()) {
-      out = props_.IfaType.Value();
-      return true;
-    }
-    return false;
-  }
-
-  bool GetLmtAdTracking(std::string &out) {
-    std::lock_guard lock(mutex_);
-    if (props_.Lmt.IsSet() && !props_.Lmt.Value().empty()) {
-      out = props_.Lmt.Value();
-      return true;
-    }
-    return false;
-  }
-
-private:
-  std::mutex mutex_;
-  AdvertisingData props_;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(AdvertisingIdImpl, GetAdvertisingProperties);
-
 struct AuthServiceImpl {
   bool IsAvailable() const {
     return is_available_;
@@ -835,6 +651,23 @@ private:
 
 SB_ONCE_INITIALIZE_FUNCTION(AuthServiceImpl, GetAuthService);
 
+struct ResolutionInfo {
+  ResolutionInfo() {}
+  ResolutionInfo(int32_t w, int32_t h)
+    : Width(w), Height(h) {}
+  int32_t Width { 1920 };
+  int32_t Height { 1080 };
+};
+
+enum HdrCaps : uint8_t {
+  kHdrNone        = 0u,
+  kHdr10          = (1u << 0),
+  kHdr10Plus      = (1u << 1),
+  kHdrHlg         = (1u << 2),
+  kHdrDolbyVision = (1u << 3),
+  kHdrTechnicolor = (1u << 4),
+};
+
 struct DisplayInfoImpl {
   ResolutionInfo GetResolution() {
     Refresh();
@@ -864,7 +697,7 @@ private:
 
   ServiceLink display_info_ { kDisplayInfoCallsign };
   ResolutionInfo resolution_info_ { };
-  uint32_t hdr_caps_ { DisplayInfo::kHdrNone };
+  uint32_t hdr_caps_ { HdrCaps::kHdrNone };
   float diagonal_size_in_inches_ { 0.f };
   std::atomic_bool needs_refresh_ { true };
   std::atomic_bool did_subscribe_ { false };
@@ -956,19 +789,19 @@ void DisplayInfoImpl::Refresh() {
     while (index.Next()) {
       switch(index.Current()) {
         case Exchange::IHDRProperties::HDR_10:
-          result |= DisplayInfo::kHdr10;
+          result |= HdrCaps::kHdr10;
           break;
         case Exchange::IHDRProperties::HDR_10PLUS:
-          result |= DisplayInfo::kHdr10Plus;
+          result |= HdrCaps::kHdr10Plus;
           break;
         case Exchange::IHDRProperties::HDR_HLG:
-          result |= DisplayInfo::kHdrHlg;
+          result |= HdrCaps::kHdrHlg;
           break;
         case Exchange::IHDRProperties::HDR_DOLBYVISION:
-          result |= DisplayInfo::kHdrDolbyVision;
+          result |= HdrCaps::kHdrDolbyVision;
           break;
         case Exchange::IHDRProperties::HDR_TECHNICOLOR:
-          result |= DisplayInfo::kHdrTechnicolor;
+          result |= HdrCaps::kHdrTechnicolor;
           break;
         default:
           break;
@@ -1191,7 +1024,10 @@ struct DeviceInfoImpl {
     needs_refresh_.store(true);
   }
 
-  bool GetBrandName(std::string& out);
+  std::optional<std::string> GetBrandName();
+  std::optional<std::string> GetChipset();
+  std::optional<std::string> GetFirmwareVersion();
+  std::optional<std::string> GetDeviceType();
 
 private:
   struct DeviceDetailsData : public Core::JSON::Container {
@@ -1262,6 +1098,17 @@ private:
     }
   };
 
+  struct SupportedaudioportsData : public Core::JSON::Container {
+    SupportedaudioportsData()
+      : Core::JSON::Container() {
+      Add(_T("supportedAudioPorts"), &SupportedAudioPorts);
+    }
+    SupportedaudioportsData(const SupportedaudioportsData&) = delete;
+    SupportedaudioportsData& operator=(const SupportedaudioportsData&) = delete;
+
+    Core::JSON::ArrayType<Core::JSON::String> SupportedAudioPorts;
+  };
+
   void OnBluetoothStatusChanged(const StatusChangedData&);
   void Refresh();
   void ForceNeedsRefresh() {  needs_refresh_.store(true); }
@@ -1284,7 +1131,10 @@ private:
   std::mutex mutex_;
 
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
-  Core::OptionalType<std::string> brand_name_;
+  std::optional<std::string> brand_name_;
+  std::optional<std::string> chipset_;
+  std::optional<std::string> firmware_version_;
+  std::optional<std::string> device_type_;
 
   static constexpr SbMediaAudioConnector kAudioConnectorUnknown = static_cast<SbMediaAudioConnector>(0);
 };
@@ -1370,7 +1220,6 @@ void DeviceInfoImpl::Refresh() {
     }
   }
 
-  using namespace WPEFramework::JsonData::DeviceInfo;
   SupportedaudioportsData audio_ports;
   rc = device_info_.Get(timeout.value(), "supportedaudioports", audio_ports);
   if (Core::ERROR_NONE != rc) {
@@ -1463,8 +1312,8 @@ bool DeviceInfoImpl::GetAudioConfiguration(int output_index, SbMediaAudioConfigu
   return false;
 }
 
-bool DeviceInfoImpl::GetBrandName(std::string& out) {
-  if (!brand_name_.IsSet()) {
+std::optional<std::string> DeviceInfoImpl::GetBrandName() {
+  if (!brand_name_.has_value()) {
     struct BrandNameInfo : public Core::JSON::Container {
       BrandNameInfo() : Core::JSON::Container() {
           Add(_T("brand"), &BrandName);
@@ -1476,18 +1325,98 @@ bool DeviceInfoImpl::GetBrandName(std::string& out) {
       SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
                     << ".brandname', rc=" << rc
                     << " ( " << Core::ErrorToString(rc) << " ).";
-      if (rc == Core::ERROR_ASYNC_FAILED || rc == Core::ERROR_TIMEDOUT) {
-        brand_name_.Clear();
-      } else {
-      brand_name_ = "";
+      if (rc != Core::ERROR_TIMEDOUT) {
+        brand_name_ = "";
       }
     } else {
       brand_name_ = info.BrandName.Value();
-      SB_LOG(INFO) << "Device brandname: " << brand_name_.Value();
+      SB_LOG(INFO) << "Device brandname: " << brand_name_.value();
     }
   }
-  out = brand_name_.Value();
-  return !out.empty();
+  return brand_name_;
+}
+
+std::optional<std::string> DeviceInfoImpl::GetChipset() {
+  if (!chipset_.has_value()) {
+    struct ChipsetInfo : public Core::JSON::Container {
+      ChipsetInfo() : Core::JSON::Container() {
+          Add(_T("chipset"), &Chipset);
+      }
+      Core::JSON::String Chipset;
+    } info;
+    uint32_t rc = device_info_.Get(kDefaultTimeoutMs, "chipset", info);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
+                    << ".chipset', rc=" << rc
+                    << " ( " << Core::ErrorToString(rc) << " ).";
+      if (rc != Core::ERROR_TIMEDOUT) {
+        chipset_ = "";
+      }
+    } else {
+      chipset_ = info.Chipset.Value();
+      SB_LOG(INFO) << "Device chipset: " << chipset_.value();
+    }
+  }
+  return chipset_;
+}
+
+std::optional<std::string> DeviceInfoImpl::GetFirmwareVersion() {
+  if (!firmware_version_.has_value()) {
+    struct FirmwareVersionInfo : public Core::JSON::Container {
+      FirmwareVersionInfo() : Core::JSON::Container() {
+          Add(_T("releaseversion"), &FirmwareVersion);
+      }
+      Core::JSON::String FirmwareVersion;
+    } info;
+    uint32_t rc = device_info_.Get(kDefaultTimeoutMs, "releaseversion", info);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
+                    << ".firmwareversion', rc=" << rc
+                    << " ( " << Core::ErrorToString(rc) << " ).";
+      if (rc != Core::ERROR_TIMEDOUT) {
+        firmware_version_ = "";
+      }
+    } else {
+      firmware_version_ = info.FirmwareVersion.Value();
+      SB_LOG(INFO) << "Device firmwareversion: " << firmware_version_.value();
+    }
+  }
+  return firmware_version_;
+}
+
+std::optional<std::string> DeviceInfoImpl::GetDeviceType() {
+  if (!device_type_.has_value()) {
+    struct DeviceTypeInfo : public Core::JSON::Container {
+      DeviceTypeInfo() : Core::JSON::Container() {
+          Add(_T("devicetype"), &DeviceType);
+      }
+      Core::JSON::String DeviceType;
+    } info;
+    uint32_t rc = device_info_.Get(kDefaultTimeoutMs, "devicetype", info);
+    if (Core::ERROR_NONE != rc) {
+      SB_LOG(ERROR) << "Failed to get '" << kDeviceInfoCallsign
+                    << ".devicetype', rc=" << rc
+                    << " ( " << Core::ErrorToString(rc) << " ).";
+      if (rc != Core::ERROR_TIMEDOUT) {
+        device_type_ = "";
+      }
+    } else {
+      if (strncasecmp(info.DeviceType.Value().c_str(), "tv", 2) == 0 ||
+          strncasecmp(info.DeviceType.Value().c_str(), "IpTv", 4) == 0) {
+        device_type_ = "TV";
+      }
+      else if (strncasecmp(info.DeviceType.Value().c_str(), "stb", 3) == 0 ||
+               strncasecmp(info.DeviceType.Value().c_str(), "IpStb", 5) == 0 ||
+               strncasecmp(info.DeviceType.Value().c_str(), "QamIpStb", 8) == 0) {
+        device_type_ = "STB";
+      }
+      else {
+        device_type_ = "";
+      }
+      SB_LOG(INFO) << "Device type: " << device_type_.value();
+    }
+  }
+  return device_type_;
 }
 
 struct UserSettingsImpl {
@@ -1496,6 +1425,7 @@ private:
   std::vector<std::string> subscriptions_ { };
   bool needs_refresh_ { true };
   ServiceLink link_ { kUserSetingsCallsign };
+  std::string presentation_language_;
 
   struct StateChangedInfo : public Core::JSON::Container {
     StateChangedInfo()
@@ -1512,6 +1442,12 @@ private:
 
     Core::JSON::Boolean Enabled;
   };
+
+  void OnPresentationLanguageChanged(const Core::JSON::String& info) {
+    std::lock_guard lock(mutex_);
+    presentation_language_ = info.Value();
+    SB_LOG(INFO) << "User setting changed. presentation language = " << presentation_language_;
+  }
 
   void OnVoiceGuidanceChanged(const StateChangedInfo& info) {
     bool is_voice_guidance_enabled = info.Enabled.Value();
@@ -1542,6 +1478,7 @@ private:
 
     uint32_t rc;
 
+
     for (const auto& kv : kNotificationHandlers) {
       const auto& name = kv.first;
       const auto& callback = kv.second;
@@ -1569,6 +1506,15 @@ private:
       }
 
       subscriptions_.push_back(name);
+    }
+
+    if (std::find(subscriptions_.begin(), subscriptions_.end(), "onPresentationLanguageChanged")
+        == subscriptions_.end()) {
+      rc = link_.Subscribe<Core::JSON::String>(
+        kDefaultTimeoutMs, "onPresentationLanguageChanged", &UserSettingsImpl::OnPresentationLanguageChanged, this);
+      if (Core::ERROR_NONE == rc || Core::ERROR_DUPLICATE_KEY == rc) {
+        subscriptions_.push_back("onPresentationLanguageChanged");
+      }
     }
 
     return true;
@@ -1610,6 +1556,13 @@ public:
       }
     }
 
+    Core::JSON::String lang_info;
+    uint32_t lang_rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", lang_info);
+    if (Core::ERROR_NONE == lang_rc && lang_info.IsSet() && !lang_info.Value().empty()) {
+      presentation_language_ = lang_info.Value();
+      SB_LOG(INFO) << "User setting: getPresentationLanguage = " << presentation_language_;
+    }
+
     needs_refresh_ = false;
 
     auto *accessibility = GetAccessibility();
@@ -1618,158 +1571,132 @@ public:
     accessibility->SetHighContrastEnabled(is_highcontrast_enabled, false);
   }
 
+  bool GetPresentationLanguage(std::string& out_lang) {
+    Refresh();
+    {
+      std::lock_guard lock(mutex_);
+      if (!presentation_language_.empty()) {
+        out_lang = presentation_language_;
+        return true;
+      }
+    }
+
+    Core::JSON::String info;
+    uint32_t rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", info);
+    if (Core::ERROR_NONE == rc && info.IsSet() && !info.Value().empty()) {
+      std::lock_guard lock(mutex_);
+      presentation_language_ = info.Value();
+      out_lang = presentation_language_;
+      return true;
+    }
+
+    std::lock_guard lock(mutex_);
+    if (!presentation_language_.empty()) {
+      out_lang = presentation_language_;
+      return true;
+    }
+    return false;
+  }
+
   void Teardown() {
     std::lock_guard lock(mutex_);
     for (const auto& subscription : subscriptions_)
       link_.Unsubscribe(kDefaultTimeoutMs, subscription.c_str());
     link_.Teardown();
     needs_refresh_ = true;
+    presentation_language_.clear();
     subscriptions_.clear();
   }
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(UserSettingsImpl, GetUserSettings);
 
-}  // namespace
+struct UserPreferencesImpl {
+private:
+  static constexpr auto kUILanguageCacheTTL = std::chrono::seconds(2);
 
-ResolutionInfo DisplayInfo::GetResolution() {
-  return GetDisplayInfo()->GetResolution();
-}
+  std::mutex mutex_;
+  ServiceLink link_ { kUserPreferencesCallsign };
+  std::string ui_language_;
+  std::chrono::steady_clock::time_point last_query_time_;
+  bool subscribed_ { false };
 
-float DisplayInfo::GetDiagonalSizeInInches() {
-  return GetDisplayInfo()->GetDiagonalSizeInInches();
-}
+  void OnUILanguageChanged(const Core::JSON::String& info) {
+    std::lock_guard lock(mutex_);
+    ui_language_ = info.Value();
+    last_query_time_ = std::chrono::steady_clock::now();
+    SB_LOG(INFO) << "User preference changed. ui language = " << ui_language_;
+  }
 
-uint32_t DisplayInfo::GetHDRCaps() {
-  return GetDisplayInfo()->GetHDRCaps();
-}
+  struct UILanguageInfo : public Core::JSON::Container {
+    UILanguageInfo()
+      : Core::JSON::Container()
+      , UILanguage()
+      , Success(false) {
+      Add(_T("ui_language"), &UILanguage);
+      Add(_T("success"), &Success);
+    }
+    UILanguageInfo(const UILanguageInfo& other)
+      : Core::JSON::Container()
+      , UILanguage(other.UILanguage)
+      , Success(other.Success) {
+      Add(_T("ui_language"), &UILanguage);
+      Add(_T("success"), &Success);
+    }
+    UILanguageInfo& operator=(const UILanguageInfo&) = delete;
 
-std::string DeviceIdentification::GetChipset() {
-  return GetDeviceIdImpl()->chipset;
-}
+    Core::JSON::String UILanguage;
+    Core::JSON::Boolean Success;
+  };
 
-std::string DeviceIdentification::GetFirmwareVersion() {
-  return GetDeviceIdImpl()->firmware_version;
-}
+public:
+  bool GetUILanguage(std::string& out_lang) {
+    {
+      std::lock_guard lock(mutex_);
+      if (!subscribed_) {
+        link_.Subscribe<Core::JSON::String>(
+            kDefaultTimeoutMs, "onUILanguageChanged",
+            &UserPreferencesImpl::OnUILanguageChanged, this);
+        subscribed_ = true;
+      }
 
-void NetworkInfo::Initialize() {
-  GetNetworkInfo()->Initialize();
-}
+      auto now = std::chrono::steady_clock::now();
+      if (!ui_language_.empty() && (now - last_query_time_ < kUILanguageCacheTTL)) {
+        out_lang = ui_language_;
+        return true;
+      }
+    }
 
-bool NetworkInfo::IsConnectionTypeWireless() {
-  return GetNetworkInfo()->IsConnectionTypeWireless();
-}
+    UILanguageInfo info;
+    uint32_t rc = link_.Get(kDefaultTimeoutMs, "getUILanguage", info);
+    if (Core::ERROR_NONE == rc && info.Success.Value() && info.UILanguage.IsSet() && !info.UILanguage.Value().empty()) {
+      std::lock_guard lock(mutex_);
+      ui_language_ = info.UILanguage.Value();
+      last_query_time_ = std::chrono::steady_clock::now();
+      out_lang = ui_language_;
+      return true;
+    }
 
-bool NetworkInfo::IsDisconnected() {
-  return GetNetworkInfo()->IsDisconnected();
-}
+    std::lock_guard lock(mutex_);
+    if (!ui_language_.empty()) {
+      out_lang = ui_language_;
+      return true;
+    }
+    return false;
+  }
 
-void TextToSpeech::Speak(const std::string& text) {
-  GetTextToSpeech()->Speak(text);
-}
+  void Teardown() {
+    std::lock_guard lock(mutex_);
+    if (subscribed_) {
+      link_.Unsubscribe(kDefaultTimeoutMs, "onUILanguageChanged");
+      subscribed_ = false;
+    }
+    link_.Teardown();
+    ui_language_.clear();
+  }
+};
 
-bool TextToSpeech::IsEnabled() {
-  GetUserSettings()->Refresh();
-  return GetTextToSpeech()->IsEnabled();
-}
-
-void TextToSpeech::Cancel() {
-  GetTextToSpeech()->Cancel();
-}
-
-bool Accessibility::GetCaptionSettings(SbAccessibilityCaptionSettings* out) {
-  GetUserSettings()->Refresh();
-  return GetAccessibility()->GetCaptionSettings(out);
-}
-
-bool Accessibility::GetDisplaySettings(SbAccessibilityDisplaySettings* out) {
-  GetUserSettings()->Refresh();
-  return GetAccessibility()->GetDisplaySettings(out);
-}
-
-void Accessibility::SetSettings(const std::string& json) {
-  GetAccessibility()->SetSettings(json);
-}
-
-bool Accessibility::GetSettings(std::string& out_json) {
-  return GetAccessibility()->GetSettings(out_json);
-}
-
-void AdvertisingId::SetSettings(const std::string& json) {
-  GetAdvertisingProperties()->SetSettings(json);
-}
-
-bool AdvertisingId::GetSettings(std::string& out_json) {
-  return GetAdvertisingProperties()->GetSettings(out_json);
-}
-
-bool AdvertisingId::GetIfa(std::string& out_json) {
-  return GetAdvertisingProperties()->GetIfa(out_json);
-}
-
-bool AdvertisingId::GetIfaType(std::string& out_json) {
-  return GetAdvertisingProperties()->GetIfaType(out_json);
-}
-
-bool AdvertisingId::GetLmtAdTracking(std::string& out_json) {
-  return GetAdvertisingProperties()->GetLmtAdTracking(out_json);
-}
-
-void SystemProperties::SetSettings(const std::string& json) {
-  GetSystemProperties()->SetSettings(json);
-}
-
-bool SystemProperties::GetSettings(std::string& out_json) {
-  return GetSystemProperties()->GetSettings(out_json);
-}
-
-bool SystemProperties::GetChipset(std::string &out) {
-  return GetSystemProperties()->GetChipset(out);
-}
-
-bool SystemProperties::GetFirmwareVersion(std::string &out) {
-  return GetSystemProperties()->GetFirmwareVersion(out);
-}
-
-bool SystemProperties::GetIntegratorName(std::string &out) {
-  return GetSystemProperties()->GetIntegratorName(out);
-}
-
-bool SystemProperties::GetBrandName(std::string &out) {
-  return GetSystemProperties()->GetBrandName(out);
-}
-
-bool SystemProperties::GetModelName(std::string &out) {
-  return GetSystemProperties()->GetModelName(out);
-}
-
-bool SystemProperties::GetModelYear(std::string &out) {
-  return GetSystemProperties()->GetModelYear(out);
-}
-
-bool SystemProperties::GetFriendlyName(std::string &out) {
-  return GetSystemProperties()->GetFriendlyName(out);
-}
-
-bool SystemProperties::GetDeviceType(std::string &out) {
-  return GetSystemProperties()->GetDeviceType(out);
-}
-
-bool AuthService::IsAvailable() {
-  return GetAuthService()->IsAvailable();
-}
-
-bool AuthService::GetExperience(std::string &out) {
-  return GetAuthService()->GetExperience(out);
-}
-
-bool DeviceInfo::GetAudioConfiguration(int index, SbMediaAudioConfiguration* out_audio_configuration) {
-  return GetDeviceInfo()->GetAudioConfiguration(index, out_audio_configuration);
-}
-
-bool DeviceInfo::GetBrandName(std::string& out) {
-  return GetDeviceInfo()->GetBrandName(out);
-}
+SB_ONCE_INITIALIZE_FUNCTION(UserPreferencesImpl, GetUserPreferences);
 
 void TeardownJSONRPCLink() {
   GetDisplayInfo()->Teardown();
@@ -1777,6 +1704,138 @@ void TeardownJSONRPCLink() {
   GetNetworkInfo()->Teardown();
   GetDeviceInfo()->Teardown();
   GetUserSettings()->Teardown();
+  GetUserPreferences()->Teardown();
 }
 
+}  // namespace
+
+void Accessibility::SetSettings(const std::string& json, bool notify_app) {
+  GetAccessibility()->SetSettings(json, notify_app);
+}
+
+bool Accessibility::GetSettings(std::string& out_json) {
+  return GetAccessibility()->GetSettings(out_json);
+}
+
+bool UserPreferences::GetUILanguage(std::string& out_lang) {
+  return GetUserPreferences()->GetUILanguage(out_lang);
+}
+
+bool UserSettings::GetPresentationLanguage(std::string& out_lang) {
+  return GetUserSettings()->GetPresentationLanguage(out_lang);
+}
+
+namespace platform {
+
+std::optional<Resolution> RDKServicesInterface::RDKDevice::video_resolution() {
+  const auto& res = GetDisplayInfo()->GetResolution();
+  return Resolution{res.Width, res.Height};
+}
+
+std::optional<float> RDKServicesInterface::RDKDevice::diagonal_size_in_inches() {
+  return GetDisplayInfo()->GetDiagonalSizeInInches();
+}
+
+std::optional<HDRFormat> RDKServicesInterface::RDKDevice::hdr() {
+  auto hdr_caps = GetDisplayInfo()->GetHDRCaps();
+  HDRFormat out;
+  out.hdr10 = (hdr_caps & HdrCaps::kHdr10) == HdrCaps::kHdr10;
+  out.hdr10Plus = (hdr_caps & HdrCaps::kHdr10Plus) == HdrCaps::kHdr10Plus;
+  out.dolbyVision = (hdr_caps & HdrCaps::kHdrDolbyVision) ==  HdrCaps::kHdrDolbyVision;
+  out.hlg = (hdr_caps & HdrCaps::kHdrHlg) == HdrCaps::kHdrHlg;
+  return out;
+}
+
+std::optional<bool> RDKServicesInterface::RDKDevice::audio_configuration(
+  int index,
+  SbMediaAudioConfiguration* out_audio_configuration) {
+  return GetDeviceInfo()->GetAudioConfiguration(index, out_audio_configuration);
+}
+
+std::optional<std::string> RDKServicesInterface::RDKDevice::brand_name() {
+  return GetDeviceInfo()->GetBrandName();
+}
+
+std::optional<std::string> RDKServicesInterface::RDKDevice::chipset() {
+  return GetDeviceInfo()->GetChipset();
+}
+
+std::optional<std::string> RDKServicesInterface::RDKDevice::device_type() {
+  if (auto device_type = GetDeviceInfo()->GetDeviceType();
+      device_type.has_value() && !device_type->empty()) {
+    return device_type;
+  }
+  if (std::string prop; GetAuthService()->GetExperience(prop) && prop == "Flex") {
+    return "OTT";
+  }
+  return { };
+}
+
+std::optional<std::string> RDKServicesInterface::RDKDevice::firmware_version() {
+  return GetDeviceInfo()->GetFirmwareVersion();
+}
+
+std::optional<bool> RDKServicesInterface::RDKDevice::is_connection_type_wireless() {
+  return GetNetworkInfo()->IsConnectionTypeWireless();
+}
+
+std::optional<bool> RDKServicesInterface::RDKDevice::is_disconnected() {
+  return GetNetworkInfo()->IsDisconnected();
+}
+
+std::optional<bool> RDKServicesInterface::RDKTextToSpeech::cancel() {
+  GetTextToSpeech()->Cancel();
+  return true;
+}
+
+std::optional<bool> RDKServicesInterface::RDKTextToSpeech::speak(const std::string& text) {
+  GetTextToSpeech()->Speak(text);
+  return true;
+}
+
+std::optional<bool> RDKServicesInterface::RDKTextToSpeech::is_available() {
+  return GetTextToSpeech()->IsAvailable();
+}
+
+std::optional<bool> RDKServicesInterface::RDKTextToSpeech::is_enabled() {
+  GetUserSettings()->Refresh();
+  return GetTextToSpeech()->IsEnabled();
+}
+
+std::optional<bool> RDKServicesInterface::RDKAccessibility::display_settings(SbAccessibilityDisplaySettings& out) {
+  GetUserSettings()->Refresh();
+  return GetAccessibility()->GetDisplaySettings(out);
+}
+
+std::optional<bool> RDKServicesInterface::RDKAccessibility::caption_settings(SbAccessibilityCaptionSettings& out) {
+  GetUserSettings()->Refresh();
+  return GetAccessibility()->GetCaptionSettings(out);
+}
+
+std::optional<Ifa> RDKServicesInterface::RDKAdvertising::advertising_id() {
+  return {};
+}
+
+RDKServicesInterface::RDKServicesInterface() = default;
+
+// static
+bool RDKServicesInterface::is_available() {
+  return getenv("THUNDER_ACCESS") != nullptr || getenv("COBALT_ENABLE_OVERRIDES") != nullptr;
+}
+
+void RDKServicesInterface::teardown() {
+  TeardownJSONRPCLink();
+}
+
+void RDKServicesInterface::suspend() {
+  TeardownJSONRPCLink();
+}
+
+void RDKServicesInterface::resume() {
+}
+
+}  // namespace platform
+}  // namespace shared
+}  // namespace rdk
 }  // namespace starboard
+}  // namespace third_party

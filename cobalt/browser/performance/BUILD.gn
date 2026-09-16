@@ -26,4 +26,8 @@ source_set("performance") {
     "//starboard:starboard_group",
     "//starboard/common",
   ]
+
+  if (is_android) {
+    deps += [ "//base:memory_jni" ]
+  }
 }

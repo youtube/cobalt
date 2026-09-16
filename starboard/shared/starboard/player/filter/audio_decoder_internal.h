@@ -16,8 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 
 #include <functional>
+#include <optional>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -64,7 +64,7 @@ class AudioDecoder {
   // combine multiple decoded audio access units into one.  The implementation
   // has to ensure that the particular resampler can handle such combined access
   // units as input.
-  virtual scoped_refptr<DecodedAudio> Read(int* samples_per_second) = 0;
+  virtual std::optional<DecodedAudio> Read(int* samples_per_second) = 0;
 
   // Clear any cached buffer of the codec and reset the state of the codec. This
   // function will be called during seek to ensure that the left over data from

@@ -26,6 +26,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -311,6 +312,13 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   std::move(cdm_attached_cb).Run(true);
   LOG(INFO) << "CDM set successfully.";
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire DRM to URL player bridge if it was created before CDM arrived.
+  if (IsUrlPlayer() && player_bridge_ && SbDrmSystemIsValid(drm_system_)) {
+    player_bridge_->SetDrmSystem(drm_system_);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   if (state_ != STATE_INIT_PENDING_CDM) {
     return;
   }
@@ -468,10 +476,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
   uint32_t video_frames_decoded, video_frames_dropped;
   uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time;
+  TimeDelta media_time, duration;
   SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded, &video_bytes_decoded,
-                                  &media_time};
+                                  &audio_bytes_decoded,  &video_bytes_decoded,
+                                  &media_time,           &duration};
 
   player_bridge_->GetInfo(&info);
 
@@ -502,6 +510,34 @@ TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    UpdateUrlPlayerVideoResolution();
+
+    if (duration_change_cb_ && duration != kNoTimestamp &&
+        duration != last_duration_) {
+      last_duration_ = duration;
+      duration_change_cb_.Run(duration);
+    }
+
+    // Polling buffered ranges on every media-time update may affect
+    // performance. Since the URL player exposes only the last loaded range and
+    // polling is not synchronized with platform buffer updates, reported ranges
+    // may be incomplete or stale.
+    if (buffered_ranges_cb_) {
+      TimeDelta buffer_start, buffer_length;
+      player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                     &buffer_length);
+      if (buffer_start != last_buffer_start_ ||
+          buffer_length != last_buffer_length_) {
+        last_buffer_start_ = buffer_start;
+        last_buffer_length_ = buffer_length;
+        buffered_ranges_cb_.Run(buffer_start, buffer_length);
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   StoreMediaTime(media_time);
 
   return media_time;
@@ -567,24 +603,40 @@ bool StarboardRenderer::IsUrlPlayer() const {
   return !source_url_.empty();
 }
 
+void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
+  if (width <= 0 || height <= 0) {
+    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
+                 << "x" << height
+                 << ") at presenting; skipping video hole update.";
+    return;
+  }
+
+  const gfx::Size size(width, height);
+  if (size == url_player_video_size_) {
+    return;
+  }
+
+  url_player_video_size_ = size;
+  client_->OnVideoNaturalSizeChange(size);
+  if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
+    paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
 void StarboardRenderer::OnUrlPlayerPresenting() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!player_bridge_) {
     return;
   }
-  int width = 0, height = 0;
-  player_bridge_->GetVideoResolution(&width, &height);
-  if (width > 0 && height > 0) {
-    gfx::Size size(width, height);
-    client_->OnVideoNaturalSizeChange(size);
-    // TODO(b/541996730): Handle resolution changes during adaptive HLS
-    // playback. Currently this is only called once at presenting state.
-    paint_video_hole_frame_cb_.Run(size);
-  } else {
-    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
-                 << "x" << height
-                 << ") at presenting; skipping video hole update.";
-  }
+
+  UpdateUrlPlayerVideoResolution();
 
   // Re-apply playback rate; the platform player ignores rate changes
   // before it is ready to play.
@@ -597,10 +649,12 @@ void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
 }
 
 void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
-    const char* init_data_type,
-    const unsigned char* init_data,
-    unsigned int init_data_length) {
-  // TODO: Forward encrypted media init data to the EME/DRM layer.
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -646,10 +700,8 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  if (test_sbplayer_interface_) {
-    return test_sbplayer_interface_;
-  }
-  return &sbplayer_interface_;
+  SbPlayerInterface* testing_interface = GetSbPlayerInterfaceForTesting();
+  return testing_interface ? testing_interface : &sbplayer_interface_;
 }
 
 void StarboardRenderer::UpdateAudioWriteDuration() {
@@ -705,11 +757,6 @@ void StarboardRenderer::CreatePlayerBridge() {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
-  const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
-  const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
-
   std::string error_message;
 
   DCHECK(!player_bridge_);
@@ -732,12 +779,16 @@ void StarboardRenderer::CreatePlayerBridge() {
         /*pipeline_identifier=*/""
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
         ));
+    // Wire DRM if CDM arrived before bridge creation.
+    if (SbDrmSystemIsValid(drm_system_)) {
+      player_bridge_->SetDrmSystem(drm_system_);
+    }
   } else {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
     player_bridge_.reset(new SbPlayerBridge(
         GetSbPlayerInterface(), task_runner_,
         get_decode_target_graphics_context_provider_func_, audio_config,
-        audio_mime_type, video_config, video_mime_type,
+        video_config,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         sb_window_, drm_system_, this,
@@ -828,12 +879,12 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config);
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config);
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
@@ -848,8 +899,11 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     }
 #endif  // 0
     color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
-    paint_video_hole_frame_cb_.Run(
-        stream->video_decoder_config().visible_rect().size());
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModePunchOut) {
+      paint_video_hole_frame_cb_.Run(
+          stream->video_decoder_config().visible_rect().size());
+    }
   }
 }
 
@@ -930,8 +984,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+      if (player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModePunchOut) {
+        paint_video_hole_frame_cb_.Run(
+            stream->video_decoder_config().visible_rect().size());
+      }
     }
     UpdateDecoderConfig(stream);
     stream->Read(

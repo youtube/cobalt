@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/browser/btm/btm_service_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/resource_context.h"
@@ -41,7 +42,9 @@ class BackgroundSyncScheduler;
 class BrowserContextImpl;
 class BrowsingDataRemoverImpl;
 class DownloadManager;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class InMemoryFederatedPermissionContext;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class NavigationEntryScreenshotManager;
 class PermissionController;
 class PrefetchService;
@@ -106,8 +109,10 @@ class CONTENT_EXPORT BrowserContextImpl {
 
   NavigationEntryScreenshotManager* GetNavigationEntryScreenshotManager();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   InMemoryFederatedPermissionContext* GetFederatedPermissionContext();
   void ResetFederatedPermissionContext();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   using TraceProto = perfetto::protos::pbzero::ChromeBrowserContext;
   // Write a representation of this object into a trace.
@@ -163,8 +168,10 @@ class CONTENT_EXPORT BrowserContextImpl {
   std::unique_ptr<PrefetchService> prefetch_service_;
   std::unique_ptr<NavigationEntryScreenshotManager>
       nav_entry_screenshot_manager_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<InMemoryFederatedPermissionContext>
       federated_permission_context_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   std::unique_ptr<media::learning::LearningSessionImpl> learning_session_;
   std::unique_ptr<media::VideoDecodePerfHistory> video_decode_perf_history_;

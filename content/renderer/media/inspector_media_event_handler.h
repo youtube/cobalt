@@ -5,6 +5,13 @@
 #ifndef CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_
 #define CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/renderer/media/cobalt/inspector_media_event_handler_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -32,5 +39,7 @@ class CONTENT_EXPORT InspectorMediaEventHandler
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_

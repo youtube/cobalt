@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "system_get_path.h"
 #include "starboard/system.h"
 
 #include <linux/limits.h>
@@ -57,6 +58,9 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
   return true;
 }
 #endif
+} // namespace
+
+namespace {
 
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
@@ -121,6 +125,11 @@ bool IsValidContentDirectory(const char* path) {
   return (stat(testFontsFullPath.c_str(), &info) == 0);
 }
 
+}  // namespace
+
+namespace starboard {
+namespace system {
+
 // Gets the path to the content directory.
 bool GetContentDirectory(char* out_path, int path_size) {
   // `COBALT_CONTENT_DIR` is used to provide the path of content directory in
@@ -152,6 +161,13 @@ bool GetContentDirectory(char* out_path, int path_size) {
   return (starboard::strlcat<char>(out_path, "/usr/share/content/data",
                                    path_size) < path_size);
 }
+
+}  // namespace system
+}  // namespace starboard
+
+namespace {
+
+using ::starboard::system::GetContentDirectory;
 
 // Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
@@ -267,6 +283,8 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
+  using ::starboard::system::GetContentDirectory;
+
   if (!out_path || !path_size) {
     return false;
   }

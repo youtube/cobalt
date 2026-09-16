@@ -34,13 +34,12 @@ int __abi_wrap_readdir_r(musl_dir* dirp,
   struct dirent* result = nullptr;
 // from POSIX.1-2008 readdir_r() was fully supported but emitting
 // a future deprecation warning. Marked as obsolecscent in POSIX.1-2024
-// TODO(b/374300500): add back posix emulation
 #if defined(_POSIX_VERSION) && (_POSIX_VERSION < 202406L) && defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
   int retval = readdir_r(dirp->dir, &entry, &result);
-#if defined(_POSIX_VERSION) && (_POSIX_VERSION < 202405L) && defined(__clang__)
+#if defined(_POSIX_VERSION) && (_POSIX_VERSION < 202406L) && defined(__clang__)
 #pragma clang diagnostic pop
 #endif
   if (retval != 0) {

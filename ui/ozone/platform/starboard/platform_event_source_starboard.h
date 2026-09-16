@@ -31,6 +31,12 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   PlatformEventSourceStarboard& operator=(const PlatformEventSourceStarboard&) =
       delete;
 
+  std::unique_ptr<ui::Event> CreateKeyboardRemoteInputEvent(
+      const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateMouseInputEvent(const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateMouseWheelInputEvent(const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateTouchInputEvent(const SbEvent* event);
+
   void HandleEvent(const SbEvent* event);
   void HandleFocusEvent(const SbEvent* event);
   void DispatchFocusEvent(bool is_focused);
@@ -47,6 +53,8 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   void DispatchWindowSizeChanged(int width, int height);
 
  private:
+  int current_pressed_mouse_buttons_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
+
   base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_
       GUARDED_BY_CONTEXT(sequence_checker_);
 

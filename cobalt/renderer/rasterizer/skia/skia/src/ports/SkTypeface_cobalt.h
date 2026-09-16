@@ -79,7 +79,10 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
       SkFontStyle style,
       bool is_fixed_pitch,
       const SkString& family_name,
-      scoped_refptr<font_character_map::CharacterMap> character_map);
+      scoped_refptr<font_character_map::CharacterMap> character_map,
+      bool disable_synthetic_bolding = false,
+      const ComputedVariationPosition& computed_variation_position =
+          ComputedVariationPosition());
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
                            bool* serialize) const override;

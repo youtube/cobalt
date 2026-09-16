@@ -16,7 +16,13 @@
 
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
+#include <string.h>
 
+#include <string>
+#include <vector>
+
+#include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -24,7 +30,9 @@
 
 namespace starboard {
 
+#if !BUILDFLAG(IS_STARBOARD)
 const char* g_app_assets_dir = "/cobalt/assets";
+#endif
 // Representing the absolute path to the application-specific directory
 // where persistent files should be stored
 // (Context.getFilesDir().getAbsolutePath()). This path is used
@@ -108,35 +116,70 @@ AAsset* OpenAndroidAsset(const char* path) {
   return AAssetManager_open(g_asset_manager, asset_path, AASSET_MODE_RANDOM);
 }
 
-AAssetDir* OpenAndroidAssetDir(const char* path) {
-  // Note that the asset directory will not be found if |path| points to a
-  // specific file instead of a directory. |path| should also not end with '/'.
-  if (!IsAndroidAssetPath(path) || g_asset_manager == NULL) {
-    return NULL;
+std::vector<std::string> ListAndroidAssetDir(const char* path) {
+  std::vector<std::string> names;
+  if (!IsAndroidAssetPath(path) || g_java_asset_manager.is_null()) {
+    return names;
   }
   const char* asset_path = path + strlen(g_app_assets_dir);
   if (*asset_path == '/') {
     asset_path++;
   }
-  AAssetDir* asset_directory =
-      AAssetManager_openDir(g_asset_manager, asset_path);
 
-  // AAssetManager_openDir() always returns a pointer to an initialized object,
-  // even if the given directory does not exist. To determine if the directory
-  // actually exists, AAssetDir_getNextFileName() is called to check for any
-  // files in the given directory. However, when iterating the contents of a
-  // directory, the NDK Asset Manager does not allow subdirectories to be seen.
-  // So this is not a 100% accurate way to determine if a directory actually
-  // exists and false negatives will be given for directories that contain
-  // subdirectories but no files in their immediate directory.
-  const char* file = AAssetDir_getNextFileName(asset_directory);
-  if (file == NULL) {
-    AAssetDir_close(asset_directory);
-    return NULL;
-  } else {
-    AAssetDir_rewind(asset_directory);
-    return asset_directory;
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  jni_zero::ScopedJavaLocalRef<jclass> asset_manager_class =
+      jni_zero::GetClass(env, "android/content/res/AssetManager");
+  jmethodID list_method =
+      jni_zero::MethodID::Get<jni_zero::MethodID::TYPE_INSTANCE>(
+          env, asset_manager_class.obj(), "list",
+          "(Ljava/lang/String;)[Ljava/lang/String;");
+  jni_zero::ScopedJavaLocalRef<jstring> j_asset_path =
+      base::android::ConvertUTF8ToJavaString(env, asset_path);
+  jni_zero::ScopedJavaLocalRef<jobjectArray> j_names =
+      jni_zero::ScopedJavaLocalRef<jobjectArray>::Adopt(
+          env,
+          static_cast<jobjectArray>(env->CallObjectMethod(
+              g_java_asset_manager.obj(), list_method, j_asset_path.obj())));
+  // On error, return "no entries".
+  if (jni_zero::ClearException(env) || j_names.is_null()) {
+    return names;
   }
+  base::android::AppendJavaStringArrayToStringVector(env, j_names, &names);
+  return names;
+}
+
+// NOTE: While Cobalt now provides a mechanism for loading system fonts through
+//       SbSystemGetPath(), using the fallback logic here is still preferred for
+//       Android's fonts. The reason for this is that the Android OS actually
+//       allows fonts to be loaded from two locations: one that it provides; and
+//       one that the devices running its OS, which it calls vendors, can
+//       provide. Rather than including the full Android font package, vendors
+//       have the option of using a smaller Android font package and
+//       supplementing it with their own fonts.
+//
+//       If Android were to use SbSystemGetPath() for its fonts, vendors would
+//       have no way of providing those supplemental fonts to Cobalt, which
+//       could result in a limited selection of fonts being available. By
+//       treating Android's fonts as Cobalt's fonts, Cobalt can still offer a
+//       straightforward mechanism for including vendor fonts via
+//       SbSystemGetPath().
+std::string FallbackPath(const std::string& path) {
+  // We don't package most font files in Cobalt content and fallback to the
+  // system font file of the same name.
+  const std::string fonts_xml("fonts.xml");
+  const std::string system_fonts_dir("/system/fonts/");
+  const std::string cobalt_fonts_dir =
+      std::string(g_app_assets_dir) + "/fonts/";
+
+  // Fonts fallback to the system fonts.
+  if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {
+    std::string file_name = path.substr(cobalt_fonts_dir.length());
+    // fonts.xml doesn't fallback.
+    if (file_name != fonts_xml) {
+      return system_fonts_dir + file_name;
+    }
+  }
+  return std::string();
 }
 
 }  // namespace starboard

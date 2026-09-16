@@ -5,6 +5,13 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_SHARED_WORKER_DEVTOOLS_AGENT_HOST_H_
 #define CONTENT_BROWSER_DEVTOOLS_SHARED_WORKER_DEVTOOLS_AGENT_HOST_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/shared_worker_devtools_agent_host_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <string>
 #include <vector>
 
@@ -84,5 +91,7 @@ class SharedWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_SHARED_WORKER_DEVTOOLS_AGENT_HOST_H_

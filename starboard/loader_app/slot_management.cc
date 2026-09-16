@@ -367,7 +367,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     elf_loader::CompressionType compression_type =
         elf_loader::CompressionType::kNone;
     struct stat info;
-    if (stat(lz4_compressed_lib_path.data(), &info) == 0) {
+    if (use_memory_mapped_file &&
+        stat(uncompressed_lib_path.data(), &info) == 0) {
+      lib_path = uncompressed_lib_path.data();
+    } else if (stat(lz4_compressed_lib_path.data(), &info) == 0) {
       lib_path = lz4_compressed_lib_path.data();
       compression_type = elf_loader::CompressionType::kLz4;
     } else if (stat(zstd_compressed_lib_path.data(), &info) == 0) {

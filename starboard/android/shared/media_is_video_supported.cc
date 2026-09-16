@@ -16,7 +16,8 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 // clang-format on
 
-#include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
+#include <android/api-level.h>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/size.h"
@@ -59,39 +60,24 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     must_support_tunnel_mode =
         mime_type->GetParamBoolValue("tunnelmode", false);
 
-    // Override endianness on HDR Info header. Defaults to little.
-    if (!mime_type->ValidateStringParameter("hdrinfoendianness",
-                                            "big|little")) {
-      return false;
-    }
-
     // Allow the web app to control how software decoders should be used.
     if (!mime_type->ValidateStringParameter(
             "softwaredecoder",
             "allowed|disallowed|preferred|unpreferred|required")) {
       return false;
     }
-
-    // Disable MediaCapabilitiesCache if "disablecache" option presented.
-    if (!mime_type->ValidateBoolParameter("disablecache")) {
-      return false;
-    }
-    if (mime_type->GetParamBoolValue("disablecache", false)) {
-      MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
-    }
-
-    if (!mime_type->ValidateBoolParameter("disabledynamicprerollframecount")) {
-      return false;
-    }
-    if (mime_type->GetParamBoolValue("disabledynamicprerollframecount",
-                                     false)) {
-      MaxMediaCodecOutputBuffersLookupTable::GetInstance()->SetEnabled(false);
-    }
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
+    return false;
+  }
+
+  if (must_support_tunnel_mode && android_get_device_api_level() < 34) {
+    SB_LOG(WARNING)
+        << "Tunnel mode is rejected because Android version is less "
+           "than 14.";
     return false;
   }
 

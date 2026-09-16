@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <string>
 
@@ -181,7 +182,7 @@ class AdaptiveAudioDecoderTest
   }
 
   vector<std::unique_ptr<VideoDmpReader>> dmp_readers_;
-  scoped_refptr<DecodedAudio> last_decoded_audio_;
+  std::optional<DecodedAudio> last_decoded_audio_;
   deque<scoped_refptr<InputBuffer>> written_inputs_;
   int num_of_output_frames_ = 0;
   int output_sample_rate_;
@@ -222,9 +223,9 @@ class AdaptiveAudioDecoderTest
 
   void ReadFromDecoder() {
     int samples_per_second;
-    scoped_refptr<DecodedAudio> decoded_audio =
+    std::optional<DecodedAudio> decoded_audio =
         audio_decoder_->Read(&samples_per_second);
-    ASSERT_TRUE(decoded_audio);
+    ASSERT_TRUE(decoded_audio.has_value());
     if (first_output_received_) {
       ASSERT_EQ(output_sample_rate_, samples_per_second);
     } else {
@@ -233,7 +234,7 @@ class AdaptiveAudioDecoderTest
     }
 
     if (decoded_audio->is_end_of_stream()) {
-      last_decoded_audio_ = decoded_audio;
+      last_decoded_audio_ = std::move(decoded_audio);
       return;
     }
 
@@ -253,7 +254,7 @@ class AdaptiveAudioDecoderTest
       }
     }
 
-    last_decoded_audio_ = decoded_audio;
+    last_decoded_audio_ = std::move(decoded_audio);
     num_of_output_frames_ += last_decoded_audio_->frames();
   }
 
@@ -369,8 +370,8 @@ vector<vector<const char*>> GetSupportedTests() {
     return test_params;
   }
 
-  vector<const char*> supported_files =
-      GetSupportedAudioTestFiles(kExcludeHeaac, 6, "audiopassthrough=false");
+  vector<const char*> supported_files = GetSupportedAudioTestFiles(
+      kExcludeHeaac, /*max_channels=*/6, kExcludePassthrough);
 
   // Generate test cases. For example, we have |supported_files| [A, B, C].
   // Add tests A->A, A->B, A->C, B->A, B->B, B->C, C->A, C->B and C->C.

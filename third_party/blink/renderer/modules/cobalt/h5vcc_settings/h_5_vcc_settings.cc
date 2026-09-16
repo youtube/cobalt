@@ -168,13 +168,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                     return base::ok();
                                   });
   }
-  if (name == "Media.720pVideoBufferSizeClampMb") {
-    return ProcessSettingAsPositiveInt(
-        script_state, exception_context, name, *value, [](int int_value) {
-          ::media::Set720pVideoBufferSizeClamp(int_value);
-          return true;
-        });
-  }
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
     return ProcessSettingAsPositiveInt(
         script_state, exception_context, name, *value, [](int int_value) {
@@ -190,10 +183,10 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           return true;
         });
   }
-  if (name == "Media.VideoBufferSizeClampMb") {
+  if (name == "Media.VideoBufferSizeReductionPercent") {
     return ProcessSettingAsPositiveInt(
         script_state, exception_context, name, *value, [](int int_value) {
-          ::media::SetVideoBufferSizeClamp(int_value);
+          ::media::SetVideoBufferSizeReductionPercent(int_value);
           return true;
         });
   }

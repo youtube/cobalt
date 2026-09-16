@@ -71,8 +71,17 @@ class CobaltLifecycleManagerObserver {
   // focus if it arrives too early.
   virtual void OnStartWaitingForReveal(content::WebContents* web_contents) {}
 
-  // Called when a WebContents has completed conceal (hidden).
+  // Step 1 of Conceal: Called when all renderer-side Blink frames have finished
+  // acknowledging page deactivation (visibilitychange/pagehide). This signals
+  // ShellPlatformDelegate to unmap platform windows and initiate asynchronous
+  // GPU teardown.
   virtual void OnAllFramesConcealed(content::WebContents* web_contents) {}
+
+  // Step 2 of Conceal: Called after the entire platform window and GPU teardown
+  // sequence (destroying EGL surfaces, contexts, and terminating the
+  // EGLDisplay) has fully completed on the GPU thread. This unblocks
+  // AppEventRunner's conceal wait barrier.
+  virtual void OnConcealCompleted(content::WebContents* web_contents) {}
 
   // Called when a WebContents has completed blur.
   virtual void OnAllFramesBlurred(content::WebContents* web_contents) {}
@@ -160,6 +169,9 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // Adds/removes observers.
   void AddObserver(CobaltLifecycleManagerObserver* observer);
   void RemoveObserver(CobaltLifecycleManagerObserver* observer);
+
+  // Called when background GPU cleanup and platform window conceal complete.
+  void OnConcealCompleted(content::WebContents* web_contents);
 
   // Called to start waiting for a specific ACK type.
   void StartWaitingForAck(content::WebContents* web_contents,

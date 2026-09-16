@@ -33,7 +33,6 @@ extern const char kContentShellUserDataDir[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
-extern const char kContentShellHideToolbar[];
 extern const char kIsolatedContextOrigins[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];

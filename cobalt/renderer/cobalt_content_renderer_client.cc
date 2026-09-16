@@ -16,9 +16,12 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <variant>
 
+#include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -34,10 +37,10 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
-#include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -49,6 +52,9 @@
 
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/starboard/url_player_demuxer.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#include "cobalt/internal/cobalt/components/cdm/renderer/starboard/platform_drm_key_system_info.h"
+#endif  // defined(COBALT_INTERNAL_BUILD)
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
@@ -260,6 +266,16 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  key_system_infos->push_back(std::make_unique<cdm::PlatformDrmKeySystemInfo>(
+      codecs,                                        // Regular codecs.
+      kEncryptionSchemes,                            // Encryption schemes.
+      codecs,                                        // Hardware secure codecs.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                     // identifier.
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 std::unique_ptr<::media::KeySystemSupportRegistration>
@@ -277,7 +293,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -290,7 +307,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -364,12 +382,18 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
   CHECK(content::RenderThread::IsMainThread());
 
   // Register the current thread (which is the InProcessRendererThread in
-  // single- process mode) for hang watching. Store the ScopedClosureRunner to
-  // keep the registration active until this client object is destroyed.
+  // single-process mode) for hang watching. HangWatcher is a leaky singleton,
+  // and InProcessRendererThread runs for the duration of the web application.
+  // Release the ScopedClosureRunner instead of storing it on
+  // CobaltContentRendererClient (which is destroyed on the main thread during
+  // shutdown), and avoid thread_local ScopedClosureRunner which pulls in
+  // __cxa_thread_atexit_impl (an illegal API leak in Evergreen).
   if (base::HangWatcher::IsEnabled() && base::HangWatcher::GetInstance()) {
     // Use kRendererThread as the type for this in-process renderer thread.
-    unregister_thread_closure = base::HangWatcher::RegisterThread(
-        base::HangWatcher::ThreadType::kRendererThread);
+    base::ScopedClosureRunner unregister_thread_closure =
+        base::HangWatcher::RegisterThread(
+            base::HangWatcher::ThreadType::kRendererThread);
+    std::ignore = unregister_thread_closure.Release();
   }
 }
 

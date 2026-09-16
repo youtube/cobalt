@@ -26,6 +26,8 @@ class PlaybackCapabilities {
   static void InitializeInBackground();
   // Returns true if the device has hardware vp9 decoder.
   static bool IsHwVp9Supported();
+  // Returns true if the device has hardware av1 decoder.
+  static bool IsHwAv1Supported();
   // Returns true if the device is Apple TV HD.
   static bool IsAppleTVHD();
   // Returns true if the device is Apple TV 4K.

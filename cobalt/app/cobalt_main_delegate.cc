@@ -66,11 +66,10 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(
-    absl::optional<int64_t> startup_timestamp,
-    const char* initial_deep_link,
-    bool is_content_browsertests,
-    bool is_visible)
+CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
+                                       const char* initial_deep_link,
+                                       bool is_content_browsertests,
+                                       bool is_visible)
     : content::ShellMainDelegate(),
       startup_timestamp_(startup_timestamp),
       is_visible_(is_visible),
@@ -139,12 +138,12 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+  InitializeHangWatcher();
+
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
-  // This delegate is for reading the flag value.
+  // This delegate is for reading the flag value and updates the configuration.
   cobalt::browser::CobaltHangWatcherDelegate::Initialize();
 #endif
-
-  InitializeHangWatcher();
 
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
@@ -236,7 +235,9 @@ void CobaltMainDelegate::PreSandboxStartup() {
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  main_runner_->Shutdown();
+  if (main_runner_) {
+    main_runner_->Shutdown();
+  }
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {

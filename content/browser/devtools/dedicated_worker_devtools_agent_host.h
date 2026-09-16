@@ -5,6 +5,13 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/dedicated_worker_devtools_agent_host_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "content/browser/devtools/worker_or_worklet_devtools_agent_host.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 
@@ -62,4 +69,6 @@ class DedicatedWorkerDevToolsAgentHost final
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_

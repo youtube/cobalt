@@ -74,6 +74,28 @@ def parse_trace_file(trace_path: str) -> Optional[List[Dict[str, Any]]]:
   return events
 
 
+# Categories that are expected in a pure memory trace.
+_ALLOWED_CATEGORIES = {
+    "disabled-by-default-memory-infra",
+    "__metadata",
+}
+
+
+def _parse_bytes_to_mb(val: Any) -> Optional[float]:
+  """Safely parses hex string or numeric bytes to Megabytes (MB)."""
+  if val is None or isinstance(val, bool):
+    return None
+  try:
+    if isinstance(val, (int, float)):
+      return float(val) / (1024 * 1024)
+    if isinstance(val, str):
+      # Chromium trace JSON formats byte values as hex strings.
+      return float(int(val, 16)) / (1024 * 1024)
+  except (ValueError, TypeError):
+    pass
+  return None
+
+
 def analyze_memory_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
   """Analyzes trace events to gather memory diagnostic metrics.
 
@@ -87,12 +109,27 @@ def analyze_memory_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
       "memory_dumps_count": 0,
       "has_heaps_v2": False,
       "has_process_mmaps": False,
-      "has_smaps": False,
+      "has_process_totals": False,
+      "latest_private_footprint_mb": None,
+      "latest_peak_rss_mb": None,
+      "has_redundant_data": False,
+      "noise_categories": set(),
   }
 
   for event in events:
     if not isinstance(event, dict):
       continue
+
+    # 1. Check for redundant CPU / timeline categories
+    cat = event.get("cat")
+    if cat and isinstance(cat, str):
+      for c in cat.split(","):
+        c_stripped = c.strip()
+        if c_stripped and c_stripped not in _ALLOWED_CATEGORIES:
+          metrics["has_redundant_data"] = True
+          metrics["noise_categories"].add(c_stripped)
+
+    # 2. Check for memory snapshot dumps
     if event.get("name") == "periodic_interval":
       metrics["memory_dumps_count"] += 1
       args = event.get("args")
@@ -113,8 +150,16 @@ def analyze_memory_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
           metrics["has_heaps_v2"] = True
         if "process_mmaps" in dumps_dict:
           metrics["has_process_mmaps"] = True
-        if "smaps" in dumps_dict:
-          metrics["has_smaps"] = True
+        if "process_totals" in dumps_dict:
+          metrics["has_process_totals"] = True
+          pt = dumps_dict["process_totals"]
+          if isinstance(pt, dict):
+            priv = _parse_bytes_to_mb(pt.get("private_footprint_bytes"))
+            rss = _parse_bytes_to_mb(pt.get("peak_resident_set_size"))
+            if priv is not None:
+              metrics["latest_private_footprint_mb"] = priv
+            if rss is not None:
+              metrics["latest_peak_rss_mb"] = rss
 
   return metrics
 
@@ -147,13 +192,25 @@ def print_scorecard(metrics: Dict[str, Any]) -> None:
         "  • VM Map (process_mmaps):  🔴 MISSING (No memory mapping lists found)"
     )
 
-  if metrics["has_smaps"]:
-    logger.info(
-        "  • PSS Categories (smaps):  🟢 PRESENT (Memory categories mapped)")
+  if metrics["has_process_totals"]:
+    priv = metrics["latest_private_footprint_mb"]
+    rss = metrics["latest_peak_rss_mb"]
+    details = []
+    if priv is not None:
+      details.append(f"Private: {priv:.1f} MB")
+    if rss is not None:
+      details.append(f"Peak RSS: {rss:.1f} MB")
+    detail_str = " (" + ", ".join(details) + ")" if details else ""
+    logger.info("  • OS Memory Totals:        🟢 PRESENT%s", detail_str)
   else:
-    logger.info(
-        "  • PSS Categories (smaps):  ⚪ NOT PRESENT (Categorized memory absent)"
-    )
+    logger.info("  • OS Memory Totals:        ⚪ NOT PRESENT")
+
+  if not metrics["has_redundant_data"]:
+    logger.info("  • Trace Redundancy:        🟢 CLEAN (No CPU timeline noise)")
+  else:
+    noise_str = ", ".join(sorted(metrics["noise_categories"]))
+    logger.info("  • Trace Redundancy:        🔴 NOISY (%s)", noise_str)
+
   logger.info("-" * 40)
 
 
@@ -162,13 +219,24 @@ def print_verdict(metrics: Dict[str, Any]) -> bool:
   dumps_count = metrics["memory_dumps_count"]
   has_heaps_v2 = metrics["has_heaps_v2"]
   has_process_mmaps = metrics["has_process_mmaps"]
+  has_redundant_data = metrics["has_redundant_data"]
 
   if dumps_count > 0 and has_heaps_v2 and has_process_mmaps:
-    logger.info("\n🎉 SUCCESS: The trace is valid and fully profileable!")
+    if not has_redundant_data:
+      logger.info("\n🎉 [SIGNAL: PROCEED] Trace is valid and clean! Ready for "
+                  "symbolization.")
+    else:
+      logger.info(
+          "\n⚠️ [SIGNAL: PROCEED_WITH_WARNING] Trace is valid but contains "
+          "redundant CPU events.")
+      logger.info("   - Tip: Pass "
+                  "--trace-startup=\"-*,disabled-by-default-memory-infra\" "
+                  "to shrink trace size by 10x-30x.")
     logger.info("=" * 60)
     return True
 
-  logger.info("\n❌ VERDICT: The trace is INCOMPLETE or INVALID for profiling!")
+  logger.info(
+      "\n❌ [SIGNAL: ABORT] Trace is INCOMPLETE or INVALID for profiling!")
   reasons = []
   if dumps_count == 0:
     reasons.append(

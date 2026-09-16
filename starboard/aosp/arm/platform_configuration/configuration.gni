@@ -19,3 +19,5 @@ if (current_toolchain == default_toolchain) {
   import("//starboard/android/arm/platform_configuration/configuration.gni")
   sb_evergreen_compatible_use_libunwind = true
 }
+
+cobalt_font_package = "android_system"

@@ -16,11 +16,14 @@
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
@@ -110,6 +113,14 @@ class MEDIA_EXPORT StarboardRendererClient
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
   void GetSbWindowHandle() override;
+#if BUILDFLAG(IS_IOS_TVOS)
+  void OnEncryptedMediaInitDataEncountered(
+      const std::string& init_data_type,
+      const std::vector<uint8_t>& init_data) override;
+  void OnDurationChange(base::TimeDelta duration) override;
+  void OnBufferedTimeRangesChange(base::TimeDelta start,
+                                  base::TimeDelta length) override;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo(bool restart_for_transitions) override;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -169,6 +180,9 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Remote<RendererExtension> renderer_extension_;
 
   raw_ptr<RendererClient> client_ = nullptr;
+#if BUILDFLAG(IS_IOS_TVOS)
+  raw_ptr<MediaResource> media_resource_ = nullptr;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   PipelineStatusCallback init_cb_;
 
   // Rendering mode the Starboard Renderer will use.

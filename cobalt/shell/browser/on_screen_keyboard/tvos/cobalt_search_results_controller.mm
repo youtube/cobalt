@@ -53,13 +53,42 @@
 
 #pragma mark - UIFocusEnvironment
 
+- (BOOL)shouldUpdateFocusInContext:(UIFocusUpdateContext*)context {
+  if ([context.previouslyFocusedView isDescendantOfView:self.view] &&
+      ![context.nextFocusedView isDescendantOfView:self.view]) {
+    // This condition is entered when e.g. the web contents view is focused in
+    // the Search page and the user presses Up: by default, the focus engine
+    // will attempt to switch focus from the web contents view to the native
+    // keyboard even if the expectation was for Kabuki to just scroll one shelf
+    // up and not focus on the on-screen keyboard. Avoid this by always denying
+    // the focus switch attempt.
+    //
+    // Note that this does not mean the native keyboard will never be focused:
+    // when there is nothing for Kabuki to focus when the user presses Up, it
+    // will eventually call OnScreenKeyboard.show() and
+    // OnScreenKeyboard.focus(), the latter of which reaches
+    // ContentShellWindowDelegate's -focusOnScreenKeyboard: which will
+    // temporarily set userInteractionEnabled to NO in the web contents view,
+    // trigger a ContentShellWindowDelegate focus update that will not invoke
+    // this function and reach -didUpdateFocusInContext:withAnimationCoordinator
+    // below.
+    //
+    // See b/546217920 and the commit message introducing this change for more
+    // information.
+    return NO;
+  }
+  return YES;
+}
+
 - (void)didUpdateFocusInContext:(UIFocusUpdateContext*)context
        withAnimationCoordinator:(UIFocusAnimationCoordinator*)coordinator {
   if ([context.nextFocusedView isDescendantOfView:self.view]) {
     if (![context.previouslyFocusedView isDescendantOfView:self.view]) {
+      // Switching focus from the native keyboard and to the web contents view.
       [_focusDelegate resultsDidReceiveFocus];
     }
   } else if ([context.previouslyFocusedView isDescendantOfView:self.view]) {
+    // Switching focus from the web contents view to the native keyboard.
     [_focusDelegate resultsDidLoseFocus];
   }
 }

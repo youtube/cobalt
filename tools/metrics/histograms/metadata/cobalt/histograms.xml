@@ -53,12 +53,38 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the amount of native memory allocated in megabytes when the native
+    memory ablation Finch feature is enabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the native memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Result"
+    enum="NativeMemoryAblationResult" expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of the native memory ablation allocation attempt.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether the test Finch feature is enabled. Used for validating feature
-    deployment.
+    Records whether the test Finch feature is enabled. Used for validating
+    feature deployment.
   </summary>
 </histogram>
 
@@ -66,8 +92,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the hash of the parameter value for the test Finch feature. Used
-    for validating parameter propagation.
+    Records the hash of the parameter value for the test Finch feature. Used for
+    validating parameter propagation.
   </summary>
 </histogram>
 
@@ -112,7 +138,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether any features in the variations configuration had an invalid (non-boolean) type.
+    Records whether any features in the variations configuration had an invalid
+    (non-boolean) type.
   </summary>
 </histogram>
 
@@ -120,7 +147,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether any parameters in the variations configuration had an invalid (non-string) type.
+    Records whether any parameters in the variations configuration had an
+    invalid (non-string) type.
   </summary>
 </histogram>
 
@@ -128,7 +156,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the number of experiment features successfully registered and applied at startup.
+    Records the number of experiment features successfully registered and
+    applied at startup.
   </summary>
 </histogram>
 
@@ -136,7 +165,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the number of experiment parameters successfully registered and applied at startup.
+    Records the number of experiment parameters successfully registered and
+    applied at startup.
   </summary>
 </histogram>
 
@@ -144,7 +174,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records when SetExperimentState fails because the variations config dictionary could not be parsed.
+    Records when SetExperimentState fails because the variations config
+    dictionary could not be parsed.
   </summary>
 </histogram>
 
@@ -152,8 +183,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the duration since the last time the variations experiment configuration
-    was written to persistent storage.
+    Records the duration since the last time the variations experiment
+    configuration was written to persistent storage.
   </summary>
 </histogram>
 
@@ -169,12 +200,62 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
   <owner>hwarriner@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
+    The time it takes for the ELF dynamic shared library, stored as an LZ4
+    compressed file, to be decompressed. This metric is only recorded when the
+    shared library is stored as an LZ4 compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for Cobalt's ELF Loader to load the dynamic shared
+    library, which under normal operation is the Cobalt Core library. This
+    metric is only recorded when the shared library is stored as a compressed
+    file, and this metric includes decompression time.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt.LoaderApp.ElfLoadDuration minus
+    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
+    the shared library is stored as an LZ4 compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad"
+    units="MB" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The maximum sampled value of CPU memory used by the Loader App while the ELF
+    dynamic shared library is being loaded. Note that this maximum sampled value
+    is not guaranteed to be the true maximum value, which could be greater. This
+    metric is only recorded when the shared library is stored as a compressed
+    file.
   </summary>
 </histogram>
 
@@ -228,6 +309,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
+    expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Records whether the Starboard media buffer pool is allocated on demand as
+    reported by SbMediaIsBufferPoolAllocateOnDemand(). Recorded during
+    DecoderBufferAllocator initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -254,6 +346,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.PictureInPicture.Enter" enum="Boolean"
+    expires_after="never">
+  <owner>ziliangguo@google.com</owner>
+  <summary>
+    Records whether entering Picture-in-Picture succeeded (true) or failed
+    (false). Emitted when attempting to transition to Picture-in-Picture mode.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PictureInPicture.Exit" enum="Boolean"
+    expires_after="never">
+  <owner>ziliangguo@google.com</owner>
+  <summary>
+    Records whether exiting Picture-in-Picture succeeded (true) or failed
+    (false). Emitted when attempting to leave Picture-in-Picture mode.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -261,6 +371,64 @@ Always run the pretty print utility on this file after editing:
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
     splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.SystemExitReason"
+    enum="AndroidProcessExitReason" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Reason given by Android ActivityManager for the exit of the previous Cobalt
+    browser process, recorded on startup for Android R+ (API 30+) devices.
+    Extracted from the previous session's persistent memory allocator file PID.
+    Records Android API failed when ActivityManager does not return a reason.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.IsNearCapacity" enum="Boolean"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the Cobalt Persistent Memory Allocator (PMA) for stability
+    metrics is full or within 90% of capacity. Recorded at key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PercentFull" units="%"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The percentage of capacity currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.UsedKilobytes" units="KB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The number of kilobytes currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records startup milestone markers reached during browser initialization and
+    initial navigation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Time.NavigationDispatchToCommit" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration from DidStartNavigation to DidFinishNavigation
+    (commit) for the initial startup navigation in the primary main frame.
   </summary>
 </histogram>
 
@@ -544,12 +712,12 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory"
+    units="MiB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
-    Graphics memory usage (GPU) on Android for cobalt. This data comes from graphics
-    section of dumpsys meminfo.
+    Graphics memory usage (GPU) on Android for cobalt. This data comes from
+    graphics section of dumpsys meminfo.
   </summary>
 </histogram>
 
@@ -600,6 +768,57 @@ Always run the pretty print utility on this file after editing:
     Accurate RSS for the thread stacks pillar. This is used for the cumulative
     CDF breakdown of the total ResidentSet.
   </summary>
+</histogram>
+
+<histogram
+    name="Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The highest private memory footprint of a renderer process in the (X, Y]
+    mins after resuming from a background state interval. (X, Y] is (0, 2], (2,
+    4], (4, 8], and (8, 16]. The metric is recorded at the Y's timing.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint
+    when foregrounded.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
 </histogram>
 
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"

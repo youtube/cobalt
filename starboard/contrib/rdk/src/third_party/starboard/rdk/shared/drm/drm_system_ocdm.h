@@ -19,8 +19,10 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -66,23 +68,20 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
                                    const char* mime_type);
 
   // SbDrmSystemPrivate
-  void GenerateSessionUpdateRequest(int ticket,
-                                    const char* type,
-                                    const void* initialization_data,
-                                    int initialization_data_size) override;
-  void CloseSession(const void* session_id, int session_id_size) override;
+  void GenerateSessionUpdateRequest(
+      int ticket,
+      std::string_view type,
+      std::string_view initialization_data) override;
+  void CloseSession(std::string_view session_id) override;
   void UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size) override;
+                     std::string_view key,
+                     std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               const void* certificate,
-                               int certificate_size) override;
+                               std::string_view certificate) override;
 
-  const void* GetMetrics(int* size) override;
+  std::optional<std::string_view> GetMetrics() override;
 
   void AddObserver(Observer* obs);
   void RemoveObserver(Observer* obs);
@@ -104,7 +103,7 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
   void Invalidate();
 
  private:
-  Session* GetSessionById(const std::string& id);
+  Session* GetSessionById(std::string_view id);
   void AnnounceKeys();
 
   std::set<std::string> GetReadyKeysUnlocked() const;
@@ -126,7 +125,7 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
   SbEventId event_id_;
   std::mutex mutex_;
 
-  std::vector<uint8_t> metrics_;
+  std::string metrics_;
 };
 
 }  // namespace starboard

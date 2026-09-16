@@ -70,6 +70,7 @@ class GlobalFeaturesTest : public testing::Test {
     experiment_config->ClearPref(kSafeConfigActiveConfigData);
     experiment_config->ClearPref(kSafeConfigFeatures);
     experiment_config->ClearPref(kSafeConfigFeatureParams);
+    instance_->InitializeActiveConfigData(ExperimentConfigType::kEmptyConfig);
     // auto metrics_local_state = instance_->metrics_local_state();
   }
 
@@ -126,18 +127,40 @@ TEST_F(GlobalFeaturesTest, RegisterPrefsRegistersExpectedPrefs) {
 TEST_F(GlobalFeaturesTest,
        InitializedActiveConfigDataUnchangedAfterChangeToStoredData) {
   ASSERT_NE(instance_, nullptr);
-  auto active_config_data = instance_->active_config_data();
-  EXPECT_TRUE(active_config_data.empty());
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "initial_data");
 
-  base::FilePath config_file =
-      temp_dir_->GetPath().Append(FILE_PATH_LITERAL("Experiment Config"));
-  base::WriteFile(
-      config_file,
-      R"({"experiment_config":{"features":{"feature_a":true},"feature_params":{"param1":"value1"},"active_config_data":"ab"},"latest_config_hash":"cd")");
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "modified_data");
 
   // Active config data in memory should remain the same.
-  active_config_data = instance_->active_config_data();
-  EXPECT_TRUE(active_config_data.empty());
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+}
+
+TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataClearedOnEmptyConfig) {
+  ASSERT_NE(instance_, nullptr);
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kEmptyConfig);
+  EXPECT_TRUE(instance_->active_config_data().empty());
+}
+
+TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataSnapshotsSafeConfig) {
+  ASSERT_NE(instance_, nullptr);
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kSafeConfigActiveConfigData, "safe_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kSafeConfig);
+  EXPECT_EQ(instance_->active_config_data(), "safe_data");
 }
 
 TEST_F(GlobalFeaturesTest, SetAndGetSettingInt) {

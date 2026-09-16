@@ -15,6 +15,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//content/browser/devtools/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
@@ -65,10 +66,11 @@ group("cobalt_shell_lib_deps") {
     "//base",
     "//base:base_static",
     "//cc/base",
+    "//cobalt/browser:features",
     "//cobalt/browser:switches",
-    "//cobalt/browser/crash_annotator/public/mojom:mojom",
+    "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
-    "//cobalt/browser/lifecycle:lifecycle",
+    "//cobalt/browser/lifecycle",
     "//cobalt/build/configs:buildflags",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
@@ -213,6 +215,8 @@ static_library("cobalt_shell_lib") {
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
+    "browser/picture_in_picture/picture_in_picture_window_manager.cc",
+    "browser/picture_in_picture/picture_in_picture_window_manager.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",
@@ -319,6 +323,17 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "browser/shell_devtools_bindings.cc",
+      "browser/shell_devtools_bindings.h",
+      "browser/shell_devtools_frontend.cc",
+      "browser/shell_devtools_frontend.h",
+      "browser/shell_devtools_manager_delegate.cc",
+    ]
+    sources += [ "browser/shell_devtools_manager_delegate_stub.cc" ]
   }
 
   if (is_starboard) {

@@ -68,6 +68,29 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxDisabledBrowserTest,
                             "'privateToken' in HTMLIFrameElement.prototype"));
 }
 
+// Verifies that FedCM (Federated Credential Management) and related
+// Credential Management APIs are not exposed to JavaScript.
+IN_PROC_BROWSER_TEST_F(PrivacySandboxDisabledBrowserTest,
+                       FedCmAndCredentialApisNotExposed) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  // FedCM / IdentityCredential interfaces are not exposed.
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'IdentityCredential' in window"));
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'IdentityCredentialError' in window"));
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'identity' in navigator"));
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'credentials' in navigator"));
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'FederatedCredential' in window"));
+  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
+                                   "'DigitalCredential' in window"));
+}
+
 // Verifies that fetch() with privateToken parameters is safely ignored by
 // the renderer and loads the resource as a regular network request.
 IN_PROC_BROWSER_TEST_F(PrivacySandboxDisabledBrowserTest,

@@ -23,11 +23,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !BUILDFLAG(IS_STARBOARD)
-#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
-#endif
-
-#if defined(ANDROID)
-#error These tests are not applicable to AOSP
+#error These tests apply only to Starboard platforms.
 #endif
 
 namespace nplb {

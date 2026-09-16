@@ -12,17 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/aosp/shared/application_aosp.h"
+#include "starboard/aosp/shared/window_surface.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -31,7 +39,14 @@ int main(int argc, char** argv);
 
 namespace {
 
-void StarboardMain() {
+// Cobalt normally runs main() on the process's main thread, which has a large
+// stack. Here it runs on a dedicated thread instead, and the 1MB (Android
+// default) stack size is not enough for InstallationManager, which reads its
+// store file into a 1MB stack buffer. Use 2MB, the same size Cobalt 25 and RDK
+// use.
+constexpr size_t kStarboardMainStackSize = 2 * 1024 * 1024;
+
+void* StarboardMain(void* /*context*/) {
   pthread_setname_np(pthread_self(), "StarboardMain");
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
@@ -48,7 +63,31 @@ void StarboardMain() {
 
   std::vector<std::string> args;
   args.push_back("cobalt_loader");
+  // Don't use "/dev/shm" for shared memory; it does not exist on Android.
+  // With this switch it falls back to GetTempDir().
+  args.push_back("--disable-dev-shm-usage");
   starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
+
+  // For Android instrumentation test runs the runner provides a stdout file.
+  // Redirect stdout/stderr to it.
+  const std::string kStdoutFlag = "--android_stdout_file=";
+  for (auto it = args.begin(); it != args.end();) {
+    if (it->rfind(kStdoutFlag, 0) == 0) {
+      const std::string path = it->substr(kStdoutFlag.size());
+      int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+      if (fd < 0) {
+        SB_LOG(ERROR) << "Failed to open stdout redirect file " << path << ": "
+                      << strerror(errno);
+        exit(EXIT_FAILURE);
+      }
+      dup2(fd, STDOUT_FILENO);
+      dup2(fd, STDERR_FILENO);
+      close(fd);
+      it = args.erase(it);
+    } else {
+      ++it;
+    }
+  }
 
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
@@ -58,6 +97,7 @@ void StarboardMain() {
   argv.push_back(nullptr);
 
   main(static_cast<int>(args.size()), argv.data());
+  return nullptr;
 }
 
 }  // namespace
@@ -65,7 +105,54 @@ void StarboardMain() {
 namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
-  std::thread(StarboardMain).detach();
+  pthread_attr_t attr;
+  if (pthread_attr_init(&attr) != 0) {
+    SB_LOG(ERROR) << "Failed to initialize StarboardMain thread attributes";
+    return;
+  }
+
+  if (pthread_attr_setstacksize(&attr, kStarboardMainStackSize) != 0 ||
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0) {
+    SB_LOG(ERROR) << "Failed to set StarboardMain thread attributes";
+    pthread_attr_destroy(&attr);
+    return;
+  }
+
+  pthread_t thread;
+  if (pthread_create(&thread, &attr, &StarboardMain, nullptr) != 0) {
+    SB_LOG(ERROR) << "Failed to create StarboardMain thread";
+  }
+
+  pthread_attr_destroy(&attr);
+}
+
+// MainActivity hands the Activity window's Surface to Starboard here.
+void JNI_MainActivity_NativeOnSurfaceCreated(
+    JNIEnv* env,
+    const jni_zero::JavaParamRef<jobject>& surface) {
+  ANativeWindow* native_window = ANativeWindow_fromSurface(env, surface.obj());
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
+               << native_window;
+  starboard::android::shared::SetWindowSurface(native_window);
+}
+
+void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface destroyed.";
+  starboard::android::shared::SetWindowSurface(nullptr);
+}
+
+jboolean JNI_MainActivity_NativeSendKeyEvent(JNIEnv* /*env*/,
+                                             jint key_code,
+                                             jint action,
+                                             jint unicode_char,
+                                             jint meta_state) {
+  ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
+  if (application == nullptr) {
+    return JNI_FALSE;
+  }
+  return application->InjectKeyEvent(key_code, action, unicode_char, meta_state)
+             ? JNI_TRUE
+             : JNI_FALSE;
 }
 
 }  // namespace starboard

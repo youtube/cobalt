@@ -36,9 +36,6 @@ const char kDisableSystemFontCheck[] = "disable-system-font-check";
 // Size for the content_shell's host window (i.e. "800x600").
 const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 
-// Hides toolbar from content_shell's host window.
-const char kContentShellHideToolbar[] = "content-shell-hide-toolbar";
-
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
 const char kIsolatedContextOrigins[] = "isolated-context-origins";

@@ -15,6 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
 #define STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
 
+#include <vector>
+
+#include "third_party/jni_zero/jni_zero.h"
+
 namespace starboard {
 
 // A gateway to access DisplayUtil.java through JNI.
@@ -28,6 +32,9 @@ class DisplayUtil {
   // Returns the physical pixels per inch of the screen in the X and Y
   // dimensions.
   static Dpi GetDisplayDpi();
+
+  // Returns supported HDR types.
+  static std::vector<int> GetSupportedHdrTypes(JNIEnv* env);
 };
 
 }  // namespace starboard

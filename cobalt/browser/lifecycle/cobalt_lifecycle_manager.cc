@@ -441,6 +441,14 @@ void CobaltLifecycleManager::RemoveObserver(
   observers_.RemoveObserver(observer);
 }
 
+void CobaltLifecycleManager::OnConcealCompleted(
+    content::WebContents* web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  for (auto& observer : observers_) {
+    observer.OnConcealCompleted(web_contents);
+  }
+}
+
 void CobaltLifecycleManager::StartWaitingForAck(
     content::WebContents* web_contents,
     PendingAck ack_type) {

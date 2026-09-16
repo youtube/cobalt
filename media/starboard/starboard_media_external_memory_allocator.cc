@@ -70,9 +70,17 @@ class StarboardPoolExternalMemory : public DecoderBuffer::ExternalMemory {
 
   DecoderBuffer::Allocator::Handle handle() const override { return handle_; }
 
+  DemuxerStream::Type type() const override { return type_; }
+
+  DecoderBuffer::Allocator::Handle ReleaseHandle() override {
+    DecoderBuffer::Allocator::Handle h = handle_;
+    handle_ = DecoderBuffer::Allocator::kInvalidHandle;
+    return h;
+  }
+
  private:
   DecoderBuffer::Allocator* const pool_;
-  const DecoderBuffer::Allocator::Handle handle_;
+  DecoderBuffer::Allocator::Handle handle_;
   const size_t size_;
   const base::span<const uint8_t> span_;
   const DemuxerStream::Type type_;
