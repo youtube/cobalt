@@ -21,8 +21,7 @@ COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 ENV PYTHONUNBUFFERED 1
 
 # === Install common dependencies
-RUN sed -i -e 's/^# deb/deb/' -e '/deb\.debian\.org/d' /etc/apt/sources.list \
-    && echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-check-valid-until
+RUN sed -i -e 's/^# deb /deb [check-valid-until=no] /' -e 's/^# deb-src /deb-src [check-valid-until=no] /' -e '/deb\.debian\.org/d' /etc/apt/sources.list
 
 RUN apt update -qqy \
     && apt -qqy upgrade \
