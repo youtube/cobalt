@@ -17,7 +17,7 @@
 #include <type_traits>
 #include <variant>
 
-#include "ipc/ipc_message_utils.h"
+#include "ipc/param_traits_utils.h"
 
 namespace IPC {
 

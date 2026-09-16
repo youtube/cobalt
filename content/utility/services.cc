@@ -341,22 +341,7 @@ auto RunVideoCapture(
 }
 #endif  // !BUILDFLAG(IS_COBALT)
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-auto RunVideoEffects(
-    mojo::PendingReceiver<video_effects::mojom::VideoEffectsService> receiver) {
-  if (base::FeatureList::IsEnabled(media::kCameraMicEffects)) {
-    return std::make_unique<video_effects::VideoEffectsServiceImpl>(
-        std::move(receiver), UtilityThread::Get()->GetIOTaskRunner());
-  }
-
-  return std::unique_ptr<video_effects::VideoEffectsServiceImpl>{};
-}
-#endif
-
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of dc168278aab (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 auto RunOnDeviceModel(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModelService>
         receiver) {

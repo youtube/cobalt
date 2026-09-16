@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/android/jni_android.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -87,8 +87,8 @@ class H5vccSystemAndroidBrowserTest : public content::ContentBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyDefaultExitReasonResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -104,8 +104,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyNonLmkExitReasonResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -122,8 +122,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyLowMemoryKillExitReasonResolvesTrue) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -143,8 +143,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyUserRequestedExitReasonResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -162,8 +162,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyCrashExitReasonResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -180,8 +180,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyDynamicExitReasonTransition) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -209,8 +209,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyEmptyHistoricalExitReasonsResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -227,8 +227,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyNullHistoricalExitReasonsResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }
@@ -245,8 +245,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
                        VerifyExceptionInHistoricalExitReasonsResolvesFalse) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     GTEST_SKIP()
         << "Historical process exit reasons are only available on Android R+.";
   }

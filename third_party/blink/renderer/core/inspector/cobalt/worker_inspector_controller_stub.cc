@@ -27,6 +27,7 @@ WorkerInspectorController* WorkerInspectorController::Create(
   return nullptr;
 }
 void WorkerInspectorController::WaitForDebuggerIfNeeded() {}
+void WorkerInspectorController::WorkerScriptLoaded() {}
 void WorkerInspectorController::Dispose() {}
 void WorkerInspectorController::Trace(Visitor*) const {}
 
