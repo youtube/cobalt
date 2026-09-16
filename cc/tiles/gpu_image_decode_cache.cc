@@ -25,6 +25,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
@@ -2365,7 +2366,8 @@ void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
 #if BUILDFLAG(IS_COBALT)
 void GpuImageDecodeCache::OwnershipChanged(ImageData* image_data) {
   // `draw_image` is not used in this code path.
-  OwnershipChanged(DrawImage(), image_data, /*keep_empty_images=*/true);
+  static const base::NoDestructor<DrawImage> empty_draw_image;
+  OwnershipChanged(*empty_draw_image, image_data, /*keep_empty_images=*/true);
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
