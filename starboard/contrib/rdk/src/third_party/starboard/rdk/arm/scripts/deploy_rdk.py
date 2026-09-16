@@ -25,11 +25,6 @@ Usage Examples:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  3. Target a specific device when several are attached (auto-detection picks the
-     first RDK device it finds, which is ambiguous on a multi-device bench):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --device-id localhost:44133 --run
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --device-ip 100.107.44.78 --run
-
   (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
@@ -720,7 +715,9 @@ def main() -> None:
         return
 
     if args.device_ip and args.device_id:
-        print("Error: --device-ip and --device-id are mutually exclusive.")
+        print(
+            "Error: --device-ip and --device-id are mutually exclusive.",
+            file=sys.stderr)
         sys.exit(1)
 
     device_ip = args.device_ip

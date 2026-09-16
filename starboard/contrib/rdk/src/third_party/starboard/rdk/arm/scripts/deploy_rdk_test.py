@@ -189,7 +189,8 @@ class TestDeployRdk(unittest.TestCase):
 
     def test_device_id_flag_skips_auto_detection(self):
         """Verifies --device-id targets the given serial without auto-detecting."""
-        self.mock_run.side_effect = lambda *args, **kwargs: ""
+        self.mock_run.side_effect = None
+        self.mock_run.return_value = ""
 
         argv = [
             "deploy_rdk.py", "--only-lib", "--force-deploy",
@@ -211,9 +212,11 @@ class TestDeployRdk(unittest.TestCase):
             "deploy_rdk.py", "--device-id", "localhost:44133",
             "--device-ip", "192.0.2.10"
         ]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-        self.mock_exit.assert_any_call(1)
+        with mock.patch("sys.argv", argv), mock.patch(
+                "sys.exit", side_effect=SystemExit) as mock_exit:
+            with self.assertRaises(SystemExit):
+                deploy_rdk.main()
+        mock_exit.assert_called_once_with(1)
 
     def test_revert_c25(self):
         """Verifies --revert-c25 runs chCobalt c25 and reboot -f."""
