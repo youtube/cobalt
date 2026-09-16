@@ -15,6 +15,7 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -419,6 +420,24 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   return std::max(playback_time, seek_to_time_);
 }
 
+int64_t AudioRendererPassthrough::GetAudioWriteHead() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (end_of_stream_written_) {
+    return std::numeric_limits<int64_t>::max();
+  }
+
+  // |total_frames_written_| and |first_audio_timestamp_| are updated on
+  // |audio_track_thread_|, so acquire |mutex_| when reading them here.
+  std::lock_guard scoped_lock(mutex_);
+  if (!audio_track_ || first_audio_timestamp_ < 0 ||
+      audio_stream_info_.samples_per_second == 0) {
+    return seek_to_time_;
+  }
+  return first_audio_timestamp_ + total_frames_written_ * 1'000'000LL /
+                                      audio_stream_info_.samples_per_second;
+}
+
 void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
@@ -593,8 +612,11 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         return;
       }
 
-      if (first_audio_timestamp_ < 0) {
-        first_audio_timestamp_ = sync_time;
+      {
+        std::lock_guard scoped_lock(mutex_);
+        if (first_audio_timestamp_ < 0) {
+          first_audio_timestamp_ = sync_time;
+        }
       }
 
       decoded_audio_writing_offset_ += samples_written;
@@ -602,6 +624,10 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
+        {
+          std::lock_guard scoped_lock(mutex_);
+          total_frames_written_ = total_frames_written_on_audio_track_thread_;
+        }
         decoded_audio_writing_in_progress_ = std::nullopt;
         decoded_audio_writing_offset_ = 0;
         fully_written = true;

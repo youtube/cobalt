@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -475,6 +476,26 @@ TEST_F(AudioRendererPassthroughTest, GetCurrentMediaTimePausedAndPlaying) {
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_EQ(media_time, 200'000);
   EXPECT_FALSE(is_playing);
+}
+
+TEST_F(AudioRendererPassthroughTest,
+       GetAudioWriteHeadAdvancesWithWrittenSamples) {
+  EXPECT_EQ(renderer_->GetAudioWriteHead(), 0);
+
+  // Write 1st frame (timestamp = 0, 1536 samples at 48000 Hz = 32,000 us).
+  renderer_->WriteSamples({CreateInputBuffer(frame_, 0)});
+  ASSERT_TRUE(WaitForCondition(
+      [&] { return renderer_->GetAudioWriteHead() == 32'000; }));
+
+  // Write 2nd frame (timestamp = 32'000).
+  renderer_->WriteSamples({CreateInputBuffer(frame_, 32'000)});
+  ASSERT_TRUE(WaitForCondition(
+      [&] { return renderer_->GetAudioWriteHead() == 64'000; }));
+
+  // Writing EOS should set audio write head to max.
+  renderer_->WriteEndOfStream();
+  EXPECT_EQ(renderer_->GetAudioWriteHead(),
+            std::numeric_limits<int64_t>::max());
 }
 
 }  // namespace

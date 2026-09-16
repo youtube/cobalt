@@ -102,7 +102,7 @@ class AudioRendererPassthrough : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
-  int64_t GetAudioWriteHead() override { return 0; }
+  int64_t GetAudioWriteHead() override;
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
     return timestamp;
   }
@@ -143,6 +143,9 @@ class AudioRendererPassthrough : public AudioRenderer,
 
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 
+  // Protects shared state accessed across threads. Must be acquired when
+  // accessing variables updated on |audio_track_thread_| or read from outside
+  // the PlayerWorker thread (e.g. in GetCurrentMediaTime()).
   mutable std::mutex mutex_;
   bool stop_called_ = false;
   int64_t total_frames_written_ = 0;
