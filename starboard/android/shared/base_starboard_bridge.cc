@@ -230,11 +230,12 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url) {
+                                         const std::string& url,
+                                         bool disable_dismiss_button) {
   SB_DCHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url));
+      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {

@@ -46,7 +46,8 @@ class StarboardBridge {
   void RaisePlatformError(JNIEnv* env,
                           jint errorType,
                           jlong data,
-                          const std::string& url);
+                          const std::string& url,
+                          bool disable_dismiss_button = false);
 
   bool IsPlatformErrorShowing(JNIEnv* env);
 
