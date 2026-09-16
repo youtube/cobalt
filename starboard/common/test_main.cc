@@ -21,6 +21,7 @@
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "starboard/testing/test_runner.h"
@@ -37,9 +38,9 @@ int InitAndRunAllTests(int argc, char** argv) {
 #if BUILDFLAG(IS_IOS_TVOS)
   std::vector<std::string> arg_strings;
   std::vector<char*> new_argv;
-  char cache_dir[kSbFileMaxPath] = {0};
-  bool has_cache_dir = SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir,
-                                       sizeof(cache_dir));
+  std::vector<char> cache_dir(kSbFileMaxPath, 0);
+  bool has_cache_dir = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                       cache_dir.data(), cache_dir.size());
 
   const char kGTestOutputPrefix[] = "--gtest_output=xml:";
   const size_t kGTestOutputPrefixLen = sizeof(kGTestOutputPrefix) - 1;
@@ -50,7 +51,8 @@ int InitAndRunAllTests(int argc, char** argv) {
         arg.compare(0, kGTestOutputPrefixLen, kGTestOutputPrefix) == 0) {
       std::string file_path = arg.substr(kGTestOutputPrefixLen);
       if (!file_path.empty() && file_path[0] != '/') {
-        arg = kGTestOutputPrefix + std::string(cache_dir) + "/" + file_path;
+        arg = kGTestOutputPrefix + std::string(cache_dir.data()) + "/" +
+              file_path;
       }
     }
     arg_strings.push_back(arg);
