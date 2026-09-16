@@ -326,6 +326,7 @@ int UtilityMain(MainFunctionParams parameters) {
     case sandbox::mojom::Sandbox::kAudio:
       pre_sandbox_hook = base::BindOnce(&audio::AudioPreSandboxHook);
       break;
+#endif  // !BUILDFLAG(IS_STARBOARD)
 #if !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
       on_device_model::AddSandboxLinuxOptions(sandbox_options);
