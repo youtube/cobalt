@@ -20,12 +20,20 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 
-bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
+bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
+                               const std::string& max_video_capabilities) {
+  if (features.GetBool(kMediaForceSoftwareVideoDecoder)) {
+    SB_LOG(INFO) << "Use software decoder as `kMediaForceSoftwareVideoDecoder` "
+                 << "is set in experimental features.";
+    return true;
+  }
+
   if (max_video_capabilities.empty()) {
     return false;
   }
