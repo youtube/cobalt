@@ -38,7 +38,8 @@ class UrlFetcherDownloader : public CrxDownloader {
       scoped_refptr<CrxDownloader> successor,
 scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
       const std::string& prod_id);
-#endif  UrlFetcherDownloader(const UrlFetcherDownloader&) = delete;
+#endif
+  UrlFetcherDownloader(const UrlFetcherDownloader&) = delete;
   UrlFetcherDownloader& operator=(const UrlFetcherDownloader&) = delete;
 
  private:

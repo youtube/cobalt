@@ -943,7 +943,7 @@ static sk_sp<SkData> mmap_filename(const char path[]) {
 #include "include/private/base/SkMutex.h"
 #include "src/core/SkTHash.h"
 
-using PathToDataMap = skia_private::THashMap<SkString, sk_sp<SkData>>;
+using PathToDataMap = skia_private::THashMap<SkString, sk_sp<const SkData>>;
 
 static SkMutex& get_path_to_data_map_mutex() {
     // It's Skia convention to intentionally leak static objects to ensure proper lifetime.
@@ -957,12 +957,12 @@ static PathToDataMap& get_path_to_data_map() {
     return *path_to_data_map;
 }
 
-static sk_sp<SkData> mmap_filename_with_cache(const char path[]) {
+static sk_sp<const SkData> mmap_filename_with_cache(const char path[]) {
     SkString pathString(path);
     SkAutoMutexExclusive lock(get_path_to_data_map_mutex());
     PathToDataMap& path_to_data_map = get_path_to_data_map();
 
-    if (sk_sp<SkData>* found = path_to_data_map.find(pathString)) {
+    if (sk_sp<const SkData>* found = path_to_data_map.find(pathString)) {
         SkDEBUGCODE(SkDebugf("Found font file %s in cache.\n", pathString.c_str()));
         return *found;
     }
@@ -977,7 +977,7 @@ static sk_sp<SkData> mmap_filename_with_cache(const char path[]) {
     return nullptr;
 }
 
-SkMemoryStream::SkMemoryStream(const char path[], sk_sp<SkData> data)
+SkMemoryStream::SkMemoryStream(const char path[], sk_sp<const SkData> data)
         : fPath(path), fData(std::move(data)) {
     if (nullptr == fData) {
         fData = SkData::MakeEmpty();
@@ -990,7 +990,7 @@ SkMemoryStream::~SkMemoryStream() {
         SkAutoMutexExclusive lock(get_path_to_data_map_mutex());
         PathToDataMap& path_to_data_map = get_path_to_data_map();
 
-        if (sk_sp<SkData>* found = path_to_data_map.find(fPath)) {
+        if (sk_sp<const SkData>* found = path_to_data_map.find(fPath)) {
             SkASSERT(fData == *found);
 
             // Reset fData before checking unique() so unique() returns true when this is the last reference.

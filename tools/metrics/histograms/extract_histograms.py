@@ -16,7 +16,8 @@ import logging
 import os
 import re
 import sys
-from typing import Optional, TypedDictimport xml.dom.minidom
+from typing import Optional, TypedDict
+import xml.dom.minidom
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
 import xml_utils

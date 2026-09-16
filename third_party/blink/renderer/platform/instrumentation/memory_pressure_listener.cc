@@ -34,11 +34,7 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 }  // namespace
 #endif  // BUILDFLAG(IS_COBALT)
 
-// Function defined in third_party/blink/public/web/blink.h.
-void DecommitFreeableMemory() {
-  CHECK(IsMainThread());
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-}// static
+// static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;
 
 // static

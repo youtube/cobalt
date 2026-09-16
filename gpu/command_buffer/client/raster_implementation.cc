@@ -54,7 +54,7 @@
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/paint/tone_map_util.h"
 #endif  // BUILDFLAG(IS_COBALT)
-#include "components/miracle_parameter/common/public/miracle_parameter.h"#include "gpu/command_buffer/client/gpu_control.h"
+#include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/client/query_tracker.h"
 #include "gpu/command_buffer/client/raster_cmd_helper.h"
 #include "gpu/command_buffer/client/shared_memory_limits.h"

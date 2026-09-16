@@ -246,10 +246,11 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
             const std::string& id,
-const std::string& prod_id,
+            const std::string& prod_id,
 #if BUILDFLAG(IS_STARBOARD)
             const OperationResult& crx_operation_result,
-#else            const base::FilePath& crx_file,
+#else
+            const base::FilePath& crx_file,
 #endif
             std::unique_ptr<Unzipper> unzipper,
             const std::vector<uint8_t>& pk_hash,
@@ -358,7 +359,8 @@ base::OnceClosure InstallOperation(
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
 id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
-#endif  return base::DoNothing();
+#endif
+  return base::DoNothing();
 }
 
 }  // namespace update_client
