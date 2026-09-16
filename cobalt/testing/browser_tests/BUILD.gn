@@ -336,7 +336,6 @@ test("cobalt_browsertests") {
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
-    "//content/test:browsertest_support",
     "//content/test:mojo_web_test_bindings",
     "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
