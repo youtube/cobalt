@@ -2265,14 +2265,9 @@ deps = {
   'src/third_party/hunspell_dictionaries':
     Var('chromium_git') + '/chromium/deps/hunspell_dictionaries.git' + '@' + '41cdffd71c9948f63c7ad36e1fb0ff519aa7a37e',
 
-<<<<<<< HEAD
-  'src/third_party/icu':
-    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'f27805b7d7d8618fa73ce89e9d28e0a8b2216fec',
-=======
 # Cobalt: imported
 #  'src/third_party/icu':
-#    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'ff35c4f9df23800935ff9f34203152c6b3c7881e',
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'f27805b7d7d8618fa73ce89e9d28e0a8b2216fec',
 
   'src/third_party/icu4j/cipd': {
       'packages': [
@@ -2640,14 +2635,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'ac7792a0f3f1cbfffb071e8b97cd9a5168900e03',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '94b15bffec81faed12f02996cff9e07e3128e78d',
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'ac7792a0f3f1cbfffb071e8b97cd9a5168900e03',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3018,14 +3008,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '1dfd30cf31a029cd127674a11e65c54c07afaf5d',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '8d9c532810e3dd918eca05573106a3d93e24676c',
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + '1dfd30cf31a029cd127674a11e65c54c07afaf5d',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
