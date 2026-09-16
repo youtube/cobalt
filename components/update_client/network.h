@@ -94,17 +94,14 @@ class NetworkFetcher {
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_to_file_complete_callback) = 0;
-<<<<<<< HEAD
-
- protected:
-  NetworkFetcher() = default;
-=======
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
   virtual void Cancel() = 0;
 #endif
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+
+ protected:
+  NetworkFetcher() = default;
 };
 
 class NetworkFetcherFactory
