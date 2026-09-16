@@ -17,8 +17,8 @@
 #include "base/path_service.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
-#include "content/public/test/content_browser_test.h"
-#include "content/public/test/content_browser_test_utils.h"
+#include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "content/public/test/browser_test.h"
 
 #if BUILDFLAG(IS_ANDROID)
 
