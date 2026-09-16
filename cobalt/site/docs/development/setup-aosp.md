@@ -11,14 +11,7 @@ Before following these instructions, make sure you have set up your workstation 
 
 1. Follow all steps in [Set up your environment - Linux](setup-linux.md) to install basic system dependencies, `depot_tools`, clone the Cobalt repository, and run `build/install-build-deps.sh`.
 
-2. Install host binutils packages for ARM cross-compilation symbol stripping:
-
-   ```bash
-   sudo apt install -y binutils-arm-linux-gnueabi    # For 32-bit aosp-arm
-   # sudo apt install -y binutils-aarch64-linux-gnu # For 64-bit aosp-arm64
-   ```
-
-3. Ensure your root `.gclient` file includes `android` in `target_os`:
+2. Ensure your root `.gclient` file includes `android` in `target_os`:
 
    ```python
    target_os = [ 'linux', 'android' ]
@@ -31,7 +24,7 @@ Before following these instructions, make sure you have set up your workstation 
    gclient sync
    ```
 
-4. Set up an Android debug keystore required for signing development APKs:
+3. Set up an Android debug keystore required for signing development APKs:
 
    ```bash
    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
@@ -179,25 +172,27 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    autoninja -C out/aosp-arm_devel nplb_loader
    ```
 
-   This generates the test APK at `out/aosp-arm_devel/apks/nplb.apk`.
+   This generates the test APK at
+   `out/aosp-arm_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
+   `out/aosp-arm_devel/bin/run_nplb_loader` wrapper that drives it.
 
-2. Install the NPLB test APK on the target device:
+2. Run NPLB on the target device. The wrapper installs the APK, pushes the
+   runtime dependencies and collects the results:
 
    ```bash
-   adb install -r out/aosp-arm_devel/apks/nplb.apk
+   out/aosp-arm_devel/bin/run_nplb_loader
    ```
 
-3. Launch NPLB on device passing the target compressed library argument via `--esa commandLineArgs`:
+3. Pass standard Google Test filtering arguments:
 
    ```bash
-   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   out/aosp-arm_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
    ```
 
-4. Pass standard Google Test filtering arguments:
+4. Any other argument is forwarded to NPLB:
 
    ```bash
-   # Run NPLB with a specific test filter (e.g. Memory tests)
-   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content,--gtest_filter=*Memory*' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   out/aosp-arm_devel/bin/run_nplb_loader --gtest_shuffle
    ```
 
 ## Debugging
