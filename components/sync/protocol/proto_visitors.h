@@ -13,6 +13,7 @@
 #include "components/sync/protocol/arc_package_specifics.pb.h"
 #include "components/sync/protocol/autofill_offer_specifics.pb.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
+#include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
 #include "components/sync/protocol/autofill_wallet_credential_specifics.pb.h"
 #include "components/sync/protocol/autofill_wallet_usage_specifics.pb.h"
@@ -727,7 +728,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(58 == GetNumDataTypes(),
+  static_assert(59 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -740,6 +741,7 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
   VISIT(autofill_offer);
   VISIT(autofill_profile);
   VISIT(autofill_valuable);
+  VISIT(autofill_valuable_metadata);
   VISIT(autofill_wallet);
   VISIT(autofill_wallet_credential);
   VISIT(autofill_wallet_usage);
@@ -2070,6 +2072,12 @@ VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
   VISIT(carrier_code);
 }
 
+VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableMetadataSpecifics& proto) {
+  VISIT(valuable_id);
+  VISIT(use_count);
+  VISIT(last_used_date_unix_epoch_micros);
+}
+
 VISIT_PROTO_FIELDS(const sync_pb::AccountSettingSpecifics& proto) {
   VISIT(name);
   VISIT(bool_value);
@@ -2156,6 +2164,7 @@ VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::ContextualTask& proto) {
   VISIT(title);
   VISIT(thread_id);
+  VISIT_ENUM(thread_type);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::UrlResource& proto) {

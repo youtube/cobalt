@@ -1081,29 +1081,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/String/prototype/match/cstm-matcher-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/match/cstm-matcher-on-boolean-primitive': [SKIP],
-  'built-ins/String/prototype/match/cstm-matcher-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/match/cstm-matcher-on-string-primitive': [SKIP],
-  'built-ins/String/prototype/matchAll/cstm-matchall-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/matchAll/cstm-matchall-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/matchAll/cstm-matchall-on-string-primitive': [SKIP],
-  'built-ins/String/prototype/replace/cstm-replace-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/replace/cstm-replace-on-boolean-primitive': [SKIP],
-  'built-ins/String/prototype/replace/cstm-replace-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/replace/cstm-replace-on-string-primitive': [SKIP],
-  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-boolean-primitive': [SKIP],
-  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-string-primitive': [SKIP],
-  'built-ins/String/prototype/search/cstm-search-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/search/cstm-search-on-boolean-primitive': [SKIP],
-  'built-ins/String/prototype/search/cstm-search-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/search/cstm-search-on-string-primitive': [SKIP],
-  'built-ins/String/prototype/split/cstm-split-on-bigint-primitive': [SKIP],
-  'built-ins/String/prototype/split/cstm-split-on-boolean-primitive': [SKIP],
-  'built-ins/String/prototype/split/cstm-split-on-number-primitive': [SKIP],
-  'built-ins/String/prototype/split/cstm-split-on-string-primitive': [SKIP],
   'intl402/DateTimeFormat/canonicalize-utc-timezone': [SKIP],
 }],
 # End roll-watcher patch
@@ -1123,13 +1100,6 @@
   'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
   'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
   'harness/verifyProperty-value-error': [SKIP],
-  'intl402/PluralRules/constructor-option-read-order': [SKIP],
-  'intl402/PluralRules/constructor-options-throwing-getters': [SKIP],
-  'intl402/PluralRules/default-options-object-prototype': [SKIP],
-  'intl402/PluralRules/notation': [SKIP],
-  'intl402/PluralRules/prototype/resolvedOptions/order': [SKIP],
-  'intl402/PluralRules/prototype/resolvedOptions/properties': [SKIP],
-  'intl402/PluralRules/prototype/select/notation': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1152,14 +1122,6 @@
   'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
   'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
   'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/Locale/constructor-getter-order': [SKIP],
-  'intl402/Locale/constructor-options-throwing-getters': [SKIP],
-  'intl402/Locale/constructor-options-variants-invalid': [SKIP],
-  'intl402/Locale/constructor-options-variants-valid': [SKIP],
-  'intl402/Locale/getters-grandfathered': [SKIP],
-  'intl402/Locale/getters-missing': [SKIP],
-  'intl402/Locale/prototype/variants/name': [SKIP],
-  'intl402/Locale/prototype/variants/prop-desc': [SKIP],
   'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
   'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
 }],
@@ -1271,5 +1233,13 @@
   'staging/sm/strict/eval-variable-environment': [SKIP],
 }],
 # End roll-watcher patch
+####
+
+####
+# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+[ALWAYS, {
+  'language/module-code/top-level-await/rejection-order': [FAIL],
+}],
+# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
 ####
 ]

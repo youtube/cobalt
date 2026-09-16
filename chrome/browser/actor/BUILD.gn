@@ -20,6 +20,8 @@ source_set("actor") {
     "actor_switches.h",
     "actor_tab_data.h",
     "actor_task.h",
+    "actor_task_delegate.h",
+    "actor_task_metadata.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
     "aggregated_journal_in_memory_serializer.h",
@@ -51,6 +53,7 @@ source_set("actor") {
     ":types",
     "//base",
     "//chrome/browser/actor/resources:browser_resources",
+    "//chrome/browser/actor/ui:dom_node_geometry",
     "//chrome/browser/actor/ui:states",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/password_manager/actor_login:service",
@@ -64,9 +67,6 @@ source_set("actor") {
     "//content/public/browser",
     "//ui/base/unowned_user_data",
   ]
-  if (enable_glic) {
-    public_deps += [ "//chrome/browser/glic" ]
-  }
 }
 
 source_set("impl") {
@@ -76,9 +76,12 @@ source_set("impl") {
     "actor_keyed_service_factory.cc",
     "actor_metrics.cc",
     "actor_navigation_throttle.cc",
+    "actor_policy_checker.cc",
+    "actor_policy_checker.h",
     "actor_switches.cc",
     "actor_tab_data.cc",
     "actor_task.cc",
+    "actor_task_metadata.cc",
     "aggregated_journal.cc",
     "aggregated_journal_file_serializer.cc",
     "aggregated_journal_in_memory_serializer.cc",
@@ -103,6 +106,8 @@ source_set("impl") {
     "tools/navigate_tool.h",
     "tools/navigate_tool_request.cc",
     "tools/observation_delay_controller.cc",
+    "tools/page_target_util.cc",
+    "tools/page_target_util.h",
     "tools/page_tool.cc",
     "tools/page_tool.h",
     "tools/page_tool_request.cc",
@@ -167,6 +172,7 @@ source_set("impl") {
     # actor:impl, which could clean up this circular dependency.
     "//chrome/browser/actor/ui:tool_request_variant",
   ]
+
   if (enable_glic) {
     deps += [ "//chrome/browser/glic" ]
   }
@@ -186,6 +192,21 @@ source_set("types") {
     "//ui/gfx/geometry",
   ]
   deps = [ "//third_party/abseil-cpp:absl" ]
+}
+
+source_set("impl_test_support") {
+  testonly = true
+  sources = [
+    "tools/fake_tool.cc",
+    "tools/fake_tool.h",
+    "tools/fake_tool_request.cc",
+    "tools/fake_tool_request.h",
+  ]
+
+  deps = [
+    ":actor",
+    ":impl",
+  ]
 }
 
 source_set("test_support") {
@@ -212,6 +233,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "actor_keyed_service_unittest.cc",
+    "actor_task_metadata_unittest.cc",
     "aggregated_journal_unittest.cc",
     "shared_types_unittest.cc",
     "site_policy_unittest.cc",
@@ -230,6 +252,7 @@ source_set("unit_tests") {
   ]
   if (enable_glic) {
     sources += [ "execution_engine_unittest.cc" ]
+    deps += [ ":impl_test_support" ]
   }
 }
 
@@ -284,6 +307,7 @@ source_set("browser_tests") {
   if (enable_glic) {
     sources += [
       "actor_keyed_service_browsertest.cc",
+      "actor_policy_checker_browsertest.cc",
       "execution_engine_browsertest.cc",
       "tools/attempt_login_tool_browsertest.cc",
       "tools/click_tool_browsertest.cc",
@@ -294,6 +318,7 @@ source_set("browser_tests") {
       "tools/navigate_tool_browsertest.cc",
       "tools/observation_delay_controller_browsertest.cc",
       "tools/page_stability_browsertest.cc",
+      "tools/page_tool_browsertest.cc",
       "tools/script_tool_browsertest.cc",
       "tools/scroll_to_tool_browsertest.cc",
       "tools/scroll_tool_browsertest.cc",

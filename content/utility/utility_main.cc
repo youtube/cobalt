@@ -36,7 +36,6 @@
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
 #include "services/tracing/public/cpp/trace_startup.h"
-#include "services/video_effects/public/cpp/buildflags.h"
 
 #if !BUILDFLAG(IS_COBALT)
 #include "content/utility/on_device_model/on_device_model_sandbox_init.h"  // nogncheck
@@ -90,18 +89,9 @@
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS) && BUILDFLAG(IS_LINUX)
-#include "services/video_effects/video_effects_sandbox_hook_linux.h"  // nogncheck
-#endif  // BUILDFLAG(IS_LINUX)
-
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/ash/components/assistant/buildflags.h"
 #include "chromeos/ash/services/ime/ime_sandbox_hook.h"
 #include "chromeos/services/tts/tts_sandbox_hook.h"
-
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-#include "chromeos/ash/services/libassistant/libassistant_sandbox_hook.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
@@ -362,6 +352,8 @@ int UtilityMain(MainFunctionParams parameters) {
 #else
       NOTREACHED();
 #endif
+<<<<<<< HEAD
+=======
 #if BUILDFLAG(IS_LINUX)
     case sandbox::mojom::Sandbox::kVideoEffects:
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
@@ -371,6 +363,7 @@ int UtilityMain(MainFunctionParams parameters) {
       break;
 #endif  // BUILDFLAG(IS_LINUX)
 #endif  // !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of 0ea2ca6a9ee (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kShapeDetection:
       pre_sandbox_hook =
@@ -396,12 +389,6 @@ int UtilityMain(MainFunctionParams parameters) {
     case sandbox::mojom::Sandbox::kTts:
       pre_sandbox_hook = base::BindOnce(&chromeos::tts::TtsPreSandboxHook);
       break;
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-    case sandbox::mojom::Sandbox::kLibassistant:
-      pre_sandbox_hook =
-          base::BindOnce(&ash::libassistant::LibassistantPreSandboxHook);
-      break;
-#endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS)
     default:
       break;

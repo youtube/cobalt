@@ -118,10 +118,10 @@ OPENSSL_EXPORT bool CBBFinishArray(CBB *cbb, Array<uint8_t> *out);
 // it would have liked to have written. The strings written consist of
 // |fixed_names_len| strings from |fixed_names| followed by |objects_len|
 // strings taken by projecting |objects| through |name|.
-template <typename T, typename Name>
+template <typename T, typename Name, size_t S1, size_t S2>
 inline size_t GetAllNames(const char **out, size_t max_out,
-                          Span<const char *const> fixed_names, Name(T::*name),
-                          Span<const T> objects) {
+                          Span<const char *const, S1> fixed_names,
+                          Name(T::*name), Span<const T, S2> objects) {
   auto span = bssl::Span(out, max_out);
   for (size_t i = 0; !span.empty() && i < fixed_names.size(); i++) {
     span[0] = fixed_names[i];

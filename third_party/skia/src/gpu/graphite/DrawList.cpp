@@ -48,12 +48,15 @@ public:
             (fUseStorageBuffers && uniformData.fBufferBinding.fBuffer != fLastBinding.fBuffer)) {
             BufferWriter writer;
             std::tie(writer, uniformData.fBufferBinding) =
-                    fUseStorageBuffers ? bufferMgr->getAlignedSsboWriter(1, uniformDataSize)
-                                       : bufferMgr->getUniformWriter(1, uniformDataSize);
-
-            // Early out if buffer mapping failed.
+                    fCurrentBuffer.getMappedSubrange(1, uniformDataSize);
             if (!writer) {
-                return {};
+                // Allocate a new buffer
+                std::tie(writer, uniformData.fBufferBinding, fCurrentBuffer) =
+                        fUseStorageBuffers ? bufferMgr->getMappedStorageBuffer(1, uniformDataSize)
+                                           : bufferMgr->getMappedUniformBuffer(1, uniformDataSize);
+                if (!writer) {
+                    return {}; // Allocation failed so early out
+                }
             }
 
             writer.write(uniformData.fCpuData.data(), uniformDataSize);
@@ -64,6 +67,9 @@ public:
                 SkASSERT(uniformData.fBufferBinding.fOffset % uniformDataSize == 0);
                 uniformData.fBufferBinding.fOffset /= uniformDataSize;
                 uniformData.fBufferBinding.fSize = uniformData.fBufferBinding.fBuffer->size();
+            } else {
+                // Every new set of uniform data has to be bound, this ensures its aligned correctly
+                fCurrentBuffer.resetForNewBinding();
             }
         }
 
@@ -91,6 +97,12 @@ public:
     }
 
 private:
+    // The GPU buffer data is being written into; for SSBOs, Graphite will only record a bind
+    // command when this changes. Sub-allocations will be aligned such that they can be randomly
+    // accessed even if the data is heterogenous. UBOs will always have to issue binding commands
+    // when a draw needs to use a different set of uniform values.
+    BufferSubAllocator fCurrentBuffer;
+
     // Internally track the last binding returned, so that we know whether new uploads or rebindings
     // are necessary. If we're using SSBOs, this is treated specially -- the fOffset field holds the
     // index in the storage buffer of the last-written uniforms, and the offsets used for actual
@@ -190,10 +202,7 @@ void DrawList::recordDraw(const Renderer* renderer,
 
     fRenderStepCount += renderer->numRenderSteps();
 
-    gatherer->setRenderStepManagerActive();
     for (int stepIndex = 0; stepIndex < draw.renderer()->numRenderSteps(); ++stepIndex) {
-        gatherer->rewindForRenderStep();
-
         const RenderStep* const step = draw.renderer()->steps()[stepIndex];
         const bool performsShading = step->performsShading();
 
@@ -213,8 +222,10 @@ void DrawList::recordDraw(const Renderer* renderer,
                              stepIndex,
                              pipelineIndex,
                              geomUniformIndex,
-                             performsShading ? shadingUniformIndex : UniformDataCache::kInvalidIndex,
+                             performsShading ? shadingUniformIndex :
+                                               UniformDataCache::kInvalidIndex,
                              textureBindingIndex});
+        gatherer->rewindForRenderStep();
     }
 
     fPassBounds.join(clip.drawBounds());

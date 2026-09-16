@@ -129,7 +129,7 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
     return false;
   }
 
-  if (t.representation() == MachineRepresentation::kWord64) {
+  if (t == MachineType::Int64() || t == MachineType::Uint64()) {
     if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
       return expected == kWasmI64;
     }
@@ -212,6 +212,10 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
         log_imported_function_mismatch(c_func_id, "too many return values");
         continue;
       }
+      if (return_info.GetType() == CTypeInfo::Type::kPointer) {
+        log_imported_function_mismatch(c_func_id,
+                                       "pointer types unsupported in Wasm");
+      }
       if (!CompareWithNormalizedCType(return_info, expected_sig->GetReturn(0),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "mismatching return value");
@@ -248,6 +252,10 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       // Arg 0 is the receiver, skip over it since either the receiver does not
       // matter, or we already checked it above.
       CTypeInfo arg = info->ArgumentInfo(i + 1);
+      if (arg.GetType() == CTypeInfo::Type::kPointer) {
+        log_imported_function_mismatch(c_func_id,
+                                       "pointer types unsupported in Wasm");
+      }
       if (!CompareWithNormalizedCType(arg, expected_sig->GetParam(sig_index),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "parameter type mismatch");
@@ -1068,12 +1076,9 @@ MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   // From here on, we expect the build pipeline to run without exiting to JS.
   DisallowJavascriptExecution no_js(isolate_);
-  // Start a timer for instantiation time, if we have a high resolution timer.
-  base::ElapsedTimer timer;
-  if (base::TimeTicks::IsHighResolution()) {
-    timer.Start();
-  }
-  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
+  // Remember the start of instantiation, if we have a high resolution timer.
+  base::TimeTicks start;
+  if (base::TimeTicks::IsHighResolution()) start = base::TimeTicks::Now();
 
   // Phase 1: uses a {TrustedPointerPublishingScope} to make the new,
   // partially-initialized instance inaccessible in case of failure.
@@ -1082,19 +1087,20 @@ MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // consistently initialized to be exposed to user code.
   if (Build_Phase2().IsNothing()) return {};
 
-  wasm_module_instantiated.success = true;
-  wasm_module_instantiated.imported_function_count =
-      module_->num_imported_functions;
-  if (timer.IsStarted()) {
-    base::TimeDelta instantiation_time = timer.Elapsed();
-    wasm_module_instantiated.wall_clock_duration_in_us =
-        instantiation_time.InMicroseconds();
+  v8::metrics::WasmModuleInstantiated module_instantiated{
+      .async = false,
+      .success = true,
+      .imported_function_count = module_->num_imported_functions};
+  if (!start.IsNull()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start;
+    module_instantiated.wall_clock_duration_in_us = duration.InMicroseconds();
     SELECT_WASM_COUNTER(isolate_->counters(), module_->origin, wasm_instantiate,
                         module_time)
-        ->AddTimedSample(instantiation_time);
-    isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
-                                                       context_id_);
+        ->AddTimedSample(duration);
   }
+
+  isolate_->metrics_recorder()->DelayMainThreadEvent(module_instantiated,
+                                                     context_id_);
 
   // Publish any delayed counter updates of the NativeModule and the import
   // wrapper cache in the isolate.

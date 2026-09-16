@@ -34,6 +34,7 @@
 #include "chrome/browser/privacy_sandbox/tracking_protection_onboarding_factory.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -404,6 +405,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean("enableYourSavedInfoSettingsPage",
                           base::FeatureList::IsEnabled(
                               autofill::features::kYourSavedInfoSettingsPage));
+
+  html_source->AddBoolean(
+      "enableYourSavedInfoBranding",
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoBrandingInSettings));
 
   AddSettingsPageUIHandler(std::make_unique<AboutHandler>(profile));
   AddSettingsPageUIHandler(std::make_unique<ResetSettingsHandler>(profile));

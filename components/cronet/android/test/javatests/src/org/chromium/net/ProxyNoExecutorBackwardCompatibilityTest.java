@@ -18,6 +18,7 @@ import static org.mockito.Mockito.times;
 import static org.chromium.net.truth.UrlResponseInfoSubject.assertThat;
 
 import android.os.Build;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -53,6 +54,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @RunWith(AndroidJUnit4.class)
 @Batch(Batch.UNIT_TESTS)
+// Prevent the linter from complaining about referring to Proxy.HttpConnectCallback.Request as
+// Proxy.Callback.Request.
+@SuppressWarnings("NonCanonicalType")
 public class ProxyNoExecutorBackwardCompatibilityTest {
     @Rule public final CronetTestRule mTestRule = CronetTestRule.withManualEngineStartup();
 
@@ -518,9 +522,7 @@ public class ProxyNoExecutorBackwardCompatibilityTest {
                         invocation -> {
                             Proxy.Callback.Request request = invocation.getArgument(0);
                             request.proceed(
-                                    Arrays.asList(
-                                            new AbstractMap.SimpleEntry<>(
-                                                    "Authorization", "b3BlbiBzZXNhbWU=")));
+                                    Arrays.asList(new Pair<>("Authorization", "b3BlbiBzZXNhbWU=")));
                             return null;
                         })
                 .when(proxyCallback)
@@ -829,8 +831,9 @@ public class ProxyNoExecutorBackwardCompatibilityTest {
             assertThat(callback.mError).isNotNull();
             assertThat(callback.mError).isInstanceOf(NetworkException.class);
             NetworkException networkException = (NetworkException) callback.mError;
-            assertThat(networkException.getErrorCode())
-                    .isEqualTo(NetworkException.ERROR_CONNECTION_CLOSED);
+            assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
+            assertThat(networkException.getCronetInternalErrorCode())
+                    .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
         }
     }
 
@@ -1160,16 +1163,12 @@ public class ProxyNoExecutorBackwardCompatibilityTest {
                         IllegalArgumentException.class,
                         () ->
                                 proxyRequest.proceed(
-                                        Arrays.asList(
-                                                new AbstractMap.SimpleEntry<>(
-                                                        ":", "valid header value"))));
+                                        Arrays.asList(new Pair<>(":", "valid header value"))));
                 assertThrows(
                         IllegalArgumentException.class,
                         () ->
                                 proxyRequest.proceed(
-                                        Arrays.asList(
-                                                new AbstractMap.SimpleEntry<>(
-                                                        "Authorization", "\r"))));
+                                        Arrays.asList(new Pair<>("Authorization", "\r"))));
                 proxyRequest.proceed(Collections.emptyList());
             }
 
@@ -1675,7 +1674,7 @@ public class ProxyNoExecutorBackwardCompatibilityTest {
 
     static final class NoOpProxyCallbackRequest extends Proxy.Callback.Request {
         @Override
-        public void proceed(List<Map.Entry<String, String>> extraHeaders) {}
+        public void proceed(List<Pair<String, String>> extraHeaders) {}
 
         @Override
         public void close() {}
@@ -1779,8 +1778,8 @@ public class ProxyNoExecutorBackwardCompatibilityTest {
             super.onBeforeTunnelRequest(new NoOpProxyCallbackRequest());
             request.proceed(
                     Arrays.asList(
-                            new AbstractMap.SimpleEntry<>("Authorization", "b3BlbiBzZXNhbWU="),
-                            new AbstractMap.SimpleEntry<>("CustomHeader", "CustomValue123")));
+                            new Pair<>("Authorization", "b3BlbiBzZXNhbWU="),
+                            new Pair<>("CustomHeader", "CustomValue123")));
         }
     }
 

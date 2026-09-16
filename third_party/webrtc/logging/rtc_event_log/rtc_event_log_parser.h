@@ -36,12 +36,11 @@
 #include "logging/rtc_event_log/events/rtc_event_begin_log.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_loss_based.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
@@ -497,6 +496,10 @@ class ParsedRtcEventLog {
     return bwe_loss_updates_;
   }
 
+  const std::vector<LoggedBweScreamUpdate>& bwe_scream_updates() const {
+    return bwe_scream_updates_;
+  }
+
   // DTLS
   const std::vector<LoggedDtlsTransportState>& dtls_transport_states() const {
     return dtls_transport_states_;
@@ -652,14 +655,6 @@ class ParsedRtcEventLog {
     }
   }
 
-  const std::vector<LoggedGenericPacketReceived>& generic_packets_received()
-      const {
-    return generic_packets_received_;
-  }
-  const std::vector<LoggedGenericPacketSent>& generic_packets_sent() const {
-    return generic_packets_sent_;
-  }
-
   // Media
   const std::map<uint32_t, std::vector<LoggedFrameDecoded>>& decoded_frames()
       const {
@@ -761,6 +756,7 @@ class ParsedRtcEventLog {
       const rtclog2::DelayBasedBweUpdates& proto);
   ParseStatus StoreBweLossBasedUpdate(
       const rtclog2::LossBasedBweUpdates& proto);
+  ParseStatus StoreBweScreamUpdate(const rtclog2::ScreamBweUpdates& proto);
   ParseStatus StoreBweProbeClusterCreated(
       const rtclog2::BweProbeCluster& proto);
   ParseStatus StoreBweProbeFailureEvent(
@@ -772,10 +768,6 @@ class ParsedRtcEventLog {
   ParseStatus StoreDtlsWritableState(const rtclog2::DtlsWritableState& proto);
   ParsedRtcEventLog::ParseStatus StoreFrameDecodedEvents(
       const rtclog2::FrameDecodedEvents& proto);
-  ParseStatus StoreGenericPacketReceivedEvent(
-      const rtclog2::GenericPacketReceived& proto);
-  ParseStatus StoreGenericPacketSentEvent(
-      const rtclog2::GenericPacketSent& proto);
   ParseStatus StoreIceCandidateEvent(
       const rtclog2::IceCandidatePairEvent& proto);
   ParseStatus StoreIceCandidatePairConfig(
@@ -898,6 +890,7 @@ class ParsedRtcEventLog {
 
   std::vector<LoggedBweDelayBasedUpdate> bwe_delay_updates_;
   std::vector<LoggedBweLossBasedUpdate> bwe_loss_updates_;
+  std::vector<LoggedBweScreamUpdate> bwe_scream_updates_;
 
   std::vector<LoggedDtlsTransportState> dtls_transport_states_;
   std::vector<LoggedDtlsWritableState> dtls_writable_states_;
@@ -911,9 +904,6 @@ class ParsedRtcEventLog {
   std::vector<LoggedAudioSendConfig> audio_send_configs_;
   std::vector<LoggedVideoRecvConfig> video_recv_configs_;
   std::vector<LoggedVideoSendConfig> video_send_configs_;
-
-  std::vector<LoggedGenericPacketReceived> generic_packets_received_;
-  std::vector<LoggedGenericPacketSent> generic_packets_sent_;
 
   std::vector<LoggedRouteChangeEvent> route_change_events_;
   std::vector<LoggedRemoteEstimateEvent> remote_estimate_events_;

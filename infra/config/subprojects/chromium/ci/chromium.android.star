@@ -2337,10 +2337,15 @@ ci.builder(
                 ),
             ),
             # If you change this, make similar changes in android-x86-code-coverage
+            "chrome_junit_tests": targets.mixin(
+                retry_only_failed_tests = True,
+            ),
+            # If you change this, make similar changes in android-x86-code-coverage
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.chrome_public_test_apk.filter",
                 ],
+                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     dimensions = {
                         # use 8-core to shorten runtime
@@ -2360,6 +2365,7 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.content_browsertests.filter",
                 ],
+                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     dimensions = {
                         # use 8-core to shorten runtime
@@ -2439,6 +2445,7 @@ ci.builder(
                 args = [
                     "--use-persistent-shell",
                 ],
+                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 18,
                 ),
@@ -2881,6 +2888,8 @@ ci.builder(
                 args = [
                     # https://crbug.com/1289764
                     "--gtest_filter=-All/ChromeBrowsingDataLifetimeManagerScheduledRemovalTest.History/*",
+                    # https://crbug.com/453515775
+                    "--timeout-scale=2.0",
                 ],
             ),
             "android_sync_integration_tests": targets.mixin(

@@ -716,6 +716,7 @@ if (rtc_include_tests) {
       "../../system_wrappers:metrics",
       "../../test:create_test_field_trials",
       "../../test:mock_transport",
+      "../../test:near_matcher",
       "../../test:rtp_test_utils",
       "../../test:run_loop",
       "../../test:test_support",

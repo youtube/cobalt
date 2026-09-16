@@ -533,6 +533,6 @@ const char *SSL_get_group_name(uint16_t group_id) {
 }
 
 size_t SSL_get_all_group_names(const char **out, size_t max_out) {
-  return GetAllNames(out, max_out, Span<const char *>(), &NamedGroup::name,
+  return GetAllNames(out, max_out, Span<const char *const>(), &NamedGroup::name,
                      Span(kNamedGroups));
 }

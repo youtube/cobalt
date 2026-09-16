@@ -59,9 +59,9 @@ with devil_env.SysPath(os.path.join(_DIR_SOURCE_ROOT, 'build', 'util')):
 BASE_MODULE = 'base'
 
 
-def _IsWebView():
+def _IsTrichrome():
   calling_script_name = os.path.basename(sys.argv[0])
-  return 'webview' in calling_script_name
+  return 'trichrome' in calling_script_name
 
 
 def _Colorize(text, style=''):
@@ -196,7 +196,11 @@ def _NormalizeProcessName(debug_process_name, package_name):
   return debug_process_name
 
 
-def _ResolveActivity(device, package_name, category, action):
+def _ResolveActivity(device,
+                     package_name,
+                     category,
+                     action,
+                     preferred_activity=None):
   # E.g.:
   # Activity Resolver Table:
   #   Schemes:
@@ -258,6 +262,22 @@ def _ResolveActivity(device, package_name, category, action):
   activity_names = {activity_name_from_entry(e) for e in matched_entries}
 
   if len(activity_names) > 1:
+    # If a preferred activity is specified, try to use it
+    if preferred_activity and preferred_activity in activity_names:
+      return preferred_activity
+
+    # If no preferred activity is specified, try to find the main activity
+    main_activity = None
+    for activity in activity_names:
+      # Look for the activity that ends with exactly ".Main"
+      # (not ".Main1", ".Main2", etc.)
+      if activity.endswith('.Main'):
+        main_activity = activity
+        break
+
+    if main_activity:
+      return main_activity
+
     raise Exception('Found multiple launcher activities:\n * ' +
                     '\n * '.join(sorted(activity_names)))
   return next(iter(activity_names))
@@ -313,7 +333,8 @@ def _LaunchUrl(devices,
                url=None,
                wait_for_java_debugger=False,
                debug_process_name=None,
-               nokill=None):
+               nokill=None,
+               preferred_activity=None):
   if argv and command_line_flags_file is None:
     raise Exception('This apk does not support any flags.')
 
@@ -327,7 +348,8 @@ def _LaunchUrl(devices,
     action = 'android.intent.action.VIEW'
 
   def launch(device):
-    activity = _ResolveActivity(device, package_name, category, action)
+    activity = _ResolveActivity(device, package_name, category, action,
+                                preferred_activity)
     # --persistent is required to have Settings.Global.DEBUG_APP be set, which
     # we currently use to allow reading of flags. https://crbug.com/784947
     if not nokill:
@@ -1351,7 +1373,7 @@ class _Command:
   def _FindSupportedDevices(self, devices):
     """Returns supported devices and reasons for each not supported one."""
     app_abis = self.apk_helper.GetAbis()
-    is_webview = _IsWebView()
+    is_webview = _IsWebViewProvider(self.apk_helper)
     requires_32_bit = self.apk_helper.Get32BitAbiOverride() == '0xffffffff'
     logging.debug('App supports (requires 32bit: %r, is webview: %r): %r',
                   requires_32_bit, is_webview, app_abis)
@@ -1542,11 +1564,20 @@ class _PackageInfoCommand(_Command):
     print('minSdkVersion: %s' % self.apk_helper.GetMinSdkVersion())
     print('targetSdkVersion: %s' % self.apk_helper.GetTargetSdkVersion())
     print('Supported ABIs: %r' % self.apk_helper.GetAbis())
-    x = android_chrome_version.TranslateVersionCode(str(
-        self.apk_helper.GetVersionCode()),
-                                                    is_webview=_IsWebView())
-    print(f'Decoded versionCode: build_number={x.build_number} '
-          f'patch_number={x.patch_number} sku={x.package_name} abi={x.abi}')
+
+    if len(str(self.apk_helper.GetVersionCode())) == 9:
+      # android_chrome_version expects Trichrome to be is_webview=False, even if
+      # this is TrichromeWebView.
+      is_webview = (_IsWebViewProvider(self.apk_helper) and not _IsTrichrome())
+      x = android_chrome_version.TranslateVersionCode(
+          str(self.apk_helper.GetVersionCode()), is_webview)
+      print(f'Decoded versionCode: build_number={x.build_number} '
+            f'patch_number={x.patch_number} sku={x.package_name} abi={x.abi}')
+    else:
+      # This does not follow the chromium versionCode scheme. This might be a
+      # test APK, a utiltiy APK (like WebView shell browser), or it could just
+      # be any other non-chromium APK.
+      print('Decoded versionCode: N/A')
 
 
 class _InstallCommand(_Command):
@@ -1644,6 +1675,9 @@ class _LaunchCommand(_Command):
                        help='Do not set the debug-app, nor set command-line '
                             'flags. Useful to load a URL without having the '
                              'app restart.')
+    group.add_argument('--preferred-activity',
+                       help='Preferred activity to launch when multiple '
+                            'launcher activities are available.')
     group.add_argument('url', nargs='?', help='A URL to launch with.')
 
   def Run(self):
@@ -1656,7 +1690,8 @@ class _LaunchCommand(_Command):
                url=self.args.url,
                wait_for_java_debugger=self.args.wait_for_java_debugger,
                debug_process_name=self.args.debug_process_name,
-               nokill=self.args.nokill)
+               nokill=self.args.nokill,
+               preferred_activity=self.args.preferred_activity)
 
 
 class _StopCommand(_Command):

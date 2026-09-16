@@ -1586,6 +1586,18 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo supportsShaderAtomicInt64 = {
+        "supportsShaderAtomicInt64",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo forceSizePointerForBoundVertexBuffers = {
+        "forceSizePointerForBoundVertexBuffers",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
 };
 
 inline FeaturesVk::FeaturesVk()  = default;

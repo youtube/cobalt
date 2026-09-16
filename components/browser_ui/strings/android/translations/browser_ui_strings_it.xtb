@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Continua</translation>
 <translation id="2379925928934107488">Applica il tema scuro ai siti quando viene usato in Chrome, se possibile</translation>
 <translation id="2390272837142897736">Aumenta lo zoom</translation>
+<translation id="2397689164757137845">Consentita • Esatta</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Esatta</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Consentite: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e <ph name="NUM_MORE" /> altra}other{Consentite: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e altre <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Guida e feedback</translation>
 <translation id="2501278716633472235">Indietro</translation>
 <translation id="2533138527374486328">Quando l'opzione è attiva, i siti possono chiedere di connettersi a qualsiasi dispositivo sulla rete locale. Quando l'opzione è disattivata, i siti non possono connettersi ai dispositivi sulla rete locale.</translation>
+<translation id="2536779053640817375">Consentita questa volta • Esatta</translation>
 <translation id="2544997614631598250">Colore tema scuro</translation>
 <translation id="2546283357679194313">Cookie e dati dei siti</translation>
 <translation id="2570922361219980984">L'accesso alla posizione è disattivato anche per questo dispositivo. Attivalo nelle <ph name="BEGIN_LINK" />Impostazioni Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ La protezione avanzata controlla queste impostazioni di Chrome:
 <translation id="5876056640971328065">Metti in pausa il video</translation>
 <translation id="5877248419911025165">Comprimi tutte le richieste</translation>
 <translation id="5878945009165002849">Blocca le richieste di accesso da servizi di identità</translation>
+<translation id="588258955323874662">Schermo intero</translation>
 <translation id="5884085660368669834">Preferenza sito</translation>
 <translation id="5887687176710214216">Ultima visita: ieri</translation>
 <translation id="5908617755156109052">Non consentire ai siti di creare una mappa 3D dell'ambiente circostante o di monitorare la posizione della fotocamera</translation>
@@ -569,6 +572,7 @@ La protezione avanzata controlla queste impostazioni di Chrome:
 <translation id="7406113532070524618">Questa impostazione funziona senza identificarti o consentire ai siti di vedere la cronologia di navigazione, ma i siti possono condividere una piccola quantità di informazioni durante la verifica</translation>
 <translation id="7409735910987429903">I siti potrebbero inviare popup per mostrare annunci o usare reindirizzamenti per portarti a siti web che potresti non voler visitare</translation>
 <translation id="7412160840120117304">Colore principale (esadecimale)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Chiedi prima</translation>
 <translation id="7423538860840206698">Lettura degli appunti non consentita</translation>
 <translation id="7425915948813553151">Tema scuro per i siti</translation>
@@ -700,7 +704,6 @@ La protezione avanzata controlla queste impostazioni di Chrome:
 <translation id="8803526663383843427">Quando attiva</translation>
 <translation id="8805385115381080995">La navigazione è più veloce perché è meno probabile che un sito ti chieda di verificare di essere una persona reale</translation>
 <translation id="8816026460808729765">Impedisci ai siti di accedere ai sensori</translation>
-<translation id="884765916894384048">Riproduci in background</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prova a consentire temporaneamente i cookie di terze parti. In questo modo avrai meno protezione durante la navigazione, ma è più probabile che le funzionalità del sito operino come previsto.</translation>
 <translation id="8889294078294184559">Mentre continui a navigare, i siti possono controllare su Chrome e verificare con un sito che hai visitato in precedenza che potresti essere una persona reale</translation>

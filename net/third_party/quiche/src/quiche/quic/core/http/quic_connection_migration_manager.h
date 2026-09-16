@@ -106,6 +106,8 @@ struct QUICHE_NO_EXPORT QuicConnectionMigrationConfig {
   // Maximum allowed number of migrations to non-default network triggered by
   // path degrading per default network.
   int max_migrations_to_non_default_network_on_path_degrading = 5;
+  // Maximum number of port migrations allowed per QUIC session.
+  int max_port_migrations_per_session = 4;
   // Whether to migrate to a different network upon the underlying platform's
   // network change signals and write error.
   bool migrate_session_on_network_change = false;
@@ -166,11 +168,13 @@ using StartProbingCallback = quiche::SingleUseCallback<void(ProbingResult)>;
 // network or port.
 class QUICHE_EXPORT QuicConnectionMigrationManager {
  public:
+  // `path_context_factory` can be nullptr, in which case no migration will be
+  // performed regardless of the migration `config`.
   QuicConnectionMigrationManager(
       QuicSpdyClientSessionWithMigration* absl_nonnull session,
       const quic::QuicClock* absl_nonnull clock,
       QuicNetworkHandle default_network, QuicNetworkHandle current_network,
-      QuicPathContextFactory* absl_nonnull path_context_factory,
+      QuicPathContextFactory* absl_nullable path_context_factory,
       const QuicConnectionMigrationConfig& config);
 
   ~QuicConnectionMigrationManager();
@@ -366,7 +370,8 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
   QuicNetworkHandle default_network_;
   // Stores the network interface that is currently used by the connection.
   QuicNetworkHandle current_network_;
-  QuicPathContextFactory* absl_nonnull path_context_factory_;
+  // Nullptr if no migration is allowed.
+  QuicPathContextFactory* absl_nullable path_context_factory_;
   // Not owned.
   QuicConnectionMigrationDebugVisitor* absl_nullable debug_visitor_ = nullptr;
   const QuicConnectionMigrationConfig config_;

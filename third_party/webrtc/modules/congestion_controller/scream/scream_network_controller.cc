@@ -10,17 +10,14 @@
 
 #include "modules/congestion_controller/scream/scream_network_controller.h"
 
-#include <memory>
 #include <optional>
 #include <utility>
 
-#include "api/transport/bandwidth_usage.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "modules/congestion_controller/scream/scream_v2.h"
 #include "rtc_base/logging.h"
 namespace webrtc {
@@ -138,10 +135,6 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkStateEstimate(
 NetworkControlUpdate ScreamNetworkController::OnTransportPacketsFeedback(
     TransportPacketsFeedback msg) {
   DataRate target_rate = scream_->OnTransportPacketsFeedback(msg);
-
-  // TODO: bugs.webrtc.org/447037083 - Should we add separate event for Scream?
-  env_.event_log().Log(std::make_unique<RtcEventBweUpdateDelayBased>(
-      target_rate.bps(), BandwidthUsage::kBwNormal));
   return CreateUpdate(msg.feedback_time, target_rate, msg.smoothed_rtt);
 }
 

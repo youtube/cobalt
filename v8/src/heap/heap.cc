@@ -287,14 +287,10 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      pretenuring_handler_(this)
-#if defined(V8_USE_PERFETTO)
-      ,
+      pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge())
-#endif
-{
+                         .disable_sibling_merge()) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -1192,7 +1188,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   CHECK(old_state.IsRunning());
 
   // Resume all threads waiting for the GC.
-  collection_barrier_->ResumeThreadsAwaitingCollection();
+  collection_barrier_->ResumeThreadsAwaitingCollection(RequestedGCKind::kMajor);
 }
 
 void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
@@ -1244,7 +1240,7 @@ void Heap::HandleGCRequest() {
   } else if (HighMemoryPressure()) {
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
-    CheckCollectionRequested();
+    PerformRequestedGC(main_thread_local_heap_);
   } else if (incremental_marking()->MajorCollectionRequested()) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
@@ -1301,9 +1297,11 @@ void Heap::StartMinorMSConcurrentMarkingIfNeeded() {
 
 void Heap::CollectAllGarbage(GCFlags gc_flags,
                              GarbageCollectionReason gc_reason,
-                             const v8::GCCallbackFlags gc_callback_flags) {
+                             const v8::GCCallbackFlags gc_callback_flags,
+                             PerformHeapLimitCheck check_heap_limit_reached) {
   current_gc_flags_ = gc_flags;
-  CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
+  CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                 check_heap_limit_reached);
   DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 }
 
@@ -1337,6 +1335,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // triggered by this function are done.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
+
+  collection_barrier_->StopTimeToCollectionTimer(RequestedGCKind::kLastResort);
 
   // Returns the number of roots. We assume stack layout is stable but global
   // roots could change between GCs due to finalizers and weak callbacks.
@@ -1414,6 +1414,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       v8_flags.heap_snapshot_on_oom) {
     heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
+
+  collection_barrier_->ResumeThreadsAwaitingCollection(
+      RequestedGCKind::kLastResort);
 }
 
 void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
@@ -1545,7 +1548,6 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_old_generation_allocation_limit,
     size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       "v8.memory",
       perfetto::CounterTrack("OldGenerationAllocationLimit", tracing_track_),
@@ -1553,7 +1555,7 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
   TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("GlobalAllocationLimit", tracing_track_),
                 new_global_allocation_limit);
-#endif
+
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
@@ -1620,9 +1622,6 @@ void Heap::CollectGarbage(
   DisableTrustedPointerPublishingScope no_trusted_pointer_tracking(isolate());
 
   DCHECK(AllowGarbageCollection::IsAllowed());
-  // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
 
   const char* collector_reason = nullptr;
   const GarbageCollector collector =
@@ -1933,8 +1932,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollector collector,
                                    const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
   DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
   if (gc_callbacks_depth_ > 0) {
@@ -2193,7 +2190,7 @@ template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
     MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
-  return collection_barrier_->WasGCRequested();
+  return collection_barrier_->RequestedGC().has_value();
 }
 
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
@@ -2204,19 +2201,19 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
       space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
 }
 
-void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
+void Heap::PerformRequestedGC(LocalHeap* local_heap) {
   CHECK(local_heap->is_main_thread());
-  CollectGarbageWithRetry(OLD_SPACE, current_gc_flags_,
-                          GarbageCollectionReason::kBackgroundAllocationFailure,
-                          current_gc_callback_flags_);
-}
-
-void Heap::CheckCollectionRequested() {
-  if (!CollectionRequested()) return;
-
-  CollectAllGarbage(current_gc_flags_,
-                    GarbageCollectionReason::kBackgroundAllocationFailure,
-                    current_gc_callback_flags_);
+  auto requested_gc = collection_barrier_->RequestedGC();
+  if (!requested_gc) {
+    return;
+  }
+  if (*requested_gc == RequestedGCKind::kMajor) {
+    CollectAllGarbage(current_gc_flags_,
+                      GarbageCollectionReason::kBackgroundAllocationFailure,
+                      kNoGCCallbackFlags, PerformHeapLimitCheck::kYes);
+  } else {
+    CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  }
 }
 
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
@@ -2320,7 +2317,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  collection_barrier_->StopTimeToCollectionTimer();
+  collection_barrier_->StopTimeToCollectionTimer(RequestedGCKind::kMajor);
 
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
@@ -2466,32 +2463,37 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
   }
 
   Isolate* shared_space_isolate = isolate()->shared_space_isolate();
-  return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
-                                                                   gc_reason);
+  if (shared_space_isolate == isolate() && local_heap->is_main_thread()) {
+    shared_space_isolate->heap()->CollectAllGarbage(
+        current_gc_flags_, gc_reason, current_gc_callback_flags_);
+    return true;
+  } else
+    return shared_space_isolate->heap()
+        ->TriggerAndWaitForGCFromBackgroundThread(local_heap,
+                                                  RequestedGCKind::kMajor);
 }
 
-bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
-                                       GarbageCollectionReason gc_reason) {
+bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
+                                                   RequestedGCKind kind) {
   DCHECK(local_heap->IsRunning());
 
-  if (isolate() == local_heap->heap()->isolate() &&
-      local_heap->is_main_thread()) {
-    CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
-    return true;
+  if (V8_UNLIKELY(!deserialization_complete_)) {
+    CHECK(always_allocate());
+    FatalProcessOutOfMemory("GC during deserialization");
+  }
+
+  if (!collection_barrier_->TryRequestGC(kind)) return false;
+
+  const LocalHeap::ThreadState old_state =
+      main_thread_local_heap()->state_.SetCollectionRequested();
+
+  if (old_state.IsRunning()) {
+    const bool performed_gc =
+        collection_barrier_->AwaitCollectionBackground(local_heap, kind);
+    return performed_gc;
   } else {
-    if (!collection_barrier_->TryRequestGC()) return false;
-
-    const LocalHeap::ThreadState old_state =
-        main_thread_local_heap()->state_.SetCollectionRequested();
-
-    if (old_state.IsRunning()) {
-      const bool performed_gc =
-          collection_barrier_->AwaitCollectionBackground(local_heap);
-      return performed_gc;
-    } else {
-      DCHECK(old_state.IsParked());
-      return false;
-    }
+    DCHECK(old_state.IsParked());
+    return false;
   }
 }
 
@@ -2560,7 +2562,6 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
   const size_t new_space_capacity = NewSpaceTargetCapacity();
 
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
       perfetto::CounterTrack("NewSpaceTargetCapacity", tracing_track()),
@@ -2571,7 +2572,6 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("EmbedderSpeed", tracing_track()),
                 embedder_gc_speed.value_or(0.0));
-#endif
 
   const size_t old_gen_consumed_bytes_at_last_gc =
       OldGenerationConsumedBytesAtLastGC();
@@ -2642,11 +2642,9 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
     isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
                                   json_str.c_str());
 
-#if defined(V8_USE_PERFETTO)
     TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
                          TRACE_EVENT_SCOPE_THREAD, "value",
                          TRACE_STR_COPY(json_str.c_str()));
-#endif  // V8_USE_PERFETTO
   }
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
@@ -6079,7 +6077,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kSmallObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
 
       result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
@@ -6090,7 +6089,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kMediumObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
 
       result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
@@ -6101,7 +6101,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kLargeObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
       local_heap.Safepoint();
     }
@@ -7282,9 +7283,8 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
         gc_notify_updated_slot,
     WriteBarrierMode write_barrier_mode) {
   // Add a FinalizationRegistry to the tail of the dirty list.
-  DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
-                 GCAwareObjectTypeCheck<JSFinalizationRegistry>(
-                     dirty_js_finalization_registries_list(), this));
+  DCHECK(!HasDirtyJSFinalizationRegistries() ||
+         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
   DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
@@ -7294,9 +7294,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
-        dirty_js_finalization_registries_list_tail(), this);
-    tail->set_next_dirty_unchecked(finalization_registry, write_barrier_mode);
+    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
+        dirty_js_finalization_registries_list_tail());
+    tail->set_next_dirty(finalization_registry, write_barrier_mode);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
         finalization_registry);

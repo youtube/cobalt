@@ -33,11 +33,10 @@
 #include "logging/rtc_event_log/events/rtc_event_audio_send_stream_config.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_loss_based.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/events/rtc_event_probe_cluster_created.h"
@@ -81,6 +80,7 @@ struct EventCounts {
   size_t ana_configs = 0;
   size_t bwe_loss_events = 0;
   size_t bwe_delay_events = 0;
+  size_t bwe_scream_events = 0;
   size_t dtls_transport_states = 0;
   size_t dtls_writable_states = 0;
   size_t frame_decoded_events = 0;
@@ -93,17 +93,14 @@ struct EventCounts {
   size_t outgoing_rtp_packets = 0;
   size_t incoming_rtcp_packets = 0;
   size_t outgoing_rtcp_packets = 0;
-  size_t generic_packets_sent = 0;
-  size_t generic_packets_received = 0;
 
   size_t total_nonconfig_events() const {
     return alr_states + route_changes + audio_playouts + ana_configs +
-           bwe_loss_events + bwe_delay_events + dtls_transport_states +
-           dtls_writable_states + frame_decoded_events + probe_creations +
-           probe_successes + probe_failures + ice_configs + ice_events +
-           incoming_rtp_packets + outgoing_rtp_packets + incoming_rtcp_packets +
-           outgoing_rtcp_packets + generic_packets_sent +
-           generic_packets_received;
+           bwe_loss_events + bwe_delay_events + bwe_scream_events +
+           dtls_transport_states + dtls_writable_states + frame_decoded_events +
+           probe_creations + probe_successes + probe_failures + ice_configs +
+           ice_events + incoming_rtp_packets + outgoing_rtp_packets +
+           incoming_rtcp_packets + outgoing_rtcp_packets;
   }
 
   size_t total_config_events() const {
@@ -189,15 +186,13 @@ class RtcEventLogSession
       ana_configs_list_;
   std::vector<std::unique_ptr<RtcEventBweUpdateDelayBased>> bwe_delay_list_;
   std::vector<std::unique_ptr<RtcEventBweUpdateLossBased>> bwe_loss_list_;
+  std::vector<std::unique_ptr<RtcEventBweUpdateScream>> bwe_scream_list_;
   std::vector<std::unique_ptr<RtcEventDtlsTransportState>>
       dtls_transport_state_list_;
   std::vector<std::unique_ptr<RtcEventDtlsWritableState>>
       dtls_writable_state_list_;
   std::map<uint32_t, std::vector<std::unique_ptr<RtcEventFrameDecoded>>>
       frame_decoded_event_map_;
-  std::vector<std::unique_ptr<RtcEventGenericPacketReceived>>
-      generic_packets_received_;
-  std::vector<std::unique_ptr<RtcEventGenericPacketSent>> generic_packets_sent_;
   std::vector<std::unique_ptr<RtcEventIceCandidatePair>> ice_event_list_;
   std::vector<std::unique_ptr<RtcEventIceCandidatePairConfig>> ice_config_list_;
   std::vector<std::unique_ptr<RtcEventProbeClusterCreated>>
@@ -449,6 +444,15 @@ void RtcEventLogSession::WriteLog(EventCounts count,
     }
     selection -= count.bwe_delay_events;
 
+    if (selection < count.bwe_scream_events) {
+      auto event = gen_.NewBweUpdateScream();
+      event_log->Log(event->Copy());
+      bwe_scream_list_.push_back(std::move(event));
+      count.bwe_scream_events--;
+      continue;
+    }
+    selection -= count.bwe_scream_events;
+
     if (selection < count.probe_creations) {
       auto event = gen_.NewProbeClusterCreated();
       event_log->Log(event->Copy());
@@ -566,24 +570,6 @@ void RtcEventLogSession::WriteLog(EventCounts count,
     }
     selection -= count.outgoing_rtcp_packets;
 
-    if (selection < count.generic_packets_sent) {
-      auto event = gen_.NewGenericPacketSent();
-      generic_packets_sent_.push_back(event->Copy());
-      event_log->Log(std::move(event));
-      count.generic_packets_sent--;
-      continue;
-    }
-    selection -= count.generic_packets_sent;
-
-    if (selection < count.generic_packets_received) {
-      auto event = gen_.NewGenericPacketReceived();
-      generic_packets_received_.push_back(event->Copy());
-      event_log->Log(std::move(event));
-      count.generic_packets_received--;
-      continue;
-    }
-    selection -= count.generic_packets_received;
-
     RTC_DCHECK_NOTREACHED();
   }
 
@@ -659,6 +645,13 @@ void RtcEventLogSession::ReadAndVerifyLog() {
   for (size_t i = 0; i < parsed_bwe_loss_updates.size(); i++) {
     verifier_.VerifyLoggedBweLossBasedUpdate(*bwe_loss_list_[i],
                                              parsed_bwe_loss_updates[i]);
+  }
+
+  auto& parsed_bwe_scream_updates = parsed_log.bwe_scream_updates();
+  ASSERT_EQ(parsed_bwe_scream_updates.size(), bwe_scream_list_.size());
+  for (size_t i = 0; i < parsed_bwe_scream_updates.size(); i++) {
+    verifier_.VerifyLoggedBweScreamUpdate(*bwe_scream_list_[i],
+                                          parsed_bwe_scream_updates[i]);
   }
 
   auto& parsed_bwe_probe_cluster_created_events =
@@ -798,21 +791,6 @@ void RtcEventLogSession::ReadAndVerifyLog() {
                                           parsed_video_send_configs[i]);
   }
 
-  auto& parsed_generic_packets_received = parsed_log.generic_packets_received();
-  ASSERT_EQ(parsed_generic_packets_received.size(),
-            generic_packets_received_.size());
-  for (size_t i = 0; i < parsed_generic_packets_received.size(); i++) {
-    verifier_.VerifyLoggedGenericPacketReceived(
-        *generic_packets_received_[i], parsed_generic_packets_received[i]);
-  }
-
-  auto& parsed_generic_packets_sent = parsed_log.generic_packets_sent();
-  ASSERT_EQ(parsed_generic_packets_sent.size(), generic_packets_sent_.size());
-  for (size_t i = 0; i < parsed_generic_packets_sent.size(); i++) {
-    verifier_.VerifyLoggedGenericPacketSent(*generic_packets_sent_[i],
-                                            parsed_generic_packets_sent[i]);
-  }
-
   EXPECT_EQ(first_timestamp_ms_, parsed_log.first_timestamp().ms());
   EXPECT_EQ(last_timestamp_ms_, parsed_log.last_timestamp().ms());
 
@@ -848,9 +826,8 @@ TEST_P(RtcEventLogSession, StartLoggingFromBeginning) {
     count.dtls_transport_states = 4;
     count.dtls_writable_states = 2;
     count.frame_decoded_events = 50;
-    count.generic_packets_sent = 100;
-    count.generic_packets_received = 100;
     count.route_changes = 4;
+    count.bwe_scream_events = 20;
   }
 
   WriteLog(count, 0);
@@ -881,9 +858,8 @@ TEST_P(RtcEventLogSession, StartLoggingInTheMiddle) {
     count.dtls_transport_states = 4;
     count.dtls_writable_states = 5;
     count.frame_decoded_events = 250;
-    count.generic_packets_sent = 500;
-    count.generic_packets_received = 500;
     count.route_changes = 10;
+    count.bwe_scream_events = 50;
   }
 
   WriteLog(count, 500);

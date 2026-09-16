@@ -11,6 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/string-format.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -567,13 +568,13 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "external: " << external_reference();
       break;
     case Kind::kHeapObject:
-      os << "heap object: " << JSONEscaped(handle());
+      os << "heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kCompressedHeapObject:
-      os << "compressed heap object: " << JSONEscaped(handle());
+      os << "compressed heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kTrustedHeapObject:
-      os << "trusted heap object: " << JSONEscaped(handle());
+      os << "trusted heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
       os << "relocatable wasm call: 0x" << std::hex << storage.integral
@@ -1127,6 +1128,18 @@ std::ostream& operator<<(std::ostream& os, const Block* b) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, EffectHandler h) {
+  return os << h.block;
+}
+
+std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
+  os << "effect handlers: ";
+  for (auto& h : hs) {
+    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+  }
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, OpEffects effects) {
   auto produce_consume = [](bool produces, bool consumes) {
     if (!produces && !consumes) {
@@ -1594,7 +1607,7 @@ void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
   os << "{";
   for (size_t i = 0; i < maps.size(); ++i) {
     if (i != 0) os << ",";
-    os << JSONEscaped(maps[i].object());
+    os << base::JSONEscaped(maps[i].object());
   }
   os << "}";
 }
@@ -2149,20 +2162,25 @@ size_t CallOp::hash_value(HashingStrategy strategy) const {
   }
 }
 
+template <>
+struct fast_hash<EffectHandler> {
+  size_t operator()(const EffectHandler& h) {
+    DCHECK_NOT_NULL(h.block);
+    const BlockIndex index = h.block->index();
+    DCHECK(index.valid());
+    return index.id();
+  }
+};
+
 size_t CheckExceptionOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [didnt_throw_block_value, catch_block_value, effect_block_value] =
+    auto [didnt_throw_block_value, catch_block_value, effects_value] =
         options();
-    BlockIndex catch_block_index = catch_block_value
-                                       ? index_for_bound_block(catch_block)
-                                       : BlockIndex::Invalid();
-    BlockIndex effect_block_index =
-        effect_block_value ? index_for_bound_block(effect_block_value)
-                           : BlockIndex::Invalid();
     return HashWithOptions(index_for_bound_block(didnt_throw_block_value),
-                           catch_block_index, effect_block_index);
+                           index_for_bound_block(catch_block_value),
+                           effects_value);
   } else {
     return Base::hash_value(strategy);
   }

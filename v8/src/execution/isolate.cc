@@ -1822,7 +1822,10 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
-  if (c_entry_fp(thread_local_top()) == 0 && !InFastCCall()) return;
+  if (c_entry_fp(thread_local_top()) == kNullAddress &&
+      isolate_data()->fast_c_call_caller_fp() == kNullAddress) {
+    return;
+  }
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
@@ -7313,9 +7316,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   detached_contexts->set_length(new_length);
-  while (new_length < length) {
-    detached_contexts->Set(new_length, Smi::zero());
-    ++new_length;
+  int last_context_index = new_length;
+  while (last_context_index < length) {
+    detached_contexts->Set(last_context_index, Smi::zero());
+    ++last_context_index;
   }
 
   if (v8_flags.trace_detached_contexts) {
@@ -7808,7 +7812,7 @@ void Isolate::LocalsBlockListCacheSet(
   }
 
   CHECK(!value.is_null());
-  cache = EphemeronHashTable::Put(cache, scope_info, value);
+  cache = EphemeronHashTable::Put(this, cache, scope_info, value);
   heap()->set_locals_block_list_cache(*cache);
 }
 

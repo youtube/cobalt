@@ -1072,15 +1072,6 @@ VideoChannel::VideoChannel(
                   srtp_required,
                   crypto_options,
                   ssrc_generator) {
-  // TODO(bugs.webrtc.org/13931): Remove when values are set
-  // in a more sensible fashion
-  send_channel()->SetSendCodecChangedCallback([this]() {
-    // Adjust receive streams based on send codec.
-    receive_channel()->SetReceiverFeedbackParameters(
-        send_channel()->SendCodecHasLntf(), send_channel()->SendCodecHasNack(),
-        send_channel()->SendCodecRtcpMode(),
-        send_channel()->SendCodecRtxTime());
-  });
 }
 
 VideoChannel::~VideoChannel() {
@@ -1224,6 +1215,7 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
   }
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     recv_params.extensions = send_params.extensions;
+    recv_params.rtcp.reduced_size = send_params.rtcp.reduced_size;
     if (!media_receive_channel()->SetReceiverParameters(recv_params)) {
       error_desc = StringFormat(
           "Failed to set recv parameters for m-section with mid='%s'.",
@@ -1232,12 +1224,6 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
     }
     last_recv_params_ = recv_params;
   }
-  // adjust receive streams based on send codec
-  media_receive_channel()->SetReceiverFeedbackParameters(
-      media_send_channel()->SendCodecHasLntf(),
-      media_send_channel()->SendCodecHasNack(),
-      media_send_channel()->SendCodecRtcpMode(),
-      media_send_channel()->SendCodecRtxTime());
   last_send_params_ = send_params;
 
   return UpdateRemoteStreams_w(content, type, error_desc);

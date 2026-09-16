@@ -17,6 +17,7 @@ import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -24,16 +25,14 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.url.GURL;
 
-import java.util.function.Supplier;
-
 /** Coordinator for the Navigation Attachments component. */
 @NullMarked
 public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener {
     private final @Nullable NavigationAttachmentsViewHolder mViewHolder;
     private final @Nullable LocationBarDataProvider mLocationBarDataProvider;
-    private final ObservableSupplierImpl<@NavigationFulfillmentType Integer>
-            mNavigationFulfillmentTypeSupplier =
-                    new ObservableSupplierImpl<>(NavigationFulfillmentType.DEFAULT);
+    private final ObservableSupplierImpl<@AutocompleteRequestType Integer>
+            mAutocompleteRequestTypeSupplier =
+                    new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
     private final boolean mAimToggleOnly;
     private final PropertyModel mModel;
     private @Nullable NavigationAttachmentsMediator mMediator;
@@ -44,7 +43,7 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
             ViewGroup parent,
             ObservableSupplier<Profile> profileObservableSupplier,
             LocationBarDataProvider locationBarDataProvider,
-            Supplier<TabModelSelector> tabModelSelectorSupplier) {
+            ObservableSupplier<TabModelSelector> tabModelSelectorSupplier) {
         if (!OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
                 || parent.findViewById(R.id.location_bar_attachments_toolbar) == null) {
             mMediator = null;
@@ -86,7 +85,7 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
                         mViewHolder,
                         modelList,
                         profileObservableSupplier,
-                        mNavigationFulfillmentTypeSupplier,
+                        mAutocompleteRequestTypeSupplier,
                         tabModelSelectorSupplier,
                         tabAttachmentsModelList);
     }
@@ -103,7 +102,8 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
     public void onUrlFocusChange(boolean hasFocus) {
         if (mMediator == null || mLocationBarDataProvider == null) return;
 
-        int pageClass = mLocationBarDataProvider.getPageClassification(false);
+        int pageClass =
+                mLocationBarDataProvider.getPageClassification(AutocompleteRequestType.SEARCH);
 
         boolean isSupportedPageClass =
                 switch (pageClass) {
@@ -129,12 +129,12 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
     }
 
     /**
-     * @return An {@link ObservableSupplier} that notifies observers when the navigation fulfillment
+     * @return An {@link ObservableSupplier} that notifies observers when the autocomplete request
      *     type changes.
      */
-    public ObservableSupplier<@NavigationFulfillmentType Integer>
-            getNavigationFulfillmentTypeSupplier() {
-        return mNavigationFulfillmentTypeSupplier;
+    public ObservableSupplier<@AutocompleteRequestType Integer>
+            getAutocompleteRequestTypeSupplier() {
+        return mAutocompleteRequestTypeSupplier;
     }
 
     /** Returns the URL associated with the current AIM session. */

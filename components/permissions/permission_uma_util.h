@@ -405,6 +405,14 @@ enum class ElementAnchoredBubbleVariant {
 };
 // LINT.ThenChange(//tools/metrics/histograms/enums.xml:ElementAnchoredBubbleVariant)
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class GeolocationAccuracy {
+  kPrecise = 0,
+  kApproximate = 1,
+  kMaxValue = kApproximate,
+};
+
 enum class PermissionAutoRevocationHistory {
   // Permission has not been automatically revoked.
   NONE = 0,
@@ -683,6 +691,8 @@ class PermissionUmaUtil {
       std::optional<PermissionUiSelector::PredictionGrantLikelihood>
           predicted_grant_likelihood,
       std::optional<PermissionRequestRelevance> permission_request_relevance,
+      std::optional<permissions::PermissionAiRelevanceModel>
+          permission_ai_relevance_model,
       std::optional<bool> prediction_decision_held_back,
       std::optional<permissions::PermissionIgnoredReason> ignored_reason,
       bool did_show_prompt,
@@ -924,6 +934,9 @@ class PermissionUmaUtil {
   // PermissionBasedPredictionUiSelector ran into a timeout.
   static void RecordPredictionServiceTimeout(bool timeout);
 
+  // Records the accuracy of the geolocation permission request.
+  static void RecordGeolocationAccuracy(GeolocationAccuracy accuracy);
+
   // Records if the browser was active at the time the prompt started displaying
   static void RecordPromptShownInActiveBrowser(
       RequestTypeForUma request_type,
@@ -990,6 +1003,8 @@ class PermissionUmaUtil {
       std::optional<PermissionUiSelector::PredictionGrantLikelihood>
           predicted_grant_likelihood,
       std::optional<PermissionRequestRelevance> permission_request_relevance,
+      std::optional<permissions::PermissionAiRelevanceModel>
+          permission_ai_relevance_model,
       std::optional<bool> prediction_decision_held_back);
 
   // Records |count| total prior actions for a prompt of type |permission|

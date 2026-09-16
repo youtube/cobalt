@@ -69,7 +69,6 @@ using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::Ne;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -228,9 +227,9 @@ class ConfigHelper {
   void SetupDefaultChannelSend(bool audio_bwe_enabled) {
     EXPECT_TRUE(channel_send_ == nullptr);
     channel_send_ = new ::testing::StrictMock<MockChannelSend>();
-    EXPECT_CALL(*channel_send_, GetRtpRtcp()).WillRepeatedly(Invoke([this]() {
+    EXPECT_CALL(*channel_send_, GetRtpRtcp()).WillRepeatedly([this]() {
       return &this->rtp_rtcp_;
-    }));
+    });
     EXPECT_CALL(rtp_rtcp_, SSRC).WillRepeatedly(Return(kSsrc));
     EXPECT_CALL(*channel_send_, SetRTCP_CNAME(StrEq(kCName))).Times(1);
     EXPECT_CALL(*channel_send_, SetFrameEncryptor(_)).Times(1);
@@ -966,10 +965,10 @@ TEST(AudioSendStreamTest, DefaultsHonorsPriorityBitrate) {
   helper.field_trials().Set("WebRTC-Audio-Allocation", "prio_rate:20");
   auto send_stream = helper.CreateAudioSendStream();
   EXPECT_CALL(*helper.bitrate_allocator(), AddObserver(send_stream.get(), _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&](BitrateAllocatorObserver*, MediaStreamAllocationConfig config) {
             EXPECT_EQ(config.priority_bitrate_bps, 20000);
-          }));
+          });
   EXPECT_CALL(*helper.channel_send(), StartSend());
   send_stream->Start();
   EXPECT_CALL(*helper.channel_send(), StopSend());
@@ -996,10 +995,10 @@ TEST(AudioSendStreamTest, OverridesPriorityBitrate) {
   helper.field_trials().Set("WebRTC-Audio-PriorityBitrate", "Disabled");
   auto send_stream = helper.CreateAudioSendStream();
   EXPECT_CALL(*helper.bitrate_allocator(), AddObserver(send_stream.get(), _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&](BitrateAllocatorObserver*, MediaStreamAllocationConfig config) {
             EXPECT_EQ(config.priority_bitrate_bps, 0);
-          }));
+          });
   EXPECT_CALL(*helper.channel_send(), StartSend());
   send_stream->Start();
   EXPECT_CALL(*helper.channel_send(), StopSend());
@@ -1019,11 +1018,11 @@ TEST(AudioSendStreamTest, UseEncoderBitrateRange) {
       }));
   auto send_stream = helper.CreateAudioSendStream();
   EXPECT_CALL(*helper.bitrate_allocator(), AddObserver(send_stream.get(), _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&](BitrateAllocatorObserver*, MediaStreamAllocationConfig config) {
             EXPECT_EQ(config.min_bitrate_bps, bitrate_range.first.bps());
             EXPECT_EQ(config.max_bitrate_bps, bitrate_range.second.bps());
-          }));
+          });
   EXPECT_CALL(*helper.channel_send(), StartSend());
   send_stream->Start();
   EXPECT_CALL(*helper.channel_send(), StopSend());

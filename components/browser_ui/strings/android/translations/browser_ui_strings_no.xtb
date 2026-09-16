@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Fortsett</translation>
 <translation id="2379925928934107488">Bruk mørkt tema på nettsteder når Chrome bruker mørkt tema, når det er mulig</translation>
 <translation id="2390272837142897736">Zoom inn</translation>
+<translation id="2397689164757137845">Tillatt • Nøyaktig</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Nøyaktig</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> til er tillatt}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> til er tillatt}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Hjelp og tilbakemelding</translation>
 <translation id="2501278716633472235">Gå tilbake</translation>
 <translation id="2533138527374486328">Når dette er på, kan nettsteder be om å få koble til enheter på det lokale nettverket ditt. Når dette er av, kan ikke nettsteder koble til enheter på det lokale nettverket ditt.</translation>
+<translation id="2536779053640817375">Tillatt denne gangen • Nøyaktig</translation>
 <translation id="2544997614631598250">Temafarge – mørk</translation>
 <translation id="2546283357679194313">Informasjonskapsler og data fra nettsteder</translation>
 <translation id="2570922361219980984">Posisjonstilgang er også slått av for denne enheten. Slå den på i <ph name="BEGIN_LINK" />Android-innstillingene<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="5876056640971328065">Sett videoen på pause</translation>
 <translation id="5877248419911025165">Skjul alle forespørsler</translation>
 <translation id="5878945009165002849">Blokker påloggingsforespørsler fra identitetstjenester</translation>
+<translation id="588258955323874662">Fullskjerm</translation>
 <translation id="5884085660368669834">Nettstedinnstilling</translation>
 <translation id="5887687176710214216">Sist besøkt i går</translation>
 <translation id="5908617755156109052">Ikke la nettsteder lage 3D-kart av omgivelsene dine eller spore kameraposisjonen</translation>
@@ -569,6 +572,7 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="7406113532070524618">Denne innstillingen fungerer uten at du blir identifisert, og uten at nettsteder kan se nettleserloggen din, men nettsteder kan dele noe informasjon som en del av bekreftelsesprosessen</translation>
 <translation id="7409735910987429903">Nettsteder kan sende forgrunnsvinduer for å vise annonser, eller de kan bruke viderekoblinger for å føre deg til nettsteder du kanskje ikke ønsker å besøke</translation>
 <translation id="7412160840120117304">Heksadesimal kode for primærfarge</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Spør først</translation>
 <translation id="7423538860840206698">Blokkert fra å lese utklippstavlen</translation>
 <translation id="7425915948813553151">Mørkt tema for nettsteder</translation>
@@ -700,7 +704,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="8803526663383843427">Når funksjonen er på</translation>
 <translation id="8805385115381080995">Surfing går raskere fordi det er mindre sannsynlig at nettsteder ber deg om å bekrefte at du er en ekte person</translation>
 <translation id="8816026460808729765">Blokkér nettsteder fra å få tilgang til sensorer</translation>
-<translation id="884765916894384048">Gå til bakgrunnen</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prøv å tillate informasjonskapsler fra tredjeparter midlertidig. Det innebærer mindre beskyttelse under surfing, men øker sannsynligheten for at nettstedsfunksjoner virker som forventet.</translation>
 <translation id="8889294078294184559">Når du fortsetter å surfe, kan nettsteder kontrollere denne informasjonen i Chrome og få bekreftet av nettsteder du har besøkt tidligere, at du sannsynligvis er en ekte person</translation>

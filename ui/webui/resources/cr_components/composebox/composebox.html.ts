@@ -14,7 +14,11 @@ export function getHtml(this: ComposeboxElement) {
   <div class="gradient gradient-outer-glow"></div>
   <div class="gradient"></div>
   <div class="background"></div>
-  <ntp-error-scrim id="errorScrim"></ntp-error-scrim>
+  <ntp-error-scrim id="errorScrim"
+    ?compact-mode="${this.realboxLayoutMode === 'Compact' &&
+                     this.contextFilesSize_ === 0}"
+    @error-scrim-visibility-changed="${this.onErrorScrimVisibilityChanged_}">
+  </ntp-error-scrim>
   <div id="composebox" @keydown="${this.onKeydown_}"
       @focusin=${this.handleComposeboxFocusIn_}
       @focusout=${this.handleComposeboxFocusOut_}>
@@ -24,37 +28,42 @@ export function getHtml(this: ComposeboxElement) {
           <div id="aimIcon"></div>
         </div>
         <div id="inputWrapper">
-          <textarea autocomplete="off" id="input"
+          <textarea
+            aria-expanded="${this.showDropdown_}" aria-controls="matches"
+            role="combobox" autocomplete="off" id="input"
             type="search" spellcheck="false"
             placeholder="${this.inputPlaceholder_}"
             part="input"
             .value="${this.input_}"
             @input=${this.handleInput_}
             @scroll="${this.handleScroll_}"
-            @focusin="${this.handleInputFocusIn_}"></textarea>
+            @focusin="${this.handleInputFocusIn_}"
+            @focusout="${this.handleInputFocusOut_}"></textarea>
           ${this.shouldShowSmartComposeInlineHint_() ? html`
             <div id="smartCompose">
               <!-- Comments in between spans to eliminate spacing between
                    spans -->
               <span id="invisibleText">${this.input_}</span><!--
               --><span id="ghostText">${this.smartComposeInlineHint_}</span><!--
-              --><span id="tabChip">Tab</span>
+              --><span id="tabChip">${this.i18n('composeboxSmartComposeTabTitle')}</span>
             </div>
           `: ''}
         </div>
       </div>
       <contextual-entrypoint-and-carousel id="context" part="context-entrypoint"
+          .tabSuggestions_=${this.tabSuggestions_}
+          entrypoint-name="Composebox"
           @add-tab-context="${this.addTabContext_}"
           @add-file-context="${this.addFileContext_}"
           @delete-context="${this.deleteContext_}"
-          @refresh-tab-suggestions="${this.refreshTabSuggestions_}"
           @on-file-validation-error="${this.onFileValidationError_}"
           @set-deep-search-mode="${this.setDeepSearchMode_}"
           @set-create-image-mode="${this.setCreateImageMode_}"
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.showDropdown_}"
           ?inputs-disabled="${this.inputsDisabled_}"
-          ?show-context-menu-description="${this.showContextMenuDescription_}">
+          ?show-context-menu-description="${this.showContextMenuDescription_}"
+          realbox-layout-mode="${this.realboxLayoutMode}">
         <ntp-composebox-dropdown
             id="matches"
             part="dropdown"
@@ -64,7 +73,8 @@ export function getHtml(this: ComposeboxElement) {
             @selected-match-index-changed="${this.onSelectedMatchIndexChanged_}"
             @match-focusin="${this.onMatchFocusin_}"
             @match-click="${this.onMatchClick_}"
-            ?hidden="${!this.showDropdown_}">
+            ?hidden="${!this.showDropdown_}"
+            .lastQueriedInput=${this.lastQueriedInput_}>
         </ntp-composebox-dropdown>
       </contextual-entrypoint-and-carousel>
     </div>
@@ -97,7 +107,7 @@ export function getHtml(this: ComposeboxElement) {
       <cr-icon-button
         class="action-icon icon-arrow-upward"
         id="submitIcon"
-        part="action-icon"
+        part="action-icon submit-icon"
         title="${this.i18n('composeboxSubmitButtonTitle')}"
         @click="${this.submitQuery_}"
         ?disabled="${!this.submitEnabled_}"

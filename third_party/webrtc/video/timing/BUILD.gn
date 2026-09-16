@@ -14,7 +14,10 @@ if (rtc_include_tests) {
     deps = [ "../../test:test_main" ]
 
     if (rtc_enable_protobuf) {
-      deps += [ "simulator:simulator_tests" ]
+      deps += [
+        "simulator:simulator_tests",
+        "simulator/test:test_tests",
+      ]
     }
   }
 }

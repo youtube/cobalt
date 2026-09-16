@@ -130,7 +130,6 @@ using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Ge;
 using ::testing::Gt;
-using ::testing::Invoke;
 using ::testing::IsTrue;
 using ::testing::Le;
 using ::testing::Lt;
@@ -10031,10 +10030,10 @@ TEST(VideoStreamEncoderFrameCadenceTest, ActivatesFrameCadenceOnContentType) {
   FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
       nullptr;
   EXPECT_CALL(*adapter_ptr, Initialize)
-      .WillOnce(Invoke([&video_stream_encoder_callback](
-                           FrameCadenceAdapterInterface::Callback* callback) {
+      .WillOnce([&video_stream_encoder_callback](
+                    FrameCadenceAdapterInterface::Callback* callback) {
         video_stream_encoder_callback = callback;
-      }));
+      });
   TaskQueueBase* encoder_queue = nullptr;
   auto video_stream_encoder =
       factory.Create(std::move(adapter), &encoder_queue);
@@ -10095,10 +10094,10 @@ TEST(VideoStreamEncoderFrameCadenceTest, UsesFrameCadenceAdapterForFrameRate) {
   FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
       nullptr;
   EXPECT_CALL(*adapter_ptr, Initialize)
-      .WillOnce(Invoke([&video_stream_encoder_callback](
-                           FrameCadenceAdapterInterface::Callback* callback) {
+      .WillOnce([&video_stream_encoder_callback](
+                    FrameCadenceAdapterInterface::Callback* callback) {
         video_stream_encoder_callback = callback;
-      }));
+      });
   TaskQueueBase* encoder_queue = nullptr;
   auto video_stream_encoder =
       factory.Create(std::move(adapter), &encoder_queue);
@@ -10126,10 +10125,10 @@ TEST(VideoStreamEncoderFrameCadenceTest,
   FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
       nullptr;
   EXPECT_CALL(*adapter_ptr, Initialize)
-      .WillOnce(Invoke([&video_stream_encoder_callback](
-                           FrameCadenceAdapterInterface::Callback* callback) {
+      .WillOnce([&video_stream_encoder_callback](
+                    FrameCadenceAdapterInterface::Callback* callback) {
         video_stream_encoder_callback = callback;
-      }));
+      });
   TaskQueueBase* encoder_queue = nullptr;
   auto video_stream_encoder =
       factory.Create(std::move(adapter), &encoder_queue);
@@ -10182,10 +10181,10 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
   FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
       nullptr;
   EXPECT_CALL(*adapter_ptr, Initialize)
-      .WillOnce(Invoke([&video_stream_encoder_callback](
-                           FrameCadenceAdapterInterface::Callback* callback) {
+      .WillOnce([&video_stream_encoder_callback](
+                    FrameCadenceAdapterInterface::Callback* callback) {
         video_stream_encoder_callback = callback;
-      }));
+      });
   TaskQueueBase* encoder_queue = nullptr;
   auto video_stream_encoder =
       factory.Create(std::move(adapter), &encoder_queue);
@@ -10207,13 +10206,13 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
   // Pass a frame which has unconverged results.
   PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/1);
   EXPECT_CALL(factory.GetMockFakeEncoder(), EncodeHook)
-      .WillRepeatedly(Invoke([](EncodedImage& encoded_image,
-                                scoped_refptr<EncodedImageBuffer> buffer) {
+      .WillRepeatedly([](EncodedImage& encoded_image,
+                         scoped_refptr<EncodedImageBuffer> buffer) {
         encoded_image.qp_ = kVp8SteadyStateQpThreshold + 1;
         CodecSpecificInfo codec_specific;
         codec_specific.codecType = kVideoCodecVP8;
         return codec_specific;
-      }));
+      });
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(0, false));
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(1, false));
   factory.DepleteTaskQueues();
@@ -10223,8 +10222,8 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
   // Pass a frame which converges in layer 0 and not in layer 1.
   PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/2);
   EXPECT_CALL(factory.GetMockFakeEncoder(), EncodeHook)
-      .WillRepeatedly(Invoke([](EncodedImage& encoded_image,
-                                scoped_refptr<EncodedImageBuffer> buffer) {
+      .WillRepeatedly([](EncodedImage& encoded_image,
+                         scoped_refptr<EncodedImageBuffer> buffer) {
         // This sets simulcast index 0 content to be at target quality, while
         // index 1 content is not.
         encoded_image.qp_ = kVp8SteadyStateQpThreshold +
@@ -10232,7 +10231,7 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
         CodecSpecificInfo codec_specific;
         codec_specific.codecType = kVideoCodecVP8;
         return codec_specific;
-      }));
+      });
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(0, true));
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(1, false));
   factory.DepleteTaskQueues();
@@ -10249,10 +10248,10 @@ TEST(VideoStreamEncoderFrameCadenceTest,
   FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
       nullptr;
   EXPECT_CALL(*adapter_ptr, Initialize)
-      .WillOnce(Invoke([&video_stream_encoder_callback](
-                           FrameCadenceAdapterInterface::Callback* callback) {
+      .WillOnce([&video_stream_encoder_callback](
+                    FrameCadenceAdapterInterface::Callback* callback) {
         video_stream_encoder_callback = callback;
-      }));
+      });
   TaskQueueBase* encoder_queue = nullptr;
   auto video_stream_encoder =
       factory.Create(std::move(adapter), &encoder_queue);
@@ -10267,9 +10266,9 @@ TEST(VideoStreamEncoderFrameCadenceTest,
   factory.DepleteTaskQueues();
 
   EXPECT_CALL(*adapter_ptr, ProcessKeyFrameRequest)
-      .WillOnce(Invoke([video_stream_encoder_callback] {
+      .WillOnce([video_stream_encoder_callback] {
         video_stream_encoder_callback->RequestRefreshFrame();
-      }));
+      });
   EXPECT_CALL(mock_source, RequestRefreshFrame);
   video_stream_encoder->SendKeyFrame();
   factory.DepleteTaskQueues();

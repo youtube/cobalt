@@ -53,6 +53,7 @@ class IntentChipButton;
 class ExtensionsToolbarCoordinator;
 class MediaToolbarButtonView;
 class ReloadButton;
+class ReloadButtonWebView;
 class PinnedToolbarActionsContainer;
 class ToolbarButton;
 class AvatarToolbarButtonBrowserTest;
@@ -248,6 +249,7 @@ class ToolbarView : public views::AccessiblePaneView,
   AvatarToolbarButton* GetAvatarToolbarButton() override;
   ToolbarButton* GetBackButton() override;
   ReloadButton* GetReloadButton() override;
+  ReloadButtonWebView* GetReloadButtonWebView() override;
   IntentChipButton* GetIntentChipButton() override;
   ToolbarButton* GetDownloadButton() override;
 
@@ -287,6 +289,7 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<ToolbarButton> back_ = nullptr;
   raw_ptr<ToolbarButton> forward_ = nullptr;
   raw_ptr<ReloadButton> reload_ = nullptr;
+  raw_ptr<ReloadButtonWebView> reload_webview_ = nullptr;
   raw_ptr<HomeButton> home_ = nullptr;
   raw_ptr<SplitTabsToolbarButton> split_tabs_ = nullptr;
   raw_ptr<CustomTabBarView> custom_tab_bar_ = nullptr;

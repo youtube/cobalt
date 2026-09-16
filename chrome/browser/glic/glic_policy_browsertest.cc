@@ -72,7 +72,7 @@ int ToInt(GlicActuationOnWebPolicyState state) {
 // callback when the state changes to the given kind.
 class PanelStateObserver : public GlicWindowController::StateObserver {
  public:
-  PanelStateObserver(mojom::PanelState::Kind kind, base::OnceClosure callback)
+  PanelStateObserver(mojom::PanelStateKind kind, base::OnceClosure callback)
       : kind_(kind), callback_(std::move(callback)) {}
 
   void PanelStateChanged(
@@ -84,7 +84,7 @@ class PanelStateObserver : public GlicWindowController::StateObserver {
   }
 
  private:
-  mojom::PanelState::Kind kind_;
+  mojom::PanelStateKind kind_;
   base::OnceClosure callback_;
 };
 
@@ -582,14 +582,15 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
   // Show the panel as if the glic button was clicked.
   {
     base::test::TestFuture<void> wait_for_panel;
-    PanelStateObserver panel_state_observer(mojom::PanelState::Kind::kDetached,
+    PanelStateObserver panel_state_observer(mojom::PanelStateKind::kDetached,
                                             wait_for_panel.GetCallback());
-    service->window_controller().AddStateObserver(&panel_state_observer);
+    service->window_controller().AddGlobalStateObserver(&panel_state_observer);
     service->ToggleUI(/*bwi=*/browser(), /*prevent_close=*/false,
                       /*source=*/mojom::InvocationSource::kOsButton);
 
     EXPECT_TRUE(wait_for_panel.Wait());
-    service->window_controller().RemoveStateObserver(&panel_state_observer);
+    service->window_controller().RemoveGlobalStateObserver(
+        &panel_state_observer);
   }
 
   ASSERT_TRUE(service->IsWindowShowing());

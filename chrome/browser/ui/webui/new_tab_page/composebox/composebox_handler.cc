@@ -9,10 +9,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_omnibox_client.h"
+#include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
 #include "content/public/browser/page_navigator.h"
 
 using composebox::SessionState;
@@ -53,16 +55,36 @@ omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() {
 void ComposeboxHandler::SetDeepSearchMode(bool enabled) {
   if (enabled) {
     aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH;
+    base::UmaHistogramEnumeration("NewTabPage.Composebox.Tools.DeepSearch",
+                                  AimToolState::kEnabled);
   } else {
     aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+    base::UmaHistogramEnumeration("NewTabPage.Composebox.Tools.DeepSearch",
+                                  AimToolState::kDisabled);
   }
 }
 
-void ComposeboxHandler::SetCreateImageMode(bool enabled) {
+void ComposeboxHandler::SetCreateImageMode(bool enabled, bool image_present) {
   if (enabled) {
-    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_CANVAS;
+    // Only log if not already in some form of create image mode so this metric
+    // does not get double counted.
+    if (aim_tool_mode_ ==
+        omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED) {
+      base::UmaHistogramEnumeration("NewTabPage.Composebox.Tools.CreateImage",
+                                    AimToolState::kEnabled);
+    }
+    // Server uses different `azm` param to make IMAGE_GEN requests when an
+    // image is present.
+    if (image_present) {
+      aim_tool_mode_ =
+          omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD;
+    } else {
+      aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN;
+    }
   } else {
     aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+    base::UmaHistogramEnumeration("NewTabPage.Composebox.Tools.CreateImage",
+                                  AimToolState::kDisabled);
   }
 }
 
@@ -91,6 +113,15 @@ void ComposeboxHandler::OnThumbnailRemoved() {
   NOTREACHED();
 }
 
+void ComposeboxHandler::ClearFiles() {
+  ContextualSearchboxHandler::ClearFiles();
+  // Reset the AIM tool mode to not include file upload if it currently does.
+  if (aim_tool_mode_ ==
+      omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN;
+  }
+}
+
 void ComposeboxHandler::SubmitQuery(const std::string& query_text,
                                     uint8_t mouse_button,
                                     bool alt_key,
@@ -110,11 +141,21 @@ void ComposeboxHandler::SubmitQuery(
   switch (aim_tool_mode_) {
     case omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH:
       additional_params["dr"] = "1";
+      base::UmaHistogramEnumeration(
+          "NewTabPage.Composebox.Tools.SubmissionType",
+          SubmissionType::kDeepSearch);
       break;
-    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_CANVAS:
+    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN:
+    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD:
       additional_params["imgn"] = "1";
+      base::UmaHistogramEnumeration(
+          "NewTabPage.Composebox.Tools.SubmissionType",
+          SubmissionType::kCreateImages);
       break;
     default:
+      base::UmaHistogramEnumeration(
+          "NewTabPage.Composebox.Tools.SubmissionType",
+          SubmissionType::kDefault);
       break;
   }
 

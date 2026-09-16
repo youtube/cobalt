@@ -10,6 +10,10 @@
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/shelf_test_api.h"
 #include "ash/shell.h"
+#include "ash/wm/desks/desks_controller.h"
+#include "ash/wm/desks/overview_desk_bar_view.h"
+#include "ash/wm/overview/overview_controller.h"
+#include "ash/wm/overview/overview_test_util.h"
 #include "base/check_deref.h"
 #include "base/test/gtest_tags.h"
 #include "base/time/time.h"
@@ -85,6 +89,8 @@ void SimulateSwipeUpGesture() {
                              /*duration=*/base::Milliseconds(300), /*steps=*/4);
 }
 
+
+
 }  // namespace
 
 // Verifies generic Kiosk behavior.
@@ -156,6 +162,21 @@ IN_PROC_BROWSER_TEST_P(KioskTest, DoesNotSignInWithGaiaAccount) {
   const auto& manager =
       CHECK_DEREF(IdentityManagerFactory::GetForProfile(&CurrentProfile()));
   EXPECT_FALSE(manager.HasPrimaryAccount(signin::ConsentLevel::kSignin));
+}
+
+IN_PROC_BROWSER_TEST_P(KioskTest, CannotCreateNewDesksDuringKioskSession) {
+  int initial_desks_count = DesksController::Get()->GetNumberOfDesks();
+  EXPECT_EQ(1, initial_desks_count);
+  ASSERT_FALSE(DesksController::Get()->CanCreateDesks());
+}
+
+IN_PROC_BROWSER_TEST_P(KioskTest, CannotEnterOverviewDuringKioskSession) {
+  auto* overview_controller = Shell::Get()->overview_controller();
+
+  overview_controller->StartOverview(OverviewStartAction::kTests,
+                                     OverviewEnterExitType::kImmediateEnter);
+
+  ASSERT_FALSE(overview_controller->InOverviewSession());
 }
 
 INSTANTIATE_TEST_SUITE_P(

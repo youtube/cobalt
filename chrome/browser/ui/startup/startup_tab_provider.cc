@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/branding_buildflags.h"
@@ -34,6 +35,7 @@
 #include "chrome/browser/ui/tabs/pinned_tab_codec.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/settings/reset_settings_handler.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "components/prefs/pref_service.h"
@@ -44,6 +46,7 @@
 #include "components/url_formatter/url_fixer.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/common/url_constants.h"
+#include "net/base/filename_util.h"
 #include "net/base/url_util.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -68,6 +71,25 @@
 #endif
 
 namespace {
+
+// Strips the `kGoogleChromeURLScheme` prefix from `arg` if present and the
+// `kGoogleChromeScheme` feature is enabled. Returns true if the prefix was
+// stripped.
+bool StripGoogleChromeScheme(base::FilePath::StringViewType& arg) {
+  const base::FilePath kFullPrefixPath = base::FilePath::FromASCII(base::StrCat(
+      {chrome::kGoogleChromeURLScheme, url::kStandardSchemeSeparator}));
+  // Note: we enabled the feature flag condition later
+  // we want to activate the experiment when it is relevant for better
+  // stats collection. We plan to remove this flag once we establish it works
+  // fine.
+  if (auto suffix = base::RemovePrefix(arg, kFullPrefixPath.value(),
+                                       base::CompareCase::INSENSITIVE_ASCII);
+      suffix && base::FeatureList::IsEnabled(features::kGoogleChromeScheme)) {
+    arg = *suffix;
+    return true;
+  }
+  return false;
+}
 
 // Attempts to find an existing, non-empty tabbed browser for this profile.
 bool ProfileHasOtherTabbedBrowser(Profile* profile) {
@@ -424,28 +446,30 @@ StartupTabProviderImpl::ParseTabFromCommandLineArg(
     if (url.is_valid()) {
       return {CommandLineTabsPresent::kYes, std::move(url)};
     }
-  } else {
-    // Otherwise, fall through to treating it as a URL.
+  }
+  // Otherwise, fall through to treating it as a URL; stripping off the
+  // `kGoogleChromeScheme` if present.
+    else if (!StripGoogleChromeScheme(arg) || !arg.empty()) {
     // This will create a file URL or a regular URL.
-    GURL url(base::FilePath(arg).MaybeAsASCII());
+    const base::FilePath arg_path(arg);
+    GURL url(arg_path.MaybeAsASCII());
 
     // This call can (in rare circumstances) block the UI thread.
     // FixupRelativeFile may access to current working directory, which is a
     // blocking API. http://crbug.com/60641
-    // http://crbug.com/371030: Only use URLFixerUpper if we don't have a valid
-    // URL, otherwise we will look in the current directory for a file named
-    // 'about' if the browser was started with a about:foo argument.
+    // http://crbug.com/371030: Only use URLFixerUpper if we don't have a
+    // valid URL, otherwise we will look in the current directory for a file
+    // named 'about' if the browser was started with a about:foo argument.
     // http://crbug.com/424991: Always use URLFixerUpper on file:// URLs,
     // otherwise we wouldn't correctly handle '#' in a file name.
     if (!url.is_valid() || url.SchemeIsFile()) {
       base::ScopedAllowBlocking allow_blocking;
-      url = url_formatter::FixupRelativeFile(cur_dir, base::FilePath(arg));
+      url = url_formatter::FixupRelativeFile(cur_dir, arg_path);
     }
 
     if (ValidateUrl(url)) {
       return {CommandLineTabsPresent::kYes, std::move(url)};
     }
   }
-
   return {CommandLineTabsPresent::kNo, GURL()};
 }

@@ -9,15 +9,12 @@ import("gn/shared_sources.gni")
 import("gn/skia.gni")
 import("gn/toolchain/wasm.gni")
 
-if (skia_use_dawn) {
-  import("//third_party/externals/dawn/scripts/dawn_features.gni")
-}
-
 if (defined(skia_settings)) {
   import(skia_settings)
 }
 
 import("gn/ios.gni")
+import("third_party/dawn/args.gni")
 
 # Skia public API, generally provided by :skia.
 config("skia_public") {
@@ -896,30 +893,7 @@ optional("gpu_shared") {
 
   if (skia_use_dawn) {
     public_defines += [ "SK_DAWN" ]
-
-    # When building for WASM, the WebGPU headers are provided by Emscripten. For native builds we
-    # have to depend on Dawn directly.
-    if (!skia_use_webgpu) {
-      public_deps += [
-        "//third_party/externals/dawn/include/dawn:cpp_headers",
-        "//third_party/externals/dawn/src/dawn:cpp",
-        "//third_party/externals/dawn/src/dawn:proc",
-      ]
-
-      if (dawn_enable_d3d12 || dawn_enable_d3d11 || dawn_enable_desktop_gl ||
-          dawn_enable_metal || dawn_enable_opengles || dawn_enable_vulkan) {
-        public_deps += [ "//third_party/externals/dawn/src/dawn/native" ]
-      }
-      if (dawn_enable_d3d12) {
-        libs += [
-          "d3d12.lib",
-          "dxgi.lib",
-          "d3dcompiler.lib",
-        ]
-      } else if (dawn_enable_metal) {
-        frameworks += [ "Metal.framework" ]
-      }
-    }
+    public_deps += [ "//third_party/dawn" ]
   }
 
   if (skia_use_direct3d) {
@@ -1289,7 +1263,30 @@ optional("xps") {
     ":pathops",
   ]
   public = skia_xps_public
+
+  # TODO(lukasza, kjlubick, bungeman): Remove the `xps...png_helpers` deps once
+  # the legacy XPS factories (see `SK_DISABLE_LEGACY_XPS_FACTORIES`) are not
+  # supported anymore.
+  if (skia_use_libpng_encode) {
+    deps += [ ":xps_libpng_helpers" ]
+  }
+  if (skia_use_rust_png_encode) {
+    deps += [ ":xps_rust_png_helpers" ]
+  }
+
   sources = skia_xps_sources
+}
+
+optional("xps_libpng_helpers") {
+  enabled = skia_use_libpng_encode
+  deps = [ ":png_encode_libpng" ]
+  public = skia_xps_libpng_public
+}
+
+optional("xps_rust_png_helpers") {
+  enabled = skia_use_rust_png_encode
+  deps = [ ":png_encode_rust" ]
+  public = skia_xps_rust_png_public
 }
 
 optional("png_decode_common") {
@@ -1680,6 +1677,8 @@ skia_component("skia") {
     ":pdf_jpeg_helpers",
     ":webp_encode",
     ":xps",
+    ":xps_libpng_helpers",
+    ":xps_rust_png_helpers",
   ]
 
   deps = [
@@ -1962,7 +1961,7 @@ skia_source_set("public_headers_warnings_check") {
   ]
 
   if (skia_use_dawn) {
-    deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
+    deps += [ "//third_party/dawn" ]
   }
 }
 
@@ -1989,6 +1988,9 @@ if (((skia_enable_fontmgr_fontconfig && skia_use_freetype) ||
       ":skia",
       ":skia.h",
     ]
+    if (skia_use_dawn) {
+      deps += [ "//third_party/dawn" ]
+    }
   }
 }
 
@@ -2199,7 +2201,7 @@ if (skia_enable_tools) {
       }
 
       if (skia_use_dawn) {
-        public_deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
+        public_deps += [ "//third_party/dawn" ]
         if (is_clang) {
           cflags_cc = [ "-Wno-microsoft-cast" ]
         }

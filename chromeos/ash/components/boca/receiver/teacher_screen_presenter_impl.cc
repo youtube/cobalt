@@ -73,7 +73,7 @@ void TeacherScreenPresenterImpl::Start(
     ::boca::UserIdentity teacher_identity,
     base::OnceCallback<void(bool)> success_cb,
     base::OnceClosure disconnected_cb) {
-  if (receiver_id_.has_value()) {
+  if (IsPresenting()) {
     LOG(ERROR) << "[Boca] Trying to start more than one screen sharing";
     std::move(success_cb).Run(false);
     return;
@@ -105,11 +105,19 @@ void TeacherScreenPresenterImpl::Stop(
     std::move(success_cb).Run(false);
     return;
   }
+  if (!IsPresenting()) {
+    std::move(success_cb).Run(true);
+    return;
+  }
   // No need to update server, receiver will do automatically on CRD session
   // termination.
   shared_crd_session_->TerminateSession();
   std::move(success_cb).Run(true);
   Reset();
+}
+
+bool TeacherScreenPresenterImpl::IsPresenting() {
+  return receiver_id_.has_value();
 }
 
 void TeacherScreenPresenterImpl::OnGetReceiverResponse(

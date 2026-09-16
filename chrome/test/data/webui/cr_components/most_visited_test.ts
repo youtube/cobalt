@@ -19,6 +19,8 @@ import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {$$, assertStyle, keydown} from './most_visited_test_support.js';
 
+const MAX_TILES_BEFORE_SHOW_MORE = 5;
+
 let mostVisited: MostVisitedElement;
 let windowProxy: TestMock<MostVisitedWindowProxy>&MostVisitedWindowProxy;
 let handler: TestMock<MostVisitedPageHandlerRemote>&
@@ -36,6 +38,10 @@ function queryTiles(): HTMLAnchorElement[] {
 
 function queryHiddenTiles(): HTMLAnchorElement[] {
   return queryAll<HTMLAnchorElement>('.tile[hidden]');
+}
+
+function getShowMoreButton(): CrButtonElement|null {
+  return $$<CrButtonElement>(mostVisited, '#showMore');
 }
 
 function assertTileLength(length: number) {
@@ -199,6 +205,48 @@ suite('General', () => {
         new KeyboardEvent('keyup', {key: ' '}));
     assertTrue(mostVisited.$.dialog.open);
   });
+});
+
+suite('ShowMoreButton', () => {
+  suiteSetup(() => {
+    loadTimeData.overrideValues({
+      ntpNextFeaturesEnabled: true,
+      maxTilesBeforeShowMore: MAX_TILES_BEFORE_SHOW_MORE,
+    });
+  });
+
+  test('Show more button is shown with 6 or more tiles', async () => {
+    await setUpTest(false, true);
+    await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 1);
+    assertTrue(isVisible(getShowMoreButton()));
+    assertAddShortcutHidden();
+    assertHiddenTileLength(0);
+  });
+
+  test('Show more button is hidden with 5 or fewer tiles', async () => {
+    await setUpTest(false, true);
+    await addTiles(MAX_TILES_BEFORE_SHOW_MORE);
+    assertFalse(isVisible(getShowMoreButton()));
+    assertAddShortcutShown();
+  });
+
+  test(
+      'Clicking the show more button shows all tiles and hides the button',
+      async () => {
+        await setUpTest(false, true);
+        await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 2);  // 7 tiles.
+        const showMoreButton = getShowMoreButton();
+        assertTrue(isVisible(showMoreButton));
+        assertAddShortcutHidden();
+        assertHiddenTileLength(1);  // 7 tiles, 6 visible, so 1 hidden.
+
+        showMoreButton!.click();
+        await microtasksFinished();
+
+        assertFalse(isVisible(getShowMoreButton()));
+        assertAddShortcutShown();
+        assertHiddenTileLength(0);
+      });
 });
 
 function createLayoutsSuite(singleRow: boolean, reflowOnOverflow: boolean) {
@@ -1382,7 +1430,7 @@ suite('EnterpriseShortcuts', () => {
     assertEquals(
         'Edit shortcut',
         mostVisited.$.dialog.querySelector(
-                                '[slot="title"]')!.textContent!.trim());
+                                '[slot="title"]')!.textContent.trim());
     const policySubtitleContainer =
         mostVisited.$.dialog.querySelector<HTMLElement>(
             '#policySubtitleContainer');
@@ -1419,7 +1467,7 @@ suite('EnterpriseShortcuts', () => {
     assertEquals(
         'Shortcut',
         mostVisited.$.dialog.querySelector(
-                                '[slot="title"]')!.textContent!.trim());
+                                '[slot="title"]')!.textContent.trim());
     const policySubtitleContainer =
         mostVisited.$.dialog.querySelector<HTMLElement>(
             '#policySubtitleContainer');
@@ -1467,7 +1515,7 @@ suite('EnterpriseShortcuts', () => {
     let viewOrEditButton =
         $$<HTMLButtonElement>(mostVisited, '#actionMenuViewOrEdit');
     assertFalse(viewOrEditButton.disabled);
-    assertEquals('Edit shortcut', viewOrEditButton.textContent!.trim());
+    assertEquals('Edit shortcut', viewOrEditButton.textContent.trim());
     assertFalse(
         $$<HTMLButtonElement>(mostVisited, '#actionMenuRemove').disabled);
     mostVisited.$.actionMenu.close();
@@ -1481,7 +1529,7 @@ suite('EnterpriseShortcuts', () => {
     viewOrEditButton =
         $$<HTMLButtonElement>(mostVisited, '#actionMenuViewOrEdit');
     assertFalse(viewOrEditButton.disabled);
-    assertEquals('Edit shortcut', viewOrEditButton.textContent!.trim());
+    assertEquals('Edit shortcut', viewOrEditButton.textContent.trim());
     assertTrue(
         $$<HTMLButtonElement>(mostVisited, '#actionMenuRemove').disabled);
     mostVisited.$.actionMenu.close();
@@ -1495,7 +1543,7 @@ suite('EnterpriseShortcuts', () => {
     viewOrEditButton =
         $$<HTMLButtonElement>(mostVisited, '#actionMenuViewOrEdit');
     assertFalse(viewOrEditButton.disabled);
-    assertEquals('Details', viewOrEditButton.textContent!.trim());
+    assertEquals('Details', viewOrEditButton.textContent.trim());
     assertFalse(
         $$<HTMLButtonElement>(mostVisited, '#actionMenuRemove').disabled);
     mostVisited.$.actionMenu.close();
@@ -1509,7 +1557,7 @@ suite('EnterpriseShortcuts', () => {
     viewOrEditButton =
         $$<HTMLButtonElement>(mostVisited, '#actionMenuViewOrEdit');
     assertFalse(viewOrEditButton.disabled);
-    assertEquals('Details', viewOrEditButton.textContent!.trim());
+    assertEquals('Details', viewOrEditButton.textContent.trim());
     assertTrue(
         $$<HTMLButtonElement>(mostVisited, '#actionMenuRemove').disabled);
   });

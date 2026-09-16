@@ -8,19 +8,22 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/component_export.h"
-#include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/process/process.h"
+#include "base/memory/weak_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "ipc/ipc.mojom-forward.h"
-#include "ipc/ipc_message.h"
-#include "ipc/ipc_sender.h"
+#include "ipc/ipc.mojom.h"
+#include "ipc/ipc_message_pipe_reader.h"
 #include "mojo/public/cpp/bindings/generic_pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
@@ -34,6 +37,7 @@
 namespace IPC {
 
 class Listener;
+class MojoBootstrap;
 class UrgentMessageObserver;
 
 //------------------------------------------------------------------------------
@@ -41,9 +45,10 @@ class UrgentMessageObserver;
 // http://www.chromium.org/developers/design-documents/inter-process-communication
 // for overview of IPC in Chromium.
 
-// Channels are implemented using mojo message pipes (via IPC::ChannelMojo).
+// Channels are implemented using mojo message pipes.
 
-class COMPONENT_EXPORT(IPC) Channel : public Sender {
+class COMPONENT_EXPORT(IPC) Channel final
+    : public internal::MessagePipeReader::Delegate {
   // Security tests need access to the pipe handle.
   friend class ChannelTest;
 
@@ -79,31 +84,6 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
     // has received the message that contains the FD. When we
     // receive it again on the sender side, we close the FD.
     CLOSE_FD_MESSAGE_TYPE = HELLO_MESSAGE_TYPE - 1
-  };
-
-  // Helper interface a Channel may implement to expose support for associated
-  // Mojo interfaces.
-  class COMPONENT_EXPORT(IPC) AssociatedInterfaceSupport {
-   public:
-    using GenericAssociatedInterfaceFactory =
-        base::RepeatingCallback<void(mojo::ScopedInterfaceEndpointHandle)>;
-
-    virtual ~AssociatedInterfaceSupport() {}
-
-    // Returns a ThreadSafeForwarded for this channel which can be used to
-    // safely send mojom::Channel requests from arbitrary threads.
-    virtual std::unique_ptr<mojo::ThreadSafeForwarder<mojom::Channel>>
-    CreateThreadSafeChannel() = 0;
-
-    // Adds an interface factory to this channel for interface |name|. Must be
-    // safe to call from any thread.
-    virtual void AddGenericAssociatedInterface(
-        const std::string& name,
-        const GenericAssociatedInterfaceFactory& factory) = 0;
-
-    // Requests an associated interface from the remote endpoint.
-    virtual void GetRemoteAssociatedInterface(
-        mojo::GenericPendingAssociatedReceiver receiver) = 0;
   };
 
   // The maximum message size in bytes. Attempting to receive a message of this
@@ -144,7 +124,7 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
       const scoped_refptr<base::SingleThreadTaskRunner>& ipc_task_runner,
       const scoped_refptr<base::SingleThreadTaskRunner>& proxy_task_runner);
 
-  ~Channel() override;
+  ~Channel();
 
   // Connect the pipe.  On the server side, this will initiate
   // waiting for connections.  On the client, it attempts to
@@ -154,47 +134,69 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
   //
   // The subclass implementation must call WillConnect() at the beginning of its
   // implementation.
-  [[nodiscard]] virtual bool Connect() = 0;
+  [[nodiscard]] bool Connect();
 
   // Pause the channel. Subsequent sends will be queued internally until
   // Unpause() is called and the channel is flushed either by Unpause() or a
   // subsequent call to Flush().
-  virtual void Pause() = 0;
+  void Pause();
 
   // Unpause the channel. This allows subsequent Send() calls to transmit
-  // messages immediately, without queueing. If |flush| is true, any messages
-  // queued while paused will be flushed immediately upon unpausing. Otherwise
-  // you must call Flush() explicitly.
+  // messages immediately, without queueing. If |flush| is true, any
+  // messages queued while paused will be flushed immediately upon
+  // unpausing. Otherwise you must call Flush() explicitly.
   //
-  // Not all implementations support Unpause(). See ConnectPaused() above for
-  // details.
-  virtual void Unpause(bool flush) = 0;
+  // Not all implementations support Unpause(). See ConnectPaused() above
+  // for details.
+  void Unpause(bool flush);
 
-  // Manually flush the pipe. This is only useful exactly once, and only after
-  // a call to Unpause(false), in order to explicitly flush out any
+  // Manually flush the pipe. This is only useful exactly once, and only
+  // after a call to Unpause(false), in order to explicitly flush out any
   // messages which were queued prior to unpausing.
   //
   // Not all implementations support Flush(). See ConnectPaused() above for
   // details.
-  virtual void Flush() = 0;
+  void Flush();
 
   // Close this Channel explicitly.  May be called multiple times.
-  // On POSIX calling close on an IPC channel that listens for connections will
-  // cause it to close any accepted connections, and it will stop listening for
-  // new connections. If you just want to close the currently accepted
-  // connection and listen for new ones, use ResetToAcceptingConnectionState.
-  virtual void Close() = 0;
+  // On POSIX calling close on an IPC channel that listens for connections
+  // will cause it to close any accepted connections, and it will stop
+  // listening for new connections. If you just want to close the currently
+  // accepted connection and listen for new ones, use
+  // ResetToAcceptingConnectionState.
+  void Close();
 
-  // Gets a helper for associating Mojo interfaces with this Channel.
-  //
-  // NOTE: Not all implementations support this.
-  virtual AssociatedInterfaceSupport* GetAssociatedInterfaceSupport() = 0;
+  // Channel support for associated Mojo interfaces.
+  using GenericAssociatedInterfaceFactory =
+      base::RepeatingCallback<void(mojo::ScopedInterfaceEndpointHandle)>;
 
-  // Sets the UrgentMessageObserver for this channel. `observer` must outlive
-  // the channel.
+  // Returns a ThreadSafeForwarded for this channel which can be used to
+  // safely send mojom::Channel requests from arbitrary threads.
+  std::unique_ptr<mojo::ThreadSafeForwarder<mojom::Channel>>
+  CreateThreadSafeChannel();
+
+  // Adds an interface factory to this channel for interface |name|. Must be
+  // safe to call from any thread.
+  void AddGenericAssociatedInterface(
+      const std::string& name,
+      const GenericAssociatedInterfaceFactory& factory);
+
+  // Requests an associated interface from the remote endpoint.
+  void GetRemoteAssociatedInterface(
+      mojo::GenericPendingAssociatedReceiver receiver);
+
+  // Sets the UrgentMessageObserver for this channel. `observer` must
+  // outlive the channel.
   //
   // Only channel associated mojo interfaces support urgent messages.
-  virtual void SetUrgentMessageObserver(UrgentMessageObserver* observer) = 0;
+  void SetUrgentMessageObserver(UrgentMessageObserver* observer);
+
+  // MessagePipeReader::Delegate
+  void OnPeerPidReceived(int32_t peer_pid) override;
+  void OnBrokenDataReceived() override;
+  void OnPipeError() override;
+  void OnAssociatedInterfaceRequest(
+      mojo::GenericPendingAssociatedReceiver receiver) override;
 
   // Generates a channel ID that's non-predictable and unique.
   static std::string GenerateUniqueRandomChannelID();
@@ -207,13 +209,36 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
   static int GetGlobalPid();
 #endif
 
- protected:
-  // Subclasses must call this method at the beginning of their implementation
-  // of Connect().
+ private:
+  Channel(mojo::ScopedMessagePipeHandle handle,
+          Mode mode,
+          Listener* listener,
+          const scoped_refptr<base::SingleThreadTaskRunner>& ipc_task_runner,
+          const scoped_refptr<base::SingleThreadTaskRunner>& proxy_task_runner);
+
+  void ForwardMessage(mojo::Message message);
+  void FinishConnectOnIOThread();
+
   void WillConnect();
 
- private:
   bool did_start_connect_ = false;
+  base::WeakPtr<Channel> weak_ptr_;
+
+  // A TaskRunner which runs tasks on the Channel's owning thread.
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+  const mojo::MessagePipeHandle pipe_;
+
+  std::unique_ptr<MojoBootstrap> bootstrap_;
+  raw_ptr<Listener, DanglingUntriaged> listener_;
+
+  std::unique_ptr<internal::MessagePipeReader> message_reader_;
+
+  base::Lock associated_interface_lock_;
+  std::map<std::string, GenericAssociatedInterfaceFactory>
+      associated_interfaces_;
+
+  base::WeakPtrFactory<Channel> weak_factory_{this};
 };
 
 }  // namespace IPC

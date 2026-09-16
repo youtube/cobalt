@@ -152,6 +152,12 @@ public final class DeviceInfo {
         return ret;
     }
 
+    @CalledByNative
+    public static String getDeviceName() {
+        return Settings.Global.getString(
+                ContextUtils.getApplicationContext().getContentResolver(), "device_name");
+    }
+
     public static boolean isInitializedForTesting() {
         return sInitialized;
     }
@@ -226,16 +232,17 @@ public final class DeviceInfo {
         mIDeviceInfo = new IDeviceInfo();
         sInitialized = true;
         PackageInfo gmsPackageInfo = PackageUtils.getPackageInfo("com.google.android.gms", 0);
+        String gmsVersionCode;
         if (gmsPackageInfo != null) {
             mGmsAppInfo = gmsPackageInfo.applicationInfo;
-            mIDeviceInfo.gmsVersionCode =
-                    gmsPackageInfo != null
-                            ? String.valueOf(packageVersionCode(gmsPackageInfo))
-                            : "gms versionCode not available.";
+            gmsVersionCode = String.valueOf(packageVersionCode(gmsPackageInfo));
+        } else {
+            gmsVersionCode = "gms versionCode not available.";
         }
         if (sGmsVersionCodeForTesting != null) {
-            mIDeviceInfo.gmsVersionCode = sGmsVersionCodeForTesting;
+            gmsVersionCode = sGmsVersionCodeForTesting;
         }
+        mIDeviceInfo.gmsVersionCode = gmsVersionCode;
 
         Context appContext = ContextUtils.getApplicationContext();
         PackageManager pm = appContext.getPackageManager();

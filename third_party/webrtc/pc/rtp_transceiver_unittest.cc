@@ -72,6 +72,7 @@ class RtpTransceiverTest : public testing::Test {
       : env_(CreateTestEnvironment()),
         dependencies_(MakeDependencies()),
         context_(ConnectionContext::Create(env_, &dependencies_)),
+        media_engine_ref_(context_),
         codec_lookup_helper_(context_.get(), env_.field_trials()) {}
 
  protected:
@@ -79,7 +80,7 @@ class RtpTransceiverTest : public testing::Test {
   FakeMediaEngine* media_engine() {
     // We know this cast is safe because we supplied the fake implementation
     // in MakeDependencies().
-    return static_cast<FakeMediaEngine*>(context_->media_engine());
+    return static_cast<FakeMediaEngine*>(media_engine_ref_.media_engine());
   }
   ConnectionContext* context() { return context_.get(); }
   CodecLookupHelper* codec_lookup_helper() { return &codec_lookup_helper_; }
@@ -102,6 +103,7 @@ class RtpTransceiverTest : public testing::Test {
   Environment env_;
   PeerConnectionFactoryDependencies dependencies_;
   scoped_refptr<ConnectionContext> context_;
+  ConnectionContext::MediaEngineReference media_engine_ref_;
   FakeCodecLookupHelper codec_lookup_helper_;
 };
 
@@ -209,10 +211,6 @@ TEST_F(RtpTransceiverUnifiedPlanTest, StopSetsDirection) {
   scoped_refptr<RtpTransceiver> transceiver =
       CreateTransceiver(sender, receiver);
 
-  EXPECT_CALL(*receiver.get(), Stop());
-  EXPECT_CALL(*receiver.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender.get(), Stop());
 
   EXPECT_EQ(RtpTransceiverDirection::kInactive, transceiver->direction());
   EXPECT_FALSE(transceiver->current_direction());
@@ -604,20 +602,10 @@ class RtpTransceiverTestForHeaderExtensions
 };
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, OffersChannelManagerList) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   EXPECT_EQ(transceiver_->GetHeaderExtensionsToNegotiate(), extensions_);
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, ModifiesDirection) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   auto modified_extensions = extensions_;
   modified_extensions[0].direction = RtpTransceiverDirection::kSendOnly;
   EXPECT_TRUE(
@@ -642,11 +630,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, ModifiesDirection) {
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, AcceptsStoppedExtension) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   auto modified_extensions = extensions_;
   modified_extensions[0].direction = RtpTransceiverDirection::kStopped;
   EXPECT_TRUE(
@@ -656,11 +639,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, AcceptsStoppedExtension) {
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsDifferentSize) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   auto modified_extensions = extensions_;
   modified_extensions.pop_back();
 
@@ -670,11 +648,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsDifferentSize) {
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsChangedUri) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   auto modified_extensions = extensions_;
   ASSERT_TRUE(!modified_extensions.empty());
   modified_extensions[0].uri = "http://webrtc.org";
@@ -685,11 +658,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsChangedUri) {
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsReorder) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   auto modified_extensions = extensions_;
   ASSERT_GE(modified_extensions.size(), 2u);
   std::swap(modified_extensions[0], modified_extensions[1]);
@@ -701,11 +669,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, RejectsReorder) {
 
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        RejectsStoppedMandatoryExtensions) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   std::vector<RtpHeaderExtensionCapability> modified_extensions = extensions_;
   // Attempting to stop the mandatory MID extension.
   modified_extensions[2].direction = RtpTransceiverDirection::kStopped;
@@ -716,10 +679,6 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        NoNegotiatedHdrExtsWithoutChannel) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
   EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
               ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped),
@@ -734,18 +693,9 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        NoNegotiatedHdrExtsWithChannelWithoutNegotiation) {
   const std::string content_name("my_mid");
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_)).WillRepeatedly(Return());
-  EXPECT_CALL(*receiver_.get(), Stop()).WillRepeatedly(Return());
-  EXPECT_CALL(*sender_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
-  auto mock_channel_ptr = mock_channel.get();
-  EXPECT_CALL(*mock_channel, SetFirstPacketReceivedCallback(_));
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
-  EXPECT_CALL(*mock_channel, voice_media_send_channel())
-      .WillRepeatedly(Return(nullptr));
   EXPECT_CALL(*mock_channel, mid()).WillRepeatedly(ReturnRef(content_name));
   EXPECT_CALL(*mock_channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
   transceiver_->SetChannel(std::move(mock_channel),
@@ -760,21 +710,13 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped)));
 
-  EXPECT_CALL(*mock_channel_ptr, SetFirstPacketReceivedCallback(_));
   ClearChannel();
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
   const std::string content_name("my_mid");
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_)).WillRepeatedly(Return());
-  EXPECT_CALL(*receiver_.get(), Stop()).WillRepeatedly(Return());
-  EXPECT_CALL(*sender_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
 
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
-  auto mock_channel_ptr = mock_channel.get();
-  EXPECT_CALL(*mock_channel, SetFirstPacketReceivedCallback(_));
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*mock_channel, voice_media_send_channel())
@@ -800,17 +742,44 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
                                 RtpTransceiverDirection::kStopped),
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped)));
-  EXPECT_CALL(*mock_channel_ptr, SetFirstPacketReceivedCallback(_));
+  ClearChannel();
+}
+
+TEST_F(RtpTransceiverTestForHeaderExtensions,
+       ReturnsNegotiatedHdrExtsOnPrAnswer) {
+  const std::string content_name("my_mid");
+
+  auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
+  EXPECT_CALL(*mock_channel, media_type())
+      .WillRepeatedly(Return(MediaType::AUDIO));
+  EXPECT_CALL(*mock_channel, voice_media_send_channel())
+      .WillRepeatedly(Return(nullptr));
+  EXPECT_CALL(*mock_channel, mid()).WillRepeatedly(ReturnRef(content_name));
+  EXPECT_CALL(*mock_channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
+
+  RtpHeaderExtensions extensions = {RtpExtension("uri1", 1),
+                                    RtpExtension("uri2", 2)};
+  AudioContentDescription description;
+  description.set_rtp_header_extensions(extensions);
+  transceiver_->OnNegotiationUpdate(SdpType::kPrAnswer, &description);
+
+  transceiver_->SetChannel(std::move(mock_channel),
+                           [](const std::string&) { return nullptr; });
+
+  EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
+              ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped)));
   ClearChannel();
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        ReturnsNegotiatedHdrExtsSecondTime) {
-  EXPECT_CALL(*receiver_.get(), Stop());
-  EXPECT_CALL(*receiver_.get(), SetMediaChannel(_));
-  EXPECT_CALL(*sender_.get(), SetTransceiverAsStopped());
-  EXPECT_CALL(*sender_.get(), Stop());
-
   RtpHeaderExtensions extensions = {RtpExtension("uri1", 1),
                                     RtpExtension("uri2", 2)};
   AudioContentDescription description;

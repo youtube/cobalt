@@ -50,7 +50,6 @@ namespace {
 using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Mock;
 using ::testing::NiceMock;
@@ -225,14 +224,13 @@ TEST(FrameCadenceAdapterTest, ForwardsFramesDelayed) {
     EXPECT_CALL(callback, OnFrame).Times(0);
     adapter->OnFrame(frame);
     EXPECT_CALL(callback, OnFrame)
-        .WillOnce(Invoke([&](Timestamp post_time, bool,
-                             const VideoFrame& frame) {
+        .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
           EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
           EXPECT_EQ(frame.timestamp_us(),
                     original_timestamp_us + index * kNumMicrosecsPerSec);
           EXPECT_EQ(frame.ntp_time_ms(),
                     original_ntp_time.ToMs() + index * kNumMillisecsPerSec);
-        }));
+        });
     time_controller.AdvanceTime(TimeDelta::Seconds(1));
     frame = CreateFrameWithTimestamps(&time_controller);
   }
@@ -308,33 +306,33 @@ TEST(FrameCadenceAdapterTest, RepeatsFramesDelayed) {
   adapter->OnFrame(frame);
 
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp post_time, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
         EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
         EXPECT_EQ(frame.timestamp_us(), original_timestamp_us);
         EXPECT_EQ(frame.ntp_time_ms(), original_ntp_time.ToMs());
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
   Mock::VerifyAndClearExpectations(&callback);
 
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp post_time, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
         EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
         EXPECT_EQ(frame.timestamp_us(),
                   original_timestamp_us + kNumMicrosecsPerSec);
         EXPECT_EQ(frame.ntp_time_ms(),
                   original_ntp_time.ToMs() + kNumMillisecsPerSec);
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
   Mock::VerifyAndClearExpectations(&callback);
 
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp post_time, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
         EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
         EXPECT_EQ(frame.timestamp_us(),
                   original_timestamp_us + 2 * kNumMicrosecsPerSec);
         EXPECT_EQ(frame.ntp_time_ms(),
                   original_ntp_time.ToMs() + 2 * kNumMillisecsPerSec);
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
 }
 
@@ -353,17 +351,17 @@ TEST(FrameCadenceAdapterTest, SetsIsRepeatFrameFlag) {
   auto frame = CreateFrameWithTimestamps(&time_controller);
   adapter->OnFrame(frame);
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp, bool, const VideoFrame& frame) {
         EXPECT_FALSE(frame.is_repeat_frame());
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
   Mock::VerifyAndClearExpectations(&callback);
 
   // Expect the repeated frame to have is_repeat_frame set to true.
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp, bool, const VideoFrame& frame) {
         EXPECT_TRUE(frame.is_repeat_frame());
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
   Mock::VerifyAndClearExpectations(&callback);
 
@@ -371,9 +369,9 @@ TEST(FrameCadenceAdapterTest, SetsIsRepeatFrameFlag) {
   auto new_frame = CreateFrameWithTimestamps(&time_controller);
   adapter->OnFrame(new_frame);
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp, bool, const VideoFrame& frame) {
         EXPECT_FALSE(frame.is_repeat_frame());
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
 }
 
@@ -398,19 +396,19 @@ TEST(FrameCadenceAdapterTest,
   // Send one frame, expect a repeat.
   adapter->OnFrame(CreateFrame());
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp post_time, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
         EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
         EXPECT_EQ(frame.timestamp_us(), 0);
         EXPECT_EQ(frame.ntp_time_ms(), 0);
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
   Mock::VerifyAndClearExpectations(&callback);
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp post_time, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp post_time, bool, const VideoFrame& frame) {
         EXPECT_EQ(post_time, time_controller.GetClock()->CurrentTime());
         EXPECT_EQ(frame.timestamp_us(), 0);
         EXPECT_EQ(frame.ntp_time_ms(), 0);
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
 }
 
@@ -439,11 +437,11 @@ TEST(FrameCadenceAdapterTest, StopsRepeatingFramesDelayed) {
   // Send the new frame at 2.5s, which should appear after 3.5s.
   adapter->OnFrame(CreateFrameWithTimestamps(&time_controller));
   EXPECT_CALL(callback, OnFrame)
-      .WillOnce(Invoke([&](Timestamp, bool, const VideoFrame& frame) {
+      .WillOnce([&](Timestamp, bool, const VideoFrame& frame) {
         EXPECT_EQ(frame.timestamp_us(), 5 * kNumMicrosecsPerSec / 2);
         EXPECT_EQ(frame.ntp_time_ms(),
                   original_ntp_time.ToMs() + 5u * kNumMillisecsPerSec / 2);
-      }));
+      });
   time_controller.AdvanceTime(TimeDelta::Seconds(1));
 }
 
@@ -1102,7 +1100,7 @@ TEST(FrameCadenceAdapterRealTimeTest, TimestampsDoNotDrift) {
     constexpr int kSleepMs = kNumMillisecsPerSec / 2;
     EXPECT_CALL(callback, OnFrame)
         .WillRepeatedly(
-            Invoke([&](Timestamp, bool, const VideoFrame& incoming_frame) {
+            [&](Timestamp, bool, const VideoFrame& incoming_frame) {
               ++frame_counter;
               // Avoid the first OnFrame and sleep on the second.
               if (frame_counter == 2) {
@@ -1114,7 +1112,7 @@ TEST(FrameCadenceAdapterRealTimeTest, TimestampsDoNotDrift) {
                           original_timestamp_us + kSleepMs);
                 event.Set();
               }
-            }));
+            });
     adapter->OnFrame(frame);
   });
   event.Wait(Event::kForever);

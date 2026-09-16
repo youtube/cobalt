@@ -1464,7 +1464,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
-  F(ResumeHandler, const Value* cont_ref, const BranchDepthImmediate& br_imm)  \
+  F(ResumeHandler, base::Vector<const HandlerCase> handlers,                   \
+    int handler_index, const Value* cont_ref)                                  \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value args[], const Value returns[])                                 \
@@ -4724,15 +4725,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (const HandlerCase& handler : handlers) {
-        if (handler.kind == kOnSuspend) {
+      for (int i = 0; i < handlers.length(); ++i) {
+        if (handlers[i].kind == kOnSuspend) {
           // TODO(thibaudm): Push tag params here.
           Value* suspend_cont =
               Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, suspend_cont,
-                                             handler.maybe_depth.br);
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
+                                             suspend_cont);
           Pop();
-          Control* target = control_at(handler.maybe_depth.br.depth);
+          Control* target = control_at(handlers[i].maybe_depth.br.depth);
           target->br_merge()->reached = true;
         }
       }
@@ -5600,14 +5601,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             (!null_succeeds || !obj.type.is_nullable() ||
              obj.type.is_string_view() || expected_type.is_string_view())) ||
            ((!null_succeeds || !obj.type.is_nullable()) &&
-            (expected_type.representation() == HeapType::kNone ||
-             expected_type.representation() == HeapType::kNoFunc ||
-             expected_type.representation() == HeapType::kNoExtern ||
-             expected_type.representation() == HeapType::kNoExn ||
-             expected_type.representation() == HeapType::kNoneShared ||
-             expected_type.representation() == HeapType::kNoFuncShared ||
-             expected_type.representation() == HeapType::kNoExternShared ||
-             expected_type.representation() == HeapType::kNoExnShared));
+            (expected_type.is_none_type()));
   }
 
   // Checks if {obj} is a subtype of type, thus checking will always
@@ -7773,7 +7767,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // spec doesn't say this explicitly yet, but it's consistent with the rest
     // of Wasm. (Of course such inputs will trap at runtime.) See:
     // https://github.com/WebAssembly/stringref/issues/66
-    if (array.type.is_reference_to(HeapType::kNone)) return array;
+    if (array.type.is_reference_to(GenericKind::kNone)) return array;
     if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
       ModuleTypeIndex ref_index = array.type.ref_index();
       if (VALIDATE(this->module_->has_array(ref_index))) {

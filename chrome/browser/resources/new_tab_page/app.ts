@@ -15,6 +15,7 @@ import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customi
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
+import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
@@ -302,6 +303,13 @@ export class AppElement extends AppElementBase {
       ntpNextFeaturesEnabled_: {type: Boolean},
 
       dropdownIsVisible_: {type: Boolean, reflect: true},
+
+      searchboxInputFocused_: {type: Boolean},
+      composeboxInputFocused_: {type: Boolean},
+      /**
+       * Whether the scrim is shown in Realbox Next.
+       */
+      showScrim_: {type: Boolean, reflect: true},
     };
   }
 
@@ -376,6 +384,9 @@ export class AppElement extends AppElementBase {
   protected accessor ntpNextFeaturesEnabled_: boolean =
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
   protected accessor dropdownIsVisible_: boolean = false;
+  protected accessor searchboxInputFocused_: boolean = false;
+  protected accessor composeboxInputFocused_: boolean = false;
+  protected accessor showScrim_: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -395,6 +406,7 @@ export class AppElement extends AppElementBase {
   private showWebstoreToastListenerId_: number|null = null;
   private pendingComposeboxContextFiles_: ComposeboxFile[] = [];
   private pendingComposeboxText_: string = '';
+  private pendingComposeboxMode_: ComposeboxMode = ComposeboxMode.DEFAULT;
 
   constructor() {
     performance.mark('app-creation-start');
@@ -583,6 +595,7 @@ export class AppElement extends AppElementBase {
     if (!this.modulesEnabled_) {
       this.recordBrowserPromoMetrics_();
     }
+    this.pageHandler_.maybeTriggerAutomaticCustomizeChromePromo();
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -624,6 +637,38 @@ export class AppElement extends AppElementBase {
              ModuleLoadStatus.MODULE_LOAD_IN_PROGRESS)) {
       this.recordBrowserPromoMetrics_();
     }
+
+    if (this.ntpRealboxNextEnabled_ && [
+          'showComposebox_',
+          'searchboxInputFocused_',
+          'composeboxInputFocused_',
+        ].some((prop) => changedPrivateProperties.has(prop))) {
+      /**
+       * The current requirement is that the scrim should be shown when the
+       * focus is placed on one of the input boxes and should be removed when
+       * the focus moves outside.
+       *
+       * The additional OR operation with showComposebox_ is because the logic
+       * does not close Composebox when a click outside is made while Composebox
+       * is opened. What seems to be happening when showComposebox_ is used/not
+       * used are as follows:
+       * - Without it:
+       *   1. A click outside is made.
+       *   2. The focusout event first occurs.
+       *   3. composeboxInputFocused_ is set to false.
+       *   4. The scrim is removed.
+       *   5. The click event fires.
+       *   6. Since there is no scrim, the onclick handle of the scrim is not
+       *      called.
+       * - With it:
+       *   1-3. same as above
+       *   4. The scrim is kept since showComposebox_ is still true.
+       *   5. The onclick handler of the scrim runs and sets showComposebox_ to
+       *      false, and everything works as desired.
+       */
+      this.showScrim_ = this.showComposebox_ || this.searchboxInputFocused_ ||
+          this.composeboxInputFocused_;
+    }
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -657,21 +702,6 @@ export class AppElement extends AppElementBase {
         changedPrivateProperties.has('theme_') ||
         changedPrivateProperties.has('showComposebox_')) {
       this.updateOneGoogleBarAppearance_();
-    }
-
-    if (changedPrivateProperties.has('showComposebox_') &&
-        this.showComposebox_) {
-      const composebox =
-          this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
-      assert(composebox);
-      if (this.pendingComposeboxContextFiles_.length > 0) {
-        composebox.setContext(this.pendingComposeboxContextFiles_);
-        this.pendingComposeboxContextFiles_ = [];
-      }
-      if (this.pendingComposeboxText_) {
-        composebox.setText(this.pendingComposeboxText_);
-        this.pendingComposeboxText_ = '';
-      }
     }
   }
 
@@ -746,8 +776,22 @@ export class AppElement extends AppElementBase {
     }
   }
 
+  protected onComposeboxInitialized_(e: CustomEvent<{
+    initializeComposeboxState:
+        (text: string, files: ComposeboxFile[], mode: ComposeboxMode) => void,
+  }>) {
+    e.detail.initializeComposeboxState(
+        this.pendingComposeboxText_, this.pendingComposeboxContextFiles_,
+        this.pendingComposeboxMode_);
+    this.pendingComposeboxContextFiles_ = [];
+    this.pendingComposeboxText_ = '';
+    this.pendingComposeboxMode_ = ComposeboxMode.DEFAULT;
+  }
+
   protected openComposebox_(e: CustomEvent<{
-      searchboxText: string, contextFiles: ComposeboxFile[],
+    searchboxText: string,
+    contextFiles: ComposeboxFile[],
+    mode: ComposeboxMode,
   }>) {
     if (e.detail.searchboxText) {
       this.pendingComposeboxText_ = e.detail.searchboxText;
@@ -755,6 +799,7 @@ export class AppElement extends AppElementBase {
     if (e.detail.contextFiles && e.detail.contextFiles.length > 0) {
       this.pendingComposeboxContextFiles_ = e.detail.contextFiles;
     }
+    this.pendingComposeboxMode_ = e.detail.mode;
     this.toggleComposebox_();
   }
 
@@ -773,10 +818,7 @@ export class AppElement extends AppElementBase {
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
     const closeComposebox = new CustomEvent('closeComposebox', {
-      detail: {
-        composeboxText: composebox.getText(),
-        contextFiles: composebox.getAndResetContextFiles(),
-      },
+      detail: {composeboxText: composebox.getText()},
       bubbles: true,
       cancelable: true,
     });
@@ -786,13 +828,9 @@ export class AppElement extends AppElementBase {
 
   protected closeComposebox_(e: CustomEvent) {
     const composeboxText = e.detail.composeboxText;
-    const contextFiles = e.detail.contextFiles;
 
     if (composeboxText && composeboxText.trim()) {
       this.$.searchbox.setInputText(composeboxText);
-    }
-    if (contextFiles.length > 0) {
-      this.$.searchbox.setContext(contextFiles);
     }
     const composebox =
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
@@ -1233,6 +1271,17 @@ export class AppElement extends AppElementBase {
 
   protected onDropdownVisibleChanged_(e: CustomEvent<{value: boolean}>) {
     this.dropdownIsVisible_ = e.detail.value;
+  }
+
+  protected onInputFocusChanged_(e: CustomEvent<{value: boolean}>) {
+    switch (e.type) {
+      case 'searchbox-input-focus-changed':
+        this.searchboxInputFocused_ = e.detail.value;
+        break;
+      case 'composebox-input-focus-changed':
+        this.composeboxInputFocused_ = e.detail.value;
+        break;
+    }
   }
 
   protected onRealboxHadSecondarySideChanged_(

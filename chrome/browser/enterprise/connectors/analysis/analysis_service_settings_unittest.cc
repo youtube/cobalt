@@ -19,6 +19,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/enterprise/connectors/core/analysis_settings.h"
+#include "components/enterprise/connectors/core/analysis_test_utils.h"
 #include "components/enterprise/connectors/core/service_provider_config.h"
 #include "content/public/test/browser_task_environment.h"
 #include "storage/browser/file_system/file_system_url.h"
@@ -35,179 +36,30 @@ namespace enterprise_connectors {
 
 namespace {
 
-struct TestParam {
-  TestParam(const char* url,
-            const char* settings_value,
-            AnalysisSettings* expected_settings,
-            DataRegion data_region = DataRegion::NO_PREFERENCE)
-      : url(url),
-        settings_value(settings_value),
-        expected_settings(expected_settings),
-        data_region(data_region) {}
-
-  const char* url;
-  const char* settings_value;
-  raw_ptr<AnalysisSettings> expected_settings;
-  DataRegion data_region;
-};
-
-constexpr char kNormalSettings[] = R"({
-  "service_provider": "%s",
-  %s
-  "enable": [
-    {"url_list": ["*"], "tags": ["dlp", "malware"]},
-  ],
-  "disable": [
-    {"url_list": ["no.dlp.com", "no.dlp.or.malware.ca"], "tags": ["dlp"]},
-    {"url_list": ["no.malware.com", "no.dlp.or.malware.ca"],
-         "tags": ["malware"]},
-    {"url_list": ["scan2.com"], "tags": ["dlp", "malware"]},
-  ],
-  "block_until_verdict": 1,
-  "default_action": "block",
-  "block_password_protected": true,
-  "block_large_files": true,
-  "minimum_data_size": 123,
-})";
-
-constexpr char kOnlyDlpEnabledPatternsSettings[] = R"({
-  "service_provider": "%s",
-  %s
-  "enable": [
-    {"url_list": ["scan1.com", "scan2.com"], "tags": ["dlp"]},
-  ],
-})";
-
-constexpr char kEnablePatternIsNotADictSettings[] = R"({
-  "service_provider": "%s",
-  "enable": [
-    "url_list",
-  ],
-})";
-
-constexpr char kOnlyDlpEnabledPatternsAndIrrelevantSettings[] = R"({
-  "service_provider": "%s",
-  %s
-  "enable": [
-    {"tags": ["dlp", "malware"]},
-    {"url_list": ["scan1.com", "scan2.com"], "tags": ["dlp"]},
-    {"url_list": [], "tags": ["malware"]},
-  ],
-})";
-
-constexpr char kUrlAndSourceDestinationListSettings[] =
-    R"({
-  "service_provider": "%s",
-  "enable": [
-    {
-      "url_list": ["scan1.com", "scan2.com"],
-      "source_destination_list": [
-        {
-          "sources": [{
-            "file_system_type": "ANY"
-          }],
-          "destinations": [{
-            "file_system_type": "ANY"
-          }]
-        }
-      ],
-      "tags": ["dlp"]
-    },
-  ],
-})";
-
-// This string has a dummy field so that the service provider name is filled
-// in there and does not overwrite the verification block.
-constexpr char kNoProviderSettings[] = R"({
-  "dummy": "%s",
-  %s
-  "enable": [
-    {"url_list": ["*"], "tags": ["dlp", "malware"]},
-  ],
-  "disable": [
-    {"url_list": ["no.dlp.com", "no.dlp.or.malware.ca"], "tags": ["dlp"]},
-    {"url_list": ["no.malware.com", "no.dlp.or.malware.ca"],
-         "tags": ["malware"]},
-    {"url_list": ["scan2.com"], "tags": ["dlp", "malware"]},
-  ],
-  "block_until_verdict": 1,
-  "default_action": "block",
-  "block_password_protected": true,
-  "block_large_files": true,
-  "minimum_data_size": 123,
-})";
-
-constexpr char kNoEnabledPatternsSettings[] = R"({
-  "service_provider": "%s",
-  %s
-  "disable": [
-    {"url_list": ["no.dlp.com", "no.dlp.or.malware.ca"], "tags": ["dlp"]},
-    {"url_list": ["no.malware.com", "no.dlp.or.malware.ca"],
-         "tags": ["malware"]},
-    {"url_list": ["scan2.com"], "tags": ["dlp", "malware"]},
-  ],
-  "block_until_verdict": 1,
-  "default_action": "block",
-  "block_password_protected": true,
-  "block_large_files": true,
-})";
-
-constexpr char kNormalSettingsWithCustomMessage[] = R"({
-  "service_provider": "%s",
-  %s
-  "enable": [
-    {"url_list": ["*"], "tags": ["dlp", "malware"]},
-  ],
-  "disable": [
-    {"url_list": ["no.dlp.com", "no.dlp.or.malware.ca"], "tags": ["dlp"]},
-    {"url_list": ["no.malware.com", "no.dlp.or.malware.ca"],
-         "tags": ["malware"]},
-    {"url_list": ["scan2.com"], "tags": ["dlp", "malware"]},
-  ],
-  "block_until_verdict": 1,
-  "default_action": "block",
-  "block_password_protected": true,
-  "block_large_files": true,
-  "minimum_data_size": 123,
-  "custom_messages": [
-    {
-      "message": "dlpabcèéç",
-      "learn_more_url": "http://www.example.com/dlp",
-      "tag": "dlp"
-    },
-    {
-      "message": "malwareabcèéç",
-      "learn_more_url": "http://www.example.com/malware",
-      "tag": "malware"
-    },
-  ],
-})";
-
-constexpr char kNormalSettingsDlpRequiresBypassJustification[] = R"({
-  "service_provider": "%s",
-  %s
-  "enable": [
-    {"url_list": ["*"], "tags": ["dlp", "malware"]},
-  ],
-  "disable": [
-    {"url_list": ["no.dlp.com", "no.dlp.or.malware.ca"], "tags": ["dlp"]},
-    {"url_list": ["no.malware.com", "no.dlp.or.malware.ca"],
-         "tags": ["malware"]},
-    {"url_list": ["scan2.com"], "tags": ["dlp", "malware"]},
-  ],
-  "block_until_verdict": 1,
-  "default_action": "block",
-  "block_password_protected": true,
-  "block_large_files": true,
-  "minimum_data_size": 123,
-  "require_justification_tags": ["dlp"],
-})";
-
-constexpr char kScan1DotCom[] = "https://scan1.com";
-constexpr char kScan2DotCom[] = "https://scan2.com";
-constexpr char kNoDlpDotCom[] = "https://no.dlp.com";
-constexpr char kNoMalwareDotCom[] = "https://no.malware.com";
-constexpr char kNoDlpOrMalwareDotCa[] = "https://no.dlp.or.malware.ca";
+using test::GetExpectedLearnMoreUrlSpecs;
+using test::kEnablePatternIsNotADictSettings;
+using test::kNoDlpDotCom;
+using test::kNoDlpOrMalwareDotCa;
+using test::kNoEnabledPatternsSettings;
+using test::kNoMalwareDotCom;
+using test::kNoProviderSettings;
+using test::kNormalSettings;
+using test::
+    kNormalSettingsDlpRequiresBypassJustification;
+using test::kNormalSettingsWithCustomMessage;
+using test::kOnlyDlpEnabledPatternsAndIrrelevantSettings;
+using test::kOnlyDlpEnabledPatternsSettings;
+using test::kScan1DotCom;
+using test::kScan2DotCom;
+using test::kUrlAndSourceDestinationListSettings;
+using test::NormalDlpAndMalwareSettings;
+using test::NormalDlpSettings;
+using test::NormalMalwareSettings;
+using test::NormalSettingsDlpRequiresBypassJustification;
+using test::NormalSettingsWithCustomMessage;
+using test::NoSettings;
+using test::OnlyDlpEnabledSettings;
+using test::TestParam;
 
 #if BUILDFLAG(IS_CHROMEOS)
 using VolumeInfo = SourceDestinationTestingHelper::VolumeInfo;
@@ -591,25 +443,7 @@ constexpr std::pair<VolumeInfo, VolumeInfo> kDlpNoMalwareVolumePair1 = {
     kMyFilesVolumeInfo, kRemovableVolumeInfo};
 constexpr std::pair<VolumeInfo, VolumeInfo> kDlpNoMalwareVolumePair2 = {
     kDriveVolumeInfo, kRemovableVolumeInfo};
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
-// These URLs can't be added directly to the "expected" settings object, because
-// it's created statically and statically initializing GURLs is prohibited.
-const std::map<std::string, std::string> kExpectedLearnMoreUrlSpecs{
-    {"dlp", "http://www.example.com/dlp"},
-    {"malware", "http://www.example.com/malware"},
-};
-
-AnalysisSettings* OnlyDlpEnabledSettings() {
-  static base::NoDestructor<AnalysisSettings> settings([]() {
-    AnalysisSettings settings;
-    settings.tags = {{"dlp", TagSettings()}};
-    return settings;
-  }());
-  return settings.get();
-}
-
-#if BUILDFLAG(IS_CHROMEOS)
 // These are only used for SourceDestination tests and are unused on non-ash
 // chrome.
 AnalysisSettings* OnlyMalwareEnabledSettings() {
@@ -631,90 +465,14 @@ AnalysisSettings* OnlyDlpAndMalwareEnabledSettings() {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-AnalysisSettings NormalSettingsWithTags(
-    std::map<std::string, TagSettings> tags) {
-  AnalysisSettings settings;
-  settings.tags = std::move(tags);
-  settings.block_until_verdict = BlockUntilVerdict::kBlock;
-  settings.default_action = DefaultAction::kBlock;
-  settings.block_password_protected_files = true;
-  settings.block_large_files = true;
-  settings.minimum_data_size = 123;
-  return settings;
-}
-
-AnalysisSettings* NormalDlpSettings() {
-  static base::NoDestructor<AnalysisSettings> settings(
-      NormalSettingsWithTags({{"dlp", TagSettings()}}));
-  return settings.get();
-}
-
-AnalysisSettings* NormalMalwareSettings() {
-  static base::NoDestructor<AnalysisSettings> settings(
-      NormalSettingsWithTags({{"malware", TagSettings()}}));
-  return settings.get();
-}
-
-AnalysisSettings* NormalDlpAndMalwareSettings() {
-  static base::NoDestructor<AnalysisSettings> settings(NormalSettingsWithTags(
-      {{"dlp", TagSettings()}, {"malware", TagSettings()}}));
-  return settings.get();
-}
-
-AnalysisSettings* NormalSettingsWithCustomMessage() {
-  static base::NoDestructor<AnalysisSettings> settings([]() {
-    AnalysisSettings settings = NormalSettingsWithTags({
-        {
-            "dlp",
-            {
-                .custom_message =
-                    {
-                        .message = u"dlpabcèéç",
-                    },
-            },
-        },
-        {
-            "malware",
-            {
-                .custom_message =
-                    {
-                        .message = u"malwareabcèéç",
-                    },
-            },
-        },
-    });
-    return settings;
-  }());
-  return settings.get();
-}
-
-AnalysisSettings* NormalSettingsDlpRequiresBypassJustification() {
-  static base::NoDestructor<AnalysisSettings> settings([]() {
-    AnalysisSettings settings = NormalSettingsWithTags({
-        {
-            "dlp",
-            {
-                .requires_justification = true,
-            },
-        },
-        {"malware", TagSettings()},
-    });
-    return settings;
-  }());
-  return settings.get();
-}
-
-AnalysisSettings* NoSettings() {
-  return nullptr;
-}
-
 }  // namespace
 
-class AnalysisServiceSettingsTest : public testing::TestWithParam<TestParam> {
+class AnalysisServiceSettingsLocalTest
+    : public testing::TestWithParam<TestParam> {
  public:
   GURL url() const { return GURL(GetParam().url); }
   std::string GetSettingsValue() const {
-    const char* verification = is_cloud_ ? "" : R"(
+    static const char* verification = R"(
       "verification": {
         "linux": ["key"],
         "mac": ["key"],
@@ -723,24 +481,13 @@ class AnalysisServiceSettingsTest : public testing::TestWithParam<TestParam> {
     )";
 
     std::string value = GetParam().settings_value;
-    base::ReplaceFirstSubstringAfterOffset(
-        &value, 0, "%s", is_cloud_ ? "google" : "local_user_agent");
+    base::ReplaceFirstSubstringAfterOffset(&value, 0, "%s", "local_user_agent");
     base::ReplaceFirstSubstringAfterOffset(&value, 0, "%s", verification);
     return value;
   }
   AnalysisSettings* expected_settings() const {
     // Set the GURL field dynamically to avoid static initialization issues.
-    if (GetParam().expected_settings != NoSettings() && is_cloud_) {
-      GURL regionalized_url =
-          GURL(GetServiceProviderConfig()
-                   ->at("google")
-                   .analysis->region_urls[static_cast<size_t>(data_region())]);
-      CloudAnalysisSettings cloud_settings;
-      cloud_settings.analysis_url = regionalized_url;
-      GetParam().expected_settings->cloud_or_local_settings =
-          CloudOrLocalAnalysisSettings(std::move(cloud_settings));
-    }
-    if (GetParam().expected_settings != NoSettings() && !is_cloud_) {
+    if (GetParam().expected_settings != NoSettings()) {
       LocalAnalysisSettings local_settings;
       local_settings.local_path = "path_user";
       local_settings.user_specific = true;
@@ -754,8 +501,9 @@ class AnalysisServiceSettingsTest : public testing::TestWithParam<TestParam> {
       // so it is expected that the malware tag is absent from final settings
       // even when it is included in the policy.
       GetParam().expected_settings->tags.erase("malware");
-      if (GetParam().expected_settings->tags.empty())
+      if (GetParam().expected_settings->tags.empty()) {
         return NoSettings();
+      }
     }
 
     return GetParam().expected_settings;
@@ -763,59 +511,10 @@ class AnalysisServiceSettingsTest : public testing::TestWithParam<TestParam> {
   DataRegion data_region() const { return GetParam().data_region; }
 
  protected:
-  bool is_cloud_ = true;
   content::BrowserTaskEnvironment task_environment_;
 };
 
-TEST_P(AnalysisServiceSettingsTest, CloudTest) {
-  auto settings = base::JSONReader::Read(GetSettingsValue(),
-                                         base::JSON_ALLOW_TRAILING_COMMAS);
-  ASSERT_TRUE(settings.has_value());
-
-  AnalysisServiceSettings service_settings(settings.value(),
-                                           *GetServiceProviderConfig());
-
-  auto analysis_settings =
-      service_settings.GetAnalysisSettings(url(), data_region());
-  ASSERT_EQ((expected_settings() != nullptr), analysis_settings.has_value());
-  if (analysis_settings.has_value()) {
-    ASSERT_EQ(analysis_settings.value().block_until_verdict,
-              expected_settings()->block_until_verdict);
-    ASSERT_EQ(analysis_settings.value().default_action,
-              expected_settings()->default_action);
-    ASSERT_EQ(analysis_settings.value().block_password_protected_files,
-              expected_settings()->block_password_protected_files);
-    ASSERT_EQ(analysis_settings.value().block_large_files,
-              expected_settings()->block_large_files);
-    ASSERT_TRUE(
-        analysis_settings.value().cloud_or_local_settings.is_cloud_analysis());
-    ASSERT_EQ(analysis_settings.value().cloud_or_local_settings.analysis_url(),
-              expected_settings()->cloud_or_local_settings.analysis_url());
-    ASSERT_EQ(analysis_settings.value().minimum_data_size,
-              expected_settings()->minimum_data_size);
-    for (const auto& entry : expected_settings()->tags) {
-      const std::string& tag = entry.first;
-      ASSERT_TRUE(analysis_settings.value().tags.count(entry.first));
-      ASSERT_EQ(analysis_settings.value().tags[tag].custom_message.message,
-                entry.second.custom_message.message);
-      if (!analysis_settings.value()
-               .tags[tag]
-               .custom_message.learn_more_url.is_empty()) {
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
-                  analysis_settings.value()
-                      .tags[tag]
-                      .custom_message.learn_more_url.spec());
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
-                  service_settings.GetLearnMoreUrl(tag).value().spec());
-      }
-      ASSERT_EQ(analysis_settings.value().tags[tag].requires_justification,
-                entry.second.requires_justification);
-    }
-  }
-}
-
-TEST_P(AnalysisServiceSettingsTest, LocalTest) {
-  is_cloud_ = false;
+TEST_P(AnalysisServiceSettingsLocalTest, LocalTest) {
   std::string json_string = GetSettingsValue();
   auto settings =
       base::JSONReader::Read(json_string, base::JSON_ALLOW_TRAILING_COMMAS);
@@ -858,11 +557,11 @@ TEST_P(AnalysisServiceSettingsTest, LocalTest) {
       if (!analysis_settings.value()
                .tags[tag]
                .custom_message.learn_more_url.is_empty()) {
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   analysis_settings.value()
                       .tags[tag]
                       .custom_message.learn_more_url.spec());
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   service_settings.GetLearnMoreUrl(tag).value().spec());
       }
       ASSERT_EQ(analysis_settings.value().tags[tag].requires_justification,
@@ -871,9 +570,10 @@ TEST_P(AnalysisServiceSettingsTest, LocalTest) {
   }
 }
 
+// TODO(crbug.com/444237640): Remove redundant test cases.
 INSTANTIATE_TEST_SUITE_P(
     ,
-    AnalysisServiceSettingsTest,
+    AnalysisServiceSettingsLocalTest,
     testing::Values(
         // Validate that the enabled patterns match the expected patterns.
         TestParam(kScan1DotCom,
@@ -1060,11 +760,11 @@ TEST_P(AnalysisServiceSourceDestinationSettingsTest, CloudTest) {
       if (!analysis_settings.value()
                .tags[tag]
                .custom_message.learn_more_url.is_empty()) {
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   analysis_settings.value()
                       .tags[tag]
                       .custom_message.learn_more_url.spec());
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   service_settings.GetLearnMoreUrl(tag).value().spec());
       }
       ASSERT_EQ(analysis_settings.value().tags[tag].requires_justification,
@@ -1108,11 +808,11 @@ TEST_P(AnalysisServiceSourceDestinationSettingsTest, LocalTest) {
       if (!analysis_settings.value()
                .tags[tag]
                .custom_message.learn_more_url.is_empty()) {
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   analysis_settings.value()
                       .tags[tag]
                       .custom_message.learn_more_url.spec());
-        ASSERT_EQ(kExpectedLearnMoreUrlSpecs.at(tag),
+        ASSERT_EQ(GetExpectedLearnMoreUrlSpecs().at(tag),
                   service_settings.GetLearnMoreUrl(tag).value().spec());
       }
       ASSERT_EQ(analysis_settings.value().tags[tag].requires_justification,

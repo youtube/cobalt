@@ -728,6 +728,7 @@ if (rtc_include_tests) {
         ":fixed_fps_video_frame_writer_adapter_test",
         ":frame_generator_capturer",
         ":frame_generator_impl",
+        ":near_matcher",
         ":perf_test",
         ":rtc_expect_death",
         ":rtp_test_utils",
@@ -826,6 +827,7 @@ if (rtc_include_tests) {
         "fake_vp8_encoder_unittest.cc",
         "frame_generator_capturer_unittest.cc",
         "frame_generator_unittest.cc",
+        "near_matcher_unittest.cc",
         "rtp_file_reader_unittest.cc",
         "rtp_file_writer_unittest.cc",
         "run_loop_unittest.cc",
@@ -1144,6 +1146,16 @@ rtc_library("mock_transport") {
     ":test_support",
     "../api:array_view",
     "../api:transport_api",
+  ]
+}
+
+rtc_source_set("near_matcher") {
+  testonly = true
+  sources = [ "near_matcher.h" ]
+  deps = [
+    "../api/units:time_delta",
+    "../api/units:timestamp",
+    "//third_party/abseil-cpp/absl/strings",
   ]
 }
 

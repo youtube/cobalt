@@ -1717,13 +1717,11 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
-  bool spec_lifetime = is_unified_plan_ &&
-                       !env_.field_trials().IsDisabled("WebRTC-RTP-Lifetime");
   for (const RtpTransceiverStatsInfo& stats : transceiver_stats_infos) {
     if (stats.media_type == MediaType::AUDIO) {
-      ProduceAudioRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
+      ProduceAudioRTPStreamStats_n(timestamp, stats, report);
     } else if (stats.media_type == MediaType::VIDEO) {
-      ProduceVideoRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
+      ProduceVideoRTPStreamStats_n(timestamp, stats, report);
     } else {
       RTC_DCHECK_NOTREACHED();
     }
@@ -1733,7 +1731,6 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
 void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     Timestamp timestamp,
     const RtpTransceiverStatsInfo& stats,
-    bool spec_lifetime,
     RTCStatsReport* report) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -1755,7 +1752,7 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     }
     // Check both packets received and samples received to handle the Insertable
     // Streams use case of receiving media without receiving packets.
-    if (spec_lifetime && voice_receiver_info.packets_received == 0 &&
+    if (is_unified_plan_ && voice_receiver_info.packets_received == 0 &&
         voice_receiver_info.total_samples_received == 0) {
       // The SSRC is known despite not receiving any packets. This happens if
       // SSRC is signalled in the SDP which we should not rely on for getStats.
@@ -1808,7 +1805,7 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     if (!voice_sender_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && !stats.current_direction.has_value()) {
+    if (is_unified_plan_ && !stats.current_direction.has_value()) {
       continue;  // The SSRC is known but the O/A has not completed.
     }
     auto outbound_audio = CreateOutboundRTPStreamStatsFromVoiceSenderInfo(
@@ -1852,7 +1849,6 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
 void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     Timestamp timestamp,
     const RtpTransceiverStatsInfo& stats,
-    bool spec_lifetime,
     RTCStatsReport* report) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -1872,7 +1868,7 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     }
     // Check both packets received and frames received to handle the Insertable
     // Streams use case of receiving media without receiving packets.
-    if (spec_lifetime && video_receiver_info.packets_received == 0 &&
+    if (is_unified_plan_ && video_receiver_info.packets_received == 0 &&
         video_receiver_info.frames_received == 0) {
       // The SSRC is known despite not receiving any packets. This happens if
       // SSRC is signalled in the SDP which we should not rely on for getStats.
@@ -1917,7 +1913,7 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     if (!video_sender_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && !stats.current_direction.has_value()) {
+    if (is_unified_plan_ && !stats.current_direction.has_value()) {
       continue;  // The SSRC is known but the O/A has not completed.
     }
     auto outbound_video = CreateOutboundRTPStreamStatsFromVideoSenderInfo(

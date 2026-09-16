@@ -798,6 +798,8 @@
 
   # --experimental-wasm-custom-descriptors
   'regress/wasm/regress-433984397': [SKIP],
+  'regress/wasm/regress-447613211': [SKIP],
+  'regress/wasm/regress-448404198': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
@@ -2443,6 +2445,7 @@
   'regress/wasm/regress-384549252': [SKIP],
   'regress/wasm/regress-395214627': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
+  'regress/wasm/regress-450694568': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2548,8 +2551,7 @@
   # These tests need to disable conservative stack scanning and are thus not
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }], # direct_handle
 
 ##############################################################################
@@ -2933,9 +2935,12 @@
   'ignition/regress-672027': [PASS, SLOW],
 
   # Test checks that object is reclaimed but cannot use async GCs.
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == conservative_stack_scanning
+
+['variant == precise_pinning', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == precise_pinning
 
 ##############################################################################
 ['variant == code_serializer', {

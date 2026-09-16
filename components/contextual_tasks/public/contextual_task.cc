@@ -23,7 +23,8 @@ Thread::Thread(ThreadType type,
 Thread::Thread(const Thread& other) = default;
 Thread::~Thread() = default;
 
-ContextualTask::ContextualTask(const base::Uuid& task_id) : task_id_(task_id) {}
+ContextualTask::ContextualTask(const base::Uuid& task_id, bool is_ephemeral)
+    : task_id_(task_id), is_ephemeral_(is_ephemeral) {}
 ContextualTask::~ContextualTask() = default;
 
 ContextualTask::ContextualTask(const ContextualTask& other) = default;
@@ -79,28 +80,37 @@ std::vector<UrlResource> ContextualTask::GetUrlResources() const {
   return url_resources_;
 }
 
-void ContextualTask::RemoveUrl(const GURL& url) {
-  url_resources_.erase(
-      std::remove_if(url_resources_.begin(), url_resources_.end(),
-                     [&](const auto& resource) { return resource.url == url; }),
-      url_resources_.end());
+std::optional<base::Uuid> ContextualTask::RemoveUrl(const GURL& url) {
+  auto it =
+      std::find_if(url_resources_.begin(), url_resources_.end(),
+                   [&](const auto& resource) { return resource.url == url; });
+
+  if (it != url_resources_.end()) {
+    base::Uuid removed_id = it->url_id;
+    url_resources_.erase(it);
+    return removed_id;
+  }
+
+  return std::nullopt;
 }
 
-std::vector<SessionID> ContextualTask::GetSessionIds() const {
-  return session_ids_;
+std::vector<SessionID> ContextualTask::GetTabIds() const {
+  return tab_ids_;
 }
 
-void ContextualTask::AddSessionId(SessionID session_id) {
-  if (std::find(session_ids_.begin(), session_ids_.end(), session_id) ==
-      session_ids_.end()) {
-    session_ids_.push_back(session_id);
+void ContextualTask::AddTabId(SessionID tab_id) {
+  if (std::find(tab_ids_.begin(), tab_ids_.end(), tab_id) == tab_ids_.end()) {
+    tab_ids_.push_back(tab_id);
   }
 }
 
-void ContextualTask::RemoveSessionId(SessionID session_id) {
-  session_ids_.erase(
-      std::remove(session_ids_.begin(), session_ids_.end(), session_id),
-      session_ids_.end());
+void ContextualTask::RemoveTabId(SessionID tab_id) {
+  tab_ids_.erase(std::remove(tab_ids_.begin(), tab_ids_.end(), tab_id),
+                 tab_ids_.end());
+}
+
+void ContextualTask::ClearTabIds() {
+  tab_ids_.clear();
 }
 
 }  // namespace contextual_tasks

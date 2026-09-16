@@ -239,11 +239,11 @@ TEST_P(AudioStateTest, RecordedAudioArrivesAtSingleStream) {
           ::testing::Field(&AudioFrame::num_channels_, ::testing::Eq(2u)))))
       .WillOnce(
           // Verify that channels are not swapped by default.
-          ::testing::Invoke([](AudioFrame* audio_frame) {
+          [](AudioFrame* audio_frame) {
             auto levels = ComputeChannelLevels(audio_frame);
             EXPECT_LT(0u, levels[0]);
             EXPECT_EQ(0u, levels[1]);
-          }));
+          });
   MockAudioProcessing* ap =
       GetParam().use_null_audio_processing
           ? nullptr
@@ -289,10 +289,10 @@ TEST_P(AudioStateTest, RecordedAudioArrivesAtMultipleStreams) {
           ::testing::Field(&AudioFrame::num_channels_, ::testing::Eq(1u)))))
       .WillOnce(
           // Verify that there is output signal.
-          ::testing::Invoke([](AudioFrame* audio_frame) {
+          [](AudioFrame* audio_frame) {
             auto levels = ComputeChannelLevels(audio_frame);
             EXPECT_LT(0u, levels[0]);
-          }));
+          });
   EXPECT_CALL(
       stream_2,
       SendAudioDataForMock(::testing::AllOf(
@@ -300,10 +300,10 @@ TEST_P(AudioStateTest, RecordedAudioArrivesAtMultipleStreams) {
           ::testing::Field(&AudioFrame::num_channels_, ::testing::Eq(1u)))))
       .WillOnce(
           // Verify that there is output signal.
-          ::testing::Invoke([](AudioFrame* audio_frame) {
+          [](AudioFrame* audio_frame) {
             auto levels = ComputeChannelLevels(audio_frame);
             EXPECT_LT(0u, levels[0]);
-          }));
+          });
   MockAudioProcessing* ap =
       static_cast<MockAudioProcessing*>(audio_state->audio_processing());
   if (ap) {
@@ -346,11 +346,11 @@ TEST_P(AudioStateTest, EnableChannelSwap) {
   EXPECT_CALL(stream, SendAudioDataForMock(_))
       .WillOnce(
           // Verify that channels are swapped.
-          ::testing::Invoke([](AudioFrame* audio_frame) {
+          [](AudioFrame* audio_frame) {
             auto levels = ComputeChannelLevels(audio_frame);
             EXPECT_EQ(0u, levels[0]);
             EXPECT_LT(0u, levels[1]);
-          }));
+          });
 
   auto audio_data = Create10msTestData(kSampleRate, kNumChannels);
   uint32_t new_mic_level = 667;
@@ -371,13 +371,12 @@ TEST_P(AudioStateTest,
   helper.mixer()->AddSource(&fake_source);
 
   EXPECT_CALL(fake_source, GetAudioFrameWithInfo(_, _))
-      .WillOnce(
-          ::testing::Invoke([](int sample_rate_hz, AudioFrame* audio_frame) {
-            audio_frame->sample_rate_hz_ = sample_rate_hz;
-            audio_frame->samples_per_channel_ = sample_rate_hz / 100;
-            audio_frame->num_channels_ = kNumberOfChannels;
-            return AudioMixer::Source::AudioFrameInfo::kNormal;
-          }));
+      .WillOnce([](int sample_rate_hz, AudioFrame* audio_frame) {
+        audio_frame->sample_rate_hz_ = sample_rate_hz;
+        audio_frame->samples_per_channel_ = sample_rate_hz / 100;
+        audio_frame->num_channels_ = kNumberOfChannels;
+        return AudioMixer::Source::AudioFrameInfo::kNormal;
+      });
 
   int16_t audio_buffer[kSampleRate / 100 * kNumberOfChannels];
   size_t n_samples_out;

@@ -14,9 +14,15 @@
 #include "components/password_manager/core/browser/password_manager_interface.h"
 #include "url/gurl.h"
 
+class ActorLoginFormFinder;
+
 namespace password_manager {
 class PasswordManagerInterface;
 }  // namespace password_manager
+
+namespace tabs {
+class TabInterface;
+}
 
 namespace actor_login {
 
@@ -36,8 +42,12 @@ class ActorLoginCredentialFiller {
 
   // Attempts to fill the credential provided in the constructor.
   // `password_manager` is used to find the signin form.
+  // `tab` is used if the user needs to re-authenticate. In this case the tab
+  // must be in foreground, otherwise this will result in
+  // `kErrorDeviceReauthRequired`.
   void AttemptLogin(
-      password_manager::PasswordManagerInterface* password_manager);
+      password_manager::PasswordManagerInterface* password_manager,
+      const tabs::TabInterface& tab);
 
  private:
   enum class FieldType { kUsername, kPassword };
@@ -101,6 +111,9 @@ class ActorLoginCredentialFiller {
 
   // Safe to access from everywhere apart from the destructor.
   raw_ptr<password_manager::PasswordManagerClient> client_ = nullptr;
+
+  // Helper object for finding login forms.
+  std::unique_ptr<ActorLoginFormFinder> login_form_finder_;
 
   // The callback to call with the result of the login attempt.
   LoginStatusResultOrErrorReply callback_;

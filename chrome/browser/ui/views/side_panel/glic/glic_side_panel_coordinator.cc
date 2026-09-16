@@ -46,10 +46,7 @@ actions::ActionItem* GetGlicActionItem(actions::ActionItem* root_action_item) {
 GlicSidePanelCoordinator::GlicSidePanelCoordinator(
     tabs::TabInterface* tab,
     SidePanelRegistry* side_panel_registry)
-    : tab_(tab),
-      side_panel_registry_(side_panel_registry),
-      glic_action_(GetGlicActionItem(
-          tab->GetBrowserWindowInterface()->GetActions()->root_action_item())) {
+    : tab_(tab), side_panel_registry_(side_panel_registry) {
   CHECK(base::FeatureList::IsEnabled(features::kGlicMultiInstance));
   auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(
       tab->GetBrowserWindowInterface()->GetProfile());
@@ -80,6 +77,7 @@ void GlicSidePanelCoordinator::CreateAndRegisterEntry() {
       base::BindRepeating(&GlicSidePanelCoordinator::GetPreferredWidth,
                           base::Unretained(this)));
   entry->set_should_show_header(false);
+  entry->set_should_show_outline(false);
   entry->set_should_show_ephemerally_in_toolbar(false);
   entry->AddObserver(this);
   entry_ = entry->GetWeakPtr();
@@ -123,6 +121,12 @@ void GlicSidePanelCoordinator::OnEntryWillHide(
   NotifyStateChanged();
 }
 
+void GlicSidePanelCoordinator::OnEntryHideCancelled(SidePanelEntry* entry) {
+  CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
+  state_ = State::kShown;
+  NotifyStateChanged();
+}
+
 void GlicSidePanelCoordinator::OnEntryShown(SidePanelEntry* entry) {
   CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
   state_ = State::kShown;
@@ -143,7 +147,9 @@ void GlicSidePanelCoordinator::OnGlicEnabledChanged() {
   // Active tab sets visibility of toolbar action.
   // TODO: Consider moving this responsibility to a browser level singleton
   if (tab_->IsActivated()) {
-    glic_action_->SetVisible(is_allowed);
+    GetGlicActionItem(
+        tab_->GetBrowserWindowInterface()->GetActions()->root_action_item())
+        ->SetVisible(is_allowed);
   }
   // Register / deregister side panel entry.
   if (is_allowed) {

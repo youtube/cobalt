@@ -4341,13 +4341,8 @@ void Document::ImplicitClose() {
   if (SvgExtensions())
     AccessSVGExtensions().StartAnimations();
 
-  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && IsHTMLDocument() &&
-      responsive_embedded_sizing_) {
-    if (auto* owner = GetFrame()->Owner()) {
-      UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
-      View()->RecordNaturalDimensions();
-      owner->NaturalSizingInfoChanged();
-    }
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled()) {
+    RequestResizeResponsiveIframe();
   }
 }
 
@@ -8275,15 +8270,39 @@ void Document::ColorSchemeMetaChanged() {
   GetStyleEngine().SetPageColorSchemes(color_scheme);
 }
 
+void Document::RequestResizeResponsiveIframe(ExceptionState* exception_state) {
+  DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
+  if (!IsHTMLDocument() || !responsive_embedded_sizing_) {
+    if (exception_state) {
+      exception_state->ThrowDOMException(
+          DOMExceptionCode::kNotAllowedError,
+          "Requesting resize is allowed only from HTML documents "
+          "with `responsive-embedded-sizing` meta tags.");
+    }
+    return;
+  }
+  if (auto* owner = GetFrame()->Owner()) {
+    UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
+    if (View()->RecordNaturalDimensions()) {
+      owner->NaturalSizingInfoChanged();
+    }
+  } else if (exception_state) {
+    exception_state->ThrowDOMException(
+        DOMExceptionCode::kNotAllowedError,
+        "Requesting resize is allowed only from IFRAME content.");
+  }
+}
+
 void Document::ResponsiveEmbeddedSizingChanged() {
   DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
   responsive_embedded_sizing_ = false;
-  if (auto* root_element = documentElement()) {
-    for (HTMLMetaElement& meta_element :
+  if (const auto* root_element = documentElement()) {
+    for (const HTMLMetaElement& meta_element :
          Traversal<HTMLMetaElement>::DescendantsOf(*root_element)) {
       if (EqualIgnoringASCIICase(meta_element.GetName(),
                                  keywords::kResponsiveEmbeddedSizing)) {
         responsive_embedded_sizing_ = true;
+        break;
       }
     }
   }

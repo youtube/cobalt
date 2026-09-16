@@ -281,12 +281,11 @@ RTCError JsepTransport::SetRemoteJsepTransportDescription(
 
 RTCError JsepTransport::AddRemoteCandidates(const Candidates& candidates) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  if (!local_description_ || !remote_description_) {
+  if (!remote_description_) {
     return RTCError(RTCErrorType::INVALID_STATE,
                     mid() +
-                        " is not ready to use the remote candidate "
-                        "because the local or remote description is "
-                        "not set.");
+                        " is not ready to use the remote candidate because the "
+                        "remote description is not set.");
   }
 
   for (const Candidate& candidate : candidates) {

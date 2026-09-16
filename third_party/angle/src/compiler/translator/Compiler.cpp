@@ -26,9 +26,6 @@
 #include "compiler/translator/OutputTree.h"
 #include "compiler/translator/ParseContext.h"
 #include "compiler/translator/SizeClipCullDistance.h"
-#include "compiler/translator/ValidateBarrierFunctionCall.h"
-#include "compiler/translator/ValidateLimitations.h"
-#include "compiler/translator/ValidateMaxParameters.h"
 #include "compiler/translator/ValidateOutputs.h"
 #include "compiler/translator/ValidateTypeSizeLimitations.h"
 #include "compiler/translator/ValidateVaryingLocations.h"
@@ -45,7 +42,6 @@
 #include "compiler/translator/tree_ops/InitializeVariables.h"
 #include "compiler/translator/tree_ops/MonomorphizeUnsupportedFunctions.h"
 #include "compiler/translator/tree_ops/PruneEmptyCases.h"
-#include "compiler/translator/tree_ops/PruneInfiniteLoops.h"
 #include "compiler/translator/tree_ops/PruneNoOps.h"
 #include "compiler/translator/tree_ops/RemoveArrayLengthMethod.h"
 #include "compiler/translator/tree_ops/RemoveDynamicIndexing.h"
@@ -65,7 +61,6 @@
 #include "compiler/translator/tree_ops/glsl/apple/AddAndTrueToLoopCondition.h"
 #include "compiler/translator/tree_ops/glsl/apple/UnfoldShortCircuitAST.h"
 #include "compiler/translator/tree_ops/msl/EnsureLoopForwardProgress.h"
-#include "compiler/translator/tree_util/BuiltIn.h"
 #include "compiler/translator/tree_util/FindSymbolNode.h"
 #include "compiler/translator/tree_util/IntermNodePatternMatcher.h"
 #include "compiler/translator/tree_util/ReplaceShadowingVariables.h"
@@ -426,51 +421,6 @@ int GetMaxShaderVersionForSpec(ShShaderSpec spec)
     }
 }
 
-bool ValidateFragColorAndFragData(GLenum shaderType,
-                                  int shaderVersion,
-                                  const TSymbolTable &symbolTable,
-                                  TDiagnostics *diagnostics)
-{
-    if (shaderVersion > 100 || shaderType != GL_FRAGMENT_SHADER)
-    {
-        return true;
-    }
-
-    bool usesFragColor = false;
-    bool usesFragData  = false;
-    // This validation is a bit stricter than the spec - it's only an error to write to
-    // both FragData and FragColor. But because it's better not to have reads from undefined
-    // variables, we always return an error if they are both referenced, rather than only if they
-    // are written.
-    if (symbolTable.isStaticallyUsed(*BuiltInVariable::gl_FragColor()) ||
-        symbolTable.isStaticallyUsed(*BuiltInVariable::gl_SecondaryFragColorEXT()))
-    {
-        usesFragColor = true;
-    }
-    // Extension variables may not always be initialized (saves some time at symbol table init).
-    bool secondaryFragDataUsed =
-        symbolTable.gl_SecondaryFragDataEXT() != nullptr &&
-        symbolTable.isStaticallyUsed(*symbolTable.gl_SecondaryFragDataEXT());
-    if (symbolTable.isStaticallyUsed(*symbolTable.gl_FragData()) || secondaryFragDataUsed)
-    {
-        usesFragData = true;
-    }
-    if (usesFragColor && usesFragData)
-    {
-        const char *errorMessage = "cannot use both gl_FragData and gl_FragColor";
-        if (symbolTable.isStaticallyUsed(*BuiltInVariable::gl_SecondaryFragColorEXT()) ||
-            secondaryFragDataUsed)
-        {
-            errorMessage =
-                "cannot use both output variable sets (gl_FragData, gl_SecondaryFragDataEXT)"
-                " and (gl_FragColor, gl_SecondaryFragColorEXT)";
-        }
-        diagnostics->globalError(errorMessage);
-        return false;
-    }
-    return true;
-}
-
 }  // namespace
 
 TShHandleBase::TShHandleBase()
@@ -817,7 +767,6 @@ bool TCompiler::getShaderBinary(const ShHandle compilerHandle,
     gl::CompiledShaderState state(shaderType);
     state.buildCompiledShaderState(
         compilerHandle,
-        gl::JoinShaderSources(static_cast<GLsizei>(numStrings), shaderStrings, nullptr),
         mOutputType);
 
     stream.writeBytes(
@@ -930,17 +879,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    if (shouldRunLoopAndIndexingValidation(compileOptions) &&
-        !ValidateLimitations(root, mShaderType, &mSymbolTable, &mDiagnostics))
-    {
-        return false;
-    }
-
-    if (!ValidateFragColorAndFragData(mShaderType, mShaderVersion, mSymbolTable, &mDiagnostics))
-    {
-        return false;
-    }
-
     // Fold expressions that could not be folded before validation that was done as a part of
     // parsing.
     if (!FoldExpressions(this, root, &mDiagnostics))
@@ -976,12 +914,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         {
             return false;
         }
-    }
-
-    // Validate no barrier() after return before prunning it in |PruneNoOps()| below.
-    if (mShaderType == GL_TESS_CONTROL_SHADER && !ValidateBarrierFunctionCall(root, &mDiagnostics))
-    {
-        return false;
     }
 
     // We prune no-ops to work around driver bugs and to keep AST processing and output simple.
@@ -1027,16 +959,8 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         return false;
     }
 
-    // Create the function DAG and check there is no recursion
-    if (!initCallDag(root))
-    {
-        return false;
-    }
-
-    if (compileOptions.limitCallStackDepth && !checkCallDepth())
-    {
-        return false;
-    }
+    // Create the function DAG.
+    initCallDag(root);
 
     // Checks which functions are used
     mFunctionMetadata.clear();
@@ -1095,7 +1019,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    // Clamping uniform array bounds needs to happen after validateLimitations pass.
     if (compileOptions.clampIndirectArrayBounds)
     {
         if (!ClampIndirectIndices(this, root, &mSymbolTable))
@@ -1225,24 +1148,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         return false;
     }
 
-    if (IsWebGLBasedSpec(mShaderSpec))
-    {
-        // Remove infinite loops, they are not supposed to exist in shaders.
-        bool anyInfiniteLoops = false;
-        if (!PruneInfiniteLoops(this, root, &mSymbolTable, &anyInfiniteLoops))
-        {
-            return false;
-        }
-
-        // If requested, reject shaders with infinite loops.  If not requested, the same loops are
-        // removed from the shader as a fallback.
-        if (anyInfiniteLoops && mCompileOptions.rejectWebglShadersWithUndefinedBehavior)
-        {
-            mDiagnostics.globalError("Infinite loop detected in the shader");
-            return false;
-        }
-    }
-
     if (compileOptions.rescopeGlobalVariables)
     {
         if (!RescopeGlobalVariables(*this, *root))
@@ -1292,7 +1197,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         return false;
     }
 
-    // Built-in function emulation needs to happen after validateLimitations pass.
     GetGlobalPoolAllocator()->lock();
     initBuiltInFunctionEmulator(&mBuiltInFunctionEmulator, compileOptions);
     GetGlobalPoolAllocator()->unlock();
@@ -1774,79 +1678,10 @@ void TCompiler::clearResults()
     mSymbolTable.clearCompilationResults();
 }
 
-bool TCompiler::initCallDag(TIntermNode *root)
+void TCompiler::initCallDag(TIntermNode *root)
 {
     mCallDag.clear();
-
-    switch (mCallDag.init(root, &mDiagnostics))
-    {
-        case CallDAG::INITDAG_SUCCESS:
-            return true;
-        case CallDAG::INITDAG_RECURSION:
-        case CallDAG::INITDAG_UNDEFINED:
-            // Error message has already been written out.
-            ASSERT(mDiagnostics.numErrors() > 0);
-            return false;
-    }
-
-    UNREACHABLE();
-    return true;
-}
-
-bool TCompiler::checkCallDepth()
-{
-    std::vector<int> depths(mCallDag.size());
-
-    for (size_t i = 0; i < mCallDag.size(); i++)
-    {
-        int depth                     = 0;
-        const CallDAG::Record &record = mCallDag.getRecordFromIndex(i);
-
-        for (int calleeIndex : record.callees)
-        {
-            depth = std::max(depth, depths[calleeIndex] + 1);
-        }
-
-        depths[i] = depth;
-
-        if (depth >= mResources.MaxCallStackDepth)
-        {
-            // Trace back the function chain to have a meaningful info log.
-            std::stringstream errorStream = sh::InitializeStream<std::stringstream>();
-            errorStream << "Call stack too deep (larger than " << mResources.MaxCallStackDepth
-                        << ") with the following call chain: "
-                        << record.node->getFunction()->name();
-
-            int currentFunction = static_cast<int>(i);
-            int currentDepth    = depth;
-
-            while (currentFunction != -1)
-            {
-                errorStream
-                    << " -> "
-                    << mCallDag.getRecordFromIndex(currentFunction).node->getFunction()->name();
-
-                int nextFunction = -1;
-                for (const int &calleeIndex : mCallDag.getRecordFromIndex(currentFunction).callees)
-                {
-                    if (depths[calleeIndex] == currentDepth - 1)
-                    {
-                        currentDepth--;
-                        nextFunction = calleeIndex;
-                    }
-                }
-
-                currentFunction = nextFunction;
-            }
-
-            std::string errorStr = errorStream.str();
-            mDiagnostics.globalError(errorStr.c_str());
-
-            return false;
-        }
-    }
-
-    return true;
+    mCallDag.init(root);
 }
 
 void TCompiler::tagUsedFunctions()
@@ -1975,12 +1810,6 @@ bool TCompiler::limitExpressionComplexity(TIntermBlock *root)
     if (!IsASTDepthBelowLimit(root, mResources.MaxExpressionComplexity))
     {
         mDiagnostics.globalError("Expression too complex.");
-        return false;
-    }
-
-    if (!ValidateMaxParameters(root, mResources.MaxFunctionParameters))
-    {
-        mDiagnostics.globalError("Function has too many parameters.");
         return false;
     }
 

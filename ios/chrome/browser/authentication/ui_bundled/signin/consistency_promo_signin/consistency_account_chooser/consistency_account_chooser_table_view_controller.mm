@@ -9,6 +9,7 @@
 #import "base/ios/block_types.h"
 #import "base/metrics/user_metrics.h"
 #import "base/notreached.h"
+#import "google_apis/gaia/gaia_id.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_identity_cell.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_identity_item.h"
 #import "ios/chrome/browser/authentication/ui_bundled/enterprise/enterprise_utils.h"
@@ -124,7 +125,8 @@ CGFloat kSectionFooterHeight = 8.;
         }
         [strongSelf.actionDelegate
             consistencyAccountChooserTableViewController:strongSelf
-                             didSelectIdentityWithGaiaID:identityItem.gaiaID];
+                             didSelectIdentityWithGaiaID:GaiaId(identityItem
+                                                                    .gaiaID)];
       };
       if (newCell) {
         [identityItem configureCell:newCell
@@ -266,7 +268,7 @@ CGFloat kSectionFooterHeight = 8.;
     TableViewIdentityItem* item =
         base::apple::ObjCCastStrict<TableViewIdentityItem>(
             [model itemAtIndexPath:path]);
-    if ([item.gaiaID isEqualToString:configurator.gaiaID]) {
+    if (item.gaiaID == configurator.gaiaID) {
       [configurator configureIdentityChooser:item];
       [self reconfigureCellsForItems:@[ item ]];
       [self.tableView reloadRowsAtIndexPaths:@[ path ]

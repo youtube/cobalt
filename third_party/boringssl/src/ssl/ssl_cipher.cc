@@ -1346,7 +1346,7 @@ uint16_t SSL_CIPHER_get_max_version(const SSL_CIPHER *cipher) {
   return TLS1_2_VERSION;
 }
 
-static const char *kUnknownCipher = "(NONE)";
+static const char *const kUnknownCipher = "(NONE)";
 
 // return the actual cipher being used
 const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher) {
@@ -1573,6 +1573,6 @@ size_t SSL_get_all_cipher_names(const char **out, size_t max_out) {
 }
 
 size_t SSL_get_all_standard_cipher_names(const char **out, size_t max_out) {
-  return GetAllNames(out, max_out, Span<const char *>(),
+  return GetAllNames(out, max_out, Span<const char *const>(),
                      &SSL_CIPHER::standard_name, Span(kCiphers));
 }

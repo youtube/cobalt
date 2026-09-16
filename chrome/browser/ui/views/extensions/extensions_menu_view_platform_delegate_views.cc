@@ -21,10 +21,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/extension_action_view_controller.h"
 #include "chrome/browser/ui/extensions/extensions_container.h"
+#include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
 #include "chrome/browser/ui/views/extensions/extension_view_utils.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_item_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
@@ -272,25 +274,6 @@ ExtensionMenuItemView::SiteAccessToggleState GetSiteAccessToggleState(
              : ExtensionMenuItemView::SiteAccessToggleState::kOff;
 }
 
-void LogSiteAccessUpdate(PermissionsManager::UserSiteAccess site_access) {
-  switch (site_access) {
-    case PermissionsManager::UserSiteAccess::kOnClick:
-      base::RecordAction(
-          base::UserMetricsAction("Extensions.Menu.OnClickSelected"));
-      break;
-    case PermissionsManager::UserSiteAccess::kOnSite:
-      base::RecordAction(
-          base::UserMetricsAction("Extensions.Menu.OnSiteSelected"));
-      break;
-    case PermissionsManager::UserSiteAccess::kOnAllSites:
-      base::RecordAction(
-          base::UserMetricsAction("Extensions.Menu.OnAllSitesSelected"));
-      break;
-    default:
-      NOTREACHED() << "Unknown site access";
-  }
-}
-
 }  // namespace
 
 ExtensionsMenuViewPlatformDelegateViews::
@@ -312,6 +295,38 @@ ExtensionsMenuViewPlatformDelegateViews::
 // directly within TabStripModelObserver::~TabStripModelObserver().
 ExtensionsMenuViewPlatformDelegateViews::
     ~ExtensionsMenuViewPlatformDelegateViews() = default;
+
+void ExtensionsMenuViewPlatformDelegateViews::AttachToModel(
+    ExtensionsMenuViewModel* model) {
+  CHECK(model);
+  CHECK(!menu_model_);
+  menu_model_ = model;
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::DetachFromModel() {
+  CHECK(menu_model_);
+  menu_model_ = nullptr;
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestAdded(
+    const extensions::ExtensionId& extension_id,
+    content::WebContents* web_contents) {
+  CHECK(current_page_);
+
+  // Site access requests only affect the main page.
+  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
+  if (!main_page) {
+    return;
+  }
+
+  // TODO(crbug.com/330588494): Add to correct index based on alphabetic
+  // order.
+  int index = 0;
+  AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
+                                       web_contents);
+
+  main_page->MaybeShowRequestsSection();
+}
 
 void ExtensionsMenuViewPlatformDelegateViews::OpenMainPage() {
   auto main_page = std::make_unique<ExtensionsMenuMainPageView>(browser_, this);
@@ -347,11 +362,7 @@ void ExtensionsMenuViewPlatformDelegateViews::CloseBubble() {
 void ExtensionsMenuViewPlatformDelegateViews::OnSiteAccessSelected(
     const extensions::ExtensionId& extension_id,
     PermissionsManager::UserSiteAccess site_access) {
-  LogSiteAccessUpdate(site_access);
-
-  SitePermissionsHelper permissions(browser_->profile());
-  permissions.UpdateSiteAccess(*GetExtension(browser_, extension_id),
-                               GetActiveWebContents(), site_access);
+  menu_model_->UpdateSiteAccess(extension_id, site_access);
 }
 
 void ExtensionsMenuViewPlatformDelegateViews::OnSiteSettingsToggleButtonPressed(
@@ -851,37 +862,6 @@ void ExtensionsMenuViewPlatformDelegateViews::
   main_page->MaybeShowRequestsSection();
 }
 
-void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestAdded(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  DCHECK(current_page_);
-
-  // Ignore requests for other tabs.
-  int current_tab_id =
-      extensions::ExtensionTabUtil::GetTabId(GetActiveWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  // Site access requests only affect the main page.
-  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
-  if (!main_page) {
-    return;
-  }
-
-  // Add the request iff it's an active one.
-  auto* permissions_manager =
-      extensions::PermissionsManager::Get(browser_->profile());
-  if (permissions_manager->HasActiveHostAccessRequest(tab_id, extension_id)) {
-    // TODO(crbug.com/330588494): Add to correct index based on alphabetic
-    // order.
-    int index = 0;
-    AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
-                                         GetActiveWebContents());
-    main_page->MaybeShowRequestsSection();
-  }
-}
-
 void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestUpdated(
     const extensions::ExtensionId& extension_id,
     int tab_id) {
@@ -1001,8 +981,10 @@ void ExtensionsMenuViewPlatformDelegateViews::InsertMenuItemMainPage(
   // controller. However, the current extensions structure depends on this
   // thus a major restructure is needed.
   std::unique_ptr<ExtensionActionViewController> action_controller =
-      ExtensionActionViewController::Create(extension_id, browser_,
-                                            extensions_container_);
+      ExtensionActionViewController::Create(
+          extension_id, browser_, extensions_container_,
+          std::make_unique<ExtensionActionPlatformDelegateViews>(
+              browser_, extensions_container_));
   const extensions::Extension* extension = action_controller->extension();
   Profile* profile = browser_->profile();
   content::WebContents* web_contents = GetActiveWebContents();

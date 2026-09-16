@@ -1389,6 +1389,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
   IF_WASM(ASM, WasmResume, JSTrampoline)                                       \
   IF_WASM(ASM, WasmFXResume, WasmFXResume)                                     \
+  IF_WASM(ASM, WasmFXSuspend, WasmFXSuspend)                                   \
   IF_WASM(ASM, WasmFXReturn, WasmFXReturn)                                     \
   IF_WASM(ASM, WasmReject, JSTrampoline)                                       \
   IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \
@@ -2170,6 +2171,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeTimeZones, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.toString */                            \
   CPP(LocalePrototypeToString, kDontAdaptArgumentsSentinel)                    \
+  /* ecma402 #sec-Intl.Locale.prototype.variants */                            \
+  CPP(LocalePrototypeVariants, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.weekInfo */                            \
   CPP(LocalePrototypeWeekInfo, JSParameterCount(0))                            \
   /* ecma402 #sec-intl.numberformat */                                         \

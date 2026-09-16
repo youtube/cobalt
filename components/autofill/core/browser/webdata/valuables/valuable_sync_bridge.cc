@@ -67,6 +67,13 @@ bool IsSyncWalletVehicleRegistrationsEnabled() {
 
 // Returns if the entity `change` should be uploaded to AUTOFILL_VALUABLE.
 bool ShouldUploadEntityChange(const EntityInstanceChange& change) {
+  if (!change.data_model()) {
+    // The `data_model` is only not defined during removal of entities. Removal
+    // of Wallet entities is not supported in Chrome, so it's fine to discard
+    // uploads in this case.
+    return false;
+  }
+
   switch (change.data_model()->record_type()) {
     case EntityInstance::RecordType::kLocal:
       // Local entities are not uploaded as AUTOFILL_VALUABLE.
@@ -157,9 +164,11 @@ syncer::DataTypeSyncBridge* ValuableSyncBridge::FromWebDataService(
 }
 
 bool ValuableSyncBridge::SupportsIncrementalUpdates() const {
-  // TODO(crbug.com/): Enable support for incremental updates behind a kill
-  // switch.
-  return false;
+  // To allow write requests for sync types that are always fully downloaded,
+  // the client must be able to process incremental updates locally, despite the
+  // server not supporting them.
+  return IsSyncWalletFlightReservationsEnabled() ||
+         IsSyncWalletVehicleRegistrationsEnabled();
 }
 
 AutofillSyncMetadataTable* ValuableSyncBridge::GetSyncMetadataStore() {

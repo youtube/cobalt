@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '6f0b5b38508329161ba1ad4ba58dbb2a2fc3bea5',
+  'chromium_revision': '4883cd038df9a2257677ea6b49ef2febedfab52d',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@38aa6c8784eb2156233f28fa82497543c2234fc8',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@39b950b588f16117fceedb33f284926311b885c5',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@9f62b08120b253f3e91c7cec8e12dee8c4f440b6',
+    'https://chromium.googlesource.com/chromium/src/testing@31baa9402632f79232b48d8ee24307910054a35e',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@e21c6a375322d0e4e552e466a37174b232712f60',
+    'https://chromium.googlesource.com/chromium/src/third_party@b62fa9e773821ff6fa8ad70c80af611fd02122d9',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -337,7 +337,7 @@ deps = {
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@8e720a3a3ae30fcfffe436aae418c91acacc34d0',
   'src/third_party/llvm-libc/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@71f9245792872176918a1f82dfe2e9ccfb0d30df',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@8ab123717dc94883b2f0e248ad17dd7c1758f51f',
   'src/third_party/libunwind/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git@da8737e079a64c8ddd0aa73b4f2479a23852833b',
 
@@ -505,13 +505,13 @@ deps = {
   'src/third_party/crc32c/src':
     'https://chromium.googlesource.com/external/github.com/google/crc32c.git@d3d60ac6e0f16780bcfcc825385e1d338801a558',
   'src/third_party/depot_tools':
-    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@3008b57e5d18ee9c92baf851dd33c61cfd6fad21',
+    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@8d28f8ce962fe60029967fad483c23c885e7fb3b',
   'src/third_party/ffmpeg':
     'https://chromium.googlesource.com/chromium/third_party/ffmpeg.git@9e751092c9498b84bbb77e2e0689ef9f50fe608f',
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@1c514626e83c20fffa8557e75641848e1e15cd5e',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@41ca6a6056639cb82fe5cb18adfd8ef3b853f6d2',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@74538378b495e4777006b0c424550c6468a72238',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -609,7 +609,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '6a960b04f6e20ace0f0e084be42a660f7ff6490a',
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'f85bf07763e947a46473bdd07bd5245880d6d404',
   'src/third_party/protobuf-javascript/src':
     Var('chromium_git') + '/external/github.com/protocolbuffers/protobuf-javascript' + '@' + 'e6d763860001ba1a76a63adcff5efb12b1c96024',
   'src/third_party/libvpx/source/libvpx':
@@ -668,7 +668,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@fde7ea6174f0fe430de2ac7c4befa70e5b5cc728',
+    'https://chromium.googlesource.com/chromium/src/tools@32ab3acc7bdb8ba41abf89deae000c204299fbc4',
 
   'src/third_party/espresso': {
       'packages': [

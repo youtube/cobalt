@@ -498,7 +498,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwLayoutSizer.java",
       "java/src/org/chromium/android_webview/AwMediaIntegrityApiStatusConfig.java",
       "java/src/org/chromium/android_webview/AwNavigation.java",
-      "java/src/org/chromium/android_webview/AwNavigationClient.java",
+      "java/src/org/chromium/android_webview/AwNavigationListener.java",
       "java/src/org/chromium/android_webview/AwNavigationParams.java",
       "java/src/org/chromium/android_webview/AwNetLogsConnection.java",
       "java/src/org/chromium/android_webview/AwNetworkChangeNotifierRegistrationPolicy.java",
@@ -840,6 +840,7 @@ if (_is_default_toolchain) {
       "//ui/accessibility:accessibility_features_java",
       "//ui/android:ui_android_features_java",
       "//ui/base:ui_base_features_java",
+      "//ui/events:ui_events_features_java",
       "//ui/gfx:ui_gfx_java",
     ]
 

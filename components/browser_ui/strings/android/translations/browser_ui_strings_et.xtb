@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Jätka</translation>
 <translation id="2379925928934107488">Kui Chrome kasutab tumedat teemat, rakendatakse saitidele võimaluse korral tume teema</translation>
 <translation id="2390272837142897736">Suumi suurendamine</translation>
+<translation id="2397689164757137845">Lubatud • Täpne</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Täpne</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja veel <ph name="NUM_MORE" /> on lubatud}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja veel <ph name="NUM_MORE" /> on lubatud}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Abi ja tagasiside</translation>
 <translation id="2501278716633472235">Mine tagasi</translation>
 <translation id="2533138527374486328">Kui see on sisse lülitatud, saavad saidid küsida luba ühenduse loomiseks mis tahes seadmega teie kohalikus võrgus. Kui see on välja lülitatud, ei saa saidid teie kohalikus võrgus seadmetega ühendust luua.</translation>
+<translation id="2536779053640817375">Lubatud sel korral • Täpne</translation>
 <translation id="2544997614631598250">Tume teemavärv</translation>
 <translation id="2546283357679194313">Küpsised ja saidi andmed</translation>
 <translation id="2570922361219980984">Ka juurdepääs asukohale on selle seadme puhul välja lülitatud. Lülitage see sisse <ph name="BEGIN_LINK" />Androidi seadetes<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="5876056640971328065">Video peatamine</translation>
 <translation id="5877248419911025165">Ahenda kõik taotlused</translation>
 <translation id="5878945009165002849">Sisselogimisviibad identiteedihaldusteenustest blokeeritakse</translation>
+<translation id="588258955323874662">Täisekraan</translation>
 <translation id="5884085660368669834">Saidi eelistus</translation>
 <translation id="5887687176710214216">Viimati külastati eile</translation>
 <translation id="5908617755156109052">Ärge lubage saitidel luua oma ümbrusest 3D-kaarti ega jälgida kaamera asendit</translation>
@@ -569,6 +572,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="7406113532070524618">See seade toimib ilma teid tuvastamata ega luba saitidel vaadata teie sirvimisajalugu, kuid saidid võivad kontrollimistoimingu käigus jagada väikest hulka teavet</translation>
 <translation id="7409735910987429903">Saidid võivad kuvada hüpikaknaid või reklaame või kasutada ümbersuunamisi, et suunata teid veebisaitidele, mida te võib-olla ei soovi külastada</translation>
 <translation id="7412160840120117304">Kuueteistkümnendsüsteemis põhivärv</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Suum}other{Suum: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Esmalt küsib</translation>
 <translation id="7423538860840206698">Lõikelaua lugemine on blokeeritud</translation>
 <translation id="7425915948813553151">Tume teema saitide jaoks</translation>
@@ -700,7 +704,6 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="8803526663383843427">Kui on sisse lülitatud</translation>
 <translation id="8805385115381080995">Sirvimine on kiirem, kuna sait ei palu teil nii tihti kinnitada seda, et olete päris inimene</translation>
 <translation id="8816026460808729765">Blokeeri saitide jaoks juurdepääs anduritele</translation>
-<translation id="884765916894384048">Taustale</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Proovige kolmanda osapoole küpsisefailid ajutiselt lubada. See vähendab sirvimiskaitset, kuid saidi funktsiooni töötavad suurema tõenäosusega oodatud moel.</translation>
 <translation id="8889294078294184559">Kui jätkate sirvimist, saavad saidid Chrome’iga kontrollida ja teie eelmisel külastatud saidil kinnitada, et olete tõenäoliselt päris inimene</translation>

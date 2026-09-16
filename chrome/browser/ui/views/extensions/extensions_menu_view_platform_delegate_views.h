@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_VIEW_PLATFORM_DELEGATE_VIEWS_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_platform_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
@@ -15,10 +16,15 @@
 #include "extensions/common/extension.h"
 #include "ui/views/view_tracker.h"
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace views {
 class View;
 }  // namespace views
 
+class ExtensionsMenuViewModel;
 class Browser;
 class ExtensionsContainer;
 class ExtensionsMenuMainPageView;
@@ -44,6 +50,12 @@ class ExtensionsMenuViewPlatformDelegateViews
   const ExtensionsMenuViewPlatformDelegateViews& operator=(
       const ExtensionsMenuViewPlatformDelegateViews&) = delete;
   ~ExtensionsMenuViewPlatformDelegateViews() override;
+
+  // ExtensionsMenuViewPlatformDelegate:
+  void AttachToModel(ExtensionsMenuViewModel* model) override;
+  void DetachFromModel() override;
+  void OnAccessRequestAdded(const extensions::ExtensionId& extension_id,
+                            content::WebContents* web_contents) override;
 
   // ExtensionsMenuHandler:
   void OpenMainPage() override;
@@ -93,8 +105,6 @@ class ExtensionsMenuViewPlatformDelegateViews
   void OnShowAccessRequestsInToolbarChanged(
       const extensions::ExtensionId& extension_id,
       bool can_show_requests) override;
-  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
-                                int tab_id) override;
   void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
                                   int tab_id) override;
   void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
@@ -136,6 +146,8 @@ class ExtensionsMenuViewPlatformDelegateViews
 
   // Adds or updates a request access entry for `extension_id` in `main_page` at
   // `index`.
+  // TODO(crbug.com/449814184): Remove in favor of
+  // ExtensionsMenuPlatformDelegate methods.
   void AddOrUpdateExtensionRequestingAccess(
       ExtensionsMenuMainPageView* main_page,
       const extensions::ExtensionId& extension_id,
@@ -148,6 +160,9 @@ class ExtensionsMenuViewPlatformDelegateViews
   const raw_ptr<Browser> browser_;
   const raw_ptr<ExtensionsContainer> extensions_container_;
   const raw_ptr<views::View> bubble_contents_;
+
+  // The platform-agnostic menu view model.
+  raw_ptr<ExtensionsMenuViewModel> menu_model_{nullptr};
 
   const raw_ptr<ToolbarActionsModel> toolbar_model_;
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>

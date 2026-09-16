@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/task/common/task_annotator.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
@@ -47,10 +48,6 @@ GpuChannelHost::GpuChannelHost(
           this,
           static_cast<int32_t>(GpuChannelReservedRoutes::kSharedImageInterface),
           shared_image_capabilities),
-      image_decode_accelerator_proxy_(
-          this,
-          static_cast<int32_t>(
-              GpuChannelReservedRoutes::kImageDecodeAccelerator)),
       sync_point_graph_validation_enabled_(
           features::IsSyncPointGraphValidationEnabled()) {
   mojo::PendingAssociatedRemote<mojom::GpuChannel> channel;
@@ -414,8 +411,7 @@ void GpuChannelHost::Listener::Initialize(
   DCHECK(channel_);
   bool result = channel_->Connect();
   DCHECK(result);
-  channel_->GetAssociatedInterfaceSupport()->GetRemoteAssociatedInterface(
-      std::move(receiver));
+  channel_->GetRemoteAssociatedInterface(std::move(receiver));
 }
 
 GpuChannelHost::Listener::~Listener() = default;

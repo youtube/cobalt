@@ -419,13 +419,19 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 #endif
 
   Profile* const profile = browser_->GetProfile();
+  BrowserView* const browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser);
+  if (browser_view) {
+    // Initialize fullscreen control host after exclusive access manager is
+    // ready.
+    fullscreen_control_host_ = std::make_unique<FullscreenControlHost>(
+        browser_view, exclusive_access_manager_.get());
+  }
 
   // Features that are only enabled for normal browser windows (e.g. a window
   // with an omnibox and a tab strip). By default most features should be
   // instantiated in this block.
   if (browser->is_type_normal()) {
-    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-
     if (IsChromeLabsEnabled()) {
       chrome_labs_coordinator_ =
           std::make_unique<ChromeLabsCoordinator>(browser);
@@ -442,11 +448,6 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
         send_tab_to_self::SendTabToSelfToolbarBubbleController>(browser);
 
     if (browser_view) {
-      // Initialize fullscreen control host after exclusive access manager is
-      // ready.
-      fullscreen_control_host_ = std::make_unique<FullscreenControlHost>(
-          browser_view, exclusive_access_manager_.get());
-
       // The controller should only be created if the
       // PinnedToolbarActionsContainer exists for the browser, this might not be
       // the case for browsers with a custom tab toolbar.
@@ -510,8 +511,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       // BrowserWithTestWindowTest; these should eventually be refactored.
       if (browser_view) {
         tab_search_toolbar_button_controller_ =
-            std::make_unique<TabSearchToolbarButtonController>(
-                browser_view, browser_view->GetTabSearchBubbleHost());
+            std::make_unique<TabSearchToolbarButtonController>(browser_view);
       }
     }
 
@@ -563,7 +563,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   incognito_clear_browsing_data_dialog_coordinator_ =
       std::make_unique<IncognitoClearBrowsingDataDialogCoordinator>(profile);
 
-  if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser)) {
+  if (browser_view) {
     color_provider_browser_helper_ =
         std::make_unique<ColorProviderBrowserHelper>(
             browser->GetTabStripModel(), browser_view->GetWidget());
@@ -578,8 +578,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   }
 
   views::FocusManager* focus_manager = nullptr;
-  if (BrowserView* const browser_view =
-          BrowserView::GetBrowserViewForBrowser(browser)) {
+  if (browser_view) {
     focus_manager = browser_view->GetFocusManager();
     contents_border_controller_ =
         std::make_unique<ContentsBorderController>(browser_view);
@@ -681,7 +680,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           side_panel_coordinator_->GetWindowRegistry());
 
   immersive_mode_controller_ =
-      chrome::CreateImmersiveModeController(browser_view);
+      GetUserDataFactory().CreateInstanceWithFactoryMethod(
+          *browser_, &chrome::CreateImmersiveModeController, browser_view);
 
   if (browser_view->GetIsNormalType()) {
 #if BUILDFLAG(ENABLE_GLIC)
@@ -697,19 +697,23 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
       if (features::kGlicActorUiTaskIcon.Get() &&
           browser_->GetProfile()->IsRegularProfile()) {
-        // Includes browser twice to enable injecting for testing.
-        glic_actor_task_icon_controller_ =
-            GetUserDataFactory()
-                .CreateInstance<tabs::GlicActorTaskIconController>(
-                    *browser_, browser_,
-                    BrowserElementsViews::From(browser_view->browser())
-                        ->GetViewAs<TabStripActionContainer>(
-                            kTabStripActionContainerElementId));
         if (features::kGlicActorUiNudgeRedesign.Get()) {
+          // Includes browser twice to enable injecting for testing.
           glic_actor_nudge_controller_ =
               GetUserDataFactory()
-                  .CreateInstance<tabs::GlicActorNudgeController>(*browser_,
-                                                                  browser_);
+                  .CreateInstance<tabs::GlicActorNudgeController>(
+                      *browser_, browser_,
+                      BrowserElementsViews::From(browser_view->browser())
+                          ->GetViewAs<TabStripActionContainer>(
+                              kTabStripActionContainerElementId));
+        } else {
+          glic_actor_task_icon_controller_ =
+              GetUserDataFactory()
+                  .CreateInstance<tabs::GlicActorTaskIconController>(
+                      *browser_, browser_,
+                      BrowserElementsViews::From(browser_view->browser())
+                          ->GetViewAs<TabStripActionContainer>(
+                              kTabStripActionContainerElementId));
         }
       }
     }

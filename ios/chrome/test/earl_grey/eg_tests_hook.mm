@@ -7,6 +7,10 @@
 #pragma allow_unsafe_buffers
 #endif
 
+// clang-format off
+#import "ios/chrome/app/tests_hook.h"
+// clang-format on
+
 #import "base/command_line.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
@@ -35,7 +39,6 @@
 #import "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #import "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate.h"
 #import "components/sync_device_info/device_info_sync_service.h"
-#import "ios/chrome/app/tests_hook.h"
 #import "ios/chrome/browser/drive/model/test_drive_service.h"
 #import "ios/chrome/browser/flags/chrome_switches.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
@@ -60,6 +63,7 @@
 #import "ios/chrome/test/earl_grey/test_switches.h"
 #import "ios/chrome/test/providers/signin/fake_trusted_vault_client_backend.h"
 #import "testing/gmock/include/gmock/gmock.h"
+#import "ui/base/test/ios/ui_image_test_utils.h"
 
 namespace tests_hook {
 
@@ -403,6 +407,11 @@ base::TimeDelta GetSnackbarMessageDuration() {
   // Makes the snackbar duration longer for EGTests to make sure there is time
   // detect it, and avoid flakiness.
   return base::Seconds(30);
+}
+
+UIImage* GetPHPickerViewControllerImage() {
+  return ui::test::uiimage_utils::UIImageWithSizeAndSolidColor(
+      CGSizeMake(1000, 1000), UIColor.greenColor);
 }
 
 }  // namespace tests_hook

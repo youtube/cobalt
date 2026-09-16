@@ -62,6 +62,13 @@ struct SkPathRaw;
 class SkPathData : public SkNVRefCnt<SkPathData> {
 public:
     /*
+     *  Returns an empty pathdata.
+     *
+     *  Since this is immutable, it may return the same object each time it is called.
+     */
+    static sk_sp<SkPathData> Empty();
+
+    /*
      *  Return SkPathData with a copy of these buffers, or nullptr if they are illegal.
      *  Illegal = non-finite, or non-sensical verb sequences
      */
@@ -69,7 +76,11 @@ public:
                                   SkSpan<const SkPathVerb> verbs,
                                   SkSpan<const float> conics = {});
 
-    static sk_sp<SkPathData> Empty();
+    /*
+     *  Attempt to transform src by the matrix. On success, return a new SkPathData
+     *  with the result, else return {}.
+     */
+    static sk_sp<SkPathData> MakeTransform(const SkPathRaw& src, const SkMatrix&);
 
     /*
      *  When a factory takes a startIndex, this refers to the position of the first point
@@ -105,7 +116,7 @@ public:
     SkRect bounds() const { return fBounds; }
     uint8_t segmentMask() const { return fSegmentMask; }
 
-    SkPathRaw raw(SkPathFillType) const;
+    SkPathRaw raw(SkPathFillType, SkResolveConvexity) const;
 
     /**
      * Return true if the path contains no points or verbs
@@ -113,7 +124,8 @@ public:
     bool empty() const { return fVerbs.empty(); }
 
     /**
-     * Returns true if the pathdata is convex. If necessary, it will first compute the convexity.
+     * Returns true if the pathdata is convex.
+     * Note: if necessary, it will first compute the convexity (and cache it).
      */
     bool isConvex() const;
 
@@ -153,17 +165,22 @@ public:
     sk_sp<SkPathData> makeOffset(SkVector) const;
 
 private:
-    friend class SkPathBuilder;
+    friend class SkNVRefCnt<SkPathData>;
+    friend class SkPathPriv;
 
     SkSpan<SkPoint>    fPoints;
     SkSpan<float>      fConics;
     SkSpan<SkPathVerb> fVerbs;
     SkRect             fBounds;
 
-    uint8_t                      fSegmentMask;  // SkPathSegmentMask
-    // Decide if we will lazily set this, as we do in SkPath. Need to see some runtime
-    // stats to see if defering the calculation is worth it.
+    /*
+     *  Convexity can be slow to compute, and (in theory) it can't always survive a matrix
+     *  transform (due to numeric instability). Therefore we will lazily compute it as
+     *  requested. Since we are technically always immutable, we have to store this field
+     *  in an atomic.
+     */
     mutable std::atomic<uint8_t> fConvexity;    // SkPathConvexity
+    uint8_t                      fSegmentMask;  // SkPathSegmentMask
     SkPathIsAType                fType;
     SkPathIsAData                fIsA {};
 
@@ -177,6 +194,9 @@ private:
 
     SkPathData(size_t npts, size_t nvbs, size_t ncns);
 
+    // Ensure the unsized delete is called (since we're manually allocating the storage)
+    void operator delete(void* p);
+
     // internal finisher when building a PathData.
     // If the optional value is not present, it will be computed (else checked in debug mode).
     //
@@ -187,7 +207,9 @@ private:
     // If we know we're a special shape, call this after the normal initialization
     void setupIsA(SkPathIsAType, SkPathDirection dir, unsigned startIndex);
 
-    SkPathConvexity getConvexity() const;
+    SkPathConvexity getConvexityOrUnknown() const;          // may return kUnknown
+    SkPathConvexity getResolvedConvexity() const;           // never returns kUnknown
+    void setConvexity(SkPathConvexity) const;               // const -- but convexity is mutable
 
     static sk_sp<SkPathData> Alloc(size_t npts, size_t nvbs, size_t ncns);
 

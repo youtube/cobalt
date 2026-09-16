@@ -287,6 +287,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
       const override;
   std::vector<RtpHeaderExtensionCapability> GetNegotiatedHeaderExtensions()
       const override;
+
   RTCError SetHeaderExtensionsToNegotiate(
       ArrayView<const RtpHeaderExtensionCapability> header_extensions) override;
 
@@ -301,10 +302,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
                            const MediaContentDescription* content);
 
  private:
-  MediaEngineInterface* media_engine() const
-      RTC_RUN_ON(context()->worker_thread()) {
-    return context_->media_engine();
-  }
+  MediaEngineInterface* media_engine() RTC_RUN_ON(context()->worker_thread());
   ConnectionContext* context() const { return context_; }
   CodecVendor& codec_vendor() {
     return *codec_lookup_helper_->GetCodecVendor();
@@ -321,6 +319,10 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
+  // Helper function for handling extensions during O/A
+  std::vector<RtpHeaderExtensionCapability>
+  GetOfferedAndImplementedHeaderExtensions(
+      const MediaContentDescription* content) const;
 
   const Environment env_;
   // Enforce that this object is created, used and destroyed on one thread.
@@ -349,13 +351,18 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // because all access on the network thread is within an invoke()
   // from thread_.
   std::unique_ptr<ChannelInterface> channel_ = nullptr;
+  std::unique_ptr<ConnectionContext::MediaEngineReference> media_engine_ref_
+      RTC_GUARDED_BY(context()->worker_thread());
   ConnectionContext* const context_;
   CodecLookupHelper* const codec_lookup_helper_;
   std::vector<RtpCodecCapability> codec_preferences_;
   std::vector<RtpCodecCapability> sendrecv_codec_preferences_;
   std::vector<RtpCodecCapability> sendonly_codec_preferences_;
   std::vector<RtpCodecCapability> recvonly_codec_preferences_;
-  std::vector<RtpHeaderExtensionCapability> header_extensions_to_negotiate_;
+  std::vector<RtpHeaderExtensionCapability> header_extensions_to_negotiate_
+      RTC_GUARDED_BY(thread_);
+  std::vector<RtpHeaderExtensionCapability> header_extensions_for_rollback_
+      RTC_GUARDED_BY(thread_);
 
   // `negotiated_header_extensions_` is read and written to on the signaling
   // thread from the SdpOfferAnswerHandler class (e.g.

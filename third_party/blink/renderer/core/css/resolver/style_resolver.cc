@@ -888,8 +888,11 @@ void MatchElementScopeRules(const Element& element,
                             StyleRuleUsageTracker* tracker) {
   ScopedStyleResolver* element_scope_resolver = ScopedResolverFor(element);
   UAShadowPseudoResult spr = UAShadowPseudoCascading(element);
+
   collector.BeginAddingAuthorRulesForTreeScope(element.GetTreeScope());
   if (element_scope_resolver) {
+    ElementRuleCollector::ScopedRuleTreeScope scope(
+        collector, element_scope_resolver->GetTreeScope());
     collector.ClearMatchedRules();
     element_scope_resolver->CollectMatchingElementScopeRules(
         element.GetTreeScope().RootNode(), collector,
@@ -898,7 +901,6 @@ void MatchElementScopeRules(const Element& element,
     collector.SortAndTransferMatchedRules(
         CascadeOrigin::kAuthor, /*is_vtt_embedded_style=*/false, tracker);
   }
-
   if (!spr.cascade_style_attribute_in_parent_scope) {
     MatchStyleAttribute(element, collector, tracker);
   }
@@ -1280,6 +1282,19 @@ void StyleResolver::MatchAllRules(StyleResolverState& state,
     // Now check SMIL animation override style.
     auto* svg_element = DynamicTo<SVGElement>(element);
     if (include_smil_properties && svg_element) {
+      if (RuntimeEnabledFeatures::Svg2CascadeEnabled()) {
+        if (SVGElement* corresponding = svg_element->CorrespondingElement()) {
+          // According to the spec[1], animations that are cloned into the <use>
+          // shadow tree, should run in that tree, while animations applied to
+          // the referenced element which are not cloned should have an instance
+          // in the <use> tree as if it was cloned.
+          //
+          // We apply the animations from the referenced subtree for now.
+          //
+          // [1] https://svgwg.org/svg2-draft/struct.html#UseAnimations
+          svg_element = corresponding;
+        }
+      }
       collector.AddElementStyleProperties(
           svg_element->AnimatedSMILStyleProperties(), CascadeOrigin::kAuthor,
           false /* isCacheable */);
@@ -1365,8 +1380,10 @@ const ComputedStyle* StyleResolver::ResolveStyle(
   // The StyleResolverState is where we actually end up accumulating the
   // computed style. It's just a convenient way of not having to send
   // a lot of input/output variables around between the different functions.
-  StyleResolverState state(GetDocument(), *element, &style_recalc_context,
-                           style_request);
+  //
+  // For performance avoid stack initialization on this large object.
+  STACK_UNINITIALIZED StyleResolverState state(
+      GetDocument(), *element, &style_recalc_context, style_request);
 
   STACK_UNINITIALIZED StyleCascade cascade(state);
 
@@ -1750,9 +1767,10 @@ void StyleResolver::ApplyBaseStyleNoCache(
     }
   }
 
-  ElementRuleCollector collector(state.ElementContext(), style_recalc_context,
-                                 selector_filter_, cascade.MutableMatchResult(),
-                                 state.InsideLink());
+  // For performance avoid stack initialization on this large object.
+  STACK_UNINITIALIZED ElementRuleCollector collector(
+      state.ElementContext(), style_recalc_context, selector_filter_,
+      cascade.MutableMatchResult(), state.InsideLink());
 
   if (element->IsPseudoElement()) {
     GetDocument().GetStyleEngine().EnsureUAStyleForPseudoElement(
@@ -2340,6 +2358,8 @@ ComputedStyleBuilder StyleResolver::InitialStyleBuilderForElement() const {
   FontDescription document_font_description = builder.GetFontDescription();
   document_font_description.SetLocale(
       LayoutLocale::Get(GetDocument().ContentLanguage()));
+  document_font_description.SetIsForcedColorsMode(
+      GetDocument().InForcedColorsMode());
 
   builder.SetFontDescription(document_font_description);
   builder.SetUserModify(GetDocument().InDesignMode() ? EUserModify::kReadWrite

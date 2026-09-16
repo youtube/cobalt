@@ -62,14 +62,12 @@
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
-class JsepTransportController : public PayloadTypeSuggester,
-                                public sigslot::has_slots<> {
+class JsepTransportController : public PayloadTypeSuggester {
  public:
   // Used when the RtpTransport/DtlsTransport of the m= section is changed
   // because the section is rejected or BUNDLE is enabled.

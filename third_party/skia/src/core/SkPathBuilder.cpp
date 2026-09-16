@@ -519,12 +519,10 @@ SkPathBuilder& SkPathBuilder::arcTo(const SkRect& oval, SkScalar startAngle, SkS
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::rArcTo(SkScalar rx, SkScalar ry, SkScalar xAxisRotate,
-                                     SkPathBuilder::ArcSize largeArc,
-                                     SkPathDirection sweep, SkScalar dx, SkScalar dy) {
+SkPathBuilder& SkPathBuilder::rArcTo(SkPoint r, SkScalar xAxisRotate, ArcSize largeArc,
+                                     SkPathDirection sweep, SkPoint dxdy) {
     const SkPoint currentPoint = this->getLastPt().value_or(SkPoint{0, 0});
-    return this->arcTo({rx, ry}, xAxisRotate, largeArc, sweep,
-                       {currentPoint.fX + dx, currentPoint.fY + dy});
+    return this->arcTo(r, xAxisRotate, largeArc, sweep, currentPoint + dxdy);
 }
 
 SkPathBuilder& SkPathBuilder::addArc(const SkRect& oval, SkScalar startAngle, SkScalar sweepAngle) {
@@ -1015,7 +1013,7 @@ std::optional<SkPoint> SkPathBuilder::getLastPt() const {
         return this->fPts.at(count - 1);
     }
     return std::nullopt;
-};
+}
 
 void SkPathBuilder::setLastPt(SkScalar x, SkScalar y) {
     int count = fPts.size();
@@ -1023,6 +1021,13 @@ void SkPathBuilder::setLastPt(SkScalar x, SkScalar y) {
         this->moveTo(x, y);
     } else {
         fPts.at(count-1).set(x, y);
+        fType = SkPathIsAType::kGeneral;
+    }
+}
+
+void SkPathBuilder::setPoint(size_t index, SkPoint p) {
+    if (index < (size_t)fPts.size()) {
+        fPts[index] = p;
         fType = SkPathIsAType::kGeneral;
     }
 }

@@ -34,7 +34,7 @@ TEST(RtpPacketSimulatorTest, SimulatesArrivalTimeFromEnvironmentClock) {
       CreateTestEnvironment(CreateTestEnvironmentOptions{.time = &clock});
   RtpPacketSimulator simulator(env);
 
-  LoggedRtpPacketIncoming logged_packet(
+  LoggedRtpPacket logged_packet(
       /*timestamp=*/Timestamp::Millis(123456789), RTPHeader(),
       /*header_length=*/kBaseRtpHeaderSize,
       /*total_length=*/kBaseRtpHeaderSize);
@@ -56,7 +56,7 @@ TEST(RtpPacketSimulatorTest, SimulatesRtpHeader) {
   logged_rtp_header.sequenceNumber = 123;
   logged_rtp_header.timestamp = 5235235;
   logged_rtp_header.ssrc = 83653358;
-  LoggedRtpPacketIncoming logged_packet(
+  LoggedRtpPacket logged_packet(
       /*timestamp=*/Timestamp::Millis(123456789), logged_rtp_header,
       /*header_length=*/kBaseRtpHeaderSize,
       /*total_length=*/kBaseRtpHeaderSize);
@@ -84,7 +84,7 @@ TEST(RtpPacketSimulatorTest, SimulatesBasicRtpHeaderExtensions) {
   logged_extension.hasTransmissionTimeOffset = true;
   logged_extension.absoluteSendTime = 11223344;
   logged_extension.hasAbsoluteSendTime = true;
-  LoggedRtpPacketIncoming logged_packet(
+  LoggedRtpPacket logged_packet(
       /*timestamp=*/Timestamp::Millis(123456789), logged_rtp_header,
       /*header_length=*/kBaseRtpHeaderSize,
       /*total_length=*/kBaseRtpHeaderSize);
@@ -106,7 +106,7 @@ TEST(RtpPacketSimulatorTest, SimulatesSizes) {
 
   RTPHeader logged_header;
   logged_header.paddingLength = 100;
-  LoggedRtpPacketIncoming logged_packet(
+  LoggedRtpPacket logged_packet(
       /*timestamp=*/Timestamp::Millis(123456789), logged_header,
       /*header_length=*/kBaseRtpHeaderSize,
       /*total_length=*/1200);

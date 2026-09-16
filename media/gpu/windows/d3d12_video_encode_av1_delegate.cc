@@ -13,7 +13,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "media/gpu/gpu_video_encode_accelerator_helpers.h"
 #include "media/gpu/windows/d3d12_video_helpers.h"
 #include "media/gpu/windows/format_utils.h"
 #include "third_party/libaom/source/libaom/av1/ratectrl_rtc.h"
@@ -602,11 +601,18 @@ D3D12VideoEncodeAV1Delegate::GetSupportedProfiles(
       continue;
     }
     std::vector<VideoPixelFormat> formats;
-    for (VideoPixelFormat format : {PIXEL_FORMAT_NV12, PIXEL_FORMAT_P010LE}) {
+    for (VideoPixelFormat format :
+         {PIXEL_FORMAT_NV12, PIXEL_FORMAT_P010LE, PIXEL_FORMAT_ABGR}) {
       D3D12_FEATURE_DATA_VIDEO_ENCODER_INPUT_FORMAT input_format{
           .Codec = D3D12_VIDEO_ENCODER_CODEC_AV1,
           .Profile = profile_level.Profile,
-          .Format = VideoPixelFormatToDxgiFormat(format),
+          // It makes no sense to encode at Y:U:V 444 if input UV is already
+          // subsampled. So only allow profile 1 encoding when input is RGBA
+          // frame, and converts to AYUV which is the only DXGI format supported
+          // by drivers at 8b profile 1.
+          .Format = (format == PIXEL_FORMAT_ABGR)
+                        ? DXGI_FORMAT_AYUV
+                        : VideoPixelFormatToDxgiFormat(format),
       };
       if (CheckD3D12VideoEncoderInputFormat(video_device, &input_format)
               .is_ok()) {
@@ -715,8 +721,6 @@ EncoderStatus D3D12VideoEncodeAV1Delegate::InitializeVideoEncoder(
       .FeatureFlags = enabled_features_,
       .OrderHintBitsMinus1 = kDefaultOrderHintBitsMinus1};
 
-  framerate_ = config.framerate;
-  bitrate_allocation_ = AllocateBitrateForDefaultEncoding(config);
   if (config.bitrate.mode() == Bitrate::Mode::kConstant ||
       config.bitrate.mode() == Bitrate::Mode::kVariable) {
     software_brc_ = aom::AV1RateControlRTC::Create(
@@ -816,23 +820,21 @@ bool D3D12VideoEncodeAV1Delegate::SupportsRateControlReconfiguration() const {
   return false;
 }
 
-bool D3D12VideoEncodeAV1Delegate::UpdateRateControl(const Bitrate& bitrate,
-                                                    uint32_t framerate) {
+bool D3D12VideoEncodeAV1Delegate::UpdateRateControl(
+    const VideoBitrateAllocation& bitrate_allocation,
+    uint32_t framerate) {
   DVLOG(3) << base::StringPrintf("%s: bitrate = %s, framerate = %d.", __func__,
-                                 bitrate.ToString(), framerate);
+                                 bitrate_allocation.ToString(), framerate);
   if (!software_brc_) {
-    return D3D12VideoEncodeDelegate::UpdateRateControl(bitrate, framerate);
+    return D3D12VideoEncodeDelegate::UpdateRateControl(bitrate_allocation,
+                                                       framerate);
   }
 
-  if (bitrate.mode() != Bitrate::Mode::kConstant &&
-      bitrate.mode() != Bitrate::Mode::kVariable) {
+  if (bitrate_allocation.GetMode() != Bitrate::Mode::kConstant &&
+      bitrate_allocation.GetMode() != Bitrate::Mode::kVariable) {
     return false;
   }
 
-  // Chromium uses the same target/peak bitrate for VBR, so we treat it as CBR
-  // for the purpose of rate control.
-  VideoBitrateAllocation bitrate_allocation(Bitrate::Mode::kConstant);
-  bitrate_allocation.SetBitrate(0, 0, bitrate.target_bps());
   if (bitrate_allocation != bitrate_allocation_ || framerate != framerate_) {
     software_brc_->UpdateRateControl(
         ConvertToRateControlConfig(is_screen_, bitrate_allocation, input_size_,

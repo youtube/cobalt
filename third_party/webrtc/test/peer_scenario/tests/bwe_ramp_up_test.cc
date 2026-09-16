@@ -184,17 +184,11 @@ TEST(BweRampupTest, RampUpWithUndemuxableRtpPackets) {
   DataRate initial_bwe = GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
   s.ProcessMessages(TimeDelta::Seconds(2));
 
-  // Since the packets are undemuxable, no packets or frames will be received.
-  // This means either that inbound-rtp does not exist at all or that it exists
-  // but no frames have been received, depending on status of field trial
-  // "WebRTC-RTP-Lifetime" which controls if inbound-rtp is created before or
-  // after first packet is received.
-  // TODO(crbug.com/406585888): When cleaning up the field trial, change this
-  // assertion to `ASSERT_THAT(callee_inbound_stats, SizeIs(0))`.
+  // Since the packets are undemuxable, no packets will be received preventing
+  // the inbound-rtp stats entry from being created.
   auto callee_inbound_stats =
       GetStatsAndProcess(s, callee)->GetStatsOfType<RTCInboundRtpStreamStats>();
-  ASSERT_TRUE(callee_inbound_stats.empty() ||
-              *callee_inbound_stats[0]->frames_received == 0u);
+  ASSERT_THAT(callee_inbound_stats, SizeIs(0));
 
   DataRate final_bwe = GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
   // Ensure BWE has increased from the initial BWE. BWE will not increase unless

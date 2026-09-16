@@ -28,7 +28,6 @@
 #include "content/public/common/javascript_dialog_type.h"
 #include "media/base/picture_in_picture_events_info.h"
 #include "media/mojo/mojom/media_player.mojom.h"
-#include "media/mojo/services/media_metrics_provider.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -317,6 +316,12 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
 
   // Get the accessibility mode for the WebContents that owns this frame.
   virtual ui::AXMode GetAccessibilityMode();
+
+  // Asks whether the page is in a state of ignoring accessibility input events.
+  // This means if accessibility actions (other than hit testing) should be
+  // blocked. This is active while a ScopedIgnoreInputEvents token exists. See
+  // WebContents::IgnoreInputEvents for more information.
+  virtual bool ShouldIgnoreA11yInputEvents();
 
   // Called whenever the AXTreeID for the topmost RenderFrameHost has changed.
   virtual void AXTreeIDForMainFrameHasChanged() {}

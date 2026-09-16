@@ -236,7 +236,7 @@ BASE_FEATURE(kDesktopPWAsPreventClose,
 
 BASE_FEATURE(kPwaNavigationCapturingWithScopeExtensions,
              "DesktopPWAsLinkCapturingWithScopeExtensions",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Adds a user settings that allows PWAs to be opened with a tab strip.
 BASE_FEATURE(kDesktopPWAsTabStripSettings, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -291,6 +291,9 @@ BASE_FEATURE(kGeoLanguage, base::FEATURE_DISABLED_BY_DEFAULT);
 // Controls whether the actor component of Glic is enabled.
 BASE_FEATURE(kGlicActor, base::FEATURE_ENABLED_BY_DEFAULT);
 
+const base::FeatureParam<base::TimeDelta> kGlicActorPageToolTimeout{
+    &kGlicActor, "glic-actor-page-tool-timeout", base::Seconds(10)};
+
 const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
     &kGlicActor, "glic-actor-click-delay", base::Milliseconds(5)};
 
@@ -339,7 +342,7 @@ const base::FeatureParam<bool> kGlicActorUiBorderGlow{
 // Controls whether the actor border glow uses a standalone implementation or a
 // shared implementation with context sharing glow.
 const base::FeatureParam<bool> kGlicActorUiStandaloneBorderGlow{
-    &kGlicActorUi, kGlicActorUiStandaloneBorderGlowName, false};
+    &kGlicActorUi, kGlicActorUiStandaloneBorderGlowName, true};
 // Controls the expiry delay for completed tasks in the actor ui.
 const base::FeatureParam<int> kGlicActorUiCompletedTaskExpiryDelaySeconds{
     &kGlicActorUi, kGlicActorUiCompletedTaskExpiryDelaySecondsName, 10};
@@ -422,6 +425,11 @@ const base::FeatureParam<bool> kGlicActorScrollTargetIntoView{
 BASE_FEATURE(kGlicActorPermissionsBypass, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorToctouValidation, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether the Glic's act-on-web capability is checked for managed
+// trial clients.
+BASE_FEATURE(kGlicActOnWebCapabilityForManagedTrials,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the Glic FRE dialog is displayed in the same window as the
 // main app.
@@ -658,6 +666,8 @@ BASE_FEATURE(kGlicDebugWebview, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicScrollTo, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicCaptureRegion, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether we enforce that documentId (an optional parameter) is set
 // when trying to scroll all documents except PDFs (and fail the request if
 // it's not set).
@@ -805,7 +815,12 @@ const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
 
 BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicWebActuationSetting, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(ENABLE_GLIC)
+
+// Enables the `google-chrome://` URI scheme.
+BASE_FEATURE(kGoogleChromeScheme, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Force Privacy Guide to be available even if it would be unavailable
 // otherwise. This is meant for development and test purposes only.

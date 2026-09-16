@@ -109,7 +109,7 @@ SkPDFDevice::MarkedContentManager::MarkedContentManager(SkPDFDocument* document,
 SkPDFDevice::MarkedContentManager::~MarkedContentManager() {
     // This does not close the last open mark, that is done in SkPDFDevice::content.
     SkASSERT(fNextMarksElemId == 0);
-};
+}
 
 void SkPDFDevice::MarkedContentManager::setNextMarksElemId(int nextMarksElemId) {
     fNextMarksElemId = nextMarksElemId;
@@ -604,7 +604,7 @@ void SkPDFDevice::internalDrawPathWithFilter(const SkClipStack& clipStack,
                                      ? SkStrokeRec::kFill_InitStyle
                                      : SkStrokeRec::kHairline_InitStyle;
     builder.transform(ctm);
-    const auto pathRaw = SkPathPriv::Raw(builder);
+    const auto pathRaw = SkPathPriv::Raw(builder, SkResolveConvexity::kYes);
     if (!pathRaw) {
         return;
     }

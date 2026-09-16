@@ -43,11 +43,11 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.url.GURL;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /** Unit tests for {@link NavigationAttachmentsMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -65,17 +65,20 @@ public class NavigationAttachmentsMediatorUnitTest {
     private @Mock TabModel mTabModel;
     private @Mock Tab mTab1;
     private @Mock Tab mTab2;
+    private @Mock Tab mTab3;
 
     private Context mContext;
     private PropertyModel mModel;
     private NavigationAttachmentsMediator mMediator;
     private ObservableSupplierImpl<Profile> mProfileSupplier;
-    private final Supplier<TabModelSelector> mTabModelSelectorSupplier = () -> mTabModelSelector;
+    private ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier;
     private final ModelList mTabAttachmentsModelList = new ModelList();
     private final List<Tab> mTabs = new ArrayList<>();
 
     @Before
     public void setUp() {
+        mTabModelSelectorSupplier = new ObservableSupplierImpl<>(mTabModelSelector);
+
         mProfileSupplier = new ObservableSupplierImpl<>(mProfile);
         mContext = RuntimeEnvironment.application;
         mModel = new PropertyModel(NavigationAttachmentsProperties.ALL_KEYS);
@@ -146,17 +149,30 @@ public class NavigationAttachmentsMediatorUnitTest {
 
     @Test
     public void popupAddsTabs() {
+        assertFalse(mModel.get(NavigationAttachmentsProperties.RECENT_TABS_HEADER_VISIBLE));
         doReturn("Title1").when(mTab1).getTitle();
+        doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
+        doReturn(true).when(mTab1).isInitialized();
         doReturn(100L).when(mTab1).getTimestampMillis();
+
         doReturn("Title2").when(mTab2).getTitle();
+        doReturn(new GURL("http://www.amazon.com")).when(mTab2).getUrl();
+        doReturn(true).when(mTab2).isInitialized();
         doReturn(123L).when(mTab2).getTimestampMillis();
+
+        doReturn("Title3").when(mTab3).getTitle();
+        doReturn(new GURL("chrome://flags")).when(mTab3).getUrl();
+        doReturn(true).when(mTab3).isInitialized();
+        doReturn(true).when(mTab3).isFrozen();
+        doReturn(89L).when(mTab3).getTimestampMillis();
         mTabs.add(mTab1);
         mTabs.add(mTab2);
+        mTabs.add(mTab3);
         doReturn(new ArrayList<>(mTabs).iterator()).when(mTabModel).iterator();
-        Runnable runnable = mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED);
         doReturn(false).when(mPopup).isShowing();
-        runnable.run();
+        mMediator.onToggleAttachmentsPopup();
 
+        assertTrue(mModel.get(NavigationAttachmentsProperties.RECENT_TABS_HEADER_VISIBLE));
         assertEquals(2, mTabAttachmentsModelList.size());
         assertEquals(
                 TabAttachmentPopupChoicesRecyclerViewAdapter.TAB_ATTACHMENT_ITEM_TYPE,
@@ -176,6 +192,16 @@ public class NavigationAttachmentsMediatorUnitTest {
                         .get(1)
                         .model
                         .get(TabAttachmentPopupChoiceProperties.TITLE));
+
+        doReturn(false).when(mTab3).isFrozen();
+        doReturn(new ArrayList<>(mTabs).iterator()).when(mTabModel).iterator();
+        mMediator.onToggleAttachmentsPopup();
+        assertEquals(2, mTabAttachmentsModelList.size());
+
+        doReturn(new GURL("https://www.yahoo.com")).when(mTab3).getUrl();
+        doReturn(new ArrayList<>(mTabs).iterator()).when(mTabModel).iterator();
+        mMediator.onToggleAttachmentsPopup();
+        assertEquals(3, mTabAttachmentsModelList.size());
     }
 
     @Test

@@ -1547,7 +1547,7 @@ compound_statement_with_scope
         $$ = new TIntermBlock();
         $$->setLine(@$);
     }
-    | LEFT_BRACE { context->symbolTable.push(); } statement_list { context->symbolTable.pop(); } RIGHT_BRACE {
+    | LEFT_BRACE { context->beginNestedScope(); } statement_list { context->endNestedScope(); } RIGHT_BRACE {
         $3->setLine(@$);
         $$ = $3;
     }
@@ -1562,10 +1562,10 @@ statement_no_new_scope
     ;
 
 statement_with_scope
-    : { context->symbolTable.push(); } compound_statement_no_new_scope { context->symbolTable.pop(); $$ = $2; }
-    | { context->symbolTable.push(); } simple_statement                {
+    : { context->beginNestedScope(); } compound_statement_no_new_scope { context->endNestedScope(); $$ = $2; }
+    | { context->beginNestedScope(); } simple_statement                {
         context->endStatementWithValue($2);
-        context->symbolTable.pop();
+        context->endNestedScope();
         $$ = $2;
     }
     ;
@@ -1628,9 +1628,8 @@ selection_rest_statement
 // Note that we've diverged from the spec grammar here a bit for the sake of simplicity.
 // We're reusing compound_statement_with_scope instead of having separate rules for switch.
 switch_statement
-    : SWITCH LEFT_PAREN expression RIGHT_PAREN { context->incrSwitchNestingLevel(@1); } compound_statement_with_scope {
+    : SWITCH LEFT_PAREN expression RIGHT_PAREN { context->beginSwitch(@1, $3); } compound_statement_no_new_scope {
         $$ = context->addSwitch($3, $6, @1);
-        context->decrSwitchNestingLevel();
     }
     ;
 
@@ -1655,30 +1654,27 @@ condition
 
 iteration_statement
     : WHILE LEFT_PAREN {
-        context->symbolTable.push(); context->incrLoopNestingLevel(@1);
-        context->onLoopConditionBegin();
+        context->symbolTable.push(); context->beginLoop(ELoopWhile, @1);
+        context->onLoopConditionBegin(nullptr, @1);
     } condition {
-        context->onLoopConditionEnd($4);
+        context->onLoopConditionEnd($4, @4);
     } RIGHT_PAREN statement_no_new_scope {
         context->symbolTable.pop();
         $$ = context->addLoop(ELoopWhile, 0, $4, 0, $7, @1);
-        context->decrLoopNestingLevel();
     }
     | DO {
-        context->incrLoopNestingLevel(@1);
+        context->beginLoop(ELoopDoWhile, @1);
         context->onDoLoopBegin();
     } statement_with_scope WHILE LEFT_PAREN {
         context->onDoLoopConditionBegin();
     } expression RIGHT_PAREN SEMICOLON {
         $$ = context->addLoop(ELoopDoWhile, 0, $7, 0, $3, @4);
-        context->decrLoopNestingLevel();
     }
-    | FOR LEFT_PAREN { context->symbolTable.push(); context->incrLoopNestingLevel(@1); } for_init_statement {
-        context->onLoopConditionBegin();
+    | FOR LEFT_PAREN { context->symbolTable.push(); context->beginLoop(ELoopFor, @1); } for_init_statement {
+        context->onLoopConditionBegin($4, @4);
     } for_rest_statement RIGHT_PAREN statement_no_new_scope {
         context->symbolTable.pop();
         $$ = context->addLoop(ELoopFor, $4, $6.node1, reinterpret_cast<TIntermTyped*>($6.node2), $8, @1);
-        context->decrLoopNestingLevel();
     }
     ;
 
@@ -1703,15 +1699,15 @@ conditionopt
 
 for_rest_statement
     : conditionopt SEMICOLON {
-        context->onLoopConditionEnd($1);
-        context->onLoopContinueEnd(nullptr);
+        context->onLoopConditionEnd($1, @1);
+        context->onLoopContinueEnd(nullptr, @1);
         $$.node1 = $1;
         $$.node2 = 0;
     }
     | conditionopt SEMICOLON {
-        context->onLoopConditionEnd($1);
+        context->onLoopConditionEnd($1, @1);
     } expression {
-        context->onLoopContinueEnd($4);
+        context->onLoopContinueEnd($4, @4);
         $$.node1 = $1;
         $$.node2 = $4;
     }

@@ -5,7 +5,11 @@
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/task/single_thread_task_runner.h"
+#include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
@@ -16,7 +20,7 @@ namespace {
 
 using password_manager::PasswordFormCache;
 
-PasswordFormCache* GetFormCache(
+PasswordFormCache* GetPasswordFormCache(
     password_manager::PasswordManagerClient* client) {
   CHECK(client);
   if (!client->GetPasswordManager()) {
@@ -28,11 +32,15 @@ PasswordFormCache* GetFormCache(
   return cache;
 }
 
-bool IsNewPasswordFieldVisible(const password_manager::PasswordForm& form) {
-  const auto fields = form.form_data.fields();
-  if (form.new_password_element_renderer_id) {
+bool IsNewPasswordFieldVisible(
+    const password_manager::PasswordForm* parsed_form) {
+  CHECK(parsed_form);
+
+  const std::vector<autofill::FormFieldData>& fields =
+      parsed_form->form_data.fields();
+  if (parsed_form->new_password_element_renderer_id) {
     auto field =
-        std::ranges::find(fields, form.new_password_element_renderer_id,
+        std::ranges::find(fields, parsed_form->new_password_element_renderer_id,
                           &autofill::FormFieldData::renderer_id);
     return field != fields.end() ? field->is_focusable() : false;
   }
@@ -41,9 +49,12 @@ bool IsNewPasswordFieldVisible(const password_manager::PasswordForm& form) {
 }
 
 bool IsLikelyChangePasswordForm(
-    const password_manager::PasswordForm* parsed_form,
-    bool ignore_hidden_forms) {
-  CHECK(parsed_form);
+    const password_manager::PasswordFormManager* form_manager) {
+  auto* parsed_form = form_manager->GetParsedObservedForm();
+
+  if (!parsed_form) {
+    return false;
+  }
 
   // New password field must be present in a change password form.
   if (!parsed_form->new_password_element_renderer_id) {
@@ -58,31 +69,7 @@ bool IsLikelyChangePasswordForm(
     return false;
   }
 
-  if (ignore_hidden_forms) {
-    return IsNewPasswordFieldVisible(*parsed_form);
-  }
-
   return true;
-}
-
-password_manager::PasswordFormManager* GetExistingChangePasswordForm(
-    PasswordFormCache* cache,
-    base::span<autofill::FieldRendererId> fields_to_ignore,
-    bool ignore_hidden_forms) {
-  for (const auto& manager : cache->GetFormManagers()) {
-    if (manager->GetParsedObservedForm() &&
-        IsLikelyChangePasswordForm(manager->GetParsedObservedForm(),
-                                   ignore_hidden_forms)) {
-      if (std::ranges::count(fields_to_ignore,
-                             manager->GetParsedObservedForm()
-                                 ->new_password_element_renderer_id)) {
-        continue;
-      }
-
-      return manager.get();
-    }
-  }
-  return nullptr;
 }
 
 }  // namespace
@@ -124,7 +111,12 @@ ChangePasswordFormWaiter::Builder::SetFieldsToIgnore(
 
 std::unique_ptr<ChangePasswordFormWaiter>
 ChangePasswordFormWaiter::Builder::Build() {
-  form_waiter_->Init();
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kDownloadModelForPasswordChange)) {
+    form_waiter_->WaitForLocalMLModelAvailability();
+  } else {
+    form_waiter_->Init();
+  }
   return std::move(form_waiter_);
 }
 
@@ -138,20 +130,32 @@ ChangePasswordFormWaiter::ChangePasswordFormWaiter(
 
 ChangePasswordFormWaiter::~ChangePasswordFormWaiter() {
   CHECK(client_);
-  if (auto* cache = GetFormCache(client_)) {
+  if (auto* cache = GetPasswordFormCache(client_)) {
     cache->RemoveObserver(this);
   }
 }
 
 void ChangePasswordFormWaiter::Init() {
-  if (PasswordFormCache* cache = GetFormCache(client_)) {
-    if (auto* manager = GetExistingChangePasswordForm(cache, fields_to_ignore_,
-                                                      ignore_hidden_forms_)) {
-      // Change password form is already present on a page. Simply post a
-      // callback with result.
+  model_loaded_subscription_ = {};
+  if (PasswordFormCache* cache = GetPasswordFormCache(client_)) {
+    for (const auto& manager : cache->GetFormManagers()) {
+      if (!IsLikelyChangePasswordForm(manager.get())) {
+        continue;
+      }
+
+      // There is no control over the lifetime of PasswordFormManager. Use a
+      // helper function which checks the cache again.
+      auto callback = base::BindOnce(
+          &ChangePasswordFormWaiter::GetCorrespondingFormManager,
+          weak_ptr_factory_.GetWeakPtr(),
+          manager->GetParsedObservedForm()->new_password_element_renderer_id);
+
+      // The form has been already parsed. Invoke OnPasswordFormParsed to check
+      // if the form is eligible.
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback_), manager));
-      return;
+          FROM_HERE, std::move(callback).Then(base::BindOnce(
+                         &ChangePasswordFormWaiter::OnPasswordFormParsed,
+                         weak_ptr_factory_.GetWeakPtr())));
     }
     cache->AddObserver(this);
   }
@@ -160,13 +164,33 @@ void ChangePasswordFormWaiter::Init() {
   }
 }
 
+void ChangePasswordFormWaiter::WaitForLocalMLModelAvailability() {
+  if (auto* client =
+          autofill::ContentAutofillClient::FromWebContents(web_contents())) {
+    auto* model_handler =
+        client->GetPasswordManagerFieldClassificationModelHandler();
+
+    if (model_handler && !model_handler->ModelAvailable()) {
+      model_loaded_subscription_ =
+          model_handler->RegisterModelChangeCallback(base::BindRepeating(
+              &ChangePasswordFormWaiter::Init, weak_ptr_factory_.GetWeakPtr()));
+      return;
+    }
+  }
+
+  // No downloading is required. Initialize waiter immediately.
+  Init();
+}
+
 void ChangePasswordFormWaiter::OnPasswordFormParsed(
     password_manager::PasswordFormManager* form_manager) {
   CHECK(callback_);
-  CHECK(form_manager);
 
-  if (!IsLikelyChangePasswordForm(form_manager->GetParsedObservedForm(),
-                                  ignore_hidden_forms_)) {
+  if (!form_manager) {
+    return;
+  }
+
+  if (!IsLikelyChangePasswordForm(form_manager)) {
     return;
   }
 
@@ -176,7 +200,42 @@ void ChangePasswordFormWaiter::OnPasswordFormParsed(
     return;
   }
 
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::
+              kCheckVisibilityInChangePasswordFormWaiter)) {
+    if (!form_manager->GetDriver()) {
+      return;
+    }
+
+    auto new_field_id =
+        form_manager->GetParsedObservedForm()->new_password_element_renderer_id;
+    form_manager->GetDriver()->CheckViewAreaVisible(
+        new_field_id,
+        base::BindOnce(
+            &ChangePasswordFormWaiter::OnCheckViewAreaVisibleCallback,
+            weak_ptr_factory_.GetWeakPtr(), new_field_id));
+    return;
+  }
+
+  if (ignore_hidden_forms_ &&
+      !IsNewPasswordFieldVisible(form_manager->GetParsedObservedForm())) {
+    return;
+  }
+
   std::move(callback_).Run(form_manager);
+}
+
+void ChangePasswordFormWaiter::OnCheckViewAreaVisibleCallback(
+    autofill::FieldRendererId new_password_element_id,
+    bool is_visible) {
+  if (!is_visible) {
+    return;
+  }
+
+  if (auto* form_manager = GetCorrespondingFormManager(
+          weak_ptr_factory_.GetWeakPtr(), new_password_element_id)) {
+    std::move(callback_).Run(form_manager);
+  }
 }
 
 void ChangePasswordFormWaiter::DidStartLoading() {
@@ -198,4 +257,25 @@ void ChangePasswordFormWaiter::OnTimeout() {
   if (timeout_callback_) {
     std::move(timeout_callback_).Run();
   }
+}
+
+// static
+password_manager::PasswordFormManager*
+ChangePasswordFormWaiter::GetCorrespondingFormManager(
+    base::WeakPtr<ChangePasswordFormWaiter> waiter,
+    autofill::FieldRendererId new_password_element_id) {
+  if (!waiter) {
+    return nullptr;
+  }
+
+  if (auto* cache = GetPasswordFormCache(waiter->client_)) {
+    for (const auto& manager : cache->GetFormManagers()) {
+      if (manager->GetParsedObservedForm() &&
+          manager->GetParsedObservedForm()->new_password_element_renderer_id ==
+              new_password_element_id) {
+        return manager.get();
+      }
+    }
+  }
+  return nullptr;
 }

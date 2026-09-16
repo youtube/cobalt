@@ -45,6 +45,7 @@ import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteSchemeClassifier;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer;
 import org.chromium.components.omnibox.SecurityStatusIcon;
@@ -176,6 +177,25 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     private boolean mAlreadyUpdatedUrlBarForSameDocNav;
     private boolean mAlreadyChangedSecurityStateForSameDocNav;
 
+    // Whether the URL returned in getUrlOfVisibleNavigationEntry() should match the trusted CDN
+    // publisher URL, if any exists.
+    private final boolean mMatchTrustedCdnUrl;
+
+    public LocationBarModel(
+            Context context,
+            NewTabPageDelegate newTabPageDelegate,
+            UrlFormatter urlFormatter,
+            OfflineStatus offlineStatus,
+            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier) {
+        this(
+                context,
+                newTabPageDelegate,
+                urlFormatter,
+                offlineStatus,
+                toolbarPositionSupplier,
+                /* matchTrustedCdnUrl= */ false);
+    }
+
     /**
      * Default constructor for this class.
      *
@@ -184,14 +204,17 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
      * @param urlFormatter Formatter returning the formatted version of the original version of URL
      *     of a distillation.
      * @param offlineStatus Offline-related status provider.
-     * @param searchEngineUtils Utils to query the state of the search engine logos feature.
+     * @param toolbarPositionSupplier The on-screen position of the Toolbar.
+     * @param matchTrustedCdnUrl Whether the URL returned in getUrlOfVisibleNavigationEntry() should
+     *     match the trusted CDN publisher URL, if any exists.
      */
     public LocationBarModel(
             Context context,
             NewTabPageDelegate newTabPageDelegate,
             UrlFormatter urlFormatter,
             OfflineStatus offlineStatus,
-            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier) {
+            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier,
+            boolean matchTrustedCdnUrl) {
         mContext = context;
         mNtpDelegate = newTabPageDelegate;
         mUrlFormatter = urlFormatter;
@@ -200,6 +223,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         mUrlForDisplay = "";
         mFormattedFullUrl = "";
         mToolbarPositionSupplier = toolbarPositionSupplier;
+        mMatchTrustedCdnUrl = matchTrustedCdnUrl;
     }
 
     /** Handle any initialization that must occur after native has been initialized. */
@@ -625,11 +649,17 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     }
 
     @Override
-    public int getPageClassification(boolean isPrefetch) {
+    public int getPageClassification(@AutocompleteRequestType int type) {
+        if (type == AutocompleteRequestType.AI_MODE) {
+            return PageClassification.NTP_COMPOSEBOX_VALUE;
+        }
+
         if (mNativeLocationBarModelAndroid == 0) return PageClassification.INVALID_SPEC_VALUE;
 
         return LocationBarModelJni.get()
-                .getPageClassification(mNativeLocationBarModelAndroid, isPrefetch);
+                .getPageClassification(
+                        mNativeLocationBarModelAndroid,
+                        type == AutocompleteRequestType.SEARCH_PREFETCH);
     }
 
     @Override
@@ -814,6 +844,12 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         if (mNativeLocationBarModelAndroid == 0) return GURL.emptyGURL();
         if (mNtpDelegate.isCurrentlyVisible()) {
             return getTab().getUrl();
+        }
+        if (mMatchTrustedCdnUrl && mTab != null && !mTab.isDestroyed()) {
+            @Nullable GURL publisherUrl = TrustedCdn.getPublisherUrl(mTab);
+            if (publisherUrl != null) {
+                return publisherUrl;
+            }
         }
 
         return LocationBarModelJni.get()

@@ -643,7 +643,7 @@ namespace internal {
   T(AwaitExpressionFormalParameter,                                            \
     "Illegal await-expression in formal parameters of async function")         \
   T(TooManyArguments,                                                          \
-    "Too many arguments in function call (only 65535 allowed)")                \
+    "Too many arguments in function call (only 65525 allowed)")                \
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65534 allowed)")         \
   T(TooManyProperties, "Too many properties to enumerate")                     \
@@ -712,6 +712,7 @@ namespace internal {
   T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
+  T(WasmTrapResume, "resuming an invalid continuation")                        \
   T(WasmSuspendError, "trying to suspend without WebAssembly.promising")       \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \

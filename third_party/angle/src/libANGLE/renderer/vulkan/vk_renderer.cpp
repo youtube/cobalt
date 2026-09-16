@@ -446,32 +446,6 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessages[] = {
          "old_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL",
          "new_layout = VK_IMAGE_LAYOUT_GENERAL",
      }},
-    // From: TraceTest.special_forces_group_2 http://anglebug.com/42264123
-    // http://anglebug.com/397775556
-    // From: TraceTest.life_is_strange http://anglebug.com/42266180 (Linux AMD)
-    // From: TraceTest.diablo_immortal http://anglebug.com/42266309 (Linux AMD)
-    {"SYNC-HAZARD-READ-AFTER-WRITE",
-     false,
-     {
-         "message_type = BufferError",
-         "access = "
-         "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
-         "prior_access = "
-         "VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
-         "command = vkCmdDrawIndexed",
-         "prior_command = vkCmdCopyBuffer",
-     }},
-    // http://anglebug.com/394598470
-    {"SYNC-HAZARD-WRITE-AFTER-READ",
-     false,
-     {
-         "message_type = BufferCopyError",
-         "access = VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
-         "prior_access = "
-         "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
-         "command = vkCmdCopyBuffer",
-         "prior_command = vkCmdDrawIndexed",
-     }},
     // http://anglebug.com/399191283
     {"SYNC-HAZARD-WRITE-AFTER-WRITE",
      false,
@@ -505,6 +479,37 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessages[] = {
       "VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT)",
       "prior_access = VK_PIPELINE_STAGE_2_BLIT_BIT(VK_ACCESS_2_TRANSFER_READ_BIT)",
       "command = vkCmdDraw", "prior_command = vkCmdBlitImage"}},
+};
+
+// Messages that should not be generated if the feature to force-enable providing the size pointer
+// to vkCmdBindVertexBuffers2() is disabled.
+constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessagesWithoutForcedSizePointer[] = {
+    // From: TraceTest.special_forces_group_2 http://anglebug.com/42264123
+    // http://anglebug.com/397775556
+    // From: TraceTest.life_is_strange http://anglebug.com/42266180 (Linux AMD)
+    // From: TraceTest.diablo_immortal http://anglebug.com/42266309 (Linux AMD)
+    {"SYNC-HAZARD-READ-AFTER-WRITE",
+     false,
+     {
+         "message_type = BufferError",
+         "access = "
+         "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
+         "prior_access = "
+         "VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
+         "command = vkCmdDrawIndexed",
+         "prior_command = vkCmdCopyBuffer",
+     }},
+    // http://anglebug.com/394598470
+    {"SYNC-HAZARD-WRITE-AFTER-READ",
+     false,
+     {
+         "message_type = BufferCopyError",
+         "access = VK_PIPELINE_STAGE_2_COPY_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
+         "prior_access = "
+         "VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT)",
+         "command = vkCmdCopyBuffer",
+         "prior_command = vkCmdDrawIndexed",
+     }},
     // https://anglebug.com/443095908
     {"SYNC-HAZARD-WRITE-AFTER-READ",
      false,
@@ -1950,7 +1955,8 @@ Renderer::Renderer()
       mNativeVectorWidthHalf(0),
       mPreferredVectorWidthDouble(0),
       mPreferredVectorWidthHalf(0),
-      mMinCommandCountToSubmit(0)
+      mMinCommandCountToSubmit(0),
+      mMinRPWriteCommandCountToEarlySubmit(UINT32_MAX)
 {
     VkFormatProperties invalid = {0, 0, kInvalidFormatFeatureFlags};
     mFormatProperties.fill(invalid);
@@ -3064,6 +3070,8 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo11(
 //                                          shaderSignedZeroInfNanPreserveFloat64 (property)
 // - VK_KHR_uniform_buffer_standard_layout: uniformBufferStandardLayout (feature)
 // - VK_KHR_buffer_device_address:          bufferDeviceAddress (feature)
+// - VK_KHR_shader_atomic_int64:            shaderBufferAtomicInt64 (feature)
+//                                          shaderSharedAtomicInt64 (feature)
 //
 // Note that supportedDepthResolveModes is used just to check if the property struct is populated.
 // ANGLE always uses VK_RESOLVE_MODE_SAMPLE_ZERO_BIT for both depth and stencil, and support for
@@ -3127,6 +3135,11 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo12(
     if (ExtensionFound(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(deviceFeatures, &mBufferDeviceAddressFeatures);
+    }
+
+    if (ExtensionFound(VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(deviceFeatures, &mShaderAtomicInt64Features);
     }
 }
 
@@ -3434,6 +3447,10 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mBufferDeviceAddressFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
 
+    mShaderAtomicInt64Features = {};
+    mShaderAtomicInt64Features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES;
+
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures = {};
     mExternalFormatResolveFeatures.sType =
@@ -3528,6 +3545,7 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mPhysicalDeviceGlobalPriorityQueryFeatures.pNext  = nullptr;
     mExternalMemoryHostProperties.pNext               = nullptr;
     mBufferDeviceAddressFeatures.pNext                = nullptr;
+    mShaderAtomicInt64Features.pNext                  = nullptr;
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures.pNext   = nullptr;
     mExternalFormatResolveProperties.pNext = nullptr;
@@ -4034,6 +4052,11 @@ void Renderer::enableDeviceExtensionsPromotedTo12(const vk::ExtensionNameList &d
     {
         mEnabledDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
         vk::AddToPNextChain(&mEnabledFeatures, &mBufferDeviceAddressFeatures);
+    }
+    if (mFeatures.supportsShaderAtomicInt64.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mShaderAtomicInt64Features);
     }
 }
 
@@ -4647,6 +4670,13 @@ void Renderer::initializeValidationMessageSuppressions()
     // Build the list of syncval errors that are currently expected and should be skipped.
     mSkippedSyncvalMessages.insert(mSkippedSyncvalMessages.end(), kSkippedSyncvalMessages,
                                    kSkippedSyncvalMessages + ArraySize(kSkippedSyncvalMessages));
+    if (!getFeatures().forceSizePointerForBoundVertexBuffers.enabled)
+    {
+        mSkippedSyncvalMessages.insert(
+            mSkippedSyncvalMessages.end(), kSkippedSyncvalMessagesWithoutForcedSizePointer,
+            kSkippedSyncvalMessagesWithoutForcedSizePointer +
+                ArraySize(kSkippedSyncvalMessagesWithoutForcedSizePointer));
+    }
     if (!getFeatures().supportsRenderPassLoadStoreOpNone.enabled)
     {
         mSkippedSyncvalMessages.insert(
@@ -5571,6 +5601,10 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     ANGLE_FEATURE_CONDITION(&mFeatures, preferCachedNoncoherentForDynamicStreamBufferUsage,
                             IsMeteorLake(mPhysicalDeviceProperties.deviceID));
 
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsShaderAtomicInt64,
+                            mShaderAtomicInt64Features.shaderBufferInt64Atomics == VK_TRUE &&
+                                mShaderAtomicInt64Features.shaderSharedInt64Atomics == VK_TRUE);
+
     // The compute shader used to generate mipmaps needs -
     // 1. subgroup quad operations in compute shader stage.
     // 2. subgroup operations that can use extended types.
@@ -5688,9 +5722,17 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // improves performance. Most app traces shows frame time reduced and manhattan 3.1 offscreen
     // score improves 7%.
     ANGLE_FEATURE_CONDITION(&mFeatures, preferSubmitAtFBOBoundary,
-                            isTileBasedRenderer || isSwiftShader);
+                            ((isTileBasedRenderer || isSwiftShader) && !isARMProprietary));
+
     ANGLE_FEATURE_CONDITION(&mFeatures, forceSubmitExceptionsAtFBOBoundary, !isQualcommProprietary);
     mMinCommandCountToSubmit = isQualcommProprietary ? 1024 : 32;
+
+    // The number of minimum write commands in the command buffer to trigger one submission of
+    // pending commands at draw call time
+    if (isARMProprietary)
+    {
+        mMinRPWriteCommandCountToEarlySubmit = 128;
+    }
 
     // In order to support immutable samplers tied to external formats, we need to overallocate
     // descriptor counts for such immutable samplers
@@ -5957,6 +5999,12 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                             mFeatures.supportsExtendedDynamicState.enabled);
     ANGLE_FEATURE_CONDITION(&mFeatures, useStencilTestEnableDynamicState,
                             mFeatures.supportsExtendedDynamicState.enabled);
+
+    // Providing vkCmdBindVertexBuffers2() with a pointer to the sizes of the bound buffers can help
+    // with syncval issues and robustness.
+    ANGLE_FEATURE_CONDITION(
+        &mFeatures, forceSizePointerForBoundVertexBuffers,
+        mEnableValidationLayers && mFeatures.useVertexInputBindingStrideDynamicState.enabled);
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsExtendedDynamicState2,
                             mExtendedDynamicState2Features.extendedDynamicState2 == VK_TRUE &&
@@ -6342,7 +6390,7 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                             isTileBasedRenderer || isSoftwareRenderer);
     // vkCmdResetEvent adds extra GPU overhead and ARM prefers CPU overhead of creating/destroying
     // VkEvent instead of GPU overhead associated with vkCmdResetEvent.
-    ANGLE_FEATURE_CONDITION(&mFeatures, recycleVkEvent, false);
+    ANGLE_FEATURE_CONDITION(&mFeatures, recycleVkEvent, isSwiftShader);
 
     // Disable for Samsung, details here -> http://anglebug.com/386749841#comment21
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsDynamicRendering,

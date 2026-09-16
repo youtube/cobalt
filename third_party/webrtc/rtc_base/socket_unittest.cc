@@ -39,6 +39,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/near_matcher.h"
 #include "test/wait_until.h"
 
 #define MAYBE_SKIP_IPV6                        \
@@ -48,10 +49,6 @@
   }
 
 namespace webrtc {
-
-MATCHER_P2(Near, expected, max_error, "") {
-  return expected - max_error < arg && arg < expected + max_error;
-}
 
 using testing::SSE_CLOSE;
 using testing::SSE_ERROR;

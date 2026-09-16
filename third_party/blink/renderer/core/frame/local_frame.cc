@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
@@ -3476,7 +3477,24 @@ uint32_t LocalFrame::GetCharacterIndexAtPoint(const gfx::Point& point) {
 
 void LocalFrame::UpdateWindowControlsOverlay(
     const gfx::Rect& bounding_rect_in_dips) {
-#if !BUILDFLAG(IS_ANDROID)
+  if (!GetDocument()->GetSettings()) {
+    // TODO(http://crbug.com/446990195): Diagnose root cause of this crash
+    // and remove this logging.
+    SCOPED_CRASH_KEY_BOOL("Blink", "update_wco_is_attached", IsAttached());
+    SCOPED_CRASH_KEY_BOOL("Blink", "update_wco_is_detached", IsDetached());
+    SCOPED_CRASH_KEY_BOOL("Blink", "update_wco_is_provisional",
+                          IsProvisional());
+    SCOPED_CRASH_KEY_BOOL("Blink", "update_wco_initial_empty_doc",
+                          GetDocument()->IsInitialEmptyDocument());
+    SCOPED_CRASH_KEY_STRING32("Blink", "update_wco_null_settings_reason",
+                              !GetDocument()->GetFrame() ? "detached from frame"
+                              : !GetDocument()->GetFrame()->GetPage()
+                                  ? "detached from page"
+                                  : "other: frame and page still valid");
+    base::debug::DumpWithoutCrashing();
+    return;
+  }
+
   // The rect passed to us from content is in DIP screen space, relative to the
   // main frame, and needs to move to CSS space. This doesn't take the page's
   // zoom factor into account so we must scale by the inverse of the page zoom
@@ -3522,7 +3540,6 @@ void LocalFrame::UpdateWindowControlsOverlay(
     window_controls_overlay_changed_delegate_->WindowControlsOverlayChanged(
         window_controls_overlay_rect_);
   }
-#endif
 }
 
 void LocalFrame::RegisterWindowControlsOverlayChangedDelegate(
@@ -3841,20 +3858,12 @@ void LocalFrame::AdvanceFocusForIME(mojom::blink::FocusType focus_type) {
 
 void LocalFrame::PostMessageEvent(
     const std::optional<RemoteFrameToken>& source_frame_token,
-    const String& serialized_source_origin,
-    const String& serialized_target_origin,
+    scoped_refptr<const SecurityOrigin> source_origin,
+    scoped_refptr<const SecurityOrigin> target_origin,
     BlinkTransferableMessage message) {
   probe::FrameRelatedTask probe(DomWindow());
   TRACE_EVENT0("blink", "LocalFrame::PostMessageEvent");
   RemoteFrame* source_frame = SourceFrameForOptionalToken(source_frame_token);
-
-  // We must pass in the serialized_target_origin to do the security check on
-  // this side, since it may have changed since the original postMessage call
-  // was made.
-  scoped_refptr<const SecurityOrigin> target_origin;
-  if (!serialized_target_origin.empty()) {
-    target_origin = SecurityOrigin::CreateFromString(serialized_target_origin);
-  }
 
   // Preparation of the MessageEvent.
   MessageEvent* message_event = MessageEvent::Create();
@@ -3878,14 +3887,6 @@ void LocalFrame::PostMessageEvent(
         message.user_activation->was_active);
   }
 
-  // `serialized_source_origin` will be an empty string for certain calls
-  // initiated from WebView; we handle that as a nullptr, not an opaque origin.
-  // See `org.chromium.android_webview.AwContents.postMessageToMainFrame()`.
-  scoped_refptr<const SecurityOrigin> source_origin;
-  if (!serialized_source_origin.empty()) {
-    source_origin = SecurityOrigin::CreateFromString(serialized_source_origin);
-  }
-
   const MessageEvent::MessageOriginKind message_origin_kind =
       (source_origin &&
        source_origin->IsSameOriginWith(DomWindow()->GetSecurityOrigin()))
@@ -3893,8 +3894,8 @@ void LocalFrame::PostMessageEvent(
           : MessageEvent::kMessageIsCrossOrigin;
   message_event->initMessageEvent(
       event_type_names::kMessage, false, false, std::move(message.message),
-      source_origin, message_origin_kind, "" /*lastEventId*/, window, ports,
-      user_activation, message.delegated_capability);
+      std::move(source_origin), message_origin_kind, "" /*lastEventId*/, window,
+      std::move(ports), user_activation, message.delegated_capability);
 
   // If the agent cluster id had a value it means this was locked when it
   // was serialized.

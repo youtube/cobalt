@@ -27,12 +27,11 @@
 #include "logging/rtc_event_log/events/rtc_event_begin_log.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_loss_based.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/events/rtc_event_neteq_set_minimum_delay.h"
@@ -61,6 +60,7 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/sender_report.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
+#include "rtc_base/buffer.h"
 #include "rtc_base/random.h"
 
 namespace webrtc {
@@ -76,11 +76,10 @@ class EventGenerator {
   std::unique_ptr<RtcEventAudioPlayout> NewAudioPlayout(uint32_t ssrc);
   std::unique_ptr<RtcEventBweUpdateDelayBased> NewBweUpdateDelayBased();
   std::unique_ptr<RtcEventBweUpdateLossBased> NewBweUpdateLossBased();
+  std::unique_ptr<RtcEventBweUpdateScream> NewBweUpdateScream();
   std::unique_ptr<RtcEventDtlsTransportState> NewDtlsTransportState();
   std::unique_ptr<RtcEventDtlsWritableState> NewDtlsWritableState();
   std::unique_ptr<RtcEventFrameDecoded> NewFrameDecodedEvent(uint32_t ssrc);
-  std::unique_ptr<RtcEventGenericPacketReceived> NewGenericPacketReceived();
-  std::unique_ptr<RtcEventGenericPacketSent> NewGenericPacketSent();
   std::unique_ptr<RtcEventIceCandidatePair> NewIceCandidatePair();
   std::unique_ptr<RtcEventIceCandidatePairConfig> NewIceCandidatePairConfig();
   std::unique_ptr<RtcEventNetEqSetMinimumDelay> NewNetEqSetMinimumDelay(
@@ -152,8 +151,7 @@ class EventGenerator {
 
  private:
   rtcp::ReportBlock NewReportBlock();
-  int sent_packet_number_ = 0;
-  int received_packet_number_ = 0;
+  Buffer NewRtcpPacket();
 
   Random prng_;
 };
@@ -185,6 +183,10 @@ class EventVerifier {
   void VerifyLoggedBweLossBasedUpdate(
       const RtcEventBweUpdateLossBased& original_event,
       const LoggedBweLossBasedUpdate& logged_event) const;
+
+  void VerifyLoggedBweScreamUpdate(
+      const RtcEventBweUpdateScream& original_event,
+      const LoggedBweScreamUpdate& logged_event) const;
 
   void VerifyLoggedBweProbeClusterCreatedEvent(
       const RtcEventProbeClusterCreated& original_event,
@@ -232,14 +234,6 @@ class EventVerifier {
   void VerifyLoggedRtpPacketOutgoing(
       const RtcEventRtpPacketOutgoing& original_event,
       const LoggedRtpPacketOutgoing& logged_event) const;
-
-  void VerifyLoggedGenericPacketSent(
-      const RtcEventGenericPacketSent& original_event,
-      const LoggedGenericPacketSent& logged_event) const;
-
-  void VerifyLoggedGenericPacketReceived(
-      const RtcEventGenericPacketReceived& original_event,
-      const LoggedGenericPacketReceived& logged_event) const;
 
   template <typename EventType, typename ParsedType>
   void VerifyLoggedRtpPacket(const EventType& /* original_event */,

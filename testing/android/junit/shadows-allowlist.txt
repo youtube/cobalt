@@ -7,26 +7,17 @@
 # https://chromium.googlesource.com/chromium/src/+/main/styleguide/java/java.md#testing
 
 # TODO(https://crbug.com/341267427): Reduce this list.
-+com.google.android.apps.chrome.rlz.RevenueStatsInternal
-+org.chromium.base.SysUtils
 +org.chromium.base.task.AsyncTask
 +org.chromium.base.task.PostTask
-+org.chromium.base.version_info.VersionInfo
 +org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate$ClipDataItemBuilder
 +org.chromium.chrome.browser.firstrun.FirstRunUtils
-+org.chromium.chrome.browser.incognito.IncognitoUtils
 +org.chromium.chrome.browser.init.ChromeBrowserInitializer
 +org.chromium.chrome.browser.lens.LensController
 +org.chromium.chrome.browser.lens.LensPolicyUtils
 +org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31
 +org.chromium.chrome.browser.night_mode.WebContentsDarkModeController
-+org.chromium.chrome.browser.omnibox.geo.GeolocationTracker
-+org.chromium.chrome.browser.omnibox.geo.PlatformNetworksManager
-+org.chromium.chrome.browser.omnibox.geo.VisibleNetworksTracker
-+org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider
-+org.chromium.chrome.browser.omnibox.suggestions.CachedZeroSuggestionsManager
 +org.chromium.chrome.browser.omnibox.UrlBarData
-+org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionUtil
++org.chromium.chrome.browser.omnibox.geo.VisibleNetworksTracker
 +org.chromium.chrome.browser.partnercustomizations.CustomizationProviderDelegateUpstreamImpl
 +org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations
 +org.chromium.chrome.browser.profiles.Profile
@@ -50,16 +41,11 @@
 +org.chromium.chrome.browser.util.AndroidTaskUtils
 +org.chromium.chrome.browser.webapps.WebApkShareTargetUtil
 +org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider
-+org.chromium.components.browser_ui.share.ShareImageFileUtils
 +org.chromium.components.browser_ui.styles.SemanticColorUtils
 +org.chromium.components.browser_ui.widget.ContextMenuDialog
 +org.chromium.components.embedder_support.util.UrlUtilities
 +org.chromium.components.media_router.caf.CastMediaSource
-+org.chromium.components.stylus_handwriting.DirectWritingSettingsHelper
 +org.chromium.components.url_formatter.UrlFormatter
-+org.chromium.components.user_prefs.UserPrefs
-+org.chromium.content_public.browser.WebContentsStatics
-+org.chromium.gms.ChromiumPlayServicesAvailability
 +org.chromium.ui.InsetsRectProvider$BoundingRectHelper
 +org.chromium.ui.base.MimeTypeUtils
 +org.chromium.ui.display.DisplayAndroid

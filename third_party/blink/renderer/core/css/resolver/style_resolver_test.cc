@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/geometry/calculation_value.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -1193,6 +1194,35 @@ TEST_F(StyleResolverTest, EnsureComputedStyleOutsideFlatTree) {
   EXPECT_NE(a_style, a->GetComputedStyle());
   EXPECT_NE(b_style, b->GetComputedStyle());
   EXPECT_NE(c_style, c->GetComputedStyle());
+}
+
+TEST_F(StyleResolverTest, EnsureComputedStyleForExistingScrollMarkerGroup) {
+  SetBodyInnerHTML(R"HTML(
+      <style>
+        #scroller {
+          overflow: auto;
+          width: 100px;
+          height: 100px;
+          scroll-marker-group: before;
+        }
+        #scroller::scroll-marker-group {
+          background: green;
+        }
+      </style>
+      <div id="scroller"></div>
+    )HTML");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
+  PseudoElement* smg =
+      scroller->GetPseudoElement(kPseudoIdScrollMarkerGroupBefore);
+  ASSERT_TRUE(smg);
+  const ComputedStyle* smg_style = smg->GetComputedStyle();
+  const ComputedStyle* smg_ensured_style =
+      scroller->EnsureComputedStyle(kPseudoIdScrollMarkerGroup);
+  EXPECT_TRUE(smg_style);
+  EXPECT_EQ(smg_style, smg_ensured_style)
+      << "Ensuring ComputedStyle for kPseudoIdScrollMarkerGroup should "
+         "retrieve the style directly from the generated before or after group "
+         "when present";
 }
 
 TEST_F(StyleResolverTest, ComputeValueStandardProperty) {
@@ -2796,6 +2826,35 @@ TEST_F(StyleResolverTestCQ, StyleRulesForElementContainerQuery) {
       << "The empty #target rule in the container query should be collected";
   EXPECT_TRUE(rule_list->at(0)->Properties().IsEmpty())
       << "Check that it is in fact the empty rule";
+}
+
+TEST_F(StyleResolverTest, StyleRulesForSVGUseInstanceElement) {
+  ScopedSvg2CascadeForTest enabled(true);
+
+  SetBodyInnerHTML(R"HTML(
+      <style>
+        rect { fill: green; }
+      </style>
+      <svg>
+        <defs>
+          <rect id="rect" width="100" height="100"></rect>
+        </defs>
+        <use id="use" href="#rect"></use>
+      </svg>
+    )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* use = GetDocument().getElementById(AtomicString("use"));
+  ShadowRoot* shadow_root = use->UserAgentShadowRoot();
+  Element* rect = shadow_root->getElementById(AtomicString("rect"));
+
+  RuleIndexList* rule_list =
+      GetDocument().GetStyleResolver().PseudoCSSRulesForElement(
+          rect, kPseudoIdNone, g_null_atom, StyleResolver::kAuthorCSSRules);
+  ASSERT_TRUE(rule_list);
+  EXPECT_EQ(rule_list->size(), 1u)
+      << "The rule from the corresponding element's scope should be collected";
 }
 
 TEST_F(StyleResolverTest, LegacyOverlapPerspectiveOrigin_Single) {

@@ -26,12 +26,12 @@ RtpPacketSimulator::RtpPacketSimulator(const Environment& env)
           ParsedRtcEventLog::GetDefaultHeaderExtensionMap()) {}
 
 RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
-    const LoggedRtpPacketIncoming& logged_packet) const {
+    const LoggedRtpPacket& logged_packet) const {
   RtpPacketReceived rtp_packet(&rtp_header_extension_map_);
   rtp_packet.set_arrival_time(env_.clock().CurrentTime());
 
   // RTP header.
-  const RTPHeader& header = logged_packet.rtp.header;
+  const RTPHeader& header = logged_packet.header;
   rtp_packet.SetMarker(header.markerBit);
   rtp_packet.SetPayloadType(header.payloadType);
   rtp_packet.SetSequenceNumber(header.sequenceNumber);
@@ -52,11 +52,11 @@ RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
     rtp_packet.SetExtension<AbsoluteSendTime>(extension.absoluteSendTime);
   }
   rtp_packet.SetRawExtension<RtpDependencyDescriptorExtension>(
-      logged_packet.rtp.dependency_descriptor_wire_format);
+      logged_packet.dependency_descriptor_wire_format);
 
   // Payload and padding.
-  rtp_packet.AllocatePayload(logged_packet.rtp.total_length -
-                             logged_packet.rtp.header_length -
+  rtp_packet.AllocatePayload(logged_packet.total_length -
+                             logged_packet.header_length -
                              header.paddingLength);
   rtp_packet.SetPadding(header.paddingLength);
 

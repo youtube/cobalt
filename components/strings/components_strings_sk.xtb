@@ -286,6 +286,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Zobraziť 0 recenzií}=1{Zobraziť 1 recenziu}few{Zobraziť všetky # recenzie}many{View all # reviews}other{Zobraziť všetkých # recenzií}}</translation>
 <translation id="1458059624921545588">Ľudia s spoločnosť</translation>
 <translation id="1458140305240870199">Spodná bielizeň</translation>
+<translation id="1458770162980644530">Obrazovka so zmluvnými podmienkami platby Kúpte hneď, plaťte neskôr. Klávesnica je skrytá.</translation>
 <translation id="1459693405370120464">Počasie</translation>
 <translation id="1461041542809785877">Výkonnosť</translation>
 <translation id="1462245070427461050">JIS B9</translation>
@@ -983,6 +984,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="2596415276201385844">Ak chcete nadviazať zabezpečené pripojenie, vaše hodiny musia byť nastavené správne. Je to preto, že certifikáty, ktoré webové stránky používajú na vlastnú identifikáciu, sú platné iba určitý čas. Keďže nie sú hodiny vášho zariadenia nastavené správne, Chrome nemôže tieto certifikáty overiť.</translation>
 <translation id="2597378329261239068">Tento dokument je chránený heslom. Zadajte heslo.</translation>
 <translation id="2600083925285092409">Keď si túto kartu uložíte na používanie so službou Google Pay, budú sa pri nákupoch v prehliadači Chromium automaticky dopĺňať jej údaje</translation>
+<translation id="2602283642570832995">Táto akcia môže porušovať pravidlá správcu <ph name="DOMAIN" /></translation>
 <translation id="2605979593348332811">Meno (foneticky)</translation>
 <translation id="2606760465469169465">Automatické overenie</translation>
 <translation id="2608019759319359258">Keď je téma blokovaná, nebudú sa pomocou nej prispôsobovať reklamy</translation>
@@ -2017,6 +2019,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="4281998142035485137">{0,plural, =1{Chcete otvoriť dôverný súbor?}few{Chcete otvoriť dôverné súbory?}many{Open confidential files?}other{Chcete otvoriť dôverné súbory?}}</translation>
 <translation id="4282280603030594840">Nákup vozidiel</translation>
 <translation id="4282346679996504092">Upozornenia na tento výrobok boli vypnuté a záložka bola odstránená</translation>
+<translation id="4284885181066817063">Blokované správcom <ph name="DOMAIN" /></translation>
 <translation id="4285498937028063278">Odopnúť</translation>
 <translation id="4287495839370498922">Zlepšená ochrana súkromia pri reklamách v Chrome</translation>
 <translation id="4288101205645068104">Odstránenie vozidla</translation>
@@ -2133,7 +2136,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="4480760608050410381">Video MP4</translation>
 <translation id="448363931695049633">Pizzerie</translation>
 <translation id="4489023393592172404">Obálka Kaku 4</translation>
-<translation id="4489977488133295402">Ak chcete automaticky dopĺňať spôsoby platby, overte svoju totožnosť</translation>
+<translation id="4489977488133295402">Overovať moju totožnosť pri automatickom dopĺňaní spôsobov platby</translation>
 <translation id="4490717597759821841">A7</translation>
 <translation id="449126573531210296">Šifrovať synchronizované heslá pomocou účtu Google</translation>
 <translation id="4493480324863638523">Neplatná webová adresa. Je nutné použiť webovú adresu so štandardnou schémou, napr. http://example.com alebo https://example.com.</translation>
@@ -2285,6 +2288,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="4758311279753947758">Pridať kontaktné údaje</translation>
 <translation id="4761326898079498987">Prezrite si ďalšie podrobnosti</translation>
 <translation id="4761869838909035636">Spustiť kontrolu bezpečnosti Chromu</translation>
+<translation id="4762097990764616058">Chcete naďalej platiť spôsobom <ph name="BNPL_ISSUER_NAME" />?</translation>
 <translation id="4763196677855776703">Zmluvné podmienky poskytuje <ph name="URL" /></translation>
 <translation id="4764680219299728632">Sporáky, varné dosky a rúry</translation>
 <translation id="4764776831041365478">Stránka <ph name="URL" /> je možno dočasne nedostupná, možno bola natrvalo presunutá na novú webovú adresu.</translation>
@@ -2914,9 +2918,9 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="5813119285467412249">&amp;Znova pridať</translation>
 <translation id="5813753398265398978">Fyzika</translation>
 <translation id="5817918615728894473">Párovať</translation>
-<translation id="5820625124144807242">Po kontrole objednávky sa musíte prihlásiť do účtu <ph name="BNPL_ISSUER_NAME" /> alebo si ho vytvoriť. Tento účet sa automaticky prepojí so službou Google Pay.</translation>
 <translation id="5826507051599432481">Bežný názov (CN)</translation>
 <translation id="5830698870816298009">používanie a pohyb kamery</translation>
+<translation id="5831217499016131155">Peňaženka Google</translation>
 <translation id="583281660410589416">Neznáme</translation>
 <translation id="5832976493438355584">Uzamknuté</translation>
 <translation id="5837220895135257862">Uvoľnite miesto v úložisku <ph name="CLOUD_PROVIDER" /> a potom to skúste znova</translation>
@@ -3426,6 +3430,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="6649510485211003056">195 × 270 mm</translation>
 <translation id="6651270836885078973">Spravuje:</translation>
 <translation id="6652101503459149953">Použiť Windows Hello</translation>
+<translation id="6653684225271066234"><ph name="BNPL_ISSUER_NAME" /> skontroluje, či spĺňate podmienky (vaše úverové skóre to neovplyvní). Ak spĺňate podmienky oprávnenosti, <ph name="BNPL_ISSUER_NAME" /> vám poskytne možné platobné tarify na dokončenie nákupu.</translation>
 <translation id="6654224358955673568">Formalizovať</translation>
 <translation id="6654244995031366386">Sklo (textúrované)</translation>
 <translation id="6657585470893396449">Heslo</translation>
@@ -3589,6 +3594,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="6925267999184670015">Severoamerický formát B+</translation>
 <translation id="6926216138694948720">Kreslenie na telo</translation>
 <translation id="692638818576287323">Komerčné vozidlá</translation>
+<translation id="6927057753277044239">Po kontrole objednávky sa musíte prihlásiť do účtu <ph name="BNPL_ISSUER_NAME" /> alebo si ho vytvoriť. Tento účet sa automaticky prepojí s vaším účtom Google.</translation>
 <translation id="6930607614725241390">Vyhľadávanie na bočnom paneli</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Predvolený vyhľadávač vám umožňuje vyhľadávať na internete a využívať funkcie Chromu<ph name="END_BOLD" />, ako je vyhľadávanie z panela s adresou alebo z obrázkov na webových stránkach. Funkcie, ktoré vyhľadávač nepodporuje, nebudú k dispozícii.</translation>
 <translation id="6934672428414710184">Meno pochádza z vášho účtu Google</translation>
@@ -3640,6 +3646,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="6997288673234694149">Vybavenie na bejzbal a softbal</translation>
 <translation id="6998512609912910179">Vypĺňajte formuláre rýchlejšie</translation>
 <translation id="6999480632062519056">Pokyny na cvičenie a osobný tréning</translation>
+<translation id="7002897669829306463">Adresa domova: <ph name="ADDRESS" /></translation>
 <translation id="7003278537452757231">Koberčeky a koberce</translation>
 <translation id="7003322000677139268">Autosúčiastky a príslušenstvo</translation>
 <translation id="7004499039102548441">Nedávne karty</translation>
@@ -3941,7 +3948,6 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="7485085230273446323">Obchod a priemysel</translation>
 <translation id="7485870689360869515">Nenašli sa žiadne údaje.</translation>
 <translation id="7486880426035242089">OneDrive</translation>
-<translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> skontroluje, či spĺňate podmienky (vaše úverové skóre to neovplyvní). V prípade schválenia vám <ph name="BNPL_ISSUER_NAME" /> ponúkne na výber platobné tarify a budete môcť dokončiť nákup.</translation>
 <translation id="7489392576326061356">Šampóny a kondicionéry</translation>
 <translation id="7489919936111034362">Váš priestor na Disku Google je plný</translation>
 <translation id="7495528107193238112">Tento obsah je blokovaný. Kontaktujte vlastníka webu a požiadajte ho odstránenie daného problému.</translation>
@@ -4207,6 +4213,8 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="7916162853251942238">Základňa na gumotlač</translation>
 <translation id="791698251820376781">Vaša organizácia vám neumožňuje prihlásiť sa</translation>
 <translation id="7926503317156566022">Letecký priemysel</translation>
+<translation id="7930282586031445870">Obrazovka so zmluvnými podmienkami platby Kúpte hneď, plaťte neskôr je zavretá.</translation>
+<translation id="7932035970207573919">Adresa práce: <ph name="ADDRESS" /></translation>
 <translation id="793209273132572360">Chcete aktualizovať adresu?</translation>
 <translation id="7932579305932748336">Naniesť povrchovú vrstvu</translation>
 <translation id="79338296614623784">Zadajte platné telefónne číslo</translation>
@@ -4620,6 +4628,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="8601027005147870853"><ph name="BEGIN_BOLD" />Aké údaje sa používajú:<ph name="END_BOLD" /> Vaša aktivita na webe, ktorý navštívite pomocou Chromu v tomto zariadení.</translation>
 <translation id="8601456038554914806">Vybavenie na vodné športy</translation>
 <translation id="8601782593888534566">Sci-fi a fantasy</translation>
+<translation id="8604103095921958091">Obrazovka so zmluvnými podmienkami platby Kúpte hneď, plaťte neskôr je otvorená na celú výšku.</translation>
 <translation id="8606988009912891950">Témy reklám pomáhajú webom zobrazovať relevantné reklamy a zároveň chrániť vašu históriu prehliadania a totožnosť. Chrome môže zaznamenávať témy záujmu na základe vašej nedávnej histórie prehliadania. Neskôr môže web, ktorý navštívite, požiadať Chrome o relevantné témy na prispôsobenie reklám, ktoré sa vám zobrazujú.</translation>
 <translation id="8612919051706159390">Online komunity</translation>
 <translation id="8617269623452051934">používanie vášho zariadenia</translation>
@@ -4860,6 +4869,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> – <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> chce vyhľadať ľubovoľné zariadenie vo vašej miestnej sieti a pripojiť sa k nemu</translation>
 <translation id="9046864189129893978">Mikrofóny (<ph name="MICS_COUNT" />)</translation>
+<translation id="9046865906192819796">Obrazovka so zmluvnými podmienkami platby Kúpte hneď, plaťte neskôr je otvorená na polovičnú výšku.</translation>
 <translation id="9047528041803621289">Pomocou predvoleného vyhľadávača môžete vyhľadávať na internete. Môžete to zmeniť v nastaveniach.</translation>
 <translation id="9048035366624198823">Tieto akcie vyžadujú, aby bolo pravidlo <ph name="POLICY_NAME" /> nastavené na <ph name="POLICY_VALUE" />: <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24 × 36 palcov</translation>

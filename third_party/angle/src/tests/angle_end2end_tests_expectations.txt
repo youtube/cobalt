@@ -36,6 +36,10 @@
 
 381742474 : ShaderStorageBufferTest31.ExceedMaxShaderStorageBlockSize/* = SKIP
 
+// Vulkan color attachment incorrectly configured when GL_RASTERIZER_DISCARD is enabled and no glClear is issued.
+// Fails on non-ARM Linux due to unsupported setConfigAlphaBits(0) causing EGL config error.
+419403194 VULKAN : VulkanPerformanceCounterTest_RGBSurface.UnrenderedSurfaceShouldNotClear/* = SKIP
+
 // Angle does not support Array of Arrays in tessellation shader.
 413447006 : ProgramInterfaceTestES31.ArrayofArraysQueries/* = SKIP
 
@@ -131,6 +135,8 @@
 273271471 WIN INTEL VULKAN : ShaderAlgorithmTest.rgb_to_hsl_vertex_shader/* = SKIP
 448658624 WIN INTEL VULKAN : GLSLTestLoops.ForContinueInSwitchComplex/* = SKIP
 448658624 WIN INTEL VULKAN : GLSLTest_ES31.ConstantPrecisionPropagation/* = SKIP
+452159379 WIN INTEL VULKAN : ProgramBinaryTest.ReturnedBinaryTwiceShouldMatch/* = SKIP
+
 42266241 PIXEL6 VULKAN : VertexAttributeTestES31.MismatchingSignsChangingAttributeType/* = SKIP
 42266241 PIXEL6 VULKAN : VertexAttributeTestES31.MismatchingSignsChangingProgramType/* = SKIP
 42266963 WIN NVIDIA GLES : PbufferTest.BindTexImageOverwriteNoCrashOnReleaseTexImage/* = SKIP
@@ -149,6 +155,7 @@
 409821658 WIN INTEL OPENGL : SRGBTextureTestES3.SRGBSkipEncodeAndDecodeInGenerateMipmap/ES3_OpenGL* = SKIP
 447556589 WIN INTEL OPENGL : GeometryShaderTest.ImplicitSizedArrayMatchesExplicitSizedArray/* = SKIP
 447556589 WIN INTEL OPENGL : GeometryShaderTest.ImplicitSizedArrayMatchesExplicitSizedArray2/* = SKIP
+451644991 WIN INTEL OPENGL : WebGL2GLSLTest.NotInfiniteLoop/* = SKIP
 
 // Failures on Intel Comet Lake S UHD Graphics 630 (8086:9bc5-31.0.101.2111)
 40644896 WIN INTEL OPENGL : D3DImageFormatConversionTest.WriteColorFunctionR8G8B8A8/* = SKIP

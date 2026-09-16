@@ -10,6 +10,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -27,12 +29,16 @@ class Profile;
 namespace tabs {
 class TabInterface;
 }
+namespace contextual_cueing {
+class ContextualCueingService;
+}
 
 namespace glic {
 
 class GlicUiEmbedder;
 class EmptyEmbedderDelegate;
 class GlicTabContentsObserver;
+class GlicZeroStateSuggestionsManager;
 
 // A GlicInstance owns a single host keeping any state that must exist for the
 // lifetime of the host. When a host is showing, the GlicInstance creates a
@@ -43,9 +49,9 @@ class GlicInstanceImpl : public GlicInstance,
                          public BrowserListObserver,
                          public Host::InstanceDelegate,
                          public Host::Observer,
-                         public Host::InstanceInterfaceForMigration,
                          public GlicSharingManagerProvider,
-                         public GlicUiEmbedder::Delegate {
+                         public GlicUiEmbedder::Delegate,
+                         public actor::ActorTaskDelegate {
  public:
   class InstanceCoordinatorDelegate {
    public:
@@ -54,18 +60,27 @@ class GlicInstanceImpl : public GlicInstance,
     // Called by an instance when its visibility state changes.
     virtual void OnInstanceVisibilityChanged(GlicInstance* instance,
                                              bool is_showing) = 0;
+    virtual void OnInstanceActivationChanged(GlicInstance* instance,
+                                             bool is_active) = 0;
     virtual void SwitchConversation(
         GlicInstanceImpl& source_instance,
         const ShowOptions& options,
         glic::mojom::ConversationInfoPtr info,
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
+
+    virtual void UnbindTabFromAnyInstance(tabs::TabInterface* tab) = 0;
+
+    // Called by an instance when user requests to undock to Floaty.
+    virtual void OnDetachRequested(GlicInstance* instance,
+                                   tabs::TabInterface* tab) = 0;
   };
 
   GlicInstanceImpl(
       Profile* profile,
       InstanceId instance_id,
       base::WeakPtr<InstanceCoordinatorDelegate> coordinator_delegate,
-      GlicMetrics* metrics);
+      GlicMetrics* metrics,
+      contextual_cueing::ContextualCueingService* contextual_cueing_service);
   ~GlicInstanceImpl() override;
 
   GlicInstanceImpl(const GlicInstanceImpl&) = delete;
@@ -86,7 +101,7 @@ class GlicInstanceImpl : public GlicInstance,
   // These methods should only be called by the GlicInstanceCoordinator.
   void Show(const ShowOptions& options) override;
   void Close(EmbedderKey key);
-  void Toggle(const ShowOptions& options, bool prevent_close);
+  void Toggle(ShowOptions&& options, bool prevent_close);
 
   void UnbindEmbedder(EmbedderKey key);
   GlicUiEmbedder* GetEmbedderForTab(tabs::TabInterface* tab);
@@ -99,13 +114,17 @@ class GlicInstanceImpl : public GlicInstance,
       StateChangeCallback callback) override;
 
   // Host::InstanceDelegate:
-  void CreateTab(
-      content::RenderFrameHost* source,
+  // TODO: Currently, both GlicInstanceImpl and GlicKeyedService implement
+  // Host::InstanceDelegate. The CreateTab function here should only return the
+  // tab for GlicKeyedService, but not GlicInstanceImpl. We should figure out a
+  // way to decouple this.
+  tabs::TabInterface* CreateTab(
       const ::GURL& url,
       bool open_in_background,
       const std::optional<int32_t>& window_id,
       glic::mojom::WebClientHandler::CreateTabCallback callback) override;
   void CreateTask(
+      base::WeakPtr<actor::ActorTaskDelegate> delegate,
       actor::webui::mojom::TaskOptionsPtr options,
       mojom::WebClientHandler::CreateTaskCallback callback) override;
   void PerformActions(
@@ -137,6 +156,7 @@ class GlicInstanceImpl : public GlicInstance,
   void PrepareForOpen() override;
 
   // GlicUiEmbedder::Delegate:
+  void OnEmbedderWindowActivationChanged(bool has_focus) override;
   void SwitchConversation(
       const ShowOptions& options,
       glic::mojom::ConversationInfoPtr info,
@@ -156,6 +176,10 @@ class GlicInstanceImpl : public GlicInstance,
 
   // Host::Observer
   void WebUiStateChanged(mojom::WebUiState state) override;
+
+  // ActorTaskDelegate:
+  void OnTabAddedToTask(actor::TaskId task_id,
+                        const tabs::TabInterface::Handle& tab_handle) override;
 
  private:
   struct EmbedderEntry {
@@ -228,11 +252,19 @@ class GlicInstanceImpl : public GlicInstance,
   std::optional<ConversationInfo> conversation_info_;
   GlicSharingManagerImpl sharing_manager_;
 
+  // Tracks the last non-hidden panel state kind for the instance. This is
+  // useful for responding to changes in attached/detached state.
+  mojom::PanelStateKind last_non_hidden_panel_state_kind_;
+
   base::ObserverList<PanelStateObserver> state_observers_;
 
   base::ScopedObservation<BrowserList, BrowserListObserver>
       browser_list_observation_{this};
   base::ScopedObservation<Host, Host::Observer> host_observation_{this};
+
+  std::unique_ptr<GlicZeroStateSuggestionsManager>
+      zero_state_suggestions_manager_;
+  std::unique_ptr<GlicActorTaskManager> actor_task_manager_;
 
   base::WeakPtrFactory<GlicInstanceImpl> weak_ptr_factory_{this};
 };

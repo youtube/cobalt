@@ -97,7 +97,6 @@
 #include "test/wait_until.h"
 
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::Return;
 
 namespace webrtc {
@@ -341,15 +340,15 @@ scoped_refptr<MockRtpSenderInternal> CreateMockSender(
   EXPECT_CALL(*sender, track()).WillRepeatedly(Return(track));
   EXPECT_CALL(*sender, ssrc()).WillRepeatedly(Return(ssrc));
   EXPECT_CALL(*sender, media_type()).WillRepeatedly(Return(media_type));
-  EXPECT_CALL(*sender, GetParameters())
-      .WillRepeatedly(
-          Invoke([s = sender.get()]() { return s->GetParametersInternal(); }));
-  EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly(Invoke([ssrc]() {
+  EXPECT_CALL(*sender, GetParameters()).WillRepeatedly([s = sender.get()]() {
+    return s->GetParametersInternal();
+  });
+  EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly([ssrc]() {
     RtpParameters params;
     params.encodings.push_back(RtpEncodingParameters());
     params.encodings[0].ssrc = ssrc;
     return params;
-  }));
+  });
   EXPECT_CALL(*sender, AttachmentId()).WillRepeatedly(Return(attachment_id));
   EXPECT_CALL(*sender, stream_ids()).WillRepeatedly(Return(local_stream_ids));
   EXPECT_CALL(*sender, SetTransceiverAsStopped());
@@ -362,9 +361,7 @@ scoped_refptr<MockRtpReceiverInternal> CreateMockReceiver(
     int attachment_id) {
   auto receiver = make_ref_counted<MockRtpReceiverInternal>();
   EXPECT_CALL(*receiver, track()).WillRepeatedly(Return(track));
-  EXPECT_CALL(*receiver, ssrc()).WillRepeatedly(Invoke([ssrc]() {
-    return ssrc;
-  }));
+  EXPECT_CALL(*receiver, ssrc()).WillRepeatedly([ssrc]() { return ssrc; });
   EXPECT_CALL(*receiver, streams())
       .WillRepeatedly(
           Return(std::vector<scoped_refptr<MediaStreamInterface>>({})));
@@ -374,12 +371,12 @@ scoped_refptr<MockRtpReceiverInternal> CreateMockReceiver(
           Return(track->kind() == MediaStreamTrackInterface::kAudioKind
                      ? MediaType::AUDIO
                      : MediaType::VIDEO));
-  EXPECT_CALL(*receiver, GetParameters()).WillRepeatedly(Invoke([ssrc]() {
+  EXPECT_CALL(*receiver, GetParameters()).WillRepeatedly([ssrc]() {
     RtpParameters params;
     params.encodings.push_back(RtpEncodingParameters());
     params.encodings[0].ssrc = ssrc;
     return params;
-  }));
+  });
   EXPECT_CALL(*receiver, AttachmentId()).WillRepeatedly(Return(attachment_id));
   EXPECT_CALL(*receiver, Stop()).WillRepeatedly(Return());
   return receiver;

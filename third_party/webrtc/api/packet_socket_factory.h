@@ -16,11 +16,9 @@
 #include <string>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "api/async_dns_resolver.h"
 #include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/system/rtc_export.h"
@@ -61,62 +59,27 @@ class RTC_EXPORT PacketSocketFactory {
 
   virtual ~PacketSocketFactory() = default;
 
-  // TODO: bugs.webrtc.org/42223992 - after Oct 10, 2025 make Create*Socket
-  // functions that accept Environment pure virtual, and delete legacy
-  // Create*Socket functions.
   virtual std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& address,
       uint16_t min_port,
-      uint16_t max_port) {
-    return absl::WrapUnique(CreateUdpSocket(address, min_port, max_port));
-  }
+      uint16_t max_port) = 0;
 
   virtual std::unique_ptr<AsyncListenSocket> CreateServerTcpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
-      int opts) {
-    return absl::WrapUnique(
-        CreateServerTcpSocket(local_address, min_port, max_port, opts));
-  }
+      int opts) = 0;
 
   virtual std::unique_ptr<AsyncPacketSocket> CreateClientTcpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& tcp_options) {
-    return absl::WrapUnique(
-        CreateClientTcpSocket(local_address, remote_address, tcp_options));
-  }
+      const PacketSocketTcpOptions& tcp_options) = 0;
 
   virtual std::unique_ptr<AsyncDnsResolverInterface>
   CreateAsyncDnsResolver() = 0;
-
- private:
-  virtual AsyncPacketSocket* CreateUdpSocket(const SocketAddress& address,
-                                             uint16_t min_port,
-                                             uint16_t max_port) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
-  virtual AsyncListenSocket* CreateServerTcpSocket(
-      const SocketAddress& local_address,
-      uint16_t min_port,
-      uint16_t max_port,
-      int opts) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
-
-  virtual AsyncPacketSocket* CreateClientTcpSocket(
-      const SocketAddress& local_address,
-      const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& tcp_options) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
 };
 
 }  //  namespace webrtc

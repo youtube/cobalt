@@ -153,7 +153,7 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   SequenceChecker worker_thread_checker_{SequenceChecker::kDetached};
 
   // Field trial flags.
-  const bool minimized_remsampling_on_mobile_trial_enabled_;
+  const bool minimized_resampling_on_mobile_trial_enabled_;
   const bool payload_types_in_transport_trial_enabled_;
 
   // The audio device module.
@@ -265,9 +265,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   bool SenderNonSenderRttEnabled() const override;
   bool SendCodecHasNack() const override { return SenderNackEnabled(); }
 
-  void SetSendCodecChangedCallback(
-      absl::AnyInvocable<void()> callback) override;
-
  private:
   bool SetOptions(const AudioOptions& options);
   bool SetSendCodecs(const std::vector<Codec>& codecs,
@@ -319,10 +316,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
       RTC_GUARDED_BY(worker_thread_);
 
-  // Callback invoked whenever the send codec changes.
-  // TODO(bugs.webrtc.org/13931): Remove again when coupling isn't needed.
-  absl::AnyInvocable<void()> send_codec_changed_callback_
-      RTC_GUARDED_BY(worker_thread_);
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ RTC_GUARDED_BY(worker_thread_);

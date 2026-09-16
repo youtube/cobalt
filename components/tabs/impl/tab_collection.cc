@@ -253,20 +253,15 @@ void TabCollection::OnTabRemovedFromTree() {
   }
 }
 
-void TabCollection::NotifyOnChildrenAdded(
-    base::PassKey<TabCollection> pass_key,
-    const TabCollectionNodes& handles,
-    const std::pair<tabs::TabCollection*, int>& insertion_details,
-    TabCollection* notification_root) {
-  auto [tab_collection_parent_ptr, insert_index] = insertion_details;
-
-  TabCollectionObserver::Position position = TabCollectionObserver::Position(
-      tab_collection_parent_ptr->GetHandle(), insert_index);
-
-  observers_.Notify(&TabCollectionObserver::OnChildrenAdded, position, handles);
+void TabCollection::NotifyOnChildrenAdded(base::PassKey<TabCollection> pass_key,
+                                          const TabCollectionNodes& handles,
+                                          const Position& insertion_position,
+                                          TabCollection* notification_root) {
+  observers_.Notify(&TabCollectionObserver::OnChildrenAdded, insertion_position,
+                    handles);
 
   if (this != notification_root) {
-    parent_->NotifyOnChildrenAdded(pass_key, handles, insertion_details,
+    parent_->NotifyOnChildrenAdded(pass_key, handles, insertion_position,
                                    notification_root);
   }
 }
@@ -279,6 +274,23 @@ void TabCollection::NotifyOnChildrenRemoved(
 
   if (this != notification_root) {
     parent_->NotifyOnChildrenRemoved(pass_key, handles, notification_root);
+  }
+}
+
+void TabCollection::NotifyOnChildMoved(base::PassKey<TabCollection> pass_key,
+                                       const TabCollectionNodeHandle& handle,
+                                       const Position& src_position,
+                                       const Position& dst_position,
+                                       TabCollection* notification_root) {
+  TabCollectionObserver::NodeData src_data =
+      TabCollectionObserver::NodeData(src_position, handle);
+
+  observers_.Notify(&TabCollectionObserver::OnChildMoved, dst_position,
+                    src_data);
+
+  if (this != notification_root) {
+    parent_->NotifyOnChildMoved(pass_key, handle, src_position, dst_position,
+                                notification_root);
   }
 }
 

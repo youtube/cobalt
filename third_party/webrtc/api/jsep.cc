@@ -40,9 +40,8 @@ constexpr int kDummyPort = 9;
 
 // Update the connection address for the MediaContentDescription based on the
 // candidates.
-void UpdateConnectionAddress(
-    const JsepCandidateCollection& candidate_collection,
-    MediaContentDescription* media_desc) {
+void UpdateConnectionAddress(const IceCandidateCollection& candidate_collection,
+                             MediaContentDescription* media_desc) {
   int port = kDummyPort;
   std::string ip = kDummyAddress;
   std::string hostname;
@@ -157,13 +156,13 @@ IceCandidate* CreateIceCandidate(const std::string& sdp_mid,
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
-    const std::string& sdp) {
+    absl::string_view sdp) {
   return CreateSessionDescription(type, sdp, nullptr);
 }
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
-    const std::string& sdp,
+    absl::string_view sdp,
     SdpParseError* error_out) {
   if (type == SdpType::kRollback) {
     return CreateRollbackSessionDescription();
@@ -173,8 +172,8 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
-    const std::string& session_id,
-    const std::string& session_version,
+    absl::string_view session_id,
+    absl::string_view session_version,
     std::unique_ptr<SessionDescription> description) {
   return SessionDescriptionInterface::Create(type, std::move(description),
                                              session_id, session_version);
@@ -201,24 +200,6 @@ SessionDescriptionInterface::Create(
       type, std::move(description), id, version, std::move(candidates)));
 }
 
-SessionDescriptionInternal::SessionDescriptionInternal(
-    SdpType type,
-    std::unique_ptr<SessionDescription> description,
-    absl::string_view id,
-    absl::string_view version)
-    : sdp_type_(type),
-      id_(id),
-      version_(version),
-      description_(std::move(description)) {
-  RTC_DCHECK(description_ || sdp_type_ == SdpType::kRollback);
-}
-
-SessionDescriptionInternal::~SessionDescriptionInternal() = default;
-
-size_t SessionDescriptionInternal::mediasection_count() const {
-  return description_ ? description_->contents().size() : 0u;
-}
-
 SessionDescriptionInterface::~SessionDescriptionInterface() = default;
 
 void SessionDescriptionInterface::RelinquishThreadOwnership() {
@@ -231,7 +212,7 @@ void SessionDescriptionInterface::RelinquishThreadOwnership() {
   sequence_checker_.Detach();
   // Tie the checker to the current thread, which permits iterating
   // `candidate_collection_`
-  RTC_DCHECK_RUN_ON(sequence_checker());
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   for (IceCandidateCollection& collection : candidate_collection_) {
     collection.RelinquishThreadOwnership();
   }
@@ -244,7 +225,10 @@ SessionDescriptionInterface::SessionDescriptionInterface(
     absl::string_view id,
     absl::string_view version,
     std::vector<IceCandidateCollection> candidates)
-    : SessionDescriptionInternal(type, std::move(desc), id, version),
+    : sdp_type_(type),
+      id_(id),
+      version_(version),
+      description_(std::move(desc)),
       candidate_collection_(std::move(candidates)) {
   RTC_DCHECK(description() || type == SdpType::kRollback);
   RTC_DCHECK(candidate_collection_.empty() ||
@@ -252,16 +236,20 @@ SessionDescriptionInterface::SessionDescriptionInterface(
   candidate_collection_.resize(number_of_mediasections());
 }
 
+size_t SessionDescriptionInterface::number_of_mediasections() const {
+  return description_ ? description_->contents().size() : 0u;
+}
+
 std::unique_ptr<SessionDescriptionInterface>
 SessionDescriptionInterface::Clone() const {
-  RTC_DCHECK_RUN_ON(sequence_checker());
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return SessionDescriptionInterface::Create(
-      sdp_type(), description() ? description()->Clone() : nullptr, id(),
+      sdp_type_, description() ? description()->Clone() : nullptr, id(),
       version(), CloneCandidateCollection(candidate_collection_));
 }
 
 bool SessionDescriptionInterface::AddCandidate(const IceCandidate* candidate) {
-  RTC_DCHECK_RUN_ON(sequence_checker());
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (!candidate)
     return false;
   size_t index = 0;
@@ -304,7 +292,7 @@ bool SessionDescriptionInterface::AddCandidate(const IceCandidate* candidate) {
 
 bool SessionDescriptionInterface::RemoveCandidate(
     const IceCandidate* candidate) {
-  RTC_DCHECK_RUN_ON(sequence_checker());
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   size_t index = 0u;
   if (!GetMediasectionIndex(candidate, &index)) {
     return false;
@@ -320,7 +308,7 @@ bool SessionDescriptionInterface::RemoveCandidate(
 
 const IceCandidateCollection* SessionDescriptionInterface::candidates(
     size_t mediasection_index) const {
-  RTC_DCHECK_RUN_ON(sequence_checker());
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (mediasection_index >= candidate_collection_.size())
     return nullptr;
   return &candidate_collection_[mediasection_index];

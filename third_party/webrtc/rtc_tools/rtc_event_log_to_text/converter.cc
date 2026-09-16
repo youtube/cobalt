@@ -30,12 +30,11 @@
 #include "logging/rtc_event_log/events/rtc_event_begin_log.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_delay_based.h"
 #include "logging/rtc_event_log/events/rtc_event_bwe_update_loss_based.h"
+#include "logging/rtc_event_log/events/rtc_event_bwe_update_scream.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 #include "logging/rtc_event_log/events/rtc_event_frame_decoded.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/events/rtc_event_neteq_set_minimum_delay.h"
@@ -222,6 +221,18 @@ bool Convert(std::string inputfile,
             "expected_packets=%d\n",
             event.log_time_ms(), event.bitrate_bps, event.fraction_lost,
             event.expected_packets);
+  };
+
+  auto bwe_scream_update_handler = [&](const LoggedBweScreamUpdate& event) {
+    fprintf(output,
+            "BWE_SCREAM %" PRId64 "ref_window_bytes=%" PRId64
+            " data_in_flight_bytes=%" PRId64 " target_rate_kbps=%" PRId64
+            " smoothed_rtt_ms=%" PRId64 " avg_queue_delay_ms=%" PRId64
+            " l4s_marked_permille=%u\n",
+            event.log_time_ms(), event.ref_window.bytes(),
+            event.data_in_flight.bytes(), event.target_rate.kbps(),
+            event.smoothed_rtt.ms(), event.avg_queue_delay.ms(),
+            event.l4s_marked_permille);
   };
 
   auto dtls_transport_state_handler =
@@ -488,23 +499,6 @@ bool Convert(std::string inputfile,
                 GetLabel(direction), msg.log_time_ms());
       };
 
-  auto generic_packet_received_handler =
-      [&](const LoggedGenericPacketReceived& event) {
-        fprintf(output,
-                "GENERIC_PACKET_RECV %" PRId64 " packet_num=%" PRId64
-                " length=%d\n",
-                event.log_time_ms(), event.packet_number, event.packet_length);
-      };
-
-  auto generic_packet_sent_handler = [&](const LoggedGenericPacketSent& event) {
-    fprintf(output,
-            "GENERIC_PACKET_SENT %" PRId64 " packet_num=%" PRId64
-            " overhead_length=%zu "
-            "payload_length=%zu padding_length=%zu\n",
-            event.log_time_ms(), event.packet_number, event.overhead_length,
-            event.payload_length, event.padding_length);
-  };
-
   auto decoded_frame_handler = [&](const LoggedFrameDecoded& event) {
     static const std::map<VideoCodecType, std::string> codec_name{
         {VideoCodecType::kVideoCodecGeneric, "GENERIC"},
@@ -562,6 +556,8 @@ bool Convert(std::string inputfile,
   processor.AddEvents(parsed_log.bwe_loss_updates(), bwe_loss_update_handler);
   processor.AddEvents(parsed_log.remote_estimate_events(),
                       remote_estimate_handler);
+  processor.AddEvents(parsed_log.bwe_scream_updates(),
+                      bwe_scream_update_handler);
 
   // Connectivity
   processor.AddEvents(parsed_log.dtls_transport_states(),
@@ -688,12 +684,6 @@ bool Convert(std::string inputfile,
                       bind_direction<LoggedRtcpPacketLossNotification>(
                           loss_notification_handler, kOutgoingPacket),
                       kOutgoingPacket);
-
-  // Generic packets
-  processor.AddEvents(parsed_log.generic_packets_received(),
-                      generic_packet_received_handler);
-  processor.AddEvents(parsed_log.generic_packets_sent(),
-                      generic_packet_sent_handler);
 
   // Video frames
   for (const auto& kv : parsed_log.decoded_frames()) {

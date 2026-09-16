@@ -151,6 +151,11 @@ enum {
   kAutofillAiTravelEntitiesEnabled = 102,
   kCrossDeviceTabResumptionHomeModuleEnabled = 103,
   kAutofillAmountExtractionAiTermsSeen = 104,
+  kCrossDevicePriceTrackingHomeModuleEnabled = 105,
+  kCrossDeviceMostVisitedHomeModuleEnabled = 106,
+  kCrossDeviceTipsHomeModuleEnabled = 107,
+  kCrossDeviceMagicStackHomeModuleEnabled = 108,
+  kShowAiModeOmniboxButton = 109,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -277,8 +282,20 @@ constexpr auto kCommonSyncablePrefsAllowlist =
          {syncable_prefs_ids::kCrossDeviceCrossPlatformPromosIOS16thActiveDay,
           syncer::PREFERENCES, PrefSensitivity::kNone,
           MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceMagicStackHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceMagicStackHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceMostVisitedHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceMostVisitedHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
         {prefs::kCrossDeviceOmniboxIsInBottomPosition,
          {syncable_prefs_ids::kCrossDeviceOmniboxIsInBottomPosition,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDevicePriceTrackingHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDevicePriceTrackingHomeModuleEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone,
           MergeBehavior::kMergeableDict}},
         {prefs::kCrossDeviceSafetyCheckHomeModuleEnabled,
@@ -287,6 +304,10 @@ constexpr auto kCommonSyncablePrefsAllowlist =
           MergeBehavior::kMergeableDict}},
         {prefs::kCrossDeviceTabResumptionHomeModuleEnabled,
          {syncable_prefs_ids::kCrossDeviceTabResumptionHomeModuleEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone,
+          MergeBehavior::kMergeableDict}},
+        {prefs::kCrossDeviceTipsHomeModuleEnabled,
+         {syncable_prefs_ids::kCrossDeviceTipsHomeModuleEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone,
           MergeBehavior::kMergeableDict}},
         {prefs::kSafeBrowsingEnabled,
@@ -426,6 +447,9 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kAutofillAmountExtractionAiTermsSeen,
          {syncable_prefs_ids::kAutofillAmountExtractionAiTermsSeen,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {omnibox::kShowAiModeOmniboxButton,
+         {syncable_prefs_ids::kShowAiModeOmniboxButton, syncer::PREFERENCES,
+          PrefSensitivity::kNone, MergeBehavior::kNone}},
     });
 
 }  // namespace

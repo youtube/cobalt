@@ -15,6 +15,8 @@ import sys
 
 def add_common_cmake_args(parser):
   """Adds common arguments used for building with CMake."""
+  print(f"Running with Python executable: {sys.executable}")
+
   parser.add_argument("--cc", required=True, help="Path to the C compiler.")
   parser.add_argument("--cxx", required=True, help="Path to the C++ compiler.")
   parser.add_argument(
@@ -52,7 +54,8 @@ def add_common_cmake_args(parser):
       required=True,
       help="A short name for the build directory.")
   parser.add_argument("--is_clang", action=argparse.BooleanOptionalAction)
-
+  parser.add_argument(
+      "--enable_rtti", action=argparse.BooleanOptionalAction, help="Enable RTTI.")
 
 def discover_dependencies(build_dir, targets):
   """Runs ninja -tinputs recursively to discover all targets, then uses

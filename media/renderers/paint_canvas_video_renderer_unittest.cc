@@ -330,7 +330,7 @@ void PaintCanvasVideoRendererTest::PaintWithoutFrame(cc::PaintCanvas* canvas) {
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = kNaturalRect;
-  renderer_.Paint(nullptr, canvas, flags, params, nullptr);
+  renderer_.PaintOOPR(nullptr, canvas, flags, params, nullptr);
 }
 
 void PaintCanvasVideoRendererTest::Paint(scoped_refptr<VideoFrame> video_frame,
@@ -354,12 +354,12 @@ void PaintCanvasVideoRendererTest::PaintRotated(
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = dest_rect;
   params.transformation = video_transformation;
-  renderer_.Paint(std::move(video_frame), canvas, flags, params, nullptr);
+  renderer_.PaintOOPR(std::move(video_frame), canvas, flags, params, nullptr);
 }
 
 void PaintCanvasVideoRendererTest::Copy(scoped_refptr<VideoFrame> video_frame,
                                         cc::PaintCanvas* canvas) {
-  renderer_.Copy(std::move(video_frame), canvas, nullptr);
+  renderer_.CopyOOPR(std::move(video_frame), canvas, nullptr);
 }
 
 TEST_F(PaintCanvasVideoRendererTest, NoFrame) {
@@ -422,11 +422,11 @@ TEST_F(PaintCanvasVideoRendererTest, ReinterpretAsSRGB) {
 
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = kNaturalRect;
-  renderer_.Paint(natural_frame(), target_canvas(), flags, params, nullptr);
+  renderer_.PaintOOPR(natural_frame(), target_canvas(), flags, params, nullptr);
   EXPECT_NE(SK_ColorRED, bitmap()->getColor(0, 0));
 
   params.reinterpret_as_srgb = true;
-  renderer_.Paint(natural_frame(), target_canvas(), flags, params, nullptr);
+  renderer_.PaintOOPR(natural_frame(), target_canvas(), flags, params, nullptr);
   EXPECT_EQ(SK_ColorRED, bitmap()->getColor(0, 0));
 }
 
@@ -442,7 +442,7 @@ TEST_F(PaintCanvasVideoRendererTest, RGBAF16) {
 
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = kNaturalRect;
-  renderer_.Paint(frame, &canvas, flags, params, nullptr);
+  renderer_.PaintOOPR(frame, &canvas, flags, params, nullptr);
   EXPECT_EQ(SK_ColorRED, bitmap.getColor(0, 0));
 }
 
@@ -458,7 +458,7 @@ TEST_F(PaintCanvasVideoRendererTest, RGBAF16_N32_Output) {
 
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = kNaturalRect;
-  renderer_.Paint(frame, &canvas, flags, params, nullptr);
+  renderer_.PaintOOPR(frame, &canvas, flags, params, nullptr);
   EXPECT_EQ(SK_ColorRED, bitmap.getColor(0, 0));
 }
 
@@ -780,8 +780,8 @@ TEST_F(PaintCanvasVideoRendererTest, Y16) {
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kNone);
   PaintCanvasVideoRenderer::PaintParams paint_params;
   paint_params.dest_rect = gfx::RectF(bitmap.width(), bitmap.height());
-  renderer_.Paint(std::move(video_frame), &canvas, flags, paint_params,
-                  nullptr);
+  renderer_.PaintOOPR(std::move(video_frame), &canvas, flags, paint_params,
+                      nullptr);
   for (int j = 0; j < bitmap.height(); j++) {
     for (int i = 0; i < bitmap.width(); i++) {
       const int value = i + j * bitmap.width();
@@ -1021,7 +1021,7 @@ TEST_F(PaintCanvasVideoRendererTest, CorrectFrameSizeToVisibleRect) {
   cc::PaintFlags flags;
   PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = gfx::RectF(visible_size.width(), visible_size.height());
-  renderer_.Paint(std::move(video_frame), &canvas, flags, params, nullptr);
+  renderer_.PaintOOPR(std::move(video_frame), &canvas, flags, params, nullptr);
 
   EXPECT_EQ(fWidth / 2, renderer_.LastImageDimensionsForTesting().width());
   EXPECT_EQ(fWidth / 2, renderer_.LastImageDimensionsForTesting().height());
@@ -1205,7 +1205,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
         AllocBitmap(expected_size.width(), expected_size.height());
     cc::SkiaPaintCanvas canvas(bitmap);
     canvas.clear(SkColors::kGray);
-    renderer_.Copy(frame, &canvas, media_context_.get());
+    renderer_.CopyOOPR(frame, &canvas, media_context_.get());
 
     auto get_color = base::BindRepeating(
         [](SkBitmap* bitmap, int x, int y) { return bitmap->getColor(x, y); },
