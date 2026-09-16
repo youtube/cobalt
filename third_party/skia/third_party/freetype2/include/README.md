@@ -1,1 +1,0 @@
-These files represent configurations of how we build Freetype.
