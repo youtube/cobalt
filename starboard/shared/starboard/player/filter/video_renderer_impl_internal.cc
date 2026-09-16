@@ -54,8 +54,8 @@ VideoRendererImpl::VideoRendererImpl(
           experimental_features.Get(kMediaVideoRendererMinInputBuffers)),
       min_decoded_frames_(
           experimental_features.Get(kMediaVideoRendererMinDecodedFrames)),
-      enable_video_renderer_vsp_adjustment_(experimental_features.GetBool(
-          kMediaEnableVideoRendererVspAdjustment)),
+      enable_video_renderer_vsp_adjustment_(
+          algorithm_->IsVspAdjustmentEnabled()),
       enable_trivial_optimizations_(
           experimental_features.GetBool(kMediaEnableTrivialOptimizations)) {
   SB_CHECK(decoder_);

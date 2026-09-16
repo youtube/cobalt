@@ -172,9 +172,15 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
 // TODO: Merge this with VideoFrameTracker, maybe?
 class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
  public:
-  explicit VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker)
-      : frame_tracker_(frame_tracker) {
+  VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker,
+                               bool enable_vsp_adjustment)
+      : frame_tracker_(frame_tracker),
+        enable_vsp_adjustment_(enable_vsp_adjustment) {
     SB_DCHECK(frame_tracker_);
+  }
+
+  bool IsVspAdjustmentEnabled() const override {
+    return enable_vsp_adjustment_;
   }
 
   void Render(MediaTimeProvider* media_time_provider,
@@ -194,6 +200,7 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
 
  private:
   VideoFrameTracker* frame_tracker_;
+  const bool enable_vsp_adjustment_;
 };
 
 class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
@@ -313,6 +320,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       require_software_codec_(
           IsSoftwareDecoderRequired(stream_config.max_video_capabilities)),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
+      enable_vsp_adjustment_(tunnel_mode_config.audio_session_id &&
+                             tunnel_mode_config.enable_vsp_adjustment),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),
       surface_view_(stream_config.surface_view
@@ -450,7 +459,7 @@ MediaCodecVideoDecoder::GetRenderAlgorithm() {
         this, video_frame_tracker_.get());
   }
   return std::make_unique<VideoRenderAlgorithmTunneled>(
-      video_frame_tracker_.get());
+      video_frame_tracker_.get(), enable_vsp_adjustment_);
 }
 
 void MediaCodecVideoDecoder::Initialize(

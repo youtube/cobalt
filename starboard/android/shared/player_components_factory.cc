@@ -408,7 +408,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       auto video_decoder = CreateVideoDecoder(
           creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+          kForceSecurePipelineUnderTunnelMode, max_video_input_size,
+          /*enable_vsp_adjustment=*/false);
       if (video_decoder) {
         auto video_decoder_impl = std::move(video_decoder.value());
         auto video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
@@ -547,17 +548,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
 
+    const bool enable_video_renderer_vsp_adjustment =
+        tunnel_mode_audio_session_id &&
+        experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
+    SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
+        << "enable_video_renderer_vsp_adjustment is set to true.";
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       // TODO: b/500811542 - Connect to H5VCC.
       const bool allow_audio_writing_on_pause =
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause);
       SB_LOG_IF(INFO, allow_audio_writing_on_pause)
           << "allow_audio_writing_on_pause is set to true.";
-
-      const bool enable_video_renderer_vsp_adjustment =
-          experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
-      SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
-          << "enable_video_renderer_vsp_adjustment is set to true.";
 
       const bool pause_using_audio_track_state =
           experimental_features.GetBool(kMediaPauseUsingAudioTrackState);
@@ -611,8 +613,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
-      if (experimental_features.GetBool(
-              kMediaEnableVideoRendererVspAdjustment) &&
+      if (enable_video_renderer_vsp_adjustment &&
           !experimental_features.GetBool(kMediaAllowAudioWritingOnPause)) {
         return Failure(
             "Video renderer vsp adjustment needs to be enabled with audio "
@@ -625,7 +626,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       auto video_decoder_result = CreateVideoDecoder(
           creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+          force_secure_pipeline_under_tunnel_mode, max_video_input_size,
+          enable_video_renderer_vsp_adjustment);
       if (video_decoder_result) {
         auto video_decoder_impl = std::move(video_decoder_result.value());
         components.video.render_algorithm =
@@ -645,7 +647,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters,
       std::optional<int> tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
-      int max_video_input_size) {
+      int max_video_input_size,
+      bool enable_vsp_adjustment) {
     auto experimental_features = creation_parameters.experimental_features();
 
     bool enable_flush_during_seek =
@@ -690,7 +693,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.decode_target_graphics_context_provider(),
          creation_parameters.surface_view(),
          creation_parameters.max_video_capabilities()},
-        {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
+        {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
+         enable_vsp_adjustment},
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
          experimental_features},
         {reset_delay_usec, flush_delay_usec});
