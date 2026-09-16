@@ -920,15 +920,6 @@ void NodeChannel::InitializeLocalCapabilities() {
   if (GetConfiguration().dont_advertise_capabilities) {
     return;
   }
-<<<<<<< HEAD
-=======
-
-#if !BUILDFLAG(IS_STARBOARD)
-  if (core::Channel::SupportsChannelUpgrade()) {
-    SetLocalCapabilities(kNodeCapabilitySupportsUpgrade);
-  }
-#endif
->>>>>>> parent of ecf72fbf2ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace core
