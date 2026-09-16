@@ -3524,20 +3524,17 @@ test("content_unittests") {
     "//url",
   ]
 
-<<<<<<< HEAD
+if (!enable_devtools_backend) {
+    deps -= [ "//content/browser/devtools:devtools_background_services_proto" ]
+  }
+
   if (is_chromeos) {
     sources += [
       "//content/browser/direct_sockets/firewall_hole_delegate_unittest.cc",
     ]
     deps += [
       "//chromeos/components/firewall_hole",
-      "//chromeos/dbus/permission_broker",
-=======
-  if (!enable_devtools_backend) {
-    deps -= [
-      "//content/browser/devtools:devtools_background_services_proto",
->>>>>>> parent of dc168278aab (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    ]
+      "//chromeos/dbus/permission_broker",    ]
   }
 
   if (enable_nocompile_tests) {
