@@ -4750,42 +4750,45 @@ if (is_android) {
     ]
   }
 
-  android_library("process_launcher_java") {
-    srcjar_deps = [
-      ":process_launcher_aidl",
-      ":process_launcher_jni",
-    ]
-    deps = [
-      ":base_java",
-      "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-      "//third_party/androidx:androidx_annotation_annotation_experimental_java",
-      "//third_party/androidx:androidx_annotation_annotation_java",
-      "//third_party/androidx:androidx_collection_collection_java",
-      "//third_party/androidx:androidx_core_core_java",
-      "//third_party/jni_zero:jni_zero_java",
-    ]
-    sources = [
-      "android/java/src/org/chromium/base/process_launcher/BindService.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildConnectionAllocator.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessConstants.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessLauncher.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildProcessServiceDelegate.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildServiceConnection.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionDelegate.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionFactory.java",
-      "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionImpl.java",
-      "android/java/src/org/chromium/base/process_launcher/RebindServiceConnection.java",
-    ]
-  }
-
   if (is_cobalt && is_partner_toolchain) {
+    java_group("process_launcher_java") {
+      public_deps = [ "//copied_base/base:process_launcher_java" ]
+    }
     java_group("base_java") {
       public_deps = [ "//copied_base/base:base_java" ]
     }
   } else {
-  android_library("base_java") {
+    android_library("process_launcher_java") {
+      srcjar_deps = [
+        ":process_launcher_aidl",
+        ":process_launcher_jni",
+      ]
+      deps = [
+        ":base_java",
+        "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+        "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+        "//third_party/androidx:androidx_annotation_annotation_java",
+        "//third_party/androidx:androidx_collection_collection_java",
+        "//third_party/androidx:androidx_core_core_java",
+        "//third_party/jni_zero:jni_zero_java",
+      ]
+      sources = [
+        "android/java/src/org/chromium/base/process_launcher/BindService.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildConnectionAllocator.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildProcessConstants.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildProcessLauncher.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildProcessServiceDelegate.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildServiceConnection.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionDelegate.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionFactory.java",
+        "android/java/src/org/chromium/base/process_launcher/ChildServiceConnectionImpl.java",
+        "android/java/src/org/chromium/base/process_launcher/RebindServiceConnection.java",
+      ]
+    }
+
+    android_library("base_java") {
     srcjar_deps = [
       ":base_android_java_enums_srcjar",
       ":java_features_srcjar",
