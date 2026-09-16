@@ -31,6 +31,7 @@ A modular, high-performance, and extensible symbolization framework for Cobalt a
   - **Tier 3 (Missing Base Fallback)**: If an address is absolute but no `Load start=` was recorded, logs a warning and preserves the original frame without corrupting offsets.
 - **Format & Prefix Preservation**: Preserves syslog timestamps, logcat prefixes, and original indentation while expanding inlined frames (`#0`, `#1`, ...).
 - **Automatic Build Prefix Stripping**: Automatically strips build path prefixes such as `Release/../../` and `out/`.
+- **Automatic Toolchain Discovery**: Automatically locates `llvm-symbolizer` from Cobalt's bundled toolchain (`third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer`) and falls back to system `$PATH`.
 - **Fast Pre-Filtered JSON Processing**: Test runner summaries (`test_summary.json`) are pre-filtered in $O(1)$ time to skip passing test snippets without base64 decoding.
 - **Backward-Compatible Drop-In Wrapper**: `tools/valgrind/asan/asan_symbolize.py` is a thin wrapper delegating to this engine while preserving all existing CLI flags and test launcher behaviors.
 
@@ -47,8 +48,7 @@ starboard/tools/symbolize/
 ├── detector.py           # StreamingSessionTracker and three-tier address mode resolver
 ├── json_processor.py     # Decoupled test runner JSON processor with fast pre-filtering
 ├── symbolize_test.py     # Comprehensive unit, integration, and performance regression tests
-├── README.md             # Documentation (this file)
-└── testdata/             # Hardware, platform, and ASan crash logs
+└── README.md             # Documentation (this file)
 ```
 
 ### Module Responsibilities
@@ -192,12 +192,12 @@ process_test_summary_json(
 The test suite includes unit tests, hermetic synthetic shared library integration tests (compiled on the fly via Clang), and performance benchmarks:
 
 ```bash
-# Run symbolize package tests (39 tests):
+# Run symbolize package tests (52 tests):
 python3 starboard/tools/symbolize/symbolize_test.py -v
 
 # Run asan_symbolize backward-compatibility tests (17 tests):
 python3 tools/valgrind/asan/asan_symbolize_test.py -v
 
-# Run both via pre-commit / presubmits:
-node ~/.gemini/config/skills/cobalt-presubmit-checker/scripts/check_presubmits.cjs --skip-review
+# Run presubmits across changed files:
+pre-commit run --from-ref @{u} --to-ref @
 ```

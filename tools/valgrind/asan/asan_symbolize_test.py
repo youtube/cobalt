@@ -12,13 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Baseline unit and regression tests for asan_symbolize.py."""
+"""Unit tests for asan_symbolize.py."""
 
 import base64
 import io
 import json
 import os
-import shutil
 import sys
 import tempfile
 import unittest
@@ -31,8 +30,6 @@ if _SRC_DIR not in sys.path:
 
 from tools.valgrind.asan import asan_symbolize
 from tools.valgrind.asan.third_party import asan_symbolize as tp_asan_symbolize
-
-_TESTDATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 
 
 class LineBufferedTest(unittest.TestCase):
@@ -134,18 +131,43 @@ class MacPluginsTest(unittest.TestCase):
                      ['/out/Default/Chromium.app.dSYM'])
 
 
+def _make_test_run(snippet: str) -> dict:
+  """Builds a GTest summary entry with base64 derived from plain text."""
+  return {
+      'output_snippet': snippet,
+      'output_snippet_base64': base64.b64encode(snippet.encode()).decode(),
+  }
+
+
+_TEST_SUMMARY_DATA = {
+    'per_iteration_data': [{
+        'TestPassing': [
+            _make_test_run(
+                'Running test...\nTest completed with 0 failures.\n')
+        ],
+        'TestWithSanitizerReport': [
+            _make_test_run(
+                '====================================================\n'
+                '==1234==ERROR: AddressSanitizer: heap-use-after-free '
+                'on address 0x602000000010\n'
+                'Load start=0x7f48e7a44000\n'
+                '    #0 0x7f48e7a45000  (<unknown module>)\n'
+                '    #1 0x7f48e7a46000  (<unknown module>)\n'
+                '====================================================\n')
+        ],
+    }],
+}
+
+
 class JSONTestRunSymbolizerTest(unittest.TestCase):
-  """Tests for JSONTestRunSymbolizer."""
+  """Tests for JSONTestRunSymbolizer and JSON test summary processing."""
 
   def setUp(self):
     self.mock_loop = mock.MagicMock()
 
   def test_passing_test_unchanged(self):
     snippet = 'Test ran and passed.\n'
-    test_run = {
-        'output_snippet': snippet,
-        'output_snippet_base64': base64.b64encode(snippet.encode()).decode()
-    }
+    test_run = _make_test_run(snippet)
     self.mock_loop.process_line.side_effect = lambda l: [l]
     symbolizer = asan_symbolize.JSONTestRunSymbolizer(self.mock_loop)
     symbolizer.symbolize(test_run)
@@ -157,10 +179,7 @@ class JSONTestRunSymbolizerTest(unittest.TestCase):
   def test_crashing_test_symbolized(self):
     orig = '    #0 0x1000 (<unknown module>)\n'
     sym = '    #0 0x1000 in MyFunc() file.cc:10\n'
-    test_run = {
-        'output_snippet': orig,
-        'output_snippet_base64': base64.b64encode(orig.encode()).decode()
-    }
+    test_run = _make_test_run(orig)
     self.mock_loop.process_line.side_effect = lambda l: [sym.rstrip(
     )] if '#0' in l else [l]
     symbolizer = asan_symbolize.JSONTestRunSymbolizer(self.mock_loop)
@@ -192,6 +211,38 @@ class JSONTestRunSymbolizerTest(unittest.TestCase):
     symbolizer.symbolize(test_run)
 
     self.assertTrue(any('??' in l for l in captured_lines))
+
+  def test_symbolize_snippets_in_json(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      test_json = os.path.join(tmp_dir, 'test_summary.json')
+      with open(test_json, 'w', encoding='utf-8') as f:
+        json.dump(_TEST_SUMMARY_DATA, f)
+
+      mock_loop = mock.MagicMock()
+
+      def mock_process_line(line):
+        if '(<unknown module>)' in line and '0x7f48e7a45000' in line:
+          return ['    #0 0x7f48e7a45000 in CobaltCrashFunc() cobalt.cc:123']
+        if '(<unknown module>)' in line and '0x7f48e7a46000' in line:
+          return ['    #1 0x7f48e7a46000 in CobaltParentFunc() cobalt.cc:456']
+        return [line]
+
+      mock_loop.process_line.side_effect = mock_process_line
+
+      asan_symbolize.symbolize_snippets_in_json(test_json, mock_loop)
+
+      with open(test_json, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+      iteration = data['per_iteration_data'][0]
+      pass_run = iteration['TestPassing'][0]
+      self.assertNotIn('original_output_snippet', pass_run)
+
+      crash_run = iteration['TestWithSanitizerReport'][0]
+      self.assertIn('original_output_snippet', crash_run)
+      self.assertIn('CobaltCrashFunc()', crash_run['output_snippet'])
+      self.assertIn('CobaltParentFunc()', crash_run['output_snippet'])
+      self.assertEqual(crash_run['snippet_processed_by'], 'asan_symbolize.py')
 
 
 class CobaltEvergreenCustomizationsTest(unittest.TestCase):
@@ -227,45 +278,6 @@ class CobaltEvergreenCustomizationsTest(unittest.TestCase):
       with self.assertRaises(ValueError) as ctx:
         asan_symbolize.main()
       self.assertIn('Extra binary not found', str(ctx.exception))
-
-
-class GoldenFixturesParityTest(unittest.TestCase):
-  """Tests end-to-end processing against golden fixtures."""
-
-  def test_symbolize_snippets_in_json(self):
-    json_path = os.path.join(_TESTDATA_DIR, 'test_summary.json')
-    if not os.path.exists(json_path):
-      self.skipTest('test_summary.json fixture not found')
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-      test_json = os.path.join(tmp_dir, 'test_summary.json')
-      shutil.copyfile(json_path, test_json)
-
-      mock_loop = mock.MagicMock()
-
-      def mock_process_line(line):
-        if '(<unknown module>)' in line and '0x7f48e7a45000' in line:
-          return ['    #0 0x7f48e7a45000 in CobaltCrashFunc() cobalt.cc:123']
-        if '(<unknown module>)' in line and '0x7f48e7a46000' in line:
-          return ['    #1 0x7f48e7a46000 in CobaltParentFunc() cobalt.cc:456']
-        return [line]
-
-      mock_loop.process_line.side_effect = mock_process_line
-
-      asan_symbolize.symbolize_snippets_in_json(test_json, mock_loop)
-
-      with open(test_json, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-      iteration = data['per_iteration_data'][0]
-      pass_run = iteration['TestPassing'][0]
-      self.assertNotIn('original_output_snippet', pass_run)
-
-      crash_run = iteration['TestWithSanitizerReport'][0]
-      self.assertIn('original_output_snippet', crash_run)
-      self.assertIn('CobaltCrashFunc()', crash_run['output_snippet'])
-      self.assertIn('CobaltParentFunc()', crash_run['output_snippet'])
-      self.assertEqual(crash_run['snippet_processed_by'], 'asan_symbolize.py')
 
 
 if __name__ == '__main__':

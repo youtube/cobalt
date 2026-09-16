@@ -28,7 +28,17 @@ _MAX_RELATIVE_VSIZE = 100 * 1024 * 1024
 
 
 class AddressMode(str, enum.Enum):
-  """Latched resolution mode for ambiguous address spaces."""
+  """Latched resolution mode for ambiguous address spaces.
+
+  - ABSOLUTE: The address parsed from the stack frame is an absolute virtual
+    memory address in the process address space (e.g. 0x7f48e7a45000). To
+    resolve symbols with llvm-symbolizer, the library's base load address (from
+    'Load start=0x...') must be subtracted: offset = address - base_address.
+  - RELATIVE: The address parsed from the stack frame is already relative to
+    the binary's load segment or ELF image base (e.g. +0x12345 or 0x0001a450),
+    or the library is loaded at base 0. No subtraction is performed:
+    offset = address.
+  """
   ABSOLUTE = 'absolute'
   RELATIVE = 'relative'
 
@@ -63,6 +73,22 @@ class StreamingSessionTracker:
                      binary: Optional[str] = None) -> Tuple[Optional[int], str]:
     """Resolves an address into a library offset using three-tier resolution.
 
+    Resolution Tiers:
+      Tier 1 (Architectural Range Check):
+        - Addresses > 4 GB (_ASLR_64BIT_THRESHOLD) are unambiguously 64-bit
+          ASLR absolute addresses requiring base subtraction.
+        - Addresses < 100 MB (_MAX_RELATIVE_VSIZE) are within typical shared
+          library code size and are treated directly as relative offsets.
+      Tier 2 (Multi-Frame Probing):
+        - Addresses in the ambiguous 32-bit window (100 MB <= addr <= 4 GB)
+          could either be absolute addresses or relative offsets in large
+          binaries. Probing queries the symbolizer with both candidates to
+          determine which produces valid symbols, latching the mode for
+          subsequent frames.
+      Tier 3 (Missing Base Fallback):
+        - If a 64-bit ASLR address is encountered without a known base address,
+          the original frame is preserved to prevent corrupting stack traces.
+
     Args:
       address: Raw memory address from stack frame.
       explicit_offset: Pre-extracted offset if format already provides one.
@@ -75,25 +101,35 @@ class StreamingSessionTracker:
     if explicit_offset is not None:
       return explicit_offset, 'explicit'
 
-    if self.current_base_address is not None and self.current_base_address > 0:
-      if address >= self.current_base_address:
-        return address - self.current_base_address, 'base_subtracted'
-      return address, 'base_relative'
-
-    # When base is 0 or None:
     if address > _ASLR_64BIT_THRESHOLD:
       if self.current_base_address == 0:
         return address, 'explicit_zero_base'
+      if (self.current_base_address is not None and
+          self.current_base_address > 0):
+        if address >= self.current_base_address:
+          return address - self.current_base_address, 'base_subtracted'
+        return address, 'base_relative'
       # Tier 3: Missing base fallback
       logging.warning(
           '64-bit ASLR address 0x%x encountered but no Load start= was logged; '
           'preserving original frame.', address)
       return None, 'missing_base'
 
-    if address < _MAX_RELATIVE_VSIZE:
-      return address, 'tier1_relative'
+    if self.current_base_address == 0:
+      return address, 'explicit_zero_base'
 
-    # Ambiguous 32-bit range (100 MB <= address <= 4 GB)
+    if self.current_base_address is None:
+      if address < _MAX_RELATIVE_VSIZE:
+        return address, 'tier1_relative'
+      return address, 'no_base_relative'
+
+    # When base is known and > 0:
+    if address < self.current_base_address:
+      return address, 'base_relative'
+
+    # Ambiguous 32-bit range (address >= current_base_address):
+    # Check if a previous frame in this crash session already determined
+    # the mode.
     if self.latched_mode == AddressMode.RELATIVE:
       return address, 'latched_relative'
     if (self.latched_mode == AddressMode.ABSOLUTE and
@@ -101,6 +137,11 @@ class StreamingSessionTracker:
       return address - self.current_base_address, 'latched_absolute'
 
     # Tier 2: Multi-Frame Probing
+    # Why probing is done: In 32-bit systems, an address such as 0x40123456
+    # could either be an absolute virtual memory address (with base 0x40000000,
+    # meaning offset is 0x123456) or an offset in a large binary. Speculatively
+    # querying both candidates against the symbolizer reveals which offset
+    # actually resolves to valid function names and source locations.
     if runner and self.current_base_address is not None:
       try:
         res_rel = runner.symbolize(address, binary)
@@ -116,6 +157,12 @@ class StreamingSessionTracker:
         self.latched_mode = AddressMode.RELATIVE
         return address, 'tier2_probe_relative'
 
+      # Purpose of entry_keywords: If both relative and absolute offsets happen
+      # to match symbols (e.g. small offsets hitting low-address symbols),
+      # entry_keywords acts as a heuristic tie-breaker. Crash stack traces
+      # almost universally terminate at well-known entry points such as main(),
+      # Starboard's SbEventHandle(), or message loop runners. A candidate
+      # matching an entry keyword is overwhelmingly likely to be genuine.
       entry_keywords = ('main', 'SbEventHandle', 'MessageLoop', 'Run', 'start')
 
       def _has_entry_keyword(frames):

@@ -18,6 +18,7 @@
 
 import base64
 import io
+import json
 import os
 import subprocess
 import sys
@@ -44,7 +45,33 @@ _LLVM_NM = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
                         'Release+Asserts', 'bin', 'llvm-nm')
 _SYMBOLIZER = os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'llvm-build',
                            'Release+Asserts', 'bin', 'llvm-symbolizer')
-_TESTDATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
+
+# pylint: disable=line-too-long
+_SAMPLE_RDK_SYSLOG_STACK = """[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: Caught signal: SIGILL (4)
+[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: \t<unknown> [0x10e2de2]
+[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: \t<unknown> [0x26e4a55]
+[2026-09-01 01:28:54:229 PDT] Sep 01 08:28:53 AmlogicFirebolt YouTube[2001]: \tSbEventHandle [0x9c17b5]
+"""
+
+_SAMPLE_RDK_DEVICE_LIVE = """Sep 09 01:24:56 AmlogicFirebolt YouTube[3046]: Caught signal: SIGABRT (6)
+Sep 09 01:24:56 AmlogicFirebolt YouTube[3046]:         <unknown> [0xf56e8c16]
+Sep 09 01:24:56 AmlogicFirebolt YouTube[3046]:         gsignal [0xf56f4d05]
+Sep 09 01:24:56 AmlogicFirebolt YouTube[3046]:         SbEventHandle [0x9c17b5]
+"""
+
+_SAMPLE_EVERGREEN_LINUX_STACK = """Caught signal: SIGSEGV (11)
+\t<unknown> [0x29b4ef9]
+\t<unknown> [0x5a97ded]
+\tSbEventHandle [0x564821e3cf8c]
+\t_start [0x564821e3ce2a]
+"""
+
+_SAMPLE_ANDROID_CHROMECAST_STACK = """09-08 17:27:44.381  8169  8169 I cobalt  : === COBALT_STACK_DUMP_COLLECTION_START ===
+09-08 17:27:44.416  8169  8169 E chromium: #00 pc 0x03bef795 /data/app/.../lib/arm/libchrobalt.so
+09-08 17:27:44.416  8169  8169 E chromium: #01 pc 0x01115613 /data/app/.../lib/arm/libchrobalt.so
+09-08 17:27:44.416  8169  8169 E chromium: #02 pc 0x01b1d165 /data/app/.../lib/arm/libchrobalt.so
+"""
+# pylint: enable=line-too-long
 
 
 class _FakeSymbolizerRunner:
@@ -378,25 +405,25 @@ class SymbolizeUnitTests(unittest.TestCase):
         test_runner.symbolize('1234'), [('cached_func()', 'file.cc:1')])
     self.assertIsNone(test_runner._proc)
 
-  def test_golden_collected_files_process_cleanly(self):
-    for filename in [
-        'rdk_syslog_stack.log', 'rdk_device_live.log',
-        'evergreen_linux_stack.log', 'android_chromecast_stack.log'
-    ]:
-      log_path = os.path.join(_TESTDATA_DIR, filename)
-      if os.path.exists(log_path):
-        fake_runner = _FakeSymbolizerRunner(
-            default_response=['mock_resolved_symbol()', 'file.cc:1'])
-        out_stream = io.StringIO()
-        with open(log_path, 'r', encoding='utf-8') as f:
-          symbolize._Symbolize(
-              in_stream=f,
-              out_stream=out_stream,
-              runner=fake_runner,
-              base_address='0')
-        self.assertGreater(len(out_stream.getvalue()), 0)
-        self.assertGreater(len(fake_runner.calls), 0)
-        self.assertIn('mock_resolved_symbol', out_stream.getvalue())
+  def test_multi_platform_stack_samples_process_cleanly(self):
+    samples = [
+        _SAMPLE_RDK_SYSLOG_STACK,
+        _SAMPLE_RDK_DEVICE_LIVE,
+        _SAMPLE_EVERGREEN_LINUX_STACK,
+        _SAMPLE_ANDROID_CHROMECAST_STACK,
+    ]
+    for sample in samples:
+      fake_runner = _FakeSymbolizerRunner(
+          default_response=['mock_resolved_symbol()', 'file.cc:1'])
+      out_stream = io.StringIO()
+      symbolize._Symbolize(
+          in_stream=io.StringIO(sample),
+          out_stream=out_stream,
+          runner=fake_runner,
+          base_address='0')
+      self.assertGreater(len(out_stream.getvalue()), 0)
+      self.assertGreater(len(fake_runner.calls), 0)
+      self.assertIn('mock_resolved_symbol', out_stream.getvalue())
 
   def test_symbolize_raises_on_missing_file(self):
     with self.assertRaises(ValueError) as ctx:
@@ -595,6 +622,17 @@ class SymbolizeUnitTests(unittest.TestCase):
     self.assertIn('cobalt_fn()', output)
     self.assertIn('raw_fn()', output)
 
+  def test_strip_prefixes_propagation(self):
+    raw_stack = '    #0 0x1000  (<unknown module>)\n'
+    mock_runner = mock.MagicMock()
+    mock_runner.symbolize.return_value = [
+        ('MyFunc', '/custom/build/root/src/my_file.cc:42')
+    ]
+    res = symbolize.symbolize_string(
+        raw_stack, runner=mock_runner, strip_prefixes=['/custom/build/root/'])
+    self.assertIn('src/my_file.cc:42', res)
+    self.assertNotIn('/custom/build/root/', res)
+
 
 class RunnerUnitTests(unittest.TestCase):
   """Unit tests for runner.py."""
@@ -658,6 +696,87 @@ class FormatsUnitTests(unittest.TestCase):
     path = '/usr/local/cobalt/src/out/Release/../../cobalt/dom/node.cc:154'
     self.assertEqual(formats.strip_path_prefix(path), 'cobalt/dom/node.cc:154')
 
+  def test_gdb_regex_tightening(self):
+    handler = formats.GdbFormatHandler()
+    # Valid GDB lines:
+    self.assertIsNotNone(handler.match('#1 0x7f48e7a45000 in main ()'))
+    self.assertIsNotNone(
+        handler.match('    #0  0x00007ffff7a2a000 in ?? () from /lib/libc.so'))
+    # Invalid non-GDB lines that lack 'in':
+    self.assertIsNone(
+        handler.match('[log] Error at #1 0x12345: Thread crashed'))
+    self.assertIsNone(handler.match('#0 0x12345 file.cc:10'))
+
+  def test_cobalt_regex_symbols_with_spaces(self):
+    handler = formats.CobaltFormatHandler()
+    # Symbol with return type and spaces:
+    m1 = handler.match('\tvoid CobaltMain(int argc, char** argv) [0x29b4ef9]')
+    self.assertIsNotNone(m1)
+    self.assertEqual(m1.prefix, '\t')
+    self.assertEqual(m1.extra, 'void CobaltMain(int argc, char** argv)')
+    self.assertEqual(m1.address, 0x29b4ef9)
+
+    # Symbol with operator and spaces:
+    m2 = handler.match(
+        'YouTube[100]: \toperator new(unsigned long) [0x29b4ef9]')
+    self.assertIsNotNone(m2)
+    self.assertEqual(m2.prefix, 'YouTube[100]: \t')
+    self.assertEqual(m2.extra, 'operator new(unsigned long)')
+    self.assertEqual(m2.address, 0x29b4ef9)
+
+  def test_inlined_frame_formatting_across_formats(self):
+    inlined_pairs = [
+        ('innermost_func()', 'src/inner.cc:10'),
+        ('caller_func()', 'src/caller.cc:50'),
+    ]
+
+    # 1. Android: subsequent inlines get (inlined) suffix:
+    android_h = formats.AndroidFormatHandler()
+    android_m = android_h.match('#01 pc 0x12345 /lib/libcobalt.so')
+    android_lines = android_h.format(android_m, inlined_pairs, 0x12345)
+    self.assertEqual(len(android_lines), 2)
+    self.assertIn('innermost_func()', android_lines[0])
+    self.assertNotIn('(inlined)', android_lines[0])
+    self.assertIn('caller_func()', android_lines[1])
+    self.assertIn('(inlined)', android_lines[1])
+
+    # 2. Cobalt: subsequent inlines get (inlined) suffix:
+    cobalt_h = formats.CobaltFormatHandler()
+    cobalt_m = cobalt_h.match('\t<unknown> [0x12345]')
+    cobalt_lines = cobalt_h.format(cobalt_m, inlined_pairs, 0x12345)
+    self.assertEqual(len(cobalt_lines), 2)
+    self.assertEqual(cobalt_lines[0], '\t0x12345 [innermost_func()]\n')
+    self.assertEqual(cobalt_lines[1], '\t0x12345 [caller_func()] (inlined)\n')
+
+    # 3. GDB: subsequent inlines get (inlined) suffix:
+    gdb_h = formats.GdbFormatHandler()
+    gdb_m = gdb_h.match('#0 0x12345 in ?? ()')
+    gdb_lines = gdb_h.format(gdb_m, inlined_pairs, 0x12345)
+    self.assertEqual(len(gdb_lines), 2)
+    self.assertIn('innermost_func()', gdb_lines[0])
+    self.assertNotIn('(inlined)', gdb_lines[0])
+    self.assertIn('caller_func()', gdb_lines[1])
+    self.assertIn('(inlined)', gdb_lines[1])
+
+    # 4. Raw: subsequent inlines get (inlined) suffix:
+    raw_h = formats.RawFormatHandler()
+    raw_m = raw_h.match('0x12345')
+    raw_lines = raw_h.format(raw_m, inlined_pairs, 0x12345)
+    self.assertEqual(len(raw_lines), 2)
+    self.assertIn('innermost_func()', raw_lines[0])
+    self.assertNotIn('(inlined)', raw_lines[0])
+    self.assertIn('caller_func()', raw_lines[1])
+    self.assertIn('(inlined)', raw_lines[1])
+
+    # 5. ASan: preserves incrementing frame numbers without (inlined) tag:
+    asan_h = formats.AsanMode1FormatHandler()
+    asan_m = asan_h.match('    #0 0x12345  (<unknown module>)')
+    asan_lines = asan_h.format(asan_m, inlined_pairs, 0x12345)
+    self.assertEqual(len(asan_lines), 2)
+    self.assertIn('#0 0x12345 in innermost_func()', asan_lines[0])
+    self.assertIn('#1 0x12345 in caller_func()', asan_lines[1])
+    self.assertNotIn('(inlined)', asan_lines[1])
+
 
 class DetectorUnitTests(unittest.TestCase):
   """Unit tests for detector.py."""
@@ -696,6 +815,33 @@ class DetectorUnitTests(unittest.TestCase):
     self.assertIsNone(offset)
     self.assertEqual(mode, 'missing_base')
 
+  def test_tier2_multi_frame_probing_and_entry_keywords(self):
+    tracker = detector.StreamingSessionTracker(default_base_address=0x40000000)
+    mock_runner = mock.MagicMock()
+    # 32-bit ambiguous range: 0x40123456 (base 0x40000000 -> offset 0x123456).
+    # Speculative probe returns symbols for absolute offset 0x123456.
+    mock_runner.symbolize.side_effect = lambda addr, *args: ([
+        ('main', 'src/main.cc:10')
+    ] if addr in (0x123456, '0x123456', 1193046) else [])
+    offset, tier = tracker.resolve_offset(0x40123456, runner=mock_runner)
+    self.assertEqual(offset, 0x123456)
+    self.assertEqual(tier, 'tier2_probe_absolute')
+    self.assertEqual(tracker.latched_mode, detector.AddressMode.ABSOLUTE)
+
+    # Subsequent frame should use latched mode without re-probing:
+    mock_runner.reset_mock()
+    offset2, tier2 = tracker.resolve_offset(0x40555555, runner=mock_runner)
+    self.assertEqual(offset2, 0x555555)
+    self.assertEqual(tier2, 'latched_absolute')
+    mock_runner.symbolize.assert_not_called()
+
+    # Tier 1 64-bit ASLR address with known base:
+    tracker64 = detector.StreamingSessionTracker(
+        default_base_address=0x7f0000000000)
+    offset64, tier64 = tracker64.resolve_offset(0x7f0012345000)
+    self.assertEqual(offset64, 0x12345000)
+    self.assertEqual(tier64, 'base_subtracted')
+
 
 class JsonProcessorUnitTests(unittest.TestCase):
   """Unit tests for json_processor.py."""
@@ -725,6 +871,19 @@ class JsonProcessorUnitTests(unittest.TestCase):
     self.assertTrue(modified)
     self.assertEqual(test_run['output_snippet'],
                      'CRASH LOG: #0 0x1000 in Symbolized()')
+
+  def test_atomic_json_summary_processing(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      json_path = os.path.join(temp_dir, 'summary.json')
+      data = {'per_iteration_data': [{'test1': [{'output_snippet': 'PASS'}]}]}
+      with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f)
+
+      mtime_before = os.path.getmtime(json_path)
+      modified = json_processor.process_test_summary_json(
+          json_path, symbolize_fn=''.join)
+      self.assertEqual(modified, 0)
+      self.assertEqual(os.path.getmtime(json_path), mtime_before)
 
 
 class MultiBinaryIntegrationTests(unittest.TestCase):
