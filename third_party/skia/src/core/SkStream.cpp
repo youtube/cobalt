@@ -977,7 +977,7 @@ static sk_sp<SkData> mmap_filename_with_cache(const char path[]) {
     return nullptr;
 }
 
-SkMemoryStream::SkMemoryStream(const char path[], sk_sp<SkData> data)
+SkMemoryStream::SkMemoryStream(const char path[], sk_sp<const SkData> data)
         : fPath(path), fData(std::move(data)) {
     if (nullptr == fData) {
         fData = SkData::MakeEmpty();
