@@ -473,6 +473,7 @@ test("cobalt_unittests") {
   if (is_android) {
     deps += [
       "//base:base_java_test_support",
+      "//cobalt/android:cobalt_main_java",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
     ]
