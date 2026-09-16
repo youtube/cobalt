@@ -366,6 +366,12 @@ test("nplb") {
 
   deps += cobalt_platform_dependencies
 
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
+
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }
