@@ -125,6 +125,10 @@ BASE_FEATURE(kEnablePictureInPicture,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+BASE_FEATURE(kDisableNetworkDialogDismissButton,
+             "DisableNetworkDialogDismissButton",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltNativeMemoryAblation,
              "CobaltNativeMemoryAblation",
              base::FEATURE_DISABLED_BY_DEFAULT);
