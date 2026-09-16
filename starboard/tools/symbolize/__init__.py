@@ -26,6 +26,8 @@ from starboard.tools.symbolize.symbolize import main
 from starboard.tools.symbolize.symbolize import symbolize_stream
 from starboard.tools.symbolize.symbolize import symbolize_string
 
+# __all__ defines the public export interface for the symbolize package,
+# declaring intended exports for static analysis tools, linters, and consumers.
 __all__ = [
     'AddressMode',
     'SymbolizerRunner',
