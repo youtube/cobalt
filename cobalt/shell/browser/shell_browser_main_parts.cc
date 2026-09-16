@@ -107,7 +107,7 @@ class NetworkChangeNotifierFactoryStarboard
 };
 #endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
 
-GURL GetStartupURL() {
+GURL GetStartupURL(bool should_preload) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
@@ -130,6 +130,10 @@ GURL GetStartupURL() {
       return net::FilePathToFileURL(
           base::MakeAbsoluteFilePath(base::FilePath(url_string)));
     }
+  }
+
+  if (should_preload) {
+    initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
   }
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -184,8 +188,9 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-  Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size(),
+  Shell::CreateNewWindow(browser_context_.get(),
+                         GetStartupURL(/*should_preload=*/!is_visible_),
+                         nullptr, gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
                          false /* create_splash_screen_web_contents */
 #else
