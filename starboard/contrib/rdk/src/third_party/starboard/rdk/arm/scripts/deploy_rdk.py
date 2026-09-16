@@ -25,6 +25,11 @@ Usage Examples:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
+  3. Target a specific device when several are attached (auto-detection picks the
+     first RDK device it finds, which is ambiguous on a multi-device bench):
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --device-id localhost:44133 --run
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --device-ip 100.107.44.78 --run
+
   (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
@@ -407,6 +412,15 @@ def parse_args() -> argparse.Namespace:
         help="Target RDK device IP address (uses SSH/SCP instead of ADB).",
     )
     parser.add_argument(
+        "--device-id",
+        type=str,
+        help=(
+            "Target RDK device ADB serial (e.g. 'localhost:44133'). Use when more "
+            "than one RDK device is attached, to avoid auto-detection picking the "
+            "wrong one. Mutually exclusive with --device-ip."
+        ),
+    )
+    parser.add_argument(
         "--config", type=str, help="Override default build configuration.")
     parser.add_argument(
         "--out-dir", type=str, help="Custom build output directory.")
@@ -555,6 +569,7 @@ def get_device_id() -> str:
     # Explicit assumption: if multiple devices are connected, the first one is picked.
     if len(rdk_devices) > 1:
         print(f"Note: Multiple RDK devices detected: {rdk_devices}. Picking the first one: {rdk_devices[0]}")
+        print("      Pass --device-id <serial> (or --device-ip <ip>) to target a specific device.")
 
     dev = rdk_devices[0]
     print(f"Using RDK device: {dev} (AH212)")
@@ -704,10 +719,14 @@ def main() -> None:
         setup_toolchain()
         return
 
+    if args.device_ip and args.device_id:
+        print("Error: --device-ip and --device-id are mutually exclusive.")
+        sys.exit(1)
+
     device_ip = args.device_ip
     device_id = None
     if not device_ip:
-        device_id = get_device_id()
+        device_id = args.device_id or get_device_id()
 
     if args.revert_c25:
         revert_to_cobalt_25(device_id, device_ip)

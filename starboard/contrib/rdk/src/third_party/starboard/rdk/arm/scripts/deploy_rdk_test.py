@@ -187,6 +187,34 @@ class TestDeployRdk(unittest.TestCase):
         self.assertTrue(found_remote_dir, "Did not create remote lib directory")
         self.assertTrue(found_push, "Did not push libcobalt.lz4 to correct folder")
 
+    def test_device_id_flag_skips_auto_detection(self):
+        """Verifies --device-id targets the given serial without auto-detecting."""
+        self.mock_run.side_effect = lambda *args, **kwargs: ""
+
+        argv = [
+            "deploy_rdk.py", "--only-lib", "--force-deploy",
+            "--device-id", "localhost:44133"
+        ]
+        with mock.patch.object(deploy_rdk, "get_device_id") as mock_detect:
+            with mock.patch("sys.argv", argv):
+                deploy_rdk.main()
+            mock_detect.assert_not_called()
+
+        calls = [str(c) for c in self.mock_run.call_args_list]
+        self.assertTrue(
+            any("localhost:44133" in c for c in calls),
+            "Commands were not addressed to the requested device serial")
+
+    def test_device_id_and_device_ip_are_mutually_exclusive(self):
+        """Verifies passing both --device-id and --device-ip is rejected."""
+        argv = [
+            "deploy_rdk.py", "--device-id", "localhost:44133",
+            "--device-ip", "192.0.2.10"
+        ]
+        with mock.patch("sys.argv", argv):
+            deploy_rdk.main()
+        self.mock_exit.assert_any_call(1)
+
     def test_revert_c25(self):
         """Verifies --revert-c25 runs chCobalt c25 and reboot -f."""
         self.mock_run.side_effect = None
