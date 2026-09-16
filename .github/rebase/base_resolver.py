@@ -110,21 +110,13 @@ class AgentChangeRecord:
 
 def get_clean_build_env(
     depot_tools_path: Optional[str] = None,) -> Dict[str, str]:
-  """Prepares a clean build environment, stripping agent-specific env vars."""
+  """Builds the environment used to invoke gclient, gn and autoninja.
+
+  Prepending depot_tools to PATH is the only change from the ambient
+  environment: those tools live there and are not otherwise on PATH.
+  """
   depot_tools = depot_tools_path or os.path.expanduser("~/depot_tools")
-  blocked_prefixes = (
-      "ANTIGRAVITY_",
-      "AI_AGENT",
-      "JETSKI_",
-      "GEMINI_AGENT",
-      "CLAUDE_",
-      "CURSOR_",
-  )
-  clean_env = {
-      k: v
-      for k, v in os.environ.items()
-      if not any(k.startswith(p) for p in blocked_prefixes) and k != "AI_AGENT"
-  }
+  clean_env = dict(os.environ)
   if os.path.isdir(depot_tools):
     orig_path = clean_env.get("PATH", "")
     clean_env["PATH"] = f"{depot_tools}:{orig_path}"
@@ -259,18 +251,27 @@ def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
   return False
 
 
+_FORKED_THIRD_PARTY_PREFIXES = ("third_party/jni_zero/",)
+
+# Repository metadata is never a valid patch target, even inside a forked
+# dependency.
+_NEVER_PATCHABLE_BASENAMES = (
+    "DEPS",
+    "DIR_METADATA",
+    "LICENSE",
+    "OWNERS",
+    "PRESUBMIT.py",
+    "README.chromium",
+)
+
+
 def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   """Checks if a file is pure third-party source code without Cobalt changes."""
   rel = os.path.relpath(file_path, repo_path)
   if not rel.startswith("third_party/"):
     return False
-  # TODO(b/547499991) This should send to the LLM with skills to decide whether
-  # agent can modify.
-  # In-tree generator and build tooling in third_party (e.g. jni_zero) can be
-  # patched for toolchain and API compatibility.
-  if rel.startswith("third_party/jni_zero/"):
-    return False
-  # Cobalt/Starboard-specific directories or files hosted under third_party
+  if any(rel.startswith(p) for p in _FORKED_THIRD_PARTY_PREFIXES):
+    return os.path.basename(rel) in _NEVER_PATCHABLE_BASENAMES
   rel_lower = rel.lower()
   if "cobalt" in rel_lower or "starboard" in rel_lower:
     return False

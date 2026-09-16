@@ -1466,6 +1466,37 @@ target("foo") {{}}
           "base_resolver.has_cobalt_git_history", return_value=False):
         self.assertFalse(is_unmodified_third_party(cobalt_tp, tmpdir))
 
+  def test_forked_third_party_metadata_is_not_patchable(self):
+    """Verifies the jni_zero exception unlocks code but not dir metadata."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      jni_dir = os.path.join(tmpdir, "third_party", "jni_zero")
+      os.makedirs(jni_dir, exist_ok=True)
+
+      # Source and build files in the forked dir stay patchable.
+      for name in ("jni_generator.py", "BUILD.gn"):
+        path = os.path.join(jni_dir, name)
+        with open(path, "w", encoding="utf-8") as f:
+          f.write("# upstream content\n")
+        self.assertFalse(
+            is_unmodified_third_party(path, tmpdir),
+            f"{name} should remain patchable")
+
+      # Repository metadata is blocked even inside the forked dir.
+      for name in ("DEPS", "LICENSE", "OWNERS", "README.chromium"):
+        path = os.path.join(jni_dir, name)
+        with open(path, "w", encoding="utf-8") as f:
+          f.write("upstream metadata\n")
+        self.assertTrue(
+            is_unmodified_third_party(path, tmpdir),
+            f"{name} should be blocked")
+
+      # The top-level DEPS file is outside third_party/ and unaffected, so
+      # Phase 0/1 DEPS conflict resolution still works.
+      top_deps = os.path.join(tmpdir, "DEPS")
+      with open(top_deps, "w", encoding="utf-8") as f:
+        f.write("deps = {}\n")
+      self.assertFalse(is_unmodified_third_party(top_deps, tmpdir))
+
   def test_base_resolver_circuit_breaker_abort(self):
     """Verifies BaseResolver aborts loops when error repeats 8 times."""
     with tempfile.TemporaryDirectory() as tmpdir:
