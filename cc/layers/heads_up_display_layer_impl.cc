@@ -832,10 +832,7 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
                                                            int width) const {
   std::string status;
   SkColor color = SK_ColorRED;
-<<<<<<< HEAD
   if (layer_tree_impl()->raster_caps().use_gpu_rasterization) {
-=======
-  if (layer_tree_impl()->use_gpu_rasterization()) {
 #if BUILDFLAG(IS_COBALT)
     if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster)) {
       status = "in-proc";
@@ -845,7 +842,6 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
       color = SK_ColorGREEN;
     }
 #else
->>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     status = "on";
     color = SK_ColorGREEN;
 #endif
