@@ -788,12 +788,10 @@ Always run the pretty print utility on this file after editing:
     Percentage of free virtual address (VA) space that lies outside the single
     largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
     free address space is one contiguous block, 50% means the largest block
-    holds half of it, and 90% means it is spread across the equivalent of ten
-    equal blocks. This measures how concentrated the free space is, not how much
+    holds half of it.
+    This measures how concentrated the free space is, not how much
     of it there is, so a low value on its own does not imply headroom; read it
-    alongside LargestFreeGapMb and TotalUnmappedVaMb. Reported as 100% when
-    there is no free space at all between the lowest and highest mapping.
-    Recorded at regular intervals when memory metrics are emitted. Only emitted
+    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
     on 32-bit Android, where the ~3GB user address space is exhaustible.
   </summary>
 </histogram>
@@ -816,10 +814,8 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Total size in MB of unmapped virtual address space, summed over every gap
     between the lowest and highest mapped regions of the process address space.
-    Space below the lowest mapping and above the highest mapping is excluded,
-    since neither lies between two mappings. Recorded at regular intervals when
-    memory metrics are emitted. Only emitted on 32-bit Android, where the ~3GB
-    user address space is exhaustible.
+    Only emitted on 32-bit Android, where the ~3GB user address space is
+    exhaustible.
   </summary>
 </histogram>
 
@@ -830,9 +826,8 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
     Guards against reaching the kernel vm.max_map_count limit and tracks virtual
-    address space fragmentation. Recorded at regular intervals when memory
-    metrics are emitted. Only emitted on 32-bit Android, where the ~3GB user
-    address space is exhaustible.
+    address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
+    user address space is exhaustible.
   </summary>
 </histogram>
 

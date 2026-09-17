@@ -341,8 +341,7 @@ static const char* MetricSizeToVersionSuffix(
 #if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
 // Longest stretch of a /proc/self/maps line the parser looks at in one piece.
 // Matches base/profiler/stack_base_address_posix.cc, which reads
-// /proc/self/maps on Android with the same 1024-byte budget;
-// base/third_party/symbolize/symbolize.cc uses 1024 as well.
+// /proc/self/maps on Android with the same 1024-byte budget.
 inline constexpr size_t kMaxLineLength = 1024;
 
 // seq_file generates /proc files a page at a time, so a page-sized read is the
@@ -385,7 +384,7 @@ CalculateVirtualAddressSpaceMetricsInternal(ChunkReader&& read_chunk) {
     }
 
     // The kernel always emits VMAs in ascending, non-overlapping order, so
-    // anything that goes backwards is not a real maps entry. Skip.
+    // anything that goes backwards is not a real maps entry.
     if (vm_end < vm_start) {
       return;
     }
@@ -425,11 +424,6 @@ CalculateVirtualAddressSpaceMetricsInternal(ChunkReader&& read_chunk) {
         }
       }
     }
-  }
-  // A final line with no trailing newline still describes a VMA.
-  if (!reached_gate_vma && line_length > 0) {
-    line[line_length] = '\0';
-    consume_line(line);
   }
 
   if (vma_count == 0) {
