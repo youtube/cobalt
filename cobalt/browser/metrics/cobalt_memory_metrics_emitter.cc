@@ -44,11 +44,14 @@
 #include <cmath>
 
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/function_ref.h"
+#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
+#include "cobalt/browser/features.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -461,6 +464,15 @@ CalculateVirtualAddressSpaceMetricsInternal(
   return metrics;
 }
 
+bool ShouldSampleVirtualAddressSpace() {
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltVirtualAddressSpaceMetrics)) {
+    return false;
+  }
+  return base::ShouldRecordSubsampledMetric(
+      features::kVirtualAddressSpaceSampleProbabilityParam.Get());
+}
+
 void EmitVirtualAddressSpaceMetrics() {
   base::File maps(base::FilePath("/proc/self/maps"),
                   base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -762,12 +774,15 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
 #if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
-  // Walking /proc/self/maps blocks and visits every VMA in the process, so it
-  // must not run on this sequence, which is USER_BLOCKING.
-  base::ThreadPool::PostTask(FROM_HERE,
-                             {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-                              base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-                             base::BindOnce(&EmitVirtualAddressSpaceMetrics));
+  if (ShouldSampleVirtualAddressSpace()) {
+    // Walking /proc/self/maps blocks and visits every VMA in the process, so it
+    // must not run on this sequence, which is USER_BLOCKING.
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&EmitVirtualAddressSpaceMetrics));
+  }
 #endif
   // UMA metrics for media buffer memory usage
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

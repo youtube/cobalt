@@ -80,6 +80,15 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 
+// Enables virtual address space fragmentation metrics, which are only
+// collected on 32-bit Android.
+extern const base::Feature kCobaltVirtualAddressSpaceMetrics;
+
+// Probability of emitting the metrics on any given memory collection cycle
+// (default 0.1, i.e. one cycle in ten).
+extern const base::FeatureParam<double>
+    kVirtualAddressSpaceSampleProbabilityParam;
+
 // Enables Cobalt Memory Attribution Manager.
 extern const base::Feature kCobaltMemoryAttributionManager;
 
