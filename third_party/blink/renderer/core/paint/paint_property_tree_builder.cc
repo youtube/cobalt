@@ -9,6 +9,7 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/input/overscroll_behavior.h"
@@ -3785,12 +3786,20 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (Platform::Current()->IsLowEndDevice()) {
     // Don't composite "trivial" 3D transforms such as translateZ(0).
     // These transforms still force comosited scrolling (see above).
     context_.direct_compositing_reasons &=
         ~CompositingReason::kTrivial3DTransform;
   }
+#else
+  // Cobalt: Low-end TV SoCs have constrained quad-core CPUs where CPU Skia
+  // re-rasterization during shelf scrolling severely degrades tile-to-tile P95
+  // FPS. Web clients like Kabuki rely on translateZ(0) to promote animated
+  // shelf tracks to hardware composited layers. Preserving kTrivial3DTransform
+  // unblocks GPU quad compositing and avoids full-shelf CPU repainting.
+#endif
 
   if (context_.fragment_context
           .self_or_ancestor_participates_in_view_transition &&
