@@ -18,8 +18,6 @@
 
 namespace blink {
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 namespace {
 const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
@@ -36,13 +34,6 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 }  // namespace
 #endif  // BUILDFLAG(IS_COBALT)
 
-// Function defined in third_party/blink/public/web/blink.h.
-void DecommitFreeableMemory() {
-  CHECK(IsMainThread());
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-}
-
->>>>>>> parent of 42a1fffb83b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;
 
