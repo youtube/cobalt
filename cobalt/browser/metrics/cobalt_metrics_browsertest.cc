@@ -23,6 +23,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
@@ -199,15 +200,19 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 
-#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+  // Emitted on a BEST_EFFORT ThreadPool task that is deliberately not ordered
+  // against the memory dump completion callback above, so poll for it.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return check_non_zero_histogram(
+        "Memory.Experimental.VirtualAddress.VmaCount");
+  })) << "timed out waiting for VA space metrics";
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
   EXPECT_TRUE(
       check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
-  EXPECT_TRUE(
-      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
 #endif
 
   check_histogram("Memory.Browser.LibChrobaltPss");
@@ -333,15 +338,19 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
 
-#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+  // Emitted on a BEST_EFFORT ThreadPool task that is deliberately not ordered
+  // against the memory dump completion callback above, so poll for it.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return check_non_zero_histogram(
+        "Memory.Experimental.VirtualAddress.VmaCount");
+  })) << "timed out waiting for VA space metrics";
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.VirtualAddress.LargestFreeGapMb"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"));
   EXPECT_TRUE(
       check_histogram("Memory.Experimental.VirtualAddress.FragmentationRatio"));
-  EXPECT_TRUE(
-      check_non_zero_histogram("Memory.Experimental.VirtualAddress.VmaCount"));
 #endif
 
   check_histogram("Memory.Experimental.Browser2.V8");

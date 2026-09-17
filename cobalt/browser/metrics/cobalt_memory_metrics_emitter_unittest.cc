@@ -16,39 +16,32 @@
 
 #include <array>
 #include <cstddef>
-#include <cstdio>
 #include <optional>
 #include <string>
 
-#include "base/files/scoped_file.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // The parser and everything it feeds are compiled out where VA space telemetry
 // is not collected, so there is nothing to test on those platforms.
-#if BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
 
 namespace cobalt {
 namespace {
 
-using VirtualAddressSpaceMetrics =
-    CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics;
-
-std::optional<VirtualAddressSpaceMetrics> Parse(const std::string& maps) {
-  return CobaltMemoryMetricsEmitter::
-      CalculateVirtualAddressSpaceMetricsForTesting(maps);
-}
+using Emitter = CobaltMemoryMetricsEmitter;
 
 // Builds a /proc/self/maps line whose path is long enough to overflow the
 // parser's internal line buffer, such that the split lands immediately before
-// `tail`. This reproduces how fgets() hands back an over-long line in two
-// pieces, with the second piece then being treated as a fresh line.
+// `tail`, which is then parsed as if it began a fresh line.
 //
-// NOTE: kParserLineBudget is deliberately tied to the `char line[1024]` buffer
-// in CalculateVirtualAddressSpaceMetricsInternal(). If that buffer size
-// changes, update this -- otherwise the split lands in the middle of the
-// padding, `tail` no longer begins a line, and the truncation cases below
-// silently stop testing anything.
+// NOTE: kParserLineBudget is deliberately tied to kMaxLineLength - 1 in
+// CalculateVirtualAddressSpaceMetricsInternal(). If that buffer size changes,
+// update this.
 constexpr size_t kParserLineBudget = 1023;
 
 std::string LineTruncatedBefore(const std::string& tail) {
@@ -70,7 +63,7 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, ComputesGapsAndRatio) {
   //   VMA 3: 0x05550000-0x05650000
   // Total unmapped = 80 MB, largest gap = 64 MB.
   // Fragmentation = 1.0 - (64 / 80) = 20%.
-  auto metrics = Parse(
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
       "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
       "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]\n"
       "05550000-05650000 rw-p 00000000 00:00 0      [stack]\n");
@@ -85,7 +78,7 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, ComputesGapsAndRatio) {
 TEST(CobaltVirtualAddressSpaceMetricsTest, ReportsContiguousSpaceAsExhausted) {
   // Back-to-back mappings leave no unmapped space at all. There is nothing left
   // to allocate from, which is reported at the top of the scale rather than 0.
-  auto metrics = Parse(
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
       "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
       "00450000-00550000 rw-p 00000000 00:00 0      [anon:heap]\n");
 
@@ -110,15 +103,15 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, ReturnsNulloptWithoutUsableInput) {
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     SCOPED_TRACE(
         base::StringPrintf("kTestCases[%zu] = \"%s\"", i, kTestCases[i]));
-    EXPECT_FALSE(Parse(kTestCases[i]).has_value());
+    EXPECT_FALSE(
+        Emitter::CalculateVirtualAddressSpaceMetricsForTesting(kTestCases[i])
+            .has_value());
   }
 }
 
 // The kernel emits VMAs in strictly ascending, non-overlapping order, so any
 // record violating that is garbage -- most often the tail of a truncated long
-// path that happens to look like a range. Accepting one would inflate
-// vma_count and rewind the running end address, turning the next genuine VMA
-// into an enormous phantom gap.
+// path that happens to look like a range.
 //
 // Every case below wraps the same real mapping pair (0x00400000-0x00450000
 // then 0x01450000-0x01550000, a 16 MB gap) around a bogus record, so a
@@ -151,7 +144,8 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, IgnoresBogusRecords) {
   for (const auto& test_case : kTestCases) {
     SCOPED_TRACE(test_case.name);
 
-    auto metrics = Parse(test_case.maps);
+    auto metrics =
+        Emitter::CalculateVirtualAddressSpaceMetricsForTesting(test_case.maps);
     ASSERT_TRUE(metrics.has_value());
     // Only the two well-ordered VMAs count.
     EXPECT_EQ(2u, metrics->vma_count);
@@ -164,30 +158,61 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, IgnoresBogusRecords) {
 // A long path that does not produce a range-shaped tail should simply be
 // ignored past the address field, leaving the metrics untouched.
 TEST(CobaltVirtualAddressSpaceMetricsTest, ToleratesLongPathsWithoutHexTails) {
-  auto metrics = Parse(LineTruncatedBefore("ordinary/path/component") +
-                       std::string(kNextVmaAfter16MbGap));
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
+      LineTruncatedBefore("ordinary/path/component") +
+      std::string(kNextVmaAfter16MbGap));
 
   ASSERT_TRUE(metrics.has_value());
   EXPECT_EQ(2u, metrics->vma_count);
   EXPECT_EQ(16u, metrics->largest_free_gap_mb);
 }
 
+// The kernel's gate VMA sits above the user/kernel split, so the space beneath
+// it is not allocatable. Counting it would inflate the free-space total, and on
+// a 3GB/1GB split kernel that region is ~1GB and would become the largest gap.
+TEST(CobaltVirtualAddressSpaceMetricsTest, IgnoresGateVma) {
+  constexpr char kUserSpace[] =
+      "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
+      "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]\n";
+  constexpr char kGateVma[] =
+      "ffff0000-ffff1000 r-xp 00000000 00:00 0      [vectors]\n";
+
+  auto baseline =
+      Emitter::CalculateVirtualAddressSpaceMetricsForTesting(kUserSpace);
+  auto with_gate = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
+      std::string(kUserSpace) + kGateVma);
+
+  ASSERT_TRUE(baseline.has_value());
+  ASSERT_TRUE(with_gate.has_value());
+  EXPECT_EQ(baseline->vma_count, with_gate->vma_count);
+  EXPECT_EQ(baseline->largest_free_gap_mb, with_gate->largest_free_gap_mb);
+  EXPECT_EQ(baseline->total_unmapped_va_mb, with_gate->total_unmapped_va_mb);
+}
+
+// The gate VMA is emitted after seq_file finishes walking the VMA tree, so
+// records past it cannot be trusted. This record is ordered above the last
+// real mapping, so the ordering guard would accept it; only stopping at the
+// gate keeps it out.
+TEST(CobaltVirtualAddressSpaceMetricsTest, StopsAtGateVma) {
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
+      "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
+      "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]\n"
+      "ffff0000-ffff1000 r-xp 00000000 00:00 0      [vectors]\n"
+      "02550000-02650000 rw-p 00000000 00:00 0      [anon:replayed]\n");
+
+  ASSERT_TRUE(metrics.has_value());
+  EXPECT_EQ(2u, metrics->vma_count);
+  EXPECT_EQ(16u, metrics->largest_free_gap_mb);
+  EXPECT_EQ(16u, metrics->total_unmapped_va_mb);
+}
+
 // Sanity check against the real address space. The absolute numbers depend on
 // the host, so only invariants are asserted.
 TEST(CobaltVirtualAddressSpaceMetricsTest, ParsesRealProcSelfMaps) {
   std::string maps;
-  {
-    base::ScopedFILE fp(fopen("/proc/self/maps", "r"));
-    ASSERT_TRUE(fp);
-    // Just a read chunk size, unrelated to the parser's line buffer: a line
-    // split across two fgets() calls is rejoined by the string append below.
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), fp.get()) != nullptr) {
-      maps += buffer;
-    }
-  }
+  ASSERT_TRUE(base::ReadFileToString(base::FilePath("/proc/self/maps"), &maps));
 
-  auto metrics = Parse(maps);
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(maps);
   ASSERT_TRUE(metrics.has_value());
   EXPECT_GT(metrics->vma_count, 0u);
   EXPECT_GE(metrics->total_unmapped_va_mb, metrics->largest_free_gap_mb);
@@ -198,4 +223,4 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, ParsesRealProcSelfMaps) {
 }  // namespace
 }  // namespace cobalt
 
-#endif  // BUILDFLAG(COBALT_ENABLE_VA_SPACE_METRICS)
+#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)

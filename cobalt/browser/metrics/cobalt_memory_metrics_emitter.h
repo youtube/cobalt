@@ -33,18 +33,6 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
 
-// Virtual address (VA) space fragmentation telemetry is only actionable on
-// 32-bit platforms, where the user-space address range is limited to ~3GB and
-// allocators can abort even when physical memory is available. On 64-bit
-// platforms the address space is effectively unbounded, so the gap metrics
-// would always saturate the histogram overflow bucket. Linux is kept enabled
-// so browser tests can exercise the code path on workstations and CI.
-#if (BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)) || BUILDFLAG(IS_LINUX)
-#define BUILDFLAG_INTERNAL_COBALT_ENABLE_VA_SPACE_METRICS() (1)
-#else
-#define BUILDFLAG_INTERNAL_COBALT_ENABLE_VA_SPACE_METRICS() (0)
-#endif
-
 namespace cobalt {
 
 // This class asynchronously fetches memory metrics for each process, and then
