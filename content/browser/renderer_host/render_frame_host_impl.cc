@@ -14637,15 +14637,11 @@ void RenderFrameHostImpl::BindDigitalIdentityRequestReceiver(
 
 void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
-<<<<<<< HEAD
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
   service->BindReceiver(std::move(receiver));
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  webid::RequestService::Create(this, std::move(receiver));
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
