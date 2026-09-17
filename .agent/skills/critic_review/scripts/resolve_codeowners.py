@@ -37,7 +37,7 @@ def resolve():
     try:
       res = subprocess.check_output(["git", "diff", "--name-only", "HEAD"],
                                     text=True)
-      files = [f.strip() for f in res.splitlines() if f.strip()]
+      files = [f.strip() for f in res.strip().splitlines() if f.strip()]
       if not files:
         status_out = subprocess.check_output(["git", "status", "--porcelain"],
                                              text=True)
