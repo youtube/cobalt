@@ -20,21 +20,16 @@
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(ENABLE_MEDIA_TRACING)
-#include "perfetto/tracing.h"
-#endif
+extern "C" {
+bool IsTestExecutable() {
+  return true;
+}
+}
 
 namespace {
 
 int RunTests(int argc, char** argv) {
   starboard::RegisterPlatformTestEnvironments(argc, argv);
-#if defined(ENABLE_MEDIA_TRACING)
-  if (!perfetto::Tracing::IsInitialized()) {
-    perfetto::TracingInitArgs args;
-    args.backends |= perfetto::kInProcessBackend;
-    perfetto::Tracing::Initialize(args);
-  }
-#endif
   return RUN_ALL_TESTS();
 }
 

@@ -20,6 +20,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -218,6 +219,17 @@ SbPlayerTestFixture::SbPlayerTestFixture(
       fake_graphics_context_provider_(fake_graphics_context_provider) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
             output_mode_ == kSbPlayerOutputModePunchOut);
+
+  auto* experimental_features_extension = static_cast<
+      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+      SbSystemGetExtension(
+          kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &features);
+  }
 
   const char* audio_dmp_filename = config.audio_filename;
   const char* video_dmp_filename = config.video_filename;
