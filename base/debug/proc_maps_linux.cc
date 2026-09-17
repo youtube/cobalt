@@ -15,18 +15,14 @@
 
 #include <unordered_map>
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 #include "base/containers/flat_map.h"
-#include "base/posix/eintr_wrapper.h"
+#include "base/files/file_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #endif
 
-#include "base/files/file_util.h"
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/files/scoped_file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
