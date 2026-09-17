@@ -68,6 +68,8 @@ pipeline () {
   # `--end-of-options` to `git checkout`. Need to update git on runners.
   git -C tools/depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
   export DEPOT_TOOLS_UPDATE=0
+  git config --global --add safe.directory '*'
+  source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${GCLIENT_ROOT}/tools/depot_tools"
   # Conditionally enable RBE variables
   local custom_vars=""
