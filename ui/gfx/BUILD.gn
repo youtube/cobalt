@@ -157,19 +157,6 @@ component("gfx") {
     "vsync_provider.cc",
     "vsync_provider.h",
   ]
-if (is_android) {
-    sources += [
-      "android/achoreographer_compat.cc",
-      "android/achoreographer_compat.h",
-      "android/android_surface_control_compat.cc",
-      "android/android_surface_control_compat.h",
-      "android/java_bitmap.cc",
-      "android/java_bitmap.h",
-      "android/surface_control_frame_rate.h",
-      "android/view_configuration.cc",
-      "android/view_configuration.h",
-    ]
-  }
   if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "font_fallback_linux.cc",
@@ -268,30 +255,6 @@ if (is_android) {
         "image/image_skia_rep_ios.h",
       ]
     }
-  }
-  if (use_blink) {
-    sources += [
-      "blit.cc",
-      "blit.h",
-      "canvas.cc",
-      "canvas.h",
-      "canvas_skia.cc",
-      "image/canvas_image_source.cc",
-      "image/canvas_image_source.h",
-      "image/image_generic.cc",
-      "image/image_skia_operations.cc",
-      "image/image_skia_operations.h",
-      "image/image_skia_rep_default.cc",
-      "image/image_skia_rep_default.h",
-      "paint_throbber.cc",
-      "paint_throbber.h",
-      "scoped_canvas.cc",
-      "scoped_canvas.h",
-      "shadow_util.cc",
-      "shadow_util.h",
-      "skia_paint_util.cc",
-      "skia_paint_util.h",
-    ]
   }
   configs += [
     ":gfx_impl_define",
