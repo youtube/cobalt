@@ -29,9 +29,8 @@ namespace starboard {
 
 class MockAudioDecoder : public AudioDecoder {
  public:
-  MockAudioDecoder(SbMediaAudioSampleType sample_type,
-                   SbMediaAudioFrameStorageType storage_type,
-                   int samples_per_second) {}
+  MockAudioDecoder(SbMediaAudioSampleType sample_type, int samples_per_second) {
+  }
 
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode, void(const InputBuffers&, const ConsumedCB&));
