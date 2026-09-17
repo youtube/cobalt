@@ -51,13 +51,6 @@
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "components/update_client/crx_downloader_factory.h"
-#include "components/update_client/cobalt_slot_management.h"
-#endif
-
-// TODO(b/448186580): consider replacing all LOG with D(V)LOG.
-
 namespace update_client {
 
 Component::Component(const UpdateContext& update_context, const std::string& id)
@@ -91,20 +84,8 @@ void Component::Handle(CallbackHandleComplete callback_handle_complete) {
       base::BindOnce(&Component::ChangeState, base::Unretained(this)));
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-void Component::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_cancelled_ = true;
-  state_->Cancel();
-}
-#endif
-
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if BUILDFLAG(IS_STARBOARD)
-  LOG(INFO) << "Component::ChangeState next_state="
-    << ((next_state)? next_state->state_name(): "nullptr");
-#endif
 
   if (next_state) {
     state_ = std::move(next_state);
@@ -177,13 +158,6 @@ void Component::SetUpdateCheckResult(std::optional<ProtocolParser::App> result,
         crx_component_->crx_format_requirement, crx_component_->app_id,
         crx_component_->pk_hash, crx_component_->install_data_index,
         crx_component_->installer,
-#if defined(IN_MEMORY_UPDATES)
-        &crx_str_,
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        update_context_->update_checker->GetPersistedData(),
-        next_version_.GetString(),
-#endif
         base::BindRepeating(
             [](base::raw_ref<Component> component, ComponentState state) {
               component->state_hint_ = state;
@@ -254,12 +228,6 @@ void Component::AppendEvent(base::Value::Dict event) {
 
 void Component::NotifyObservers() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if BUILDFLAG(IS_STARBOARD)
-  if (is_cancelled_) {
-    LOG(WARNING) << "Component::NotifyObservers: skip callback";
-    return;
-  }
-#endif
   update_context_->crx_state_change_callback.Run(GetCrxUpdateItem());
 }
 
@@ -327,21 +295,9 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
   DoHandle();
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-void Component::State::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Further work may be needed to ensure cancellation during any state results
-  // in a clear result and no memory leaks.
-}
-#endif
-
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(next_state);
-#if BUILDFLAG(IS_STARBOARD)
-  LOG(INFO) << "Component::State::TransitionState next_state="
-    << ((next_state)? next_state->state_name(): "nullptr");
-#endif
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -366,12 +322,6 @@ void Component::StateNew::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-
-#if BUILDFLAG(IS_STARBOARD)
-  auto& config = component.update_context_->config;
-  config->SetPreviousUpdaterStatus(config->GetUpdaterStatus());
-#endif
-
   if (component.crx_component()) {
     TransitionState(std::make_unique<StateChecking>(&component));
 
@@ -408,25 +358,6 @@ void Component::StateChecking::DoHandle() {
 
   auto& component = State::component();
   CHECK(component.crx_component());
-
-#if BUILDFLAG(IS_STARBOARD)
-  auto& config = component.update_context_->config;
-  auto metadata = component.update_context_->update_checker->GetPersistedData();
-  if (metadata) {
-    auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
-    task_runner->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
-                                  base::Unretained(metadata), component.id_,
-                                  config->GetChannel()));
-    task_runner->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
-                                  base::Unretained(metadata),
-                                  config->GetChannel()));
-  } else {
-    LOG(WARNING) << "Failed to get the persisted data store to write the "
-                       "updater channel.";
-  }
-#endif
 
   if (component.error_code_) {
     metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kError);
@@ -473,15 +404,8 @@ void Component::StateUpdateError::DoHandle() {
   CHECK_NE(ErrorCategory::kNone, component.error_category_);
   CHECK_NE(0, component.error_code_);
 
-#if BUILDFLAG(IS_STARBOARD)
-  // Create an event when the server response included an update, or when it's
-  // an update check error, like quick roll-forward or out of space
-  if (component.IsUpdateAvailable() ||
-      component.error_category_ == ErrorCategory::kUpdateCheck) {
-#else
   // Create an event only when the server response included an update.
   if (component.IsUpdateAvailable()) {
-#endif
     component.AppendEvent(component.MakeEventUpdateComplete());
   }
 
@@ -560,7 +484,6 @@ Component::StateUpdating::StateUpdating(Component* component)
 Component::StateUpdating::~StateUpdating() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
-
 
 void Component::StateUpdating::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);

@@ -1306,8 +1306,7 @@ bool Channel::OnControlMessage(Message::MessageType message_type,
 }
 
 // Currently only CrOs, Linux, and Android support upgrades.
-#if BUILDFLAG(IS_STARBOARD) || \
-    !(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if !(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
 // static
 MOJO_SYSTEM_IMPL_EXPORT bool Channel::SupportsChannelUpgrade() {
   return false;
