@@ -32,8 +32,8 @@ TEST(MimeParamTest, EqualityAndInequality) {
 
 TEST(MimeParamTest, ParamStreamOperator) {
   std::ostringstream ss;
-  ss << kMimeParamTunnelMode;
-  EXPECT_EQ(ss.str(), "tunnelmode");
+  ss << kMimeParamWidth;
+  EXPECT_EQ(ss.str(), "width");
 }
 
 TEST(MimeParamTest, ParamEqualsCaseInsensitive) {

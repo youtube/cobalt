@@ -19,8 +19,6 @@
 #include <iosfwd>
 #include <string_view>
 
-#include "build/build_config.h"
-
 namespace starboard {
 
 // Represents a MIME type parameter name.
@@ -62,10 +60,8 @@ inline constexpr MimeParam kMimeParamChannels{"channels"};
 inline constexpr MimeParam kMimeParamCryptoblockformat{"cryptoblockformat"};
 inline constexpr MimeParam kMimeParamDecodeToTexture{"decode-to-texture"};
 inline constexpr MimeParam kMimeParamEotf{"eotf"};
-inline constexpr MimeParam kMimeParamExperimental{"experimental"};
 inline constexpr MimeParam kMimeParamFramerate{"framerate"};
 inline constexpr MimeParam kMimeParamHeight{"height"};
-inline constexpr MimeParam kMimeParamTunnelMode{"tunnelmode"};
 inline constexpr MimeParam kMimeParamWidth{"width"};
 // keep-sorted end
 
@@ -77,24 +73,6 @@ inline constexpr MimeParam kMimeParamWidth{"width"};
 // (media_can_play_mime_and_key_system_test.cc) and platform ports since the C
 // API does not take a separate encryption scheme argument.
 inline constexpr MimeParam kMimeParamEncryptionScheme{"encryptionscheme"};
-
-#if BUILDFLAG(IS_ANDROID)
-// Playback experiment MIME parameters defined in the web player (manifest.ts).
-
-// keep-sorted start
-inline constexpr MimeParam kMimeParamEnableFlushDuringSeek{
-    "enableflushduringseek"};
-inline constexpr MimeParam kMimeParamEnableResetAudioDecoder{
-    "enableresetaudiodecoder"};
-// keep-sorted end
-
-// Cobalt-specific MIME parameters that are not used by the web player.
-
-// Decode-To-Texture(used by WebGL video shaders) may use this param.
-// TODO: b/490474392 - Move this param accordingly, when it is actually used.
-// Main tracking bug: b/490474392, DRM exploration: b/494037632
-inline constexpr MimeParam kMimeParamSoftwareDecoder{"softwaredecoder"};
-#endif
 
 }  // namespace starboard
 

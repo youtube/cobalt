@@ -31,6 +31,7 @@
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"

@@ -202,6 +202,7 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "mime_param.h",
     "ndk_audio_track.cc",
     "ndk_audio_track.h",
     "ndk_media_codec.cc",
