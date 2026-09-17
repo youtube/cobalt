@@ -48,6 +48,7 @@
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/functional/function_ref.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/thread_pool.h"
 #endif
@@ -358,49 +359,58 @@ bool IsGateVma(std::string_view line) {
   return line.ends_with(" [vectors]") || line.ends_with(" [vsyscall]");
 }
 
-// `read_chunk` fills the supplied span and returns the number of bytes written,
-// or nullopt on error.
-template <typename ChunkReader>
-std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
-CalculateVirtualAddressSpaceMetricsInternal(ChunkReader&& read_chunk) {
+// Running totals while walking /proc/self/maps.
+struct VmaWalkState {
   uintptr_t prev_vm_end = 0;
   uintptr_t largest_free_gap = 0;
   uint64_t total_unmapped_va = 0;
   size_t vma_count = 0;
   bool first_vma = true;
+};
 
+// Folds one maps line into `state`. Returns false at the gate VMA, meaning the
+// walk should stop.
+bool ConsumeMapsLine(const char* line, VmaWalkState* state) {
+  if (IsGateVma(line)) {
+    return false;
+  }
+
+  uintptr_t vm_start = 0;
+  uintptr_t vm_end = 0;
+  if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
+    return true;
+  }
+
+  // The kernel always emits VMAs in ascending, non-overlapping order, so
+  // anything that goes backwards is not a real maps entry.
+  if (vm_end < vm_start) {
+    return true;
+  }
+  if (!state->first_vma && vm_start < state->prev_vm_end) {
+    return true;
+  }
+
+  state->vma_count++;
+  if (!state->first_vma && vm_start > state->prev_vm_end) {
+    uintptr_t gap = vm_start - state->prev_vm_end;
+    if (gap > state->largest_free_gap) {
+      state->largest_free_gap = gap;
+    }
+    state->total_unmapped_va += gap;
+  }
+  state->first_vma = false;
+  state->prev_vm_end = vm_end;
+  return true;
+}
+
+// `read_chunk` returns the number of bytes written into the buffer, or nullopt
+// on error.
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CalculateVirtualAddressSpaceMetricsInternal(
+    base::FunctionRef<std::optional<size_t>(base::span<uint8_t> /*buffer*/)>
+        read_chunk) {
+  VmaWalkState state;
   bool reached_gate_vma = false;
-
-  auto consume_line = [&](const char* line) {
-    if (IsGateVma(line)) {
-      reached_gate_vma = true;
-      return;
-    }
-
-    uintptr_t vm_start = 0;
-    uintptr_t vm_end = 0;
-    if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
-      return;
-    }
-
-    // The kernel always emits VMAs in ascending, non-overlapping order, so
-    // anything that goes backwards is not a real maps entry.
-    if (vm_end < vm_start) {
-      return;
-    }
-    if (!first_vma && vm_start < prev_vm_end) {
-      return;
-    }
-
-    vma_count++;
-    if (!first_vma && vm_start > prev_vm_end) {
-      uintptr_t gap = vm_start - prev_vm_end;
-      largest_free_gap = gap > largest_free_gap ? gap : largest_free_gap;
-      total_unmapped_va += gap;
-    }
-    first_vma = false;
-    prev_vm_end = vm_end;
-  };
 
   // sscanf() needs a NUL terminator, so a line occupies at most
   // kMaxLineLength-1 bytes and the last slot is reserved.
@@ -415,29 +425,30 @@ CalculateVirtualAddressSpaceMetricsInternal(ChunkReader&& read_chunk) {
     }
     for (uint8_t byte : base::span(chunk).first(*bytes_read)) {
       line[line_length++] = static_cast<char>(byte);
-      if (byte == '\n' || line_length == kMaxLineLength - 1) {
-        line[line_length] = '\0';
-        consume_line(line);
-        line_length = 0;
-        if (reached_gate_vma) {
-          break;
-        }
+      if (byte != '\n' && line_length != kMaxLineLength - 1) {
+        continue;
+      }
+      line[line_length] = '\0';
+      line_length = 0;
+      if (!ConsumeMapsLine(line, &state)) {
+        reached_gate_vma = true;
+        break;
       }
     }
   }
 
-  if (vma_count == 0) {
+  if (state.vma_count == 0) {
     return std::nullopt;
   }
 
   CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics metrics;
-  metrics.vma_count = vma_count;
-  metrics.largest_free_gap_mb = largest_free_gap / kMiB;
-  metrics.total_unmapped_va_mb = total_unmapped_va / kMiB;
+  metrics.vma_count = state.vma_count;
+  metrics.largest_free_gap_mb = state.largest_free_gap / kMiB;
+  metrics.total_unmapped_va_mb = state.total_unmapped_va / kMiB;
 
-  if (total_unmapped_va > 0) {
-    double ratio = 1.0 - (static_cast<double>(largest_free_gap) /
-                          static_cast<double>(total_unmapped_va));
+  if (state.total_unmapped_va > 0) {
+    double ratio = 1.0 - (static_cast<double>(state.largest_free_gap) /
+                          static_cast<double>(state.total_unmapped_va));
     metrics.fragmentation_ratio_pct =
         std::clamp(static_cast<int>(std::round(ratio * 100.0)), 0, 100);
   } else {
