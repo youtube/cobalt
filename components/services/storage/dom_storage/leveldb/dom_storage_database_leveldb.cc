@@ -77,28 +77,13 @@ leveldb_env::Options MakeOnDiskOptions() {
   return options;
 }
 
-<<<<<<< HEAD:components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.cc
-=======
 #if BUILDFLAG(IS_COBALT)
 leveldb::WriteOptions CreateSyncWriteOptions() {
   leveldb::WriteOptions options;
   options.sync = true;
   return options;
 }
-#endif
-
-std::unique_ptr<leveldb::DB> TryOpenDB(
-    const leveldb_env::Options& options,
-    const std::string& name,
-    DomStorageDatabaseLevelDB::StatusCallback callback) {
-  std::unique_ptr<leveldb::DB> db;
-  leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
-  std::move(callback).Run(FromLevelDBStatus(status));
-  return db;
-}
-
->>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):components/services/storage/dom_storage/dom_storage_database_leveldb.cc
-DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
+#endifDomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
   base::span key_span(key);
   base::span value_span(value);

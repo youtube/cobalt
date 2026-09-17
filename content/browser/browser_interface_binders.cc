@@ -1707,14 +1707,9 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &ServiceWorkerHost::BindUsbService, base::Unretained(host)));
-<<<<<<< HEAD
-  map->Add<blink::mojom::AIManager>(base::BindRepeating(
-      &ServiceWorkerHost::BindAIManager, base::Unretained(host)));
-
-=======
 #endif
->>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (base::FeatureList::IsEnabled(
+  map->Add<blink::mojom::AIManager>(base::BindRepeating(
+      &ServiceWorkerHost::BindAIManager, base::Unretained(host)));  if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<ServiceWorkerHost>,

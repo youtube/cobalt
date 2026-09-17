@@ -224,7 +224,13 @@ source_set("permissions") {
       "//third_party/jni_zero",
       "//ui/android",
     ]
-<<<<<<< HEAD
+if (is_cobalt) {
+      sources -= [
+        "android/permissions_android_feature_map.cc",
+        "android/permissions_android_feature_map.h",
+      ]
+      deps += [ "//components/permissions/android:core" ]
+    }
   } else if (is_ios) {
     sources += [
       "ios/content/permission_prompt/permission_dialog.h",
@@ -242,18 +248,7 @@ source_set("permissions") {
       "//content/public/browser",
       "//ui/base",
       "//url",
-    ]
-=======
-
-    if (is_cobalt) {
-      sources -= [
-        "android/permissions_android_feature_map.cc",
-        "android/permissions_android_feature_map.h",
-      ]
-      deps += [ "//components/permissions/android:core" ]
-    }
->>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  } else {
+    ]  } else {
     sources += [
       "bluetooth_chooser_controller.cc",
       "bluetooth_chooser_controller.h",

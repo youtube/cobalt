@@ -98,12 +98,8 @@ std::unique_ptr<TsModel> TsModel::Create(
 }
 
 bool TsModel::InitLanguageDetection(mojom::LanguageModelAssetsPtr assets) {
-<<<<<<< HEAD
-  TRACE_EVENT("optimization_guide", "TsModel::InitLanguageDetection");
-=======
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
->>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  auto tflite_model =
+TRACE_EVENT("optimization_guide", "TsModel::InitLanguageDetection");
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)  auto tflite_model =
       std::make_unique<language_detection::LanguageDetectionModel>();
   tflite_model->UpdateWithFile(std::move(assets->model));
 

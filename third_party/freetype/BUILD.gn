@@ -174,10 +174,7 @@ component("freetype") {
 
   public_configs = [ ":freetype_config" ]
 
-<<<<<<< HEAD
-  deps = [ "//third_party/zlib" ]
-=======
-  deps = [
+deps = [
     "//third_party/libpng",
     "//third_party/zlib",
   ]
@@ -185,6 +182,4 @@ component("freetype") {
   if (is_starboard) {
     public_configs += [ ":freetype_enable_brotli" ]
     deps += [ "//third_party/brotli:dec" ]
-  }
->>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  }}
