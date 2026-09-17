@@ -1,21 +1,34 @@
 services:
+  base:
+    build:
+      context: cobalt/docker/base
+    image: "${DOCKER_COMPOSE_IMAGE:-base}"
+    platform: linux/amd64
   linux:
     build:
       context: cobalt/docker/linux
+      args:
+        BASE_IMAGE: "${DOCKER_COMPOSE_BASE_IMAGE:-base}"
     image: "${DOCKER_COMPOSE_IMAGE:-linux}"
     platform: linux/amd64
   rdk:
     build:
       context: cobalt/docker/rdk
+      args:
+        BASE_IMAGE: "${DOCKER_COMPOSE_BASE_IMAGE:-base}"
     image: "${DOCKER_COMPOSE_IMAGE:-rdk}"
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
+      args:
+        BASE_IMAGE: "${DOCKER_COMPOSE_BASE_IMAGE:-base}"
     image: "${DOCKER_COMPOSE_IMAGE:-unittest}"
   webtest:
     build:
       context: cobalt/docker/webtest
+      args:
+        BASE_IMAGE: "${DOCKER_COMPOSE_BASE_IMAGE:-base}"
     image: "${DOCKER_COMPOSE_IMAGE:-webtest}"
   pre-commit:
     build:

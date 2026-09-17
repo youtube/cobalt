@@ -1,6 +1,10 @@
 name: Docker Image Build
 description: Builds Cobalt build docker images.
 inputs:
+  base_docker_tag:
+    description: "The base docker image tag to inherit from."
+    required: false
+    default: ""
   docker_service:
     description: "Docker compose service."
     required: true
@@ -111,11 +115,16 @@ runs:
     - name: Build and Push Docker Image
       if: inputs.is_pr != 'true' || steps.pull-cached-image.outputs.build_image == 'true'
       env:
+        BASE_DOCKER_TAG: ${{ inputs.base_docker_tag }}
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
         # Build and Push Docker Image
         set -x
+        if [ -n "${BASE_DOCKER_TAG}" ]; then
+          docker pull "${BASE_DOCKER_TAG}"
+          export DOCKER_COMPOSE_BASE_IMAGE="${BASE_DOCKER_TAG}"
+        fi
         docker compose build ${DOCKER_SERVICE}
 
         # The compose build tags the built image with ${DOCKER_COMPOSE_IMAGE}. Add the Docker content sha and floating tag and push.
