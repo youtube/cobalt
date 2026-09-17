@@ -88,6 +88,9 @@ jobs:
             labels="[]"
           fi
           echo "labels=${labels}" >> "${GITHUB_OUTPUT}"
+      - name: Evaluate CI Pruning
+        id: evaluate-ci-prune
+        uses: ./.github/actions/evaluate_ci_prune
       - name: Set platforms
         id: set-platforms
         shell: bash
@@ -371,6 +374,7 @@ jobs:
         shell: bash
     outputs:
       labels: ${{ steps.get-labels.outputs.labels }}
+      skip_ci: ${{ steps.evaluate-ci-prune.outputs.skip_ci }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -409,6 +413,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    if: needs.initialize.outputs.skip_ci != 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -431,7 +436,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.test_on_host == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -454,7 +459,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.initialize.outputs.skip_ci != 'true' && needs.initialize.outputs.web_tests == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -477,6 +482,7 @@ jobs:
 
   build:
     needs: [initialize, docker-build-image]
+    if: needs.initialize.outputs.skip_ci != 'true'
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
