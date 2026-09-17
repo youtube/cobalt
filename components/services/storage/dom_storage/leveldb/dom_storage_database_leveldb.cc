@@ -29,6 +29,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
@@ -152,6 +153,15 @@ DomStorageDatabaseLevelDB::Open(
   status = instance->EnsureVersion(version_key, min_supported_version,
                                    max_supported_version);
   if (!status.ok()) {
+#if BUILDFLAG(IS_COBALT)
+    if (status.IsCorruption()) {
+      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
+                                status);
+    } else {
+      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError",
+                                status);
+    }
+#endif
     return base::unexpected(std::move(status));
   }
   return instance;

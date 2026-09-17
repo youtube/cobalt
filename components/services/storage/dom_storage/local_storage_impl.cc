@@ -594,58 +594,6 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     return;
   }
 
-<<<<<<< HEAD
-=======
-  // Verify DB schema version.
-  if (database_) {
-    database_->RunDatabaseTask(
-        base::BindOnce(
-            [](const std::vector<uint8_t>& key, DomStorageDatabaseLevelDB& db) {
-              DomStorageDatabase::Value value;
-              DbStatus status = db.Get(key, &value);
-              return std::make_tuple(status, std::move(value));
-            },
-            std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end())),
-        base::BindOnce(&LocalStorageImpl::OnGotDatabaseVersion,
-                       weak_ptr_factory_.GetWeakPtr()));
-    return;
-  }
-
-  OnConnectionFinished();
-}
-
-void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
-                                            DomStorageDatabase::Value value) {
-  if (status.IsNotFound()) {
-    // New database, nothing more to do. Current version will get written
-    // when first data is committed.
-  } else if (status.ok()) {
-    // Existing database, check if version number matches current schema
-    // version.
-    int64_t db_version;
-    if (!base::StringToInt64(base::as_string_view(base::span(value)),
-                             &db_version) ||
-        db_version < kMinSchemaVersion ||
-        db_version > kCurrentLocalStorageSchemaVersion) {
-#if BUILDFLAG(IS_COBALT)
-      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                status);
-#endif
-      DeleteAndRecreateDatabase();
-      return;
-    }
-
-    database_initialized_ = true;
-  } else {
-    // Other read error. Possibly database corruption.
-#if BUILDFLAG(IS_COBALT)
-    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError", status);
-#endif
-    DeleteAndRecreateDatabase();
-    return;
-  }
-
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   OnConnectionFinished();
 }
 
