@@ -91,7 +91,7 @@ BASE_FEATURE(kCobaltVirtualAddressSpaceMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kVirtualAddressSpaceSampleProbabilityParam{
-    &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.1};
+    &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.01};
 
 BASE_FEATURE(kCobaltMemoryAttributionManager,
              "CobaltMemoryAttributionManager",
