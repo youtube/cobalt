@@ -859,12 +859,6 @@ class BLINK_PLATFORM_EXPORT Platform {
   // calling an OOM.
   virtual void OnV8HeapLastResortGC() {}
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual uint64_t GetMediaSourceMaximumMemoryCapacity() const { return 0; }
-  virtual uint64_t GetMediaSourceCurrentMemoryCapacity() const { return 0; }
-  virtual uint64_t GetMediaSourceTotalAllocatedMemory() const { return 0; }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
  private:
   static void InitializeMainThreadCommon(
       std::unique_ptr<MainThread> main_thread);

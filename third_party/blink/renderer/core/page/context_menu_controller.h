@@ -43,8 +43,7 @@ class Page;
 struct ContextMenuData;
 struct Impression;
 
-// This class is not final to allow customization by embedders
-class CORE_EXPORT ContextMenuController
+class CORE_EXPORT ContextMenuController final
     : public GarbageCollected<ContextMenuController>,
       public mojom::blink::ContextMenuClient {
  public:
@@ -121,13 +120,11 @@ class CORE_EXPORT ContextMenuController
  private:
   friend class ContextMenuControllerTest;
 
-  // Returns whether a Context Menu was actually shown. Changing this is not
-  // recommended.
-  bool ShowContextMenu(LocalFrame*, const PhysicalOffset&, WebMenuSourceType);
-  virtual bool ShowContextMenu(LocalFrame*,
-                               const PhysicalOffset&,
-                               WebMenuSourceType,
-                               const MouseEvent* mouse_event);
+  // Returns whether a Context Menu was actually shown.
+  bool ShowContextMenu(LocalFrame*,
+                       const PhysicalOffset&,
+                       WebMenuSourceType,
+                       const MouseEvent* mouse_event = nullptr);
 
   bool ShouldShowContextMenuFromTouch(const ContextMenuData&);
 
