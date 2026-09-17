@@ -173,6 +173,22 @@ class PlayerComponents {
                                     SbMediaVideoCodec codec,
                                     SbDrmSystem drm_system);
 
+    // Creates the CreationParameters used to create the player components.
+    // Individual platforms can override this to adjust the parameters before
+    // the components are created.
+    virtual CreationParameters CreateCreationParameters(
+        const AudioStreamInfo& audio_stream_info,
+        const VideoStreamInfo& video_stream_info,
+        SbPlayer player,
+        SbPlayerOutputMode output_mode,
+        int max_video_input_size,
+        const ExperimentalFeatures& experimental_features,
+        void* surface_view,
+        SbDecodeTargetGraphicsContextProvider*
+            decode_target_graphics_context_provider,
+        JobQueue* job_queue,
+        SbDrmSystem drm_system);
+
     virtual NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
         const CreationParameters& creation_parameters);
 

@@ -24,6 +24,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "starboard/extension/experimental/experimental_features.h"
@@ -100,6 +101,12 @@ class ExperimentalFeatures {
       return T(*key.default_value());
     }
     return std::nullopt;
+  }
+
+  // Sets the value for the given key, overwriting any existing value.
+  template <typename T>
+  void Set(const ExperimentalFeatureKey<T>& key, T value) {
+    settings_.insert_or_assign(std::string(key.key()), Value(std::move(value)));
   }
 
   friend std::ostream& operator<<(std::ostream& os,
@@ -188,6 +195,9 @@ inline constexpr ExperimentalFeatureKey<bool>
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTunnelMode(
+    "Media.EnableTunnelMode");
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(

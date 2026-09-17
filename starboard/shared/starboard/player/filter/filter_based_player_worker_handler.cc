@@ -96,10 +96,11 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
     }
   }
 
-  PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, experimental_features_, surface_view_,
-      decode_target_graphics_context_provider_, job_queue, drm_system_);
+  const PlayerComponents::Factory::CreationParameters creation_parameters =
+      factory->CreateCreationParameters(
+          audio_stream_info_, video_stream_info_, player_, output_mode_,
+          max_video_input_size_, experimental_features_, surface_view_,
+          decode_target_graphics_context_provider_, job_queue, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
