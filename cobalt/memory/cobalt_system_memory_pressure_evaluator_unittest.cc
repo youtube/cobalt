@@ -281,6 +281,36 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
                 high_end_ram));
 }
 
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ParameterSanitization) {
+  // Test inverted fractions: moderate = 0.95, critical = 0.85.
+  // Evaluator should sanitize to moderate = 0.85, critical = 0.95.
+  // Test non-positive poll interval and cooldown:
+  // Evaluator should fall back to kDefaultPollInterval and kDefaultCooldown.
+  auto monitor =
+      std::make_unique<::memory_pressure::MultiSourceMemoryPressureMonitor>();
+  auto evaluator = std::make_unique<CobaltSystemMemoryPressureEvaluator>(
+      monitor->CreateVoter(),
+      base::BindRepeating(
+          &CobaltSystemMemoryPressureEvaluatorTest::GetProcessMemoryInfo,
+          base::Unretained(this)),
+      base::BindRepeating(
+          &CobaltSystemMemoryPressureEvaluatorTest::GetMediaAllowance,
+          base::Unretained(this)),
+      kTestBudgetBytes,
+      /*moderate_process_memory_fraction=*/0.95f,
+      /*critical_process_memory_fraction=*/0.85f,
+      /*poll_interval=*/base::Seconds(0),
+      /*cooldown=*/base::Seconds(-5));
+
+  // With sanitized fractions (moderate=0.85, critical=0.95),
+  // private memory 180 MB / 200 MB = 90% -> MODERATE.
+  SetProcessPrivateMemoryMB(180);
+  evaluator->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+            evaluator->current_vote());
+}
+
 }  // namespace
 }  // namespace memory
 }  // namespace cobalt

@@ -103,15 +103,12 @@ source_set("browser") {
     "//cobalt/memory",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
-    "//components/memory_pressure",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
     "//components/variations/service",
     "//components/viz/common",
-    "//media",
-    "//media:media_buildflags",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]
@@ -157,7 +154,12 @@ source_set("browser") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard" ]
+    deps += [
+      "//components/memory_pressure",
+      "//media",
+      "//media:media_buildflags",
+      "//ui/ozone/platform/starboard",
+    ]
   }
 
   if (enable_native_on_screen_keyboard) {

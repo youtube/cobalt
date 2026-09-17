@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
+#include "cobalt/browser/features.h"
 
 namespace cobalt {
 namespace memory {
@@ -79,6 +80,12 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
     }
   }
 
+  if (features::kCobaltMemoryPressureBudgetMBParam.Get() > 0) {
+    return static_cast<uint64_t>(
+               features::kCobaltMemoryPressureBudgetMBParam.Get()) *
+           1024 * 1024;
+  }
+
   if (total_physical_memory_bytes == 0) {
     total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
   }
@@ -99,14 +106,28 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
           std::move(voter),
           /*process_memory_info_getter=*/{},
           std::move(media_allowance_getter),
-          /*process_memory_budget_bytes=*/0,
-          GetSwitchValueFloat(kSwitchModerateProcessMemoryFraction,
-                              kDefaultModerateProcessMemoryFraction),
-          GetSwitchValueFloat(kSwitchCriticalProcessMemoryFraction,
-                              kDefaultCriticalProcessMemoryFraction),
-          GetSwitchValueTimeDeltaMs(kSwitchPollIntervalMs,
-                                    kDefaultPollInterval),
-          GetSwitchValueTimeDeltaMs(kSwitchCooldownMs, kDefaultCooldown)) {}
+          /*process_memory_budget_bytes=*/
+          static_cast<uint64_t>(
+              features::kCobaltMemoryPressureBudgetMBParam.Get()) *
+              1024 * 1024,
+          GetSwitchValueFloat(
+              kSwitchModerateProcessMemoryFraction,
+              static_cast<float>(
+                  features::kCobaltMemoryPressureModerateFractionParam.Get())),
+          GetSwitchValueFloat(
+              kSwitchCriticalProcessMemoryFraction,
+              static_cast<float>(
+                  features::kCobaltMemoryPressureCriticalFractionParam.Get())),
+          GetSwitchValueTimeDeltaMs(
+              kSwitchPollIntervalMs,
+              base::Seconds(
+                  features::kCobaltMemoryPressurePollIntervalSecondsParam
+                      .Get())),
+          GetSwitchValueTimeDeltaMs(
+              kSwitchCooldownMs,
+              base::Seconds(
+                  features::kCobaltMemoryPressureCooldownSecondsParam.Get()))) {
+}
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
@@ -140,10 +161,15 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
       process_memory_budget_bytes_(process_memory_budget_bytes > 0
                                        ? process_memory_budget_bytes
                                        : ResolveProcessMemoryBudget()),
-      moderate_process_memory_fraction_(moderate_process_memory_fraction),
-      critical_process_memory_fraction_(critical_process_memory_fraction),
-      poll_interval_(poll_interval),
-      cooldown_(cooldown) {
+      moderate_process_memory_fraction_(
+          std::min(moderate_process_memory_fraction,
+                   critical_process_memory_fraction)),
+      critical_process_memory_fraction_(
+          std::max(moderate_process_memory_fraction,
+                   critical_process_memory_fraction)),
+      poll_interval_(poll_interval > base::TimeDelta() ? poll_interval
+                                                       : kDefaultPollInterval),
+      cooldown_(cooldown > base::TimeDelta() ? cooldown : kDefaultCooldown) {
   DCHECK_GE(critical_process_memory_fraction_,
             moderate_process_memory_fraction_);
 
