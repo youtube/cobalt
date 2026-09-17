@@ -37,6 +37,9 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "cobalt/shell/common/shell_paths.h"  // nogncheck
+#endif
 #include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -163,7 +166,17 @@ void CobaltMetricsServiceClient::Initialize() {
 #if BUILDFLAG(IS_ANDROID)
   path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
 #else
-  path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
+  path_ok = base::PathService::Get(content::SHELL_DIR_USER_DATA, &base_dir);
+  if (!path_ok) {
+    const auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch("user-data-dir")) {
+      base_dir = command_line->GetSwitchValuePath("user-data-dir");
+      path_ok = !base_dir.empty();
+    }
+  }
+  if (!path_ok) {
+    path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
+  }
 #endif
   if (path_ok) {
     base::FilePath metrics_dir =

@@ -211,7 +211,7 @@ void InitializeCobaltHeapProfiler() {
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 constexpr char kBrowserStabilityMetricsName[] = "BrowserStabilityMetrics";
-constexpr size_t kStabilityMetricsAllocSize = 512 * 1024;  // 512 KiB limit
+constexpr size_t kStabilityMetricsAllocSize = 128 * 1024;  // 128 KiB limit
 constexpr uint32_t kStabilityMetricsAllocId = 0x53544142;  // "STAB"
 
 void LogStabilityMetricsCapacity(const char* stage_label) {
@@ -265,21 +265,36 @@ void RecordPriorSessionExitReasons() {
 }
 #endif
 
+bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch("browser-test") ||
+      command_line->HasSwitch("single-process-tests")) {
+    return false;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  return base::PathService::Get(base::DIR_ANDROID_APP_DATA, base_dir);
+#else
+  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, base_dir) &&
+      !base_dir->empty()) {
+    return true;
+  }
+  if (command_line->HasSwitch("user-data-dir")) {
+    *base_dir = command_line->GetSwitchValuePath("user-data-dir");
+    return !base_dir->empty();
+  }
+  return base::PathService::Get(base::DIR_TEMP, base_dir);
+#endif
+}
+
 }  // namespace
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
     base::FilePath base_dir;
-    bool path_ok = false;
-#if BUILDFLAG(IS_ANDROID)
-    path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
-#else
-    path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
-#endif
-    if (!path_ok) {
+    if (!GetStabilityMetricsBaseDirectory(&base_dir)) {
       LOG(WARNING) << "Failed to get base directory for "
                    << kBrowserStabilityMetricsName
-                   << ", falling back to 512 KB local memory.";
+                   << ", falling back to 128 KB local memory.";
       base::GlobalHistogramAllocator::CreateWithLocalMemory(
           kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
           kBrowserStabilityMetricsName);
@@ -289,25 +304,39 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
 
       base::CreateDirectory(metrics_dir);
 
-      base::FilePath active_file =
-          base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
-              metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
-              base::GetCurrentProcId());
-
-      // Instantiate 512 KB memory-mapped PMA
-      if (base::GlobalHistogramAllocator::CreateWithFile(
-              active_file, kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
-              kBrowserStabilityMetricsName, /*exclusive_write=*/true)) {
-        LOG(INFO) << "Cobalt Persistent Histogram Allocator ("
-                  << kBrowserStabilityMetricsName
-                  << ", 512 KB) initialized at: " << active_file.value();
-      } else {
-        LOG(WARNING) << "Failed to initialize file-backed PMA for "
-                     << kBrowserStabilityMetricsName
-                     << ", falling back to 512 KB local memory.";
+      constexpr int64_t kMaxStabilityMetricsPmaDirSizeBytes =
+          512 * 1024;  // 512 KiB max total disk quota for stability PMAs
+      if (!EnsurePmaDirectoryBudget(metrics_dir, kBrowserStabilityMetricsName,
+                                    kMaxStabilityMetricsPmaDirSizeBytes,
+                                    kStabilityMetricsAllocSize)) {
+        LOG(WARNING) << "Stability metrics directory exceeds 512 KB budget ("
+                     << metrics_dir.value()
+                     << "), falling back to 128 KB local memory.";
         base::GlobalHistogramAllocator::CreateWithLocalMemory(
             kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
             kBrowserStabilityMetricsName);
+      } else {
+        base::FilePath active_file =
+            base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+                metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
+                base::GetCurrentProcId());
+
+        // Instantiate 128 KB memory-mapped PMA
+        if (base::GlobalHistogramAllocator::CreateWithFile(
+                active_file, kStabilityMetricsAllocSize,
+                kStabilityMetricsAllocId, kBrowserStabilityMetricsName,
+                /*exclusive_write=*/true)) {
+          LOG(INFO) << "Cobalt Persistent Histogram Allocator ("
+                    << kBrowserStabilityMetricsName
+                    << ", 128 KB) initialized at: " << active_file.value();
+        } else {
+          LOG(WARNING) << "Failed to initialize file-backed PMA for "
+                       << kBrowserStabilityMetricsName
+                       << ", falling back to 128 KB local memory.";
+          base::GlobalHistogramAllocator::CreateWithLocalMemory(
+              kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
+              kBrowserStabilityMetricsName);
+        }
       }
     }
 
@@ -364,6 +393,18 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
+
+  base::FilePath base_dir;
+  if (GetStabilityMetricsBaseDirectory(&base_dir)) {
+    base::FilePath metrics_dir =
+        base_dir.AppendASCII(kBrowserStabilityMetricsName);
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&ClearOtherStabilityMetricsPmaFiles, metrics_dir,
+                       kBrowserStabilityMetricsName, base::GetCurrentProcId()));
+  }
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::android_info::sdk_int() >=
