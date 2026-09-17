@@ -352,6 +352,12 @@ BASE_FEATURE(kDrawImmediatelyWhenInteractive,
              "DrawImmediatelyWhenInteractive",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, DisplayScheduler triggers immediate draw upon any surface damage
+// without waiting for the regular frame deadline.
+BASE_FEATURE(kDrawImmediatelyWhenDamaged,
+             "DrawImmediatelyWhenDamaged",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, we immediately send acks to clients when a viz surface
 // activates. This effectively removes back-pressure. This can result in wasted
 // work and contention, but should regularize the timing of client rendering.

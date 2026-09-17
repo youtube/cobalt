@@ -139,6 +139,7 @@ VIZ_COMMON_EXPORT extern const char kPredictorLsq[];
 
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kDrawImmediatelyWhenInteractive);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kAckOnSurfaceActivationWhenInteractive);
+VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kDrawImmediatelyWhenDamaged);
 
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kShutdownForFailedChannelCreation);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kBatchResourceRelease);

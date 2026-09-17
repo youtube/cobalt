@@ -653,8 +653,10 @@ bool PictureLayerImpl::UpdateTiles() {
   bool can_require_tiles_for_activation = false;
   if (contributes_to_drawn_render_surface()) {
     can_require_tiles_for_activation =
-        !only_used_low_res_last_append_quads_ || RequiresHighResToDraw() ||
-        !layer_tree_impl()->SmoothnessTakesPriority();
+        RequiresHighResToDraw() ||
+        ((!only_used_low_res_last_append_quads_ ||
+          !layer_tree_impl()->SmoothnessTakesPriority()) &&
+         !base::FeatureList::IsEnabled(features::kCobaltRelaxTileActivation));
   }
 
   static const base::NoDestructor<Occlusion> kEmptyOcclusion;

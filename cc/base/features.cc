@@ -281,4 +281,16 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "max_animation_duration",
                    base::Milliseconds(700));
 
+BASE_FEATURE(kCobaltZeroSkewportTargetTime,
+             "CobaltZeroSkewportTargetTime",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltMainFrameBeforeActivation,
+             "CobaltMainFrameBeforeActivation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltRelaxTileActivation,
+             "CobaltRelaxTileActivation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features

@@ -254,6 +254,11 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kCubicBezierY2);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kMaxAnimtionDuration);
 
+// Cobalt rendering latency optimization features.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltZeroSkewportTargetTime);
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltRelaxTileActivation);
+
 }  // namespace features
 
 #endif  // CC_BASE_FEATURES_H_
