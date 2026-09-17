@@ -108,57 +108,6 @@ python3 SKILLS_DIR/pr-shepherd/scripts/shepherd_pr.py \
 
 ---
 
-## 🥞 Stacked Pull Requests (`gh stack`)
-
-When shepherding stacked PRs (a chain of dependent PRs, e.g.
-`PR #1 (base: main) <- PR #2 <- PR #3`):
-1. **Full-Stack Monitoring**: Pass all PR numbers in the stack to
-   `shepherd_pr.py` (e.g. `--pr 101,102,103 --watch`).
-2. **Bottom-Up Progression**: Stacked PR layers depend sequentially from
-   bottom (base) to top. Lower layers must reach green first (merging is
-   performed by the user).
-3. **Upstack Cascade & Synchronization**: When a subagent fixes code or
-   resolves comments on a lower layer, it must cascade changes upstack
-   (`gh stack sync` or `gh stack submit`) so all dependent PRs update their
-   checks.
-4. **Stack Reference**: For full CLI command syntax, refer to `gh-stack` CLI
-   extension documentation or repository stack guidelines.
-
----
-
-## 🛡️ Workspace Isolation & Triage Protocol
-
-> [!IMPORTANT]
-> **MAIN AGENT CONTEXT & ISOLATION INVARIANTS**:
-> 1. The **main agent MUST NOT read**
->    [resources/triage_agent.md][triage-agent-ref] directly.
-> 2. **NO TRIAGE OR ANALYSIS**: The main agent **MUST NOT** perform any triage,
->    diagnosis, log retrieval, or analysis of errors. The main agent is strictly
->    prohibited from running log retrieval commands or inspecting failure logs,
->    or from loading skills for doing so.
-> 3. The main agent **MUST delegate** all failure triage, log analysis, code
->    changes, and review replies to subagents.
-> 4. **Isolated Workspaces**: The subagent **MUST run in an isolated temporary
->    workspace** (specify `Workspace: "branch"` in `invoke_subagent` or utilize
->    the `wisp` skill) to prevent workspace collisions with the main agent.
-> 5. **Subagent Naming**: The subagent **MUST be named `pr-shepherd-worker`** in
->    the `Role` field of `invoke_subagent` for clear tracking and logs.
-> 6. The subagent prompt **MUST instruct the subagent to read the shepherding
->    guide** ([triage_agent.md][triage-agent-ref]) **first** before resolving
->    any failures or comments.
-> 7. **CONTEXT CONSERVATION**: Because this is a long-running agent, minimizing
->    context size is critical to prevent context bloat and slow response times.
->    The main agent **MUST NOT** read raw logs, run commands with massive
->    outputs, or read large codebase files directly. It **MUST** delegate all
->    context-heavy operations to subagents and only process high-level status
->    updates or summaries.
-> 8. **STATUS REPORT & CONCURRENCY SAFETY**: The worker subagents automatically
->    create and maintain `shepherding_report.md` throughout the run using
->    advisory file locking (`shepherding_report.lock`) and atomic replacement
->    to prevent race conditions during simultaneous edits. The main agent is
->    aware of this report file and can safely read and present its contents if
->    the user requests the current progress or status.
-
 ## Orchestrator Agent Workflow
 
 1. **Strict Orchestration**:

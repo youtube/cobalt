@@ -91,24 +91,6 @@ them immediately in your workspace and update the report.
 
 ---
 
-## 🥞 Stacked Pull Requests (`gh stack`)
-
-When shepherding stacked PRs (a chain of dependent PRs, e.g.
-`PR #1 (base: main) <- PR #2 <- PR #3`):
-1. **Full-Stack Monitoring**: You may pass all PR numbers in the stack to the
-   script (e.g. `--pr 101,102,103 --watch`).
-2. **Bottom-Up Progression**: Stacked PR layers depend sequentially from
-   bottom (base) to top. Lower layers must reach Green first (merging is
-   performed by the user).
-3. **Upstack Cascade & Synchronization**: When you fix code or resolve
-   comments on a lower layer, you must cascade changes upstack
-   (`gh stack sync` or `gh stack submit --auto`) so all dependent PRs update
-   their checks.
-4. **Stack Reference**: For full CLI command syntax, refer to `gh-stack` CLI
-   extension documentation or repository stack guidelines.
-
----
-
 ## 1. GitHub CLI (`gh`) Commands for Triage & Log Retrieval
 
 For comprehensive `gh` CLI documentation and policies, refer to the
@@ -300,21 +282,7 @@ To maintain workspace hygiene and prevent collisions:
 
 ---
 
-## 6. Stacked PRs Protocol (`gh stack`)
-
-When modifying code in a stacked PR chain:
-1. **Branch Naming & Remotes**: Stack branches pushed to `origin` must strictly
-   follow `origin:stack/<username>/<branch>` namespace.
-2. **Upstack Rebase & Sync**: If you modify a commit or layer below dependent
-   PRs:
-   - Rebase dependent layers upward: `gh stack rebase --upstack`
-   - Re-submit stack to GitHub: `gh stack submit`
-3. **Verification Across Layers**: Ensure all dependent layers in stack compile
-   and pass local test suites before completing task.
-
----
-
-## 7. Shepherding Status Report (`shepherding_report.md`)
+## 6. Shepherding Status Report (`shepherding_report.md`)
 
 The shepherd subagents are responsible for creating and progressively updating
 `shepherding_report.md` in workspace root throughout the run.
