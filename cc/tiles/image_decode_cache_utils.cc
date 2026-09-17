@@ -101,13 +101,7 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
           }
         }
 #if BUILDFLAG(IS_STARBOARD)
-        // On Starboard, default to 15 items. Measured on RDK (b/562624433):
-        // horizontal shelf scrolling needs 12 cached images and vertical
-        // row-to-row scrolling needs 13; below those thresholds every scroll
-        // re-decodes its thumbnails and the framerate halves (30 -> 60 FPS
-        // flips at 13). 15 leaves a 2-item margin above that threshold.
-        // Memory cost on RDK across 10 workloads (n=15/arm): mean +1.07 MB
-        // peak RSS, no workload reaching p<0.05.
+        // 15 = RDK 13-image FPS cliff + 2 margin, ~1 MB GPU (b/562624433).
         return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
