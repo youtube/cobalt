@@ -16,12 +16,7 @@ on: # zizmor: ignore[dangerous-triggers]
         description: 'Workflow name'
         required: true
         type: choice
-        options:
-          - android
-          - aosp
-          - evergreen
-          - linux
-          - tvos
+        options: [android, aosp, evergreen, linux, tvos]
       pr_number:
         description: 'Pull request number'
         required: true
@@ -30,9 +25,7 @@ on: # zizmor: ignore[dangerous-triggers]
         description: 'Event action'
         required: true
         type: choice
-        options:
-          - in_progress
-          - completed
+        options: [in_progress, completed]
 
 permissions:
   contents: read
@@ -40,7 +33,6 @@ permissions:
 jobs:
   deflake:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_run'
     permissions:
       contents: read
       actions: write
@@ -128,7 +120,7 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
-          STATUS: ${{ github.event.workflow_run.status || 'none' }}
+          STATUS: ${{ github.event.workflow_run.status || inputs.action || 'none' }}
           CONCLUSION: ${{ github.event.workflow_run.conclusion || 'null' }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
@@ -139,56 +131,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -n "${PR_NUMBER:-}" ]]; then
-            if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-              echo "Error: PR number must be an integer, got: '${PR_NUMBER}'" >&2
-              exit 1
-            fi
+          if [[ -z "${WORKFLOW}" ]]; then
+            HEAD_SHA=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+            WORKFLOW=$(gh run list --repo "${REPO}" --commit "${HEAD_SHA}" --workflow "${WORKFLOW_NAME}.yaml" -q '.[0].databaseId')
+            RUN_URL="https://github.com/${REPO}/actions/runs/${WORKFLOW}"
+          fi
 
-            pr_json=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json number,headRefName,headRefOid)
-            HEAD_SHA=$(echo "${pr_json}" | jq -r .headRefOid)
-            if [[ -z "${HEAD_SHA}" || "${HEAD_SHA}" == "null" ]]; then
-              echo "Error: Could not determine HEAD_SHA for PR #${PR_NUMBER}" >&2
-              exit 1
+          # Query live workflow run status from the API to handle out-of-order/delayed event delivery.
+          live_run=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json status,conclusion,attempt 2>/dev/null || true)
+          if [[ -n "${live_run}" ]]; then
+            live_status=$(echo "${live_run}" | jq -r '.status // empty')
+            live_conclusion=$(echo "${live_run}" | jq -r '.conclusion // empty')
+            live_attempt=$(echo "${live_run}" | jq -r '.attempt // empty')
+            if [[ -n "${live_status}" ]]; then
+              STATUS="${ACTION:-${live_status}}"
+              CONCLUSION="${live_conclusion:-null}"
+              [[ "${ACTION:-}" == "in_progress" ]] && CONCLUSION="null"
             fi
-            pr_number=$(echo "${pr_json}" | jq -r .number)
-
-            run_json=$(gh run list --repo "${REPO}" --commit "${HEAD_SHA}" --workflow "${WORKFLOW_NAME}.yaml" -L 30 --json databaseId,url,attempt,status,conclusion -q '.[0] // empty')
-            if [[ -n "${run_json}" ]]; then
-              WORKFLOW=$(echo "${run_json}" | jq -r '.databaseId // empty')
-              RUN_URL=$(echo "${run_json}" | jq -r '.url // empty')
-              RUN_ATTEMPT=$(echo "${run_json}" | jq -r '.attempt // 1')
-              STATUS=$(echo "${run_json}" | jq -r '.status // empty')
-              CONCLUSION=$(echo "${run_json}" | jq -r '.conclusion // empty')
-            else
-              WORKFLOW=""
-              RUN_URL="https://github.com/${REPO}/pull/${pr_number}"
-              RUN_ATTEMPT=1
-              STATUS=""
-              CONCLUSION=""
-            fi
-
-            if [[ "${ACTION}" == "in_progress" ]]; then
-              STATUS="in_progress"
-              CONCLUSION="null"
-            elif [[ "${ACTION}" == "completed" ]]; then
-              STATUS="completed"
-              CONCLUSION="${CONCLUSION:-null}"
-            fi
-          elif [[ -n "${WORKFLOW:-}" ]]; then
-            # Query live workflow run status from the API to handle out-of-order/delayed event delivery on workflow_run.
-            live_run=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json status,conclusion,attempt 2>/dev/null || true)
-            if [[ -n "${live_run}" ]]; then
-              live_status=$(echo "${live_run}" | jq -r '.status // empty')
-              live_conclusion=$(echo "${live_run}" | jq -r '.conclusion // empty')
-              live_attempt=$(echo "${live_run}" | jq -r '.attempt // empty')
-              if [[ -n "${live_status}" ]]; then
-                STATUS="${live_status}"
-                CONCLUSION="${live_conclusion:-null}"
-              fi
-              if [[ -n "${live_attempt}" ]]; then
-                RUN_ATTEMPT="${live_attempt}"
-              fi
+            if [[ -n "${live_attempt}" ]]; then
+              RUN_ATTEMPT="${live_attempt}"
             fi
           fi
 
@@ -202,9 +163,7 @@ jobs:
           else
             # Download shepherd-report-* artifacts to determine status from validate job reports instead of workflow conclusion.
             mkdir -p shepherd_artifacts
-            if [[ -n "${WORKFLOW:-}" ]]; then
-              gh run download "${WORKFLOW}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
-            fi
+            gh run download "${WORKFLOW}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
 
             shopt -s globstar nullglob
             reports=(shepherd_artifacts/**/shepherd_report.json)
@@ -239,9 +198,7 @@ jobs:
             -f description="${desc}" \
             -f context="CI / ${WORKFLOW_NAME}"
 
-          if [[ -z "${PR_NUMBER:-}" ]]; then
-            pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
-          fi
+          pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
           echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
