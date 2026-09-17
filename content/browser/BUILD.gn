@@ -3787,6 +3787,14 @@ source_set("browser") {
                        ])
     sources = []
     sources = _filtered_sources
+    sources += [
+      "webid/flags.cc",
+      "webid/flags.h",
+      "webid/navigation_interceptor.cc",
+      "webid/navigation_interceptor.h",
+      "webid/request_service.cc",
+      "webid/request_service.h",
+    ]
     deps -= [
       "//components/browsing_topics/common",
       "//content/browser/aggregation_service/proto:aggregatable_report_proto",

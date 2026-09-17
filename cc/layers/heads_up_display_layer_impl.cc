@@ -841,7 +841,8 @@ if (layer_tree_impl()->raster_caps().use_gpu_rasterization) {
       status = "on";
       color = SK_ColorGREEN;
     }
-#else    status = "on";
+#else
+    status = "on";
     color = SK_ColorGREEN;
 #endif
   } else {

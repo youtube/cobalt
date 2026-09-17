@@ -41,6 +41,7 @@ class PLATFORM_EXPORT ContentType {
 
   String Parameter(StringView parameter_name) const;
   String GetType() const;
+  const String& Raw() const { return type_; }
 
  private:
   void ParseParameters(Vector<String>& result) const;

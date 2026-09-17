@@ -334,7 +334,9 @@ ip_protection::ProbabilisticRevealTokenRegistry*
   probabilistic_reveal_token_registry() const {
     return probabilistic_reveal_token_registry_.get();
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150  void set_host_resolver_factory_for_testing(
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+  void set_host_resolver_factory_for_testing(
       std::unique_ptr<net::HostResolver::Factory> host_resolver_factory) {
     host_resolver_factory_ = std::move(host_resolver_factory);
   }

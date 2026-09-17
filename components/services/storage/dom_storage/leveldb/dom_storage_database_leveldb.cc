@@ -83,7 +83,9 @@ leveldb::WriteOptions CreateSyncWriteOptions() {
   options.sync = true;
   return options;
 }
-#endifDomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
+#endif
+
+DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
   base::span key_span(key);
   base::span value_span(value);
