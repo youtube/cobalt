@@ -101,7 +101,8 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
           }
         }
 #if BUILDFLAG(IS_STARBOARD)
-        // 15 = RDK 13-image FPS cliff + 2 margin, ~1 MB GPU (b/562624433).
+        // Cache 15 decoded images. Scroll FPS doubles once 13 are cached;
+        // 15 adds margin and costs ~1 MB of GPU memory. See b/562624433.
         return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
