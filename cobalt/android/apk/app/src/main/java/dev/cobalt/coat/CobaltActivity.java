@@ -115,6 +115,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private volatile boolean mHasHiddenSplashScreen = false;
 
+  public boolean hasHiddenSplashScreen() {
+    return mHasHiddenSplashScreen;
+  }
+
   private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private long mLastRetryTimestampMs = 0L;
 
