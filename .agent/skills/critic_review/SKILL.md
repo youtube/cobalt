@@ -2,13 +2,13 @@
 name: critic-review
 description: >-
   Perform multi-perspective code reviews using a pool of specialized
-  reviewer personas and an arbiter for consensus. Use at the end of each
-  coding task in an implementation plan or when reviewing diffs.
+  reviewer personas. Use at the end of each coding task in an
+  implementation plan or when reviewing diffs.
 disable-model-invocation: false
 disable-slash-command: false
 ---
 
-# Critic Review: Multi-Persona Code Review & Arbiter Sign-off
+# Critic Review: Multi-Persona Code Review
 
 A rigorous multi-agent code review workflow executed at the end of each task
 to verify correctness, robustness, security, style, and project guidelines.
@@ -27,8 +27,7 @@ This skill adheres to the recommended Jetski skill layout:
 ```text
 skills/critic_review/
 ├── SKILL.md                 # Main workflow & instructions (this file)
-├── references/              # Procedural guidelines & arbiter rules
-│   ├── arbiter.md           # Conflict resolution & final consensus
+├── references/              # Procedural guidelines & context rules
 │   └── context_rule.md      # Mandatory context verification checklist
 └── resources/               # Assets, templates, and reviewer configs
     ├── codeowners/          # Domain-specific CODEOWNERS reviewers (*.md)
@@ -129,9 +128,6 @@ per [`context_rule.md`](SKILL_DIR/references/context_rule.md):
   produces an evidence-backed report.
 - Remind reviewers if any response is pending.
 
-### 4. Arbiter Synthesis & Sign-off
-- The **Arbiter** ([`arbiter.md`](SKILL_DIR/references/arbiter.md)) evaluates
-  findings across all reviewer reports.
-- If reviewers disagree, the Arbiter resolves conflicts with clear rationale.
-- If any required review is missing without explicit decline, the Arbiter
-  invokes VETO to request completion before approving.
+### 4. Review Synthesis
+- Evaluate findings across all reviewer reports.
+- Synthesize actionable feedback, prioritize security and correctness findings, and present feedback clearly.
