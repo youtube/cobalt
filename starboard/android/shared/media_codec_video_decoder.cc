@@ -104,6 +104,20 @@ class VideoFrameImpl final : public VideoFrame {
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
 const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
 
+// How often to poll for completion of the drain that precedes a mid-stream
+// codec reinitialization for a color space change.
+const int64_t kColorChangeFlushPollInterval = 2'000;  // 2ms
+// A drain lasts as long as it takes to render whatever was already buffered,
+// which can be many seconds and is simply normal playback -- so it is bounded
+// by lack of progress rather than by total elapsed time.  Exceeding this means
+// the codec and the renderer both went quiet with frames still outstanding;
+// reinitialize anyway rather than wedge playback.
+const int64_t kColorChangeFlushStallTimeout = 500'000;  // 500ms
+// |VideoRendererImpl| holds on to the frame currently being displayed, so
+// |buffered_output_frames_| settles at one rather than zero once everything
+// has been rendered.  See VideoRendererImpl::Render().
+const int kColorChangeFlushResidualFrames = 1;
+
 const int kInitialPrerollFrameCount = 8;
 const int kNonInitialPrerollFrameCount = 1;
 // According to b/487397946#comment3, after the first non-DECODE_ONLY frame is
@@ -165,6 +179,14 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
                                       const Size& max_video_size) {
   return frame_size.width > max_video_size.width ||
          frame_size.height > max_video_size.height;
+}
+
+// Returns true when |color_metadata| describes an HDR transfer function.
+bool IsHdrColorMetadata(const SbMediaColorMetadata& color_metadata) {
+  return color_metadata.transfer == kSbMediaTransferIdSmpteSt2084 ||
+         color_metadata.transfer == kSbMediaTransferIdAribStdB67 ||
+         color_metadata.transfer == kSbMediaTransferId10BitBt2020 ||
+         color_metadata.transfer == kSbMediaTransferId12BitBt2020;
 }
 
 }  // namespace
@@ -509,6 +531,15 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
+  if (color_change_flushing_) {
+    // The codec is draining ahead of a reinitialization for a new color space.
+    // Hold everything back until |CheckColorChangeFlush()| has rebuilt it.
+    pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
+                                         input_buffers.begin(),
+                                         input_buffers.end());
+    return;
+  }
+
   if (max_video_size_.has_value()) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->video_sample_info().is_key_frame) {
@@ -527,14 +558,21 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
+  // Detect color space transitions.  VP9 carries color metadata in the
+  // container rather than in-band, so |MediaCodec| cannot adapt on its own and
+  // must be told the color space at configure() time.  At stream start nothing
+  // has been decoded yet so the codec can simply be reinitialized.  Mid-stream
+  // the previous stream's frames have to be drained first, otherwise tearing
+  // down the codec discards them -- see |CheckColorChangeFlush()|.
+  const auto& first_buffer = input_buffers.front();
+  const auto& color_metadata = first_buffer->video_stream_info().color_metadata;
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
-    first_buffer_timestamp_ = input_buffers.front()->timestamp();
+    first_buffer_timestamp_ = first_buffer->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
-    const auto& color_metadata =
-        input_buffers.front()->video_stream_info().color_metadata;
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
@@ -555,6 +593,59 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
+  } else if (first_buffer->video_sample_info().is_key_frame && media_decoder_) {
+    // A keyframe mid-stream may begin a stream with different color metadata,
+    // e.g. transitioning between an HDR and an SDR video.  MediaCodec only
+    // consumes color aspects at configure() time, so the codec has to be
+    // reinitialized; there is no runtime API to update them.  ExoPlayer does
+    // the same thing -- see DISCARD_REASON_VIDEO_COLOR_INFO_CHANGED.
+    //
+    // Note that the decoder handles the bit depth change itself, so this is
+    // purely about re-tagging the color aspects.
+    const bool is_hdr = IsHdrColorMetadata(color_metadata);
+    const bool was_hdr = color_metadata_.has_value() &&
+                         IsHdrColorMetadata(color_metadata_.value());
+    const bool color_space_changed =
+        (was_hdr != is_hdr) ||
+        (is_hdr && color_metadata_.has_value() &&
+         color_metadata_.value() != color_metadata);
+
+    if (color_space_changed) {
+      // |WriteInputBuffers()| is non-blocking, so by this point the input side
+      // is typically far ahead of what has actually been rendered.  Tearing the
+      // codec down now would destroy every frame still in flight.  Instead
+      // drain the codec the same way |AdaptiveAudioDecoder| handles an audio
+      // configuration change: hold the new stream's buffers back, write an end
+      // of stream, and reinitialize once everything has drained.
+      //
+      // Returning without invoking |decoder_status_cb_| deliberately stalls the
+      // input side until the reinitialization completes.
+      SB_LOG(INFO) << "Color space changed mid-stream (was HDR=" << was_hdr
+                   << ", now HDR=" << is_hdr << "). Draining codec.";
+
+      color_change_flushing_ = true;
+      color_change_eos_received_.store(false);
+      color_change_flush_start_ = CurrentMonotonicTime();
+      color_change_flush_last_progress_ = color_change_flush_start_;
+      color_change_flush_last_pending_inputs_ = -1;
+      color_change_flush_last_buffered_frames_ = -1;
+      pending_color_metadata_ = color_metadata;
+      pending_color_change_buffers_ = input_buffers;
+
+      media_decoder_->WriteEndOfStream();
+      Schedule(std::bind(&MediaCodecVideoDecoder::CheckColorChangeFlush, this),
+               kColorChangeFlushPollInterval);
+      return;
+    }
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    for (size_t i = 1; i < input_buffers.size(); ++i) {
+      const auto& other =
+          input_buffers[i]->video_stream_info().color_metadata;
+      SB_DCHECK(IsHdrColorMetadata(other) == is_hdr)
+          << "Color space switches should NOT happen within a batch.";
+    }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
 
   input_buffer_written_ += input_buffers.size();
@@ -999,6 +1090,16 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
+
+  if (color_change_flushing_ && is_end_of_stream) {
+    // This end of stream was synthesized to drain the codec before it is
+    // reinitialized for a new color space; the stream itself has not ended.
+    // Swallow it so the renderer does not treat playback as finished, and let
+    // |CheckColorChangeFlush()| take it from here.
+    color_change_eos_received_.store(true);
+    return;
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1017,8 +1118,10 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     }
   }
 
+  // While draining for a color space change any further input is only stashed,
+  // so ask the renderer to stop sending it.
   if (fix_need_more_input_backpressure_) {
-    bool need_more_input = !is_end_of_stream &&
+    bool need_more_input = !is_end_of_stream && !color_change_flushing_ &&
                            number_of_pending_inputs < max_pending_inputs_size_;
     decoder_status_cb_(
         need_more_input ? kNeedMoreInput : kBufferFull,
@@ -1029,7 +1132,8 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   decoder_status_cb_(
-      is_end_of_stream ? kBufferFull : kNeedMoreInput,
+      (is_end_of_stream || color_change_flushing_) ? kBufferFull
+                                                   : kNeedMoreInput,
       new VideoFrameImpl(
           dequeue_output_result, media_codec_bridge,
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
@@ -1175,9 +1279,101 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
+    SB_DCHECK_GT(buffered_output_frames_.load(), 0);
     --buffered_output_frames_;
-    SB_DCHECK_GE(buffered_output_frames_, 0);
   }
+}
+
+void MediaCodecVideoDecoder::CheckColorChangeFlush() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!color_change_flushing_) {
+    // A |Reset()| raced with the poll and already cleaned everything up.
+    return;
+  }
+
+  const int64_t now = CurrentMonotonicTime();
+  const int64_t elapsed = now - color_change_flush_start_;
+
+  const int pending_inputs =
+      media_decoder_
+          ? static_cast<int>(media_decoder_->GetNumberOfPendingInputs())
+          : 0;
+  const int buffered_frames = buffered_output_frames_.load();
+
+  // The codec has emitted everything it was holding, it has no inputs left to
+  // consume, and the renderer has released all but the frame it is currently
+  // displaying.  Only then is it safe to tear the codec down.
+  const bool drained = color_change_eos_received_.load() && media_decoder_ &&
+                       pending_inputs == 0 &&
+                       buffered_frames <= kColorChangeFlushResidualFrames;
+
+  if (!drained) {
+    // A drain in good health keeps rendering the already-buffered frames, so
+    // one of these counts keeps moving.  Paused playback legitimately makes no
+    // progress, so it must not trip the watchdog.
+    const bool progressed =
+        pending_inputs != color_change_flush_last_pending_inputs_ ||
+        buffered_frames != color_change_flush_last_buffered_frames_;
+    if (progressed || playback_rate_ == 0.0) {
+      color_change_flush_last_pending_inputs_ = pending_inputs;
+      color_change_flush_last_buffered_frames_ = buffered_frames;
+      color_change_flush_last_progress_ = now;
+    }
+
+    const int64_t stalled_for = now - color_change_flush_last_progress_;
+    if (stalled_for < kColorChangeFlushStallTimeout) {
+      Schedule(std::bind(&MediaCodecVideoDecoder::CheckColorChangeFlush, this),
+               kColorChangeFlushPollInterval);
+      return;
+    }
+
+    SB_LOG(WARNING) << "Draining the codec for a color space change stalled"
+                    << " for " << stalled_for / 1000 << " ms (" << elapsed / 1000
+                    << " ms into the drain; eos_received="
+                    << color_change_eos_received_.load()
+                    << ", pending_inputs=" << pending_inputs
+                    << ", buffered_output_frames=" << buffered_frames
+                    << "). Reinitializing anyway; some frames will be dropped.";
+  }
+
+  const int64_t reinit_start = CurrentMonotonicTime();
+
+  InputBuffers input_buffers = std::move(pending_color_change_buffers_);
+  pending_color_change_buffers_.clear();
+  SB_DCHECK(!input_buffers.empty());
+
+  TeardownCodec();
+  // |TeardownCodec()| clears |color_metadata_|, so apply the new metadata
+  // afterwards for |InitializeCodec()| to pick up.
+  color_metadata_ = pending_color_metadata_;
+
+  auto result = InitializeCodec(input_buffers.front()->video_stream_info());
+  if (!result) {
+    std::string error_message =
+        "Failed to reinitialize codec for color space change with error: " +
+        result.error();
+    SB_LOG(ERROR) << error_message;
+    TeardownCodec();
+    pending_color_metadata_ = std::nullopt;
+    color_change_flushing_ = false;
+    color_change_eos_received_.store(false);
+    ReportError(kSbPlayerErrorDecode, error_message);
+    return;
+  }
+
+  pending_color_metadata_ = std::nullopt;
+  color_change_flushing_ = false;
+  color_change_eos_received_.store(false);
+
+  SB_LOG(INFO) << "Drained and reinitialized codec for color space change in "
+               << elapsed / 1000 << " ms ("
+               << (CurrentMonotonicTime() - reinit_start) / 1000
+               << " ms of that spent rebuilding the codec).";
+
+  WriteInputBuffersInternal(input_buffers);
+  input_buffer_written_ += input_buffers.size();
+  decoder_status_cb_(kNeedMoreInput, NULL);
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
@@ -1234,6 +1430,24 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     input_buffer_written_ = 0;
     video_fps_ = 0;
   }
+  // |color_metadata_| deliberately survives here.  It records what the live
+  // codec was configured with, and the branch above only clears it via
+  // TeardownCodec() when the codec actually goes away.  After a flush the
+  // codec keeps its color aspects, so the field has to keep describing them --
+  // otherwise a seek that lands in a differently graded part of the stream
+  // looks like no change at all, and the codec goes on tagging its output with
+  // the previous color space.
+
+  // Abandon any in-flight drain for a color space change.  |CancelPendingJobs()|
+  // below drops the |CheckColorChangeFlush()| poll that would otherwise
+  // complete it, and the stashed buffers belong to the stream being discarded.
+  color_change_flushing_ = false;
+  color_change_eos_received_.store(false);
+  color_change_flush_last_pending_inputs_ = -1;
+  color_change_flush_last_buffered_frames_ = -1;
+  pending_color_metadata_ = std::nullopt;
+  pending_color_change_buffers_.clear();
+
   CancelPendingJobs();
 
   // TODO(b/291959069): After flush |media_decoder_|, the output buffers

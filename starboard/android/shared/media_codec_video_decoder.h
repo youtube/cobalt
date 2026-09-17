@@ -162,6 +162,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void OnVideoFrameRelease();
 
+  // Polls for completion of the drain started by a mid-stream color space
+  // change, then reinitializes the codec.  See |WriteInputBuffers()|.
+  void CheckColorChangeFlush();
+
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
@@ -254,6 +258,27 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
 
+  // State for a mid-stream color space change.  |MediaCodec| only consumes
+  // color aspects at configure() time, so switching between HDR and SDR
+  // requires reinitializing the codec.  The previous stream's frames are
+  // drained first so they are not discarded.  See |WriteInputBuffers()| and
+  // |CheckColorChangeFlush()|.
+  //
+  // This mirrors how |AdaptiveAudioDecoder| handles an audio configuration
+  // change, with the addition of waiting for the renderer to release the
+  // drained frames -- video frames reference |MediaCodec| output buffers and
+  // so cannot outlive the codec.
+  bool color_change_flushing_ = false;
+  std::atomic_bool color_change_eos_received_{false};
+  std::optional<SbMediaColorMetadata> pending_color_metadata_;
+  InputBuffers pending_color_change_buffers_;
+  int64_t color_change_flush_start_ = 0;  // microseconds
+  // The drain is bounded by lack of progress rather than by total time, since
+  // a healthy drain simply plays out whatever was already buffered.
+  int64_t color_change_flush_last_progress_ = 0;  // microseconds
+  int color_change_flush_last_pending_inputs_ = -1;
+  int color_change_flush_last_buffered_frames_ = -1;
+
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
@@ -281,7 +306,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // The variables below are used to calculate platform max supported MediaCodec
   // output buffers.
   int decoded_output_frames_ = 0;
-  int buffered_output_frames_ = 0;
+  // Read from the decoder thread by |CheckColorChangeFlush()| while being
+  // updated from the output thread, hence atomic.
+  std::atomic<int> buffered_output_frames_{0};
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;

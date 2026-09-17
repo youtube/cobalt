@@ -97,6 +97,42 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   }
 }
 
+// Builds the Java `ColorInfo` passed to MediaCodecBridge, or a null reference
+// when |color_metadata| is absent or cannot be mapped to Android's enums.
+ScopedJavaLocalRef<jobject> CreateJavaColorInfo(
+    JNIEnv* env,
+    const SbMediaColorMetadata* color_metadata) {
+  ScopedJavaLocalRef<jobject> j_color_info(nullptr);
+  if (!color_metadata) {
+    return j_color_info;
+  }
+
+  jint color_standard =
+      SbMediaPrimaryIdToColorStandard(color_metadata->primaries);
+  jint color_transfer =
+      SbMediaTransferIdToColorTransfer(color_metadata->transfer);
+  jint color_range = SbMediaRangeIdToColorRange(color_metadata->range);
+
+  if (color_standard != COLOR_VALUE_UNKNOWN &&
+      color_transfer != COLOR_VALUE_UNKNOWN &&
+      color_range != COLOR_VALUE_UNKNOWN) {
+    const auto& mastering_metadata = color_metadata->mastering_metadata;
+    j_color_info.Reset(Java_ColorInfo_Constructor(
+        env, color_range, color_standard, color_transfer,
+        mastering_metadata.primary_r_chromaticity_x,
+        mastering_metadata.primary_r_chromaticity_y,
+        mastering_metadata.primary_g_chromaticity_x,
+        mastering_metadata.primary_g_chromaticity_y,
+        mastering_metadata.primary_b_chromaticity_x,
+        mastering_metadata.primary_b_chromaticity_y,
+        mastering_metadata.white_point_chromaticity_x,
+        mastering_metadata.white_point_chromaticity_y,
+        mastering_metadata.luminance_max, mastering_metadata.luminance_min,
+        color_metadata->max_cll, color_metadata->max_fall));
+  }
+  return j_color_info;
+}
+
 }  // namespace
 
 // static
@@ -171,32 +207,8 @@ MediaCodecBridge::CreateVideoMediaCodec(
     const MediaCodec::VideoPlatformOptions& platform_options) {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jobject> j_color_info(nullptr);
-  if (color_metadata) {
-    jint color_standard =
-        SbMediaPrimaryIdToColorStandard(color_metadata->primaries);
-    jint color_transfer =
-        SbMediaTransferIdToColorTransfer(color_metadata->transfer);
-    jint color_range = SbMediaRangeIdToColorRange(color_metadata->range);
-
-    if (color_standard != COLOR_VALUE_UNKNOWN &&
-        color_transfer != COLOR_VALUE_UNKNOWN &&
-        color_range != COLOR_VALUE_UNKNOWN) {
-      const auto& mastering_metadata = color_metadata->mastering_metadata;
-      j_color_info.Reset(Java_ColorInfo_Constructor(
-          env, color_range, color_standard, color_transfer,
-          mastering_metadata.primary_r_chromaticity_x,
-          mastering_metadata.primary_r_chromaticity_y,
-          mastering_metadata.primary_g_chromaticity_x,
-          mastering_metadata.primary_g_chromaticity_y,
-          mastering_metadata.primary_b_chromaticity_x,
-          mastering_metadata.primary_b_chromaticity_y,
-          mastering_metadata.white_point_chromaticity_x,
-          mastering_metadata.white_point_chromaticity_y,
-          mastering_metadata.luminance_max, mastering_metadata.luminance_min,
-          color_metadata->max_cll, color_metadata->max_fall));
-    }
-  }
+  ScopedJavaLocalRef<jobject> j_color_info =
+      CreateJavaColorInfo(env, color_metadata);
 
   ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
       Java_CreateMediaCodecBridgeResult_Constructor(env));
