@@ -179,14 +179,13 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
     return visibility_tracker_.Get();
   }
 
-<<<<<<< HEAD
   VideoFrameCallbackRequester* GetVideoFrameCallbackRequester() const {
     return video_frame_callback_requester_;
   }
   void SetVideoFrameCallbackRequester(VideoFrameCallbackRequester* requester) {
     video_frame_callback_requester_ = requester;
   }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
 
@@ -196,7 +195,6 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // EventTarget overrides.
@@ -311,13 +309,12 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
       cc::PaintFlags::FilterQuality::kLow;
   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
 
-<<<<<<< HEAD
+
   Member<VideoFrameCallbackRequester> video_frame_callback_requester_;
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink
