@@ -291,6 +291,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     last_playback_head_position = -1;
     last_playback_head_event_at = -1;
     is_flushed_ = true;
+    was_playing = false;
   };
 
   while (!quit_) {
@@ -318,7 +319,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // queued audio to reset timestamps and latency. Unconsumed frames in the
       // buffer will be re-fed on the next iteration when playback resumes.
       reset_and_flush();
-      was_playing = false;
       continue;
     }
 
@@ -397,6 +397,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     bool is_eos_reached;
     callbacks_.update_source_status(&frames_in_buffer, &offset_in_frames,
                                     &is_playing, &is_eos_reached, context_);
+    // If a flush was requested (e.g., during seek), frames_in_buffer may
+    // already reflect the newly decoded stream while frames_in_audio_track is
+    // still stale from before the flush. Restart the loop so reset_and_flush()
+    // can reset frames_in_audio_track before any data is written.
+    if (flush_requested_) {
+      continue;
+    }
     {
       std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
@@ -598,7 +605,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
-    SbMediaAudioFrameStorageType audio_frame_storage_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -606,7 +612,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   return Create(channels, sampling_frequency_hz, audio_sample_type,
-                audio_frame_storage_type, frame_buffers, frames_per_channel,
+                frame_buffers, frames_per_channel,
                 {update_source_status_func, consume_frames_func, error_func},
                 /*start_media_time=*/0,
                 /*tunnel_mode_audio_session_id=*/std::nullopt,
@@ -619,7 +625,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
-    SbMediaAudioFrameStorageType audio_frame_storage_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     Callbacks callbacks,

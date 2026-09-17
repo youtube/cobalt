@@ -146,4 +146,25 @@ TEST_F(StarboardFeatureListTest, CanAccessParams) {
     }
   }
 }
+
+TEST_F(StarboardFeatureListTest, FeatureParamExtHasCorrectType) {
+  SbFeatureParamExt<bool> bool_param(kStarboardFeatureTestEnabled, "ParamBool");
+  EXPECT_EQ(SbFeatureParamTypeBool, bool_param.type);
+
+  SbFeatureParamExt<int> int_param(kStarboardFeatureTestEnabled, "ParamInt");
+  EXPECT_EQ(SbFeatureParamTypeInt, int_param.type);
+
+  SbFeatureParamExt<double> double_param(kStarboardFeatureTestEnabled,
+                                         "ParamDouble");
+  EXPECT_EQ(SbFeatureParamTypeDouble, double_param.type);
+
+  SbFeatureParamExt<std::string> string_param(kStarboardFeatureTestEnabled,
+                                              "ParamString");
+  EXPECT_EQ(SbFeatureParamTypeString, string_param.type);
+
+  SbFeatureParamExt<int64_t> time_param(kStarboardFeatureTestEnabled,
+                                        "ParamTime");
+  EXPECT_EQ(SbFeatureParamTypeTime, time_param.type);
+}
+
 }  // namespace starboard

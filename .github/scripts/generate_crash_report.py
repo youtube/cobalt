@@ -48,7 +48,7 @@ def _extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
       # If the test crashed there are no end markers.
       if any(marker in log for marker in END_MARKERS):
         break
-      test_name = line[len(RUN_MARKER):].strip()
+      test_name = line.partition(RUN_MARKER)[2].strip()
       suite, name = test_name.split(
           '.', 1) if '.' in test_name else ('UnknownSuite', test_name)
       return suite, name, log
@@ -89,5 +89,8 @@ if __name__ == '__main__':
     if crash_info:
       args.xml_path.parent.mkdir(parents=True, exist_ok=True)
       write_junit_xml(args.xml_path, *crash_info)
+      marker_path = args.xml_path.with_suffix('.crash')
+      marker_path.write_text(
+          f'{crash_info[0]}.{crash_info[1]}\n', encoding='utf-8')
 
   main()
