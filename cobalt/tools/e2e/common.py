@@ -18,10 +18,7 @@ from typing import List, Optional, Union
 
 try:
   from cobalt.tools.e2e.cobalt_runner import CobaltRunner
-  from cobalt.tools.e2e.executable_resolver import ExecutableResolver
-  from cobalt.tools.e2e.lifecycle_controller import LifecycleController
   from cobalt.tools.e2e.linux_executable_resolver import LinuxExecutableResolver
-  from cobalt.tools.e2e.platform_display import PlatformDisplay
   from cobalt.tools.e2e.posix_signal_lifecycle_controller import (
       PosixSignalLifecycleController,)
   from cobalt.tools.e2e.x11_display import X11Display
@@ -39,11 +36,8 @@ except ImportError:
     sys.path.insert(0, _lib_dir)
   from cdp_client import CDPClient  # type: ignore[no-redef]
   from cobalt_runner import CobaltRunner  # type: ignore[no-redef]
-  from executable_resolver import ExecutableResolver  # type: ignore[no-redef]
-  from lifecycle_controller import LifecycleController  # type: ignore[no-redef]
   from linux_executable_resolver import (  # type: ignore[no-redef]
       LinuxExecutableResolver,)
-  from platform_display import PlatformDisplay  # type: ignore[no-redef]
   from posix_signal_lifecycle_controller import (  # type: ignore[no-redef]
       PosixSignalLifecycleController,)
   from simple_web_socket import SimpleWebSocket  # type: ignore[no-redef]
@@ -54,10 +48,7 @@ logger = logging.getLogger('cobalt_e2e_common')
 __all__ = [
     'CDPClient',
     'CobaltRunner',
-    'ExecutableResolver',
-    'LifecycleController',
     'LinuxExecutableResolver',
-    'PlatformDisplay',
     'PosixSignalLifecycleController',
     'SimpleWebSocket',
     'X11Display',
@@ -70,14 +61,14 @@ __all__ = [
 ]
 
 
-def get_platform_display(platform: Optional[str] = None) -> PlatformDisplay:
-  """Returns the PlatformDisplay implementation for the specified platform.
+def get_platform_display(platform: Optional[str] = None) -> X11Display:
+  """Returns the display manager implementation for the specified platform.
 
   Args:
     platform: Optional platform identifier string.
 
   Returns:
-    A PlatformDisplay instance for the target platform.
+    An X11Display instance for the target platform.
   """
   # Default to X11; future platforms (Wayland, Android, RDK) will be added here.
   del platform
@@ -85,29 +76,29 @@ def get_platform_display(platform: Optional[str] = None) -> PlatformDisplay:
 
 
 def get_executable_resolver(
-    platform: Optional[str] = None) -> ExecutableResolver:
-  """Returns the ExecutableResolver implementation for the platform.
+    platform: Optional[str] = None) -> LinuxExecutableResolver:
+  """Returns the executable resolver implementation for the platform.
 
   Args:
     platform: Optional platform identifier string.
 
   Returns:
-    An ExecutableResolver instance configured for the platform.
+    A LinuxExecutableResolver instance configured for the platform.
   """
   return LinuxExecutableResolver(platform=platform)
 
 
 def create_lifecycle_controller(
     platform: Optional[str] = None,
-    runner: Optional[CobaltRunner] = None) -> LifecycleController:
-  """Factory returning the appropriate LifecycleController for the platform.
+    runner: Optional[CobaltRunner] = None) -> PosixSignalLifecycleController:
+  """Factory returning the lifecycle controller for the platform.
 
   Args:
     platform: Target platform identifier.
     runner: Running Cobalt instance manager.
 
   Returns:
-    A LifecycleController instance.
+    A PosixSignalLifecycleController instance.
 
   Raises:
     ValueError: If runner is None.

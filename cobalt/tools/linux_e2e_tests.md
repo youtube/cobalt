@@ -22,15 +22,12 @@ Comprehensive documentation for Cobalt's Linux end-to-end (E2E) test suite, cove
 
 The Linux E2E test suite (`cobalt/tools/test_lifecycle_e2e.py` and support modules in `cobalt/tools/e2e/`) validates that Cobalt behaves correctly across all Starboard lifecycle state transitions on Linux platforms (both Modular and Evergreen).
 
-The test suite is structured around modular, platform-agnostic abstractions in `cobalt/tools/e2e/`:
-- **`LifecycleController`** (`cobalt/tools/e2e/lifecycle_controller.py`): Abstract interface for semantic lifecycle transitions (`blur()`, `focus()`, `conceal()`, `freeze()`, `resume()`, `stop()`, `low_memory()`).
-- **`PosixSignalLifecycleController`** (`cobalt/tools/e2e/posix_signal_lifecycle_controller.py`): Controls lifecycle via POSIX OS signals mapped to Starboard events via [`starboard/shared/signal/suspend_signals.cc`](https://github.com/youtube/cobalt/blob/main/starboard/shared/signal/suspend_signals.cc).
-- **`PlatformDisplay`** (`cobalt/tools/e2e/platform_display.py`): Abstract interface for display environments (`is_working()`, `ensure_display()`).
-- **`X11Display`** (`cobalt/tools/e2e/x11_display.py`): Manages X11 display detection and automatic `xvfb-run` fallback.
-- **`ExecutableResolver`** (`cobalt/tools/e2e/executable_resolver.py`): Abstract interface for locating Cobalt executables.
+The test suite is structured around modular components in `cobalt/tools/e2e/`:
+- **`PosixSignalLifecycleController`** (`cobalt/tools/e2e/posix_signal_lifecycle_controller.py`): Controls lifecycle transitions (`blur()`, `focus()`, `conceal()`, `freeze()`, `resume()`, `stop()`, `low_memory()`) via POSIX OS signals mapped to Starboard events via [`starboard/shared/signal/suspend_signals.cc`](https://github.com/youtube/cobalt/blob/main/starboard/shared/signal/suspend_signals.cc).
+- **`X11Display`** (`cobalt/tools/e2e/x11_display.py`): Manages X11 display detection (`is_working()`) and automatic `xvfb-run` fallback (`ensure_display()`).
 - **`LinuxExecutableResolver`** (`cobalt/tools/e2e/linux_executable_resolver.py`): Resolves Modular and Evergreen binaries and runtime flags.
 - **`CobaltRunner`** (`cobalt/tools/e2e/cobalt_runner.py`): Subprocess execution, logging, and process lifecycle management.
-- **`common.py`** (`cobalt/tools/e2e/common.py` and backward-compatible shim `cobalt/tools/test_common.py`): E2E facade and platform factory functions.
+- **`common.py`** (`cobalt/tools/e2e/common.py` and backward-compatible shim `cobalt/tools/test_common.py`): E2E facade and factory functions (`create_lifecycle_controller()`, `get_platform_display()`, `get_executable_resolver()`, `resolve_executable()`, `ensure_display()`).
 
 General shared library modules located in `cobalt/tools/lib/`:
 - **`CDPClient`** (`cobalt/tools/lib/cdp_client.py`): Chrome DevTools Protocol evaluation, state polling, and event popping.

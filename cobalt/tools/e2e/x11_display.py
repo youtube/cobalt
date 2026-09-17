@@ -20,15 +20,10 @@ import shutil
 import subprocess
 import sys
 
-try:
-  from cobalt.tools.e2e.platform_display import PlatformDisplay
-except ImportError:
-  from platform_display import PlatformDisplay  # type: ignore[no-redef]
-
 logger = logging.getLogger('x11_display')
 
 
-class X11Display(PlatformDisplay):
+class X11Display:
   """Manages X11 display availability and Xvfb fallback."""
 
   def is_working(self) -> bool:
