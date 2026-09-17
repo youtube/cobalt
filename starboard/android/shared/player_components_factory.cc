@@ -22,6 +22,8 @@
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "starboard/android/shared/aaudio_audio_sink.h"
+#include "starboard/android/shared/android_audio_sink.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track.h"
@@ -164,6 +166,22 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                 SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
+              if (AaudioAudioSinkType::IsEnabled() &&
+                  AaudioAudioSinkType::IsSupported(audio_sample_type) &&
+                  !tunnel_mode_audio_session_id) {
+                auto aaudio_sink = AaudioAudioSinkType::GetInstance()->Create(
+                    channels, sampling_frequency_hz, audio_sample_type,
+                    frame_buffers, frame_buffers_size_in_frames,
+                    {update_source_status_func, consume_frames_func,
+                     error_func},
+                    start_media_time, /*is_web_audio=*/false, context);
+                if (aaudio_sink != kSbAudioSinkInvalid) {
+                  return aaudio_sink;
+                }
+                SB_LOG(WARNING) << "Failed to create AaudioAudioSink, falling "
+                                   "back to AudioTrack";
+              }
+
               auto type = static_cast<AudioTrackAudioSinkType*>(
                   SbAudioSinkImpl::GetPreferredType());
 
@@ -244,20 +262,22 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     // Re-use the existing audio sink if the new audio parameters match the
     // existing ones. Otherwise, fall back to the default behavior of destroying
     // and re-creating the sink.
-    if (allow_flush_during_seek_ && audio_sink_ &&
-        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
-        channels == channels_ &&
+    bool is_android_sink =
+        audio_sink_ &&
+        (audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) ||
+         audio_sink_->IsType(AaudioAudioSinkType::GetInstance()));
+    if (allow_flush_during_seek_ && is_android_sink && channels == channels_ &&
         sampling_frequency_hz == sampling_frequency_hz_ &&
         audio_sample_type == audio_sample_type_) {
-      SB_LOG(INFO) << "Audio track is already started with the same config, "
+      SB_LOG(INFO) << "Audio sink is already started with the same config, "
                    << "skipping Start().";
-      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
-      track_sink->SetStartTime(media_start_time);
+      auto* android_sink = static_cast<AndroidAudioSink*>(audio_sink_);
+      android_sink->SetStartTime(media_start_time);
       // Explicitly set the playback rate and volume because HasStarted()
       // returns false while in the flushed state, causing the renderer to
       // skip updating the sink with these parameters during seek.
-      track_sink->SetPlaybackRate(playback_rate_);
-      track_sink->SetVolume(volume_);
+      android_sink->SetPlaybackRate(playback_rate_);
+      android_sink->SetVolume(volume_);
       render_callback_ = render_callback;
       return;
     }
@@ -284,16 +304,19 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
   }
 
   void Reset() override {
-    if (allow_flush_during_seek_ && audio_sink_ &&
-        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType())) {
-      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
-      if (track_sink->Flush()) {
-        SB_LOG(INFO) << "Flushing AudioTrack.";
+    bool is_android_sink =
+        audio_sink_ &&
+        (audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) ||
+         audio_sink_->IsType(AaudioAudioSinkType::GetInstance()));
+    if (allow_flush_during_seek_ && is_android_sink) {
+      auto* android_sink = static_cast<AndroidAudioSink*>(audio_sink_);
+      if (android_sink->Flush()) {
+        SB_LOG(INFO) << "Flushing audio sink.";
         is_flushed_ = true;
         return;
       }
     }
-    SB_LOG(INFO) << "Resetting AudioTrack.";
+    SB_LOG(INFO) << "Resetting audio sink.";
     is_flushed_ = false;
     AudioRendererSink::Reset();
   }
@@ -361,6 +384,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
       AudioTrack::SetNdkAudioTrackEnabled(true);
       SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
+    }
+    if (experimental_features.GetBool(kMediaNdkAudioPullSink)) {
+      AaudioAudioSinkType::SetEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio_pull_sink` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
