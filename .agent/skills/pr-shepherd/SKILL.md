@@ -2,8 +2,8 @@
 name: pr-shepherd
 description: >-
   Shepherds PRs to green. The agent monitors status checks and review comments,
-  uses the CI Shepherd JSON report to triage failures, and responds to review
-  comments directly to achieve All Green.
+  uses the CI Shepherd JSON report to triage failures, and addresses review
+  comments to achieve All Green.
 ---
 
 # Pull Request Shepherd
@@ -28,7 +28,8 @@ be met:
 1. **100% of CI Checks Completed & Green**:
    `green_checks == total_checks > 0`, with 0 failed and 0 running/pending.
 2. **Zero Unaddressed Comments**: All top-level PR comments and inline
-   file/diff review threads are addressed, replied to in-thread, and resolved.
+   file/diff review threads are addressed with code fixes (and replied to
+   in-thread when explicitly instructed by the user).
 3. **No Pending Changes Requested**: All review decisions are `APPROVED` or have
    no outstanding `CHANGES_REQUESTED`.
 4. **Verified Script Output**: The script output indicating success across all
@@ -69,6 +70,23 @@ If any check is still running or any comment thread is unaddressed, the agent
 >   pass, the agent **MUST NOT** merge the PR.
 > - **User Delegation Only**: PR merging is strictly reserved for the user
 >   and requires explicit, unambiguous user instructions in chat.
+
+### 🚫 STRICT PROHIBITION: PREVENT AUTOMATIC COMMENTING ON GITHUB
+
+> [!CAUTION]
+> **NO AUTOMATIC COMMENTS OR REPLIES**:
+> The PR Shepherd skill and all associated agents **MUST NOT** post comments or
+> replies on GitHub PRs autonomously without explicit user instruction.
+> - **No Autonomous Commenting**: Never post PR comments, inline review replies,
+>   or issue comments autonomously without explicit user instruction in chat.
+> - **Single-Use Consent**: Any consent or instruction granted by the user to
+>   post a comment or reply is strictly single-use and non-persistent. Consent
+>   expires immediately after being used once. Mandatory re-approval is
+>   required for subsequent comments.
+> - **In-Thread Replies When Instructed**: When explicitly instructed by the
+>   user to respond to review comments, always reply directly in-thread
+>   (`gh api repos/<owner>/<repo>/pulls/<PR_NUMBER>/comments/`
+>   `<COMMENT_ID>/replies`).
 
 ---
 

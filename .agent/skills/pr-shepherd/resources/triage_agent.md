@@ -56,6 +56,21 @@ CONTINUE MONITORING AND SHEPHERDING**. Do not stop or exit early.
 > - **User Delegation Only**: PR merging is strictly reserved for the user and
 >   requires explicit, unambiguous user instructions in chat.
 
+### 🚫 STRICT PROHIBITION: PREVENT AUTOMATIC COMMENTING ON GITHUB
+
+> [!CAUTION]
+> **NO AUTOMATIC COMMENTS OR REPLIES**:
+> You must **NEVER post comments or replies** on GitHub pull requests or issues
+> autonomously without explicit user instruction in chat.
+> - **No Autonomous Commenting**: Never post PR comments, inline review replies,
+>   or issue comments autonomously.
+> - **Single-Use Consent**: Approval granted by the user to post a comment or
+>   reply is strictly single-use and non-persistent; it expires immediately
+>   after being used once.
+> - **In-Thread Replies When Instructed**: When explicitly instructed by the
+>   user to respond to PR review comments, reply directly to the specific
+>   inline review comment thread.
+
 ---
 
 ## Running the Shepherd Script
@@ -264,10 +279,8 @@ When addressing review comments:
 1. Locate file and line indicated in report (`path:line`).
 2. Implement requested changes adhering to repository's style guide.
 3. Verify changes locally with tests/linters.
-4. Reply in-thread via
-   `gh api repos/<owner>/<repo>/pulls/<PR>/comments/<ID>/replies`.
-5. **Update Report**: Mark thread resolved in `shepherding_report.md` and
-   log reply.
+4. **Update Report**: Mark thread resolved in `shepherding_report.md` and
+   log resolution.
 
 ---
 
