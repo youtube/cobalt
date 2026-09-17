@@ -33,6 +33,13 @@
 
 namespace starboard {
 
+// Factory and type descriptor for pull-based AAudio sinks.
+//
+// Expected lifetime / ownership:
+// Singleton instance accessed via AaudioAudioSinkType::GetInstance().
+//
+// Threading model:
+// Methods are expected to be called on the player worker thread.
 class AaudioAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   static AaudioAudioSinkType* GetInstance();
@@ -88,6 +95,17 @@ class AaudioAudioSinkType : public SbAudioSinkPrivate::Type {
 // Audio frames are pulled directly by AAudio on its real-time OS audio thread
 // whenever the audio hardware is ready for new data, minimizing startup
 // and switch latency.
+//
+// Expected lifetime / ownership:
+// Instances are created via AaudioAudioSinkType::Create() and owned by
+// AudioRendererSinkAndroid on the player worker thread.
+//
+// Threading model:
+// - Control methods (SetVolume, SetPlaybackRate, SetStartTime, Flush, etc.)
+//   are called on the Cobalt player worker thread.
+// - Real-time audio data requests (AudioDataCallback, OnAudioData) execute on
+//   the dedicated AAudio OS callback thread. Atomic primitives are used to
+//   synchronize state without blocking the audio thread.
 class AaudioAudioSink final : public AndroidAudioSink {
  public:
   static std::unique_ptr<AaudioAudioSink> Create(
@@ -152,7 +170,6 @@ class AaudioAudioSink final : public AndroidAudioSink {
   std::atomic<float> volume_{1.0f};
   std::atomic<float> playback_rate_{1.0f};
   std::atomic_bool flush_requested_{false};
-  std::atomic_bool is_flushed_{false};
   std::atomic_bool quit_{false};
 
   const int64_t created_at_;

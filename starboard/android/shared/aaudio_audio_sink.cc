@@ -30,7 +30,6 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 
@@ -57,11 +56,6 @@ bool AaudioAudioSinkType::IsEnabled() {
   if (g_ndk_audio_pull_sink_enabled.load(std::memory_order_relaxed)) {
     return true;
   }
-#if !BUILDFLAG(IS_STARBOARD)
-  if (features::FeatureList::IsEnabled(features::kMediaNdkAudioPullSink)) {
-    return true;
-  }
-#endif
   char prop_value[PROP_VALUE_MAX] = {0};
   if (__system_property_get("debug.cobalt.audio.pull_sink", prop_value) > 0) {
     return strcmp(prop_value, "1") == 0 || strcmp(prop_value, "true") == 0;
@@ -228,8 +222,11 @@ AaudioAudioSink::AaudioAudioSink(PassKey<AaudioAudioSink>,
 
 AaudioAudioSink::~AaudioAudioSink() {
   quit_.store(true, std::memory_order_release);
+  int underruns = GetUnderrunCount();
   if (stream_) {
-    AAudio::Stream_RequestStop(stream_.get());
+    // Calling Stream_Close blocks until the AAudio callback thread has fully
+    // terminated, ensuring safe read access to the non-atomic statistics below.
+    stream_.reset();
   }
 
   int64_t avg_cb_us =
@@ -242,8 +239,7 @@ AaudioAudioSink::~AaudioAudioSink() {
   SB_LOG(INFO) << "[AudioSinkPerf] Mode: PULL (AAudio) Summary: "
                << "total_audio_frames=" << total_audio_frames_
                << ", total_silence_frames=" << total_silence_frames_
-               << ", xruns=" << GetUnderrunCount()
-               << ", callbacks=" << total_callbacks_
+               << ", xruns=" << underruns << ", callbacks=" << total_callbacks_
                << ", avg_callback_us=" << avg_cb_us << ", startup_latency_ms="
                << (first_frame_rendered_ ? startup_latency_us_ / 1000.0 : -1.0)
                << ", avg_switch_latency_ms=" << avg_switch_ms;
@@ -255,6 +251,11 @@ bool AaudioAudioSink::IsType(Type* type) {
 }
 
 void AaudioAudioSink::SetPlaybackRate(double playback_rate) {
+  // AaudioAudioSink only supports 0.0 (pause) and 1.0 (play). Variable playback
+  // rates (e.g. 0.5x, 1.25x, 2.0x) are time-stretched upstream by
+  // AudioRendererPcm using Sonic since AllowDirectPlaybackRateSetting() returns
+  // false.
+  SB_CHECK(playback_rate == 0.0 || playback_rate == 1.0);
   playback_rate_.store(static_cast<float>(playback_rate),
                        std::memory_order_relaxed);
 }
@@ -315,7 +316,6 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
   }
 
   if (flush_requested_.exchange(false, std::memory_order_acq_rel)) {
-    is_flushed_.store(true, std::memory_order_release);
     std::memset(audio_data, 0, num_frames * channels_ * sizeof(float));
     total_silence_frames_ += num_frames;
     total_callback_duration_us_ += (CurrentMonotonicTime() - cb_start);
@@ -396,17 +396,19 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
   }
 
   // Performance logging: Switch / Seek latency measurement
-  int64_t flush_time =
-      flush_requested_at_.exchange(-1, std::memory_order_acq_rel);
-  if (flush_time > 0 && frames_to_copy > 0) {
-    int64_t switch_latency_us = now - flush_time;
-    total_switch_latency_us_ += switch_latency_us;
-    ++switch_count_;
-    SB_LOG(INFO) << "[AudioSinkPerf] Mode: PULL (AAudio) Switch/Seek latency: "
-                 << (switch_latency_us / 1000.0) << " ms";
+  if (flush_requested_at_.load(std::memory_order_relaxed) > 0) {
+    int64_t flush_time =
+        flush_requested_at_.exchange(-1, std::memory_order_acq_rel);
+    if (flush_time > 0 && frames_to_copy > 0) {
+      int64_t switch_latency_us = now - flush_time;
+      total_switch_latency_us_ += switch_latency_us;
+      ++switch_count_;
+      SB_LOG(INFO)
+          << "[AudioSinkPerf] Mode: PULL (AAudio) Switch/Seek latency: "
+          << (switch_latency_us / 1000.0) << " ms";
+    }
   }
 
-  is_flushed_.store(false, std::memory_order_release);
   total_callback_duration_us_ += (CurrentMonotonicTime() - cb_start);
 
   return AAUDIO_CALLBACK_RESULT_CONTINUE;
