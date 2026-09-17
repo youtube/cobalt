@@ -31,10 +31,9 @@ skills/critic_review/
 │   ├── arbiter.md           # Conflict resolution & final consensus
 │   └── context_rule.md      # Mandatory context verification checklist
 └── resources/               # Assets, templates, and reviewer configs
-    └── reviewers/           # Reviewer personas (*.md)
-        ├── codeowners/      # Domain-specific CODEOWNERS reviewers (*.md)
+    ├── codeowners/          # Domain-specific CODEOWNERS reviewers (*.md)
+    └── reviewers/           # General reviewer personas (*.md)
         ├── adversarial-reviewer.md
-        ├── cobalt-ci-reviewer.md
         ├── kissy-reviewer.md
         └── styleguide-reviewer.md
 ```
@@ -50,7 +49,7 @@ Reviewers are discovered across the following locations (in priority order):
 2. **Workspace Project Critics**: `.agent/critics/{name}.md`
    - Repo-specific custom critics checked into the workspace.
 3. **Skill Reviewer Resources**: `SKILL_DIR/resources/reviewers/{name}.md` and
-   `SKILL_DIR/resources/reviewers/codeowners/{name}.md`
+   `SKILL_DIR/resources/codeowners/{name}.md`
 4. **Workspace / Global Agents**: `AGENTS_DIR/{name}/agent.json`,
    `AGENTS_DIR/{name}.md`, or `~/.gemini/config/agents/`
 
@@ -92,7 +91,7 @@ of the changes (e.g., styleguide, security/adversarial, minimalist/kissy, CI/Git
 - Custom user critics in `~/.gemini/critics/*.md` and `~/.gemini/critics/codeowners/*.md`
 - Workspace critics in `.agent/critics/*.md`
 - Reviewers advertised in `SKILL_DIR/resources/reviewers/*.md` and
-  `SKILL_DIR/resources/reviewers/codeowners/*.md`
+  `SKILL_DIR/resources/codeowners/*.md`
 - Custom subagents tagged with `critic-reviewer`
 
 #### Codeowner Reviewer Determination (GitHub CLI & Resolver)
@@ -114,7 +113,7 @@ The resolver strictly adheres to GitHub CODEOWNERS specifications:
 - Directory inheritance and path anchoring (`/`).
 - Multi-team co-ownership (e.g. Android TV + Media).
 - Explicit unowned and empty-owner clearing rules.
-- Maps discovered GitHub teams directly to reviewer personas in `resources/reviewers/codeowners/` and `~/.gemini/critics/`.
+- Maps discovered GitHub teams directly to reviewer personas in `resources/codeowners/` and `~/.gemini/critics/`.
 - Surfaces `unowned_files` so general reviewers (`adversarial`, `kissy`, `styleguide`) cover them without blocking on domain owners.
 
 ### 2. Context Preparation & Verification

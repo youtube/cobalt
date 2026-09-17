@@ -19,7 +19,7 @@ Specific duties:
 1. Identify the review agents involved in the review and locate their
    configuration files (e.g., `~/.gemini/critics/{agent_name}.md`,
    `SKILL_DIR/resources/reviewers/{agent_name}.md`,
-   `SKILL_DIR/resources/reviewers/codeowners/{agent_name}.md`, or
+   `SKILL_DIR/resources/codeowners/{agent_name}.md`, or
    `AGENTS_DIR/{agent_name}/agent.json`).
 2. Read the review considerations, guidelines, and checklists in the system
    prompts of the respective review agents to understand their domain criteria
