@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"

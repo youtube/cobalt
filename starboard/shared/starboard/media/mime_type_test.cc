@@ -491,7 +491,7 @@ TEST(MimeTypeTest, GetAndValidateParamWithKey) {
   EXPECT_TRUE(mime_type->ValidateFloatParameter(kMimeParamFramerate));
   EXPECT_TRUE(mime_type->ValidateIntParameter(kMimeParamBitrate));
   EXPECT_TRUE(mime_type->ValidateBoolParameter(kMimeParamDecodeToTexture));
-  EXPECT_TRUE(mime_type->ValidateBoolParameter(kMimeParamTunnelMode));
+  EXPECT_TRUE(mime_type->ValidateBoolParameter(MimeParam("tunnelmode")));
 
   EXPECT_EQ("avc1.4d4015",
             mime_type->GetParamStringValue(kMimeParamCodecs, ""));
@@ -501,7 +501,7 @@ TEST(MimeTypeTest, GetAndValidateParamWithKey) {
                   mime_type->GetParamFloatValue(kMimeParamFramerate, 0.0f));
   EXPECT_EQ(5000000, mime_type->GetParamIntValue(kMimeParamBitrate, 0));
   EXPECT_TRUE(mime_type->GetParamBoolValue(kMimeParamDecodeToTexture, false));
-  EXPECT_FALSE(mime_type->GetParamBoolValue(kMimeParamTunnelMode, true));
+  EXPECT_FALSE(mime_type->GetParamBoolValue(MimeParam("tunnelmode"), true));
 
   // Defaults for unprovided parameters
   EXPECT_EQ(2, mime_type->GetParamIntValue(kMimeParamChannels, 2));

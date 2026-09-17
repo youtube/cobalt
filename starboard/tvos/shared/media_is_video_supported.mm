@@ -24,6 +24,16 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
+namespace {
+
+#if defined(COBALT_INTERNAL_BUILD)
+// NOTE: Despite the generic name, this is NOT for general experiments.
+// It specifically gates software VP9 decoder fallback on Apple TV (tvOS).
+// See b/180431906.
+constexpr MimeParam kMimeParamExperimental{"experimental"};
+#endif  // defined(COBALT_INTERNAL_BUILD)
+
+}  // namespace
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
