@@ -21,7 +21,7 @@ import re
 import sys
 from typing import List, Optional, Sequence
 
-_VALID_FILTER_LINE = re.compile(r'^[+-]?[a-zA-Z0-9_*?][a-zA-Z0-9_*.?/:<>-]*$')
+_VALID_FILTER_LINE = re.compile(r'^-?[a-zA-Z0-9_*?][a-zA-Z0-9_*.?/:<>-]*$')
 
 
 def check_filter_file(filepath: str) -> List[str]:
@@ -39,8 +39,25 @@ def check_filter_file(filepath: str) -> List[str]:
   errors: List[str] = []
   with open(filepath, 'r', encoding='utf-8') as f:
     for line_num, raw_line in enumerate(f, start=1):
-      line = raw_line.split('#', 1)[0].strip()
-      if line and not _VALID_FILTER_LINE.match(line):
+      line = raw_line.strip()
+
+      if '#' in line:
+        code, _, _ = line.partition('#')
+        if code and not code.endswith(' '):
+          errors.append(
+              f'{filepath}:{line_num}: Comment after # must be preceded by a'
+              ' space.')
+        line = code.strip()
+
+      if line.startswith('//'):
+        errors.append(
+            f'{filepath}:{line_num}: Line starts with //, use # for comments.')
+        continue
+
+      if not line:
+        continue
+
+      if not _VALID_FILTER_LINE.match(line):
         errors.append(f'{filepath}:{line_num}: Invalid filter format "{line}".')
 
   return errors

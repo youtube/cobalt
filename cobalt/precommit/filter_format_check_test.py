@@ -53,7 +53,7 @@ class TestFilterFormatCheck(unittest.TestCase):
   def test_valid_filter_file(self):
     content = """# Header comment
 Suite.PositiveTest1
-+Suite.PositiveTest2
+Suite.PositiveTest2
 -Suite.NegativeTest3
 -All/ParameterizedTest.Case/*
 """
@@ -68,7 +68,7 @@ Suite.PositiveTest1
     path = self._create_file('invalid_comment.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Invalid filter format "// Invalid comment"', errors[0])
+    self.assertIn('Line starts with //, use # for comments.', errors[0])
 
   def test_invalid_negative_pattern(self):
     content = """-
@@ -78,13 +78,21 @@ Suite.PositiveTest1
     self.assertEqual(len(errors), 1)
     self.assertIn('Invalid filter format "-"', errors[0])
 
-  def test_invalid_positive_pattern(self):
-    content = """+
+  def test_plus_prefixed_pattern_invalid(self):
+    content = """+Suite.PositiveTest
 """
     path = self._create_file('invalid_positive.filter', content)
     errors = check_filter_file(path)
     self.assertEqual(len(errors), 1)
-    self.assertIn('Invalid filter format "+"', errors[0])
+    self.assertIn('Invalid filter format "+Suite.PositiveTest"', errors[0])
+
+  def test_comment_without_preceding_space_error(self):
+    content = """Suite.Test#comment_without_space
+"""
+    path = self._create_file('invalid_comment_space.filter', content)
+    errors = check_filter_file(path)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('Comment after # must be preceded by a space.', errors[0])
 
   def test_unrecognized_line_format(self):
     content = """@UnrecognizedPattern

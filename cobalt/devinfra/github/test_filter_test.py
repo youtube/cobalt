@@ -30,6 +30,7 @@ if _REPO_ROOT not in sys.path:
 # pylint: disable=wrong-import-position
 from cobalt.devinfra.github.test_filter import get_gtest_filter
 from cobalt.devinfra.github.test_filter import main
+from cobalt.devinfra.github.test_filter import parse_filter_file
 # pylint: enable=wrong-import-position
 
 
@@ -70,13 +71,14 @@ Suite.Test2
     self.assertEqual(
         get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1:Suite.Test2')
 
-  def test_explicit_plus_positive_filter(self):
+  def test_plus_prefixed_line_treated_as_positive_filter(self):
     content = """+Suite.Test1
 +Suite.Test2
 """
     self._write_filter_text('my_target.filter', content)
     self.assertEqual(
-        get_gtest_filter(self.temp_dir, 'my_target'), 'Suite.Test1:Suite.Test2')
+        get_gtest_filter(self.temp_dir, 'my_target'),
+        '+Suite.Test1:+Suite.Test2')
 
   def test_mixed_positive_and_negative(self):
     content = """# Run Test1 but exclude Test2
@@ -156,19 +158,43 @@ Suite.Test1
     os.makedirs(dir_path, exist_ok=True)
     self.assertEqual(get_gtest_filter(self.temp_dir, 'dir_target'), '*')
 
-  def test_unrecognized_lines_silently_ignored(self):
+  def test_all_non_negative_lines_treated_as_positive_filter(self):
     content = """
 # Valid comment
 Suite.ValidTest1
 -Suite.ValidTest2
-@InvalidPrefix.Test
-!AnotherInvalidLine
+@SpecialPrefix.Test
+!AnotherLine
 Suite.ValidTest3
 """
     self._write_filter_text('my_target.filter', content)
     self.assertEqual(
         get_gtest_filter(self.temp_dir, 'my_target'),
-        'Suite.ValidTest1:Suite.ValidTest3-Suite.ValidTest2')
+        'Suite.ValidTest1:@SpecialPrefix.Test:!AnotherLine:Suite.ValidTest3'
+        '-Suite.ValidTest2')
+
+  def test_comment_without_preceding_space_logs_warning(self):
+    content = """Suite.Test1#unintentional_comment
+Suite.Test2 #intentional_comment
+"""
+    self._write_filter_text('my_target.filter', content)
+    with self.assertLogs(level='WARNING') as cm:
+      result = get_gtest_filter(self.temp_dir, 'my_target')
+    self.assertEqual(result, 'Suite.Test1:Suite.Test2')
+    self.assertTrue(
+        any('after # is treated as a comment' in msg for msg in cm.output))
+
+  def test_parse_filter_file_direct(self):
+    content = """# Header comment
+Suite.Positive1
+-Suite.Negative1
+Suite.Positive2 # inline comment
+-Suite.Negative2
+"""
+    filepath = self._write_filter_text('direct.filter', content)
+    pos, neg = parse_filter_file(filepath)
+    self.assertEqual(pos, ['Suite.Positive1', 'Suite.Positive2'])
+    self.assertEqual(neg, ['Suite.Negative1', 'Suite.Negative2'])
 
 
 class TestCli(unittest.TestCase):

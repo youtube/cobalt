@@ -18,25 +18,22 @@ Converts buildbot .filter files into a standard gtest filter string.
 """
 
 import argparse
+import logging
 import os
-import re
 import sys
 from typing import List, Optional, Sequence, Tuple, Union
-
-_ALLOWED_TEST_CHARS = re.compile(r'^[a-zA-Z0-9_*.?/:<>-]+$')
-_ALLOWED_START_CHARS = re.compile(r'^[a-zA-Z0-9_*?]')
 
 
 def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
   """Parses a buildbot .filter file into positive and negative filter lists.
 
-  In .filter files:
+  Follows Chromium's TestLauncher::LoadFilterFile logic:
   - Empty lines and lines starting with '#' are ignored.
+  - If '#' is present and not preceded by a space (unless at start of line),
+    a warning is logged.
   - Lines starting with '//' raise a ValueError.
-  - Lines starting with '+' or bare test names with allowed characters are
-    treated as positive filters.
   - Lines starting with '-' are treated as negative (failing/excluded) filters.
-  - All other unrecognized lines are silently ignored.
+  - All other lines are treated as positive (included) filters.
 
   Args:
     filter_file: Path to the filter file.
@@ -51,39 +48,29 @@ def parse_filter_file(filter_file: str) -> Tuple[List[str], List[str]]:
   negative: List[str] = []
   with open(filter_file, 'r', encoding='utf-8') as f:
     for line_num, raw_line in enumerate(f, start=1):
-      line = raw_line.rstrip('\r\n')
-      hash_pos = line.find('#')
-      if hash_pos != -1:
-        line = line[:hash_pos]
-      trimmed = line.strip()
+      line = raw_line.strip()
+      if '#' in line:
+        code, _, _ = line.partition('#')
+        # Warn if '#' is not at the start of the line and not preceded by space.
+        if code and not code.endswith(' '):
+          logging.warning(
+              'Content of line %d in %s after # is treated as a comment, %s',
+              line_num, filter_file, line)
+        line = code.strip()
 
-      if trimmed.startswith('//'):
+      if line.startswith('//'):
         raise ValueError(
             f'Line {line_num} in {filter_file} starts with //, use # for'
             ' comments.')
 
-      # Case 1: Comment or empty line
-      if not trimmed:
+      # Treat an empty line (or comment-only line) as a comment / skip.
+      if not line:
         continue
 
-      # Case 2: Positive filter (+ or allowed test start characters)
-      elif trimmed.startswith('+'):
-        pattern = trimmed[1:].strip()
-        if _ALLOWED_TEST_CHARS.match(pattern):
-          positive.append(pattern)
-      elif _ALLOWED_START_CHARS.match(trimmed) and _ALLOWED_TEST_CHARS.match(
-          trimmed):
-        positive.append(trimmed)
-
-      # Case 3: Negative filter (-)
-      elif trimmed.startswith('-'):
-        pattern = trimmed[1:].strip()
-        if _ALLOWED_TEST_CHARS.match(pattern):
-          negative.append(pattern)
-
-      # Case 4: Everything else (silently ignored)
+      if line.startswith('-'):
+        negative.append(line[1:])
       else:
-        continue
+        positive.append(line)
 
   return positive, negative
 
