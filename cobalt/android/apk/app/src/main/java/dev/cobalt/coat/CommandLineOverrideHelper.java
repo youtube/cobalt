@@ -99,10 +99,6 @@ public final class CommandLineOverrideHelper {
     // made them so recent writes survive process termination.
     paramOverrides.add("DomStorageSmartFlushing");
 
-    // Enable memory-pressure-driven MSE SourceBuffer GC for MSE buffer
-    // reclamation under critical/moderate memory pressure.
-    paramOverrides.add("MemoryPressureBasedSourceBufferGC");
-
     return paramOverrides;
   }
 

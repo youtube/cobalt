@@ -39,6 +39,17 @@ inline constexpr char kProcessMemoryBudgetMB[] = "process-memory-budget-mb";
 // Evaluates Cobalt's own private anonymous footprint against a target
 // process memory budget (expanded dynamically by active media buffer
 // allowance). Casts MODERATE at 85% of budget and CRITICAL at 95%.
+//
+// Lifetime and Ownership:
+// Owned by memory_pressure::MultiSourceMemoryPressureMonitor via
+// SetSystemEvaluator() (which in turn is owned by CobaltBrowserMainParts).
+// Its lifetime matches that of the browser process.
+//
+// Threading Model:
+// Affine to the sequence on which it is constructed (typically the browser
+// UI/main thread). The polling timer and all internal methods execute on
+// this sequence, and the voter dispatches votes to the monitor on the same
+// sequence.
 class CobaltSystemMemoryPressureEvaluator
     : public ::memory_pressure::SystemMemoryPressureEvaluator {
  public:
