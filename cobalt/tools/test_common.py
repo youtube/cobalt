@@ -23,10 +23,7 @@ try:
       is_display_working,
       resolve_executable,
   )
-  from cobalt.tools.e2e.executable_resolver import ExecutableResolver
-  from cobalt.tools.e2e.lifecycle_controller import LifecycleController
   from cobalt.tools.e2e.linux_executable_resolver import LinuxExecutableResolver
-  from cobalt.tools.e2e.platform_display import PlatformDisplay
   from cobalt.tools.e2e.posix_signal_lifecycle_controller import (
       PosixSignalLifecycleController,)
   from cobalt.tools.e2e.x11_display import X11Display
@@ -51,11 +48,8 @@ except ImportError:
       create_lifecycle_controller, ensure_display, get_executable_resolver,
       get_platform_display, is_display_working, resolve_executable,
   )
-  from executable_resolver import ExecutableResolver  # type: ignore[no-redef]
-  from lifecycle_controller import LifecycleController  # type: ignore[no-redef]
   from linux_executable_resolver import (  # type: ignore[no-redef]
       LinuxExecutableResolver,)
-  from platform_display import PlatformDisplay  # type: ignore[no-redef]
   from posix_signal_lifecycle_controller import (  # type: ignore[no-redef]
       PosixSignalLifecycleController,)
   from simple_web_socket import SimpleWebSocket  # type: ignore[no-redef]
@@ -64,10 +58,7 @@ except ImportError:
 __all__ = [
     'CDPClient',
     'CobaltRunner',
-    'ExecutableResolver',
-    'LifecycleController',
     'LinuxExecutableResolver',
-    'PlatformDisplay',
     'PosixSignalLifecycleController',
     'SimpleWebSocket',
     'X11Display',
