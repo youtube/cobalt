@@ -105,6 +105,8 @@ extern const base::Feature kEnablePictureInPicture;
 
 // Enables native memory ablation study to verify Finch and memory metrics.
 extern const base::Feature kCobaltNativeMemoryAblation;
+// Disables the dismiss button on network error dialogs
+BASE_DECLARE_FEATURE(kDisableNetworkDialogDismissButton);
 
 // Memory ablation size to allocate in Megabytes (default: 0).
 extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;

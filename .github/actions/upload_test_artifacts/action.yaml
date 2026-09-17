@@ -41,7 +41,7 @@ runs:
 
         device_archive_flags=""
         browser_archive_flags=""
-        if [[ "${PLATFORM}" == *android* ]]; then
+        if [[ "${PLATFORM}" == *aosp* || "${PLATFORM}" == *android* ]]; then
           device_archive_flags="${android_archive_flags}"
           browser_archive_flags="${android_archive_flags}"
         elif [[ "${PLATFORM}" == *rdk* ]]; then
@@ -142,20 +142,14 @@ runs:
           --targets "${BROWSER_WEB_TEST_TARGETS}" \
           ${ARCHIVE_FLAGS}
       shell: bash
-    - name: Upload On-Host Test Artifacts Archive
-      if: inputs.upload_on_host_test_artifacts == 'true'
-      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-      with:
-        name: ${{ inputs.test_artifacts_key }}
-        path: artifacts/*
-        retention-days: 3
-    - name: Upload On-Device Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
+
+    - name: Upload Test Artifacts to GCS
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
-        WORKFLOW: ${{ github.workflow }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         UPLOAD_E2E_TEST_ARTIFACTS: ${{ inputs.upload_e2e_test_artifacts }}
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
@@ -173,5 +167,5 @@ runs:
         fi
 
         gcloud storage cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/"
       shell: bash

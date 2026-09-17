@@ -44,8 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Disable rescaling Webpage.
-    paramOverrides.add("--force-device-scale-factor=1");
     // Enable low end device mode.
     paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
@@ -66,6 +64,8 @@ public final class CommandLineOverrideHelper {
     }
     // Hide scrollbars to avoid memory allocation.
     paramOverrides.add("--hide-scrollbars");
+    // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
+    paramOverrides.add("--use-custom-android-fonts-xml");
 
     return paramOverrides;
   }
@@ -99,13 +99,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
-
-    // Reduce default thread stacks from the platform default (1MB on
-    // bionic) to 256KB. High-risk threads are carved out explicitly:
-    // the in-process renderer and GPU main threads, and all Blink
-    // NonMainThreads. Both features are needed for full coverage --
-    // Starboard threads bypass base::PlatformThread entirely.
-    paramOverrides.add("ReduceAndroidThreadStackSize");
 
     return paramOverrides;
   }

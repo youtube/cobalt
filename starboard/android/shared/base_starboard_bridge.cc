@@ -229,11 +229,12 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url) {
+                                         const std::string& url,
+                                         bool disable_dismiss_button) {
   SB_DCHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url));
+      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
@@ -293,6 +294,15 @@ SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
 SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return false;
+  }
+  return Java_BaseStarboardBridge_getWasLowMemoryKilled(
+             env, j_starboard_bridge_) == JNI_TRUE;
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {

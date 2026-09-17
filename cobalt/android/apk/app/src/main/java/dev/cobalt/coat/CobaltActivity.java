@@ -115,6 +115,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private volatile boolean mHasHiddenSplashScreen = false;
 
+  public boolean hasHiddenSplashScreen() {
+    return mHasHiddenSplashScreen;
+  }
+
   private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private long mLastRetryTimestampMs = 0L;
 
@@ -224,8 +228,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
-          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+      if (CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml")) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
@@ -717,19 +720,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     super.onDestroy();
   }
 
-  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
-    return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
-  }
-
   public void onSplashScreenHidden() {
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
-    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
-      return;
-    }
     if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
     }
@@ -760,7 +756,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       unregisterNetworkRecoveryObserver();
       return;
     }
-    if (!isAutoRetryOnNetworkRecoveryEnabled() || !NetworkChangeNotifier.isOnline()) {
+    if (!NetworkChangeNotifier.isOnline()) {
       return;
     }
     WebContents webContents = getActiveWebContents();
