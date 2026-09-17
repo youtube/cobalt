@@ -406,8 +406,8 @@ jobs:
       expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
 
-  # Builds, tags, and pushes Cobalt docker base image to ghr.
-  docker-base-image:
+  # Builds, tags, and pushes Cobalt docker build images to ghr.
+  docker-build-image:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -417,35 +417,22 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Build docker image
-        id: build-docker-image
+      - name: Build base docker image
+        if: needs.initialize.outputs.docker_service != ''
+        id: build-base-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: base
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-    outputs:
-      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
-
-  # Builds, tags, and pushes Cobalt docker build images to ghr.
-  docker-build-image:
-    needs: [initialize, docker-base-image]
-    runs-on: [self-hosted, chrobalt-linux-runner]
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
         if: needs.initialize.outputs.docker_service != ''
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: ${{ needs.initialize.outputs.docker_service }}
-          base_docker_tag: ${{ needs.docker-base-image.outputs.docker_tag }}
+          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -455,7 +442,7 @@ jobs:
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
     if: needs.initialize.outputs.test_on_host == 'true'
-    needs: [initialize, docker-base-image]
+    needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -464,12 +451,20 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Build base docker image
+        id: build-base-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: base
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
-          base_docker_tag: ${{ needs.docker-base-image.outputs.docker_tag }}
+          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -479,7 +474,7 @@ jobs:
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
     if: needs.initialize.outputs.web_tests == 'true'
-    needs: [initialize, docker-base-image]
+    needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -488,12 +483,20 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Build base docker image
+        id: build-base-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: base
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
-          base_docker_tag: ${{ needs.docker-base-image.outputs.docker_tag }}
+          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -122,10 +122,10 @@ runs:
         # Build and Push Docker Image
         set -x
         if [ -n "${BASE_DOCKER_TAG}" ]; then
-          docker pull "${BASE_DOCKER_TAG}"
+          docker image inspect "${BASE_DOCKER_TAG}" >/dev/null 2>&1 || docker pull "${BASE_DOCKER_TAG}"
           export DOCKER_COMPOSE_BASE_IMAGE="${BASE_DOCKER_TAG}"
         fi
-        docker compose build ${DOCKER_SERVICE}
+        docker compose build "${DOCKER_SERVICE}"
 
         # The compose build tags the built image with ${DOCKER_COMPOSE_IMAGE}. Add the Docker content sha and floating tag and push.
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
