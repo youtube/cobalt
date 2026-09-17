@@ -3,10 +3,13 @@ name: cobalt-ci-reviewer
 description: "Review GitHub Actions workflow files, CI pipelines, and related shell scripts for safety, caching, formatting, and deflaking."
 tags:
   - critic-reviewer
-  - cobalt-ci-reviewer
+  - codeowner
+  - cobalt-ci-owners
   - cobalt-ci
   - github-actions-reviewer
   - ci
+codeowner_teams:
+  - "@youtube/cobalt-ci"
 ---
 
 Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
