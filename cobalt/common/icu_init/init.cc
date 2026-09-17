@@ -44,15 +44,6 @@ static bool g_icu_is_initialized = false;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
 
-extern "C" bool IsTestExecutable() __attribute__((weak));
-
-inline bool IsRunningInTest() {
-  if (IsTestExecutable) {
-    return IsTestExecutable();
-  }
-  return false;
-}
-
 constexpr std::string_view kIcuDataFileName = "icudtl.dat";
 
 pthread_once_t g_initialization_once = PTHREAD_ONCE_INIT;
@@ -74,10 +65,8 @@ off_t GetIcuDataLength(const std::string& data_path) {
   struct stat st;
   int stat_result = stat(data_path.c_str(), &st);
   if (stat_result != 0 || st.st_size <= 0) {
-    SB_CHECK(stat_result != -1) << "Failed to stat ICU data " << data_path
-                                << ", error " << strerror(errno);
-    SB_CHECK(stat_result == 0 && st.st_size > 0)
-        << "ICU data file unexpectedly has zero length.";
+    SB_LOG(WARNING) << "Failed to stat ICU data " << data_path << ", error "
+                    << strerror(errno);
     return -1;
   }
   return st.st_size;
@@ -123,13 +112,6 @@ void PrintIcuNotLoadedWarning() {
 // kSbSystemPathContentDirectory folder. Note that this gives the ICU its
 // database, but it does not actually set a default timezone or locale.
 void InitializeIcuDatabase() {
-  if (IsRunningInTest()) {
-    SB_LOG(WARNING)
-        << "Bypassing ICU Database initialization for test executable.";
-    g_initialization_result = true;
-    return;
-  }
-
   std::string data_path = GetIcuDataPath();
 
   off_t length = GetIcuDataLength(data_path);

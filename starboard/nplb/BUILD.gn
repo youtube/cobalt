@@ -347,7 +347,6 @@ test("nplb") {
   }
 
   deps = [
-    "//cobalt/common/icu_init",
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
