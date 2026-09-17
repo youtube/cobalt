@@ -3,7 +3,6 @@
 -*NavigationBrowserTestDeprecateUnloadOptOut*
 -*NavigationBrowserTestPaintHoldingSubframe*
 -*NavigationBrowserTestReferrerPolicy*
--*NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest*
 -All/CobaltMemoryThresholdBrowserTest.BlankPageMemoryFootprint/*
 -CommitNavigationRaceBrowserTest*
 -DeferSpeculativeRFHCreationReuseRFHTest*
@@ -20,7 +19,6 @@
 -NavigationCorsExemptBrowserTest*
 -NavigationGoToEntryAtOffsetBrowserTest*
 -NavigationQueueingBrowserTest*
--NavigationSuddenTerminationDisablerTypeBrowserTest*
 -NavigationUrlRewriteBrowserTest*
 -NavigationWithPageSwapBrowserTest*
 -NetworkIsolationNavigationBrowserTest*

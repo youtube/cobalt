@@ -4,7 +4,6 @@
 -*NavigationBrowserTestDeprecateUnloadOptOut*
 -*NavigationBrowserTestPaintHoldingSubframe*
 -*NavigationBrowserTestReferrerPolicy*
--*NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest*
 -All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/0
 -All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/1
 -All/CobaltMemoryThresholdBrowserTest.MockYouTubeHomepageMemoryFootprint/2
@@ -24,7 +23,6 @@
 -NavigationCorsExemptBrowserTest*
 -NavigationGoToEntryAtOffsetBrowserTest*
 -NavigationQueueingBrowserTest*
--NavigationSuddenTerminationDisablerTypeBrowserTest*
 -NavigationUrlRewriteBrowserTest*
 -NavigationWithPageSwapBrowserTest*
 -NetworkIsolationNavigationBrowserTest*

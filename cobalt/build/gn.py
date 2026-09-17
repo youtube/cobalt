@@ -59,6 +59,7 @@ _CHROMIUM_PLATFORMS = [
 ]
 _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-softfp',
+    'evergreen-arm-softfp-aosp',
     'evergreen-arm64',
     'evergreen-arm-hardfp-rdk',
     'evergreen-x64',
@@ -70,7 +71,6 @@ _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
     'android-arm64',
     'android-x86',
-    'aosp-arm',
 ]
 _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64-device',
