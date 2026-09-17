@@ -40,10 +40,7 @@ runs:
         # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
         # `--end-of-options` to `git checkout`. Need to update git on runners.
         ref: 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
-<<<<<<< HEAD
-=======
         fetch_depth: 0
->>>>>>> b7e82161b94 (Revert "Remove gclient caching due to poisoned cache" and pin depot_tools  (#12717))
         path: cobalt/depot_tools
         use_cache: ${{ inputs.use_cache }}
 
