@@ -38,10 +38,10 @@ using Emitter = CobaltMemoryMetricsEmitter;
 // parser's internal line buffer, such that the split lands immediately before
 // `tail`, which is then parsed as if it began a fresh line.
 //
-// NOTE: kParserLineBudget is deliberately tied to kMaxLineLength - 1 in
+// NOTE: kParserLineBudget is deliberately tied to kMaxLineLength in
 // CalculateVirtualAddressSpaceMetricsInternal(). If that buffer size changes,
 // update this.
-constexpr size_t kParserLineBudget = 1023;
+constexpr size_t kParserLineBudget = 1024;
 
 std::string LineTruncatedBefore(const std::string& tail) {
   const std::string head = "00400000-00450000 r-xp 00000000 08:02 173521 /bin/";
@@ -132,8 +132,8 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, IgnoresBogusRecords) {
        "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
        "00500000-00460000 rw-p 00000000 00:00 0      [bogus]\n" +
            std::string(kNextVmaAfter16MbGap)},
-      // sscanf's %x accepts a leading sign, so a hyphenated fragment of a
-      // truncated path can convert to a huge wrapped value.
+      // A hyphen landing at the split point leaves an empty start field, which
+      // must not be read as address 0.
       {"signed range from truncated path",
        LineTruncatedBefore("-2b-3c") + std::string(kNextVmaAfter16MbGap)},
       {"hex-like tail from truncated path",
@@ -164,6 +164,22 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, ToleratesLongPathsWithoutHexTails) {
   ASSERT_TRUE(metrics.has_value());
   EXPECT_EQ(2u, metrics->vma_count);
   EXPECT_EQ(16u, metrics->largest_free_gap_mb);
+}
+
+// A path several times longer than the line buffer is handed to the parser as
+// a sequence of fragments. Only the first one carries the address range, so the
+// mapping must still be counted exactly once.
+TEST(CobaltVirtualAddressSpaceMetricsTest, LongLineIsCountedAsOneVma) {
+  const std::string maps =
+      "00400000-00450000 r-xp 00000000 08:02 173521 /bin/" +
+      std::string(4 * kParserLineBudget, 'x') + "\n" + kNextVmaAfter16MbGap;
+
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(maps);
+
+  ASSERT_TRUE(metrics.has_value());
+  EXPECT_EQ(2u, metrics->vma_count);
+  EXPECT_EQ(16u, metrics->largest_free_gap_mb);
+  EXPECT_EQ(16u, metrics->total_unmapped_va_mb);
 }
 
 // The kernel's gate VMA sits above the user/kernel split, so the space beneath

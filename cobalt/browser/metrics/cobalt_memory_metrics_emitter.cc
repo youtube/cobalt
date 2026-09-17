@@ -40,16 +40,14 @@
 // 32-bit platforms, where the user-space address range is limited to ~3GB and
 // allocators can abort even when physical memory is available.
 #if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
-#include <inttypes.h>
-
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/function_ref.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
 #endif
 
@@ -361,38 +359,42 @@ bool IsGateVma(std::string_view line) {
 
 // Running totals while walking /proc/self/maps.
 struct VmaWalkState {
-  uintptr_t prev_vm_end = 0;
-  uintptr_t largest_free_gap = 0;
+  uint64_t prev_vm_end = 0;
+  uint64_t largest_free_gap = 0;
   uint64_t total_unmapped_va = 0;
   size_t vma_count = 0;
   bool first_vma = true;
 };
 
-// Folds one maps line into `state`. Returns false at the gate VMA, meaning the
-// walk should stop.
-bool ConsumeMapsLine(const char* line, VmaWalkState* state) {
-  if (IsGateVma(line)) {
-    return false;
+// Folds one maps line into `state`.
+void ConsumeMapsLine(std::string_view line, VmaWalkState* state) {
+  // Every record begins with "<start>-<end> ", so the range is the text up to
+  // the first space.
+  const std::string_view range = line.substr(0, line.find(' '));
+  const size_t dash = range.find('-');
+  if (dash == std::string_view::npos) {
+    return;
   }
 
-  uintptr_t vm_start = 0;
-  uintptr_t vm_end = 0;
-  if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR, &vm_start, &vm_end) != 2) {
-    return true;
+  uint64_t vm_start = 0;
+  uint64_t vm_end = 0;
+  if (!base::HexStringToUInt64(range.substr(0, dash), &vm_start) ||
+      !base::HexStringToUInt64(range.substr(dash + 1), &vm_end)) {
+    return;
   }
 
   // The kernel always emits VMAs in ascending, non-overlapping order, so
   // anything that goes backwards is not a real maps entry.
   if (vm_end < vm_start) {
-    return true;
+    return;
   }
   if (!state->first_vma && vm_start < state->prev_vm_end) {
-    return true;
+    return;
   }
 
   state->vma_count++;
   if (!state->first_vma && vm_start > state->prev_vm_end) {
-    uintptr_t gap = vm_start - state->prev_vm_end;
+    uint64_t gap = vm_start - state->prev_vm_end;
     if (gap > state->largest_free_gap) {
       state->largest_free_gap = gap;
     }
@@ -400,7 +402,6 @@ bool ConsumeMapsLine(const char* line, VmaWalkState* state) {
   }
   state->first_vma = false;
   state->prev_vm_end = vm_end;
-  return true;
 }
 
 // `read_chunk` returns the number of bytes written into the buffer, or nullopt
@@ -412,8 +413,8 @@ CalculateVirtualAddressSpaceMetricsInternal(
   VmaWalkState state;
   bool reached_gate_vma = false;
 
-  // sscanf() needs a NUL terminator, so a line occupies at most
-  // kMaxLineLength-1 bytes and the last slot is reserved.
+  // Records longer than this are split; the remainder is parsed as if it began
+  // a fresh line, which ConsumeMapsLine() rejects.
   char line[kMaxLineLength];
   size_t line_length = 0;
   uint8_t chunk[kReadChunkSize];
@@ -425,15 +426,16 @@ CalculateVirtualAddressSpaceMetricsInternal(
     }
     for (uint8_t byte : base::span(chunk).first(*bytes_read)) {
       line[line_length++] = static_cast<char>(byte);
-      if (byte != '\n' && line_length != kMaxLineLength - 1) {
+      if (byte != '\n' && line_length != kMaxLineLength) {
         continue;
       }
-      line[line_length] = '\0';
+      const std::string_view record(line, line_length);
       line_length = 0;
-      if (!ConsumeMapsLine(line, &state)) {
+      if (IsGateVma(record)) {
         reached_gate_vma = true;
         break;
       }
+      ConsumeMapsLine(record, &state);
     }
   }
 
