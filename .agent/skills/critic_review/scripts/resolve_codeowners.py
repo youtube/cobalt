@@ -17,12 +17,46 @@ def match(path: str, pat: str) -> bool:
 
 def resolve():
   args = sys.argv[1:]
-  if args and args[0] == "--pr":
-    files = subprocess.check_output(
-        ["gh", "pr", "diff", args[1], "--name-only"], text=True).splitlines()
+  files = []
+  fmt_markdown = "--format" in args and "markdown" in args
+
+  if "--pr" in args:
+    idx = args.index("--pr")
+    if idx + 1 < len(args):
+      pr_num = args[idx + 1]
+      try:
+        res = subprocess.check_output([
+            "gh", "pr", "view",
+            str(pr_num), "--json", "files", "--jq", ".files[].path"
+        ],
+                                      text=True)
+        files = [f.strip() for f in res.splitlines() if f.strip()]
+      except (subprocess.CalledProcessError, OSError):
+        files = []
+  elif "--diff" in args:
+    try:
+      res = subprocess.check_output(["git", "diff", "--name-only", "HEAD"],
+                                    text=True)
+      files = [f.strip() for f in res.splitlines() if f.strip()]
+      if not files:
+        status_out = subprocess.check_output(["git", "status", "--porcelain"],
+                                             text=True)
+        files = [
+            line[3:].strip()
+            for line in status_out.splitlines()
+            if line.strip()
+        ]
+    except (subprocess.CalledProcessError, OSError):
+      files = []
   else:
-    files = args or subprocess.check_output(
-        ["git", "diff", "--name-only", "HEAD"], text=True).splitlines()
+    files = [a for a in args if not a.startswith("--") and a != "markdown"]
+    if not files:
+      try:
+        res = subprocess.check_output(["git", "diff", "--name-only", "HEAD"],
+                                      text=True)
+        files = [f.strip() for f in res.splitlines() if f.strip()]
+      except (subprocess.CalledProcessError, OSError):
+        files = []
 
   rules = []
   if os.path.exists(".github/CODEOWNERS"):
@@ -45,7 +79,10 @@ def resolve():
         break
 
   for r in sorted(reviewers):
-    print(r)
+    if fmt_markdown:
+      print(f"- `{r}`")
+    else:
+      print(r)
 
 
 if __name__ == "__main__":
