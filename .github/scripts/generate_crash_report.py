@@ -104,5 +104,8 @@ if __name__ == '__main__':
     if crash_info:
       args.xml_path.parent.mkdir(parents=True, exist_ok=True)
       write_junit_xml(args.xml_path, *crash_info)
+      marker_path = args.xml_path.with_suffix('.crash')
+      marker_path.write_text(
+          f'{crash_info[0]}.{crash_info[1]}\n', encoding='utf-8')
 
   main()

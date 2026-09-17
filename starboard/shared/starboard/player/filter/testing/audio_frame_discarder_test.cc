@@ -147,8 +147,9 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
 INSTANTIATE_TEST_SUITE_P(
     AudioFrameDiscarderTests,
     AudioFrameDiscarderTest,
-    ValuesIn(
-        GetSupportedAudioTestFiles(kIncludeHeaac, 6, "audiopassthrough=false")),
+    ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
+                                        /*max_channels=*/6,
+                                        kExcludePassthrough)),
     [](::testing::TestParamInfo<const char*> info) {
       std::string filename(info.param);
       std::replace(filename.begin(), filename.end(), '.', '_');

@@ -20,11 +20,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download Artifacts
-      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+    - name: Download Artifacts from GCS
+      uses: ./.github/actions/download_test_artifacts
       with:
-        name: ${{ inputs.test_artifacts_key }}
-        path: artifacts
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: cobalt_browsertests_deps.tar.zstd
+        destination_path: artifacts
 
     - name: Run Browser Tests (Linux)
       shell: bash
