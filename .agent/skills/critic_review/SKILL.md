@@ -34,6 +34,7 @@ skills/critic_review/
     └── reviewers/           # Reviewer personas (*.md)
         ├── codeowners/      # Domain-specific CODEOWNERS reviewers (*.md)
         ├── adversarial-reviewer.md
+        ├── cobalt-ci-reviewer.md
         ├── kissy-reviewer.md
         └── styleguide-reviewer.md
 ```
@@ -87,7 +88,7 @@ Evaluate `<current_state>` against the following criteria:
 
 ### 1. Group Selection
 Select 3–5 appropriate reviewers from the pool based on the scope and nature
-of the changes (e.g., styleguide, security/adversarial, minimalist/kissy, domain, or custom user critics):
+of the changes (e.g., styleguide, security/adversarial, minimalist/kissy, CI/GitHub Actions, domain, or custom user critics):
 - Custom user critics in `~/.gemini/critics/*.md` and `~/.gemini/critics/codeowners/*.md`
 - Workspace critics in `.agent/critics/*.md`
 - Reviewers advertised in `SKILL_DIR/resources/reviewers/*.md` and
