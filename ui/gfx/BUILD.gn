@@ -157,9 +157,7 @@ component("gfx") {
     "vsync_provider.cc",
     "vsync_provider.h",
   ]
-<<<<<<< HEAD
-=======
-  if (is_android) {
+if (is_android) {
     sources += [
       "android/achoreographer_compat.cc",
       "android/achoreographer_compat.h",
@@ -295,8 +293,6 @@ component("gfx") {
       "skia_paint_util.h",
     ]
   }
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   configs += [
     ":gfx_impl_define",
     "//build/config:precompiled_headers",
@@ -493,8 +489,7 @@ component("gfx") {
   }
 
   if (use_blink) {
-<<<<<<< HEAD
-    sources += [
+sources += [
       "bidi_line_iterator.cc",
       "bidi_line_iterator.h",
       "blit.cc",
@@ -531,11 +526,7 @@ component("gfx") {
     public_deps += [ "//cc/paint" ]
     deps += [ "//third_party/harfbuzz-ng" ]
 
-    if (is_android || is_fuchsia || is_ios) {
-=======
-    if (is_android || is_fuchsia || is_ios || is_cobalt_hermetic_build) {
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      sources += [
+    if (is_android || is_fuchsia || is_ios || is_cobalt_hermetic_build) {      sources += [
         "font_fallback_skia.cc",
         "font_render_params_skia.cc",
       ]
@@ -547,57 +538,6 @@ component("gfx") {
         "font_fallback_skia_impl.h",
       ]
     }
-<<<<<<< HEAD
-=======
-
-    sources += [
-      "bidi_line_iterator.cc",
-      "bidi_line_iterator.h",
-      "harfbuzz_font_skia.cc",
-      "harfbuzz_font_skia.h",
-      "paint_vector_icon.cc",
-      "paint_vector_icon.h",
-      "render_text.cc",
-      "render_text.h",
-      "render_text_harfbuzz.cc",
-      "render_text_harfbuzz.h",
-      "text_utils_skia.cc",
-    ]
-  }
-
-  # Windows.
-  if (is_win) {
-    libs = [
-      "setupapi.lib",
-      "dwmapi.lib",
-      "dwrite.lib",
-      "onecore.lib",
-    ]
-
-    all_dependent_configs = [ ":gfx_win_linker_flags" ]
-    public_deps += [ "//components/crash/core/common" ]
-  }
-
-  # Linux.
-  if (is_linux) {
-    deps += [ "//ui/linux:linux_ui" ]
-  }
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
-    deps += [ "//third_party/fontconfig" ]
-  }
-
-  if (is_apple) {
-    frameworks = [ "IOSurface.framework" ]
-    deps += [ "//ui/base:features" ]
-  }
-  if (is_mac) {
-    frameworks += [
-      "AppKit.framework",
-      "CoreFoundation.framework",
-      "CoreGraphics.framework",
-      "CoreText.framework",
-    ]
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (use_aura || toolkit_views) {

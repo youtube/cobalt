@@ -12,17 +12,13 @@
 #include "third_party/skia/include/core/SkTypeface.h"
 
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
 #include <android/api-level.h>
 
-#include "base/feature_list.h"
-=======
 #include "base/base_paths_android.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
-#include "base/path_service.h"
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "third_party/skia/include/ports/SkFontMgr_android.h"
+#include "base/path_service.h"#include "third_party/skia/include/ports/SkFontMgr_android.h"
 #include "third_party/skia/include/ports/SkFontMgr_android_ndk.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
 #include "third_party/skia/include/ports/SkFontScanner_FreeType.h"
@@ -79,21 +75,10 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   if (g_fontmgr_override) {
     return sk_ref_sp(g_fontmgr_override);
   }
-<<<<<<< HEAD
-
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(kUseAndroidNDKFontAPI) &&
-      android_get_device_api_level() > __ANDROID_API_V__) {
-    sk_sp<SkFontMgr> ndk_fontmgr =
-        SkFontMgr_New_AndroidNDK(false, SkFontScanner_Make_Fontations());
-    if (ndk_fontmgr && ndk_fontmgr->countFamilies()) {
-      return ndk_fontmgr;
-    }
-  }
-=======
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   return SkFontMgr_New_Cobalt();
-#else
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_COBALT)
   // When Cobalt custom Android fonts XML is enabled, configure Skia to use
@@ -115,8 +100,14 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
+  if (base::FeatureList::IsEnabled(kUseAndroidNDKFontAPI) &&
+      android_get_device_api_level() > __ANDROID_API_V__) {
+    sk_sp<SkFontMgr> ndk_fontmgr =
+        SkFontMgr_New_AndroidNDK(false, SkFontScanner_Make_Fontations());
+    if (ndk_fontmgr && ndk_fontmgr->countFamilies()) {
+      return ndk_fontmgr;
+    }
+  }  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);
 #elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)

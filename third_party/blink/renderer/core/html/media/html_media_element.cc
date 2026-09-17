@@ -422,8 +422,6 @@ bool IsProgressiveFormat(const ContentType& content_type) {
 // static
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interrupt Chromium's IsTypeSupported() from here for better performance.
   MIMETypeRegistry::SupportsType result;
@@ -456,10 +454,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
       base::debug::AllocateCrashKeyString("media_content_type",
                                           base::debug::CrashKeySize::Size256);
   base::debug::ScopedCrashKeyString scoped_crash_key(
-      content_type_crash_key, content_type.Raw().Utf8().c_str());
-
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  String type = content_type.GetType().DeprecatedLower();
+      content_type_crash_key, content_type.Raw().Utf8().c_str());  String type = content_type.GetType().DeprecatedLower();
   // The codecs string is not lower-cased because MP4 values are case sensitive
   // per http://tools.ietf.org/html/rfc4281#page-7.
   String type_codecs = content_type.Parameter("codecs");

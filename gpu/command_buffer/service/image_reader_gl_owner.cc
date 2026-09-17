@@ -22,13 +22,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
-<<<<<<< HEAD
-=======
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "gpu/command_buffer/service/abstract_texture_android.h"
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "gpu/config/gpu_finch_features.h"
+#include "gpu/command_buffer/service/abstract_texture_android.h"#include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gl/gl_fence_android_native_fence_sync.h"
 #include "ui/gl/gl_utils.h"

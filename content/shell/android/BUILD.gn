@@ -40,13 +40,8 @@ template("content_shell_library") {
 content_shell_library("libcontent_shell_content_view") {
   deps = [
     ":content_shell_jni_headers",
-<<<<<<< HEAD
-    "//components/crash/content/browser",
-=======
-    "//content/shell:content_shell_app",
-    "//content/shell:content_shell_lib",
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    "//content/shell:pak",
+"//content/shell:content_shell_app",
+    "//content/shell:content_shell_lib",    "//content/shell:pak",
     "//media",
     "//skia",
   ]
