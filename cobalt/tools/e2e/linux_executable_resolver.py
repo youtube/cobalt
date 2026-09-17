@@ -16,13 +16,8 @@
 import os
 from typing import List, Optional, Union
 
-try:
-  from cobalt.tools.e2e.executable_resolver import ExecutableResolver
-except ImportError:
-  from executable_resolver import ExecutableResolver  # type: ignore[no-redef]
 
-
-class LinuxExecutableResolver(ExecutableResolver):
+class LinuxExecutableResolver:
   """Resolves Linux Modular and Evergreen Cobalt executables."""
 
   def __init__(self, platform: Optional[str] = None):
