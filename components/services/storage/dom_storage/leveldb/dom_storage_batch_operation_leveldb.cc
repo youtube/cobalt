@@ -13,14 +13,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/types/pass_key.h"
-<<<<<<< HEAD:components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.cc
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
-=======
-#include "build/build_config.h"
-#include "components/services/storage/dom_storage/dom_storage_database_leveldb.h"
-#include "components/services/storage/dom_storage/dom_storage_database_leveldb_utils.h"
->>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):components/services/storage/dom_storage/dom_storage_batch_operation_leveldb.cc
 #include "storage/common/database/leveldb_status_helper.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
