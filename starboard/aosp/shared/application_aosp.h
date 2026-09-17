@@ -18,6 +18,8 @@
 #include <atomic>
 #include <cstdint>
 
+#include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/window.h"
 
@@ -38,18 +40,8 @@ namespace starboard {
 // into Starboard before this object exists and after it is gone.
 class ApplicationAOSP : public QueueApplication {
  public:
-  explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback)
-      : QueueApplication(sb_event_handle_callback) {
-    g_instance.store(this, std::memory_order_release);
-  }
-  ~ApplicationAOSP() override {
-    // Clear here instead of letting ~Application clear it because it runs only
-    // after ~QueueApplication has already destroyed the event queue. If a JNI
-    // thread would Inject() between the queue destruction and the application
-    // destruction could inject into a destroyed queue. So we destroy the
-    // application instance here to prevent it.
-    g_instance.store(nullptr, std::memory_order_release);
-  }
+  explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback);
+  ~ApplicationAOSP() override;
 
   // Returns the live application, or nullptr when there is none.
   static ApplicationAOSP* GetIfExists() {
@@ -95,6 +87,11 @@ class ApplicationAOSP : public QueueApplication {
  private:
   // The live instance, or nullptr when there is none.
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
+
+  // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
+  // with it's lifecycle management.
+  const raw_ptr<StarboardBridge> starboard_bridge_ =
+      StarboardBridge::GetInstance();
 
   // The window CreateWindow() handed out, so injected input events can name the
   // window they belong to.

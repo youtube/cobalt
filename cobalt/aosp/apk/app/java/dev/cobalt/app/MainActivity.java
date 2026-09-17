@@ -93,7 +93,9 @@ public class MainActivity extends BaseCobaltActivity {
         boolean coldStart = getStarboardBridge() == null;
         if (coldStart) {
             // Cold start - Instantiate the singleton BaseStarboardBridge.
-            BaseStarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+            BaseStarboardBridge starboardBridge =
+                    createStarboardBridge(
+                            getArgsWithDeepLink(getArgs(), startDeepLink), startDeepLink);
             ((BaseStarboardBridge.HostApplication) getApplication())
                     .setStarboardBridge(starboardBridge);
         } else if (savedInstanceState == null) {
@@ -155,6 +157,21 @@ public class MainActivity extends BaseCobaltActivity {
                 });
 
         setContentView(new VideoSurfaceView(this));
+    }
+
+    /**
+     * Returns {@code args} with a "--link=<deepLink>" entry appended when {@code deepLink} is
+     * non-empty, so Application::Run() can thread it to DeepLinkManager on startup. AOSP can't
+     * call DeepLinkManager directly here (b/492704919), so this is the cold-start path instead.
+     */
+    private static String[] getArgsWithDeepLink(String[] args, String deepLink) {
+        if (deepLink == null || deepLink.isEmpty()) {
+            return args;
+        }
+        String[] argsWithLink = new String[args.length + 1];
+        System.arraycopy(args, 0, argsWithLink, 0, args.length);
+        argsWithLink[args.length] = "--link=" + deepLink;
+        return argsWithLink;
     }
 
     @Override
