@@ -1,5 +1,0 @@
-uniform foo { out int x; };
-
-/*%%*
-modifier 'out' is not permitted on an interface block field
-*%%*/
