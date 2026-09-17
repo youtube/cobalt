@@ -13,6 +13,14 @@ namespace contextual_cueing {
 BASE_DECLARE_FEATURE(kContextualCueing);
 BASE_DECLARE_FEATURE(kGlicZeroStateSuggestions);
 
+// Whether contextual cueing is enabled.
+//
+// It is expected for downstream to use this function rather than calling
+// `base::FeatureList::IsEnabled` directly. Note that this function explicitly
+// ignores country/locale if the feature is overridden by Finch or command-line
+// override.
+bool IsContextualCueingEnabled();
+
 // Whether zero state suggestions are enabled.
 //
 // It is expected for downstream to use this function rather than calling
@@ -57,6 +65,9 @@ extern const base::FeatureParam<base::TimeDelta> kPdfPageCountCaptureDelay;
 // Whether to enable page content extraction which is needed for processing the
 // count of words client signal.
 extern const base::FeatureParam<bool> kEnablePageContentExtraction;
+
+// Whether or not to use static or dynamic cue texts based on the page.
+extern const base::FeatureParam<bool> kUseDynamicCues;
 
 // Whether to enable extraction of inner text for zero state suggestions.
 extern const base::FeatureParam<bool> kExtractInnerTextForZeroStateSuggestions;

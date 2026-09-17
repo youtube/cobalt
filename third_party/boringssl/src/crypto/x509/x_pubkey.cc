@@ -160,13 +160,13 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey) {
 }
 
 EVP_PKEY *X509_PUBKEY_get0(const X509_PUBKEY *key) {
-  if (key == NULL) {
-    return NULL;
+  if (key == nullptr) {
+    return nullptr;
   }
 
-  if (key->pkey == NULL) {
+  if (key->pkey == nullptr) {
     OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_DECODE_ERROR);
-    return NULL;
+    return nullptr;
   }
 
   return key->pkey;
@@ -174,7 +174,7 @@ EVP_PKEY *X509_PUBKEY_get0(const X509_PUBKEY *key) {
 
 EVP_PKEY *X509_PUBKEY_get(const X509_PUBKEY *key) {
   EVP_PKEY *pkey = X509_PUBKEY_get0(key);
-  if (pkey != NULL) {
+  if (pkey != nullptr) {
     EVP_PKEY_up_ref(pkey);
   }
   return pkey;
@@ -198,14 +198,14 @@ int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *obj, int param_type,
 int X509_PUBKEY_get0_param(ASN1_OBJECT **out_obj, const uint8_t **out_key,
                            int *out_key_len, X509_ALGOR **out_alg,
                            X509_PUBKEY *pub) {
-  if (out_obj != NULL) {
+  if (out_obj != nullptr) {
     *out_obj = pub->algor.algorithm;
   }
-  if (out_key != NULL) {
+  if (out_key != nullptr) {
     *out_key = pub->public_key.data;
     *out_key_len = pub->public_key.length;
   }
-  if (out_alg != NULL) {
+  if (out_alg != nullptr) {
     *out_alg = &pub->algor;
   }
   return 1;

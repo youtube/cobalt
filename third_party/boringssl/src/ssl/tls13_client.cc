@@ -524,7 +524,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_INTERNAL_ERROR);
       return ssl_hs_error;
     }
-    ssl_set_session(ssl, NULL);
+    ssl_set_session(ssl, nullptr);
 
     // Resumption incorporates fresh key material, so refresh the timeout.
     ssl_session_renew_timeout(ssl, hs->new_session.get(),
@@ -1149,7 +1149,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
   }
 
   if ((ssl->session_ctx->session_cache_mode & SSL_SESS_CACHE_CLIENT) &&
-      ssl->session_ctx->new_session_cb != NULL &&
+      ssl->session_ctx->new_session_cb != nullptr &&
       ssl->session_ctx->new_session_cb(ssl, session.get())) {
     // |new_session_cb|'s return value signals that it took ownership.
     session.release();

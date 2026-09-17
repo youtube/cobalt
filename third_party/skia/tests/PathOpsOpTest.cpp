@@ -30,8 +30,9 @@
 #include <iterator>
 
 static void path_edit(const SkPoint& from, const SkPoint& to, SkPath* path) {
-    for (int index = 0; index < path->countPoints(); ++index) {
-        if (SkDPoint::ApproximatelyEqual(path->getPoint(index), from)) {
+    SkSpan<const SkPoint> pts = path->points();
+    for (size_t index = 0; index < pts.size(); ++index) {
+        if (SkDPoint::ApproximatelyEqual(pts[index], from)) {
             // we want setPt()
             SkPathBuilder builder(*path);
             builder.setPoint(index, to);
@@ -2220,7 +2221,6 @@ static void cubicOp87u(skiatest::Reporter* reporter, const char* filename) {
     pathB.moveTo(0,2);
     pathB.cubicTo(4,6, 1,0, 2,0);
     pathB.close();
-    markTestFlakyForPathKit();
     testPathOp(reporter, path.detach(), pathB.detach(), kUnion_SkPathOp, filename);
 }
 

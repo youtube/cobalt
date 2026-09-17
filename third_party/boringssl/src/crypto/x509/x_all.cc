@@ -85,13 +85,13 @@ int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx) {
 
 int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md) {
   asn1_encoding_clear(&x->req_info->enc);
-  return ASN1_item_sign(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, NULL,
+  return ASN1_item_sign(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, nullptr,
                         x->signature, x->req_info, pkey, md);
 }
 
 int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx) {
   asn1_encoding_clear(&x->req_info->enc);
-  return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, NULL,
+  return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, nullptr,
                             x->signature, x->req_info, ctx);
 }
 
@@ -108,7 +108,7 @@ int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx) {
 }
 
 int NETSCAPE_SPKI_sign(NETSCAPE_SPKI *x, EVP_PKEY *pkey, const EVP_MD *md) {
-  return ASN1_item_sign(ASN1_ITEM_rptr(NETSCAPE_SPKAC), x->sig_algor, NULL,
+  return ASN1_item_sign(ASN1_ITEM_rptr(NETSCAPE_SPKAC), x->sig_algor, nullptr,
                         x->signature, x->spkac, pkey, md);
 }
 
@@ -157,8 +157,8 @@ int i2d_X509_REQ_bio(BIO *bp, const X509_REQ *req) {
 #define IMPLEMENT_D2I_FP(type, name, bio_func) \
   type *name(FILE *fp, type **obj) {           \
     BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);    \
-    if (bio == NULL) {                         \
-      return NULL;                             \
+    if (bio == nullptr) {                      \
+      return nullptr;                          \
     }                                          \
     type *ret = bio_func(bio, obj);            \
     BIO_free(bio);                             \
@@ -168,7 +168,7 @@ int i2d_X509_REQ_bio(BIO *bp, const X509_REQ *req) {
 #define IMPLEMENT_I2D_FP(type, name, bio_func) \
   int name(FILE *fp, const type *obj) {        \
     BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);    \
-    if (bio == NULL) {                         \
+    if (bio == nullptr) {                      \
       return 0;                                \
     }                                          \
     int ret = bio_func(bio, obj);              \
@@ -193,7 +193,7 @@ IMPLEMENT_I2D_FP(RSA, i2d_RSA_PUBKEY_fp, i2d_RSA_PUBKEY_bio)
     uint8_t *data;                                      \
     size_t len;                                         \
     if (!BIO_read_asn1(bio, &data, &len, 100 * 1024)) { \
-      return NULL;                                      \
+      return nullptr;                                   \
     }                                                   \
     const uint8_t *ptr = data;                          \
     type *ret = d2i_func(obj, &ptr, (long)len);         \
@@ -203,7 +203,7 @@ IMPLEMENT_I2D_FP(RSA, i2d_RSA_PUBKEY_fp, i2d_RSA_PUBKEY_bio)
 
 #define IMPLEMENT_I2D_BIO(type, name, i2d_func) \
   int name(BIO *bio, const type *obj) {         \
-    uint8_t *data = NULL;                       \
+    uint8_t *data = nullptr;                    \
     int len = i2d_func(obj, &data);             \
     if (len < 0) {                              \
       return 0;                                 \
@@ -256,18 +256,18 @@ int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
   if (!key) {
     return 0;
   }
-  return EVP_Digest(key->data, key->length, md, len, type, NULL);
+  return EVP_Digest(key->data, key->length, md, len, type, nullptr);
 }
 
 int X509_digest(const X509 *x509, const EVP_MD *md, uint8_t *out,
                 unsigned *out_len) {
-  uint8_t *der = NULL;
+  uint8_t *der = nullptr;
   int der_len = i2d_X509(x509, &der);
   if (der_len < 0) {
     return 0;
   }
 
-  int ret = EVP_Digest(der, der_len, out, out_len, md, NULL);
+  int ret = EVP_Digest(der, der_len, out, out_len, md, nullptr);
   OPENSSL_free(der);
   return ret;
 }

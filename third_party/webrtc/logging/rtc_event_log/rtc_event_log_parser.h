@@ -364,8 +364,10 @@ class ParsedRtcEventLog {
    public:
     LogSegment(int64_t start_time_us, int64_t stop_time_us)
         : start_time_us_(start_time_us), stop_time_us_(stop_time_us) {}
+    Timestamp start_time() const { return Timestamp::Micros(start_time_us_); }
     int64_t start_time_ms() const { return start_time_us_ / 1000; }
     int64_t start_time_us() const { return start_time_us_; }
+    Timestamp stop_time() const { return Timestamp::Micros(stop_time_us_); }
     int64_t stop_time_ms() const { return stop_time_us_ / 1000; }
     int64_t stop_time_us() const { return stop_time_us_; }
 

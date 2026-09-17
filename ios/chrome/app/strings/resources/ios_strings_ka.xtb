@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">მომხმარებლის ეს სახელი ამ საიტისთვის უკვე შეინახეთ</translation>
 <translation id="1497590942294823549">მენიუ → პაროლების მმართველი</translation>
 <translation id="1498283581832036924">თქვენი <ph name="WEBSITE" />-ის ანგარიში არ წაიშლება</translation>
+<translation id="1503814213414825943">აირჩიეთ ანგარიშები, რომელთა ექსპორტირებაც გსურთ სხვა აპში.</translation>
 <translation id="1506061864768559482">საძიებო სისტემა</translation>
 <translation id="1506063256525392513">საშუალებას გაძლევთ, გადაიღოთ და ატვირთოთ ფოტოები, ასევე, დაასკანიროთ QR კოდები</translation>
 <translation id="1508263560970797965">ინკოგნიტო რეჟიმში გაგრძელება</translation>
@@ -161,6 +162,7 @@
 <translation id="1582732959743469162">ეს ქმედება შეაჩერებს ამჟამინდელი ჩამოტვირთვის პროგრესს.</translation>
 <translation id="1594034544529347967">დასაწყისი</translation>
 <translation id="1598751033135758830">აპში გახსნა…</translation>
+<translation id="1601560923496285236">გამოყენება</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 მისამართი}other{# მისამართი}}</translation>
 <translation id="1605405588277479165">გამორთული — არ არის რეკომენდებული</translation>
 <translation id="1605658421715042784">სურათის კოპირება</translation>
@@ -778,6 +780,7 @@
 <translation id="4049507953662678203">დარწმუნდით, რომ დაკავშირებული ხართ ქსელთან და ხელახლა ცადეთ.</translation>
 <translation id="4070132839822635162">არ მსურს შესვლა</translation>
 <translation id="4092655288299341041">დახმარების ჩვენება</translation>
+<translation id="4095483462103784441">ჩანართების ახალი ჯგუფის შექმნა</translation>
 <translation id="4099756562043439968">შეხსენების დაყენება</translation>
 <translation id="4108998448622696017">აღმოაჩენს სახიფათო მოვლენებს და გაგაფრთხილებთ მათ შესახებ.</translation>
 <translation id="4111985840824673503">ყველას წაკითხულად მონიშვნა</translation>
@@ -837,7 +840,6 @@
 <translation id="4286718549648564014">მისამართი გადატანილია თქვენს ანგარიშში (<ph name="USER_EMAIL" />)</translation>
 <translation id="4287172530684295552">წაკითხულად მონიშვნა</translation>
 <translation id="428768789042547925">სიახლეები</translation>
-<translation id="428858055663163046">თქვენს ჩამოტვირთულ ფაილებზე წვდომას აქედან შეძლებთ, როცა ისინი ხელმისაწვდომი გახდება</translation>
 <translation id="429074084062258019">{count,plural, =1{ჩანართის დამატება ჯგუფში}other{ჩანართების დამატება ჯგუფში}}</translation>
 <translation id="4302061870579014542">მდებარეობის დაყენება</translation>
 <translation id="4304713468139749426">პაროლების მმართველი</translation>
@@ -1095,6 +1097,7 @@
 <translation id="5242899254250321823">პაროლის შეცვლა ვებსაიტზე</translation>
 <translation id="5248640482715684545">ეს საიტი ცდილობს, გახსნას სხვა აპლიკაცია.</translation>
 <translation id="5250371859659394278">უცნობი წყაროდან</translation>
+<translation id="5269913829202614649">მთავარი გვერდის მორგება</translation>
 <translation id="5271265092610673171">{count,plural, =1{აუცილებელი ველი ცარიელია. შეავსეთ ის შენახვამდე.}other{ზოგიერთი აუცილებელი ველი ცარიელია. შეავსეთ ისინი შენახვამდე.}}</translation>
 <translation id="5271549068863921519">პაროლის შენახვა</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) გთხოვთ, რომ შეუერთდეთ ჩანართების ჯგუფს. ყველას, ვისაც აქვს წვდომა ბმულზე, შეუძლია ნებისმიერი ჩანართის რედაქტირება, შესაბამისად გაწევრიანებისას გამოიჩინეთ სიფრთხილე. ბმულს მოქმედების ვადა ეწურება 48 საათში.</translation>
@@ -1236,6 +1239,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="5758759241456233788">Maps-ის წინასწარი ვერსიები გათიშულია. ჩართეთ კვლავ პარამეტრებიდან.</translation>
 <translation id="5759484603608560822">ჩამოტვირთვების დამალვა</translation>
 <translation id="5767099457279594162">პაროლი არ გაზიარებულა</translation>
+<translation id="5768870767339201169">გააგრძელეთ იქიდან, სადაც შეჩერდით</translation>
 <translation id="5779117921996157216">{count,plural, =1{{count} გატეხილი პაროლი გაქვთ, რაც თქვენი უსაფრთხოებისთვის რისკის შემცველია. უსაფრთხოების მიზნით, გამოასწორეთ ეს პრობლემა.}other{{count} გატეხილი პაროლი გაქვთ, რაც თქვენი უსაფრთხოებისთვის რისკის შემცველია. უსაფრთხოების მიზნით, გამოასწორეთ ეს პრობლემა.}}</translation>
 <translation id="5791632441210678828">დალაგების ღილაკი თვალმიდევნებულთა არხისთვის.</translation>
 <translation id="5803566855766646066">ნამდვილად გსურთ ამ ახალი ბარათის გაუქმება?</translation>
@@ -1454,6 +1458,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">პარამეტრები</translation>
 <translation id="6550891580932862748">არ დაგიცავთ სახიფათო ვებსაიტებისგან, ჩამოტვირთვებისა თუ გაფართოებებისგან. აღნიშნული არ აისახება თქვენ მიერ Google-ის სხვა პროდუქტებში Safe Browsing-ისთვის დაყენებულ პარამეტრებზე.</translation>
+<translation id="6556866813142980365">გამეორება</translation>
 <translation id="6559301491397835130">{count,plural, =1{სანიშნე შენახულია „{title}“-ში. ის შენახულია მხოლოდ ამ მოწყობილობაზე.}other{სანიშნეები შენახულია „{title}“-ში. ისინი შენახულია მხოლოდ ამ მოწყობილობაზე.}}</translation>
 <translation id="656065428026159829">მეტის ნახვა</translation>
 <translation id="6571070086367343653">საკრედიტო ბარათის რედაქტირება</translation>
@@ -1692,6 +1697,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7484645889979462775">არასდროს ამ ვებგვერდისთვის</translation>
 <translation id="7486006552035434095">შეინარჩუნეთ მოწყობილობები სინქრონიზებულ მდგომარეობაში</translation>
 <translation id="7491131399623468277">პარამეტრებზე გადასვლა…</translation>
+<translation id="7491161827858509164">ადრე ჩამოტვირთული ფაილების სანახავად გახსენით <ph name="BEGIN_LINK" />ფაილები<ph name="END_LINK" /></translation>
 <translation id="7498234416455752244">რედაქტირების გაგრძელება</translation>
 <translation id="7500244509706269886">ფორმის ავტომატური შევსება</translation>
 <translation id="750493650310597496">0 არჩეულია</translation>
@@ -1729,6 +1735,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7612619742409846846">Google-ში შესულია:</translation>
 <translation id="7612849887607288481">Open AI-ს პროტოტიპირების მენიუ</translation>
 <translation id="7620522820075868385">გაუქმება</translation>
+<translation id="762078666799342162">წინა ჩამოტვირთვების ნახვა შეგიძლიათ <ph name="BEGIN_LINK" />ფაილებში<ph name="END_LINK" /></translation>
 <translation id="7638584964844754484">საიდუმლო ფრაზა არასწორია</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{გატეხილი პაროლი}=1{{COUNT} გატეხილი პაროლი}other{{COUNT} გატეხილი პაროლი}}</translation>
 <translation id="7640669552036055091">ჩანართები Android-იდან</translation>
@@ -1793,6 +1800,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7851858861565204677">სხვა მოწყობილობები</translation>
 <translation id="7853202427316060426">აქტივობა</translation>
 <translation id="7854006015462979438">გახსენით „ზოგადი“</translation>
+<translation id="7855678267851972597">აუდიოები</translation>
 <translation id="7859988229622350291">არასოდეს ითარგმნოს</translation>
 <translation id="7863211248337747225">აპის ჩამოტვირთვა</translation>
 <translation id="7865127013871431856">თარგმნის ვარიანტები</translation>
@@ -1909,7 +1917,6 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8273982424131314219">ამ ინფორმაციას შეავსებთ აქ: <ph name="URL" /></translation>
 <translation id="8275068909952022340">სხვა…</translation>
 <translation id="8277328362018795342">თქვენი გვერდის კონტენტი ზიარდება უფრო შესაბამისი პასუხების მისაღებად</translation>
-<translation id="8278488584187265939">მთავარი გვერდის მორგება</translation>
 <translation id="8281781826761538115">ნაგულისხმევი — <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">გამოტოვება</translation>
 <translation id="8282657446819506217">ჩანართების ჯგუფში გახსნა</translation>
@@ -1973,6 +1980,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8524799873541103884"><ph name="INCOGNITO" /> ჩანართები <ph name="FIRST_VISIBLE_TAB" /> – <ph name="LAST_VISIBLE_TAB" />, სულ: <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">ინკოგნიტო რეჟიმში გახსენით ბმულები სხვა აპებიდან</translation>
 <translation id="8529767659511976195">ახალი</translation>
+<translation id="8531572740963685410">PDF-ები</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Safe Browsing ჩართულია</translation>
 <translation id="8534481786647257214">Google+ პოსტი დასრულებულია.</translation>
@@ -2179,6 +2187,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="945522503751344254">შეფასების გაგზავნა</translation>
 <translation id="94870150074703282">წაშლით ჯგუფს?</translation>
 <translation id="952704832371081537">გაუქმება</translation>
+<translation id="95332591904104970">დაკავშირებული აპები</translation>
 <translation id="954667170699278022">საკითხავი სია</translation>
 <translation id="956218893102219091">გამოიყენეთ ზუსტი მდებარეობა, რომ მიიღოთ Gemini-ს უზუსტესი მონაცემები, თქვენს IP მისამართზე დაფუძნებული მიახლოებითი მდებარეობის ნაცვლად. <ph name="BEGIN_LINK" />შეიტყვეთ მეტი<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">დათვალ. მონაცემების წაშლა</translation>

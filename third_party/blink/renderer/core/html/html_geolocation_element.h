@@ -40,12 +40,6 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
 
   void Trace(Visitor*) const override;
 
-  // HTMLPermissionElement:
-  void UpdateAppearance() override;
-  void UpdatePermissionStatusAndAppearance() override;
-  mojom::blink::EmbeddedPermissionRequestDescriptorPtr
-  CreateEmbeddedPermissionRequestDescriptor() override;
-
   HeapTaskRunnerTimer<HTMLGeolocationElement>& SpinningIconTimerForTesting() {
     return spinning_icon_timer_;
   }
@@ -69,13 +63,18 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
                            RequestLocationAfterClickAndPermissionChanged);
 
-  // blink::HTMLPermissionElement:
+  // HTMLPermissionElement:
+  void UpdateAppearance() override;
+  void UpdatePermissionStatusAndAppearance() override;
+  mojom::blink::EmbeddedPermissionRequestDescriptorPtr
+  CreateEmbeddedPermissionRequestDescriptor() override;
   void AttributeChanged(const AttributeModificationParams& params) override;
   void DefaultEventHandler(Event&) override;
   void OnPermissionStatusChange(mojom::blink::PermissionName,
                                 mojom::blink::PermissionStatus) override;
   void DidFinishLifecycleUpdate(const LocalFrameView&) override;
 
+  void OnActivated();
   void GetCurrentPosition();
   void WatchPosition();
   // Callback for Geolocation::getCurrentPosition. It is called when the
@@ -92,6 +91,7 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
   void ClearWatch();
   enum class ForceAutolocate { kNo, kYes };
   void MaybeTriggerAutolocate(ForceAutolocate);
+  void UpdateText();
 
   bool precise_ = false;
   bool autolocate_ = false;

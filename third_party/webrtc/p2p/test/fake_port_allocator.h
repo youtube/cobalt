@@ -149,7 +149,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   bool IsCleared() const override { return is_cleared; }
 
   void RegatherOnFailedNetworks() override {
-    SignalIceRegathering(this, IceRegatheringReason::NETWORK_FAILURE);
+    NotifyIceRegathering(this, IceRegatheringReason::NETWORK_FAILURE);
   }
 
   std::vector<PortInterface*> ReadyPorts() const override {
@@ -189,16 +189,16 @@ class FakePortAllocatorSession : public PortAllocatorSession {
     port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
     port->PrepareAddress();
     ready_ports_.push_back(port);
-    SignalPortReady(this, port);
+    NotifyPortReady(this, port);
     port->KeepAliveUntilPruned();
   }
   void OnPortComplete(Port* port) {
     const std::vector<Candidate>& candidates = port->Candidates();
     candidates_.insert(candidates_.end(), candidates.begin(), candidates.end());
-    SignalCandidatesReady(this, candidates);
+    NotifyCandidatesReady(this, candidates);
 
     allocation_done_ = true;
-    SignalCandidatesAllocationDone(this);
+    NotifyCandidatesAllocationDone(this);
   }
   void OnPortDestroyed(PortInterface* /* port */) {
     // Don't want to double-delete port if it deletes itself.

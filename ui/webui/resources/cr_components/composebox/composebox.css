@@ -10,6 +10,7 @@
  * #css_wrapper_metadata_end */
 
 :host {
+  --cr-icon-button-size: 36px;
   --input-bottom-spacing: 10px;
   --text-input-top-spacing: 10px;
   --text-input-inline-end-spacing: 80px;
@@ -97,7 +98,7 @@
   box-shadow: var(--cr-searchbox-shadow);
   font-size: var(--cr-composebox-font-size, 18px);
   transition: var(--border-radius-transition);
-  width: var(--ntp-composebox-width, 337px);
+  width: var(--cr-composebox-width, 337px);
 }
 
 :host(:not([ntp-realbox-next-enabled])) {
@@ -116,7 +117,13 @@
 }
 
 :host([ntp-realbox-next-enabled]) {
+  --cr-composebox-font-size: 16px;
   --input-bottom-spacing: 12px;
+}
+
+:host([ntp-realbox-next-enabled]) #input::placeholder {
+  font-size: 18px;
+  font-weight: 400;
 }
 
 :host([expanded_]) {
@@ -159,6 +166,10 @@
 :host([is-collapsible][expanded_]) #composebox {
   min-height: 136px;
   max-height: 254px;
+}
+
+:host([is-collapsible][expanded_][show-file-carousel_][carousel-on-top_]) #composebox {
+  min-height: calc(136px + 52px);
 }
 
 #inputContainer {
@@ -301,7 +312,7 @@
   display: none;
 }
 
-:host([expanded_][show-dropdown_]) ntp-composebox-dropdown {
+:host([expanded_][show-dropdown_]) cr-composebox-dropdown {
   padding-bottom: 8px;
 }
 
@@ -311,7 +322,7 @@
   --cr-icon-button-hover-background-color:
       var(--color-searchbox-results-background-hovered);
   --cr-icon-button-margin-end: 0;
-  --cr-icon-button-size: 40px;
+  --cr-icon-button-size: 36px;
   position: absolute;
   right: 16px;
 }
@@ -359,7 +370,7 @@
   display: none;
   opacity: 1;
   position: absolute;
-  right: 16px;
+  inset-inline-end: 16px;
   top: 6px;
 }
 
@@ -371,7 +382,7 @@
 
 :host([expanded_]) #lensIcon {
   animation: fade-out-in var(--lens-icon-animation-duration) linear;
-  right: 68px;
+  inset-inline-end: 68px;
   top: auto;
 }
 
@@ -379,24 +390,57 @@
   opacity: 0.3;
 }
 
-:host-context([dir='rtl']) #lensIcon {
-  left: 68px;
+:host(:not([show-submit_])) #submitContainer,
+:host([ntp-realbox-next-enabled]) #submitContainer,
+:host([show-submit_]:not([submit-enabled_])) #submitContainer{
+  display: none;
+}
+
+#submitContainer {
+  border-radius: 50%;
+  cursor: default; /* For Lens side panel. */
+  height: var(--cr-icon-button-size);
+  bottom: var(--input-bottom-spacing);
+  position: absolute;
+  right: 16px;
+  width: var(--cr-icon-button-size);
+}
+
+:host-context([dir='rtl']) #submitContainer {
+  left: 16px;
   right: unset;
 }
 
-:host(:not([show-submit_])) #submitContainer,
-:host([show-submit_]:not([submit-enabled_])) #submitContainer{
-  display: none;
+:host([show-submit_][submit-enabled_]:not([ntp-realbox-next-enabled])) #submitContainer {
+  cursor: pointer;
+}
+
+#submitOverlay {
+  border-radius: inherit;
+  display: inherit;
+  height: var(--cr-icon-button-size);
+  position: absolute;
+  width: var(--cr-icon-button-size);
+  z-index: 1;
+}
+
+:host([show-submit_][submit-enabled_]:not([ntp-realbox-next-enabled])) #submitContainer:hover #submitOverlay {
+  background-color: var(--color-searchbox-results-background-hovered);
 }
 
 #submitIcon {
   --cr-icon-button-fill-color: white;
   --cr-icon-button-icon-size: 16px;
   background-color: var(--color-new-tab-page-composebox-submit-button);
-  bottom: var(--input-bottom-spacing);
-  cursor: default; /* For Lens side panel. */
+  bottom: 0;
   opacity: 30%; /* For Lens side panel. */
+  right: 0;
   transition: var(--submit-enabled-transition);
+}
+
+:host-context([dir='rtl']) #submitIcon {
+  left: 0;
+  right: unset;
 }
 
 #submitIcon:focus-visible:focus {
@@ -405,8 +449,7 @@
   outline-offset: 2px;
 }
 
-:host([show-submit_][submit-enabled_]) #submitIcon {
-  cursor: pointer;
+:host([show-submit_][submit-enabled_]:not([ntp-realbox-next-enabled])) #submitIcon {
   display: block;
   opacity: 100%; /* For Lens side panel. */
 }
@@ -608,6 +651,10 @@
   transform: translate(-50%);
 }
 
+:host([expanded_][show-file-carousel_][carousel-on-top_]) #inputContainer {
+  padding-top: 52px;
+}
+
 .carousel-divider {
   border-radius: 100px;
   border-top: 1px solid
@@ -616,6 +663,14 @@
   margin-inline-start: var(--text-input-inline-start-spacing);
   margin-top: 8px;
   margin-bottom: 10px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode^="Tall"][show-dropdown_]) {
+  --expanded-border-radius: 24px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) {
+  --expanded-border-radius: 30px;
 }
 
 :host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #iconContainer {
@@ -631,17 +686,13 @@
   --text-input-top-spacing: 14px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #input {
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #input,
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #smartCompose {
   --text-input-top-spacing: 8px;
 }
 
 :host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #context {
   margin-top: -48px;
-}
-
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"])
-    #context::part(tool-chips-container) {
-  padding-top: 6px;
 }
 
 :host([expanded_][show-dropdown_][ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) ntp-composebox-dropdown {
@@ -651,4 +702,31 @@
 
 :host-context([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
   margin-top: 10px;
+}
+
+:host([realbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  --cr-icon-button-fill-color: var(--color-new-tab-page-composebox-font-light);
+  --cr-icon-button-hover-background-color: var(--color-new-tab-page-composebox-context-entrypoint-hover-background);
+  --cr-icon-button-margin-end: 0px;
+  --cr-icon-button-margin-start: 0px;
+  --cr-icon-button-size: 36px;
+  display: flex;
+  position: absolute;
+  inset-inline-end: 14px;
+}
+
+:host([realbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  bottom: 10px;
+}
+
+:host([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  top: 60px;
+}
+
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+  --cr-icon-button-icon-size: 24px;
+}
+
+:host([realbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(composebox-file-carousel) {
+  margin-top: 14px;
 }

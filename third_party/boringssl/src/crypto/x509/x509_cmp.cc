@@ -151,7 +151,7 @@ X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk,
                                      const X509_NAME *name,
                                      const ASN1_INTEGER *serial) {
   if (serial->type != V_ASN1_INTEGER && serial->type != V_ASN1_NEG_INTEGER) {
-    return NULL;
+    return nullptr;
   }
 
   for (size_t i = 0; i < sk_X509_num(sk); i++) {
@@ -161,7 +161,7 @@ X509 *X509_find_by_issuer_and_serial(const STACK_OF(X509) *sk,
       return x509;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 X509 *X509_find_by_subject(const STACK_OF(X509) *sk, const X509_NAME *name) {
@@ -171,26 +171,26 @@ X509 *X509_find_by_subject(const STACK_OF(X509) *sk, const X509_NAME *name) {
       return x509;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 EVP_PKEY *X509_get0_pubkey(const X509 *x) {
-  if (x == NULL) {
-    return NULL;
+  if (x == nullptr) {
+    return nullptr;
   }
   return X509_PUBKEY_get0(&x->key);
 }
 
 EVP_PKEY *X509_get_pubkey(const X509 *x) {
-  if (x == NULL) {
-    return NULL;
+  if (x == nullptr) {
+    return nullptr;
   }
   return X509_PUBKEY_get(&x->key);
 }
 
 ASN1_BIT_STRING *X509_get0_pubkey_bitstr(const X509 *x) {
   if (!x) {
-    return NULL;
+    return nullptr;
   }
   // This function is not const-correct for OpenSSL compatibility.
   return const_cast<ASN1_BIT_STRING*>(&x->key.public_key);
@@ -198,7 +198,7 @@ ASN1_BIT_STRING *X509_get0_pubkey_bitstr(const X509 *x) {
 
 int X509_check_private_key(const X509 *x, const EVP_PKEY *k) {
   const EVP_PKEY *xk = X509_get0_pubkey(x);
-  if (xk == NULL) {
+  if (xk == nullptr) {
     return 0;
   }
 
@@ -227,8 +227,8 @@ int X509_check_private_key(const X509 *x, const EVP_PKEY *k) {
 // each X509 structure.
 STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain) {
   STACK_OF(X509) *ret = sk_X509_dup(chain);
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
   for (size_t i = 0; i < sk_X509_num(ret); i++) {
     X509_up_ref(sk_X509_value(ret, i));

@@ -25,7 +25,6 @@ import {DataExplorer} from './data_explorer';
 import {
   DataGridDataSource,
   DataGridModel,
-  FilterDefinition,
 } from '../../../components/widgets/data_grid/common';
 import {InMemoryDataSource} from '../../../components/widgets/data_grid/in_memory_data_source';
 import {QueryResponse} from '../../../components/query_table/queries';
@@ -34,7 +33,8 @@ import {SqlSourceNode} from './nodes/sources/sql_source';
 import {QueryService} from './query_service';
 import {findErrors, findWarnings} from './query_builder_utils';
 import {NodeIssues} from './node_issues';
-import {NodeBoxLayout} from './graph/node_box';
+import {NodeContainerLayout} from './graph/node_container';
+import {UIFilter} from './operations/filter';
 
 export interface BuilderAttrs {
   readonly trace: Trace;
@@ -44,7 +44,7 @@ export interface BuilderAttrs {
 
   readonly rootNodes: QueryNode[];
   readonly selectedNode?: QueryNode;
-  readonly nodeLayouts: Map<string, NodeBoxLayout>;
+  readonly nodeLayouts: Map<string, NodeContainerLayout>;
 
   readonly onDevModeChange?: (enabled: boolean) => void;
 
@@ -55,12 +55,15 @@ export interface BuilderAttrs {
   readonly onRootNodeCreated: (node: QueryNode) => void;
   readonly onNodeSelected: (node?: QueryNode) => void;
   readonly onDeselect: () => void;
-  readonly onNodeLayoutChange: (nodeId: string, layout: NodeBoxLayout) => void;
+  readonly onNodeLayoutChange: (
+    nodeId: string,
+    layout: NodeContainerLayout,
+  ) => void;
 
   readonly onDeleteNode: (node: QueryNode) => void;
   readonly onClearAllNodes: () => void;
   readonly onDuplicateNode: (node: QueryNode) => void;
-  readonly onRemoveFilter: (node: QueryNode, filter: FilterDefinition) => void;
+  readonly onRemoveFilter: (node: QueryNode, filter: UIFilter) => void;
 
   // Import / Export JSON
   readonly onImport: () => void;
@@ -174,12 +177,7 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
           onAddOperationNode: attrs.onAddOperationNode,
           devMode: attrs.devMode,
           onDevModeChange: attrs.onDevModeChange,
-          onDeleteNode: (node: QueryNode) => {
-            if (node.isMaterialised()) {
-              trace.engine.query(`DROP TABLE IF EXISTS ${node.meterialisedAs}`);
-            }
-            attrs.onDeleteNode(node);
-          },
+          onDeleteNode: attrs.onDeleteNode,
           onImport: attrs.onImport,
           onImportWithStatement: attrs.onImportWithStatement,
           onExport: attrs.onExport,

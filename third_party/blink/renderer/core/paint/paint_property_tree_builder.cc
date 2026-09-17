@@ -57,6 +57,7 @@
 #include "third_party/blink/renderer/core/page/scrolling/sticky_position_scrolling_constraints.h"
 #include "third_party/blink/renderer/core/page/scrolling/top_document_root_scroller_controller.h"
 #include "third_party/blink/renderer/core/paint/border_shape_painter.h"
+#include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
 #include "third_party/blink/renderer/core/paint/compositing/compositing_reason_finder.h"
 #include "third_party/blink/renderer/core/paint/contoured_border_geometry.h"
@@ -303,6 +304,10 @@ class FragmentPaintPropertyTreeBuilder {
   ALWAYS_INLINE TransformPaintPropertyNode::TransformAndOrigin
   TransformAndOriginForSVGChild() const;
   ALWAYS_INLINE void UpdateLayoutShiftRootChanged(bool is_layout_shift_root);
+
+  ALWAYS_INLINE void PopulateBackdropFilterIfNeeded(
+      EffectPaintPropertyNode::State& state,
+      CompositorElementId mask_compositor_element_id) const;
 
   bool NeedsPaintPropertyUpdate() const {
     return object_.NeedsPaintPropertyUpdate() ||
@@ -1793,19 +1798,9 @@ FragmentPaintPropertyTreeBuilder::ParentForViewTransitionPseudoEffect() const {
     }
   }
 
-  DCHECK(!scope.IsDocumentElement());
-  auto* scope_properties =
-      scope.GetLayoutObject()->FirstFragment().PaintProperties();
-  if (!scope_properties) {
-    return context_.current_effect;
-  }
-
-  // Make the effect node for the ::view-transition pseudo-element a sibling of
-  // the ViewTransitionEffect for the scope element. The ViewTransitionEffect is
-  // guaranteed to exist (see ViewTransition::NeedsViewTransitionEffectNode).
-  auto* scope_vt_effect = scope_properties->ViewTransitionEffect();
-  CHECK(scope_vt_effect && scope_vt_effect->Parent());
-  return scope_vt_effect->Parent();
+  // The layout object for a ::view-transition pseudo is a sibling of the
+  // originating element's layout object.
+  return context_.current_effect;
 }
 
 void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
@@ -1852,18 +1847,19 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
       if (object_.IsBlendingAllowed()) {
         state.blend_mode = ToSkBlendMode(style.GetBlendMode());
       }
-      if (object_.IsBoxModelObject()) {
-        if (auto* layer = To<LayoutBoxModelObject>(object_).Layer()) {
-          CompositorFilterOperations operations;
-          SkPath bounds;
-          layer->UpdateCompositorFilterOperationsForBackdropFilter(operations,
-                                                                   bounds);
-          if (!operations.IsEmpty()) {
-            state.backdrop_filter_info = base::WrapUnique(
-                new EffectPaintPropertyNode::BackdropFilterInfo{
-                    std::move(operations), bounds, mask_compositor_element_id});
-          }
-        }
+
+      // If the parent is a view transition effect node during a capturing
+      // phase, then the backdrop filter would have been lifted up. Only apply
+      // backdrop in other cases.
+      auto* transition =
+          ViewTransitionUtils::TransitionForTaggedElement(object_);
+      if (!RuntimeEnabledFeatures::
+              ViewTransitionHoistBackdropFilterEffectEnabled() ||
+          !transition || !transition->IsCapturing() ||
+          !context_.current_effect->Unalias()
+               .ViewTransitionElementResourceId()
+               .IsValid()) {
+        PopulateBackdropFilterIfNeeded(state, mask_compositor_element_id);
       }
 
       state.needs_effect_for_2d_scale_transform =
@@ -2029,6 +2025,13 @@ void FragmentPaintPropertyTreeBuilder::UpdateViewTransitionScopeRootEffect() {
       if (const auto& layer = transition->GetScopeSnapshotLayer()) {
         state.view_transition_element_resource_id =
             layer->ViewTransitionResourceId();
+        // TODO(vmpstr): This may not be necessary for subframe layers.
+        if (RuntimeEnabledFeatures::
+                ViewTransitionHoistBackdropFilterEffectEnabled() &&
+            transition->IsCapturing()) {
+          PopulateBackdropFilterIfNeeded(
+              state, /*mask_compositor_element_id=*/CompositorElementId());
+        }
       }
       auto change_type = properties_->UpdateViewTransitionScopeRootEffect(
           *context_.current_effect, std::move(state), {});
@@ -2081,6 +2084,15 @@ void FragmentPaintPropertyTreeBuilder::UpdateViewTransitionEffect() {
           CompositorElementIdNamespace::kViewTransitionElement);
       state.view_transition_element_resource_id =
           transition->GetSnapshotId(object_);
+
+      CompositorFilterOperations operations;
+      SkPath bounds;
+      if (RuntimeEnabledFeatures::
+              ViewTransitionHoistBackdropFilterEffectEnabled() &&
+          transition->IsCapturing()) {
+        PopulateBackdropFilterIfNeeded(
+            state, /*mask_compositor_element_id=*/CompositorElementId());
+      }
 
       // The value isn't set on the root, since clipping rules are different for
       // the root view transition element.
@@ -2738,8 +2750,12 @@ void FragmentPaintPropertyTreeBuilder::UpdateInnerBorderShapeClip() {
     if (NeedsInnerBorderShapeClip(object_)) {
       const auto& box = To<LayoutBox>(object_);
       PhysicalRect box_rect(context_.current.paint_offset, box.StitchedSize());
+      std::optional<BorderShapeReferenceRects> border_shape_rects =
+          ComputeBorderShapeReferenceRects(box_rect, box.StyleRef(), box);
+      const PhysicalRect inner_reference_rect =
+          border_shape_rects ? border_shape_rects->inner : box_rect;
       const Path inner_path =
-          *BorderShapePainter::InnerPath(box_rect, box.StyleRef());
+          *BorderShapePainter::InnerPath(box.StyleRef(), inner_reference_rect);
       gfx::RectF layout_clip_rect(box_rect);
       PhysicalOffset offset = -OffsetInStitchedFragments(BoxFragment());
       layout_clip_rect.Offset(gfx::Vector2dF(offset));
@@ -3678,6 +3694,24 @@ void FragmentPaintPropertyTreeBuilder::UpdateLayoutShiftRootChanged(
     context_.current.layout_shift_root_changed = true;
   } else if (is_layout_shift_root && full_context_.was_layout_shift_root) {
     context_.current.layout_shift_root_changed = false;
+  }
+}
+
+void FragmentPaintPropertyTreeBuilder::PopulateBackdropFilterIfNeeded(
+    EffectPaintPropertyNode::State& state,
+    CompositorElementId mask_compositor_element_id) const {
+  CompositorFilterOperations operations;
+  SkPath bounds;
+  if (object_.IsBoxModelObject()) {
+    if (auto* layer = To<LayoutBoxModelObject>(object_).Layer()) {
+      layer->UpdateCompositorFilterOperationsForBackdropFilter(operations,
+                                                               bounds);
+    }
+  }
+  if (!operations.IsEmpty()) {
+    state.backdrop_filter_info =
+        base::WrapUnique(new EffectPaintPropertyNode::BackdropFilterInfo{
+            std::move(operations), bounds, mask_compositor_element_id});
   }
 }
 

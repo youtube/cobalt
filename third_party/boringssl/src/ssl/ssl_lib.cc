@@ -179,7 +179,7 @@ static bool cbb_add_hex_consttime(CBB *cbb, Span<const uint8_t> in) {
 
 bool ssl_log_secret(const SSL *ssl, const char *label,
                     Span<const uint8_t> secret) {
-  if (ssl->ctx->keylog_callback == NULL) {
+  if (ssl->ctx->keylog_callback == nullptr) {
     return true;
   }
 
@@ -205,21 +205,21 @@ bool ssl_log_secret(const SSL *ssl, const char *label,
 }
 
 void ssl_do_info_callback(const SSL *ssl, int type, int value) {
-  void (*cb)(const SSL *ssl, int type, int value) = NULL;
-  if (ssl->info_callback != NULL) {
+  void (*cb)(const SSL *ssl, int type, int value) = nullptr;
+  if (ssl->info_callback != nullptr) {
     cb = ssl->info_callback;
-  } else if (ssl->ctx->info_callback != NULL) {
+  } else if (ssl->ctx->info_callback != nullptr) {
     cb = ssl->ctx->info_callback;
   }
 
-  if (cb != NULL) {
+  if (cb != nullptr) {
     cb(ssl, type, value);
   }
 }
 
 void ssl_do_msg_callback(const SSL *ssl, int is_write, int content_type,
                          Span<const uint8_t> in) {
-  if (ssl->msg_callback == NULL) {
+  if (ssl->msg_callback == nullptr) {
     return;
   }
 
@@ -243,7 +243,7 @@ void ssl_do_msg_callback(const SSL *ssl, int is_write, int content_type,
 }
 
 OPENSSL_timeval ssl_ctx_get_current_time(const SSL_CTX *ctx) {
-  if (ctx->current_time_cb != NULL) {
+  if (ctx->current_time_cb != nullptr) {
     // TODO(davidben): Update current_time_cb to use OPENSSL_timeval. See
     // https://crbug.com/boringssl/155.
     struct timeval clock;
@@ -269,7 +269,7 @@ OPENSSL_timeval ssl_ctx_get_current_time(const SSL_CTX *ctx) {
   }
 #else
   struct timeval clock;
-  gettimeofday(&clock, NULL);
+  gettimeofday(&clock, nullptr);
   if (clock.tv_sec < 0) {
     assert(0);
     return {0, 0};
@@ -422,7 +422,7 @@ ssl_ctx_st::~ssl_ctx_st() {
 }
 
 SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
-  if (method == NULL) {
+  if (method == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_NULL_SSL_METHOD_PASSED);
     return nullptr;
   }
@@ -493,7 +493,7 @@ ssl_st::~ssl_st() {
   CRYPTO_free_ex_data(&g_ex_data_class_ssl, &ex_data);
   // |config| refers to |this|, so we must release it earlier.
   config.reset();
-  if (method != NULL) {
+  if (method != nullptr) {
     method->ssl_free(this);
   }
 }
@@ -623,7 +623,7 @@ void SSL_set_bio(SSL *ssl, BIO *rbio, BIO *wbio) {
 
   // If the two arguments are equal, one fewer reference is granted than
   // taken.
-  if (rbio != NULL && rbio == wbio) {
+  if (rbio != nullptr && rbio == wbio) {
     BIO_up_ref(rbio);
   }
 
@@ -723,7 +723,7 @@ int SSL_provide_quic_data(SSL *ssl, enum ssl_encryption_level_t level,
 int SSL_do_handshake(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_CONNECTION_TYPE_NOT_SET);
     return -1;
   }
@@ -753,7 +753,7 @@ int SSL_do_handshake(SSL *ssl) {
 }
 
 int SSL_connect(SSL *ssl) {
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     // Not properly initialized yet
     SSL_set_connect_state(ssl);
   }
@@ -762,7 +762,7 @@ int SSL_connect(SSL *ssl) {
 }
 
 int SSL_accept(SSL *ssl) {
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     // Not properly initialized yet
     SSL_set_accept_state(ssl);
   }
@@ -836,7 +836,7 @@ int SSL_process_quic_post_handshake(SSL *ssl) {
 static int ssl_read_impl(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
     return -1;
   }
@@ -954,7 +954,7 @@ int SSL_write(SSL *ssl, const void *buf, int num) {
     return -1;
   }
 
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
     return -1;
   }
@@ -989,7 +989,7 @@ int SSL_write(SSL *ssl, const void *buf, int num) {
 int SSL_key_update(SSL *ssl, int request_type) {
   ssl_reset_error_state(ssl);
 
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
     return 0;
   }
@@ -1015,7 +1015,7 @@ int SSL_key_update(SSL *ssl, int request_type) {
 int SSL_shutdown(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
-  if (ssl->do_handshake == NULL) {
+  if (ssl->do_handshake == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
     return -1;
   }
@@ -1118,7 +1118,7 @@ void SSL_set_early_data_enabled(SSL *ssl, int enabled) {
 }
 
 int SSL_in_early_data(const SSL *ssl) {
-  if (ssl->s3->hs == NULL) {
+  if (ssl->s3->hs == nullptr) {
     return 0;
   }
   return ssl->s3->hs->in_early_data;
@@ -1130,7 +1130,7 @@ int SSL_early_data_accepted(const SSL *ssl) {
 
 void SSL_reset_early_data_reject(SSL *ssl) {
   SSL_HANDSHAKE *hs = ssl->s3->hs.get();
-  if (hs == NULL ||  //
+  if (hs == nullptr ||  //
       hs->wait != ssl_hs_early_data_rejected) {
     abort();
   }
@@ -1391,7 +1391,7 @@ int SSL_get_tls_unique(const SSL *ssl, uint8_t *out, size_t *out_len,
   // is the client's in a full handshake and the server's for a resumption. See
   // https://tools.ietf.org/html/rfc5929#section-3.1.
   Span<const uint8_t> finished = ssl->s3->previous_client_finished;
-  if (ssl->session != NULL) {
+  if (ssl->session != nullptr) {
     // tls-unique is broken for resumed sessions unless EMS is used.
     if (!ssl->session->extended_master_secret) {
       return 0;
@@ -1435,7 +1435,7 @@ const uint8_t *SSL_get0_session_id_context(const SSL *ssl, size_t *out_len) {
   if (!ssl->config) {
     assert(ssl->config);
     *out_len = 0;
-    return NULL;
+    return nullptr;
   }
   *out_len = ssl->config->cert->sid_ctx.size();
   return ssl->config->cert->sid_ctx.data();
@@ -1446,7 +1446,7 @@ int SSL_get_fd(const SSL *ssl) { return SSL_get_rfd(ssl); }
 int SSL_get_rfd(const SSL *ssl) {
   int ret = -1;
   BIO *b = BIO_find_type(SSL_get_rbio(ssl), BIO_TYPE_DESCRIPTOR);
-  if (b != NULL) {
+  if (b != nullptr) {
     BIO_get_fd(b, &ret);
   }
   return ret;
@@ -1455,7 +1455,7 @@ int SSL_get_rfd(const SSL *ssl) {
 int SSL_get_wfd(const SSL *ssl) {
   int ret = -1;
   BIO *b = BIO_find_type(SSL_get_wbio(ssl), BIO_TYPE_DESCRIPTOR);
-  if (b != NULL) {
+  if (b != nullptr) {
     BIO_get_fd(b, &ret);
   }
   return ret;
@@ -1464,7 +1464,7 @@ int SSL_get_wfd(const SSL *ssl) {
 #if !defined(OPENSSL_NO_SOCK)
 int SSL_set_fd(SSL *ssl, int fd) {
   BIO *bio = BIO_new(BIO_s_socket());
-  if (bio == NULL) {
+  if (bio == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
@@ -1475,10 +1475,10 @@ int SSL_set_fd(SSL *ssl, int fd) {
 
 int SSL_set_wfd(SSL *ssl, int fd) {
   BIO *rbio = SSL_get_rbio(ssl);
-  if (rbio == NULL || BIO_method_type(rbio) != BIO_TYPE_SOCKET ||
-      BIO_get_fd(rbio, NULL) != fd) {
+  if (rbio == nullptr || BIO_method_type(rbio) != BIO_TYPE_SOCKET ||
+      BIO_get_fd(rbio, nullptr) != fd) {
     BIO *bio = BIO_new(BIO_s_socket());
-    if (bio == NULL) {
+    if (bio == nullptr) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
       return 0;
     }
@@ -1495,10 +1495,10 @@ int SSL_set_wfd(SSL *ssl, int fd) {
 
 int SSL_set_rfd(SSL *ssl, int fd) {
   BIO *wbio = SSL_get_wbio(ssl);
-  if (wbio == NULL || BIO_method_type(wbio) != BIO_TYPE_SOCKET ||
-      BIO_get_fd(wbio, NULL) != fd) {
+  if (wbio == nullptr || BIO_method_type(wbio) != BIO_TYPE_SOCKET ||
+      BIO_get_fd(wbio, nullptr) != fd) {
     BIO *bio = BIO_new(BIO_s_socket());
-    if (bio == NULL) {
+    if (bio == nullptr) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
       return 0;
     }
@@ -1566,12 +1566,12 @@ int SSL_get_extms_support(const SSL *ssl) {
   }
 
   // If the initial handshake completed, query the established session.
-  if (ssl->s3->established_session != NULL) {
+  if (ssl->s3->established_session != nullptr) {
     return ssl->s3->established_session->extended_master_secret;
   }
 
   // Otherwise, query the in-progress handshake.
-  if (ssl->s3->hs != NULL) {
+  if (ssl->s3->hs != nullptr) {
     return ssl->s3->hs->extended_master_secret;
   }
   assert(0);
@@ -1765,7 +1765,7 @@ int SSL_CTX_get_session_cache_mode(const SSL_CTX *ctx) {
 
 
 int SSL_CTX_get_tlsext_ticket_keys(SSL_CTX *ctx, void *out, size_t len) {
-  if (out == NULL) {
+  if (out == nullptr) {
     return 48;
   }
   if (len != 48) {
@@ -1788,7 +1788,7 @@ int SSL_CTX_get_tlsext_ticket_keys(SSL_CTX *ctx, void *out, size_t len) {
 }
 
 int SSL_CTX_set_tlsext_ticket_keys(SSL_CTX *ctx, const void *in, size_t len) {
-  if (in == NULL) {
+  if (in == nullptr) {
     return 48;
   }
   if (len != 48) {
@@ -1999,7 +1999,7 @@ int SSL_set1_groups_list(SSL *ssl, const char *groups) {
 
 uint16_t SSL_get_group_id(const SSL *ssl) {
   SSL_SESSION *session = SSL_get_session(ssl);
-  if (session == NULL) {
+  if (session == nullptr) {
     return 0;
   }
 
@@ -2057,12 +2057,12 @@ int SSL_CTX_cipher_in_group(const SSL_CTX *ctx, size_t i) {
 }
 
 STACK_OF(SSL_CIPHER) *SSL_get_ciphers(const SSL *ssl) {
-  if (ssl == NULL) {
-    return NULL;
+  if (ssl == nullptr) {
+    return nullptr;
   }
-  if (ssl->config == NULL) {
+  if (ssl->config == nullptr) {
     assert(ssl->config);
-    return NULL;
+    return nullptr;
   }
 
   return ssl->config->cipher_list ? ssl->config->cipher_list->ciphers.get()
@@ -2070,18 +2070,18 @@ STACK_OF(SSL_CIPHER) *SSL_get_ciphers(const SSL *ssl) {
 }
 
 const char *SSL_get_cipher_list(const SSL *ssl, int n) {
-  if (ssl == NULL) {
-    return NULL;
+  if (ssl == nullptr) {
+    return nullptr;
   }
 
   STACK_OF(SSL_CIPHER) *sk = SSL_get_ciphers(ssl);
-  if (sk == NULL || n < 0 || (size_t)n >= sk_SSL_CIPHER_num(sk)) {
-    return NULL;
+  if (sk == nullptr || n < 0 || (size_t)n >= sk_SSL_CIPHER_num(sk)) {
+    return nullptr;
   }
 
   const SSL_CIPHER *c = sk_SSL_CIPHER_value(sk, n);
-  if (c == NULL) {
-    return NULL;
+  if (c == nullptr) {
+    return nullptr;
   }
 
   return c->name;
@@ -2125,7 +2125,7 @@ int SSL_set_strict_cipher_list(SSL *ssl, const char *str) {
 
 const char *SSL_get_servername(const SSL *ssl, const int type) {
   if (type != TLSEXT_NAMETYPE_host_name) {
-    return NULL;
+    return nullptr;
   }
 
   // Historically, |SSL_get_servername| was also the configuration getter
@@ -2138,7 +2138,7 @@ const char *SSL_get_servername(const SSL *ssl, const int type) {
 }
 
 int SSL_get_servername_type(const SSL *ssl) {
-  if (SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name) == NULL) {
+  if (SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name) == nullptr) {
     return -1;
   }
   return TLSEXT_NAMETYPE_host_name;
@@ -2188,7 +2188,7 @@ void SSL_get0_signed_cert_timestamp_list(const SSL *ssl, const uint8_t **out,
   SSL_SESSION *session = SSL_get_session(ssl);
   if (ssl->server || !session || !session->signed_cert_timestamp_list) {
     *out_len = 0;
-    *out = NULL;
+    *out = nullptr;
     return;
   }
 
@@ -2201,7 +2201,7 @@ void SSL_get0_ocsp_response(const SSL *ssl, const uint8_t **out,
   SSL_SESSION *session = SSL_get_session(ssl);
   if (ssl->server || !session || !session->ocsp_response) {
     *out_len = 0;
-    *out = NULL;
+    *out = nullptr;
     return;
   }
 
@@ -2520,9 +2520,9 @@ int SSL_session_reused(const SSL *ssl) {
   return ssl->s3->session_reused || SSL_in_early_data(ssl);
 }
 
-const COMP_METHOD *SSL_get_current_compression(SSL *ssl) { return NULL; }
+const COMP_METHOD *SSL_get_current_compression(SSL *ssl) { return nullptr; }
 
-const COMP_METHOD *SSL_get_current_expansion(SSL *ssl) { return NULL; }
+const COMP_METHOD *SSL_get_current_expansion(SSL *ssl) { return nullptr; }
 
 int SSL_get_server_tmp_key(SSL *ssl, EVP_PKEY **out_key) { return 0; }
 
@@ -2574,7 +2574,7 @@ SSL_CTX *SSL_get_SSL_CTX(const SSL *ssl) { return ssl->ctx.get(); }
 
 SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx) {
   if (!ssl->config) {
-    return NULL;
+    return nullptr;
   }
   if (ssl->ctx.get() == ctx) {
     return ssl->ctx.get();
@@ -2583,7 +2583,7 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx) {
   // One cannot change the X.509 callbacks during a connection.
   if (ssl->ctx->x509_method != ctx->x509_method) {
     assert(0);
-    return NULL;
+    return nullptr;
   }
 
   UniquePtr<CERT> new_cert = ssl_cert_dup(ctx->cert.get());
@@ -2616,7 +2616,7 @@ void SSL_set_state(SSL *ssl, int state) {}
 
 char *SSL_get_shared_ciphers(const SSL *ssl, char *buf, int len) {
   if (len <= 0) {
-    return NULL;
+    return nullptr;
   }
   buf[0] = '\0';
   return buf;
@@ -2696,7 +2696,8 @@ void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*cb)(SSL *ssl, int is_export,
 
 static int use_psk_identity_hint(UniquePtr<char> *out,
                                  const char *identity_hint) {
-  if (identity_hint != NULL && strlen(identity_hint) > PSK_MAX_IDENTITY_LEN) {
+  if (identity_hint != nullptr &&
+      strlen(identity_hint) > PSK_MAX_IDENTITY_LEN) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_DATA_LENGTH_TOO_LONG);
     return 0;
   }
@@ -2708,7 +2709,7 @@ static int use_psk_identity_hint(UniquePtr<char> *out,
   // send either no hint (omit ServerKeyExchange) or an empty hint, while
   // ECDHE_PSK can only spell empty hint. Having different capabilities is odd,
   // so we interpret empty and missing as identical.
-  if (identity_hint != NULL && identity_hint[0] != '\0') {
+  if (identity_hint != nullptr && identity_hint[0] != '\0') {
     out->reset(OPENSSL_strdup(identity_hint));
     if (*out == nullptr) {
       return 0;
@@ -2730,23 +2731,23 @@ int SSL_use_psk_identity_hint(SSL *ssl, const char *identity_hint) {
 }
 
 const char *SSL_get_psk_identity_hint(const SSL *ssl) {
-  if (ssl == NULL) {
-    return NULL;
+  if (ssl == nullptr) {
+    return nullptr;
   }
-  if (ssl->config == NULL) {
+  if (ssl->config == nullptr) {
     assert(ssl->config);
-    return NULL;
+    return nullptr;
   }
   return ssl->config->psk_identity_hint.get();
 }
 
 const char *SSL_get_psk_identity(const SSL *ssl) {
-  if (ssl == NULL) {
-    return NULL;
+  if (ssl == nullptr) {
+    return nullptr;
   }
   SSL_SESSION *session = SSL_get_session(ssl);
-  if (session == NULL) {
-    return NULL;
+  if (session == nullptr) {
+    return nullptr;
   }
   return session->psk_identity.get();
 }
@@ -2844,7 +2845,7 @@ int SSL_in_init(const SSL *ssl) {
 }
 
 int SSL_in_false_start(const SSL *ssl) {
-  if (ssl->s3->hs == NULL) {
+  if (ssl->s3->hs == nullptr) {
     return 0;
   }
   return ssl->s3->hs->in_false_start;
@@ -3040,7 +3041,7 @@ int SSL_get_dtls_write_traffic_secret(const SSL *ssl, const uint8_t **out_data,
 
 uint16_t SSL_get_peer_signature_algorithm(const SSL *ssl) {
   SSL_SESSION *session = SSL_get_session(ssl);
-  if (session == NULL) {
+  if (session == nullptr) {
     return 0;
   }
 
@@ -3071,8 +3072,8 @@ size_t SSL_get_server_random(const SSL *ssl, uint8_t *out, size_t max_out) {
 
 const SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl) {
   SSL_HANDSHAKE *hs = ssl->s3->hs.get();
-  if (hs == NULL) {
-    return NULL;
+  if (hs == nullptr) {
+    return nullptr;
   }
   return hs->new_cipher;
 }
@@ -3145,7 +3146,7 @@ int SSL_clear(SSL *ssl) {
   // established session to be offered the next time around. wpa_supplicant
   // depends on this behavior, so emulate it.
   UniquePtr<SSL_SESSION> session;
-  if (!ssl->server && ssl->s3->established_session != NULL) {
+  if (!ssl->server && ssl->s3->established_session != nullptr) {
     session = UpRef(ssl->s3->established_session);
   }
 
@@ -3154,7 +3155,7 @@ int SSL_clear(SSL *ssl) {
   //
   // TODO(davidben): Avoid this.
   unsigned mtu = 0;
-  if (ssl->d1 != NULL) {
+  if (ssl->d1 != nullptr) {
     mtu = ssl->d1->mtu;
   }
 
@@ -3199,7 +3200,7 @@ void SSL_load_error_strings(void) {}
 int SSL_cache_hit(SSL *ssl) { return SSL_session_reused(ssl); }
 
 int SSL_CTX_set_tmp_ecdh(SSL_CTX *ctx, const EC_KEY *ec_key) {
-  if (ec_key == NULL || EC_KEY_get0_group(ec_key) == NULL) {
+  if (ec_key == nullptr || EC_KEY_get0_group(ec_key) == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
@@ -3208,7 +3209,7 @@ int SSL_CTX_set_tmp_ecdh(SSL_CTX *ctx, const EC_KEY *ec_key) {
 }
 
 int SSL_set_tmp_ecdh(SSL *ssl, const EC_KEY *ec_key) {
-  if (ec_key == NULL || EC_KEY_get0_group(ec_key) == NULL) {
+  if (ec_key == nullptr || EC_KEY_get0_group(ec_key) == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }

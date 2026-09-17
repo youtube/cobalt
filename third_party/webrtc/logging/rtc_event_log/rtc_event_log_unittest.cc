@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -21,8 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "api/environment/environment_factory.h"
-#include "api/field_trials_view.h"
+#include "absl/strings/string_view.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -59,10 +57,13 @@
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
-#include "test/create_test_field_trials.h"
+#include "system_wrappers/include/clock.h"
+#include "test/create_test_environment.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/logging/log_writer.h"
 #include "test/logging/memory_log_writer.h"
+#include "test/near_matcher.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
@@ -113,16 +114,15 @@ struct EventCounts {
   }
 };
 
-std::unique_ptr<FieldTrialsView> CreateFieldTrialsFor(
-    RtcEventLog::EncodingType encoding_type) {
+absl::string_view FieldTrialsFor(RtcEventLog::EncodingType encoding_type) {
   switch (encoding_type) {
     case RtcEventLog::EncodingType::Legacy:
-      return CreateTestFieldTrialsPtr("WebRTC-RtcEventLogNewFormat/Disabled/");
+      return "WebRTC-RtcEventLogNewFormat/Disabled/";
     case RtcEventLog::EncodingType::NewFormat:
-      return CreateTestFieldTrialsPtr("WebRTC-RtcEventLogNewFormat/Enabled/");
+      return "WebRTC-RtcEventLogNewFormat/Enabled/";
     case RtcEventLog::EncodingType::ProtoFree:
-      RTC_CHECK(false);
-      return nullptr;
+      RTC_CHECK_NOTREACHED();
+      return "";
   }
 }
 
@@ -135,11 +135,15 @@ class RtcEventLogSession
         prng_(seed_),
         output_period_ms_(std::get<1>(GetParam())),
         encoding_type_(std::get<2>(GetParam())),
-        gen_(seed_ * 880001UL),
+        clock_(Timestamp::Micros(prng_.Rand<uint32_t>())),
+        gen_(seed_ * 880001UL, &clock_),
         verifier_(encoding_type_),
         log_storage_(),
         log_output_factory_(log_storage_.CreateFactory()) {
-    clock_.SetTime(Timestamp::Micros(prng_.Rand<uint32_t>()));
+    // `clock_` and `utc_clock_` may have arbitrary offset.
+    // UTC clock is only used for logging start event, so doesn't need to
+    // advance.
+    utc_clock_.SetTime(Timestamp::Micros(prng_.Rand<uint32_t>()));
     // Find the name of the current test, in order to use it as a temporary
     // filename.
     auto test_info = ::testing::UnitTest::GetInstance()->current_test_info();
@@ -208,20 +212,21 @@ class RtcEventLogSession
   std::map<uint32_t, std::vector<std::unique_ptr<RtcEventRtpPacketOutgoing>>>
       outgoing_rtp_map_;  // Groups outgoing RTP by SSRC.
 
-  int64_t start_time_us_;
+  Timestamp start_time_ = Timestamp::MinusInfinity();
   int64_t utc_start_time_us_;
-  int64_t stop_time_us_;
+  Timestamp stop_time_ = Timestamp::MinusInfinity();
 
-  int64_t first_timestamp_ms_ = std::numeric_limits<int64_t>::max();
-  int64_t last_timestamp_ms_ = std::numeric_limits<int64_t>::min();
+  Timestamp first_timestamp_ = Timestamp::PlusInfinity();
+  Timestamp last_timestamp_ = Timestamp::MinusInfinity();
 
   const uint64_t seed_;
   Random prng_;
   const int64_t output_period_ms_;
   const RtcEventLog::EncodingType encoding_type_;
+  SimulatedClock clock_;
   test::EventGenerator gen_;
   test::EventVerifier verifier_;
-  ScopedFakeClock clock_;
+  ScopedFakeClock utc_clock_;
   std::string temp_filename_;
   MemoryLogStorage log_storage_;
   std::unique_ptr<LogWriterFactoryInterface> log_output_factory_;
@@ -358,8 +363,9 @@ void RtcEventLogSession::WriteLog(EventCounts count,
   // when RtcEventLogImpl switches to use injected clock from the environment.
 
   // The log will be flushed to output when the event_log goes out of scope.
-  std::unique_ptr<RtcEventLog> event_log = RtcEventLogFactory().Create(
-      CreateEnvironment(CreateFieldTrialsFor(encoding_type_)));
+  std::unique_ptr<RtcEventLog> event_log =
+      RtcEventLogFactory().Create(CreateTestEnvironment(
+          {.field_trials = FieldTrialsFor(encoding_type_), .time = &clock_}));
 
   // We can't send or receive packets without configured streams.
   RTC_CHECK_GE(count.video_recv_streams, 1);
@@ -378,14 +384,14 @@ void RtcEventLogSession::WriteLog(EventCounts count,
       clock_.AdvanceTime(TimeDelta::Millis(prng_.Rand(20)));
       event_log->StartLogging(log_output_factory_->Create(temp_filename_),
                               output_period_ms_);
-      start_time_us_ = TimeMicros();
+      start_time_ = clock_.CurrentTime();
       utc_start_time_us_ = TimeUTCMicros();
     }
 
     clock_.AdvanceTime(TimeDelta::Millis(prng_.Rand(20)));
     size_t selection = prng_.Rand(remaining_events - 1);
-    first_timestamp_ms_ = std::min(first_timestamp_ms_, TimeMillis());
-    last_timestamp_ms_ = std::max(last_timestamp_ms_, TimeMillis());
+    first_timestamp_ = std::min(first_timestamp_, clock_.CurrentTime());
+    last_timestamp_ = std::max(last_timestamp_, clock_.CurrentTime());
 
     if (selection < count.alr_states) {
       auto event = gen_.NewAlrState();
@@ -574,7 +580,7 @@ void RtcEventLogSession::WriteLog(EventCounts count,
   }
 
   event_log->StopLogging();
-  stop_time_us_ = TimeMicros();
+  stop_time_ = clock_.CurrentTime();
 
   ASSERT_EQ(count.total_nonconfig_events(), static_cast<size_t>(0));
 }
@@ -591,12 +597,12 @@ void RtcEventLogSession::ReadAndVerifyLog() {
   // Start and stop events.
   auto& parsed_start_log_events = parsed_log.start_log_events();
   ASSERT_EQ(parsed_start_log_events.size(), static_cast<size_t>(1));
-  verifier_.VerifyLoggedStartEvent(start_time_us_, utc_start_time_us_,
+  verifier_.VerifyLoggedStartEvent(start_time_.us(), utc_start_time_us_,
                                    parsed_start_log_events[0]);
 
   auto& parsed_stop_log_events = parsed_log.stop_log_events();
   ASSERT_EQ(parsed_stop_log_events.size(), static_cast<size_t>(1));
-  verifier_.VerifyLoggedStopEvent(stop_time_us_, parsed_stop_log_events[0]);
+  verifier_.VerifyLoggedStopEvent(stop_time_.us(), parsed_stop_log_events[0]);
 
   auto& parsed_alr_state_events = parsed_log.alr_state_events();
   ASSERT_EQ(parsed_alr_state_events.size(), alr_state_list_.size());
@@ -791,13 +797,16 @@ void RtcEventLogSession::ReadAndVerifyLog() {
                                           parsed_video_send_configs[i]);
   }
 
-  EXPECT_EQ(first_timestamp_ms_, parsed_log.first_timestamp().ms());
-  EXPECT_EQ(last_timestamp_ms_, parsed_log.last_timestamp().ms());
+  EXPECT_THAT(parsed_log.first_timestamp(),
+              Near(first_timestamp_, /*max_error=*/TimeDelta::Millis(1)));
+  EXPECT_THAT(parsed_log.last_timestamp(),
+              Near(last_timestamp_, /*max_error=*/TimeDelta::Millis(1)));
 
-  EXPECT_EQ(parsed_log.first_log_segment().start_time_ms(),
-            std::min(start_time_us_ / 1000, first_timestamp_ms_));
-  EXPECT_EQ(parsed_log.first_log_segment().stop_time_ms(),
-            stop_time_us_ / 1000);
+  EXPECT_THAT(parsed_log.first_log_segment().start_time(),
+              Near(std::min(start_time_, first_timestamp_),
+                   /*max_error=*/TimeDelta::Millis(1)));
+  EXPECT_THAT(parsed_log.first_log_segment().stop_time(),
+              Near(stop_time_, /*max_error=*/TimeDelta::Millis(1)));
 }
 
 }  // namespace
@@ -914,8 +923,9 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
 
   {
     // When `log` goes out of scope, the contents are flushed to the output.
-    std::unique_ptr<RtcEventLog> log = RtcEventLogFactory().Create(
-        CreateEnvironment(CreateFieldTrialsFor(encoding_type_)));
+    std::unique_ptr<RtcEventLog> log =
+        RtcEventLogFactory().Create(CreateTestEnvironment(
+            {.field_trials = FieldTrialsFor(encoding_type_)}));
 
     for (size_t i = 0; i < kNumEvents; i++) {
       // The purpose of the test is to verify that the log can handle

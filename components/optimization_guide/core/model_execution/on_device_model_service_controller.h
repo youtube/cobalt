@@ -26,6 +26,7 @@
 #include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_broker_impl.h"
+#include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_metadata.h"
@@ -34,7 +35,6 @@
 #include "components/optimization_guide/core/model_execution/safety_client.h"
 #include "components/optimization_guide/core/model_execution/safety_model_info.h"
 #include "components/optimization_guide/core/model_execution/session_impl.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -93,7 +93,7 @@ class OnDeviceModelServiceController final {
   // Starts a session for `feature`. This will start the service and load the
   // model if it is not already loaded. The session will handle updating
   // context, executing input, and sending the response.
-  std::unique_ptr<OptimizationGuideModelExecutor::Session> CreateSession(
+  std::unique_ptr<OnDeviceSession> CreateSession(
       ModelBasedCapabilityKey feature,
       const SessionConfigParams& config_params);
 
@@ -270,28 +270,7 @@ class OnDeviceModelServiceController final {
     base::WeakPtrFactory<BaseModelController> weak_ptr_factory_{this};
   };
 
-  // Implements OnDeviceOptions::Client for Sessions created by this object.
-  class OnDeviceModelClient final : public OnDeviceOptions::Client {
-   public:
-    OnDeviceModelClient(
-        ModelBasedCapabilityKey feature,
-        base::WeakPtr<OnDeviceModelServiceController> controller,
-        base::WeakPtr<ModelController> model_controller);
-    ~OnDeviceModelClient() override;
-    std::unique_ptr<OnDeviceOptions::Client> Clone() const override;
-    bool ShouldUse() override;
-    void StartSession(
-        mojo::PendingReceiver<on_device_model::mojom::Session> pending,
-        on_device_model::mojom::SessionParamsPtr params) override;
-    void OnResponseCompleted() override;
-
-   private:
-    ModelBasedCapabilityKey feature_;
-    base::WeakPtr<OnDeviceModelServiceController> controller_;
-    base::WeakPtr<ModelController> model_controller_;
-  };
   friend class OnDeviceModelAdaptationController;
-  friend class OnDeviceModelClient;
 
   // Called when the service disconnects unexpectedly.
   void OnServiceDisconnected(on_device_model::ServiceDisconnectReason reason);

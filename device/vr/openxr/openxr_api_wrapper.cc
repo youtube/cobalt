@@ -14,6 +14,7 @@
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/numerics/angle_conversions.h"
@@ -35,6 +36,7 @@
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/openxr/src/include/openxr/openxr.h"
 #include "ui/gfx/geometry/point3_f.h"
 #include "ui/gfx/geometry/quaternion.h"
@@ -151,6 +153,7 @@ void OpenXrApiWrapper::Reset() {
   light_estimator_.reset();
   scene_understanding_manager_.reset();
   unbounded_space_provider_.reset();
+  visibility_mask_handler_.reset();
   unbounded_space_ = XR_NULL_HANDLE;
   local_space_ = XR_NULL_HANDLE;
   stage_space_ = XR_NULL_HANDLE;
@@ -702,6 +705,13 @@ XrResult OpenXrApiWrapper::InitSession(
     return result;
   }
 
+  if (OpenXrVisibilityMaskHandler::IsSupported(
+          *extension_helper.ExtensionEnumeration()) &&
+      base::FeatureList::IsEnabled(blink::features::kWebXRVisibilityMask)) {
+    visibility_mask_handler_ = std::make_unique<OpenXrVisibilityMaskHandler>(
+        extension_helper, session_);
+  }
+
   EnsureEventPolling();
 
   return XR_SUCCESS;
@@ -1241,6 +1251,11 @@ mojom::XRViewPtr OpenXrApiWrapper::CreateView(
       view_config.Type() ==
       XR_VIEW_CONFIGURATION_TYPE_SECONDARY_MONO_FIRST_PERSON_OBSERVER_MSFT;
 
+  if (visibility_mask_handler_) {
+    visibility_mask_handler_->UpdateVisibilityMaskData(view_config.Type(),
+                                                       view_index, view);
+  }
+
   return view;
 }
 
@@ -1522,6 +1537,16 @@ XrResult OpenXrApiWrapper::ProcessEvents() {
             reinterpret_cast<const XrEventDataSpatialDiscoveryRecommendedEXT*>(
                 &event_data));
       }
+    } else if (event_data.type ==
+               XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR) {
+      auto* mask_changed_event =
+          reinterpret_cast<XrEventDataVisibilityMaskChangedKHR*>(&event_data);
+      if (mask_changed_event->session != session_) {
+        continue;
+      }
+      if (visibility_mask_handler_) {
+        visibility_mask_handler_->OnVisibilityMaskChanged(*mask_changed_event);
+      }
     } else {
       DVLOG(1) << __func__ << " Unhandled event type: " << event_data.type;
       TRACE_EVENT_INSTANT1("xr", "UnandledXrEvent", TRACE_EVENT_SCOPE_THREAD,
@@ -1670,7 +1695,7 @@ std::optional<gfx::Transform> OpenXrApiWrapper::GetBaseSpaceFromSpace(
 
   // TODO(crbug.com/41495208): Check for crash dumps.
   std::array<float, 16> transform_data;
-  base_space_from_space.GetColMajorF(transform_data.data());
+  base_space_from_space.GetColMajorF(transform_data);
   bool contains_nan = std::ranges::any_of(
       transform_data, [](const float f) { return std::isnan(f); });
 

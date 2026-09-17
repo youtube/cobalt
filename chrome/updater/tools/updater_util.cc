@@ -692,7 +692,8 @@ void UpdaterUtilApp::UnpackCRX() {
           FROM_HERE,
           base::BindOnce(
               &update_client::Unpacker::Unpack,
-              /*app_id=*/"", std::vector<uint8_t>(),
+              /*app_id=*/"",
+              /*prod_id=*/"UpdaterUtil", std::vector<uint8_t>(),
               base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
                   kUnpackSwitch),
               base::MakeRefCounted<update_client::InProcessUnzipperFactory>(
@@ -740,7 +741,8 @@ int UpdaterUtilMain(int argc, char** argv) {
   InitializeThreadPool("updater-util");
   const base::ScopedClosureRunner shutdown_thread_pool(
       base::BindOnce([] { base::ThreadPoolInstance::Get()->Shutdown(); }));
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
+  base::SingleThreadTaskExecutor main_task_executor(
+      base::MessagePumpType::DEFAULT, true);
   return base::MakeRefCounted<UpdaterUtilApp>()->Run();
 }
 

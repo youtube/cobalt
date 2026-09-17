@@ -23,7 +23,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
-#include "api/field_trials_view.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
@@ -112,13 +112,15 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
     std::function<void(const scoped_refptr<RTCCertificate>&)>
         on_certificate_ready,
     CodecLookupHelper* codec_lookup_helper,
-    const FieldTrialsView& field_trials)
+    const Environment& env)
     : signaling_thread_(context->signaling_thread()),
-      transport_desc_factory_(field_trials),
-      session_desc_factory_(context->media_engine(),
+      transport_desc_factory_(env.field_trials()),
+      session_desc_factory_(env,
+                            context->media_engine(),
                             context->use_rtx(),
                             context->ssrc_generator(),
                             &transport_desc_factory_,
+                            context->sctp_transport_factory(),
                             codec_lookup_helper),
       // RFC 4566 suggested a Network Time Protocol (NTP) format timestamp
       // as the session id and session version. To simplify, it should be fine

@@ -21,7 +21,7 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
     : min_ref_window("MinRefWindow", DataSize::Bytes(3000)),
       l4s_avg_g("L4sAvgG", 1.0 / 16.0),
       max_segment_size("MaxSegmentSize", DataSize::Bytes(1000)),
-      bytes_in_flight_head_room("BytesInFlightHeadRoom", 2.0),
+      bytes_in_flight_head_room("BytesInFlightHeadRoom", 1.1),
       beta_loss("BetaLoss", 0.7),
       post_congestion_delay_rtts("PostCongestionDelayRtts", 100),
       multiplicative_increase_factor("MultiplicativeIncreaseFactor", 0.02),
@@ -32,9 +32,6 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       backoff_scale_factor_close_to_ref_window_i(
           "BackoffScaleFactorCloseToRefWindowI",
           2.0),
-      number_of_rtts_between_ref_window_i_updates(
-          "NumberOfRttsBetweenRefWindowIUpdates",
-          10),
       number_of_rtts_between_reset_ref_window_i_on_congestion(
           "NumberOfRttsBetweenResetRefWindowIOnCongestion",
           100),
@@ -50,31 +47,31 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       queue_delay_threshold("QDelayThreshold", 0.5),
       use_all_packets_when_calculating_queue_delay(
           "UseAllPacketsWhenCalculatingQDelay",
-          true) {
-  ParseFieldTrial(
-      {
-          &min_ref_window,
-          &l4s_avg_g,
-          &max_segment_size,
-          &bytes_in_flight_head_room,
-          &beta_loss,
-          &post_congestion_delay_rtts,
-          &multiplicative_increase_factor,
-          &virtual_rtt,
-          &backoff_scale_factor_close_to_ref_window_i,
-          &number_of_rtts_between_ref_window_i_updates,
-          &number_of_rtts_between_reset_ref_window_i_on_congestion,
-          &data_in_flight_limit,
-          &max_data_in_flight_limit_compensation,
-          &queue_delay_avg_g,
-          &base_delay_window_length,
-          &base_delay_history_update_interval,
-          &queue_delay_target,
-          &queue_delay_increased_threshold,
-          &queue_delay_threshold,
-          &use_all_packets_when_calculating_queue_delay,
-      },
-      trials.Lookup("WebRTC-Bwe-ScreamV2"));
+          true),
+      periodic_padding_interval("PeriodicPadding", TimeDelta::Seconds(10)),
+      periodic_padding_duration("PaddingDuration", TimeDelta::Seconds(1)) {
+  ParseFieldTrial({&min_ref_window,
+                   &l4s_avg_g,
+                   &max_segment_size,
+                   &bytes_in_flight_head_room,
+                   &beta_loss,
+                   &post_congestion_delay_rtts,
+                   &multiplicative_increase_factor,
+                   &virtual_rtt,
+                   &backoff_scale_factor_close_to_ref_window_i,
+                   &number_of_rtts_between_reset_ref_window_i_on_congestion,
+                   &data_in_flight_limit,
+                   &max_data_in_flight_limit_compensation,
+                   &queue_delay_avg_g,
+                   &base_delay_window_length,
+                   &base_delay_history_update_interval,
+                   &queue_delay_target,
+                   &queue_delay_increased_threshold,
+                   &queue_delay_threshold,
+                   &use_all_packets_when_calculating_queue_delay,
+                   &periodic_padding_interval,
+                   &periodic_padding_duration},
+                  trials.Lookup("WebRTC-Bwe-ScreamV2"));
 }
 
 }  // namespace webrtc

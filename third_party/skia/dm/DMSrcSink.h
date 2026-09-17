@@ -15,7 +15,10 @@
 #include "include/core/SkSurfaceProps.h"
 #include "include/docs/SkMultiPictureDocument.h"
 #include "tools/flags/CommonFlagsConfig.h"
+
+#if defined(SK_GANESH)
 #include "tools/ganesh/MemoryCache.h"
+#endif
 
 #if defined(SK_GRAPHITE)
 #include "include/gpu/graphite/PrecompileContext.h"
@@ -44,6 +47,7 @@ namespace DM {
 
 // This is just convenience.  It lets you use either return "foo" or return SkStringPrintf(...).
 struct ImplicitString : public SkString {
+    // This constructor is intentionally not explicit to allow for convenient implicit conversions.
     template <typename T>
     ImplicitString(const T& s) : SkString(s) {}
     ImplicitString() : SkString("") {}
@@ -381,6 +385,7 @@ public:
     SinkFlags flags() const override { return SinkFlags{ SinkFlags::kNull, SinkFlags::kDirect }; }
 };
 
+#if defined(SK_GANESH)
 class GPUSink : public Sink {
 public:
     GPUSink(const SkCommandLineConfigGpu*, const GrContextOptions&);
@@ -508,6 +513,7 @@ private:
 
     using INHERITED = GPUSink;
 };
+#endif
 
 class PDFSink : public Sink {
 public:
@@ -569,7 +575,7 @@ public:
 
 class SVGSink : public Sink {
 public:
-    SVGSink(int pageIndex = 0);
+    explicit SVGSink(int pageIndex = 0);
 
     Result draw(const Src&, SkBitmap*, SkWStream*, SkString*) const override;
     const char* fileExtension() const override { return "svg"; }

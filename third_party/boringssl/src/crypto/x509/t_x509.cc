@@ -29,7 +29,7 @@
 int X509_print_ex_fp(FILE *fp, const X509 *x, unsigned long nmflag,
                      unsigned long cflag) {
   BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
-  if (b == NULL) {
+  if (b == nullptr) {
     OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
     return 0;
   }
@@ -106,7 +106,7 @@ int X509_print_ex(BIO *bp, const X509 *x, unsigned long nmflags,
   }
 
   if (!(cflag & X509_FLAG_NO_SIGNAME)) {
-    if (X509_signature_print(bp, &x->tbs_sig_alg, NULL) <= 0) {
+    if (X509_signature_print(bp, &x->tbs_sig_alg, nullptr) <= 0) {
       return 0;
     }
   }
@@ -170,11 +170,11 @@ int X509_print_ex(BIO *bp, const X509 *x, unsigned long nmflags,
     }
 
     const EVP_PKEY *pkey = X509_get0_pubkey(x);
-    if (pkey == NULL) {
+    if (pkey == nullptr) {
       BIO_printf(bp, "%12sUnable to load Public Key\n", "");
       ERR_print_errors(bp);
     } else {
-      EVP_PKEY_print_public(bp, pkey, 16, NULL);
+      EVP_PKEY_print_public(bp, pkey, 16, nullptr);
     }
   }
 
@@ -227,7 +227,7 @@ int X509_signature_print(BIO *bp, const X509_ALGOR *sigalg,
   // RSA-PSS signatures have parameters to print.
   int sig_nid = OBJ_obj2nid(sigalg->algorithm);
   if (sig_nid == NID_rsassaPss &&
-      !x509_print_rsa_pss_params(bp, sigalg, 9, 0)) {
+      !x509_print_rsa_pss_params(bp, sigalg, 9, nullptr)) {
     return 0;
   }
 
@@ -243,7 +243,7 @@ int X509_NAME_print(BIO *bp, const X509_NAME *name, int obase) {
   char *s, *c, *b;
   int ret = 0, i;
 
-  b = X509_NAME_oneline(name, NULL, 0);
+  b = X509_NAME_oneline(name, nullptr, 0);
   if (!b) {
     return 0;
   }

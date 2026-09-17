@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_FRAGMENT_BUILDER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_FRAGMENT_BUILDER_H_
 
-#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/animation/animation_trigger.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
@@ -207,6 +206,7 @@ class CORE_EXPORT FragmentBuilder {
   static void PropagateChildAnchors(const PhysicalFragment& child,
                                     const LogicalOffset& child_offset,
                                     const LayoutObject& container_object,
+                                    WritingDirectionMode,
                                     LogicalSize container_logical_size,
                                     PhysicalAnchorQuery::SetOptions options,
                                     PhysicalAnchorQuery** out_anchor_query);

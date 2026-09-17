@@ -1,7 +1,7 @@
 ---
 ---
   Checks:          '-*,
-                    bugprone-argument-comment
+                    bugprone-argument-comment,
                     llvm-namespace-comment,
                     modernize-use-designated-initializers,
                     modernize-use-override,

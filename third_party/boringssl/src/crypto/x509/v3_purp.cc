@@ -92,7 +92,7 @@ int X509_check_purpose(X509 *x, int id, int ca) {
     return 1;
   }
   const X509_PURPOSE *pt = X509_PURPOSE_get0(id);
-  if (pt == NULL) {
+  if (pt == nullptr) {
     return 0;
   }
   // Historically, |check_purpose| implementations other than |X509_PURPOSE_ANY|
@@ -111,7 +111,7 @@ const X509_PURPOSE *X509_PURPOSE_get0(int id) {
       return &p;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 int X509_PURPOSE_get_by_sname(const char *sname) {
@@ -144,7 +144,7 @@ static int setup_dp(X509 *x, DIST_POINT *dp) {
   if (!dp->distpoint || (dp->distpoint->type != 1)) {
     return 1;
   }
-  X509_NAME *iname = NULL;
+  X509_NAME *iname = nullptr;
   for (size_t i = 0; i < sk_GENERAL_NAME_num(dp->CRLissuer); i++) {
     GENERAL_NAME *gen = sk_GENERAL_NAME_value(dp->CRLissuer, i);
     if (gen->type == GEN_DIRNAME) {
@@ -162,8 +162,8 @@ static int setup_dp(X509 *x, DIST_POINT *dp) {
 static int setup_crldp(X509 *x) {
   int j;
   x->crldp = reinterpret_cast<STACK_OF(DIST_POINT) *>(
-      X509_get_ext_d2i(x, NID_crl_distribution_points, &j, NULL));
-  if (x->crldp == NULL && j != -1) {
+      X509_get_ext_d2i(x, NID_crl_distribution_points, &j, nullptr));
+  if (x->crldp == nullptr && j != -1) {
     return 0;
   }
   for (size_t i = 0; i < sk_DIST_POINT_num(x->crldp); i++) {
@@ -195,7 +195,7 @@ int x509v3_cache_extensions(X509 *x) {
     return (x->ex_flags & EXFLAG_INVALID) == 0;
   }
 
-  if (!X509_digest(x, EVP_sha256(), x->cert_hash, NULL)) {
+  if (!X509_digest(x, EVP_sha256(), x->cert_hash, nullptr)) {
     x->ex_flags |= EXFLAG_INVALID;
   }
   // V1 should mean no extensions ...
@@ -204,7 +204,7 @@ int x509v3_cache_extensions(X509 *x) {
   }
   // Handle basic constraints
   if ((bs = reinterpret_cast<BASIC_CONSTRAINTS *>(
-           X509_get_ext_d2i(x, NID_basic_constraints, &j, NULL)))) {
+           X509_get_ext_d2i(x, NID_basic_constraints, &j, nullptr)))) {
     if (bs->ca) {
       x->ex_flags |= EXFLAG_CA;
     }
@@ -230,7 +230,7 @@ int x509v3_cache_extensions(X509 *x) {
   }
   // Handle key usage
   if ((usage = reinterpret_cast<ASN1_BIT_STRING *>(
-           X509_get_ext_d2i(x, NID_key_usage, &j, NULL)))) {
+           X509_get_ext_d2i(x, NID_key_usage, &j, nullptr)))) {
     if (usage->length > 0) {
       x->ex_kusage = usage->data[0];
       if (usage->length > 1) {
@@ -246,7 +246,7 @@ int x509v3_cache_extensions(X509 *x) {
   }
   x->ex_xkusage = 0;
   if ((extusage = reinterpret_cast<EXTENDED_KEY_USAGE *>(
-           X509_get_ext_d2i(x, NID_ext_key_usage, &j, NULL)))) {
+           X509_get_ext_d2i(x, NID_ext_key_usage, &j, nullptr)))) {
     x->ex_flags |= EXFLAG_XKUSAGE;
     for (i = 0; i < sk_ASN1_OBJECT_num(extusage); i++) {
       switch (OBJ_obj2nid(sk_ASN1_OBJECT_value(extusage, i))) {
@@ -294,13 +294,13 @@ int x509v3_cache_extensions(X509 *x) {
   }
 
   x->skid = reinterpret_cast<ASN1_OCTET_STRING *>(
-      X509_get_ext_d2i(x, NID_subject_key_identifier, &j, NULL));
-  if (x->skid == NULL && j != -1) {
+      X509_get_ext_d2i(x, NID_subject_key_identifier, &j, nullptr));
+  if (x->skid == nullptr && j != -1) {
     x->ex_flags |= EXFLAG_INVALID;
   }
   x->akid = reinterpret_cast<AUTHORITY_KEYID *>(
-      X509_get_ext_d2i(x, NID_authority_key_identifier, &j, NULL));
-  if (x->akid == NULL && j != -1) {
+      X509_get_ext_d2i(x, NID_authority_key_identifier, &j, nullptr));
+  if (x->akid == nullptr && j != -1) {
     x->ex_flags |= EXFLAG_INVALID;
   }
   // Does subject name match issuer ?
@@ -313,13 +313,13 @@ int x509v3_cache_extensions(X509 *x) {
     }
   }
   x->altname = reinterpret_cast<STACK_OF(GENERAL_NAME) *>(
-      X509_get_ext_d2i(x, NID_subject_alt_name, &j, NULL));
-  if (x->altname == NULL && j != -1) {
+      X509_get_ext_d2i(x, NID_subject_alt_name, &j, nullptr));
+  if (x->altname == nullptr && j != -1) {
     x->ex_flags |= EXFLAG_INVALID;
   }
   x->nc = reinterpret_cast<NAME_CONSTRAINTS *>(
-      X509_get_ext_d2i(x, NID_name_constraints, &j, NULL));
-  if (x->nc == NULL && j != -1) {
+      X509_get_ext_d2i(x, NID_name_constraints, &j, nullptr));
+  if (x->nc == nullptr && j != -1) {
     x->ex_flags |= EXFLAG_INVALID;
   }
   if (!setup_crldp(x)) {
@@ -552,30 +552,30 @@ uint32_t X509_get_extended_key_usage(X509 *x) {
 
 const ASN1_OCTET_STRING *X509_get0_subject_key_id(X509 *x509) {
   if (!x509v3_cache_extensions(x509)) {
-    return NULL;
+    return nullptr;
   }
   return x509->skid;
 }
 
 const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *x509) {
   if (!x509v3_cache_extensions(x509)) {
-    return NULL;
+    return nullptr;
   }
-  return x509->akid != NULL ? x509->akid->keyid : NULL;
+  return x509->akid != nullptr ? x509->akid->keyid : nullptr;
 }
 
 const GENERAL_NAMES *X509_get0_authority_issuer(X509 *x509) {
   if (!x509v3_cache_extensions(x509)) {
-    return NULL;
+    return nullptr;
   }
-  return x509->akid != NULL ? x509->akid->issuer : NULL;
+  return x509->akid != nullptr ? x509->akid->issuer : nullptr;
 }
 
 const ASN1_INTEGER *X509_get0_authority_serial(X509 *x509) {
   if (!x509v3_cache_extensions(x509)) {
-    return NULL;
+    return nullptr;
   }
-  return x509->akid != NULL ? x509->akid->serial : NULL;
+  return x509->akid != nullptr ? x509->akid->serial : nullptr;
 }
 
 long X509_get_pathlen(X509 *x509) {

@@ -722,6 +722,14 @@ class CompilationStateImpl {
 
   std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode> codes);
 
+  // TODO(clemensb): Remove when https://crbug.com/452200374 is resolved.
+  V8_NOINLINE void CheckNativeModule(NativeModule* native_module) const {
+    CHECK_EQ(native_module, native_module_);
+    std::shared_ptr<NativeModule> shared = native_module_weak_.lock();
+    CHECK_NOT_NULL(shared);
+    CHECK_EQ(native_module, shared.get());
+  }
+
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...).
@@ -2793,16 +2801,29 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
       .code_size_in_bytes = native_module_->generated_code_size(),
       .liftoff_bailout_count = native_module_->liftoff_bailout_count()};
 
-  // Measure duration of baseline compilation or deserialization from cache.
   if (!start_time_.IsNull()) {
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-    TimedHistogram* histogram =
-        stream_ == nullptr
-            ? isolate_->counters()->wasm_async_compile_wasm_module_time()
-            : isolate_->counters()->wasm_streaming_compile_wasm_module_time();
-    histogram->AddTimedSample(duration);
+    Counters* counters = isolate_->counters();
+    // We will only have a compilation time if we did not get the module from
+    // cache and if there was a code section.
+    if (!compilation_finished_time_.IsNull()) {
+      base::TimeDelta compile_time = compilation_finished_time_ - start_time_;
+      auto* histogram =
+          stream_ ? counters->wasm_streaming_compile_wasm_module_time()
+                  : counters->wasm_async_compile_wasm_module_time();
+      histogram->AddTimedSample(compile_time);
+    }
 
-    compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
+    base::TimeDelta finish_time = base::TimeTicks::Now() - start_time_;
+    // For streaming compilation, we distinguish between "compile time" and
+    // "finish time" which in particular includes waiting for the download to
+    // finish (but also e.g. lookup in the native module cache).
+    if (stream_) {
+      counters->wasm_streaming_finish_wasm_module_time()->AddTimedSample(
+          finish_time);
+    }
+
+    // The UKM event reports the full time until the module is ready.
+    compile_event.wall_clock_duration_in_us = finish_time.InMicroseconds();
   }
 
   isolate_->metrics_recorder()->DelayMainThreadEvent(compile_event,
@@ -2913,6 +2934,9 @@ class AsyncCompileJob::CompilationStateCallback
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
+        if (base::TimeTicks::IsHighResolution()) {
+          job_->compilation_finished_time_ = base::TimeTicks::Now();
+        }
         if (job_->DecrementAndCheckFinisherCount()) {
           // Install the native module in the cache, or reuse a conflicting one.
           // If we get a conflicting module, wait until we are back in the
@@ -3082,6 +3106,7 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
     const bool streaming = job->wire_bytes_.length() == 0;
+    const void* expected_module_ptr_for_checks_below = module_.get();
     if (streaming) {
       // Streaming compilation already checked for cache hits.
       job->CreateNativeModule(module_, code_size_estimate_);
@@ -3089,7 +3114,9 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
                                             code_size_estimate_)) {
       // Cache hit.
       // Finish compilation synchronously.
-      job->DoSync<FinishCompilation>(nullptr);
+      // Pass the native module here so we know that this was a cache hit and
+      // report this properly in UKM events.
+      job->DoSync<FinishCompilation>(job->native_module_);
       return;
     } else if (!lazy_functions_are_validated_) {
       // If we are not streaming and did not get a cache hit, we might have hit
@@ -3120,6 +3147,26 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
       constexpr ProfileInformation* kNoProfileInformation = nullptr;
       std::unique_ptr<CompilationUnitBuilder> builder = InitializeCompilation(
           job->native_module_.get(), kNoProfileInformation);
+
+      // See https://crbug.com/452200374:
+      // We see crashes inside `InitializeCompilationUnits` when calling
+      // `NativeModule::module()` on the `native_module_` in
+      // `compilation_state`.
+      // The native module is held alive via the shared ptr in
+      // `job->native_module_` though, so it's unclear what's going wrong there.
+      // The following CHECKs are for debugging this further and will be removed
+      // when the issue is resolved.
+      CHECK_NOT_NULL(job->native_module_);
+      // Note: Holding this shared_ptr *could* make the bug disappear, but
+      // actually the same shared_ptr should be held in job->native_module_
+      // already throughout the execution of this method.
+      std::shared_ptr<NativeModule> explicit_native_module{job->native_module_};
+      CHECK_NOT_NULL(explicit_native_module);
+      CHECK_NOT_NULL(explicit_native_module->module());
+      CHECK_EQ(explicit_native_module->module(),
+               expected_module_ptr_for_checks_below);
+      compilation_state->CheckNativeModule(explicit_native_module.get());
+
       compilation_state->InitializeCompilationUnits(std::move(builder));
       // In single-threaded mode there are no worker tasks that will do the
       // compilation. We call {WaitForCompilationEvent} here so that the current

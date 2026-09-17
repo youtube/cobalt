@@ -42,24 +42,24 @@ static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store) {
   X509_LOOKUP *ret =
       reinterpret_cast<X509_LOOKUP *>(OPENSSL_zalloc(sizeof(X509_LOOKUP)));
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
 
   ret->method = method;
   ret->store_ctx = store;
-  if (method->new_item != NULL && !method->new_item(ret)) {
+  if (method->new_item != nullptr && !method->new_item(ret)) {
     OPENSSL_free(ret);
-    return NULL;
+    return nullptr;
   }
   return ret;
 }
 
 void X509_LOOKUP_free(X509_LOOKUP *ctx) {
-  if (ctx == NULL) {
+  if (ctx == nullptr) {
     return;
   }
-  if (ctx->method != NULL && ctx->method->free != NULL) {
+  if (ctx->method != nullptr && ctx->method->free != nullptr) {
     (*ctx->method->free)(ctx);
   }
   OPENSSL_free(ctx);
@@ -67,10 +67,10 @@ void X509_LOOKUP_free(X509_LOOKUP *ctx) {
 
 int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
                      char **ret) {
-  if (ctx->method == NULL) {
+  if (ctx->method == nullptr) {
     return -1;
   }
-  if (ctx->method->ctrl != NULL) {
+  if (ctx->method->ctrl != nullptr) {
     return ctx->method->ctrl(ctx, cmd, argc, argl, ret);
   } else {
     return 1;
@@ -79,7 +79,7 @@ int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
 
 static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
                                   const X509_NAME *name, X509_OBJECT *ret) {
-  if (ctx->method == NULL || ctx->method->get_by_subject == NULL) {
+  if (ctx->method == nullptr || ctx->method->get_by_subject == nullptr) {
     return 0;
   }
   // Note |get_by_subject| leaves |ret| in an inconsistent state. It has
@@ -129,8 +129,8 @@ static int x509_object_cmp_sk(const X509_OBJECT *const *a,
 X509_STORE *X509_STORE_new(void) {
   X509_STORE *ret =
       reinterpret_cast<X509_STORE *>(OPENSSL_zalloc(sizeof(X509_STORE)));
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
 
   ret->references = 1;
@@ -138,10 +138,10 @@ X509_STORE *X509_STORE_new(void) {
   ret->objs = sk_X509_OBJECT_new(x509_object_cmp_sk);
   ret->get_cert_methods = sk_X509_LOOKUP_new_null();
   ret->param = X509_VERIFY_PARAM_new();
-  if (ret->objs == NULL || ret->get_cert_methods == NULL ||
-      ret->param == NULL) {
+  if (ret->objs == nullptr || ret->get_cert_methods == nullptr ||
+      ret->param == nullptr) {
     X509_STORE_free(ret);
-    return NULL;
+    return nullptr;
   }
 
   return ret;
@@ -174,9 +174,9 @@ X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, const X509_LOOKUP_METHOD *m) {
   }
 
   X509_LOOKUP *lu = X509_LOOKUP_new(m, v);
-  if (lu == NULL || !sk_X509_LOOKUP_push(v->get_cert_methods, lu)) {
+  if (lu == nullptr || !sk_X509_LOOKUP_push(v->get_cert_methods, lu)) {
     X509_LOOKUP_free(lu);
-    return NULL;
+    return nullptr;
   }
 
   return lu;
@@ -190,7 +190,7 @@ int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type,
   X509_OBJECT *tmp = X509_OBJECT_retrieve_by_subject(ctx->objs, type, name);
   CRYPTO_MUTEX_unlock_write(&ctx->objs_lock);
 
-  if (tmp == NULL || type == X509_LU_CRL) {
+  if (tmp == nullptr || type == X509_LU_CRL) {
     for (size_t i = 0; i < sk_X509_LOOKUP_num(ctx->get_cert_methods); i++) {
       X509_LOOKUP *lu = sk_X509_LOOKUP_value(ctx->get_cert_methods, i);
       if (X509_LOOKUP_by_subject(lu, type, name, &stmp)) {
@@ -198,7 +198,7 @@ int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type,
         break;
       }
     }
-    if (tmp == NULL) {
+    if (tmp == nullptr) {
       return 0;
     }
   }
@@ -212,12 +212,12 @@ int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, int type,
 }
 
 static int x509_store_add(X509_STORE *ctx, void *x, int is_crl) {
-  if (x == NULL) {
+  if (x == nullptr) {
     return 0;
   }
 
   X509_OBJECT *const obj = X509_OBJECT_new();
-  if (obj == NULL) {
+  if (obj == nullptr) {
     return 0;
   }
 
@@ -261,7 +261,7 @@ X509_OBJECT *X509_OBJECT_new(void) {
 }
 
 void X509_OBJECT_free(X509_OBJECT *obj) {
-  if (obj == NULL) {
+  if (obj == nullptr) {
     return;
   }
   X509_OBJECT_free_contents(obj);
@@ -296,8 +296,8 @@ void X509_OBJECT_free_contents(X509_OBJECT *a) {
 int X509_OBJECT_get_type(const X509_OBJECT *a) { return a->type; }
 
 X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a) {
-  if (a == NULL || a->type != X509_LU_X509) {
-    return NULL;
+  if (a == nullptr || a->type != X509_LU_X509) {
+    return nullptr;
   }
   return a->data.x509;
 }
@@ -347,7 +347,7 @@ static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, int type,
 
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
                                       const X509_NAME *name) {
-  return x509_object_idx_cnt(h, type, name, NULL);
+  return x509_object_idx_cnt(h, type, name, nullptr);
 }
 
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
@@ -356,15 +356,15 @@ static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,
   int idx;
   idx = X509_OBJECT_idx_by_subject(h, type, name);
   if (idx == -1) {
-    return NULL;
+    return nullptr;
   }
   return sk_X509_OBJECT_value(h, idx);
 }
 
 static X509_OBJECT *x509_object_dup(const X509_OBJECT *obj) {
   X509_OBJECT *ret = X509_OBJECT_new();
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
   ret->type = obj->type;
   ret->data = obj->data;
@@ -388,8 +388,8 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
                                           const X509_NAME *nm) {
   int cnt;
   STACK_OF(X509) *sk = sk_X509_new_null();
-  if (sk == NULL) {
-    return NULL;
+  if (sk == nullptr) {
+    return nullptr;
   }
   CRYPTO_MUTEX_lock_write(&ctx->ctx->objs_lock);
   int idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_X509, nm, &cnt);
@@ -400,7 +400,7 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
     CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
     if (!X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509, nm, &xobj)) {
       sk_X509_free(sk);
-      return NULL;
+      return nullptr;
     }
     X509_OBJECT_free_contents(&xobj);
     CRYPTO_MUTEX_lock_write(&ctx->ctx->objs_lock);
@@ -408,7 +408,7 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
     if (idx < 0) {
       CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
       sk_X509_free(sk);
-      return NULL;
+      return nullptr;
     }
   }
   for (int i = 0; i < cnt; i++, idx++) {
@@ -417,7 +417,7 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
     if (!sk_X509_push(sk, x)) {
       CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
       sk_X509_pop_free(sk, X509_free);
-      return NULL;
+      return nullptr;
     }
     X509_up_ref(x);
   }
@@ -430,14 +430,14 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx,
   int cnt;
   X509_OBJECT xobj;
   STACK_OF(X509_CRL) *sk = sk_X509_CRL_new_null();
-  if (sk == NULL) {
-    return NULL;
+  if (sk == nullptr) {
+    return nullptr;
   }
 
   // Always do lookup to possibly add new CRLs to cache.
   if (!X509_STORE_CTX_get_by_subject(ctx, X509_LU_CRL, nm, &xobj)) {
     sk_X509_CRL_free(sk);
-    return NULL;
+    return nullptr;
   }
   X509_OBJECT_free_contents(&xobj);
   CRYPTO_MUTEX_lock_write(&ctx->ctx->objs_lock);
@@ -445,7 +445,7 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx,
   if (idx < 0) {
     CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
     sk_X509_CRL_free(sk);
-    return NULL;
+    return nullptr;
   }
 
   for (int i = 0; i < cnt; i++, idx++) {
@@ -456,7 +456,7 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx,
       CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
       X509_CRL_free(x);
       sk_X509_CRL_pop_free(sk, X509_CRL_free);
-      return NULL;
+      return nullptr;
     }
   }
   CRYPTO_MUTEX_unlock_write(&ctx->ctx->objs_lock);
@@ -468,7 +468,7 @@ static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
   sk_X509_OBJECT_sort(h);
   size_t idx;
   if (!sk_X509_OBJECT_find(h, &idx, x)) {
-    return NULL;
+    return nullptr;
   }
   if ((x->type != X509_LU_X509) && (x->type != X509_LU_CRL)) {
     return sk_X509_OBJECT_value(h, idx);
@@ -476,7 +476,7 @@ static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
   for (size_t i = idx; i < sk_X509_OBJECT_num(h); i++) {
     X509_OBJECT *obj = sk_X509_OBJECT_value(h, i);
     if (x509_object_cmp(obj, x)) {
-      return NULL;
+      return nullptr;
     }
     if (x->type == X509_LU_X509) {
       if (!X509_cmp(obj->data.x509, x->data.x509)) {
@@ -490,7 +490,7 @@ static X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
       return obj;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 int X509_STORE_CTX_get1_issuer(X509 **out_issuer, X509_STORE_CTX *ctx,

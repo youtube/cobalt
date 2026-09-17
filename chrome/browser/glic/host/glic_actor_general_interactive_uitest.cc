@@ -5,6 +5,8 @@
 #include "base/base64.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/protobuf_matchers.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/browser_action_util.h"
@@ -32,8 +34,15 @@ class GlicActorGeneralUiTest : public GlicActorUiTest {
   MultiStep CheckActorTabDataHasAnnotatedPageContentCache();
   MultiStep OpenDevToolsWindow(ui::ElementIdentifier contents_to_inspect);
   MultiStep WaitAction(actor::TaskId& task_id,
+                       std::optional<base::TimeDelta> duration,
+                       tabs::TabHandle& observe_tab_handle,
                        ExpectedErrorResult expected_result = {});
   MultiStep WaitAction(ExpectedErrorResult expected_result = {});
+
+ protected:
+  static constexpr base::TimeDelta kWaitTime = base::Milliseconds(1);
+
+  tabs::TabHandle null_tab_handle_;
 };
 
 MultiStep
@@ -62,18 +71,24 @@ MultiStep GlicActorGeneralUiTest::OpenDevToolsWindow(
 
 MultiStep GlicActorGeneralUiTest::WaitAction(
     actor::TaskId& task_id,
+    std::optional<base::TimeDelta> duration,
+    tabs::TabHandle& observe_tab_handle,
     ExpectedErrorResult expected_result) {
-  auto wait_provider = base::BindLambdaForTesting([&task_id]() {
-    apc::Actions action = actor::MakeWait();
-    action.set_task_id(task_id.value());
-    return EncodeActionProto(action);
-  });
+  auto wait_provider =
+      base::BindLambdaForTesting([&task_id, &observe_tab_handle, duration]() {
+        apc::Actions action = actor::MakeWait(duration, observe_tab_handle);
+        action.set_task_id(task_id.value());
+        if (duration.has_value()) {
+        }
+        return EncodeActionProto(action);
+      });
   return ExecuteAction(std::move(wait_provider), std::move(expected_result));
 }
 
 MultiStep GlicActorGeneralUiTest::WaitAction(
     ExpectedErrorResult expected_result) {
-  return WaitAction(task_id_, std::move(expected_result));
+  return WaitAction(task_id_, kWaitTime, null_tab_handle_,
+                    std::move(expected_result));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, CreateTaskAndNavigate) {
@@ -295,6 +310,168 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest,
   // clang-format on
 }
 
+// Ensure Wait's observe_tab field causes a tab to be observed, even if there is
+// no tab in the acting set.
+IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, WaitObserveTabFirstAction) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTab1Id);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTab2Id);
+
+  const GURL url1 = embedded_test_server()->GetURL("/actor/simple.html?tab1");
+  const GURL url2 = embedded_test_server()->GetURL("/actor/simple.html?tab2");
+
+  tabs::TabHandle tab1;
+  tabs::TabHandle tab2;
+
+  // clang-format off
+  RunTestSequence(
+      // Add two tabs to ensure the correct tab is being added to the
+      // observation result.
+      AddInstrumentedTab(kTab1Id, url1),
+      InAnyContext(WithElement(
+          kTab1Id,
+          [&tab1](ui::TrackedElement* el) {
+            content::WebContents* contents =
+                AsInstrumentedWebContents(el)->web_contents();
+            tab1 = tabs::TabInterface::GetFromContents(contents)->GetHandle();
+          })),
+      AddInstrumentedTab(kTab2Id, url2),
+      InAnyContext(WithElement(
+          kTab2Id,
+          [&tab2](ui::TrackedElement* el) {
+            content::WebContents* contents =
+                AsInstrumentedWebContents(el)->web_contents();
+            tab2 = tabs::TabInterface::GetFromContents(contents)->GetHandle();
+          })),
+
+      // Create a task without taking any actions so as not to add a tab to the
+      // task's acting set.
+      OpenGlicWindow(GlicWindowMode::kAttached),
+      CreateTask(task_id_, ""),
+
+      // Wait observing tab1. Ensure tab1 has a TabObservation in the result.
+      WaitAction(task_id_, kWaitTime, tab1),
+      CheckResult([this]() { return last_execution_result()->tabs().size(); },
+                  1),
+      Check([&, this]() {
+        return last_execution_result()->tabs().at(0).id() == tab1.raw_value();
+      }),
+
+      // Wait observing tab2. Ensure tab2 has a TabObservation in the result but
+      // tab1 does not.
+      WaitAction(task_id_, kWaitTime, tab2),
+      CheckResult([this]() { return last_execution_result()->tabs().size(); },
+                  1),
+      Check([&, this]() {
+        return last_execution_result()->tabs().at(0).id() == tab2.raw_value();
+      }),
+
+      // Click on tab1 to add it to the acting set. Then wait observing tab2.
+      // Ensure both tabs are now in the result observation.
+      ClickAction(
+          {15, 15}, ClickAction::LEFT, ClickAction::SINGLE, task_id_, tab1),
+      WaitAction(task_id_, kWaitTime, tab2),
+      CheckResult([this]() { return last_execution_result()->tabs().size(); },
+                  2),
+      Check([&, this]() {
+        std::set<int> tab_ids{
+          last_execution_result()->tabs().at(0).id(),
+          last_execution_result()->tabs().at(1).id()
+        };
+        return tab_ids.size() == 2ul &&
+            tab_ids.contains(tab1.raw_value()) &&
+            tab_ids.contains(tab2.raw_value());
+      }),
+
+      // A non-observing wait should now return an observation for tab1; since
+      // it was previously acted on by the click, it is now part of the acting
+      // set.
+      WaitAction(),
+      CheckResult([this]() { return last_execution_result()->tabs().size(); },
+                  1),
+      Check([&, this]() {
+        return last_execution_result()->tabs().at(0).id() == tab1.raw_value();
+      })
+  );
+  // clang-format on
+}
+
+// TODO(b/450618828): In order for actions over a popup to pass TOCTOU
+// validation the APC hit test must return the same node as the node in the
+// popup. However, currently APC doesn't include any information about popups so
+// this doesn't yet work. Once APC includes popup data and  the TOCTOU hit test
+// understands how to hit test it this flag can be re-enabled.
+class GlicActorGeneralUiTestDisableToctou : public GlicActorGeneralUiTest {
+ public:
+  GlicActorGeneralUiTestDisableToctou() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kGlicActorToctouValidation);
+  }
+  ~GlicActorGeneralUiTestDisableToctou() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Ensure tools can send input to a popup widget like a <select> drop down.
+// TODO(b/447164093): Mac uses native OS select popups which cannot be acted on
+// by Chrome. Once this bug is resolved Mac will use built-in selects during an
+// ActorTask and this test can be enabled.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ActOnPopupWidget DISABLED_ActOnPopupWidget
+#else
+#define MAYBE_ActOnPopupWidget ActOnPopupWidget
+#endif
+IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTestDisableToctou,
+                       MAYBE_ActOnPopupWidget) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/select_tool.html");
+
+  constexpr std::string_view kPlainSelect = "plainSelect";
+
+  const std::string kGetValueScript = content::JsReplace(
+      "() => document.getElementById($1).value", kPlainSelect);
+
+  gfx::Rect select_bounds;
+  gfx::Point click_point;
+
+  auto click_provider = base::BindLambdaForTesting([&select_bounds, this]() {
+    gfx::Point coordinate = select_bounds.CenterPoint();
+    apc::Actions action =
+        actor::MakeClick(tab_handle_, coordinate, apc::ClickAction::LEFT,
+                         apc::ClickAction::SINGLE);
+
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+
+  // clang-format off
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      GetClientRect(kNewActorTabId, kPlainSelect, select_bounds),
+
+      // The select box starts with the "alpha" option selected
+      CheckJsResult(kNewActorTabId, kGetValueScript, "alpha"),
+
+      // Open a popup <select> control by clicking on it
+      Do([&]() {click_point = select_bounds.CenterPoint();}),
+      ClickAction(&click_point, ClickAction::LEFT, ClickAction::SINGLE),
+
+      // Move the clickpoint down which should be over the popup and click on a
+      // new option.
+      Do([&]() {
+        click_point = select_bounds.CenterPoint() + gfx::Vector2d(0, 40);
+      }),
+      ClickAction(&click_point, ClickAction::LEFT, ClickAction::SINGLE),
+
+      // The selected option should have changed.
+      CheckJsResult(kNewActorTabId, kGetValueScript, "beta")
+  );
+  // clang-format on
+}
 class GlicActorGeneralUiTestHighDPI : public GlicActorGeneralUiTest {
  public:
   static constexpr double kDeviceScaleFactor = 2.0;

@@ -16,13 +16,13 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_feature_extractor.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "third_party/tflite/src/tensorflow/lite/model_builder.h"
 #include "third_party/tflite/src/tensorflow/lite/op_resolver.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator/neural_residual_echo_estimator.pb.h"
@@ -55,12 +55,12 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
   // Loads a model into a ModelRunner and creates a NeuralResidualEchoEstimator
   // from it. Returns nullptr if any file read or initialization step fails.
   static absl_nullable std::unique_ptr<NeuralResidualEchoEstimator> Create(
-      absl::string_view ml_ree_model_path,
+      const tflite::FlatBufferModel* model,
       const tflite::OpResolver& op_resolver);
 
   // Load a TF Lite model into a ModelRunner. Exposed for testing.
   static std::unique_ptr<ModelRunner> LoadTfLiteModel(
-      absl::string_view ml_ree_model_path,
+      const tflite::FlatBufferModel* model,
       const tflite::OpResolver& op_resolver);
 
   // Constructor used for testing with a mock ModelRunner.

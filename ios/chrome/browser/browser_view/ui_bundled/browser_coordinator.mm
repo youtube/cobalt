@@ -139,7 +139,6 @@
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
 #import "ios/chrome/browser/mini_map/coordinator/mini_map_coordinator.h"
-#import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_component_factory.h"
@@ -153,7 +152,7 @@
 #import "ios/chrome/browser/page_info/ui_bundled/page_info_coordinator.h"
 #import "ios/chrome/browser/page_info/ui_bundled/requirements/page_info_presentation.h"
 #import "ios/chrome/browser/passwords/model/password_controller_delegate.h"
-#import "ios/chrome/browser/passwords/ui_bundled/bottom_sheet/password_suggestion_bottom_sheet_coordinator.h"
+#import "ios/chrome/browser/passwords/ui_bundled/bottom_sheet/credential_suggestion_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_breach_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_protection_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_protection_coordinator_delegate.h"
@@ -173,6 +172,7 @@
 #import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator.h"
 #import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator_delegate.h"
 #import "ios/chrome/browser/qr_scanner/ui_bundled/qr_scanner_legacy_coordinator.h"
+#import "ios/chrome/browser/reader_mode/coordinator/reader_mode_blur_overlay_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_coordinator.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent.h"
@@ -405,6 +405,7 @@ const char kChromeAppStoreUrl[] =
     QuickDeleteCommands,
     ReaderModeBrowserAgentDelegate,
     ReaderModeCommands,
+    ReaderModeCoordinatorDelegate,
     ReadingListCoordinatorDelegate,
     RecentTabsCoordinatorDelegate,
     ReminderNotificationsCommands,
@@ -474,8 +475,8 @@ const char kChromeAppStoreUrl[] =
 @property(nonatomic, strong) ARQuickLookCoordinator* ARQuickLookCoordinator;
 
 // Coordinator in charge of the presenting autofill options in a bottom sheet.
-@property(nonatomic, strong) PasswordSuggestionBottomSheetCoordinator*
-    passwordSuggestionBottomSheetCoordinator;
+@property(nonatomic, strong) CredentialSuggestionBottomSheetCoordinator*
+    credentialSuggestionBottomSheetCoordinator;
 
 // Coordinator in charge of the presenting autofill options in a bottom sheet.
 @property(nonatomic, strong) PaymentsSuggestionBottomSheetCoordinator*
@@ -647,6 +648,10 @@ const char kChromeAppStoreUrl[] =
 @property(nonatomic, strong)
     NonModalSignInPromoCoordinator* nonModalSignInPromoCoordinator;
 
+// Coordinator for the AIM prototype.
+@property(nonatomic, strong)
+    AIMPrototypeContainerCoordinator* aimPrototypeCoordinator;
+
 @end
 
 @implementation BrowserCoordinator {
@@ -687,7 +692,11 @@ const char kChromeAppStoreUrl[] =
   FileUploadPanelCoordinator* _fileUploadPanelCoordinator;
   RootDriveFilePickerCoordinator* _driveFilePickerCoordinator;
   GoogleOneCoordinator* _googleOneCoordinator;
+
+  // Coordinator to display a web page in Reader Mode UI.
   ReaderModeCoordinator* _readerModeCoordinator;
+  ReaderModeBlurOverlayCoordinator* _readerModeBlurOverlayCoordinator;
+
   // Coordinator to display the "Set a reminder" screen for the user's current
   // tab.
   ReminderNotificationsCoordinator* _reminderNotificationsCoordinator;
@@ -698,9 +707,6 @@ const char kChromeAppStoreUrl[] =
   // Callback to remove the activity overlay started by the browser coordinator
   // itself.
   base::ScopedClosureRunner _activityOverlayCallback;
-
-  // Coordinator for the AIM prototype.
-  AIMPrototypeContainerCoordinator* _aimPrototypeCoordinator;
 
   // The coordinator for the new Delete Browsing Data screen, also called Quick
   // Delete.
@@ -750,6 +756,7 @@ const char kChromeAppStoreUrl[] =
   _readerModeCoordinator = [[ReaderModeCoordinator alloc]
       initWithBaseViewController:self.browserContainerCoordinator.viewController
                          browser:self.browser];
+  _readerModeCoordinator.delegate = self;
   [_readerModeCoordinator setOverscrollDelegate:self];
   [_readerModeCoordinator startAnimated:animated];
 }
@@ -761,6 +768,13 @@ const char kChromeAppStoreUrl[] =
   }
   [_readerModeCoordinator stopAnimated:animated];
   _readerModeCoordinator = nil;
+}
+
+#pragma mark - ReaderModeCoordinatorDelegate
+
+- (void)readerModeCoordinatorAnimationDidComplete:
+    (ReaderModeCoordinator*)coordinator {
+  [self hideReaderModeBlurOverlay];
 }
 
 #pragma mark - ChromeCoordinator
@@ -915,6 +929,10 @@ const char kChromeAppStoreUrl[] =
   self.readingListCoordinator.delegate = nil;
   self.readingListCoordinator = nil;
 
+  [_readerModeCoordinator stopAnimated:YES];
+  _readerModeCoordinator = nil;
+  [self hideReaderModeBlurOverlay];
+
   [self.sharingCoordinator stop];
   self.sharingCoordinator = nil;
 
@@ -923,8 +941,8 @@ const char kChromeAppStoreUrl[] =
 
   [self stopPasswordProtectionCoordinator];
 
-  [self.passwordSuggestionBottomSheetCoordinator stop];
-  self.passwordSuggestionBottomSheetCoordinator = nil;
+  [self.credentialSuggestionBottomSheetCoordinator stop];
+  self.credentialSuggestionBottomSheetCoordinator = nil;
 
   [self.passwordSuggestionCoordinator stop];
   self.passwordSuggestionCoordinator = nil;
@@ -992,7 +1010,7 @@ const char kChromeAppStoreUrl[] =
 
   // The aim prototype replaces the omnibox.
   if (dismissOmnibox) {
-    [self hideAIMPrototype];
+    [self hideAIMPrototypeImmediately:NO];
   }
 
   [self.viewController clearPresentedStateWithCompletion:completion
@@ -1520,7 +1538,7 @@ const char kChromeAppStoreUrl[] =
 
   /* passwordSettingsCoordinator is created and started by a delegate method */
 
-  /* passwordSuggestionBottomSheetCoordinator is created and started by a
+  /* credentialSuggestionBottomSheetCoordinator is created and started by a
    * BrowserCommand */
 
   /* passwordSuggestionCoordinator is created and started by a BrowserCommand */
@@ -1647,8 +1665,8 @@ const char kChromeAppStoreUrl[] =
 
   [self stopPasswordProtectionCoordinator];
 
-  [self.passwordSuggestionBottomSheetCoordinator stop];
-  self.passwordSuggestionBottomSheetCoordinator = nil;
+  [self.credentialSuggestionBottomSheetCoordinator stop];
+  self.credentialSuggestionBottomSheetCoordinator = nil;
 
   [self.passwordSuggestionCoordinator stop];
   self.passwordSuggestionCoordinator = nil;
@@ -1792,7 +1810,7 @@ const char kChromeAppStoreUrl[] =
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
   [self hideWelcomeBackPromo];
-  [self hideAIMPrototype];
+  [self hideAIMPrototypeImmediately:YES];
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -2040,7 +2058,7 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showPasswordBottomSheet:(const autofill::FormActivityParams&)params {
   // Do not present the bottom sheet if it is already being presented.
-  if (self.passwordSuggestionBottomSheetCoordinator) {
+  if (self.credentialSuggestionBottomSheetCoordinator) {
     return;
   }
   // Do not present the bottom sheet when the omnibox is being used to not
@@ -2049,18 +2067,18 @@ const char kChromeAppStoreUrl[] =
           ->IsOmniboxFocused()) {
     return;
   }
-  self.passwordSuggestionBottomSheetCoordinator =
-      [[PasswordSuggestionBottomSheetCoordinator alloc]
+  self.credentialSuggestionBottomSheetCoordinator =
+      [[CredentialSuggestionBottomSheetCoordinator alloc]
           initWithBaseViewController:self.viewController
                              browser:self.browser
                               params:params
                             delegate:self];
-  self.passwordSuggestionBottomSheetCoordinator.settingsHandler =
+  self.credentialSuggestionBottomSheetCoordinator.settingsHandler =
       HandlerForProtocol(self.dispatcher, SettingsCommands);
-  self.passwordSuggestionBottomSheetCoordinator
+  self.credentialSuggestionBottomSheetCoordinator
       .browserCoordinatorCommandsHandler =
       HandlerForProtocol(self.dispatcher, BrowserCoordinatorCommands);
-  [self.passwordSuggestionBottomSheetCoordinator start];
+  [self.credentialSuggestionBottomSheetCoordinator start];
 }
 
 - (void)showPaymentsBottomSheet:(const autofill::FormActivityParams&)params {
@@ -2471,8 +2489,8 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)dismissPasswordSuggestions {
-  [self.passwordSuggestionBottomSheetCoordinator stop];
-  self.passwordSuggestionBottomSheetCoordinator = nil;
+  [self.credentialSuggestionBottomSheetCoordinator stop];
+  self.credentialSuggestionBottomSheetCoordinator = nil;
 }
 
 - (void)dismissPaymentSuggestions {
@@ -2619,12 +2637,25 @@ const char kChromeAppStoreUrl[] =
   [_aimPrototypeCoordinator start];
 }
 
-- (void)hideAIMPrototype {
+- (void)hideAIMPrototypeImmediately:(BOOL)immediately {
   if (!_aimPrototypeCoordinator) {
     return;
   }
-  [_aimPrototypeCoordinator stop];
-  _aimPrototypeCoordinator = nil;
+  __weak __typeof__(self) weakSelf = self;
+  base::OnceClosure completion = base::BindOnce(^{
+    [weakSelf.aimPrototypeCoordinator stop];
+    weakSelf.aimPrototypeCoordinator = nil;
+  });
+  if (immediately) {
+    std::move(completion).Run();
+  } else {
+    // Stop the prototoype on the next run loop as this might be called while
+    // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
+    // Remove this workaround once the omnibox can be safely dismissed while
+    // openMatch.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(completion));
+  }
 }
 
 #pragma mark - ContextualPanelEntrypointIPHCommands
@@ -2876,6 +2907,24 @@ const char kChromeAppStoreUrl[] =
     }
   }
   std::move(deactivateReader).Run();
+}
+
+- (void)showReaderModeBlurOverlay:(ProceduralBlock)completion {
+  if (_readerModeBlurOverlayCoordinator) {
+    if (completion) {
+      completion();
+    }
+    return;
+  }
+  _readerModeBlurOverlayCoordinator = [[ReaderModeBlurOverlayCoordinator alloc]
+      initWithBaseViewController:self.browserContainerCoordinator.viewController
+                         browser:self.browser];
+  [_readerModeBlurOverlayCoordinator startWithCompletion:completion];
+}
+
+- (void)hideReaderModeBlurOverlay {
+  [_readerModeBlurOverlayCoordinator stop];
+  _readerModeBlurOverlayCoordinator = nil;
 }
 
 #pragma mark - FileUploadPanelCommands
@@ -4188,36 +4237,8 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - NewTabPageCommands
 
-- (void)updateFollowingFeedHasUnseenContent:(BOOL)hasUnseenContent {
-  // TODO(crbug.com/448683013): remove.
-}
-
-- (void)handleFeedModelOfType:(FeedType)feedType
-                didEndUpdates:(FeedLayoutUpdateType)updateType {
-  // TODO(crbug.com/448683013): remove.
-  [self handleFeedModelDidEndUpdates:updateType];
-}
-
 - (void)handleFeedModelDidEndUpdates:(FeedLayoutUpdateType)updateType {
   [_NTPCoordinator handleFeedModelDidEndUpdates:updateType];
-}
-
-- (void)scrollToNTPAfterPresentedStateCleared:(FeedType)feedType {
-  web::WebState* activeWebState = self.activeWebState;
-
-  // Configure next NTP to be scrolled into the feed.
-  NewTabPageTabHelper* NTPHelper =
-      NewTabPageTabHelper::FromWebState(activeWebState);
-  if (NTPHelper) {
-    NewTabPageState* ntpState = NTPHelper->GetNTPState();
-    ntpState.shouldScrollToTopOfFeed = YES;
-    NTPHelper->SetNTPState(ntpState);
-  }
-
-  // Navigate to NTP in same tab.
-  UrlLoadParams urlLoadParams =
-      UrlLoadParams::InCurrentTab(GURL(kChromeUINewTabURL));
-  _urlLoadingBrowserAgent->Load(urlLoadParams);
 }
 
 - (void)presentLensIconBubble {

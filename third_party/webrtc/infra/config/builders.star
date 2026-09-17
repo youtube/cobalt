@@ -504,18 +504,3 @@ cron_builder(
     },
     schedule = "*/10 * * * *",  # Every 10 minutes.
 )
-
-luci.cq_tryjob_verifier(
-    cq_group = "cq",
-    builder = "chromium:try/tricium-clang-tidy",
-    owner_whitelist = ["project-webrtc-tryjob-access"],
-    experiment_percentage = 0,
-    disable_reuse = True,
-    mode_allowlist = [cq.MODE_NEW_PATCHSET_RUN],
-    location_filters = [
-        cq.location_filter(path_regexp = r".+\.h"),
-        cq.location_filter(path_regexp = r".+\.c"),
-        cq.location_filter(path_regexp = r".+\.cc"),
-        cq.location_filter(path_regexp = r".+\.cpp"),
-    ],
-)

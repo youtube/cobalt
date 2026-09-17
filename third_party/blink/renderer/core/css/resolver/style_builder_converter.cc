@@ -285,10 +285,11 @@ struct BasicShapeAndCoordBox {
   GeometryBox box;
 };
 
+template <GeometryBox default_box>
 BasicShapeAndCoordBox BasicShapeAndCoordBoxForValue(StyleResolverState& state,
                                                     const CSSValue& value) {
   BasicShape* shape = nullptr;
-  GeometryBox box = GeometryBox::kBorderBox;
+  GeometryBox box = default_box;
   if (const auto* pair = DynamicTo<CSSValuePair>(value)) {
     shape = BasicShapeForValue(state, pair->First());
     box = To<CSSIdentifierValue>(pair->Second()).ConvertTo<GeometryBox>();
@@ -305,7 +306,7 @@ StyleBorderShape* StyleBuilderConverter::ConvertBorderShape(
     const CSSValue& value) {
   // Either:
   // - none;
-  // - a single shape (meaning default box is border-box);
+  // - a single shape (meaning default box is half-border-box for stroking);
   // - a pair of shape + box;
   // - list of either: two pairs of shape + box or two shapes.
   if (value.IsIdentifierValue()) {
@@ -316,15 +317,17 @@ StyleBorderShape* StyleBuilderConverter::ConvertBorderShape(
   if (const auto* list = DynamicTo<CSSValueList>(value)) {
     DCHECK_EQ(list->length(), 2u);
     auto [outer_shape, outer_box] =
-        BasicShapeAndCoordBoxForValue(state, list->First());
+        BasicShapeAndCoordBoxForValue<GeometryBox::kBorderBox>(state,
+                                                               list->First());
     auto [inner_shape, inner_box] =
-        BasicShapeAndCoordBoxForValue(state, list->Last());
+        BasicShapeAndCoordBoxForValue<GeometryBox::kPaddingBox>(state,
+                                                                list->Last());
     return MakeGarbageCollected<StyleBorderShape>(*outer_shape, inner_shape,
                                                   outer_box, inner_box);
   }
 
   auto [outer_shape, outer_coord_box] =
-      BasicShapeAndCoordBoxForValue(state, value);
+      BasicShapeAndCoordBoxForValue<GeometryBox::kHalfBorderBox>(state, value);
   return MakeGarbageCollected<StyleBorderShape>(
       *outer_shape, outer_shape, outer_coord_box, outer_coord_box);
 }

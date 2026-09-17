@@ -342,6 +342,7 @@ rtc_library("jsep") {
     "../pc:session_description",
     "../pc:simulcast_description",
     "../pc:simulcast_sdp_serializer",
+    "../rtc_base:base64",
     "../rtc_base:checks",
     "../rtc_base:crypto_random",
     "../rtc_base:ip_address",

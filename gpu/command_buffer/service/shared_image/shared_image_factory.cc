@@ -88,7 +88,6 @@
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/android_hardware_buffer_compat.h"
 #include "gpu/command_buffer/service/shared_image/ahardwarebuffer_image_backing_factory.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -305,6 +304,7 @@ SharedImageFactory::SharedImageFactory(
     auto ahb_factory = std::make_unique<AHardwareBufferImageBackingFactory>(
         feature_info.get(), gpu_preferences_,
         context_state_->vk_context_provider());
+    ahb_factory_ = ahb_factory.get();
     factories_.push_back(std::move(ahb_factory));
   }
 #elif BUILDFLAG(IS_OZONE)
@@ -389,27 +389,24 @@ bool SharedImageFactory::CreateSharedImage(
   return RegisterBacking(std::move(backing), std::move(pool_id));
 }
 
-bool SharedImageFactory::IsNativeBufferSupported(gfx::BufferFormat format,
-                                                 gfx::BufferUsage usage) {
-  // Note that we are initializing the |supported_gmb_configurations_| here to
-  // make sure gpu service have already initialized and required metadata like
-  // supported buffer configurations have already been sent from browser
-  // process to GPU process for wayland.
-  if (!supported_gmb_configurations_inited_) {
-    supported_gmb_configurations_inited_ = true;
-    if (WillGetGmbConfigFromGpu()) {
+// static
+bool SharedImageFactory::IsNativeBufferSupported(
+    viz::SharedImageFormat format,
+    gfx::BufferUsage usage,
+    const gfx::GpuExtraInfo& gpu_extra_info) {
+  if (WillGetGmbConfigFromGpu()) {
 #if BUILDFLAG(IS_OZONE_X11)
-      for (const auto& config : gpu_extra_info_.gpu_memory_buffer_support_x11) {
-        supported_gmb_configurations_.emplace(config);
-      }
+    return base::Contains(
+        gpu_extra_info.gpu_memory_buffer_support_x11,
+        gfx::BufferUsageAndFormat(
+            usage, viz::SharedImageFormatToBufferFormat(format)));
+#else
+    return false;
 #endif  // BUILDFLAG(IS_OZONE_X11)
-    } else {
-      supported_gmb_configurations_ =
-          gpu::GpuMemoryBufferSupport::GetNativeGpuMemoryBufferConfigurations();
-    }
+  } else {
+    return gpu::GpuMemoryBufferSupport::
+        IsNativeGpuMemoryBufferConfigurationSupported(format, usage);
   }
-  return base::Contains(supported_gmb_configurations_,
-                        gfx::BufferUsageAndFormat(usage, format));
 }
 
 bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
@@ -429,10 +426,8 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
     return false;
   }
 
-  auto buffer_format = ToBufferFormat(format);
   auto native_buffer_supported =
-      IsNativeBufferSupported(buffer_format, buffer_usage);
-
+      IsNativeBufferSupported(format, buffer_usage, gpu_extra_info_);
   std::unique_ptr<SharedImageBacking> backing;
   if (native_buffer_supported) {
     auto* factory = GetFactoryByUsage(usage, format, size,
@@ -547,9 +542,16 @@ bool SharedImageFactory::CreateSharedImage(
 
   bool use_compound = false;
   std::unique_ptr<SharedImageBacking> backing;
-  SharedImageBackingFactory* factory =
-      GetFactoryByUsage(usage, format, size, {}, gmb_type);
-
+  SharedImageBackingFactory* factory = nullptr;
+#if BUILDFLAG(IS_ANDROID)
+  if (ahb_factory_ &&
+      ahb_factory_->IsSupportedForMappableBuffer(usage, format, gmb_type)) {
+    factory = ahb_factory_;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+  if (!factory) {
+    factory = GetFactoryByUsage(usage, format, size, {}, gmb_type);
+  }
   if (!factory && gmb_type == gfx::SHARED_MEMORY_BUFFER &&
       !IsSharedBetweenThreads(usage)) {
     // Check if CompoundImageBacking can be created. CompoundImageBacking holds
@@ -686,11 +688,10 @@ void SharedImageFactory::RegisterSysmemBufferCollection(
   VkDevice device =
       vulkan_context_provider->GetDeviceQueue()->GetVulkanDevice();
   DCHECK(device != VK_NULL_HANDLE);
-  auto buffer_format = ToBufferFormat(format);
   vulkan_context_provider->GetVulkanImplementation()
       ->RegisterSysmemBufferCollection(
-          device, std::move(service_handle), std::move(sysmem_token),
-          buffer_format, usage, gfx::Size(), 0, register_with_image_pipe);
+          device, std::move(service_handle), std::move(sysmem_token), format,
+          usage, gfx::Size(), 0, register_with_image_pipe);
 }
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
@@ -728,6 +729,10 @@ bool SharedImageFactory::CopyNativeBufferToSharedMemoryAsync(
 #if BUILDFLAG(IS_WIN)
   return D3DImageBackingFactory::CopyNativeBufferToSharedMemoryAsync(
       std::move(buffer_handle), std::move(shared_memory));
+#elif BUILDFLAG(IS_ANDROID)
+  return AHardwareBufferImageBackingFactory::
+      CopyNativeBufferToSharedMemoryAsync(std::move(buffer_handle),
+                                          std::move(shared_memory));
 #else
   return false;
 #endif
@@ -809,8 +814,9 @@ gpu::SharedImageCapabilities SharedImageFactory::MakeCapabilities() {
   shared_image_caps.supports_r16_shared_images =
       is_angle_metal || is_skia_graphite;
   shared_image_caps.supports_native_nv12_mappable_shared_images =
-      IsNativeBufferSupported(gfx::BufferFormat::YUV_420_BIPLANAR,
-                              gfx::BufferUsage::GPU_READ_CPU_READ_WRITE);
+      IsNativeBufferSupported(viz::MultiPlaneFormat::kNV12,
+                              gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+                              gpu_extra_info_);
   shared_image_caps.disable_r8_shared_images =
       workarounds_.r8_egl_images_broken;
   shared_image_caps.disable_webgpu_shared_images =

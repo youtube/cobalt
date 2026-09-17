@@ -4176,6 +4176,13 @@ be describing additional metrics about the same event.
       completed.
     </summary>
   </metric>
+  <metric name="AutoReauthn.BlockedByEmbedder" enum="Boolean">
+    <summary>
+      Records whether auto-reauthn was disabled by an embedder (e.g. due to an
+      active actor task). Records at most one sample per FedCM API with auto
+      re-authn enabled: some failures could occur before this metric is recorded
+    </summary>
+  </metric>
   <metric name="AutoReauthn.BlockedByPreventSilentAccess" enum="Boolean">
     <summary>
       Records whether the FedCM auto re-authn call is blocked because
@@ -7962,11 +7969,25 @@ be describing additional metrics about the same event.
     <summary>
       True if the cookie was accessed by port which was mismatched.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="SchemeMismatch" enum="Boolean">
     <summary>
       True if the cookie was accessed by scheme which was mismatched.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 
@@ -9325,31 +9346,6 @@ be describing additional metrics about the same event.
     <summary>
       The number of Iframes that were blocked by the supervised user filtering
       logic in this page load. Exponentially bucketed.
-    </summary>
-  </metric>
-</event>
-
-<event name="FamilyLinkUser.ReauthenticationInterstitial">
-  <owner>chrome-kids-eng@google.com</owner>
-  <summary>
-    These metrics are logged when an unauthenticated Family Link user tries to
-    navigate to YouTube in the main frame, prompting a re-authentication
-    interstitial.
-  </summary>
-  <metric name="InterstitialShown" enum="BooleanHit">
-    <summary>
-      Recorded when the re-authentication interstitial is displayed.
-    </summary>
-  </metric>
-  <metric name="ReauthenticationCompleted" enum="BooleanHit">
-    <summary>
-      Recorded when users successfully re-authenticates and can continue
-      navigation, and vice-versa for failed reauthentication.
-    </summary>
-  </metric>
-  <metric name="ReauthenticationStarted" enum="BooleanHit">
-    <summary>
-      Recorded when users initiate re-authentication from the interstitial.
     </summary>
   </metric>
 </event>
@@ -13004,6 +13000,28 @@ be describing additional metrics about the same event.
       kReaderModeEligible, kReaderModeNotEligibleContentOnly,
       kReaderModeNotEligibleContentLength,
       kReaderModeNotEligibleContentAndLength.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="IOS.ReaderMode.ReaderModeShown.AccessPoint" singular="true">
+  <owner>fernandex@google.com</owner>
+  <owner>qpubert@google.com</owner>
+  <summary>
+    Records when Reading Mode UI was successfully displayed to the user.
+    Recorded for iOS interactions only.
+  </summary>
+  <metric name="AccessPoint" enum="ReaderModeAccessPoint">
+    <summary>
+      The access point that triggered the Reading Mode UI that is shown for the
+      current page.
     </summary>
     <aggregation>
       <history>
@@ -18935,6 +18953,20 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="PaidContentPageLoad" singular="True">
+  <owner>gklassen@chromium.org</owner>
+  <owner>sullivan@chromium.org</owner>
+  <summary>
+    Records the paid content state of the page. This event is only recorded for
+    pages that have paid content metadata.
+  </summary>
+  <metric name="HasPaidContent" enum="PaidContentState">
+    <summary>
+      The paid content state of the page.
+    </summary>
+  </metric>
+</event>
+
 <event name="PaintPreviewCapture" singular="True">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
@@ -24642,6 +24674,21 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Tab.StateChange">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>clank-tab-dev@chromium.org</owner>
+  <summary>
+    A tab's state has changed. Only recorded for loaded tabs with WebContents.
+  </summary>
+  <metric name="IsPinned" enum="Boolean">
+    <summary>
+      Whether the tab is currently pinned. This is stored only for tabs which
+      are pinned, i.e. this metric will always be true.
+    </summary>
+  </metric>
+</event>
+
 <event name="TabManager.Background.FirstAlertFired">
   <owner>chrisha@chromium.org</owner>
   <owner>lpy@chromium.org</owner>
@@ -28207,6 +28254,41 @@ be describing additional metrics about the same event.
         <index fields="profile.country"/>
         <index fields="profile.form_factor"/>
         <index fields="profile.system_ram"/>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="WebApp.WebInstall">
+  <owner>dmurph@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Recorded when a site attempts to install another site that isn't the current
+    document via Web Install API.
+  </summary>
+  <metric name="ResultByInstalledApp" enum="WebInstallApiResult">
+    <summary>
+      Records the result of the Web Install API for the URL of the target site
+      that we attempted to install as a web app via the API.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="ResultByRequestingPage" enum="WebInstallApiResult">
+    <summary>
+      Records the result of the Web Install API for the URL of the requesting
+      page that invoked the API.
+    </summary>
+    <aggregation>
+      <history>
         <statistics>
           <enumeration/>
         </statistics>

@@ -100,6 +100,8 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "media/base/media_switches.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkPathBuilder.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -376,7 +378,8 @@ void ToolbarView::Init() {
   back_ = container_view_->AddChildView(std::move(back));
   forward_ = container_view_->AddChildView(std::move(forward));
   if (features::IsWebUIReloadButtonEnabled()) {
-    auto reload_webview = std::make_unique<ReloadButtonWebView>(browser_);
+    auto reload_webview = std::make_unique<ReloadButtonWebView>(
+        browser_, browser_->command_controller());
     reload_webview_ = container_view_->AddChildView(std::move(reload_webview));
   } else {
     std::unique_ptr<ReloadButton> reload = std::make_unique<ReloadButton>(
@@ -567,8 +570,9 @@ void ToolbarView::Update(WebContents* tab) {
     pinned_toolbar_actions_container_->UpdateAllIcons();
   }
 
-  if (reload_) {
-    reload_->SetMenuEnabled(chrome::IsDebuggerAttachedToCurrentTab(browser_));
+  if (ReloadControl* reload_control = GetReloadButton(); reload_control) {
+    reload_control->SetMenuEnabled(
+        chrome::IsDebuggerAttachedToCurrentTab(browser_));
   }
 }
 
@@ -868,7 +872,6 @@ void ToolbarView::OnThemeChanged() {
 
 void ToolbarView::UpdateClipPath() {
   const gfx::Rect local_bounds = GetLocalBounds();
-  SkPath path;
   // The bottom of the toolbar may be clipped more than necessary in
   // certain scale factor so adds extra 2dp so that even if the origin
   // and the height are rounded down, we still can paint til the
@@ -879,17 +882,20 @@ void ToolbarView::UpdateClipPath() {
   // TODO(crbug.com/41344902): Remove this hack once the pixel canvas is
   // enabled on all aura platforms.
   const int extended_height = local_bounds.height() + 2;
-  path.moveTo(0, local_bounds.height());
-  path.lineTo(0, receding_corner_radius_);
-  path.arcTo(receding_corner_radius_, receding_corner_radius_, 0,
-             SkPath::kSmall_ArcSize, SkPathDirection::kCW,
-             receding_corner_radius_, 0);
-  path.lineTo(local_bounds.width() - receding_corner_radius_, 0);
-  path.arcTo(receding_corner_radius_, receding_corner_radius_, 0,
-             SkPath::kSmall_ArcSize, SkPathDirection::kCW, local_bounds.width(),
-             receding_corner_radius_);
-  path.lineTo(local_bounds.width(), extended_height);
-  path.lineTo(0, extended_height);
+  const SkPath path =
+      SkPathBuilder()
+          .moveTo(0, local_bounds.height())
+          .lineTo(0, receding_corner_radius_)
+          .arcTo(SkVector(receding_corner_radius_, receding_corner_radius_), 0,
+                 SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCW,
+                 SkPoint(receding_corner_radius_, 0))
+          .lineTo(local_bounds.width() - receding_corner_radius_, 0)
+          .arcTo(SkVector(receding_corner_radius_, receding_corner_radius_), 0,
+                 SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCW,
+                 SkPoint(local_bounds.width(), receding_corner_radius_))
+          .lineTo(local_bounds.width(), extended_height)
+          .lineTo(0, extended_height)
+          .detach();
   container_view_->SetClipPath(path);
 }
 
@@ -1060,7 +1066,7 @@ void ToolbarView::UpdateTypeAndSeverity(
 
   std::u16string accname_app = l10n_util::GetStringUTF16(IDS_ACCNAME_APP);
   if (type_and_severity.type ==
-      AppMenuIconController::IconType::UPGRADE_NOTIFICATION) {
+      AppMenuIconController::IconType::kUpgradeNotification) {
     accname_app = l10n_util::GetStringFUTF16(
         IDS_ACCNAME_APP_UPGRADE_RECOMMENDED, accname_app);
   }
@@ -1178,12 +1184,11 @@ ToolbarButton* ToolbarView::GetBackButton() {
   return back_;
 }
 
-ReloadButton* ToolbarView::GetReloadButton() {
+ReloadControl* ToolbarView::GetReloadButton() {
+  if (features::IsWebUIReloadButtonEnabled()) {
+    return reload_webview_;
+  }
   return reload_;
-}
-
-ReloadButtonWebView* ToolbarView::GetReloadButtonWebView() {
-  return reload_webview_;
 }
 
 IntentChipButton* ToolbarView::GetIntentChipButton() {

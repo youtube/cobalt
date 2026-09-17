@@ -33,7 +33,7 @@
 // becomes a performance bottleneck, some possible optimizations by
 // specializing it to the curve:
 //
-// - Rather than using a generic |felem_exp|, specialize the exponentation to
+// - Rather than using a generic |felem_exp|, specialize the exponentiation to
 //   c2 with a faster addition chain.
 //
 // - |felem_mul| and |felem_sqr| are indirect calls to generic Montgomery
@@ -455,7 +455,7 @@ int ec_hash_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
 int EC_hash_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group, EC_POINT *out,
                                           const uint8_t *dst, size_t dst_len,
                                           const uint8_t *msg, size_t msg_len) {
-  if (EC_GROUP_cmp(group, out->group, NULL) != 0) {
+  if (EC_GROUP_cmp(group, out->group, nullptr) != 0) {
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
@@ -488,7 +488,7 @@ int ec_hash_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
 int EC_hash_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group, EC_POINT *out,
                                           const uint8_t *dst, size_t dst_len,
                                           const uint8_t *msg, size_t msg_len) {
-  if (EC_GROUP_cmp(group, out->group, NULL) != 0) {
+  if (EC_GROUP_cmp(group, out->group, nullptr) != 0) {
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }

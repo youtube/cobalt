@@ -48,7 +48,10 @@
 #include "url/url_constants.h"
 
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
 using ::testing::NiceMock;
 using ::testing::Pair;
 using ::testing::Pointee;
@@ -65,11 +68,10 @@ const char kTestAndroidRealm2[] = "android://hash@com.example.two.android/";
 
 class MockLeakDetectionCheck : public LeakDetectionCheck {
  public:
-  MOCK_METHOD(
-      void,
-      Start,
-      (LeakDetectionInitiator, const GURL&, std::u16string, std::u16string),
-      (override));
+  MOCK_METHOD(void,
+              Start,
+              (LeakDetectionInitiator, const PasswordForm&),
+              (override));
 };
 
 class MockPasswordManagerClient : public StubPasswordManagerClient {
@@ -103,6 +105,9 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
                (base::span<const PasswordForm>),
                bool was_autofilled_on_pageload),
               (override));
+#if !BUILDFLAG(IS_ANDROID)
+  MOCK_METHOD(bool, IsActorTaskActive, (), (override));
+#endif
 
   explicit MockPasswordManagerClient(PasswordStoreInterface* profile_store,
                                      PasswordStoreInterface* account_store)
@@ -1346,6 +1351,50 @@ TEST_P(CredentialManagerImplTest,
   EXPECT_NE(CredentialType::CREDENTIAL_TYPE_EMPTY, credential_1->type);
 }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+TEST_P(CredentialManagerImplTest, CredentialManagerRequestWhenActorIsActive) {
+  store_->AddLogin(form_);
+
+  std::vector<GURL> federations;
+  EXPECT_CALL(*client_, PromptUserToChooseCredentialsPtr).Times(0);
+  EXPECT_CALL(*client_, NotifyUserAutoSigninPtr).Times(0);
+  ON_CALL(*client_, IsActorTaskActive()).WillByDefault(Return(true));
+
+  bool call = false;
+  CredentialManagerError error;
+  std::optional<CredentialInfo> credential;
+  CallGet(CredentialMediationRequirement::kOptional, true, federations,
+          base::BindOnce(&GetCredentialCallback, &call, &error, &credential));
+  RunAllPendingTasks();
+
+  EXPECT_TRUE(call);
+  EXPECT_EQ(CredentialManagerError::SUCCESS, error);
+  EXPECT_EQ(CredentialType::CREDENTIAL_TYPE_EMPTY, credential->type);
+}
+
+TEST_P(CredentialManagerImplTest,
+       CredentialManagerSucceedsWhenActorIsNotActive) {
+  store_->AddLogin(form_);
+
+  std::vector<GURL> federations;
+  EXPECT_CALL(*client_, PromptUserToChooseCredentialsPtr).Times(0);
+  EXPECT_CALL(*client_, NotifyUserAutoSigninPtr).Times(1);
+  ON_CALL(*client_, IsActorTaskActive()).WillByDefault(Return(false));
+
+  bool call = false;
+  CredentialManagerError error;
+  std::optional<CredentialInfo> credential;
+  CallGet(CredentialMediationRequirement::kOptional, true, federations,
+          base::BindOnce(&GetCredentialCallback, &call, &error, &credential));
+  RunAllPendingTasks();
+
+  EXPECT_TRUE(call);
+  EXPECT_EQ(CredentialManagerError::SUCCESS, error);
+  EXPECT_NE(CredentialType::CREDENTIAL_TYPE_EMPTY, credential->type);
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
 TEST_P(CredentialManagerImplTest, ResetSkipZeroClickInProfileStoreAfterPrompt) {
   // Turn on the global zero-click flag, and add two credentials in separate
   // origins, both set to skip zero-click.
@@ -1801,9 +1850,14 @@ TEST_P(CredentialManagerImplTest, StorePasswordCredentialStartsLeakDetection) {
   cm_service_impl()->set_leak_factory(std::move(mock_factory));
 
   auto check_instance = std::make_unique<MockLeakDetectionCheck>();
-  EXPECT_CALL(*check_instance,
-              Start(LeakDetectionInitiator::kSignInCheck, form_.url,
-                    form_.username_value, form_.password_value));
+  EXPECT_CALL(
+      *check_instance,
+      Start(
+          Eq(LeakDetectionInitiator::kSignInCheck),
+          AllOf(
+              Field(&PasswordForm::url, Eq(form_.url)),
+              Field(&PasswordForm::username_value, Eq(form_.username_value)),
+              Field(&PasswordForm::password_value, Eq(form_.password_value)))));
   EXPECT_CALL(*weak_factory, TryCreateLeakCheck)
       .WillOnce(Return(testing::ByMove(std::move(check_instance))));
   CallStore(PasswordFormToCredentialInfo(form_), base::DoNothing());

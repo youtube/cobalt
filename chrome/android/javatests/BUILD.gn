@@ -80,7 +80,6 @@ android_library("chrome_test_java_helper") {
     "//chrome/android/webapk/libs/runtime_library:webapk_service_aidl_java",
     "//chrome/browser/android/browserservices/intents:java",
     "//chrome/browser/android/browserservices/verification:java",
-    "//chrome/browser/android/common:java",
     "//chrome/browser/android/content:java",
     "//chrome/browser/android/cookies:java",
     "//chrome/browser/android/crypto:java",
@@ -585,6 +584,7 @@ android_library(
   sources = [
     "src/org/chromium/chrome/browser/browserservices/ManageTrustedWebActivityDataActivityTest.java",
     "src/org/chromium/chrome/browser/browserservices/RunningInChromeTest.java",
+    "src/org/chromium/chrome/browser/browserservices/TrustedWebActivityClientContactsDelegationTest.java",
     "src/org/chromium/chrome/browser/browserservices/TrustedWebActivityClientLocationDelegationTest.java",
     "src/org/chromium/chrome/browser/browserservices/TrustedWebActivityClientTest.java",
     "src/org/chromium/chrome/browser/browserservices/TrustedWebActivityOrientationTest.java",
@@ -882,6 +882,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.ntp") {
     "src/org/chromium/chrome/browser/ntp/FakeRecentlyClosedTabManager.java",
     "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageTest.java",
     "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerTest.java",
+    "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTrackerTest.java",
     "src/org/chromium/chrome/browser/ntp/MostVisitedTilesPTTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageColorWithFeedV2Test.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageCreationTest.java",
@@ -964,7 +965,10 @@ android_library(
     "src/org/chromium/chrome/browser/partnercustomizations/PartnerHomepageUnitTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/url_constants/android:java",
+  ]
 }
 
 android_library(
@@ -1236,7 +1240,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.suggestions") {
     "src/org/chromium/chrome/browser/suggestions/tile/TileGroupUnitTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//components/ntp_tiles:mojo_bindings_java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.swiperefresh") {
@@ -1294,7 +1301,6 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tab") {
     "src/org/chromium/chrome/browser/tab/TabStateTest.java",
     "src/org/chromium/chrome/browser/tab/TabUmaTest.java",
     "src/org/chromium/chrome/browser/tab/TabViewManagerTest.java",
-    "src/org/chromium/chrome/browser/tab/TabWebContentsObserverTest.java",
     "src/org/chromium/chrome/browser/tab/UndoIntegrationTest.java",
     "src/org/chromium/chrome/browser/tab/state/ArchivePersistedTabDataTest.java",
     "src/org/chromium/chrome/browser/tab/state/LevelDBPersistedDataStorageTest.java",

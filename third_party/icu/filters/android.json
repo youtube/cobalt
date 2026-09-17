@@ -1783,25 +1783,7 @@
 	]
       },
       "rules": [
-        "-/calendar/*",
-        "+/calendar/default",
-        "+/calendar/gregorian",
-        "+/calendar/generic",
-        "+/calendar/buddhist",
-        "+/calendar/chinese",
-        "+/calendar/roc",
-        "+/calendar/dangi",
-        "+/calendar/ethiopic",
-        "+/calendar/ethiopic-amete-alem",
-        "+/calendar/japanese",
-        "+/calendar/hebrew",
-        "+/calendar/islamic",
-        "+/calendar/islamic-umalqura",
-        "+/calendar/islamic-civil",
-        "+/calendar/islamic-tbla",
-        "+/calendar/islamic-rgsa",
-        "+/calendar/persian",
-        "+/calendar/indian",
+// Change root to include all thing except the following
 // # Delete Japanese era display names in root. 'ja' has Japanese era names
 // # so that root does not need them.
 // # The same is true of eras and monthNames for Islamic calendar.

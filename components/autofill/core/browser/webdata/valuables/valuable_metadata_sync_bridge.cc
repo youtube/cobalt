@@ -9,9 +9,14 @@
 
 #include "base/check.h"
 #include "base/notreached.h"
+#include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
+#include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 #include "components/sync/base/data_type.h"
+#include "components/sync/base/deletion_origin.h"
+#include "components/sync/base/features.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
+#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/sync_metadata_store_change_list.h"
 #include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -21,6 +26,20 @@ namespace autofill {
 namespace {
 // The address of this variable is used as the user data key.
 static const int kAutofillValuableMetadataSyncBridgeUserDataKey = 0;
+
+// Returns if the entity `change` should be uploaded to
+// AUTOFILL_VALUABLE_METADATA. Only metadata entries related to server entities
+// should be uploaded.
+bool ShouldUploadEntityChange(const EntityInstanceChange& change) {
+  switch (change.data_model()->record_type()) {
+    case EntityInstance::RecordType::kLocal:
+      // Local entities are not uploaded as AUTOFILL_VALUABLE.
+      return false;
+    case EntityInstance::RecordType::kServerWallet:
+      return true;
+  }
+  NOTREACHED();
+}
 
 }  // namespace
 
@@ -36,7 +55,9 @@ ValuableMetadataSyncBridge::ValuableMetadataSyncBridge(
     return;
   }
 
-  // TODO(crbug.com/40253286): Implement loading initial data.
+  CHECK(base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata));
+  LoadMetadata();
+  scoped_observation_.Observe(web_data_backend_.get());
 }
 
 ValuableMetadataSyncBridge::~ValuableMetadataSyncBridge() = default;
@@ -70,10 +91,37 @@ AutofillSyncMetadataTable* ValuableMetadataSyncBridge::GetSyncMetadataStore() {
 std::unique_ptr<syncer::MetadataChangeList>
 ValuableMetadataSyncBridge::CreateMetadataChangeList() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return std::make_unique<syncer::SyncMetadataStoreChangeList>(
-      GetSyncMetadataStore(), syncer::AUTOFILL_VALUABLE_METADATA,
-      base::BindRepeating(&syncer::DataTypeLocalChangeProcessor::ReportError,
-                          change_processor()->GetWeakPtr()));
+  return std::make_unique<syncer::InMemoryMetadataChangeList>();
+}
+
+void ValuableMetadataSyncBridge::UploadInitialLocalData(
+    syncer::MetadataChangeList* metadata_change_list,
+    const syncer::EntityChangeList& entity_data) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
+      stored_metadata = GetEntityTable()->GetSyncedMetadata();
+
+  // First, make a copy of all local storage keys.
+  std::set<EntityInstance::EntityId> local_keys_to_upload;
+  for (const auto& [storage_key, metadata] : stored_metadata) {
+    local_keys_to_upload.insert(storage_key);
+  }
+
+  // Strip |local_keys_to_upload| of the keys of data provided by the server.
+  for (const std::unique_ptr<syncer::EntityChange>& change : entity_data) {
+    DCHECK_EQ(change->type(), syncer::EntityChange::ACTION_ADD)
+        << "Illegal change; can only be called during initial "
+           "MergeFullSyncData()";
+    local_keys_to_upload.erase(EntityInstance::EntityId(change->storage_key()));
+  }
+  // Upload the remaining storage keys
+  for (const EntityInstance::EntityId& storage_key : local_keys_to_upload) {
+    change_processor()->Put(
+        *storage_key,
+        CreateEntityDataFromEntityMetadata(stored_metadata[storage_key]),
+        metadata_change_list);
+  }
 }
 
 std::optional<syncer::ModelError> ValuableMetadataSyncBridge::MergeFullSyncData(
@@ -81,7 +129,15 @@ std::optional<syncer::ModelError> ValuableMetadataSyncBridge::MergeFullSyncData(
     syncer::EntityChangeList entity_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(crbug.com/40253286): Upload any initial local data.
+  // First upload local entities that are not mentioned in `entity_data`.
+  // Because Valuable Metadata is deleted when Sync (for this data type) is
+  // turned off, there should usually not be any pre-existing local data here,
+  // but it can happen in some corner cases such as when `ValuableSyncBridge`
+  // manages to change metadata during the initial sync procedure (e.g. the
+  // remote sync data was just downloaded, but first passed to the
+  // AUTOFILL_VALUABLE bridge, with the side effect of creating
+  // valuable metadata entries immediately before this function is invoked).
+  UploadInitialLocalData(metadata_change_list.get(), entity_data);
 
   return MergeRemoteChanges(std::move(metadata_change_list),
                             std::move(entity_data));
@@ -99,15 +155,27 @@ ValuableMetadataSyncBridge::ApplyIncrementalSyncChanges(
 std::unique_ptr<syncer::MutableDataBatch>
 ValuableMetadataSyncBridge::GetAllData() {
   auto batch = std::make_unique<syncer::MutableDataBatch>();
-  // TODO(crbug.com/436551488): Implement actual data retrieval.
+  for (const auto& [storage_key, metadata] :
+       GetEntityTable()->GetSyncedMetadata()) {
+    batch->Put(*storage_key, CreateEntityDataFromEntityMetadata(metadata));
+  }
   return batch;
 }
 
 std::unique_ptr<syncer::DataBatch> ValuableMetadataSyncBridge::GetDataForCommit(
     StorageKeyList storage_keys) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/436551488): Implement.
-  return nullptr;
+  auto batch = std::make_unique<syncer::MutableDataBatch>();
+  absl::flat_hash_set<std::string> keys_set(storage_keys.begin(),
+                                            storage_keys.end());
+  std::unique_ptr<syncer::DataBatch> all_data = GetAllData();
+  while (all_data->HasNext()) {
+    syncer::KeyAndData item = all_data->Next();
+    if (keys_set.contains(item.first)) {
+      batch->Put(item.first, std::move(item.second));
+    }
+  }
+  return batch;
 }
 
 std::unique_ptr<syncer::DataBatch>
@@ -139,7 +207,19 @@ std::string ValuableMetadataSyncBridge::GetStorageKey(
 
 void ValuableMetadataSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
-  // TODO(crbug.com/436551488): Implement.
+  std::unique_ptr<sql::Transaction> transaction =
+      web_data_backend_->GetDatabase()->AcquireTransaction();
+  EntityTable* table = GetEntityTable();
+  // When sync is disabled, the metadata should be cleared.
+  for (const auto& [storage_key, metadata] :
+       GetEntityTable()->GetSyncedMetadata()) {
+    table->RemoveEntityMetadata(storage_key);
+  }
+
+  web_data_backend_->CommitChanges();
+  if (transaction) {
+    transaction->Commit();
+  }
 }
 
 sync_pb::EntitySpecifics
@@ -147,8 +227,8 @@ ValuableMetadataSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
     const sync_pb::EntitySpecifics& entity_specifics) const {
   sync_pb::AutofillValuableMetadataSpecifics
       trimmed_autofill_valuable_metadata_specifics =
-          entity_specifics.autofill_valuable_metadata();
-  // TODO(crbug.com/436551488): Trim unknown values.
+          TrimAutofillValuableMetadataSpecificsDataForCaching(
+              entity_specifics.autofill_valuable_metadata());
 
   // If all fields are cleared from the valuable metadata specifics, return a
   // fresh EntitySpecifics to avoid caching a few residual bytes.
@@ -167,12 +247,160 @@ std::optional<syncer::ModelError>
 ValuableMetadataSyncBridge::MergeRemoteChanges(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
     syncer::EntityChangeList entity_data) {
-  // TODO(crbug.com/436551488): Implement.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::unique_ptr<sql::Transaction> transaction =
+      web_data_backend_->GetDatabase()->AcquireTransaction();
+  EntityTable* table = GetEntityTable();
+
+  for (const std::unique_ptr<syncer::EntityChange>& change : entity_data) {
+    switch (change->type()) {
+      case syncer::EntityChange::ACTION_ADD:
+      case syncer::EntityChange::ACTION_UPDATE: {
+        const sync_pb::AutofillValuableMetadataSpecifics& specifics =
+            change->data().specifics.autofill_valuable_metadata();
+        EntityInstance::EntityMetadata remote =
+            CreateValuableMetadataFromSpecifics(specifics);
+        if (!table->AddOrUpdateEntityMetadata(remote)) {
+          // TODO(crbug.com/436551488): Update to the correct error type.
+          return syncer::ModelError(
+              FROM_HERE, syncer::ModelError::Type::
+                             kAutofillValuableMetadataFailedToLoadDatabase);
+        }
+        break;
+      }
+      case syncer::EntityChange::ACTION_DELETE: {
+        // Similar to AutofillWalletMetadataSyncBridge, ignore remote deletions
+        // to avoid delete-create ping pongs. The metadata will be deleted when
+        // the valuable itself is deleted. A cleanup mechanism for orphan
+        // metadata might be needed.
+        break;
+      }
+    }
+  }
+
+  if (std::optional<syncer::ModelError> error =
+          ApplyMetadataChanges(std::move(metadata_change_list))) {
+    return error;
+  }
+
+  // Commits changes through CommitChanges(...) or through the scoped
+  // sql::Transaction `transaction` depending on the
+  // 'SqlScopedTransactionWebDatabase' Finch experiment.
+  web_data_backend_->CommitChanges();
+  if (transaction && !transaction->Commit()) {
+    return syncer::ModelError(
+        FROM_HERE,
+        syncer::ModelError::Type::
+            kAutofillValuableMetadataTransactionCommitFailedOnIncrementalSync);
+  }
+
+  web_data_backend_->NotifyOnAutofillChangedBySync(
+      syncer::AUTOFILL_VALUABLE_METADATA);
+
   return std::nullopt;
 }
 
-ValuablesTable* ValuableMetadataSyncBridge::GetValuablesTable() {
-  return ValuablesTable::FromWebDatabase(web_data_backend_->GetDatabase());
+void ValuableMetadataSyncBridge::EntityInstanceChanged(
+    const EntityInstanceChange& change) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata));
+
+  if (!ShouldUploadEntityChange(change)) {
+    return;
+  }
+
+  CHECK(change_processor()->IsTrackingMetadata());
+
+  std::unique_ptr<syncer::MetadataChangeList> metadata_change_list =
+      CreateMetadataChangeList();
+
+  switch (change.type()) {
+    case EntityInstanceChange::ADD:
+    case EntityInstanceChange::UPDATE:
+      CHECK(change.data_model());
+      change_processor()->Put(
+          *change.key(),
+          CreateEntityDataFromEntityMetadata(change.data_model()->metadata()),
+          metadata_change_list.get());
+      break;
+    case EntityInstanceChange::REMOVE:
+      change_processor()->Delete(
+          *change.key(), syncer::DeletionOrigin::FromLocation(FROM_HERE),
+          metadata_change_list.get());
+      break;
+    case EntityInstanceChange::HIDE_IN_AUTOFILL:
+      // Removing valuables is not supported from the client.
+      NOTREACHED();
+  }
+}
+
+std::optional<syncer::ModelError>
+ValuableMetadataSyncBridge::ApplyMetadataChanges(
+    std::unique_ptr<syncer::MetadataChangeList> metadata_change_list) {
+  syncer::SyncMetadataStoreChangeList sync_metadata_store_change_list(
+      GetSyncMetadataStore(), syncer::AUTOFILL_VALUABLE_METADATA,
+      base::BindRepeating(&syncer::DataTypeLocalChangeProcessor::ReportError,
+                          change_processor()->GetWeakPtr()));
+  metadata_change_list->TransferChangesTo(&sync_metadata_store_change_list);
+  return change_processor()->GetError();
+}
+
+bool ValuableMetadataSyncBridge::SyncMetadataCacheContainsSupportedFields(
+    const syncer::EntityMetadataMap& metadata_map) const {
+  for (const auto& [_, metadata_entry] : metadata_map) {
+    // Serialize the cached specifics and parse them back to a proto. Any fields
+    // that were cached as unknown and are known in the current browser version
+    // should be parsed correctly.
+    std::string serialized_specifics;
+    metadata_entry->possibly_trimmed_base_specifics().SerializeToString(
+        &serialized_specifics);
+    sync_pb::EntitySpecifics parsed_specifics;
+    parsed_specifics.ParseFromString(serialized_specifics);
+
+    // If `parsed_specifics` contain any supported fields, they would be cleared
+    // by the trimming function.
+    if (parsed_specifics.ByteSizeLong() !=
+        TrimAllSupportedFieldsFromRemoteSpecifics(parsed_specifics)
+            .ByteSizeLong()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void ValuableMetadataSyncBridge::LoadMetadata() {
+  auto batch = std::make_unique<syncer::MetadataBatch>();
+  if (!GetSyncMetadataStore()->GetAllSyncMetadata(
+          syncer::AUTOFILL_VALUABLE_METADATA, batch.get())) {
+    change_processor()->ReportError(
+        {FROM_HERE, syncer::ModelError::Type::
+                        kAutofillValuableMetadataFailedToLoadMetadata});
+    return;
+  }
+
+  if (SyncMetadataCacheContainsSupportedFields(batch->GetAllMetadata())) {
+    // Caching entity specifics is meant to preserve fields not supported in a
+    // given browser version during commits to the server. If the cache
+    // contains supported fields, this means that the browser was updated and
+    // we should force the initial sync flow to propagate the cached data into
+    // the local model.
+    GetSyncMetadataStore()->DeleteAllSyncMetadata(
+        syncer::DataType::AUTOFILL_VALUABLE_METADATA);
+
+    batch = std::make_unique<syncer::MetadataBatch>();
+  }
+  change_processor()->ModelReadyToSync(std::move(batch));
+}
+
+EntityTable* ValuableMetadataSyncBridge::GetEntityTable() {
+  return EntityTable::FromWebDatabase(web_data_backend_->GetDatabase());
+}
+
+const EntityTable* ValuableMetadataSyncBridge::GetEntityTable() const {
+  return const_cast<const EntityTable*>(
+      const_cast<ValuableMetadataSyncBridge*>(this)->GetEntityTable());
 }
 
 }  // namespace autofill

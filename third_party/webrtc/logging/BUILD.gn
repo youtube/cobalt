@@ -607,7 +607,6 @@ if (rtc_enable_protobuf) {
         "../api:rtp_headers",
         "../api:rtp_parameters",
         "../api/environment",
-        "../api/environment:environment_factory",
         "../api/rtc_event_log",
         "../api/rtc_event_log:rtc_event_log_factory",
         "../api/transport:bandwidth_usage",
@@ -637,6 +636,7 @@ if (rtc_enable_protobuf) {
         "../test/time_controller",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/algorithm:container",
+        "//third_party/abseil-cpp/absl/base:nullability",
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]

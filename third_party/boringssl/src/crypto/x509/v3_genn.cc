@@ -66,12 +66,12 @@ IMPLEMENT_ASN1_DUP_FUNCTION_const(GENERAL_NAME)
 
 static int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b) {
   // nameAssigner is optional and may be NULL.
-  if (a->nameAssigner == NULL) {
-    if (b->nameAssigner != NULL) {
+  if (a->nameAssigner == nullptr) {
+    if (b->nameAssigner != nullptr) {
       return -1;
     }
   } else {
-    if (b->nameAssigner == NULL ||
+    if (b->nameAssigner == nullptr ||
         ASN1_STRING_cmp(a->nameAssigner, b->nameAssigner) != 0) {
       return -1;
     }
@@ -195,7 +195,7 @@ void *GENERAL_NAME_get0_value(const GENERAL_NAME *a, int *out_type) {
       return a->d.rid;
 
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -218,10 +218,10 @@ int GENERAL_NAME_get0_otherName(const GENERAL_NAME *gen, ASN1_OBJECT **out_oid,
   if (gen->type != GEN_OTHERNAME) {
     return 0;
   }
-  if (out_oid != NULL) {
+  if (out_oid != nullptr) {
     *out_oid = gen->d.otherName->type_id;
   }
-  if (out_value != NULL) {
+  if (out_value != nullptr) {
     *out_value = gen->d.otherName->value;
   }
   return 1;

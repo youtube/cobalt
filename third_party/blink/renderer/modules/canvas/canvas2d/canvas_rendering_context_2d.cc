@@ -347,7 +347,7 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
       recorder.RestartRecording();
     }
   } else {
-    provider->FlushCanvas(FlushReason::kWritePixels);
+    provider->FlushCanvas();
 
     // Short-circuit out if an error occurred while flushing the recording.
     if (!provider->IsValid()) {
@@ -571,8 +571,6 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
       FontDescription element_font_description(
           computed_style->GetFontDescription());
       element_font_description.SetLocale(locale);
-      element_font_description.SetIsForcedColorsMode(
-          document.InForcedColorsMode());
       // Reset the computed size to avoid inheriting the zoom factor from the
       // <canvas> element.
       element_font_description.SetComputedSize(
@@ -609,7 +607,6 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
     // minimum font size for detached canvas.
     FontDescription final_description(resolved_font->GetFontDescription());
     final_description.SetLocale(locale);
-    final_description.SetIsForcedColorsMode(document.InForcedColorsMode());
     final_description.SetComputedSize(final_description.SpecifiedSize());
     final_description.SetAdjustedSize(final_description.SpecifiedSize());
     GetState().SetFont(final_description, Host()->GetFontSelector());
@@ -829,7 +826,7 @@ void CanvasRenderingContext2D::DrawElementInternal(
   }
 
   std::optional<cc::PaintRecord> paint_record =
-      GetElementImage(element, "drawElementImage()", exception_state);
+      GetElementPaintRecord(element, "drawElementImage()", exception_state);
   if (!paint_record) {
     return;
   }
@@ -1394,8 +1391,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
     return;
   }
 
-  scoped_refptr<StaticBitmapImage> image =
-      GetImage(FlushReason::kReplaceLayerBridge);
+  scoped_refptr<StaticBitmapImage> image = GetImage(FlushReason::kOther);
   // image can be null if allocation failed in which case we should just
   // abort the provider switch to retain the old provider, which is still
   // functional.

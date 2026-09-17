@@ -57,6 +57,11 @@ public:
 
     static uint8_t ComputeSegmentMask(SkSpan<const SkPathVerb>);
 
+    /* Note: does NOT use convexity in the raw, so it need not be resolved,
+     *       if converting from builder or path.
+     */
+    static bool Contains(const SkPathRaw&, SkPoint);
+
     static SkPathVerbAnalysis AnalyzeVerbs(SkSpan<const SkPathVerb> verbs);
 
     // skbug.com/40041027: Not a perfect solution for W plane clipping, but 1/16384 is a
@@ -111,7 +116,7 @@ public:
     }
 
     static bool IsClosedSingleContour(const SkPath& path) {
-        return IsClosedSingleContour(path.fPathRef->verbs());
+        return IsClosedSingleContour(path.verbs());
     }
 
     /*
@@ -172,16 +177,19 @@ public:
     public:
         Iterate(SkPath&&) = delete;
         Iterate(const SkPath& path)
-                : Iterate(path.fPathRef->verbsBegin(),
-                          // Don't allow iteration through non-finite points.
-                          (!path.isFinite()) ? path.fPathRef->verbsBegin()
-                                             : path.fPathRef->verbsEnd(),
-                          path.fPathRef->points(), path.fPathRef->conicWeights()) {
+            : Iterate(path.verbs(), path.points().data(), path.conicWeights().data())
+        {
+            // Don't allow iteration through non-finite points.
+            if (!path.isFinite()) {
+                fVerbsBegin = fVerbsEnd;
+            }
         }
-        Iterate(const SkPathVerb* verbsBegin, const SkPathVerb* verbsEnd, const SkPoint* points,
-                const SkScalar* weights)
-                : fVerbsBegin(verbsBegin), fVerbsEnd(verbsEnd), fPoints(points), fWeights(weights) {
-        }
+        Iterate(SkSpan<const SkPathVerb> verbs, const SkPoint* points, const SkScalar* weights)
+            : fVerbsBegin(verbs.data())
+            , fVerbsEnd(verbs.data() + verbs.size())
+            , fPoints(points)
+            , fWeights(weights)
+        {}
         SkPath::RangeIter begin() { return {fVerbsBegin, fPoints, fWeights}; }
         SkPath::RangeIter end() { return {fVerbsEnd, nullptr, nullptr}; }
     private:
@@ -190,28 +198,6 @@ public:
         const SkPoint* fPoints;
         const SkScalar* fWeights;
     };
-
-    /**
-     * Returns a pointer to the verb data.
-     */
-    static const SkPathVerb* VerbData(const SkPath& path) {
-        return path.fPathRef->verbsBegin();
-    }
-
-    /** Returns a raw pointer to the path points */
-    static const SkPoint* PointData(const SkPath& path) {
-        return path.fPathRef->points();
-    }
-
-    /** Returns the number of conic weights in the path */
-    static int ConicWeightCnt(const SkPath& path) {
-        return path.fPathRef->countWeights();
-    }
-
-    /** Returns a raw pointer to the path conic weights. */
-    static const SkScalar* ConicWeightData(const SkPath& path) {
-        return path.fPathRef->conicWeights();
-    }
 
     /** Returns true if the underlying SkPathRef has one single owner. */
     static bool TestingOnly_unique(const SkPath& path) {
@@ -222,6 +208,11 @@ public:
     static bool HasComputedBounds(const SkPath& path) {
         return path.hasComputedBounds();
     }
+
+    // returns Empty() if there are no points
+    static SkRect ComputeTightBounds(SkSpan<const SkPoint> points,
+                                     SkSpan<const SkPathVerb> verbs,
+                                     SkSpan<const float> conicWeights);
 
     /** Returns the oval info if this path was created as an oval or circle, else returns {}.
      */
@@ -314,6 +305,7 @@ public:
     };
     static std::optional<RectContour> IsRectContour(SkSpan<const SkPoint> ptSpan,
                                                     SkSpan<const SkPathVerb> vbSpan,
+                                                    uint32_t segmentMask,
                                                     bool allowPartial);
 
     /** Returns true if SkPath is equivalent to nested SkRect pair when filled.
@@ -511,7 +503,7 @@ public:
         kQuad = (int)SkPathVerb::kQuad,
         kConic = (int)SkPathVerb::kConic,
         kCubic = (int)SkPathVerb::kCubic,
-        kInvalid = 99,
+ //       kInvalid = 99,
     };
 
     static SkPathVerb EdgeToVerb(Edge e) {
@@ -540,7 +532,7 @@ public:
         for (;;) {
             SkASSERT(fVerbs <= fVerbsStop);
             if (fVerbs == fVerbsStop) {
-                return fNeedsCloseLine ? closeline() : Result{nullptr, Edge::kInvalid, false};
+                return fNeedsCloseLine ? closeline() : Result{nullptr, Edge::kLine, false};
             }
 
             SkDEBUGCODE(fIsConic = false;)

@@ -19,12 +19,12 @@
 #include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_access_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_broker.h"
 #include "components/optimization_guide/core/model_execution/test/request_builder.h"
 #include "components/optimization_guide/core/model_execution/test/response_holder.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/forms_classifications.pb.h"
 #include "components/prefs/pref_service.h"
@@ -71,7 +71,6 @@ class ModelExecutionManagerTest : public testing::Test {
             &test_url_loader_factory_);
     model_execution_manager_ = std::make_unique<ModelExecutionManager>(
         url_loader_factory_, identity_test_env_.identity_manager(),
-        fake_model_broker_.controller().GetWeakPtr(),
         &optimization_guide_logger_, nullptr);
   }
 
@@ -104,10 +103,6 @@ class ModelExecutionManagerTest : public testing::Test {
     return model_execution_manager_.get();
   }
 
-  OnDeviceModelServiceController* service_controller() {
-    return &fake_model_broker_.controller();
-  }
-
   void CheckPendingRequestMessage(const std::string& message) {
     EXPECT_EQ(test_url_loader_factory_.NumPending(), 1);
     auto* pending_request = test_url_loader_factory_.GetPendingRequest(0);
@@ -130,10 +125,6 @@ class ModelExecutionManagerTest : public testing::Test {
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   network::TestURLLoaderFactory test_url_loader_factory_;
-  FakeAdaptationAsset fake_adaptation_asset_{{
-      .config = SimpleComposeConfig(),
-  }};
-  FakeModelBroker fake_model_broker_{fake_adaptation_asset_};
   OptimizationGuideLogger optimization_guide_logger_;
   std::unique_ptr<ModelExecutionManager> model_execution_manager_;
 };

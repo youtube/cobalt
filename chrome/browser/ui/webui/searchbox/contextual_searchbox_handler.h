@@ -28,6 +28,12 @@
 class Profile;
 class SkBitmap;
 
+#if !BUILDFLAG(IS_ANDROID)
+namespace contextual_tasks {
+class ContextualTasksContextService;
+}  // namespace contextual_tasks
+#endif
+
 namespace lens {
 struct ContextualInputData;
 struct ImageEncodingOptions;
@@ -60,7 +66,6 @@ class ContextualSearchboxHandler
           pending_searchbox_handler,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
       std::unique_ptr<OmniboxController> controller);
   ~ContextualSearchboxHandler() override;
 
@@ -114,6 +119,8 @@ class ContextualSearchboxHandler
 
   ComposeboxQueryController* GetQueryController();
 
+  ComposeboxMetricsRecorder* GetMetricsRecorder();
+
  private:
   void OnGetTabPageContext(
       const base::UnguessableToken& context_token,
@@ -127,8 +134,11 @@ class ContextualSearchboxHandler
   void RecordTabClickedMetric(tabs::TabInterface* const tab);
 
   std::set<base::UnguessableToken> deleted_context_tokens_;
-  std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder_;
   raw_ptr<content::WebContents> web_contents_;
+#if !BUILDFLAG(IS_ANDROID)
+  raw_ptr<contextual_tasks::ContextualTasksContextService>
+      contextual_tasks_context_service_;
+#endif
 
   base::ScopedObservation<ComposeboxQueryController,
                           ComposeboxQueryController::FileUploadStatusObserver>

@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
@@ -154,13 +155,14 @@ int SpdySessionPool::CreateAvailableSessionFromSocketHandle(
     const NetLogWithSource& net_log,
     const MultiplexedSessionCreationInitiator session_creation_initiator,
     base::WeakPtr<SpdySession>* session,
+    std::optional<ConnectionManagementConfig> connection_management_config,
     SpdySessionInitiator spdy_session_initiator) {
   TRACE_EVENT0(NetTracingCategory(),
                "SpdySessionPool::CreateAvailableSessionFromSocketHandle");
 
   std::unique_ptr<SpdySession> new_session =
       CreateSession(key, net_log.net_log(), session_creation_initiator,
-                    spdy_session_initiator);
+                    spdy_session_initiator, connection_management_config);
   std::set<std::string> dns_aliases =
       stream_socket_handle->socket()->GetDnsAliases();
 
@@ -189,7 +191,7 @@ SpdySessionPool::CreateAvailableSessionFromSocket(
 
   std::unique_ptr<SpdySession> new_session = CreateSession(
       key, net_log.net_log(), MultiplexedSessionCreationInitiator::kUnknown,
-      spdy_session_initiator);
+      spdy_session_initiator, std::nullopt);
   std::set<std::string> dns_aliases = socket_stream->GetDnsAliases();
 
   new_session->InitializeWithSocket(std::move(socket_stream), connect_timing,
@@ -486,6 +488,8 @@ void SpdySessionPool::RemoveUnavailableSession(
   CHECK(it != sessions_.end());
   std::unique_ptr<SpdySession> owned_session(*it);
   sessions_.erase(it);
+
+  NotifyOnSessionClosed(owned_session->spdy_session_key());
 }
 
 // Make a copy of |sessions_| in the Close* functions below to avoid
@@ -710,6 +714,7 @@ void SpdySessionPool::CloseCurrentSessionsHelper(Error error,
 
     session->CloseSessionOnError(error, description);
 
+    NotifyOnSessionClosed(session->spdy_session_key());
     DCHECK(!IsSessionAvailable(session));
     DCHECK(!session || session->IsDraining());
   }
@@ -719,7 +724,8 @@ std::unique_ptr<SpdySession> SpdySessionPool::CreateSession(
     const SpdySessionKey& key,
     NetLog* net_log,
     const MultiplexedSessionCreationInitiator session_creation_initiator,
-    SpdySessionInitiator spdy_session_initiator) {
+    SpdySessionInitiator spdy_session_initiator,
+    std::optional<ConnectionManagementConfig> connection_management_config) {
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet", IMPORTED_FROM_SOCKET,
                             SPDY_SESSION_GET_MAX);
 
@@ -735,6 +741,12 @@ std::unique_ptr<SpdySession> SpdySessionPool::CreateSession(
     it->second->RemovePooledAlias(key);
     UnmapKey(key);
     RemoveAliases(key);
+  }
+
+  // We only want to use the connection management config for the session if the
+  // feature is enabled.
+  if (connection_management_config.has_value()) {
+    AddConnectionManagementConfig(key, connection_management_config.value());
   }
 
   return std::make_unique<SpdySession>(
@@ -786,6 +798,7 @@ base::expected<base::WeakPtr<SpdySession>, int> SpdySessionPool::InsertSession(
   if (!available_session->HasAcceptableTransportSecurity()) {
     available_session->CloseSessionOnError(
         ERR_HTTP2_INADEQUATE_TRANSPORT_SECURITY, "");
+    NotifyOnConnectionFailure(key);
     return base::unexpected(ERR_HTTP2_INADEQUATE_TRANSPORT_SECURITY);
   }
 
@@ -793,6 +806,7 @@ base::expected<base::WeakPtr<SpdySession>, int> SpdySessionPool::InsertSession(
   if (rv != OK) {
     DCHECK_NE(ERR_IO_PENDING, rv);
     // ParseAlps() already closed the connection on error.
+    NotifyOnConnectionFailure(key);
     return base::unexpected(rv);
   }
 
@@ -920,6 +934,50 @@ base::WeakPtr<SpdySession> SpdySessionPool::FindMatchingIpSession(
   }
 
   return nullptr;
+}
+
+void SpdySessionPool::AddConnectionManagementConfig(
+    const SpdySessionKey& key,
+    ConnectionManagementConfig& connection_management_config) {
+  if (!base::FeatureList::IsEnabled(
+          net::features::kConnectionKeepAliveForHttp2)) {
+    return;
+  }
+
+  // We only want to use the connection management config for the session if the
+  // feature is enabled.
+  if (connection_management_config.connection_change_observer) {
+    if (!base::Contains(connection_change_notifier_map_, key)) {
+      connection_change_notifier_map_[key] =
+          std::make_unique<ConnectionChangeNotifier>();
+    }
+    connection_change_notifier_map_[key]->AddObserver(
+        connection_management_config.connection_change_observer);
+  }
+}
+
+void SpdySessionPool::NotifyOnNetworkEvent(net::NetworkChangeEvent event) {
+  // TODO(crbug.com/453308537): We currently do not support
+  // `NotifyOnNetworkEvent` since `SpdySessionPool` does not observe
+  // `NetworkObserver`. We should add support, but for the time being, we can
+  // get similar behavior via the `IPAddressObserver`, which would close the
+  // connection on network changes.
+  NOTIMPLEMENTED() << "SpdySessionPool does not support NotifyOnNetworkEvent";
+}
+
+void SpdySessionPool::NotifyOnSessionClosed(const SpdySessionKey& session_key) {
+  auto notifier = connection_change_notifier_map_.find(session_key);
+  if (notifier != connection_change_notifier_map_.end()) {
+    notifier->second->OnSessionClosed();
+  }
+}
+
+void SpdySessionPool::NotifyOnConnectionFailure(
+    const SpdySessionKey& session_key) {
+  auto notifier = connection_change_notifier_map_.find(session_key);
+  if (notifier != connection_change_notifier_map_.end()) {
+    notifier->second->OnConnectionFailed();
+  }
 }
 
 }  // namespace net

@@ -34,6 +34,8 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
     private static final String TAG = "TopControlsStacker";
 
+    private static boolean sDumpStatusForTesting;
+
     /** Enums that defines the types of top controls. */
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -171,18 +173,16 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     }
 
     /**
-     * Sets whether scrolling is disabled for the top controls.
+     * Sets whether scrolling is disabled for the top controls. This call can potentially still
+     * change the browser control's shown ratio when minHeight is updated when the controls is
+     * scrolled off, or when BrowserControlsState.HIDDEN. Note that the control's height will not be
+     * recalculated until {@link #requestLayerUpdate(boolean)} is called.
      *
      * @param disabled Whether scrolling is disabled.
      */
     public void setScrollingDisabled(boolean disabled) {
         if (mScrollingDisabled == disabled) return;
         mScrollingDisabled = disabled;
-
-        // This call can potentially still change the browser control's shown ration when minHeight
-        // is updated when the controls is scrolled off, or when BrowserControlsState.HIDDEN.
-        // We intentionally disabling animation updates for those.
-        requestLayerUpdate(false);
     }
 
     /**
@@ -316,6 +316,19 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
             boolean offsetsAppliedByBrowser) {
         if (!ChromeFeatureList.sTopControlsRefactor.isEnabled()
                 || !ChromeFeatureList.sTopControlsRefactorV2.isEnabled()) return;
+
+        if (sDumpStatusForTesting) {
+            Log.d(
+                    TAG,
+                    "*** repositionLayers *** initialTopOffset="
+                            + initialTopOffset
+                            + " minHeightOffset="
+                            + initialTopControlsMinHeightOffset
+                            + " requestNewFrame="
+                            + requestNewFrame
+                            + " offsetsAppliedByBrowser="
+                            + offsetsAppliedByBrowser);
+        }
 
         // 1. Calculate the offset based on the current layer position. In this step, the controls
         // are classified into scrollable and non-scrollable layer, and all the layers are display
@@ -457,6 +470,10 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
             }
 
             layer.onBrowserControlsOffsetUpdate(yOffset, controlsAtResting);
+
+            if (sDumpStatusForTesting) {
+                dumpLayerStatus(layer, yOffset);
+            }
         }
     }
 
@@ -662,5 +679,39 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
                         + actualHeight
                         + " actualMinHeight= "
                         + actualMinHeight);
+    }
+
+    private void dumpLayerStatus(TopControlLayer layer, int yOffset) {
+        Log.d(
+                TAG,
+                "["
+                        + getName(layer.getTopControlType())
+                        + "] yOffset="
+                        + yOffset
+                        + " height="
+                        + layer.getTopControlHeight()
+                        + " scrollType="
+                        + layer.getScrollBehavior()
+                        + " visibility="
+                        + layer.getTopControlVisibility());
+    }
+
+    private static String getName(@TopControlType int type) {
+        switch (type) {
+            case TopControlType.STATUS_INDICATOR:
+                return "STATUS_INDICATOR";
+            case TopControlType.TABSTRIP:
+                return "TAB_STRIP";
+            case TopControlType.TOOLBAR:
+                return "TOOLBAR";
+            case TopControlType.BOOKMARK_BAR:
+                return "BOOKMARK_BAR";
+            case TopControlType.HAIRLINE:
+                return "HAIRLINE";
+            case TopControlType.PROGRESS_BAR:
+                return "PROGRESS_BAR";
+        }
+        assert false : "Unknown TopControlType: " + type;
+        return "";
     }
 }

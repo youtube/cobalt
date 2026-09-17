@@ -18,6 +18,7 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.ui.base.LocalizationUtils;
 
 /**
  * Observes MultiColumnSettings events, and updates the SettingsActivity's title and its detailed
@@ -126,6 +127,7 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
                 mContext.getResources()
                         .getDimensionPixelSize(R.dimen.settings_detailed_title_padding);
 
+        float scaleX = LocalizationUtils.isLayoutRtl() ? -1f : 1f;
         var titles = mMultiColumnSettings.getTitles();
         for (int i = 0; i < titles.size(); ++i) {
             if (i != 0) {
@@ -133,6 +135,7 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
                 var view = new ImageView(mContext);
                 view.setPadding(paddingPx, 0, paddingPx, 0);
                 view.setImageResource(R.drawable.chevron_right);
+                view.setScaleX(scaleX);
                 mContainer.addView(view);
             }
             var view = new DetailedTitle(mContext);
@@ -178,9 +181,16 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
 
         // Set left margin to align with the detailed pane.
         View view = mMultiColumnSettings.getHeaderView();
+        int headerViewWidth = view.getLayoutParams().width;
+        int dividerWidth =
+                view.getResources()
+                        .getDimensionPixelSize(R.dimen.settings_multi_column_divider_size);
+        int contentOffset =
+                view.getResources().getDimensionPixelSize(R.dimen.settings_detailed_title_offset);
+
         ViewGroup.MarginLayoutParams params =
                 (ViewGroup.MarginLayoutParams) mContainer.getLayoutParams();
-        params.setMargins(view.getLayoutParams().width, 0, 0, 0);
+        params.setMarginStart(headerViewWidth + dividerWidth + contentOffset);
         mContainer.setLayoutParams(params);
         mContainer.invalidate();
     }

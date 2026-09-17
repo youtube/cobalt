@@ -10,11 +10,13 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_sync_metadata_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_backend.h"
+#include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_table.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/data_type_sync_bridge.h"
@@ -30,8 +32,10 @@ namespace autofill {
 
 class AutofillWebDataService;
 
-class ValuableMetadataSyncBridge : public base::SupportsUserData::Data,
-                                   public syncer::DataTypeSyncBridge {
+class ValuableMetadataSyncBridge
+    : public AutofillWebDataServiceObserverOnDBSequence,
+      public base::SupportsUserData::Data,
+      public syncer::DataTypeSyncBridge {
  public:
   ValuableMetadataSyncBridge(
       std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
@@ -71,6 +75,9 @@ class ValuableMetadataSyncBridge : public base::SupportsUserData::Data,
   sync_pb::EntitySpecifics TrimAllSupportedFieldsFromRemoteSpecifics(
       const sync_pb::EntitySpecifics& entity_specifics) const override;
 
+  // AutofillWebDataServiceObserverOnDBSequence:
+  void EntityInstanceChanged(const EntityInstanceChange& change) override;
+
  private:
   // Merges remote changes, specified in `entity_data`, with the local DB and,
   // potentially, writes changes to the local DB and/or commits updates of
@@ -79,8 +86,31 @@ class ValuableMetadataSyncBridge : public base::SupportsUserData::Data,
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_data);
 
-  // Returns the `ValuablesTable` associated with the `web_data_backend_`.
-  ValuablesTable* GetValuablesTable();
+  // Uploads local data that is not part of `entity_data` sent from the server
+  // during initial `MergeFullSyncData()`.
+  void UploadInitialLocalData(syncer::MetadataChangeList* metadata_change_list,
+                              const syncer::EntityChangeList& entity_data);
+
+  // To ensures that metadata and model data is  committed in a single
+  // transaction, `CreateMetadataChangeList()` is implemented using an
+  // `InMemoryMetadataChangeList`. This function transfers the changes from the
+  // `metadata_change_list` to `GetSyncMetadataStore()`. It assumes that
+  // `metadata_change_list` was created using the bridge's
+  // `CreateMetadataChangeList()`.
+  std::optional<syncer::ModelError> ApplyMetadataChanges(
+      std::unique_ptr<syncer::MetadataChangeList> metadata_change_list);
+
+  // Synchronously load sync metadata and pass it to the processor.
+  void LoadMetadata();
+
+  bool SyncMetadataCacheContainsSupportedFields(
+      const syncer::EntityMetadataMap& metadata_map) const;
+
+  // Returns the `EntityTable` associated with the `web_data_backend_`.
+  EntityTable* GetEntityTable();
+
+  // Returns a const `EntityTable` associated with the `web_data_backend_`.
+  const EntityTable* GetEntityTable() const;
 
   AutofillSyncMetadataTable* GetSyncMetadataStore();
 
@@ -88,6 +118,10 @@ class ValuableMetadataSyncBridge : public base::SupportsUserData::Data,
   // These are converted to their `AutofillValuableMetadataSpecifics`
   // representation and returned as a `syncer::MutableDataBatch`.
   std::unique_ptr<syncer::MutableDataBatch> GetAllData();
+
+  base::ScopedObservation<AutofillWebDataBackend,
+                          AutofillWebDataServiceObserverOnDBSequence>
+      scoped_observation_{this};
 
   // The bridge should be used on the same sequence where it has been
   // constructed.

@@ -80,6 +80,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnServerPreferredAddressAvailable(
       const quic::QuicSocketAddress& server_preferred_address) override;
+  bool MaybeMitigateWriteError(const WriteResult& write_result) override;
   void OnStreamClosed(QuicStreamId stream_id) override;
 
   // Migrates session onto the new path, i.e. changing the default writer and
@@ -116,7 +117,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
 
   std::unique_ptr<QuicPathContextFactory> path_context_factory_;
   QuicConnectionMigrationManager migration_manager_;
-  QuicForceBlockablePacketWriter* absl_nonnull writer_;
+  QuicForceBlockablePacketWriter* writer_;
   QuicTime most_recent_stream_close_time_;
 };
 

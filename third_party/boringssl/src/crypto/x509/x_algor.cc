@@ -149,10 +149,10 @@ int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval) {
     return 0;
   }
   if (ptype != V_ASN1_UNDEF) {
-    if (alg->parameter == NULL) {
+    if (alg->parameter == nullptr) {
       alg->parameter = ASN1_TYPE_new();
     }
-    if (alg->parameter == NULL) {
+    if (alg->parameter == nullptr) {
       return 0;
     }
   }
@@ -166,7 +166,7 @@ int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval) {
   if (ptype == V_ASN1_UNDEF) {
     if (alg->parameter) {
       ASN1_TYPE_free(alg->parameter);
-      alg->parameter = NULL;
+      alg->parameter = nullptr;
     }
   } else {
     ASN1_TYPE_set(alg->parameter, ptype, pval);
@@ -176,18 +176,18 @@ int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval) {
 
 void X509_ALGOR_get0(const ASN1_OBJECT **out_obj, int *out_param_type,
                      const void **out_param_value, const X509_ALGOR *alg) {
-  if (out_obj != NULL) {
+  if (out_obj != nullptr) {
     *out_obj = alg->algorithm;
   }
-  if (out_param_type != NULL) {
+  if (out_param_type != nullptr) {
     int type = V_ASN1_UNDEF;
-    const void *value = NULL;
-    if (alg->parameter != NULL) {
+    const void *value = nullptr;
+    if (alg->parameter != nullptr) {
       type = alg->parameter->type;
       value = asn1_type_value_as_pointer(alg->parameter);
     }
     *out_param_type = type;
-    if (out_param_value != NULL) {
+    if (out_param_value != nullptr) {
       *out_param_value = value;
     }
   }
@@ -204,7 +204,8 @@ int X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md) {
     param_type = V_ASN1_NULL;
   }
 
-  return X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
+  return X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type,
+                         nullptr);
 }
 
 // X509_ALGOR_cmp returns 0 if |a| and |b| are equal and non-zero otherwise.

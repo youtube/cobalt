@@ -9,9 +9,6 @@
 #include "components/viz/common/resources/shared_image_format.h"
 
 namespace gpu {
-class GpuMemoryBufferSupport;
-class MappableBufferNativePixmap;
-class SharedImageFormatToBufferFormatRestrictedUtilsAccessor;
 class SharedImageFormatRestrictedUtilsAccessor;
 }  // namespace gpu
 
@@ -21,10 +18,6 @@ class PerfContextProvider;
 
 namespace gfx {
 enum class BufferFormat : uint8_t;
-}
-
-namespace ui {
-class WaylandOverlayManager;
 }
 
 enum SkColorType : int;
@@ -70,6 +63,10 @@ bool HasEquivalentBufferFormat(SharedImageFormat format);
 COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
 gfx::BufferFormat SinglePlaneSharedImageFormatToBufferFormat(
     SharedImageFormat format);
+
+// Returns the BufferFormat corresponding to `format`.
+COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
+gfx::BufferFormat SharedImageFormatToBufferFormat(SharedImageFormat format);
 
 // Returns the SharedImageFormat corresponding to `buffer_format`.
 COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
@@ -133,23 +130,6 @@ class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
   // GL_ANGLE_rgbx_internal_format extension is available.
   static unsigned int ToGLTextureStorageFormat(SharedImageFormat format,
                                                bool use_angle_rgbx_format);
-};
-
-// Utility function which conceptually belong only on the service side, but are
-// currently used by some clients. Usage is restricted to friended class.
-class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
-    SharedImageFormatToBufferFormatRestrictedUtils {
- private:
-  friend class gpu::GpuMemoryBufferSupport;
-  friend class gpu::SharedImageFormatToBufferFormatRestrictedUtilsAccessor;
-  friend class gpu::MappableBufferNativePixmap;
-  friend class ui::WaylandOverlayManager;
-
-  // BufferFormat is being transitioned out of SharedImage code (to use
-  // SharedImageFormat instead). Refrain from using this function or preferably
-  // use with single planar SharedImageFormats. Returns BufferFormat for given
-  // `format`.
-  static gfx::BufferFormat ToBufferFormat(SharedImageFormat format);
 };
 
 }  // namespace viz

@@ -47,6 +47,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/wm/core/coordinate_conversion.h"
 
+class ApplicationLocaleStorage;
 class PrefService;
 
 namespace content {
@@ -146,7 +147,12 @@ class AccessibilityManager
 
   // Creates an instance of AccessibilityManager, this should be called once,
   // because only one instance should exist at the same time.
-  static void Initialize(PrefService* local_state);
+  //
+  // Both `local_state` and `application_locale_storage` must be non-null, and
+  // must live until Shutdown() is called.
+  static void Initialize(
+      PrefService* local_state,
+      const ApplicationLocaleStorage* application_locale_storage);
   // Deletes the existing instance of AccessibilityManager.
   static void Shutdown();
   // Returns the existing instance. If there is no instance, returns NULL.
@@ -399,6 +405,11 @@ class AccessibilityManager
   // Starts or stops dictation (type what you speak).
   bool ToggleDictation();
 
+  // Gets the default locale for the active profile.
+  // If this is a |new_user|, it returns the application language.
+  // Otherwise, it returns the Dictation language with default IME language.
+  std::string GetDictationDefaultLocale(bool new_user);
+
   // Sets the focus ring with the given ID based on |focus_ring|.
   void SetFocusRing(std::string focus_ring_id,
                     std::unique_ptr<AccessibilityFocusRingInfo> focus_ring);
@@ -539,8 +550,11 @@ class AccessibilityManager
   void LoadEnhancedNetworkTtsForTest();
 
  protected:
-  // `local_state` must be non-null, and must outlive `this`.
-  explicit AccessibilityManager(PrefService* local_state);
+  // Both `local_state` and `application_locale_storage` must be non-null, and
+  // must live until Shutdown() is called.
+  AccessibilityManager(
+      PrefService* local_state,
+      const ApplicationLocaleStorage* application_locale_storage);
   ~AccessibilityManager() override;
 
  private:
@@ -680,6 +694,7 @@ class AccessibilityManager
   bool spoken_feedback_enabled() const { return bool(screen_reader_mode_); }
 
   const raw_ref<PrefService> local_state_;
+  const raw_ref<const ApplicationLocaleStorage> application_locale_storage_;
 
   // Profile which has the current a11y context.
   raw_ptr<Profile> profile_ = nullptr;

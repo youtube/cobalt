@@ -38,6 +38,10 @@ namespace web_app {
 // http://b/262606416.
 class FakeWebContentsManager : public WebContentsManager {
  public:
+  static constexpr std::string_view kBasicInstallIconUrl =
+      "https://www.example.com/icon.png";
+  static constexpr int kBasicInstallIconSize = 144;
+
   // Some helper methods.
   static webapps::mojom::WebPageMetadataPtr CreateMetadataWithTitle(
       std::u16string title);
@@ -114,9 +118,11 @@ class FakeWebContentsManager : public WebContentsManager {
 
   void SetUrlLoaded(content::WebContents* web_contents, const GURL& url);
 
+  // WebContentsManager implementation:
   std::unique_ptr<webapps::WebAppUrlLoader> CreateUrlLoader() override;
   std::unique_ptr<WebAppDataRetriever> CreateDataRetriever() override;
   std::unique_ptr<WebAppIconDownloader> CreateIconDownloader() override;
+  FakeWebContentsManager* AsFakeWebContentsManagerForTesting() override;
 
   // Set the behavior for calls to `GetIcons` from wrappers returned by this
   // fake class.

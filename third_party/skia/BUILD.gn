@@ -23,6 +23,9 @@ config("skia_public") {
   defines = [
     "SK_CODEC_DECODES_BMP",
     "SK_CODEC_DECODES_WBMP",
+
+    # TODO(kjlubick,fmalita) Remove when clients updated and APIs deleted.
+    "SK_HIDE_PATH_EDIT_METHODS",
   ]
   cflags_objcc = []
   if (is_component_build) {
@@ -220,8 +223,7 @@ template("optional") {
       all_dependent_configs = [ ":" + target_name + "_public" ]
     }
 
-    if (defined(invoker.sources_for_tests) &&
-        skia_enable_tools_that_might_need_ganesh) {
+    if (defined(invoker.sources_for_tests) && skia_enable_tools) {
       skia_source_set(target_name + "_tests") {
         visibility = [ ":*" ]
         check_includes = false
@@ -280,8 +282,7 @@ template("optional") {
       }
     }
 
-    if (defined(invoker.sources_for_tests) &&
-        skia_enable_tools_that_might_need_ganesh) {
+    if (defined(invoker.sources_for_tests) && skia_enable_tools) {
       skia_source_set(target_name + "_tests") {
         visibility = [ ":*" ]
       }
@@ -1263,17 +1264,6 @@ optional("xps") {
     ":pathops",
   ]
   public = skia_xps_public
-
-  # TODO(lukasza, kjlubick, bungeman): Remove the `xps...png_helpers` deps once
-  # the legacy XPS factories (see `SK_DISABLE_LEGACY_XPS_FACTORIES`) are not
-  # supported anymore.
-  if (skia_use_libpng_encode) {
-    deps += [ ":xps_libpng_helpers" ]
-  }
-  if (skia_use_rust_png_encode) {
-    deps += [ ":xps_rust_png_helpers" ]
-  }
-
   sources = skia_xps_sources
 }
 
@@ -1861,16 +1851,6 @@ if (is_wasm) {
   }
 }
 
-skia_static_library("pathkit") {
-  check_includes = false
-  public_configs = [ ":skia_public" ]
-  configs = skia_library_configs
-
-  sources = skia_pathops_sources
-
-  deps = [ ":skia" ]
-}
-
 group("modules") {
   deps = [
     "modules/bentleyottmann",
@@ -1936,20 +1916,9 @@ action("skia.h") {
   outputs = [ skia_h ]
 }
 
-config("cpp17") {
-  if (is_win) {
-    cflags_cc = [ "/std:c++17" ]
-  } else {
-    cflags_cc = [ "-std=c++17" ]
-  }
-}
-
 skia_source_set("public_headers_warnings_check") {
   sources = [ "tools/public_headers_warnings_check.cpp" ]
-  configs = [
-    ":use_skia_vulkan_headers",
-    ":cpp17",
-  ]
+  configs = [ ":use_skia_vulkan_headers" ]
   if (defined(skia_header_target_default_configs)) {
     configs += skia_header_target_default_configs
   }
@@ -2504,45 +2473,45 @@ if (skia_enable_tools) {
     }
   }
 
-  if (skia_enable_ganesh) {
-    test_lib("test") {
-      sources = [
-        "tests/CtsEnforcement.cpp",
-        "tests/Test.cpp",
-        "tests/Test.h",
-        "tests/TestHarness.cpp",
-        "tests/TestHarness.h",
-        "tests/TestUtils.cpp",
-        "tests/TestUtils.h",
-      ]
-      deps = [
-        ":flags",
-        ":skia",
-        ":tool_utils",
-      ]
+  test_lib("test") {
+    sources = [
+      "tests/ComparePixels.cpp",
+      "tests/ComparePixels.h",
+      "tests/CtsEnforcement.cpp",
+      "tests/Test.cpp",
+      "tests/Test.h",
+      "tests/TestHarness.cpp",
+      "tests/TestHarness.h",
+    ]
+    deps = [
+      ":flags",
+      ":skia",
+      ":tool_utils",
+    ]
+    if (skia_enable_graphite || skia_enable_ganesh) {
       public_deps = [
         ":gpu_tool_utils",  # Test.h #includes headers from this target.
       ]
     }
+    if (skia_enable_ganesh) {
+      sources += [
+        "tests/ganesh/GaneshTestUtils.cpp",
+        "tests/ganesh/GaneshTestUtils.h",
+      ]
+    }
+  }
 
+  if (skia_enable_graphite || skia_enable_ganesh) {
     import("gn/tests.gni")
     test_lib("tests") {
       sources = tests_sources + pathops_tests_sources
       frameworks = []
       if (skia_use_metal) {
-        sources += metal_tests_sources
         cflags_objcc = [ "-fobjc-arc" ]
         frameworks += [ "MetalKit.framework" ]
       }
       if (skia_use_jpeg_gainmaps) {
         sources += jpeg_gainmap_tests_sources
-      }
-      if (skia_use_gl) {
-        sources += gl_tests_sources
-      }
-      if (skia_use_vulkan) {
-        sources += skia_gpu_vk_chromium_public
-        sources += skia_gpu_vk_chromium_private
       }
       if (skia_enable_graphite) {
         sources += graphite_tests_sources
@@ -2556,8 +2525,18 @@ if (skia_enable_tools) {
           sources += graphite_vulkan_tests_sources
         }
       }
-      if (!skia_enable_ganesh) {
-        sources -= ganesh_tests_sources
+      if (skia_enable_ganesh) {
+        sources += ganesh_tests_sources
+        if (skia_use_metal) {
+          sources += ganesh_metal_tests_sources
+        }
+        if (skia_use_gl) {
+          sources += ganesh_gl_tests_sources
+        }
+        if (skia_use_vulkan) {
+          sources += skia_gpu_vk_chromium_public
+          sources += skia_gpu_vk_chromium_private
+        }
       }
       if (skia_enable_precompile) {
         sources += precompile_tests_sources
@@ -2589,7 +2568,9 @@ if (skia_enable_tools) {
         "//third_party/zlib",
       ]
     }
+  }
 
+  if (skia_enable_ganesh) {
     import("gn/bench.gni")
     test_lib("bench") {
       sources = bench_sources
@@ -2645,51 +2626,57 @@ if (skia_enable_tools) {
       "//third_party/libpng",
     ]
   }
-  if (target_cpu != "wasm" && skia_enable_tools_that_might_need_ganesh) {
-    test_app("convert-to-nia") {
-      sources = [ "tools/convert-to-nia.cpp" ]
-      deps = [ ":skia" ]
-    }
-    test_app("imgcvt") {
-      sources = [ "tools/imgcvt.cpp" ]
-      configs = [ ":use_skia_vulkan_headers" ]
-      deps = [
-        ":skia",
-        "modules/skcms",
-      ]
-    }
-    test_app("dm") {
-      sources = [
-        "dm/DM.cpp",
-        "dm/DMGpuTestProcs.cpp",
-        "dm/DMJsonWriter.cpp",
-        "dm/DMJsonWriter.h",
-        "dm/DMSrcSink.cpp",
-        "dm/DMSrcSink.h",
-      ]
-      deps = [
-        ":common_flags_config",
-        ":common_flags_ganesh",
-        ":common_flags_images",
-        ":compile_all_sksl_tests",
-        ":flags",
-        ":gm",
-        ":gpu_tool_utils",
-        ":hash_and_encode",
-        ":skia",
-        ":tests",
-        ":tool_utils",
-        ":trace",
-        "modules/skottie",
-        "modules/skottie:utils",
-        "modules/skshaper",
-        "modules/skunicode",
-      ]
-      if (skia_use_libpng_decode) {
-        deps += [ "modules/svg" ]
+  if (target_cpu != "wasm") {
+    if (skia_enable_tools_that_might_need_ganesh) {
+      test_app("convert-to-nia") {
+        sources = [ "tools/convert-to-nia.cpp" ]
+        deps = [ ":skia" ]
       }
-      if (skia_enable_graphite) {
-        deps += [ ":common_flags_graphite" ]
+      test_app("imgcvt") {
+        sources = [ "tools/imgcvt.cpp" ]
+        configs = [ ":use_skia_vulkan_headers" ]
+        deps = [
+          ":skia",
+          "modules/skcms",
+        ]
+      }
+    }
+    if (skia_enable_graphite || skia_enable_ganesh) {
+      test_app("dm") {
+        sources = [
+          "dm/DM.cpp",
+          "dm/DMGpuTestProcs.cpp",
+          "dm/DMJsonWriter.cpp",
+          "dm/DMJsonWriter.h",
+          "dm/DMSrcSink.cpp",
+          "dm/DMSrcSink.h",
+        ]
+        deps = [
+          ":common_flags_config",
+          ":common_flags_images",
+          ":compile_all_sksl_tests",
+          ":flags",
+          ":gm",
+          ":gpu_tool_utils",
+          ":hash_and_encode",
+          ":skia",
+          ":tests",
+          ":tool_utils",
+          ":trace",
+          "modules/skottie",
+          "modules/skottie:utils",
+          "modules/skshaper",
+          "modules/skunicode",
+        ]
+        if (skia_use_libpng_decode) {
+          deps += [ "modules/svg" ]
+        }
+        if (skia_enable_graphite) {
+          deps += [ ":common_flags_graphite" ]
+        }
+        if (skia_enable_ganesh) {
+          deps += [ ":common_flags_ganesh" ]
+        }
       }
     }
     test_app("filterfuzz") {
@@ -3126,6 +3113,8 @@ if (skia_enable_tools) {
         "tools/viewer/BisectSlide.cpp",
         "tools/viewer/BisectSlide.h",
         "tools/viewer/CameraSlide.cpp",
+        "tools/viewer/CaptureSlide.cpp",
+        "tools/viewer/CaptureSlide.h",
         "tools/viewer/ChartSlide.cpp",
         "tools/viewer/ChineseFlingSlide.cpp",
         "tools/viewer/ClickHandlerSlide.cpp",

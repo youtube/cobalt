@@ -148,6 +148,15 @@ bool fuzzilli_reprl = true;
 bool fuzzilli_reprl = false;
 #endif  // V8_FUZZILLI
 
+Isolate::CreateParams GetDefaultIsolateCreateParams() {
+  Isolate::CreateParams create_params;
+  create_params.constraints.ConfigureDefaults(
+      base::SysInfo::AmountOfPhysicalMemory(),
+      base::SysInfo::AmountOfVirtualMemory());
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  return create_params;
+}
+
 // Base class for shell ArrayBuffer allocators. It forwards all operations to
 // the default v8 allocator.
 class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
@@ -3324,7 +3333,7 @@ MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
       if (accumulator->Length() == 0) return {};
       return accumulator;
     }
-    int length = static_cast<int>(strlen(buffer));
+    int length = base::checked_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
     } else if (buffer[length - 1] != '\n') {
@@ -5120,7 +5129,7 @@ char* Shell::ReadChars(const char* name, int* size_out) {
     }
   }
   base::Fclose(file);
-  *size_out = static_cast<int>(size);
+  *size_out = base::checked_cast<int>(size);
   return chars;
 }
 
@@ -5139,7 +5148,7 @@ MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
     lines.emplace_back(line);
   }
   // Create a Local<PrimitiveArray> off the read lines.
-  int size = static_cast<int>(lines.size());
+  int size = base::checked_cast<int>(lines.size());
   Local<PrimitiveArray> exports = PrimitiveArray::New(isolate, size);
   for (int i = 0; i < size; ++i) {
     MaybeLocal<String> maybe_str = v8::String::NewFromUtf8(
@@ -5218,7 +5227,11 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
   if (!file) {
     return MaybeLocal<String>();
   }
-  int size = static_cast<int>(file->size());
+  size_t full_file_size = file->size();
+  if (full_file_size > size_t{i::kMaxInt}) {
+    FATAL("Input file too large (%zu bytes)", full_file_size);
+  }
+  int size = static_cast<int>(full_file_size);
   char* chars = static_cast<char*>(file->memory());
   if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
@@ -5568,8 +5581,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
 void SourceGroup::ExecuteInThread() {
   base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
 
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   Isolate* isolate = Isolate::New(create_params);
 
   {
@@ -5877,8 +5889,7 @@ Worker* Worker::GetCurrentWorker() { return current_worker_; }
 void Worker::ExecuteInThread() {
   base::FlushDenormalsScope denormals_scope(flush_denormals_);
 
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   isolate_ = Isolate::New(create_params);
 
   // Make the Worker instance available to the whole thread.
@@ -7117,7 +7128,7 @@ int Shell::Main(int argc, char* argv[]) {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
   int result = 0;
-  Isolate::CreateParams create_params;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   const size_t memory_limit =
@@ -7148,9 +7159,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
   }
 #endif  // ENABLE_VTUNE_JIT_INTERFACE
-  create_params.constraints.ConfigureDefaults(
-      base::SysInfo::AmountOfPhysicalMemory(),
-      base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
   if (options.dump_counters || options.dump_counters_nvp ||
@@ -7184,6 +7192,13 @@ int Shell::Main(int argc, char* argv[]) {
     fprintf(stderr,
             "V8 is running with experimental features enabled. Stability and "
             "security will suffer.\n");
+  }
+
+  if (i::v8_flags.test_only_unsafe) {
+    fprintf(stderr,
+            "V8 is running with an unsupported configuration. Important "
+            "subsystems are mocked or disabled. Bugs reported under this "
+            "configuration will be considered invalid.\n");
   }
 
   Isolate* isolate = Isolate::New(create_params);
@@ -7273,9 +7288,8 @@ int Shell::Main(int argc, char* argv[]) {
             ->ExecuteMainThreadWhileParked([&result]() {
               printf("============ Run: Produce code cache ============\n");
               // First run to produce the cache
-              Isolate::CreateParams create_params2;
-              create_params2.array_buffer_allocator =
-                  Shell::array_buffer_allocator;
+              Isolate::CreateParams create_params2 =
+                  GetDefaultIsolateCreateParams();
               // Use a different hash seed.
               i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
               Isolate* isolate2 = Isolate::New(create_params2);

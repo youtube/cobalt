@@ -14,4 +14,7 @@ specific_include_rules = {
   "audioproc_float_impl\\.cc": [
     "+third_party/tflite"
   ],
+  "audio_processing_simulator\\.h": [
+    "+third_party/tflite"
+  ],
 }

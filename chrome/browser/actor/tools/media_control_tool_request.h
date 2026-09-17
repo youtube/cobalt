@@ -39,9 +39,8 @@ class MediaControlToolRequest : public TabToolRequest {
   CreateToolResult CreateTool(TaskId task_id,
                               ToolDelegate& tool_delegate) const override;
   void Apply(ToolRequestVisitorFunctor& f) const override;
+  std::string Name() const override;
   std::string JournalEvent() const override;
-  std::optional<ObservationDelayController::PageStabilityConfig>
-  GetObservationPageStabilityConfig() const override;
 
  private:
   MediaControl media_control_;

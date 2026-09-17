@@ -1681,6 +1681,14 @@ void WebRtcVideoSendChannel::FillSendCodecStats(
   // primary codec that is being used to send here.
   video_media_info->send_codecs.insert(std::make_pair(
       send_codec()->codec.id, send_codec()->codec.ToCodecParameters()));
+
+  for (const auto& it : send_codecs_) {
+    auto codec_param_it = video_media_info->send_codecs.find(it.codec.id);
+    if (codec_param_it == video_media_info->send_codecs.end()) {
+      video_media_info->send_codecs.insert(
+          std::make_pair(it.codec.id, it.codec.ToCodecParameters()));
+    }
+  }
 }
 
 void WebRtcVideoSendChannel::OnPacketSent(const SentPacketInfo& sent_packet) {
@@ -2515,6 +2523,19 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
     info.rid = parameters_.config.rtp.GetRidForSsrc(ssrc);
     if (encoding_index_by_ssrc.find(ssrc) != encoding_index_by_ssrc.end()) {
       info.encoding_index = encoding_index_by_ssrc[ssrc];
+    }
+    auto stream_config = std::find_if(
+        parameters_.config.rtp.stream_configs.begin(),
+        parameters_.config.rtp.stream_configs.end(),
+        [ssrc](auto stream_config) { return stream_config.ssrc == ssrc; });
+    if (stream_config != parameters_.config.rtp.stream_configs.end()) {
+      if (stream_config->payload_type != -1) {
+        info.codec_name = stream_config->payload_name;
+        info.codec_payload_type = stream_config->payload_type;
+      } else {
+        info.codec_name = "";
+        info.codec_payload_type = std::nullopt;
+      }
     }
     info.active = IsActiveFromEncodings(
         !is_svc ? std::optional<uint32_t>(ssrc) : std::nullopt,

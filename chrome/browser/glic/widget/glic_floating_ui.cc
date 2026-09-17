@@ -9,6 +9,7 @@
 #include "base/notimplemented.h"
 #include "base/time/time.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/service/glic_instance_metrics.h"
 #include "chrome/browser/glic/widget/application_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_inactive_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_panel_hotkey_delegate.h"
@@ -38,8 +39,11 @@ gfx::Size GlicFloatingUi::GetDefaultSize() {
 
 GlicFloatingUi::GlicFloatingUi(Profile* profile,
                                gfx::Rect initial_bounds,
-                               GlicUiEmbedder::Delegate& delegate)
-    : profile_(profile), delegate_(delegate) {
+                               GlicUiEmbedder::Delegate& delegate,
+                               GlicInstanceMetrics& instance_metrics)
+    : profile_(profile),
+      delegate_(delegate),
+      instance_metrics_(instance_metrics) {
   application_hotkey_manager_ =
       MakeApplicationHotkeyManager(weak_ptr_factory_.GetWeakPtr());
   glic_panel_hotkey_manager_ =
@@ -53,6 +57,7 @@ GlicFloatingUi::GlicFloatingUi(Profile* profile,
 
 GlicFloatingUi::~GlicFloatingUi() {
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(nullptr);
+  ClearWebContentsDelegate();
   PictureInPictureOcclusionTracker* tracker =
       PictureInPictureWindowManager::GetInstance()->GetOcclusionTracker();
   tracker->RemovePictureInPictureWidget(glic_widget_.get());
@@ -89,7 +94,6 @@ void GlicFloatingUi::CreateAndSetupWidget(gfx::Rect initial_bounds) {
                                     glic_panel_hotkey_manager_->GetWeakPtr(),
                                     user_resizable_);
   // TODO: Setup AccessibilityText.
-
   GetGlicWidget()->SetZOrderLevel(ui::ZOrderLevel::kFloatingWindow);
 #if BUILDFLAG(IS_MAC)
   GetGlicWidget()->SetActivationIndependence(true);
@@ -210,7 +214,7 @@ void GlicFloatingUi::Attach() {
 
 void GlicFloatingUi::Detach() {
   // Floaty UI is already detached.
-  NOTREACHED();
+  LOG(WARNING) << "GlicFloatingUi: Detach() called while already detached.";
 }
 
 void GlicFloatingUi::SetMinimumWidgetSize(const gfx::Size& size) {
@@ -222,6 +226,7 @@ bool GlicFloatingUi::IsShowing() const {
 }
 
 void GlicFloatingUi::Show() {
+  instance_metrics_->OnShowInFloaty();
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(profile_);
   GetGlicWidget()->Show();
   GetGlicView()->SetWebContents(delegate_->host().webui_contents());
@@ -240,14 +245,12 @@ void GlicFloatingUi::Show() {
 }
 
 void GlicFloatingUi::Close() {
+  instance_metrics_->OnFloatyClosed();
   if (IsShowing()) {
     modal_dialog_host_observers_.Notify(
         &web_modal::ModalDialogHostObserver::OnHostDestroying);
-    if (auto* web_contents = delegate_->host().webui_contents()) {
-      web_modal::WebContentsModalDialogManager::FromWebContents(web_contents)
-          ->SetDelegate(nullptr);
-    }
   }
+  ClearWebContentsDelegate();
   if (screenshot_capturer_) {
     screenshot_capturer_->CloseScreenPicker();
   }
@@ -258,6 +261,16 @@ void GlicFloatingUi::Close() {
   user_resizable_ = false;
   // NOTE: `this` will be destroyed after this call.
   delegate_->WillCloseFor(FloatingEmbedderKey{});
+}
+
+void GlicFloatingUi::ClearWebContentsDelegate() {
+  if (auto* web_contents = delegate_->host().webui_contents()) {
+    auto* dialog_manager =
+        web_modal::WebContentsModalDialogManager::FromWebContents(web_contents);
+    if (dialog_manager->delegate() == this) {
+      dialog_manager->SetDelegate(nullptr);
+    }
+  }
 }
 
 void GlicFloatingUi::ClosePanel() {

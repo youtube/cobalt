@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-range-analysis.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
@@ -307,6 +308,19 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   block->RemovePredecessorFollowing(control);
   reducer_.AddNewControlNode<Deopt>({}, reason);
   return ReduceResult::DoneWithAbort();
+}
+
+template <typename NodeT>
+ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
+  if (node->is_const()) {
+    if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
+            node->input_node(0), node->offset(),
+            ContextSlotMutability::kImmutable)) {
+      return ReplaceWith(cached_value);
+    }
+  }
+  // TODO(victorgomes): Optimize non-immutable loads.
+  return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
@@ -1038,25 +1052,24 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
   }
+  if (!node->property_key().is_none()) {
+    if (ValueNode* cache = known_node_aspects().TryFindLoadedProperty(
+            node->object_input().node(), node->property_key(),
+            node->is_const())) {
+      return ReplaceWith(cache);
+    }
+  }
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty(
-    LoadTaggedFieldForProperty* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+ProcessResult MaglevGraphOptimizer::VisitLoadContextSlotNoCells(
+    LoadContextSlotNoCells* node, const ProcessingState& state) {
+  return ProcessLoadContextSlot(node);
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlotNoCells(
-    LoadTaggedFieldForContextSlotNoCells* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlot(
-    LoadTaggedFieldForContextSlot* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+ProcessResult MaglevGraphOptimizer::VisitLoadContextSlot(
+    LoadContextSlot* node, const ProcessingState& state) {
+  return ProcessLoadContextSlot(node);
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadFloat64(
@@ -2045,6 +2058,28 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Compare(
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
     Float64ToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitFloat64Min(
+    Float64Min* node, const ProcessingState& state) {
+  MaybeReduceResult result = reducer_.TryFoldFloat64Min(
+      node->left_input().node(), node->right_input().node());
+  if (result.IsDoneWithValue()) {
+    return ReplaceWith(result.value());
+  }
+  DCHECK(!result.IsDone());
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitFloat64Max(
+    Float64Max* node, const ProcessingState& state) {
+  MaybeReduceResult result = reducer_.TryFoldFloat64Max(
+      node->left_input().node(), node->right_input().node());
+  if (result.IsDoneWithValue()) {
+    return ReplaceWith(result.value());
+  }
+  DCHECK(!result.IsDone());
   return ProcessResult::kContinue;
 }
 

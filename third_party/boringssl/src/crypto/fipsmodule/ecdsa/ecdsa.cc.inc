@@ -62,7 +62,7 @@ int ecdsa_verify_fixed_no_self_test(const uint8_t *digest, size_t digest_len,
                                     const EC_KEY *eckey) {
   const EC_GROUP *group = EC_KEY_get0_group(eckey);
   const EC_POINT *pub_key = EC_KEY_get0_public_key(eckey);
-  if (group == NULL || pub_key == NULL || sig == NULL) {
+  if (group == nullptr || pub_key == nullptr || sig == nullptr) {
     OPENSSL_PUT_ERROR(ECDSA, ECDSA_R_MISSING_PARAMETERS);
     return 0;
   }
@@ -195,7 +195,7 @@ int ecdsa_sign_fixed_with_nonce_for_known_answer_test(
   }
 
   const EC_GROUP *group = EC_KEY_get0_group(eckey);
-  if (group == NULL || eckey->priv_key == NULL) {
+  if (group == nullptr || eckey->priv_key == nullptr) {
     OPENSSL_PUT_ERROR(ECDSA, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
@@ -221,7 +221,7 @@ int ecdsa_sign_fixed(const uint8_t *digest, size_t digest_len, uint8_t *sig,
   }
 
   const EC_GROUP *group = EC_KEY_get0_group(eckey);
-  if (group == NULL || eckey->priv_key == NULL) {
+  if (group == nullptr || eckey->priv_key == nullptr) {
     OPENSSL_PUT_ERROR(ECDSA, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }

@@ -42,7 +42,7 @@ static int crl_lookup(X509_CRL *crl, X509_REVOKED **ret,
                       const ASN1_INTEGER *serial, X509_NAME *issuer);
 
 // The X509_CRL_INFO structure needs a bit of customisation. Since we cache
-// the original encoding the signature wont be affected by reordering of the
+// the original encoding the signature won't be affected by reordering of the
 // revoked field.
 static int crl_inf_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                       void *exarg) {
@@ -94,7 +94,7 @@ static int crl_parse_entry_extensions(X509_CRL *crl) {
 
     int crit;
     ASN1_ENUMERATED *reason = reinterpret_cast<ASN1_ENUMERATED *>(
-        X509_REVOKED_get_ext_d2i(rev, NID_crl_reason, &crit, NULL));
+        X509_REVOKED_get_ext_d2i(rev, NID_crl_reason, &crit, nullptr));
     if (!reason && crit != -1) {
       crl->flags |= EXFLAG_INVALID;
       return 1;
@@ -129,8 +129,8 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 
   switch (operation) {
     case ASN1_OP_NEW_POST:
-      crl->idp = NULL;
-      crl->akid = NULL;
+      crl->idp = nullptr;
+      crl->akid = nullptr;
       crl->flags = 0;
       crl->idp_flags = 0;
       break;
@@ -138,7 +138,7 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     case ASN1_OP_D2I_POST: {
       // The version must be one of v1(0) or v2(1).
       long version = X509_CRL_VERSION_1;
-      if (crl->crl->version != NULL) {
+      if (crl->crl->version != nullptr) {
         version = ASN1_INTEGER_get(crl->crl->version);
         // Versions v1 and v2. v1 is DEFAULT, so cannot be encoded explicitly.
         if (version != X509_CRL_VERSION_2) {
@@ -148,7 +148,7 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
       }
 
       // Per RFC 5280, section 5.1.2.1, extensions require v2.
-      if (version != X509_CRL_VERSION_2 && crl->crl->extensions != NULL) {
+      if (version != X509_CRL_VERSION_2 && crl->crl->extensions != nullptr) {
         OPENSSL_PUT_ERROR(X509, X509_R_INVALID_FIELD_FOR_VERSION);
         return 0;
       }
@@ -161,13 +161,13 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         return 0;
       }
 
-      if (!X509_CRL_digest(crl, EVP_sha256(), crl->crl_hash, NULL)) {
+      if (!X509_CRL_digest(crl, EVP_sha256(), crl->crl_hash, nullptr)) {
         return 0;
       }
 
-      crl->idp = reinterpret_cast<ISSUING_DIST_POINT *>(
-          X509_CRL_get_ext_d2i(crl, NID_issuing_distribution_point, &i, NULL));
-      if (crl->idp != NULL) {
+      crl->idp = reinterpret_cast<ISSUING_DIST_POINT *>(X509_CRL_get_ext_d2i(
+          crl, NID_issuing_distribution_point, &i, nullptr));
+      if (crl->idp != nullptr) {
         if (!setup_idp(crl, crl->idp)) {
           return 0;
         }
@@ -176,8 +176,8 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
       }
 
       crl->akid = reinterpret_cast<AUTHORITY_KEYID *>(
-          X509_CRL_get_ext_d2i(crl, NID_authority_key_identifier, &i, NULL));
-      if (crl->akid == NULL && i != -1) {
+          X509_CRL_get_ext_d2i(crl, NID_authority_key_identifier, &i, nullptr));
+      if (crl->akid == nullptr && i != -1) {
         return 0;
       }
 
@@ -300,7 +300,7 @@ int X509_CRL_verify(X509_CRL *crl, EVP_PKEY *pkey) {
 
 int X509_CRL_get0_by_serial(X509_CRL *crl, X509_REVOKED **ret,
                             const ASN1_INTEGER *serial) {
-  return crl_lookup(crl, ret, serial, NULL);
+  return crl_lookup(crl, ret, serial, nullptr);
 }
 
 int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **ret, X509 *x) {
@@ -310,7 +310,7 @@ int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **ret, X509 *x) {
 
 static int crl_revoked_issuer_match(X509_CRL *crl, X509_NAME *nm,
                                     X509_REVOKED *rev) {
-  return nm == NULL || X509_NAME_cmp(nm, X509_CRL_get_issuer(crl)) == 0;
+  return nm == nullptr || X509_NAME_cmp(nm, X509_CRL_get_issuer(crl)) == 0;
 }
 
 static CRYPTO_MUTEX g_crl_sort_lock = CRYPTO_MUTEX_INIT;

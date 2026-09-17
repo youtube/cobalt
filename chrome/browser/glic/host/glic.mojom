@@ -45,6 +45,9 @@ interface Page {
   // Called any time the ready state of the profile changes.
   // `ready_state` = `GlicEnabling::GetProfileReadyState()`.
   SetProfileReadyState(ProfileReadyState ready_state);
+
+  // Called to inform the page of the UI surface it is being rendered in.
+  UpdatePageState(PanelStateKind panelStateKind);
 };
 
 // Factory for PageHandler used in chrome://glic.
@@ -213,6 +216,8 @@ enum ActorTaskStopReason {
   [Default] kTaskComplete = 0,
   // Actor task was stopped by the user.
   kStoppedByUser = 1,
+  // Actor task was stopped because the model reported a failure.
+  [MinVersion=1] kModelError = 2,
 };
 
 // @generate glic_api
@@ -233,6 +238,15 @@ enum CaptureScreenshotErrorReason {
 union GetContextResult {
   string error_reason;
   TabContext tab_context;
+};
+
+struct GetContextResultWithActionResultCode {
+  GetContextResult get_context_result;
+  // Note that this is an enum ActionResultCode from chrome/common/actor.mojom.
+  // It would be tedious to import the actual enum here and the renderer doesn't
+  // need the type, so we just use an int here. It is expected that the client
+  // has an equivalent enum definition. See http://shortn/_gLyPxrRm6p
+  int32? action_result;
 };
 
 union CaptureScreenshotResult {
@@ -309,6 +323,12 @@ struct WebClientInitialState {
   bool enable_web_actuation_setting_feature;
   // Whether the user enabled actuation setting is enabled.
   bool actuation_on_web_setting_enabled;
+  // Whether the host has the capability to act on web.
+  bool can_act_on_web;
+  // Whether kGlicActivateTabApi is enabled.
+  bool enable_activate_tab;
+  // Whether kGlicGetTabByIdApi is enabled.
+  bool enable_get_tab_by_id;
 };
 
 // Options for getting tab context.
@@ -528,6 +548,9 @@ interface WebClientHandler {
   // window (floats free).
   DetachPanel();
 
+  // Notifies the browser that the web client has switched modes.
+  OnModeChange(WebClientMode new_mode);
+
   // Triggers the change profile flow, which allows the user to switch which
   // profile is used. If a new profile is chosen, this WebUI will be closed in
   // favor of a new one.
@@ -623,7 +646,24 @@ interface WebClientHandler {
   // with the task according to the given `context_options` and returns the
   // result. Returns an error if the task doesn't exist or is not paused.
   ResumeActorTask(int32 task_id, GetTabContextOptions context_options)
-      => (GetContextResult result);
+      => (GetContextResultWithActionResultCode result);
+
+  // Interrupts the task associated with the given id. This is
+  // different than pausing a task since this still prevents user
+  // interaction.
+  // No-op if a task with the given id does not exist.
+  // No-op if the state of the task not in the reflecting state.
+  InterruptActorTask(int32 task_id);
+
+  // Indicates the task associated with the given id is no longer waiting
+  // on user input.
+  // No-op if a task with the given id does not exist.
+  // No-op if the task is not in the interrupted state.
+  UninterruptActorTask(int32 task_id);
+
+  // Foregrounds the given tab.
+  // No-op if the tab doesn't exist or is already in the foreground.
+  ActivateTab(int32 task_id);
 
   // Resize the widget hosting the WebUI to the given size.
   // If `duration` is 0 or less, instantly resize, otherwise run an animation.
@@ -635,6 +675,18 @@ interface WebClientHandler {
   // error occurs during capture. This can also fail if the user cancels the
   // screen picker dialog.
   CaptureScreenshot() => (CaptureScreenshotResult result);
+
+  // Starts a user-interactive process to select content from a tab. Multiple
+  // regions can be captured. Results for each region, and errors, are sent
+  // via the observer.
+  //
+  // The `observer` remote is disconnected when the capture operation is
+  // terminated by either the browser (e.g., on user cancellation) or the
+  // client.
+  //
+  // If another capture is already in progress, the previous capture session
+  // will be terminated and a new one will begin.
+  CaptureRegion(pending_remote<CaptureRegionObserver> observer);
 
   // Requests that audio ducking be enabled or disabled.
   // If enabled, audio from other sources will be attenuated.
@@ -759,6 +811,14 @@ interface WebClientHandler {
   // Called when the web client changes the model.
   OnModelChanged(WebClientModel model);
 
+  // Called when the web client wants to record a use counter.
+  // The counter values matches the WebUseCounter enum. We do not use the
+  // explicit type because we do not want enforcement of the range of the
+  // enum because of versioning issues between the front end and chrome.
+  // eg. The front end could be newer than chrome and we want the counter
+  // still logged, but may not exist in chrome's version of WebUseCounter.
+  OnRecordUseCounter(uint16 counter);
+
   // Called when the user rates a response.
   OnResponseRated(bool positive);
 
@@ -865,6 +925,9 @@ struct PanelOpeningData {
   // If set, `conversation_id` will be a string with length >0. Empty
   // conversation IDs are not supported.
   string? conversation_id;
+  // If set, the textbox for user input will be populated with the given string
+  // before the panel opens.
+  string? prompt_suggestion;
 };
 
 // @generate glic_api
@@ -920,6 +983,8 @@ enum InvocationSource {
   [MinVersion=4] kActorTaskIcon = 12,
   // User shared an image via the context menu.
   [MinVersion=5] kSharedImage = 13,
+  // From the handoff button.
+  [MinVersion=6] kHandoffButton = 14,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation)
@@ -947,6 +1012,18 @@ enum WebClientModel {
   // Actor operation mode.
   kActor = 1,
 };
+
+// @generate glic_api
+// Web client's user counter.
+// LINT.IfChange(WebUseCounter)
+[Stable, Extensible]
+enum WebUseCounter {
+  // Default counter. Never used.
+  [Default] kDefault = 0,
+  kSubmitPromptWithAutoMode = 1,
+};
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWebUseCounter)
 
 [Stable, Extensible]
 enum ResponseStopCause {
@@ -1082,6 +1159,9 @@ interface WebClient {
   // state.
   NotifyActorTaskStateChanged(int32 task_id, ActorTaskState state);
 
+  // Notify that state relating to the tab has changed.
+  NotifyTabDataChanged(TabData tab_data);
+
   // Called when the browser wants the web client to change its view to match
   // the requested change (e.g., because the user clicked a UI element to toggle
   // to a different view).
@@ -1112,11 +1192,21 @@ interface WebClient {
       actor.webui.mojom.UserConfirmationDialogRequest request)
       => (actor.webui.mojom.UserConfirmationDialogResponse response);
 
+  // Requests the web client confirm navigation to a novel origin
+  // that the model has not yet encountered, but is not sensitive
+  // enough to require structured user confirmation.
+  RequestToConfirmNavigation(
+      actor.webui.mojom.NavigationConfirmationRequest request)
+      => (actor.webui.mojom.NavigationConfirmationResponse response);
+
   // Informs the client that additional context is available.
   NotifyAdditionalContext(AdditionalContext context);
 
   // Notify that the user enabled web actuation setting has changed.
   NotifyActuationOnWebSettingChanged(bool enabled);
+
+  // Informs the client that the capability to act on web pages has changed.
+  NotifyActOnWebCapabilityChanged(bool can_act_on_web);
 };
 
 // Information extracted from a tab.
@@ -1195,6 +1285,12 @@ struct TabData {
   // This is a best effort signal, and may not be accurate/stale due to not
   // observing tab content capture events directly.
   bool? is_tab_content_captured;
+  // Whether the tab is the active tab in its browser window. Note that this
+  // does not consider the state of the window.
+  bool? is_active_in_window;
+  // Whether the tab's browser window is active. Note that this does not
+  // consider whether the tab is active in the window.
+  bool? is_window_active;
 };
 
 // Data about the focused tab state.
@@ -1234,6 +1330,39 @@ struct ImageOriginAnnotations {};
 struct Journal {
   // Encoded journal data.
   array<uint8> data;
+};
+
+// The captured region from the user.
+union CapturedRegion {
+  // A rectangular region.
+  gfx.mojom.Rect rect;
+};
+
+// The result of a successful region capture.
+struct CaptureRegionResult {
+  // The ID of the tab from which the region was captured.
+  int32 tab_id;
+  // The captured region. This can be expanded with other region types like
+  // polygons in the future.
+  CapturedRegion region;
+};
+
+// @generate glic_api
+// Reason for `captureRegion` error.
+// LINT.IfChange(CaptureRegionErrorReason)
+[Stable, Extensible]
+enum CaptureRegionErrorReason {
+  [Default] kUnknown = 0,
+  // There is no focused tab that can be used for region capture.
+  kNoFocusableTab = 1,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CaptureRegionErrorReason)
+
+// Observer for the capture region process.
+interface CaptureRegionObserver {
+  // Called for each region the user successfully selects, or when an
+  // error occurs. Exactly one of `result` or `reason` will be non-null.
+  OnUpdate(CaptureRegionResult? result, CaptureRegionErrorReason? reason);
 };
 
 // An encoded screenshot image and associated metadata.

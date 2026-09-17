@@ -30,6 +30,11 @@ vars = {
   # Run the following command to see the latest builds in CIPD:
   #  cipd describe PACKAGE_NAME -version latest
 
+  # infra/3pp/tools/android_ndk/linux-amd64
+  # This package does not get updates automatically. To update, bump the version
+  # in infra's 3pp/android_ndk/fetch.py (see https://crrev.com/c/6470969), then
+  # wait a few hours for the new package to be built.
+  'android_ndk_version': 'version:3@r27d.chromium.1',
   # infra/3pp/tools/bazel_bootstrap/linux-amd64
   # Keep this in sync with .bazelversion.
   'bazel_version': 'version:3@7.5.0.chromium.1',
@@ -39,6 +44,8 @@ vars = {
   'go_version': 'version:3@1.25.1',
   # infra/3pp/tools/perl/windows-amd64
   'perl_version': 'version:3@5.42.0.1',
+  # infra/3pp/tools/qemu_static/linux-amd64
+  'qemu_static_version': 'version:3@10.0.0+ds-1',
   # chrome_internal/third_party/sdk/windows, but if an update switches this to a
   # new major VS release, keep some bots at the older version.
   'windows_sdk_version': 'uploaded:2024-01-11',
@@ -60,18 +67,13 @@ vars = {
   # https://chromium.googlesource.com/chromium/src/tools/rust
   # and also ensure that `tools_clang_revision` above is up-to-date.
   'tools_rust_revision': '0eaaeed1ca501e8beaf0c2d96528827d199dd346',
-
-  # The Android NDK cannot be updated until https://crbug.com/42290318 is fixed.
-  # We rely on an older NDK to test building without NEON instructions as the baseline.
-  'android_ndk_revision': 'U0e8L6l52ySjBrUBB82Vdyhsg60vVMqH0ItTW3TRHAQC',
-  'qemu_static_version': 'gYNEUqCr-Tu1C_vBu68YFtN31hjjLe61dnI2AtuyEsYC',
 }
 
 deps = {
   'boringssl/util/bot/android_ndk': {
     'packages': [{
       'package': 'infra/3pp/tools/android_ndk/linux-amd64',
-      'version': Var('android_ndk_revision'),
+      'version': Var('android_ndk_version'),
     }],
     'condition': 'checkout_android',
     'dep_type': 'cipd',

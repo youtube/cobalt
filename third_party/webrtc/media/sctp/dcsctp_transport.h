@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -77,6 +78,8 @@ class DcSctpTransport : public SctpTransportInternal,
   size_t buffered_amount_low_threshold(int sid) const override;
   void SetBufferedAmountLowThreshold(int sid, size_t bytes) override;
   void set_debug_name_for_testing(const char* debug_name) override;
+
+  static std::vector<uint8_t> GenerateConnectionToken(const Environment& env);
 
  private:
   // dcsctp::DcSctpSocketCallbacks

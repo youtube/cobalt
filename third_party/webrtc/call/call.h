@@ -33,7 +33,9 @@
 #include "call/rtp_transport_controller_send_interface.h"
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
+#include "modules/congestion_controller/rtp/congestion_controller_feedback_stats.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/network/sent_packet.h"
 #include "video/config/video_encoder_config.h"
 
@@ -60,6 +62,8 @@ class Call {
     int64_t pacer_delay_ms = 0;
     int64_t rtt_ms = -1;
     std::optional<int64_t> ccfb_messages_received = std::nullopt;
+    flat_map<uint32_t, SentCongestionControllerFeedbackStats>
+        sent_ccfb_stats_per_ssrc;
   };
 
   static std::unique_ptr<Call> Create(CallConfig config);

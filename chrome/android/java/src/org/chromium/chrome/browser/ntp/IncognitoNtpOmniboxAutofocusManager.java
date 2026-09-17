@@ -30,6 +30,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.url.GURL;
 
 import java.util.HashSet;
@@ -44,17 +45,24 @@ import java.util.function.Function;
  * the browser layout has fully transitioned to the browsing state.
  */
 @NullMarked
-public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
+public class IncognitoNtpOmniboxAutofocusManager {
+    private static @Nullable IncognitoNtpOmniboxAutofocusManager sInstanceForTesting;
     private final Set<Tab> mProcessedTabs = new HashSet<>();
     private final Set<Tab> mTabsPendingAutofocus = new HashSet<>();
     private final OmniboxStub mOmniboxStub;
     private final TabModelSelector mTabModelSelector;
-    private final TabObserver mTabObserver;
+    private @Nullable TabObserver mTabObserver;
+    private @Nullable TabModelObserver mTabModelObserver;
     private final LayoutManagerImpl mLayoutManager;
-    private final LayoutStateObserver mLayoutStateObserver;
+    private @Nullable LayoutStateObserver mLayoutStateObserver;
     private final Function<Tab, @Nullable View> mNtpViewProvider;
-    private final Function<View, Double> mNtpContentHeightProvider;
-    private final UrlFocusChangeListener mUrlFocusChangeListener;
+    private final Function<View, IncognitoNtpUtils.IncognitoNtpContentMetrics>
+            mNtpContentMetricsProvider;
+    private @Nullable UrlFocusChangeListener mUrlFocusChangeListener;
+    private final AccessibilityState.Listener mAccessibilityStateListener;
+
+    /** Whether the autofocus feature is generally enabled and its observers are active. */
+    private boolean mIsAutofocusEnabled;
 
     /** Enable autofocus when it's not the first tab seen in this session. */
     private final boolean mIsAutofocusOnNotFirstTabEnabled;
@@ -71,6 +79,8 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
     private boolean mIsLayoutInTransition;
     private int mTabsPreviouslyOpenedCount;
     private final @NonNull GestureDetector mNtpSingleTapDetector;
+    private boolean mIsAutofocusing;
+    private double mTabHeightBeforeFocus;
 
     /**
      * Overrides the result of {@link #checkAutofocusAllowedWithPrediction(Tab)} for testing
@@ -97,8 +107,8 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
      * @param layoutManager The {@link LayoutManagerImpl} to observe for layout changes.
      * @param tabModelSelector The {@link TabModelSelector} to observe.
      * @param ntpViewProvider Provides the NTP view.
-     * @param ntpContentHeightProvider Provides the height of the main text content area on the
-     *     Incognito NTP, excluding all paddings after very last TextView.
+     * @param ntpContentMetricsProvider Provides metrics of the main text content area on the
+     *     Incognito NTP.
      */
     public static @Nullable IncognitoNtpOmniboxAutofocusManager maybeCreate(
             @NonNull Context context,
@@ -106,7 +116,9 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
             @NonNull LayoutManagerImpl layoutManager,
             @NonNull TabModelSelector tabModelSelector,
             @NonNull Function<Tab, @Nullable View> ntpViewProvider,
-            @NonNull Function<View, Double> ntpContentHeightProvider) {
+            @NonNull
+                    Function<View, IncognitoNtpUtils.IncognitoNtpContentMetrics>
+                            ntpContentMetricsProvider) {
         if (ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtp.isEnabled() && omniboxStub != null) {
             return new IncognitoNtpOmniboxAutofocusManager(
                     context,
@@ -114,7 +126,7 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
                     layoutManager,
                     tabModelSelector,
                     ntpViewProvider,
-                    ntpContentHeightProvider);
+                    ntpContentMetricsProvider);
         }
         return null;
     }
@@ -125,28 +137,16 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
             @NonNull LayoutManagerImpl layoutManager,
             @NonNull TabModelSelector tabModelSelector,
             @NonNull Function<Tab, @Nullable View> ntpViewProvider,
-            @NonNull Function<View, Double> ntpContentHeightProvider) {
+            @NonNull
+                    Function<View, IncognitoNtpUtils.IncognitoNtpContentMetrics>
+                            ntpContentMetricsProvider) {
+        sInstanceForTesting = this;
         mOmniboxStub = omniboxStub;
         mTabModelSelector = tabModelSelector;
         mLayoutManager = layoutManager;
         mNtpViewProvider = ntpViewProvider;
-        mNtpContentHeightProvider = ntpContentHeightProvider;
+        mNtpContentMetricsProvider = ntpContentMetricsProvider;
         mTabsPreviouslyOpenedCount = 0;
-        mTabObserver =
-                new EmptyTabObserver() {
-                    @Override
-                    public void onPageLoadFinished(Tab tab, GURL url) {
-                        handlePageLoadFinished(tab);
-                    }
-                };
-
-        mIsAutofocusOnNotFirstTabEnabled =
-                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpNotFirstTab.getValue();
-        mIsWithPredictionEnabled =
-                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpWithPrediction.getValue();
-        mIsWithHardwareKeyboardEnabled =
-                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpWithHardwareKeyboard.getValue();
-
         mNtpSingleTapDetector =
                 new GestureDetector(
                         context,
@@ -158,6 +158,36 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
                                 return false;
                             }
                         });
+
+        mIsAutofocusOnNotFirstTabEnabled =
+                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpNotFirstTab.getValue();
+        mIsWithPredictionEnabled =
+                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpWithPrediction.getValue();
+        mIsWithHardwareKeyboardEnabled =
+                ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpWithHardwareKeyboard.getValue();
+
+        mAccessibilityStateListener =
+                (oldState, newState) -> {
+                    // Autofocus is disabled when accessibility is enabled to avoid interfering with
+                    // screen readers.
+                    updateAutofocusEnabledState(
+                            /* enabled= */ !AccessibilityState.isAccessibilityEnabled());
+                };
+        AccessibilityState.addListener(mAccessibilityStateListener);
+        updateAutofocusEnabledState(/* enabled= */ !AccessibilityState.isAccessibilityEnabled());
+    }
+
+    private void registerObservers() {
+        if (mIsAutofocusEnabled) return;
+        mIsAutofocusEnabled = true;
+
+        mTabObserver =
+                new EmptyTabObserver() {
+                    @Override
+                    public void onPageLoadFinished(Tab tab, GURL url) {
+                        handlePageLoadFinished(tab);
+                    }
+                };
 
         mUrlFocusChangeListener =
                 new UrlFocusChangeListener() {
@@ -178,6 +208,19 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
                         }
 
                         if (hasFocus) {
+                            boolean wasTriggeredByAutofocus = mIsAutofocusing;
+                            mIsAutofocusing = false;
+
+                            final IncognitoNtpUtils.IncognitoNtpContentMetrics ntpMetrics =
+                                    mNtpContentMetricsProvider.apply(ntpView);
+                            IncognitoNtpOmniboxAutofocusTracker
+                                    .collectLayoutMetricsOnKeyboardVisible(
+                                            tab,
+                                            mTabHeightBeforeFocus,
+                                            ntpMetrics,
+                                            wasTriggeredByAutofocus);
+                            mTabHeightBeforeFocus = 0;
+
                             ntpView.setOnTouchListener(
                                     (v, event) -> {
                                         boolean consumed =
@@ -190,6 +233,16 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
                                     });
                         } else {
                             ntpView.setOnTouchListener(null);
+                        }
+                    }
+
+                    @Override
+                    public void onUrlFocusWillBeRequested(@Nullable Tab tab) {
+                        if (tab != null
+                                && tab.isIncognitoBranded()
+                                && UrlUtilities.isNtpUrl(tab.getUrl())
+                                && tab.getView() != null) {
+                            mTabHeightBeforeFocus = tab.getView().getHeight();
                         }
                     }
                 };
@@ -224,43 +277,75 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
         mOmniboxStub.addUrlFocusChangeListener(mUrlFocusChangeListener);
         mLayoutManager.addObserver(mLayoutStateObserver);
 
+        mTabModelObserver =
+                new TabModelObserver() {
+                    @Override
+                    public void didAddTab(
+                            Tab tab,
+                            @TabLaunchType int type,
+                            @TabCreationState int creationState,
+                            boolean markedForSelection) {
+                        if (!tab.isIncognitoBranded() || mTabObserver == null) return;
+                        ++mTabsPreviouslyOpenedCount;
+                        tab.addObserver(mTabObserver);
+                    }
+
+                    @Override
+                    public void tabClosureCommitted(Tab tab) {
+                        if (!tab.isIncognitoBranded() || mTabObserver == null) return;
+                        tab.removeObserver(mTabObserver);
+                        mProcessedTabs.remove(tab);
+                        mTabsPendingAutofocus.remove(tab);
+                    }
+                };
         for (TabModel model : mTabModelSelector.getModels()) {
             if (model.isIncognitoBranded()) {
-                model.addObserver(this);
+                model.addObserver(mTabModelObserver);
             }
         }
     }
 
-    /** Destroy the instance and unregister observers. */
-    public void destroy() {
-        mOmniboxStub.removeUrlFocusChangeListener(mUrlFocusChangeListener);
-        mLayoutManager.removeObserver(mLayoutStateObserver);
-        for (TabModel model : mTabModelSelector.getModels()) {
-            if (model.isIncognitoBranded()) {
-                model.removeObserver(this);
-            }
+    private void unregisterObservers() {
+        if (!mIsAutofocusEnabled) return;
+        mIsAutofocusEnabled = false;
+
+        if (mUrlFocusChangeListener != null) {
+            mOmniboxStub.removeUrlFocusChangeListener(mUrlFocusChangeListener);
+            mUrlFocusChangeListener = null;
         }
+        if (mLayoutStateObserver != null) {
+            mLayoutManager.removeObserver(mLayoutStateObserver);
+            mLayoutStateObserver = null;
+        }
+        if (mTabModelObserver != null) {
+            for (TabModel model : mTabModelSelector.getModels()) {
+                if (model.isIncognitoBranded()) {
+                    model.removeObserver(mTabModelObserver);
+                }
+            }
+            mTabModelObserver = null;
+        }
+        mTabObserver = null;
         mProcessedTabs.clear();
         mTabsPendingAutofocus.clear();
     }
 
-    @Override
-    public void didAddTab(
-            Tab tab,
-            @TabLaunchType int type,
-            @TabCreationState int creationState,
-            boolean markedForSelection) {
-        if (!tab.isIncognitoBranded()) return;
-        ++mTabsPreviouslyOpenedCount;
-        tab.addObserver(mTabObserver);
+    /** Destroy the instance and unregister observers. */
+    public void destroy() {
+        unregisterObservers();
     }
 
-    @Override
-    public void tabClosureCommitted(Tab tab) {
-        if (!tab.isIncognitoBranded()) return;
-        tab.removeObserver(mTabObserver);
-        mProcessedTabs.remove(tab);
-        mTabsPendingAutofocus.remove(tab);
+    /**
+     * Enables or disables the autofocus functionality by registering or unregistering observers.
+     *
+     * @param enabled True to enable the feature and register observers, false otherwise.
+     */
+    private void updateAutofocusEnabledState(boolean enabled) {
+        if (enabled) {
+            registerObservers();
+        } else {
+            unregisterObservers();
+        }
     }
 
     /**
@@ -316,7 +401,8 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
                                             && !mIsWithPredictionEnabled
                                             && !mIsWithHardwareKeyboardEnabled;
                             boolean isAutofocusAllowedNotFirstTab =
-                                    mIsAutofocusOnNotFirstTabEnabled && checkAutofocusAllowedNotFirstTab();
+                                    mIsAutofocusOnNotFirstTabEnabled
+                                            && checkAutofocusAllowedNotFirstTab();
                             boolean isAutofocusAllowedWithPrediction =
                                     mIsWithPredictionEnabled
                                             && checkAutofocusAllowedWithPrediction(tab);
@@ -339,6 +425,7 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
 
     /** Performs the actual focus action and updates the state. */
     private void autofocus(Tab tab) {
+        mIsAutofocusing = true;
         mOmniboxStub.setUrlBarFocus(true, null, OmniboxFocusReason.OMNIBOX_TAP);
 
         // Mark the tab as processed to prevent future autofocus attempts.
@@ -377,10 +464,13 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
         View ntpView = mNtpViewProvider.apply(tab);
         if (ntpView != null) {
             final double tabViewHeight = tab.getView().getHeight();
-            final double ntpTextContentHeight = mNtpContentHeightProvider.apply(ntpView);
+            final IncognitoNtpUtils.IncognitoNtpContentMetrics ntpMetrics =
+                    mNtpContentMetricsProvider.apply(ntpView);
+            final double ntpTextContentHeightWithTopPadding =
+                    ntpMetrics.textContentHeightPx + ntpMetrics.textContentTopPaddingPx;
 
             final double freeSpacePercentage =
-                    (tabViewHeight - ntpTextContentHeight) / tabViewHeight * 100d;
+                    (tabViewHeight - ntpTextContentHeightWithTopPadding) / tabViewHeight * 100d;
 
             if (freeSpacePercentage >= AUTOFOCUS_PREDICTION_FREE_SPACE_THRESHOLD_PERCENT) {
                 return true;
@@ -399,6 +489,14 @@ public class IncognitoNtpOmniboxAutofocusManager implements TabModelObserver {
     private void markTabAsProcessed(Tab tab) {
         mProcessedTabs.add(tab);
         mTabsPendingAutofocus.remove(tab);
-        tab.removeObserver(mTabObserver);
+        if (mTabObserver != null) {
+            tab.removeObserver(mTabObserver);
+        }
+    }
+
+    public static void setAutofocusEnabledForTesting(boolean enabled) {
+        if (sInstanceForTesting != null) {
+            sInstanceForTesting.updateAutofocusEnabledState(enabled);
+        }
     }
 }

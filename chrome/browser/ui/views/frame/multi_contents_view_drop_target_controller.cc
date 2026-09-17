@@ -223,7 +223,8 @@ void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
     ResetDropTargetTimers();
     return;
   }
-  if (!data.url.is_valid() || !data.url.IsStandard() || is_in_split_view) {
+  if (data.url_infos.empty() || !data.url_infos.front().url.IsStandard() ||
+      is_in_split_view) {
     ResetDropTargetTimers();
     return;
   }
@@ -247,14 +248,6 @@ void MultiContentsViewDropTargetController::OnWebContentsDragExit() {
 }
 
 void MultiContentsViewDropTargetController::OnWebContentsDragEnded() {
-  ResetDropTargetTimers();
-  HideDropTarget();
-}
-
-void MultiContentsViewDropTargetController::OnTabInserted() {
-  // When a link is dropped into the web contents from outside the current
-  // window, we do not receive a OnWebContentsDragEnded event. So when a new tab
-  // is created, hide the drop target.
   ResetDropTargetTimers();
   HideDropTarget();
 }

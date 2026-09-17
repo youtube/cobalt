@@ -342,7 +342,7 @@ OPENSSL_EXPORT int EC_encode_to_curve_p384_xmd_sha384_sswu(
 // EC_GROUP_free releases a reference to |group|, if |group| was created by
 // |EC_GROUP_new_curve_GFp|. If |group| is static, it does nothing.
 //
-// This function exists for OpenSSL compatibilty, and to manage dynamic
+// This function exists for OpenSSL compatibility, and to manage dynamic
 // |EC_GROUP|s constructed by |EC_GROUP_new_curve_GFp|. Callers that do not need
 // either may ignore this function.
 OPENSSL_EXPORT void EC_GROUP_free(EC_GROUP *group);
@@ -351,7 +351,7 @@ OPENSSL_EXPORT void EC_GROUP_free(EC_GROUP *group);
 // was created by |EC_GROUP_new_curve_GFp|. If |group| is static, it simply
 // returns |group|.
 //
-// This function exists for OpenSSL compatibilty, and to manage dynamic
+// This function exists for OpenSSL compatibility, and to manage dynamic
 // |EC_GROUP|s constructed by |EC_GROUP_new_curve_GFp|. Callers that do not need
 // either may ignore this function.
 OPENSSL_EXPORT EC_GROUP *EC_GROUP_dup(const EC_GROUP *group);

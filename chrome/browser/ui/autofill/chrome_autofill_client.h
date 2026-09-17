@@ -50,7 +50,7 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace optimization_guide {
-class OptimizationGuideModelExecutor;
+class RemoteModelExecutor;
 }
 
 namespace autofill {
@@ -135,8 +135,7 @@ class ChromeAutofillClient : public ContentAutofillClient,
   AutofillAiManager* GetAutofillAiManager() final;
   AutofillAiModelCache* GetAutofillAiModelCache() final;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() final;
-  optimization_guide::OptimizationGuideModelExecutor*
-  GetOptimizationGuideModelExecutor() final;
+  optimization_guide::RemoteModelExecutor* GetRemoteModelExecutor() final;
   IdentityCredentialDelegate* GetIdentityCredentialDelegate() final;
   void OfferPlusAddressCreation(const url::Origin& main_frame_origin,
                                 bool is_manual_fallback,
@@ -237,11 +236,10 @@ class ChromeAutofillClient : public ContentAutofillClient,
       plus_addresses::hats::SurveyType survey_type) final;
   optimization_guide::ModelQualityLogsUploaderService* GetMqlsUploadService()
       override;
-  void ShowEntitySaveOrUpdateBubble(
+  void ShowEntityImportBubble(
       EntityInstance new_entity,
       std::optional<EntityInstance> old_entity,
-      EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback)
-      override;
+      EntityImportPromptResultCallback prompt_closed_callback) override;
   void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.
@@ -284,7 +282,6 @@ class ChromeAutofillClient : public ContentAutofillClient,
 
   OtpFieldDetector* GetOtpFieldDetector() override;
 
-  one_time_tokens::SmsOtpBackend* GetSmsOtpBackend() const final;
   one_time_tokens::OneTimeTokenService* GetOneTimeTokenService() const final;
 
  protected:

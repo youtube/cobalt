@@ -185,9 +185,9 @@ OPENSSL_EXPORT void X509_get0_uids(const X509 *x509,
 
 // EXFLAG_BCONS indicates the certificate has a basic constraints extension.
 #define EXFLAG_BCONS 0x1
-// EXFLAG_KUSAGE indicates the certifcate has a key usage extension.
+// EXFLAG_KUSAGE indicates the certificate has a key usage extension.
 #define EXFLAG_KUSAGE 0x2
-// EXFLAG_XKUSAGE indicates the certifcate has an extended key usage extension.
+// EXFLAG_XKUSAGE indicates the certificate has an extended key usage extension.
 #define EXFLAG_XKUSAGE 0x4
 // EXFLAG_CA indicates the certificate has a basic constraints extension with
 // the CA bit set.
@@ -744,7 +744,7 @@ OPENSSL_EXPORT int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **out,
 // X509_CRL_get_REVOKED returns the list of revoked certificates in |crl|, or
 // NULL if |crl| omits it.
 //
-// TOOD(davidben): This function was originally a macro, without clear const
+// TODO(davidben): This function was originally a macro, without clear const
 // semantics. It should take a const input and give const output, but the latter
 // would break existing callers. For now, we match upstream.
 OPENSSL_EXPORT STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl);
@@ -2119,7 +2119,7 @@ OPENSSL_EXPORT void GENERAL_NAME_set0_value(GENERAL_NAME *gen, int type,
 // result.
 //
 // WARNING: This function is not const-correct. The return value should be
-// const. Callers shoudl not mutate the returned object.
+// const. Callers should not mutate the returned object.
 OPENSSL_EXPORT void *GENERAL_NAME_get0_value(const GENERAL_NAME *gen,
                                              int *out_type);
 
@@ -2930,9 +2930,9 @@ OPENSSL_EXPORT void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
 OPENSSL_EXPORT int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store,
                                        X509 *x509, STACK_OF(X509) *chain);
 
-// X509_verify_cert performs certifice verification with |ctx|, which must have
-// been initialized with |X509_STORE_CTX_init|. It returns one on success and
-// zero on error. On success, |X509_STORE_CTX_get0_chain| or
+// X509_verify_cert performs certificate verification with |ctx|, which must
+// have been initialized with |X509_STORE_CTX_init|. It returns one on success
+// and zero on error. On success, |X509_STORE_CTX_get0_chain| or
 // |X509_STORE_CTX_get1_chain| may be used to return the verified certificate
 // chain. On error, |X509_STORE_CTX_get_error| may be used to return additional
 // error information.
@@ -3045,7 +3045,7 @@ OPENSSL_EXPORT void X509_STORE_CTX_set_error(X509_STORE_CTX *ctx, int err);
 OPENSSL_EXPORT const char *X509_verify_cert_error_string(long err);
 
 // X509_STORE_CTX_get_error_depth returns the depth at which the error returned
-// by |X509_STORE_CTX_get_error| occured. This is zero-indexed integer into the
+// by |X509_STORE_CTX_get_error| occurred. This is zero-indexed integer into the
 // certificate chain. Zero indicates the target certificate, one its issuer, and
 // so on.
 OPENSSL_EXPORT int X509_STORE_CTX_get_error_depth(const X509_STORE_CTX *ctx);
@@ -4668,7 +4668,7 @@ OPENSSL_EXPORT STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(
 // |X509_STORE| that matches |name|. |type| should be one of the |X509_LU_*|
 // constants to indicate the type of object. If a match was found, it stores the
 // result in |ret| and returns one. Otherwise, it returns zero. If multiple
-// objects match, this function outputs an arbitray one.
+// objects match, this function outputs an arbitrary one.
 //
 // WARNING: |ret| must be in the empty state, as returned by |X509_OBJECT_new|.
 // Otherwise, the object currently in |ret| will be leaked when overwritten.
@@ -4949,7 +4949,7 @@ OPENSSL_EXPORT int X509V3_EXT_CRL_add_nconf(const CONF *conf,
 OPENSSL_EXPORT char *i2s_ASN1_OCTET_STRING(const X509V3_EXT_METHOD *method,
                                            const ASN1_OCTET_STRING *oct);
 
-// s2i_ASN1_OCTET_STRING decodes |str| as a hexdecimal byte string, with
+// s2i_ASN1_OCTET_STRING decodes |str| as a hexadecimal byte string, with
 // optional colon separators between bytes. It returns a newly-allocated
 // |ASN1_OCTET_STRING| with the result on success, or NULL on error. |method|
 // and |ctx| are ignored.

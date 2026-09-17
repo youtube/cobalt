@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/vulkan/buildflags.h"
 #include "ui/events/platform/x11/x11_event_source.h"
 #include "ui/gfx/linux/gbm_buffer.h"
@@ -68,17 +69,17 @@ class GLOzoneEGLX11 : public GLOzoneEGL {
     return GLOzoneEGL::InitializeStaticGLBindings(implementation);
   }
 
-  bool CanImportNativePixmap(gfx::BufferFormat format) override {
+  bool CanImportNativePixmap(viz::SharedImageFormat format) override {
     if (GetNativePixmapSupportType() == NativePixmapSupportType::kNone) {
       return false;
     }
 
     switch (GetNativePixmapSupportType()) {
       case NativePixmapSupportType::kDMABuf: {
-        return NativePixmapEGLBinding::IsBufferFormatSupported(format);
+        return NativePixmapEGLBinding::IsSharedImageFormatSupported(format);
       }
       case NativePixmapSupportType::kX11Pixmap: {
-        return NativePixmapEGLX11Binding::IsBufferFormatSupported(format);
+        return NativePixmapEGLX11Binding::IsSharedImageFormatSupported(format);
       }
       default:
         return false;
@@ -224,8 +225,8 @@ scoped_refptr<gfx::NativePixmap> X11SurfaceFactory::CreateNativePixmap(
     if (handle.planes.empty()) {
       return nullptr;
     }
-    pixmap = base::MakeRefCounted<gfx::NativePixmapDmaBuf>(size, format,
-                                                           std::move(handle));
+    pixmap = base::MakeRefCounted<gfx::NativePixmapDmaBuf>(
+        size, viz::GetSharedImageFormat(format), std::move(handle));
   }
 
   // CreateNativePixmap is non-blocking operation. Thus, it is safe to call it
@@ -234,7 +235,7 @@ scoped_refptr<gfx::NativePixmap> X11SurfaceFactory::CreateNativePixmap(
 }
 
 bool X11SurfaceFactory::CanCreateNativePixmapForFormat(
-    gfx::BufferFormat format) {
+    viz::SharedImageFormat format) {
   return ui::GpuMemoryBufferSupportX11::GetInstance()
       ->CanCreateNativePixmapForFormat(format);
 }
@@ -243,12 +244,13 @@ scoped_refptr<gfx::NativePixmap>
 X11SurfaceFactory::CreateNativePixmapFromHandle(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
   scoped_refptr<gfx::NativePixmapDmaBuf> pixmap;
   auto buffer =
       ui::GpuMemoryBufferSupportX11::GetInstance()->CreateBufferFromHandle(
-          size, format, std::move(handle));
+          size, viz::SharedImageFormatToBufferFormat(format),
+          std::move(handle));
   if (buffer) {
     gfx::NativePixmapHandle buffer_handle = buffer->ExportHandle();
     if (buffer_handle.planes.empty()) {
@@ -265,8 +267,9 @@ X11SurfaceFactory::GetSupportedFormatsForTexturing() const {
   std::vector<gfx::BufferFormat> supported_buffer_formats;
   for (int j = 0; j <= static_cast<int>(gfx::BufferFormat::LAST); ++j) {
     const gfx::BufferFormat buffer_format = static_cast<gfx::BufferFormat>(j);
+    auto format = viz::GetSharedImageFormat(buffer_format);
     if (ui::GpuMemoryBufferSupportX11::GetInstance()
-            ->CanCreateNativePixmapForFormat(buffer_format)) {
+            ->CanCreateNativePixmapForFormat(format)) {
       supported_buffer_formats.push_back(buffer_format);
     }
   }

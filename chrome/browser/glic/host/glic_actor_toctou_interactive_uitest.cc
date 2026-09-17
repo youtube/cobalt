@@ -239,6 +239,65 @@ IN_PROC_BROWSER_TEST_F(GlicActorToctouUiTest, TimeOfUseCheckOnShadowDom) {
   // clang-format on
 }
 
+// Ensure the time-of-use check can succeed when a click is dispatched to a
+// multi-line anchor element.
+IN_PROC_BROWSER_TEST_F(GlicActorToctouUiTest, TimeOfUseCheckOnMultilineAnchor) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kAnchorLabel = "anchor";
+
+  // Load the new page that contains the multi-line anchor element.
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/multi_line_anchor_element.html");
+
+  RunTestSequence(
+      // clang-format off
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      ClickAction(kAnchorLabel,
+                  ClickAction::LEFT, ClickAction::SINGLE),
+      WaitForJsResult(kNewActorTabId, "() => clicked_fired === true")
+  );
+  // clang-format on
+}
+
+class GlicActorToctouInteractionPointDiscoveryUiTest
+    : public GlicActorToctouUiTest {
+ public:
+  GlicActorToctouInteractionPointDiscoveryUiTest() {
+    scoped_features_.InitAndEnableFeature(
+        features::kGlicActorIterativeInteractionPointDiscovery);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_features_;
+};
+
+// Ensure time-of-use check doesn't prevent us from clicking on elements
+// partially obscured by other elements.
+IN_PROC_BROWSER_TEST_F(GlicActorToctouInteractionPointDiscoveryUiTest,
+                       TimeOfUseCheckClickBehind) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kBottomElement = "behind";
+
+  // Load the new page that contains the element with a shadow DOM.
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/partially_obscured.html");
+
+  RunTestSequence(
+      // clang-format off
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      CheckJsResult(kNewActorTabId,
+                    "() => !document.getElementById('behind').checked"),
+      ClickAction(kBottomElement,
+                  ClickAction::LEFT, ClickAction::SINGLE),
+      WaitForJsResult(kNewActorTabId,
+                      "() => document.getElementById('behind').checked")
+  );
+}
+
 }  //  namespace
 
 }  // namespace glic::test

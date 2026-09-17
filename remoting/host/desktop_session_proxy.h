@@ -14,6 +14,7 @@
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/weak_ptr.h"
 #include "base/process/process.h"
@@ -96,7 +97,7 @@ class DesktopSessionProxy
   std::unique_ptr<InputInjector> CreateInputInjector();
   std::unique_ptr<ScreenControls> CreateScreenControls();
   std::unique_ptr<DesktopCapturer> CreateVideoCapturer(webrtc::ScreenId id);
-  std::unique_ptr<MouseCursorMonitor> CreateMouseCursorMonitor();
+  std::unique_ptr<protocol::MouseCursorMonitor> CreateMouseCursorMonitor();
   std::unique_ptr<KeyboardLayoutMonitor> CreateKeyboardLayoutMonitor(
       base::RepeatingCallback<void(const protocol::KeyboardLayout&)> callback);
   std::unique_ptr<FileOperations> CreateFileOperations();

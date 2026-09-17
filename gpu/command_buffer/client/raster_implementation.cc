@@ -54,7 +54,6 @@
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/paint/tone_map_util.h"
 #endif  // BUILDFLAG(IS_COBALT)
-#include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/client/query_tracker.h"
 #include "gpu/command_buffer/client/raster_cmd_helper.h"
@@ -933,8 +932,9 @@ void RasterImplementation::IssueQueryCounter(GLuint id,
                                              uint32_t sync_data_shm_id,
                                              uint32_t sync_data_shm_offset,
                                              GLuint submit_count) {
-  helper_->QueryCounterEXT(id, target, sync_data_shm_id, sync_data_shm_offset,
-                           submit_count);
+  // This callback is invoked only by QueryTracker::QueryCounter(), which
+  // RasterImplementation never calls.
+  NOTREACHED();
 }
 
 void RasterImplementation::IssueSetDisjointValueSync(
@@ -1257,46 +1257,12 @@ void RasterImplementation::EndQueryEXT(GLenum target) {
   }
 }
 
-void RasterImplementation::QueryCounterEXT(GLuint id, GLenum target) {
-  GPU_CLIENT_SINGLE_THREAD_CHECK();
-  GPU_CLIENT_LOG("[" << GetLogPrefix() << "] QueryCounterEXT(" << id << ", "
-                     << GLES2Util::GetStringQueryTarget(target) << ")");
-
-  if (target != GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM) {
-    SetGLError(GL_INVALID_ENUM, "glQueryCounterEXT", "unknown query target");
-    return;
-  }
-
-  if (id == 0) {
-    SetGLError(GL_INVALID_OPERATION, "glQueryCounterEXT", "id is 0");
-    return;
-  }
-
-  if (!GetIdAllocator(IdNamespaces::kQueries)->InUse(id)) {
-    SetGLError(GL_INVALID_OPERATION, "glQueryCounterEXT", "invalid id");
-    return;
-  }
-
-  if (query_tracker_->QueryCounter(id, target, this)) {
-    CheckGLError();
-  }
-}
 void RasterImplementation::GetQueryObjectuivEXT(GLuint id,
                                                 GLenum pname,
                                                 GLuint* params) {
   GLuint64 result = 0;
   if (GetQueryObjectValueHelper("glGetQueryObjectuivEXT", id, pname, &result)) {
     *params = base::saturated_cast<GLuint>(result);
-  }
-}
-
-void RasterImplementation::GetQueryObjectui64vEXT(GLuint id,
-                                                  GLenum pname,
-                                                  GLuint64* params) {
-  GLuint64 result = 0;
-  if (GetQueryObjectValueHelper("glGetQueryObjectui64vEXT", id, pname,
-                                &result)) {
-    *params = result;
   }
 }
 

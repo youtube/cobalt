@@ -202,6 +202,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="3123473560110926937">Disekat di sesetengah tapak</translation>
 <translation id="3132996321662585180">Muat semula setiap hari</translation>
 <translation id="3143754809889689516">Mainkan dari permulaan</translation>
+<translation id="3164169438034704658">Anda boleh menghidupkan lokasi tepat dalam <ph name="BEGIN_LINK" />Tetapan Android<ph name="END_LINK" />.</translation>
 <translation id="3165022941318558018">Benarkan laman menggunakan kuki pihak ketiga</translation>
 <translation id="3167868116600277716">Temukan suapan</translation>
 <translation id="3198916472715691905"><ph name="STORAGE_AMOUNT" /> data disimpan</translation>
@@ -540,9 +541,11 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="6965382102122355670">OK</translation>
 <translation id="6980861169612950611">Padamkan data laman? <ph name="SITE_NAME" /></translation>
 <translation id="6981982820502123353">Kebolehcapaian</translation>
+<translation id="6991142177939282156">Dibenarkan • Menggunakan anggaran</translation>
 <translation id="6992289844737586249">Tanya dahulu sebelum membenarkan tapak menggunakan mikrofon anda (disyorkan)</translation>
 <translation id="7000754031042624318">Dimatikan dalam tetapan Android</translation>
 <translation id="702275896380648118">Laman ini menentukan perkara yang anda sukai dan kemudian mencadangkan iklan kepada laman lain. Laman ini juga mendapat topik iklan anda daripada Chrome untuk memaparkan iklan yang lebih berkaitan kepada anda.</translation>
+<translation id="7036823721811529709">Dengar pada latar</translation>
 <translation id="7044081119134178347">Kamera dibenarkan pada masa ini</translation>
 <translation id="7053983685419859001">Sekat</translation>
 <translation id="7055552182600664515">Untuk memainkan kandungan yang dilindungi oleh hak cipta, laman mungkin perlu menggunakan perkhidmatan perlindungan kandungan. <ph name="BEGIN_LINK" />Ketahui lebih lanjut<ph name="END_LINK" /></translation>
@@ -649,6 +652,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="8261506727792406068">Padam</translation>
 <translation id="8284326494547611709">Kapsyen</translation>
 <translation id="8300705686683892304">Diurus oleh apl</translation>
+<translation id="8301363963630676147">Dibenarkan pada masa ini • Menggunakan anggaran</translation>
 <translation id="8315509175050791576">Berkongsi tab</translation>
 <translation id="8324158725704657629">Jangan tanya lagi</translation>
 <translation id="8362795839483915693">Anda boleh zum masuk atau keluar pada laman yang anda lawati</translation>

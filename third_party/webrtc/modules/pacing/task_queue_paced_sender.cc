@@ -62,11 +62,6 @@ TaskQueuePacedSender::~TaskQueuePacedSender() {
   is_shutdown_ = true;
 }
 
-void TaskQueuePacedSender::SetSendBurstInterval(TimeDelta burst_interval) {
-  RTC_DCHECK_RUN_ON(task_queue_);
-  pacing_controller_.SetSendBurstInterval(burst_interval);
-}
-
 void TaskQueuePacedSender::SetAllowProbeWithoutMediaPacket(bool allow) {
   RTC_DCHECK_RUN_ON(task_queue_);
   pacing_controller_.SetAllowProbeWithoutMediaPacket(allow);
@@ -108,10 +103,9 @@ void TaskQueuePacedSender::SetCongested(bool congested) {
   PostMaybeProcessPackets();
 }
 
-void TaskQueuePacedSender::SetPacingRates(DataRate pacing_rate,
-                                          DataRate padding_rate) {
+void TaskQueuePacedSender::SetConfig(const PacerConfig& pacer_config) {
   RTC_DCHECK_RUN_ON(task_queue_);
-  pacing_controller_.SetPacingRates(pacing_rate, padding_rate);
+  pacing_controller_.SetPacerConfig(pacer_config);
   PostMaybeProcessPackets();
 }
 

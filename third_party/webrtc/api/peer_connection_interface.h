@@ -689,6 +689,11 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     // The burst interval of the pacer, see TaskQueuePacedSender constructor.
     std::optional<TimeDelta> pacer_burst_interval;
 
+    // Always negotiate datachannels as the first m-line in the SDP even if
+    // no datachannel have been created yet.
+    // https://github.com/w3c/webrtc-pc/issues/3072
+    bool always_negotiate_data_channels = false;
+
     //
     // Don't forget to update operator== if adding something.
     //

@@ -41,6 +41,7 @@ bool gVerboseLogging               = false;
 bool gWarmup                       = false;
 int gTrialTimeSeconds              = kDefaultTrialTimeSeconds;
 int gTestTrials                    = kDefaultTestTrials;
+int gSleepBetweenTrialMs           = 0;
 bool gNoFinish                     = false;
 bool gRetraceMode                  = false;
 bool gMinimizeGPUWork              = false;
@@ -58,6 +59,8 @@ const char *gTraceInterpreter      = nullptr;
 const char *gPrintExtensionsToFile = nullptr;
 const char *gRequestedExtensions   = nullptr;
 bool gIncludeInactiveResources     = false;
+bool gTrackGPUTime                 = false;
+bool gAddSwapIntoGPUTime           = false;
 
 namespace
 {
@@ -79,7 +82,8 @@ bool PerfTestArg(int *argc, char **argv, int argIndex)
                        &gFixedTestTimeWithWarmup) ||
            ParseIntArg("--trial-time", argc, argv, argIndex, &gTrialTimeSeconds) ||
            ParseIntArg("--max-trial-time", argc, argv, argIndex, &gTrialTimeSeconds) ||
-           ParseIntArg("--trials", argc, argv, argIndex, &gTestTrials);
+           ParseIntArg("--trials", argc, argv, argIndex, &gTestTrials) ||
+           ParseIntArg("--sleep-between-trials", argc, argv, argIndex, &gSleepBetweenTrialMs);
 }
 
 bool TraceTestArg(int *argc, char **argv, int argIndex)
@@ -102,7 +106,9 @@ bool TraceTestArg(int *argc, char **argv, int argIndex)
                            &gPrintExtensionsToFile) ||
            ParseCStringArg("--request-extensions", argc, argv, argIndex, &gRequestedExtensions) ||
            ParseFlag("--include-inactive-resources", argc, argv, argIndex,
-                     &gIncludeInactiveResources);
+                     &gIncludeInactiveResources) ||
+           ParseFlag("--track-gpu-time", argc, argv, argIndex, &gTrackGPUTime) ||
+           ParseFlag("--add-swap-into-gpu-time", argc, argv, argIndex, &gAddSwapIntoGPUTime);
 }
 }  // namespace
 }  // namespace angle

@@ -14,9 +14,9 @@
 #include <memory>
 
 #include "absl/base/nullability.h"
-#include "absl/strings/string_view.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "rtc_base/system/rtc_export.h"
+#include "third_party/tflite/src/tensorflow/lite/model_builder.h"
 
 namespace tflite {
 class OpResolver;
@@ -31,7 +31,7 @@ namespace webrtc {
 // Beware: This is an experimental API and may change without notice.
 RTC_EXPORT
 absl_nullable std::unique_ptr<NeuralResidualEchoEstimator>
-CreateNeuralResidualEchoEstimator(absl::string_view tflite_model_path,
+CreateNeuralResidualEchoEstimator(const tflite::FlatBufferModel* model,
                                   const tflite::OpResolver* absl_nonnull
                                       op_resolver);
 

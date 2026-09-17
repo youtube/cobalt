@@ -8,14 +8,18 @@
 
 #include <utility>
 
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "components/update_client/network.h"
 #include "components/update_client/task_traits.h"
 #include "components/update_client/update_client_errors.h"
@@ -75,9 +79,17 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 #else
 UrlFetcherDownloader::UrlFetcherDownloader(
     scoped_refptr<CrxDownloader> successor,
-    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory)
+    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
+    const std::string& prod_id)
     : CrxDownloader(std::move(successor)),
-      network_fetcher_factory_(network_fetcher_factory) {}
+      network_fetcher_factory_(network_fetcher_factory),
+#if BUILDFLAG(IS_WIN)
+      prod_id_(base::UTF8ToWide(prod_id))
+#else   // BUILDFLAG(IS_WIN)
+      prod_id_(prod_id)
+#endif  // BUILDFLAG(IS_WIN)
+{
+}
 #endif
 
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
@@ -201,7 +213,9 @@ void UrlFetcherDownloader::DoCancelDownload() {
 
 #if !defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::CreateDownloadDir() {
-  CreateTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"), &download_dir_);
+  CreateTempDirectory(
+      base::StrCat({prod_id_, FILE_PATH_LITERAL("_chrome_url_fetcher_")}),
+      &download_dir_);
 }
 #endif
 

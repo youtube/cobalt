@@ -26,7 +26,9 @@
 #include "absl/algorithm/container.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
+#include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
@@ -71,8 +73,11 @@ const int NUM_SAMPLES = 1000;
 // the kernel does.
 class VirtualSocketPacket {
  public:
-  VirtualSocketPacket(const char* data, size_t size, const SocketAddress& from)
-      : size_(size), consumed_(0), from_(from) {
+  VirtualSocketPacket(const char* data,
+                      size_t size,
+                      EcnMarking ecn,
+                      const SocketAddress& from)
+      : size_(size), consumed_(0), ecn_(ecn), from_(from) {
     RTC_DCHECK(nullptr != data);
     data_ = new char[size_];
     memcpy(data_, data, size_);
@@ -82,6 +87,7 @@ class VirtualSocketPacket {
 
   const char* data() const { return data_ + consumed_; }
   size_t size() const { return size_ - consumed_; }
+  EcnMarking ecn() const { return ecn_; }
   const SocketAddress& from() const { return from_; }
 
   // Remove the first size bytes from the data.
@@ -93,6 +99,7 @@ class VirtualSocketPacket {
  private:
   char* data_;
   size_t size_, consumed_;
+  EcnMarking ecn_;
   SocketAddress from_;
 };
 
@@ -271,11 +278,28 @@ int VirtualSocket::RecvFrom(void* pv,
                             size_t cb,
                             SocketAddress* paddr,
                             int64_t* timestamp) {
-  if (timestamp) {
-    *timestamp = -1;
+  Buffer payload;
+  payload.EnsureCapacity(cb);
+  ReceiveBuffer receive_buffer(payload);
+  int bytes_received = DoRecvFrom(receive_buffer);
+  if (bytes_received > 0) {
+    memcpy(pv, payload.data(), bytes_received);
   }
+  *paddr = receive_buffer.source_address;
+  return bytes_received;
+}
 
-  int data_read = safety_->RecvFrom(pv, cb, *paddr);
+int VirtualSocket::RecvFrom(ReceiveBuffer& buffer) {
+  static constexpr int BUF_SIZE = 64 * 1024;
+  buffer.payload.EnsureCapacity(BUF_SIZE);
+  return DoRecvFrom(buffer);
+}
+
+int VirtualSocket::DoRecvFrom(ReceiveBuffer& buffer) {
+  int data_read = safety_->RecvFrom(buffer);
+  if (options_map_[OPT_RECV_ECN] != 1) {
+    buffer.ecn = EcnMarking::kNotEct;
+  }
   if (data_read < 0) {
     error_ = EAGAIN;
     return -1;
@@ -292,9 +316,7 @@ int VirtualSocket::RecvFrom(void* pv,
   return data_read;
 }
 
-int VirtualSocket::SafetyBlock::RecvFrom(void* buffer,
-                                         size_t size,
-                                         SocketAddress& addr) {
+int VirtualSocket::SafetyBlock::RecvFrom(ReceiveBuffer& buffer) {
   MutexLock lock(&mutex_);
   // If we don't have a packet, then either error or wait for one to arrive.
   if (recv_buffer_.empty()) {
@@ -303,9 +325,10 @@ int VirtualSocket::SafetyBlock::RecvFrom(void* buffer,
 
   // Return the packet at the front of the queue.
   VirtualSocketPacket& packet = *recv_buffer_.front();
-  size_t data_read = std::min(size, packet.size());
-  memcpy(buffer, packet.data(), data_read);
-  addr = packet.from();
+  size_t data_read = std::min(buffer.payload.capacity(), packet.size());
+  buffer.payload.SetData(packet.data(), data_read);
+  buffer.source_address = packet.from();
+  buffer.ecn = packet.ecn();
 
   if (data_read < packet.size()) {
     packet.Consume(data_read);
@@ -566,9 +589,12 @@ int VirtualSocket::SendUdp(const void* pv,
       return result;
     }
   }
+  EcnMarking ecn = (options_map_[Socket::OPT_SEND_ECN] == 1)
+                       ? EcnMarking::kEct1
+                       : EcnMarking::kNotEct;
 
   // Send the data in a message to the appropriate socket.
-  return server_->SendUdp(this, static_cast<const char*>(pv), cb, addr);
+  return server_->SendUdp(this, static_cast<const char*>(pv), cb, ecn, addr);
 }
 
 int VirtualSocket::SendTcp(const void* pv, size_t cb) {
@@ -961,6 +987,7 @@ bool VirtualSocketServer::Disconnect(const SocketAddress& local_addr,
 int VirtualSocketServer::SendUdp(VirtualSocket* socket,
                                  const char* data,
                                  size_t data_size,
+                                 EcnMarking ecn,
                                  const SocketAddress& remote_addr) {
   {
     MutexLock lock(&mutex_);
@@ -1029,7 +1056,7 @@ int VirtualSocketServer::SendUdp(VirtualSocket* socket,
     }
 
     AddPacketToNetwork(socket, recipient, cur_time, data, data_size,
-                       UDP_HEADER_SIZE, false);
+                       UDP_HEADER_SIZE, false, ecn);
 
     return static_cast<int>(data_size);
   }
@@ -1072,7 +1099,7 @@ void VirtualSocketServer::SendTcp(VirtualSocket* socket) {
       break;
 
     AddPacketToNetwork(socket, recipient, cur_time, socket->send_buffer_data(),
-                       data_size, TCP_HEADER_SIZE, true);
+                       data_size, TCP_HEADER_SIZE, true, EcnMarking::kNotEct);
     recipient->UpdateRecv(data_size);
     socket->UpdateSend(data_size);
   }
@@ -1092,7 +1119,8 @@ void VirtualSocketServer::AddPacketToNetwork(VirtualSocket* sender,
                                              const char* data,
                                              size_t data_size,
                                              size_t header_size,
-                                             bool ordered) {
+                                             bool ordered,
+                                             EcnMarking ecn) {
   RTC_DCHECK(msg_queue_);
   uint32_t send_delay = sender->AddPacket(cur_time, data_size + header_size);
 
@@ -1114,7 +1142,7 @@ void VirtualSocketServer::AddPacketToNetwork(VirtualSocket* sender,
   }
   recipient->PostPacket(
       TimeDelta::Millis(ts - cur_time),
-      std::make_unique<VirtualSocketPacket>(data, data_size, sender_addr));
+      std::make_unique<VirtualSocketPacket>(data, data_size, ecn, sender_addr));
 }
 
 uint32_t VirtualSocketServer::SendDelay(uint32_t size) {

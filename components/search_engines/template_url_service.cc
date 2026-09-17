@@ -972,7 +972,7 @@ TemplateURLService::TemplateURLVector TemplateURLService::GetTemplateURLs() {
 std::unique_ptr<search_engines::ChoiceScreenData>
 TemplateURLService::GetChoiceScreenData() {
   return search_engine_choice_service_->GetChoiceScreenData(
-      search_terms_data());
+      search_terms_data(), GetDefaultSearchProvider());
 }
 
 TemplateURL* TemplateURLService::GetEnterpriseSearchAggregatorEngine() const {
@@ -1316,6 +1316,10 @@ void TemplateURLService::SetUserSelectedDefaultSearchProvider(
   // TODO(b/316887441): Investigate removing this.
   prefs_->CommitPendingWrite();
 #endif
+}
+
+DefaultSearchManager* TemplateURLService::GetDefaultSearchManager() {
+  return &default_search_manager_;
 }
 
 const TemplateURL* TemplateURLService::GetDefaultSearchProvider() const {

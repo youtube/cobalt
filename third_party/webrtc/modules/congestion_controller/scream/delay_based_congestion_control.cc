@@ -84,6 +84,7 @@ bool DelayBasedCongestionControl::ShouldReduceReferenceWindow() const {
 
 DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
     DataSize ref_window,
+    double ref_window_mss_ratio,
     double virtual_alpha_lim) const {
   // `min_delay_based_bwe_`put a lower bound on the reference window.
   DataSize min_allowed_reference_window =
@@ -93,15 +94,17 @@ DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
     return min_allowed_reference_window;
   }
   double l4s_alpha_v = std::clamp(
-      4.0 * virtual_alpha_lim *
+      2.0 * virtual_alpha_lim *
           (queue_delay_avg_ - params_.queue_delay_target.Get() *
                                   params_.queue_delay_threshold.Get()) /
           (params_.queue_delay_target.Get() *
            params_.queue_delay_threshold.Get()),
       0.0, 1.0);
-  return std::max(
-      min_allowed_reference_window,
-      (1 - l4s_alpha_v * params_.queue_delay_threshold.Get()) * ref_window);
+  double backoff = l4s_alpha_v * params_.queue_delay_threshold.Get();
+  backoff /= std::max(1.0, last_smoothed_rtt_ / params_.virtual_rtt);
+  backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio);
+
+  return std::max(min_allowed_reference_window, (1 - backoff) * ref_window);
 }
 
 }  // namespace webrtc

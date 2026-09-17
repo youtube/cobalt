@@ -233,6 +233,16 @@ DEFINE_BOOL(experimental, false,
   FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
   DEFINE_IMPLICATION(nam, experimental)
 
+// Test-only flags that expose unsafe and/or unsupported configurations.
+DEFINE_BOOL(test_only_unsafe, false,
+            "Indicates that V8 is running in an unsupported and unsafe "
+            "configuration, e.g. used for internal testing. This flag is "
+            "typically not set explicitly but instead enabled as an "
+            "implication of other flags")
+#define DEFINE_TEST_ONLY_FLAG(nam, cmt)                     \
+  FLAG(BOOL, bool, nam, false, cmt " (test-only / unsafe)") \
+  DEFINE_IMPLICATION(nam, test_only_unsafe)
+
 // ATTENTION: This is set to true by default in d8. But for API compatibility,
 // it generally defaults to false.
 DEFINE_BOOL(abort_on_contradictory_flags, false,
@@ -276,17 +286,16 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
-#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V) \
-  V(js_decorators, "decorators")               \
-  V(js_source_phase_imports, "source phase imports")
+#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
+  V(js_decorators, "decorators")                     \
+  V(js_source_phase_imports, "source phase imports") \
+  V(js_defer_import_eval, "defer import eval")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
   HARMONY_INPROGRESS_BASE(V)  \
   V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")
-#define JAVASCRIPT_INPROGRESS_FEATURES(V) \
-  JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)  \
-  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
+#define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
@@ -299,7 +308,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
+#define JAVASCRIPT_STAGED_FEATURES(V) \
+  JAVASCRIPT_STAGED_FEATURES_BASE(V)  \
+  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
@@ -375,6 +386,9 @@ DEFINE_BOOL(builtin_subclassing, true,
 // SharedArrayBuffer constructor is disabled.
 DEFINE_BOOL(enable_sharedarraybuffer_per_context, false,
             "enable the SharedArrayBuffer constructor per context")
+
+DEFINE_BOOL(js_nonextensible_applies_to_private, false,
+            "non-extensibility includes private fields")
 
 DEFINE_EXPERIMENTAL_FEATURE(
     for_of_optimization,
@@ -1966,16 +1980,16 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
 // Unsafe additions to the GC proposal for performance experiments.
-DEFINE_EXPERIMENTAL_FEATURE(
+DEFINE_TEST_ONLY_FLAG(
     experimental_wasm_assume_ref_cast_succeeds,
-    "assume ref.cast always succeeds and skip the related type check (unsafe)")
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_ref_cast_nop,
-                            "enable unsafe ref.cast_nop instruction")
-DEFINE_EXPERIMENTAL_FEATURE(
+    "assume ref.cast always succeeds and skip the related type check")
+DEFINE_TEST_ONLY_FLAG(experimental_wasm_ref_cast_nop,
+                      "enable unsafe ref.cast_nop instruction")
+DEFINE_TEST_ONLY_FLAG(
     experimental_wasm_skip_null_checks,
-    "skip null checks for call.ref and array and struct operations (unsafe)")
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
-                            "skip array bounds checks (unsafe)")
+    "skip null checks for call.ref and array and struct operations")
+DEFINE_TEST_ONLY_FLAG(experimental_wasm_skip_bounds_checks,
+                      "skip array bounds checks")
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -2916,6 +2930,12 @@ DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
             "Use the new EmbedderGraph API to get embedder nodes")
 DEFINE_BOOL(heap_snapshot_on_oom, false,
             "Write a heap snapshot to disk on last-resort GCs")
+DEFINE_STRING(heap_snapshot_path, nullptr,
+              "Directory to write heap snapshots to. (If not set, "
+              "the snapshot is written to the current working directory.)")
+// Fuzzing should not set a potentially invalid path.
+DEFINE_VALUE_IMPLICATION(fuzzing, heap_snapshot_path,
+                         static_cast<const char*>(nullptr))
 DEFINE_INT(heap_snapshot_on_gc, -1,
            "Write a heap snapshot to disk on a certain GC invocation")
 DEFINE_UINT(heap_snapshot_string_limit, 1024,
@@ -3192,12 +3212,6 @@ DEFINE_FLOAT(testing_float_flag, 2.5, "float-flag")
 DEFINE_STRING(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
 
-// Test flag for a check in %OptimizeFunctionOnNextCall
-DEFINE_BOOL(
-    testing_d8_test_runner, false,
-    "test runner turns on this flag to enable a check that the function was "
-    "prepared for optimization before marking it for optimization")
-
 DEFINE_EXPERIMENTAL_FEATURE(
     strict_termination_checks,
     "Enable strict terminating DCHECKs to prevent accidentally "
@@ -3420,8 +3434,8 @@ DEFINE_BOOL(slow_histograms, false,
 
 DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 DEFINE_STRING(map_counters, "", "Map counters to a file")
-DEFINE_BOOL(mock_arraybuffer_allocator, false,
-            "Use a mock ArrayBuffer allocator for testing.")
+DEFINE_TEST_ONLY_FLAG(mock_arraybuffer_allocator,
+                      "Use a mock ArrayBuffer allocator for testing.")
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")

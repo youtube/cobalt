@@ -65,7 +65,7 @@ int dsa_check_key(const DSA *dsa) {
     return 0;
   }
 
-  if (dsa->pub_key != NULL) {
+  if (dsa->pub_key != nullptr) {
     // The public key is also in the multiplicative group of |p|.
     if (BN_is_negative(dsa->pub_key) || BN_is_zero(dsa->pub_key) ||
         BN_cmp(dsa->pub_key, dsa->p) >= 0) {
@@ -74,7 +74,7 @@ int dsa_check_key(const DSA *dsa) {
     }
   }
 
-  if (dsa->priv_key != NULL) {
+  if (dsa->priv_key != nullptr) {
     // The private key is a non-zero element of the scalar field, determined by
     // |q|.
     if (BN_is_negative(dsa->priv_key) ||
@@ -89,16 +89,16 @@ int dsa_check_key(const DSA *dsa) {
 }
 
 static int parse_integer(CBS *cbs, BIGNUM **out) {
-  assert(*out == NULL);
+  assert(*out == nullptr);
   *out = BN_new();
-  if (*out == NULL) {
+  if (*out == nullptr) {
     return 0;
   }
   return BN_parse_asn1_unsigned(cbs, *out);
 }
 
 static int marshal_integer(CBB *cbb, BIGNUM *bn) {
-  if (bn == NULL) {
+  if (bn == nullptr) {
     // A DSA object may be missing some components.
     OPENSSL_PUT_ERROR(DSA, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
@@ -108,8 +108,8 @@ static int marshal_integer(CBB *cbb, BIGNUM *bn) {
 
 DSA_SIG *DSA_SIG_parse(CBS *cbs) {
   DSA_SIG *ret = DSA_SIG_new();
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
   CBS child;
   if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
@@ -118,7 +118,7 @@ DSA_SIG *DSA_SIG_parse(CBS *cbs) {
       CBS_len(&child) != 0) {
     OPENSSL_PUT_ERROR(DSA, DSA_R_DECODE_ERROR);
     DSA_SIG_free(ret);
-    return NULL;
+    return nullptr;
   }
   return ret;
 }

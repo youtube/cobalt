@@ -103,8 +103,7 @@ ActorNavigationThrottle::WillProcessResponse() {
     std::string mime_type;
     if (headers->GetMimeType(&mime_type) &&
         kBlockedMimeTypes.contains(mime_type)) {
-      GetJournal().Log(navigation_handle()->GetURL(), task_id_,
-                       mojom::JournalTrack::kActor, "NavThrottle",
+      GetJournal().Log(navigation_handle()->GetURL(), task_id_, "NavThrottle",
                        JournalDetailsBuilder()
                            .AddError("Navigate to disallowed content-type")
                            .Add("mime_type", mime_type)
@@ -125,7 +124,7 @@ ActorNavigationThrottle::WillProcessResponse() {
       !execution_engine_->ShouldGateNavigation(
           *navigation_handle(),
           base::BindOnce(
-              &ActorNavigationThrottle::OnUserConfirmationDialogDecision,
+              &ActorNavigationThrottle::OnNavigationConfirmationDecision,
               weak_factory_.GetWeakPtr()))) {
     return content::NavigationThrottle::PROCEED;
   }
@@ -137,19 +136,17 @@ ActorNavigationThrottle::WillProcessResponse() {
   return content::NavigationThrottle::DEFER;
 }
 
-void ActorNavigationThrottle::OnUserConfirmationDialogDecision(
-    webui::mojom::UserConfirmationDialogResponsePtr response) {
+void ActorNavigationThrottle::OnNavigationConfirmationDecision(
+    bool may_continue) {
   CHECK(!navigation_handle()->IsInPrerenderedMainFrame())
       << "We should not be prompting for pre-rendered frame navigations.";
-  if (response->result->is_permission_granted() &&
-      response->result->get_permission_granted()) {
+  if (may_continue) {
     Resume();
     return;
   }
   AggregatedJournal& journal = GetJournal();
   journal.Log(
-      navigation_handle()->GetURL(), task_id_, mojom::JournalTrack::kActor,
-      "NavThrottle",
+      navigation_handle()->GetURL(), task_id_, "NavThrottle",
       JournalDetailsBuilder().AddError("Navigate cross origin").Build());
   // If the navigation we're about to cancel is attributable to the actor's
   // tool usage, consider the action a failure.
@@ -169,8 +166,7 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
   AggregatedJournal& journal = GetJournal();
 
   if (!is_redirection && !initiator_origin) {
-    journal.Log(navigation_url, task_id_, mojom::JournalTrack::kActor,
-                "NavThrottle",
+    journal.Log(navigation_url, task_id_, "NavThrottle",
                 JournalDetailsBuilder()
                     .Add("navigate", "Not triggered by page")
                     .Build());
@@ -178,8 +174,7 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
   }
 
   if (initiator_origin && initiator_origin->IsSameOriginWith(navigation_url)) {
-    journal.Log(navigation_url, task_id_, mojom::JournalTrack::kActor,
-                "NavThrottle",
+    journal.Log(navigation_url, task_id_, "NavThrottle",
                 JournalDetailsBuilder()
                     .Add("navigate", is_redirection ? "Same origin redirect"
                                                     : "Same origin navigation")
@@ -191,7 +186,7 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
   }
 
   auto journal_entry = journal.CreatePendingAsyncEntry(
-      navigation_url, task_id_, mojom::JournalTrack::kActor, "NavThrottle",
+      navigation_url, task_id_, MakeBrowserTrackUUID(task_id_), "NavThrottle",
       JournalDetailsBuilder()
           .Add("defer", is_redirection ? "Check redirect safety"
                                        : "Check navigation safety")

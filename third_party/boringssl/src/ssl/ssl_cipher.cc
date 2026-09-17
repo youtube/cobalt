@@ -453,7 +453,7 @@ bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
                              size_t *out_mac_secret_len,
                              size_t *out_fixed_iv_len, const SSL_CIPHER *cipher,
                              uint16_t version) {
-  *out_aead = NULL;
+  *out_aead = nullptr;
   *out_mac_secret_len = 0;
   *out_fixed_iv_len = 0;
 
@@ -537,7 +537,7 @@ const EVP_MD *ssl_get_handshake_digest(uint16_t version,
       return EVP_sha384();
     default:
       assert(0);
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -563,15 +563,15 @@ static void ll_append_tail(CIPHER_ORDER **head, CIPHER_ORDER *curr,
   if (curr == *head) {
     *head = curr->next;
   }
-  if (curr->prev != NULL) {
+  if (curr->prev != nullptr) {
     curr->prev->next = curr->next;
   }
-  if (curr->next != NULL) {
+  if (curr->next != nullptr) {
     curr->next->prev = curr->prev;
   }
   (*tail)->next = curr;
   curr->prev = *tail;
-  curr->next = NULL;
+  curr->next = nullptr;
   *tail = curr;
 }
 
@@ -583,15 +583,15 @@ static void ll_append_head(CIPHER_ORDER **head, CIPHER_ORDER *curr,
   if (curr == *tail) {
     *tail = curr->prev;
   }
-  if (curr->next != NULL) {
+  if (curr->next != nullptr) {
     curr->next->prev = curr->prev;
   }
-  if (curr->prev != NULL) {
+  if (curr->prev != nullptr) {
     curr->prev->next = curr->next;
   }
   (*head)->prev = curr;
   curr->next = *head;
-  curr->prev = NULL;
+  curr->prev = nullptr;
   *head = curr;
 }
 
@@ -686,14 +686,14 @@ static void ssl_cipher_apply_rule(uint16_t cipher_id, const CIPHER_ALIAS *alias,
     last = tail;
   }
 
-  curr = NULL;
+  curr = nullptr;
   for (;;) {
     if (curr == last) {
       break;
     }
 
     curr = next;
-    if (curr == NULL) {
+    if (curr == nullptr) {
       break;
     }
 
@@ -707,7 +707,7 @@ static void ssl_cipher_apply_rule(uint16_t cipher_id, const CIPHER_ALIAS *alias,
         continue;
       }
     } else if (strength_bits >= 0) {
-      if (strength_bits != SSL_CIPHER_get_bits(cp, NULL)) {
+      if (strength_bits != SSL_CIPHER_get_bits(cp, nullptr)) {
         continue;
       }
     } else {
@@ -761,14 +761,14 @@ static void ssl_cipher_apply_rule(uint16_t cipher_id, const CIPHER_ALIAS *alias,
         tail = curr->prev;
       }
       curr->active = false;
-      if (curr->next != NULL) {
+      if (curr->next != nullptr) {
         curr->next->prev = curr->prev;
       }
-      if (curr->prev != NULL) {
+      if (curr->prev != nullptr) {
         curr->prev->next = curr->next;
       }
-      curr->next = NULL;
-      curr->prev = NULL;
+      curr->next = nullptr;
+      curr->prev = nullptr;
     }
   }
 
@@ -783,10 +783,10 @@ static bool ssl_cipher_strength_sort(CIPHER_ORDER **head_p,
   // '+' movement to the end of the list.
   int max_strength_bits = 0;
   CIPHER_ORDER *curr = *head_p;
-  while (curr != NULL) {
+  while (curr != nullptr) {
     if (curr->active &&
-        SSL_CIPHER_get_bits(curr->cipher, NULL) > max_strength_bits) {
-      max_strength_bits = SSL_CIPHER_get_bits(curr->cipher, NULL);
+        SSL_CIPHER_get_bits(curr->cipher, nullptr) > max_strength_bits) {
+      max_strength_bits = SSL_CIPHER_get_bits(curr->cipher, nullptr);
     }
     curr = curr->next;
   }
@@ -798,9 +798,9 @@ static bool ssl_cipher_strength_sort(CIPHER_ORDER **head_p,
 
   // Now find the strength_bits values actually used.
   curr = *head_p;
-  while (curr != NULL) {
+  while (curr != nullptr) {
     if (curr->active) {
-      number_uses[SSL_CIPHER_get_bits(curr->cipher, NULL)]++;
+      number_uses[SSL_CIPHER_get_bits(curr->cipher, nullptr)]++;
     }
     curr = curr->next;
   }
@@ -939,7 +939,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
             // enables deprecated ciphers, deprecated ciphers are included. This
             // is slightly different from the bitmasks in that adding aliases
             // can increase the set of matched ciphers. This is so that an alias
-            // like "RSA" will only specifiy AES-based RSA ciphers, but
+            // like "RSA" will only specify AES-based RSA ciphers, but
             // "RSA+3DES" will still specify 3DES.
             alias.include_deprecated |= kCipherAliases[j].include_deprecated;
 
@@ -1002,7 +1002,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
                             const bool has_aes_hw, const char *rule_str,
                             bool strict) {
   // Return with error if nothing to do.
-  if (rule_str == NULL || out_cipher_list == NULL) {
+  if (rule_str == nullptr || out_cipher_list == nullptr) {
     return false;
   }
 
@@ -1109,7 +1109,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   // The cipher selection for the list is done. The ciphers are added
   // to the resulting precedence to the STACK_OF(SSL_CIPHER).
   size_t num_in_group_flags = 0;
-  for (CIPHER_ORDER *curr = head; curr != NULL; curr = curr->next) {
+  for (CIPHER_ORDER *curr = head; curr != nullptr; curr = curr->next) {
     if (curr->active) {
       if (!sk_SSL_CIPHER_push(cipherstack.get(), curr->cipher)) {
         return false;
@@ -1309,12 +1309,12 @@ const EVP_MD *SSL_CIPHER_get_handshake_digest(const SSL_CIPHER *cipher) {
       return EVP_sha384();
   }
   assert(0);
-  return NULL;
+  return nullptr;
 }
 
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *cipher) {
   const EVP_MD *md = SSL_CIPHER_get_handshake_digest(cipher);
-  if (md == NULL) {
+  if (md == nullptr) {
     return NID_undef;
   }
   return EVP_MD_nid(md);
@@ -1350,7 +1350,7 @@ static const char *const kUnknownCipher = "(NONE)";
 
 // return the actual cipher being used
 const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher) {
-  if (cipher != NULL) {
+  if (cipher != nullptr) {
     return cipher->name;
   }
 
@@ -1362,7 +1362,7 @@ const char *SSL_CIPHER_standard_name(const SSL_CIPHER *cipher) {
 }
 
 const char *SSL_CIPHER_get_kx_name(const SSL_CIPHER *cipher) {
-  if (cipher == NULL) {
+  if (cipher == nullptr) {
     return "";
   }
 
@@ -1398,7 +1398,7 @@ const char *SSL_CIPHER_get_kx_name(const SSL_CIPHER *cipher) {
 }
 
 int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *out_alg_bits) {
-  if (cipher == NULL) {
+  if (cipher == nullptr) {
     return 0;
   }
 
@@ -1428,7 +1428,7 @@ int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *out_alg_bits) {
       strength_bits = 0;
   }
 
-  if (out_alg_bits != NULL) {
+  if (out_alg_bits != nullptr) {
     *out_alg_bits = alg_bits;
   }
   return strength_bits;
@@ -1536,11 +1536,11 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       break;
   }
 
-  if (buf == NULL) {
+  if (buf == nullptr) {
     len = 128;
     buf = (char *)OPENSSL_malloc(len);
-    if (buf == NULL) {
-      return NULL;
+    if (buf == nullptr) {
+      return nullptr;
     }
   } else if (len < 128) {
     return "Buffer too small";
@@ -1555,11 +1555,11 @@ const char *SSL_CIPHER_get_version(const SSL_CIPHER *cipher) {
   return "TLSv1/SSLv3";
 }
 
-STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void) { return NULL; }
+STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void) { return nullptr; }
 
 int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm) { return 1; }
 
-const char *SSL_COMP_get_name(const COMP_METHOD *comp) { return NULL; }
+const char *SSL_COMP_get_name(const COMP_METHOD *comp) { return nullptr; }
 
 const char *SSL_COMP_get0_name(const SSL_COMP *comp) { return comp->name; }
 

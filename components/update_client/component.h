@@ -17,7 +17,7 @@
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -413,8 +413,6 @@ class Component {
   // there is no `crx_path_` that the installation directory can be derived from,
   // a dedicated `installation_dir_` data member is added.
   base::FilePath installation_dir_;
-#else
-  base::FilePath payload_path_;
 #endif
 
   // The byte counts below are valid for the current url being fetched.

@@ -16,6 +16,7 @@
 #include "base/timer/timer.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
+#include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/on_device_context.h"
 #include "components/optimization_guide/core/model_execution/on_device_execution.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h"
@@ -23,7 +24,6 @@
 #include "components/optimization_guide/core/model_execution/safety_checker.h"
 #include "components/optimization_guide/core/model_execution/substitution.h"
 #include "components/optimization_guide/core/model_quality/model_quality_logs_uploader_service.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/proto/model_quality_metadata.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/optimization_guide/proto/text_safety_model_metadata.pb.h"
@@ -38,7 +38,7 @@ class OnDeviceContext;
 
 // Session implementation that uses either the on device model or the server
 // model.
-class SessionImpl : public OptimizationGuideModelExecutor::Session {
+class SessionImpl : public OnDeviceSession {
  public:
   // Possible outcomes of AddContext(). Maps to histogram enum
   // "OptimizationGuideOnDeviceAddContextResult".
@@ -51,16 +51,12 @@ class SessionImpl : public OptimizationGuideModelExecutor::Session {
     kMaxValue = kFailedConstructingInput,
   };
 
+  SessionImpl(ModelBasedCapabilityKey feature, OnDeviceOptions on_device_opts);
   SessionImpl(ModelBasedCapabilityKey feature,
-              std::optional<OnDeviceOptions> on_device_opts,
-              ExecuteRemoteFn execute_remote_fn,
-              const std::optional<SessionConfigParams>& config_params);
-  SessionImpl(ModelBasedCapabilityKey feature,
-              ExecuteRemoteFn execute_remote_fn,
               const SamplingParams& sampling_params);
   ~SessionImpl() override;
 
-  // optimization_guide::OptimizationGuideModelExecutor::Session:
+  // optimization_guide::OnDeviceSession:
   const TokenLimits& GetTokenLimits() const override;
   const proto::Any& GetOnDeviceFeatureMetadata() const override;
   void SetInput(MultimodalMessage request, SetInputCallback callback) override;
@@ -86,7 +82,7 @@ class SessionImpl : public OptimizationGuideModelExecutor::Session {
       OptimizationGuideModelSizeInTokenCallback callback) override;
   const SamplingParams GetSamplingParams() const override;
   on_device_model::Capabilities GetCapabilities() const override;
-  std::unique_ptr<Session> Clone() override;
+  std::unique_ptr<OnDeviceSession> Clone() override;
   void SetPriority(on_device_model::mojom::Priority priority) override;
 
   // Returns true if the on-device model should be used.
@@ -109,7 +105,6 @@ class SessionImpl : public OptimizationGuideModelExecutor::Session {
       bool want_input_context);
 
   const ModelBasedCapabilityKey feature_;
-  ExecuteRemoteFn execute_remote_fn_;
 
   MultimodalMessage context_;
   base::TimeTicks context_start_time_;

@@ -568,6 +568,23 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
+<histogram name="SBClientPhishing.CreditCardFormEvent.{EventName}"
+    enum="CreditCardFormEvent" expires_after="2026-10-20">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>bcb@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records a credit card form event that may trigger a CSD ping, with an enum
+    that represents the permutation of details for that event. This is recorded
+    on every event that may trigger a CREDIT_CARD_FORM classification attempt,
+    after checking for ESB.
+  </summary>
+  <token key="EventName">
+    <variant name="OnFieldTypesDetermined"
+        summary="Autofill OnFieldTypesDetermined"/>
+  </token>
+</histogram>
+
 <histogram name="SBClientPhishing.CSDPhishingCachedDataAvailable"
     enum="BooleanAvailable" expires_after="2026-04-12">
   <owner>andysjlim@chromium.org</owner>
@@ -630,6 +647,19 @@ useful for Chirp alerts (go/crca-alerts). -->
     post classification server model verdict comes back to be phishy.
   </summary>
   <token key="RequestType" variants="ClientSideDetectionRequestType"/>
+</histogram>
+
+<histogram
+    name="SBClientPhishing.HistoryServiceDuration.GetVisibleVisitCountToHost"
+    units="ms" expires_after="2026-10-21">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>bcb@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the duration it takes for calling
+    HistoryService.GetVisibleVisitCountToHost. This occurs for some ping types
+    when determining whether to proceed to preclassification.
+  </summary>
 </histogram>
 
 <histogram name="SBClientPhishing.ImageEmbedder.Event"
@@ -1149,19 +1179,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     Safe Browsing to evaluate whether a site is phishing.
   </summary>
   <token key="RequestType" variants="ClientSideDetectionRequestType"/>
-</histogram>
-
-<histogram name="SBClientPhishing.SiteEngagement.CreditCardForm"
-    enum="SiteEngagementLevel" expires_after="2026-09-30">
-  <owner>andysjlim@chromium.org</owner>
-  <owner>bcb@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records the site engagement level reported at the time of an event that
-    triggers preclassification of the Credit Card Form type. This is recorded on
-    every event that may trigger a CREDIT_CARD_FORM classification attempt,
-    after checking for ESB and deduping by URL.
-  </summary>
 </histogram>
 
 <histogram name="SBClientPhishing.TimeSinceLastReportAtLimit" units="ms"

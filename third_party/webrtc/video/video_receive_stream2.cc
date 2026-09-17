@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <initializer_list>
 #include <map>
 #include <memory>
@@ -79,6 +78,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/race_checker.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/file_wrapper.h"
@@ -656,7 +656,7 @@ void VideoReceiveStream2::CalculateCorruptionScore(
     const VideoFrame& frame,
     const FrameInstrumentationData& frame_instrumentation_data,
     VideoContentType content_type) {
-  RTC_DCHECK_RUN_ON(&decode_sequence_checker_);
+  RTC_DCHECK_RUNS_SERIALIZED(&decode_callback_race_checker_);
   frame_evaluator_->OnInstrumentedFrame(frame_instrumentation_data, frame,
                                         content_type);
 }

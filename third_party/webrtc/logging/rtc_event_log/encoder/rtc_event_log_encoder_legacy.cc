@@ -294,18 +294,6 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
       return EncodeBweUpdateLossBased(rtc_event);
     }
 
-    case RtcEvent::Type::BweUpdateScream: {
-      return "";
-    }
-
-    case RtcEvent::Type::DtlsTransportState: {
-      return "";
-    }
-
-    case RtcEvent::Type::DtlsWritableState: {
-      return "";
-    }
-
     case RtcEvent::Type::IceCandidatePairConfig: {
       auto& rtc_event =
           static_cast<const RtcEventIceCandidatePairConfig&>(event);
@@ -378,6 +366,9 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
       // Fake event used for unit test.
       RTC_DCHECK_NOTREACHED();
       break;
+    case RtcEvent::Type::BweUpdateScream:
+    case RtcEvent::Type::DtlsTransportState:
+    case RtcEvent::Type::DtlsWritableState:
     case RtcEvent::Type::RouteChangeEvent:
     case RtcEvent::Type::FrameDecoded:
     case RtcEvent::Type::NetEqSetMinimumDelay:

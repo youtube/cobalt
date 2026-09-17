@@ -24,7 +24,7 @@
 long X509_get_version(const X509 *x509) { return x509->version; }
 
 int X509_set_version(X509 *x, long version) {
-  if (x == NULL) {
+  if (x == nullptr) {
     return 0;
   }
 
@@ -112,10 +112,10 @@ ASN1_TIME *X509_get_notAfter(const X509 *x509) {
 
 void X509_get0_uids(const X509 *x509, const ASN1_BIT_STRING **out_issuer_uid,
                     const ASN1_BIT_STRING **out_subject_uid) {
-  if (out_issuer_uid != NULL) {
+  if (out_issuer_uid != nullptr) {
     *out_issuer_uid = x509->issuerUID;
   }
-  if (out_subject_uid != NULL) {
+  if (out_subject_uid != nullptr) {
     *out_subject_uid = x509->subjectUID;
   }
 }

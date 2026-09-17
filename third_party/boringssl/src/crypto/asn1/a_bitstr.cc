@@ -70,7 +70,7 @@ int ASN1_BIT_STRING_num_bytes(const ASN1_BIT_STRING *str, size_t *out) {
 }
 
 int i2c_ASN1_BIT_STRING(const ASN1_BIT_STRING *a, unsigned char **pp) {
-  if (a == NULL) {
+  if (a == nullptr) {
     return 0;
   }
 
@@ -81,7 +81,7 @@ int i2c_ASN1_BIT_STRING(const ASN1_BIT_STRING *a, unsigned char **pp) {
     return 0;
   }
   int ret = 1 + len;
-  if (pp == NULL) {
+  if (pp == nullptr) {
     return ret;
   }
 
@@ -215,22 +215,22 @@ int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value) {
     v = 0;
   }
 
-  if (a == NULL) {
+  if (a == nullptr) {
     return 0;
   }
 
   a->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);  // clear, set on write
 
-  if ((a->length < (w + 1)) || (a->data == NULL)) {
+  if ((a->length < (w + 1)) || (a->data == nullptr)) {
     if (!value) {
       return 1;  // Don't need to set
     }
-    if (a->data == NULL) {
+    if (a->data == nullptr) {
       c = (unsigned char *)OPENSSL_malloc(w + 1);
     } else {
       c = (unsigned char *)OPENSSL_realloc(a->data, w + 1);
     }
-    if (c == NULL) {
+    if (c == nullptr) {
       return 0;
     }
     if (w + 1 - a->length > 0) {
@@ -251,7 +251,7 @@ int ASN1_BIT_STRING_get_bit(const ASN1_BIT_STRING *a, int n) {
 
   w = n / 8;
   v = 1 << (7 - (n & 0x07));
-  if ((a == NULL) || (a->length < (w + 1)) || (a->data == NULL)) {
+  if ((a == nullptr) || (a->length < (w + 1)) || (a->data == nullptr)) {
     return 0;
   }
   return ((a->data[w] & v) != 0);

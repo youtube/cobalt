@@ -281,6 +281,20 @@ TEST_P(AutofillIsInternationalBankAccountNumber,
       GetParam() + u"0000000000000000000000000000000000000"));
 }
 
+TEST(AutofillValidation, IsValidAchRoutingTransitNumber) {
+  // Must be 9 digits, cannot have text:
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"12345678"));
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"1234567890"));
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"12345678x"));
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"x23456789"));
+  // Passes checksum:
+  EXPECT_TRUE(IsAchRoutingTransitNumber(u"111000025"));
+  EXPECT_TRUE(IsAchRoutingTransitNumber(u"321177722"));
+  EXPECT_TRUE(IsAchRoutingTransitNumber(u"323177720"));
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"321177721"));
+  EXPECT_FALSE(IsAchRoutingTransitNumber(u"321177723"));
+}
+
 TEST(AutofillValidation, IsValidNameOnCard) {
   const char16_t* const kValidNamesOnCard[] = {
       u"JOHN DOE",
@@ -349,9 +363,13 @@ INSTANTIATE_TEST_SUITE_P(ValidZip,
                              ZipCodeTestCase{true, u"100-8799", "JP", true},
                              ZipCodeTestCase{true, u"100", "JP", false},
                              ZipCodeTestCase{true, u"AB-100-8799", "JP", false},
+                             ZipCodeTestCase{true, u"٥٥١١١١٤٣٩٩", "IR", true},
+                             ZipCodeTestCase{true, u"01310-000", "BR", true},
+                             ZipCodeTestCase{true, u"01.310-000", "BR", true},
                              ZipCodeTestCase{true, u"ABC-123", "BR", false},
                              ZipCodeTestCase{true, u"ABC-123", "XX", true},
-                             ZipCodeTestCase{true, u"ABC_123", "XX", false}));
+                             ZipCodeTestCase{true, u"ABC_123", "XX", true},
+                             ZipCodeTestCase{true, u"any string", "XX", true}));
 
 }  // namespace
 }  // namespace autofill

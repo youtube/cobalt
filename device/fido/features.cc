@@ -54,6 +54,10 @@ BASE_FEATURE(kWebAuthCableExtensionAnywhere,
              "WebAuthenticationCableExtensionAnywhere",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// This is used to enable an experiment to reject WebAuthn requests
+// when actor mode is on.
+BASE_FEATURE(kWebAuthnActorCheck, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enabled in M118. Remove in or after M121.
 BASE_FEATURE(kWebAuthnICloudKeychainForGoogle,
              "WebAuthenticationICloudKeychainForGoogle",
@@ -211,5 +215,11 @@ BASE_FEATURE(kWebAuthenticationFixWindowsHelloRdp,
 // Enabled by default in M142. Remove in or after M145.
 BASE_FEATURE(kWebAuthenticationHashClientDataJsonForEnclave,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enabled by default in M143. Remove in or after M146.
+BASE_FEATURE(kWebAuthnOpportunisticRetrieval, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enabled by default in M143. Remove in or after M146.
+BASE_FEATURE(kWebAuthenticationWindowsHints, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace device

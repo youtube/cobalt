@@ -52,6 +52,10 @@ static inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
   return access_info.hash_value();
 }
 
+static inline size_t gvn_hash_value(const PropertyKey& key) {
+  return base::hash_value(key.data());
+}
+
 template <typename T>
 static inline size_t gvn_hash_value(
     const v8::internal::ZoneCompactSet<T>& vector) {
@@ -431,7 +435,8 @@ void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
   if constexpr (!NodeT::kProperties.can_write()) return;
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
-    known_node_aspects().increment_effect_epoch();
+    known_node_aspects().MarkPossibleSideEffect(node, broker(),
+                                                is_tracing_enabled());
   }
 }
 
@@ -1546,6 +1551,83 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     default:
       UNREACHABLE();
   }
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Min(ValueNode* lhs,
+                                                          ValueNode* rhs) {
+  // lhs and rhs need to be already converted to HoleyFloat64. Otherwise
+  // equality checking is not valid.
+  DCHECK(ValueRepresentationIs(lhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  DCHECK(ValueRepresentationIs(rhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  if (lhs == rhs) {
+    return lhs->Unwrap();
+  }
+
+  std::optional<double> lhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, lhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!lhs_const) return {};
+  std::optional<double> rhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, rhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!rhs_const) return {};
+
+  if (std::isnan(*lhs_const) || std::isnan(*rhs_const)) {
+    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+  }
+  if (*lhs_const == 0 && *rhs_const == 0) {
+    // Handle -0 vs 0.
+    if (std::signbit(*lhs_const)) {
+      return GetFloat64Constant(*lhs_const);
+    }
+    return GetFloat64Constant(*rhs_const);
+  }
+  if (*lhs_const <= *rhs_const) {
+    return GetFloat64Constant(*lhs_const);
+  }
+  return GetFloat64Constant(*rhs_const);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
+                                                          ValueNode* rhs) {
+  // lhs and rhs need to be already converted to HoleyFloat64. Otherwise
+  // equality checking is not valid.
+  DCHECK(ValueRepresentationIs(lhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  DCHECK(ValueRepresentationIs(rhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  if (lhs == rhs) {
+    return lhs->Unwrap();
+  }
+
+  std::optional<double> lhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, lhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!lhs_const) return {};
+
+  std::optional<double> rhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, rhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!rhs_const) return {};
+
+  if (std::isnan(*lhs_const) || std::isnan(*rhs_const)) {
+    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+  }
+  if (*lhs_const == 0 && *rhs_const == 0) {
+    // Handle -0 vs 0.
+    if (std::signbit(*lhs_const)) {
+      return GetFloat64Constant(*rhs_const);
+    }
+    return GetFloat64Constant(*lhs_const);
+  }
+  if (*lhs_const >= *rhs_const) {
+    return GetFloat64Constant(*lhs_const);
+  }
+  return GetFloat64Constant(*rhs_const);
 }
 
 }  // namespace maglev

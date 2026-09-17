@@ -9,7 +9,9 @@ import type {ReloadButtonAppElement} from './app.js';
 export function getHtml(this: ReloadButtonAppElement) {
   return html`<!--_html_template_start_-->
 <cr-icon-button class="${this.isLoading_ ? 'icon-clear' : 'icon-refresh'}"
-    @click="${this.onReloadOrStopClick_}">
+    title="${this.tooltip_}"
+    @pointerdown="${this.onReloadButtonPointerDown_}"
+    @pointerup="${this.onReloadButtonPointerUp_}">
 </cr-icon-button>
 <!--_html_template_end_-->`;
 }

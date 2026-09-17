@@ -117,7 +117,9 @@ optimization_guide::proto::Actions MakeDragAndRelease(
     content::RenderFrameHost& rfh,
     int from_node_id,
     int to_node_id);
-optimization_guide::proto::Actions MakeWait();
+optimization_guide::proto::Actions MakeWait(
+    std::optional<base::TimeDelta> duration = std::nullopt,
+    std::optional<tabs::TabHandle> observe_tab_handle = std::nullopt);
 optimization_guide::proto::Actions MakeAttemptLogin();
 optimization_guide::proto::Actions MakeScriptTool(
     content::RenderFrameHost& rfh,
@@ -163,7 +165,8 @@ std::unique_ptr<ToolRequest> MakeDragAndReleaseRequest(
     tabs::TabInterface& tab,
     const gfx::Point& from_point,
     const gfx::Point& to_point);
-std::unique_ptr<ToolRequest> MakeWaitRequest();
+std::unique_ptr<ToolRequest> MakeWaitRequest(
+    tabs::TabInterface* observe_tab = nullptr);
 std::unique_ptr<ToolRequest> MakeCreateTabRequest(SessionID window_id,
                                                   bool foreground);
 std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(tabs::TabInterface& tab);
@@ -171,6 +174,9 @@ std::unique_ptr<ToolRequest> MakeScriptToolRequest(
     content::RenderFrameHost& rfh,
     const std::string& name,
     const std::string& input_arguments);
+std::unique_ptr<ToolRequest> MakeMediaControlRequest(
+    tabs::TabInterface& tab,
+    MediaControl media_control);
 
 // A helper to create a vector of ToolRequests suitable for passing to
 // ExecutionEngine::Act. Note that this will necessarily move the ToolRequest

@@ -34,16 +34,16 @@
 
 
 static int parse_integer(CBS *cbs, BIGNUM **out) {
-  assert(*out == NULL);
+  assert(*out == nullptr);
   *out = BN_new();
-  if (*out == NULL) {
+  if (*out == nullptr) {
     return 0;
   }
   return BN_parse_asn1_unsigned(cbs, *out);
 }
 
 static int marshal_integer(CBB *cbb, BIGNUM *bn) {
-  if (bn == NULL) {
+  if (bn == nullptr) {
     // An RSA object may be missing some components.
     OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
     return 0;
@@ -53,8 +53,8 @@ static int marshal_integer(CBB *cbb, BIGNUM *bn) {
 
 RSA *RSA_parse_public_key(CBS *cbs) {
   RSA *ret = RSA_new();
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
   CBS child;
   if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
@@ -63,13 +63,13 @@ RSA *RSA_parse_public_key(CBS *cbs) {
       CBS_len(&child) != 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
     RSA_free(ret);
-    return NULL;
+    return nullptr;
   }
 
   if (!RSA_check_key(ret)) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_RSA_PARAMETERS);
     RSA_free(ret);
-    return NULL;
+    return nullptr;
   }
 
   return ret;
@@ -79,10 +79,10 @@ RSA *RSA_public_key_from_bytes(const uint8_t *in, size_t in_len) {
   CBS cbs;
   CBS_init(&cbs, in, in_len);
   RSA *ret = RSA_parse_public_key(&cbs);
-  if (ret == NULL || CBS_len(&cbs) != 0) {
+  if (ret == nullptr || CBS_len(&cbs) != 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
     RSA_free(ret);
-    return NULL;
+    return nullptr;
   }
   return ret;
 }
@@ -119,8 +119,8 @@ static const uint64_t kVersionTwoPrime = 0;
 
 RSA *RSA_parse_private_key(CBS *cbs) {
   RSA *ret = RSA_new();
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
 
   CBS child;
@@ -161,17 +161,17 @@ RSA *RSA_parse_private_key(CBS *cbs) {
 
 err:
   RSA_free(ret);
-  return NULL;
+  return nullptr;
 }
 
 RSA *RSA_private_key_from_bytes(const uint8_t *in, size_t in_len) {
   CBS cbs;
   CBS_init(&cbs, in, in_len);
   RSA *ret = RSA_parse_private_key(&cbs);
-  if (ret == NULL || CBS_len(&cbs) != 0) {
+  if (ret == nullptr || CBS_len(&cbs) != 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
     RSA_free(ret);
-    return NULL;
+    return nullptr;
   }
   return ret;
 }
@@ -233,7 +233,7 @@ RSA *RSAPublicKey_dup(const RSA *rsa) {
   uint8_t *der;
   size_t der_len;
   if (!RSA_public_key_to_bytes(&der, &der_len, rsa)) {
-    return NULL;
+    return nullptr;
   }
   RSA *ret = RSA_public_key_from_bytes(der, der_len);
   OPENSSL_free(der);
@@ -244,7 +244,7 @@ RSA *RSAPrivateKey_dup(const RSA *rsa) {
   uint8_t *der;
   size_t der_len;
   if (!RSA_private_key_to_bytes(&der, &der_len, rsa)) {
-    return NULL;
+    return nullptr;
   }
   RSA *ret = RSA_private_key_from_bytes(der, der_len);
   OPENSSL_free(der);

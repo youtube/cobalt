@@ -47,6 +47,7 @@
 #include "api/units/timestamp.h"
 #include "api/video/video_content_type.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "call/call.h"
 #include "common_video/include/quality_limitation_reason.h"
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
@@ -438,6 +439,20 @@ void SetInboundRTPStreamStatsFromMediaReceiverInfo(
   }
   inbound_stats->total_processing_delay =
       media_receiver_info.total_processing_delay_seconds;
+}
+
+void AppendCallStats(const Call::Stats& call_stats,
+                     RTCInboundRtpStreamStats& rtp_stats) {
+  if (!rtp_stats.ssrc.has_value()) {
+    return;
+  }
+  auto it = call_stats.sent_ccfb_stats_per_ssrc.find(*rtp_stats.ssrc);
+  if (it == call_stats.sent_ccfb_stats_per_ssrc.end()) {
+    return;
+  }
+  rtp_stats.packets_reported_as_lost = it->second.num_packets_reported_lost;
+  rtp_stats.packets_reported_as_lost_but_recovered =
+      it->second.num_packets_reported_recovered;
 }
 
 std::unique_ptr<RTCInboundRtpStreamStats> CreateInboundAudioStreamStats(
@@ -1759,9 +1774,11 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
       continue;
     }
     // Inbound.
-    auto inbound_audio = CreateInboundAudioStreamStats(
-        *stats.track_media_info_map.voice_media_info(), voice_receiver_info,
-        transport_id, mid, timestamp, report);
+    std::unique_ptr<RTCInboundRtpStreamStats> inbound_audio =
+        CreateInboundAudioStreamStats(
+            *stats.track_media_info_map.voice_media_info(), voice_receiver_info,
+            transport_id, mid, timestamp, report);
+    AppendCallStats(call_stats_, *inbound_audio);
     // TODO(hta): This lookup should look for the sender, not the track.
     scoped_refptr<AudioTrackInterface> audio_track =
         stats.track_media_info_map.GetAudioTrack(voice_receiver_info);
@@ -1874,9 +1891,11 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
       // SSRC is signalled in the SDP which we should not rely on for getStats.
       continue;
     }
-    auto inbound_video = CreateInboundRTPStreamStatsFromVideoReceiverInfo(
-        transport_id, mid, *stats.track_media_info_map.video_media_info(),
-        video_receiver_info, timestamp, report);
+    std::unique_ptr<RTCInboundRtpStreamStats> inbound_video =
+        CreateInboundRTPStreamStatsFromVideoReceiverInfo(
+            transport_id, mid, *stats.track_media_info_map.video_media_info(),
+            video_receiver_info, timestamp, report);
+    AppendCallStats(call_stats_, *inbound_video);
     scoped_refptr<VideoTrackInterface> video_track =
         stats.track_media_info_map.GetVideoTrack(video_receiver_info);
     if (video_track) {

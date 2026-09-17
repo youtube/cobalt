@@ -657,6 +657,12 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_OPENLINKSPLITVIEW" desc="The name of the open a link in split view command">
             Open link in split view
           </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKLEFTVIEW" desc="The name of the open a link in left side of a split view command">
+            Open link in left view
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW" desc="The name of the open a link in right side of a split view command">
+            Open link in right view
+          </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES" desc="The name of the open a link as a different user context menu">
             Open link as
           </message>
@@ -968,6 +974,12 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKSPLITVIEW" desc="In Title Case: The name of the open a link in split view command">
             Open Link in Split View
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKLEFTVIEW" desc="In Title Case: The name of the open a link in left side of a split view command">
+            Open Link in Left View
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW" desc="In Title Case: The name of the open a link in right side of a split view command">
+            Open Link in Right View
           </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES" desc="In Title Case: The name of the open a link as a different user context menu">
             Open Link as
@@ -1321,9 +1333,6 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_PROFILE_ROW_SYNC_ERROR_MESSAGE" desc="The text label of a menu item that prompts the user to fix the profile sync issue.">
             Fix &amp;sync issue
-          </message>
-           <message name="IDS_PROFILE_ROW_SIGN_IN_AGAIN" desc="The text label of a menu item that prompts the user to sign in again.">
-            &amp;Sign in again
           </message>
           <message name="IDS_EDIT2" desc="The text label before the cut/copy/paste buttons in the merged menu">
             Edit
@@ -5110,7 +5119,9 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_TASK_MANAGER_PLUGIN_VM_PREFIX" desc="A row in the task manager for a Parallels Desktop Virtual Machine. Parallels Desktop is a 3rd-party product name that should remain in English.">
         Parallels Desktop: <ph name="PLUGIN_VM_NAME">$1<ex>PvmDefault</ex></ph>
       </message>
-
+      <message name="IDS_TASK_MANAGER_OMNIBOX" desc="A row in the task manager for the WebUI Omnibox.">
+        Omnibox
+      </message>
       <message name="IDS_UTILITY_PROCESS_FILE_UTILITY_NAME" desc="The name of the utility process used for various Chrome specific file operations.">
           Chrome File Utilities
       </message>
@@ -7049,7 +7060,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
           You won't need to remember this password. It will be saved to <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph> for <ph name="EMAIL">$2<ex>user@gmail.com</ex></ph>.
       </message>
       <message name="IDS_PASSWORD_GENERATION_NUDGE_TITLE" desc="Autofill dropdown title describing password generation.">
-          Google Password Manager created a strong password for this website
+          <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph> created a strong password for this website
       </message>
       <message name="IDS_PASSWORD_MANAGEMENT_BUBBLE_FOOTER_ACCOUNT_STORE_USERS" desc="The footer text of the managment bubble the lists saved password for this website. This is used only for account store users.">
         Passwords are saved to <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph>.
@@ -7837,6 +7848,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CUSTOMIZE_SHOW_SHORTCUTS_LABEL" desc="The label for the option to show shortcuts in the customization menu on the New Tab Page">
         Show shortcuts
       </message>
+      <message name="IDS_NTP_CUSTOMIZE_SHOW_PERSONAL_SHORTCUTS_LABEL" desc="The label for the option to show personal shortcuts in the customization menu on the New Tab Page">
+        My shortcuts and sites
+      </message>
+      <message name="IDS_NTP_CUSTOMIZE_SHOW_PERSONAL_SHORTCUTS_DESC" desc="The description for the option to show personal shortcuts in the customization menu on the New Tab Page">
+        Curated by you
+      </message>
       <message name="IDS_NTP_CUSTOMIZE_MY_SHORTCUTS_LABEL" desc="The label for the option to show user selected shortcuts in the customization menu on the New Tab Page">
         My shortcuts
       </message>
@@ -8611,6 +8628,33 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER" desc="Placeholder text for the composebox when in create image mode.">
         Describe your image
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_TAB_HEADING_1" translateable="true" desc="Heading of the tab action chip on the NTP." >
+        Ask about previous tab
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_TAB_HEADING_2" translateable="true" desc="Heading of the tab action chip on the NTP." >
+        Ask about a tab
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_TAB_BODY_1" translateable="true" desc="Body text in the tab action chip describing the use of the chip." >
+        Ask about this tab
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_TAB_BODY_2" translateable="true" desc="Body text in the tab action chip describing the use of the chip." >
+        Search deeply on a tab
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_CREATE_IMAGE_HEADING" translateable="true" desc="Heading of the create image action chip on the NTP." >
+        Create image
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_CREATE_IMAGE_BODY_1" translateable="true" desc="Body text in the create image action chip describing the use of the chip.">
+        Add an image and reimagine it
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_CREATE_IMAGE_BODY_2" translateable="true" desc="Body text in the create image action chip describing the use of the chip.">
+        Reimagine a photo
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_DEEP_SEARCH_HEADING" translateable="true" desc="Heading of the deep search action chip on the NTP.">
+        Research a topic
+      </message>
+      <message name="IDS_NTP_ACTION_CHIP_DEEP_SEARCH_BODY" translateable="true" desc="Body text in the deep search action chip describing the use of the chip.">
+        Dive deep into something new
       </message>
 
       <!-- NTP Modules -->
@@ -10831,7 +10875,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Customize Chrome to give your browser a new look
       </message>
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_OPEN_SIDE_PANEL" desc="The description of the 'open side panel' step in customize chrome tutorial">
-        Click to customize Chrome
+        Click "Customize Chrome"
       </message>
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_CHANGE_THEME" desc="The description of the 'change theme' step in customize chrome tutorial">
         Click “Change theme” to explore themes inspired by artists, nature and more
@@ -10840,13 +10884,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Select a collection
       </message>
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_APPLY_THEME" desc="The description of the 'apply theme' step in customize chrome tutorial">
-        Choose an image to apply the theme instantly
+        Select an image to apply the theme instantly
       </message>
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_CLICK_BACK_ARROW" desc="The description of the 'click back arrow' step in customize chrome tutorial">
         Click the back arrow to explore other options
       </message>
       <message name="IDS_TUTORIAL_CUSTOMIZE_CHROME_SUCCESS_BODY" desc="The description of the body text in the 'success' step in customize chrome tutorial">
-        You can now give your browser a new look at any time.
+        You can now give your browser a new look at any time from the Customize Chrome menu
       </message>
 
       <!-- Password Manager Tutorial Strings -->
@@ -12916,7 +12960,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           To share tabs and collaborate with others, sign in to Chrome and sync your history and tabs. You’ll also get your passwords and more on all your devices.
         </message>
         <message name="IDS_DATA_SHARING_NEED_SYNC_HISTORY_BODY" desc="The body of dialog that prompts users to sign in and opt in to history sync.">
-          To share tabs and collaborate with others, sync your history and tabs
+          To share tabs and collaborate with others, sync your history and tabs to <ph name="EMAIL">$1<ex>foo@gmail.com</ex></ph>
         </message>
         <message name="IDS_DATA_SHARING_NEED_VERIFY_ACCOUNT_SYNC_HISTORY_BODY" desc="The body of dialog that prompts users to verify account.">
           To share tabs and collaborate with others, verify it’s you and sync your history and tabs
@@ -14950,37 +14994,25 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_SYNC_NEEDS_VERIFICATION_BUBBLE_VIEW_TITLE" desc="Title in the sync error bubble view/notification for the case where sync needs to verify the user.">
         Sync needs to verify it's you
       </message>
+      <message name="IDS_SYNC_ERROR_USER_MENU_CONFIRM_SYNC_SETTINGS_BUTTON" desc="Button in the header of desktop user menu prompting users to confirm their sync settings.">
+        Open settings
+      </message>
+      <message name="IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON" desc="Button in the header of desktop user menu for managed users to sign out in an attempt to resolve an unrecoverable error.">
+        Sign out
+      </message>
       <if expr="use_titlecase">
-        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNIN_BUTTON" desc="Button in the header of desktop user menu that prompts the user to sign in again to fix the out-of-date signin info error.">
-          Sign In Again
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_PASSPHRASE_BUTTON" desc="Button in the header of desktop user menu that prompts the user to enter the sync passphrase to fix the out-of-date passphrase error.">
-          Enter Passphrase
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_RETRIEVE_KEYS_BUTTON" desc="Button in the header of desktop user menu that prompts the user to reauthentication to fix the sync error affecting encrypted datatypes.">
-          Verify It's You
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_CONFIRM_SYNC_SETTINGS_BUTTON" desc="Button in the header of desktop user menu prompting users to confirm their sync settings.">
+        <message name="IDS_SYNC_ERROR_USER_MENU_CONFIRM_SYNC_SETTINGS_BUTTON_MAYBE_TITLE_CASE" desc="In Title Case: Button in the header of desktop user menu prompting users to confirm their sync settings.">
           Open Settings
         </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON" desc="Button in the header of desktop user menu for managed users to sign out in an attempt to resolve an unrecoverable error.">
+        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON_MAYBE_TITLE_CASE" desc="In Title Case: Button in the header of desktop user menu for managed users to sign out in an attempt to resolve an unrecoverable error.">
           Sign Out
         </message>
       </if>
       <if expr="not use_titlecase">
-        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNIN_BUTTON" desc="Button in the header of desktop user menu that prompts the user to sign in again to fix the out-of-date signin info error.">
-          Sign in again
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_PASSPHRASE_BUTTON" desc="Button in the header of desktop user menu that prompts the user to enter the sync passphrase to fix the out-of-date passphrase error.">
-          Enter passphrase
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_RETRIEVE_KEYS_BUTTON" desc="Button in the header of desktop user menu that prompts the user to reauthentication to fix the sync error affecting encrypted datatypes.">
-          Verify it's you
-        </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_CONFIRM_SYNC_SETTINGS_BUTTON" desc="Button in the header of desktop user menu prompting users to confirm their sync settings.">
+        <message name="IDS_SYNC_ERROR_USER_MENU_CONFIRM_SYNC_SETTINGS_BUTTON_MAYBE_TITLE_CASE" desc="Button in the header of desktop user menu prompting users to confirm their sync settings.">
           Open settings
         </message>
-        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON" desc="Button in the header of desktop user menu for managed users to sign out in an attempt to resolve an unrecoverable error.">
+        <message name="IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON_MAYBE_TITLE_CASE" desc="Button in the header of desktop user menu for managed users to sign out in an attempt to resolve an unrecoverable error.">
           Sign out
         </message>
       </if>
@@ -15042,6 +15074,22 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_SYNC_STATUS_NEEDS_KEYS_BUTTON" desc="Button indicating user must reauthenticate to sync encrypted datatypes.">
         Verify it's you
       </message>
+      <if expr="use_titlecase">
+          <message name="IDS_SYNC_STATUS_NEEDS_PASSWORD_BUTTON_MAYBE_TITLE_CASE" desc="In Title Case: Button indicating user must re-enter their sync password.">
+          Enter Passphrase
+        </message>
+        <message name="IDS_SYNC_STATUS_NEEDS_KEYS_BUTTON_MAYBE_TITLE_CASE" desc="In Title Case: Button indicating user must reauthenticate to sync encrypted datatypes.">
+          Verify It's You
+        </message>
+      </if>
+      <if expr="not use_titlecase">
+        <message name="IDS_SYNC_STATUS_NEEDS_PASSWORD_BUTTON_MAYBE_TITLE_CASE" desc="Button indicating user must re-enter their sync password.">
+          Enter passphrase
+        </message>
+        <message name="IDS_SYNC_STATUS_NEEDS_KEYS_BUTTON_MAYBE_TITLE_CASE" desc="Button indicating user must reauthenticate to sync encrypted datatypes.">
+          Verify it's you
+        </message>
+      </if>
 
       <if expr="not is_chromeos">
         <message name="IDS_SYNC_RELOGIN_ERROR" desc="The text to display on in the hyperlink when the user needs to sign in again to use sync.">
@@ -15057,9 +15105,22 @@ Please help our engineers fix this problem. Tell us what happened right before y
         <message name="IDS_SYNC_RELOGIN_BUTTON" desc="The text to display on the button when the user needs to sign in again to use sync.">
           Sign in again
         </message>
+        <if expr="use_titlecase">
+          <message name="IDS_SYNC_RELOGIN_BUTTON_MAYBE_TITLE_CASE" desc="In Title Case: The text to display on the button when the user needs to sign in again to use sync.">
+            Sign In Again
+          </message>
+        </if>
+          <if expr="not use_titlecase">
+          <message name="IDS_SYNC_RELOGIN_BUTTON_MAYBE_TITLE_CASE" desc="The text to display on the button when the user needs to sign in again to use sync.">
+            Sign in again
+          </message>
+        </if>
       </if>
       <if expr="is_chromeos">
         <message name="IDS_SYNC_RELOGIN_BUTTON" desc="The text to display on the button when the user needs to sign out and sign in again to use sync on ChromeOS.">
+          Sign out
+        </message>
+        <message name="IDS_SYNC_RELOGIN_BUTTON_MAYBE_TITLE_CASE" desc="The text to display on the button when the user needs to sign out and sign in again to use sync on ChromeOS.">
           Sign out
         </message>
         <message name="IDS_SYNC_TOKEN_HANDLE_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error bubble view when the user's token handle is invalid.">
@@ -18076,11 +18137,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
 
       <message name="IDS_WEB_DIGITAL_CREDENTIALS_QR_TITLE">
-        To choose an ID, scan the QR code
+        Use another device by scanning the QR code
       </message>
 
-      <message name="IDS_WEB_DIGITAL_CREDENTIALS_QR_BODY">
-        Safely use an ID from your mobile device
+      <message name="IDS_WEB_DIGITAL_CREDENTIALS_PRESENTATION_QR_BODY">
+        <ph name="WEBSITE_ORIGIN">$1<ex>www.cheapalcohol.com</ex></ph> wants to get info from your mobile device
+      </message>
+
+      <message name="IDS_WEB_DIGITAL_CREDENTIALS_ISSUANCE_QR_BODY">
+        <ph name="WEBSITE_ORIGIN">$1<ex>www.cheapalcohol.com</ex></ph> wants to save info on your mobile device
       </message>
 
       <message name="IDS_WEB_DIGITAL_CREDENTIALS_QR_CODE_ALT_TEXT">
@@ -18490,6 +18555,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <!-- Lens Region Search bubble dialog -->
     <message name="IDS_LENS_REGION_SEARCH_BUBBLE_TEXT" desc="Text that is shown in the Lens Region Search education bubble when starting the feature. Informs the user to drag over the screen to select a region to search with Google Lens.">
       Select an area to search with Lens
+    </message>
+    <message name="IDS_CAPTURE_REGION_BUBBLE_TEXT" desc="The simplified text that is shown in the Lens Region Search education bubble when starting the feature. Informs the user to drag over the screen to select a region.">
+      Select an area
     </message>
     <!-- ChromeLabs Thumbnail Tab Strip -->
     <message name="IDS_THUMBNAIL_TAB_STRIP_EXPERIMENT_NAME" desc="Name for Thumbnail Tab Strip experiment">
@@ -19022,6 +19090,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_GLIC_SHARE_IMAGE_FAILED_TOAST_BODY" desc="Text on a toast notification that is shown when sharing an image with Gemini fails (when using the 'Create image with Gemini' context menu item)" translateable="false">
         Could not share image with Gemini. Try again or try another image.
       </message>
+      <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
+        Copied to clipboard
+      </message>
     </if>
 
     <if expr="is_android">
@@ -19455,7 +19526,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_ACCOUNT_CHOOSER_SUBTITLE" desc="Text description for saving files to Drive via Chrome PDF viewer.">
       Find your file in the <ph name="FEATURE_NAME">$1<ex>Saved from Chrome</ex></ph> folder
     </message>
-    <message name="IDS_ACCOUNT_CHOOSER_SAVED_FROM_CHROME" desc="Text to describe the feature.">
+    <message name="IDS_SAVE_TO_DRIVE_FOLDER_NAME" desc="Name of the folder in Drive where files saved from Chrome are stored." meaning="Name of the folder in Drive where files saved from Chrome are stored. Please use the short version of the branded term for Google Chrome i.e. Chrome">
       Saved from Chrome
     </message>
     <message name="IDS_ACCOUNT_CHOOSER_DRIVE" desc="Google Drive product name.">

@@ -29,11 +29,7 @@ class MockDatagramConnectionObserver : public DatagramConnection::Observer {
               OnPacketReceived,
               (ArrayView<const uint8_t> data, PacketMetadata metadata),
               (override));
-  MOCK_METHOD(void,
-              OnPacketReceived,
-              (ArrayView<const uint8_t> data),
-              (override));
-  MOCK_METHOD(void, OnSendError, (), (override));
+  MOCK_METHOD(void, OnSendOutcome, (SendOutcome send_outcome), (override));
   MOCK_METHOD(void, OnConnectionError, (), (override));
   MOCK_METHOD(void, OnWritableChange, (), (override));
 };

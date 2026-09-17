@@ -7,7 +7,9 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
+#include "base/supports_user_data.h"
 #include "base/types/expected.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
@@ -17,7 +19,15 @@
 #include "ui/gfx/geometry/point.h"
 #include "url/origin.h"
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace optimization_guide {
+
+namespace features {
+BASE_DECLARE_FEATURE(kAnnotatedPageContentWithAutofillAnnotations);
+}  // namespace features
 
 struct RenderFrameInfo {
  public:
@@ -54,6 +64,14 @@ using GetRenderFrameInfo =
     base::RepeatingCallback<std::optional<RenderFrameInfo>(int child_process_id,
                                                            blink::FrameToken)>;
 
+// Struct to provide session state across multiple nodes in a
+// ConvertAIPageContentToProto conversion;
+class ConvertAIPageContentToProtoSession : public base::SupportsUserData {
+ public:
+  ConvertAIPageContentToProtoSession();
+  ~ConvertAIPageContentToProtoSession() override;
+};
+
 // Converts the mojom data structure for AIPageContent to its equivalent proto
 // mapping. If conversion fails, the returned base::expected contains a
 // descriptive error message.
@@ -82,6 +100,10 @@ std::optional<optimization_guide::TargetNodeInfo> FindNodeWithID(
     const std::string_view document_identifier,
     const int dom_node_id);
 
+// Returns the `RenderFrameHost` for a `DocumentIdentifier::serialized_token()`.
+content::RenderFrameHost* GetRenderFrameForDocumentIdentifier(
+    content::WebContents& web_contents,
+    std::string_view target_document_token);
 
 // Returns the URL to use for frame metadata given the Document's
 // `committed_url` and `committed_origin`. The `committed_url` may not be a
@@ -89,6 +111,21 @@ std::optional<optimization_guide::TargetNodeInfo> FindNodeWithID(
 // the web origin of the Document's content.
 GURL GetURLForFrameMetadata(const GURL& committed_url,
                             const url::Origin& committed_origin);
+
+// Traverses `node` and its children recursively in pre-order, descending into
+// iframes, and calls `visitor` on each node. `document_identifier` informs the
+// visitor about the document identifier of the current node. The two versions
+// exist to enable mutating `node` or to deal with const ContentNodes.
+void VisitContentNodes(
+    optimization_guide::proto::ContentNode& node,
+    std::string_view document_identifier,
+    base::FunctionRef<void(optimization_guide::proto::ContentNode& node,
+                           std::string_view document_identifier)> visitor);
+void VisitContentNodes(
+    const optimization_guide::proto::ContentNode& node,
+    std::string_view document_identifier,
+    base::FunctionRef<void(const optimization_guide::proto::ContentNode& node,
+                           std::string_view document_identifier)> visitor);
 
 }  // namespace optimization_guide
 

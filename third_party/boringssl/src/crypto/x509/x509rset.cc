@@ -21,7 +21,7 @@
 
 
 int X509_REQ_set_version(X509_REQ *x, long version) {
-  if (x == NULL) {
+  if (x == nullptr) {
     return 0;
   }
   if (version != X509_REQ_VERSION_1) {
@@ -32,14 +32,14 @@ int X509_REQ_set_version(X509_REQ *x, long version) {
 }
 
 int X509_REQ_set_subject_name(X509_REQ *x, X509_NAME *name) {
-  if ((x == NULL) || (x->req_info == NULL)) {
+  if ((x == nullptr) || (x->req_info == nullptr)) {
     return 0;
   }
   return (X509_NAME_set(&x->req_info->subject, name));
 }
 
 int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey) {
-  if ((x == NULL) || (x->req_info == NULL)) {
+  if ((x == nullptr) || (x->req_info == nullptr)) {
     return 0;
   }
   return (X509_PUBKEY_set(&x->req_info->pubkey, pkey));

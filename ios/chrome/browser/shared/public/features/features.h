@@ -303,6 +303,11 @@ BASE_DECLARE_FEATURE(kAIMPrototypeAutoattachTab);
 // Used to gate the immersive SRP in the AIM prototype.
 BASE_DECLARE_FEATURE(kAIMPrototypeImmersiveSRP);
 
+// Variations of AIM prototype tab picker.
+extern const char kAIMPrototypeTabPickerParam[];
+extern const char kAIMPrototypeTabPickerParamCachedAPC[];
+extern const char kAIMPrototypeTabPickerParamOnFlightAPC[];
+
 // Feature flag for the tab picker in the aim prototype.
 BASE_DECLARE_FEATURE(kAIMPrototypeTabPicker);
 
@@ -482,18 +487,15 @@ BASE_DECLARE_FEATURE(kIOSChooseFromDrive);
 // Feature flag enabling a fix for the Download manager mediator.
 BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 
+// Feature flag enabling the client folder implementation of Save to Drive.
+BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
+
 // Feature flag enabling account storage management.
 BASE_DECLARE_FEATURE(kIOSManageAccountStorage);
 
 // Feature flag to enable feed background refresh.
 // Use IsFeedBackgroundRefreshEnabled() instead of this constant directly.
 BASE_DECLARE_FEATURE(kEnableFeedBackgroundRefresh);
-
-// Feature flag to deprecate the "Discover / Follow" toggle from the header of
-// the feed. When this feature is enabled, there would not be a separate
-// following feed.
-BASE_DECLARE_FEATURE(kDeprecateFeedHeader);
-bool ShouldDeprecateFeedHeader();
 
 // Feature flag to disable the feed.
 BASE_DECLARE_FEATURE(kEnableFeedAblation);
@@ -560,10 +562,6 @@ bool IsDownloadListEnabled();
 // Feature flag to control the download list UI type.
 BASE_DECLARE_FEATURE(kDownloadList);
 
-// Feature param under `kEnableFeedBackgroundRefresh` to also enable background
-// refresh for the Following feed.
-extern const char kEnableFollowingFeedBackgroundRefresh[];
-
 // Feature param under `kEnableFeedBackgroundRefresh` to enable server driven
 // background refresh schedule.
 extern const char kEnableServerDrivenBackgroundRefreshSchedule[];
@@ -604,9 +602,6 @@ void SetFeedRefreshTimestamp(NSDate* timestamp, NSString* NSUserDefaultsKey);
 // defaults.
 bool IsFeedOverrideDefaultsEnabled();
 
-// Whether the Following feed should also be refreshed in the background.
-bool IsFollowingFeedBackgroundRefreshEnabled();
-
 // Whether the background refresh schedule should be driven by server values.
 bool IsServerDrivenBackgroundRefreshScheduleEnabled();
 
@@ -627,9 +622,6 @@ double GetBackgroundRefreshMaxAgeInSeconds();
 
 // Whether the feed is disabled.
 bool IsFeedAblationEnabled();
-
-// YES when Follow UI Update is enabled.
-bool IsFollowUIUpdateEnabled();
 
 // YES when any of the content push notification variations are enabled.
 bool IsContentPushNotificationsEnabled();
@@ -863,6 +855,16 @@ extern const base::FeatureParam<int> kDefaultBrowserBannerPromoImpressionLimit;
 // Returns whether `kDefaultBrowserBannerPromo` is enabled.
 bool IsDefaultBrowserBannerPromoEnabled();
 
+// Feature to enable different text for the main header text on FRE sign-in
+// promo.
+BASE_DECLARE_FEATURE(kFRESignInHeaderTextUpdate);
+extern const base::FeatureParam<std::string> kFRESignInHeaderTextUpdateParam;
+extern const std::string_view kFRESignInHeaderTextUpdateParamArm0;
+extern const std::string_view kFRESignInHeaderTextUpdateParamArm1;
+
+// Returns whether 'kFRESignInHeaderTextUpdate' is enabled.
+bool FRESignInHeaderTextUpdate();
+
 // Feature to enable different text for the secondary action on FRE sign-in
 // promo.
 BASE_DECLARE_FEATURE(kFRESignInSecondaryActionLabelUpdate);
@@ -1075,6 +1077,11 @@ BASE_DECLARE_FEATURE(kIOSLogInstallAttribution);
 
 bool IsInstallAttributionLoggingEnabled();
 
+// Feature flag for logging the app install attribution from App Preview.
+BASE_DECLARE_FEATURE(kIOSLogAppPreviewInstallAttribution);
+
+bool IsAppPreviewInstallAttributionLoggingEnabled();
+
 // Feature flag for migrating all default browser promos to use the new Default
 // Apps iOS settings page.
 BASE_DECLARE_FEATURE(kIOSUseDefaultAppsDestinationForPromos);
@@ -1130,5 +1137,22 @@ BASE_DECLARE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings);
 
 // Whether the kIOSAutoOpenRemoteTabGroupsSettings feature is enabled.
 bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled();
+
+// Enables the DisableKeyboardAccessory feature.
+BASE_DECLARE_FEATURE(kDisableKeyboardAccessory);
+
+// Variations for DisableKeyboardAccessory feature.
+extern const char kDisableKeyboardAccessoryParam[];
+extern const char kDisableKeyboardAccessoryOnlySymbols[];
+extern const char kDisableKeyboardAccessoryOnlyFeatures[];
+extern const char kDisableKeyboardAccessoryCompletely[];
+
+// Returns true if keyboard accessory is enabled.
+bool ShouldShowKeyboardAccessory();
+// Returns true if the symbols :/- and .com in the keyboard accessory are
+// enabled.
+bool ShouldShowKeyboardAccessorySymbols();
+// Returns true if lens and voice search can be shown in the keyboard accessory.
+bool ShouldShowKeyboardAccessoryFeatures();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

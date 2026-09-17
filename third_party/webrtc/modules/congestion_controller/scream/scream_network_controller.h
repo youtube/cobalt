@@ -20,6 +20,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/scream/scream_v2.h"
+#include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
 
@@ -49,11 +50,17 @@ class ScreamNetworkController : public NetworkControllerInterface {
   NetworkControlUpdate CreateUpdate(Timestamp now,
                                     DataRate target_rate,
                                     TimeDelta rtt);
-  PacerConfig GetPacerConfig(DataRate target_rate) const;
+  PacerConfig CreatePacerConfig(DataRate target_rate);
 
   Environment env_;
+  const ScreamV2Parameters params_;
+  const TimeDelta default_pacing_window_;
+  TimeDelta current_pacing_window_;
   std::optional<ScreamV2> scream_;
   TargetRateConstraints target_rate_constraints_;
+  StreamsConfig streams_config_;
+
+  Timestamp last_padding_interval_started_;
 };
 
 }  // namespace webrtc

@@ -22,6 +22,14 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="Action">
+  <variant name="Accepted"/>
+  <variant name="AcceptedOnce"/>
+  <variant name="Denied"/>
+  <variant name="Dismissed"/>
+  <variant name="Ignored"/>
+</variants>
+
 <!-- LINT.IfChange(AllPermissionTypes) -->
 
 <variants name="AllPermissionTypes">
@@ -1114,6 +1122,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Permissions.PredictionService.{PermissionType}{Gesture}"
+    enum="PermissionRequestLikelihood" expires_after="2026-09-30">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the grant likelihood of a permission request based on whether a
+    gesture was associated with it. This is recorded by the prediction service
+    for Notifications and Geolocation permissions.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+  <token key="Gesture" variants="PermissionRequestGesture"/>
+</histogram>
+
 <histogram name="Permissions.PredictionServiceSource.{PermissionType}"
     enum="PermissionPredictionSource" expires_after="2026-03-15">
   <owner>elklm@chromium.org</owner>
@@ -1330,15 +1351,19 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Permissions.Prompt.Geolocation.AccuracyGranted"
+<histogram name="Permissions.Prompt.Geolocation.{Action}.Accuracy"
     enum="GeolocationAccuracy" expires_after="2026-10-15">
   <owner>tommasin@chromium.org</owner>
+  <owner>antoniosartori@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
-    Recorded when a geolocation permission prompt is resolved with a grant
-    action (either 'allow' or 'allow this time'). This tracks whether the user
-    granted precise or approximate location. Android only.
+    Recorded when a geolocation permission prompt is resolved. This tracks
+    whether the user granted precise or approximate location.
+
+    Only recorded when the feature flag kApproximateGeolocationPermission is
+    enabled.
   </summary>
+  <token key="Action" variants="Action"/>
 </histogram>
 
 <histogram name="Permissions.Prompt.Has{FaviconType}Favicon" enum="Boolean"
@@ -1396,7 +1421,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Notifications.EnabledAppLevel"
-    enum="Boolean" expires_after="2026-01-13">
+    enum="Boolean" expires_after="2026-04-19">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1646,13 +1671,7 @@ chromium-metrics-reviews@google.com.
     state will be recorded if the user closes the tab or a permission chip gets
     expired.
   </summary>
-  <token key="Action">
-    <variant name="Accepted"/>
-    <variant name="AcceptedOnce"/>
-    <variant name="Denied"/>
-    <variant name="Dismissed"/>
-    <variant name="Ignored"/>
-  </token>
+  <token key="Action" variants="Action"/>
   <token key="Disposition">
     <variant name="AnchoredBubble"/>
     <variant name="CustomModalDialog"/>
@@ -1700,13 +1719,7 @@ chromium-metrics-reviews@google.com.
     <variant name="DidClickLearnMore"/>
     <variant name="DidClickManage"/>
   </token>
-  <token key="Action">
-    <variant name="Accepted"/>
-    <variant name="AcceptedOnce"/>
-    <variant name="Denied"/>
-    <variant name="Dismissed"/>
-    <variant name="Ignored"/>
-  </token>
+  <token key="Action" variants="Action"/>
   <token key="Disposition">
     <variant name="LocationBarLeftQuietAbusiveChip"/>
     <variant name="LocationBarLeftQuietChip"/>

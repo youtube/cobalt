@@ -70,6 +70,7 @@ import org.chromium.components.browser_ui.widget.displaystyle.DisplayStyleObserv
 import org.chromium.components.browser_ui.widget.displaystyle.HorizontalDisplayStyle;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
@@ -88,7 +89,8 @@ import java.util.function.Supplier;
  */
 @NullMarked
 public class NewTabPageLayout extends LinearLayout
-        implements SearchEngineUtils.SearchBoxHintTextObserver {
+        implements SearchEngineUtils.SearchBoxHintTextObserver,
+                SearchEngineUtils.SearchEngineIconObserver {
     private static final String TAG = "NewTabPageLayout";
 
     private int mSearchBoxTwoSideMargin;
@@ -165,8 +167,7 @@ public class NewTabPageLayout extends LinearLayout
     private @Nullable Boolean mPreviousVoiceSearchButtonVisible;
     private @Nullable Boolean mPreviousLensButtonVisible;
     private @Nullable ImageView mDseIconView;
-    private @Nullable SearchEngineUtils mSearchEngineUtils;
-    private SearchEngineUtils.@Nullable SearchEngineIconObserver mSearchEngineIconObserver;
+    private SearchEngineUtils mSearchEngineUtils;
     private final int mNtpSearchBoxTransitionStartOffset;
     private final int mNtpSearchBoxTopMarginWithoutLogo;
     private final int mFakeSearchBoxStartPadding;
@@ -257,6 +258,7 @@ public class NewTabPageLayout extends LinearLayout
         mIsTablet = isTablet;
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mIsComposeplateEnabled = ComposeplateUtils.isComposeplateEnabled(mIsTablet, profile);
+        mSearchEngineUtils = SearchEngineUtils.getForProfile(mProfile);
         mIsComposeplateV2Enabled =
                 mIsComposeplateEnabled
                         && ChromeFeatureList.sAndroidComposeplateV2Enabled.getValue();
@@ -321,7 +323,7 @@ public class NewTabPageLayout extends LinearLayout
         }
 
         // Initialize Searchbox observers
-        SearchEngineUtils.getForProfile(mProfile).addSearchBoxHintTextObserver(this);
+        mSearchEngineUtils.addSearchBoxHintTextObserver(this);
 
         manager.addDestructionObserver(NewTabPageLayout.this::onDestroy);
         mInitialized = true;
@@ -386,30 +388,21 @@ public class NewTabPageLayout extends LinearLayout
     private void initializeDseIconView(boolean shouldShowDesIconView) {
         View fakeSearchBoxLayout = findViewById(R.id.search_box);
         mDseIconView = fakeSearchBoxLayout.findViewById(R.id.search_box_engine_icon);
-        if (mIsOmniboxMobileParityUpdateV2Enabled) {
-            // Configures icon rounding.
-            mDseIconView.setOutlineProvider(
-                    new RoundedCornerOutlineProvider(
-                            getResources()
-                                            .getDimensionPixelSize(
-                                                    R.dimen
-                                                            .omnibox_search_engine_logo_composed_size)
-                                    / 2));
-            mDseIconView.setClipToOutline(true);
-            mDseIconView.setScaleType(ImageView.ScaleType.FIT_XY);
 
-            // Registers to receive DSE's icon.
-            assert mSearchEngineIconObserver == null;
-            mSearchEngineIconObserver = newIcon -> onSearchEngineIconChanged(newIcon);
-            mSearchEngineUtils = SearchEngineUtils.getForProfile(mProfile);
-            mSearchEngineUtils.addIconObserver(mSearchEngineIconObserver);
-        }
+        // Configures icon rounding.
+        mDseIconView.setOutlineProvider(
+                new RoundedCornerOutlineProvider(
+                        getResources()
+                                        .getDimensionPixelSize(
+                                                R.dimen.omnibox_search_engine_logo_composed_size)
+                                / 2));
+        mDseIconView.setClipToOutline(true);
         ImageViewCompat.setImageTintList(mDseIconView, null);
-
         setDseIconViewVisibility(shouldShowDesIconView);
     }
 
-    private void onSearchEngineIconChanged(StatusProperties.@Nullable StatusIconResource newIcon) {
+    @Override
+    public void onSearchEngineIconChanged(StatusProperties.@Nullable StatusIconResource newIcon) {
         if (mDseIconView == null) return;
         if (newIcon == null) {
             mDseIconView.setImageResource(R.drawable.ic_search);
@@ -425,6 +418,12 @@ public class NewTabPageLayout extends LinearLayout
         }
 
         mDseIconView.setImageDrawable(newIcon.getDrawable(mContext, mContext.getResources()));
+    }
+
+    @Override
+    public void onSearchBoxHintTextChanged() {
+        mSearchBoxCoordinator.setSearchBoxHintText(
+                mSearchEngineUtils.getOmniboxHintText(AutocompleteRequestType.SEARCH));
     }
 
     private void setDseIconViewVisibility(boolean isVisible) {
@@ -1204,8 +1203,8 @@ public class NewTabPageLayout extends LinearLayout
         }
 
         if (mSearchEngineUtils != null) {
-            mSearchEngineUtils.removeIconObserver(mSearchEngineIconObserver);
-            mSearchEngineIconObserver = null;
+            mSearchEngineUtils.removeSearchBoxHintTextObserver(this);
+            mSearchEngineUtils.removeIconObserver(this);
             mSearchEngineUtils = null;
         }
 
@@ -1337,11 +1336,6 @@ public class NewTabPageLayout extends LinearLayout
     public static boolean isInNarrowWindowOnTablet(boolean isTablet, UiConfig uiConfig) {
         return isTablet
                 && uiConfig.getCurrentDisplayStyle().horizontal < HorizontalDisplayStyle.WIDE;
-    }
-
-    @Override
-    public void onSearchBoxHintTextChanged(@Nullable String newHint) {
-        mSearchBoxCoordinator.setSearchBoxHintText(newHint);
     }
 
     /**

@@ -12,7 +12,7 @@
 #include "services/webnn/queueable_resource_state.h"
 #include "services/webnn/webnn_context_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
-#include "third_party/onnxruntime_headers/src/include/onnxruntime/core/session/onnxruntime_c_api.h"
+#include "third_party/windows_app_sdk_headers/src/inc/abi/winml/winml/onnxruntime_c_api.h"
 
 namespace webnn::ort {
 
@@ -35,9 +35,7 @@ class TensorImplOrt final : public WebNNTensorImpl {
 
   void ReadTensorImpl(ReadTensorCallback callback) override;
   void WriteTensorImpl(mojo_base::BigBuffer src_buffer) override;
-  bool ImportTensorImpl(
-      std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
-      override;
+  bool ImportTensorImpl() override;
   void ExportTensorImpl(
       std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
       override;

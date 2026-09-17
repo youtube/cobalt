@@ -82,8 +82,13 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileThumbnail) {
   RunTest("new_tab_page/composebox/file_thumbnail_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ContextualEntrypointAndCarousel) {
+  RunTest("new_tab_page/composebox/contextual_entrypoint_and_carousel_test.js",
+          "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(NewTabPageTest, ActionChips) {
-  RunTest("new_tab_page/action_chips_test.js", "mocha.run()");
+  RunTest("new_tab_page/action_chips/action_chips_test.js", "mocha.run()");
 }
 
 using NewTabPageNtpPromoTest = NewTabPageBrowserTest;

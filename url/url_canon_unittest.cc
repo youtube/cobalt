@@ -173,9 +173,9 @@ class URLCanonTest : public ::testing::Test {
       StdStringCanonOutput output(&resolved_url);
       Parsed resolved_parsed;
 
-      bool succeed_resolve = ResolveRelativeURL(
-          relative_case.base.data(), parsed, relative_case.is_base_hier,
-          relative_case.rel.data(), relative_component, nullptr, &output,
+      bool succeed_resolve = ResolveRelativeUrl(
+          relative_case.base, parsed, relative_case.is_base_hier,
+          relative_case.rel, relative_component, nullptr, &output,
           &resolved_parsed);
       output.Complete();
 
@@ -1780,7 +1780,7 @@ TEST_F(URLCanonTest, CanonicalizeStandardURL) {
     Parsed out_parsed;
     std::string out_str;
     StdStringCanonOutput output(&out_str);
-    bool success = CanonicalizeStandardURL(
+    bool success = CanonicalizeStandardUrl(
         i.input, parsed, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION, nullptr,
         &output, &out_parsed);
     output.Complete();
@@ -1878,9 +1878,9 @@ TEST_F(URLCanonTest, CanonicalizeNonSpecialURL) {
     Parsed out_parsed;
     std::string out_str;
     StdStringCanonOutput output(&out_str);
-    bool success = CanonicalizeNonSpecialURL(
-        i.input.data(), i.input.size(), parsed,
-        /*query_converter=*/nullptr, output, out_parsed);
+    bool success = CanonicalizeNonSpecialUrl(i.input, parsed,
+                                             /*query_converter=*/nullptr,
+                                             output, out_parsed);
     output.Complete();
     EXPECT_EQ(success, i.expected_success);
     EXPECT_EQ(out_str, i.expected);
@@ -1910,9 +1910,9 @@ TEST_F(URLCanonTest, CanonicalizeNonSpecialURLOutputParsed) {
     Parsed out_parsed;
     std::string unused_out_str;
     StdStringCanonOutput unused_output(&unused_out_str);
-    bool success = CanonicalizeNonSpecialURL(
-        i.input.data(), i.input.size(), parsed,
-        /*query_converter=*/nullptr, unused_output, out_parsed);
+    bool success = CanonicalizeNonSpecialUrl(i.input, parsed,
+                                             /*query_converter=*/nullptr,
+                                             unused_output, out_parsed);
     ASSERT_TRUE(success);
     EXPECT_EQ(out_parsed.host, i.expected_output_parsed_host);
     EXPECT_EQ(out_parsed.Length(), i.expected_output_parsed_length);
@@ -1963,7 +1963,7 @@ TEST_F(URLCanonTest, ReplaceStandardURL) {
     std::string out_str;
     StdStringCanonOutput output(&out_str);
     Parsed out_parsed;
-    ReplaceStandardURL(replace_case.base, parsed, r,
+    ReplaceStandardUrl(replace_case.base, parsed, r,
                        SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION, nullptr,
                        &output, &out_parsed);
     output.Complete();
@@ -1983,7 +1983,7 @@ TEST_F(URLCanonTest, ReplaceStandardURL) {
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
     Parsed new_parsed;
-    ReplaceStandardURL(src, parsed, r,
+    ReplaceStandardUrl(src, parsed, r,
                        SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION, nullptr,
                        &output1, &new_parsed);
     output1.Complete();
@@ -1993,7 +1993,7 @@ TEST_F(URLCanonTest, ReplaceStandardURL) {
     r.SetPath(reinterpret_cast<char*>(0x00000001), Component());
     std::string out_str2;
     StdStringCanonOutput output2(&out_str2);
-    ReplaceStandardURL(src, parsed, r,
+    ReplaceStandardUrl(src, parsed, r,
                        SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION, nullptr,
                        &output2, &new_parsed);
     output2.Complete();
@@ -2056,14 +2056,14 @@ TEST_F(URLCanonTest, ReplaceFileURL) {
     std::string out_str;
     StdStringCanonOutput output(&out_str);
     Parsed out_parsed;
-    ReplaceFileURL(cur.base, parsed, r, nullptr, &output, &out_parsed);
+    ReplaceFileUrl(cur.base, parsed, r, nullptr, &output, &out_parsed);
     output.Complete();
 
     EXPECT_EQ(replace_case.expected, out_str);
   }
 }
 
-TEST_F(URLCanonTest, ReplaceFileSystemURL) {
+TEST_F(URLCanonTest, ReplaceFileSystemUrl) {
   ReplaceCase replace_cases[] = {
       // Replace everything in the outer URL.
       {"filesystem:file:///temporary/gaba?query#ref", nullptr, nullptr, nullptr,
@@ -2122,7 +2122,7 @@ TEST_F(URLCanonTest, ReplaceFileSystemURL) {
     std::string out_str;
     StdStringCanonOutput output(&out_str);
     Parsed out_parsed;
-    ReplaceFileSystemURL(cur.base, parsed, r, nullptr, &output, &out_parsed);
+    ReplaceFileSystemUrl(cur.base, parsed, r, nullptr, &output, &out_parsed);
     output.Complete();
 
     EXPECT_EQ(replace_case.expected, out_str);
@@ -2323,8 +2323,7 @@ TEST_F(URLCanonTest, CanonicalizeFileURL) {
     std::string out_str;
     StdStringCanonOutput output(&out_str);
     bool success =
-        CanonicalizeFileURL(i.input, static_cast<int>(strlen(i.input)), parsed,
-                            nullptr, &output, &out_parsed);
+        CanonicalizeFileUrl(i.input, parsed, nullptr, &output, &out_parsed);
     output.Complete();
 
     EXPECT_EQ(i.expected_success, success);
@@ -2343,7 +2342,7 @@ TEST_F(URLCanonTest, CanonicalizeFileURL) {
   }
 }
 
-TEST_F(URLCanonTest, CanonicalizeFileSystemURL) {
+TEST_F(URLCanonTest, CanonicalizeFileSystemUrl) {
   struct URLCase {
     const char* input;
     const char* expected;
@@ -2370,7 +2369,7 @@ TEST_F(URLCanonTest, CanonicalizeFileSystemURL) {
     Parsed out_parsed;
     std::string out_str;
     StdStringCanonOutput output(&out_str);
-    bool success = CanonicalizeFileSystemURL(i.input, parsed, nullptr, &output,
+    bool success = CanonicalizeFileSystemUrl(i.input, parsed, nullptr, &output,
                                              &out_parsed);
     output.Complete();
 
@@ -2844,7 +2843,7 @@ TEST_F(URLCanonTest, ResolveRelativeURL) {
       StdStringCanonOutput output(&resolved);
       Parsed resolved_parsed;
 
-      bool succeed_resolve = ResolveRelativeURL(
+      bool succeed_resolve = ResolveRelativeUrl(
           cur_case.base, parsed, cur_case.is_base_file, cur_case.test,
           relative_component, nullptr, &output, &resolved_parsed);
       output.Complete();
@@ -2902,7 +2901,7 @@ TEST_F(URLCanonTest, ReplacementOverflow) {
   Parsed repl_parsed;
   std::string repl_str;
   StdStringCanonOutput repl_output(&repl_str);
-  ReplaceFileURL(src, parsed, repl, nullptr, &repl_output, &repl_parsed);
+  ReplaceFileUrl(src, parsed, repl, nullptr, &repl_output, &repl_parsed);
   repl_output.Complete();
 
   // Generate the expected string and check.

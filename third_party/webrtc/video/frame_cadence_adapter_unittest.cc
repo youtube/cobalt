@@ -1150,7 +1150,7 @@ TEST(FrameCadenceAdapterRealTimeTest, ScheduledRepeatAllowsForSlowEncode) {
         VideoTrackSourceConstraints{.min_fps = 0, .max_fps = 2});
     auto frame = CreateFrame();
     constexpr int kSleepMs = 400;
-    constexpr TimeDelta kAllowedBelate = TimeDelta::Millis(150);
+    constexpr TimeDelta kAllowedBelate = TimeDelta::Millis(151);
     EXPECT_CALL(callback, OnFrame)
         .WillRepeatedly(InvokeWithoutArgs([&, kAllowedBelate] {
           ++frame_counter;

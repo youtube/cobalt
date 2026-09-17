@@ -724,7 +724,7 @@ TEST(ASN1Test, UnusedBooleanBits) {
   EXPECT_TRUE(val->value.ptr);
 
   // Set |val| to a BOOLEAN containing FALSE.
-  ASN1_TYPE_set(val.get(), V_ASN1_BOOLEAN, NULL);
+  ASN1_TYPE_set(val.get(), V_ASN1_BOOLEAN, nullptr);
   EXPECT_EQ(V_ASN1_BOOLEAN, val->type);
   EXPECT_FALSE(val->value.ptr);
 }
@@ -1318,7 +1318,7 @@ TEST(ASN1Test, StringPrintEx) {
        std::string(1, '\0') + "\n\x80\xff,+\"\\<>;"},
 
       // Flags control different escapes. Note that any escape flag will cause
-      // blackslashes to be escaped.
+      // backslashes to be escaped.
       {V_ASN1_T61STRING,
        {0, '\n', 0x80, 0xff, ',', '+', '"', '\\', '<', '>', ';'},
        0,
@@ -2554,7 +2554,7 @@ TEST(ASN1Test, StringEncoding) {
   }
 }
 
-// Exhaustively test POSIX time conversions for every day across the millenium.
+// Exhaustively test POSIX time conversions for every day across the millennium.
 TEST(ASN1Test, POSIXTime) {
   const int kDaysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 

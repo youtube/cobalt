@@ -2834,6 +2834,7 @@ angle::Result DynamicBuffer::allocate(Context *context,
                                       BufferHelper **bufferHelperOut,
                                       bool *newBufferAllocatedOut)
 {
+    ASSERT(sizeInBytes != 0);
     bool newBuffer = !allocateFromCurrentBuffer(sizeInBytes, bufferHelperOut);
     if (newBufferAllocatedOut)
     {
@@ -4317,7 +4318,7 @@ void QueryHelper::endRenderPassQuery(ContextVk *contextVk)
 
 angle::Result QueryHelper::flushAndWriteTimestamp(ContextVk *contextVk)
 {
-    if (contextVk->hasActiveRenderPass())
+    if (contextVk->hasStartedRenderPass())
     {
         ANGLE_TRY(
             contextVk->flushCommandsAndEndRenderPass(RenderPassClosureReason::TimestampQuery));

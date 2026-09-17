@@ -91,17 +91,16 @@ class ScreamV2 {
   // noticed. Increase and decrease of `ref_window_` is scaled down around
   // `ref_window_i_`.
   DataSize ref_window_i_ = DataSize::Bytes(1);
-  Timestamp last_ref_window_i_update_ = Timestamp::MinusInfinity();
+  // `allow_ref_window_i_update_` is set to true if `ref_window_` has increased
+  // since `ref_window_i_` was last set.
+  bool allow_ref_window_i_update_ = true;
 
   // `l4s_alpha_` tracks the average fraction of ECN-CE marked data units per
   // Round-Trip Time.
   double l4s_alpha_ = 0.0;
-  Timestamp last_l4s_alpha_update_ = Timestamp::MinusInfinity();
   Timestamp last_ce_mark_detected_time_ = Timestamp::MinusInfinity();
 
   // Per-RTT stats
-  int data_units_delivered_this_rtt_ = 0;
-  int data_units_marked_this_rtt_ = 0;
   Timestamp last_data_in_flight_update_ = Timestamp::MinusInfinity();
   DataSize max_data_in_flight_this_rtt_ = DataSize::Zero();
   DataSize max_data_in_flight_prev_rtt_ = DataSize::Zero();

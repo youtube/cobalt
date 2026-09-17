@@ -14,7 +14,7 @@ import type {NodeId} from '/tab_strip_api/tab_strip_api_types.mojom-webui.js';
 import {TabElement} from './tab_element.js';
 import {getCss} from './tab_strip.css.js';
 import {getHtml} from './tab_strip.html.js';
-import {TabStripController} from './tab_strip_controller.js';
+import type {TabStripController} from './tab_strip_controller.js';
 
 export interface TabStrip {
   $: {
@@ -37,7 +37,7 @@ export class TabStrip extends CrLitElement {
 
   static override get properties() {
     return {
-      tabStripController: {type: TabStripController},
+      tabStripController: {type: Object},
     };
   }
 
@@ -115,8 +115,8 @@ export class TabStrip extends CrLitElement {
   private outOfBoundsDragX = 0;
   private outOfBoundsDragY = 0;
 
-  // @ts-expect-error: Set during drag events.
-  private tabElement: TabElement;
+  // Set during drag events.
+  private tabElement: TabElement|null = null;
 
   dragMouseDown(e: MouseEvent) {
     e = e || window.event;
@@ -144,6 +144,7 @@ export class TabStrip extends CrLitElement {
     }
 
     this.dragging = false;
+    this.tabElement = null;
     this.translateX = 0;
     this.mouseX = 0;
     this.tabOrderX = 0;
@@ -163,6 +164,8 @@ export class TabStrip extends CrLitElement {
     if (!this.dragging) {
       return;
     }
+
+    assert(this.tabElement);
 
     this.translateX = this.translateX - (this.mouseX - e.clientX);
     this.mouseX = e.clientX;

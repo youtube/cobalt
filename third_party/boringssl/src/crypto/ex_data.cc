@@ -27,8 +27,8 @@
 
 
 struct crypto_ex_data_func_st {
-  long argl;   // Arbitary long
-  void *argp;  // Arbitary void pointer
+  long argl;   // Arbitrary long
+  void *argp;  // Arbitrary void pointer
   CRYPTO_EX_free *free_func;
   // next points to the next |CRYPTO_EX_DATA_FUNCS| or NULL if this is the last
   // one. It may only be read if synchronized with a read from |num_funcs|.
@@ -39,14 +39,14 @@ int CRYPTO_get_ex_new_index_ex(CRYPTO_EX_DATA_CLASS *ex_data_class, long argl,
                                void *argp, CRYPTO_EX_free *free_func) {
   CRYPTO_EX_DATA_FUNCS *funcs = reinterpret_cast<CRYPTO_EX_DATA_FUNCS *>(
       OPENSSL_malloc(sizeof(CRYPTO_EX_DATA_FUNCS)));
-  if (funcs == NULL) {
+  if (funcs == nullptr) {
     return -1;
   }
 
   funcs->argl = argl;
   funcs->argp = argp;
   funcs->free_func = free_func;
-  funcs->next = NULL;
+  funcs->next = nullptr;
 
   CRYPTO_MUTEX_lock_write(&ex_data_class->lock);
 
@@ -59,7 +59,7 @@ int CRYPTO_get_ex_new_index_ex(CRYPTO_EX_DATA_CLASS *ex_data_class, long argl,
   }
 
   // Append |funcs| to the linked list.
-  if (ex_data_class->last == NULL) {
+  if (ex_data_class->last == nullptr) {
     assert(num_funcs == 0);
     ex_data_class->funcs = funcs;
     ex_data_class->last = funcs;
@@ -81,16 +81,16 @@ int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int index, void *val) {
     abort();
   }
 
-  if (ad->sk == NULL) {
+  if (ad->sk == nullptr) {
     ad->sk = sk_void_new_null();
-    if (ad->sk == NULL) {
+    if (ad->sk == nullptr) {
       return 0;
     }
   }
 
   // Add NULL values until the stack is long enough.
   for (size_t i = sk_void_num(ad->sk); i <= (size_t)index; i++) {
-    if (!sk_void_push(ad->sk, NULL)) {
+    if (!sk_void_push(ad->sk, nullptr)) {
       return 0;
     }
   }
@@ -100,17 +100,17 @@ int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int index, void *val) {
 }
 
 void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int idx) {
-  if (ad->sk == NULL || idx < 0 || (size_t)idx >= sk_void_num(ad->sk)) {
-    return NULL;
+  if (ad->sk == nullptr || idx < 0 || (size_t)idx >= sk_void_num(ad->sk)) {
+    return nullptr;
   }
   return sk_void_value(ad->sk, idx);
 }
 
-void CRYPTO_new_ex_data(CRYPTO_EX_DATA *ad) { ad->sk = NULL; }
+void CRYPTO_new_ex_data(CRYPTO_EX_DATA *ad) { ad->sk = nullptr; }
 
 void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
                          CRYPTO_EX_DATA *ad) {
-  if (ad->sk == NULL) {
+  if (ad->sk == nullptr) {
     // Nothing to do.
     return;
   }
@@ -123,7 +123,7 @@ void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
   // after the |num_funcs| comparison to be correctly synchronized.
   CRYPTO_EX_DATA_FUNCS *const *funcs = &ex_data_class->funcs;
   for (uint32_t i = 0; i < num_funcs; i++) {
-    if ((*funcs)->free_func != NULL) {
+    if ((*funcs)->free_func != nullptr) {
       int index = (int)i + ex_data_class->num_reserved;
       void *ptr = CRYPTO_get_ex_data(ad, index);
       (*funcs)->free_func(/*parent=*/nullptr, ptr, /*ad*/ nullptr, index,
@@ -133,7 +133,7 @@ void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
   }
 
   sk_void_free(ad->sk);
-  ad->sk = NULL;
+  ad->sk = nullptr;
 }
 
 void CRYPTO_cleanup_all_ex_data(void) {}

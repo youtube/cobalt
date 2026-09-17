@@ -272,6 +272,19 @@ constexpr char kSdpSctpDataChannelWithCandidatesString[] =
     "a=mid:data_content_name\r\n"
     "a=sctpmap:5000 webrtc-datachannel 1024\r\n";
 
+// draft-hancke-tsvwg-snap
+// a=sctp-init:<base64("CookieMonster")>
+constexpr char kSdpSctpDataChannelStringWithSctpInit[] =
+    "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n"
+    "a=sctp-port:5000\r\n"
+    "a=sctp-init:Q29va2llTW9uc3Rlcg==\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "a=ice-ufrag:ufrag_data\r\n"
+    "a=ice-pwd:pwd_data\r\n"
+    "a=fingerprint:sha-1 "
+    "4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB\r\n"
+    "a=mid:data_content_name\r\n";
+
 constexpr char kSdpConferenceString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
@@ -2749,6 +2762,64 @@ TEST_F(WebRtcSdpTest, DeserializeSdpWithSctpDataChannelsWithSctpColonPort) {
   sdp_with_data.append(kSdpSctpDataChannelStringWithSctpColonPort);
   EXPECT_TRUE(
       MatchesCurrentDescriptionNoCandidates(SdpDeserialize(sdp_with_data)));
+}
+
+TEST_F(WebRtcSdpTest, DeserializeSdpWithSctpDataChannelsWithSctpInit) {
+  bool use_sctpmap = false;
+  AddSctpDataChannel(use_sctpmap);
+
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      NewSessionDescriptionNoCandidates();
+  ASSERT_THAT(jdesc, NotNull());
+  SctpDataContentDescription* dcdesc =
+      jdesc->description()
+          ->GetContentDescriptionByName(kDataContentName)
+          ->as_sctp();
+  // base64("CookieMonster")
+  std::vector<uint8_t> cookie_monster = {0x43, 0x6f, 0x6f, 0x6b, 0x69,
+                                         0x65, 0x4d, 0x6f, 0x6e, 0x73,
+                                         0x74, 0x65, 0x72};
+  dcdesc->set_sctp_init(cookie_monster);
+
+  std::string sdp_with_data = kSdpString;
+  sdp_with_data.append(kSdpSctpDataChannelStringWithSctpInit);
+
+  SdpParseError error;
+  std::unique_ptr<SessionDescriptionInterface> jdesc_output =
+      SdpDeserialize(sdp_with_data, &error);
+  ASSERT_THAT(jdesc, NotNull());
+  EXPECT_TRUE(CompareSessionDescription(jdesc, jdesc_output));
+}
+
+TEST_F(WebRtcSdpTest,
+       DeserializeSdpWithSctpDataChannelsWithSctpInitWithoutParams) {
+  std::string invalid_line = "a=sctp-init";
+  std::string sdp_with_data = kSdpString;
+  sdp_with_data.append(kSdpSctpDataChannelStringWithSctpColonPort);
+  sdp_with_data.append(invalid_line + "\r\n");
+
+  SdpParseError error;
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      SdpDeserialize(sdp_with_data, &error);
+  EXPECT_THAT(jdesc, IsNull());
+  EXPECT_EQ(invalid_line, error.line);
+  EXPECT_EQ("Failed to get the value of attribute: sctp-init",
+            error.description);
+}
+
+TEST_F(WebRtcSdpTest,
+       DeserializeSdpWithSctpDataChannelsWithSctpInitInvalidBase64) {
+  std::string invalid_line = "a=sctp-init:*";
+  std::string sdp_with_data = kSdpString;
+  sdp_with_data.append(kSdpSctpDataChannelStringWithSctpColonPort);
+  sdp_with_data.append(invalid_line + "\r\n");
+
+  SdpParseError error;
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      SdpDeserialize(sdp_with_data, &error);
+  EXPECT_THAT(jdesc, IsNull());
+  EXPECT_EQ(invalid_line, error.line);
+  EXPECT_EQ("Base64 decoding of sctp-init failed.", error.description);
 }
 
 TEST_F(WebRtcSdpTest, DeserializeSdpWithSctpDataChannelsButWrongMediaType) {

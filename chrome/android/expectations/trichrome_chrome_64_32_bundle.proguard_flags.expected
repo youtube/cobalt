@@ -942,7 +942,7 @@
 # We keep all fields for every generated proto file as the runtime uses
 # reflection over them that ProGuard cannot detect. Without this keep
 # rule, fields may be removed that would cause runtime failures.
--keepclassmembers class * extends com.google.android.gms.internal.cast.zzxi {
+-keepclassmembers class * extends com.google.android.gms.internal.cast.zzyd {
   <fields>;
 }
 
@@ -950,7 +950,7 @@
 # We keep all fields for every generated proto file as the runtime uses
 # reflection over them that ProGuard cannot detect. Without this keep
 # rule, fields may be removed that would cause runtime failures.
--keepclassmembers class * extends com.google.android.gms.internal.cast.zzxi {
+-keepclassmembers class * extends com.google.android.gms.internal.cast.zzyd {
   <fields>;
 }
 
@@ -1250,21 +1250,6 @@
 
  -if @kotlinx.serialization.Serializable class **
  -keep, allowshrinking, allowoptimization, allowobfuscation, allowaccessmodification class <1>
-
-# File: ../../third_party/android_deps/cipd/libs/com_android_support_support_annotations/support-annotations.jar:META-INF/proguard/androidx-annotations.pro
--keep @android.support.annotation.Keep class * {*;}
-
--keepclasseswithmembers class * {
-    @android.support.annotation.Keep <methods>;
-}
-
--keepclasseswithmembers class * {
-    @android.support.annotation.Keep <fields>;
-}
-
--keepclasseswithmembers class * {
-    @android.support.annotation.Keep <init>(...);
-}
 
 # File: //build/android/gyp/proguard.py (generated rules)
 -repackageclasses ''

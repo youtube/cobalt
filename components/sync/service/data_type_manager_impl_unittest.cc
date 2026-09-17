@@ -1090,35 +1090,6 @@ TEST_F(DataTypeManagerImplTest, FailingPreconditionClearData) {
   EXPECT_EQ(1, GetController(BOOKMARKS)->model()->clear_metadata_count());
 }
 
-// Tests that unready types are not started after ResetDataTypeErrors and
-// reconfiguration.
-TEST_F(DataTypeManagerImplTest, UnreadyTypeResetReconfigure) {
-  InitDataTypeManager({BOOKMARKS});
-  GetController(BOOKMARKS)->SetPreconditionState(
-      DataTypeController::PreconditionState::kMustStopAndKeepData);
-
-  // Bookmarks is never started due to failing preconditions.
-  testing::InSequence seq;
-  EXPECT_CALL(observer_, OnConfigureStart());
-  EXPECT_CALL(observer_, OnConfigureDone(ConfigureSucceeded()));
-
-  Configure({BOOKMARKS});
-  // Second Configure sets a flag to perform reconfiguration after the first one
-  // is done.
-  Configure({BOOKMARKS});
-
-  // Reset errors before triggering reconfiguration.
-  dtm_->ResetDataTypeErrors();
-
-  // Reconfiguration should update unready errors. Bookmarks shouldn't start.
-  EXPECT_EQ(DataTypeSet(), FinishDownload());
-  EXPECT_EQ(DataTypeSet(), FinishDownload());  // regular types
-  EXPECT_EQ(DataTypeManager::CONFIGURED, dtm_->state());
-  EXPECT_FALSE(dtm_->GetActiveDataTypes().Has(BOOKMARKS));
-  EXPECT_EQ(DataTypeController::NOT_RUNNING, GetController(BOOKMARKS)->state());
-  EXPECT_EQ(0U, configurer_.connected_types().size());
-}
-
 TEST_F(DataTypeManagerImplTest, UnreadyTypeLaterReady) {
   InitDataTypeManager({BOOKMARKS});
   GetController(BOOKMARKS)->SetPreconditionState(

@@ -27,6 +27,7 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/scalability_mode_helper.h"
 #include "media/base/codec.h"
 #include "media/base/codec_comparators.h"
 #include "media/base/rid_description.h"
@@ -244,6 +245,25 @@ RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
     LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
                          "If a resolution is specified on any encoding then "
                          "it must be specified on all encodings.");
+  }
+
+  // In a mixed codec scenario, we only support scalability modes without
+  // spatial layers.
+  if (rtp_parameters.IsMixedCodec()) {
+    for (size_t i = 0; i < rtp_parameters.encodings.size(); ++i) {
+      auto scalability_mode = rtp_parameters.encodings[i].scalability_mode;
+      if (!scalability_mode) {
+        continue;
+      }
+      auto num_spatial_layers =
+          ScalabilityModeStringToNumSpatialLayers(*scalability_mode);
+      if (num_spatial_layers && *num_spatial_layers > 1) {
+        LOG_AND_RETURN_ERROR(
+            RTCErrorType::UNSUPPORTED_OPERATION,
+            "Attempted to use a scalabilityMode with spatial layers in "
+            "a mixed codec scenario.");
+      }
+    }
   }
 
   return CheckScalabilityModeValues(rtp_parameters, send_codecs, send_codec);

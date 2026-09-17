@@ -131,15 +131,15 @@ RtpTransportControllerSend::RtpTransportControllerSend(
       env_.field_trials().Lookup("WebRTC-Bwe-NetworkRouteConstraints"));
   initial_config_.constraints =
       ConvertConstraints(config.bitrate_config, &env_.clock());
+  initial_config_.default_pacing_time_window =
+      config.default_pacing_time_window;
   RTC_DCHECK(config.bitrate_config.start_bitrate_bps > 0);
 
-  pacer_.SetPacingRates(
+  pacer_.SetConfig(PacerConfig::Create(
+      env_.clock().CurrentTime(),
       DataRate::BitsPerSec(config.bitrate_config.start_bitrate_bps),
-      DataRate::Zero());
-  if (config.pacer_burst_interval) {
-    // Default burst interval overriden by config.
-    pacer_.SetSendBurstInterval(*config.pacer_burst_interval);
-  }
+      DataRate::Zero(), config.default_pacing_time_window));
+
   packet_router_.RegisterNotifyBweCallback(
       [this](const RtpPacketToSend& packet,
              const PacedPacketInfo& pacing_info) {
@@ -811,8 +811,7 @@ void RtpTransportControllerSend::PostUpdates(NetworkControlUpdate update) {
     UpdateCongestedState();
   }
   if (update.pacer_config) {
-    pacer_.SetPacingRates(update.pacer_config->data_rate(),
-                          update.pacer_config->pad_rate());
+    pacer_.SetConfig(*update.pacer_config);
   }
   if (!update.probe_cluster_configs.empty()) {
     pacer_.CreateProbeClusters(std::move(update.probe_cluster_configs));

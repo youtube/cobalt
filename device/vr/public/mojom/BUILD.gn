@@ -51,6 +51,10 @@ mojom_component("vr_service") {
         mojom = "device.mojom.LayerId"
         cpp = "::device::LayerId"
       },
+      {
+        mojom = "device.mojom.XrVisibilityMaskId"
+        cpp = "::device::XrVisibilityMaskId"
+      },
     ]
     traits_headers = [ "//device/vr/public/mojom/vr_service_mojom_traits.h" ]
     traits_public_deps = [ ":vr_public_typemaps" ]
@@ -72,9 +76,9 @@ mojom_component("isolated_xr_service") {
   disable_variants = true
 
   public_deps = [
-    ":test_mojom",
     ":vr_service",
     ":xr_common",
+    "//device/vr/public/mojom/test:test_mojom",
     "//gpu/ipc/common:interfaces",
     "//mojo/public/mojom/base",
     "//sandbox/policy/mojom",
@@ -83,20 +87,6 @@ mojom_component("isolated_xr_service") {
   ]
 
   deps = [ "//services/viz/public/mojom" ]
-}
-
-mojom_component("test_mojom") {
-  output_prefix = "device_vr_test_mojo_bindings"
-  macro_prefix = "DEVICE_VR_TEST_MOJO_BINDINGS"
-
-  sources = [ "browser_test_interfaces.mojom" ]
-
-  public_deps = [
-    ":vr_service",
-    ":xr_common",
-    "//ui/gfx/geometry/mojom",
-    "//ui/gfx/mojom",
-  ]
 }
 
 component("vr_public_typemaps") {
@@ -111,6 +101,7 @@ component("vr_public_typemaps") {
     "plane_id.h",
     "pose.cc",
     "pose.h",
+    "visibility_mask_id.h",
   ]
 
   deps = [

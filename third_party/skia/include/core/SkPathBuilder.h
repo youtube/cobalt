@@ -90,6 +90,12 @@ public:
         return SkRect::Bounds(fPts);
     }
 
+    /** Like computeFiniteBounds() but returns a 'tight' bounds, meaning when there are curve
+     *  segments, this computes the X/Y limits of the curve itself, not the curve's control
+     *  point(s). For a polygon, this returns the same as computeFiniteBounds().
+    */
+    std::optional<SkRect> computeTightBounds() const;
+
     // DEPRECATED -- returns "empty" if the bounds are non-finite
     SkRect computeBounds() const {
         if (auto bounds = this->computeFiniteBounds()) {
@@ -145,7 +151,7 @@ public:
 
     /** Sets SkPathBuilder to its initial state.
         Removes verb array, SkPoint array, and weights, and sets FillType to kWinding.
-        Internal storage associated with SkPathBuilder is released.
+        Internal storage associated with SkPathBuilder is preserved.
 
         @return  reference to SkPathBuilder
     */
@@ -885,7 +891,7 @@ public:
         unmodified by the original SkPathFillType.
     */
     SkPathBuilder& toggleInverseFillType() {
-        fFillType = (SkPathFillType)((unsigned)fFillType ^ 2);
+        fFillType = SkPathFillType_ToggleInverse(fFillType);
         return *this;
     }
 
@@ -968,6 +974,8 @@ public:
     // helper explicitly.
     void dump() const { this->dump(DumpFormat::kDecimal); }
 
+    bool contains(SkPoint) const;
+
 private:
     SkPathRef::PointsArray fPts;
     SkPathRef::VerbsArray fVerbs;
@@ -978,9 +986,7 @@ private:
     SkPathConvexity fConvexity;
 
     unsigned    fSegmentMask;
-    SkPoint     fLastMovePoint;
     int         fLastMoveIndex; // only needed until SkPath is immutable
-    bool        fNeedsMoveVerb;
 
     SkPathIsAType fType = SkPathIsAType::kGeneral;
     SkPathIsAData fIsA {};
@@ -988,8 +994,10 @@ private:
     // called right before we add a (non-move) verb
     void ensureMove() {
         fType = SkPathIsAType::kGeneral;
-        if (fNeedsMoveVerb) {
-            this->moveTo(fLastMovePoint);
+        if (fVerbs.empty()) {
+            this->moveTo({0, 0});
+        } else if (fVerbs.back() == SkPathVerb::kClose) {
+            this->moveTo(fPts[fLastMoveIndex]);
         }
     }
 

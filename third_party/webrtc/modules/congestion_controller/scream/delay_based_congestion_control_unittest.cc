@@ -108,8 +108,10 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowNotChangedOnLowDelay) {
   delay_controller.OnTransportPacketsFeedback(feedback);
 
   ASSERT_EQ(delay_controller.queue_delay(), TimeDelta::Millis(0));
-  EXPECT_EQ(delay_controller.UpdateReferenceWindow(ref_window, 1.0),
-            ref_window);
+  EXPECT_EQ(
+      delay_controller.UpdateReferenceWindow(
+          ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0),
+      ref_window);
 }
 
 TEST(DelayBasedCongestionControlTest, ReferenceWindowDecreasedOnHighDelay) {
@@ -135,9 +137,9 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowDecreasedOnHighDelay) {
     smoothed_rtt = feedback.smoothed_rtt;
   }
   DataSize ref_window = send_rate * smoothed_rtt;
-  DataSize updated_ref_window =
-      delay_controller.UpdateReferenceWindow(ref_window, 1.0);
-  EXPECT_LT(updated_ref_window, 0.8 * ref_window);
+  DataSize updated_ref_window = delay_controller.UpdateReferenceWindow(
+      ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0);
+  EXPECT_LT(updated_ref_window, 0.98 * ref_window);
   EXPECT_GE(updated_ref_window, 0.5 * ref_window);
 }
 
@@ -165,8 +167,8 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowNotLowerThanSetMin) {
   DataSize ref_window = send_rate * smoothed_rtt;
   // Despite the queue delay, the reference window will not be decreased to a
   // value that would cause the target rate to be below the minimum.
-  DataSize updated_ref_window =
-      delay_controller.UpdateReferenceWindow(ref_window, 1.0);
+  DataSize updated_ref_window = delay_controller.UpdateReferenceWindow(
+      ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0);
   EXPECT_EQ(updated_ref_window, ref_window);
 }
 

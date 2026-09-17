@@ -54,7 +54,7 @@ int asn1_parse_utc_time(CBS *cbs, ASN1_UTCTIME *out, CBS_ASN1_TAG tag,
 }
 
 int ASN1_UTCTIME_check(const ASN1_UTCTIME *d) {
-  return asn1_utctime_to_tm(NULL, d, /*allow_timezone_offset=*/1);
+  return asn1_utctime_to_tm(nullptr, d, /*allow_timezone_offset=*/1);
 }
 
 int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str) {
@@ -64,11 +64,11 @@ int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str) {
   size_t len = strlen(str);
   CBS cbs;
   CBS_init(&cbs, (const uint8_t *)str, len);
-  if (!CBS_parse_utc_time(&cbs, /*out_tm=*/NULL,
+  if (!CBS_parse_utc_time(&cbs, /*out_tm=*/nullptr,
                           /*allow_timezone_offset=*/0)) {
     return 0;
   }
-  if (s != NULL) {
+  if (s != nullptr) {
     if (!ASN1_STRING_set(s, str, len)) {
       return 0;
     }
@@ -85,17 +85,17 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, int64_t posix_time,
                                int offset_day, long offset_sec) {
   struct tm data;
   if (!OPENSSL_posix_to_tm(posix_time, &data)) {
-    return NULL;
+    return nullptr;
   }
 
   if (offset_day || offset_sec) {
     if (!OPENSSL_gmtime_adj(&data, offset_day, offset_sec)) {
-      return NULL;
+      return nullptr;
     }
   }
 
   if (data.tm_year < 50 || data.tm_year >= 150) {
-    return NULL;
+    return nullptr;
   }
 
   char buf[14];
@@ -106,11 +106,11 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, int64_t posix_time,
   BSSL_CHECK(ret == static_cast<int>(sizeof(buf) - 1));
 
   int free_s = 0;
-  if (s == NULL) {
+  if (s == nullptr) {
     free_s = 1;
     s = ASN1_UTCTIME_new();
-    if (s == NULL) {
-      return NULL;
+    if (s == nullptr) {
+      return nullptr;
     }
   }
 
@@ -118,7 +118,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, int64_t posix_time,
     if (free_s) {
       ASN1_UTCTIME_free(s);
     }
-    return NULL;
+    return nullptr;
   }
   s->type = V_ASN1_UTCTIME;
   return s;

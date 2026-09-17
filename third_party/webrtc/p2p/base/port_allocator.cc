@@ -17,15 +17,18 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
 
 namespace webrtc {
@@ -339,6 +342,11 @@ Candidate PortAllocator::SanitizeCandidate(const Candidate& c) const {
        (c.is_prflx() && filter_prflx_related_address));
   return c.ToSanitizedCopy(use_hostname_address, filter_related_address,
                            /*filter_ufrag=*/false);
+}
+
+void PortAllocatorSession::SubscribePortReady(
+    absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback) {
+  port_ready_trampoline_.Subscribe(std::move(callback));
 }
 
 }  // namespace webrtc

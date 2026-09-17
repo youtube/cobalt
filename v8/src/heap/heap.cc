@@ -290,7 +290,8 @@ Heap::Heap()
       pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge()) {
+                         .disable_sibling_merge()),
+      loading_track_("Loading", 0, tracing_track_) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -343,7 +344,7 @@ size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
-size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
+size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
@@ -354,12 +355,10 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
                    MaxOldGenerationSizeFromPhysicalMemory(physical_memory)));
   old_generation =
       std::max({old_generation,
-                static_cast<uint64_t>(DefaulMinHeapSize(physical_memory))});
+                static_cast<uint64_t>(DefaultMinHeapSize(physical_memory))});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
-  size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, static_cast<size_t>(old_generation));
-  return static_cast<size_t>(old_generation) + young_generation;
+  return static_cast<size_t>(old_generation);
 }
 
 // static
@@ -401,11 +400,10 @@ size_t Heap::MinOldGenerationSize() {
 // static
 size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 #ifdef V8_COMPRESS_POINTERS
-  // Isolate and the young generation are also allocated on the heap.
+  // The young generation is also allocated on the heap.
   return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(
-             DefaultMaxSemiSpaceSize(physical_memory)) -
-         RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
+             DefaultMaxSemiSpaceSize(physical_memory));
 #else
   return std::numeric_limits<size_t>::max();
 #endif
@@ -413,7 +411,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
-  size_t max_size = DefaulMaxHeapSize(physical_memory);
+  size_t max_size = DefaultMaxHeapSize(physical_memory);
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -5172,12 +5170,12 @@ size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::DefaulMinHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMinHeapSize(uint64_t physical_memory) {
   return 128u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
 // static
-size_t Heap::DefaulMaxHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
   return 1024u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
@@ -5188,7 +5186,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
   // supported value, young gen max capacity would also be set to the max.
   const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
   DCHECK_GT(max_semi_space_size, 0);
-  return DefaulMaxHeapSize(physical_memory) / max_semi_space_size;
+  return DefaultMaxHeapSize(physical_memory) / max_semi_space_size;
 }
 
 // static
@@ -7801,6 +7799,11 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::NotifyLoadingStarted() {
+  if (IsLoading()) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
+  }
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
+                    loading_track_);
   update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
@@ -7815,6 +7818,7 @@ void Heap::NotifyLoadingEnded() {
     // and advance marking if incremental marking is active.
     job->ScheduleTask(TaskPriority::kUserVisible);
   }
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }
 
 int Heap::NextScriptId() {
@@ -7859,6 +7863,10 @@ int Heap::NextStackTraceId() {
   last_id++;
   set_last_stack_trace_id(Smi::FromInt(last_id));
   return last_id;
+}
+
+uint64_t Heap::GetTotalAllocatedBytes() {
+  return total_allocated_bytes_.load(std::memory_order_relaxed);
 }
 
 EmbedderStackStateScope::EmbedderStackStateScope(

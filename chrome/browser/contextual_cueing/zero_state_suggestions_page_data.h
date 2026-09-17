@@ -15,7 +15,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/hints/optimization_metadata.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "content/public/browser/page_user_data.h"
 
 // Convenience macro for emitting OPTIMIZATION_GUIDE_LOGs where
@@ -45,8 +45,20 @@ class PageContentExtractionService;
 
 namespace contextual_cueing {
 
+enum class PageContextIneligibilityType {
+  kNone = 0,
+  kOptimizationMetadata = 1,
+  kPageContext = 2,
+
+  // New values above this line. Update
+  // ContextualCueingZeroStateSuggestionsPageContextIneligibilityType in
+  // contextual_cueing/enums.xml.
+  kMaxValue = kPageContext,
+};
+
 using PageContextCallbackList = base::OnceCallbackList<void(
-    std::optional<optimization_guide::proto::ZeroStatePageContext>)>;
+    base::expected<optimization_guide::proto::ZeroStatePageContext,
+                   PageContextIneligibilityType>)>;
 using PageContextCallback = PageContextCallbackList::CallbackType;
 
 // Processes necessary information about the page to generate zero state
@@ -128,12 +140,6 @@ class ZeroStateSuggestionsPageData
   // Notifies all page context callbacks that page context has been collected
   // for the page.
   void InvokePageContextCallbacksIfComplete();
-
-  // If `optimization_metadata_` contains everything necessary to determine a
-  // suggestions result, run `suggestions_callbacks_` to return those
-  // suggestions. This method itself also returns true if suggestions are sent
-  // via the callbacks as a result of execution.
-  bool ReturnSuggestionsFromOptimizationMetadataIfPossible();
 
   bool work_done() const {
     return inner_text_done_ && annotated_page_content_done_ &&

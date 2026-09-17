@@ -1366,6 +1366,7 @@ quiche_tests_srcs = [
     "quic/core/uber_quic_stream_id_manager_test.cc",
     "quic/core/uber_received_packet_manager_test.cc",
     "quic/core/web_transport_write_blocked_list_test.cc",
+    "quic/moqt/test_tools/moqt_simulator_test.cc",
     "quic/test_tools/crypto_test_utils_test.cc",
     "quic/test_tools/quic_test_utils_test.cc",
     "quic/test_tools/simple_session_notifier_test.cc",
@@ -1640,11 +1641,13 @@ moqt_test_support_hdrs = [
     "quic/moqt/test_tools/moqt_mock_visitor.h",
     "quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quic/moqt/test_tools/moqt_session_peer.h",
+    "quic/moqt/test_tools/moqt_simulator.h",
     "quic/moqt/test_tools/moqt_simulator_harness.h",
     "quic/moqt/test_tools/moqt_test_message.h",
 ]
 moqt_test_support_srcs = [
     "quic/moqt/test_tools/moqt_framer_utils.cc",
+    "quic/moqt/test_tools/moqt_simulator.cc",
     "quic/moqt/test_tools/moqt_simulator_harness.cc",
 ]
 binary_http_hdrs = [

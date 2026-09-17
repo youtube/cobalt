@@ -13,6 +13,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_record.h"
 #include "cc/paint/paint_shader.h"
 #include "chrome/browser/themes/theme_properties.h"
@@ -32,6 +33,8 @@
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
 #include "third_party/skia/include/core/SkScalar.h"
 #include "third_party/skia/include/pathops/SkPathOps.h"
@@ -68,8 +71,7 @@ class TabStyleViewsImpl : public TabStyleViews {
   // TabStyle:
   SkPath GetPath(TabStyle::PathType path_type,
                  float scale,
-                 bool force_active,
-                 TabStyle::RenderUnits render_units) const override;
+                 const TabPathFlags& flags) const override;
   gfx::Insets GetContentsInsets() const override;
   float GetZValue() const override;
   float GetCurrentActiveOpacity() const override;
@@ -102,6 +104,10 @@ class TabStyleViewsImpl : public TabStyleViews {
 
   // Returns the progress (0 to 1) of the hover animation.
   double GetHoverAnimationValue() const override;
+
+  GlowHoverController* GetHoverControllerForTesting() override {
+    return hover_controller_.get();
+  }
 
   // Scales `bounds` by scale and aligns so that adjacent tabs meet up exactly
   // during painting.
@@ -200,10 +206,9 @@ TabStyleViewsImpl::TabStyleViewsImpl(Tab* tab)
 
 SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
                                   float scale,
-                                  bool force_active,
-                                  TabStyle::RenderUnits render_units) const {
+                                  const TabPathFlags& flags) const {
   CHECK(tab());
-  const int stroke_thickness = GetStrokeThickness(force_active);
+  const int stroke_thickness = GetStrokeThickness(flags.force_active);
 
   const TabStyle::TabSelectionState state = GetSelectionState();
 
@@ -308,10 +313,9 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
         SkVector(bottom_right_corner_radius, bottom_right_corner_radius),
         SkVector(bottom_left_corner_radius, bottom_left_corner_radius)};
 
-    SkRRect rrect;
-    rrect.setRectRadii(SkRect::MakeLTRB(left, top, right, bottom), radii);
-    SkPath path;
-    path.addRRect(rrect);
+    SkPathBuilder path;
+    path.addRRect(SkRRect::MakeRectRadii(
+        SkRect::MakeLTRB(left, top, right, bottom), radii));
 
     // Convert path to be relative to the tab origin.
     gfx::PointF origin(tab()->origin());
@@ -319,11 +323,11 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     path.offset(-origin.x(), -origin.y());
 
     // Possibly convert back to DIPs.
-    if (render_units == TabStyle::RenderUnits::kDips && scale != 1.0f) {
+    if (flags.render_units == TabStyle::RenderUnits::kDips && scale != 1.0f) {
       path.transform(SkMatrix::Scale(1.0f / scale, 1.0f / scale));
     }
 
-    return path;
+    return path.detach();
   }
 
   // Compute `extension` as the width outside the separators.  This is a fixed
@@ -364,8 +368,6 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
   }
   const bool compact_left_to_bottom = ShouldCompactLeadingEdge(path_type);
 
-  SkPath path;
-
   float left_extension_corner_radius = extension_corner_radius;
   if (compact_left_to_bottom) {
     left_extension_corner_radius = (tab_style()->GetBottomCornerRadius() -
@@ -384,6 +386,7 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     left_extension_corner_radius = 0;
   }
 
+  SkPathBuilder path;
   // Avoid mallocs at every new path verb by preallocating an
   // empirically-determined amount of space in the verb and point buffers.
   const int kMaxPathPoints = 20;
@@ -409,7 +412,11 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     //   │ Content │
     // ┏─╯         ╰─┐
     if (tab_bottom != extended_bottom) {
-      path.lineTo(left, tab_bottom);
+      if (flags.should_paint_extension) {
+        path.lineTo(left, tab_bottom);
+      } else {
+        path.moveTo(left, tab_bottom);
+      }
     }
 
     // Draw the bottom-left corner.
@@ -417,18 +424,19 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     //   │ Content │
     // ┌━╝         ╰─┐
     path.lineTo(tab_left - left_extension_corner_radius, tab_bottom);
-    path.arcTo(left_extension_corner_radius, left_extension_corner_radius, 0,
-               SkPath::kSmall_ArcSize, SkPathDirection::kCCW, tab_left,
-               tab_bottom - left_extension_corner_radius);
+    path.arcTo(
+        SkVector(left_extension_corner_radius, left_extension_corner_radius), 0,
+        SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
+        SkPoint(tab_left, tab_bottom - left_extension_corner_radius));
 
     // Draw the ascender and top-left curve.
     //   ╔─────────╮
     //   ┃ Content │
     // ┌─╯         ╰─┐
     path.lineTo(tab_left, tab_top + top_left_corner_radius);
-    path.arcTo(top_left_corner_radius, top_left_corner_radius, 0,
-               SkPath::kSmall_ArcSize, SkPathDirection::kCW,
-               tab_left + top_left_corner_radius, tab_top);
+    path.arcTo(SkVector(top_left_corner_radius, top_left_corner_radius), 0,
+               SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCW,
+               SkPoint(tab_left + top_left_corner_radius, tab_top));
   }
 
   // Draw the top crossbar.
@@ -446,18 +454,18 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     //   ╭─────────╗
     //   │ Content │
     // ┌─╯         ╰─┐
-    path.arcTo(top_right_corner_radius, top_right_corner_radius, 0,
-               SkPath::kSmall_ArcSize, SkPathDirection::kCW, tab_right,
-               tab_top + top_right_corner_radius);
+    path.arcTo(SkVector(top_right_corner_radius, top_right_corner_radius), 0,
+               SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCW,
+               SkPoint(tab_right, tab_top + top_right_corner_radius));
 
     // Draw the descender and bottom-right corner.
     //   ╭─────────╮
     //   │ Content ┃
     // ┌─╯         ╚━┐
     path.lineTo(tab_right, tab_bottom - extension_corner_radius);
-    path.arcTo(extension_corner_radius, extension_corner_radius, 0,
-               SkPath::kSmall_ArcSize, SkPathDirection::kCCW,
-               tab_right + extension_corner_radius, tab_bottom);
+    path.arcTo(SkVector(extension_corner_radius, extension_corner_radius), 0,
+               SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
+               SkPoint(tab_right + extension_corner_radius, tab_bottom));
     if (tab_bottom != extended_bottom) {
       path.lineTo(right, tab_bottom);
     }
@@ -468,7 +476,9 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     //   ╭─────────╮
     //   │ Content │
     // ┌─╯         ╰─┓
-    path.lineTo(right, extended_bottom);
+    if (flags.should_paint_extension) {
+      path.lineTo(right, extended_bottom);
+    }
   }
 
   if (path_type != TabStyle::PathType::kBorder) {
@@ -481,11 +491,11 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
   path.offset(-origin.x(), -origin.y());
 
   // Possibly convert back to DIPs.
-  if (render_units == TabStyle::RenderUnits::kDips && scale != 1.0f) {
+  if (flags.render_units == TabStyle::RenderUnits::kDips && scale != 1.0f) {
     path.transform(SkMatrix::Scale(1.0f / scale, 1.0f / scale));
   }
 
-  return path;
+  return path.detach();
 }
 
 gfx::Insets TabStyleViewsImpl::GetContentsInsets() const {
@@ -961,8 +971,8 @@ void TabStyleViewsImpl::PaintTabBackgroundFill(
     int y_inset) const {
   const SkPath fill_path =
       GetPath(TabStyle::PathType::kFill, canvas->image_scale(),
-              selection_state == TabStyle::TabSelectionState::kActive,
-              TabStyle::RenderUnits::kPixels);
+              {.force_active =
+                   selection_state == TabStyle::TabSelectionState::kActive});
   gfx::ScopedCanvas scoped_canvas(canvas);
   const float scale = canvas->UndoDeviceScaleFactor();
 
@@ -995,8 +1005,8 @@ void TabStyleViewsImpl::PaintTabBackgroundFill(
 void TabStyleViewsImpl::PaintBackgroundHover(gfx::Canvas* canvas,
                                              float scale) const {
   const SkPath fill_path =
-      GetPath(TabStyle::PathType::kHighlight, canvas->image_scale(), true,
-              TabStyle::RenderUnits::kPixels);
+      GetPath(TabStyle::PathType::kHighlight, canvas->image_scale(),
+              {.force_active = true});
   canvas->ClipPath(fill_path, true);
 
   const SkColor hover_color =
@@ -1021,8 +1031,8 @@ void TabStyleViewsImpl::PaintBackgroundStroke(
   }
 
   SkPath outer_path =
-      GetPath(TabStyle::PathType::kBorder, canvas->image_scale(), is_active,
-              TabStyle::RenderUnits::kPixels);
+      GetPath(TabStyle::PathType::kBorder, canvas->image_scale(),
+              {.force_active = is_active, .should_paint_extension = false});
   gfx::ScopedCanvas scoped_canvas(canvas);
   float scale = canvas->UndoDeviceScaleFactor();
   cc::PaintFlags flags;

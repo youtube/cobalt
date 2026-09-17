@@ -46,6 +46,7 @@
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network/received_packet.h"
+#include "rtc_base/network/sent_packet.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 
@@ -85,6 +86,7 @@ DatagramConnectionInternal::DatagramConnectionInternal(
     WireProtocol wire_protocol,
     std::unique_ptr<IceTransportInternal> custom_ice_transport_internal)
     : wire_protocol_(wire_protocol),
+      observer_(std::move(observer)),
       port_allocator_(std::move(port_allocator)),
       transport_channel_(
           custom_ice_transport_internal
@@ -99,8 +101,7 @@ DatagramConnectionInternal::DatagramConnectionInternal(
           wire_protocol_ == WireProtocol::kDtlsSrtp
               ? std::make_unique<DtlsSrtpTransport>(/*rtcp_mux_enabled=*/true,
                                                     env.field_trials())
-              : nullptr),
-      observer_(std::move(observer)) {
+              : nullptr) {
   RTC_CHECK(observer_);
 
   if (wire_protocol_ == WireProtocol::kDtls) {
@@ -156,6 +157,14 @@ DatagramConnectionInternal::DatagramConnectionInternal(
     RtpDemuxerCriteria demuxer_criteria(/*mid=*/"");
     demuxer_criteria.ssrcs().insert(kDatagramConnectionSsrc);
     dtls_srtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria, this);
+
+    dtls_srtp_transport_->SubscribeSentPacket(
+        this, [this](const SentPacketInfo& packet) { OnSentPacket(packet); });
+  } else {
+    dtls_transport_->ice_transport()->internal()->SubscribeSentPacket(
+        this, [this](PacketTransportInternal*, const SentPacketInfo& packet) {
+          OnSentPacket(packet);
+        });
   }
 
   RTC_CHECK(dtls_transport_->internal()->SetLocalCertificate(certificate));
@@ -209,24 +218,32 @@ void DatagramConnectionInternal::SetRemoteDtlsParameters(
                                                    digest_len, mapped_ssl_role);
 }
 
-bool DatagramConnectionInternal::SendPacket(ArrayView<const uint8_t> data) {
+void DatagramConnectionInternal::SendPacket(ArrayView<const uint8_t> data,
+                                            PacketSendParameters params) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
   if (current_state_ != State::kActive) {
-    return false;
+    DispatchSendOutcome(params.id, Observer::SendOutcome::Status::kNotSent);
+    return;
   }
+
+  AsyncSocketPacketOptions options;
+  options.packet_id = params.id;
 
   if (wire_protocol_ == WireProtocol::kDtls) {
     // Directly send the payload inside a DTLS packet.
-    return dtls_transport_->internal()->SendPacket(
-        reinterpret_cast<const char*>(data.data()), data.size(),
-        AsyncSocketPacketOptions());
+    if (!dtls_transport_->internal()->SendPacket(
+            reinterpret_cast<const char*>(data.data()), data.size(), options)) {
+      DispatchSendOutcome(params.id, Observer::SendOutcome::Status::kNotSent);
+    }
+    return;
   }
 
   if (!dtls_srtp_transport_->IsSrtpActive()) {
     // TODO(crbug.com/443019066): Propagate an error back to the caller.
     RTC_LOG(LS_ERROR) << "Dropping packet on non-active DTLS";
-    return false;
+    DispatchSendOutcome(params.id, Observer::SendOutcome::Status::kNotSent);
+    return;
   }
   // TODO(crbug.com/443019066): Update this representation inside an SRTP
   // packet as the spec level discussions continue.
@@ -238,9 +255,10 @@ bool DatagramConnectionInternal::SendPacket(ArrayView<const uint8_t> data) {
   CopyOnWriteBuffer buffer = packet.Buffer();
   // Provide the flag PF_SRTP_BYPASS as these packets are being encrypted by
   // SRTP, so should bypass DTLS encryption.
-  return dtls_srtp_transport_->SendRtpPacket(&buffer,
-                                             AsyncSocketPacketOptions(),
-                                             /*flags=*/PF_SRTP_BYPASS);
+  if (!dtls_srtp_transport_->SendRtpPacket(&buffer, options,
+                                           /*flags=*/PF_SRTP_BYPASS)) {
+    DispatchSendOutcome(params.id, Observer::SendOutcome::Status::kNotSent);
+  }
 }
 
 void DatagramConnectionInternal::Terminate(
@@ -306,6 +324,24 @@ void DatagramConnectionInternal::OnDtlsPacket(CopyOnWriteBuffer packet,
   }
   PacketMetadata metadata{.receive_time = receive_time};
   observer_->OnPacketReceived(packet, metadata);
+}
+
+void DatagramConnectionInternal::OnSentPacket(const SentPacketInfo& sent_info) {
+  Observer::SendOutcome outcome{};
+  outcome.id = sent_info.packet_id;
+  outcome.status = Observer::SendOutcome::Status::kSuccess;
+  outcome.send_time = Timestamp::Millis(sent_info.send_time_ms);
+  outcome.bytes_sent = sent_info.info.packet_size_bytes;
+  observer_->OnSendOutcome(outcome);
+}
+
+void DatagramConnectionInternal::DispatchSendOutcome(
+    PacketId id,
+    Observer::SendOutcome::Status status) {
+  Observer::SendOutcome outcome{};
+  outcome.id = id;
+  outcome.status = status;
+  observer_->OnSendOutcome(outcome);
 }
 
 }  // namespace webrtc

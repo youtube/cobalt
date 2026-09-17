@@ -26,16 +26,16 @@
 
 
 static int parse_integer(CBS *cbs, BIGNUM **out) {
-  assert(*out == NULL);
+  assert(*out == nullptr);
   *out = BN_new();
-  if (*out == NULL) {
+  if (*out == nullptr) {
     return 0;
   }
   return BN_parse_asn1_unsigned(cbs, *out);
 }
 
 static int marshal_integer(CBB *cbb, BIGNUM *bn) {
-  if (bn == NULL) {
+  if (bn == nullptr) {
     // A DH object may be missing some components.
     OPENSSL_PUT_ERROR(DH, ERR_R_PASSED_NULL_PARAMETER);
     return 0;

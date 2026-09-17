@@ -53,6 +53,7 @@
 #include "call/adaptation/video_stream_input_state_provider.h"
 #include "modules/video_coding/utility/frame_dropper.h"
 #include "modules/video_coding/utility/qp_parser.h"
+#include "rtc_base/experiments/encoder_speed_experiment.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
@@ -460,6 +461,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
 
   const std::optional<int> vp9_low_tier_core_threshold_;
   const std::optional<int> experimental_encoder_thread_limit_;
+  const EncoderSpeedExperiment speed_experiment_;
 
   // This is a copy of restrictions (glorified max_pixel_count) set by
   // OnVideoSourceRestrictionsUpdated. It is used to scale down encoding

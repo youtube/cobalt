@@ -134,10 +134,6 @@
     #include "client_utils/android/BitmapRegionDecoder.h"
 #endif
 
-#if !defined(SK_DISABLE_LEGACY_TESTS)
-    #include "tests/TestUtils.h"
-#endif
-
 #if defined(SK_CODEC_ENCODES_PNG_WITH_LIBPNG)
 #include "include/docs/SkXPSLibpngHelpers.h"
 #include "include/encode/SkPngEncoder.h"
@@ -158,8 +154,10 @@ static DEFINE_int(mskpFrame, 0, "Which MSKP frame to draw?");
 
 DECLARE_int(gpuThreads)
 
+#if defined(SK_GANESH)
 using sk_gpu_test::GrContextFactory;
 using sk_gpu_test::ContextInfo;
+#endif
 
 namespace DM {
 
@@ -1180,13 +1178,14 @@ Result SKPSrc::draw(SkCanvas* canvas, GraphiteTestContext*) const {
         sk_sp<SkImage> image = SkImages::DeferredFromEncodedData(std::move(tmpData));
         image = image->makeRasterImage(nullptr); // force decoding
 
+#if defined(SK_GANESH)
         if (image) {
             DeserializationContext* context = reinterpret_cast<DeserializationContext*>(ctx);
-
             if (context->fDirectContext) {
                 return SkImages::TextureFromImage(context->fDirectContext, image);
             }
         }
+#endif
         return image;
     };
     procs.fImageCtx = &ctx;
@@ -1547,6 +1546,7 @@ static DEFINE_bool(releaseAndAbandonGpuContext, false,
 static DEFINE_bool(drawOpClip, false, "Clip each GrDrawOp to its device bounds for testing.");
 static DEFINE_bool(programBinaryCache, true, "Use in-memory program binary cache");
 
+#if defined(SK_GANESH)
 GPUSink::GPUSink(const SkCommandLineConfigGpu* config,
                  const GrContextOptions& grCtxOptions)
         : fContextType(config->getContextType())
@@ -1995,6 +1995,8 @@ Result GPUDDLSink::draw(const Src& src, SkBitmap* dst, SkWStream*, SkString* log
 
     return Result::Ok();
 }
+
+#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static Result draw_skdocument(const Src& src, SkDocument* doc, SkWStream* dst) {

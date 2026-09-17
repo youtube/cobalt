@@ -13,6 +13,7 @@
 #include <GLES2/gl2extchromium.h>
 
 #include <optional>
+#include <utility>
 
 #include "base/check_is_test.h"
 #include "base/containers/contains.h"
@@ -49,6 +50,10 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "gpu/command_buffer/client/internal/mappable_buffer_dxgi.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/client/internal/mappable_buffer_ahb.h"
 #endif
 
 namespace gpu {
@@ -231,7 +236,9 @@ ClientSharedImage::CreateMappableBufferFromHandle(
 #endif
 #if BUILDFLAG(IS_ANDROID)
     case gfx::ANDROID_HARDWARE_BUFFER:
-      return nullptr;
+      return MappableBufferAHB::CreateFromHandle(
+          std::move(handle), size, format,
+          std::move(copy_native_buffer_to_shmem_callback), std::move(pool));
 #endif
     default:
       // TODO(dcheng): Remove default case (https://crbug.com/676224).
@@ -1002,8 +1009,8 @@ WebGPUBufferScopedAccess::WebGPUBufferScopedAccess(
       device.Get(), &static_cast<const WGPUBufferDescriptor&>(desc));
   DCHECK(reservation.buffer);
 
-  wire_buffer_id_ = reservation.id;
-  wire_buffer_generation_ = reservation.id;
+  buffer_id_ = reservation.id;
+  buffer_generation_ = reservation.generation;
 
   // We currently only use storage buffers. Which are always read-write.
   shared_image_->BeginAccess(false);
@@ -1012,8 +1019,8 @@ WebGPUBufferScopedAccess::WebGPUBufferScopedAccess(
       new wgpu::Buffer(wgpu::Buffer::Acquire(reservation.buffer)));
 
   webgpu_->AssociateMailboxForBuffer(
-      reservation.deviceId, reservation.deviceGeneration, wire_buffer_id_,
-      wire_buffer_generation_, static_cast<uint64_t>(desc.usage),
+      reservation.deviceId, reservation.deviceGeneration, buffer_id_,
+      buffer_generation_, static_cast<uint64_t>(desc.usage),
       shared_image_->mailbox());
 }
 
@@ -1023,8 +1030,8 @@ SyncToken WebGPUBufferScopedAccess::EndAccess(
     std::unique_ptr<WebGPUBufferScopedAccess> scoped_access) {
   webgpu::WebGPUInterface* webgpu = scoped_access->webgpu_;
   SyncToken finished_access_token;
-  webgpu->DissociateMailboxForBuffer(scoped_access->wire_buffer_id_,
-                                     scoped_access->wire_buffer_generation_);
+  webgpu->DissociateMailboxForBuffer(scoped_access->buffer_id_,
+                                     scoped_access->buffer_generation_);
   scoped_access->shared_image_->EndAccess(false);
 
   // SyncToken must be verified to allow use from another pipe.

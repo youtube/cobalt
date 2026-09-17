@@ -57,6 +57,7 @@
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/vector_icon_types.h"
+#include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 #include "url/gurl.h"
 
 namespace searchbox_internal {
@@ -790,6 +791,23 @@ bool SearchboxHandler::IsRemoteBound() const {
   return page_.is_bound();
 }
 
+void SearchboxHandler::AddFileContextFromBrowser(
+    base::UnguessableToken token,
+    searchbox::mojom::SelectedFileInfoPtr file_info) {
+  if (page_ && IsRemoteBound()) {
+    page_->AddFileContext(token, std::move(file_info));
+  }
+}
+
+void SearchboxHandler::OnContextualInputStatusChanged(
+    base::UnguessableToken token,
+    composebox_query::mojom::FileUploadStatus status,
+    std::optional<composebox_query::mojom::FileUploadErrorType> error_type) {
+  if (page_ && IsRemoteBound()) {
+    page_->OnContextualInputStatusChanged(token, status, error_type);
+  }
+}
+
 void SearchboxHandler::SetPage(
     mojo::PendingRemote<searchbox::mojom::Page> pending_page) {
   page_.Bind(std::move(pending_page));
@@ -923,6 +941,12 @@ void SearchboxHandler::ActivateKeyword(
   // Generic searchbox should not show keywords.
   NOTREACHED();
 }
+
+void SearchboxHandler::ShowContextMenu(const gfx::Point& point) {
+  // Generic searchbox should not have a context menu.
+  NOTREACHED();
+}
+
 void SearchboxHandler::ExecuteAction(uint8_t line,
                                      uint8_t action_index,
                                      const GURL& url,

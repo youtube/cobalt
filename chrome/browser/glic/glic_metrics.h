@@ -174,7 +174,11 @@ enum class ResponseSegmentation {
   kActorTaskIconAttachedAudio = 50,
   kActorTaskIconDetachedText = 51,
   kActorTaskIconDetachedAudio = 52,
-  kMaxValue = kActorTaskIconDetachedAudio,
+  kHandoffButtonAttachedText = 53,
+  kHandoffButtonAttachedAudio = 54,
+  kHandoffButtonDetachedText = 55,
+  kHandoffButtonDetachedAudio = 56,
+  kMaxValue = kHandoffButtonDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -293,6 +297,7 @@ class GlicMetrics {
   void OnResponseRated(bool positive);
   void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
   void OnModelChanged(mojom::WebClientModel model);
+  void OnRecordUseCounter(uint16_t counter);
 
   void OnAttachedToBrowser(AttachChangeReason reason);
   void OnDetachedFromBrowser(AttachChangeReason reason);
@@ -368,8 +373,9 @@ class GlicMetrics {
   // Must be called when context is requested from a tab.
   void DidRequestContextFromTab(content::WebContents& web_contents);
 
-  // Sets the starting input mode of the web client.
-  void SetStartingMode(mojom::WebClientMode mode);
+  // Sets the input mode of the web client. Should be called when the panel is
+  // opened and in every subsequent mode change.
+  void SetWebClientMode(mojom::WebClientMode mode);
 
   mojom::WebClientModel current_model() const { return current_model_; }
 

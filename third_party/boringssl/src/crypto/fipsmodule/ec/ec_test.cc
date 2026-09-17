@@ -130,7 +130,7 @@ static bssl::UniquePtr<EC_KEY> DecodeECPrivateKey(const uint8_t *in,
                                                   size_t in_len) {
   CBS cbs;
   CBS_init(&cbs, in, in_len);
-  bssl::UniquePtr<EC_KEY> ret(EC_KEY_parse_private_key(&cbs, NULL));
+  bssl::UniquePtr<EC_KEY> ret(EC_KEY_parse_private_key(&cbs, nullptr));
   if (!ret || CBS_len(&cbs) != 0) {
     return nullptr;
   }
@@ -187,7 +187,7 @@ TEST(ECTest, Encoding) {
   ASSERT_TRUE(x);
   ASSERT_TRUE(y);
   ASSERT_TRUE(EC_POINT_get_affine_coordinates_GFp(
-      EC_KEY_get0_group(key.get()), pub_key, x.get(), y.get(), NULL));
+      EC_KEY_get0_group(key.get()), pub_key, x.get(), y.get(), nullptr));
   bssl::UniquePtr<char> x_hex(BN_bn2hex(x.get()));
   bssl::UniquePtr<char> y_hex(BN_bn2hex(y.get()));
   ASSERT_TRUE(x_hex);
@@ -370,8 +370,8 @@ TEST(ECTest, ArbitraryCurve) {
   ASSERT_TRUE(EC_GROUP_set_generator(group2.get(), generator2.get(),
                                      order.get(), BN_value_one()));
 
-  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group.get(), NULL));
-  EXPECT_EQ(0, EC_GROUP_cmp(group2.get(), group.get(), NULL));
+  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group.get(), nullptr));
+  EXPECT_EQ(0, EC_GROUP_cmp(group2.get(), group.get(), nullptr));
 
   // group3 uses the wrong generator.
   bssl::UniquePtr<EC_GROUP> group3(
@@ -384,7 +384,7 @@ TEST(ECTest, ArbitraryCurve) {
   ASSERT_TRUE(EC_GROUP_set_generator(group3.get(), generator3.get(),
                                      order.get(), BN_value_one()));
 
-  EXPECT_NE(0, EC_GROUP_cmp(group.get(), group3.get(), NULL));
+  EXPECT_NE(0, EC_GROUP_cmp(group.get(), group3.get(), nullptr));
 
 #if !defined(BORINGSSL_SHARED_LIBRARY)
   // group4 has non-minimal components that do not fit in |EC_SCALAR| and the
@@ -406,7 +406,7 @@ TEST(ECTest, ArbitraryCurve) {
   ASSERT_TRUE(EC_GROUP_set_generator(group4.get(), generator4.get(),
                                      order.get(), BN_value_one()));
 
-  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group4.get(), NULL));
+  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group4.get(), nullptr));
 #endif
 
   // group5 is the same group, but the curve coefficients are passed in
@@ -414,7 +414,7 @@ TEST(ECTest, ArbitraryCurve) {
   ASSERT_TRUE(BN_sub(a.get(), a.get(), p.get()));
   ASSERT_TRUE(BN_add(b.get(), b.get(), p.get()));
   bssl::UniquePtr<EC_GROUP> group5(
-      EC_GROUP_new_curve_GFp(p.get(), a.get(), b.get(), NULL));
+      EC_GROUP_new_curve_GFp(p.get(), a.get(), b.get(), nullptr));
   ASSERT_TRUE(group5);
   bssl::UniquePtr<EC_POINT> generator5(EC_POINT_new(group5.get()));
   ASSERT_TRUE(generator5);
@@ -423,8 +423,8 @@ TEST(ECTest, ArbitraryCurve) {
   ASSERT_TRUE(EC_GROUP_set_generator(group5.get(), generator5.get(),
                                      order.get(), BN_value_one()));
 
-  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group.get(), NULL));
-  EXPECT_EQ(0, EC_GROUP_cmp(group5.get(), group.get(), NULL));
+  EXPECT_EQ(0, EC_GROUP_cmp(group.get(), group.get(), nullptr));
+  EXPECT_EQ(0, EC_GROUP_cmp(group5.get(), group.get(), nullptr));
 }
 
 TEST(ECTest, SetKeyWithoutGroup) {
@@ -1217,7 +1217,7 @@ TEST(ECTest, HashToCurve) {
   auto hash_to_curve_p384_sha512_draft07 =
       [](const EC_GROUP *group, EC_POINT *out, const uint8_t *dst,
          size_t dst_len, const uint8_t *msg, size_t msg_len) -> int {
-    if (EC_GROUP_cmp(group, out->group, NULL) != 0) {
+    if (EC_GROUP_cmp(group, out->group, nullptr) != 0) {
       return 0;
     }
     return ec_hash_to_curve_p384_xmd_sha512_sswu_draft07(group, &out->raw, dst,

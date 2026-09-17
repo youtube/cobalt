@@ -28,6 +28,7 @@ extern bool gVerboseLogging;
 extern bool gWarmup;
 extern int gTrialTimeSeconds;
 extern int gTestTrials;
+extern int gSleepBetweenTrialMs;
 extern bool gNoFinish;
 extern bool gRetraceMode;
 extern bool gMinimizeGPUWork;
@@ -42,6 +43,8 @@ extern int gFpsLimit;
 extern const char *gPrintExtensionsToFile;
 extern const char *gRequestedExtensions;
 extern bool gIncludeInactiveResources;
+extern bool gTrackGPUTime;
+extern bool gAddSwapIntoGPUTime;
 
 // Constant for when trace's frame count should be used
 constexpr int kAllFrames = -1;

@@ -1774,10 +1774,6 @@ gfx::Transform ViewTransitionStyleTracker::ComputeTransformForParticipant(
     // TODO(crbug.com/394052227): Should we force compositing on the scope?
     // If we do, its paint offset will always be zero.
     transform.Translate(-gfx::Vector2dF(scope_fragment.PaintOffset()));
-
-    // Adjust for the scope element's borders and scrollbars.
-    // TODO(crbug.com/394052227): Is this correct in RTL / all writing modes?
-    transform.Translate(-scope_box->ClientLeft(), -scope_box->ClientTop());
   }
 
   if (!transform.HasPerspective()) {
@@ -2192,6 +2188,25 @@ void ViewTransitionStyleTracker::InvalidateStyleAndCompositing() {
       .NotifyViewTransitionPseudoTreeChanged();
 }
 
+void ViewTransitionStyleTracker::
+    InvalidateBackdropFilterCompositingProperties() {
+  for (auto& entry : element_data_map_) {
+    if (!entry.value->target_element ||
+        entry.value->target_element->IsDocumentElement() ||
+        entry.value->target_element->ComputedStyleRef()
+            .BackdropFilter()
+            .IsEmpty()) {
+      continue;
+    }
+    auto* object = entry.value->target_element->GetLayoutObject();
+    if (!object) {
+      continue;
+    }
+
+    object->SetNeedsPaintPropertyUpdate();
+  }
+}
+
 CSSStyleSheet& ViewTransitionStyleTracker::UAStyleSheet() {
   if (ua_style_sheet_)
     return *ua_style_sheet_;
@@ -2210,7 +2225,6 @@ CSSStyleSheet& ViewTransitionStyleTracker::UAStyleSheet() {
     builder.AddUAStyle(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()
                            ? AnimationUAStylesScoped()
                            : AnimationUAStyles());
-    builder.AddFlagGuardedDefaultAnimationStyles();
   }
 
   // If we started the animation then we always create the full dynamic style

@@ -246,6 +246,7 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
             const std::string& id,
+            const std::string& prod_id,
 #if BUILDFLAG(IS_STARBOARD)
             const OperationResult& crx_operation_result,
 #else
@@ -295,7 +296,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
-              &Unpacker::Unpack, id, pk_hash,
+              &Unpacker::Unpack, id, prod_id, pk_hash,
               // If and only if cached, the original path no longer exists.
 #if BUILDFLAG(IS_STARBOARD)
               crx_operation_result,
@@ -313,6 +314,7 @@ base::OnceClosure InstallOperation(
     std::unique_ptr<Unzipper> unzipper,
     crx_file::VerifierFormat crx_format,
     const std::string& id,
+    const std::string& prod_id,
     const std::string& file_hash,
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
@@ -343,12 +345,11 @@ base::OnceClosure InstallOperation(
                                        crx_operation_result),
                         std::move(install_params), installer, progress_callback,
                         metadata, next_version, id, crx_operation_result),
-         id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
+         id, prod_id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
          base::unexpected(UnpackerError::kCrxCacheNotProvided));
 #else
   crx_cache->Put(
-      // TODO(crbug.com/399617574): Remove FP.
-      crx_file, id, file_hash, /*fp=*/{},
+      crx_file, id, file_hash,
       base::BindOnce(
           &Unpack,
           base::BindOnce(
@@ -357,7 +358,7 @@ base::OnceClosure InstallOperation(
                              std::move(installer_result_callback),
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
-          id, crx_file, std::move(unzipper), pk_hash, crx_format));
+          id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
 #endif
   return base::DoNothing();
 }

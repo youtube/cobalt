@@ -10,13 +10,16 @@
 
 #include "base/time/time.h"
 #include "chrome/browser/actor/tools/tool_request.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace actor {
 class ToolRequestVisitorFunctor;
 
 class WaitToolRequest : public ToolRequest {
  public:
-  explicit WaitToolRequest(base::TimeDelta wait_duration);
+  explicit WaitToolRequest(
+      base::TimeDelta wait_duration,
+      tabs::TabHandle observe_tab_handle = tabs::TabHandle::Null());
   ~WaitToolRequest() override;
 
   void Apply(ToolRequestVisitorFunctor& f) const override;
@@ -24,10 +27,15 @@ class WaitToolRequest : public ToolRequest {
   // ToolRequest
   CreateToolResult CreateTool(TaskId task_id,
                               ToolDelegate& tool_delegate) const override;
-  std::string JournalEvent() const override;
+  std::string Name() const override;
 
  private:
   base::TimeDelta wait_duration_;
+
+  // Optional. If provided, an observation from this tab will be included in the
+  // result observations. However, this tab is not added to the tab set in
+  // ActorTask.
+  tabs::TabHandle observe_tab_handle_;
 };
 
 }  // namespace actor

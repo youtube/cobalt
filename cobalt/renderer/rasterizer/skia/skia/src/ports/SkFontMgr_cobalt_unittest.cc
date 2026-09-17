@@ -98,7 +98,7 @@ TEST_F(SkFontMgrCobaltTest, GenericFontFamiliesMatchSuccessfully) {
         << "No glyph for 'A' in " << test_case.requested_family;
 
     SkScalar width;
-    font.getWidths(&glyph_id, 1, &width);
+    font.getWidths({&glyph_id, 1}, {&width, 1});
     EXPECT_GT(width, 0.0f) << "Zero advance width for 'A' in "
                            << test_case.requested_family;
   }

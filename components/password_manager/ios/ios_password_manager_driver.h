@@ -8,6 +8,7 @@
 #import <vector>
 
 #import "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #import "base/memory/weak_ptr.h"
 #import "components/autofill/core/common/aliases.h"
 #import "components/autofill/core/common/field_data_manager.h"
@@ -76,6 +77,7 @@ class IOSPasswordManagerDriver final
       override;
   int GetFrameId() const override;
   bool IsInPrimaryMainFrame() const override;
+  bool IsNestedWithinFencedFrame() const override;
   bool CanShowAutofillUi() const override;
   const GURL& GetLastCommittedURL() const override;
   const url::Origin& GetLastCommittedOrigin() const override;

@@ -18,6 +18,7 @@
   --cr-searchbox-icon-size-in-searchbox: 20px;
   --cr-searchbox-icon-top-position: 0;
   --cr-searchbox-min-width: var(--ntp-search-box-width);
+  --cr-searchbox-results-search-icon-size: 20px;
   --ntp-theme-text-shadow: none;
   --ntp-one-google-bar-height: 56px;
   --ntp-search-box-width: 337px;
@@ -37,12 +38,12 @@
  * Hide everything that should not display when the composebox is open
  * so they are not tabbable.
  */
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) cr-most-visited,
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) ntp-middle-slot-promo,
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) ntp-modules,
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) #backgroundImageAttribution,
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) ntp-customize-buttons,
-:host([show-composebox_]):not([ntp-realbox-next-enabled_]) setup-list-module-wrapper{
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) cr-most-visited,
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) ntp-middle-slot-promo,
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) ntp-modules,
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) #backgroundImageAttribution,
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) ntp-customize-buttons,
+:host([show-composebox_]:not([ntp-realbox-next-enabled_])) setup-list-module-wrapper{
   display: none;
 }
 
@@ -294,13 +295,13 @@ svg {
   position: fixed;
 }
 
-ntp-composebox {
-  --ntp-composebox-width: var(--ntp-search-box-width);
+cr-composebox {
+  --cr-composebox-width: var(--ntp-search-box-width);
   --ntp-composebox-background-color:
       var(--color-new-tab-page-composebox-background);
 }
 
-ntp-composebox,
+cr-composebox,
 ntp-lens-upload-dialog {
   left: 0;
   position: absolute;

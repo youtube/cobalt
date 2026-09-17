@@ -218,6 +218,9 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicConnectionOptions);
 // power mode.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kFallbackInLowPowerMode);
 
+// Enables Connection Keep-Alive feature for Http2
+NET_EXPORT BASE_DECLARE_FEATURE(kConnectionKeepAliveForHttp2);
+
 // When enabled, the time threshold for Lax-allow-unsafe cookies will be lowered
 // from 2 minutes to 10 seconds. This time threshold refers to the age cutoff
 // for which cookies that default into SameSite=Lax, which are newer than the
@@ -302,9 +305,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kThirdPartyStoragePartitioning);
 
 // Feature to enable consideration of 3PC deprecation trial settings.
 NET_EXPORT BASE_DECLARE_FEATURE(kTpcdTrialSettings);
-
-// Feature to enable consideration of top-level 3PC deprecation trial settings.
-NET_EXPORT BASE_DECLARE_FEATURE(kTopLevelTpcdTrialSettings);
 
 // Whether to enable the use of 3PC based on 3PCD metadata grants delivered via
 // component updater.
@@ -678,6 +678,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTruncateBodyToContentLength);
 // Reduces the frequency of IP address change notifications that result in
 // TCP and QUIC connection resets.
 NET_EXPORT BASE_DECLARE_FEATURE(kReduceIPAddressChangeNotification);
+
+// Uses the Network framework path monitor instead of SCNetworkReachability for
+// connection type change detection on macOS.
+NET_EXPORT BASE_DECLARE_FEATURE(kUseNetworkPathMonitorForNetworkChangeNotifier);
 #endif  // BUILDFLAG(IS_MAC)
 
 // This feature will enable the Device Bound Session Credentials protocol to let
@@ -785,6 +789,8 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // Disables synchronous writes in the WAL file of the SQL disk cache's DB.
 // This is faster but less safe.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSynchronousOff);
+// The number of shards for the SQL disk cache.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSqlDiskCacheShardCount);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
@@ -829,12 +835,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // Whether to use the new implementation of
 // HttpNoVarySearchData::AreEquivalent().
 NET_EXPORT BASE_DECLARE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent);
-
-// Whether to check the result against the old implementation and
-// DumpWithoutCrashing() if they differ.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kHttpNoVarySearchDataAreEquivalentCheckResult);
 
 // Enables sending the CORS Origin header on the POST request for Reporting API
 // report uploads.
@@ -882,23 +882,28 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // trust.
 NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
 
-// Whether or not this client is participating in the socket pool size
-// per-top-level-site experiment, and if so how big their pools should be.
+// Indicates if the client is participating in the TCP socket pool limit
+// randomization trial. The params below define the bounds for the probability.
+// function we use when calculating the chance the state should flip between
+// capped and uncapped.
 // See crbug.com/415691664 for more details.
-NET_EXPORT BASE_DECLARE_FEATURE(kSocketPoolSizePerTopLevelSiteTrial);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    int,
-    kSocketPoolSizePerTopLevelSiteTrialNormalProfileLimit);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    int,
-    kSocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit);
+NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolLimitRandomization);
+// The base of an exponent when calculating the probability.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                      kTcpSocketPoolLimitRandomizationBase);
+// The maximum amount of additional sockets to allow use of.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kTcpSocketPoolLimitRandomizationCapacity);
+// The minimum probability allowed to be returned.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                      kTcpSocketPoolLimitRandomizationMinimum);
+// The percentage of noise to add/subtract from the probability.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                      kTcpSocketPoolLimitRandomizationNoise);
 
 // These parameters control whether the Network Service Task Scheduler is used
 // for specific classes.
 NET_EXPORT BASE_DECLARE_FEATURE(kNetTaskScheduler);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kNetTaskSchedulerHttpCache);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
-                                      kNetTaskSchedulerHttpCacheTransaction);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kNetTaskSchedulerHttpProxyConnectJob);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
@@ -912,6 +917,11 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kNetTaskSchedulerURLRequestHttpJob);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kNetTaskSchedulerURLRequestJob);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kNetTaskSchedulerURLRequestRedirectJob);
+
+NET_EXPORT BASE_DECLARE_FEATURE(kNetTaskScheduler2);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kNetTaskSchedulerHttpCache);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                      kNetTaskSchedulerHttpCacheTransaction);
 
 // If enabled, we will add an additional delay to the main job in
 // HttpStreamFactoryJobController.

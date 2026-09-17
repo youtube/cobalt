@@ -201,7 +201,7 @@ int ASN1_object_size(int constructed, int length, int tag) {
 }
 
 int ASN1_STRING_copy(ASN1_STRING *dst, const ASN1_STRING *str) {
-  if (str == NULL) {
+  if (str == nullptr) {
     return 0;
   }
   if (dst == str) {
@@ -218,15 +218,15 @@ int ASN1_STRING_copy(ASN1_STRING *dst, const ASN1_STRING *str) {
 ASN1_STRING *ASN1_STRING_dup(const ASN1_STRING *str) {
   ASN1_STRING *ret;
   if (!str) {
-    return NULL;
+    return nullptr;
   }
   ret = ASN1_STRING_new();
   if (!ret) {
-    return NULL;
+    return nullptr;
   }
   if (!ASN1_STRING_copy(ret, str)) {
     ASN1_STRING_free(ret);
-    return NULL;
+    return nullptr;
   }
   return ret;
 }
@@ -235,7 +235,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
   const char *data = reinterpret_cast<const char *>(_data);
   size_t len;
   if (len_s < 0) {
-    if (data == NULL) {
+    if (data == nullptr) {
       return 0;
     }
     len = strlen(data);
@@ -249,21 +249,21 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
     return 0;
   }
 
-  if (str->length <= (int)len || str->data == NULL) {
+  if (str->length <= (int)len || str->data == nullptr) {
     unsigned char *c = str->data;
-    if (c == NULL) {
+    if (c == nullptr) {
       str->data = reinterpret_cast<uint8_t *>(OPENSSL_malloc(len + 1));
     } else {
       str->data = reinterpret_cast<uint8_t *>(OPENSSL_realloc(c, len + 1));
     }
 
-    if (str->data == NULL) {
+    if (str->data == nullptr) {
       str->data = c;
       return 0;
     }
   }
   str->length = (int)len;
-  if (data != NULL) {
+  if (data != nullptr) {
     OPENSSL_memcpy(str->data, data, len);
     // Historically, OpenSSL would NUL-terminate most (but not all)
     // |ASN1_STRING|s, in case anyone accidentally passed |str->data| into a
@@ -288,12 +288,12 @@ ASN1_STRING *ASN1_STRING_type_new(int type) {
   ASN1_STRING *ret;
 
   ret = (ASN1_STRING *)OPENSSL_malloc(sizeof(ASN1_STRING));
-  if (ret == NULL) {
-    return NULL;
+  if (ret == nullptr) {
+    return nullptr;
   }
   ret->length = 0;
   ret->type = type;
-  ret->data = NULL;
+  ret->data = nullptr;
   ret->flags = 0;
   return ret;
 }
@@ -309,7 +309,7 @@ void asn1_string_cleanup(ASN1_STRING *str) {
 }
 
 void ASN1_STRING_free(ASN1_STRING *str) {
-  if (str == NULL) {
+  if (str == nullptr) {
     return;
   }
   asn1_string_cleanup(str);

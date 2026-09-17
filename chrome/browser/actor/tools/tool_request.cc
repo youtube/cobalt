@@ -42,6 +42,10 @@ tabs::TabHandle ToolRequest::GetTabHandle() const {
   return tabs::TabHandle();
 }
 
+std::string ToolRequest::JournalEvent() const {
+  return Name();
+}
+
 bool ToolRequest::RequiresUrlCheckInCurrentTab() const {
   // By default, tab scoped tools require current tab URL checks but individual
   // tools can override this.
@@ -52,9 +56,9 @@ std::optional<url::Origin> ToolRequest::AssociatedOriginGrant() const {
   return std::nullopt;
 }
 
-std::optional<ObservationDelayController::PageStabilityConfig>
+ObservationDelayController::PageStabilityConfig
 ToolRequest::GetObservationPageStabilityConfig() const {
-  return std::nullopt;
+  return ObservationDelayController::PageStabilityConfig();
 }
 
 TabToolRequest::TabToolRequest(const tabs::TabHandle tab_handle)

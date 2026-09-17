@@ -18,24 +18,15 @@
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 #include "third_party/webrtc/modules/desktop_capture/mouse_cursor.h"
 
-namespace {
-// Poll mouse shape at least 10 times a second.
-constexpr base::TimeDelta kMaxCursorCaptureInterval = base::Milliseconds(100);
-
-// Poll mouse shape at most 100 times a second.
-constexpr base::TimeDelta kMinCursorCaptureInterval = base::Milliseconds(10);
-}  // namespace
-
 namespace remoting {
 
 MouseShapePump::MouseShapePump(
-    std::unique_ptr<MouseCursorMonitor> mouse_cursor_monitor,
+    std::unique_ptr<protocol::MouseCursorMonitor> mouse_cursor_monitor,
     protocol::CursorShapeStub* cursor_shape_stub)
     : mouse_cursor_monitor_(std::move(mouse_cursor_monitor)),
       cursor_shape_stub_(cursor_shape_stub) {
   mouse_cursor_monitor_->Init(this,
                               webrtc::MouseCursorMonitor::SHAPE_AND_POSITION);
-  StartCaptureTimer(kMaxCursorCaptureInterval);
 }
 
 MouseShapePump::~MouseShapePump() {
@@ -43,30 +34,26 @@ MouseShapePump::~MouseShapePump() {
 }
 
 void MouseShapePump::SetCursorCaptureInterval(base::TimeDelta new_interval) {
-  StartCaptureTimer(std::clamp(new_interval, kMinCursorCaptureInterval,
-                               kMaxCursorCaptureInterval));
+  mouse_cursor_monitor_->SetPreferredCaptureInterval(new_interval);
 }
 
 void MouseShapePump::SetSendCursorPositionToClient(
     bool send_cursor_position_to_client) {
+  if (send_cursor_position_to_client == send_cursor_position_to_client_) {
+    return;
+  }
   send_cursor_position_to_client_ = send_cursor_position_to_client;
+  if (!send_cursor_position_to_client_) {
+    // Send an empty HostCursorPosition to the client to disable rendering of
+    // the host's cursor and revert to tracking the cursor position locally.
+    protocol::HostCursorPosition position;
+    cursor_shape_stub_->SetHostCursorPosition(position);
+  }
 }
 
 void MouseShapePump::SetMouseCursorMonitorCallback(
-    MouseCursorMonitor::Callback* callback) {
+    protocol::MouseCursorMonitor::Callback* callback) {
   callback_ = callback;
-}
-
-void MouseShapePump::Capture() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  mouse_cursor_monitor_->Capture();
-}
-
-void MouseShapePump::StartCaptureTimer(base::TimeDelta capture_interval) {
-  capture_timer_.Start(
-      FROM_HERE, std::move(capture_interval),
-      base::BindRepeating(&MouseShapePump::Capture, base::Unretained(this)));
 }
 
 void MouseShapePump::OnMouseCursor(webrtc::MouseCursor* cursor) {
@@ -123,17 +110,14 @@ void MouseShapePump::OnMouseCursorPosition(
   }
 }
 
-void MouseShapePump::OnMouseCursorFractionalPosition(webrtc::ScreenId screen_id,
-                                                     float fractional_x,
-                                                     float fractional_y) {
-  if (send_cursor_position_to_client_) {
-    protocol::HostCursorPosition position;
-    auto* coordinate = position.mutable_fractional_coordinate();
-    coordinate->set_screen_id(screen_id);
-    coordinate->set_x(fractional_x);
-    coordinate->set_y(fractional_y);
-    cursor_shape_stub_->SetHostCursorPosition(position);
+void MouseShapePump::OnMouseCursorFractionalPosition(
+    const protocol::FractionalCoordinate& fractional_position) {
+  if (!send_cursor_position_to_client_) {
+    return;
   }
+  protocol::HostCursorPosition position;
+  *position.mutable_fractional_coordinate() = fractional_position;
+  cursor_shape_stub_->SetHostCursorPosition(position);
 }
 
 }  // namespace remoting

@@ -145,7 +145,7 @@ void DomStorageDatabaseLevelDB::Init(
 template <typename... Args>
 void DomStorageDatabaseLevelDB::CreateSequenceBoundDomStorageDatabase(
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-    DomStorageDatabaseFactory::OpenCallback callback,
+    OpenCallback callback,
     Args&&... args) {
   auto database =
       std::make_unique<base::SequenceBound<DomStorageDatabaseLevelDB>>();
@@ -177,8 +177,7 @@ void DomStorageDatabaseLevelDB::CreateSequenceBoundDomStorageDatabase(
           base::SequencedTaskRunner::GetCurrentDefault(),
           base::BindOnce(
               [](base::SequenceBound<DomStorageDatabaseLevelDB>* database_ptr,
-                 DomStorageDatabaseFactory::OpenCallback callback,
-                 DbStatus status) {
+                 OpenCallback callback, DbStatus status) {
                 auto database = base::WrapUnique(database_ptr);
                 if (status.ok()) {
                   std::move(callback).Run(std::move(*database), status);
@@ -203,7 +202,7 @@ void DomStorageDatabaseLevelDB::OpenDirectory(
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id,
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-    DomStorageDatabaseFactory::OpenCallback callback) {
+    OpenCallback callback) {
   DCHECK(directory.IsAbsolute());
   CreateSequenceBoundDomStorageDatabase(std::move(blocking_task_runner),
                                         std::move(callback), directory, name,
@@ -216,7 +215,7 @@ void DomStorageDatabaseLevelDB::OpenInMemory(
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id,
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-    DomStorageDatabaseFactory::OpenCallback callback) {
+    OpenCallback callback) {
   CreateSequenceBoundDomStorageDatabase(std::move(blocking_task_runner),
                                         std::move(callback), name,
                                         memory_dump_id);
@@ -291,7 +290,7 @@ DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
   return FromLevelDBStatus(status);
 }
 
-std::unique_ptr<DomStorageBatchOperation>
+std::unique_ptr<DomStorageBatchOperationLevelDB>
 DomStorageDatabaseLevelDB::CreateBatchOperation() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::make_unique<DomStorageBatchOperationLevelDB>(

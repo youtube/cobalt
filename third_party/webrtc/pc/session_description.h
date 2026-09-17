@@ -327,7 +327,8 @@ class SctpDataContentDescription : public MediaContentDescription {
       : MediaContentDescription(o),
         use_sctpmap_(o.use_sctpmap_),
         port_(o.port_),
-        max_message_size_(o.max_message_size_) {}
+        max_message_size_(o.max_message_size_),
+        sctp_init_(o.sctp_init_) {}
   webrtc::MediaType type() const override { return webrtc::MediaType::DATA; }
   SctpDataContentDescription* as_sctp() override { return this; }
   const SctpDataContentDescription* as_sctp() const override { return this; }
@@ -346,6 +347,12 @@ class SctpDataContentDescription : public MediaContentDescription {
   void set_max_message_size(int max_message_size) {
     max_message_size_ = max_message_size;
   }
+  std::optional<const std::vector<uint8_t>> sctp_init() const {
+    return sctp_init_;
+  }
+  void set_sctp_init(std::optional<const std::vector<uint8_t>> sctp_init) {
+    sctp_init_ = sctp_init;
+  }
 
  private:
   SctpDataContentDescription* CloneInternal() const override {
@@ -356,6 +363,9 @@ class SctpDataContentDescription : public MediaContentDescription {
   int port_ = 5000;
   // draft-ietf-mmusic-sdp-sctp-23: Max message size default is 64K
   int max_message_size_ = 64 * 1024;
+
+  // draft-hancke-tsvwg-snap
+  std::optional<std::vector<uint8_t>> sctp_init_;
 };
 
 class UnsupportedContentDescription : public MediaContentDescription {

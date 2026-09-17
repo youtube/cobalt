@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">현재 진행 중인 다운로드가 모두 중지됩니다.</translation>
 <translation id="1594034544529347967">시작</translation>
 <translation id="1598751033135758830">앱에서 열기…</translation>
+<translation id="1601560923496285236">적용</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{주소 1개}other{주소 #개}}</translation>
 <translation id="1605405588277479165">사용 안함 - 권장하지 않음</translation>
 <translation id="1605658421715042784">이미지 복사</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">네트워크에 연결되었는지 확인한 후 다시 시도해 주세요.</translation>
 <translation id="4070132839822635162">로그인하지 않음</translation>
 <translation id="4092655288299341041">도움말 표시</translation>
+<translation id="4095483462103784441">새 탭 그룹 만들기</translation>
 <translation id="4099756562043439968">리마인더 설정</translation>
 <translation id="4108998448622696017">위험한 이벤트가 발생하면 이를 감지하여 알립니다.</translation>
 <translation id="4111985840824673503">모두 읽음으로 표시</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">주소가 <ph name="USER_EMAIL" /> 계정으로 이동되었습니다.</translation>
 <translation id="4287172530684295552">읽음으로 표시</translation>
 <translation id="428768789042547925">새로운 기능</translation>
-<translation id="428858055663163046">다운로드한 파일이 있으면 여기에서 액세스할 수 있습니다.</translation>
 <translation id="429074084062258019">{count,plural, =1{그룹에 탭 추가}other{그룹에 탭 추가}}</translation>
 <translation id="4302061870579014542">위치 설정</translation>
 <translation id="4304713468139749426">비밀번호 관리자</translation>
@@ -1236,6 +1237,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="5758759241456233788">지도 미리보기가 사용 중지되었습니다. 설정에서 다시 사용 설정하세요.</translation>
 <translation id="5759484603608560822">다운로드 숨기기</translation>
 <translation id="5767099457279594162">비밀번호가 공유되지 않음</translation>
+<translation id="5768870767339201169">중단한 지점부터 다시 시작하세요</translation>
 <translation id="5779117921996157216">{count,plural, =1{유출된 비밀번호가 {count}개 있어서 보안을 위협할 수 있습니다. 안전을 위해 지금 문제를 해결하세요.}other{유출된 비밀번호가 {count}개 있어서 보안을 위협할 수 있습니다. 안전을 위해 지금 문제를 해결하세요.}}</translation>
 <translation id="5791632441210678828">팔로우 피드의 정렬 버튼.</translation>
 <translation id="5803566855766646066">새 카드를 삭제하시겠습니까?</translation>
@@ -1454,6 +1456,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">옵션</translation>
 <translation id="6550891580932862748">위험한 웹사이트, 다운로드 항목, 확장 프로그램으로부터 사용자를 보호하지 않습니다. 다른 Google 제품의 세이프 브라우징 설정은 영향을 받지 않습니다.</translation>
+<translation id="6556866813142980365">다시실행</translation>
 <translation id="6559301491397835130">{count,plural, =1{"{title}"에 북마크가 저장되었습니다. 이 기기에만 저장됩니다.}other{"{title}"에 북마크가 저장되었습니다. 이 기기에만 저장됩니다.}}</translation>
 <translation id="656065428026159829">더보기</translation>
 <translation id="6571070086367343653">신용카드 수정</translation>
@@ -1692,6 +1695,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7484645889979462775">이 사이트 제외</translation>
 <translation id="7486006552035434095">기기 동기화 상태 유지</translation>
 <translation id="7491131399623468277">설정으로 이동…</translation>
+<translation id="7491161827858509164">이전에 다운로드한 파일을 보려면 <ph name="BEGIN_LINK" />파일<ph name="END_LINK" />을 여세요.</translation>
 <translation id="7498234416455752244">계속 수정</translation>
 <translation id="7500244509706269886">양식 자동 완성</translation>
 <translation id="750493650310597496">선택된 항목 없음</translation>
@@ -1729,6 +1733,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7612619742409846846">다음 계정으로 Google에 로그인함:</translation>
 <translation id="7612849887607288481">AI 프로토타입 제작 메뉴 열기</translation>
 <translation id="7620522820075868385">취소</translation>
+<translation id="762078666799342162"><ph name="BEGIN_LINK" />파일<ph name="END_LINK" />에서 이전 다운로드 항목을 볼 수 있습니다</translation>
 <translation id="7638584964844754484">암호가 잘못되었습니다.</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{유출된 비밀번호}=1{유출된 비밀번호 {COUNT}개}other{유출된 비밀번호 {COUNT}개}}</translation>
 <translation id="7640669552036055091">Android의 탭</translation>
@@ -1793,6 +1798,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7851858861565204677">다른 기기</translation>
 <translation id="7853202427316060426">활동</translation>
 <translation id="7854006015462979438">일반 열기</translation>
+<translation id="7855678267851972597">오디오</translation>
 <translation id="7859988229622350291">번역 안 함</translation>
 <translation id="7863211248337747225">앱 다운로드</translation>
 <translation id="7865127013871431856">번역 옵션</translation>
@@ -1909,7 +1915,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8273982424131314219"><ph name="URL" />에 정보를 입력합니다</translation>
 <translation id="8275068909952022340">더보기…</translation>
 <translation id="8277328362018795342">더욱 관련성 높은 답변 제공을 위해 사용자의 페이지 콘텐츠가 공유됩니다</translation>
-<translation id="8278488584187265939">맞춤 홈페이지 만들기</translation>
 <translation id="8281781826761538115">기본값 - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">건너뛰기</translation>
 <translation id="8282657446819506217">탭 그룹에서 열기</translation>
@@ -1973,6 +1978,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8524799873541103884">전체 <ph name="NUMBER_OF_OPEN_TABS" />개 탭 중 <ph name="FIRST_VISIBLE_TAB" />~<ph name="LAST_VISIBLE_TAB" />번째 탭이 <ph name="INCOGNITO" /> 탭입니다.</translation>
 <translation id="8528009254289981965">시크릿 모드에서 다른 앱의 링크 열기</translation>
 <translation id="8529767659511976195">신규</translation>
+<translation id="8531572740963685410">PDF</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">세이프 브라우징 사용 설정됨</translation>
 <translation id="8534481786647257214">Google+ 게시가 완료되었습니다.</translation>
@@ -2179,6 +2185,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="945522503751344254">의견 보내기</translation>
 <translation id="94870150074703282">그룹을 삭제하시겠습니까?</translation>
 <translation id="952704832371081537">취소</translation>
+<translation id="95332591904104970">연결된 앱</translation>
 <translation id="954667170699278022">읽기 목록</translation>
 <translation id="956218893102219091">IP 주소를 기반으로 한 예상 위치 대신 정확한 위치를 사용하여 가장 정확한 Gemini 결과를 얻으세요. <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">인터넷 사용 기록 삭제</translation>

@@ -398,9 +398,7 @@ void UDPPort::OnReadPacket(AsyncPacketSocket* socket,
   // we already cleared the request when we got the first response.
   if (server_addresses_.find(packet.source_address()) !=
       server_addresses_.end()) {
-    request_manager_.CheckResponse(
-        reinterpret_cast<const char*>(packet.payload().data()),
-        packet.payload().size());
+    request_manager_.CheckResponse(packet.payload());
     return;
   }
 
@@ -613,9 +611,9 @@ void UDPPort::MaybeSetPortCompleteOrError() {
   // request succeeded for any stun server, or the socket is shared.
   if (server_addresses_.empty() || !bind_request_succeeded_servers_.empty() ||
       SharedSocket()) {
-    SignalPortComplete(this);
+    NotifyPortComplete(this);
   } else {
-    SignalPortError(this);
+    NotifyPortError(this);
   }
 }
 

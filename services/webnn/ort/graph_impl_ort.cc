@@ -5,6 +5,7 @@
 #include "services/webnn/ort/graph_impl_ort.h"
 
 #include "base/command_line.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
@@ -24,7 +25,7 @@
 #include "services/webnn/resource_task.h"
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_graph_impl.h"
-#include "third_party/onnxruntime_headers/src/include/onnxruntime/core/session/onnxruntime_c_api.h"
+#include "third_party/windows_app_sdk_headers/src/inc/abi/winml/winml/onnxruntime_c_api.h"
 
 namespace webnn::ort {
 
@@ -76,6 +77,8 @@ class GraphImplOrt::ComputeResources {
   void OrtRunSync(
       std::vector<std::pair<std::string, const OrtValue*>> named_input_tensors,
       std::vector<std::pair<std::string, OrtValue*>> named_output_tensors) {
+    SCOPED_UMA_HISTOGRAM_TIMER("WebNN.ORT.TimingMs.Inference");
+
     ScopedTrace scoped_trace("GraphImplOrt::ComputeResources::OrtRunSync");
     std::vector<const char*> input_names;
     std::vector<const OrtValue*> input_tensors;
@@ -157,6 +160,8 @@ GraphImplOrt::CreateAndBuildOnBackgroundThread(
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
     ScopedTrace scoped_trace) {
+  SCOPED_UMA_HISTOGRAM_TIMER("WebNN.ORT.TimingMs.Compilation");
+
   scoped_trace.AddStep("Create model info");
   std::unique_ptr<ModelEditor::ModelInfo> model_info =
       GraphBuilderOrt::CreateAndBuild(*graph_info,

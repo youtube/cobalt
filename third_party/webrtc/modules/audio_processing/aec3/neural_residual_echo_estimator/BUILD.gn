@@ -76,11 +76,15 @@ if (rtc_include_tests) {
         "//third_party/flatbuffers",
       ]
       if (build_with_chromium) {
-        deps += [ "//third_party/tflite:tflite_builtin_op_resolver" ]
+        deps += [
+          "//third_party/tflite",
+          "//third_party/tflite:tflite_builtin_op_resolver",
+        ]
       } else {
         deps += [
           "../..:audio_processing_unittests",
           "//third_party/tflite:tflite_builtin_op_resolver_standalone",
+          "//third_party/tflite:tflite_standalone",
         ]
       }
     }

@@ -15,9 +15,12 @@
 #include <stdint.h>
 
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "api/rtc_event_log/rtc_event_log.h"
+#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
 #include "logging/rtc_event_log/events/rtc_event_alr_state.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_network_adaptation.h"
@@ -62,6 +65,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/random.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -69,7 +73,8 @@ namespace test {
 
 class EventGenerator {
  public:
-  explicit EventGenerator(uint64_t seed) : prng_(seed) {}
+  explicit EventGenerator(uint64_t seed, Clock* absl_nonnull clock)
+      : prng_(seed), clock_(*clock) {}
 
   std::unique_ptr<RtcEventAlrState> NewAlrState();
   std::unique_ptr<RtcEventAudioNetworkAdaptation> NewAudioNetworkAdaptation();
@@ -153,7 +158,15 @@ class EventGenerator {
   rtcp::ReportBlock NewReportBlock();
   Buffer NewRtcpPacket();
 
+  template <typename T, typename... Args>
+  std::unique_ptr<T> Create(Args&&... args) {
+    auto rtc_event = std::make_unique<T>(std::forward<Args>(args)...);
+    rtc_event->SetTimestamp(clock_.CurrentTime());
+    return rtc_event;
+  }
+
   Random prng_;
+  Clock& clock_;
 };
 
 class EventVerifier {
@@ -263,38 +276,38 @@ class EventVerifier {
       const RtcEventRtcpPacketOutgoing& original_event,
       const LoggedRtcpPacketOutgoing& logged_event) const;
 
-  void VerifyLoggedSenderReport(int64_t log_time_ms,
+  void VerifyLoggedSenderReport(Timestamp log_time,
                                 const rtcp::SenderReport& original_sr,
                                 const LoggedRtcpPacketSenderReport& logged_sr);
   void VerifyLoggedReceiverReport(
-      int64_t log_time_ms,
+      Timestamp log_time,
       const rtcp::ReceiverReport& original_rr,
       const LoggedRtcpPacketReceiverReport& logged_rr);
   void VerifyLoggedExtendedReports(
-      int64_t log_time_ms,
+      Timestamp log_time,
       const rtcp::ExtendedReports& original_xr,
       const LoggedRtcpPacketExtendedReports& logged_xr);
-  void VerifyLoggedFir(int64_t log_time_ms,
+  void VerifyLoggedFir(Timestamp log_time,
                        const rtcp::Fir& original_fir,
                        const LoggedRtcpPacketFir& logged_fir);
-  void VerifyLoggedPli(int64_t log_time_ms,
+  void VerifyLoggedPli(Timestamp log_time,
                        const rtcp::Pli& original_pli,
                        const LoggedRtcpPacketPli& logged_pli);
-  void VerifyLoggedBye(int64_t log_time_ms,
+  void VerifyLoggedBye(Timestamp log_time,
                        const rtcp::Bye& original_bye,
                        const LoggedRtcpPacketBye& logged_bye);
-  void VerifyLoggedNack(int64_t log_time_ms,
+  void VerifyLoggedNack(Timestamp log_time,
                         const rtcp::Nack& original_nack,
                         const LoggedRtcpPacketNack& logged_nack);
   void VerifyLoggedTransportFeedback(
-      int64_t log_time_ms,
+      Timestamp log_time,
       const rtcp::TransportFeedback& original_transport_feedback,
       const LoggedRtcpPacketTransportFeedback& logged_transport_feedback);
-  void VerifyLoggedRemb(int64_t log_time_ms,
+  void VerifyLoggedRemb(Timestamp log_time,
                         const rtcp::Remb& original_remb,
                         const LoggedRtcpPacketRemb& logged_remb);
   void VerifyLoggedLossNotification(
-      int64_t log_time_ms,
+      Timestamp log_time,
       const rtcp::LossNotification& original_loss_notification,
       const LoggedRtcpPacketLossNotification& logged_loss_notification);
 

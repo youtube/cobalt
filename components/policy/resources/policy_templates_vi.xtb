@@ -493,7 +493,6 @@ Tính năng này có trên <ph name="MAC_OS_NAME" /> 10.15 trở lên.</translat
       Nếu bạn bật chính sách này, phím tắt quốc tế cải tiến sẽ được bật.
       Nếu bạn không đặt chính sách này, hệ thống sẽ không áp dụng chính sách cho các thiết bị được quản lý mà áp dụng cho các thiết bị thuộc sở hữu của người dùng thông thường.
       Xin lưu ý rằng đây chỉ là chính sách tạm thời để những người dùng được quản lý vẫn có thể sử dụng các phím tắt cũ không dùng nữa. Chính sách này sẽ ngừng hoạt động sau khi phím tắt tuỳ chỉnh ra mắt.</translation>
-<translation id="1357214899305978790">Thiết lập các lối tắt trên trang Thẻ mới (Phiên bản beta)</translation>
 <translation id="1361661842732478894">Hiện nút Màn hình chính trên thanh công cụ</translation>
 <translation id="1363275621236827384">Bật truy vấn cấu hình Máy chủ Quirks cho phần cứng</translation>
 <translation id="1363839375295535439">Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này, thì Hộp cát LPAC sẽ được bật cho các dịch vụ in mỗi khi cấu hình hệ thống hỗ trợ.
@@ -751,13 +750,6 @@ Nếu bạn đặt chính sách này thành Tắt hoặc không đặt, thì b�
 Nếu bạn không đặt chính sách này, thì bộ chọn biểu tượng cảm xúc sẽ được bật đối với người dùng thông thường nhưng bị tắt đối với người dùng được quản lý.</translation>
 <translation id="1494138678487405397">Tắt chế độ tương phản cao trên màn hình đăng nhập</translation>
 <translation id="1497797462580613666">Trình quản lý tải xuống sẽ có lựa chọn lưu tệp vào <ph name="GOOGLE_DRIVE_NAME" />.</translation>
-<translation id="1498640472634891941">Nếu đặt chính sách này, bạn có thể lập danh sách các mẫu URL xác định những trang web tự động bị từ chối quyền truy cập vào Máy in cục bộ qua API WebPrinting.
-
-Khi bạn không đặt giá trị cho chính sách này, <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho mọi trang web. Nếu không, các tuỳ chọn cài đặt cá nhân của người dùng sẽ được áp dụng.
-
-Các mẫu URL không được xung đột với <ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" />. Không chính sách nào được ưu tiên nếu một URL khớp với cả hai chính sách.
-
-Để biết thông tin chi tiết về các mẫu URL hợp lệ, vui lòng truy cập https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. Chúng tôi không chấp nhận giá trị <ph name="WILDCARD_VALUE" /> đối với chính sách này.</translation>
 <translation id="1499129134689253257">Kiểm soát thao tác mới của <ph name="OFFSET_PARENT" /></translation>
 <translation id="1501644502684303995">Chỉ buộc đăng nhập trực tuyến trên màn hình đăng nhập</translation>
 <translation id="1502843533062797703">Cho phép chặn phần mềm bên thứ ba thêm mã thực thi</translation>
@@ -3441,7 +3433,6 @@ Nếu bạn đặt chính sách này thành <ph name="DATA_REGION_SETTING_UNITED
 Nếu bạn đặt chính sách này thành <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" /> (giá trị 2) thì dữ liệu được áp dụng sẽ được lưu trữ ở Liên minh Châu Âu.
 
 Bạn chỉ có thể đặt chế độ này trong <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> bằng cách chuyển đến phần Dữ liệu &gt; Tuân thủ &gt; Khu vực lưu trữ dữ liệu &gt; Khu vực &gt; Dữ liệu tĩnh.</translation>
-<translation id="3379326579027180941">Cho phép trang web đề nghị người dùng cấp quyền truy cập vào máy in cục bộ qua API WebPrinting</translation>
 <translation id="3379368498958498146">Bật hoặc tắt tính năng gợi ý khi viết bằng bàn phím vật lý.
 
 Nếu bạn đặt chính sách này thành Bật hoặc không đặt, tính năng gợi ý khi viết bằng bàn phím vật lý sẽ được phép hoạt động.
@@ -5003,6 +4994,11 @@ Chính sách này luôn có hiệu lực đối với <ph name="PRODUCT_OS_NAME"
 <translation id="4467952432486360968">Chặn cookie của bên thứ ba</translation>
 <translation id="4472740647327683596">Chiều rộng của trang (tính bằng micromet)</translation>
 <translation id="4474167089968829729">Bật lưu mật khẩu cho trình quản lý mật khẩu</translation>
+<translation id="4474266799109921560">Nếu bạn đặt chính sách này thành 2, hệ thống sẽ tự động ngăn các nguồn gốc của Ứng dụng web tách biệt sử dụng API WebPrinting.
+
+Nếu bạn đặt chính sách này thành 3, hệ thống sẽ nhắc người dùng khi có một nguồn gốc của Ứng dụng web tách biệt muốn sử dụng API WebPrinting.
+
+Nếu bạn không đặt chính sách này, các nguồn gốc của Ứng dụng web tách biệt có thể yêu cầu quyền truy cập vào máy in cục bộ nhưng người dùng có thể thay đổi chế độ cài đặt này.</translation>
 <translation id="447692108909279121">Hoạt động xử lý IP của WebRTC</translation>
 <translation id="4478248026668918517">Chặn tính năng Phát hiện phạm vi chính sách.</translation>
 <translation id="4479671363221255277">Khi đặt chính sách này, bạn có thể tạo danh sách các mẫu URL để chỉ định những trang web được phép yêu cầu người dùng cấp quyền đọc các tệp hoặc thư mục trong hệ thống tệp của hệ điều hành máy chủ qua API Hệ thống tệp.
@@ -5371,6 +5367,14 @@ Sau quá trình thiết lập ban đầu, người dùng có thể bật hoặc 
 <translation id="4674542060943819878">Bật chế độ đóng cảnh báo mật khẩu bị lộ</translation>
 <translation id="4674871290487541952">Cho phép thuật toán không an toàn trong quá trình kiểm tra tính toàn vẹn đối với các bản cập nhật và cài đặt tiện ích</translation>
 <translation id="4680961954980851756">Bật Tự động điền</translation>
+<translation id="4681603713834987752">Nếu đặt chính sách này, bạn có thể lập danh sách các mẫu URL xác định những trang web tự động được cấp quyền truy cập vào máy in cục bộ qua API WebPrinting.
+Các mẫu hợp lệ được giới hạn ở Ứng dụng web tách biệt.
+
+Khi bạn không đặt chính sách này, <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho tất cả trang web. Nếu không, các chế độ cá nhân hoá của người dùng sẽ được áp dụng.
+
+Các mẫu URL không được xung đột với <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Không chính sách nào được ưu tiên nếu một URL khớp với cả hai chính sách.
+
+Để biết thông tin chi tiết về các mẫu URL hợp lệ, vui lòng truy cập vào https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. Chúng tôi không chấp nhận giá trị <ph name="WILDCARD_VALUE" /> đối với chính sách này.</translation>
 <translation id="46845898956959634">Cho phép tính năng Giúp tôi viết và tham gia cải tiến mô hình AI.</translation>
 <translation id="4685721728282448265">Đã cho phép dùng thuật toán CECPQ2 của thỏa thuận về khóa hậu lượng tử cho TLS</translation>
 <translation id="468822697351680932">Sử dụng chính sách SiteList của Internet Explorer làm nguồn quy tắc</translation>
@@ -5391,17 +5395,6 @@ Người dùng sẽ vẫn đăng nhập vào Tài khoản Google của mình khi
 Cho đến Chrome 114, chính sách này yêu cầu đặt chính sách <ph name="SYNC_DISABLED_POLICY_NAME" /> thành true (đúng). Kể từ Chrome 115, việc bạn đặt chính sách này sẽ tắt tính năng đồng bộ hoá đối với các loại dữ liệu tương ứng nếu "<ph name="CHROME_SYNC_NAME" />" không bị tắt bằng cách đặt chính sách <ph name="SYNC_DISABLED_POLICY_NAME" /> và <ph name="BROWSER_SIGNIN_POLICY_NAME" /> cũng không bị tắt.</translation>
 <translation id="4694138212536142867">Bật tính năng báo cáo trạng thái phần cứng của thiết bị</translation>
 <translation id="4697581738794063407">Kiểm soát tính năng lọc tham số URL</translation>
-<translation id="4698488381632756664">Đang phát triển: chỉ dành cho bản xem trước.
-
-Nếu bạn đặt chính sách này, hệ thống sẽ định cấu hình trước tối đa 10 lối tắt tuỳ chỉnh trên trang Thẻ mới của <ph name="PRODUCT_NAME" />.
-
-Nếu bạn đặt chính sách này, người dùng sẽ thấy các lối tắt này theo mặc định và có thể chuyển đổi giữa "Các lối tắt của tôi", "Các trang web truy cập nhiều nhất " hoặc "Các lối tắt của tổ chức của tôi" trên bảng điều khiển "Tuỳ chỉnh Chrome". Nếu bạn không đặt hoặc để trống chính sách này, người dùng sẽ chỉ có thể chuyển đổi giữa "Các lối tắt của tôi" hoặc "Các trang web truy cập nhiều nhất" trên bảng điều khiển "Tuỳ chỉnh Chrome".
-
-URL lối tắt phải không được trùng lặp.
-
-Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> thành true, thì người dùng có thể thay đổi tên của lối tắt. Nếu bạn đặt thành false hoặc không đặt, thì người dùng sẽ không thể chỉnh sửa tên.
-
-Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> thành true, thì người dùng có thể xoá lối tắt. Nếu bạn đặt thành false hoặc không đặt, thì người dùng không thể xoá lối tắt.</translation>
 <translation id="4698895924806859508">Không báo cáo sự kiện mạng</translation>
 <translation id="4699172675775169585">Tệp và hình ảnh được lưu trong bộ nhớ đệm</translation>
 <translation id="4699592681017489215">Chính sách này định cấu hình một công tắc cục bộ có thể dùng để tắt các tùy chọn kiểm tra chặn hệ thống tên miền (DNS). Các tùy chọn kiểm tra dùng để khám phá xem trình duyệt có ở sau một proxy chuyển hướng các tên máy chủ không xác định không.
@@ -7476,6 +7469,14 @@ Chính sách này chỉ áp dụng cho những lần kết nối mới và khôn
 <translation id="5983274643567559194">Không cho phép đặt phím tắt cho thao tác của phím "Delete".</translation>
 <translation id="5984099692320899605">Không sử dụng tuỳ chọn xác thực NTLM</translation>
 <translation id="5984237109586500246">Chấp nhận nội dung web được phân phối ở dạng Signed HTTP Exchanges</translation>
+<translation id="5985770641601021372">Nếu đặt chính sách này, bạn có thể lập danh sách các mẫu URL xác định những trang web tự động bị từ chối quyền truy cập vào máy in cục bộ qua API WebPrinting.
+Các mẫu hợp lệ được giới hạn ở Ứng dụng web tách biệt.
+
+Khi bạn không đặt chính sách này, <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho tất cả trang web. Nếu không, các chế độ cá nhân hoá của người dùng sẽ được áp dụng.
+
+Các mẫu URL không được xung đột với <ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" />. Không chính sách nào được ưu tiên nếu một URL khớp với cả hai chính sách.
+
+Để biết thông tin chi tiết về các mẫu URL hợp lệ, vui lòng truy cập vào https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. Chúng tôi không chấp nhận giá trị <ph name="WILDCARD_VALUE" /> đối với chính sách này.</translation>
 <translation id="5987654816293745077">Báo cáo bộ đếm thời gian chạy của thiết bị</translation>
 <translation id="5991707691018985057">Hiện hộp thoại huỷ khi có lệnh gọi event.preventDefault() cho sự kiện beforeunload. Không hiện hộp thoại huỷ khi event.returnValue cho sự kiện beforeunload là chuỗi trống.</translation>
 <translation id="5992485316563377005">Nếu bạn không đặt hoặc đặt chính sách này thành Bật, thì tính năng Tính toàn vẹn của mã trình kết xuất sẽ được bật.
@@ -7610,7 +7611,6 @@ chính sách này trong khi trình duyệt đang chạy.</translation>
 <translation id="6089679180657323464">Kiểm soát các tùy chọn cài đặt của bộ điều khiển đo từ xa và chẩn đoán wilco.</translation>
 <translation id="6091233616732024397">Buộc người dùng đăng nhập để sử dụng trình duyệt</translation>
 <translation id="6092073071805297119">Cho phép sử dụng tính năng Lọc hiệu suất hỗ trợ tiếp cận.</translation>
-<translation id="60925735895026302">Không cho phép bất kỳ trang web nào yêu cầu quyền truy cập vào máy in cục bộ qua API WebPrinting</translation>
 <translation id="6093156968240188330">Cho phép người dùng ở xa tương tác với cửa sổ bật lên trong phiên hỗ trợ từ xa</translation>
 <translation id="6093551397728373988">Bắt buộc bật tất cả phương thức nhập được phép trong một phiên hoạt động của người dùng</translation>
 <translation id="6094314311474620462">Tắt chức năng in</translation>
@@ -8058,14 +8058,6 @@ của chính sách
 sẽ gặp sự cố và chỉ sử dụng độ phân giải vị trí dựa trên <ph name="IP" /> trên màn hình <ph name="LOG_IN" />.</translation>
 <translation id="6338982178236723271">Báo cáo thông tin về hệ thống</translation>
 <translation id="6339355882150329269">Không coi người dùng là không hoạt động khi video đang phát</translation>
-<translation id="6347110299837147365">Chính sách này cho phép quản trị viên mã hoá bộ nhớ đệm http của trình duyệt trên ổ đĩa.
-Hiện tại, chính sách này chỉ được hỗ trợ trên Windows.
-
-Khi bạn Bật chính sách này, bộ nhớ đệm của trình duyệt sẽ được mã hoá.
-
-Khi bạn Tắt hoặc không đặt chính sách này, bộ nhớ đệm của trình duyệt sẽ không được mã hoá.
-
-Việc mã hoá bộ nhớ đệm của trình duyệt có thể ảnh hưởng đến hiệu suất.</translation>
 <translation id="6352714113109004581">Nếu đặt chính sách này, thì bạn có thể liệt kê các mẫu URL chỉ định những trang web được phép yêu cầu người dùng cấp quyền truy cập vào thiết bị HID.
 
       Khi bạn không đặt chính sách này, <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho mọi trang web. Nếu không, các chế độ cài đặt cá nhân của người dùng sẽ được áp dụng.
@@ -8386,6 +8378,13 @@ Chính sách này không ảnh hưởng đến quá trình phân tích nội dun
 <translation id="6520802717075138474">Nhập công cụ tìm kiếm từ trình duyệt mặc định trong lần chạy đầu tiên</translation>
 <translation id="6521971538031711337">Ngăn người dùng được quản lý định cấu hình tên máy chủ của thiết bị</translation>
 <translation id="6523079496775454310">Bật chính sách đề nghị người dùng được quản lý cho phép chia sẻ tín hiệu của thiết bị trên các thiết bị không được quản lý</translation>
+<translation id="6523608518493993483">Chính sách này cho phép quản trị viên mã hoá bộ nhớ đệm http của trình duyệt trên ổ đĩa.
+
+Khi bạn đặt chính sách này thành Enabled (Bật), bộ nhớ đệm của trình duyệt sẽ được mã hoá.
+
+Khi bạn không đặt chính sách này hoặc đặt thành Disabled (Tắt), bộ nhớ đệm của trình duyệt sẽ không được mã hoá.
+
+Việc mã hoá bộ nhớ đệm của trình duyệt có thể ảnh hưởng đến hiệu suất.</translation>
 <translation id="6527674993612811419">Hiện cảnh báo và tắt tính năng tự động điền trên các biểu mẫu không an toàn</translation>
 <translation id="6532769014584932288">Cho phép khóa chế độ thức</translation>
 <translation id="6533881418188970751">Hỏi người dùng vị trí lưu tệp trước khi tải xuống</translation>
@@ -8656,6 +8655,7 @@ Khi bạn bật chính sách này, tính năng Cập nhật thuật toán GREASE
 <translation id="6687291630099400188">Không hiển thị thông tin hệ thống trên màn hình đăng nhập</translation>
 <translation id="6689343802305995925">Không có hành động nào diễn ra.</translation>
 <translation id="6689792153960219308">Báo cáo trạng thái phần cứng</translation>
+<translation id="6690130879720759384">Không cho phép các nguồn gốc của Ứng dụng web tách biệt yêu cầu quyền truy cập vào máy in cục bộ qua API WebPrinting</translation>
 <translation id="6690425645391461516">Tắt các tùy chọn kiểm tra chặn hệ thống tên miền (DNS); cho phép thanh thông tin "Ý của bạn là http://intranetsite/".</translation>
 <translation id="669066148640728553">Chỉ định một khoảng thời gian mục tiêu khi hết thời gian thông báo chạy lại.
 
@@ -8902,13 +8902,9 @@ Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặ
 Nếu bạn đặt chính sách này thành sai hoặc không đặt thì bố cục này sẽ không được áp dụng. Bạn cần khởi động lại để chính sách có hiệu lực.</translation>
 <translation id="685769593149966548">Buộc sử dụng Chế độ hạn chế nghiêm ngặt cho YouTube</translation>
 <translation id="686079137349561371">Microsoft Windows 7 trở lên</translation>
+<translation id="6863927303509860338">Thiết lập các lối tắt trên trang Thẻ mới</translation>
 <translation id="6866755486434471318">Cho phép <ph name="PEPPER_NAME" /> sử dụng hình ảnh được chia sẻ để giải mã video.</translation>
 <translation id="6878757724611298427">Cho phép người dùng sử dụng ứng dụng Android trên thiết bị chưa liên kết</translation>
-<translation id="6881397131210596522">Nếu bạn đặt chính sách này thành 2 thì hệ thống sẽ tự động ngăn các trang web sử dụng API WebPrinting.
-
-Nếu bạn đặt chính sách này thành 3 thì hệ thống sẽ nhắc người dùng khi có một trang web muốn sử dụng API WebPrinting.
-
-Nếu bạn không đặt chính sách này, các trang web có thể yêu cầu quyền truy cập vào máy in cục bộ nhưng người dùng có thể thay đổi tuỳ chọn cài đặt này.</translation>
 <translation id="6881447940489194100">Hàm băm SHA-256 được mã hoá thập lục phân của dữ liệu.</translation>
 <translation id="68818134518270542">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định những ứng dụng mà người dùng có thể bật làm ứng dụng ghi chú trên màn hình khóa của <ph name="PRODUCT_OS_NAME" />.
 
@@ -9800,6 +9796,17 @@ thì hệ thống sẽ bật tính năng đọc to.</translation>
       Khi bạn bật hoặc không đặt chính sách này, các trang web chỉ có thể gọi getDisplayMedia() qua các bối cảnh được phép của chính sách về quyền thu thập dữ liệu màn hình.
 
       Khi bạn tắt chính sách này, các trang web có thể gọi getDisplayMedia() ngay cả qua các bối cảnh không được phép của chính sách về quyền thu thập dữ liệu màn hình. Xin lưu ý rằng các hạn chế khác vẫn có thể được áp dụng.</translation>
+<translation id="750408442628578356">Kiểm soát việc ứng dụng Gemini có được phép hành động trên các trang web thay mặt người dùng hay không.
+
+0/không đặt  = Ứng dụng Gemini được phép hành động trên các trang web.
+
+1 = Ứng dụng Gemini không được phép hành động trên các trang web.
+
+Chính sách này không có hiệu lực khi ứng dụng Gemini bị tắt. Ví dụ: Ứng dụng Gemini có thể bị tắt theo chính sách <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Để biết thêm thông tin về Gemini trong Chrome, vui lòng truy cập https://support.google.com/chrome/a/answer/16291696.
+
+Một số quốc gia hoặc một số ngôn ngữ không hỗ trợ việc kích hoạt các tính năng của Gemini. Việc thiết lập chính sách này không đảm bảo rằng tính năng sẽ được kích hoạt; điều này vẫn tuỳ thuộc vào khả năng sử dụng tính năng. Để biết thêm thông tin về việc ra mắt tính năng, hãy xem Ghi chú phát hành của Enterprise: https://support.google.com/chrome/a/answer/7679408?hl=en</translation>
 <translation id="7506745375479451616">Chính sách này kiểm soát lệnh sẽ dùng để mở URL trong <ph name="PRODUCT_NAME" /> khi chuyển từ <ph name="IE_PRODUCT_NAME" />. Bạn có thể đặt chính sách này thành một đường dẫn tệp thực thi hoặc <ph name="PRODUCT_NAME_PLACEHOLDER" /> để tự động phát hiện vị trí của <ph name="PRODUCT_NAME" />.
 
       Nếu bạn không đặt chính sách này, thì <ph name="IE_PRODUCT_NAME" /> sẽ tự động phát hiện đường dẫn thực thi riêng của <ph name="PRODUCT_NAME" /> khi chạy <ph name="PRODUCT_NAME" /> từ Internet Explorer.
@@ -10756,15 +10763,6 @@ Hãy xem mục 5.2 của RFC 8828 (https://tools.ietf.org/html/rfc8828.html#sect
       Nếu bạn đặt chính sách này thành Tắt thì các thiết bị đã đăng ký sẽ không nhận được các biện pháp kiểm soát báo cáo chi tiết.</translation>
 <translation id="82530263956734297">Các mã nhận dạng tiện ích sẽ được miễn trừ khỏi danh sách chặn</translation>
 <translation id="8254749125469750814">Không dùng dịch vụ đám mây để kiểm tra xem có thể cài đặt một tiện ích hay không.</translation>
-<translation id="825509998103089977">Kiểm soát việc ứng dụng Gemini có được phép hành động trên các trang web thay mặt người dùng hay không.
-
-0/không đặt  = Ứng dụng Gemini được phép hành động trên các trang web.
-
-1 = Ứng dụng Gemini không được phép hành động trên các trang web.
-
-Chính sách này không có hiệu lực khi ứng dụng Gemini bị tắt. Ví dụ: Ứng dụng Gemini có thể bị tắt theo chính sách <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Để biết thêm thông tin, vui lòng xem https://support.google.com/chrome/a/answer/16291696.</translation>
 <translation id="8256006033157034334">Chính sách này không còn được dùng nữa và không được hỗ trợ, vui lòng dùng <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />.</translation>
 <translation id="8256688113167012935">Kiểm soát tên tài khoản <ph name="PRODUCT_OS_NAME" /> hiển thị trên màn hình đăng nhập cho tài khoản trong thiết bị tương ứng.
 
@@ -11018,17 +11016,6 @@ Chứng chỉ cần được mã hoá base64.</translation>
 <translation id="8381774264911275515">Tắt chính sách chuyển Cookie SAML SSO sang phiên người dùng trong khi đăng nhập</translation>
 <translation id="8382184662529825177">Cho phép sử dụng chứng thực từ xa để bảo vệ nội dung cho thiết bị</translation>
 <translation id="838870586332499308">Bật chuyển vùng dữ liệu</translation>
-<translation id="8389925503559691525">Chính sách này kiểm soát việc có phân vùng URL blob trong quá trình tìm nạp và điều hướng hay không.
-Nếu bạn đặt chính sách này thành Bật hoặc không đặt, URL blob sẽ được phân vùng.
-Nếu bạn đặt chính sách này thành Tắt, URL blob sẽ không được phân vùng.
-
-Nếu tính năng phân vùng bộ nhớ bị tắt đối với một nguồn gốc cấp cao nhất cụ thể thông qua <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> hoặc <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />, thì URL blob cũng sẽ không được phân vùng.
-
-Nếu bạn phải sử dụng chính sách này, vui lòng báo cáo lỗi tại <ph name="BUG_URL" /> và giải thích trường hợp sử dụng của bạn. Chính sách này dự kiến sẽ được cung cấp thông qua phiên bản 143 của <ph name="PRODUCT_NAME" />, sau đó phương thức triển khai cũ sẽ bị loại bỏ.
-
-LƯU Ý: Chỉ các quy trình kết xuất hình ảnh mới bắt đầu mới thể hiện các thay đổi đối với chính sách này trong khi trình duyệt đang chạy.
-
-Vui lòng truy cập vào https://developers.google.com/privacy-sandbox/cookies/storage-partitioning để biết thông tin chi tiết về tính năng phân vùng bộ nhớ của bên thứ ba.</translation>
 <translation id="8392478748777481636">Chính sách này không còn được dùng nữa và không được hỗ trợ, vui lòng dùng chính sách "<ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" />".</translation>
 <translation id="8393850527597048037">Chỉ trên nền tảng</translation>
 <translation id="8395350646076131800">Thời gian chờ ở trạng thái rảnh trên màn hình khoá trên trình bảo vệ màn hình của người dùng.</translation>
@@ -11295,6 +11282,7 @@ Nếu bạn không đặt chính sách này thì hành vi của chính sách s�
 Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8566842294717252664">Ẩn cửa hàng trực tuyến khỏi trang thẻ mới và trình chạy ứng dụng</translation>
 <translation id="8567697114274003779">Đặt nhãn doanh nghiệp tuỳ chỉnh cho một hồ sơ được quản lý</translation>
+<translation id="8571069584826006598">Cho phép các nguồn gốc của Ứng dụng web tách biệt yêu cầu người dùng cấp quyền truy cập vào máy in cục bộ qua API WebPrinting</translation>
 <translation id="8571119890730528225">Vô hiệu hoá tính năng phân vùng bộ nhớ của bên thứ ba.</translation>
 <translation id="8571314270766672278">Hạ cấp hệ điều hành và đặt lại thiết bị khi hạ cấp kênh, cố gắng duy trì việc đăng ký</translation>
 <translation id="8571871284943706125">Báo cáo sự kiện trong phiên CRD trên các thiết bị đã đăng ký cho người dùng liên kết.
@@ -11601,13 +11589,6 @@ giao thức https.</translation>
 <translation id="8789338675663014675">Định cấu hình các chính sách liên quan đến tiện ích. Người dùng không được phép cài đặt các tiện ích bị chặn trừ phi các tiện ích đó có trong danh sách cho phép. Bạn cũng có thể buộc <ph name="PRODUCT_NAME" /> tự động cài đặt tiện ích bằng cách chỉ định các tiện ích trong <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />. Các tiện ích bị buộc cài đặt sẽ được cài đặt bất kể chúng có trong danh sách chặn hay không.</translation>
 <translation id="879697755145469671">Không phát hiện cửa sổ bị che khuất</translation>
 <translation id="8798099450830957504">Mặc định</translation>
-<translation id="879863472982972634">Nếu đặt chính sách này, bạn có thể lập danh sách các mẫu URL xác định những trang web tự động được cấp quyền truy cập vào Máy in cục bộ qua API WebPrinting.
-
-Khi bạn không đặt giá trị cho chính sách này, <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho mọi trang web. Nếu không, các tuỳ chọn cài đặt cá nhân của người dùng sẽ được áp dụng.
-
-Các mẫu URL không được xung đột với <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Không chính sách nào được ưu tiên nếu một URL khớp với cả hai chính sách.
-
-Để biết thông tin chi tiết về các mẫu URL hợp lệ, vui lòng truy cập https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. Chúng tôi không chấp nhận giá trị <ph name="WILDCARD_VALUE" /> đối với chính sách này.</translation>
 <translation id="8799492680917278474">Nếu bạn đặt chính sách này, các kết nối truy cập từ xa sẽ tự động ngắt kết nối sau khi hết số phút đã xác định trong chính sách. Ứng dụng vẫn có thể kết nối lại sau khi đã đạt đến thời lượng phiên tối đa. Nếu bạn đặt chính sách này thành một giá trị không nằm trong khoảng tối thiểu/tối đa, thì máy chủ lưu trữ có thể không khởi động được. Chính sách này không ảnh hưởng đến các trường hợp hỗ trợ từ xa.
 
           Chính sách này chỉ có hiệu lực nếu được đặt. Trong trường hợp này, các kết nối truy cập từ xa sẽ không có thời lượng tối đa trên máy này.</translation>

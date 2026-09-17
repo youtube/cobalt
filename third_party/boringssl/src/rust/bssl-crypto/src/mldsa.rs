@@ -263,6 +263,28 @@ impl PublicKey65 {
         }
     }
 
+    /// Verify pre-hashed data.
+    pub fn verify_prehashed(
+        &self,
+        prehash: Prehash65,
+        signature: &[u8],
+    ) -> Result<(), InvalidSignatureError> {
+        let representative = prehash.finalize();
+        unsafe {
+            let ok = bssl_sys::MLDSA65_verify_message_representative(
+                &*self.0,
+                signature.as_ffi_ptr(),
+                signature.len(),
+                representative.as_ffi_ptr(),
+            );
+            if ok == 1 {
+                Ok(())
+            } else {
+                Err(InvalidSignatureError)
+            }
+        }
+    }
+
     /// Start a pre-hashing operation using this public key.
     pub fn prehash(&self) -> Prehash65 {
         unsafe {
@@ -346,7 +368,7 @@ mod test {
     }
 
     #[test]
-    fn prehashed() {
+    fn sign_prehashed() {
         let (serialized_public_key, private_key, _private_seed) = PrivateKey65::generate();
         let public_key = PublicKey65::parse(&serialized_public_key).unwrap();
         let message = &[0u8, 1, 2, 3, 4, 5, 6];
@@ -364,7 +386,7 @@ mod test {
 
     #[cfg(feature = "std")]
     #[test]
-    fn prehashed_write() {
+    fn sign_prehashed_write() {
         use std::io::Write;
         let (serialized_public_key, private_key, _private_seed) = PrivateKey65::generate();
         let public_key = PublicKey65::parse(&serialized_public_key).unwrap();
@@ -380,6 +402,50 @@ mod test {
         assert!(public_key.verify(message, &signature).is_ok());
         signature[5] ^= 1;
         assert!(public_key.verify(message, &signature).is_err());
+    }
+
+    #[test]
+    fn verify_prehashed() {
+        let (serialized_public_key, private_key, _private_seed) = PrivateKey65::generate();
+        let public_key = PublicKey65::parse(&serialized_public_key).unwrap();
+        let message = &[0u8, 1, 2, 3, 4, 5, 6];
+
+        let signature = private_key.sign(message);
+
+        let mut prehash = public_key.prehash();
+        prehash.update(&message[0..2]);
+        prehash.update(&message[2..4]);
+        assert!(public_key.verify_prehashed(prehash, &signature).is_err());
+
+        let mut prehash = public_key.prehash();
+        prehash.update(&message[0..2]);
+        prehash.update(&message[2..4]);
+        prehash.update(&message[4..]);
+        assert!(public_key.verify_prehashed(prehash, &signature).is_ok());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn verify_prehashed_write() {
+        use std::io::Write;
+        let (serialized_public_key, private_key, _private_seed) = PrivateKey65::generate();
+        let public_key = PublicKey65::parse(&serialized_public_key).unwrap();
+        let message = &[0u8, 1, 2, 3, 4, 5, 6];
+
+        let signature = private_key.sign(message);
+
+        let mut prehash = public_key.prehash();
+        prehash.write(&message[0..2]).unwrap();
+        prehash.write(&message[2..4]).unwrap();
+        prehash.flush().unwrap();
+        assert!(public_key.verify_prehashed(prehash, &signature).is_err());
+
+        let mut prehash = public_key.prehash();
+        prehash.write(&message[0..2]).unwrap();
+        prehash.write(&message[2..4]).unwrap();
+        prehash.write(&message[4..]).unwrap();
+        prehash.flush().unwrap();
+        assert!(public_key.verify_prehashed(prehash, &signature).is_ok());
     }
 
     #[test]

@@ -126,7 +126,6 @@ class NewTabPageUI
 
   ~NewTabPageUI() override;
 
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCustomizeChromeButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kModulesCustomizeIPHAnchorElement);
 
   static bool IsNewTabPageOrigin(const GURL& url);
@@ -302,13 +301,13 @@ class NewTabPageUI
       content::NavigationHandle* navigation_handle) override;
   void OnColorProviderChanged() override;
 
-  bool IsCustomLinksEnabled() const;
-  bool IsEnterpriseShortcutsEnabled() const;
   bool IsShortcutsVisible() const;
 
-  // Callback for when the value of the pref for determining the type of NTP
-  // tiles changes.
-  void OnShortcutsTypePrefChanged();
+  // Updates the NTP tile types based on current preferences.
+  void UpdateMostVisitedTileTypes();
+  // Callback for when the value of the prefs for determining the type of NTP
+  // tiles to show changes.
+  void OnTileTypesChanged();
   // Callback for when the value of the pref for showing the NTP tiles changes.
   void OnTilesVisibilityPrefChanged();
   // Called when the NTP (re)loads. Sets mutable load time data.

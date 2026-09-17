@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "api/dtls_transport_interface.h"
 #include "api/ref_count.h"
@@ -148,6 +149,10 @@ struct SctpOptions {
   // `max_message_size` sets the maxium message size on the connection.
   // It must be smaller than or equal to kSctpSendBufferSize.
   int max_message_size = kSctpSendBufferSize;
+
+  // draft-hancke-tsvwg-snap
+  std::optional<std::vector<uint8_t>> local_init;
+  std::optional<std::vector<uint8_t>> remote_init;
 };
 
 }  // namespace webrtc

@@ -15,6 +15,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
 
 namespace v8 {
 namespace internal {
@@ -67,11 +68,14 @@ class RecomputeKnownNodeAspectsProcessor {
       }
     }
 
-    if (block->is_loop() && block->state()->IsUnreachableByForwardEdge()) {
+    if (block->is_loop() && block->state()->is_resumable_loop()) {
       // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
       // for all loops.
-      DCHECK(block->state()->is_resumable_loop());
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+    } else if (block->is_loop()) {
+      known_node_aspects_ =
+          block->state()->TakeKnownNodeAspects()->CloneForLoopHeader(
+              false, nullptr, zone());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
@@ -190,21 +194,8 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node) {
-    // Don't do anything for nodes without side effects.
-    if constexpr (!NodeT::kProperties.can_write()) return;
-
-    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-      node->ClearElementsProperties(graph_->is_tracing_enabled(),
-                                    known_node_aspects());
-    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
-                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
-      // Don't change known node aspects for simple field stores. The only
-      // relevant side effect on these is writes to objects which invalidate
-      // loaded properties and context slots, and we invalidate these already as
-      // part of emitting the store.
-      node->ClearUnstableNodeAspects(graph_->is_tracing_enabled(),
-                                     known_node_aspects());
-    }
+    known_node_aspects().MarkPossibleSideEffect(node, broker(),
+                                                graph_->is_tracing_enabled());
   }
 
 #define PROCESS_CHECK(Type)                             \
@@ -223,7 +214,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -238,7 +229,7 @@ class RecomputeKnownNodeAspectsProcessor {
 // This happens for instance for LoadProperty.
 #define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -276,8 +267,63 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UncheckedNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
+
+  ProcessResult ProcessNode(LoadTaggedField* node) {
+    if (!node->property_key().is_none()) {
+      auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+          zone(), node->is_const(), node->property_key());
+      props_for_key[node->object_input().node()] = node;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  void ProcessStoreTaggedField(NodeT* node) {
+    if (node->property_key().is_none()) return;
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        zone(), false, node->property_key());
+    // We don't do any aliasing analysis, so stores clobber all other cached
+    // loads of a property with that key. We only need to do this for
+    // non-constant properties, since constant properties are known not to
+    // change and therefore can't be clobbered.
+    // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
+    // whether there's an intersection of known maps.
+    props_for_key.clear();
+    props_for_key[node->object_input().node()] = node->value_input().node();
+  }
+
+  ProcessResult ProcessNode(StoreTaggedFieldNoWriteBarrier* node) {
+    ProcessStoreTaggedField(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreTaggedFieldWithWriteBarrier* node) {
+    ProcessStoreTaggedField(node);
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  void ProcessLoadContextSlot(NodeT* node) {
+    if (node->is_const()) {
+      ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
+          node->input_node(0), node->offset(),
+          ContextSlotMutability::kImmutable);
+      if (!cached_value) cached_value = node;
+    }
+  }
+
+  ProcessResult ProcessNode(LoadContextSlot* node) {
+    ProcessLoadContextSlot(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(LoadContextSlotNoCells* node) {
+    ProcessLoadContextSlot(node);
+    return ProcessResult::kContinue;
+  }
 
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };

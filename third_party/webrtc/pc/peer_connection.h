@@ -433,6 +433,7 @@ class PeerConnection : public PeerConnectionInternal,
   void TeardownDataChannelTransport_n(RTCError error)
       RTC_RUN_ON(network_thread());
 
+  const Environment& env() const override { return env_; }
   const FieldTrialsView& trials() const override { return env_.field_trials(); }
 
   bool ConfiguredForMedia() const;

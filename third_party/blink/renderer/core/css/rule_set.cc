@@ -448,8 +448,8 @@ static bool ExtractBucketingValues(const CSSSelector* selector,
               style_scope ? style_scope->From() : nullptr;
           if (selector_list &&
               CSSSelectorList::IsSingleComplexSelector(*selector_list)) {
-            bool should_continue =
-                ExtractBucketingValues(selector_list, style_scope, values);
+            bool should_continue = ExtractBucketingValues(
+                selector_list, style_scope->Parent(), values);
             CHECK(should_continue);
           }
           break;
@@ -600,7 +600,8 @@ void RuleSet::FindBestBucketAndAdd(CSSSelector& component,
   }
 
   if (!values.part_name.empty()) {
-    CHECK(values.ua_shadow_pseudo.empty()); // See ua_shadow_pseudo branch above.
+    CHECK(
+        values.ua_shadow_pseudo.empty());  // See ua_shadow_pseudo branch above.
     // TODO: Mark as covered by bucketing?
     AddToBucket(part_pseudo_rules_, rule_data);
     return;
@@ -1073,10 +1074,10 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
     } else if (auto* contents_rule =
                    DynamicTo<StyleRuleContentsStatement>(rule)) {
       const StyleRuleMixin* mixin = apply_mixins_stack.back().mixin;
-      const StyleRuleApplyMixin* apply =
+      StyleRuleApplyMixin* apply =
           apply_mixins_stack.back().invoking_apply_rule;
-      const CustomEnvBindings* env_bindings =
-          apply_mixins_stack.back().env_bindings;
+      const MixinParameterBindings* mixin_parameter_bindings =
+          apply_mixins_stack.back().mixin_parameter_bindings;
 
       // Verify that the mixin actually has a @contents parameter.
       // Otherwise, @contents is illegal and ignored.
@@ -1091,14 +1092,18 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
         // @contents, and if neither exists, nothing happens.
         StyleRule* rules_to_add = nullptr;
         if (apply->FakeParentRuleForDeclarations()) {
-          rules_to_add = apply->FakeParentRuleForDeclarations();
+          rules_to_add =
+              To<StyleRuleApplyMixin>(
+                  apply->Clone(parent_rule, mixin_parameter_bindings))
+                  ->FakeParentRuleForDeclarations();
         } else if (contents_rule->FakeParentRuleForFallback() &&
                    contents_rule->FakeParentRuleForFallback()->ChildRules()) {
-          rules_to_add = contents_rule->FakeParentRuleForFallback();
+          rules_to_add =
+              To<StyleRuleContentsStatement>(
+                  contents_rule->Clone(parent_rule, mixin_parameter_bindings))
+                  ->FakeParentRuleForFallback();
         }
         if (rules_to_add && rules_to_add->ChildRules()) {
-          rules_to_add =
-              To<StyleRule>(rules_to_add->Clone(parent_rule, env_bindings));
           AddChildRules(parent_rule, *rules_to_add->ChildRules(), medium,
                         mixins, add_rule_flags, container_query, cascade_layer,
                         style_scope, apply_mixins_stack);
@@ -1147,40 +1152,41 @@ void RuleSet::ApplyMixin(StyleRule* parent_rule,
       return;
     }
 
-    HashMap<String, std::pair<String, CSSSyntaxDefinition>> bindings;
+    HeapHashMap<String, MixinParameterBindings::Binding> bindings;
     for (unsigned i = 0; i < mixin_rule->GetParameters().size(); ++i) {
       const StyleRuleFunction::Parameter& parameter =
           mixin_rule->GetParameters()[i];
+      CSSVariableData* argument_data = nullptr;
       if (i < apply_mixin_rule->GetArguments().size()) {
-        bindings.insert(
-            parameter.name,
-            std::pair(apply_mixin_rule->GetArguments()[i], parameter.type));
-      } else if (CSSVariableData* default_value = parameter.default_value;
-                 default_value) {
-        bindings.insert(parameter.name,
-                        std::pair(default_value->OriginalText().ToString(),
-                                  parameter.type));
-      } else {
+        argument_data = apply_mixin_rule->GetArguments()[i];
+      }
+      if (!argument_data && !parameter.default_value) {
         // No parameter given, and no default. This isn't spec-ed yet;
         // see https://github.com/w3c/csswg-drafts/issues/12796.
         // For now, we just don't add a binding (effectively option 2).
+        continue;
       }
+      bindings.insert(
+          parameter.name,
+          MixinParameterBindings::Binding{
+              argument_data, parameter.default_value, parameter.type});
     }
-    CustomEnvBindings* env_bindings = MakeGarbageCollected<CustomEnvBindings>(
-        bindings, apply_mixins_stack.empty()
-                      ? nullptr
-                      : apply_mixins_stack.back().env_bindings);
+    MixinParameterBindings* mixin_parameter_bindings =
+        MakeGarbageCollected<MixinParameterBindings>(
+            bindings, apply_mixins_stack.empty()
+                          ? nullptr
+                          : apply_mixins_stack.back().mixin_parameter_bindings);
 
     apply_mixins_stack.push_back(
         ApplyingMixin{.mixin = mixin_rule,
                       .invoking_apply_rule = apply_mixin_rule,
-                      .env_bindings = env_bindings});
-    AddChildRules(
-        parent_rule,
-        To<StyleRuleMixin>(mixin_rule->Clone(parent_rule, env_bindings))
-            ->ChildRules(),
-        medium, mixins, add_rule_flags, container_query, cascade_layer,
-        style_scope, apply_mixins_stack);
+                      .mixin_parameter_bindings = mixin_parameter_bindings});
+    AddChildRules(parent_rule,
+                  To<StyleRuleMixin>(
+                      mixin_rule->Clone(parent_rule, mixin_parameter_bindings))
+                      ->ChildRules(),
+                  medium, mixins, add_rule_flags, container_query,
+                  cascade_layer, style_scope, apply_mixins_stack);
     apply_mixins_stack.pop_back();
 
     // If the @mixin we are applying (or currently: any @mixin) was defined

@@ -166,13 +166,16 @@ chromium-metrics-reviews@google.com.
   <variant name="DeleteLiveEntriesBetween"/>
   <variant name="DeleteLiveEntry"/>
   <variant name="DoomEntry"/>
+  <variant name="EvictEntries"/>
+  <variant name="EvictEntriesOnIdleTime"/>
   <variant name="GetEntryAvailableRange"/>
   <variant name="Initialize"/>
   <variant name="OpenEntry"/>
-  <variant name="OpenLatestEntryBeforeResId"/>
+  <variant name="OpenNextEntry"/>
   <variant name="OpenOrCreateEntry"/>
   <variant name="ReadEntryData"/>
   <variant name="RunEviction"/>
+  <variant name="RunEvictionOnIdleTime"/>
   <variant name="UpdateEntryHeaderAndLastUsed"/>
   <variant name="UpdateEntryLastUsedByKey"/>
   <variant name="UpdateEntryLastUsedByResId"/>
@@ -1916,7 +1919,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.DeferralResult{Duration}"
-    enum="DeviceBoundSessionRefreshResult" expires_after="2026-02-18">
+    enum="DeviceBoundSessionRefreshResult" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1933,7 +1936,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.DeletionReason"
-    enum="DeviceBoundSessionDeletionReason" expires_after="2026-02-18">
+    enum="DeviceBoundSessionDeletionReason" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2031,7 +2034,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RefreshResult"
-    enum="DeviceBoundSessionError" expires_after="2026-02-18">
+    enum="DeviceBoundSessionError" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2054,7 +2057,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RequestDeferralCount"
-    units="deferrals" expires_after="2026-02-18">
+    units="deferrals" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2091,7 +2094,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RequestDeferredDuration" units="ms"
-    expires_after="2026-02-18">
+    expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2104,7 +2107,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RequestsDeferredForInitialization"
-    units="requests" expires_after="2026-02-18">
+    units="requests" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2116,7 +2119,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.SessionStoreLoadDuration" units="ms"
-    expires_after="2026-02-18">
+    expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2127,7 +2130,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.SessionStoreLoadSuccess"
-    enum="BooleanLoaded" expires_after="2026-02-18">
+    enum="BooleanLoaded" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2139,7 +2142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.TotalRequestDeferredDuration"
-    units="ms" expires_after="2026-02-18">
+    units="ms" expires_after="2026-04-19">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2912,7 +2915,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.Dns.ResolveTimeDiff.{Variant}.{Bucket}" units="ms"
-    expires_after="2026-02-18">
+    expires_after="2026-04-19">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -3509,7 +3512,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.AttemptManagerAliveTime2" units="ms"
-    expires_after="2025-12-02">
+    expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3532,6 +3535,17 @@ chromium-metrics-reviews@google.com.
     <variant name="Quic" summary="QUIC"/>
     <variant name="Spdy" summary="SPDY"/>
   </token>
+</histogram>
+
+<histogram name="Net.HttpStreamPool.InitialAttemptStartTime" units="ms"
+    expires_after="2026-04-24">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    The time taken from an HttpStreamPool::AttemptManager creation to the time
+    the AttemptManager attempting the initial TCP based attempt. Recorded when
+    an AttemptManager attempts TCP for the first time.
+  </summary>
 </histogram>
 
 <histogram name="Net.HttpStreamPool.InitialAttemptState2"
@@ -3624,7 +3638,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.HttpStreamPool.TcpBasedAttemptCanceledInitialAttemptState.{Reason}"
-    enum="HttpStreamPoolInitialAttemptState" expires_after="2025-12-02">
+    enum="HttpStreamPoolInitialAttemptState" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3642,7 +3656,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptCanceledTime2.{Reason}"
-    units="ms" expires_after="2025-12-02">
+    units="ms" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3660,7 +3674,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptCancelReason"
-    enum="StreamSocketCloseReason" expires_after="2025-12-02">
+    enum="StreamSocketCloseReason" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3679,8 +3693,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptServiceEndpointWaitTime"
+    units="ms" expires_after="2026-04-24">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Time from when a TCP based attempt started waiting for service endpoint
+    resolution to when the attempt gets the resolution. Recorded for each TCP
+    based attempt upon destruction of the attempt if the attempt completed
+    successfully.
+  </summary>
+</histogram>
+
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptSlotCancelCount.{Reason}"
-    units="attempts" expires_after="2025-12-02">
+    units="attempts" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3691,14 +3717,31 @@ chromium-metrics-reviews@google.com.
   <token key="Reason" variants="StreamSocketCloseReason"/>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.TcpBasedAttemptSSLConfigWaitTime2"
-    units="ms" expires_after="2025-12-02">
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptStartDelay" units="ms"
+    expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
-    Record the time that a TcpBasedAttempt is waiting for an SSLConfig. Recorded
-    when a TcpBasedAttempt got an SSLConfig after waiting for the config.
+    Time from when an HttpStreamPool::AttemptManager is started to when a TCP
+    based attempt is started, measuring the delay of the TCP based attempt.
+    Recorded for each TCP based attempt upon destruction of the attempt if the
+    attempt completed successfully.
   </summary>
+</histogram>
+
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptSuccessTime.{Protocol}"
+    units="ms" expires_after="2026-04-24">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Time from when a {Protocol} attempt is created to when the attempt is
+    completed successfully. Recorded for each TCP based attempt upon destruction
+    of the attempt if the attempt completed successfully.
+  </summary>
+  <token key="Protocol">
+    <variant name="TCP"/>
+    <variant name="TLS"/>
+  </token>
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptTime2.{Result}" units="ms"
@@ -3720,7 +3763,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptTotalCancelCount.{Reason}"
-    units="attempts" expires_after="2025-12-02">
+    units="attempts" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3731,8 +3774,34 @@ chromium-metrics-reviews@google.com.
   <token key="Reason" variants="StreamSocketCloseReason"/>
 </histogram>
 
+<histogram name="Net.HttpStreamPool.TcpHandshakeTime.{Protocol}" units="ms"
+    expires_after="2026-04-24">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Time from when a {Protocol} attempt starts a TCP handshake to when the TCP
+    handshake completes. Recorded for each {Protocol} attempt upon destruction
+    of the attempt if the attempt completed successfully.
+  </summary>
+  <token key="Protocol">
+    <variant name="TCP"/>
+    <variant name="TLS"/>
+  </token>
+</histogram>
+
+<histogram name="Net.HttpStreamPool.TlsHandshakeTime" units="ms"
+    expires_after="2026-04-24">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Time from when a TLS attempt starts a TLS handshake to when the TLS
+    handshake completes. Recorded for each TLS attempt upon destruction of the
+    attempt if the attempt completed successfully.
+  </summary>
+</histogram>
+
 <histogram name="Net.HttpStreamPool.{JobType}JobCancelCount.{Reason}"
-    units="jobs" expires_after="2025-12-02">
+    units="jobs" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4074,7 +4143,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.NetworkTransaction.{Protocol}StreamCreationTime.{NewOrExisting}"
-    units="ms" expires_after="2025-12-01">
+    units="ms" expires_after="2026-04-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7781,6 +7850,36 @@ chromium-metrics-reviews@google.com.
   <token key="TimeType">
     <variant name="FailureTime"/>
     <variant name="SuccessTime"/>
+  </token>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{EvictionType}.EntryCount"
+    units="entries" expires_after="2026-01-20">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the number of entries deleted during a single eviction run in the
+    SQL-based disk cache. This is recorded after the eviction is finished.
+  </summary>
+  <token key="EvictionType">
+    <variant name="RunEviction"/>
+    <variant name="RunEvictionOnIdleTime"/>
+  </token>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{EvictionType}.TimeToSelectEntries"
+    units="microseconds" expires_after="2026-01-20">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the time taken to select entries for deletion during a single
+    eviction run in the SQL-based disk cache. This is recorded after the
+    selection of the candidates is finished. The histogram is not reported on
+    Windows machines without high resolution clocks.
+  </summary>
+  <token key="EvictionType">
+    <variant name="RunEviction"/>
+    <variant name="RunEvictionOnIdleTime"/>
   </token>
 </histogram>
 

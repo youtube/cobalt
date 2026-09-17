@@ -221,11 +221,11 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         switch (mediaState) {
             case MediaState.AUDIBLE:
             case MediaState.MUTED:
+            case MediaState.RECORDING:
+            case MediaState.SHARING:
                 titleParams.endToEnd = R.id.media_indicator_icon;
                 mediaIndicatorVisibility = View.VISIBLE;
                 break;
-            case MediaState.RECORDING:
-            case MediaState.SHARING:
             case MediaState.NONE:
                 titleParams.endToEnd = R.id.card_view;
                 break;

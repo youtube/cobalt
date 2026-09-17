@@ -58,8 +58,6 @@ angle_translator_sources = [
   "src/compiler/translator/InfoSink.h",
   "src/compiler/translator/Initialize.cpp",
   "src/compiler/translator/Initialize.h",
-  "src/compiler/translator/InitializeDll.cpp",
-  "src/compiler/translator/InitializeDll.h",
   "src/compiler/translator/InitializeGlobals.h",
   "src/compiler/translator/IntermNode.cpp",
   "src/compiler/translator/IntermNode.h",
@@ -437,6 +435,10 @@ angle_translator_lib_msl_sources = [
 ]
 
 angle_translator_lib_wgsl_sources = [
+  "src/compiler/translator/tree_ops/wgsl/EmulateMutableFunctionParams.cpp",
+  "src/compiler/translator/tree_ops/wgsl/EmulateMutableFunctionParams.h",
+  "src/compiler/translator/tree_ops/wgsl/PullExpressionsIntoFunctions.cpp",
+  "src/compiler/translator/tree_ops/wgsl/PullExpressionsIntoFunctions.h",
   "src/compiler/translator/tree_ops/wgsl/RewriteMixedTypeMathExprs.cpp",
   "src/compiler/translator/tree_ops/wgsl/RewriteMixedTypeMathExprs.h",
   "src/compiler/translator/tree_ops/wgsl/RewriteMultielementSwizzleAssignment.cpp",

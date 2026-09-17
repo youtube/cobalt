@@ -29,8 +29,8 @@ class ClickToolRequest : public PageToolRequest {
   MouseClickCount GetClickCount() const { return click_count_; }
 
   // ToolRequest
-  std::string JournalEvent() const override;
-  std::optional<ObservationDelayController::PageStabilityConfig>
+  std::string Name() const override;
+  ObservationDelayController::PageStabilityConfig
   GetObservationPageStabilityConfig() const override;
 
   // PageToolRequest

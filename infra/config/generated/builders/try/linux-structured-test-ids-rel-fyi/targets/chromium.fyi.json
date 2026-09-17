@@ -2402,15 +2402,15 @@
         },
         "module_name": "//chrome/test:telemetry_gpu_integration_test",
         "module_scheme": "webgpucts",
-        "name": "webgpu_cts_dedicated_worker_tests",
+        "name": "webgpu_cts_structured_test_id_dedicated_worker_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
         },
         "swarming": {
           "dimensions": {
-            "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "gpu": "10de:2184-440.100|10de:2184-535.183.01",
+            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6|Ubuntu-22.04",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,

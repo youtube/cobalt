@@ -1151,13 +1151,6 @@ std::u16string BrowserAccessibilityAndroid::GetStateDescription() const {
     state_descs.push_back(GetMultiselectableStateDescription());
   }
 
-  if (GetRole() == ax::mojom::Role::kToggleButton ||
-      GetRole() == ax::mojom::Role::kSwitch) {
-    // For Toggle buttons and switches, we will append "on"/"off" in the state
-    // description.
-    state_descs.push_back(GetToggleStateDescription());
-  }
-
   // For radio buttons, we will communicate how many radio buttons are in the
   // group and which one is selected/checked (e.g. "in group, option x of y")
   if (GetRole() == ax::mojom::Role::kRadioButton) {
@@ -1541,7 +1534,9 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
     case ax::mojom::Role::kForm:
     case ax::mojom::Role::kGrid:
     case ax::mojom::Role::kImage:
+    case ax::mojom::Role::kListBox:
     case ax::mojom::Role::kProgressIndicator:
+    case ax::mojom::Role::kRadioButton:
     case ax::mojom::Role::kRowGroup:
     case ax::mojom::Role::kSectionFooter:
     case ax::mojom::Role::kSectionHeader:
@@ -1550,16 +1545,20 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
     case ax::mojom::Role::kStrong:
     case ax::mojom::Role::kSubscript:
     case ax::mojom::Role::kSuperscript:
+    case ax::mojom::Role::kSwitch:
     case ax::mojom::Role::kTable:
     case ax::mojom::Role::kTextField:
-    case ax::mojom::Role::kTreeGrid:
     case ax::mojom::Role::kTime:
+    case ax::mojom::Role::kToggleButton:
+    case ax::mojom::Role::kTreeGrid:
       // No role description on Android.
       break;
 
     // Roles not used on Android.
     case ax::mojom::Role::kListGrid:
     case ax::mojom::Role::kMenuItemSeparator:
+    case ax::mojom::Role::kPdfActionableHighlight:
+    case ax::mojom::Role::kPdfRoot:
       NOTREACHED();
 
     case ax::mojom::Role::kFigure:

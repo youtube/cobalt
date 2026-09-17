@@ -30,18 +30,18 @@ int ASN1_TYPE_get(const ASN1_TYPE *a) {
     case V_ASN1_BOOLEAN:
       return a->type;
     case V_ASN1_OBJECT:
-      return a->value.object != NULL ? a->type : 0;
+      return a->value.object != nullptr ? a->type : 0;
     default:
-      return a->value.asn1_string != NULL ? a->type : 0;
+      return a->value.asn1_string != nullptr ? a->type : 0;
   }
 }
 
 const void *asn1_type_value_as_pointer(const ASN1_TYPE *a) {
   switch (a->type) {
     case V_ASN1_NULL:
-      return NULL;
+      return nullptr;
     case V_ASN1_BOOLEAN:
-      return a->value.boolean ? (void *)0xff : NULL;
+      return a->value.boolean ? (void *)0xff : nullptr;
     case V_ASN1_OBJECT:
       return a->value.object;
     default:
@@ -69,18 +69,18 @@ void asn1_type_set0_string(ASN1_TYPE *a, ASN1_STRING *str) {
 void asn1_type_cleanup(ASN1_TYPE *a) {
   switch (a->type) {
     case V_ASN1_NULL:
-      a->value.ptr = NULL;
+      a->value.ptr = nullptr;
       break;
     case V_ASN1_BOOLEAN:
       a->value.boolean = ASN1_BOOLEAN_NONE;
       break;
     case V_ASN1_OBJECT:
       ASN1_OBJECT_free(a->value.object);
-      a->value.object = NULL;
+      a->value.object = nullptr;
       break;
     default:
       ASN1_STRING_free(a->value.asn1_string);
-      a->value.asn1_string = NULL;
+      a->value.asn1_string = nullptr;
       break;
   }
 }
@@ -90,7 +90,7 @@ void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value) {
   a->type = type;
   switch (type) {
     case V_ASN1_NULL:
-      a->value.ptr = NULL;
+      a->value.ptr = nullptr;
       break;
     case V_ASN1_BOOLEAN:
       a->value.boolean = value ? ASN1_BOOLEAN_TRUE : ASN1_BOOLEAN_FALSE;

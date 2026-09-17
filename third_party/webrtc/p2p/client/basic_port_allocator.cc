@@ -46,10 +46,10 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
+#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network_constants.h"
-#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
@@ -338,7 +338,7 @@ void BasicPortAllocatorSession::SetCandidateFilter(uint32_t filter) {
           found_signalable_candidate = true;
           port_data.set_state(PortData::STATE_INPROGRESS);
         }
-        port->SignalCandidateReady(port, c);
+        port->NotifyCandidateReady(port, c);
       }
 
       if (CandidatePairable(c, port)) {
@@ -465,7 +465,7 @@ void BasicPortAllocatorSession::Regather(
   }
 
   if (allocation_started_ && network_manager_started_ && !IsStopped()) {
-    SignalIceRegathering(this, reason);
+    NotifyIceRegathering(this, reason);
 
     DoAllocate();
   }
@@ -881,7 +881,7 @@ void BasicPortAllocatorSession::OnNetworksChanged() {
   if (allocation_started_ && !IsStopped()) {
     if (network_manager_started_) {
       // If the network manager has started, it must be regathering.
-      SignalIceRegathering(this, IceRegatheringReason::NETWORK_CHANGE);
+      NotifyIceRegathering(this, IceRegatheringReason::NETWORK_CHANGE);
     }
 
     DoAllocate();
@@ -981,7 +981,7 @@ void BasicPortAllocatorSession::OnCandidateReady(Port* port,
     // If the current port is not pruned yet, SignalPortReady.
     if (!data->pruned()) {
       RTC_LOG(LS_INFO) << port->ToString() << ": Port ready.";
-      SignalPortReady(this, port);
+      NotifyPortReady(this, port);
       port->KeepAliveUntilPruned();
     }
   }
@@ -989,7 +989,7 @@ void BasicPortAllocatorSession::OnCandidateReady(Port* port,
   if (data->ready() && CheckCandidateFilter(c)) {
     std::vector<Candidate> candidates;
     candidates.push_back(allocator_->SanitizeCandidate(c));
-    SignalCandidatesReady(this, candidates);
+    NotifyCandidatesReady(this, candidates);
   } else {
     RTC_LOG(LS_INFO) << "Discarding candidate because it doesn't match filter.";
   }
@@ -1008,7 +1008,7 @@ void BasicPortAllocatorSession::OnCandidateError(
   if (event.address.empty()) {
     candidate_error_events_.push_back(event);
   } else {
-    SignalCandidateError(this, event);
+    NotifyCandidateError(this, event);
   }
 }
 
@@ -1170,10 +1170,10 @@ void BasicPortAllocatorSession::MaybeSignalCandidatesAllocationDone() {
                        << ":" << component() << ":" << generation();
     }
     for (const auto& event : candidate_error_events_) {
-      SignalCandidateError(this, event);
+      NotifyCandidateError(this, event);
     }
     candidate_error_events_.clear();
-    SignalCandidatesAllocationDone(this);
+    NotifyCandidatesAllocationDone(this);
   }
 }
 
@@ -1234,12 +1234,12 @@ void BasicPortAllocatorSession::PrunePortsAndRemoveCandidates(
     }
   }
   if (!pruned_ports.empty()) {
-    SignalPortsPruned(this, pruned_ports);
+    NotifyPortsPruned(this, pruned_ports);
   }
   if (!removed_candidates.empty()) {
     RTC_LOG(LS_INFO) << "Removed " << removed_candidates.size()
                      << " candidates";
-    SignalCandidatesRemoved(this, removed_candidates);
+    NotifyCandidatesRemoved(this, removed_candidates);
   }
 }
 

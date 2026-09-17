@@ -129,6 +129,7 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
       last_loss_base_state_(LossBasedState::kDelayBasedEstimate),
       pacing_factor_(config.stream_based_config.pacing_factor.value_or(
           kDefaultPaceMultiplier)),
+      pacing_time_window_(config.default_pacing_time_window),
       min_total_allocated_bitrate_(
           config.stream_based_config.min_total_allocated_bitrate.value_or(
               DataRate::Zero())),
@@ -666,12 +667,8 @@ PacerConfig GoogCcNetworkController::GetPacingRates(Timestamp at_time) const {
           ? std::max(max_padding_rate_, last_loss_based_target_rate_)
           : max_padding_rate_;
   padding_rate = std::min(padding_rate, last_pushback_target_rate_);
-  PacerConfig msg;
-  msg.at_time = at_time;
-  msg.time_window = TimeDelta::Seconds(1);
-  msg.data_window = pacing_rate * msg.time_window;
-  msg.pad_window = padding_rate * msg.time_window;
-  return msg;
+  return PacerConfig::Create(at_time, pacing_rate, padding_rate,
+                             pacing_time_window_);
 }
 
 }  // namespace webrtc

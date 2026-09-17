@@ -13,6 +13,7 @@
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "base/functional/callback.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 
 namespace content {

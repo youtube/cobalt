@@ -260,6 +260,7 @@ rtc_library("media_engine") {
     "../api/video:video_bitrate_allocator_factory",
     "../api/video:video_codec_constants",
     "../api/video_codecs:scalability_mode",
+    "../api/video_codecs:scalability_mode_helper",
     "../call:call_interfaces",
     "../rtc_base:checks",
     "../rtc_base:stringutils",

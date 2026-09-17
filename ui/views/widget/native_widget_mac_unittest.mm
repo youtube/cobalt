@@ -2585,15 +2585,16 @@ TEST_F(NativeWidgetMacTest,
   parent->CloseNow();
 }
 
+// Tests behavior of window-modal dialogs, displayed as sheets.
 TEST_F(NativeWidgetMacTest, OnWidgetWindowModalVisibilityChanged) {
-  Widget* parent_widget = CreateTopLevelPlatformWidget();
+  WidgetAutoclosePtr parent_widget(CreateTopLevelPlatformWidget());
   parent_widget->Show();
   NSWindow* parent_nswindow =
       parent_widget->GetNativeWindow().GetNativeNSWindow();
 
   testing::NiceMock<WidgetModalVisibilityObserver> observer;
   base::ScopedObservation<Widget, WidgetObserver> observation(&observer);
-  observation.Observe(parent_widget);
+  observation.Observe(parent_widget.get());
 
   NSRect frame = NSMakeRect(0, 0, 200, 100);
   NSWindow* sheet_nswindow =
@@ -2603,16 +2604,15 @@ TEST_F(NativeWidgetMacTest, OnWidgetWindowModalVisibilityChanged) {
                                       defer:NO];
 
   EXPECT_CALL(observer,
-              OnWidgetWindowModalVisibilityChanged(parent_widget, true));
+              OnWidgetWindowModalVisibilityChanged(parent_widget.get(), true));
   [parent_nswindow beginSheet:sheet_nswindow completionHandler:nil];
   testing::Mock::VerifyAndClearExpectations(&observer);
 
   EXPECT_CALL(observer,
-              OnWidgetWindowModalVisibilityChanged(parent_widget, false));
+              OnWidgetWindowModalVisibilityChanged(parent_widget.get(), false));
   [parent_nswindow endSheet:sheet_nswindow];
   EXPECT_TRUE(base::test::RunUntil(
       [&]() { return parent_nswindow.attachedSheet == nil; }));
-  parent_widget->CloseNow();
 }
 
 }  // namespace views::test

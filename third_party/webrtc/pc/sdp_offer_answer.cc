@@ -1538,7 +1538,7 @@ void SdpOfferAnswerHandler::Initialize(
             RTC_DCHECK_RUN_ON(signaling_thread());
             transport_controller_s()->SetLocalCertificate(certificate);
           },
-          codec_lookup_helper, pc_->trials());
+          codec_lookup_helper, pc_->env());
 
   if (pc_->options()->disable_encryption) {
     RTC_LOG(LS_INFO)
@@ -4576,6 +4576,13 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
     }
   }
 
+  // Add a datachannel m-line first if explicitly asked even when no data
+  // channels exist.
+  if (pc_->configuration()->always_negotiate_data_channels &&
+      !pc_->sctp_mid()) {
+    MaybeNegotiateSctp(session_options);
+  }
+
   // Next, look for transceivers that are newly added (that is, are not stopped
   // and not associated). Reuse media sections marked as recyclable first,
   // otherwise append to the end of the offer. New media sections should be
@@ -4606,28 +4613,30 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
   }
   // Lastly, add a m-section if we have requested local data channels and an
   // m section does not already exist.
-  if (!pc_->sctp_mid() && data_channel_controller()->HasDataChannels()) {
-    // Attempt to recycle a stopped m-line.
-    // TODO(crbug.com/1442604): sctp_mid() should return the mid if one was
-    // ever created but rejected.
-    bool recycled = false;
-    for (size_t i = 0; i < session_options->media_description_options.size();
-         i++) {
-      auto media_description = session_options->media_description_options[i];
-      if (media_description.type == MediaType::DATA &&
-          media_description.stopped) {
-        session_options->media_description_options[i] =
-            GetMediaDescriptionOptionsForActiveData(media_description.mid);
-        recycled = true;
-        break;
-      }
-    }
-    if (!recycled) {
-      session_options->media_description_options.push_back(
-          GetMediaDescriptionOptionsForActiveData(
-              mid_generator_.GenerateString()));
+  if (!pc_->configuration()->always_negotiate_data_channels &&
+      !pc_->sctp_mid() && data_channel_controller()->HasDataChannels()) {
+    MaybeNegotiateSctp(session_options);
+  }
+}
+
+void SdpOfferAnswerHandler::MaybeNegotiateSctp(
+    MediaSessionOptions* session_options) {
+  // Attempt to recycle a stopped m-line.
+  // TODO(crbug.com/1442604): sctp_mid() should return the mid if one was
+  // ever created but rejected.
+  for (size_t i = 0; i < session_options->media_description_options.size();
+       i++) {
+    auto media_description = session_options->media_description_options[i];
+    if (media_description.type == MediaType::DATA &&
+        media_description.stopped) {
+      session_options->media_description_options[i] =
+          GetMediaDescriptionOptionsForActiveData(media_description.mid);
+      return;
     }
   }
+  // Generate a new m-line.
+  session_options->media_description_options.push_back(
+      GetMediaDescriptionOptionsForActiveData(mid_generator_.GenerateString()));
 }
 
 void SdpOfferAnswerHandler::GetOptionsForAnswer(
@@ -5205,9 +5214,15 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
             std::min(local_sctp_description->max_message_size(),
                      remote_sctp_description->max_message_size());
       }
-      pc_->StartSctpTransport({.local_port = local_sctp_description->port(),
-                               .remote_port = remote_sctp_description->port(),
-                               .max_message_size = max_message_size});
+      RTCError error = pc_->StartSctpTransport(
+          {.local_port = local_sctp_description->port(),
+           .remote_port = remote_sctp_description->port(),
+           .max_message_size = max_message_size,
+           .local_init = local_sctp_description->sctp_init(),
+           .remote_init = remote_sctp_description->sctp_init()});
+      if (!error.ok()) {
+        return error;
+      }
     }
   }
 

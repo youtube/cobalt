@@ -88,6 +88,17 @@ int MLDSA65_sign_message_representative(
       out_encoded_signature, private_key, msg_rep));
 }
 
+int MLDSA65_verify_message_representative(
+    const struct MLDSA65_public_key *public_key,
+    const uint8_t *signature, size_t signature_len,
+    const uint8_t msg_rep[MLDSA_MU_BYTES]) {
+  if (signature_len != MLDSA65_SIGNATURE_BYTES) {
+    return 0;
+  }
+  return bcm_success(BCM_mldsa65_verify_message_representative(
+      public_key, signature, msg_rep));
+}
+
 int MLDSA65_marshal_public_key(CBB *out,
                                const struct MLDSA65_public_key *public_key) {
   return bcm_success(BCM_mldsa65_marshal_public_key(out, public_key));
@@ -169,6 +180,17 @@ int MLDSA87_sign_message_representative(
       out_encoded_signature, private_key, msg_rep));
 }
 
+int MLDSA87_verify_message_representative(
+    const struct MLDSA87_public_key *public_key,
+    const uint8_t *signature, size_t signature_len,
+    const uint8_t msg_rep[MLDSA_MU_BYTES]) {
+  if (signature_len != MLDSA87_SIGNATURE_BYTES) {
+    return 0;
+  }
+  return bcm_success(BCM_mldsa87_verify_message_representative(
+      public_key, signature, msg_rep));
+}
+
 int MLDSA87_marshal_public_key(CBB *out,
                                const struct MLDSA87_public_key *public_key) {
   return bcm_success(BCM_mldsa87_marshal_public_key(out, public_key));
@@ -248,6 +270,17 @@ int MLDSA44_sign_message_representative(
     const uint8_t msg_rep[MLDSA_MU_BYTES]) {
   return bcm_success(BCM_mldsa44_sign_message_representative(
       out_encoded_signature, private_key, msg_rep));
+}
+
+int MLDSA44_verify_message_representative(
+    const struct MLDSA44_public_key *public_key,
+    const uint8_t *signature, size_t signature_len,
+    const uint8_t msg_rep[MLDSA_MU_BYTES]) {
+  if (signature_len != MLDSA44_SIGNATURE_BYTES) {
+    return 0;
+  }
+  return bcm_success(BCM_mldsa44_verify_message_representative(
+      public_key, signature, msg_rep));
 }
 
 int MLDSA44_marshal_public_key(CBB *out,

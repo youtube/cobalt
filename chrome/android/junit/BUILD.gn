@@ -79,7 +79,6 @@ if (is_android) {
       "//chrome/browser/android/browserservices/metrics:java",
       "//chrome/browser/android/browserservices/verification:java",
       "//chrome/browser/android/browserservices/verification:junit_test_support",
-      "//chrome/browser/android/common:java",
       "//chrome/browser/android/content:java",
       "//chrome/browser/android/cookies:java",
       "//chrome/browser/android/crypto:java",
@@ -291,6 +290,7 @@ if (is_android) {
       "//components/minidump_uploader:minidump_uploader_java",
       "//components/minidump_uploader:minidump_uploader_java_test_support",
       "//components/module_installer/android:module_installer_java",
+      "//components/ntp_tiles:mojo_bindings_java",
       "//components/offline_items_collection/core:core_java",
       "//components/omnibox/browser:browser_java",
       "//components/omnibox/common:features_java",
@@ -301,6 +301,7 @@ if (is_android) {
       "//components/paint_preview/browser/android:java",
       "//components/paint_preview/player/android:java",
       "//components/password_manager/core/browser:password_manager_java_enums",
+      "//components/payments/content/android:full_java",
       "//components/payments/content/android:java",
       "//components/payments/content/android:service_java",
       "//components/payments/content/android/ui:java",
@@ -472,10 +473,12 @@ if (is_android) {
       "src/org/chromium/chrome/browser/autofill/save_card/AutofillSaveCardBottomSheetCoordinatorTest.java",
       "src/org/chromium/chrome/browser/autofill/save_card/AutofillSaveCardBottomSheetLifecycleTest.java",
       "src/org/chromium/chrome/browser/autofill/save_card/AutofillSaveCardBottomSheetMediatorTest.java",
+      "src/org/chromium/chrome/browser/autofill/settings/AutofillBuyNowPayLaterFragmentTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillDeletePaymentMethodConfirmationDialogTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillDeleteSavedCvcsConfirmationDialogTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillLocalCardEditorTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillLocalIbanEditorTest.java",
+      "src/org/chromium/chrome/browser/autofill/settings/AutofillPaymentMethodsFragmentBuyNowPayLaterTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillServerCardEditorTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillVirtualCardEnrollmentDialogTest.java",
       "src/org/chromium/chrome/browser/autofill/settings/AutofillVirtualCardUnenrollmentDialogTest.java",
@@ -587,6 +590,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/compositor/overlays/strip/StripTabModelActionListenerUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/TabContextMenuCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/TabGroupContextMenuCoordinatorUnitTest.java",
+      "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripContextMenuCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripIphControllerUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/TabUsageTrackerTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/reorder/ExternalViewDragDropReorderStrategyTest.java",
@@ -846,6 +850,7 @@ if (is_android) {
     resources_package = "org.chromium.chrome.browser.ntp"
     sources = [
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/search/SearchBoxMediatorUnitTest.java",
@@ -892,6 +897,13 @@ if (is_android) {
       "src/org/chromium/chrome/browser/omaha/VersionNumberTest.java",
       "src/org/chromium/chrome/browser/omaha/metrics/UpdateSuccessMetricsTest.java",
     ]
+
+    deps = [ ":chrome_junit_tests_helper" ]
+  }
+
+  robolectric_library(
+      "chrome_junit_tests_org.chromium.chrome.browser.omnibox") {
+    sources = [ "//chrome/android/java/src/org/chromium/chrome/browser/omnibox/OmniboxActionDelegateImplUnitTest.java" ]
 
     deps = [ ":chrome_junit_tests_helper" ]
   }
@@ -1198,6 +1210,8 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/archived_tabs_auto_delete_promo/ArchivedTabsAutoDeletePromoCoordinatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/archived_tabs_auto_delete_promo/ArchivedTabsAutoDeletePromoManagerTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripCoordinatorTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripItemContextMenuCoordinatorTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripItemTouchHelperCallbackTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripMediatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripViewBinderTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardViewBinderUnitTest.java",
@@ -1243,6 +1257,7 @@ if (is_android) {
       ":chrome_junit_tests_helper",
       "//base:base_junit_test_support",
       "//base:holder_java",
+      "//chrome/android:chrome_java",
       "//chrome/browser/tab_group_suggestion:java",
     ]
   }
@@ -1300,6 +1315,9 @@ if (is_android) {
       "src/org/chromium/chrome/browser/settings/SettingsActivityUnitTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsEnumsTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsNavigationImplTest.java",
+      "src/org/chromium/chrome/browser/settings/search/BaseSearchIndexProviderTest.java",
+      "src/org/chromium/chrome/browser/settings/search/PreferenceParserTest.java",
+      "src/org/chromium/chrome/browser/settings/search/SettingsIndexDataTest.java",
     ]
 
     deps = [
@@ -1318,6 +1336,7 @@ if (is_android) {
       "//chrome/browser/commerce/subscriptions/test/android/java/src/org/chromium/chrome/browser/subscriptions/CommerceSubscriptionsServiceUnitTest.java",
       "src/org/chromium/chrome/browser/about_settings/AboutSettingsBridgeTest.java",
       "src/org/chromium/chrome/browser/accessibility/PageZoomIphControllerTest.java",
+      "src/org/chromium/chrome/browser/accessibility/settings/CaretBrowsingDialogTest.java",
       "src/org/chromium/chrome/browser/ai/AiAssistantServiceUnitTest.java",
       "src/org/chromium/chrome/browser/ai/PageSummaryButtonControllerUnitTest.java",
       "src/org/chromium/chrome/browser/automotive/AutomotiveUtilsUnitTest.java",

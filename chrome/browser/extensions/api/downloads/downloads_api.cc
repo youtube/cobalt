@@ -20,11 +20,11 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/time_formatting.h"
-#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -32,6 +32,7 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_query.h"
 #include "chrome/browser/download/download_stats.h"
+#include "chrome/browser/extensions/api/downloads/download_extension_errors.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/window_controller.h"
@@ -98,48 +100,6 @@ using content::DownloadManager;
 using download::DownloadItem;
 using download::DownloadPathReservationTracker;
 using extensions::mojom::APIPermissionID;
-
-namespace download_extension_errors {
-
-const char kEmptyFile[] = "Filename not yet determined";
-const char kFileAlreadyDeleted[] = "Download file already deleted";
-const char kFileNotRemoved[] = "Unable to remove file";
-const char kIconNotFound[] = "Icon not found";
-const char kInvalidDangerType[] = "Invalid danger type";
-const char kInvalidFilename[] = "Invalid filename";
-const char kInvalidFilter[] = "Invalid query filter";
-const char kInvalidHeaderName[] = "Invalid request header name";
-const char kInvalidHeaderUnsafe[] = "Unsafe request header name";
-const char kInvalidHeaderValue[] = "Invalid request header value";
-const char kInvalidId[] = "Invalid downloadId";
-const char kInvalidOrderBy[] = "Invalid orderBy field";
-const char kInvalidQueryLimit[] = "Invalid query limit";
-const char kInvalidState[] = "Invalid state";
-const char kInvalidURL[] = "Invalid URL";
-const char kInvisibleContext[] =
-    "Javascript execution context is not visible "
-    "(tab, window, popup bubble)";
-const char kNotComplete[] = "Download must be complete";
-const char kNotDangerous[] = "Download must be dangerous";
-const char kNotInProgress[] = "Download must be in progress";
-const char kNotResumable[] = "DownloadItem.canResume must be true";
-const char kOpenPermission[] = "The \"downloads.open\" permission is required";
-const char kShelfDisabled[] = "Another extension has disabled the shelf";
-const char kShelfPermission[] =
-    "downloads.setShelfEnabled requires the "
-    "\"downloads.shelf\" permission";
-const char kTooManyListeners[] =
-    "Each extension may have at most one "
-    "onDeterminingFilename listener between all of its renderer execution "
-    "contexts.";
-const char kUiDisabled[] = "Another extension has disabled the download UI";
-const char kUiPermission[] =
-    "downloads.setUiOptions requires the "
-    "\"downloads.ui\" permission";
-const char kUnexpectedDeterminer[] = "Unexpected determineFilename call";
-const char kUserGesture[] = "User gesture required";
-
-}  // namespace download_extension_errors
 
 namespace extensions {
 
@@ -629,15 +589,20 @@ void RecordApiFunctions(DownloadsFunctionName function) {
                             DownloadsFunctionName::kDownloadsFunctionLast);
 }
 
+SortTypeMap& GetSortTypeMap() {
+  static base::NoDestructor<SortTypeMap> map;
+  return *map;
+}
+
 void CompileDownloadQueryOrderBy(const std::vector<std::string>& order_by_strs,
                                  std::string* error,
                                  DownloadQuery* query) {
-  // TODO(benjhayden): Consider switching from LazyInstance to explicit string
+  // TODO(benjhayden): Consider switching from NoDestructor to explicit string
   // comparisons.
-  static base::LazyInstance<SortTypeMap>::DestructorAtExit sorter_types =
-      LAZY_INSTANCE_INITIALIZER;
-  if (sorter_types.Get().empty())
-    InitSortTypeMap(sorter_types.Pointer());
+  SortTypeMap& sort_type_map = GetSortTypeMap();
+  if (sort_type_map.empty()) {
+    InitSortTypeMap(&sort_type_map);
+  }
 
   for (std::string_view term_str : order_by_strs) {
     if (term_str.empty())
@@ -647,8 +612,8 @@ void CompileDownloadQueryOrderBy(const std::vector<std::string>& order_by_strs,
       direction = DownloadQuery::DESCENDING;
       term_str = term_str.substr(1);
     }
-    SortTypeMap::const_iterator sorter_type = sorter_types.Get().find(term_str);
-    if (sorter_type == sorter_types.Get().end()) {
+    SortTypeMap::const_iterator sorter_type = sort_type_map.find(term_str);
+    if (sorter_type == sort_type_map.end()) {
       *error = download_extension_errors::kInvalidOrderBy;
       return;
     }
@@ -656,17 +621,22 @@ void CompileDownloadQueryOrderBy(const std::vector<std::string>& order_by_strs,
   }
 }
 
+FilterTypeMap& GetFilterTypeMap() {
+  static base::NoDestructor<FilterTypeMap> map;
+  return *map;
+}
+
 void RunDownloadQuery(const downloads::DownloadQuery& query_in,
                       DownloadManager* manager,
                       DownloadManager* incognito_manager,
                       std::string* error,
                       DownloadQuery::DownloadVector* results) {
-  // TODO(benjhayden): Consider switching from LazyInstance to explicit string
+  // TODO(benjhayden): Consider switching from NoDestructor to explicit string
   // comparisons.
-  static base::LazyInstance<FilterTypeMap>::DestructorAtExit filter_types =
-      LAZY_INSTANCE_INITIALIZER;
-  if (filter_types.Get().empty())
-    InitFilterTypeMap(filter_types.Pointer());
+  FilterTypeMap& filter_type_map = GetFilterTypeMap();
+  if (filter_type_map.empty()) {
+    InitFilterTypeMap(&filter_type_map);
+  }
 
   DownloadQuery query_out;
 
@@ -709,8 +679,8 @@ void RunDownloadQuery(const downloads::DownloadQuery& query_in,
 
   for (const auto query_json_field : query_in.ToValue()) {
     FilterTypeMap::const_iterator filter_type =
-        filter_types.Get().find(query_json_field.first);
-    if (filter_type != filter_types.Get().end()) {
+        filter_type_map.find(query_json_field.first);
+    if (filter_type != filter_type_map.end()) {
       if (!query_out.AddFilter(filter_type->second, query_json_field.second)) {
         *error = download_extension_errors::kInvalidFilter;
         return;
@@ -763,12 +733,7 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
 
   explicit ExtensionDownloadsEventRouterData(DownloadItem* download_item,
                                              base::Value::Dict json_item)
-      : updated_(0),
-        changed_fired_(0),
-        json_(std::move(json_item)),
-        creator_conflict_action_(downloads::FilenameConflictAction::kUniquify),
-        determined_conflict_action_(
-            downloads::FilenameConflictAction::kUniquify),
+      : json_(std::move(json_item)),
         is_download_completed_(download_item->GetState() ==
                                DownloadItem::COMPLETE),
         is_completed_download_deleted_(
@@ -800,8 +765,8 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
   void OnItemUpdated() { ++updated_; }
   void OnChangedFired() { ++changed_fired_; }
 
-  static void SetDetermineFilenameTimeoutSecondsForTesting(int s) {
-    determine_filename_timeout_s_ = s;
+  static void SetDetermineFilenameTimeoutForTesting(base::TimeDelta timeout) {
+    determine_filename_timeout_ = timeout;
   }
 
   void BeginFilenameDetermination(
@@ -822,7 +787,7 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
         base::BindOnce(
             &ExtensionDownloadsEventRouterData::DetermineFilenameTimeout,
             weak_ptr_factory_->GetWeakPtr()),
-        base::Seconds(determine_filename_timeout_s_));
+        determine_filename_timeout_);
   }
 
   void DetermineFilenameTimeout() { CallFilenameCallback(); }
@@ -946,7 +911,7 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
   }
 
  private:
-  static int determine_filename_timeout_s_;
+  static base::TimeDelta determine_filename_timeout_;
 
   struct DeterminerInfo {
     DeterminerInfo();
@@ -985,8 +950,8 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
         base::Seconds(15));
   }
 
-  int updated_;
-  int changed_fired_;
+  int updated_ = 0;
+  int changed_fired_ = 0;
   // Dictionary representing the current state of the download. It is cleared
   // when download completes.
   base::Value::Dict json_;
@@ -996,9 +961,11 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
   DeterminerInfoVector determiners_;
 
   base::FilePath creator_suggested_filename_;
-  downloads::FilenameConflictAction creator_conflict_action_;
+  downloads::FilenameConflictAction creator_conflict_action_ =
+      downloads::FilenameConflictAction::kUniquify;
   base::FilePath determined_filename_;
-  downloads::FilenameConflictAction determined_conflict_action_;
+  downloads::FilenameConflictAction determined_conflict_action_ =
+      downloads::FilenameConflictAction::kUniquify;
   DeterminerInfo determiner_;
 
   // Whether a download is complete and whether the completed download is
@@ -1010,7 +977,8 @@ class ExtensionDownloadsEventRouterData : public base::SupportsUserData::Data {
       weak_ptr_factory_;
 };
 
-int ExtensionDownloadsEventRouterData::determine_filename_timeout_s_ = 15;
+base::TimeDelta ExtensionDownloadsEventRouterData::determine_filename_timeout_ =
+    base::Seconds(15);
 
 ExtensionDownloadsEventRouterData::DeterminerInfo::DeterminerInfo(
     const ExtensionId& e_id,
@@ -1224,10 +1192,12 @@ ExtensionFunction::ResponseAction DownloadsSearchFunction::Run() {
   DownloadManager* incognito_manager = nullptr;
   GetManagers(browser_context(), include_incognito_information(), &manager,
               &incognito_manager);
+  CHECK(manager);
   ExtensionDownloadsEventRouter* router =
       DownloadCoreServiceFactory::GetForBrowserContext(
           manager->GetBrowserContext())
           ->GetExtensionEventRouter();
+  CHECK(router);
   router->CheckForHistoryFilesRemoval();
   if (incognito_manager) {
     ExtensionDownloadsEventRouter* incognito_router =
@@ -1796,10 +1766,10 @@ ExtensionDownloadsEventRouter::~ExtensionDownloadsEventRouter() {
     router->UnregisterObserver(this);
 }
 
-void ExtensionDownloadsEventRouter::
-    SetDetermineFilenameTimeoutSecondsForTesting(int s) {
-  ExtensionDownloadsEventRouterData::
-      SetDetermineFilenameTimeoutSecondsForTesting(s);
+void ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutForTesting(
+    base::TimeDelta timeout) {
+  ExtensionDownloadsEventRouterData::SetDetermineFilenameTimeoutForTesting(
+      timeout);
 }
 
 void ExtensionDownloadsEventRouter::SetUiEnabled(const Extension* extension,

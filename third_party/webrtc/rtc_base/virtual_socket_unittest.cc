@@ -19,6 +19,7 @@
 
 #include "absl/memory/memory.h"
 #include "api/environment/environment.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
@@ -36,11 +37,13 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
+using ::testing::NotNull;
 using testing::SSE_CLOSE;
 using testing::SSE_ERROR;
 using testing::SSE_OPEN;
@@ -853,6 +856,41 @@ class VirtualSocketServerTest : public ::testing::Test {
     }
   }
 
+  void SendReceiveEcn(const SocketAddress& initial_addr) {
+    std::unique_ptr<Socket> socket =
+        ss_.Create(initial_addr.family(), SOCK_DGRAM);
+    socket->Bind(initial_addr);
+    SocketAddress server_addr = socket->GetLocalAddress();
+
+    TestClient client1(
+        std::make_unique<AsyncUDPSocket>(env_, std::move(socket)),
+        &fake_clock_);
+
+    SocketAddress client2_addr;
+    std::unique_ptr<Socket> socket2 =
+        ss_.Create(initial_addr.family(), SOCK_DGRAM);
+    TestClient client2(
+        std::make_unique<AsyncUDPSocket>(env_, std::move(socket2)),
+        &fake_clock_);
+
+    client2.SendTo("foo", 3, server_addr);
+    std::unique_ptr<TestClient::Packet> packet_1 = client1.NextPacket();
+    ASSERT_THAT(packet_1.get(), NotNull());
+    EXPECT_EQ(packet_1->ecn, EcnMarking::kNotEct);
+
+    client2.SetOption(Socket::OPT_SEND_ECN, 1);
+    client2.SendTo("bar", 3, server_addr);
+    std::unique_ptr<TestClient::Packet> packet_2 = client1.NextPacket();
+    ASSERT_THAT(packet_2.get(), NotNull());
+    EXPECT_EQ(packet_2->ecn, EcnMarking::kNotEct);
+
+    client1.SetOption(Socket::OPT_RECV_ECN, 1);
+    client2.SendTo("bar", 3, server_addr);
+    std::unique_ptr<TestClient::Packet> packet_3 = client1.NextPacket();
+    ASSERT_THAT(packet_3.get(), NotNull());
+    EXPECT_EQ(packet_3->ecn, EcnMarking::kEct1);
+  }
+
  protected:
   ScopedFakeClock fake_clock_;
   const Environment env_ = CreateTestEnvironment();
@@ -914,6 +952,10 @@ TEST_F(VirtualSocketServerTest, close_v4) {
 
 TEST_F(VirtualSocketServerTest, close_v6) {
   CloseTest(kIPv6AnyAddress);
+}
+
+TEST_F(VirtualSocketServerTest, SendReceiveEcn) {
+  SendReceiveEcn(kIPv4AnyAddress);
 }
 
 TEST_F(VirtualSocketServerTest, tcp_send_v4) {

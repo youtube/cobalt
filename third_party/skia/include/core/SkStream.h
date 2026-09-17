@@ -144,7 +144,7 @@ public:
 //SkStreamMemory
     /** Returns the starting address for the data. If this cannot be done, returns NULL. */
     virtual const void* getMemoryBase() { return nullptr; }
-    virtual sk_sp<SkData> getData() const { return nullptr; }
+    virtual sk_sp<const SkData> getData() const { return nullptr; }
 
 private:
     virtual SkStream* onDuplicate() const { return nullptr; }
@@ -366,6 +366,7 @@ private:
     using INHERITED = SkStreamAsset;
 };
 
+// A read only view into a block of memory.
 class SK_API SkMemoryStream : public SkStreamMemory {
 public:
     SkMemoryStream();
@@ -377,10 +378,10 @@ public:
     SkMemoryStream(const void* data, size_t length, bool copyData = false);
 
     /** Creates the stream to read from the specified data */
-    explicit SkMemoryStream(sk_sp<SkData> data);
+    explicit SkMemoryStream(sk_sp<const SkData> data);
 
     /** Creates the stream to read from the specified data mapped from the file specified by path */
-    SkMemoryStream(const char path[], sk_sp<SkData> data);
+    SkMemoryStream(const char path[], sk_sp<const SkData> data);
 
     /** When the mmap cache is enabled, unmap the data if the object holds the last reference */
     ~SkMemoryStream() override;
@@ -392,7 +393,7 @@ public:
     static std::unique_ptr<SkMemoryStream> MakeDirect(const void* data, size_t length);
 
     /** Returns a stream with a shared reference to the input data. */
-    static std::unique_ptr<SkMemoryStream> Make(sk_sp<SkData> data);
+    static std::unique_ptr<SkMemoryStream> Make(sk_sp<const SkData> data);
 
     /** Resets the stream to the specified data and length,
         just like the constructor.
@@ -406,8 +407,9 @@ public:
     */
     void setMemoryOwned(const void* data, size_t length);
 
-    sk_sp<SkData> getData() const override { return fData; }
-    void setData(sk_sp<SkData> data);
+    sk_sp<const SkData> getData() const override { return fData; }
+
+    void setData(sk_sp<const SkData> data);
 
     const void* getAtPos();
 
@@ -441,8 +443,8 @@ private:
     /** Serves as the key in the cache when the mmap cache is enabled */
     const SkString  fPath;
 
-    sk_sp<SkData>   fData;
-    size_t          fOffset;
+    sk_sp<const SkData> fData;
+    size_t fOffset;
 
     using INHERITED = SkStreamMemory;
 };

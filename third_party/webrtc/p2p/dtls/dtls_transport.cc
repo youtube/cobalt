@@ -134,6 +134,17 @@ StreamResult StreamInterfaceChannel::Read(ArrayView<uint8_t> buffer,
   return SR_SUCCESS;
 }
 
+void StreamInterfaceChannel::SetNextPacketOptions(
+    const AsyncSocketPacketOptions& options) {
+  RTC_DCHECK_RUN_ON(&callback_sequence_);
+  next_packet_options_ = options;
+}
+
+void StreamInterfaceChannel::ClearNextPacketOptions() {
+  RTC_DCHECK_RUN_ON(&callback_sequence_);
+  next_packet_options_.reset();
+}
+
 StreamResult StreamInterfaceChannel::Write(ArrayView<const uint8_t> data,
                                            size_t& written,
                                            int& /* error */) {
@@ -146,6 +157,10 @@ StreamResult StreamInterfaceChannel::Write(ArrayView<const uint8_t> data,
   }
 
   AsyncSocketPacketOptions packet_options;
+  if (next_packet_options_) {
+    packet_options = std::move(*next_packet_options_);
+    next_packet_options_.reset();
+  }
   ice_transport_->SendPacket(reinterpret_cast<const char*>(data.data()),
                              data.size(), packet_options);
   written = data.size();
@@ -193,8 +208,10 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
     const Environment& env,
     IceTransportInternal* ice_transport,
     const CryptoOptions& crypto_options,
-    SSLProtocolVersion max_version)
-    : env_(env),
+    SSLProtocolVersion max_version,
+    SslStreamFactory ssl_stream_factory)
+    : ssl_stream_factory_(ssl_stream_factory),
+      env_(env),
       component_(ice_transport->component()),
       ice_transport_(ice_transport),
       downward_(nullptr),
@@ -438,10 +455,17 @@ bool DtlsTransportInternalImpl::SetupDtls() {
       downward_ptr->SetDtlsStunPiggybackController(
           &dtls_stun_piggyback_controller_);
     }
-    dtls_ = SSLStreamAdapter::Create(
-        std::move(downward),
-        [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
-        &env_.field_trials());
+    if (ssl_stream_factory_) {
+      dtls_ = ssl_stream_factory_(
+          std::move(downward),
+          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
+          &env_.field_trials());
+    } else {
+      dtls_ = SSLStreamAdapter::Create(
+          std::move(downward),
+          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
+          &env_.field_trials());
+    }
     if (!dtls_) {
       RTC_LOG(LS_ERROR) << ToString() << ": Failed to create DTLS adapter.";
       return false;
@@ -553,13 +577,23 @@ int DtlsTransportInternalImpl::SendPacket(
 
         return ice_transport_->SendPacket(data, size, options);
       } else {
+        downward_->SetNextPacketOptions(options);
         size_t written;
         int error;
-        return (dtls_->WriteAll(
-                    MakeArrayView(reinterpret_cast<const uint8_t*>(data), size),
-                    written, error) == SR_SUCCESS)
-                   ? static_cast<int>(size)
-                   : -1;
+        // TODO(jonaso): Change the dtls_ interface so that it instead returns
+        // an encrypted packet, rather than calling the
+        // StreamInterfaceChannel::Write function. Such change would remove the
+        // need of the next_packet_options_.
+        StreamResult result = dtls_->WriteAll(
+            MakeArrayView(reinterpret_cast<const uint8_t*>(data), size),
+            written, error);
+        if (result != SR_SUCCESS) {
+          // Explicitly clear the next packet options, in case no packet was
+          // sent.
+          downward_->ClearNextPacketOptions();
+          return -1;
+        }
+        return static_cast<int>(size);
       }
     case DtlsTransportState::kFailed:
       // Can't send anything when we're failed.

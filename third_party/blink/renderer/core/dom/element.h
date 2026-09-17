@@ -31,6 +31,7 @@
 #include "base/types/pass_key.h"
 #include "third_party/blink/public/common/input/pointer_id.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
@@ -39,6 +40,7 @@
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
 #include "third_party/blink/renderer/core/css/css_selector.h"
+#include "third_party/blink/renderer/core/css/out_of_flow_data.h"
 #include "third_party/blink/renderer/core/css/resolver/cascade_filter.h"
 #include "third_party/blink/renderer/core/css/style_recalc_change.h"
 #include "third_party/blink/renderer/core/css/style_request.h"
@@ -62,6 +64,7 @@
 #include "third_party/blink/renderer/platform/region_capture_crop_id.h"
 #include "third_party/blink/renderer/platform/restriction_target_id.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
+#include "third_party/blink/renderer/platform/theme_types.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_table.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
@@ -113,7 +116,6 @@ class KURL;
 class Locale;
 class MutableCSSPropertyValueSet;
 class NamedNodeMap;
-class OutOfFlowData;
 class Patch;
 class PointerLockOptions;
 class PopoverData;
@@ -233,8 +235,6 @@ enum class CommandEventType {
   // kClose
   // Input / Select
   kShowPicker,
-  // Interest invokers (`interestfor`)
-  kToggleInterest,
   // Number Input
   kStepUp,
   kStepDown,
@@ -579,6 +579,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   gfx::Rect VisibleBoundsRespectingClipsInLocalRoot() const;
 
   DOMRectList* getClientRects();
+  // Returns a list of clients Rects in zoomed pixel units.
+  Vector<gfx::RectF> GetClientRectsNoAdjustment();
+
   // Returns a rectangle in zoomed pixel units.
   gfx::RectF GetBoundingClientRectNoLifecycleUpdateNoAdjustment() const;
   // Returns a rectangle in CSS pixel units.  i.e. ignoring zoom.
@@ -981,6 +984,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                    SlotAssignmentMode,
                                    bool serializable,
                                    bool clonable,
+                                   const AtomicString& adopted_stylesheets,
                                    const AtomicString& reference_target,
                                    const bool waiting_for_scoped_registry);
 
@@ -1166,6 +1170,14 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   bool IsFocusedElementInDocument() const;
   Element* AdjustedFocusedElementInTreeScope() const;
   bool IsAutofocusable() const;
+
+  // Returns true if `last_focus_type_` was not the result of an unknown or
+  // script source. For more see:
+  // https://explainers-by-googlers.github.io/user-dictionary-leaks/
+  bool WasLastFocusFromUserGesture() const {
+    return last_focus_type_ != mojom::blink::FocusType::kNone &&
+           last_focus_type_ != mojom::blink::FocusType::kScript;
+  }
 
   // Returns false if the event was canceled, and true otherwise.
   virtual bool DispatchFocusEvent(
@@ -1644,6 +1656,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   OutOfFlowData& EnsureOutOfFlowData();
   OutOfFlowData* GetOutOfFlowData() const;
+  bool SetPendingRememberedScrollOffsets(
+      const OutOfFlowData::RememberedScrollOffsets*);
 
   // See PostStyleUpdateScope::PseudoData::AddPendingBackdrop
   void ApplyPendingBackdropPseudoElementUpdate();
@@ -1745,8 +1759,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   virtual bool IsInertRoot() const;
 
   FocusgroupData GetFocusgroupData() const;
-  Element* FocusgroupLastFocused() const;
-  void SetFocusgroupLastFocused(Element* element);
+  Element* GetFocusgroupLastFocused() const;
+  // May only be called on a focusgroup that supports restoring the last focused
+  // element.
+  void SetFocusgroupLastFocused(Element& element);
+  void ClearFocusgroupLastFocused();
 
   bool checkVisibility(CheckVisibilityOptions* options) const;
 
@@ -1880,6 +1897,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const QualifiedName& qname,
       AttributesToExcludeHashesFor attributes_to_exclude);
 
+  enum class BaseAppearanceValue { kBaseSelect, kBase };
+  // Returns true if this element supports base appearance given a value for the
+  // appearance property, such as `base` or `base-select`.
+  bool SupportsBaseAppearance(AppearanceValue) const;
+
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
   const ElementData* GetElementData() const { return element_data_.Get(); }
@@ -1993,6 +2015,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void DetachPseudoElement(PseudoId, bool performing_reattach);
 
   void ProcessElementRenderBlocking(const AtomicString& id_or_name);
+
+  virtual bool SupportsBaseAppearanceInternal(BaseAppearanceValue) const {
+    return false;
+  }
 
  private:
   friend class AXObject;
@@ -2453,6 +2479,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // only when they are added. Attribute _values_ are not part of this
   // filter, except for the values of class="".
   uint32_t attribute_or_class_bloom_ = 0;
+
+  // This records the last type of a focus on this element via `SetFocused`.
+  // For more see:
+  // https://explainers-by-googlers.github.io/user-dictionary-leaks/
+  mojom::blink::FocusType last_focus_type_ = mojom::blink::FocusType::kNone;
 };
 
 template <>

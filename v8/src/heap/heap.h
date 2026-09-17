@@ -336,8 +336,8 @@ class Heap final {
   static size_t OldGenerationToSemiSpaceRatioLowMemory(
       uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t DefaulMinHeapSize(uint64_t physical_memory);
-  V8_EXPORT_PRIVATE static size_t DefaulMaxHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaultMinHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaultMaxHeapSize(uint64_t physical_memory);
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -1300,7 +1300,7 @@ class Heap final {
   V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
       uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
+  V8_EXPORT_PRIVATE static size_t OldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
       uint64_t physical_memory, size_t heap_size, size_t* young_generation_size,
@@ -1702,6 +1702,11 @@ class Heap final {
 
   bool ShouldUseBackgroundThreads() const;
   bool ShouldUseIncrementalMarking() const;
+
+  void AddTotalAllocatedBytes(size_t size) {
+    total_allocated_bytes_.fetch_add(size, std::memory_order_relaxed);
+  }
+  uint64_t GetTotalAllocatedBytes();
 
   HeapAllocator* allocator() { return heap_allocator_; }
   const HeapAllocator* allocator() const { return heap_allocator_; }
@@ -2543,7 +2548,10 @@ class Heap final {
   // no value was provided this will be 0.
   uint64_t physical_memory_;
 
+  std::atomic<uint64_t> total_allocated_bytes_ = 0;
+
   perfetto::NamedTrack tracing_track_;
+  perfetto::NamedTrack loading_track_;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
@@ -2590,6 +2598,7 @@ class Heap final {
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
+  friend class ScavengerWeakObjectsProcessor;
   friend class ScheduleMinorGCTaskObserver;
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceNewSpaceAllocatorPolicy;

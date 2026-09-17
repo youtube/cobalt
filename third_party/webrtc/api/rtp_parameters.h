@@ -755,6 +755,12 @@ struct RTC_EXPORT RtpParameters {
            degradation_preference == o.degradation_preference;
   }
   bool operator!=(const RtpParameters& o) const { return !(*this == o); }
+
+  // Returns true if the active encodings use different codecs.
+  // Inactive encodings are ignored.
+  // If at least two active encodings have different codec values
+  // (including one being unset and another set), this is considered mixed.
+  bool IsMixedCodec() const;
 };
 
 }  // namespace webrtc

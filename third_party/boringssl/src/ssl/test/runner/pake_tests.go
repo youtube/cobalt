@@ -509,7 +509,7 @@ func addPAKETests() {
 				// Check that the ClientHello does not offer a session, even
 				// though one was configured.
 				ExpectNoTLS13PSK: true,
-				// Respond with an unsolicted PSK extension in ServerHello, to
+				// Respond with an unsolicited PSK extension in ServerHello, to
 				// check that the client rejects it.
 				AlwaysSelectPSKIdentity: true,
 			},

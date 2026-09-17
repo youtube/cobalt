@@ -585,7 +585,7 @@ TEST_F(GlicMetricsTest, LogGetContextForActorFromTabError_UnknownMode) {
 
 TEST_F(GlicMetricsTest, LogGetContextFromFocusedTabError_ChangingModes) {
   // Simulates the client starting in text mode and later switching to audio.
-  metrics_->SetStartingMode(mojom::WebClientMode::kText);
+  metrics_->SetWebClientMode(mojom::WebClientMode::kText);
   metrics_->LogGetContextFromFocusedTabError(
       GlicGetContextFromTabError::kWebContentsChanged);
   metrics_->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
@@ -949,6 +949,23 @@ TEST_F(GlicMetricsTest, FreToFirstQueryElapsedTimeReportedOnlyOnce) {
   histogram_tester_.ExpectUniqueSample("Glic.FreToFirstQueryTime", 100, 1);
   histogram_tester_.ExpectUniqueSample("Glic.FreToFirstQueryTimeMax24H", 100,
                                        1);
+}
+
+TEST_F(GlicMetricsTest, OnRecordUseCounter) {
+  metrics_->OnRecordUseCounter(
+      static_cast<uint16_t>(mojom::WebUseCounter::kMaxValue));
+  metrics_->OnRecordUseCounter(
+      static_cast<uint16_t>(mojom::WebUseCounter::kMaxValue) + 1);
+  metrics_->OnRecordUseCounter(1001);
+
+  histogram_tester_.ExpectBucketCount("Glic.Api.UseCounter", 1000, 1);
+  histogram_tester_.ExpectBucketCount(
+      "Glic.Api.UseCounter",
+      static_cast<uint16_t>(mojom::WebUseCounter::kMaxValue), 1);
+  histogram_tester_.ExpectBucketCount(
+      "Glic.Api.UseCounter",
+      static_cast<uint16_t>(mojom::WebUseCounter::kMaxValue) + 1, 1);
+  histogram_tester_.ExpectTotalCount("Glic.Api.UseCounter", 3);
 }
 
 }  // namespace

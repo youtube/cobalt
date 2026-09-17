@@ -25,6 +25,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -47,6 +48,7 @@ import org.chromium.chrome.browser.tabmodel.PendingTabClosureManager.PendingTabC
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tabs.TabStripCollection;
+import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -80,6 +82,9 @@ import java.util.function.Supplier;
 @JNINamespace("tabs")
 public class TabCollectionTabModelImpl extends TabModelJniBridge
         implements TabGroupModelFilterInternal {
+    /** The name of the UKM event used for tab state changes. */
+    private static final String UKM_METRICS_TAB_STATE_CHANGED = "Tab.StateChange";
+
     /**
      * Holds data for an individual tab that was part of a group merge operation that may be undone.
      */
@@ -538,47 +543,54 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     @Override
     public void setIndex(int i, final @TabSelectionType int type) {
         assertOnUiThread();
+
         // TODO(crbug.com/425344200): Prevent passing negative indices.
         if (mIsArchivedTabModel) return;
         if (mNativeTabCollectionTabModelImplPtr == 0) return;
 
-        // When we select a tab in this model it should become the active model. This is the
-        // existing behavior of TabModelImpl.
-        if (!isActiveModel()) mModelDelegate.selectModel(isIncognito());
+        // Batch service binding updates for the tabs becoming active and inactive. The activeness
+        // change usually causes visibility changes, which updates service bindings of subframes at
+        // the same time.
+        try (ScopedServiceBindingBatch scope = ScopedServiceBindingBatch.scoped()) {
+            // When we select a tab in this model it should become the active model. This is the
+            // existing behavior of TabModelImpl.
+            if (!isActiveModel()) mModelDelegate.selectModel(isIncognito());
 
-        Tab oldSelectedTab = mCurrentTabSupplier.get();
-        int lastId = (oldSelectedTab == null) ? Tab.INVALID_TAB_ID : oldSelectedTab.getId();
+            Tab oldSelectedTab = mCurrentTabSupplier.get();
+            int lastId = (oldSelectedTab == null) ? Tab.INVALID_TAB_ID : oldSelectedTab.getId();
 
-        int currentTabCount = getCount();
-        final Tab newSelectedTab;
-        if (currentTabCount == 0) {
-            newSelectedTab = null;
-        } else {
-            newSelectedTab = getTabAt(MathUtils.clamp(i, 0, currentTabCount - 1));
-        }
-        mModelDelegate.requestToShowTab(newSelectedTab, type);
-        mCurrentTabSupplier.set(newSelectedTab);
-
-        if (newSelectedTab != null) {
-            Token tabGroupId = newSelectedTab.getTabGroupId();
-            boolean isInGroup = tabGroupId != null;
-            if (isInGroup) {
-                assumeNonNull(tabGroupId);
-                setLastShownTabForGroup(tabGroupId, newSelectedTab);
+            int currentTabCount = getCount();
+            final Tab newSelectedTab;
+            if (currentTabCount == 0) {
+                newSelectedTab = null;
+            } else {
+                newSelectedTab = getTabAt(MathUtils.clamp(i, 0, currentTabCount - 1));
             }
-            RecordHistogram.recordBooleanHistogram("TabGroups.SelectedTabInTabGroup", isInGroup);
+            mModelDelegate.requestToShowTab(newSelectedTab, type);
+            mCurrentTabSupplier.set(newSelectedTab);
 
-            for (TabModelObserver obs : mTabModelObservers) {
-                obs.didSelectTab(newSelectedTab, type, lastId);
-                // Required, otherwise the previously active tab will have MULTISELECTED as its
-                // VisualState.
-                obs.onTabsSelectionChanged();
-            }
+            if (newSelectedTab != null) {
+                Token tabGroupId = newSelectedTab.getTabGroupId();
+                boolean isInGroup = tabGroupId != null;
+                if (isInGroup) {
+                    assumeNonNull(tabGroupId);
+                    setLastShownTabForGroup(tabGroupId, newSelectedTab);
+                }
+                RecordHistogram.recordBooleanHistogram(
+                        "TabGroups.SelectedTabInTabGroup", isInGroup);
 
-            boolean wasAlreadySelected =
-                    (newSelectedTab.getId() == lastId && lastId != Tab.INVALID_TAB_ID);
-            if (!wasAlreadySelected && type == TabSelectionType.FROM_USER) {
-                RecordUserAction.record("MobileTabSwitched");
+                for (TabModelObserver obs : mTabModelObservers) {
+                    obs.didSelectTab(newSelectedTab, type, lastId);
+                    // Required, otherwise the previously active tab will have MULTISELECTED as its
+                    // VisualState.
+                    obs.onTabsSelectionChanged();
+                }
+
+                boolean wasAlreadySelected =
+                        (newSelectedTab.getId() == lastId && lastId != Tab.INVALID_TAB_ID);
+                if (!wasAlreadySelected && type == TabSelectionType.FROM_USER) {
+                    RecordUserAction.record("MobileTabSwitched");
+                }
             }
         }
     }
@@ -1763,6 +1775,14 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
 
         if (isPinned) {
             recordPinTimestamp(tab);
+
+            WebContents webContents = tab.getWebContents();
+            if (webContents != null) {
+                new UkmRecorder(webContents, UKM_METRICS_TAB_STATE_CHANGED)
+                        .addBooleanMetric("IsPinned")
+                        .record();
+            }
+
         } else {
             recordPinnedDuration(tab);
         }

@@ -43,7 +43,7 @@ void CRYPTO_sysrand(uint8_t *out, size_t requested) {
       output_bytes_this_pass = (ULONG)requested;
     }
     if (!BCRYPT_SUCCESS(BCryptGenRandom(
-            /*hAlgorithm=*/NULL, out, output_bytes_this_pass,
+            /*hAlgorithm=*/nullptr, out, output_bytes_this_pass,
             BCRYPT_USE_SYSTEM_PREFERRED_RNG))) {
       abort();
     }
@@ -56,15 +56,15 @@ void CRYPTO_sysrand(uint8_t *out, size_t requested) {
 
 // See: https://learn.microsoft.com/en-us/windows/win32/seccng/processprng
 typedef BOOL (WINAPI *ProcessPrngFunction)(PBYTE pbData, SIZE_T cbData);
-static ProcessPrngFunction g_processprng_fn = NULL;
+static ProcessPrngFunction g_processprng_fn = nullptr;
 
 static void init_processprng(void) {
   HMODULE hmod = LoadLibraryW(L"bcryptprimitives");
-  if (hmod == NULL) {
+  if (hmod == nullptr) {
     abort();
   }
   g_processprng_fn = (ProcessPrngFunction)GetProcAddress(hmod, "ProcessPrng");
-  if (g_processprng_fn == NULL) {
+  if (g_processprng_fn == nullptr) {
     abort();
   }
 }

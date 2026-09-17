@@ -2233,7 +2233,7 @@ class ComputedStyle final : public ComputedStyleBase {
   // doesn't account for them.
   bool HasVisualOverflowingEffect() const {
     return BoxShadow() || HasBorderImageOutsets() || HasOutline() ||
-           HasMaskBoxImageOutsets() || HasGapRule();
+           HasMaskBoxImageOutsets() || HasGapRule() || HasBorderShape();
   }
 
   bool IsStackedWithoutContainment() const {
@@ -2583,6 +2583,8 @@ class ComputedStyle final : public ComputedStyleBase {
   // Returns whether the animation-trigger property names a trigger. The name
   // might refer to a trigger elsewhere in the DOM.
   bool HasAnimationTrigger() const;
+
+  bool HasBaseEffectiveAppearance() const;
 
  private:
   bool IsInlineSizeContainer() const {
@@ -2939,8 +2941,11 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
   bool HasEffectiveAppearance() const {
     return ComputedStyle::HasEffectiveAppearance(EffectiveAppearance());
   }
-  bool HasBaseSelectAppearance() const {
-    return Appearance() == AppearanceValue::kBaseSelect;
+  bool HasBaseAppearance() const {
+    DCHECK(RuntimeEnabledFeatures::AppearanceBaseEnabled() ||
+           Appearance() != AppearanceValue::kBase);
+    return Appearance() == AppearanceValue::kBaseSelect ||
+           Appearance() == AppearanceValue::kBase;
   }
 
   // backdrop-filter

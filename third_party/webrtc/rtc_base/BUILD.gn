@@ -1716,6 +1716,7 @@ rtc_library("ssl_adapter") {
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
   ]
 
   # If we are building the SSL library ourselves, we know it's BoringSSL.
@@ -1759,6 +1760,7 @@ rtc_library("testclient") {
     ":socket_address",
     ":threading",
     ":timeutils",
+    "../api/transport:ecn_marking",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "../test:wait_until",
@@ -1848,6 +1850,7 @@ rtc_library("rtc_base_tests_utils") {
     "../api/environment",
     "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
+    "../api/transport:ecn_marking",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "memory:always_valid_pointer",
@@ -2176,6 +2179,7 @@ if (rtc_include_tests) {
         "../api:scoped_refptr",
         "../api/environment",
         "../api/numerics",
+        "../api/transport:ecn_marking",
         "../api/units:data_rate",
         "../api/units:data_size",
         "../api/units:frequency",

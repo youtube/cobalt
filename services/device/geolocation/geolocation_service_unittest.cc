@@ -7,10 +7,6 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/ash/components/dbus/shill/shill_clients.h"
-#include "chromeos/ash/components/network/geolocation_handler.h"
-#endif
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/network_change_notifier.h"
 #include "services/device/device_service_test_base.h"
@@ -23,6 +19,11 @@
 #include "services/device/public/mojom/geolocation_client_id.mojom.h"
 #include "services/device/public/mojom/geolocation_context.mojom.h"
 #include "services/device/public/mojom/geolocation_control.mojom.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/dbus/shill/shill_clients.h"
+#include "chromeos/ash/components/network/geolocation_handler.h"
+#endif
 
 namespace device {
 
@@ -68,8 +69,6 @@ class GeolocationServiceUnitTest : public DeviceServiceTestBase {
   void TearDown() override {
     WifiDataProviderHandle::ResetFactoryForTesting();
 
-    DeviceServiceTestBase::TearDown();
-
 #if BUILDFLAG(IS_CHROMEOS)
     ash::NetworkHandler::Shutdown();
     ash::shill_clients::Shutdown();
@@ -82,6 +81,8 @@ class GeolocationServiceUnitTest : public DeviceServiceTestBase {
     GeolocationProviderImpl::GetInstance()
         ->clear_user_did_opt_into_location_services_for_testing();
     base::RunLoop().RunUntilIdle();
+
+    DeviceServiceTestBase::TearDown();
   }
 
   scoped_refptr<MockWifiDataProvider> wifi_data_provider_;
@@ -98,7 +99,8 @@ class GeolocationServiceUnitTest : public DeviceServiceTestBase {
 // ChromeOS fails to perform network geolocation when zero wifi networks are
 // detected in a scan: https://crbug.com/767300.
 #else
-TEST_F(GeolocationServiceUnitTest, UrlWithApiKey) {
+// TODO(crbug.com/453817118): Re-enable when no longer flaky.
+TEST_F(GeolocationServiceUnitTest, DISABLED_UrlWithApiKey) {
 // To align with user expectation we do not make Network Location Requests
 // unless the browser has location system permission from the supported
 // operating systems.

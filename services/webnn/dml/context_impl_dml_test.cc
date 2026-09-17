@@ -8,6 +8,7 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -92,11 +93,7 @@ class FakeWebNNTensorImpl final : public WebNNTensorImpl {
   }
 
   // Interop is not required by tests.
-  bool ImportTensorImpl(
-      std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
-      override {
-    return false;
-  }
+  bool ImportTensorImpl() override { return false; }
   void ExportTensorImpl(
       std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access)
       override {}

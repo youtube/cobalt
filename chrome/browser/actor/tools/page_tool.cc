@@ -66,8 +66,10 @@ bool ValidateTargetFrameCandidate(
     return false;
   }
 
-  RenderFrameHost* apc_target_frame = GetRenderFrameForDocumentIdentifier(
-      web_contents, target_node_info->document_identifier.serialized_token());
+  RenderFrameHost* apc_target_frame =
+      optimization_guide::GetRenderFrameForDocumentIdentifier(
+          web_contents,
+          target_node_info->document_identifier.serialized_token());
 
   // Only return the candidate if its RenderWidgetHost matches the target
   // and it's also a local root frame(i.e. has no parent or parent has
@@ -187,8 +189,7 @@ mojom::ActionResultPtr PageTool::TimeOfUseValidation(
   }
 
   journal().Log(
-      JournalURL(), task_id(), mojom::JournalTrack::kActor,
-      "TimeOfUseValidation",
+      JournalURL(), task_id(), "TimeOfUseValidation",
       JournalDetailsBuilder().Add("tab_handle", tab->GetHandle()).Build());
 
   RenderFrameHost* frame =
@@ -213,8 +214,7 @@ mojom::ActionResultPtr PageTool::TimeOfUseValidation(
                                           request_->GetTarget());
 
   if (!observed_target_node_info) {
-    journal().Log(JournalURL(), task_id(), mojom::JournalTrack::kActor,
-                  "TimeOfUseValidation",
+    journal().Log(JournalURL(), task_id(), "TimeOfUseValidation",
                   JournalDetailsBuilder()
                       .Add("details", "No observed target found in APC.")
                       .Build());
@@ -326,8 +326,7 @@ std::string PageTool::JournalEvent() const {
 }
 
 std::unique_ptr<ObservationDelayController> PageTool::GetObservationDelayer(
-    std::optional<ObservationDelayController::PageStabilityConfig>
-        page_stability_config) {
+    ObservationDelayController::PageStabilityConfig page_stability_config) {
   CHECK(has_completed_time_of_use_);
 
   RenderFrameHost* frame = GetFrame();

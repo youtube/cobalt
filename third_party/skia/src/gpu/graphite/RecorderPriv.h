@@ -59,6 +59,9 @@ public:
     // Flush tracked devices that have pending reads from `dependency`.
     void flushTrackedDevices(const TextureProxy* dependency);
 
+    std::unique_ptr<KeyAndDataBuilder> popOrCreateKeyAndDataBuilder();
+    void pushKeyAndDataBuilder(std::unique_ptr<KeyAndDataBuilder> keyDB);
+
     const Caps* caps() const { return fRecorder->fSharedContext->caps(); }
 
     ResourceProvider* resourceProvider() { return fRecorder->fResourceProvider; }
@@ -83,6 +86,7 @@ public:
     UploadList* rootUploadList() { return fRecorder->fRootUploads.get(); }
     DrawBufferManager* drawBufferManager() { return fRecorder->fDrawBufferManager.get(); }
     UploadBufferManager* uploadBufferManager() { return fRecorder->fUploadBufferManager.get(); }
+    FloatStorageManager* floatStorageManager() { return fRecorder->fFloatStorageManager.get(); }
     sk_sp<FloatStorageManager> refFloatStorageManager() { return fRecorder->fFloatStorageManager; }
 
     AtlasProvider* atlasProvider() { return fRecorder->fAtlasProvider.get(); }

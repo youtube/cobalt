@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">Verrà interrotto l'avanzamento del tuo download attuale.</translation>
 <translation id="1594034544529347967">Inizio</translation>
 <translation id="1598751033135758830">Apri nell'app…</translation>
+<translation id="1601560923496285236">Applica</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 indirizzo}other{# indirizzi}}</translation>
 <translation id="1605405588277479165">Off - Sconsigliata</translation>
 <translation id="1605658421715042784">Copia immagine</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">Controlla la connessione di rete e riprova.</translation>
 <translation id="4070132839822635162">Non accedere</translation>
 <translation id="4092655288299341041">Mostra la Guida</translation>
+<translation id="4095483462103784441">Crea un nuovo gruppo di schede</translation>
 <translation id="4099756562043439968">Imposta un promemoria</translation>
 <translation id="4108998448622696017">Rileva e ti avvisa quando si verificano eventi pericolosi.</translation>
 <translation id="4111985840824673503">Segna tutti come già letti</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">Indirizzo spostato nel tuo account <ph name="USER_EMAIL" /></translation>
 <translation id="4287172530684295552">Segna come già letti</translation>
 <translation id="428768789042547925">Novità</translation>
-<translation id="428858055663163046">Puoi accedere ai file scaricati qui quando sono disponibili</translation>
 <translation id="429074084062258019">{count,plural, =1{Aggiungi scheda a gruppo}other{Aggiungi schede a gruppo}}</translation>
 <translation id="4302061870579014542">Imposta posizione</translation>
 <translation id="4304713468139749426">Gestore delle password</translation>
@@ -1236,6 +1237,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5758759241456233788">Anteprime di Maps disattivate. Riattivale in Impostazioni.</translation>
 <translation id="5759484603608560822">Nascondi download</translation>
 <translation id="5767099457279594162">La password non è stata condivisa</translation>
+<translation id="5768870767339201169">Riprendi da dove hai interrotto</translation>
 <translation id="5779117921996157216">{count,plural, =1{Hai {count} password compromessa che potrebbe mettere a rischio la tua sicurezza. Sistemala subito per rimanere al sicuro.}other{Hai {count} password compromesse che potrebbero mettere a rischio la tua sicurezza. Sistemale subito per rimanere al sicuro.}}</translation>
 <translation id="5791632441210678828">Pulsante Ordina per il feed Stai seguendo.</translation>
 <translation id="5803566855766646066">Vuoi eliminare questa nuova carta?</translation>
@@ -1454,6 +1456,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Opzioni</translation>
 <translation id="6550891580932862748">Non ti protegge da estensioni, download e siti web pericolosi. Le impostazioni di Navigazione sicura di altri prodotti Google rimarranno invariate.</translation>
+<translation id="6556866813142980365">Ripeti</translation>
 <translation id="6559301491397835130">{count,plural, =1{Preferito salvato in "{title}", solo su questo dispositivo.}other{Preferiti salvati in "{title}", solo su questo dispositivo.}}</translation>
 <translation id="656065428026159829">Mostra altri</translation>
 <translation id="6571070086367343653">Modifica carta di credito</translation>
@@ -1692,6 +1695,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7484645889979462775">Mai per questo sito</translation>
 <translation id="7486006552035434095">Mantieni sincronizzati i tuoi dispositivi</translation>
 <translation id="7491131399623468277">Vai alle Impostazioni…</translation>
+<translation id="7491161827858509164">Per visualizzare i file scaricati in precedenza, apri <ph name="BEGIN_LINK" />File<ph name="END_LINK" /></translation>
 <translation id="7498234416455752244">Continua modifica</translation>
 <translation id="7500244509706269886">Compila automaticamente il modulo</translation>
 <translation id="750493650310597496">0 selezionati</translation>
@@ -1729,6 +1733,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7612619742409846846">Accesso effettuato a Google come</translation>
 <translation id="7612849887607288481">Apri il menu di prototipazione AI</translation>
 <translation id="7620522820075868385">Annulla</translation>
+<translation id="762078666799342162">Puoi visualizzare i download precedenti in <ph name="BEGIN_LINK" />File<ph name="END_LINK" /></translation>
 <translation id="7638584964844754484">Passphrase sbagliata</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Password compromesse}=1{{COUNT} password compromessa}other{{COUNT} password compromesse}}</translation>
 <translation id="7640669552036055091">Schede di Android</translation>
@@ -1793,6 +1798,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7851858861565204677">Altri dispositivi</translation>
 <translation id="7853202427316060426">Attività</translation>
 <translation id="7854006015462979438">Apri Generali</translation>
+<translation id="7855678267851972597">Audio</translation>
 <translation id="7859988229622350291">Non tradurre mai</translation>
 <translation id="7863211248337747225">Scarica l'app</translation>
 <translation id="7865127013871431856">Opzioni di Traduttore</translation>
@@ -1909,7 +1915,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8273982424131314219">Inserirai i dati su <ph name="URL" /></translation>
 <translation id="8275068909952022340">Altro…</translation>
 <translation id="8277328362018795342">I contenuti della tua pagina vengono condivisi per ricevere risposte più pertinenti</translation>
-<translation id="8278488584187265939">Personalizza l'home page</translation>
 <translation id="8281781826761538115">Predefinita - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Salta</translation>
 <translation id="8282657446819506217">Apri in gruppo di schede</translation>
@@ -1973,6 +1978,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8524799873541103884">Schede <ph name="INCOGNITO" /> dalla <ph name="FIRST_VISIBLE_TAB" /> alla <ph name="LAST_VISIBLE_TAB" /> di <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">Apri link da altre app in incognito</translation>
 <translation id="8529767659511976195">Novità</translation>
+<translation id="8531572740963685410">PDF</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Navigazione sicura attiva</translation>
 <translation id="8534481786647257214">Pubblicazione su Google+ completata.</translation>
@@ -2179,6 +2185,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="945522503751344254">Invia feedback</translation>
 <translation id="94870150074703282">Eliminare il gruppo?</translation>
 <translation id="952704832371081537">Annulla</translation>
+<translation id="95332591904104970">App connesse</translation>
 <translation id="954667170699278022">Elenco di lettura</translation>
 <translation id="956218893102219091">Per ottenere i risultati più precisi di Gemini, invece di una posizione stimata in base al tuo indirizzo IP, usa la tua posizione esatta. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Elimina dati navigazione</translation>

@@ -118,7 +118,7 @@ public:
     {
         fBoundsIsDirty = true;    // this also invalidates fIsFinite
         fGenerationID = 0;        // recompute
-        fSegmentMask = segmentMask;
+        fSegmentMask = SkToU8(segmentMask);
         fType = SkPathIsAType::kGeneral;
         SkDEBUGCODE(fEditorsAttached.store(0);)
         if (mx && !mx->isIdentity()) {
@@ -330,15 +330,13 @@ public:
 
     bool operator== (const SkPathRef& ref) const;
 
-    void interpolate(const SkPathRef& ending, SkScalar weight, SkPathRef* out) const;
-
     /**
      * Gets an ID that uniquely identifies the contents of the path ref. If two path refs have the
      * same ID then they have the same verbs and points. However, two path refs may have the same
      * contents but different genIDs.
      * skbug.com/40032862 for background on why fillType is necessary (for now).
      */
-    uint32_t genID(uint8_t fillType) const;
+    uint32_t genID(SkPathFillType fillType) const;
 
     void addGenIDChangeListener(sk_sp<SkIDChangeListener>);   // Threadsafe.
     int genIDChangeListenerCount();                           // Threadsafe

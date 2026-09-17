@@ -259,13 +259,6 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
   FATAL("API fatal error handler returned after process out of memory");
 }
 
-void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
-                                    const char* detail) {
-  OOMDetails details;
-  details.detail = detail;
-  FatalProcessOutOfMemory(i_isolate, location, details);
-}
-
 void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* i_isolate = i::Isolate::TryGetCurrent();
   FatalErrorCallback callback = nullptr;
@@ -543,10 +536,10 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
   physical_memory_size_ = physical_memory;
 
-  size_t heap_size = i::Heap::HeapSizeFromPhysicalMemory(physical_memory);
-  size_t young_generation, old_generation;
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size,
-                                       &young_generation, &old_generation);
+  size_t old_generation =
+      i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory);
+  size_t young_generation = i::Heap::YoungGenerationSizeFromOldGenerationSize(
+      physical_memory, old_generation);
   set_max_young_generation_size_in_bytes(young_generation);
   set_max_old_generation_size_in_bytes(old_generation);
 
@@ -1321,7 +1314,18 @@ i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
   DCHECK_IMPLIES(replace_on_access, setter == nullptr);
   if (setter == nullptr) {
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+    // Cast from 'void (*)(v8::Local<v8::Name>, v8::Local<v8::Value>, const
+    // v8::PropertyCallbackInfo<v8::Boolean> &)' to 'void
+    // (*)(v8::Local<v8::Name>, v8::Local<v8::Value>, const
+    // v8::PropertyCallbackInfo<void> &)'.
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   }
   obj->set_setter(i_isolate, reinterpret_cast<i::Address>(setter));
 
@@ -4708,18 +4712,17 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Local<FunctionTemplate> tmpl) {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
-  i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
   i::Tagged<i::FunctionTemplateInfo> tmpl_info =
       *Utils::OpenDirectHandle(*tmpl);
-  if (!IsJSObject(iter.GetCurrent())) return {};
-  while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
-    iter.Advance();
-    if (iter.IsAtEnd()) return {};
-    if (!IsJSObject(iter.GetCurrent())) return {};
+  for (i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (IsJSObject(iter.GetCurrent()) &&
+        tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
+      return Utils::ToLocal(
+          i::direct_handle(iter.GetCurrent<i::JSObject>(), i_isolate));
+    }
   }
-  // IsTemplateFor() ensures that iter.GetCurrent() can't be a Proxy here.
-  return Utils::ToLocal(
-      i::direct_handle(iter.GetCurrent<i::JSObject>(), i_isolate));
+  return {};
 }
 
 MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
@@ -5024,7 +5027,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       context, RCCId::kAPI_Object_GetRealNamedPropertyInPrototypeChain};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return {};
+  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
@@ -5046,7 +5049,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
       i_isolate, context,
       RCCId::kAPI_Object_GetRealNamedPropertyAttributesInPrototypeChain};
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return {};
+  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
@@ -6347,7 +6350,8 @@ HeapStatistics::HeapStatistics()
       peak_malloced_memory_(0),
       does_zap_garbage_(false),
       number_of_native_contexts_(0),
-      number_of_detached_contexts_(0) {}
+      number_of_detached_contexts_(0),
+      total_allocated_bytes_(0) {}
 
 HeapSpaceStatistics::HeapSpaceStatistics()
     : space_name_(nullptr),
@@ -10216,6 +10220,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
+  heap_statistics->total_allocated_bytes_ = heap->GetTotalAllocatedBytes();
   heap_statistics->does_zap_garbage_ = i::heap::ShouldZapGarbage();
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -11925,13 +11930,14 @@ void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
   UNREACHABLE();
 }
 
-void WasmStreaming::Finish(bool can_use_compiled_module) { UNREACHABLE(); }
+void WasmStreaming::Finish(
+    const WasmStreaming::ModuleCachingCallback& caching_callback) {
+  UNREACHABLE();
+}
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) { UNREACHABLE(); }
 
-bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-  UNREACHABLE();
-}
+void WasmStreaming::SetHasCompiledModuleBytes() { UNREACHABLE(); }
 
 void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
     std::function<void(CompiledWasmModule)>) {

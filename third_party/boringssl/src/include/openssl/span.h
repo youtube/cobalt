@@ -138,7 +138,7 @@ struct AllowRedeclaringConstructor {};
 //
 // FooMutate(bssl::Span(vec));
 //
-// Note that Spans have value type sematics. They are cheap to construct and
+// Note that Spans have value type semantics. They are cheap to construct and
 // copy, and should be passed by value whenever a method would otherwise accept
 // a reference or pointer to a container or array.
 template <typename T, size_t N>

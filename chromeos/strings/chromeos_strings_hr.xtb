@@ -756,6 +756,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> slika/slike</translation>
 <translation id="4300272766492248925">Otvori aplikaciju</translation>
 <translation id="430786093962686457">šifona</translation>
+<translation id="4309762678330556039">Automatski izrađujte prijepise i pretražujte audiozapise. Možete izrađivati snimke čak i kad niste povezani s internetom.</translation>
 <translation id="4310735698903592804">Nedavne pozadine izrađene pomoću Googleovog AI-ja</translation>
 <translation id="4320904097188876154">fluorescentno ružičaste boje</translation>
 <translation id="432961742358282111">Kliknite desnom tipkom ili pritisnite i zadržite da biste dobili definicije, prijevode ili pretvorbe jedinica. Upravljajte ovom značajkom tipkom sa strelicom lijevo ili desno.</translation>
@@ -1472,6 +1473,7 @@ Da biste dobili te prijepise, preuzmite model prijepisa (do 100 MB).</translati
 <translation id="7425832472614771259">Model prijepisa za <ph name="LANGUAGE_NAME" /> preuzet je <ph name="PROGRESS_PERCENTAGE" />%</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Taj se APN ne može onemogućiti niti ukloniti. Ako imate omogućene <ph name="ATTACH" /> APN-ove, onemogućite ih ili uklonite.</translation>
+<translation id="7458359366992324037">Udaljeni zaslon</translation>
 <translation id="7458970041932198923">Povežite se s mrežom i ponovo učitajte stranicu da biste pregledali i postavili avatare.</translation>
 <translation id="7469648432129124067">Otkriven je portal</translation>
 <translation id="7481312909269577407">Naprijed</translation>

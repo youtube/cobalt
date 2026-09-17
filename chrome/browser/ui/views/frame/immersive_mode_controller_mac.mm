@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/apple/foundation_util.h"
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -18,7 +19,6 @@
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/fullscreen_util_mac.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view_mac.h"
-#include "chrome/browser/ui/views/frame/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -40,6 +40,10 @@
 
 namespace {
 
+// This FocusSearch connects BrowserView, the overlay widget and the tab
+// overlay widget to form a complete focus traversal cycle. It finds the
+// next focusable view from another widget when the FocusManager cannot
+// find the next focusable view in the currently focused widget.
 class ImmersiveModeFocusSearchMac : public views::FocusSearch {
  public:
   explicit ImmersiveModeFocusSearchMac(BrowserView* browser_view);
@@ -59,6 +63,7 @@ class ImmersiveModeFocusSearchMac : public views::FocusSearch {
       views::View** focus_traversable_view) override;
 
  private:
+  bool finding_next_focusable_view_ = false;
   raw_ptr<BrowserView> browser_view_;
 };
 
@@ -526,6 +531,14 @@ views::View* ImmersiveModeFocusSearchMac::FindNextFocusableView(
     AnchoredDialogPolicy can_go_into_anchored_dialog,
     views::FocusTraversable** focus_traversable,
     views::View** focus_traversable_view) {
+  // Re-entering ImmersiveModeFocusSearchMac. This means that the last focus
+  // search fails to find a focusable view in the widget. Early exit to
+  // prevent infinite focus search loop.
+  if (finding_next_focusable_view_) {
+    return nullptr;
+  }
+  base::AutoReset<bool> auto_reset(&finding_next_focusable_view_, true);
+
   // Search in the `starting_view` traversable tree.
   views::FocusTraversable* starting_focus_traversable =
       starting_view->GetFocusTraversable();

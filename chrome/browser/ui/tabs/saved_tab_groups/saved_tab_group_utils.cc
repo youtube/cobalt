@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_metrics.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
@@ -442,14 +443,18 @@ content::NavigationHandle* SavedTabGroupUtils::OpenTabInBrowser(
 // static
 Browser* SavedTabGroupUtils::GetBrowserWithTabGroupId(
     tab_groups::TabGroupId group_id) {
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    const TabStripModel* const tab_strip_model = browser->tab_strip_model();
-    if (tab_strip_model && tab_strip_model->SupportsTabGroups() &&
-        tab_strip_model->group_model()->ContainsTabGroup(group_id)) {
-      return browser;
-    }
-  }
-  return nullptr;
+  Browser* result = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [group_id, &result](BrowserWindowInterface* browser) {
+        const TabStripModel* const tab_strip_model =
+            browser->GetTabStripModel();
+        if (tab_strip_model && tab_strip_model->SupportsTabGroups() &&
+            tab_strip_model->group_model()->ContainsTabGroup(group_id)) {
+          result = browser->GetBrowserForMigrationOnly();
+        }
+        return !result;
+      });
+  return result;
 }
 
 // static
@@ -815,9 +820,23 @@ void SavedTabGroupUtils::PerformTabGroupMenuAction(
       break;
     }
     case TabGroupMenuAction::Type::OPEN_OR_MOVE_TO_NEW_WINDOW:
+      base::RecordAction(base::UserMetricsAction(
+          "TabGroups_SavedTabGroups_MoveGroupToNewWindow"));
       SavedTabGroupUtils::OpenOrMoveSavedGroupToNewWindow(browser, uuid);
       break;
     case TabGroupMenuAction::Type::PIN_OR_UNPIN_GROUP:
+
+      if (std::optional<tab_groups::SavedTabGroup> group =
+              tab_group_service->GetGroup(uuid)) {
+        if (group->is_pinned()) {
+          base::RecordAction(
+              base::UserMetricsAction("TabGroups_SavedTabGroups_Unpinned"));
+        } else {
+          base::RecordAction(
+              base::UserMetricsAction("TabGroups_SavedTabGroups_Pinned"));
+        }
+      }
+
       SavedTabGroupUtils::ToggleGroupPinState(browser, uuid);
       break;
     case TabGroupMenuAction::Type::DELETE_GROUP:

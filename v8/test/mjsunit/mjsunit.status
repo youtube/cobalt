@@ -966,7 +966,7 @@
   'regress/regress-1078913': [SKIP],
 
   # Flag --no-jitless incompatible with jitless
-  'ignition/opt-proto-seq/*': [SKIP],
+  'opt-proto-seq/*': [SKIP],
 
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
@@ -2972,6 +2972,12 @@
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
 
 ##############################################################################
+['variant in [no_lfa, always_sparkplug_and_stress_regexp_jit, stress_concurrent_inlining]', {
+  # https://crbug.com/453967876
+  'osr-elements-kind': [FAIL],
+}],
+
+##############################################################################
 ['not disassembler', {
   # Sets a flag which is read-only if the disassembler is disabled.
   'regress/regress-392928803': [FAIL],
@@ -3015,5 +3021,9 @@
 ['variant == minor_ms', {
   'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == minor_ms
+
+['variant == scavenger_chaos_mode', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == scavenger_chaos_mode
 
 ]

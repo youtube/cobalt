@@ -23,7 +23,7 @@
 
 int X509_CRL_print_fp(FILE *fp, const X509_CRL *x) {
   BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
-  if (b == NULL) {
+  if (b == nullptr) {
     OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
     return 0;
   }
@@ -44,12 +44,13 @@ int X509_CRL_print(BIO *out, const X509_CRL *x) {
       // Note this and the other |X509_signature_print| call both print the
       // outer signature algorithm, rather than printing the inner and outer
       // ones separately. This matches OpenSSL, though it was probably a bug.
-      !X509_signature_print(out, sig_alg, NULL)) {
+      !X509_signature_print(out, sig_alg, nullptr)) {
     return 0;
   }
 
-  char *issuer = X509_NAME_oneline(X509_CRL_get_issuer(x), NULL, 0);
-  int ok = issuer != NULL && BIO_printf(out, "%8sIssuer: %s\n", "", issuer) > 0;
+  char *issuer = X509_NAME_oneline(X509_CRL_get_issuer(x), nullptr, 0);
+  int ok =
+      issuer != nullptr && BIO_printf(out, "%8sIssuer: %s\n", "", issuer) > 0;
   OPENSSL_free(issuer);
   if (!ok) {
     return 0;

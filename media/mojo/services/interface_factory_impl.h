@@ -84,9 +84,7 @@ class InterfaceFactoryImpl final
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
       mojo::PendingReceiver<mojom::Renderer> receiver,
       mojo::PendingReceiver<mojom::MediaFoundationRendererExtension>
-          renderer_extension_receiver,
-      mojo::PendingRemote<media::mojom::MediaFoundationRendererClientExtension>
-          client_extension_remote) final;
+          renderer_extension_receiver) final;
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void CreateStarboardRenderer(

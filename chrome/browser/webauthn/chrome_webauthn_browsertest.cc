@@ -23,6 +23,10 @@
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/execution_engine.h"
+#include "chrome/browser/actor/ui/mocks/mock_event_dispatcher.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate.h"
@@ -39,6 +43,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/network_session_configurator/common/network_switches.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/common/password_manager_ui.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "components/webauthn/core/browser/passkey_change_quota_tracker.h"
@@ -70,6 +75,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN)
+#include "base/compiler_specific.h"
 #include "device/fido/win/authenticator.h"
 #include "device/fido/win/fake_webauthn_api.h"
 #include "device/fido/win/util.h"
@@ -95,6 +101,48 @@ PublicKeyCredential.signalUnknownCredential({
   credentialId: "$1",
 }).then(c => 'webauthn: OK', e => 'error ' + e);
 )";
+
+// The hints parameter here contains nonsense values (which should be ignored)
+// and lists `security-key` and `hybrid` (more than once).
+//
+// According to the standard,
+//
+// "Hints are provided in order of decreasing preference so, if two hints are
+// contradictory, the first one controls. [...] If the same hint appears more
+// than once, its second and later appearances are ignored."
+//
+// In practice, Chromium will only consider the first recognised hint and ignore
+// the rest for the purposes of configuring the UI.
+// For cases where Chromium delegates WebAuthn to the OS (e.g. Windows), unknown
+// hints are filtered, but they are otherwise passed as received.
+static constexpr char kMakeCredentialWithHints[] = R"((() => {
+  return navigator.credentials.create({ publicKey: {
+    rp: { name: "" },
+    user: { id: new Uint8Array([0]), name: "foo", displayName: "" },
+    pubKeyCredParams: [{type: "public-key", alg: -7}],
+    challenge: new Uint8Array([0]),
+    timeout: 10000,
+    hints: ["nonsense", "hybrid", "security-key", "hybrid", "nonsense"],
+    userVerification: 'discouraged',
+  }}).then(c => 'webauthn: OK',
+           e => 'error ' + e);
+})())";
+
+#if BUILDFLAG(IS_WIN)
+
+static constexpr char kGetAssertionWithHints[] = R"((() => {
+  let cred_id = new Uint8Array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
+  return navigator.credentials.get({ publicKey: {
+    challenge: cred_id,
+    timeout: 10000,
+    hints: ["nonsense", "hybrid", "security-key", "hybrid", "nonsense"],
+    userVerification: 'discouraged',
+    allowCredentials: [{type: 'public-key', id: cred_id}],
+  }}).then(c => 'webauthn: OK',
+           e => 'error ' + e);
+})())";
+
+#endif  // BUILDFLAG(IS_WIN)
 
 std::string GetSignalUnknownCredentialScript(
     base::span<const uint8_t> credential_id) {
@@ -351,7 +399,8 @@ class WinWebAuthnBrowserTest
   WinWebAuthnBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
         {device::kWebAuthnHelloSignal,
-         device::kWebAuthenticationFixWindowsHelloRdp},
+         device::kWebAuthenticationFixWindowsHelloRdp,
+         device::kWebAuthenticationWindowsHints},
         /*disabled_features=*/{});
   }
 
@@ -559,6 +608,55 @@ IN_PROC_BROWSER_TEST_F(WinWebAuthnBrowserTest, WinGetAssertionRdp) {
       "webauthn: OK",
       content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                       kGetAssertionInternalCredID1234));
+}
+
+IN_PROC_BROWSER_TEST_F(WinWebAuthnBrowserTest, MakeCredentialHints) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server_.GetURL("www.example.com", "/title1.html")));
+
+  for (int version :
+       std::vector{WEBAUTHN_API_VERSION_7, WEBAUTHN_API_VERSION_8}) {
+    SCOPED_TRACE(version);
+    win_api_.set_version(version);
+    EXPECT_EQ(
+        "webauthn: OK",
+        content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                        kMakeCredentialWithHints));
+    if (version == WEBAUTHN_API_VERSION_7) {
+      EXPECT_THAT(win_api_.last_hints(), testing::IsEmpty());
+    } else {
+      EXPECT_THAT(win_api_.last_hints(),
+                  testing::ElementsAre(
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_HYBRID),
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_SECURITY_KEY),
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_HYBRID)));
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WinWebAuthnBrowserTest, GetAssertionHints) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server_.GetURL("www.example.com", "/title1.html")));
+  win_api_.InjectNonDiscoverableCredential(kCredentialID, "www.example.com");
+
+  for (int version :
+       std::vector{WEBAUTHN_API_VERSION_7, WEBAUTHN_API_VERSION_8}) {
+    SCOPED_TRACE(version);
+    win_api_.set_version(version);
+    EXPECT_EQ(
+        "webauthn: OK",
+        content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                        kGetAssertionWithHints));
+    if (version == WEBAUTHN_API_VERSION_7) {
+      EXPECT_THAT(win_api_.last_hints(), testing::IsEmpty());
+    } else {
+      EXPECT_THAT(win_api_.last_hints(),
+                  testing::ElementsAre(
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_HYBRID),
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_SECURITY_KEY),
+                      testing::StrEq(WEBAUTHN_CREDENTIAL_HINT_HYBRID)));
+    }
+  }
 }
 
 #endif  // BUILDFLAG(IS_WIN)
@@ -892,23 +990,6 @@ class WebAuthnHintsTest : public WebAuthnBrowserTest {
   std::unique_ptr<content::ScopedAuthenticatorEnvironmentForTesting> auth_env_;
 };
 
-// The hints parameter here contains nonsense values (which should be ignored)
-// and lists `security-key` and `hybrid` (more than once). This is contradictory
-// but Chromium will prioritize in the order of the enum values, so
-// `security-key` will win out.
-static constexpr char kMakeCredentialWithHints[] = R"((() => {
-  return navigator.credentials.create({ publicKey: {
-    rp: { name: "" },
-    user: { id: new Uint8Array([0]), name: "foo", displayName: "" },
-    pubKeyCredParams: [{type: "public-key", alg: -7}],
-    challenge: new Uint8Array([0]),
-    timeout: 10000,
-    hints: ["nonsense", "hybrid", "security-key", "hybrid", "nonsense"],
-    userVerification: 'discouraged',
-  }}).then(c => 'webauthn: OK',
-           e => 'error ' + e);
-})())";
-
 IN_PROC_BROWSER_TEST_F(WebAuthnHintsTest, HintsArePassedThrough) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -918,7 +999,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthnHintsTest, HintsArePassedThrough) {
 
   ASSERT_TRUE(observer_->hints().transport.has_value());
   EXPECT_EQ(observer_->hints().transport.value(),
-            AuthenticatorTransport::kUsbHumanInterfaceDevice);
+            AuthenticatorTransport::kHybrid);
 }
 
 class WebAuthnConditionalUITest : public WebAuthnBrowserTest {
@@ -1516,6 +1597,120 @@ IN_PROC_BROWSER_TEST_F(WebAuthnImmediateGetTest, Allowlist_NotAllowedError) {
       /*offsets=*/nullptr);
   const auto& result = content::EvalJs(web_contents, script);
   EXPECT_THAT(result.ExtractString(), testing::HasSubstr("NotAllowedError"));
+}
+
+class WebAuthnActorBrowserTest : public WebAuthnBrowserTest {
+ protected:
+  static constexpr std::string_view kMakeCredentialScript = R"((() => {
+    return navigator.credentials.create({ publicKey: {
+      rp: { id: "www.example.com", name: "example" },
+      user: { id: new Uint8Array([0]), name: "foo", displayName: "Foo" },
+      pubKeyCredParams: [{type: "public-key", alg: -7}],
+      challenge: new Uint8Array([0,1,2,3]),
+      timeout: 10000,
+    }}).then(c => 'webauthn: OK',
+              e => 'error ' + e);
+  })())";
+
+ public:
+  WebAuthnActorBrowserTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {device::kWebAuthnActorCheck, password_manager::features::kActorLogin},
+        {});
+  }
+
+  void SetUpOnMainThread() override {
+    WebAuthnBrowserTest::SetUpOnMainThread();
+    auto virtual_device_factory =
+        std::make_unique<device::test::VirtualFidoDeviceFactory>();
+    virtual_device_factory_ = virtual_device_factory.get();
+    virtual_device_factory->mutable_state()->InjectResidentKey(
+        kCredentialID, "www.example.com", std::vector<uint8_t>{5, 6, 7, 8},
+        "flandre", "Flandre Scarlet");
+    virtual_device_factory->mutable_state()->fingerprints_enrolled = true;
+    device::VirtualCtap2Device::Config config;
+    config.resident_key_support = true;
+    config.internal_uv_support = true;
+    virtual_device_factory->SetCtap2Config(std::move(config));
+    auth_env_ =
+        std::make_unique<content::ScopedAuthenticatorEnvironmentForTesting>(
+            std::move(virtual_device_factory));
+  }
+
+  void CreateActingTask() {
+    auto* actor_service = actor::ActorKeyedService::Get(browser()->profile());
+    std::unique_ptr<actor::ExecutionEngine> execution_engine =
+        std::make_unique<actor::ExecutionEngine>(browser()->profile());
+
+    std::unique_ptr<actor::ActorTask> actor_task =
+        std::make_unique<actor::ActorTask>(
+            browser()->profile(), std::move(execution_engine),
+            actor::ui::NewUiEventDispatcher(
+                actor_service->GetActorUiStateManager()));
+    actor_task->SetState(actor::ActorTask::State::kActing);
+
+    base::RunLoop loop;
+    actor_task->AddTab(
+        browser()->GetActiveTabInterface()->GetHandle(),
+        base::BindLambdaForTesting([&](actor::mojom::ActionResultPtr result) {
+          EXPECT_TRUE(actor::IsOk(*result));
+          loop.Quit();
+        }));
+    loop.Run();
+
+    actor_service->AddActiveTask(std::move(actor_task));
+  }
+
+  void PostRunTestOnMainThread() override {
+    // To avoid dangling raw_ptr's these values need to be destroyed before
+    // this test class.
+    virtual_device_factory_ = nullptr;
+    auth_env_.reset();
+    WebAuthnBrowserTest::PostRunTestOnMainThread();
+  }
+
+ protected:
+  raw_ptr<device::test::VirtualFidoDeviceFactory> virtual_device_factory_;
+  std::unique_ptr<content::ScopedAuthenticatorEnvironmentForTesting> auth_env_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebAuthnActorBrowserTest, MakeCredentialsActorIsActive) {
+  CreateActingTask();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server_.GetURL("www.example.com", "/title1.html")));
+
+  content::EvalJsResult result =
+      content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      kMakeCredentialScript);
+  EXPECT_THAT(result.ExtractString(), testing::HasSubstr("NotAllowedError"));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAuthnActorBrowserTest, GetCredentialsActorIsActive) {
+  CreateActingTask();
+  virtual_device_factory_->mutable_state()->InjectRegistration(
+      kCredentialID, "www.example.com");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server_.GetURL("www.example.com", "/title1.html")));
+  content::EvalJsResult result =
+      content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      kGetAssertionCredID1234);
+  EXPECT_THAT(result.ExtractString(), testing::HasSubstr("NotAllowedError"));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAuthnActorBrowserTest,
+                       GetCredentialsActorIsNotActive) {
+  virtual_device_factory_->mutable_state()->InjectRegistration(
+      kCredentialID, "www.example.com");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server_.GetURL("www.example.com", "/title1.html")));
+  // Since there is no active actor task, the request is not rejected.
+  EXPECT_EQ(
+      "webauthn: OK",
+      content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      kGetAssertionCredID1234));
 }
 
 }  // namespace

@@ -7,7 +7,7 @@
 
 #include <optional>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
 #include "media/base/video_frame_layout.h"
@@ -32,7 +32,7 @@ class NativePixmapFrameResource : public FrameResource {
                             const gfx::Rect& visible_rect,
                             const gfx::Size& natural_size,
                             base::TimeDelta timestamp,
-                            gfx::BufferFormat buffer_format,
+                            viz::SharedImageFormat si_format,
                             const base::UnguessableToken& token,
                             std::optional<gfx::BufferUsage> buffer_usage,
                             gfx::NativePixmapHandle handle);

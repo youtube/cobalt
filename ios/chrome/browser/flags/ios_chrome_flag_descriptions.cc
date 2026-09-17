@@ -434,6 +434,11 @@ const char kDisableAutofillStrikeSystemDescription[] =
     "When enabled, the Autofill strike system will not block a feature from "
     "being offered.";
 
+const char kDisableKeyboardAccessoryName[] =
+    "Disable Omnibox Keyboard Accessory";
+const char kDisableKeyboardAccessoryDescription[] =
+    "Disables parts or all of omnibox keyboard accessory.";
+
 const char kDisableLensCameraName[] = "Disable Lens camera experience";
 const char kDisableLensCameraDescription[] =
     "When enabled, the option use Lens to search for images from your device "
@@ -813,6 +818,10 @@ const char kIOSReactivationNotificationsName[] = "Reactivation Notifications";
 const char kIOSReactivationNotificationsDescription[] =
     "Enables a feature to send provisional notifications of interest to new"
     "users and encourage them to return to the app.";
+
+const char kIOSSaveToDriveClientFolderName[] = "Save to Drive client folder";
+const char kIOSSaveToDriveClientFolderDescription[] =
+    "Enables a feature to use a client folder API for Save to Drive on iOS.";
 
 const char kIOSSoftLockName[] = "Soft Lock on iOS";
 const char kIOSSoftLockDescription[] = "Enables experimental Soft Lock on iOS.";
@@ -1530,10 +1539,10 @@ const char kShowAutofillTypePredictionsDescription[] =
     "Annotates web forms with Autofill field type predictions as placeholder "
     "text.";
 
-const char kShowTabGridOnStartName[] = "Show TabGrid on start";
-const char kShowTabGridOnStartDescription[] =
-    "Show TabGrid on start if the last activation is within a specific time "
-    "interval";
+const char kShowTabGroupInGridOnStartName[] = "Show tab group in grid on start";
+const char kShowTabGroupInGridOnStartDescription[] =
+    "Show tab group in grid on start if the last activation is within a "
+    "specific time interval";
 
 const char kSignInButtonNoAvatarName[] =
     "Display sign-in button without avatar";

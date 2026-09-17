@@ -26,7 +26,7 @@
 
 int X509_REQ_print_fp(FILE *fp, const X509_REQ *x) {
   BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
-  if (bio == NULL) {
+  if (bio == nullptr) {
     OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
     return 0;
   }
@@ -85,11 +85,11 @@ int X509_REQ_print_ex(BIO *bio, const X509_REQ *x, unsigned long nmflags,
     }
 
     const EVP_PKEY *pkey = X509_REQ_get0_pubkey(x);
-    if (pkey == NULL) {
+    if (pkey == nullptr) {
       BIO_printf(bio, "%12sUnable to load Public Key\n", "");
       ERR_print_errors(bio);
     } else {
-      EVP_PKEY_print_public(bio, pkey, 16, NULL);
+      EVP_PKEY_print_public(bio, pkey, 16, nullptr);
     }
   }
 

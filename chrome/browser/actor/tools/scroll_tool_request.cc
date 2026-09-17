@@ -8,7 +8,6 @@
 
 #include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
-#include "chrome/common/actor/actor_utils.h"
 
 namespace actor {
 
@@ -28,7 +27,7 @@ void ScrollToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
   f.Apply(*this);
 }
 
-std::string ScrollToolRequest::JournalEvent() const {
+std::string ScrollToolRequest::Name() const {
   return "Scroll";
 }
 

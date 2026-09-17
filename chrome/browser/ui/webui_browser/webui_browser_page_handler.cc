@@ -13,16 +13,17 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/types/node_id.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
+#include "components/browser_apis/tab_strip/types/node_id.h"
 #include "components/guest_contents/browser/guest_contents_handle.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/vector_icons.h"
@@ -243,7 +244,8 @@ void WebUIBrowserPageHandler::LaunchDevToolsForBrowser() {
 }
 
 void WebUIBrowserPageHandler::OnSidePanelClosed() {
-  GetBrowserWindow()->GetWebUIBrowserSidePanelUI()->OnSidePanelClosed();
+  GetBrowserWindow()->GetWebUIBrowserSidePanelUI()->OnSidePanelClosed(
+      SidePanelEntry::PanelType::kContent);
 }
 
 void WebUIBrowserPageHandler::Minimize() {

@@ -57,11 +57,13 @@ class MockActorLoginService : public actor_login::ActorLoginService {
   void SetLoginStatus(actor_login::LoginStatusResultOrError login_status);
 
   const std::optional<actor_login::Credential>& last_credential_used() const;
+  bool last_permission_was_permanent() const;
 
  private:
   actor_login::CredentialsOrError credentials_;
   actor_login::LoginStatusResultOrError login_status_;
   std::optional<actor_login::Credential> last_credential_used_;
+  bool last_permission_was_permanent_ = false;
 };
 
 inline constexpr int32_t kNonExistentContentNodeId =
@@ -99,31 +101,8 @@ class ActorToolsTest : public InProcessBrowserTest {
   base::ScopedTempDir temp_dir_;
 };
 
-class ActorToolsGeneralPageStabilityTest
-    : public ActorToolsTest,
-      public ::testing::WithParamInterface<
-          ::features::ActorGeneralPageStabilityMode> {
- public:
-  static std::string DescribeParam(
-      const testing::TestParamInfo<ParamType>& info);
-  ActorToolsGeneralPageStabilityTest();
-  ~ActorToolsGeneralPageStabilityTest() override;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
 gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
                                  std::string_view query);
-
-std::string DescribeGeneralPageStabilityMode(
-    features::ActorGeneralPageStabilityMode mode);
-
-inline constexpr features::ActorGeneralPageStabilityMode
-    kActorGeneralPageStabilityModeValues[] = {
-        features::ActorGeneralPageStabilityMode::kDisabled,
-        features::ActorGeneralPageStabilityMode::kAllEnabled,
-};
 
 std::string DescribePaintStabilityMode(features::ActorPaintStabilityMode mode);
 

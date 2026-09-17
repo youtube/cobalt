@@ -29,7 +29,6 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.DrawableRes;
 import android.util.Pair;
 import android.util.SparseBooleanArray;
 import android.view.Gravity;
@@ -40,6 +39,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 
 import androidx.annotation.DimenRes;
+import androidx.annotation.DrawableRes;
 import androidx.annotation.Px;
 
 import org.chromium.build.annotations.NullMarked;
@@ -218,12 +218,8 @@ public class CustomTabToolbarButtonsViewBinder
             view.getCloseButton().setVisibility(View.GONE);
         }
 
-        if (view.getMenuButton() == null && model.get(MENU_BUTTON_VISIBLE)) {
-            view.ensureMenuButtonInflated();
-        }
-
-        var menuButton = view.getMenuButton();
-        if (menuButton != null) {
+        if (model.get(MENU_BUTTON_VISIBLE)) {
+            var menuButton = view.ensureMenuButtonInflated();
             boolean isEndPosition = model.get(CLOSE_BUTTON).position != CLOSE_BUTTON_POSITION_END;
             positionButton(
                     menuButton,
@@ -231,6 +227,8 @@ public class CustomTabToolbarButtonsViewBinder
                     defaultButtonWidth,
                     defaultButtonHorizontalPadding,
                     isEndPosition);
+        } else if (view.getMenuButton() != null) {
+            view.getMenuButton().setVisibility(View.GONE);
         }
 
         FrameLayout customActionButtons = assumeNonNull(view.getCustomActionButtonsParent());

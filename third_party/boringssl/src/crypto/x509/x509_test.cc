@@ -2290,15 +2290,15 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(pkey);
   // Test PKCS#1 v1.5.
   bssl::ScopedEVP_MD_CTX md_ctx;
-  ASSERT_TRUE(
-      EVP_DigestSignInit(md_ctx.get(), NULL, EVP_sha256(), NULL, pkey.get()));
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), nullptr, EVP_sha256(), nullptr,
+                                 pkey.get()));
   ASSERT_TRUE(SignatureRoundTrips(md_ctx.get(), pkey.get()));
 
   // RSA-PSS with salt length matching hash length should work when passing in
   // |RSA_PSS_SALTLEN_DIGEST| or the value explicitly.
   md_ctx.Reset();
   EVP_PKEY_CTX *pkey_ctx;
-  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), nullptr,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
   ASSERT_TRUE(
@@ -2306,7 +2306,7 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(SignatureRoundTrips(md_ctx.get(), pkey.get()));
 
   md_ctx.Reset();
-  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), nullptr,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, 32));
@@ -2314,7 +2314,7 @@ TEST(X509Test, RSASign) {
 
   // RSA-PSS with SHA-1 is not supported.
   md_ctx.Reset();
-  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha1(), NULL,
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha1(), nullptr,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
   ASSERT_TRUE(
@@ -2325,7 +2325,7 @@ TEST(X509Test, RSASign) {
 
   // RSA-PSS with mismatched hashes is not supported.
   md_ctx.Reset();
-  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), nullptr,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
   ASSERT_TRUE(
@@ -2337,7 +2337,7 @@ TEST(X509Test, RSASign) {
 
   // RSA-PSS with the wrong salt length is not supported.
   md_ctx.Reset();
-  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
+  ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), nullptr,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, 33));
@@ -2827,7 +2827,7 @@ TEST(X509Test, TestFromBufferReused) {
   ASSERT_TRUE(PEMToDER(&data2, &data2_len, kLeafPEM));
   EXPECT_EQ(root->buf, buf.get());
 
-  // Historically, this function tested the interaction betweeen
+  // Historically, this function tested the interaction between
   // |X509_parse_from_buffer| and object reuse. We no longer support object
   // reuse, so |d2i_X509| will replace |raw| with a new object. However, we
   // retain this test to verify that releasing objects from |d2i_X509| works

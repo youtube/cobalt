@@ -123,6 +123,8 @@ public:
      */
     bool empty() const { return fVerbs.empty(); }
 
+    SkRect computeTightBounds() const;
+
     /**
      * Returns true if the pathdata is convex.
      * Note: if necessary, it will first compute the convexity (and cache it).
@@ -163,6 +165,8 @@ public:
      */
     sk_sp<SkPathData> makeTransform(const SkMatrix&) const;
     sk_sp<SkPathData> makeOffset(SkVector) const;
+
+    bool contains(SkPoint, SkPathFillType) const;
 
 private:
     friend class SkNVRefCnt<SkPathData>;

@@ -440,7 +440,7 @@ RtpVideoSender::RtpVideoSender(
       state = &it->second;
       shared_frame_id_ = std::max(shared_frame_id_, state->shared_frame_id);
     }
-    params_.push_back(RtpPayloadParams(ssrc, state, env.field_trials()));
+    params_.push_back(RtpPayloadParams(env, ssrc, state));
   }
 
   // RTP/RTCP initialization.

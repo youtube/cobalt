@@ -118,7 +118,6 @@
 #include "ash/wm/window_state.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
-#include "chrome/browser/ui/views/frame/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_chromeos.h"
 #include "chromeos/ui/frame/immersive/immersive_fullscreen_controller_test_api.h"
@@ -2188,15 +2187,8 @@ class TabDragControllerTestDialog : public views::DialogDelegateView {
 
 // Drags from browser that has a web dialog to separate window.
 // The dialog should follow the new browser window.
-// TODO(crbug.com/40934892): Expectations are sometimes off by one pixel on
-// Windows. Reenable once deflaked.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_DetachToOwnWindowWithDialog DISABLED_DetachToOwnWindowWithDialog
-#else
-#define MAYBE_DetachToOwnWindowWithDialog DetachToOwnWindowWithDialog
-#endif
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       MAYBE_DetachToOwnWindowWithDialog) {
+                       DetachToOwnWindowWithDialog) {
   const gfx::Rect initial_bounds(browser()->window()->GetBounds());
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -3042,12 +3034,7 @@ void DragAllStep2(DetachToBrowserTabDragControllerTest* test) {
 // Selects multiple tabs and starts dragging the window.
 // TODO(crbug.com/40934892): Expectations are sometimes off by one pixel on
 // Windows. Reenable once deflaked.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_DragAll DISABLED_DragAll
-#else
-#define MAYBE_DragAll DragAll
-#endif
-IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, MAYBE_DragAll) {
+IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, DragAll) {
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
   browser()->tab_strip_model()->SelectTabAt(0);
@@ -3196,7 +3183,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 }
 
 // Flaky. http://crbug.com/1128774
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC)
 // Bulk-disabled for arm64 bot stabilization: https://crbug.com/1154345
 // These were flaking on all macs, so commented out ARCH_ above for
 // crbug.com/1160917 too.
@@ -4432,27 +4419,31 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_FALSE(tab_strip->GetDragContext()->IsDragSessionActive());
   ASSERT_FALSE(TabDragController::IsActive());
   ASSERT_EQ(2u, browser_list()->size());
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    EXPECT_FALSE(GetIsDragged(browser));
-    // Should not be maximized
-    EXPECT_FALSE(browser->window()->IsMaximized());
-  }
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [](BrowserWindowInterface* browser) {
+        EXPECT_FALSE(GetIsDragged(browser));
+        // Should not be maximized
+        EXPECT_FALSE(browser->GetWindow()->IsMaximized());
+        return true;
+      });
 }
 #endif  // !BUILDFLAG(IS_MAC)
 
 namespace {
 
 TabStripViewInterface* GetAttachedTabstripView() {
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-
-    if (TabDragController::IsAttachedTo(
-            browser_view->tab_strip_view()->GetDragContext())) {
-      return browser_view->tab_strip_view();
-    }
-  }
-
-  return nullptr;
+  TabStripViewInterface* result = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&result](BrowserWindowInterface* browser) {
+        BrowserView* const browser_view =
+            BrowserView::GetBrowserViewForBrowser(browser);
+        if (TabDragController::IsAttachedTo(
+                browser_view->tab_strip_view()->GetDragContext())) {
+          result = browser_view->tab_strip_view();
+        }
+        return !result;
+      });
+  return result;
 }
 
 void DragWindowAndVerifyOffset(DetachToBrowserTabDragControllerTest* test,
@@ -4489,7 +4480,7 @@ void DragWindowAndVerifyOffset(DetachToBrowserTabDragControllerTest* test,
                   second_move.y() -
                       attached->GetWidget()->GetWindowBoundsInScreen().y());
               EXPECT_EQ(press_offset, drag_offset);
-              ASSERT_TRUE(test->ReleaseInput());
+              ASSERT_TRUE(test->ReleaseInput(0, /*async=*/true));
             }),
             window_hint));
       }),
@@ -4499,8 +4490,8 @@ void DragWindowAndVerifyOffset(DetachToBrowserTabDragControllerTest* test,
 
 }  // namespace
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-// TODO(mukai): enable this test on Windows and Linux.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+// TODO(mukai): enable this test on Linux.
 // TODO(crbug.com/41468034): flaky on Mac
 #define MAYBE_OffsetForDraggingTab DISABLED_OffsetForDraggingTab
 #else

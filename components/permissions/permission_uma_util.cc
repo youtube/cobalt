@@ -735,6 +735,31 @@ const char* GetProminenceString(PermissionPromptDisposition disposition) {
   }
 }
 
+PermissionRequestLikelihood
+ConvertPredictionGrantLikelihoodToPermissionRequestLikelihood(
+    PermissionUiSelector::PredictionGrantLikelihood likelihood) {
+  switch (likelihood) {
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_DISCRETIZED_LIKELIHOOD_UNSPECIFIED:
+      return PermissionRequestLikelihood::kUnspecified;
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_VERY_UNLIKELY:
+      return PermissionRequestLikelihood::kVeryUnlikely;
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_UNLIKELY:
+      return PermissionRequestLikelihood::kUnlikely;
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_NEUTRAL:
+      return PermissionRequestLikelihood::kNeutral;
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_LIKELY:
+      return PermissionRequestLikelihood::kLikely;
+    case PermissionUiSelector::PredictionGrantLikelihood::
+        PermissionPrediction_Likelihood_DiscretizedLikelihood_VERY_LIKELY:
+      return PermissionRequestLikelihood::kVeryLikely;
+  }
+}
+
 }  // anonymous namespace
 
 // PermissionUmaUtil ----------------------------------------------------------
@@ -1113,6 +1138,19 @@ void PermissionUmaUtil::PermissionPromptResolved(
         time_to_action);
   }
 
+  if (requests.size() == 1 &&
+      requests[0]->request_type() == RequestType::kGeolocation) {
+    if (const auto* geolocation_options = std::get_if<GeolocationPromptOptions>(
+            &requests[0]->prompt_options())) {
+      base::UmaHistogramEnumeration(
+          base::StrCat(
+              {"Permissions.Prompt.Geolocation.", action_string, ".Accuracy"}),
+          geolocation_options->selected_precise
+              ? GeolocationAccuracy::kPrecise
+              : GeolocationAccuracy::kApproximate);
+    }
+  }
+
   if (permission_action == PermissionAction::IGNORED &&
       ui_disposition !=
           PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP_AUTO_BUBBLE &&
@@ -1162,6 +1200,29 @@ void PermissionUmaUtil::PermissionPromptResolved(
          ".", prominence_string});
     base::UmaHistogramEnumeration(histogram_name, permission_action,
                                   PermissionAction::NUM);
+  }
+
+  if (predicted_grant_likelihood.has_value() &&
+      (requests[0]->request_type() == RequestType::kGeolocation ||
+       requests[0]->request_type() == RequestType::kNotifications)) {
+    PermissionRequestGestureType gesture_type =
+        requests.size() == 1 ? requests[0]->GetGestureType()
+                             : PermissionRequestGestureType::UNKNOWN;
+    if (gesture_type != PermissionRequestGestureType::UNKNOWN) {
+      std::string gesture_suffix;
+      if (gesture_type == PermissionRequestGestureType::GESTURE) {
+        gesture_suffix = ".Gesture";
+      } else {
+        gesture_suffix = ".NoGesture";
+      }
+
+      std::string histogram_name = base::StrCat(
+          {"Permissions.PredictionService.", permission_type, gesture_suffix});
+      base::UmaHistogramEnumeration(
+          histogram_name,
+          ConvertPredictionGrantLikelihoodToPermissionRequestLikelihood(
+              predicted_grant_likelihood.value()));
+    }
   }
 }  // namespace permissions
 
@@ -2303,13 +2364,6 @@ void PermissionUmaUtil::RecordPassageEmbedderMetadataValid(bool valid) {
 // static
 void PermissionUmaUtil::RecordPredictionServiceTimeout(bool timeout) {
   base::UmaHistogramBoolean("Permissions.PredictionService.Timeout", timeout);
-}
-
-// static
-void PermissionUmaUtil::RecordGeolocationAccuracy(
-    GeolocationAccuracy accuracy) {
-  base::UmaHistogramEnumeration(
-      "Permissions.Prompt.Geolocation.AccuracyGranted", accuracy);
 }
 
 // static

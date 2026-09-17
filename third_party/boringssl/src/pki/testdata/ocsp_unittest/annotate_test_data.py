@@ -91,7 +91,7 @@ def GenerateCommentForBlock(block_name, block_data):
     if p.returncode == 0:
       stdout_data = stdout_data.strip()
       # May contain embedded CERTIFICATE pem blocks. Escape these since
-      # CERTIFICATE already has meanining in the test file.
+      # CERTIFICATE already has meaning in the test file.
       stdout_data = stdout_data.replace("-----", "~~~~~")
       return '$ openssl ocsp -resp_text -respin <([%s])\n%s' % (block_name,
                                                                 stdout_data)

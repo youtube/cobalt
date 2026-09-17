@@ -94,28 +94,16 @@ void ScreamV2::UpdateL4SAlpha(const TransportPacketsFeedback& msg) {
   if (received_packets.empty()) {
     return;
   }
-  data_units_delivered_this_rtt_ += received_packets.size();
+  double data_units_marked = 0;
   for (const PacketResult& packet : received_packets) {
     if (packet.ecn == EcnMarking::kCe) {
-      ++data_units_marked_this_rtt_;
+      ++data_units_marked;
     }
   }
 
-  // l4s_alpha can be updated more frequently than every smoothed rtt.
-  constexpr TimeDelta kMaxTimeBetweenL4sUpdate = TimeDelta::Millis(10);
-  if (msg.feedback_time - last_l4s_alpha_update_ <
-      std::min(kMaxTimeBetweenL4sUpdate, msg.smoothed_rtt)) {
-    return;
-  }
-  last_l4s_alpha_update_ = msg.feedback_time;
-
-  double fraction_marked = static_cast<double>(data_units_marked_this_rtt_) /
-                           data_units_delivered_this_rtt_;
+  double fraction_marked = data_units_marked / received_packets.size();
   l4s_alpha_ = params_.l4s_avg_g.Get() * fraction_marked +
                (1.0 - params_.l4s_avg_g.Get()) * l4s_alpha_;
-
-  data_units_delivered_this_rtt_ = 0;
-  data_units_marked_this_rtt_ = 0;
 }
 
 void ScreamV2::UpdateRefWindowAndTargetRate(
@@ -123,139 +111,143 @@ void ScreamV2::UpdateRefWindowAndTargetRate(
   max_data_in_flight_this_rtt_ =
       std::max(max_data_in_flight_this_rtt_, msg.data_in_flight);
 
-  // ref_window_i may change due to reference window reduction. Thus
-  // scale_close_to_ref_window_i is calculated here.
-  double scale_close_to_ref_window_i =
-      ref_window_scale_factor_close_to_ref_window_i();
-
   // Avoid division by zero.
   const TimeDelta non_zero_smoothed_rtt =
       std::max(msg.smoothed_rtt, TimeDelta::Millis(1));
 
+  bool is_ce = HasCeMarking(msg);
+  bool is_loss = HasLostPackets(msg);
+  bool is_virtual_ce = false;
   double virtual_alpha_lim =
       ((2 * params_.max_segment_size.Get()) / non_zero_smoothed_rtt) /
       target_rate_;
-  bool is_ce = false;
-  bool is_loss = false;
-  bool is_virtual_ce = false;
-  if (msg.feedback_time - last_reaction_to_congestion_time_ >=
-      std::min(msg.smoothed_rtt, params_.virtual_rtt.Get())) {
-    is_ce = HasCeMarking(msg);
-    is_loss = HasLostPackets(msg);
-    if (l4s_alpha_ < virtual_alpha_lim &&
-        delay_based_congestion_control_.ShouldReduceReferenceWindow()) {
-      // L4S does not seem to be enabled and queue has grown.
-      is_virtual_ce = true;
-    }
-  }
-
-  // Update `ref_window_i_` if enough time has passed since the last update and
-  // a congestion event is detected.
-  if (is_virtual_ce || is_loss || is_ce) {
-    if (msg.feedback_time - last_ref_window_i_update_ >
-        params_.number_of_rtts_between_ref_window_i_updates.Get() *
-            msg.smoothed_rtt) {
-      // Additional median filtering over more congestion epochs
-      // may improve accuracy of ref_wnd_i_.
-      last_ref_window_i_update_ = msg.feedback_time;
-      ref_window_i_ = ref_window_;
-    }
+  if (l4s_alpha_ < virtual_alpha_lim &&
+      delay_based_congestion_control_.ShouldReduceReferenceWindow()) {
+    // L4S does not seem to be enabled and queue has grown.
+    is_virtual_ce = true;
   }
 
   DataSize previous_ref_window = ref_window_;
-  if (is_loss) {  // Back off due to loss
-    ref_window_ = ref_window_ * params_.beta_loss.Get();
-  }
-  if (is_ce) {  // Backoff due to ECN-CE marking
-    double backoff = l4s_alpha_ / 2.0;
-    //  Increase stability for very small ref_wnd
-    backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio());
 
-    if (!delay_based_congestion_control_.IsQueueDelayDetected()) {
-      // Scale down backoff if close to the last known max reference window
-      // This is complemented with a scale down of the reference window increase
-      backoff *= std::max(0.25, scale_close_to_ref_window_i);
-    }
-
-    if (msg.feedback_time - last_reaction_to_congestion_time_ >
-        params_.number_of_rtts_between_reset_ref_window_i_on_congestion.Get() *
-            std::max(params_.virtual_rtt.Get(), msg.smoothed_rtt)) {
-      // A long time(> 100 RTTs) since last congested because
-      // link throughput exceeds max video bitrate. (or first congestion)
-      // There is a certain risk that ref_wnd has increased way above
-      // bytes in flight, so we reduce it here to get it better on
-      // track and thus the congestion episode is shortened
-      ref_window_ = std::clamp(max_data_in_flight_prev_rtt_,
-                               params_.min_ref_window.Get(), ref_window_);
-      // Also, we back off a little extra if needed because alpha is quite
-      // likely very low  This can in some cases be an over - reaction but as
-      // this function should kick in relatively seldom it should not be a too
-      // big concern
-      backoff = std::max(backoff, 0.25);
-      // In addition, bump up l4sAlpha to a more credible value
-      // This may over react but it is better than
-      // excessive queue delay
-      l4s_alpha_ = 0.25;
-    }
-    ref_window_ = (1.0 - backoff) * ref_window_;
-  }  // is_ce
-  if (is_virtual_ce) {  // Back off due to delay
-    ref_window_ = delay_based_congestion_control_.UpdateReferenceWindow(
-        ref_window_, virtual_alpha_lim);
-  }
-  if (is_virtual_ce || is_ce || is_loss) {
+  if ((is_virtual_ce || is_ce || is_loss) &&
+      msg.feedback_time - last_reaction_to_congestion_time_ >=
+          std::min(msg.smoothed_rtt, params_.virtual_rtt.Get())) {
     last_reaction_to_congestion_time_ = msg.feedback_time;
-  }
+    if (is_loss) {  // Back off due to loss
+      ref_window_ = ref_window_ * params_.beta_loss.Get() /
+                    std::max(1.0, msg.smoothed_rtt / params_.virtual_rtt);
+    }
+    if (is_ce) {  // Backoff due to ECN-CE marking
+      double backoff = l4s_alpha_ / 2.0;
+      // Scale down backoff when RTT is high as several backoff events occur per
+      // RTT
+      backoff /= std::max(1.0, msg.smoothed_rtt / params_.virtual_rtt);
+      //  Increase stability for very small ref_wnd
+      backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio());
 
-  // Increase ref_window.
-  // 4.2.2.2.  Reference Window Increase
-  DataSize increase = DataUnitsAckedAndNotMarked(msg) * ref_window_mss_ratio();
+      if (!delay_based_congestion_control_.IsQueueDelayDetected()) {
+        // Scale down backoff if close to the last known max reference window
+        // This is complemented with a scale down of the reference window
+        // increase
+        backoff *=
+            std::max(0.25, ref_window_scale_factor_close_to_ref_window_i());
+      }
 
-  // Limit increase for small RTTs
-  if (msg.smoothed_rtt < params_.virtual_rtt.Get()) {
-    double rtt_ratio = msg.smoothed_rtt / params_.virtual_rtt.Get();
-    increase = increase * (rtt_ratio * rtt_ratio);
+      if (msg.feedback_time - last_reaction_to_congestion_time_ >
+          params_.number_of_rtts_between_reset_ref_window_i_on_congestion
+                  .Get() *
+              std::max(params_.virtual_rtt.Get(), msg.smoothed_rtt)) {
+        // A long time(> 100 RTTs) since last congested because
+        // link throughput exceeds max video bitrate. (or first congestion)
+        // There is a certain risk that ref_wnd has increased way above
+        // bytes in flight, so we reduce it here to get it better on
+        // track and thus the congestion episode is shortened
+        ref_window_ = std::clamp(max_data_in_flight_prev_rtt_,
+                                 params_.min_ref_window.Get(), ref_window_);
+        // Also, we back off a little extra if needed because alpha is quite
+        // likely very low  This can in some cases be an over - reaction but as
+        // this function should kick in relatively seldom it should not be a too
+        // big concern
+        backoff = std::max(backoff, 0.25);
+        // In addition, bump up l4sAlpha to a more credible value
+        // This may over react but it is better than
+        // excessive queue delay
+        l4s_alpha_ = 0.25;
+      }
+      ref_window_ = (1.0 - backoff) * ref_window_;
+    }  // is_ce
+    if (is_virtual_ce) {  // Back off due to delay
+      ref_window_ = delay_based_congestion_control_.UpdateReferenceWindow(
+          ref_window_, ref_window_mss_ratio(), virtual_alpha_lim);
+    }
+
+    if (allow_ref_window_i_update_) {
+      ref_window_i_ = ref_window_;
+      allow_ref_window_i_update_ = false;
+    }
   }
-  if (l4s_alpha_ < virtual_alpha_lim) {
-    // Limit increase if delay is increased.
-    increase = increase * delay_based_congestion_control_.scale_increase();
-  }
-  // Limit reference window increase when close to the last inflection
-  // point.
-  increase = increase * std::max(0.25, scale_close_to_ref_window_i);
-  // Limit reference window increase when the reference window close to
-  // max segment size.
-  increase = increase * std::max(0.5, 1.0 - ref_window_mss_ratio());
 
   const TimeDelta max_of_virtual_and_smothed_rtt =
       std::max(params_.virtual_rtt.Get(), msg.smoothed_rtt);
 
-  // Use lower multiplicative scale factor if congestion was detected
-  // recently.
-  double post_congestion_scale =
-      std::clamp((msg.feedback_time - last_reaction_to_congestion_time_) /
-                     (params_.post_congestion_delay_rtts.Get() *
-                      max_of_virtual_and_smothed_rtt),
-                 0.0, 1.0);
-  double multiplicative_scale =
-      1.0 + (ref_window_multiplicative_scale_factor() - 1.0) *
-                post_congestion_scale * scale_close_to_ref_window_i;
-  RTC_DCHECK_GE(multiplicative_scale, 1.0);
-  increase = increase * multiplicative_scale;
+  // Increase ref_window.
+  // 4.2.2.2.  Reference Window Increase
+  if ((!is_ce && !is_loss && !is_virtual_ce) ||
+      last_reaction_to_congestion_time_ == msg.feedback_time) {
+    // Allow increase if no event has occurred, or we are at the same time is
+    // backing off.
+    // Just because there is a CE event, does not mean we send too much. At
+    // rates close to the capacity, it is quite likely that one packet is CE
+    // marked in every feedback.
+    DataSize increase =
+        DataUnitsAckedAndNotMarked(msg) * ref_window_mss_ratio();
 
-  // Increase ref_window only if bytes in flight is large enough.
-  // Quite a lot of slack is allowed here to avoid that bitrate locks to low
-  // values. Increase is inhibited if max target bitrate is reached.
-  DataSize max_allowed_ref_window = std::max(
-      params_.max_segment_size.Get() +
-          std::max(max_data_in_flight_this_rtt_, max_data_in_flight_prev_rtt_) *
-              params_.bytes_in_flight_head_room.Get(),
-      params_.min_ref_window.Get());
+    // Limit increase for small RTTs
+    if (msg.smoothed_rtt < params_.virtual_rtt.Get()) {
+      double rtt_ratio = msg.smoothed_rtt / params_.virtual_rtt.Get();
+      increase = increase * (rtt_ratio * rtt_ratio);
+    }
+    if (l4s_alpha_ < virtual_alpha_lim) {
+      // Limit increase if delay is increased.
+      increase = increase * delay_based_congestion_control_.scale_increase();
+    }
+    // Limit reference window increase when close to the last inflection
+    // point.
+    increase = increase *
+               std::max(0.25, ref_window_scale_factor_close_to_ref_window_i());
+    // Limit reference window increase when the reference window close to
+    // max segment size.
+    increase = increase * std::max(0.5, 1.0 - ref_window_mss_ratio());
 
-  if (ref_window_ < max_allowed_ref_window) {
-    ref_window_ =
-        std::clamp(ref_window_ + increase, params_.min_ref_window.Get(),
-                   max_allowed_ref_window);
+    // Use lower multiplicative scale factor if congestion was detected
+    // recently.
+    double post_congestion_scale =
+        std::clamp((msg.feedback_time - last_reaction_to_congestion_time_) /
+                       (params_.post_congestion_delay_rtts.Get() *
+                        max_of_virtual_and_smothed_rtt),
+                   0.0, 1.0);
+    double multiplicative_scale =
+        1.0 + (ref_window_multiplicative_scale_factor() - 1.0) *
+                  post_congestion_scale *
+                  ref_window_scale_factor_close_to_ref_window_i();
+    RTC_DCHECK_GE(multiplicative_scale, 1.0);
+    increase = increase * multiplicative_scale;
+
+    // Increase ref_window only if bytes in flight is large enough.
+    // Quite a lot of slack is allowed here to avoid that bitrate locks to low
+    // values. Increase is inhibited if max target bitrate is reached.
+    DataSize max_allowed_ref_window =
+        std::max(params_.max_segment_size.Get() +
+                     std::max(max_data_in_flight_this_rtt_,
+                              max_data_in_flight_prev_rtt_) *
+                         params_.bytes_in_flight_head_room.Get(),
+                 params_.min_ref_window.Get());
+
+    if (ref_window_ < max_allowed_ref_window) {
+      ref_window_ =
+          std::clamp(ref_window_ + increase, params_.min_ref_window.Get(),
+                     max_allowed_ref_window);
+    }
   }
 
   double scale_target_rate = 1.0;
@@ -289,11 +281,17 @@ void ScreamV2::UpdateRefWindowAndTargetRate(
       << " bytes "
       << ", l4s_alpha=" << l4s_alpha_
       << ", scale_target_rate=" << scale_target_rate << ", is_ce=" << is_ce
-      << " is_loss=" << is_loss << " smoothed_rtt=" << msg.smoothed_rtt
-      << ", queue_delay=" << delay_based_congestion_control_.queue_delay()
-      << ", target_rate_=" << target_rate_
-      << " is_virtual_ce=" << is_virtual_ce;
+      << " is_virtual_ce=" << is_virtual_ce << " is_loss=" << is_loss
+      << " smoothed_rtt=" << msg.smoothed_rtt.ms()
+      << ", queue_delay=" << delay_based_congestion_control_.queue_delay().ms()
+      << ", target_rate_=" << target_rate_.kbps();
 
+  if (previous_ref_window < ref_window_) {
+    // Allow setting a new `ref_window_i` if `ref_window_` increase.
+    // It means that `ref_window_i` can increase if `rew_window` increase and
+    // there is a congestion event.
+    allow_ref_window_i_update_ = true;
+  }
   if (msg.feedback_time - last_data_in_flight_update_ >=
       max_of_virtual_and_smothed_rtt) {
     last_data_in_flight_update_ = msg.feedback_time;

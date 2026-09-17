@@ -175,7 +175,7 @@ EC_KEY *EC_KEY_parse_private_key(CBS *cbs, const EC_GROUP *group) {
 
 int EC_KEY_marshal_private_key(CBB *cbb, const EC_KEY *key,
                                unsigned enc_flags) {
-  if (key == NULL || key->group == NULL || key->priv_key == NULL) {
+  if (key == nullptr || key->group == nullptr || key->priv_key == nullptr) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
@@ -202,7 +202,7 @@ int EC_KEY_marshal_private_key(CBB *cbb, const EC_KEY *key,
   }
 
   // TODO(fork): replace this flexibility with sensible default?
-  if (!(enc_flags & EC_PKEY_NO_PUBKEY) && key->pub_key != NULL) {
+  if (!(enc_flags & EC_PKEY_NO_PUBKEY) && key->pub_key != nullptr) {
     CBB child, public_key;
     if (!CBB_add_asn1(&ec_private_key, &child, kPublicKeyTag) ||
         !CBB_add_asn1(&child, &public_key, CBS_ASN1_BITSTRING) ||
@@ -210,7 +210,7 @@ int EC_KEY_marshal_private_key(CBB *cbb, const EC_KEY *key,
         // encoded as a BIT STRING with bits ordered as in the DER encoding.
         !CBB_add_u8(&public_key, 0 /* padding */) ||
         !EC_POINT_point2cbb(&public_key, key->group, key->pub_key,
-                            key->conv_form, NULL) ||
+                            key->conv_form, nullptr) ||
         !CBB_flush(&ec_private_key)) {
       OPENSSL_PUT_ERROR(EC, EC_R_ENCODE_ERROR);
       return 0;
@@ -256,7 +256,7 @@ static int parse_explicit_prime_curve(CBS *in,
       !CBS_get_asn1(&curve, &out->a, CBS_ASN1_OCTETSTRING) ||
       !CBS_get_asn1(&curve, &out->b, CBS_ASN1_OCTETSTRING) ||
       // |curve| has an optional BIT STRING seed which we ignore.
-      !CBS_get_optional_asn1(&curve, NULL, NULL, CBS_ASN1_BITSTRING) ||
+      !CBS_get_optional_asn1(&curve, nullptr, nullptr, CBS_ASN1_BITSTRING) ||
       CBS_len(&curve) != 0 ||
       !CBS_get_asn1(&params, &base, CBS_ASN1_OCTETSTRING) ||
       !CBS_get_asn1(&params, &out->order, CBS_ASN1_INTEGER) ||
@@ -415,7 +415,7 @@ EC_GROUP *EC_KEY_parse_parameters(CBS *cbs) {
 
 int EC_POINT_point2cbb(CBB *out, const EC_GROUP *group, const EC_POINT *point,
                        point_conversion_form_t form, BN_CTX *ctx) {
-  size_t len = EC_POINT_point2oct(group, point, form, NULL, 0, ctx);
+  size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, ctx);
   if (len == 0) {
     return 0;
   }
@@ -427,8 +427,8 @@ int EC_POINT_point2cbb(CBB *out, const EC_GROUP *group, const EC_POINT *point,
 EC_KEY *d2i_ECPrivateKey(EC_KEY **out, const uint8_t **inp, long len) {
   // This function treats its |out| parameter differently from other |d2i|
   // functions. If supplied, take the group from |*out|.
-  const EC_GROUP *group = NULL;
-  if (out != NULL && *out != NULL) {
+  const EC_GROUP *group = nullptr;
+  if (out != nullptr && *out != nullptr) {
     group = EC_KEY_get0_group(*out);
   }
 
@@ -449,7 +449,7 @@ EC_GROUP *d2i_ECPKParameters(EC_GROUP **out, const uint8_t **inp, long len) {
 }
 
 int i2d_ECPKParameters(const EC_GROUP *group, uint8_t **outp) {
-  if (group == NULL) {
+  if (group == nullptr) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return -1;
   }
@@ -474,7 +474,7 @@ EC_KEY *d2i_ECParameters(EC_KEY **out_key, const uint8_t **inp, long len) {
 }
 
 int i2d_ECParameters(const EC_KEY *key, uint8_t **outp) {
-  if (key == NULL || key->group == NULL) {
+  if (key == nullptr || key->group == nullptr) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return -1;
   }
@@ -485,20 +485,20 @@ int i2d_ECParameters(const EC_KEY *key, uint8_t **outp) {
 }
 
 EC_KEY *o2i_ECPublicKey(EC_KEY **keyp, const uint8_t **inp, long len) {
-  EC_KEY *ret = NULL;
+  EC_KEY *ret = nullptr;
 
-  if (keyp == NULL || *keyp == NULL || (*keyp)->group == NULL) {
+  if (keyp == nullptr || *keyp == nullptr || (*keyp)->group == nullptr) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
-    return NULL;
+    return nullptr;
   }
   ret = *keyp;
-  if (ret->pub_key == NULL &&
-      (ret->pub_key = EC_POINT_new(ret->group)) == NULL) {
-    return NULL;
+  if (ret->pub_key == nullptr &&
+      (ret->pub_key = EC_POINT_new(ret->group)) == nullptr) {
+    return nullptr;
   }
-  if (!EC_POINT_oct2point(ret->group, ret->pub_key, *inp, len, NULL)) {
+  if (!EC_POINT_oct2point(ret->group, ret->pub_key, *inp, len, nullptr)) {
     OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
-    return NULL;
+    return nullptr;
   }
   // save the point conversion form
   ret->conv_form = (point_conversion_form_t)(*inp[0] & ~0x01);
@@ -507,7 +507,7 @@ EC_KEY *o2i_ECPublicKey(EC_KEY **keyp, const uint8_t **inp, long len) {
 }
 
 int i2o_ECPublicKey(const EC_KEY *key, uint8_t **outp) {
-  if (key == NULL) {
+  if (key == nullptr) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }

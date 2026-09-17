@@ -245,13 +245,13 @@ SessionServiceImpl::GetFederatedProviderSessionIfValid(
 
   if (!provider_session) {
     // Provider session not found, fail the registration.
-    return base::unexpected(
-        SessionError(SessionError::kInvalidFederatedSession));
+    return base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionProviderSessionMissing));
   }
 
   if (url::Origin::Create(provider_url) != provider_session->origin()) {
-    return base::unexpected(
-        SessionError(SessionError::kInvalidFederatedSession));
+    return base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionWrongProviderOrigin));
   }
 
   unexportable_keys::ServiceErrorOr<
@@ -630,6 +630,44 @@ const Session* SessionServiceImpl::GetSession(
 
 Session* SessionServiceImpl::GetSession(const SessionKey& session_key) {
   return const_cast<Session*>(std::as_const(*this).GetSession(session_key));
+}
+
+void SessionServiceImpl::AddSession(const SchemefulSite& site,
+                                    SessionParams params,
+                                    base::span<const uint8_t> wrapped_key,
+                                    base::OnceCallback<void(bool)> callback) {
+  key_service_->FromWrappedSigningKeySlowlyAsync(
+      wrapped_key, unexportable_keys::BackgroundTaskPriority::kBestEffort,
+      base::BindOnce(&SessionServiceImpl::OnAddSessionKeyRestored,
+                     weak_factory_.GetWeakPtr(), site, std::move(params),
+                     std::move(callback)));
+}
+
+void SessionServiceImpl::OnAddSessionKeyRestored(
+    const SchemefulSite& site,
+    SessionParams params,
+    base::OnceCallback<void(bool)> callback,
+    unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
+        key_or_error) {
+  if (!key_or_error.has_value()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  params.key_id = *key_or_error;
+
+  base::expected<std::unique_ptr<net::device_bound_sessions::Session>,
+                 net::device_bound_sessions::SessionError>
+      session_or_error =
+          net::device_bound_sessions::Session::CreateIfValid(params);
+
+  if (!session_or_error.has_value()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  AddSession(site, std::move(session_or_error.value()));
+  std::move(callback).Run(true);
 }
 
 void SessionServiceImpl::AddSession(const SchemefulSite& site,

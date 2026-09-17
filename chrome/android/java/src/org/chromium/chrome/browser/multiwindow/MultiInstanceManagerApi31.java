@@ -54,6 +54,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceState.MultiInstanceStateObserver;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.InstanceAllocationType;
+import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -487,15 +488,15 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
     }
 
     @Override
-    protected void openNewWindow(String umaAction, boolean incognito) {
+    public @Nullable Intent createNewWindowIntent(boolean isIncognito) {
         Intent intent = new Intent(mActivity, ChromeTabbedActivity.class);
-        onMultiInstanceModeStarted();
+
         MultiWindowUtils.setOpenInOtherWindowIntentExtras(
                 intent, mActivity, ChromeTabbedActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
         intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
-        intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, incognito);
+        intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, isIncognito);
         IntentUtils.addTrustedIntentExtras(intent);
         if (mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
                 || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
@@ -509,6 +510,15 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
             intent.setFlags(intent.getFlags() & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
         }
 
+        return intent;
+    }
+
+    @Override
+    protected void openNewWindow(String umaAction, boolean incognito) {
+        Intent intent = createNewWindowIntent(incognito);
+        assert intent != null : "The Intent to open a new window must not be null";
+
+        onMultiInstanceModeStarted();
         mActivity.startActivity(intent);
         Log.i(TAG_MULTI_INSTANCE, "Opening new window from action: " + umaAction);
         RecordUserAction.record(umaAction);
@@ -1079,11 +1089,13 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         writeTitle(index, tab.getTitle());
     }
 
-    private static void writeTitle(int index, String title) {
+    @VisibleForTesting
+    static void writeTitle(int index, String title) {
         ChromeSharedPreferences.getInstance().writeString(titleKey(index), title);
     }
 
-    private static void writeCustomTitle(int index, String customTitle) {
+    @VisibleForTesting
+    static void writeCustomTitle(int index, String customTitle) {
         ChromeSharedPreferences.getInstance().writeString(customTitleKey(index), customTitle);
     }
 
@@ -1386,6 +1398,13 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
 
         if (newState != ActivityState.RESUMED && newState != ActivityState.STOPPED) return;
 
+        int windowingMode =
+                AppHeaderUtils.getWindowingMode(
+                        mActivity,
+                        AppHeaderUtils.isAppInDesktopWindow(
+                                mDesktopWindowStateManagerSupplier.get()));
+        AppHeaderUtils.recordWindowingMode(windowingMode, newState == ActivityState.RESUMED);
+
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
         // Check the max instance count in a day for every state update if needed.
         long timestamp = prefs.readLong(ChromePreferenceKeys.MULTI_INSTANCE_MAX_COUNT_TIME, 0);
@@ -1620,5 +1639,17 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
     public void showInstanceCreationLimitMessage(@Nullable MessageDispatcher messageDispatcher) {
         MultiWindowUtils.showInstanceCreationLimitMessage(
                 messageDispatcher, mActivity, this::showInstanceSwitcherDialog);
+    }
+
+    @Override
+    public void showNameWindowDialog(@NameWindowDialogSource int source) {
+        String customTitle = readCustomTitle(mInstanceId);
+        String currentTitle = TextUtils.isEmpty(customTitle) ? readTitle(mInstanceId) : customTitle;
+
+        UiUtils.showNameWindowDialog(
+                mActivity,
+                assumeNonNull(currentTitle),
+                newTitle -> writeCustomTitle(mInstanceId, newTitle),
+                source);
     }
 }

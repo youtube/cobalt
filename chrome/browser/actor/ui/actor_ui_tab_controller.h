@@ -5,14 +5,13 @@
 #ifndef CHROME_BROWSER_ACTOR_UI_ACTOR_UI_TAB_CONTROLLER_H_
 #define CHROME_BROWSER_ACTOR_UI_ACTOR_UI_TAB_CONTROLLER_H_
 
-#include "base/callback_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/handoff_button_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "components/tabs/public/tab_interface.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace actor {
@@ -42,6 +41,7 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   void OnUiTabStateChange(const UiTabState& ui_tab_state,
                           UiResultCallback callback) override;
   void OnWebContentsAttached() override;
+  void OnViewBoundsChanged() override;
   void SetActorTaskPaused() override;
   void SetActorTaskResume() override;
   void OnOverlayHoverStatusChanged(bool is_hovering) override;
@@ -63,11 +63,12 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
 
   base::WeakPtr<ActorUiTabControllerInterface> GetWeakPtr() override;
 
-  base::CallbackListSubscription RegisterActorTabIndicatorStateChangedCallback(
+  [[nodiscard]] base::ScopedClosureRunner
+  RegisterActorTabIndicatorStateChangedCallback(
       ActorTabIndicatorStateChangedCallback callback) override;
-  base::CallbackListSubscription RegisterActorOverlayStateChange(
+  [[nodiscard]] base::ScopedClosureRunner RegisterActorOverlayStateChange(
       ActorOverlayStateChangeCallback callback) override;
-  base::CallbackListSubscription RegisterActorOverlayBackgroundChange(
+  [[nodiscard]] base::ScopedClosureRunner RegisterActorOverlayBackgroundChange(
       ActorOverlayBackgroundChangeCallback callback) override;
 
  private:
@@ -90,10 +91,11 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   void OnUpdateFinished();
 
   // Sets the Tab Indicator visibility.
-  void SetActorTabIndicatorVisibility(bool should_show_tab_indicator);
+  void SetActorTabIndicatorVisibility(bool should_show_tab_indicator,
+                                      base::OnceClosure callback);
 
   // Sets the Border Glow visibility.
-  void SetBorderGlowVisibility();
+  void SetBorderGlowVisibility(base::OnceClosure callback);
 
   // Initialize and start observing ImmersiveModeController.
   void InitializeImmersiveModeObserver();
@@ -110,6 +112,10 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
                         content::WebContents* new_contents);
 
   void UpdateOmniboxTabHelperObserver();
+
+  void UnregisterActorOverlayStateChange();
+  void UnregisterActorOverlayBackgroundChange();
+  void UnregisterActorTabIndicatorStateChange();
 
   // The current UiTabState.
   UiTabState current_ui_tab_state_ = {
@@ -130,18 +136,11 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   // Holds subscriptions for TabInterface callbacks.
   std::vector<base::CallbackListSubscription> tab_subscriptions_;
 
-  using ActorTabIndicatorStateChangedCallbackList =
-      base::RepeatingCallbackList<void(bool)>;
-  ActorTabIndicatorStateChangedCallbackList
-      on_actor_tab_indicator_changed_callbacks_;
-  using ActorOverlayStateChangedCallbackList =
-      base::RepeatingCallbackList<void(bool, ActorOverlayState)>;
-  ActorOverlayStateChangedCallbackList
-      on_actor_overlay_state_changed_callbacks_;
-  using ActorOverlayBackgroundChangeCallbackList =
-      base::RepeatingCallbackList<void(bool)>;
-  ActorOverlayBackgroundChangeCallbackList
-      actor_overlay_background_changed_callbacks_;
+  ActorTabIndicatorStateChangedCallback
+      on_actor_tab_indicator_changed_callback_;
+  ActorOverlayStateChangeCallback on_actor_overlay_state_changed_callback_;
+  ActorOverlayBackgroundChangeCallback
+      actor_overlay_background_changed_callback_;
 
   // The Actor Keyed Service for the associated profile.
   raw_ptr<ActorKeyedService> actor_keyed_service_ = nullptr;

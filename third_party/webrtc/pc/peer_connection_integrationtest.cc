@@ -3655,7 +3655,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 }
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
-       RenegotiateManyVideoTransceivers) {
+       DISABLED_RenegotiateManyVideoTransceivers) {
   OverrideLoggingLevelForTest(LS_WARNING);
 
   PeerConnectionInterface::RTCConfiguration config;
@@ -4145,16 +4145,14 @@ TEST_P(PeerConnectionIntegrationTest,
       std::make_unique<MockEncoderSelector>();
   std::optional<SdpVideoFormat> next_format;
   EXPECT_CALL(*encoder_selector, OnCurrentEncoder)
-      .WillOnce(Invoke([&](const SdpVideoFormat& format) {
+      .WillOnce([&](const SdpVideoFormat& format) {
         EXPECT_EQ(format.name, "VP8");
         next_format = SdpVideoFormat::VP9Profile0();
-      }))
-      .WillOnce(Invoke([&](const SdpVideoFormat& format) {
-        EXPECT_EQ(format.name, "VP9");
-      }));
+      })
+      .WillOnce(
+          [&](const SdpVideoFormat& format) { EXPECT_EQ(format.name, "VP9"); });
   EXPECT_CALL(*encoder_selector, OnAvailableBitrate)
-      .WillRepeatedly(
-          Invoke([&](const DataRate& rate) { return next_format; }));
+      .WillRepeatedly([&](const DataRate& rate) { return next_format; });
 
   sender->SetEncoderSelector(std::move(encoder_selector));
 

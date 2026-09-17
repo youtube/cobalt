@@ -30,6 +30,9 @@ ci.defaults.set(
     tree_closing_notifiers = ci_constants.DEFAULT_TREE_CLOSING_NOTIFIERS,
     main_console_view = "main",
     execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     health_spec = health_spec.default(),
     service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
@@ -607,6 +610,11 @@ ci.thin_tester(
             ),
             # TODO(crbug.com/436628295): test fails on VM
             "chromedriver_py_tests": targets.per_test_modification(
+                mixins = "mac_15_arm64",
+                remove_mixins = "mac_15_vm_optional",
+            ),
+            # TODO(crbug.com/436628295): tests are <3x slower on VM
+            "content_browsertests": targets.per_test_modification(
                 mixins = "mac_15_arm64",
                 remove_mixins = "mac_15_vm_optional",
             ),

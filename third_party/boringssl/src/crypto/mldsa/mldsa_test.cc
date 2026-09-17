@@ -96,7 +96,7 @@ template <typename PrivateKey, typename PublicKey, size_t PublicKeyBytes,
           int (*PrivateKeyFromSeed)(PrivateKey *, const uint8_t *, size_t),
           bcm_status (*ParsePrivate)(PrivateKey *, CBS *),
           bcm_status (*MarshalPrivate)(CBB *, const PrivateKey *)>
-static void MLDSABasicTest() {
+void MLDSABasicTest() {
   std::vector<uint8_t> encoded_public_key(PublicKeyBytes);
   auto priv = std::make_unique<PrivateKey>();
   uint8_t seed[MLDSA_SEED_BYTES];
@@ -235,6 +235,53 @@ TEST(MLDSATest, PrehashedSignatureVerifies) {
   }
 }
 
+TEST(MLDSATest, SignatureVerifiesFromPrehash) {
+  std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
+  auto priv = std::make_unique<MLDSA65_private_key>();
+  uint8_t seed[MLDSA_SEED_BYTES];
+  EXPECT_TRUE(
+      MLDSA65_generate_key(encoded_public_key.data(), seed, priv.get()));
+
+  auto pub = std::make_unique<MLDSA65_public_key>();
+  CBS cbs = CBS(encoded_public_key);
+  ASSERT_TRUE(MLDSA65_parse_public_key(pub.get(), &cbs));
+
+  std::vector<uint8_t> encoded_signature(MLDSA65_SIGNATURE_BYTES);
+  static const uint8_t kMessage[] = {'H', 'e', 'l', 'l', 'o', ' ',
+                                     'w', 'o', 'r', 'l', 'd'};
+
+  EXPECT_TRUE(MLDSA65_sign(encoded_signature.data(), priv.get(), kMessage,
+                           sizeof(kMessage), nullptr, 0));
+
+  MLDSA65_prehash prehash_state;
+  EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+  MLDSA65_prehash_update(&prehash_state, kMessage, sizeof(kMessage));
+  uint8_t representative[MLDSA_MU_BYTES];
+  MLDSA65_prehash_finalize(representative, &prehash_state);
+  EXPECT_EQ(MLDSA65_verify_message_representative(pub.get(),
+                                                  encoded_signature.data(),
+                                                  encoded_signature.size(),
+                                                  representative),
+            1);
+
+  // Updating in multiple chunks also works.
+  for (size_t i = 0; i <= sizeof(kMessage); ++i) {
+    for (size_t j = i; j <= sizeof(kMessage); ++j) {
+      EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+      MLDSA65_prehash_update(&prehash_state, kMessage, i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + i, j - i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + j,
+                             sizeof(kMessage) - j);
+      MLDSA65_prehash_finalize(representative, &prehash_state);
+      EXPECT_EQ(MLDSA65_verify_message_representative(pub.get(),
+                                                      encoded_signature.data(),
+                                                      encoded_signature.size(),
+                                                      representative),
+                1);
+    }
+  }
+}
+
 TEST(MLDSATest, PublicFromPrivateIsConsistent) {
   std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
   auto priv = std::make_unique<MLDSA65_private_key>();
@@ -322,7 +369,7 @@ template <typename PrivateKey, typename PublicKey, size_t SignatureBytes,
           bcm_status (*VerifyInternal)(const PublicKey *, const uint8_t *,
                                        const uint8_t *, size_t, const uint8_t *,
                                        size_t, const uint8_t *, size_t)>
-static void MLDSASigGenTest(FileTest *t) {
+void MLDSASigGenTest(FileTest *t) {
   std::vector<uint8_t> private_key_bytes, msg, expected_signature;
   ASSERT_TRUE(t->GetBytes(&private_key_bytes, "sk"));
   ASSERT_TRUE(t->GetBytes(&msg, "message"));
@@ -378,7 +425,7 @@ TEST(MLDSATest, SigGenTests44) {
 template <typename PrivateKey, size_t PublicKeyBytes,
           bcm_status (*Generate)(uint8_t *, PrivateKey *, const uint8_t *),
           bcm_status (*MarshalPrivate)(CBB *, const PrivateKey *)>
-static void MLDSAKeyGenTest(FileTest *t) {
+void MLDSAKeyGenTest(FileTest *t) {
   std::vector<uint8_t> seed, expected_public_key, expected_private_key;
   ASSERT_TRUE(t->GetBytes(&seed, "seed"));
   CONSTTIME_SECRET(seed.data(), seed.size());
@@ -406,11 +453,10 @@ TEST(MLDSATest, KeyGenTests65) {
 }
 
 TEST(MLDSATest, KeyGenTests87) {
-  FileTestGTest(
-      "crypto/mldsa/mldsa_nist_keygen_87_tests.txt",
-      MLDSAKeyGenTest<MLDSA87_private_key, MLDSA87_PUBLIC_KEY_BYTES,
-                      BCM_mldsa87_generate_key_external_entropy,
-                      BCM_mldsa87_marshal_private_key>);
+  FileTestGTest("crypto/mldsa/mldsa_nist_keygen_87_tests.txt",
+                MLDSAKeyGenTest<MLDSA87_private_key, MLDSA87_PUBLIC_KEY_BYTES,
+                                BCM_mldsa87_generate_key_external_entropy,
+                                BCM_mldsa87_marshal_private_key>);
 }
 
 TEST(MLDSATest, KeyGenTests44) {
@@ -426,7 +472,7 @@ template <
     bcm_status_t (*SignInternal)(uint8_t *, const PrivateKey *, const uint8_t *,
                                  size_t, const uint8_t *, size_t,
                                  const uint8_t *, size_t, const uint8_t *)>
-static void MLDSAWycheproofSignTest(FileTest *t) {
+void MLDSAWycheproofSignTest(FileTest *t) {
   std::vector<uint8_t> private_key_bytes, msg, expected_signature, context;
   ASSERT_TRUE(t->GetInstructionBytes(&private_key_bytes, "privateKey"));
   ASSERT_TRUE(t->GetBytes(&msg, "msg"));
@@ -469,7 +515,7 @@ static void MLDSAWycheproofSignTest(FileTest *t) {
 
 TEST(MLDSATest, WycheproofSignTests65) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_65_standard_sign_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_65_sign_noseed_test.txt",
       MLDSAWycheproofSignTest<
           MLDSA65_private_key, BCM_mldsa65_parse_private_key,
           MLDSA65_SIGNATURE_BYTES, BCM_mldsa65_sign_internal>);
@@ -477,7 +523,7 @@ TEST(MLDSATest, WycheproofSignTests65) {
 
 TEST(MLDSATest, WycheproofSignTests87) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_87_standard_sign_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_87_sign_noseed_test.txt",
       MLDSAWycheproofSignTest<
           MLDSA87_private_key, BCM_mldsa87_parse_private_key,
           MLDSA87_SIGNATURE_BYTES, BCM_mldsa87_sign_internal>);
@@ -485,7 +531,7 @@ TEST(MLDSATest, WycheproofSignTests87) {
 
 TEST(MLDSATest, WycheproofSignTests44) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_44_standard_sign_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_44_sign_noseed_test.txt",
       MLDSAWycheproofSignTest<
           MLDSA44_private_key, BCM_mldsa44_parse_private_key,
           MLDSA44_SIGNATURE_BYTES, BCM_mldsa44_sign_internal>);
@@ -495,8 +541,9 @@ template <typename PublicKey, size_t SignatureLength,
           int (*ParsePublicKey)(PublicKey *, CBS *),
           int (*Verify)(const PublicKey *, const uint8_t *, size_t,
                         const uint8_t *, size_t, const uint8_t *, size_t)>
-static void MLDSAWycheproofVerifyTest(FileTest *t) {
+void MLDSAWycheproofVerifyTest(FileTest *t) {
   std::vector<uint8_t> public_key_bytes, msg, signature, context;
+  t->IgnoreInstruction("publicKeyDer");
   ASSERT_TRUE(t->GetInstructionBytes(&public_key_bytes, "publicKey"));
   ASSERT_TRUE(t->GetBytes(&msg, "msg"));
   ASSERT_TRUE(t->GetBytes(&signature, "sig"));
@@ -529,21 +576,21 @@ static void MLDSAWycheproofVerifyTest(FileTest *t) {
 
 TEST(MLDSATest, WycheproofVerifyTests65) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_65_standard_verify_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_65_verify_test.txt",
       MLDSAWycheproofVerifyTest<MLDSA65_public_key, MLDSA65_SIGNATURE_BYTES,
                                 MLDSA65_parse_public_key, MLDSA65_verify>);
 }
 
 TEST(MLDSATest, WycheproofVerifyTests87) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_87_standard_verify_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_87_verify_test.txt",
       MLDSAWycheproofVerifyTest<MLDSA87_public_key, MLDSA87_SIGNATURE_BYTES,
                                 MLDSA87_parse_public_key, MLDSA87_verify>);
 }
 
 TEST(MLDSATest, WycheproofVerifyTests44) {
   FileTestGTest(
-      "third_party/wycheproof_testvectors/mldsa_44_standard_verify_test.txt",
+      "third_party/wycheproof_testvectors/mldsa_44_verify_test.txt",
       MLDSAWycheproofVerifyTest<MLDSA44_public_key, MLDSA44_SIGNATURE_BYTES,
                                 MLDSA44_parse_public_key, MLDSA44_verify>);
 }

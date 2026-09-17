@@ -36,6 +36,7 @@ TIntermConstantUnion *CreateUVecNode(const unsigned int values[],
 TIntermConstantUnion *CreateIndexNode(int index);
 TIntermConstantUnion *CreateUIntNode(unsigned int value);
 TIntermConstantUnion *CreateBoolNode(bool value);
+TIntermConstantUnion *CreateYuvCscNode(TYuvCscStandardEXT value);
 
 // Create temporary variable of known type |type|.
 TVariable *CreateTempVariable(TSymbolTable *symbolTable, const TType *type);
@@ -80,6 +81,10 @@ const TVariable *DeclareInterfaceBlockVariable(TIntermBlock *root,
                                                const TMemoryQualifier &memoryQualifier,
                                                uint32_t arraySize,
                                                const ImmutableString &blockVariableName);
+
+// `expr` must be an lvalue. This will return the root variable, e.g. the root variable of
+// `a[0].b[0].xy` is `a`,
+const TVariable *FindRootVariable(TIntermNode *expr);
 
 // Creates a variable for a struct type.
 const TVariable &CreateStructTypeVariable(TSymbolTable &symbolTable, const TStructure &structure);

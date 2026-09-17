@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "chrome/browser/ui/webui/reload_button/reload_button.mojom.h"
+#include "chrome/browser/ui/webui/reload_button/reload_button.mojom-forward.h"
 #include "chrome/browser/ui/webui/reload_button/reload_button_page_handler.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
@@ -16,8 +16,15 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
+#include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
+#include "ui/webui/resources/js/metrics_reporter/metrics_reporter.mojom-forward.h"
 
+class MetricsReporter;
 class ReloadButtonUI;
+
+namespace ui {
+class ColorChangeHandler;
+}  // namespace ui
 
 class ReloadButtonUI : public TopChromeWebUIController,
                        public reload_button::mojom::PageHandlerFactory {
@@ -31,8 +38,13 @@ class ReloadButtonUI : public TopChromeWebUIController,
 
   void BindInterface(
       mojo::PendingReceiver<reload_button::mojom::PageHandlerFactory> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<metrics_reporter::mojom::PageMetricsHost> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
+          receiver);
 
-  void SetLoadingState(bool is_loading, bool force);
+  void SetReloadButtonState(bool is_loading, bool is_menu_enabled);
 
  private:
   // reload_button::mojom::PageHandlerFactory:
@@ -41,7 +53,11 @@ class ReloadButtonUI : public TopChromeWebUIController,
       mojo::PendingReceiver<reload_button::mojom::PageHandler> receiver)
       override;
 
+  std::unique_ptr<MetricsReporter> metrics_reporter_;
   std::unique_ptr<ReloadButtonPageHandler> page_handler_;
+  // The color change handler notifies the WebUI when the color provider
+  // changes.
+  std::unique_ptr<ui::ColorChangeHandler> color_provider_handler_;
   mojo::Receiver<reload_button::mojom::PageHandlerFactory>
       page_factory_receiver_{this};
 

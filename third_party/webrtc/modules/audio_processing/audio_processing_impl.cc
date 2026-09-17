@@ -487,12 +487,14 @@ AudioProcessingImpl::AudioProcessingImpl(
                   std::move(echo_detector),
                   std::move(capture_analyzer),
                   std::move(neural_residual_echo_estimator)),
-      constants_(!env.field_trials().IsEnabled(
-                     "WebRTC-ApmExperimentalMultiChannelRenderKillSwitch"),
-                 !env.field_trials().IsEnabled(
-                     "WebRTC-ApmExperimentalMultiChannelCaptureKillSwitch"),
-                 EnforceSplitBandHpf(env.field_trials()),
-                 MinimizeProcessingForUnusedOutput(env.field_trials())),
+      constants_(
+          !env.field_trials().IsEnabled(
+              "WebRTC-ApmExperimentalMultiChannelRenderKillSwitch"),
+          !env.field_trials().IsEnabled(
+              "WebRTC-ApmExperimentalMultiChannelCaptureKillSwitch"),
+          EnforceSplitBandHpf(env.field_trials()),
+          MinimizeProcessingForUnusedOutput(env.field_trials()),
+          env.field_trials().IsEnabled("WebRTC-ApmEnforce48kHzProcessingRate")),
       capture_(),
       capture_nonlocked_(),
       applied_input_volume_stats_reporter_(
@@ -635,7 +637,8 @@ void AudioProcessingImpl::InitializeLocked(const ProcessingConfig& config) {
   RTC_DCHECK(config_.pipeline.maximum_internal_processing_rate == 48000 ||
              config_.pipeline.maximum_internal_processing_rate == 32000);
   int max_splitting_rate = 48000;
-  if (config_.pipeline.maximum_internal_processing_rate == 32000) {
+  if (config_.pipeline.maximum_internal_processing_rate == 32000 &&
+      !constants_.enforce_48_khz_max_internal_processing_rate) {
     max_splitting_rate = config_.pipeline.maximum_internal_processing_rate;
   }
 

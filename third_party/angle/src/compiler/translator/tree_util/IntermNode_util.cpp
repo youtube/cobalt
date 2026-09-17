@@ -195,6 +195,15 @@ TIntermConstantUnion *CreateBoolNode(bool value)
     return new TIntermConstantUnion(u, type);
 }
 
+TIntermConstantUnion *CreateYuvCscNode(TYuvCscStandardEXT value)
+{
+    TConstantUnion *u = new TConstantUnion[1];
+    u[0].setYuvCscStandardEXTConst(value);
+
+    TType type(EbtYuvCscStandardEXT, EbpUndefined, EvqConst, 1);
+    return new TIntermConstantUnion(u, type);
+}
+
 TVariable *CreateTempVariable(TSymbolTable *symbolTable, const TType *type)
 {
     ASSERT(symbolTable != nullptr);
@@ -356,6 +365,22 @@ const TVariable *DeclareInterfaceBlockVariable(TIntermBlock *root,
     root->insertChildNodes(firstFunctionIndex, insertSequence);
 
     return interfaceBlockVar;
+}
+
+const TVariable *FindRootVariable(TIntermNode *expr)
+{
+    if (TIntermBinary *binNode = expr->getAsBinaryNode())
+    {
+        return FindRootVariable(binNode->getLeft());
+    }
+    if (TIntermSwizzle *swizzle = expr->getAsSwizzleNode())
+    {
+        return FindRootVariable(swizzle->getOperand());
+    }
+
+    TIntermSymbol *sym = expr->getAsSymbolNode();
+    ASSERT(sym);
+    return &sym->variable();
 }
 
 const TVariable &CreateStructTypeVariable(TSymbolTable &symbolTable, const TStructure &structure)

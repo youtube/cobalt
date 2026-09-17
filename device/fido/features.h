@@ -29,6 +29,9 @@ COMPONENT_EXPORT(DEVICE_FIDO) BASE_DECLARE_FEATURE(kWebAuthUseNativeWinApi);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthCableExtensionAnywhere);
 
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnActorCheck);
+
 // These five feature flags control whether iCloud Keychain is the default
 // mechanism for platform credential creation in different situations.
 // "Active" means that the user is an active user of the profile authenticator,
@@ -166,6 +169,15 @@ BASE_DECLARE_FEATURE(kWebAuthenticationFixWindowsHelloRdp);
 // data JSON instead of the full contents.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthenticationHashClientDataJsonForEnclave);
+
+// Enables to save keys from out of context ("opportunistic") retrieval.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
+
+// Enable support for WebAuthn hints through the Windows WebAuthn API.
+// https://w3c.github.io/webauthn/#enum-hints.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthenticationWindowsHints);
 
 }  // namespace device
 

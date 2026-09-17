@@ -80,10 +80,6 @@ luci.project(
         ),
         acl.entry(acl.LOGDOG_WRITER, groups = ["luci-logdog-chromium-writers"]),
         acl.entry(acl.SCHEDULER_OWNER, groups = ["project-webrtc-admins"]),
-        acl.entry(
-            roles = acl.CQ_NEW_PATCHSET_RUN_TRIGGERER,
-            groups = "project-webrtc-tryjob-access",
-        ),
     ],
     bindings = [
         luci.binding(

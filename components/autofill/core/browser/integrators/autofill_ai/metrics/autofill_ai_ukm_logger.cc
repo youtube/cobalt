@@ -124,24 +124,32 @@ optimization_guide::proto::AutofillAiFieldEventType GetFieldEventType(
 }
 
 optimization_guide::proto::AutofillAiPromptUserDecision GetUserDecision(
-    AutofillClient::EntitySaveOrUpdatePromptResult decision) {
-  if (decision.did_user_decline) {
-    return optimization_guide::proto::AUTOFILL_AI_PROMPT_USER_DECISION_DECLINED;
-  } else if (!decision.did_user_decline && !decision.entity) {
-    return optimization_guide::proto::AUTOFILL_AI_PROMPT_USER_DECISION_IGNORED;
-  } else {
-    return optimization_guide::proto::AUTOFILL_AI_PROMPT_USER_DECISION_ACCEPTED;
+    AutofillClient::AutofillAiBubbleClosedReason close_reason) {
+  switch (close_reason) {
+    case AutofillClient::AutofillAiBubbleClosedReason::kAccepted:
+      return optimization_guide::proto::
+          AUTOFILL_AI_PROMPT_USER_DECISION_ACCEPTED;
+    case AutofillClient::AutofillAiBubbleClosedReason::kCancelled:
+    case AutofillClient::AutofillAiBubbleClosedReason::kClosed:
+      return optimization_guide::proto::
+          AUTOFILL_AI_PROMPT_USER_DECISION_DECLINED;
+    case AutofillClient::AutofillAiBubbleClosedReason::kNotInteracted:
+    case AutofillClient::AutofillAiBubbleClosedReason::kLostFocus:
+    case AutofillClient::AutofillAiBubbleClosedReason::kUnknown:
+      return optimization_guide::proto::
+          AUTOFILL_AI_PROMPT_USER_DECISION_IGNORED;
   }
+  NOTREACHED();
 }
 
 optimization_guide::proto::AutofillAiPromptType GetPromptType(
-    AutofillClient::AutofillAiPromptTypes prompt_type) {
+    AutofillClient::AutofillAiImportPromptType prompt_type) {
   switch (prompt_type) {
-    case AutofillClient::AutofillAiPromptTypes::kSave:
+    case AutofillClient::AutofillAiImportPromptType::kSave:
       return optimization_guide::proto::AUTOFILL_AI_PROMPT_TYPE_SAVE_ENTITY;
-    case AutofillClient::AutofillAiPromptTypes::kUpdate:
+    case AutofillClient::AutofillAiImportPromptType::kUpdate:
       return optimization_guide::proto::AUTOFILL_AI_PROMPT_TYPE_UPDATE_ENTITY;
-    case AutofillClient::AutofillAiPromptTypes::kMigrate:
+    case AutofillClient::AutofillAiImportPromptType::kMigrate:
       return optimization_guide::proto::AUTOFILL_AI_PROMPT_TYPE_MIGRATE_ON_SAVE;
   }
 }
@@ -259,18 +267,23 @@ void AutofillAiUkmLogger::LogKeyMetrics(ukm::SourceId ukm_source_id,
   builder.Record(client_->GetUkmRecorder());
 }
 
-void AutofillAiUkmLogger::LogSaveOrUpdatePromptResult(
-    AutofillClient::AutofillAiPromptTypes prompt_type,
+void AutofillAiUkmLogger::LogImportPromptResult(
+    const FormData& form,
+    AutofillClient::AutofillAiImportPromptType prompt_type,
     EntityType entity_type,
     EntityInstance::RecordType record_type,
-    uint64_t form_session_id,
-    const std::string& domain,
-    AutofillClient::EntitySaveOrUpdatePromptResult result,
+    AutofillClient::AutofillAiBubbleClosedReason close_reason,
     ukm::SourceId ukm_source_id) {
+  uint64_t form_session_id =
+      autofill_metrics::FormGlobalIdToHash64Bit(form.global_id());
   if (optimization_guide::ModelQualityLogsUploaderService* uploader_ =
           client_->GetMqlsUploadService();
       uploader_ &&
       MayPerformAutofillAiAction(*client_, AutofillAiAction::kLogToMqls)) {
+    const std::string domain =
+        net::registry_controlled_domains::GetDomainAndRegistry(
+            form.main_frame_origin(),
+            net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES);
     // Note that the actual logging of the metric happens when `log_entry` goes
     // out of scope and is destroyed. Also note that in this case it is not
     // necessary to check if the user is opted in because it is assumed that all
@@ -289,7 +302,7 @@ void AutofillAiUkmLogger::LogSaveOrUpdatePromptResult(
     mqls_user_prompt_event->set_storage_type(GetStorageType(record_type));
     mqls_user_prompt_event->set_prompt_type(GetPromptType(prompt_type));
     mqls_user_prompt_event->set_entity_type(GetEntityType(entity_type));
-    mqls_user_prompt_event->set_result(GetUserDecision(result));
+    mqls_user_prompt_event->set_result(GetUserDecision(close_reason));
   }
 
   if (!CanLogUkm(ukm_source_id)) {
@@ -300,7 +313,7 @@ void AutofillAiUkmLogger::LogSaveOrUpdatePromptResult(
       .SetEntityType(base::to_underlying(entity_type.name()))
       .SetStorageType(GetStorageType(record_type))
       .SetPromptType(GetPromptType(prompt_type))
-      .SetResult(GetUserDecision(result))
+      .SetResult(GetUserDecision(close_reason))
       .Record(client_->GetUkmRecorder());
 }
 
@@ -308,6 +321,7 @@ void AutofillAiUkmLogger::LogFieldEvent(ukm::SourceId ukm_source_id,
                                         const FormStructure& form,
                                         const AutofillField& field,
                                         EntityType entity_type,
+                                        EntityInstance::RecordType record_type,
                                         EventType event_type) {
   const FormSignature form_signature = form.form_signature();
   const uint64_t form_session_identifier =
@@ -363,6 +377,7 @@ void AutofillAiUkmLogger::LogFieldEvent(ukm::SourceId ukm_source_id,
         GetFormControlType(field.form_control_type()));
     mqls_field_event->set_event_type(GetFieldEventType(event_type));
     mqls_field_event->set_entity_type(GetEntityType(entity_type));
+    mqls_field_event->set_storage_type(GetStorageType(record_type));
   }
 
   if (!CanLogUkm(ukm_source_id)) {

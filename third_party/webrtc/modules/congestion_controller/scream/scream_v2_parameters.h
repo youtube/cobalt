@@ -56,8 +56,6 @@ struct ScreamV2Parameters {
   // ref_window)) / ref_window_i) ^2
   FieldTrialParameter<double> backoff_scale_factor_close_to_ref_window_i;
 
-  FieldTrialParameter<int> number_of_rtts_between_ref_window_i_updates;
-
   // If CE is detected and this number of RTTs has passed since last
   // congestion, ref_window_i will be reset.
   FieldTrialParameter<int>
@@ -96,6 +94,13 @@ struct ScreamV2Parameters {
   // that specifies that only the last packet reported in a feedback packet
   // received every min(virtual_rtt, smoothed rtt) is used.
   FieldTrialParameter<bool> use_all_packets_when_calculating_queue_delay;
+
+  // Padding is periodically used in order to increase target rate even if a
+  // stream does not produce a high enough rate.
+  FieldTrialParameter<TimeDelta> periodic_padding_interval;
+
+  // Duration padding is used when periodic padding start.
+  FieldTrialParameter<TimeDelta> periodic_padding_duration;
 };
 
 }  // namespace webrtc

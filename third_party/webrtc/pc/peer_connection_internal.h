@@ -24,6 +24,7 @@
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
@@ -153,6 +154,7 @@ class PeerConnectionSdpMethods {
   // Tears down the data channel transport state and clears the `sctp_mid()` and
   // `sctp_transport_name()` properties.
   virtual void DestroyDataChannelTransport(RTCError error) = 0;
+  virtual const Environment& env() const = 0;
   virtual const FieldTrialsView& trials() const = 0;
 
   virtual void ClearStatsCache() = 0;

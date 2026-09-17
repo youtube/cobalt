@@ -89,7 +89,7 @@ int asn1_marshal_integer(CBB *out, const ASN1_INTEGER *in, CBS_ASN1_TAG tag) {
 }
 
 int i2c_ASN1_INTEGER(const ASN1_INTEGER *in, unsigned char **outp) {
-  if (in == NULL) {
+  if (in == nullptr) {
     return 0;
   }
 
@@ -129,7 +129,7 @@ int i2c_ASN1_INTEGER(const ASN1_INTEGER *in, unsigned char **outp) {
   }
   int len = (int)(pad + CBS_len(&cbs));
   assert(len > 0);
-  if (outp == NULL) {
+  if (outp == nullptr) {
     return len;
   }
 
@@ -374,7 +374,7 @@ int ASN1_ENUMERATED_get_int64(int64_t *out, const ASN1_ENUMERATED *a) {
 }
 
 static long asn1_string_get_long(const ASN1_STRING *a, int type) {
-  if (a == NULL) {
+  if (a == nullptr) {
     return 0;
   }
 
@@ -400,13 +400,13 @@ long ASN1_ENUMERATED_get(const ASN1_ENUMERATED *a) {
 static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
                                       int type) {
   ASN1_INTEGER *ret;
-  if (ai == NULL) {
+  if (ai == nullptr) {
     ret = ASN1_STRING_type_new(type);
   } else {
     ret = ai;
   }
   int len;
-  if (ret == NULL) {
+  if (ret == nullptr) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_NESTED_ASN1_ERROR);
     goto err;
   }
@@ -418,7 +418,7 @@ static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
   }
 
   len = BN_num_bytes(bn);
-  if (!ASN1_STRING_set(ret, NULL, len) ||
+  if (!ASN1_STRING_set(ret, nullptr, len) ||
       !BN_bn2bin_padded(ret->data, len, bn)) {
     goto err;
   }
@@ -428,7 +428,7 @@ err:
   if (ret != ai) {
     ASN1_STRING_free(ret);
   }
-  return NULL;
+  return nullptr;
 }
 
 ASN1_INTEGER *BN_to_ASN1_INTEGER(const BIGNUM *bn, ASN1_INTEGER *ai) {
@@ -442,11 +442,11 @@ ASN1_ENUMERATED *BN_to_ASN1_ENUMERATED(const BIGNUM *bn, ASN1_ENUMERATED *ai) {
 static BIGNUM *asn1_string_to_bn(const ASN1_STRING *ai, BIGNUM *bn, int type) {
   if ((ai->type & ~V_ASN1_NEG) != type) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_INTEGER_TYPE);
-    return NULL;
+    return nullptr;
   }
 
   BIGNUM *ret;
-  if ((ret = BN_bin2bn(ai->data, ai->length, bn)) == NULL) {
+  if ((ret = BN_bin2bn(ai->data, ai->length, bn)) == nullptr) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_BN_LIB);
   } else if (ai->type & V_ASN1_NEG) {
     BN_set_negative(ret, 1);

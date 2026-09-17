@@ -39,11 +39,26 @@ public class TipsUtilsUnitTest {
                 TipsUtils.getFeatureTipPromoDataForType(
                         mActivity, TipsNotificationsFeatureType.ENHANCED_SAFE_BROWSING);
         assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_positive_button_text),
+                promoData.positiveButtonText);
+        assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_title_esb),
                 promoData.mainPageTitle);
         assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_description_esb),
                 promoData.mainPageDescription);
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_first_step_esb),
+                promoData.detailPageSteps.get(0));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_second_step_esb),
+                promoData.detailPageSteps.get(1));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_third_step_esb),
+                promoData.detailPageSteps.get(2));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_title_esb),
+                promoData.detailPageTitle);
     }
 
     @SmallTest
@@ -53,11 +68,26 @@ public class TipsUtilsUnitTest {
                 TipsUtils.getFeatureTipPromoDataForType(
                         mActivity, TipsNotificationsFeatureType.QUICK_DELETE);
         assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_positive_button_text),
+                promoData.positiveButtonText);
+        assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_title_quick_delete),
                 promoData.mainPageTitle);
         assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_description_quick_delete),
                 promoData.mainPageDescription);
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_first_step_quick_delete),
+                promoData.detailPageSteps.get(0));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_second_step_quick_delete),
+                promoData.detailPageSteps.get(1));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_third_step_quick_delete),
+                promoData.detailPageSteps.get(2));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_title_quick_delete),
+                promoData.detailPageTitle);
     }
 
     @SmallTest
@@ -67,11 +97,26 @@ public class TipsUtilsUnitTest {
                 TipsUtils.getFeatureTipPromoDataForType(
                         mActivity, TipsNotificationsFeatureType.GOOGLE_LENS);
         assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_positive_button_text_lens),
+                promoData.positiveButtonText);
+        assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_title_lens),
                 promoData.mainPageTitle);
         assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_description_lens),
                 promoData.mainPageDescription);
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_first_step_lens),
+                promoData.detailPageSteps.get(0));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_second_step_lens),
+                promoData.detailPageSteps.get(1));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_third_step_lens),
+                promoData.detailPageSteps.get(2));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_title_lens),
+                promoData.detailPageTitle);
     }
 
     @SmallTest
@@ -81,10 +126,25 @@ public class TipsUtilsUnitTest {
                 TipsUtils.getFeatureTipPromoDataForType(
                         mActivity, TipsNotificationsFeatureType.BOTTOM_OMNIBOX);
         assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_positive_button_text),
+                promoData.positiveButtonText);
+        assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_title_bottom_omnibox),
                 promoData.mainPageTitle);
         assertEquals(
                 mActivity.getString(R.string.tips_promo_bottom_sheet_description_bottom_omnibox),
                 promoData.mainPageDescription);
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_first_step_bottom_omnibox),
+                promoData.detailPageSteps.get(0));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_second_step_bottom_omnibox),
+                promoData.detailPageSteps.get(1));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_third_step_bottom_omnibox),
+                promoData.detailPageSteps.get(2));
+        assertEquals(
+                mActivity.getString(R.string.tips_promo_bottom_sheet_title_bottom_omnibox_short),
+                promoData.detailPageTitle);
     }
 }

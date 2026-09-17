@@ -1449,7 +1449,7 @@ void add_children_to_key(const KeyContext& keyContext,
 
     for (size_t index = 0; index < children.size(); ++index) {
         const SkRuntimeEffect::ChildPtr& child = children[index];
-        KeyContextForRuntimeEffect childContext(keyContext, effect, index);
+        KeyContext childContext = keyContext.forRuntimeEffect(effect, index);
 
         std::optional<ChildType> type = child.type();
         if (type == ChildType::kShader) {
@@ -1630,8 +1630,8 @@ static void add_to_key(const KeyContext& keyContext, const SkWorkingFormatColorF
 
     SkAlphaType workingAT;
     sk_sp<SkColorSpace> workingCS = filter->workingFormat(dstCS, &workingAT);
-    SkColorInfo workingInfo(dstInfo.colorType(), workingAT, workingCS);
-    KeyContextWithColorInfo workingContext(keyContext, workingInfo);
+    KeyContext workingContext =
+            keyContext.withColorInfo({dstInfo.colorType(), workingAT, workingCS});
 
     // Use two nested compose blocks to chain (dst->working), child, and (working->dst) together
     // while appearing as one block to the parent node.
@@ -1752,9 +1752,13 @@ static void add_to_key(const KeyContext& keyContext, const SkCoordClampShader* s
 
     CoordClampShaderBlock::CoordClampData data(shader->subset());
 
-    KeyContextWithCoordClamp childContext(keyContext);
     CoordClampShaderBlock::BeginBlock(keyContext, data);
-    AddToKey(childContext, shader->shader().get());
+
+    // Subtleties in clamping implementation can lead to texture samples at non pixel aligned
+    // coordinates, particularly if clamped to non-texel centers.
+    AddToKey(keyContext.withExtraFlags(KeyGenFlags::kDisableSamplingOptimization),
+             shader->shader().get());
+
     keyContext.paintParamsKeyBuilder()->endBlock();
 }
 
@@ -2253,9 +2257,7 @@ static void add_to_key(const KeyContext& keyContext,
     sk_sp<SkColorSpace> inputCS, outputCS;
     SkAlphaType workingAT;
     std::tie(inputCS, outputCS, workingAT) = shader->workingSpace(dstCS, dstAT);
-
-    SkColorInfo workingInfo(dstInfo.colorType(), workingAT, inputCS);
-    KeyContextWithColorInfo workingContext(keyContext, workingInfo);
+    KeyContext workingContext = keyContext.withColorInfo({dstInfo.colorType(), workingAT, inputCS});
 
     // Compose the inner shader (in the input space) with a (output->dst) transform, under the
     // assumption that the child shader handles conversion between input and output CS/alpha types.
@@ -2519,5 +2521,45 @@ void AddToKey(const KeyContext& keyContext, const SkShader* shader) {
     }
     SkUNREACHABLE;
 }
+
+void AddFixedBlendMode(const KeyContext& keyContext, SkBlendMode bm) {
+    SkASSERT(bm <= SkBlendMode::kLastMode);
+    BuiltInCodeSnippetID id = static_cast<BuiltInCodeSnippetID>(kFixedBlendIDOffset +
+                                                                static_cast<int>(bm));
+    keyContext.paintParamsKeyBuilder()->addBlock(id);
+}
+
+void AddBlendMode(const KeyContext& keyContext, SkBlendMode bm) {
+    // For non-fixed blends, coefficient blend modes are combined into the same shader snippet.
+    // The same goes for the HSLC advanced blends. The remaining advanced blends are fairly unique
+    // in their implementations. To avoid having to compile all of their SkSL, they are treated as
+    // fixed blend modes.
+    SkSpan<const float> coeffs = skgpu::GetPorterDuffBlendConstants(bm);
+    if (!coeffs.empty()) {
+        PorterDuffBlenderBlock::AddBlock(keyContext, coeffs);
+    } else if (bm >= SkBlendMode::kHue) {
+        ReducedBlendModeInfo blendInfo = GetReducedBlendModeInfo(bm);
+        HSLCBlenderBlock::AddBlock(keyContext, blendInfo.fUniformData);
+    } else {
+        AddFixedBlendMode(keyContext, bm);
+    }
+}
+
+void AddDitherBlock(const KeyContext& keyContext, SkColorType ct) {
+    static const SkBitmap gLUT = skgpu::MakeDitherLUT();
+
+    sk_sp<TextureProxy> proxy = RecorderPriv::CreateCachedProxy(keyContext.recorder(), gLUT,
+                                                                "DitherLUT");
+    if (keyContext.recorder() && !proxy) {
+        SKGPU_LOG_W("Couldn't create dither shader's LUT");
+        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kPriorOutput);
+        return;
+    }
+
+    DitherShaderBlock::DitherData data(skgpu::DitherRangeForConfig(ct), std::move(proxy));
+
+    DitherShaderBlock::AddBlock(keyContext, data);
+}
+
 
 } // namespace skgpu::graphite

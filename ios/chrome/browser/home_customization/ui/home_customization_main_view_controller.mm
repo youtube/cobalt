@@ -62,12 +62,18 @@
   // Registration for the enterprise management info cell.
   UICollectionViewCellRegistration* _enterprisePolicyCellRegistration;
 
-  // The id of the selected background cell.
-  NSString* _selectedBackgroundId;
-
   // The number of times a background is selected from the recently used
   // section.
   int _recentBackgroundClickCount;
+
+  // Last handled height. Used so detents are only invalidated when the content
+  // height actually changes.
+  CGFloat _lastSeenViewContentHeight;
+
+  // The background cell identifier that should be selected initially. Stored
+  // temporarily because the initial data load can happen in multiple different
+  // places.
+  NSString* _initialSelectedBackgroundID;
 }
 
 // Synthesized from HomeCustomizationViewControllerProtocol.
@@ -96,8 +102,12 @@
   [_collectionConfigurator configureCollectionView];
 
   // Sets initial data.
+  __weak __typeof(self) weakSelf = self;
   [_diffableDataSource applySnapshot:[self dataSnapshot]
-                animatingDifferences:NO];
+                animatingDifferences:NO
+                          completion:^() {
+                            [weakSelf selectInitialItemAfterDataLoad];
+                          }];
 
   // The primary view is set as the collection view for better integration with
   // the UISheetPresentationController which presents it.
@@ -122,6 +132,20 @@
   if (_additionalViewWillTransitionToSizeHandler) {
     _additionalViewWillTransitionToSizeHandler(size, coordinator);
   }
+}
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+
+  if (_lastSeenViewContentHeight != self.viewContentHeight) {
+    _lastSeenViewContentHeight = self.viewContentHeight;
+    [self.sheetPresentationController invalidateDetents];
+  }
+}
+
+- (CGFloat)viewContentHeight {
+  return self.navigationController.navigationBar.frame.size.height +
+         self.collectionView.contentSize.height;
 }
 
 #pragma mark - Private
@@ -346,9 +370,24 @@
   NSString* itemIdentifier =
       [self.diffableDataSource itemIdentifierForIndexPath:indexPath];
 
-  return [section isEqualToString:kCustomizationSectionBackground] &&
-         self.backgroundCustomizationUserInteractionEnabled &&
-         ![itemIdentifier isEqualToString:kBackgroundPickerCellIdentifier];
+  // Only the backgrounds section can be selected.
+  if (![section isEqualToString:kCustomizationSectionBackground]) {
+    return false;
+  }
+
+  // If interaction is disabled, prevent selection.
+  if (!self.backgroundCustomizationUserInteractionEnabled) {
+    return false;
+  }
+
+  // The background picker cell cannot be selected. It handles taps itself.
+  if ([itemIdentifier isEqualToString:kBackgroundPickerCellIdentifier]) {
+    return false;
+  }
+
+  // The currently selected item cannot be selected again. This prevents the
+  // background when the current background is set again.
+  return _collectionView.indexPathsForSelectedItems.firstObject != indexPath;
 }
 
 - (void)collectionView:(UICollectionView*)collectionView
@@ -356,18 +395,14 @@
   NSString* itemIdentifier =
       [self.diffableDataSource itemIdentifierForIndexPath:indexPath];
 
-  // Prevent background updates when a user clicks on an already selected cell.
-  if (_selectedBackgroundId == itemIdentifier) {
-    return;
-  }
-
-  _selectedBackgroundId = itemIdentifier;
-
   id<BackgroundCustomizationConfiguration> backgroundConfiguration =
       _backgroundCollectionConfiguration.configurations[itemIdentifier];
 
   [self.customizationMutator
       applyBackgroundForConfiguration:backgroundConfiguration];
+  // Main menu does not have Cancel/Done buttons, so save the background
+  // immediately.
+  [self.customizationMutator saveBackground];
 
   _recentBackgroundClickCount += 1;
 
@@ -460,7 +495,12 @@
   [snapshot
       reconfigureItemsWithIdentifiers:[self identifiersForToggleMap:toggleMap]];
 
-  [_diffableDataSource applySnapshot:snapshot animatingDifferences:YES];
+  __weak __typeof(self) weakSelf = self;
+  [_diffableDataSource applySnapshot:snapshot
+                animatingDifferences:YES
+                          completion:^() {
+                            [weakSelf selectInitialItemAfterDataLoad];
+                          }];
 }
 
 #pragma mark - HomeCustomizationBackgroundConfigurationConsumer
@@ -473,7 +513,6 @@
 
   _backgroundCollectionConfiguration =
       backgroundCollectionConfigurations.firstObject;
-  _selectedBackgroundId = selectedBackgroundId;
 
   // Recreate the snapshot with the new items to take into account all the
   // changes of items presence (add/remove).
@@ -485,7 +524,14 @@
   [snapshot
       reconfigureItemsWithIdentifiers:[self identifiersForBackgroundCells]];
 
-  [_diffableDataSource applySnapshot:snapshot animatingDifferences:YES];
+  _initialSelectedBackgroundID = selectedBackgroundId;
+
+  __weak __typeof(self) weakSelf = self;
+  [_diffableDataSource applySnapshot:snapshot
+                animatingDifferences:YES
+                          completion:^() {
+                            [weakSelf selectInitialItemAfterDataLoad];
+                          }];
 }
 
 - (void)currentBackgroundConfigurationChanged:
@@ -498,8 +544,6 @@
       selectItemAtIndexPath:currentItemIndexPath
                    animated:NO
              scrollPosition:UICollectionViewScrollPositionNone];
-
-  _selectedBackgroundId = currentItemID;
 }
 
 #pragma mark - Helpers
@@ -571,13 +615,6 @@
 
   [cell configureWithBackgroundOption:backgroundConfiguration
              searchEngineLogoMediator:searchEngineLogoMediator];
-
-  if ([itemIdentifier isEqualToString:_selectedBackgroundId]) {
-    [self.collectionView
-        selectItemAtIndexPath:indexPath
-                     animated:NO
-               scrollPosition:UICollectionViewScrollPositionNone];
-  }
   cell.mutator = self.mutator;
 }
 
@@ -645,6 +682,21 @@
 
   [image prepareThumbnailOfSize:thumbnailSize
               completionHandler:thumbnailHandler];
+}
+
+// Selects the initially selected item when new data is loaded.
+- (void)selectInitialItemAfterDataLoad {
+  if (!_initialSelectedBackgroundID) {
+    return;
+  }
+
+  NSIndexPath* indexPath = [_diffableDataSource
+      indexPathForItemIdentifier:_initialSelectedBackgroundID];
+  _initialSelectedBackgroundID = nil;
+  [self.collectionView
+      selectItemAtIndexPath:indexPath
+                   animated:NO
+             scrollPosition:UICollectionViewScrollPositionNone];
 }
 
 @end

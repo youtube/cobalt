@@ -95,7 +95,6 @@
 #include "components/ntp_tiles/tile_type.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
-#include "components/omnibox/composebox/composebox_metrics_recorder.h"
 #include "components/omnibox/composebox/composebox_query_controller.h"
 #include "components/omnibox/composebox/contextual_session_service.h"
 #include "components/page_image_service/image_service.h"
@@ -143,9 +142,6 @@ using content::BrowserContext;
 using content::WebContents;
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabPageUI,
-                                      kCustomizeChromeButtonElementId);
-
-DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabPageUI,
                                       kModulesCustomizeIPHAnchorElement);
 
 bool NewTabPageUIConfig::IsWebUIEnabled(
@@ -168,7 +164,7 @@ NewTabPageUIConfig::CreateWebUIController(content::WebUI* web_ui,
 namespace {
 
 constexpr char kPrevNavigationTimePrefName[] = "NewTabPage.PrevNavigationTime";
-constexpr char kComposeboxMetricsReporterPrefName[] = "NewTabPage.";
+constexpr char kComposeboxMetricsReporterMetricSource[] = "NewTabPage.";
 
 bool HasCredentials(Profile* profile) {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
@@ -757,11 +753,15 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
       ntp_prefs::kNtpCustomLinksVisible,
-      base::BindRepeating(&NewTabPageUI::OnShortcutsTypePrefChanged,
+      base::BindRepeating(&NewTabPageUI::OnTileTypesChanged,
                           weak_ptr_factory_.GetWeakPtr()));
   pref_change_registrar_.Add(
       ntp_prefs::kNtpEnterpriseShortcutsVisible,
-      base::BindRepeating(&NewTabPageUI::OnShortcutsTypePrefChanged,
+      base::BindRepeating(&NewTabPageUI::OnTileTypesChanged,
+                          weak_ptr_factory_.GetWeakPtr()));
+  pref_change_registrar_.Add(
+      ntp_prefs::kNtpPersonalShortcutsVisible,
+      base::BindRepeating(&NewTabPageUI::OnTileTypesChanged,
                           weak_ptr_factory_.GetWeakPtr()));
   pref_change_registrar_.Add(
       ntp_prefs::kNtpShortcutsVisible,
@@ -808,6 +808,7 @@ void NewTabPageUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(ntp_prefs::kNtpEnterpriseShortcutsVisible,
                                 false);
   registry->RegisterBooleanPref(ntp_prefs::kNtpShortcutsVisible, true);
+  registry->RegisterBooleanPref(ntp_prefs::kNtpPersonalShortcutsVisible, true);
   registry->RegisterBooleanPref(prefs::kNtpPromoVisible, true);
 }
 
@@ -817,6 +818,7 @@ void NewTabPageUI::ResetProfilePrefs(PrefService* prefs) {
   prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, true);
   prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, false);
   prefs->SetBoolean(ntp_prefs::kNtpShortcutsVisible, true);
+  prefs->SetBoolean(ntp_prefs::kNtpPersonalShortcutsVisible, true);
 }
 
 // static
@@ -900,7 +902,6 @@ void NewTabPageUI::BindInterface(
 
 void NewTabPageUI::BindInterface(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler) {
-  std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder;
   // Only create the composebox query controller and metrics recorder needed for
   // contextual search if realbox next is enabled.
   if (ntp_realbox::IsNtpRealboxNextEnabled(profile_)) {
@@ -913,16 +914,14 @@ void NewTabPageUI::BindInterface(
           ContextualSessionServiceFactory::GetForProfile(profile_);
       auto contextual_session_handle =
           contextual_session_service->CreateSession(
-              ntp_composebox::CreateQueryControllerConfigParams());
+              ntp_composebox::CreateQueryControllerConfigParams(),
+              kComposeboxMetricsReporterMetricSource);
       contextual_session_web_contents_helper->set_session_handle(
           std::move(contextual_session_handle));
     }
-    composebox_metrics_recorder = std::make_unique<ComposeboxMetricsRecorder>(
-        kComposeboxMetricsReporterPrefName);
   }
   realbox_handler_ = std::make_unique<RealboxHandler>(
-      std::move(pending_page_handler), std::move(composebox_metrics_recorder),
-      profile_, web_contents());
+      std::move(pending_page_handler), profile_, web_contents());
 }
 
 void NewTabPageUI::BindInterface(
@@ -1108,10 +1107,7 @@ void NewTabPageUI::CreatePageHandler(
       std::move(pending_page_handler), std::move(pending_page), profile_,
       web_contents(), GURL(chrome::kChromeUINewTabPageURL),
       navigation_start_time_);
-  most_visited_page_handler_->EnableTileTypes(
-      ntp_tiles::MostVisitedSites::EnableTileTypesOptions()
-          .with_custom_links(IsCustomLinksEnabled())
-          .with_enterprise_shortcuts(IsEnterpriseShortcutsEnabled()));
+  UpdateMostVisitedTileTypes();
   most_visited_page_handler_->SetShortcutsVisible(IsShortcutsVisible());
 }
 
@@ -1131,7 +1127,8 @@ void NewTabPageUI::CreatePageHandler(
     auto* contextual_session_service =
         ContextualSessionServiceFactory::GetForProfile(profile_);
     auto contextual_session_handle = contextual_session_service->CreateSession(
-        ntp_composebox::CreateQueryControllerConfigParams());
+        ntp_composebox::CreateQueryControllerConfigParams(),
+        kComposeboxMetricsReporterMetricSource);
     contextual_session_web_contents_helper->set_session_handle(
         std::move(contextual_session_handle));
   }
@@ -1139,8 +1136,6 @@ void NewTabPageUI::CreatePageHandler(
   composebox_handler_ = std::make_unique<ComposeboxHandler>(
       std::move(pending_page_handler), std::move(pending_page),
       std::move(pending_searchbox_handler),
-      std::make_unique<ComposeboxMetricsRecorder>(
-          kComposeboxMetricsReporterPrefName),
       profile_, web_contents());
 
   // TODO(crbug.com/435288212): Move searchbox mojom to use factory pattern.
@@ -1153,7 +1148,7 @@ void NewTabPageUI::CreateHelpBubbleHandler(
   help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
       std::move(handler), std::move(client), this,
       std::vector<ui::ElementIdentifier>{
-          NewTabPageUI::kCustomizeChromeButtonElementId,
+          CustomizeButtonsHandler::kCustomizeChromeButtonElementId,
           NewTabPageUI::kModulesCustomizeIPHAnchorElement});
 }
 
@@ -1223,34 +1218,26 @@ void NewTabPageUI::DidStartNavigation(
   }
 }
 
-bool NewTabPageUI::IsCustomLinksEnabled() const {
-  // If the enterprise shortcuts feature is disabled, but the preference is set
-  // to enterprise shortcuts visible, treat MostVisitedSites as if enterpise
-  // shortcuts is disabled and custom links is enabled. This may occur if the
-  // user is moved in and out of the experiment.
-  return profile_->GetPrefs()->GetBoolean(ntp_prefs::kNtpCustomLinksVisible) ||
-         (profile_->GetPrefs()->GetBoolean(
-              ntp_prefs::kNtpEnterpriseShortcutsVisible) &&
-          !base::FeatureList::IsEnabled(ntp_tiles::kNtpEnterpriseShortcuts));
-}
-
-bool NewTabPageUI::IsEnterpriseShortcutsEnabled() const {
-  return profile_->GetPrefs()->GetBoolean(
-             ntp_prefs::kNtpEnterpriseShortcutsVisible) &&
-         base::FeatureList::IsEnabled(ntp_tiles::kNtpEnterpriseShortcuts);
-}
-
 bool NewTabPageUI::IsShortcutsVisible() const {
   return profile_->GetPrefs()->GetBoolean(ntp_prefs::kNtpShortcutsVisible);
 }
 
-void NewTabPageUI::OnShortcutsTypePrefChanged() {
+void NewTabPageUI::UpdateMostVisitedTileTypes() {
   if (most_visited_page_handler_) {
+    auto enabled_types = GetEnabledTileTypes(profile_);
     most_visited_page_handler_->EnableTileTypes(
         ntp_tiles::MostVisitedSites::EnableTileTypesOptions()
-            .with_custom_links(IsCustomLinksEnabled())
-            .with_enterprise_shortcuts(IsEnterpriseShortcutsEnabled()));
+            .with_top_sites(
+                base::Contains(enabled_types, ntp_tiles::TileType::kTopSites))
+            .with_custom_links(base::Contains(
+                enabled_types, ntp_tiles::TileType::kCustomLinks))
+            .with_enterprise_shortcuts(base::Contains(
+                enabled_types, ntp_tiles::TileType::kEnterpriseShortcuts)));
   }
+}
+
+void NewTabPageUI::OnTileTypesChanged() {
+  UpdateMostVisitedTileTypes();
 }
 
 void NewTabPageUI::OnTilesVisibilityPrefChanged() {

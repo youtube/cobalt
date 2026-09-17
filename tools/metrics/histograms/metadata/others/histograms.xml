@@ -667,7 +667,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Ads.InterestGroup.Auction.BidderWorkletIsolateUsedHeapSizeKilobytes"
-    units="KB" expires_after="2026-02-15">
+    units="KB" expires_after="2026-04-19">
   <owner>abigailkatcoff@google.com</owner>
   <owner>privacy-sandbox-dev@chromium.org</owner>
   <summary>
@@ -3769,7 +3769,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DemoMode.Highlights.PageStayDuration.{HighlightsPageName}"
-    units="ms" expires_after="2026-01-21">
+    units="ms" expires_after="2026-04-19">
   <owner>llin@chromium.org</owner>
   <owner>xiqiruan@chromium.org</owner>
   <owner>cros-demo-mode-eng@google.com</owner>
@@ -6416,6 +6416,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NQE.Duration.{MethodName}" units="ms"
+    expires_after="2026-06-25">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    The duration of NetworkQualityEstimator::{MethodName}. This is recorded
+    every time when the method is invoked.
+  </summary>
+  <token key="MethodName">
+    <variant name="NotifyBytesRead"/>
+    <variant name="NotifyHeadersReceived"/>
+    <variant name="NotifyRequestCompleted"/>
+    <variant name="NotifyStartTransaction"/>
+    <variant name="NotifyURLRequestDestroyed"/>
+  </token>
+</histogram>
+
 <histogram name="NQE.RTT.Error.Absolute" units="ms" expires_after="2025-06-08">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -6855,7 +6872,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.Linux.DecryptedWithEmptyKey" enum="Boolean"
-    expires_after="2025-11-30">
+    expires_after="2026-06-30">
   <owner>thestig@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -7216,7 +7233,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend.OptimizationGuide.Result{ClientId}"
-    enum="PageImageServiceResult" expires_after="2026-02-15">
+    enum="PageImageServiceResult" expires_after="2026-04-19">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1456757</component>
@@ -9081,6 +9098,18 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
+<histogram name="SubscriptionEligibility.AiSubscriptionTierStatus"
+    enum="SubscriptionEligibilityAiSubscriptionTierStatus"
+    expires_after="2026-03-31">
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records AI subscription tier status for profiles available on this install.
+    Emitted in every UMA record from the current session (at the time the record
+    is finalized).
+  </summary>
+</histogram>
+
 <histogram name="Tablet.CountOfVolumeAdjustType" units="numbers"
     expires_after="2023-02-12">
   <owner>minch@chromium.org</owner>
@@ -10053,7 +10082,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebController.CertVerificationErrorsCacheHit"
-    enum="BooleanCacheHit" expires_after="2026-02-12">
+    enum="BooleanCacheHit" expires_after="2026-04-19">
   <owner>gambard@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>

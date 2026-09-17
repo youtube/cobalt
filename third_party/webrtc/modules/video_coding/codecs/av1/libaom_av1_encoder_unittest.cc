@@ -756,14 +756,14 @@ TEST_P(LibaomAv1EncoderTest, L1T2RepeatFrame) {
   const int expected_frames = drop_repeat_frames_on_enhancement_layers_ ? 2 : 4;
   EXPECT_CALL(callback, OnEncodedImage)
       .Times(expected_frames)
-      .WillRepeatedly(testing::Invoke(
+      .WillRepeatedly(
           [&](const EncodedImage& image, const CodecSpecificInfo* info) {
             if (drop_repeat_frames_on_enhancement_layers_) {
               EXPECT_EQ(image.TemporalIndex(), 0);
             }
             return EncodedImageCallback::Result(
                 EncodedImageCallback::Result::Error::OK);
-          }));
+          });
 
   for (int i = 0; i < 4; ++i) {
     VideoFrame delta_frame =
@@ -814,11 +814,10 @@ TEST_P(LibaomAv1EncoderTest, L1T2RepeatFrameNotDroppedIfDeltaTooLarge) {
       VideoFrameType::kVideoFrameKey};
   EXPECT_CALL(callback, OnEncodedImage)
       .Times(1)
-      .WillOnce(testing::Invoke(
-          [](const EncodedImage& image, const CodecSpecificInfo* info) {
-            return EncodedImageCallback::Result(
-                EncodedImageCallback::Result::Error::OK);
-          }));
+      .WillOnce([](const EncodedImage& image, const CodecSpecificInfo* info) {
+        return EncodedImageCallback::Result(
+            EncodedImageCallback::Result::Error::OK);
+      });
   ASSERT_EQ(encoder->Encode(key_frame, &key_frame_types),
             WEBRTC_VIDEO_CODEC_OK);
   testing::Mock::VerifyAndClearExpectations(&callback);
@@ -840,11 +839,10 @@ TEST_P(LibaomAv1EncoderTest, L1T2RepeatFrameNotDroppedIfDeltaTooLarge) {
   // Encode a repeat delta frame with a large gap - should NOT be dropped.
   EXPECT_CALL(callback, OnEncodedImage)
       .Times(1)
-      .WillOnce(testing::Invoke(
-          [](const EncodedImage& image, const CodecSpecificInfo* info) {
-            return EncodedImageCallback::Result(
-                EncodedImageCallback::Result::Error::OK);
-          }));
+      .WillOnce([](const EncodedImage& image, const CodecSpecificInfo* info) {
+        return EncodedImageCallback::Result(
+            EncodedImageCallback::Result::Error::OK);
+      });
   VideoFrame delta_frame_keep =
       VideoFrame::Builder()
           .set_video_frame_buffer(frame_generator->NextFrame().buffer)

@@ -75,6 +75,7 @@ void CreateAndAddNewTabPageThirdPartyUiHtmlSource(Profile* profile,
       {"restoreThumbnailsShort", IDS_NEW_TAB_RESTORE_THUMBNAILS_SHORT_LINK},
       {"title", IDS_NEW_TAB_TITLE},
       {"undo", IDS_NEW_TAB_UNDO_THUMBNAIL_REMOVE},
+      {"showMore", IDS_NTP_SHOW_MORE_BUTTON_LABEL},
   };
 
   source->AddLocalizedStrings(kStrings);
@@ -219,5 +220,6 @@ void NewTabPageThirdPartyUI::CreatePageHandler(
       web_contents_, GURL(chrome::kChromeUINewTabPageThirdPartyURL),
       navigation_start_time_);
   most_visited_page_handler_->EnableTileTypes(
-      ntp_tiles::MostVisitedSites::EnableTileTypesOptions());
+      ntp_tiles::MostVisitedSites::EnableTileTypesOptions().with_top_sites(
+          true));
 }

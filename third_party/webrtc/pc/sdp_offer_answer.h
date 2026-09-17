@@ -565,6 +565,10 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   void ReportInitialSdpMunging(bool had_local_description, SdpType type);
 
+  // Helper function to negotiate an SCTP m= line.
+  void MaybeNegotiateSctp(MediaSessionOptions* session_options)
+      RTC_RUN_ON(signaling_thread());
+
   // ==================================================================
   // Access to pc_ variables
   const MediaEngineInterface* media_engine() const;

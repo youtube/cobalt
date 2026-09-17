@@ -57,7 +57,7 @@ ExternalInstallOptions GetConfigForVids(bool is_standalone_tabbed) {
                            : mojom::UserDisplayMode::kBrowser,
       /*install_source=*/ExternalInstallSource::kExternalDefault);
 
-  options.user_type_allowlist = {"unmanaged", "managed"};
+  options.user_type_allowlist = {"managed"};
   options.only_use_app_info_factory = true;
   options.app_info_factory = base::BindRepeating([]() {
     GURL start_url =
@@ -80,7 +80,7 @@ ExternalInstallOptions GetConfigForVids(bool is_standalone_tabbed) {
         // "/a/:domain/videos/",
     });
     info->icon_bitmaps.any =
-        LoadBundledIcons({IDR_PREINSTALLED_WEB_APPS_VIDS_ICON_144_PNG});
+        LoadBundledIcons({IDR_PREINSTALLED_WEB_APPS_VIDS_ICON_192_PNG});
     return info;
   });
   options.expected_app_id = ash::kVidsAppId;

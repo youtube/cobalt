@@ -154,6 +154,13 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+#define RETURN_VALUE(result)          \
+  do {                                \
+    MaybeReduceResult res = (result); \
+    CHECK(res.IsDoneWithValue());     \
+    return res.value();               \
+  } while (false)
+
 #define GET_VALUE_OR_ABORT(variable, result)                           \
   do {                                                                 \
     MaybeReduceResult res = (result);                                  \
@@ -498,6 +505,9 @@ class MaglevReducer {
   MaybeReduceResult TryFoldFloat64BinaryOperationForToNumber(
       TaggedToFloat64ConversionType conversion_type, ValueNode* left,
       double cst_right);
+
+  MaybeReduceResult TryFoldFloat64Min(ValueNode* left, ValueNode* right);
+  MaybeReduceResult TryFoldFloat64Max(ValueNode* left, ValueNode* right);
 
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);

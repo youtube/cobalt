@@ -99,6 +99,9 @@ class NetworkFetcher {
 #if BUILDFLAG(IS_STARBOARD)
   virtual void Cancel() = 0;
 #endif
+
+ protected:
+  NetworkFetcher() = default;
 };
 
 class NetworkFetcherFactory

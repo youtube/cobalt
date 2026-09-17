@@ -757,7 +757,7 @@ OPENSSL_EXPORT ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
 //
 // WARNING: This function affects global state in the library. If two libraries
 // in the same address space register information for the same OID, one call
-// will fail. Prefer directly passing the desired parametrs to
+// will fail. Prefer directly passing the desired parameters to
 // |ASN1_mbstring_copy| or |ASN1_mbstring_ncopy| instead.
 OPENSSL_EXPORT int ASN1_STRING_TABLE_add(int nid, long minsize, long maxsize,
                                          unsigned long mask,
@@ -931,7 +931,7 @@ OPENSSL_EXPORT int ASN1_BIT_STRING_set(ASN1_BIT_STRING *str,
 
 // ASN1_BIT_STRING_set_bit sets bit |n| of |str| to one if |value| is non-zero
 // and zero if |value| is zero, resizing |str| as needed. It then truncates
-// trailing zeros in |str| to align with the DER represention for a bit string
+// trailing zeros in |str| to align with the DER representation for a bit string
 // with named bits. It returns one on success and zero on error. |n| is indexed
 // beginning from zero.
 OPENSSL_EXPORT int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *str, int n,

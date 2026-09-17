@@ -236,7 +236,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   MemoryManagedPaintCanvas& Canvas();
   // FlushCanvas and preserve recording only if IsPrinting or
   // FlushReason indicates printing in progress.
-  std::optional<cc::PaintRecord> FlushCanvas(FlushReason);
+  std::optional<cc::PaintRecord> FlushCanvas(FlushReason = FlushReason::kOther);
 
   // TODO(crbug.com/371227617): Trim callsites of this method to those that
   // actually need to pass this info to Skia APIs and then eliminate the
@@ -415,7 +415,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   size_t max_pinned_image_bytes_;
 
   bool clear_frame_ = true;
-  FlushReason last_flush_reason_ = FlushReason::kNone;
   std::optional<cc::PaintRecord> last_recording_;
 };
 
@@ -599,7 +598,7 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
       PaintImage::ContentId content_id = PaintImage::kInvalidContentId);
   void EnsureWriteAccess();
   void EndWriteAccess();
-  void WillDrawInternal();
+  std::unique_ptr<gpu::RasterScopedAccess> WillDrawInternal();
 
   void RecycleResource(scoped_refptr<CanvasResourceSharedImage>&& resource);
   void MaybePostUnusedResourcesReclaimTask();

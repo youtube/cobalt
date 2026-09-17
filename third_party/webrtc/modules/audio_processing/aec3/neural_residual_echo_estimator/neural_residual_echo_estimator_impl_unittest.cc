@@ -28,6 +28,7 @@
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 #include "third_party/tflite/src/tensorflow/lite/kernels/register.h"
+#include "third_party/tflite/src/tensorflow/lite/model_builder.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator/neural_residual_echo_estimator.pb.h"
 #else
@@ -255,9 +256,11 @@ TEST(NeuralResidualEchoEstimatorWithRealModelTest,
   std::string model_path = test::ResourcePath(
       "audio_processing/aec3/noop_ml_aec_model_for_testing", "tflite");
   tflite::ops::builtin::BuiltinOpResolver op_resolver;
+  std::unique_ptr<tflite::FlatBufferModel> model =
+      tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
   std::unique_ptr<NeuralResidualEchoEstimatorImpl::ModelRunner>
       tflite_model_runner = NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
-          model_path, op_resolver);
+          model.get(), op_resolver);
   ASSERT_TRUE(tflite_model_runner != nullptr);
 
   const audioproc::ReeModelMetadata metadata =

@@ -47,17 +47,17 @@ const X509V3_EXT_METHOD v3_name_constraints = {
     NID_name_constraints,
     0,
     ASN1_ITEM_ref(NAME_CONSTRAINTS),
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     v2i_NAME_CONSTRAINTS,
     i2r_NAME_CONSTRAINTS,
-    0,
-    NULL,
+    nullptr,
+    nullptr,
 };
 
 ASN1_SEQUENCE(GENERAL_SUBTREE) = {
@@ -80,9 +80,9 @@ IMPLEMENT_ASN1_ALLOC_FUNCTIONS(NAME_CONSTRAINTS)
 static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
                                   const X509V3_CTX *ctx,
                                   const STACK_OF(CONF_VALUE) *nval) {
-  STACK_OF(GENERAL_SUBTREE) **ptree = NULL;
-  NAME_CONSTRAINTS *ncons = NULL;
-  GENERAL_SUBTREE *sub = NULL;
+  STACK_OF(GENERAL_SUBTREE) **ptree = nullptr;
+  NAME_CONSTRAINTS *ncons = nullptr;
+  GENERAL_SUBTREE *sub = nullptr;
   ncons = NAME_CONSTRAINTS_new();
   if (!ncons) {
     goto err;
@@ -111,7 +111,7 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
     if (!*ptree || !sk_GENERAL_SUBTREE_push(*ptree, sub)) {
       goto err;
     }
-    sub = NULL;
+    sub = nullptr;
   }
 
   return ncons;
@@ -119,7 +119,7 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
 err:
   NAME_CONSTRAINTS_free(ncons);
   GENERAL_SUBTREE_free(sub);
-  return NULL;
+  return nullptr;
 }
 
 static int i2r_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method, void *a,

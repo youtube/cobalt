@@ -377,6 +377,14 @@ void ANGLEPerfTest::run()
             double secondsPerIteration = secondsPerStep / static_cast<double>(mIterationsPerStep);
             mTestTrialResults.push_back(secondsPerIteration * 1000.0);
         }
+        if (gSleepBetweenTrialMs > 0 && trial + 1 < numTrials)
+        {
+            if (gVerboseLogging)
+            {
+                printf("Sleeping for %d milliseconds before next trial...\n", gSleepBetweenTrialMs);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(gSleepBetweenTrialMs));
+        }
     }
 
     atraceCounter("TraceStage", 0);
@@ -1030,6 +1038,18 @@ void ANGLERenderTest::SetUp()
     if (mTestParams.trackGpuTime)
     {
         mIsTimestampQueryAvailable = EnsureGLExtensionEnabled("GL_EXT_disjoint_timer_query");
+
+        if (IsAndroid() && mIsTimestampQueryAvailable &&
+            mTestParams.driver == GLESDriverType::SystemEGL)
+        {
+            // It was observed that on Native GLES drivers (both Adreno and Mali) the query was
+            // inserted before previous draw commands if there is no flush right before the
+            // glQueryCounterEXT() call. Adreno is known to respect glFlush() call, while Mali
+            // ignores it and requires a glFenceSync() hack.
+            mEndQueryFlushPolicy = (mTestParams.majorVersion >= 3 && !IsAdreno())
+                                       ? EndQueryFlushPolicy::FenceSync
+                                       : EndQueryFlushPolicy::Flush;
+        }
     }
 
     skipTestIfMissingExtensionPrerequisites();
@@ -1066,6 +1086,19 @@ void ANGLERenderTest::SetUp()
     {
         printf("GL_RENDERER: %s\n", glGetString(GL_RENDERER));
         printf("GL_VERSION: %s\n", glGetString(GL_VERSION));
+        switch (mEndQueryFlushPolicy)
+        {
+            case EndQueryFlushPolicy::Flush:
+                printf("Native GLES driver - using flush before end GPU timestamp query\n");
+                break;
+            case EndQueryFlushPolicy::FenceSync:
+                printf(
+                    "Native GLES driver - using glFenceSync() hack before end GPU "
+                    "timestamp query\n");
+                break;
+            default:
+                break;
+        }
     }
 
     mTestTrialResults.reserve(gTestTrials);
@@ -1300,10 +1333,27 @@ void ANGLERenderTest::startGpuTimer()
     }
 }
 
-void ANGLERenderTest::stopGpuTimer()
+void ANGLERenderTest::stopGpuTimer(bool mayNeedFlush)
 {
     if (mTestParams.trackGpuTime && mIsTimestampQueryAvailable)
     {
+        if (mayNeedFlush)
+        {
+            switch (mEndQueryFlushPolicy)
+            {
+                case EndQueryFlushPolicy::Flush:
+                    glFlush();
+                    break;
+                case EndQueryFlushPolicy::FenceSync:
+                {
+                    GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+                    glDeleteSync(sync);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
         GLuint endQuery = 0;
         glGenQueriesEXT(1, &endQuery);
         glQueryCounterEXT(endQuery, GL_TIMESTAMP_EXT);

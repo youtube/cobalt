@@ -38,8 +38,12 @@
 namespace contextual_cueing {
 namespace {
 
-void LogNudgeInteractionHistogram(NudgeInteraction interaction) {
+void LogNudgeInteractionHistogram(NudgeInteraction interaction,
+                                  bool is_dynamic) {
   base::UmaHistogramEnumeration("ContextualCueing.NudgeInteraction",
+                                interaction);
+  std::string cue_type = is_dynamic ? "Dynamic" : "Static";
+  base::UmaHistogramEnumeration("ContextualCueing.NudgeInteraction." + cue_type,
                                 interaction);
 }
 
@@ -141,8 +145,6 @@ ContextualCueingService::ContextualCueingService(
       pref_service_(pref_service),
       template_url_service_(template_url_service),
       mes_url_(optimization_guide::switches::GetModelExecutionServiceURL()) {
-  CHECK(base::FeatureList::IsEnabled(contextual_cueing::kContextualCueing) ||
-        IsZeroStateSuggestionsEnabled());
   if (optimization_guide_keyed_service_ && IsZeroStateSuggestionsEnabled()) {
     optimization_guide_keyed_service_->RegisterOptimizationTypes(
         {optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS});
@@ -255,6 +257,7 @@ bool ContextualCueingService::IsPageTypeEligibleForContextualSuggestions(
 void ContextualCueingService::OnNudgeActivity(
     content::WebContents* web_contents,
     base::TimeTicks document_available_time,
+    bool is_dynamic,
     tabs::GlicNudgeActivity activity) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -299,7 +302,7 @@ void ContextualCueingService::OnNudgeActivity(
       log_ukm = true;
       break;
   }
-  LogNudgeInteractionHistogram(interaction);
+  LogNudgeInteractionHistogram(interaction, is_dynamic);
   // As this function is called multiple times per nudge only some of the
   // activities result in a UKM call.
   if (log_ukm) {

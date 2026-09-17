@@ -10,9 +10,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
-#include "chrome/renderer/actor/page_stability_monitor.h"
 #include "chrome/renderer/actor/tool_base.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace content {
 class RenderFrame;
@@ -47,7 +45,6 @@ class ToolExecutor {
   base::raw_ref<content::RenderFrame> frame_;
   std::unique_ptr<ToolBase> tool_;
   base::raw_ref<Journal> journal_;
-  std::unique_ptr<PageStabilityMonitor> page_stability_monitor_;
   ToolExecutorCallback completion_callback_;
   std::unique_ptr<Journal::PendingAsyncEntry> invoke_journal_entry_;
   std::unique_ptr<Journal::PendingAsyncEntry> execute_journal_entry_;

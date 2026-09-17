@@ -1768,9 +1768,8 @@ OPENSSL_EXPORT STACK_OF(X509) *SSL_get_peer_cert_chain(const SSL *ssl);
 //
 // This is the same as |SSL_get_peer_cert_chain| except that this function
 // always returns the full chain, i.e. the first element of the return value
-// (if any) will be the leaf certificate. In constrast,
-// |SSL_get_peer_cert_chain| returns only the intermediate certificates if the
-// |ssl| is a server.
+// (if any) will be the leaf certificate. In contrast, |SSL_get_peer_cert_chain|
+// returns only the intermediate certificates if the |ssl| is a server.
 OPENSSL_EXPORT STACK_OF(X509) *SSL_get_peer_full_cert_chain(const SSL *ssl);
 
 // SSL_get0_peer_certificates returns the peer's certificate chain, or NULL if
@@ -2462,7 +2461,7 @@ enum ssl_ticket_aead_result_t BORINGSSL_ENUM_INT {
   // ssl_ticket_aead_ignore_ticket indicates that the ticket should be ignored
   // (i.e. is corrupt or otherwise undecryptable).
   ssl_ticket_aead_ignore_ticket,
-  // ssl_ticket_aead_error indicates that a fatal error occured and the
+  // ssl_ticket_aead_error indicates that a fatal error occurred and the
   // handshake should be terminated.
   ssl_ticket_aead_error,
 };
@@ -5018,7 +5017,7 @@ enum ssl_select_cert_result_t BORINGSSL_ENUM_INT {
   // ssl_select_cert_retry indicates that the operation could not be
   // immediately completed and must be reattempted at a later point.
   ssl_select_cert_retry = 0,
-  // ssl_select_cert_error indicates that a fatal error occured and the
+  // ssl_select_cert_error indicates that a fatal error occurred and the
   // handshake should be terminated.
   ssl_select_cert_error = -1,
   // ssl_select_cert_disable_ech indicates that, although an encrypted
@@ -6047,7 +6046,7 @@ enum ssl_compliance_policy_t BORINGSSL_ENUM_INT {
   // dominate other considerations.
   ssl_compliance_policy_wpa3_192_202304,
 
-  // ssl_compliance_policy_cnsa_202407 confingures a TLS connection to use:
+  // ssl_compliance_policy_cnsa_202407 configures a TLS connection to use:
   //   * For TLS 1.3, AES-256-GCM over AES-128-GCM over ChaCha20-Poly1305.
   //
   // I.e. it ensures that AES-GCM will be used whenever the client supports it.

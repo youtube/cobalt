@@ -172,6 +172,11 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
 
   // The index path of the cell currently highlighted.
   NSIndexPath* _highlightedGroupIndexPath;
+  // YES if the new group being created from drag and drop will be shifting to a
+  // different final index path from the destination item.
+  BOOL _isNewGroupShiftingToDifferentFinalIndexPath;
+  // YES if a group is being created by drag and drop.
+  BOOL _isGroupBeingCreatedFromDragAndDrop;
 }
 
 - (instancetype)init {
@@ -940,7 +945,8 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
     } else {
       entryDirection =
           [self calculateEntryDirectionFromSource:draggedItemIndexPath
-                                         toTarget:destinationItemIndexPath];
+                                         toTarget:destinationItemIndexPath
+                                     dragLocation:locationInCollectionView];
       self.entryDirectionCache[destinationItemIndexPath] = @(entryDirection);
     }
 
@@ -981,6 +987,53 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
 - (void)collectionView:(UICollectionView*)collectionView
     performDropWithCoordinator:
         (id<UICollectionViewDropCoordinator>)coordinator {
+  if (IsTabGridDragAndDropEnabled() &&
+      coordinator.proposal.intent ==
+          UICollectionViewDropIntentInsertIntoDestinationIndexPath &&
+      coordinator.items.count == 1) {
+    id<UICollectionViewDropItem> dropItem = coordinator.items.firstObject;
+    NSIndexPath* sourceIndexPath = dropItem.sourceIndexPath;
+    NSIndexPath* destinationIndexPath = coordinator.destinationIndexPath;
+
+    self.dragEndAtNewIndex = YES;
+    _dropAnimationInProgress = YES;
+    [self.delegate gridViewControllerDropAnimationWillBegin:self];
+
+    GridItemIdentifier* sourceItem =
+        [self.diffableDataSource itemIdentifierForIndexPath:sourceIndexPath];
+    GridItemIdentifier* destinationItem = [self.diffableDataSource
+        itemIdentifierForIndexPath:destinationIndexPath];
+
+    UICollectionViewCell* destinationCell =
+        [self.collectionView cellForItemAtIndexPath:destinationIndexPath];
+    self.gridLayout.dragAndDropGroupIndexPath = _highlightedGroupIndexPath;
+    if ([sourceIndexPath compare:destinationIndexPath] == NSOrderedAscending) {
+      _isNewGroupShiftingToDifferentFinalIndexPath = YES;
+    }
+    _isGroupBeingCreatedFromDragAndDrop = YES;
+    TabInfo* tabInfo = static_cast<TabInfo*>(dropItem.dragItem.localObject);
+    if ([destinationCell isKindOfClass:[GroupGridCell class]]) {
+      [self.mutator addDroppedTab:tabInfo
+                       sourceItem:sourceItem
+                          toGroup:destinationItem.tabGroupItem.tabGroup];
+    } else {
+      // If the index path of `sourceItem` < `destinationItem`, then the logic
+      // will ensure that there is no animation for the replacement of
+      // `destinationItem` into the new group. There is also logic ensure that
+      // the group cell is immeidately highlighted when configured so it can
+      // begin from the highlghted state of `destinationItem` and transition
+      // to a reset state. Thus DO NOT call -clearCurrentlyHighlightedCell
+      // before making this mutator call.
+      [self.mutator
+          createTabGroupWithTitle:destinationItem.tabSwitcherItem.title
+                       sourceItem:sourceItem
+                       droppedTab:tabInfo
+                  destinationItem:destinationItem];
+    }
+    [self.delegate gridViewControllerDragSessionDidEnd:self];
+    return;
+  }
+
   NSArray<id<UICollectionViewDropItem>>* items = coordinator.items;
   for (id<UICollectionViewDropItem> item in items) {
     // Append to the end of the collection, unless drop index is specified.
@@ -1772,6 +1825,30 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
   cell.activityLabelData =
       [self.gridProvider activityLabelDataForItem:groupItemIdentifier];
 
+  if (IsTabGridDragAndDropEnabled()) {
+    NSUInteger newGroupIndexPath = _highlightedGroupIndexPath.item;
+    if (_isNewGroupShiftingToDifferentFinalIndexPath &&
+        _isGroupBeingCreatedFromDragAndDrop) {
+      // If the new group cell being created will have a different final index
+      // path, then `index` path will be mismatched with
+      // `_highlightedGroupIndexPath`.
+      newGroupIndexPath--;
+    }
+    if (newGroupIndexPath == index) {
+      [cell setHighlightForGrouping:YES];
+      _isGroupBeingCreatedFromDragAndDrop = NO;
+      _isNewGroupShiftingToDifferentFinalIndexPath = NO;
+      // Delay highlight reset animation.
+      dispatch_after(
+          dispatch_time(
+              DISPATCH_TIME_NOW,
+              static_cast<int64_t>(kGridCellHighlightDuration * NSEC_PER_SEC)),
+          dispatch_get_main_queue(), ^{
+            [cell setHighlightForGrouping:NO];
+          });
+    }
+  }
+
   auto completionBlock = ^(TabGroupItem* innerItem, NSInteger tabIndex,
                            TabSnapshotAndFavicon* tabSnapshotAndFavicon) {
     if ([cell.itemIdentifier.tabGroupItem isEqual:innerItem]) {
@@ -2073,12 +2150,12 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
 }
 
 // Calculates the entry drag direction based on the relative position between
-// `sourceIndexPath` and `targetIndexPath`.
+// `sourceIndexPath` (`dragLocation` if `sourceIndexPath` is not available) and
+// `targetIndexPath`.
 - (DragEntrySide)calculateEntryDirectionFromSource:(NSIndexPath*)sourceIndexPath
-                                          toTarget:
-                                              (NSIndexPath*)targetIndexPath {
-  if (!sourceIndexPath || !targetIndexPath ||
-      [sourceIndexPath isEqual:targetIndexPath]) {
+                                          toTarget:(NSIndexPath*)targetIndexPath
+                                      dragLocation:(CGPoint)dragLocation {
+  if (!targetIndexPath || [sourceIndexPath isEqual:targetIndexPath]) {
     return DragEntrySideNone;
   }
 
@@ -2087,12 +2164,14 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
       [self.collectionView layoutAttributesForItemAtIndexPath:sourceIndexPath];
   UICollectionViewLayoutAttributes* targetAttrs =
       [self.collectionView layoutAttributesForItemAtIndexPath:targetIndexPath];
-  if (!sourceAttrs || !targetAttrs) {
+  if (!targetAttrs) {
     return DragEntrySideNone;
   }
 
-  // Use the centers of the cells for a stable vector calculation
-  CGPoint sourceCenter = sourceAttrs.center;
+  // Use the centers of the cells for a stable vector calculation. If center is
+  // not available because a cell from another window is being dragged over,
+  // then use the drag location.
+  CGPoint sourceCenter = sourceAttrs ? sourceAttrs.center : dragLocation;
   CGPoint targetCenter = targetAttrs.center;
   CGFloat deltaX = targetCenter.x - sourceCenter.x;
   CGFloat deltaY = targetCenter.y - sourceCenter.y;
@@ -2178,6 +2257,11 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
 
 // Resets the currently highlighted cell.
 - (void)clearCurrentlyHighlightedCell {
+  if (_isGroupBeingCreatedFromDragAndDrop) {
+    // If a group is being created, then separate logic will handle the
+    // highlight reset.
+    return;
+  }
   if (_highlightedGroupIndexPath) {
     UICollectionViewCell* cell =
         [self.collectionView cellForItemAtIndexPath:_highlightedGroupIndexPath];

@@ -8,10 +8,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "components/update_client/crx_downloader.h"
@@ -35,7 +36,8 @@ class UrlFetcherDownloader : public CrxDownloader {
 #else
   UrlFetcherDownloader(
       scoped_refptr<CrxDownloader> successor,
-      scoped_refptr<NetworkFetcherFactory> network_fetcher_factory);
+      scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
+      const std::string& prod_id);
 #endif
   UrlFetcherDownloader(const UrlFetcherDownloader&) = delete;
   UrlFetcherDownloader& operator=(const UrlFetcherDownloader&) = delete;
@@ -108,6 +110,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   SEQUENCE_CHECKER(sequence_checker_);
 
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
+  const base::FilePath::StringType prod_id_;
   std::unique_ptr<NetworkFetcher> network_fetcher_;
 
 #if defined(IN_MEMORY_UPDATES)

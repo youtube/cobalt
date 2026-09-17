@@ -43,6 +43,10 @@ class MockDatagramConnection : public DatagramConnection {
               (override));
   MOCK_METHOD(bool, SendPacket, (ArrayView<const uint8_t> data), (override));
   MOCK_METHOD(void,
+              SendPacket,
+              (ArrayView<const uint8_t> data, PacketSendParameters params),
+              (override));
+  MOCK_METHOD(void,
               Terminate,
               (absl::AnyInvocable<void()> terminate_complete_callback),
               (override));

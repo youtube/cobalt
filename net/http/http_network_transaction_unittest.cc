@@ -2329,7 +2329,8 @@ void HttpNetworkTransactionTestBase::PreconnectErrorResendRequestTest(
   session_deps_.socket_factory->AddSocketDataProvider(&data2);
 
   // Preconnect a socket.
-  session->http_stream_factory()->PreconnectStreams(1, request);
+  session->http_stream_factory()->PreconnectStreams(1, request,
+                                                    base::OnceClosure());
   // Wait for the preconnect to complete.
   // TODO(davidben): Some way to wait for an idle socket count might be handy.
   base::RunLoop().RunUntilIdle();
@@ -15768,7 +15769,8 @@ TEST_P(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.example.org/");
-  request.extra_headers.SetHeader("referer", "www.foo.com");
+  request.extra_headers.SetHeader(net::HttpRequestHeaders::kReferer,
+                                  "www.foo.com");
   request.extra_headers.SetHeader("hEllo", "Kitty");
   request.extra_headers.SetHeader("FoO", "bar");
   request.traffic_annotation =
@@ -15781,7 +15783,7 @@ TEST_P(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
       MockWrite("GET / HTTP/1.1\r\n"
                 "Host: www.example.org\r\n"
                 "Connection: keep-alive\r\n"
-                "referer: www.foo.com\r\n"
+                "Referer: www.foo.com\r\n"
                 "hEllo: Kitty\r\n"
                 "FoO: bar\r\n\r\n"),
   };
@@ -23248,7 +23250,7 @@ TEST_P(HttpNetworkTransactionTest, CloseSSLSocketOnIdleForHttpRequest2) {
   // Preconnect an SSL socket.  A preconnect is needed because connect jobs are
   // cancelled when a normal transaction is cancelled.
   HttpStreamFactory* http_stream_factory = session->http_stream_factory();
-  http_stream_factory->PreconnectStreams(1, ssl_request);
+  http_stream_factory->PreconnectStreams(1, ssl_request, base::OnceClosure());
   EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session.get()));
 
   // Start the HTTP request.  Pool should stall.
@@ -24501,10 +24503,10 @@ class HttpNetworkTransactionNetworkErrorLoggingTest
     session_deps_.network_error_logging_service =
         std::move(network_error_logging_service);
 
-    extra_headers_.SetHeader("User-Agent", kUserAgent);
-    extra_headers_.SetHeader("Referer", kReferrer);
+    extra_headers_.SetHeader(HttpRequestHeaders::kUserAgent, kUserAgent);
+    extra_headers_.SetHeader(HttpRequestHeaders::kReferer, kReferrer);
 
-    request_.method = "GET";
+    request_.method = HttpRequestHeaders::kGetMethod;
     request_.url = GURL(url_);
     request_.network_isolation_key = kNetworkIsolationKey;
     request_.network_anonymization_key = kNetworkAnonymizationKey;
@@ -27380,11 +27382,13 @@ TEST_P(HttpNetworkTransactionTest, NetworkIsolationPreconnect) {
 
     request.network_isolation_key = preconnect1_isolation_key;
     request.network_anonymization_key = preconnect1_anonymization_key;
-    session->http_stream_factory()->PreconnectStreams(1, request);
+    session->http_stream_factory()->PreconnectStreams(1, request,
+                                                      base::OnceClosure());
 
     request.network_isolation_key = preconnect2_isolation_key;
     request.network_anonymization_key = preconnect2_anonymization_key;
-    session->http_stream_factory()->PreconnectStreams(1, request);
+    session->http_stream_factory()->PreconnectStreams(1, request,
+                                                      base::OnceClosure());
 
     request.network_isolation_key = network_isolation_key_for_request;
     request.network_anonymization_key = network_anonymization_key_for_request;

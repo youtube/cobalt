@@ -95,6 +95,7 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
+#include "url/android/gurl_android.h"
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -284,8 +285,6 @@ void AwBrowserContext::RegisterPrefs(PrefRegistrySimple* registry) {
   // We only use the autocomplete feature of Autofill, which is controlled via
   // the manager_delegate. We don't use the rest of Autofill, which is why it is
   // hardcoded as disabled here.
-  // TODO(crbug.com/40589187): The following also disables autocomplete.
-  // Investigate what the intended behavior is.
   registry->RegisterBooleanPref(autofill::prefs::kAutofillProfileEnabled,
                                 false);
   registry->RegisterBooleanPref(autofill::prefs::kAutofillCreditCardEnabled,
@@ -693,8 +692,10 @@ std::vector<std::string> AwBrowserContext::SetOriginMatchedHeader(
   }
 
   // We only maintain a single mapping for each header name by design.
-  auto it = std::ranges::find(origin_matched_headers_, header_name,
-                              &AwOriginMatchedHeader::name);
+  auto it = std::ranges::find_if(
+      origin_matched_headers_,
+      AwOriginMatchedHeader::LookupPredicate(header_name,
+                                             /*value=*/std::nullopt));
   if (it == origin_matched_headers_.end()) {
     origin_matched_headers_.emplace_back(
         base::MakeRefCounted<AwOriginMatchedHeader>(std::move(header_name),
@@ -726,9 +727,9 @@ std::vector<std::string> AwBrowserContext::AddOriginMatchedHeader(
     return rejected;
   }
 
-  auto it = std::ranges::find(origin_matched_headers_,
-                              std::tie(header_name, header_value),
-                              &AwOriginMatchedHeader::as_pair);
+  auto it = std::ranges::find_if(
+      origin_matched_headers_,
+      AwOriginMatchedHeader::LookupPredicate(header_name, header_value));
   if (it == origin_matched_headers_.end()) {
     origin_matched_headers_.emplace_back(
         base::MakeRefCounted<AwOriginMatchedHeader>(std::move(header_name),
@@ -743,8 +744,9 @@ std::vector<std::string> AwBrowserContext::AddOriginMatchedHeader(
 bool AwBrowserContext::HasOriginMatchedHeader(JNIEnv* env,
                                               const std::string& header_name) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  return std::ranges::find(origin_matched_headers_, header_name,
-                           &AwOriginMatchedHeader::name) !=
+  return std::ranges::find_if(origin_matched_headers_,
+                              AwOriginMatchedHeader::LookupPredicate(
+                                  header_name, /*value=*/std::nullopt)) !=
          origin_matched_headers_.end();
 }
 
@@ -758,11 +760,9 @@ AwBrowserContext::FindOriginMatchedHeaders(
     return origin_matched_headers_;
   }
   std::vector<scoped_refptr<AwOriginMatchedHeader>> matches;
-  std::ranges::copy_if(origin_matched_headers_, std::back_inserter(matches),
-                       [&header_name, &header_value](const auto& header) {
-                         return header->MatchesNameValue(*header_name,
-                                                         header_value);
-                       });
+  std::ranges::copy_if(
+      origin_matched_headers_, std::back_inserter(matches),
+      AwOriginMatchedHeader::LookupPredicate(*header_name, header_value));
   return matches;
 }
 
@@ -771,10 +771,8 @@ void AwBrowserContext::ClearOriginMatchedHeader(
     const std::string& header_name,
     const std::optional<std::string>& header_value) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  std::erase_if(origin_matched_headers_,
-                [&header_name, &header_value](const auto& header) {
-                  return header->MatchesNameValue(header_name, header_value);
-                });
+  std::erase_if(origin_matched_headers_, AwOriginMatchedHeader::LookupPredicate(
+                                             header_name, header_value));
 }
 
 void AwBrowserContext::ClearAllOriginMatchedHeaders(JNIEnv* env) {
@@ -786,6 +784,17 @@ const std::vector<scoped_refptr<AwOriginMatchedHeader>>&
 AwBrowserContext::GetOriginMatchedHeaders() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return origin_matched_headers_;
+}
+
+void AwBrowserContext::AddQuicHints(JNIEnv* env,
+                                    const std::vector<GURL>& origins) {
+  std::vector<url::SchemeHostPort> scheme_host_ports(origins.size());
+  for (const GURL& origin : origins) {
+    scheme_host_ports.emplace_back(origin);
+  }
+
+  GetDefaultStoragePartition()->GetNetworkContext()->AddQuicHints(
+      scheme_host_ports, net::NetworkAnonymizationKey());
 }
 
 void AwBrowserContext::SetServiceWorkerIoThreadClient(

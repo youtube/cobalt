@@ -49,6 +49,7 @@
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 #include "pc/simulcast_sdp_serializer.h"
+#include "rtc_base/base64.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/ip_address.h"
@@ -127,6 +128,10 @@ const char kAttributeInactive[] = "inactive";
 const char kAttributeSctpPort[] = "sctp-port";
 const char kAttributeMaxMessageSize[] = "max-message-size";
 const int kDefaultSctpMaxMessageSize = 65536;
+
+// draft-hancke-tsvwg-snap
+const char kAttributeSctpSnap[] = "sctp-init";
+
 // draft-ietf-mmusic-sdp-simulcast-13
 // a=simulcast
 constexpr absl::string_view kAttributeSimulcast = "simulcast";
@@ -198,6 +203,7 @@ bool IsTokenChar(char ch) {
          ch == 0x2d || ch == 0x2e || (ch >= 0x30 && ch <= 0x39) ||
          (ch >= 0x41 && ch <= 0x5a) || (ch >= 0x5e && ch <= 0x7e);
 }
+
 struct SsrcInfo {
   uint32_t ssrc_id;
   std::string cname;
@@ -708,6 +714,31 @@ bool ParseSctpMaxMessageSize(absl::string_view line,
   return true;
 }
 
+bool ParseSctpInit(absl::string_view line,
+                   std::vector<uint8_t>* cookie,
+                   SdpParseError* error) {
+  // draft-hancke-tsvwg-snap
+  // a=sctp-init:<base64("CookieMonster")>
+  std::string base64_cookie;
+  if (!GetValue(line, kAttributeSctpSnap, &base64_cookie, error)) {
+    return false;
+  }
+  std::optional<std::string> decoded_cookie = Base64Decode(base64_cookie);
+  if (!decoded_cookie) {
+    return ParseFailed(line, "Base64 decoding of sctp-init failed.", error);
+  }
+  *cookie =
+      std::vector<uint8_t>(decoded_cookie->begin(), decoded_cookie->end());
+  return true;
+}
+
+void WriteSctpInit(const std::vector<uint8_t>& cookie, StringBuilder* os) {
+  // draft-hancke-tsvwg-snap
+  // a=sctp-init:<base64("CookieMonster")>
+  InitAttrLine(kAttributeSctpSnap, os);
+  *os << kSdpDelimiterColon << Base64Encode(cookie);
+}
+
 bool ParseExtmap(absl::string_view line,
                  RtpExtension* extmap,
                  SdpParseError* error) {
@@ -764,7 +795,7 @@ void BuildSctpContentAttributes(const MediaContentDescription* media_desc,
 
   StringBuilder os;
   if (data_desc->use_sctpmap()) {
-    // draft-ietf-mmusic-sctp-sdp-04
+    // draft-ietf-mmusic-sctp-sdp-04 (legacy)
     // a=sctpmap:sctpmap-number  protocol  [streams]
     InitAttrLine(kAttributeSctpmap, &os);
     os << kSdpDelimiterColon << data_desc->port() << kSdpDelimiterSpace
@@ -779,6 +810,12 @@ void BuildSctpContentAttributes(const MediaContentDescription* media_desc,
     if (data_desc->max_message_size() != kDefaultSctpMaxMessageSize) {
       InitAttrLine(kAttributeMaxMessageSize, &os);
       os << kSdpDelimiterColon << data_desc->max_message_size();
+      AddLine(os.str(), message);
+    }
+    // draft-hancke-tsvwg-snap
+    auto sctp_init = data_desc->sctp_init();
+    if (sctp_init.has_value()) {
+      WriteSctpInit(*sctp_init, &os);
       AddLine(os.str(), message);
     }
   }
@@ -2602,6 +2639,13 @@ bool ParseContent(absl::string_view message,
           return false;
         }
         media_desc->as_sctp()->set_max_message_size(max_message_size);
+      } else if (HasAttribute(*line, kAttributeSctpSnap)) {
+        // draft-hancke-tsvwg-snap
+        std::vector<uint8_t> sctp_init;
+        if (!ParseSctpInit(*line, &sctp_init, error)) {
+          return false;
+        }
+        media_desc->as_sctp()->set_sctp_init(sctp_init);
       } else if (HasAttribute(*line, kAttributeSctpmap)) {
         // Ignore a=sctpmap: from early versions of draft-ietf-mmusic-sctp-sdp
         continue;

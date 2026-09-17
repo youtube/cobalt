@@ -880,7 +880,7 @@ template <uint8_t *(*OneShotHash)(const uint8_t *, size_t, uint8_t *),
 static bool Hash(const Span<const uint8_t> args[], ReplyCallback write_reply) {
   uint8_t digest[DigestLength];
   OneShotHash(args[0].data(), args[0].size(), digest);
-  return write_reply({Span<const uint8_t>(digest)});
+  return write_reply({MakeConstSpan(digest)});
 }
 
 template <uint8_t *(*OneShotHash)(const uint8_t *, size_t, uint8_t *),

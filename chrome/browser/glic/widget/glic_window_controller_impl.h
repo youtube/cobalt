@@ -79,7 +79,8 @@ class GlicWindowControllerImpl
   // GlicWindowController implementation
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
-              mojom::InvocationSource source) override;
+              mojom::InvocationSource source,
+              std::optional<std::string> prompt_suggestion) override;
   void ShowAfterSignIn(base::WeakPtr<Browser> browser) override;
   void FocusIfOpen() override;
   void Shutdown() override;
@@ -92,6 +93,8 @@ class GlicWindowControllerImpl
   void AddGlobalStateObserver(PanelStateObserver* observer) override;
   void RemoveGlobalStateObserver(PanelStateObserver* observer) override;
   mojom::PanelState GetGlobalPanelState() override;
+  bool IsPanelShowingForBrowser(
+      const BrowserWindowInterface& bwi) const override;
 
   bool IsActive() override;
   bool IsAttached() override;
@@ -168,12 +171,7 @@ class GlicWindowControllerImpl
 
   HostManager& host_manager() override;
   std::vector<GlicInstance*> GetInstances() override;
-  GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) override;
-  void FindInstanceFromGlicContentsAndBindToTab(
-      content::WebContents* source_glic_web_contents,
-      tabs::TabInterface* tab_to_bind) override {}
-  bool FindInstanceFromIdAndBindToTab(const InstanceId& instance_id,
-                                      tabs::TabInterface* tab_to_bind) override;
+  GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
 
   // GlicInstance implementation
   Host& host() override;
@@ -191,9 +189,11 @@ class GlicWindowControllerImpl
  private:
   void CloseWithReason(views::Widget::ClosedReason reason);
   GlicView* GetGlicView() const;
-  void ToggleWhenNotAlwaysDetached(Browser* new_attached_browser,
-                                   bool prevent_close,
-                                   mojom::InvocationSource source);
+  void ToggleWhenNotAlwaysDetached(
+      Browser* new_attached_browser,
+      bool prevent_close,
+      mojom::InvocationSource source,
+      std::optional<std::string> prompt_suggestion);
 
   // Sets the floating attributes of the glic window.
   //
@@ -213,11 +213,15 @@ class GlicWindowControllerImpl
   // Creates the glic view, waits for the web client to initialize, and then
   // shows the glic window. If `browser` is non-nullptr then glic will be
   // attached to the browser. Otherwise glic will be detached.
-  void Show(Browser* browser, mojom::InvocationSource source);
+  void Show(Browser* browser,
+            mojom::InvocationSource source,
+            std::optional<std::string> prompt_suggestion);
   // Performs necessary set up and initialization before creating GlicWidget or
   // GlicView. Must be called before it's shown.
   // Returns true if successful and view creation can continue.
-  bool BeforeViewCreated(Browser* browser, mojom::InvocationSource source);
+  bool BeforeViewCreated(Browser* browser,
+                         mojom::InvocationSource source,
+                         std::optional<std::string> prompt_suggestion);
   // Additional set up and initialization that runs after Glic is shown.
   void AfterViewShown();
   void SetupAndShowGlicWidget(Browser* browser);
@@ -388,6 +392,10 @@ class GlicWindowControllerImpl
   // opening the glic window may not actually load the client, there's no
   // guarantee that this value is sent to the web client.
   std::optional<mojom::InvocationSource> opening_source_;
+
+  // String to be auto-filled in the user input text box as the web client is
+  // shown to the user.
+  std::optional<std::string> prompt_suggestion_;
 
   std::optional<gfx::Point> previous_position_ = std::nullopt;
 

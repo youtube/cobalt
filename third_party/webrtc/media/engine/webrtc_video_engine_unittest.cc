@@ -1015,7 +1015,7 @@ TEST_F(WebRtcVideoEngineTest, ReceiveBufferSizeViaFieldTrial) {
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
                                     VideoOptions(), CryptoOptions());
-  FakeNetworkInterface network;
+  FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(10000, network.recvbuf_size());
   receive_channel->SetInterface(nullptr);
@@ -1028,7 +1028,7 @@ TEST_F(WebRtcVideoEngineTest, TooHighReceiveBufferSizeViaFieldTrial) {
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
                                     VideoOptions(), CryptoOptions());
-  FakeNetworkInterface network;
+  FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(kVideoRtpRecvBufferSize, network.recvbuf_size());
   receive_channel->SetInterface(nullptr);
@@ -1040,7 +1040,7 @@ TEST_F(WebRtcVideoEngineTest, TooLowReceiveBufferSizeViaFieldTrial) {
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
                                     VideoOptions(), CryptoOptions());
-  FakeNetworkInterface network;
+  FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(kVideoRtpRecvBufferSize, network.recvbuf_size());
   receive_channel->SetInterface(nullptr);
@@ -1641,7 +1641,8 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
             std::make_unique<FunctionVideoDecoderFactory>(
                 []() { return std::make_unique<test::FakeDecoder>(); },
                 kSdpVideoFormats),
-            field_trials_) {
+            field_trials_),
+        network_interface_(env_) {
     send_channel_ = engine_.CreateSendChannel(
         env_, call_.get(), MediaConfig(), VideoOptions(), CryptoOptions(),
         video_bitrate_allocator_factory_.get());
@@ -1812,7 +1813,8 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
                                             LibvpxVp9DecoderTemplateAdapter,
                                             OpenH264DecoderTemplateAdapter,
                                             Dav1dDecoderTemplateAdapter>>(),
-            env_.field_trials())) {}
+            env_.field_trials())),
+        network_interface_(env_) {}
 
   void SetUp() override {
     // One testcase calls SetUp in a loop, only create call_ once.
@@ -5678,8 +5680,7 @@ TEST_F(WebRtcVideoChannelTest, SetSend) {
 
 // This test verifies DSCP settings are properly applied on video media channel.
 TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
-  std::unique_ptr<FakeNetworkInterface> network_interface(
-      new FakeNetworkInterface);
+  auto network_interface = std::make_unique<FakeNetworkInterface>(env_);
   MediaConfig config;
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel;
   RtpParameters parameters;
@@ -9125,6 +9126,105 @@ TEST_F(WebRtcVideoChannelWithMixedCodecSimulcastTest,
   EXPECT_DEATH(send_channel_->AddSendStream(sp), "");
 }
 #endif
+
+TEST_F(WebRtcVideoChannelWithMixedCodecSimulcastTest,
+       SetRtpSendParametersFailsForMixedCodecSimulcastWithScalabilityMode) {
+  StreamParams sp = CreateSimStreamParams("cname", {123, 456, 789});
+
+  std::vector<RidDescription> rid_descriptions;
+  rid_descriptions.emplace_back("f", RidDirection::kSend);
+  rid_descriptions.emplace_back("h", RidDirection::kSend);
+  rid_descriptions.emplace_back("q", RidDirection::kSend);
+  sp.set_rids(rid_descriptions);
+
+  ASSERT_TRUE(send_channel_->AddSendStream(sp));
+
+  Codec vp8 = GetEngineCodec("VP8");
+  Codec vp9 = GetEngineCodec("VP9");
+  RtpParameters rtp_parameters =
+      send_channel_->GetRtpSendParameters(last_ssrc_);
+  ASSERT_EQ(3UL, rtp_parameters.encodings.size());
+
+  // In single-codec simulcast, any scalability_mode is allowed.
+  rtp_parameters.encodings[0].codec = vp9.ToCodecParameters();
+  rtp_parameters.encodings[1].codec = vp9.ToCodecParameters();
+  rtp_parameters.encodings[2].codec = vp9.ToCodecParameters();
+  rtp_parameters.encodings[2].scalability_mode = "L1T1";
+  EXPECT_TRUE(
+      send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters).ok());
+  rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+  rtp_parameters.encodings[2].scalability_mode = "L2T1";
+  EXPECT_TRUE(
+      send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters).ok());
+
+  // In mixed-codec simulcast, only L1 scalability modes are allowed; higher
+  // spatial-layer modes (e.g., L2) must be rejected.
+  rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+  rtp_parameters.encodings[0].codec = vp8.ToCodecParameters();
+  rtp_parameters.encodings[1].codec = vp8.ToCodecParameters();
+  rtp_parameters.encodings[2].codec = vp9.ToCodecParameters();
+  rtp_parameters.encodings[2].scalability_mode = "L1T1";
+  EXPECT_TRUE(
+      send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters).ok());
+  rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+  rtp_parameters.encodings[2].scalability_mode = "L2T1";
+  webrtc::RTCError error =
+      send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(RTCErrorType::UNSUPPORTED_OPERATION, error.type());
+  // UNSUPPORTED_OPERATION could also indicate mixed-codec rejection; verify the
+  // message to ensure it specifically rejects spatial layers in
+  // scalabilityMode.
+  EXPECT_THAT(error.message(),
+              testing::HasSubstr(
+                  "Attempted to use a scalabilityMode with spatial layers"));
+}
+
+// When stats are retrieved in mixed-codec simulcast, verify that information
+// about multiple codecs and the streams referencing them is obtained.
+TEST_F(WebRtcVideoChannelWithMixedCodecSimulcastTest, GetStatsMixedCodec) {
+  StreamParams sp = CreateSimStreamParams("cname", {123, 456, 789});
+
+  std::vector<RidDescription> rid_descriptions;
+  rid_descriptions.emplace_back("f", RidDirection::kSend);
+  rid_descriptions.emplace_back("h", RidDirection::kSend);
+  rid_descriptions.emplace_back("q", RidDirection::kSend);
+  sp.set_rids(rid_descriptions);
+
+  FakeVideoSendStream* stream = AddSendStream(sp);
+
+  VideoSendStream::Stats stats;
+  stats.substreams[123];
+  stats.substreams[456];
+  stats.substreams[789];
+  stream->SetStats(stats);
+
+  RtpParameters rtp_parameters =
+      send_channel_->GetRtpSendParameters(last_ssrc_);
+  EXPECT_EQ(3UL, rtp_parameters.encodings.size());
+  Codec vp8 = GetEngineCodec("VP8");
+  Codec vp9 = GetEngineCodec("VP9");
+  rtp_parameters.encodings[0].codec = vp8.ToCodecParameters();
+  rtp_parameters.encodings[1].codec = vp8.ToCodecParameters();
+  rtp_parameters.encodings[2].codec = vp9.ToCodecParameters();
+  EXPECT_TRUE(
+      send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters).ok());
+
+  VideoMediaSendInfo send_info;
+  EXPECT_TRUE(send_channel_->GetStats(&send_info));
+  EXPECT_EQ(2U, send_info.send_codecs.size());
+  EXPECT_EQ(vp8.id, send_info.send_codecs[vp8.id].payload_type);
+  EXPECT_EQ(vp9.id, send_info.send_codecs[vp9.id].payload_type);
+  EXPECT_EQ(vp8.name, send_info.send_codecs[vp8.id].name);
+  EXPECT_EQ(vp9.name, send_info.send_codecs[vp9.id].name);
+  EXPECT_EQ(3U, send_info.senders.size());
+  EXPECT_EQ(vp8.id, send_info.senders[0].codec_payload_type);
+  EXPECT_EQ(vp8.id, send_info.senders[1].codec_payload_type);
+  EXPECT_EQ(vp9.id, send_info.senders[2].codec_payload_type);
+  EXPECT_EQ(vp8.name, send_info.senders[0].codec_name);
+  EXPECT_EQ(vp8.name, send_info.senders[1].codec_name);
+  EXPECT_EQ(vp9.name, send_info.senders[2].codec_name);
+}
 
 // Test that min and max bitrate values set via RtpParameters are correctly
 // propagated to the underlying encoder for a single stream.

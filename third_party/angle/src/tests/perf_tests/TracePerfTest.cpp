@@ -1629,8 +1629,13 @@ void TracePerfTest::drawBenchmark()
 
     startGpuTimer();
     atraceCounter("TraceFrameIndex", mCurrentFrame);
+
     mTraceReplay->replayFrame(mCurrentFrame);
-    stopGpuTimer();
+
+    if (!gAddSwapIntoGPUTime)
+    {
+        stopGpuTimer();
+    }
 
     updatePerfCounters();
 
@@ -1704,7 +1709,6 @@ void TracePerfTest::drawBenchmark()
                     saveScreenshotIfEnabled(ScreenshotType::kGrid);
                 }
                 getGLWindow()->swap();
-                glClear(GL_COLOR_BUFFER_BIT);
                 mOffscreenFrameCount = 0;
             }
             else
@@ -1740,6 +1744,16 @@ void TracePerfTest::drawBenchmark()
         bindFramebuffer(GL_FRAMEBUFFER, 0);
         saveScreenshotIfEnabled(ScreenshotType::kFrame);
         getGLWindow()->swap();
+    }
+
+    if (gAddSwapIntoGPUTime)
+    {
+        // No need flush here since swap already performs it implicitly and we already call flush
+        // in case of the offscreen test.
+        stopGpuTimer(false);
+        // Need this flush to submit the timestamp query to the GPU right now, instead of delaying
+        // it until some time later in the next frame.
+        glFlush();
     }
 
     endInternalTraceEvent(frameName);

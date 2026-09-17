@@ -176,7 +176,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
   void FlushDeferredRequests(std::vector<mojom::DeferredRequestPtr> requests,
                              uint32_t flushed_deferred_message_id) override;
 
-  bool IsNativeBufferSupported(gfx::BufferFormat buffer_format,
+  bool IsNativeBufferSupported(viz::SharedImageFormat format,
                                gfx::BufferUsage buffer_usage);
   void CreateGpuMemoryBuffer(const gfx::Size& size,
                              const viz::SharedImageFormat& format,
@@ -197,11 +197,13 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
       const std::vector<gpu::SyncToken>& sync_token_dependencies,
       uint64_t release_count,
       CopyToGpuMemoryBufferAsyncCallback callback) override;
+#endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   void CopyNativeGmbToSharedMemoryAsync(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion shared_memory,
       CopyNativeGmbToSharedMemoryAsyncCallback callback) override;
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   void WaitForTokenInRange(int32_t routing_id,
                            int32_t start,
                            int32_t end,
@@ -397,7 +399,7 @@ void GpuChannelMessageFilter::FlushDeferredRequests(
 }
 
 bool GpuChannelMessageFilter::IsNativeBufferSupported(
-    gfx::BufferFormat buffer_format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage buffer_usage) {
   // Note that we are initializing the |supported_gmb_configurations_| here to
   // make sure gpu service have already initialized and required metadata like
@@ -416,8 +418,10 @@ bool GpuChannelMessageFilter::IsNativeBufferSupported(
           gpu::GpuMemoryBufferSupport::GetNativeGpuMemoryBufferConfigurations();
     }
   }
-  return base::Contains(supported_gmb_configurations_,
-                        gfx::BufferUsageAndFormat(buffer_usage, buffer_format));
+  return base::Contains(
+      supported_gmb_configurations_,
+      gfx::BufferUsageAndFormat(buffer_usage,
+                                viz::SharedImageFormatToBufferFormat(format)));
 }
 
 void GpuChannelMessageFilter::CreateGpuMemoryBuffer(
@@ -432,10 +436,9 @@ void GpuChannelMessageFilter::CreateGpuMemoryBuffer(
     std::move(callback).Run(gfx::GpuMemoryBufferHandle());
     return;
   }
-  auto buffer_format = ToBufferFormat(format);
-  gfx::GpuMemoryBufferHandle handle;
 
-  if (IsNativeBufferSupported(buffer_format, buffer_usage)) {
+  gfx::GpuMemoryBufferHandle handle;
+  if (IsNativeBufferSupported(format, buffer_usage)) {
 #if BUILDFLAG(IS_ANDROID)
     // Creation of native buffer handles is not supported on Android (the
     // only way that a non-null GpuMemoryBufferHandle can be created on
@@ -615,7 +618,9 @@ void GpuChannelMessageFilter::CopyToGpuMemoryBufferAsync(
   scheduler_->ScheduleTask(Scheduler::Task(it->second, std::move(run_on_main),
                                            sync_token_dependencies, release));
 }
+#endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 void GpuChannelMessageFilter::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion shared_memory,
@@ -632,7 +637,7 @@ void GpuChannelMessageFilter::CopyNativeGmbToSharedMemoryAsync(
           ->CopyNativeBufferToSharedMemoryAsync(std::move(buffer_handle),
                                                 std::move(shared_memory)));
 }
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 
 void GpuChannelMessageFilter::WaitForTokenInRange(
     int32_t routing_id,

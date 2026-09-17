@@ -11,6 +11,7 @@
 #include "audio/channel_receive.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -247,9 +248,6 @@ class ChannelReceive : public ChannelReceiveInterface,
   // checkers cannot be used. E.g. Chromium may transfer "ownership" from one
   // audio thread to another, but access is still sequential.
   RaceChecker audio_thread_race_checker_;
-  Mutex callback_mutex_;
-  Mutex volume_settings_mutex_;
-  mutable Mutex call_stats_mutex_;
 
   bool playing_ RTC_GUARDED_BY(worker_thread_checker_) = false;
 
@@ -269,9 +267,14 @@ class ChannelReceive : public ChannelReceiveInterface,
   const std::unique_ptr<NetEq> neteq_;  // NetEq is thread-safe; no lock needed.
   acm2::ResamplerHelper resampler_helper_
       RTC_GUARDED_BY(audio_thread_race_checker_);
+
+  mutable Mutex call_stats_mutex_;
   acm2::CallStatistics call_stats_ RTC_GUARDED_BY(call_stats_mutex_);
-  AudioSinkInterface* audio_sink_ = nullptr;
-  AudioLevel _outputAudioLevel;
+
+  Mutex audio_sink_mutex_;
+  AudioSinkInterface* audio_sink_ RTC_GUARDED_BY(audio_sink_mutex_) = nullptr;
+
+  AudioLevel output_audio_level_;
 
   RemoteNtpTimeEstimator ntp_estimator_ RTC_GUARDED_BY(ts_stats_lock_);
 
@@ -295,8 +298,8 @@ class ChannelReceive : public ChannelReceiveInterface,
   // frame.
   int64_t capture_start_ntp_time_ms_ RTC_GUARDED_BY(ts_stats_lock_);
 
-  AudioDeviceModule* _audioDeviceModulePtr;
-  float _outputGain RTC_GUARDED_BY(volume_settings_mutex_);
+  AudioDeviceModule* audio_device_module_;
+  std::atomic<float> output_gain_;
 
   PacketRouter* packet_router_ = nullptr;
 
@@ -325,9 +328,8 @@ class ChannelReceive : public ChannelReceiveInterface,
   // of data, so the stats reporting frequency will be 1Hz (modulo failures).
   constexpr static int kHistogramReportingInterval = 100;
 
-  mutable Mutex rtcp_counter_mutex_;
   RtcpPacketTypeCounter rtcp_packet_type_counter_
-      RTC_GUARDED_BY(rtcp_counter_mutex_);
+      RTC_GUARDED_BY(worker_thread_checker_);
 
   std::map<int, SdpAudioFormat> payload_type_map_;
 };
@@ -430,7 +432,7 @@ AudioMixer::Source::AudioFrameInfo ChannelReceive::GetAudioFrameWithInfo(
     // scaling/panning, as that applies to the mix operation.
     // External recipients of the audio (e.g. via AudioTrack), will do their
     // own mixing/dynamic processing.
-    MutexLock lock(&callback_mutex_);
+    MutexLock lock(&audio_sink_mutex_);
     if (audio_sink_) {
       AudioSinkInterface::Data data(
           audio_frame->data(), audio_frame->samples_per_channel_,
@@ -440,13 +442,8 @@ AudioMixer::Source::AudioFrameInfo ChannelReceive::GetAudioFrameWithInfo(
     }
   }
 
-  float output_gain = 1.0f;
-  {
-    MutexLock lock(&volume_settings_mutex_);
-    output_gain = _outputGain;
-  }
-
   // Output volume scaling
+  float output_gain = output_gain_.load();
   if (output_gain < 0.99f || output_gain > 1.01f) {
     // TODO(solenberg): Combine with mute state - this can cause clicks!
     AudioFrameOperations::ScaleWithSat(output_gain, audio_frame);
@@ -454,9 +451,9 @@ AudioMixer::Source::AudioFrameInfo ChannelReceive::GetAudioFrameWithInfo(
 
   // Measure audio level (0-9)
   // TODO(henrik.lundin) Use the `muted` information here too.
-  // TODO(deadbeef): Use RmsLevel for `_outputAudioLevel` (see
+  // TODO(deadbeef): Use RmsLevel for `output_audio_level_` (see
   // https://crbug.com/webrtc/7517).
-  _outputAudioLevel.ComputeLevel(*audio_frame, kAudioSampleDurationSeconds);
+  output_audio_level_.ComputeLevel(*audio_frame, kAudioSampleDurationSeconds);
 
   if (capture_start_rtp_time_stamp_ < 0 && audio_frame->timestamp_ != 0) {
     // The first frame with a valid rtp timestamp.
@@ -573,13 +570,12 @@ ChannelReceive::ChannelReceive(
                          jitter_buffer_min_delay_ms,
                          env_,
                          decoder_factory)),
-      _outputAudioLevel(),
       ntp_estimator_(&env_.clock()),
       playout_delay_ms_(0),
       capture_start_rtp_time_stamp_(-1),
       capture_start_ntp_time_ms_(-1),
-      _audioDeviceModulePtr(audio_device_module),
-      _outputGain(1.0f),
+      audio_device_module_(audio_device_module),
+      output_gain_(1.0f),
       frame_decryptor_(frame_decryptor),
       crypto_options_(crypto_options),
       absolute_capture_time_interpolator_(&env_.clock()) {
@@ -617,7 +613,7 @@ ChannelReceive::~ChannelReceive() {
 
 void ChannelReceive::SetSink(AudioSinkInterface* sink) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  MutexLock lock(&callback_mutex_);
+  MutexLock lock(&audio_sink_mutex_);
   audio_sink_ = sink;
 }
 
@@ -629,7 +625,7 @@ void ChannelReceive::StartPlayout() {
 void ChannelReceive::StopPlayout() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   playing_ = false;
-  _outputAudioLevel.ResetLevelFullRange();
+  output_audio_level_.ResetLevelFullRange();
   neteq_->FlushBuffers();
 }
 
@@ -787,23 +783,22 @@ void ChannelReceive::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
 
 int ChannelReceive::GetSpeechOutputLevelFullRange() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  return _outputAudioLevel.LevelFullRange();
+  return output_audio_level_.LevelFullRange();
 }
 
 double ChannelReceive::GetTotalOutputEnergy() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  return _outputAudioLevel.TotalEnergy();
+  return output_audio_level_.TotalEnergy();
 }
 
 double ChannelReceive::GetTotalOutputDuration() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  return _outputAudioLevel.TotalDuration();
+  return output_audio_level_.TotalDuration();
 }
 
 void ChannelReceive::SetChannelOutputVolumeScaling(float scaling) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  MutexLock lock(&volume_settings_mutex_);
-  _outputGain = scaling;
+  output_gain_.store(scaling);
 }
 
 void ChannelReceive::RegisterReceiverCongestionControlObjects(
@@ -852,10 +847,7 @@ ChannelReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
     stats.last_packet_received = rtp_stats.last_packet_received;
   }
 
-  {
-    MutexLock lock(&rtcp_counter_mutex_);
-    stats.nacks_sent = rtcp_packet_type_counter_.nack_packets;
-  }
+  stats.nacks_sent = rtcp_packet_type_counter_.nack_packets;
 
   // Timestamps.
   {
@@ -921,10 +913,10 @@ int ChannelReceive::ResendPackets(const uint16_t* sequence_numbers,
 void ChannelReceive::RtcpPacketTypesCounterUpdated(
     uint32_t ssrc,
     const RtcpPacketTypeCounter& packet_counter) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   if (ssrc != remote_ssrc_) {
     return;
   }
-  MutexLock lock(&rtcp_counter_mutex_);
   rtcp_packet_type_counter_ = packet_counter;
 }
 
@@ -1124,7 +1116,7 @@ void ChannelReceive::UpdatePlayoutTimestamp(bool rtcp, Timestamp now) {
   }
 
   uint16_t delay_ms = 0;
-  if (_audioDeviceModulePtr->PlayoutDelay(&delay_ms) == -1) {
+  if (audio_device_module_->PlayoutDelay(&delay_ms) == -1) {
     RTC_DLOG(LS_WARNING)
         << "ChannelReceive::UpdatePlayoutTimestamp() failed to read"
            " playout delay from the ADM";

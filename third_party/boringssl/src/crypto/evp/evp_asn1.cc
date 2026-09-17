@@ -81,7 +81,7 @@ EVP_PKEY *EVP_PKEY_from_subject_public_key_info(const uint8_t *in, size_t len,
 }
 
 int EVP_marshal_public_key(CBB *cbb, const EVP_PKEY *key) {
-  if (key->ameth == NULL || key->ameth->pub_encode == NULL) {
+  if (key->ameth == nullptr || key->ameth->pub_encode == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return 0;
   }
@@ -133,7 +133,7 @@ EVP_PKEY *EVP_PKEY_from_private_key_info(const uint8_t *in, size_t len,
 }
 
 int EVP_marshal_private_key(CBB *cbb, const EVP_PKEY *key) {
-  if (key->ameth == NULL || key->ameth->priv_encode == NULL) {
+  if (key->ameth == nullptr || key->ameth->priv_encode == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return 0;
   }
@@ -238,7 +238,7 @@ static size_t num_elements(const uint8_t *in, size_t in_len) {
 
   size_t count = 0;
   while (CBS_len(&sequence) > 0) {
-    if (!CBS_get_any_asn1_element(&sequence, NULL, NULL, NULL)) {
+    if (!CBS_get_any_asn1_element(&sequence, nullptr, nullptr, nullptr)) {
       return 0;
     }
 
@@ -251,15 +251,15 @@ static size_t num_elements(const uint8_t *in, size_t in_len) {
 EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **out, const uint8_t **inp, long len) {
   if (len < 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
-    return NULL;
+    return nullptr;
   }
 
   // Parse the input as a PKCS#8 PrivateKeyInfo.
   CBS cbs;
   CBS_init(&cbs, *inp, (size_t)len);
   EVP_PKEY *ret = EVP_parse_private_key(&cbs);
-  if (ret != NULL) {
-    if (out != NULL) {
+  if (ret != nullptr) {
+    if (out != nullptr) {
       EVP_PKEY_free(*out);
       *out = ret;
     }
@@ -416,7 +416,7 @@ EC_KEY *d2i_EC_PUBKEY(EC_KEY **out, const uint8_t **inp, long len) {
 }
 
 int i2d_EC_PUBKEY(const EC_KEY *ec_key, uint8_t **outp) {
-  if (ec_key == NULL) {
+  if (ec_key == nullptr) {
     return 0;
   }
 

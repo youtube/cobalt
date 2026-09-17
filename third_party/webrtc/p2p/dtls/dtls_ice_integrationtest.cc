@@ -9,14 +9,17 @@
  */
 
 #include <cstdint>
+#include <ctime>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
 
+#include "absl/flags/flag.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
+#include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -35,11 +38,13 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "p2p/dtls/dtls_transport.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/fake_network.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network.h"
+#include "rtc_base/random.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
@@ -53,13 +58,22 @@
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
+ABSL_FLAG(int32_t,
+          long_running_seed,
+          7788,
+          "0 means use time(0) as seed (i.e non deterministic)");
+ABSL_FLAG(int32_t, long_running_run_time_minutes, 7, "");
+ABSL_FLAG(bool, long_running_send_data, false, "");
+
 namespace {
 constexpr int kDefaultTimeout = 30000;
 }  // namespace
 
 namespace webrtc {
 
+using ::testing::Eq;
 using ::testing::IsTrue;
+using ::testing::Not;
 
 class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
                                    /* 0 client_piggyback= */ bool,
@@ -465,6 +479,111 @@ TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
     return server_.dtls->IsDtlsPiggybackSupportedByPeer();
   }),
             client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+}
+
+TEST_P(DtlsIceIntegrationTest, LongRunningTestWithPacketLoss) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "Needs boringssl.";
+  }
+  int seed = absl::GetFlag(FLAGS_long_running_seed);
+  if (seed == 0) {
+    seed = 1 + time(0);
+  }
+  RTC_LOG(LS_INFO) << "seed: " << seed;
+  webrtc::Random rand(seed);
+  ConfigureEmulatedNetwork();
+  Prepare();
+
+  client_thread()->PostTask([&]() { client_.ice->MaybeStartGathering(); });
+
+  server_thread()->PostTask([&]() { server_.ice->MaybeStartGathering(); });
+
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return client_thread()->BlockingCall([&]() {
+                      return client_.dtls->writable();
+                    }) && server_thread()->BlockingCall([&]() {
+                      return server_.dtls->writable();
+                    });
+                  },
+                  IsTrue(), wait_until_settings()),
+              IsRtcOk());
+
+  auto now =
+      network_emulation_manager_->time_controller()->GetClock()->CurrentTime();
+  auto end = now + TimeDelta::Minutes(
+                       absl::GetFlag(FLAGS_long_running_run_time_minutes));
+  int client_sent = 0;
+  int client_recv = 0;
+  int server_sent = 0;
+  int server_recv = 0;
+  void* id = this;
+  client_thread()->BlockingCall([&]() {
+    return client_.dtls->RegisterReceivedPacketCallback(
+        id, [&](auto, auto) { client_recv++; });
+  });
+  server_thread()->BlockingCall([&]() {
+    return server_.dtls->RegisterReceivedPacketCallback(
+        id, [&](auto, auto) { server_recv++; });
+  });
+  while (now < end) {
+    int delay = static_cast<int>(rand.Gaussian(100, 25));
+    if (delay < 25) {
+      delay = 25;
+    }
+    network_emulation_manager_->time_controller()->AdvanceTime(
+        TimeDelta::Millis(delay));
+    now = network_emulation_manager_->time_controller()
+              ->GetClock()
+              ->CurrentTime();
+
+    if (absl::GetFlag(FLAGS_long_running_send_data)) {
+      int flags = 0;
+      AsyncSocketPacketOptions options;
+      std::string a_long_string(500, 'a');
+      if (client_thread()->BlockingCall([&]() {
+            return client_.dtls->SendPacket(
+                a_long_string.c_str(), a_long_string.length(), options, flags);
+          }) > 0) {
+        client_sent++;
+      }
+      if (server_thread()->BlockingCall([&]() {
+            return server_.dtls->SendPacket(
+                a_long_string.c_str(), a_long_string.length(), options, flags);
+          }) > 0) {
+        server_sent++;
+      }
+    }
+
+    EXPECT_THAT(WaitUntil(
+                    [&] {
+                      return client_thread()->BlockingCall([&]() {
+                        return client_.dtls->writable();
+                      }) && server_thread()->BlockingCall([&]() {
+                        return server_.dtls->writable();
+                      });
+                    },
+                    IsTrue(), wait_until_settings()),
+                IsRtcOk());
+    ASSERT_THAT(client_thread()->BlockingCall(
+                    [&]() { return client_.dtls->dtls_state(); }),
+                Not(Eq(DtlsTransportState::kFailed)));
+    ASSERT_THAT(server_thread()->BlockingCall(
+                    [&]() { return server_.dtls->dtls_state(); }),
+                Not(Eq(DtlsTransportState::kFailed)));
+  }
+
+  client_thread()->BlockingCall(
+      [&]() { return client_.dtls->DeregisterReceivedPacketCallback(id); });
+  server_thread()->BlockingCall(
+      [&]() { return server_.dtls->DeregisterReceivedPacketCallback(id); });
+
+  RTC_LOG(LS_INFO) << "Server sent " << server_sent << " packets "
+                   << " client received: " << client_recv << " ("
+                   << (client_recv * 100 / (1 + server_sent)) << "%)";
+  RTC_LOG(LS_INFO) << "Client sent " << client_sent << " packets "
+                   << " server received: " << server_recv << " ("
+                   << (server_recv * 100 / (1 + client_sent)) << "%)";
 }
 
 // Verify that DtlsStunPiggybacking works even if one (or several)

@@ -71,8 +71,8 @@ struct rand_thread_state {
 #if defined(BORINGSSL_FIPS)
   // last_block contains the previous block from |get_seed_entropy|.
   uint8_t last_block[CRNGT_BLOCK_SIZE];
-  // next and prev form a NULL-terminated, double-linked list of all states in
-  // a process.
+  // next and prev form a nullptr-terminated, double-linked list of all states
+  // in a process.
   struct rand_thread_state *next, *prev;
   // clear_drbg_lock synchronizes between uses of |drbg| and
   // |rand_thread_state_clear_all| clearing it. This lock should be uncontended
@@ -94,7 +94,7 @@ static void rand_thread_state_clear_all(void) __attribute__((destructor));
 static void rand_thread_state_clear_all(void) {
   CRYPTO_MUTEX_lock_write(thread_states_list_lock_bss_get());
   for (struct rand_thread_state *cur = *thread_states_list_bss_get();
-       cur != NULL; cur = cur->next) {
+       cur != nullptr; cur = cur->next) {
     CRYPTO_MUTEX_lock_write(&cur->clear_drbg_lock);
     CTR_DRBG_clear(&cur->drbg);
   }
@@ -111,23 +111,23 @@ static void rand_thread_state_free(void *state_in) {
   struct rand_thread_state *state =
       reinterpret_cast<rand_thread_state *>(state_in);
 
-  if (state_in == NULL) {
+  if (state_in == nullptr) {
     return;
   }
 
 #if defined(BORINGSSL_FIPS)
   CRYPTO_MUTEX_lock_write(thread_states_list_lock_bss_get());
 
-  if (state->prev != NULL) {
+  if (state->prev != nullptr) {
     state->prev->next = state->next;
   } else if (*thread_states_list_bss_get() == state) {
-    // |state->prev| may be NULL either if it is the head of the list,
+    // |state->prev| may be nullptr either if it is the head of the list,
     // or if |state| is freed before it was added to the list at all.
     // Compare against the head of the list to distinguish these cases.
     *thread_states_list_bss_get() = state->next;
   }
 
-  if (state->next != NULL) {
+  if (state->next != nullptr) {
     state->next->prev = state->prev;
   }
 
@@ -366,10 +366,10 @@ bcm_infallible BCM_rand_bytes_with_additional_data(
   struct rand_thread_state *state = reinterpret_cast<rand_thread_state *>(
       CRYPTO_get_thread_local(OPENSSL_THREAD_LOCAL_RAND));
 
-  if (state == NULL) {
+  if (state == nullptr) {
     state = reinterpret_cast<rand_thread_state *>(
         OPENSSL_zalloc(sizeof(struct rand_thread_state)));
-    if (state == NULL ||
+    if (state == nullptr ||
         !CRYPTO_set_thread_local(OPENSSL_THREAD_LOCAL_RAND, state,
                                  rand_thread_state_free)) {
       // If the system is out of memory, use an ephemeral state on the
@@ -397,10 +397,10 @@ bcm_infallible BCM_rand_bytes_with_additional_data(
       CRYPTO_MUTEX_lock_write(thread_states_list_lock_bss_get());
       struct rand_thread_state **states_list = thread_states_list_bss_get();
       state->next = *states_list;
-      if (state->next != NULL) {
+      if (state->next != nullptr) {
         state->next->prev = state;
       }
-      state->prev = NULL;
+      state->prev = nullptr;
       *states_list = state;
       CRYPTO_MUTEX_unlock_write(thread_states_list_lock_bss_get());
     }

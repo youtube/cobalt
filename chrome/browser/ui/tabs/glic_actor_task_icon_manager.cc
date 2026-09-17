@@ -70,11 +70,12 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
 
   // TODO(crbug.com/446734119): Instead ActorTask should hold a glic
   // InstanceId and use that to retrieve the instance.
-  glic::GlicInstance* instance = window_controller_->GetInstances().front();
-  if (!instance) {
+  std::vector<glic::GlicInstance*> instances =
+      window_controller_->GetInstances();
+  if (instances.empty()) {
     return;
   }
-
+  glic::GlicInstance* instance = instances.front();
   if (features::kGlicActorUiNudgeRedesign.Get()) {
     UpdateTaskNudge();
   } else {
@@ -93,7 +94,8 @@ void GlicActorTaskIconManager::UpdateTaskIcon(bool is_showing,
       actor_service_->FindTaskIdsInInactive(&IsRecentlyCompletedTask);
   auto paused_by_actor_tasks =
       actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return task.GetState() == ActorTask::State::kPausedByActor;
+        return (task.GetState() == ActorTask::State::kPausedByActor ||
+                task.GetState() == ActorTask::State::kWaitingOnUser);
       });
 
   // If there are no active tasks and no recently completed tasks, we can hide
@@ -134,7 +136,8 @@ void GlicActorTaskIconManager::UpdateTaskNudge() {
       actor_service_->FindTaskIdsInInactive(&IsRecentlyCompletedTask);
   auto paused_by_actor_tasks =
       actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return task.GetState() == ActorTask::State::kPausedByActor;
+        return (task.GetState() == ActorTask::State::kPausedByActor ||
+                task.GetState() == ActorTask::State::kWaitingOnUser);
       });
 
   if (!paused_by_actor_tasks.empty()) {

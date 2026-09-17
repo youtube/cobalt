@@ -756,6 +756,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> bilder</translation>
 <translation id="4300272766492248925">Åpne appen</translation>
 <translation id="430786093962686457">chiffon</translation>
+<translation id="4309762678330556039">Opprett transkripsjoner automatisk, og søk i lyd. Du kan gjøre opptak selv når du ikke er koblet til internett.</translation>
 <translation id="4310735698903592804">Nylige bakgrunner basert på AI-løsninger fra Google</translation>
 <translation id="4320904097188876154">neonrosa</translation>
 <translation id="432961742358282111">Høyreklikk eller trykk og hold for å få definisjoner, oversettelser eller enhetskonverteringer. Bruk venstre- eller høyrepilen for å administrere denne funksjonen.</translation>
@@ -1472,6 +1473,7 @@ Last ned transkripsjonsmodellen (opptil 100 MB) for å få disse transkripsjonen
 <translation id="7425832472614771259">Transkripsjonsmodellen for <ph name="LANGUAGE_NAME" /> er <ph name="PROGRESS_PERCENTAGE" /> % lastet ned</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Kan ikke slå av eller fjerne dette APN-et. Sørg for å deaktivere eller fjerne aktiverte <ph name="ATTACH" />-APN.</translation>
+<translation id="7458359366992324037">Ekstern skjerm</translation>
 <translation id="7458970041932198923">Koble til et nettverk og last inn siden på nytt for å se og angi brukerbilder.</translation>
 <translation id="7469648432129124067">Oppdaget en portal</translation>
 <translation id="7481312909269577407">Frem</translation>

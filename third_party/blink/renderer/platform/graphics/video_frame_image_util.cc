@@ -113,22 +113,14 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
     scoped_refptr<media::VideoFrame> frame,
     CanvasResourceProvider* resource_provider,
     media::PaintCanvasVideoRenderer* video_renderer,
-    const gfx::Rect& dest_rect,
     bool prefer_tagged_orientation,
     bool reinterpret_video_as_srgb) {
   DCHECK(frame);
   const auto transform =
       frame->metadata().transformation.value_or(media::kNoTransformation);
 
-  gfx::Rect final_dest_rect = dest_rect;
   if (!resource_provider) {
     DLOG(ERROR) << "An external CanvasResourceProvider must be provided";
-    return nullptr;
-  } else if (!gfx::Rect(resource_provider->Size()).Contains(final_dest_rect)) {
-    DLOG(ERROR)
-        << "Provided CanvasResourceProvider is too small. Expected at least "
-        << final_dest_rect.ToString() << " got "
-        << resource_provider->Size().ToString();
     return nullptr;
   }
 
@@ -139,7 +131,7 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
 
   if (!DrawVideoFrameIntoResourceProvider(
           std::move(frame), resource_provider, raster_context_provider.get(),
-          final_dest_rect, video_renderer,
+          video_renderer,
           /*ignore_video_transformation=*/prefer_tagged_orientation,
           /*reinterpret_video_as_srgb=*/reinterpret_video_as_srgb)) {
     return nullptr;
@@ -156,23 +148,28 @@ bool DrawVideoFrameIntoResourceProvider(
     scoped_refptr<media::VideoFrame> frame,
     CanvasResourceProvider* resource_provider,
     viz::RasterContextProvider* raster_context_provider,
-    const gfx::Rect& dest_rect,
     media::PaintCanvasVideoRenderer* video_renderer,
     bool ignore_video_transformation,
     bool reinterpret_video_as_srgb) {
   DCHECK(frame);
   DCHECK(resource_provider);
-  DCHECK(gfx::Rect(resource_provider->Size()).Contains(dest_rect));
 
   // This method should only be called with context providers supporting OOP-R.
   CHECK(!raster_context_provider ||
         raster_context_provider->ContextCapabilities().gpu_rasterization);
 
-  // A VF created from MappableSI will have a mappable shared image but might
-  // not be intended for rendering in the tests.
-  // |frame.IsTexturableForTesting()| here checks whether the tests have
-  // explicitly marked the VF as non texturable or not.
-  if (frame->HasSharedImage() && frame->IsTexturableForTesting()) {
+  // If the provider isn't accelerated, avoid GPU round trips to upload frame
+  // data from GpuMemoryBuffer backed frames which aren't mappable.
+  if (frame->HasMappableGpuBuffer() && !frame->IsMappable() &&
+      !resource_provider->IsAccelerated()) {
+    frame = media::ConvertToMemoryMappedFrame(std::move(frame));
+    if (!frame) {
+      DLOG(ERROR) << "Failed to map VideoFrame.";
+      return false;
+    }
+  }
+
+  if (frame->HasSharedImage()) {
     if (!raster_context_provider) {
       DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o a "
                      "RasterContextProvider.";
@@ -191,19 +188,8 @@ bool DrawVideoFrameIntoResourceProvider(
     video_renderer = local_video_renderer.get();
   }
 
-  // If the provider isn't accelerated, avoid GPU round trips to upload frame
-  // data from GpuMemoryBuffer backed frames which aren't mappable.
-  if (frame->HasMappableGpuBuffer() && !frame->IsMappable() &&
-      !resource_provider->IsAccelerated()) {
-    frame = media::ConvertToMemoryMappedFrame(std::move(frame));
-    if (!frame) {
-      DLOG(ERROR) << "Failed to map VideoFrame.";
-      return false;
-    }
-  }
-
   media::PaintCanvasVideoRenderer::PaintParams params;
-  params.dest_rect = gfx::RectF(dest_rect);
+  params.dest_rect = gfx::RectF(resource_provider->Size());
   params.transformation =
       ignore_video_transformation
           ? media::kNoTransformation
@@ -211,8 +197,8 @@ bool DrawVideoFrameIntoResourceProvider(
   params.reinterpret_as_srgb = reinterpret_video_as_srgb;
   resource_provider->ExternalCanvasDrawHelper(
       [&](MemoryManagedPaintCanvas& canvas) {
-        video_renderer->PaintOOPR(frame.get(), &canvas, media_flags, params,
-                                  raster_context_provider);
+        video_renderer->Paint(frame.get(), &canvas, media_flags, params,
+                              raster_context_provider);
       });
   return true;
 }
@@ -235,8 +221,7 @@ void DrawVideoFrameIntoCanvas(scoped_refptr<media::VideoFrame> frame,
       ignore_video_transformation
           ? media::kNoTransformation
           : frame->metadata().transformation.value_or(media::kNoTransformation);
-  video_renderer.PaintOOPR(frame, canvas, flags, params,
-                           raster_context_provider);
+  video_renderer.Paint(frame, canvas, flags, params, raster_context_provider);
 }
 
 scoped_refptr<viz::RasterContextProvider> GetRasterContextProvider() {

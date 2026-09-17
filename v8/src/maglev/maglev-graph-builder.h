@@ -505,8 +505,7 @@ class MaglevGraphBuilder {
                                      ContextSlotMutability slot_mutability,
                                      ContextMode context_mode);
   MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
-                                                  ValueNode* value,
-                                                  Node** store);
+                                                  ValueNode* value);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
                                         ContextMode context_mode);
@@ -954,6 +953,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharAt)                     \
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
+  V(StringPrototypeSlice)                      \
   V(StringPrototypeStartsWith)                 \
   V(StringPrototypeIterator)                   \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1011,9 +1011,10 @@ class MaglevGraphBuilder {
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);
 
-  template <typename Int32Binop>
+  template <typename Int32Binop, typename Float64Binop>
   MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
-                                        Int32Binop int32_case);
+                                        Int32Binop&& int32_case,
+                                        Float64Binop&& float64_case);
 
   template <typename CallNode, typename... Args>
   ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);
@@ -1259,18 +1260,19 @@ class MaglevGraphBuilder {
 
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
-  template <typename Instruction = LoadTaggedField, typename... Args>
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                     LoadType type = LoadType::kUnknown,
-                                    Args&&... args);
+                                    bool is_const = false,
+                                    PropertyKey key = PropertyKey::None());
 
-  ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
-                                     int offset, StoreTaggedMode store_mode,
-                                     Node** store = nullptr);
-  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
-                                                   ValueNode* value, int offset,
-                                                   StoreTaggedMode store_mode,
-                                                   Node** store = nullptr);
+  ReduceResult BuildStoreTaggedField(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
   ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
                                              ValueNode* value, int offset,
                                              IndirectPointerTag tag,
@@ -1327,7 +1329,7 @@ class MaglevGraphBuilder {
                               compiler::NameRef name);
   MaybeReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
-      compiler::AccessMode access_mode);
+      compiler::AccessMode access_mode, compiler::NameRef name);
   MaybeReduceResult TryBuildPropertyGetterCall(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* lookup_start_object);
@@ -1458,8 +1460,7 @@ class MaglevGraphBuilder {
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be reused on
   // subsequent loads.
-  void RecordKnownProperty(ValueNode* lookup_start_object,
-                           KnownNodeAspects::LoadedPropertyMapKey key,
+  void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
                            ValueNode* value, bool is_const,
                            compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
@@ -1643,8 +1644,8 @@ class MaglevGraphBuilder {
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
 
-  ValueNode* BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
-  ValueNode* BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
+  ReduceResult BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
+  ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
 
   class BranchBuilder;
 
@@ -2070,6 +2071,10 @@ void MaglevGraphBuilder::ResetBuilderCachedState() {
 
 template <typename NodeT>
 void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
+  // We only need to clear unstable node aspects on the current builder, not
+  // the parent, since we'll anyway copy the known_node_aspects to the parent
+  // once we finish the inlined function.
+
   if constexpr (NodeT::kProperties.can_read() ||
                 NodeT::kProperties.can_deopt() ||
                 NodeT::kProperties.can_throw()) {
@@ -2086,24 +2091,11 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   // Don't do anything for nodes without side effects.
   if constexpr (!NodeT::kProperties.can_write()) return;
 
-  // We only need to clear unstable node aspects on the current builder, not
-  // the parent, since we'll anyway copy the known_node_aspects to the parent
-  // once we finish the inlined function.
-
-  if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-    node->ClearElementsProperties(is_tracing_enabled(), known_node_aspects());
-    if (is_loop_effect_tracking()) {
-      loop_effects_->keys_cleared.insert(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements());
-    }
-  } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
-                       !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
-    // Don't change known node aspects for simple field stores. The only
-    // relevant side effect on these is writes to objects which invalidate
-    // loaded properties and context slots, and we invalidate these already as
-    // part of emitting the store.
-    node->ClearUnstableNodeAspects(is_tracing_enabled(), known_node_aspects());
-    if (is_loop_effect_tracking()) {
+  if (is_loop_effect_tracking()) {
+    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
+      loop_effects_->keys_cleared.insert(PropertyKey::Elements());
+    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
+                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
       loop_effects_->unstable_aspects_cleared = true;
     }
   }

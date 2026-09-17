@@ -242,6 +242,7 @@ void HandleAvailableSpace(
       config->GetCrxDownloaderFactory()->MakeCrxDownloader(config);
 #else
       config->GetCrxDownloaderFactory()->MakeCrxDownloader(
+          config->GetProdId(),
           CanDoBackgroundDownload(is_foreground,
                                   config->EnabledBackgroundDownloader(), size));
 #endif

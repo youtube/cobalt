@@ -24,15 +24,14 @@
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/tabs/public/tab_interface.h"
-#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 class Profile;
 
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
+namespace content {
+class NavigationHandle;
+}
 
 namespace url {
 class Origin;
@@ -77,11 +76,6 @@ class ExecutionEngine : public ToolDelegate {
   };
 
   explicit ExecutionEngine(Profile* profile);
-
-  // Old instances of ExecutionEngine assume that all actions are scoped to a
-  // single tab. This constructor supports this use case, but this is
-  // deprecated. Do not add new consumers
-  ExecutionEngine(Profile* profile, tabs::TabInterface* tab);
   ExecutionEngine(const ExecutionEngine&) = delete;
   ExecutionEngine& operator=(const ExecutionEngine&) = delete;
   ~ExecutionEngine() override;
@@ -118,8 +112,8 @@ class ExecutionEngine : public ToolDelegate {
       const base::flat_map<std::string, gfx::Image>& icons,
       ToolDelegate::CredentialSelectedCallback callback) override;
   void SetUserSelectedCredential(
-      const actor_login::Credential& credential) override;
-  const std::optional<actor_login::Credential> GetUserSelectedCredential(
+      const CredentialWithPermission& credential) override;
+  const std::optional<CredentialWithPermission> GetUserSelectedCredential(
       const url::Origin& request_origin) const override;
 
   // Callback for when a credential is selected, in response to
@@ -127,26 +121,43 @@ class ExecutionEngine : public ToolDelegate {
   void OnCredentialSelected(
       webui::mojom::SelectCredentialDialogResponsePtr response);
 
-  using UserConfirmationDialogCallback = base::OnceCallback<void(
-      webui::mojom::UserConfirmationDialogResponsePtr response)>;
-
   void AddWritableMainframeOrigins(
       const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
 
-  void PromptToConfirmCrossOriginNavigation(
-      const url::Origin& navigation_origin,
-      UserConfirmationDialogCallback callback);
-  void PromptToConfirmDownload(int32_t download_id,
-                               UserConfirmationDialogCallback callback);
+  // Callback invoked when ConfirmCrossOriginNavigation, which spawns an IPC to
+  // the web client, receives its response. This callback gets a boolean
+  // indicating if navigation should continue.
+  using NavigationDecisionCallback =
+      base::OnceCallback<void(bool may_continue)>;
+
+  // Returns a boolean indicating if ActorNavigationThrottle should defer a
+  // navigation until the decision callback is invoked.
+  bool ShouldGateNavigation(content::NavigationHandle& navigation_handle,
+                            NavigationDecisionCallback callback);
 
   // Callback for when the user responds to a confirmation dialog.
-  void OnUserConfirmation(
+  void OnUserConfirmationDialogResponse(
       webui::mojom::UserConfirmationDialogResponsePtr response);
+
+  // Callback when the server responds when asked to confirm navigation.
+  void OnNavigationConfirmationResponse(
+      webui::mojom::NavigationConfirmationResponsePtr response);
 
   static std::string StateToString(State state);
 
-  bool ShouldGateNavigation(content::NavigationHandle& navigation_handle,
-                            UserConfirmationDialogCallback callback);
+  void UserTakeover(mojom::ActionResultCode takeover_response_code,
+                    base::OnceCallback<void(bool)> callback);
+
+  void RunUserTakeoverCallbackIfExists(bool should_cancel);
+
+  void set_user_take_over_result(
+      std::optional<mojom::ActionResultCode> user_takeover_result) {
+    user_takeover_result_ = user_takeover_result;
+  }
+
+  std::optional<mojom::ActionResultCode> user_take_over_result() const {
+    return user_takeover_result_;
+  }
 
   void AddObserver(StateObserver* observer);
 
@@ -190,11 +201,6 @@ class ExecutionEngine : public ToolDelegate {
   void CompleteActions(mojom::ActionResultPtr result,
                        std::optional<size_t> action_index);
 
-  void PromptUserForConfirmationInternal(
-      const std::optional<url::Origin>& navigation_origin,
-      const std::optional<int32_t> download_url,
-      UserConfirmationDialogCallback callback);
-
   // Returns the next action that will be started when ExecuteNextAction is
   // reached.
   const ToolRequest& GetNextAction() const;
@@ -204,16 +210,38 @@ class ExecutionEngine : public ToolDelegate {
   size_t InProgressActionIndex() const;
   const ToolRequest& GetInProgressAction() const;
 
-  void OnPromptToConfirmNavigationDecision(
-      url::Origin navigation_origin,
-      UserConfirmationDialogCallback callback,
-      webui::mojom::UserConfirmationDialogResponsePtr response);
-
   bool ShouldGateNavigationInternal(
       content::NavigationHandle& navigation_handle,
-      UserConfirmationDialogCallback callback);
+      NavigationDecisionCallback callback);
   void LogNavigationGating(content::NavigationHandle& navigation_handle,
                            bool applied_gate);
+
+  void CheckNavigationBlocklist(const GURL& navigation_url,
+                                NavigationDecisionCallback callback);
+  void OnNavigationBlocklistDecision(url::Origin navigation_origin,
+                                     NavigationDecisionCallback callback,
+                                     bool may_continue);
+
+  // Called when the browser detects the actor needs to confirm a
+  // client-side-initiated navigation to a novel origin. The web client should
+  // check that the origin is relevant for the task and respond with whether the
+  // actor is permitted to visit the page.
+  void SendNavigationConfirmationRequest(const url::Origin& navigation_origin,
+                                         NavigationDecisionCallback callback);
+  void OnNavigationConfirmationDecision(
+      url::Origin navigation_origin,
+      NavigationDecisionCallback callback,
+      webui::mojom::NavigationConfirmationResponsePtr response);
+
+  // Called when the browser detects the actor navigating to an origin in the
+  // blocklist. The web client should confirm with the user that the actor is
+  // allowed to navigate to this origin.
+  void SendUserConfirmationDialogRequest(const url::Origin& navigation_origin,
+                                         NavigationDecisionCallback callback);
+  void OnPromptUserToConfirmNavigationDecision(
+      url::Origin navigation_origin,
+      NavigationDecisionCallback callback,
+      webui::mojom::UserConfirmationDialogResponsePtr response);
 
   State state_ = State::kInit;
 
@@ -253,13 +281,19 @@ class ExecutionEngine : public ToolDelegate {
 
   ToolDelegate::CredentialSelectedCallback credential_selected_callback_;
 
-  UserConfirmationDialogCallback user_confirmation_callback_;
+  base::OnceCallback<void(webui::mojom::UserConfirmationDialogResponsePtr)>
+      user_confirmation_callback_;
+  base::OnceCallback<void(webui::mojom::NavigationConfirmationResponsePtr)>
+      navigation_confirmation_callback_;
 
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the
   // `Credential::request_origin`.
-  base::flat_map<url::Origin, actor_login::Credential>
+  base::flat_map<url::Origin, CredentialWithPermission>
       user_selected_credentials_;
+
+  base::OnceCallback<void(bool /*should_cancel*/)> user_takeover_callback_;
+  std::optional<mojom::ActionResultCode> user_takeover_result_;
 
   base::ObserverList<StateObserver> observers_;
 

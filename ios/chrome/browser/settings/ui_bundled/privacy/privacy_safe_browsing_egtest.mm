@@ -93,6 +93,8 @@ void PressInfoButtonForCell(NSString* cellId) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
+  // TODO (crbug.com/1285974) Remove when bug is resolved.
+  config.features_disabled.push_back(kNewOverflowMenu);
   // TODO: crbug.com/336547987 - Remove when this is fully deployed.
   config.features_disabled.push_back(
       safe_browsing::kExtendedReportingRemovePrefDependencyIos);
@@ -464,6 +466,8 @@ void PressInfoButtonForCell(NSString* cellId) {
   AppLaunchConfiguration config;
   config.features_disabled.push_back(
       safe_browsing::kExtendedReportingRemovePrefDependencyIos);
+  // TODO (crbug.com/1285974) Remove when bug is resolved.
+  config.features_disabled.push_back(kNewOverflowMenu);
   return config;
 }
 
@@ -484,6 +488,8 @@ void PressInfoButtonForCell(NSString* cellId) {
   AppLaunchConfiguration config;
   config.features_enabled.push_back(
       safe_browsing::kExtendedReportingRemovePrefDependencyIos);
+  // TODO (crbug.com/1285974) Remove when bug is resolved.
+  config.features_disabled.push_back(kNewOverflowMenu);
   return config;
 }
 
@@ -494,5 +500,85 @@ void PressInfoButtonForCell(NSString* cellId) {
       grey_accessibilityID(kSafeBrowsingExtendedReportingCellId),
       grey_accessibilityID(kSafeBrowsingStandardProtectionTableViewId))
       assertWithMatcher:grey_nil()];
+}
+@end
+
+@interface SafeBrowsingPasswordLeakCheckToggleMoveDisabled : ChromeTestCase
+@end
+@implementation SafeBrowsingPasswordLeakCheckToggleMoveDisabled
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config;
+  config.features_disabled.push_back(
+      safe_browsing::kMovePasswordLeakDetectionToggleIos);
+  return config;
+}
+
+// Tests that the Password Leak detection toggle doesn't under Standard
+// Protection if the the feature is enabled.
+- (void)testPasswordLeakCheckToggle_PresentWhenFeatureFlagDisabled {
+  // Ensure that Safe Browsing and password leak detection opt-outs start in
+  // their default (opted-in) state.
+  [ChromeEarlGrey setBoolValue:YES forUserPref:prefs::kSafeBrowsingEnabled];
+  [ChromeEarlGrey
+      setBoolValue:YES
+       forUserPref:password_manager::prefs::kPasswordLeakDetectionEnabled];
+
+  // Sign in.
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
+
+  // Open Privacy Safe Browsing settings.
+  OpenPrivacySafeBrowsingSettings();
+
+  // Open Standard Protection menu.
+  PressInfoButtonForCell(kSettingsSafeBrowsingStandardProtectionCellId);
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kSafeBrowsingStandardProtectionTableViewId)]
+      assertWithMatcher:grey_notNil()];
+
+  // Check that the password leak check toggle is both toggled on and enabled.
+  [ElementInteractionWithGreyMatcher(
+      chrome_test_util::TableViewSwitchCell(
+          kSafeBrowsingStandardProtectionPasswordLeakCellId,
+          /*is_toggled_on=*/YES,
+          /*enabled=*/YES),
+      grey_accessibilityID(kSafeBrowsingStandardProtectionTableViewId))
+      assertWithMatcher:grey_notNil()];
+}
+@end
+
+@interface SafeBrowsingPasswordLeakCheckToggleMoveEnabled : ChromeTestCase
+@end
+@implementation SafeBrowsingPasswordLeakCheckToggleMoveEnabled
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config;
+  config.features_enabled.push_back(
+      safe_browsing::kMovePasswordLeakDetectionToggleIos);
+  return config;
+}
+
+- (void)testPasswordLeakCheckToggle_MissingWhenFeatureFlagEnabled {
+  // Ensure that Safe Browsing and password leak detection opt-outs start in
+  // their default (opted-in) state.
+  [ChromeEarlGrey setBoolValue:YES forUserPref:prefs::kSafeBrowsingEnabled];
+  [ChromeEarlGrey
+      setBoolValue:YES
+       forUserPref:password_manager::prefs::kPasswordLeakDetectionEnabled];
+
+  // Sign in.
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
+
+  // Open Privacy Safe Browsing settings.
+  OpenPrivacySafeBrowsingSettings();
+
+  // Check that there is no info button for the Standard Protection cell.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_allOf(grey_ancestor(grey_accessibilityID(
+                         kSettingsSafeBrowsingStandardProtectionCellId)),
+                     grey_accessibilityID(kTableViewCellInfoButtonViewId), nil)]
+      assertWithMatcher:grey_notVisible()];
 }
 @end

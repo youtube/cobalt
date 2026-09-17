@@ -21,12 +21,14 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/sctp_transport_interface.h"
+#include "api/transport/sctp_transport_factory_interface.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
@@ -682,20 +684,23 @@ bool AcceptOfferWithRfc8888(const FieldTrialsView& field_trials) {
 }  // namespace
 
 MediaSessionDescriptionFactory::MediaSessionDescriptionFactory(
+    const Environment& env,
     const MediaEngineInterface* media_engine,
     bool rtx_enabled,
     UniqueRandomIdGenerator* ssrc_generator,
     const TransportDescriptionFactory* transport_desc_factory,
+    SctpTransportFactoryInterface* sctp_factory,
     CodecLookupHelper* codec_lookup_helper)
     : offer_rfc_8888_(OfferRfc8888(transport_desc_factory->trials())),
       accept_offer_with_rfc_8888_(
           AcceptOfferWithRfc8888(transport_desc_factory->trials())),
       ssrc_generator_(ssrc_generator),
       transport_desc_factory_(transport_desc_factory),
+      sctp_factory_(sctp_factory),
       codec_lookup_helper_(codec_lookup_helper),
       payload_types_in_transport_trial_enabled_(
-          transport_desc_factory_->trials().IsEnabled(
-              "WebRTC-PayloadTypesInTransport")) {
+          env.field_trials().IsEnabled("WebRTC-PayloadTypesInTransport")),
+      env_(env) {
   RTC_CHECK(transport_desc_factory_);
   RTC_CHECK(codec_lookup_helper_);
 }
@@ -1235,6 +1240,19 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForOffer(
                                       : kMediaProtocolSctp);
   data->set_use_sctpmap(session_options.use_obsolete_sctp_sdp);
   data->set_max_message_size(kSctpSendBufferSize);
+  if (session_options.use_sctp_snap) {
+    if (current_content && current_content->media_description()) {
+      auto current_data_description =
+          current_content->media_description()->as_sctp();
+      RTC_DCHECK(current_data_description);
+      data->set_sctp_init(current_data_description->sctp_init());
+    }
+    if (!data->sctp_init().has_value()) {
+      // Create a sctp-init on subsequent offers even if the remote side
+      // has not negotiated one previously.
+      data->set_sctp_init(sctp_factory_->GenerateConnectionToken(env_));
+    }
+  }
 
   auto error = CreateContentOffer(media_description_options, session_options,
                                   RtpHeaderExtensions(), ssrc_generator(),
@@ -1455,6 +1473,23 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
     // Respond with sctpmap if the offer uses sctpmap.
     bool offer_uses_sctpmap = offer_data_description->use_sctpmap();
     data_answer->as_sctp()->set_use_sctpmap(offer_uses_sctpmap);
+
+    // Respond with sctp-init if the offer had sctp-init.
+    if (session_options.use_sctp_snap) {
+      if (offer_data_description->sctp_init().has_value()) {
+        if (current_content && current_content->media_description()) {
+          auto current_data_description =
+              current_content->media_description()->as_sctp();
+          RTC_DCHECK(current_data_description);
+          data_answer->as_sctp()->set_sctp_init(
+              current_data_description->sctp_init());
+        }
+        if (!data_answer->as_sctp()->sctp_init().has_value()) {
+          data_answer->as_sctp()->set_sctp_init(
+              sctp_factory_->GenerateConnectionToken(env_));
+        }
+      }
+    }
   } else {
     RTC_DCHECK_NOTREACHED() << "Non-SCTP data content found";
   }

@@ -205,6 +205,9 @@ ValuePatternsMetric GetValuePattern(const std::u16string& value) {
   if (IsInternationalBankAccountNumber(value)) {
     return ValuePatternsMetric::kIban;
   }
+  if (IsAchRoutingTransitNumber(value)) {
+    return ValuePatternsMetric::kAchRoutingNumber;
+  }
   return ValuePatternsMetric::kNoPatternFound;
 }
 
@@ -806,7 +809,12 @@ BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
           *this,
           driver->GetAutofillClient().GetOneTimeTokenService())),
       account_name_email_strike_manager_(
-          std::make_unique<AccountNameEmailStrikeManager>(*this)) {}
+          std::make_unique<AccountNameEmailStrikeManager>(*this)),
+      address_on_typing_manager_(
+          client()
+              .GetPersonalDataManager()
+              .address_data_manager()
+              .GetAddressOnTypingSuggestionStrikeDatabase()) {}
 
 BrowserAutofillManager::~BrowserAutofillManager() {
   // Process log events and record into UKM when the FormStructure is destroyed.
@@ -1900,8 +1908,10 @@ void BrowserAutofillManager::OnDidFillAddressOnTypingSuggestion(
     const std::u16string& value,
     FieldType field_type_used_to_build_suggestion,
     const std::string& profile_used_guid) {
-  metrics_->address_form_event_logger.OnDidAcceptAutofillOnTyping(
+  metrics_->address_form_event_logger.OnDidAcceptAddressOnTyping(
       field_id, value, field_type_used_to_build_suggestion, profile_used_guid);
+  address_on_typing_manager_.OnDidAcceptAddressOnTyping(
+      field_type_used_to_build_suggestion);
 }
 
 void BrowserAutofillManager::UndoAutofill(
@@ -2298,8 +2308,12 @@ void BrowserAutofillManager::DidShowSuggestions(
           now - profile_used->usage_history().use_date();
       field_types_used.insert(*suggestion.field_by_field_filling_type_used);
     }
-    metrics_->address_form_event_logger.OnDidShownAutofillOnTyping(
-        field_id, field_types_used, profile_last_used_time_per_guid);
+    FieldTypeSet triggering_field_types =
+        autofill_field ? autofill_field->Type().GetTypes() : FieldTypeSet{};
+    metrics_->address_form_event_logger.OnDidShowAddressOnTyping(
+        field_id, field_types_used, triggering_field_types,
+        profile_last_used_time_per_guid);
+    address_on_typing_manager_.OnDidShowAddressOnTyping(field_types_used);
     return;
   }
 

@@ -16,6 +16,7 @@
 #include <optional>
 #include <vector>
 
+#include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
@@ -40,6 +41,7 @@ class TestClient : public sigslot::has_slots<> {
 
     SocketAddress addr;
     Buffer buf;
+    EcnMarking ecn;
     std::optional<Timestamp> packet_time;
   };
 
@@ -77,7 +79,7 @@ class TestClient : public sigslot::has_slots<> {
 
   // Returns the next packet received by the client or null if none is received
   // within the specified timeout.
-  std::unique_ptr<Packet> NextPacket(int timeout_ms);
+  std::unique_ptr<Packet> NextPacket(int timeout_ms = kTimeoutMs);
 
   // Checks that the next packet has the given contents. Returns the remote
   // address that the packet was sent from.

@@ -47,6 +47,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/common/web_app_id.h"
@@ -85,6 +86,7 @@ static WebAppInstallInfo CreateInstallInfoForCreateDiy(
 
   return create_diy_app_info;
 }
+
 }  // namespace
 
 ExternalAppResolutionCommand::ExternalAppResolutionCommand(
@@ -360,6 +362,9 @@ void ExternalAppResolutionCommand::RetrieveWebAppInfoFromManifest(
   // behave like DIY apps.
   construct_options.force_override_name = install_params_->install_as_diy;
 
+  // All external installs are done by Chrome and can be considered trusted.
+  construct_options.use_manifest_icons_as_trusted = true;
+
   GetMutableDebugValue().Set("manifest_id", opt_manifest->id.spec());
 
   manifest_to_install_info_job_ =
@@ -386,7 +391,6 @@ void ExternalAppResolutionCommand::OnWebAppInstallInfoParsedFromManifest(
     web_app_info_->SetManifestIdAndStartUrl(
         GenerateManifestIdFromStartUrlOnly(document_url), document_url);
   }
-
   UpdateInfoWithParamsAndUpgradeLock(web_app_info_->is_generated_icon);
 }
 
@@ -411,7 +415,11 @@ void ExternalAppResolutionCommand::OnIconsRetrievedUpgradeLockDescription(
   CHECK(install_params_.has_value());
   CHECK(web_contents_ && !web_contents_->IsBeingDestroyed());
 
+  // External installs are considered trusted, all manifest icons can be used as
+  // trusted ones.
+  web_app_info_->trusted_icons = web_app_info_->manifest_icons;
   PopulateProductIcons(web_app_info_.get(), &icons_map);
+  PopulateTrustedIconBitmaps(*web_app_info_.get(), icons_map);
   PopulateOtherIcons(web_app_info_.get(), icons_map);
 
   RecordDownloadedIconsResultAndHttpStatusCodes(result, icons_http_results);
@@ -636,7 +644,6 @@ void ExternalAppResolutionCommand::OnLaunch(base::WeakPtr<Browser>,
   provider().ui_manager().NotifyAppRelaunchState(
       *installed_placeholder_app_id_, app_id_, web_app_info_->title,
       profile_->GetWeakPtr(), AppRelaunchState::kAppRelaunched);
-
   CompleteAndSelfDestruct(
       CommandResult::kSuccess,
       PrepareResult(/*is_offline_install=*/false,
@@ -714,6 +721,11 @@ void ExternalAppResolutionCommand::InstallFromInfo() {
   base::Extend(web_app_info_->additional_search_terms,
                std::move(install_params_->additional_search_terms));
   web_app_info_->install_url = install_params_->install_url;
+
+  // External installs are considered trusted, all manifest icons can be used as
+  // trusted ones.
+  web_app_info_->trusted_icons = web_app_info_->manifest_icons;
+  web_app_info_->trusted_icon_bitmaps = web_app_info_->icon_bitmaps;
 
   if (!apps_lock_) {
     apps_lock_ = std::make_unique<SharedWebContentsWithAppLock>();

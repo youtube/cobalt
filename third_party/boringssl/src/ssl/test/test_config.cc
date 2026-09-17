@@ -1006,8 +1006,9 @@ static int TicketKeyCallback(SSL *ssl, uint8_t *key_name, uint8_t *iv,
     return 0;
   }
 
-  if (!HMAC_Init_ex(hmac_ctx, kZeros, sizeof(kZeros), EVP_sha256(), NULL) ||
-      !EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, kZeros, iv, encrypt)) {
+  if (!HMAC_Init_ex(hmac_ctx, kZeros, sizeof(kZeros), EVP_sha256(), nullptr) ||
+      !EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), nullptr, kZeros, iv,
+                         encrypt)) {
     return -1;
   }
 
@@ -1068,7 +1069,7 @@ static SSL_SESSION *GetSessionCallback(SSL *ssl, const uint8_t *data, int len,
   } else if (async_state->pending_session) {
     return SSL_magic_pending_session_ptr();
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -1235,7 +1236,7 @@ bssl::UniquePtr<EVP_PKEY> LoadPrivateKey(const std::string &file) {
     return nullptr;
   }
   return bssl::UniquePtr<EVP_PKEY>(
-      PEM_read_bio_PrivateKey(bio.get(), NULL, NULL, NULL));
+      PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
 }
 
 static bssl::UniquePtr<CRYPTO_BUFFER> X509ToBuffer(X509 *x509) {
@@ -1326,7 +1327,7 @@ static ssl_private_key_result_t AsyncPrivateKeyDecrypt(SSL *ssl, uint8_t *out,
 
   EVP_PKEY *private_key = GetPrivateKey(ssl);
   RSA *rsa = EVP_PKEY_get0_RSA(private_key);
-  if (rsa == NULL) {
+  if (rsa == nullptr) {
     fprintf(stderr, "AsyncPrivateKeyDecrypt called with incorrect key type.\n");
     abort();
   }
@@ -2030,15 +2031,15 @@ bssl::UniquePtr<SSL_CTX> TestConfig::SetupCtx(SSL_CTX *old_ctx) const {
   }
 
   SSL_CTX_set_next_protos_advertised_cb(ssl_ctx.get(),
-                                        NextProtosAdvertisedCallback, NULL);
+                                        NextProtosAdvertisedCallback, nullptr);
   if (!select_next_proto.empty() || select_empty_next_proto) {
     SSL_CTX_set_next_proto_select_cb(ssl_ctx.get(), NextProtoSelectCallback,
-                                     NULL);
+                                     nullptr);
   }
 
   if (!select_alpn.empty() || decline_alpn || reject_alpn ||
       select_empty_alpn) {
-    SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), AlpnSelectCallback, NULL);
+    SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), AlpnSelectCallback, nullptr);
   }
 
   SSL_CTX_set_current_time_cb(ssl_ctx.get(), CurrentTimeCallback);
@@ -2056,7 +2057,8 @@ bssl::UniquePtr<SSL_CTX> TestConfig::SetupCtx(SSL_CTX *old_ctx) const {
   }
 
   if (!use_custom_verify_callback) {
-    SSL_CTX_set_cert_verify_callback(ssl_ctx.get(), CertVerifyCallback, NULL);
+    SSL_CTX_set_cert_verify_callback(ssl_ctx.get(), CertVerifyCallback,
+                                     nullptr);
   }
 
   if (!signed_cert_timestamps.empty() &&
@@ -2339,7 +2341,7 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   if (use_custom_verify_callback) {
     SSL_set_custom_verify(ssl.get(), mode, CustomVerifyCallback);
   } else if (mode != SSL_VERIFY_NONE) {
-    SSL_set_verify(ssl.get(), mode, NULL);
+    SSL_set_verify(ssl.get(), mode, nullptr);
   }
   if (false_start) {
     SSL_set_mode(ssl.get(), SSL_MODE_ENABLE_FALSE_START);
@@ -2570,7 +2572,7 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
     SSL_set_jdk11_workaround(ssl.get(), 1);
   }
 
-  if (session != NULL) {
+  if (session != nullptr) {
     if (!is_server) {
       if (SSL_set_session(ssl.get(), session) != 1) {
         return nullptr;

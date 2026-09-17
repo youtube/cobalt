@@ -2743,11 +2743,7 @@ void Texture::onBufferContentsChange()
 
 void Texture::onBindToMSRTTFramebuffer()
 {
-    if (!mState.mHasBeenBoundToMSRTTFramebuffer)
-    {
-        mDirtyBits.set(DIRTY_BIT_BOUND_TO_MSRTT_FRAMEBUFFER);
-        mState.mHasBeenBoundToMSRTTFramebuffer = true;
-    }
+    mState.mHasBeenBoundToMSRTTFramebuffer = true;
 }
 
 GLenum Texture::getImplementationColorReadFormat(const Context *context) const

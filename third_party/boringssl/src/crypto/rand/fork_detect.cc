@@ -54,7 +54,7 @@ static void init_fork_detect(void) {
     return;
   }
 
-  void *addr = mmap(NULL, (size_t)page_size, PROT_READ | PROT_WRITE,
+  void *addr = mmap(nullptr, (size_t)page_size, PROT_READ | PROT_WRITE,
                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED) {
     return;
@@ -92,7 +92,7 @@ uint64_t CRYPTO_get_fork_generation(void) {
   // before it observes this. Therefore, we must synchronize the logic below.
 
   bssl::Atomic<uint32_t> *const flag_ptr = g_fork_detect_addr;
-  if (flag_ptr == NULL) {
+  if (flag_ptr == nullptr) {
     // Our kernel is too old to support |MADV_WIPEONFORK| or
     // |g_force_madv_wipeonfork| is set.
     if (g_force_madv_wipeonfork && g_force_madv_wipeonfork_enabled) {
@@ -163,7 +163,7 @@ static void we_are_forked(void) {
 }
 
 static void init_pthread_fork_detection(void) {
-  if (pthread_atfork(NULL, NULL, we_are_forked) != 0) {
+  if (pthread_atfork(nullptr, nullptr, we_are_forked) != 0) {
     abort();
   }
   g_atfork_fork_generation = 1;
@@ -187,7 +187,7 @@ uint64_t CRYPTO_get_fork_generation(void) { return 0xc0ffee; }
 
 // These platforms may fork, but we do not have a mitigation mechanism in
 // place.  Returning a constant zero value makes BoringSSL assume that address
-// space duplication could have occured on any call entropy must be added to
+// space duplication could have occurred on any call entropy must be added to
 // every RAND_bytes call.
 uint64_t CRYPTO_get_fork_generation(void) { return 0; }
 

@@ -750,9 +750,9 @@ typedef struct {
   uint8_t num_reserved;
 } CRYPTO_EX_DATA_CLASS;
 
-#define CRYPTO_EX_DATA_CLASS_INIT {CRYPTO_MUTEX_INIT, NULL, NULL, {}, 0}
+#define CRYPTO_EX_DATA_CLASS_INIT {CRYPTO_MUTEX_INIT, nullptr, nullptr, {}, 0}
 #define CRYPTO_EX_DATA_CLASS_INIT_WITH_APP_DATA \
-  {CRYPTO_MUTEX_INIT, NULL, NULL, {}, 1}
+  {CRYPTO_MUTEX_INIT, nullptr, nullptr, {}, 1}
 
 // CRYPTO_get_ex_new_index_ex allocates a new index for |ex_data_class|. Each
 // class of object should provide a wrapper function that uses the correct
@@ -833,7 +833,7 @@ extern "C++" {
 
 static inline const void *OPENSSL_memchr(const void *s, int c, size_t n) {
   if (n == 0) {
-    return NULL;
+    return nullptr;
   }
 
   return memchr(s, c, n);
@@ -841,7 +841,7 @@ static inline const void *OPENSSL_memchr(const void *s, int c, size_t n) {
 
 static inline void *OPENSSL_memchr(void *s, int c, size_t n) {
   if (n == 0) {
-    return NULL;
+    return nullptr;
   }
 
   return memchr(s, c, n);
@@ -852,7 +852,7 @@ static inline void *OPENSSL_memchr(void *s, int c, size_t n) {
 
 static inline void *OPENSSL_memchr(const void *s, int c, size_t n) {
   if (n == 0) {
-    return NULL;
+    return nullptr;
   }
 
   return memchr(s, c, n);
@@ -1096,7 +1096,7 @@ inline void boringssl_fips_inc_counter(enum fips_counter_t counter) {}
 #if defined(BORINGSSL_FIPS_BREAK_TESTS)
 inline int boringssl_fips_break_test(const char *test) {
   const char *const value = getenv("BORINGSSL_FIPS_BREAK_TEST");
-  return value != NULL && strcmp(value, test) == 0;
+  return value != nullptr && strcmp(value, test) == 0;
 }
 #else
 inline int boringssl_fips_break_test(const char *test) { return 0; }
