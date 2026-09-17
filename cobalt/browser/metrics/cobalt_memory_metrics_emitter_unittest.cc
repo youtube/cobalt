@@ -23,7 +23,6 @@
 #include "base/files/file_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // The parser and everything it feeds are compiled out where VA space telemetry

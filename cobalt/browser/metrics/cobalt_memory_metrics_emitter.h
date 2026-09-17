@@ -28,8 +28,6 @@
 #include "base/process/process_handle.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
 

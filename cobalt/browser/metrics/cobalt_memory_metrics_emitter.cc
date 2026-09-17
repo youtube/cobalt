@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
@@ -49,7 +50,6 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/function_ref.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/task/thread_pool.h"
 #endif
 
