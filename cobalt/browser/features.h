@@ -85,7 +85,7 @@ extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 extern const base::Feature kCobaltVirtualAddressSpaceMetrics;
 
 // Probability of emitting the metrics on any given memory collection cycle
-// (default 0.1, i.e. one cycle in ten).
+// (default 0.01, i.e. one cycle in a hundred).
 extern const base::FeatureParam<double>
     kVirtualAddressSpaceSampleProbabilityParam;
 
