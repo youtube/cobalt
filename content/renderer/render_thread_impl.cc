@@ -297,15 +297,6 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
   }
 }
 
-#if BUILDFLAG(IS_COBALT)
-bool IsCriticalAllowedInForeground() {
-  static const bool kAllowCriticalInForeground =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
-  return kAllowCriticalInForeground;
-}
-#endif  // BUILDFLAG(IS_COBALT)
-
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
   if (!priority) {
@@ -1724,31 +1715,6 @@ void RenderThreadImpl::OnMemoryPressure(
             memory_pressure_level));
       });
 
-<<<<<<< HEAD
-=======
-  v8::MemoryPressureLevel v8_memory_pressure_level =
-      static_cast<v8::MemoryPressureLevel>(memory_pressure_level);
-
-#if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
-  // In order to reduce performance impact, translate critical level to
-  // moderate level for foreground renderer.
-#if BUILDFLAG(IS_COBALT)
-  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
-    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-#else
-  if (!RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
-    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-#endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
-
-  if (base::FeatureList::IsEnabled(
-          features::kForwardMemoryPressureToBlinkIsolates)) {
-    blink::MemoryPressureNotificationToAllIsolates(v8_memory_pressure_level);
-  }
-
->>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (blink_platform_impl_) {
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
   }
