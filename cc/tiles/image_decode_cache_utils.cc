@@ -101,8 +101,13 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
           }
         }
 #if BUILDFLAG(IS_STARBOARD)
-        // On Starboard, default to 15 items (1 active TV shelf row + lookahead
-        // tiles), unlocking 60 FPS scrolling without increasing peak memory.
+        // On Starboard, default to 15 items. Measured on RDK (b/562624433):
+        // horizontal shelf scrolling needs 12 cached images and vertical
+        // row-to-row scrolling needs 13; below those thresholds every scroll
+        // re-decodes its thumbnails and the framerate halves (30 -> 60 FPS
+        // flips at 13). 15 leaves a 2-item margin above that threshold.
+        // Costs ~5.4 MB of retained decoded images; no peak VmRSS regression
+        // across 10 workloads (n=15/arm).
         return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
