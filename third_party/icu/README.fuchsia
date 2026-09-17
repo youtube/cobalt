@@ -1,0 +1,49 @@
+# Notes specific to building ICU in Fuchsia tree
+
+This note is specific to compiling ICU for Fuchsia as a target, but only within
+the Fuchsia git source code repository.
+
+On Fuchsia we need to compile ICU at 3 separate but not always different ICU
+commit IDs. I call these ICU "flavors", and Fuchsia has "default", "stable",
+and "latest" flavors defined today.
+
+This setup fights a bit with the way the default ICU build works, since all of
+the above flavors end up wanting to place some of their outputs in
+`$root_build_dir` under the same name (e.g. `icudtl.dat`). Such a setup causes
+GN to complain about multiple build rules defining the same output, and fail
+the build. So the vanilla setup does not work for us.
+
+To have 3 possibly different ICUs coexist in peace in the Fuchsia tree, the
+following changes are needed in the ICU library proper:
+
+- We introduced a file `//build/icu.gni` which will live in the Fuchsia git
+  tree, and contains the shared configuration to be used instead of
+  `config.gni`. Without it, compilation will fail saying that multiple config
+  files define the same args. Since providing this config file to all
+  downstream deps would be tedious, and error prone, there is a
+  Fuchsia-specific branch in `config.gni` which will look for `//build/icu.gni`
+  only if the configuration indicates we are building Fuchsia, and building in
+  the Fuchsia git source tree.
+
+- Added some flags and conditionals to avoid
+  putting key artifacts into `$root_build_dir`. Without it, compilation will
+  fail because all ICU flavors we compile will want to put same-named artifacts
+  into the same spot in `$root_build_dir`.
+
+- The above conditionals caused some of the variables to become unused in some
+  code paths, so I marked those as `not_needed`.  This should not adversely
+  affect any builds, Fuchsia or otherwise.
+
+- Started storing the major version of the library in a JSON file at the root
+  directory. This allows tools other than GN to read the file, and use
+  standardized tools for parsing the value.  Without this, we'd need to rely on
+  possibly brittle parsing to achieve the same effect, which seemed unnecessary.
+
+- I modified [scripts/update.sh] to transition to updating the JSON file, so
+  the update process to update the above JSON file instead of the `.gni` file
+  directly so the ICU update process does not change for the human operator.
+
+These settings should only take effect in the Fuchsia in-tree build of ICU.
+While there might be some value in having `//build/icu.gni` defined in each
+downstream build, this seemed like an overkill at this time.
+
