@@ -125,7 +125,8 @@ GURL GetStartupURL(bool should_preload) {
     }
   }
 
-  if (should_preload) {
+  if (should_preload &&
+      initial_url.query().find("launch=preload") == std::string::npos) {
     initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
   }
 

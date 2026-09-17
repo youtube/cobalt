@@ -188,7 +188,6 @@ void PlatformWindowStarboard::Hide() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
-  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::Close() {
@@ -196,7 +195,7 @@ void PlatformWindowStarboard::Close() {
 }
 
 bool PlatformWindowStarboard::IsVisible() const {
-  return SbWindowIsValid(sb_window_);
+  return widget_available_;
 }
 
 void PlatformWindowStarboard::PrepareForShutdown() {
@@ -236,7 +235,6 @@ void PlatformWindowStarboard::Minimize() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
-  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::DestroySbWindowInstance() {
