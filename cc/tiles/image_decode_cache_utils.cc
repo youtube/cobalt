@@ -106,8 +106,8 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
         // row-to-row scrolling needs 13; below those thresholds every scroll
         // re-decodes its thumbnails and the framerate halves (30 -> 60 FPS
         // flips at 13). 15 leaves a 2-item margin above that threshold.
-        // Costs ~5.4 MB of retained decoded images; no peak VmRSS regression
-        // across 10 workloads (n=15/arm).
+        // Memory cost on RDK across 10 workloads (n=15/arm): mean +1.07 MB
+        // peak RSS, no workload reaching p<0.05.
         return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
