@@ -27,6 +27,7 @@
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
@@ -104,18 +105,13 @@ class VideoFrameImpl final : public VideoFrame {
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
 const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
 
-// How often to poll for completion of the drain that precedes a mid-stream
-// codec reinitialization for a color space change.
-const int64_t kColorChangeFlushPollInterval = 2'000;  // 2ms
-// A drain lasts as long as it takes to render whatever was already buffered,
-// which can be many seconds and is simply normal playback -- so it is bounded
-// by lack of progress rather than by total elapsed time.  Exceeding this means
-// the codec and the renderer both went quiet with frames still outstanding;
-// reinitialize anyway rather than wedge playback.
+// The drain that precedes a codec reinitialization for a color space change
+// lasts as long as it takes to render whatever was already buffered, so it is
+// bounded by lack of progress rather than by elapsed time.
+const int64_t kColorChangeFlushPollInterval = 2'000;    // 2ms
 const int64_t kColorChangeFlushStallTimeout = 500'000;  // 500ms
-// |VideoRendererImpl| holds on to the frame currently being displayed, so
-// |buffered_output_frames_| settles at one rather than zero once everything
-// has been rendered.  See VideoRendererImpl::Render().
+// |VideoRendererImpl| holds on to the frame being displayed, so
+// |buffered_output_frames_| settles at one rather than zero.
 const int kColorChangeFlushResidualFrames = 1;
 
 const int kInitialPrerollFrameCount = 8;
@@ -448,6 +444,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
+  // A drain may have been interrupted by the teardown, leaving a replacement
+  // codec allocated but never claimed.  Nothing else will reclaim it.
+  MediaCodecBridge::DiscardPrewarmedCodecs();
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
@@ -532,11 +531,19 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.size());
 
   if (color_change_flushing_) {
-    // The codec is draining ahead of a reinitialization for a new color space.
-    // Hold everything back until |CheckColorChangeFlush()| has rebuilt it.
+    // Hold everything back until |CheckColorChangeFlush()| has rebuilt the
+    // codec.
     pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
                                          input_buffers.begin(),
                                          input_buffers.end());
+    // Codecs that need an fps guesstimate derive it from the first few samples
+    // of the new stream, so the input side cannot be stalled until there are
+    // enough of them.
+    if (needs_fps_to_initialize_codec_ &&
+        pending_color_change_buffers_.size() <
+            kFpsGuesstimateRequiredInputBufferCount) {
+      decoder_status_cb_(kNeedMoreInput, NULL);
+    }
     return;
   }
 
@@ -558,12 +565,8 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  // Detect color space transitions.  VP9 carries color metadata in the
-  // container rather than in-band, so |MediaCodec| cannot adapt on its own and
-  // must be told the color space at configure() time.  At stream start nothing
-  // has been decoded yet so the codec can simply be reinitialized.  Mid-stream
-  // the previous stream's frames have to be drained first, otherwise tearing
-  // down the codec discards them -- see |CheckColorChangeFlush()|.
+  // |MediaCodec| only consumes color aspects at configure() time, so a change
+  // of color space requires reinitializing the codec.
   const auto& first_buffer = input_buffers.front();
   const auto& color_metadata = first_buffer->video_stream_info().color_metadata;
 
@@ -594,14 +597,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       }
     }
   } else if (first_buffer->video_sample_info().is_key_frame && media_decoder_) {
-    // A keyframe mid-stream may begin a stream with different color metadata,
-    // e.g. transitioning between an HDR and an SDR video.  MediaCodec only
-    // consumes color aspects at configure() time, so the codec has to be
-    // reinitialized; there is no runtime API to update them.  ExoPlayer does
-    // the same thing -- see DISCARD_REASON_VIDEO_COLOR_INFO_CHANGED.
-    //
-    // Note that the decoder handles the bit depth change itself, so this is
-    // purely about re-tagging the color aspects.
+    // A mid-stream keyframe may start a differently graded stream.  There is no
+    // runtime API to retag the color aspects; ExoPlayer discards the codec too,
+    // see DISCARD_REASON_VIDEO_COLOR_INFO_CHANGED.  Bit depth is handled by the
+    // decoder itself, so this is purely about the color aspects.
     const bool is_hdr = IsHdrColorMetadata(color_metadata);
     const bool was_hdr = color_metadata_.has_value() &&
                          IsHdrColorMetadata(color_metadata_.value());
@@ -611,15 +610,12 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
          color_metadata_.value() != color_metadata);
 
     if (color_space_changed) {
-      // |WriteInputBuffers()| is non-blocking, so by this point the input side
-      // is typically far ahead of what has actually been rendered.  Tearing the
-      // codec down now would destroy every frame still in flight.  Instead
-      // drain the codec the same way |AdaptiveAudioDecoder| handles an audio
-      // configuration change: hold the new stream's buffers back, write an end
-      // of stream, and reinitialize once everything has drained.
-      //
-      // Returning without invoking |decoder_status_cb_| deliberately stalls the
-      // input side until the reinitialization completes.
+      // |WriteInputBuffers()| is non-blocking, so the input side is typically
+      // far ahead of what has been rendered and tearing the codec down now
+      // would destroy every frame still in flight.  Instead drain it the way
+      // |AdaptiveAudioDecoder| handles an audio configuration change: stash the
+      // new buffers, write an end of stream, and reinitialize once drained.
+      // Returning without invoking |decoder_status_cb_| stalls the input side.
       SB_LOG(INFO) << "Color space changed mid-stream (was HDR=" << was_hdr
                    << ", now HDR=" << is_hdr << "). Draining codec.";
 
@@ -632,9 +628,19 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       pending_color_metadata_ = color_metadata;
       pending_color_change_buffers_ = input_buffers;
 
+      // Use the drain to allocate the replacement on a background thread.
+      // createByCodecName() takes no surface, so the two can coexist.
+      media_decoder_->PrewarmReplacementCodec();
+
       media_decoder_->WriteEndOfStream();
       Schedule(std::bind(&MediaCodecVideoDecoder::CheckColorChangeFlush, this),
                kColorChangeFlushPollInterval);
+      // See the matching comment in the |color_change_flushing_| guard above.
+      if (needs_fps_to_initialize_codec_ &&
+          pending_color_change_buffers_.size() <
+              kFpsGuesstimateRequiredInputBufferCount) {
+        decoder_status_cb_(kNeedMoreInput, NULL);
+      }
       return;
     }
 
@@ -1092,10 +1098,8 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
   if (color_change_flushing_ && is_end_of_stream) {
-    // This end of stream was synthesized to drain the codec before it is
-    // reinitialized for a new color space; the stream itself has not ended.
-    // Swallow it so the renderer does not treat playback as finished, and let
-    // |CheckColorChangeFlush()| take it from here.
+    // This end of stream was synthesized to drain the codec; the stream itself
+    // has not ended.  Swallow it and let |CheckColorChangeFlush()| take over.
     color_change_eos_received_.store(true);
     return;
   }
@@ -1118,8 +1122,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     }
   }
 
-  // While draining for a color space change any further input is only stashed,
-  // so ask the renderer to stop sending it.
+  // Further input is only stashed while draining, so ask for none.
   if (fix_need_more_input_backpressure_) {
     bool need_more_input = !is_end_of_stream && !color_change_flushing_ &&
                            number_of_pending_inputs < max_pending_inputs_size_;
@@ -1288,7 +1291,7 @@ void MediaCodecVideoDecoder::CheckColorChangeFlush() {
   SB_CHECK(BelongsToCurrentThread());
 
   if (!color_change_flushing_) {
-    // A |Reset()| raced with the poll and already cleaned everything up.
+    // A |Reset()| raced with the poll and already cleaned up.
     return;
   }
 
@@ -1301,17 +1304,14 @@ void MediaCodecVideoDecoder::CheckColorChangeFlush() {
           : 0;
   const int buffered_frames = buffered_output_frames_.load();
 
-  // The codec has emitted everything it was holding, it has no inputs left to
-  // consume, and the renderer has released all but the frame it is currently
-  // displaying.  Only then is it safe to tear the codec down.
   const bool drained = color_change_eos_received_.load() && media_decoder_ &&
                        pending_inputs == 0 &&
                        buffered_frames <= kColorChangeFlushResidualFrames;
 
   if (!drained) {
-    // A drain in good health keeps rendering the already-buffered frames, so
-    // one of these counts keeps moving.  Paused playback legitimately makes no
-    // progress, so it must not trip the watchdog.
+    // A healthy drain keeps rendering, so one of these counts keeps moving.
+    // Paused playback legitimately makes no progress and must not trip the
+    // watchdog.
     const bool progressed =
         pending_inputs != color_change_flush_last_pending_inputs_ ||
         buffered_frames != color_change_flush_last_buffered_frames_;
@@ -1343,18 +1343,32 @@ void MediaCodecVideoDecoder::CheckColorChangeFlush() {
   pending_color_change_buffers_.clear();
   SB_DCHECK(!input_buffers.empty());
 
+  const VideoStreamInfo video_stream_info =
+      input_buffers.front()->video_stream_info();
+  const size_t input_buffer_count = input_buffers.size();
+
   TeardownCodec();
   // |TeardownCodec()| clears |color_metadata_|, so apply the new metadata
   // afterwards for |InitializeCodec()| to pick up.
   color_metadata_ = pending_color_metadata_;
 
-  auto result = InitializeCodec(input_buffers.front()->video_stream_info());
+  if (needs_fps_to_initialize_codec_) {
+    // |InitializeCodec()| re-guesstimates |video_fps_| from
+    // |pending_input_buffers_| and writes them itself, so hand them over rather
+    // than writing them below.
+    SB_DCHECK(pending_input_buffers_.empty());
+    pending_input_buffers_ = std::move(input_buffers);
+    input_buffers.clear();
+  }
+
+  auto result = InitializeCodec(video_stream_info);
   if (!result) {
     std::string error_message =
         "Failed to reinitialize codec for color space change with error: " +
         result.error();
     SB_LOG(ERROR) << error_message;
     TeardownCodec();
+    pending_input_buffers_.clear();
     pending_color_metadata_ = std::nullopt;
     color_change_flushing_ = false;
     color_change_eos_received_.store(false);
@@ -1371,8 +1385,10 @@ void MediaCodecVideoDecoder::CheckColorChangeFlush() {
                << (CurrentMonotonicTime() - reinit_start) / 1000
                << " ms of that spent rebuilding the codec).";
 
-  WriteInputBuffersInternal(input_buffers);
-  input_buffer_written_ += input_buffers.size();
+  if (!input_buffers.empty()) {
+    WriteInputBuffersInternal(input_buffers);
+  }
+  input_buffer_written_ += input_buffer_count;
   decoder_status_cb_(kNeedMoreInput, NULL);
 }
 
@@ -1430,23 +1446,20 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     input_buffer_written_ = 0;
     video_fps_ = 0;
   }
-  // |color_metadata_| deliberately survives here.  It records what the live
-  // codec was configured with, and the branch above only clears it via
-  // TeardownCodec() when the codec actually goes away.  After a flush the
-  // codec keeps its color aspects, so the field has to keep describing them --
-  // otherwise a seek that lands in a differently graded part of the stream
-  // looks like no change at all, and the codec goes on tagging its output with
-  // the previous color space.
+  // |color_metadata_| deliberately survives a flush: it records what the live
+  // codec is configured with, and only TeardownCodec() above clears it.  Losing
+  // it would make a seek into a differently graded part of the stream look like
+  // no change at all.
 
-  // Abandon any in-flight drain for a color space change.  |CancelPendingJobs()|
-  // below drops the |CheckColorChangeFlush()| poll that would otherwise
-  // complete it, and the stashed buffers belong to the stream being discarded.
+  // Abandon any in-flight drain; |CancelPendingJobs()| below drops the poll
+  // that would complete it.
   color_change_flushing_ = false;
   color_change_eos_received_.store(false);
   color_change_flush_last_pending_inputs_ = -1;
   color_change_flush_last_buffered_frames_ = -1;
   pending_color_metadata_ = std::nullopt;
   pending_color_change_buffers_.clear();
+  MediaCodecBridge::DiscardPrewarmedCodecs();
 
   CancelPendingJobs();
 

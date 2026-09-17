@@ -170,6 +170,14 @@ class MediaCodec {
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual bool Restart() = 0;
   virtual jint Flush() = 0;
+
+  // Begins allocating a replacement for this codec on a background thread, so
+  // that createByCodecName() -- about half the cost of building a codec -- is
+  // already done by the time the codec is rebuilt.  Returns immediately, and is
+  // a no-op if a replacement is already pending.  Unclaimed codecs are released
+  // by DiscardPrewarmedCodecs().
+  virtual void PrewarmReplacementCodec() {}
+
   virtual std::optional<FrameSize> GetOutputSize() = 0;
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 };

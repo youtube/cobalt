@@ -44,6 +44,10 @@ import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -118,24 +122,6 @@ class MediaCodecBridge {
   private FrameRateEstimator mFrameRateEstimator = null;
   private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
   private volatile MediaFormatWrapper mActiveFormat = null;
-
-  /** Everything {@link #buildVideoMediaFormat} needs to construct the video {@link MediaFormat}. */
-  private static class VideoConfig {
-    String mime;
-    int widthHint;
-    int heightHint;
-    int maxVideoInputSize;
-    int tunnelModeAudioSessionId;
-    // Resolved during creation via the (expensive) capability probing, and
-    // constant thereafter for a given codec and mime type.
-    int maxWidth;
-    int maxHeight;
-    VideoCapabilities videoCapabilities;
-    CodecCapabilities codecCapabilities;
-    Surface surface;
-    MediaCrypto crypto;
-  }
-
 
   int getCurrentMediaFormatDimension() {
     if (mActiveFormat == null) {
@@ -438,39 +424,111 @@ class MediaCodecBridge {
   }
 
   /**
-   * Cache of {@link CodecCapabilities} keyed by "codecName|mime".
+   * Codecs allocated ahead of time, keyed by codec name, still in the Uninitialized state.
    *
-   * <p>Querying capabilities requires {@code MediaCodecInfo.getCapabilitiesForType()}, which
-   * materializes the codec's full capability tables and is measurably expensive (tens of
-   * milliseconds on some devices). The result depends only on the codec name and mime type, both
-   * of which are fixed properties of the device, so it is safe to cache for the process lifetime.
+   * <p>{@code MediaCodec.createByCodecName()} is about half the cost of building a codec (40-55ms
+   * on this hardware) and takes no surface -- only {@code configure()} binds one. A replacement can
+   * therefore be allocated while the outgoing codec is still draining ahead of a mid-stream color
+   * space change, with the two coexisting until the handover.
    *
-   * <p>This matters most when the codec must be reinitialized mid-playback, which happens whenever
-   * the stream's color metadata changes between HDR and SDR.
+   * <p>Entries are {@link Future}s so a claim arriving before the allocation finishes waits for it
+   * rather than leaking the result. Anything unclaimed is released by {@link
+   * #discardPrewarmedCodecs}.
    */
-  private static final Map<String, CodecCapabilities> sCodecCapabilitiesCache =
+  private static final Map<String, Future<MediaCodec>> sPrewarmedCodecs =
       new ConcurrentHashMap<>();
 
-  @Nullable
-  private static CodecCapabilities getCachedCodecCapabilities(MediaCodec mediaCodec, String mime) {
-    final String key = mediaCodec.getName() + "|" + mime;
-    CodecCapabilities cached = sCodecCapabilitiesCache.get(key);
-    if (cached != null) {
-      return cached;
-    }
+  /** How long a claim waits for an allocation that is still in flight. */
+  private static final long PREWARM_CLAIM_TIMEOUT_MS = 200;
 
-    MediaCodecInfo codecInfo = mediaCodec.getCodecInfo();
-    if (codecInfo == null) {
-      Log.e(TAG, "codecInfo is null");
+  private static final ExecutorService sPrewarmExecutor =
+      Executors.newSingleThreadExecutor(
+          runnable -> {
+            Thread thread = new Thread(runnable, "MediaCodecPrewarm");
+            thread.setDaemon(true);
+            return thread;
+          });
+
+  /**
+   * Starts allocating a codec named {@code decoderName} on a background thread. Returns
+   * immediately, and is a no-op if one is already pending for that name.
+   */
+  private static void prewarmCodec(final String decoderName) {
+    if (decoderName == null || decoderName.isEmpty()) {
+      return;
+    }
+    if (sPrewarmedCodecs.containsKey(decoderName)) {
+      return;
+    }
+    Future<MediaCodec> future =
+        sPrewarmExecutor.submit(
+            () -> {
+              final long startNs = System.nanoTime();
+              MediaCodec codec = MediaCodec.createByCodecName(decoderName);
+              Log.i(
+                  TAG,
+                  "Prewarmed \"%s\" decoder in %.1f ms.",
+                  decoderName,
+                  (System.nanoTime() - startNs) / 1e6);
+              return codec;
+            });
+    // Another caller may have won the race; keep whichever landed first so we
+    // never hold two instances for one name.
+    if (sPrewarmedCodecs.putIfAbsent(decoderName, future) != null) {
+      releasePrewarmed(decoderName, future);
+    }
+  }
+
+  /** Claims a previously prewarmed codec, or returns null if there isn't one. */
+  @Nullable
+  private static MediaCodec claimPrewarmedCodec(String decoderName) {
+    Future<MediaCodec> future = sPrewarmedCodecs.remove(decoderName);
+    if (future == null) {
       return null;
     }
-    CodecCapabilities codecCapabilities = codecInfo.getCapabilitiesForType(mime);
-    if (codecCapabilities == null) {
-      Log.e(TAG, "codecCapabilities is null");
+    try {
+      return future.get(PREWARM_CLAIM_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      // Timed out, interrupted, or the allocation threw. The caller falls back
+      // to creating one inline; make sure the in-flight result cannot leak.
+      Log.w(TAG, "Failed to claim prewarmed \"" + decoderName + "\" decoder", e);
+      releasePrewarmed(decoderName, future);
       return null;
     }
-    sCodecCapabilitiesCache.put(key, codecCapabilities);
-    return codecCapabilities;
+  }
+
+  /** Releases every codec that was prewarmed but never claimed. */
+  @CalledByNative
+  private static void discardPrewarmedCodecs() {
+    for (Map.Entry<String, Future<MediaCodec>> entry : sPrewarmedCodecs.entrySet()) {
+      if (sPrewarmedCodecs.remove(entry.getKey(), entry.getValue())) {
+        releasePrewarmed(entry.getKey(), entry.getValue());
+      }
+    }
+  }
+
+  /** Disposes of a prewarmed codec that is no longer wanted. */
+  private static void releasePrewarmed(String decoderName, Future<MediaCodec> future) {
+    // Done on the prewarm thread so the caller, which is usually the player
+    // thread, never blocks on an allocation that is still running.
+    sPrewarmExecutor.submit(
+        () -> {
+          try {
+            MediaCodec codec = future.get();
+            if (codec != null) {
+              Log.i(TAG, "Releasing unclaimed prewarmed \"%s\" decoder.", decoderName);
+              codec.release();
+            }
+          } catch (Exception e) {
+            Log.w(TAG, "Failed to release prewarmed \"" + decoderName + "\" decoder", e);
+          }
+        });
+  }
+
+  /** Starts building a replacement for this codec in the background. */
+  @CalledByNative
+  private void prewarmReplacementCodec() {
+    prewarmCodec(mCodecName);
   }
 
   @CalledByNative
@@ -513,34 +571,40 @@ class MediaCodecBridge {
       return;
     }
 
-    try {
-      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
-      mediaCodec = MediaCodec.createByCodecName(decoderName);
+    mediaCodec = claimPrewarmedCodec(decoderName);
+    if (mediaCodec != null) {
+      Log.i(TAG, "Claimed prewarmed \"%s\" decoder.", decoderName);
       codecCreatedNs = System.nanoTime();
-    } catch (Exception e) {
-      String message =
-          String.format(
-              Locale.US,
-              "Failed to create MediaCodec: %s, mustSupportSecure: %s," + " DecoderName: %s",
-              mime,
-              crypto != null,
-              decoderName);
-      message += ", exception: " + e.toString();
-      Log.e(TAG, message);
-      outCreateMediaCodecBridgeResult.mErrorMessage = message;
-      return;
+    } else {
+      try {
+        Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
+        mediaCodec = MediaCodec.createByCodecName(decoderName);
+        codecCreatedNs = System.nanoTime();
+      } catch (Exception e) {
+        String message =
+            String.format(
+                Locale.US,
+                "Failed to create MediaCodec: %s, mustSupportSecure: %s," + " DecoderName: %s",
+                mime,
+                crypto != null,
+                decoderName);
+        message += ", exception: " + e.toString();
+        Log.e(TAG, message);
+        outCreateMediaCodecBridgeResult.mErrorMessage = message;
+        return;
+      }
     }
     if (mediaCodec == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "mediaCodec is null";
       return;
     }
 
-    // `CodecCapabilities` is derived purely from the codec name and mime type,
-    // so it is constant for the lifetime of the device. Building it is
-    // expensive (it materializes the codec's full capability tables), and it
-    // was previously rebuilt on every codec creation -- including the
-    // reinitialization triggered by an HDR <-> SDR color metadata change.
-    CodecCapabilities codecCapabilities = getCachedCodecCapabilities(mediaCodec, mime);
+    MediaCodecInfo codecInfo = mediaCodec.getCodecInfo();
+    if (codecInfo == null) {
+      outCreateMediaCodecBridgeResult.mErrorMessage = "codecInfo is null";
+      return;
+    }
+    CodecCapabilities codecCapabilities = codecInfo.getCapabilitiesForType(mime);
     if (codecCapabilities == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "codecCapabilities is null";
       return;
@@ -562,7 +626,43 @@ class MediaCodecBridge {
             ignoreCodecCallbacksDuringFlushing);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
+    MediaFormat mediaFormat =
+        createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
+    boolean shouldConfigureHdr =
+        colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
+    if (shouldConfigureHdr) {
+      Log.d(
+          TAG,
+          "Setting HDR info: standard=%d, transfer=%d, range=%d",
+          colorInfo.colorStandard,
+          colorInfo.colorTransfer,
+          colorInfo.colorRange);
+      mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
+      mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
+      // If color range is unspecified, don't set it.
+      if (colorInfo.colorRange != 0) {
+        mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
+      }
+      // Mastering display metadata is only meaningful for an HDR transfer
+      // function, and it is what CCodec turns into the per-frame SMPTE2086 and
+      // CTA861.3 metadata attached to every buffer queued to the output
+      // surface.  Sending it for an SDR stream describes the frames as HDR to
+      // the display, which miscolors them.
+      if (colorInfo.isHdrTransfer()) {
+        mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+      }
+    }
+
+    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
+      mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
+      mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
+      Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
+
+      // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
+      // Set KEY_PRIORITY to realtime priority.
+      mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
+    }
 
     if (maxWidth > 0 && maxHeight > 0) {
       Log.i(TAG, "Evaluate maxWidth and maxHeight (%d, %d) passed in", maxWidth, maxHeight);
@@ -648,22 +748,20 @@ class MediaCodecBridge {
 
     resolutionResolvedNs = System.nanoTime();
 
-    // Bundle up everything the format needs. The resolution probing above and
-    // the capability queries are the expensive parts of getting here.
-    VideoConfig videoConfig = new VideoConfig();
-    videoConfig.mime = mime;
-    videoConfig.widthHint = widthHint;
-    videoConfig.heightHint = heightHint;
-    videoConfig.maxVideoInputSize = maxVideoInputSize;
-    videoConfig.tunnelModeAudioSessionId = tunnelModeAudioSessionId;
-    videoConfig.maxWidth = maxWidth;
-    videoConfig.maxHeight = maxHeight;
-    videoConfig.videoCapabilities = videoCapabilities;
-    videoConfig.codecCapabilities = codecCapabilities;
-    videoConfig.surface = surface;
-    videoConfig.crypto = crypto;
-
-    MediaFormat mediaFormat = buildVideoMediaFormat(videoConfig, colorInfo);
+    if (maxVideoInputSize > 0) {
+      mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
+      try {
+        Log.i(
+            TAG,
+            "Overwrite KEY_MAX_INPUT_SIZE to "
+                + maxVideoInputSize
+                + " (actual: "
+                + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
+                + ").");
+      } catch (Exception e) {
+        Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+      }
+    }
 
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
@@ -1004,65 +1102,6 @@ class MediaCodecBridge {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
     }
-  }
-
-  /** Builds the video {@link MediaFormat} for {@code configure()}. */
-  private static MediaFormat buildVideoMediaFormat(VideoConfig cfg, ColorInfo colorInfo) {
-    MediaFormat mediaFormat =
-        createVideoDecoderFormat(cfg.mime, cfg.widthHint, cfg.heightHint, cfg.videoCapabilities);
-
-    boolean shouldConfigureHdr =
-        colorInfo != null
-            && MediaCodecUtil.isHdrCapableVideoDecoder(cfg.mime, cfg.codecCapabilities);
-    if (shouldConfigureHdr) {
-      Log.i(
-          TAG,
-          "Setting color aspects: standard=%d, transfer=%d, range=%d",
-          colorInfo.colorStandard,
-          colorInfo.colorTransfer,
-          colorInfo.colorRange);
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
-      // If color range is unspecified, don't set it.
-      if (colorInfo.colorRange != 0) {
-        mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
-      }
-      // Mastering display metadata is only meaningful for an HDR transfer
-      // function, and it is what CCodec turns into the per-frame SMPTE2086 and
-      // CTA861.3 metadata attached to every buffer queued to the output
-      // surface.  Sending it for an SDR stream describes the frames as HDR to
-      // the display, which miscolors them.
-      if (colorInfo.isHdrTransfer()) {
-        mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
-      }
-    }
-
-    if (cfg.tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
-      mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
-      mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, cfg.tunnelModeAudioSessionId);
-      Log.d(TAG, "Enabled tunnel mode playback on audio session " + cfg.tunnelModeAudioSessionId);
-
-      // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
-      // Set KEY_PRIORITY to realtime priority.
-      mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
-    }
-
-    if (cfg.maxVideoInputSize > 0) {
-      mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, cfg.maxVideoInputSize);
-      try {
-        Log.i(
-            TAG,
-            "Overwrite KEY_MAX_INPUT_SIZE to "
-                + cfg.maxVideoInputSize
-                + " (actual: "
-                + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
-                + ").");
-      } catch (Exception e) {
-        Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
-      }
-    }
-
-    return mediaFormat;
   }
 
   private boolean configureVideo(

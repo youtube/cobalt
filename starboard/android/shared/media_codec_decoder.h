@@ -156,6 +156,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
 
   bool Flush();
 
+  // See MediaCodec::PrewarmReplacementCodec().
+  void PrewarmReplacementCodec();
+
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.

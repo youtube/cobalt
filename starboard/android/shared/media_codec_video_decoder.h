@@ -258,23 +258,15 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
 
-  // State for a mid-stream color space change.  |MediaCodec| only consumes
-  // color aspects at configure() time, so switching between HDR and SDR
-  // requires reinitializing the codec.  The previous stream's frames are
-  // drained first so they are not discarded.  See |WriteInputBuffers()| and
-  // |CheckColorChangeFlush()|.
-  //
-  // This mirrors how |AdaptiveAudioDecoder| handles an audio configuration
-  // change, with the addition of waiting for the renderer to release the
-  // drained frames -- video frames reference |MediaCodec| output buffers and
-  // so cannot outlive the codec.
+  // State for a mid-stream color space change.  The codec is drained before it
+  // is reinitialized, mirroring how |AdaptiveAudioDecoder| handles an audio
+  // configuration change but additionally waiting for the renderer to release
+  // the drained frames, which reference |MediaCodec| output buffers.
   bool color_change_flushing_ = false;
   std::atomic_bool color_change_eos_received_{false};
   std::optional<SbMediaColorMetadata> pending_color_metadata_;
   InputBuffers pending_color_change_buffers_;
-  int64_t color_change_flush_start_ = 0;  // microseconds
-  // The drain is bounded by lack of progress rather than by total time, since
-  // a healthy drain simply plays out whatever was already buffered.
+  int64_t color_change_flush_start_ = 0;          // microseconds
   int64_t color_change_flush_last_progress_ = 0;  // microseconds
   int color_change_flush_last_pending_inputs_ = -1;
   int color_change_flush_last_buffered_frames_ = -1;
