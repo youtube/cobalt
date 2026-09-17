@@ -19,15 +19,13 @@ import signal
 
 try:
   from cobalt.tools.e2e.cobalt_runner import CobaltRunner
-  from cobalt.tools.e2e.lifecycle_controller import LifecycleController
 except ImportError:
   from cobalt_runner import CobaltRunner  # type: ignore[no-redef]
-  from lifecycle_controller import LifecycleController  # type: ignore[no-redef]
 
 logger = logging.getLogger('posix_signal_lifecycle_controller')
 
 
-class PosixSignalLifecycleController(LifecycleController):
+class PosixSignalLifecycleController:
   """Controls application lifecycle via POSIX signals (suspend_signals.cc)."""
 
   def __init__(self, runner: CobaltRunner):
@@ -41,22 +39,29 @@ class PosixSignalLifecycleController(LifecycleController):
     os.kill(proc.pid, sig)
 
   def blur(self) -> None:
+    """Transitions the application to blurred (loss of focus)."""
     self._send_signal(signal.SIGWINCH, 'SIGWINCH')
 
   def focus(self) -> None:
+    """Transitions the application to focused / active."""
     self._send_signal(signal.SIGCONT, 'SIGCONT')
 
   def conceal(self) -> None:
+    """Transitions the application to concealed (hidden/background)."""
     self._send_signal(signal.SIGUSR1, 'SIGUSR1')
 
   def freeze(self) -> None:
+    """Transitions the application to frozen (suspended)."""
     self._send_signal(signal.SIGTSTP, 'SIGTSTP')
 
   def resume(self) -> None:
+    """Transitions the application from frozen/concealed back to visible."""
     self._send_signal(signal.SIGCONT, 'SIGCONT')
 
   def stop(self) -> None:
+    """Gracefully requests the application to terminate."""
     self._send_signal(signal.SIGPWR, 'SIGPWR')
 
   def low_memory(self) -> None:
+    """Injects a low-memory warning event."""
     self._send_signal(signal.SIGUSR2, 'SIGUSR2')
