@@ -3786,7 +3786,7 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
     }
   }
 
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_STARBOARD)
   if (Platform::Current()->IsLowEndDevice()) {
     // Don't composite "trivial" 3D transforms such as translateZ(0).
     // These transforms still force comosited scrolling (see above).
@@ -3794,7 +3794,7 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
         ~CompositingReason::kTrivial3DTransform;
   }
 #else
-  // Cobalt: Low-end TV SoCs have constrained quad-core CPUs where CPU Skia
+  // Starboard: Low-end TV devices have constrained CPUs where CPU Skia
   // re-rasterization during shelf scrolling severely degrades tile-to-tile P95
   // FPS. Web clients like Kabuki rely on translateZ(0) to promote animated
   // shelf tracks to hardware composited layers. Preserving kTrivial3DTransform
