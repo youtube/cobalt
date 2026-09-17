@@ -442,6 +442,16 @@ CalculateVirtualAddressSpaceMetricsInternal(
     }
   }
 
+  // seq_file newline-terminates every record, so a buffered tail here means
+  // the input was truncated. Fold it in rather than dropping it: that would
+  // lose both the VMA and the gap preceding it.
+  if (line_length > 0 && !reached_gate_vma) {
+    const std::string_view record(line, line_length);
+    if (!IsGateVma(record)) {
+      ConsumeMapsLine(record, &state);
+    }
+  }
+
   if (state.vma_count == 0) {
     return std::nullopt;
   }

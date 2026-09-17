@@ -182,6 +182,20 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, LongLineIsCountedAsOneVma) {
   EXPECT_EQ(16u, metrics->total_unmapped_va_mb);
 }
 
+// seq_file newline-terminates every record, so a missing one means truncated
+// input. The record must still be folded in: dropping it would lose the 16 MB
+// gap that precedes it as well as the mapping itself.
+TEST(CobaltVirtualAddressSpaceMetricsTest, ParsesLastLineWithoutNewline) {
+  auto metrics = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
+      "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
+      "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]");
+
+  ASSERT_TRUE(metrics.has_value());
+  EXPECT_EQ(2u, metrics->vma_count);
+  EXPECT_EQ(16u, metrics->largest_free_gap_mb);
+  EXPECT_EQ(16u, metrics->total_unmapped_va_mb);
+}
+
 // The kernel's gate VMA sits above the user/kernel split, so the space beneath
 // it is not allocatable. Counting it would inflate the free-space total, and on
 // a 3GB/1GB split kernel that region is ~1GB and would become the largest gap.
@@ -190,18 +204,29 @@ TEST(CobaltVirtualAddressSpaceMetricsTest, IgnoresGateVma) {
       "00400000-00450000 r-xp 00000000 08:02 173521 /bin/app\n"
       "01450000-01550000 rw-p 00000000 00:00 0      [anon:heap]\n";
   constexpr char kGateVma[] =
-      "ffff0000-ffff1000 r-xp 00000000 00:00 0      [vectors]\n";
+      "ffff0000-ffff1000 r-xp 00000000 00:00 0      [vectors]";
 
   auto baseline =
       Emitter::CalculateVirtualAddressSpaceMetricsForTesting(kUserSpace);
   auto with_gate = Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
-      std::string(kUserSpace) + kGateVma);
+      std::string(kUserSpace) + kGateVma + "\n");
+  // The gate VMA is the last record in the file, so it is also the one most
+  // likely to arrive without its newline.
+  auto with_unterminated_gate =
+      Emitter::CalculateVirtualAddressSpaceMetricsForTesting(
+          std::string(kUserSpace) + kGateVma);
 
   ASSERT_TRUE(baseline.has_value());
   ASSERT_TRUE(with_gate.has_value());
+  ASSERT_TRUE(with_unterminated_gate.has_value());
   EXPECT_EQ(baseline->vma_count, with_gate->vma_count);
   EXPECT_EQ(baseline->largest_free_gap_mb, with_gate->largest_free_gap_mb);
   EXPECT_EQ(baseline->total_unmapped_va_mb, with_gate->total_unmapped_va_mb);
+  EXPECT_EQ(baseline->vma_count, with_unterminated_gate->vma_count);
+  EXPECT_EQ(baseline->largest_free_gap_mb,
+            with_unterminated_gate->largest_free_gap_mb);
+  EXPECT_EQ(baseline->total_unmapped_va_mb,
+            with_unterminated_gate->total_unmapped_va_mb);
 }
 
 // The gate VMA is emitted after seq_file finishes walking the VMA tree, so
