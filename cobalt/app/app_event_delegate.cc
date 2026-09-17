@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,29 @@
 namespace cobalt {
 
 namespace {
+
+// Helper to detect when a platform launcher (e.g. Samsung Tizen
+// cobalt_launcher) dispatches kSbEventTypeStart instead of kSbEventTypePreload
+// during boot preload with "launch=preload" in the deep link or command-line
+// arguments.
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  if (!event || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  if (data->link && std::string_view(data->link).find("launch=preload") !=
+                        std::string_view::npos) {
+    return true;
+  }
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    if (data->argument_values[i] &&
+        std::string_view(data->argument_values[i]).find("launch=preload") !=
+            std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -162,8 +186,17 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
     switch (event->type) {
       case kSbEventTypeStart:
       case kSbEventTypePreload:
-        runner_->OnStart(event);
-        SetApplicationState(SbEventToTargetApplicationState(event->type));
+        // Route kSbEventTypeStart with launch=preload into kConcealed preload
+        // mode so ShellPlatformDelegate initializes with is_visible = false.
+        if (event->type == kSbEventTypeStart && HasPreloadLaunchParam(event)) {
+          SbEvent preload_event = {kSbEventTypePreload, event->timestamp,
+                                   event->data};
+          runner_->OnStart(&preload_event);
+          SetApplicationState(ApplicationState::kConcealed);
+        } else {
+          runner_->OnStart(event);
+          SetApplicationState(SbEventToTargetApplicationState(event->type));
+        }
         target_state_ = application_state_;
         return;
       default:
@@ -222,6 +255,10 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      // When waking from preload, cobalt_launcher's own state is already
+      // kStateStarted (1), so it only dispatches kSbEventTypeLink (and not
+      // kSbEventTypeReveal/Focus). Transition out of kConcealed to kStarted.
+      TransitionToLifeCycleState(ApplicationState::kStarted);
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:

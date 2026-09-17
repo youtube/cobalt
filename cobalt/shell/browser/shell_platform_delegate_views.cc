@@ -272,10 +272,12 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   shell_data.content_size = initial_size;
   shell_data.initial_size_ = initial_size;
 
-  if (IsVisible()) {
-    CreatePlatformWindowInternal(shell, initial_size);
-  } else {
-    shell_data.window_widget = nullptr;
+  // Always call CreatePlatformWindowInternal() so SbWindowCreate() runs once at
+  // startup (registering the singleton window with Tizen's application_tizen.cc
+  // and AMD daemon), then immediately conceal if started in preload.
+  CreatePlatformWindowInternal(shell, initial_size);
+  if (!IsVisible()) {
+    ConcealShell(shell);
   }
 }
 
@@ -343,9 +345,15 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
   }
   ShellData& shell_data = it->second;
   if (shell_data.window_widget) {
-    // Safely map native views window Show and Restore on initial startup!
-    shell_data.window_widget->GetNativeWindow()->Show();
-    shell_data.window_widget->Restore();
+    // Do not Show()/Restore() the window when attaching WebContents during
+    // kConcealed preload; conceal the shell instead.
+    if (is_visible_) {
+      // Safely map native views window Show and Restore on initial startup!
+      shell_data.window_widget->GetNativeWindow()->Show();
+      shell_data.window_widget->Restore();
+    } else {
+      ConcealShell(shell);
+    }
   }
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
@@ -370,6 +378,11 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
         platform_window->Restore();
       }
     }
+  }
+  // Mark WebContents visible on RevealShell (matching aura/android delegates)
+  // so subsequent OnConceal() transitions properly detect VISIBLE WebContents.
+  if (shell && shell->web_contents()) {
+    shell->web_contents()->WasShown();
   }
 }
 void ShellPlatformDelegate::MapWindowShell(Shell* shell) {

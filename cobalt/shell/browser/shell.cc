@@ -28,6 +28,7 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
@@ -55,6 +56,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/media_capture_devices.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -73,6 +75,7 @@
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
 #include "net/base/url_util.h"
+#include "partition_alloc/memory_reclaimer.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
@@ -613,6 +616,23 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
+  // When preload page loading finishes while concealed (!IsVisible()), tear
+  // down the GPU process and reclaim PartitionAlloc/V8 memory after 3s so idle
+  // preload stays within the ~105 MB background budget.
+#if BUILDFLAG(IS_STARBOARD)
+  if (GetPlatform() && !GetPlatform()->IsVisible()) {
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE, base::BindOnce([] {
+          if (Shell::GetPlatform() && !Shell::GetPlatform()->IsVisible()) {
+            content::CleanupGpuProcessOnUI(base::DoNothing());
+            base::MemoryPressureListener::NotifyMemoryPressure(
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+            ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+          }
+        }),
+        base::Seconds(3));
+  }
+#endif
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
