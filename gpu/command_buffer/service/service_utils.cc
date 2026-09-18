@@ -8,7 +8,6 @@
 #include <string_view>
 
 #include "base/command_line.h"
-#include "base/features.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -215,31 +214,6 @@ GpuPreferences ParseGpuPreferences(const base::CommandLine* command_line) {
       !features::IsShaderDiskCacheEnabled(command_line);
   gpu_preferences.enforce_gl_minimums =
       command_line->HasSwitch(switches::kEnforceGLMinimums);
-<<<<<<< HEAD
-=======
-  if (GetUintFromSwitch(command_line, switches::kForceGpuMemAvailableMb,
-                        &gpu_preferences.force_gpu_mem_available_bytes)) {
-    gpu_preferences.force_gpu_mem_available_bytes *= 1024 * 1024;
-#if BUILDFLAG(IS_COBALT)
-  } else if (base::FeatureList::IsEnabled(
-                 base::features::kCobaltForceGpuMemAvailable)) {
-    int mb = base::features::kCobaltForceGpuMemAvailableMb.Get();
-    if (mb > 0) {
-      gpu_preferences.force_gpu_mem_available_bytes =
-          static_cast<uint32_t>(mb) * 1024 * 1024;
-    }
-#if BUILDFLAG(IS_STARBOARD) || \
-    (BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS))
-  } else {
-    // Default to 64MB GPU memory limit on Starboard and 32-bit Android (arm).
-    // 64-bit Android (arm64, x86_64) is excluded to avoid capping high-end
-    // devices that require higher memory budgets for 4K UI rendering.
-    gpu_preferences.force_gpu_mem_available_bytes = 64 * 1024 * 1024;
-#endif  // BUILDFLAG(IS_STARBOARD) || (BUILDFLAG(IS_ANDROID) &&
-        // defined(ARCH_CPU_32_BITS))
-#endif  // BUILDFLAG(IS_COBALT)
-  }
->>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
   if (GetUintFromSwitch(
           command_line, switches::kForceGpuMemDiscardableLimitMb,
           &gpu_preferences.force_gpu_mem_discardable_limit_bytes)) {

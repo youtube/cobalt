@@ -410,12 +410,10 @@ void SetFeatureFlags() {
     SetV8FlagsFormatted("--preconfigured-old-space-size=%i",
                         features::kV8PreconfigureOldGenSize.Get());
   }
-<<<<<<< HEAD
   if (base::FeatureList::IsEnabled(features::kV8HighEndAndroid)) {
     SetV8FlagsFormatted("--high-end-android-physical-memory-threshold=%i",
                         features::kV8HighEndAndroidMemoryThreshold.Get());
   }
-=======
 #if BUILDFLAG(IS_COBALT)
   // FeatureParam::Get() returns the declared default when the feature is
   // disabled, so there's no need to check FeatureList::IsEnabled() here.
@@ -430,10 +428,6 @@ void SetFeatureFlags() {
     SetV8FlagsFormatted("--initial-old-space-size=%i", initial_old_space_mb);
   }
 #endif
-  SetV8FlagsIfOverridden(features::kV8IncrementalMarkingStartUserVisible,
-                         "--incremental-marking-start-user-visible",
-                         "--no-incremental-marking-start-user-visible");
->>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
   SetV8FlagsIfOverridden(features::kV8IdleGcOnContextDisposal,
                          "--idle-gc-on-context-disposal",
                          "--no-idle-gc-on-context-disposal");
