@@ -66,6 +66,14 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
     double,
     kCobaltGpuRasterizationSkewportTargetTimeInSeconds);
+
+// When enabled, gates the compositor's prepaint memory budget via Finch feature
+// and parameter. Applies to all Cobalt platforms (Android TV and 3P/Starboard).
+// The parameter is the percentage of the tile memory budget that may be spent
+// on prepaint (non-visible) tiles; 0 disables prepaint raster entirely.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                       kCobaltMaxMemoryForPrepaintPercentage);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
