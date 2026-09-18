@@ -30,6 +30,7 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -338,6 +339,11 @@ TEST_F(ZipReaderTest, InvalidUTF8File) {
 // The SJIS-encoded paths are thus wrongly interpreted as UTF-8, resulting in
 // garbled paths. Invalid UTF-8 sequences are safely converted to the
 // replacement character �.
+#if !BUILDFLAG(IS_COBALT)
+// b/561702947: Disabled for unused functionality from ICU.
+// Legacy codepage character conversion tables (.cnv files) were removed
+// from Cobalt's ICU database to conserve binary size. Cobalt only processes
+// archives with UTF-8 / ASCII filenames.
 TEST_F(ZipReaderTest, EncodingSjisAsUtf8) {
   EXPECT_THAT(
       GetPaths(data_dir_.AppendASCII("SJIS Bug 846195.zip")),
@@ -380,6 +386,7 @@ TEST_F(ZipReaderTest, EncodingSjis) {
           base::FilePath::FromUTF8Unsafe(
               "新しいフォルダ/新しいテキスト ドキュメント.txt")));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 TEST_F(ZipReaderTest, AbsoluteFile) {
   ZipReader reader;
