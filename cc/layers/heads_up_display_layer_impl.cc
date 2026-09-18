@@ -534,8 +534,11 @@ void HeadsUpDisplayLayerImpl::DrawHudContents(PaintCanvas* canvas) {
 
 #if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (debug_state.mystery_hud_menu_active) {
-    area = DrawMysteryHudMenu(canvas, 0, area.bottom(),
-                              std::max<SkScalar>(area.width(), 185));
+    constexpr int kMenuWidth = 185;
+    constexpr int kTopRightMargin = 4;
+    const int menu_left =
+        std::max(0, bounds_width_in_dips() - kMenuWidth - kTopRightMargin);
+    DrawMysteryHudMenu(canvas, menu_left, kTopRightMargin, kMenuWidth);
   }
 #endif
 
@@ -865,8 +868,15 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
 }
 
 #if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+// Draws the interactive Mystery HUD Menu in the top-right corner when activated
+// by the TV remote Mystery Code trigger sequence (see
+// docs/mystery_hud_menu.md). This HUD menu gives developers on non-gold
+// living-room devices an on-screen control window to toggle compositor
+// diagnostic overlays (FPS & GPU memory counter, layer debug borders, paint
+// flashing rects, and layout shift regions) or reset them using only a 6-button
+// TV remote.
 SkRect HeadsUpDisplayLayerImpl::DrawMysteryHudMenu(PaintCanvas* canvas,
-                                                   int right,
+                                                   int left,
                                                    int top,
                                                    int width) const {
   const LayerTreeDebugState& debug_state = layer_tree_impl()->debug_state();
@@ -874,14 +884,13 @@ SkRect HeadsUpDisplayLayerImpl::DrawMysteryHudMenu(PaintCanvas* canvas,
   const int kTitleFontHeight = 13;
   const int kFontHeight = 12;
   const int height = kTitleFontHeight + 5 * kFontHeight + 8 * kPadding;
-  const int left = 0;
   const SkRect area = SkRect::MakeXYWH(left, top, width, height);
 
   PaintFlags flags;
   DrawGraphBackground(canvas, &flags, area);
 
   int y = top + kPadding + kTitleFontHeight;
-  flags.setColor(DebugColors::HUDTitleColor().toSkColor());
+  flags.setColor(DebugColors::HUDTitleColor());
   DrawText(canvas, flags, "Mystery HUD Menu", TextAlign::kLeft,
            kTitleFontHeight, left + kPadding, y);
 
@@ -898,7 +907,7 @@ SkRect HeadsUpDisplayLayerImpl::DrawMysteryHudMenu(PaintCanvas* canvas,
 
   for (const auto& item : items) {
     y += kPadding + kFontHeight;
-    flags.setColor(DebugColors::HUDTitleColor().toSkColor());
+    flags.setColor(DebugColors::HUDTitleColor());
     DrawText(canvas, flags, item.label, TextAlign::kLeft, kFontHeight,
              left + kPadding, y);
     flags.setColor(item.enabled ? SK_ColorGREEN : SK_ColorGRAY);
