@@ -393,6 +393,13 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
 
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
+
+// When enabled, the response body Mojo data pipe is shrunk to the response's
+// Content-Length whenever that is smaller than the capacity that would
+// otherwise be used. The capacity is never increased. Responses whose body
+// length is not known upfront keep the default capacity.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network::features

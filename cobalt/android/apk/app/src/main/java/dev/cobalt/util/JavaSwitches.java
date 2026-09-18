@@ -112,6 +112,10 @@ public class JavaSwitches {
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
 
+  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
+  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
+      "EnableCobaltContentLengthAwareMojoPipeSizing";
+
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -418,6 +422,11 @@ public class JavaSwitches {
       } else {
         extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
       }
+    }
+
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
+      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
     }
 
     StringJoiner featureParams = new StringJoiner("/");
