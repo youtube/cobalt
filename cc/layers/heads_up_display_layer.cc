@@ -28,6 +28,9 @@ HeadsUpDisplayLayer::HeadsUpDisplayLayer()
     SetNeedsPushProperties();
   }
 #if BUILDFLAG(IS_COBALT)
+  // Fall back to the default Skia typeface when embedded font packages (e.g.
+  // RDK limited fonts) do not include "Arial" or "monospace", ensuring HUD
+  // text renders and satisfying the non-null typeface DCHECK below.
   if (!typeface_.Read(*this)) {
     typeface_.Write(*this) = skia::DefaultTypeface();
     SetNeedsPushProperties();
@@ -63,7 +66,11 @@ void HeadsUpDisplayLayer::UpdateLocationAndSize(
   bounds_in_dips.SetSize(kDefaultHUDSize, kDefaultHUDSize);
 
   if (layer_tree_host()->GetDebugState().ShowDebugRects() ||
-      layer_tree_host()->GetDebugState().debugger_paused) {
+      layer_tree_host()->GetDebugState().debugger_paused
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      || layer_tree_host()->GetDebugState().mystery_hud_menu_active
+#endif
+  ) {
     bounds_in_dips = device_viewport_in_dips;
   }
 
