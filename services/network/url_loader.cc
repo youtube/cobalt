@@ -304,7 +304,6 @@ int32_t PopulateOptions(int32_t initial_options,
   return options;
 }
 
-<<<<<<< HEAD
 const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
     net::RequestPriority priority) {
   if (features::kNetworkServiceTaskSchedulerURLLoader.Get()) {
@@ -312,7 +311,7 @@ const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
   }
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // The floor for a Content-Length sized data pipe. Mojo backs a data pipe with
 // shared memory allocated at page granularity, so nothing is saved by going
@@ -350,7 +349,6 @@ uint32_t GetCobaltContentLengthAwarePipeCapacity(int64_t content_length,
       std::min(capacity, static_cast<uint64_t>(default_capacity)));
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> eeb9c129654 (net: Shrink Mojo data pipe to Content-Length (#12631))
 
 }  // namespace
 
