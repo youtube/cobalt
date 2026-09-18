@@ -387,11 +387,10 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
-          gemini_debug: true
           gemini_model: 'gemini-2.5-flash'
           upload_artifacts: true
           prompt: |
-            Analyze the CI test failures for this pull request using the pr-shepherd skill (github.com/youtube/cobalt/pull/12679).
+            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }} using the `gh` tool.
             Provide your final determination as a JSON object with the following fields:
             - "verdict": "failure" (if real failure in PR), "flaky" (if failures are due to flakes/infra), or "pass" (if all passed)
             - "confidence": a number from 0 to 1 indicating your confidence in the verdict
