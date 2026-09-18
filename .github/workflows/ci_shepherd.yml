@@ -367,16 +367,21 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github
+            .agent
 
       - name: Run Gemini PR Shepherd Analysis
         id: gemini-analysis
         if: steps.parse.outputs.run_analysis == 'true'
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_DEBUG: 'true'
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
+          upload_artifacts: true
           prompt: |
             Analyze the CI test failures for this pull request using the pr-shepherd skill (github.com/youtube/cobalt/pull/12679).
             Provide your final determination as a JSON object with the following fields:
