@@ -18,7 +18,6 @@
 #include <atomic>
 #include <cstdint>
 
-#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/window.h"
@@ -88,10 +87,13 @@ class ApplicationAOSP : public QueueApplication {
   // The live instance, or nullptr when there is none.
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
 
-  // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
-  // with its lifecycle management.
-  const raw_ptr<StarboardBridge> starboard_bridge_ =
-      StarboardBridge::GetInstance();
+  // starboard_bridge_ is a global singleton, use a raw pointer to not
+  // interfere with its lifecycle management. Not raw_ptr<> (unlike
+  // ApplicationAndroid's equivalent member): that would pull in //base on
+  // AOSP, where starboard shouldn't depend on it, and BackupRefPtr
+  // protection is moot anyway since PartitionAlloc is disabled on partner
+  // toolchains.
+  StarboardBridge* const starboard_bridge_ = StarboardBridge::GetInstance();
 
   // The window CreateWindow() handed out, so injected input events can name the
   // window they belong to.

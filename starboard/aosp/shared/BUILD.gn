@@ -38,13 +38,14 @@ static_library("starboard_platform") {
 
   deps = [
     # window_get_size.cc includes starboard_bridge.h, whose
-    # base/memory/singleton.h pulls in absl headers. application_aosp.h/.cc
-    # also include base/memory/raw_ptr.h and jni_zero.h directly (to call
-    # StarboardBridge::ApplicationStarted()/ApplicationStopping()). All of
-    # //base, //third_party/abseil-cpp, and //third_party/jni_zero are
-    # private deps of //starboard/android/shared:starboard_platform, so
-    # their include dirs aren't propagated.
-    "//base",
+    # base/memory/singleton.h pulls in absl headers. application_aosp.cc
+    # also includes jni_zero.h directly (to call
+    # StarboardBridge::ApplicationStarted()/ApplicationStopping()). Both
+    # //third_party/abseil-cpp and //third_party/jni_zero are private deps
+    # of //starboard/android/shared:starboard_platform, so their include
+    # dirs aren't propagated. Deliberately no //base dep: starboard
+    # shouldn't depend on it here, and application_aosp.h uses a plain
+    # pointer rather than raw_ptr<> to avoid needing it.
     "//starboard/common",
     "//third_party/abseil-cpp:absl",
     "//third_party/jni_zero",

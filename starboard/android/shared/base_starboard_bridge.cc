@@ -127,7 +127,7 @@ void JNI_BaseStarboardBridge_HandleDeepLink(JNIEnv* env,
                                             jboolean applicationStarted) {
   const std::string& url = ConvertJavaStringToUTF8(env, jurl);
 
-#if BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if BUILDFLAG(IS_STARBOARD)
   // AOSP can't depend on cobalt::browser::DeepLinkManager directly (see
   // b/492704919), so route the warm-start case through Application::Link()
   // instead, which cobalt/app already forwards to DeepLinkManager on every
@@ -151,7 +151,7 @@ void JNI_BaseStarboardBridge_HandleDeepLink(JNIEnv* env,
   } else {
     manager->set_deep_link(url);
   }
-#endif  // BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_BaseStarboardBridge_SetAndroidOSExperience(JNIEnv* env,
