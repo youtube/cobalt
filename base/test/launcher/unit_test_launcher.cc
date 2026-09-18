@@ -161,6 +161,12 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
                  RepeatingClosure timeout_callback,
                  OnceClosure gtest_init) {
   bool force_single_process = false;
+#if BUILDFLAG(IS_IOS_TVOS)
+  // On tvOS devices, child process spawning is unsupported (launch_ios.cc is a
+  // stub), and test runners expect standard in-process GTest output and XML
+  // generation via TestSuite::Run().
+  force_single_process = true;
+#endif
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kTestLauncherDebugLauncher)) {
     fprintf(stdout, "Forcing test launcher debugging mode.\n");
