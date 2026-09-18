@@ -22,6 +22,7 @@
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "starboard/android/shared/aaudio_audio_sink.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_renderer_sink_android.h"
@@ -191,6 +192,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
       AudioTrack::SetNdkAudioTrackEnabled(true);
       SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
+    }
+    if (experimental_features.GetBool(kMediaNdkAudioPullSink)) {
+      AaudioAudioSinkType::SetEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio_pull_sink` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {

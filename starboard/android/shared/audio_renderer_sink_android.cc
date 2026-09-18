@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/android/shared/aaudio_audio_sink.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
@@ -43,6 +44,21 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
              SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
              SbAudioSinkPrivate::ErrorFunc error_func, void* context) {
+    if (AaudioAudioSinkType::IsEnabled() &&
+        AaudioAudioSinkType::IsSupported(audio_sample_type) &&
+        !tunnel_mode_audio_session_id) {
+      auto aaudio_sink = AaudioAudioSinkType::GetInstance()->Create(
+          channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+          frame_buffers_size_in_frames,
+          {update_source_status_func, consume_frames_func, error_func},
+          start_media_time, /*is_web_audio=*/false, context);
+      if (aaudio_sink != kSbAudioSinkInvalid) {
+        return aaudio_sink;
+      }
+      SB_LOG(WARNING) << "Failed to create AaudioAudioSink, falling "
+                         "back to AudioTrack";
+    }
+
     auto type = static_cast<AudioTrackAudioSinkType*>(
         SbAudioSinkImpl::GetPreferredType());
     SB_CHECK(type);
@@ -143,7 +159,9 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
   bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
+      audio_sink_ &&
+      (audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) ||
+       audio_sink_->IsType(AaudioAudioSinkType::GetInstance()));
   if (allow_flush_during_seek_ && is_android_sink && channels == channels_ &&
       sampling_frequency_hz == sampling_frequency_hz_ &&
       audio_sample_type == audio_sample_type_) {
@@ -164,6 +182,10 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   sampling_frequency_hz_ = sampling_frequency_hz;
   audio_sample_type_ = audio_sample_type;
 
+  if (audio_sink_ != kSbAudioSinkInvalid) {
+    Stop();
+  }
+
   AudioRendererSinkImpl::Start(
       media_start_time, channels, sampling_frequency_hz, audio_sample_type,
       frame_buffers, frames_per_channel, render_callback);
@@ -182,7 +204,9 @@ bool AudioRendererSinkAndroid::IsAudioSampleTypeSupported(
 
 void AudioRendererSinkAndroid::Reset() {
   bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
+      audio_sink_ &&
+      (audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) ||
+       audio_sink_->IsType(AaudioAudioSinkType::GetInstance()));
   if (allow_flush_during_seek_ && is_android_sink) {
     auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
     if (android_sink->Flush()) {

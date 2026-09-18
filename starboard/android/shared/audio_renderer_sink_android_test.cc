@@ -28,8 +28,12 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
  public:
   FakeAudioSinkAndroid(SbAudioSinkPrivate::Type* type,
                        bool* destroyed,
+                       bool* flushed = nullptr,
                        bool flush_succeeds = true)
-      : type_(type), destroyed_(destroyed), flush_succeeds_(flush_succeeds) {}
+      : type_(type),
+        destroyed_(destroyed),
+        flushed_(flushed),
+        flush_succeeds_(flush_succeeds) {}
 
   ~FakeAudioSinkAndroid() override {
     if (destroyed_) {
@@ -52,6 +56,9 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
 
   bool Flush() override {
     flush_called_ = true;
+    if (flushed_) {
+      *flushed_ = true;
+    }
     return flush_succeeds_;
   }
 
@@ -60,6 +67,7 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
 
   SbAudioSinkPrivate::Type* type_;
   bool* destroyed_ = nullptr;
+  bool* flushed_ = nullptr;
   bool flush_succeeds_ = true;
   bool flush_called_ = false;
   bool start_time_set_ = false;
@@ -90,7 +98,8 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override {
-    auto sink = new FakeAudioSinkAndroid(this, destroyed_ptr_, flush_succeeds_);
+    auto sink = new FakeAudioSinkAndroid(this, destroyed_ptr_, flushed_ptr_,
+                                         flush_succeeds_);
     last_created_sink_ = sink;
     ++create_count_;
     return sink;
@@ -105,6 +114,7 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
   SbAudioSinkPrivate::Type* old_primary_type_ = nullptr;
   FakeAudioSinkAndroid* last_created_sink_ = nullptr;
   bool* destroyed_ptr_ = nullptr;
+  bool* flushed_ptr_ = nullptr;
   bool flush_succeeds_ = true;
   int create_count_ = 0;
 };
@@ -131,6 +141,7 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
   void SetUp() override {
     fake_sink_type_ = std::make_unique<FakeAudioSinkType>();
     fake_sink_type_->destroyed_ptr_ = &sink_destroyed_;
+    fake_sink_type_->flushed_ptr_ = &sink_flushed_;
     dummy_buffer_.resize(1024 * sizeof(int16_t) * 2, 0);
     frame_buffers_[0] = dummy_buffer_.data();
   }
@@ -164,6 +175,7 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
   std::vector<uint8_t> dummy_buffer_;
   void* frame_buffers_[1];
   bool sink_destroyed_ = false;
+  bool sink_flushed_ = false;
 };
 
 TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
@@ -181,7 +193,7 @@ TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
 
   // 2. Seek: Reset() should flush instead of destroy
   renderer_sink->Reset();
-  EXPECT_TRUE(sink1->flush_called_);
+  EXPECT_TRUE(sink_flushed_);
   EXPECT_FALSE(sink_destroyed_);
   // When flushed, HasStarted() returns false so caller knows it needs Start()
   EXPECT_FALSE(renderer_sink->HasStarted());
@@ -212,12 +224,13 @@ TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushDisallowedDestroysSink) {
 
   // 2. Seek: Reset() without flush should destroy the underlying sink
   renderer_sink->Reset();
-  EXPECT_FALSE(sink1->flush_called_);
+  EXPECT_FALSE(sink_flushed_);
   EXPECT_TRUE(sink_destroyed_);
   EXPECT_FALSE(renderer_sink->HasStarted());
 
   // 3. Next Start creates a fresh sink
   sink_destroyed_ = false;
+  sink_flushed_ = false;
   renderer_sink->Start(
       /*media_start_time=*/5000000, /*channels=*/2,
       /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
@@ -245,6 +258,7 @@ TEST_F(AudioRendererSinkAndroidTest, FlushFailureFallsBackToFullReset) {
 
   // 3. Next Start recreates the sink
   sink_destroyed_ = false;
+  sink_flushed_ = false;
   renderer_sink->Start(
       /*media_start_time=*/5000000, /*channels=*/2,
       /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
@@ -266,6 +280,7 @@ TEST_F(AudioRendererSinkAndroidTest,
 
   // 2. Seek flushes the sink
   renderer_sink->Reset();
+  EXPECT_TRUE(sink_flushed_);
   EXPECT_FALSE(sink_destroyed_);
 
   // 3. Audio format changes (e.g. 6 channels / 5.1 surround instead of stereo)
