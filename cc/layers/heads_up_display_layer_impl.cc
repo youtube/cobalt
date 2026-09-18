@@ -532,6 +532,13 @@ void HeadsUpDisplayLayerImpl::DrawHudContents(PaintCanvas* canvas) {
                              std::max<SkScalar>(area.width(), 150));
   }
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (debug_state.mystery_hud_menu_active) {
+    area = DrawMysteryHudMenu(canvas, 0, area.bottom(),
+                              std::max<SkScalar>(area.width(), 185));
+  }
+#endif
+
   // For the web vital and smoothness HUD on the top right corner, if the width
   // of the screen is smaller than the default width of the HUD, scale it down.
   if (bounds_width_in_dips() < metrics_sizes.kWidth) {
@@ -856,6 +863,57 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
 
   return area;
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+SkRect HeadsUpDisplayLayerImpl::DrawMysteryHudMenu(PaintCanvas* canvas,
+                                                   int right,
+                                                   int top,
+                                                   int width) const {
+  const LayerTreeDebugState& debug_state = layer_tree_impl()->debug_state();
+  const int kPadding = 4;
+  const int kTitleFontHeight = 13;
+  const int kFontHeight = 12;
+  const int height = kTitleFontHeight + 5 * kFontHeight + 8 * kPadding;
+  const int left = 0;
+  const SkRect area = SkRect::MakeXYWH(left, top, width, height);
+
+  PaintFlags flags;
+  DrawGraphBackground(canvas, &flags, area);
+
+  int y = top + kPadding + kTitleFontHeight;
+  flags.setColor(DebugColors::HUDTitleColor().toSkColor());
+  DrawText(canvas, flags, "Mystery HUD Menu", TextAlign::kLeft,
+           kTitleFontHeight, left + kPadding, y);
+
+  struct MenuItem {
+    const char* label;
+    bool enabled;
+  };
+  const MenuItem items[] = {
+      {"[UP] FPS & Memory", debug_state.show_fps_counter},
+      {"[RIGHT] Borders", debug_state.show_debug_borders.any()},
+      {"[DOWN] Paint Flash", debug_state.show_paint_rects},
+      {"[LEFT] Layout Shift", debug_state.show_layout_shift_regions},
+  };
+
+  for (const auto& item : items) {
+    y += kPadding + kFontHeight;
+    flags.setColor(DebugColors::HUDTitleColor().toSkColor());
+    DrawText(canvas, flags, item.label, TextAlign::kLeft, kFontHeight,
+             left + kPadding, y);
+    flags.setColor(item.enabled ? SK_ColorGREEN : SK_ColorGRAY);
+    DrawText(canvas, flags, item.enabled ? "ON" : "OFF", TextAlign::kRight,
+             kFontHeight, left + width - kPadding, y);
+  }
+
+  y += 2 * kPadding + kFontHeight;
+  flags.setColor(SK_ColorYELLOW);
+  DrawText(canvas, flags, "[OK] Close  [BACK] Reset", TextAlign::kLeft,
+           kFontHeight, left + kPadding, y);
+
+  return area;
+}
+#endif
 
 void HeadsUpDisplayLayerImpl::DrawDebugRect(
     PaintCanvas* canvas,
