@@ -168,9 +168,12 @@ public class MainActivity extends BaseCobaltActivity {
         if (deepLink == null || deepLink.isEmpty()) {
             return args;
         }
-        String[] argsWithLink = new String[args.length + 1];
-        System.arraycopy(args, 0, argsWithLink, 0, args.length);
-        argsWithLink[args.length] = "--link=" + deepLink;
+        int argsLength = (args == null) ? 0 : args.length;
+        String[] argsWithLink = new String[argsLength + 1];
+        if (args != null) {
+            System.arraycopy(args, 0, argsWithLink, 0, argsLength);
+        }
+        argsWithLink[argsLength] = "--link=" + deepLink;
         return argsWithLink;
     }
 

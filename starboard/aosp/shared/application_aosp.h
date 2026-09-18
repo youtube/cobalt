@@ -89,7 +89,7 @@ class ApplicationAOSP : public QueueApplication {
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
 
   // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
-  // with it's lifecycle management.
+  // with its lifecycle management.
   const raw_ptr<StarboardBridge> starboard_bridge_ =
       StarboardBridge::GetInstance();
 
