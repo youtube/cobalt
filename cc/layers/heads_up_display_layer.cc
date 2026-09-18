@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "cc/layers/heads_up_display_layer_impl.h"
 #include "cc/trees/layer_tree_host.h"
 #include "skia/ext/font_utils.h"
@@ -26,6 +27,12 @@ HeadsUpDisplayLayer::HeadsUpDisplayLayer()
         skia::MakeTypefaceFromName("monospace", SkFontStyle::Bold());
     SetNeedsPushProperties();
   }
+#if BUILDFLAG(IS_COBALT)
+  if (!typeface_.Read(*this)) {
+    typeface_.Write(*this) = skia::DefaultTypeface();
+    SetNeedsPushProperties();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK(typeface_.Read(*this).get());
   SetIsDrawable(true);
 }
