@@ -42,12 +42,20 @@ bool LayerTreeDebugState::ShowMemoryStats() const {
 }
 
 bool LayerTreeDebugState::ShouldDrawHudInfo() const {
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (mystery_hud_menu_active) {
+    return true;
+  }
+#endif
   return show_fps_counter || debugger_paused;
 }
 
 void LayerTreeDebugState::TurnOffHudInfoDisplay() {
   // Turn off all types of HUD info display. We do not reset `debugger_paused`.
   show_fps_counter = false;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  mystery_hud_menu_active = false;
+#endif
 }
 
 bool LayerTreeDebugState::operator==(const LayerTreeDebugState&) const =
