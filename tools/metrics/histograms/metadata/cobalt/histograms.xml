@@ -414,6 +414,59 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Startup.MilestoneDuration" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration in milliseconds taken for any startup milestone (5-37)
+    since the previous milestone.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration in milliseconds taken for startup milestone
+    {Milestone} since the previous milestone.
+  </summary>
+  <token key="Milestone">
+    <variant name="5" summary="StarboardBridgeNativeInit"/>
+    <variant name="6" summary="ApplicationAndroidInitialize"/>
+    <variant name="7" summary="PostStarboardBridgeInit"/>
+    <variant name="8" summary="ActivityWindowConfigured"/>
+    <variant name="9" summary="ActivityOnStart"/>
+    <variant name="10" summary="ActivityOnResume"/>
+    <variant name="11" summary="ActivityOnPause"/>
+    <variant name="12" summary="ActivityOnStop"/>
+    <variant name="13" summary="ActivityOnDestroy"/>
+    <variant name="14" summary="MainDelegateBasicStartupComplete"/>
+    <variant name="15" summary="MainDelegatePreSandboxStartup"/>
+    <variant name="16" summary="MainDelegatePostEarlyInitialization"/>
+    <variant name="17" summary="PreCreateThreads"/>
+    <variant name="18" summary="ShellCreateWindowNoSplash"/>
+    <variant name="19" summary="ShellCreateWindowWithSplash"/>
+    <variant name="20" summary="ShellRenderFrameCreated"/>
+    <variant name="21" summary="ShellDidStartLoading"/>
+    <variant name="22" summary="DidStartNavigation"/>
+    <variant name="23" summary="SplashObserverDidStartNavigation"/>
+    <variant name="24" summary="SplashObserverDidStartLoading"/>
+    <variant name="25" summary="SplashObserverDidFailLoad"/>
+    <variant name="26" summary="DidFinishNavigation"/>
+    <variant name="27" summary="ShellDocumentElementAvailable"/>
+    <variant name="28" summary="SplashObserverDidFinishNavigation"/>
+    <variant name="29" summary="ShellDidStartNavigationNonSplash"/>
+    <variant name="30" summary="ShellDidFinishNavigationNonSplash"/>
+    <variant name="31" summary="ShellDidFinishLoad"/>
+    <variant name="32" summary="StartupGuardObserverDidStartLoading"/>
+    <variant name="33" summary="StartupGuardObserverDidStartNavigation"/>
+    <variant name="34" summary="StartupGuardObserverDidFailLoad"/>
+    <variant name="35" summary="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="36" summary="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="37" summary="PlatformErrorRaised"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>

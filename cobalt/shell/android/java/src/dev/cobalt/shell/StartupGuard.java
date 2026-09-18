@@ -4,12 +4,14 @@ import static dev.cobalt.shell.Shell.TAG;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import androidx.annotation.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.chromium.base.metrics.RecordHistogram;
 
 /**
  * This class crashes the application if scheduled and not disarmed before its timer expires.
@@ -20,11 +22,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * application, rather than leaving the user stuck on an unresponsive black screen.
  */
 public class StartupGuard {
+  public static final String METRIC_MILESTONE_REACHED = "Cobalt.Startup.MilestoneReached";
+  public static final String METRIC_MILESTONE_DURATION_PREFIX = "Cobalt.Startup.MilestoneDuration.";
+  public static final String METRIC_MILESTONE_DURATION = "Cobalt.Startup.MilestoneDuration";
+  public static final int MIN_LOGGED_MILESTONE = 5;
+  public static final int MAX_LOGGED_MILESTONE = 37;
+
   private final Handler mHandler;
   private final Runnable mCrashRunnable;
   private final AtomicLong mStartupStatus = new AtomicLong(0L);
   private final Map<String, String> mDiagnosisInfo = new HashMap<>();
   private final AtomicBoolean mIsArmed = new AtomicBoolean(false);
+  private final AtomicLong mLastMilestoneTimestampMs =
+      new AtomicLong(SystemClock.elapsedRealtime());
 
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
@@ -80,7 +90,23 @@ public class StartupGuard {
     }
     Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
     long mask = 1L << milestone;
-    mStartupStatus.updateAndGet(current -> current | mask);
+    long previous = mStartupStatus.getAndUpdate(current -> current | mask);
+    if ((previous & mask) != 0) {
+      return;
+    }
+
+    if (milestone >= MIN_LOGGED_MILESTONE && milestone <= MAX_LOGGED_MILESTONE) {
+      long now = SystemClock.elapsedRealtime();
+      long previousTime = mLastMilestoneTimestampMs.getAndSet(now);
+      if (previousTime > 0) {
+        long durationMs = Math.max(0, now - previousTime);
+        RecordHistogram.recordTimesHistogram(
+            METRIC_MILESTONE_DURATION_PREFIX + milestone, durationMs);
+        RecordHistogram.recordTimesHistogram(METRIC_MILESTONE_DURATION, durationMs);
+      }
+      RecordHistogram.recordEnumeratedHistogram(
+          METRIC_MILESTONE_REACHED, milestone, MAX_LOGGED_MILESTONE + 1);
+    }
   }
 
   /**
@@ -131,5 +157,16 @@ public class StartupGuard {
   @VisibleForTesting
   public Runnable getCrashRunnable() {
     return mCrashRunnable;
+  }
+
+  /** Resets internal state for testing. */
+  @VisibleForTesting
+  public void resetForTesting() {
+    disarm();
+    mStartupStatus.set(0L);
+    synchronized (mDiagnosisInfo) {
+      mDiagnosisInfo.clear();
+    }
+    mLastMilestoneTimestampMs.set(SystemClock.elapsedRealtime());
   }
 }
