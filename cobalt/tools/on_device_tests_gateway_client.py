@@ -16,13 +16,19 @@
 """gRPC On-device Tests Gateway client."""
 
 import argparse
+import datetime
+import html
 import json
 import logging
 import os
+import pathlib
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-import grpc
+try:
+  import grpc
+except ImportError:
+  grpc = None
 
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -42,8 +48,12 @@ except ImportError:
   except ImportError:
     from test_filter import get_gtest_filter
 
-import on_device_tests_gateway_pb2
-import on_device_tests_gateway_pb2_grpc
+try:
+  import on_device_tests_gateway_pb2
+  import on_device_tests_gateway_pb2_grpc
+except ImportError:
+  on_device_tests_gateway_pb2 = None
+  on_device_tests_gateway_pb2_grpc = None
 # pylint: enable=wrong-import-position
 
 _WORK_DIR = '/on_device_tests_gateway'
@@ -72,46 +82,149 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
 
 
+def _generate_junit_xml_report(target_name: str, status: str, log_snippet: str,
+                               output_dir: pathlib.Path) -> None:
+  """Generates a JUnit XML result report for a target."""
+  output_dir.mkdir(parents=True, exist_ok=True)
+  xml_path = output_dir / f'{target_name}_testoutput.xml'
+  now = datetime.datetime.now(datetime.timezone.utc)
+  is_pass = status == 'PASS'
+  errors = 0 if is_pass else 1
+
+  with xml_path.open('w', encoding='utf-8') as f:
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    f.write('<testsuites tests="1" failures="0" disabled="0"'
+            f' errors="{errors}" time="0">\n')
+    time_str = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    f.write(
+        f'  <testsuite name="{html.escape(target_name)}" tests="1" failures="0"'
+        f' disabled="0" errors="{errors}" time="0"'
+        f' timestamp="{time_str}">\n')
+    f.write(f'    <testcase name="{html.escape(target_name)}"'
+            f' classname="{html.escape(target_name)}" time="0">\n')
+    if not is_pass:
+      f.write(f'      <error message="Internal test status:'
+              f' {html.escape(status)}">\n')
+      f.write(f'        <![CDATA[ {log_snippet} ]]>\n')
+      f.write('      </error>\n')
+    f.write('    </testcase>\n')
+    f.write('  </testsuite>\n')
+    f.write('</testsuites>\n')
+
+
 class OnDeviceTestsGatewayClient:
   """On-device tests Gateway Client class."""
 
   def __init__(self):
-    self.channel = grpc.insecure_channel(
-        target=(f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:'
-                f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}'),
-        # These options need to match server settings.
-        options=[
-            ('grpc.keepalive_time_ms', 10000),
-            ('grpc.keepalive_timeout_ms', 5000),
-            ('grpc.keepalive_permit_without_calls', 1),
-            ('grpc.http2.max_pings_without_data', 0),
-            ('grpc.http2.min_time_between_pings_ms', 10000),
-            ('grpc.http2.min_ping_interval_without_data_ms', 5000),
-        ],
-    )
-    self.stub = on_device_tests_gateway_pb2_grpc.on_device_tests_gatewayStub(
-        self.channel)
+    if grpc and on_device_tests_gateway_pb2_grpc:
+      self.channel = grpc.insecure_channel(
+          target=(f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:'
+                  f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}'),
+          # These options need to match server settings.
+          options=[
+              ('grpc.keepalive_time_ms', 10000),
+              ('grpc.keepalive_timeout_ms', 5000),
+              ('grpc.keepalive_permit_without_calls', 1),
+              ('grpc.http2.max_pings_without_data', 0),
+              ('grpc.http2.min_time_between_pings_ms', 10000),
+              ('grpc.http2.min_ping_interval_without_data_ms', 5000),
+          ],
+      )
+      self.stub = on_device_tests_gateway_pb2_grpc.on_device_tests_gatewayStub(
+          self.channel)
+    else:
+      self.channel = None
+      self.stub = None
 
-  def run_trigger_command(self, token: str, labels: List[str],
-                          test_requests: List[Dict[str, Any]]) -> None:
+  def run_trigger_command(
+      self,
+      token: str,
+      labels: List[str],
+      test_requests: List[Dict[str, Any]],
+      local_result_dir: Optional[str] = None,
+  ) -> bool:
     """Calls On-Device Tests service and passing given parameters to it.
 
     Args:
         token: Authentication token.
         labels: List of labels to assign to the test.
         test_requests (list): A list of test requests.
+        local_result_dir: Optional path to write synthesized result XMLs.
 
     Returns:
-        None.
+        bool: True if all targets passed, False if any target failed or was
+        incomplete.
     """
-    for response_line in self.stub.exec_command(
+    targets = [
+        req.get('test_target', '')
+        for req in test_requests
+        if req.get('test_target')
+    ]
+    target_status = {t: 'UNKNOWN' for t in targets}
+    target_logs = {t: [] for t in targets}
+
+    cmd = (
         on_device_tests_gateway_pb2.OnDeviceTestsCommand(
             token=token,
             labels=labels,
             test_requests=test_requests,
-        )):
+        ) if on_device_tests_gateway_pb2 else None)
+    for response_line in self.stub.exec_command(cmd):
 
-      print(response_line.response)
+      line = response_line.response
+      print(line, flush=True)
+
+      # Associate line with targets and parse status
+      upper_line = line.upper()
+      for target in targets:
+        target_name = target.split(':')[-1]
+        if target in line or target_name in line or len(targets) == 1:
+          target_logs[target].append(line)
+          if any(
+              k in upper_line for k in (
+                  'RESULT: PASS',
+                  'STATUS: COMPLETED',
+                  'RESULT: SUCCESS',
+                  'PASSED',
+                  'JOB RESULT: PASS',
+              )):
+            target_status[target] = 'PASS'
+          elif any(
+              k in upper_line for k in (
+                  'RESULT: FAIL',
+                  'RESULT: ERROR',
+                  'STATUS: FAILED',
+                  'STATUS: ERROR',
+                  'TIMEOUT',
+                  'CANCELLED',
+                  'JOB RESULT: FAIL',
+                  'JOB RESULT: ERROR',
+              )):
+            target_status[target] = 'FAIL'
+
+    all_passed = True
+    print('\n' + '=' * 60)
+    print('On-Device Test Target Execution Summary:')
+    print('=' * 60)
+    for target in targets:
+      status = target_status[target]
+      if status != 'PASS':
+        all_passed = False
+        if status == 'UNKNOWN':
+          target_status[target] = 'FAILED (No completion status reported)'
+      print(f'Target [{target}]: {target_status[target]}')
+    print('=' * 60 + '\n')
+
+    if local_result_dir:
+      output_path = pathlib.Path(local_result_dir)
+      for target in targets:
+        target_name = target.split(':')[-1]
+        status = target_status[target]
+        snippet = ('\n'.join(target_logs[target][-50:])
+                   if target_logs[target] else 'No log snippet captured.')
+        _generate_junit_xml_report(target_name, status, snippet, output_path)
+
+    return all_passed
 
   def run_watch_command(self, token: str, session_id: str) -> None:
     """Calls On-Device Tests watch service and passing given parameters to it.
@@ -448,6 +561,13 @@ def main() -> int:
             ' workflows'),
   )
 
+  trigger_args.add_argument(
+      '--local_result_dir',
+      type=str,
+      help=('Local directory path where synthesized JUnit XML results should be'
+            ' saved.'),
+  )
+
   # Watch command
   watch_parser = subparsers.add_parser(
       'watch', help='Watch a previously triggered On-Device test')
@@ -488,7 +608,15 @@ def main() -> int:
         print('No tests to run.')
         return 0
 
-      client.run_trigger_command(args.token, args.label, test_requests)
+      all_passed = client.run_trigger_command(
+          args.token,
+          args.label,
+          test_requests,
+          local_result_dir=getattr(args, 'local_result_dir', None),
+      )
+      if not all_passed:
+        print('One or more targets failed execution.')
+        return 1
     else:
       client.run_watch_command(args.token, args.session_id)
   except grpc.RpcError as e:
