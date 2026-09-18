@@ -20,12 +20,19 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 
 class PrefService;
+
+#if BUILDFLAG(IS_STARBOARD)
+namespace memory_pressure {
+class MultiSourceMemoryPressureMonitor;
+}  // namespace memory_pressure
+#endif
 
 namespace metrics {
 class MetricsService;
@@ -51,7 +58,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override;
 
   // ShellBrowserMainParts overrides.
   int PreEarlyInitialization() override;
@@ -90,6 +97,11 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+#if BUILDFLAG(IS_STARBOARD)
+  std::unique_ptr<memory_pressure::MultiSourceMemoryPressureMonitor>
+      memory_pressure_monitor_;
+#endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

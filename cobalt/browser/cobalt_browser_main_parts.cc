@@ -32,6 +32,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/memory_ablation.h"
@@ -50,6 +51,17 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/memory/memory_pressure_monitor.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // gn nocheck
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -365,6 +377,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -458,6 +472,37 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                << ". Aborting storage migration.";
     return result;
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Register the Cobalt system memory pressure evaluator on Starboard platforms
+  // when enabled via Finch or command line.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSystemMemoryPressureEvaluator)) {
+    if (!base::MemoryPressureMonitor::Get()) {
+      memory_pressure_monitor_ =
+          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+    }
+
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
+    if (monitor) {
+      cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+          media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      media_allowance_getter = base::BindRepeating(
+          &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
+#endif
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+              monitor->CreateVoter(), std::move(media_allowance_getter)));
+      LOG(INFO)
+          << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+    }
+  } else {
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   StartStorageMigration();
 
