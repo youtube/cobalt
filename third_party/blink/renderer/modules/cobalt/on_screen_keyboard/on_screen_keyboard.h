@@ -38,14 +38,12 @@ class ScriptState;
 
 class MODULES_EXPORT OnScreenKeyboard final
     : public EventTarget,
-      public Supplement<LocalDOMWindow>,
       public on_screen_keyboard::mojom::blink::OnScreenKeyboardClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
 
   // For window.onScreenKeyboard
   static OnScreenKeyboard* onScreenKeyboard(LocalDOMWindow&);
@@ -100,6 +98,8 @@ class MODULES_EXPORT OnScreenKeyboard final
   void DidUpdateSuggestions(ScriptPromiseResolver<IDLUndefined>*);
 
   void EnsureReceiverIsBound();
+
+  Member<LocalDOMWindow> local_dom_window_;
 
   String data_;
 

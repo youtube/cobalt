@@ -112,12 +112,7 @@ class ScopedMockUserMediaClient {
       if (original_) {
         window->SetUserMediaClient(original_.Get());
       } else {
-<<<<<<< HEAD
         window->SetUserMediaClient(nullptr);
-=======
-        window->Supplementable<LocalDOMWindow,
-                               51>::RemoveSupplement<UserMediaClient>();
->>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       }
     }
   }

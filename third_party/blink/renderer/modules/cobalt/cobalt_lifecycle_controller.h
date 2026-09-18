@@ -44,12 +44,10 @@ class CobaltLifecycleController
       public cobalt::mojom::blink::CobaltLifecycleController,
       public ExecutionContextLifecycleStateObserver,
       public PageVisibilityObserver,
-      public FocusChangedObserver,
-      public Supplement<LocalDOMWindow> {
+      public FocusChangedObserver {
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
 
   static CobaltLifecycleController* From(LocalDOMWindow& window);
 
@@ -91,6 +89,8 @@ class CobaltLifecycleController
  private:
   void EnsureRemoteIsBound();
   void NotifyObserver(base::OnceClosure callback);
+
+  Member<LocalDOMWindow> local_dom_window_;
 
   HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,
                    CobaltLifecycleController>
