@@ -167,6 +167,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
+  bool NeedsCodecRebuildForColorChange(
+      const scoped_refptr<InputBuffer>& input_buffer) const;
+  void PerformCodecTransition();
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
@@ -260,6 +264,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
+
+  bool draining_for_transition_ = false;
+  std::atomic_bool transition_eos_received_{false};
+  bool transition_eos_pending_ = false;
+  InputBuffers pending_transition_buffers_;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
