@@ -188,4 +188,37 @@ public class StartupGuardTest {
             StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
                 + StartupGuard.MILESTONE_NAMES[StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT]));
   }
+
+  @Test
+  public void crashRunnable_executesPreCrashHook_whenExecuted() {
+    boolean[] hookExecuted = new boolean[] {false};
+    mStartupGuard.setPreCrashHook(() -> hookExecuted[0] = true);
+
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException e) {
+      // Expected
+    }
+
+    assertTrue("preCrashHook should have executed prior to crash", hookExecuted[0]);
+  }
+
+  @Test
+  public void crashRunnable_hookThrows_stillCrashes() {
+    mStartupGuard.setPreCrashHook(
+        () -> {
+          throw new RuntimeException("Simulated failure in preCrashHook");
+        });
+
+    boolean crashed = false;
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException e) {
+      if (e.getMessage() != null && e.getMessage().contains("crash triggered by StartupGuard")) {
+        crashed = true;
+      }
+    }
+
+    assertTrue("StartupGuard must still crash even if preCrashHook throws", crashed);
+  }
 }
