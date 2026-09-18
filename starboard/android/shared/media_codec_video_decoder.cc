@@ -499,17 +499,6 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   return kInitialPrerollTimeout;
 }
 
-bool MediaCodecVideoDecoder::NeedsCodecRebuildForColorChange(
-    const scoped_refptr<InputBuffer>& input_buffer) const {
-  if (video_codec_ != kSbMediaVideoCodecVp9 || !media_decoder_) {
-    return false;
-  }
-  const bool stream_is_hdr =
-      !IsIdentity(input_buffer->video_stream_info().color_metadata);
-  const bool codec_is_hdr = color_metadata_.has_value();
-  return stream_is_hdr != codec_is_hdr;
-}
-
 void MediaCodecVideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
@@ -521,7 +510,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
-  if (draining_for_transition_) {
+  if (draining_for_transition_.load()) {
     pending_transition_buffers_.insert(pending_transition_buffers_.end(),
                                        input_buffers.begin(),
                                        input_buffers.end());
@@ -575,11 +564,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
-  } else if (NeedsCodecRebuildForColorChange(input_buffers.front())) {
+  } else if (NeedsCodecTransition(input_buffers.front())) {
     SB_LOG(INFO) << "Video color metadata changed at "
                  << input_buffers.front()->timestamp()
                  << "; draining the codec before rebuilding it.";
-    draining_for_transition_ = true;
+    draining_for_transition_.store(true);
     transition_eos_received_.store(false);
     pending_transition_buffers_.insert(pending_transition_buffers_.end(),
                                        input_buffers.begin(),
@@ -621,7 +610,10 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
-  if (draining_for_transition_) {
+  // It's possible that when we are draining the current codec for a codec
+  // transition, the EndOfStream for the 2nd codec arrives. In this case,
+  // save that EoS for the next codec and continue draining.
+  if (draining_for_transition_.load()) {
     transition_eos_pending_ = true;
     return;
   }
@@ -1037,7 +1029,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
-  if (draining_for_transition_ && is_end_of_stream) {
+  if (draining_for_transition_.load() && is_end_of_stream) {
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
     transition_eos_received_.store(true);
     if (buffered_output_frames_ == 0) {
@@ -1300,7 +1292,7 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
 
-  draining_for_transition_ = false;
+  draining_for_transition_.store(false);
   transition_eos_received_.store(false);
   transition_eos_pending_ = false;
   pending_transition_buffers_.clear();
@@ -1311,10 +1303,22 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
+// TODO (b/564788162): Support cross-codec transitions.
+bool MediaCodecVideoDecoder::NeedsCodecTransition(
+    const scoped_refptr<InputBuffer>& input_buffer) const {
+  if (!media_decoder_) {
+    return false;
+  }
+  const bool stream_is_hdr =
+      !IsIdentity(input_buffer->video_stream_info().color_metadata);
+  const bool codec_is_hdr = color_metadata_.has_value();
+  return stream_is_hdr != codec_is_hdr;
+}
+
 void MediaCodecVideoDecoder::PerformCodecTransition() {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (!draining_for_transition_) {
+  if (!draining_for_transition_.load()) {
     return;
   }
 

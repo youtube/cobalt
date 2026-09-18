@@ -167,7 +167,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
-  bool NeedsCodecRebuildForColorChange(
+  bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;
   void PerformCodecTransition();
 
@@ -265,7 +265,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
 
-  bool draining_for_transition_ = false;
+  std::atomic_bool draining_for_transition_{false};
   std::atomic_bool transition_eos_received_{false};
   bool transition_eos_pending_ = false;
   InputBuffers pending_transition_buffers_;
