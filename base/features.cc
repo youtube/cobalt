@@ -142,6 +142,20 @@ BASE_FEATURE_PARAM(double,
                    &kCobaltSkewportTargetTime,
                    "gpu_rasterization_skewport_target_time_in_seconds",
                    0.0);
+
+// Enabled by default so that all Cobalt platforms disable prepaint raster.
+// Setting the parameter to a non-zero percentage (e.g. 50 or 67) restores a
+// prepaint budget via Finch without requiring a binary change; disabling the
+// feature falls back to the upstream per-platform defaults.
+BASE_FEATURE(kCobaltMaxMemoryForPrepaint,
+             "CobaltMaxMemoryForPrepaint",
+             FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxMemoryForPrepaintPercentage,
+                   &kCobaltMaxMemoryForPrepaint,
+                   "max_memory_for_prepaint_percentage",
+                   0);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
