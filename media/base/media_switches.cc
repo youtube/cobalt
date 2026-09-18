@@ -517,6 +517,11 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
 BASE_FEATURE(kCobaltBypassMojoForMedia,
              "CobaltBypassMojoForMedia",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt uses PartitionAlloc for DecoderBuffer storage instead of
+// DecoderBufferAllocator.
+BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
+             "CobaltDisableDecoderBufferAllocator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, Cobalt routes media frame buffer allocations into Starboard's
 // media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
 BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,

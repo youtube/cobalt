@@ -81,6 +81,12 @@ DecoderBufferAllocator::DecoderBufferAllocator(
     : is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
+  if (base::FeatureList::IsEnabled(
+          media::kCobaltDisableDecoderBufferAllocator)) {
+    LOG(INFO) << "DecoderBufferAllocator is disabled via feature flag.";
+    return;
+  }
+
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
@@ -423,6 +429,8 @@ void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
+  CHECK(!base::FeatureList::IsEnabled(
+      media::kCobaltDisableDecoderBufferAllocator));
   mutex_.AssertAcquired();
   if (strategy_) {
     return;

@@ -279,5 +279,15 @@ TEST(DecoderBufferAllocatorNonParameterizedTest,
   }
 }
 
+TEST(DecoderBufferAllocatorNonParameterizedTest, DisabledViaFeatureFlag) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      media::kCobaltDisableDecoderBufferAllocator);
+
+  DecoderBufferAllocator allocator;
+  EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
+}
+
 }  // namespace
 }  // namespace media
