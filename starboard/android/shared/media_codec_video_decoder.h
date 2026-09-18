@@ -167,6 +167,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
+  // True when |input_buffer| starts a stream whose HDR/SDR state differs from
+  // the one the codec was configured with, and the codec cannot adapt.
+  bool NeedsCodecRebuildForColorChange(
+      const scoped_refptr<InputBuffer>& input_buffer) const;
+  // Rebuilds the codec once the drain started in WriteInputBuffers() has
+  // finished, then writes the samples held back during the drain.
+  void PerformCodecTransition();
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
@@ -260,6 +268,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
+
+  // Set while the codec is being drained ahead of a rebuild for a mid-stream
+  // color change.  Samples of the new stream are held in
+  // |pending_transition_buffers_| until the rebuild completes.
+  bool draining_for_transition_ = false;
+  std::atomic_bool transition_eos_received_{false};
+  bool transition_eos_pending_ = false;
+  InputBuffers pending_transition_buffers_;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;

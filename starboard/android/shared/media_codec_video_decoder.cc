@@ -106,6 +106,9 @@ const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
 
 const int kInitialPrerollFrameCount = 8;
 const int kNonInitialPrerollFrameCount = 1;
+// How many samples of the new stream to accept while the codec is draining
+// ahead of a rebuild.  Enough to resume smoothly, small enough to bound memory.
+const size_t kMaxPendingTransitionBuffers = 16;
 // According to b/487397946#comment3, after the first non-DECODE_ONLY frame is
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
@@ -499,6 +502,21 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   return kInitialPrerollTimeout;
 }
 
+bool MediaCodecVideoDecoder::NeedsCodecRebuildForColorChange(
+    const scoped_refptr<InputBuffer>& input_buffer) const {
+  // Only VP9 needs this.  The HDR clip is profile 2 and the SDR clip is
+  // profile 0, and MediaTek's VP9 component cannot change profile without
+  // being re-instantiated.  AV1 stays in Main profile across the same
+  // transition and adapts by itself.
+  if (video_codec_ != kSbMediaVideoCodecVp9 || !media_decoder_) {
+    return false;
+  }
+  const bool stream_is_hdr =
+      !IsIdentity(input_buffer->video_stream_info().color_metadata);
+  const bool codec_is_hdr = color_metadata_.has_value();
+  return stream_is_hdr != codec_is_hdr;
+}
+
 void MediaCodecVideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
@@ -509,6 +527,19 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
+
+  // The codec is being drained before it is rebuilt for a color change.  Hold
+  // the new stream's samples until the rebuild completes; they are written by
+  // PerformCodecTransition().
+  if (draining_for_transition_) {
+    pending_transition_buffers_.insert(pending_transition_buffers_.end(),
+                                       input_buffers.begin(),
+                                       input_buffers.end());
+    if (pending_transition_buffers_.size() < kMaxPendingTransitionBuffers) {
+      decoder_status_cb_(kNeedMoreInput, NULL);
+    }
+    return;
+  }
 
   if (max_video_size_.has_value()) {
     for (const auto& input_buffer : input_buffers) {
@@ -556,6 +587,24 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
+  } else if (NeedsCodecRebuildForColorChange(input_buffers.front())) {
+    // MediaTek's VP9 component latches the bitstream profile at configure(),
+    // so a profile 2 (10-bit HDR) to profile 0 (8-bit SDR) change decodes into
+    // corrupt pixels until the codec is rebuilt.  setParameters(), flush() and
+    // stop()/configure() were all measured to be insufficient.  Drain the codec
+    // first so the frames already decoded are still displayed, then rebuild in
+    // PerformCodecTransition().
+    SB_LOG(INFO) << "Video color metadata changed at "
+                 << input_buffers.front()->timestamp()
+                 << "; draining the codec before rebuilding it.";
+    draining_for_transition_ = true;
+    transition_eos_received_.store(false);
+    pending_transition_buffers_.insert(pending_transition_buffers_.end(),
+                                       input_buffers.begin(),
+                                       input_buffers.end());
+    media_decoder_->WriteEndOfStream();
+    decoder_status_cb_(kNeedMoreInput, NULL);
+    return;
   }
 
   input_buffer_written_ += input_buffers.size();
@@ -589,6 +638,13 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 void MediaCodecVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
+
+  // The samples before this end of stream have not been written yet, so it has
+  // to be re-issued by PerformCodecTransition() after the rebuild.
+  if (draining_for_transition_) {
+    transition_eos_pending_ = true;
+    return;
+  }
 
   if (end_of_stream_written_) {
     SB_LOG(WARNING) << "WriteEndOfStream() is called more than once.";
@@ -1000,6 +1056,18 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
+
+  if (draining_for_transition_ && is_end_of_stream) {
+    // The old codec has emitted everything it had.  Wait for the frames still
+    // held by the renderer to be released before tearing it down.
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+    transition_eos_received_.store(true);
+    if (buffered_output_frames_ == 0) {
+      Schedule(std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
+    }
+    return;
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1177,6 +1245,9 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
+    if (buffered_output_frames_ == 0 && transition_eos_received_.load()) {
+      Schedule(std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
+    }
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 }
@@ -1249,10 +1320,42 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
 
+  draining_for_transition_ = false;
+  transition_eos_received_.store(false);
+  transition_eos_pending_ = false;
+  pending_transition_buffers_.clear();
+
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+void MediaCodecVideoDecoder::PerformCodecTransition() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!draining_for_transition_) {
+    return;
+  }
+
+  InputBuffers buffers;
+  buffers.swap(pending_transition_buffers_);
+  const bool write_end_of_stream = transition_eos_pending_;
+
+  // Tears down the codec and clears the drain state.  |skip_flush| is set
+  // because the codec is about to be destroyed either way.
+  ResetInternal(/*skip_flush=*/true);
+
+  // Written through the normal path, which rebuilds the codec with the new
+  // stream's color metadata because |input_buffer_written_| is now 0.
+  if (!buffers.empty()) {
+    WriteInputBuffers(buffers);
+  } else {
+    decoder_status_cb_(kNeedMoreInput, NULL);
+  }
+  if (write_end_of_stream) {
+    WriteEndOfStream();
+  }
 }
 
 }  // namespace starboard
