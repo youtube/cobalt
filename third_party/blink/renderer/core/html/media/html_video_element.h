@@ -311,7 +311,8 @@ VideoFrameCallbackRequester* GetVideoFrameCallbackRequester() const {
 Member<VideoFrameCallbackRequester> video_frame_callback_requester_;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+};
 
 }  // namespace blink
 

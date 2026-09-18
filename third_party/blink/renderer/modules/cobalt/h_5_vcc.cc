@@ -31,6 +31,7 @@ namespace blink {
 
 // static
 const char H5vcc::kSupplementName[] = "H5vcc";
+const unsigned H5vcc::kSupplementIndex = 1;
 
 // static
 H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {

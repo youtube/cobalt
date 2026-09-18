@@ -14641,7 +14641,8 @@ void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
   service->BindReceiver(std::move(receiver));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+}
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
     mojo::PendingReceiver<network::mojom::RestrictedCookieManager> receiver) {
