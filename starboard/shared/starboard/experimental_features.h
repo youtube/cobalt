@@ -163,6 +163,13 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
 // Get the extension API for configuring experimental features.
 const void* GetExperimentalFeaturesConfigurationApi();
 
+// Modes for Media.NdkAudioMode.
+enum class NdkAudioMode {
+  kDisabled = 0,
+  kPullSink = 1,
+  kAudioTrack = 2,
+};
+
 // -----------------------------------------------------------------------------
 // Experimental Feature Key Constants
 // -----------------------------------------------------------------------------
@@ -218,8 +225,11 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
-    "Media.NdkAudioTrack");
+// Selects which NDK audio mode to use. The int value maps to `NdkAudioMode`.
+// Feature bug: b/561166288
+// Experiment bug: b/565474970
+inline constexpr ExperimentalFeatureKey<int> kMediaNdkAudioMode(
+    "Media.NdkAudioMode");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
