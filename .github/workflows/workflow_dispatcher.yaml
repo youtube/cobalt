@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   dispatch:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'ci-dry-run' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -145,7 +145,10 @@ jobs:
               }
             }));
 
-            // Remove the trigger label after all workflows have been triggered
+            // Remove the trigger label after all workflows have been triggered.
+            // 'ci-dry-run' is deliberately excluded: it is a sticky mode rather than a
+            // one-shot trigger, so it must survive subsequent pushes to keep the PR in
+            // dry-run mode until it is removed by hand.
             if (labelName === 'runtest' || labelName === 'yts_playback_test') {
               try {
                 console.log(`Removing label ${labelName} from PR #${pr.number}...`);
