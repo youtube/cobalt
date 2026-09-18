@@ -692,10 +692,10 @@ bool SbSystemSupportsResume()
 
 Looks up `address` as an instruction pointer and places up to `buffer_size - 1`
 characters of its associated symbol in `out_buffer`. The output is always
-null-terminated. `out_buffer` must not be `NULL`.
+null-terminated. `out_buffer` must not be `nullptr`.
 
 The return value indicates whether the function found a reasonable match for
-`address`. If the return value is `false`, then `out_buffer` is not modified.
+`address`.
 
 This function is used in crash signal handlers and, therefore, it must be
 async-signal-safe on platforms that support signals.
