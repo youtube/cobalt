@@ -45,6 +45,7 @@
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -227,6 +228,28 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+}
+
+void CobaltContentRendererClient::
+    SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() {
+  // Cobalt deliberately skips construction of several Content services (see
+  // the IS_COBALT carve-outs in content/browser/browser_main_loop.cc). Any web
+  // API whose backing service is absent must also be hidden from script.
+  // Leaving the API visible makes feature detection report support that does
+  // not exist, and the resulting call reaches a browser-side handler that has
+  // no service behind it.
+  //
+  // SpeechRecognitionManagerImpl is not created for Cobalt, so hide the Web
+  // Speech *recognition* entry points. `webkitSpeechRecognition` is a
+  // LegacyWindowAlias gated on this feature, and the `SpeechRecognition`
+  // interface itself is [LegacyNoInterfaceObject], so disabling the feature
+  // removes the only way to construct one. Script then observes a plain
+  // TypeError, which is what callers that feature-detect expect.
+  //
+  // Note this does not affect speech *synthesis* (ScriptedSpeechSynthesis),
+  // which Cobalt still supports.
+  blink::WebRuntimeFeatures::EnableFeatureFromString(
+      "ScriptedSpeechRecognition", /*enable=*/false);
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
