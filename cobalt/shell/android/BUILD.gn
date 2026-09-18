@@ -22,6 +22,7 @@ generate_jni("cobalt_shell_jni_headers") {
     "java/src/dev/cobalt/shell/ContentViewRenderView.java",
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
+    "java/src/dev/cobalt/shell/StartupGuard.java",
   ]
 }
 

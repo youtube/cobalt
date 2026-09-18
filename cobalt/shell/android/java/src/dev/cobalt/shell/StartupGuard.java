@@ -11,7 +11,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordHistogram;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * This class crashes the application if scheduled and not disarmed before its timer expires.
@@ -21,6 +24,7 @@ import org.chromium.base.metrics.RecordHistogram;
  * <p>Intentionally crashing allows the system to capture a stack trace and potentially restart the
  * application, rather than leaving the user stuck on an unresponsive black screen.
  */
+@JNINamespace("cobalt")
 public class StartupGuard {
   public static final String METRIC_MILESTONE_REACHED = "Cobalt.Startup.MilestoneReached";
   public static final String METRIC_MILESTONE_DURATION_PREFIX = "Cobalt.Startup.MilestoneDuration.";
@@ -144,7 +148,15 @@ public class StartupGuard {
     if (mIsArmed.compareAndSet(/* expect= */ true, /* update= */ false)) {
       mHandler.removeCallbacks(mCrashRunnable);
       Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
+      if (LibraryLoader.getInstance().isInitialized()) {
+        StartupGuardJni.get().onStartupGuardDisarmed();
+      }
     }
+  }
+
+  @NativeMethods
+  interface Natives {
+    void onStartupGuardDisarmed();
   }
 
   /** Checks if the forced crash is currently scheduled. */

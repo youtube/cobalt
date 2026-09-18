@@ -261,6 +261,7 @@ static_library("cobalt_shell_lib") {
       "android/content_view_render_view.h",
       "android/shell_manager.cc",
       "android/shell_manager.h",
+      "android/startup_guard_android.cc",
       "browser/shell_platform_delegate_android.cc",
       "browser/shell_web_contents_view_delegate_android.cc",
     ]
