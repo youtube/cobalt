@@ -21,7 +21,7 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/skia/include/ports/SkFontMgr_android.h"
 #include "third_party/skia/include/ports/SkFontMgr_android_ndk.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
@@ -115,7 +115,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);

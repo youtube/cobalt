@@ -2752,7 +2752,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
 =======
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   requires_ipp_proxy_delegate =
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       (mdl_manager->IsEnabled() ||
        !net::features::kIpPrivacyUnconditionalProxyDomainList.Get().empty()) &&
       (params_->ip_protection_core_host ||

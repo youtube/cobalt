@@ -97,7 +97,7 @@ std::unique_ptr<leveldb::DB> TryOpenDB(
   return db;
 }
 
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):components/services/storage/dom_storage/dom_storage_database_leveldb.cc
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):components/services/storage/dom_storage/dom_storage_database_leveldb.cc
 DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
   base::span key_span(key);

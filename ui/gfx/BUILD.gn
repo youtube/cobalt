@@ -295,7 +295,7 @@ component("gfx") {
       "skia_paint_util.h",
     ]
   }
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   configs += [
     ":gfx_impl_define",
@@ -534,7 +534,7 @@ component("gfx") {
     if (is_android || is_fuchsia || is_ios) {
 =======
     if (is_android || is_fuchsia || is_ios || is_cobalt_hermetic_build) {
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       sources += [
         "font_fallback_skia.cc",
         "font_render_params_skia.cc",
@@ -597,7 +597,7 @@ component("gfx") {
       "CoreGraphics.framework",
       "CoreText.framework",
     ]
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (use_aura || toolkit_views) {

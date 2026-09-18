@@ -94,7 +94,7 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 {
 }
 #endif
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 85b8f352370 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 UrlFetcherDownloader::~UrlFetcherDownloader() = default;
 
