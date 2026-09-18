@@ -499,6 +499,17 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   return kInitialPrerollTimeout;
 }
 
+bool MediaCodecVideoDecoder::NeedsCodecRebuildForColorChange(
+    const scoped_refptr<InputBuffer>& input_buffer) const {
+  if (video_codec_ != kSbMediaVideoCodecVp9 || !media_decoder_) {
+    return false;
+  }
+  const bool stream_is_hdr =
+      !IsIdentity(input_buffer->video_stream_info().color_metadata);
+  const bool codec_is_hdr = color_metadata_.has_value();
+  return stream_is_hdr != codec_is_hdr;
+}
+
 void MediaCodecVideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
@@ -509,6 +520,14 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
+
+  if (draining_for_transition_) {
+    pending_transition_buffers_.insert(pending_transition_buffers_.end(),
+                                       input_buffers.begin(),
+                                       input_buffers.end());
+    decoder_status_cb_(kNeedMoreInput, NULL);
+    return;
+  }
 
   if (max_video_size_.has_value()) {
     for (const auto& input_buffer : input_buffers) {
@@ -556,6 +575,18 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
+  } else if (NeedsCodecRebuildForColorChange(input_buffers.front())) {
+    SB_LOG(INFO) << "Video color metadata changed at "
+                 << input_buffers.front()->timestamp()
+                 << "; draining the codec before rebuilding it.";
+    draining_for_transition_ = true;
+    transition_eos_received_.store(false);
+    pending_transition_buffers_.insert(pending_transition_buffers_.end(),
+                                       input_buffers.begin(),
+                                       input_buffers.end());
+    media_decoder_->WriteEndOfStream();
+    decoder_status_cb_(kNeedMoreInput, NULL);
+    return;
   }
 
   input_buffer_written_ += input_buffers.size();
@@ -589,6 +620,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 void MediaCodecVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
+
+  if (draining_for_transition_) {
+    transition_eos_pending_ = true;
+    return;
+  }
 
   if (end_of_stream_written_) {
     SB_LOG(WARNING) << "WriteEndOfStream() is called more than once.";
@@ -1000,6 +1036,17 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
+
+  if (draining_for_transition_ && is_end_of_stream) {
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+    transition_eos_received_.store(true);
+    if (buffered_output_frames_ == 0) {
+      Schedule(
+          std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
+    }
+    return;
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1177,6 +1224,10 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
+    if (buffered_output_frames_ == 0 && transition_eos_received_.load()) {
+      Schedule(
+          std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
+    }
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 }
@@ -1249,10 +1300,38 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
 
+  draining_for_transition_ = false;
+  transition_eos_received_.store(false);
+  transition_eos_pending_ = false;
+  pending_transition_buffers_.clear();
+
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+void MediaCodecVideoDecoder::PerformCodecTransition() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!draining_for_transition_) {
+    return;
+  }
+
+  InputBuffers buffers;
+  buffers.swap(pending_transition_buffers_);
+  const bool write_end_of_stream = transition_eos_pending_;
+
+  ResetInternal(/*skip_flush=*/true);
+
+  if (!buffers.empty()) {
+    WriteInputBuffers(buffers);
+  } else {
+    decoder_status_cb_(kNeedMoreInput, NULL);
+  }
+  if (write_end_of_stream) {
+    WriteEndOfStream();
+  }
 }
 
 }  // namespace starboard
