@@ -47,14 +47,6 @@
 #include "build/chromecast_buildflags.h"
 #include "components/cookie_config/cookie_store_util.h"
 #include "components/domain_reliability/monitor.h"
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "components/ip_protection/common/ip_protection_core_host_remote.h"  // nogncheck
-#include "components/ip_protection/common/ip_protection_core_impl_mojo.h"    // nogncheck
-#include "components/ip_protection/common/ip_protection_proxy_delegate.h"   // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -1253,19 +1245,6 @@ void NetworkContext::SetBlockTrustTokens(bool block) {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-<<<<<<< HEAD
-=======
-void NetworkContext::SetTrackingProtectionContentSetting(
-    const ContentSettingsForOneType& settings) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  if (!ip_protection_core_) {
-    return;
-  }
-  ip_protection_core_->SetTrackingProtectionContentSetting(settings);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-}
-
->>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void NetworkContext::OnProxyLookupComplete(
     ProxyLookupRequest* proxy_lookup_request) {
   auto it = proxy_lookup_requests_.find(proxy_lookup_request);
@@ -2756,49 +2735,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   network_delegate_ = network_delegate.get();
   builder.set_network_delegate(std::move(network_delegate));
 
-<<<<<<< HEAD
   if (params_->initial_custom_proxy_config ||
       params_->custom_proxy_config_client_receiver) {
-=======
-  // Decide which ProxyDelegate to create. At most one of these will be the
-  // case for any given NetworkContext: either PrefetchProxy, handling its
-  // custom proxy configs, or IpProtection, using the proxy allowlist.
-  bool requires_ipp_proxy_delegate = false;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  auto* mdl_manager = network_service_->masked_domain_list_manager();
-  requires_ipp_proxy_delegate =
-      (mdl_manager->IsEnabled() ||
-       !net::features::kIpPrivacyUnconditionalProxyDomainList.Get().empty()) &&
-      (params_->ip_protection_core_host ||
-       net::features::kIpPrivacyAlwaysCreateCore.Get());
-  if (requires_ipp_proxy_delegate) {
-    CHECK(!params_->initial_custom_proxy_config);
-    CHECK(!params_->custom_proxy_config_client_receiver);
-    scoped_refptr<ip_protection::IpProtectionCoreHostRemote> core_host_remote =
-        params_->ip_protection_core_host
-            ? base::MakeRefCounted<ip_protection::IpProtectionCoreHostRemote>(
-                  std::move(params_->ip_protection_core_host))
-            : nullptr;
-    auto ip_protection_core_impl =
-        std::make_unique<ip_protection::IpProtectionCoreImplMojo>(
-            std::move(params_->ip_protection_control), core_host_remote,
-            mdl_manager, params_->enable_ip_protection,
-            params_->ip_protection_incognito,
-            std::move(params_->initial_ip_protection_tokens));
-    builder.set_proxy_delegate(
-        std::make_unique<ip_protection::IpProtectionProxyDelegate>(
-            ip_protection_core_impl.get()));
-    // Set tracking protection content settings if there are any provided.
-    ip_protection_core_impl->SetTrackingProtectionContentSetting(
-        params_->tracking_protection_content_settings);
-
-    ip_protection_core_ = std::move(ip_protection_core_impl);
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  if (!requires_ipp_proxy_delegate &&
-      (params_->initial_custom_proxy_config ||
-       params_->custom_proxy_config_client_receiver)) {
->>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     builder.set_proxy_delegate(std::make_unique<NetworkServiceProxyDelegate>(
         std::move(params_->initial_custom_proxy_config),
         std::move(params_->custom_proxy_config_client_receiver),
