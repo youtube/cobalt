@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/abi.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
@@ -287,6 +288,13 @@ static_library("starboard_platform") {
   configs += [
     "//starboard/build/config:starboard_implementation",
     ":starboard_platform_libs",
+  ]
+
+  defines = [
+    # system_get_property.cc stringizes this to build the platform name
+    # (e.g. for the User-Agent string). Without it, the ABI ends up as the
+    # literal text "ANDROID_ABI" instead of e.g. "armeabi-v7a".
+    "ANDROID_ABI=$android_app_abi",
   ]
 
   public_deps = [
