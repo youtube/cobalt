@@ -170,18 +170,32 @@ inline std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
 // Chromium media layer. For platform-level Starboard features, see
 // starboard/shared/starboard/experimental_features.h.
 // keep-sorted start by_regex=k\w+ newline_separated=yes
+// Bypasses Mojo IPC for media renderer/player in single-process mode.
+// Feature bug: b/513254071
 inline constexpr ExperimentalFeatureKey<bool> kMediaBypassMojoForMedia(
     "Media.BypassMojoForMedia");
 
+// Enables steady-state playback optimizations (e.g., avoiding redundant atomic
+// operations during seek checks).
+// Feature bug: b/514758473
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
 
+// Forces the player to use `kSbPlayerOutputModeDecodeToTexture` instead of
+// punch-out mode.
+// Feature bug: b/510485152
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
 
+// Configures the maximum number of audio/video samples written per
+// `SbPlayerWriteSamples` call.
+// Feature bug: b/375674101
+// Experiment bug: b/497891900
 inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
 
+// Enables using an external media memory pool for media buffers.
+// Feature bug: b/378106931
 inline constexpr ExperimentalFeatureKey<bool> kMediaUseExternalMediaMemoryPool(
     "Media.UseExternalMediaMemoryPool");
 // keep-sorted end
