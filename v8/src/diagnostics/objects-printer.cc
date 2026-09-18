@@ -61,11 +61,9 @@ void PrintDouble(std::ostream& os, double val) {
     // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   } else if (std::isnan(val)) {
     os << val << " (0x" << std::hex << base::double_to_uint64(val) << std::dec
        << ")";
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   } else {
     os << val;
   }
@@ -343,6 +341,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       break;
     case WASM_DISPATCH_TABLE_TYPE:
       TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
+      break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      TrustedCast<WasmDispatchTableForImports>(*this)
+          ->WasmDispatchTableForImportsPrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectPrint(os);
@@ -1717,7 +1719,6 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   }
   os << "\n - value: " << Brief(value());
   os << "\n - interrupt_budget: " << interrupt_budget();
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   if (dispatch_handle() != kNullJSDispatchHandle &&
@@ -1730,7 +1731,6 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
     jdt->PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
   }
 
-#endif  // V8_ENABLE_LEAPTIERING
   os << "\n";
 }
 
@@ -1805,19 +1805,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   }
 
   os << "\n - shared function info: " << Brief(shared_function_info());
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - tiering_in_progress: " << tiering_in_progress();
-#else
-  os << "\n - tiering state: " << tiering_state();
-  if (has_optimized_code()) {
-    os << "\n - optimized code: "
-       << Brief(optimized_code(GetCurrentIsolateForSandbox()));
-  } else {
-    os << "\n - no optimized code";
-  }
-  os << "\n - maybe has maglev code: " << maybe_has_maglev_code();
-  os << "\n - maybe has turbofan code: " << maybe_has_turbofan_code();
-#endif  // !V8_ENABLE_LEAPTIERING
   os << "\n - osr_tiering_in_progress: " << osr_tiering_in_progress();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - closure feedback cell array: ";
@@ -2435,7 +2423,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code(isolate));
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
   if (has_feedback_vector() &&
       raw_feedback_cell()->dispatch_handle() != dispatch_handle()) {
@@ -2451,7 +2438,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
         dispatch_handle(), Isolate::Current(), os);
   }
 
-#endif  // V8_ENABLE_LEAPTIERING
   CodeKind code_kind = code(isolate)->kind();
   if (code_kind == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
@@ -2662,10 +2648,8 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
        << Brief(istream->relocation_info());
     os << "\n - instruction_stream.body_size: " << istream->body_size();
   }
-#ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << js_dispatch_handle()
      << std::dec;
-#endif  // V8_ENABLE_LEAPTIERING
   os << "\n";
 
   // Finally, the disassembly:
@@ -3044,6 +3028,22 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
   for (int i = 0; i < printed; ++i) {
     os << "\n " << std::setw(8) << i << ": sig: " << sig(i)
        << "; target: " << AsHex::Address(target(i).value())
+       << "; implicit_arg: " << Brief(implicit_arg(i));
+  }
+  if (printed != len) os << "\n  [...]";
+  os << "\n";
+}
+
+void WasmDispatchTableForImports::WasmDispatchTableForImportsPrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmDispatchTableForImports");
+  int len = length();
+  os << "\n - length: " << len;
+  // Only print up to 55 elements; otherwise print the first 50 and "[...]".
+  int printed = len > 55 ? 50 : len;
+  for (int i = 0; i < printed; ++i) {
+    os << "\n " << std::setw(8) << i
+       << ": target: " << AsHex::Address(target(i).value())
        << "; implicit_arg: " << Brief(implicit_arg(i));
   }
   if (printed != len) os << "\n  [...]";
@@ -4017,6 +4017,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<WasmDispatchTable["
          << TrustedCast<WasmDispatchTable>(*this)->length() << "]>";
       break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      os << "<WasmDispatchTableForImports["
+         << TrustedCast<WasmDispatchTableForImports>(*this)->length() << "]>";
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       os << "<Other heap object (" << map()->instance_type() << ")>";
@@ -4538,13 +4542,11 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Code(void* object) {
 #endif
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
   i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(
       i::JSDispatchHandle(handle));
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_OnlyCode(
     void* object, size_t range_limit) {

@@ -109,9 +109,6 @@ Port::Port(const PortParametersRef& args,
       shared_socket_(shared_socket),
       network_cost_(args.network->GetCost(env_.field_trials())),
       role_conflict_callback_(nullptr),
-      unknown_address_trampoline_(this),
-      read_packet_trampoline_(this),
-      sent_packet_trampoline_(this),
       weak_factory_(this) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(factory_ != nullptr);

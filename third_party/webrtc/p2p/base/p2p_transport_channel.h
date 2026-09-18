@@ -64,6 +64,7 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/dscp.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -152,7 +153,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   int GetError() override;
   bool GetStats(IceTransportStats* ice_transport_stats) override;
   std::optional<int> GetRttEstimate() override;
-  const Connection* selected_connection() const override;
+  const Connection* selected_connection() const;
   std::optional<const CandidatePair> GetSelectedCandidatePair() const override;
 
   // From IceAgentInterface
@@ -247,14 +248,9 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   void SetDtlsStunPiggybackCallbacks(
       DtlsStunPiggybackCallbacks&& callbacks) override;
 
-  // Returns the local ICE parameters.
-  const IceParameters* local_ice_parameters() const override {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    return &ice_parameters_;
-  }
   // Returns the latest remote ICE parameters or nullptr if there are no remote
   // ICE parameters yet.
-  const IceParameters* remote_ice_parameters() const override {
+  const IceParameters* remote_ice_parameters() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return remote_ice_parameters_.empty() ? nullptr
                                           : &remote_ice_parameters_.back();

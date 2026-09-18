@@ -80,14 +80,7 @@ PortAllocatorSession::PortAllocatorSession(absl::string_view content_name,
       content_name_(content_name),
       component_(component),
       ice_ufrag_(ice_ufrag),
-      ice_pwd_(ice_pwd),
-      port_ready_trampoline_(this),
-      ports_pruned_trampoline_(this),
-      candidates_ready_trampoline_(this),
-      candidate_error_trampoline_(this),
-      candidates_removed_trampoline_(this),
-      candidates_allocation_done_trampoline_(this),
-      ice_regathering_trampoline_(this) {
+      ice_pwd_(ice_pwd) {
   // Pooled sessions are allowed to be created with empty content name,
   // component, ufrag and password.
   RTC_DCHECK(ice_ufrag.empty() == ice_pwd.empty());
@@ -298,7 +291,7 @@ void PortAllocator::SetCandidateFilter(uint32_t filter) {
   }
   uint32_t prev_filter = candidate_filter_;
   candidate_filter_ = filter;
-  SignalCandidateFilterChanged(prev_filter, filter);
+  NotifyCandidateFilterChanged(prev_filter, filter);
 }
 
 void PortAllocator::GetCandidateStatsFromPooledSessions(
@@ -346,7 +339,7 @@ Candidate PortAllocator::SanitizeCandidate(const Candidate& c) const {
 
 void PortAllocatorSession::SubscribePortReady(
     absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback) {
-  port_ready_trampoline_.Subscribe(std::move(callback));
+  port_ready_callbacks_.AddReceiver(std::move(callback));
 }
 
 }  // namespace webrtc

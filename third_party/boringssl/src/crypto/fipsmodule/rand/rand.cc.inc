@@ -31,9 +31,9 @@
 
 
 // It's assumed that the operating system always has an unfailing source of
-// entropy which is accessed via |CRYPTO_sysrand[_for_seed]|. (If the operating
-// system entropy source fails, it's up to |CRYPTO_sysrand| to abort the
-// process—we don't try to handle it.)
+// entropy which is accessed via |CRYPTO_sysrand|. (If the operating system
+// entropy source fails, it's up to |CRYPTO_sysrand| to abort the process—we
+// don't try to handle it.)
 //
 // In addition, the hardware may provide a low-latency RNG. Intel's rdrand
 // instruction is the canonical example of this. When a hardware RNG is
@@ -323,7 +323,7 @@ static void rand_get_seed(struct rand_thread_state *state,
                           size_t *out_additional_input_len) {
   // If not in FIPS mode, we don't overread from the system entropy source and
   // we don't depend only on the hardware RDRAND.
-  CRYPTO_sysrand_for_seed(seed, CTR_DRBG_SEED_LEN);
+  CRYPTO_sysrand(seed, CTR_DRBG_SEED_LEN);
   *out_additional_input_len = 0;
 }
 

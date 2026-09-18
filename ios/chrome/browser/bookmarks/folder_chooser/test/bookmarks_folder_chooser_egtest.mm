@@ -14,9 +14,9 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_storage_type.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey_ui.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_ui_constants.h"
+#import "ios/chrome/browser/bookmarks/public/bookmarks_ui_constants.h"
+#import "ios/chrome/browser/bookmarks/test/bookmark_earl_grey.h"
+#import "ios/chrome/browser/bookmarks/test/bookmark_earl_grey_ui.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -272,8 +272,8 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testCantDeleteFolderBeingEdited:KindOfTest::kLocal];
 }
-// TODO(crbug.com/326425036): New folder can’t be renamed in account model.
-- (void)DISABLED_testCantDeleteFolderBeingEditedAccount {
+
+- (void)testCantDeleteFolderBeingEditedAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testCantDeleteFolderBeingEdited:KindOfTest::kAccount];
 }
@@ -309,8 +309,7 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
   [self util_testNavigateAwayFromFolderBeingEdited:KindOfTest::kLocal];
 }
 
-// TODO(crbug.com/337774320) Test is flaky on ios-fieldtrial-rel.
-- (void)FLAKY_testNavigateAwayFromFolderBeingEditedAccount {
+- (void)testNavigateAwayFromFolderBeingEditedAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testNavigateAwayFromFolderBeingEdited:KindOfTest::kAccount];
 }
@@ -558,8 +557,8 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testEditFunctionalityOnSingleFolder:KindOfTest::kLocal];
 }
-// TODO(crbug.com/326425036): Figure out why Chrome crash with this test.
-- (void)DISABLED_testEditFunctionalityOnSingleFolderAccount {
+
+- (void)testEditFunctionalityOnSingleFolderAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testEditFunctionalityOnSingleFolder:KindOfTest::kAccount];
 }
@@ -1259,26 +1258,14 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
 // Tests the new folder name is committed when name editing is interrupted by
 // navigating away.
 - (void)testNewFolderNameCommittedOnNavigatingAwaySignedOut {
-  // TODO(crbug.com/440485616): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
   [self util_testNewFolderNameCommittedOnNavigatingAway:KindOfTest::kSignedOut];
 }
 - (void)testNewFolderNameCommittedOnNavigatingAwayLocal {
-  // TODO(crbug.com/440475041): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testNewFolderNameCommittedOnNavigatingAway:KindOfTest::kLocal];
 }
 
-// TODO(crbug.com/342589920): Test failing on ios-fieldtrial-rel or when there
-// is no field trial config.
-- (void)DISABLED_testNewFolderNameCommittedOnNavigatingAwayAccount {
+- (void)testNewFolderNameCommittedOnNavigatingAwayAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testNewFolderNameCommittedOnNavigatingAway:KindOfTest::kAccount];
 }
@@ -1323,7 +1310,7 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
                                                  pressReturn:NO];
 
   // Interrupt the folder name editing by entering Folder 1.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"Folder 1")]
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"New Folder 2")]
       performAction:grey_tap()];
 
   // Come back to Mobile Bookmarks.
@@ -1359,17 +1346,11 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
 }
 
 - (void)testCreateNewFolderWithContextBarLocal {
-  // TODO(crbug.com/440572503): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testCreateNewFolderWithContextBar:KindOfTest::kLocal];
 }
 
-// TODO(crbug.com/326425036): New folder can’t be renamed in account model.
-- (void)DISABLE_testCreateNewFolderWithContextBarAccount {
+- (void)testCreateNewFolderWithContextBarAccount {
   [SigninEarlGreyUI signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [self util_testCreateNewFolderWithContextBar:KindOfTest::kAccount];
 }

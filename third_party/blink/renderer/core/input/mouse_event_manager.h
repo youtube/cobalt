@@ -48,7 +48,8 @@ class CORE_EXPORT MouseEventManager final
   MouseEventManager& operator=(const MouseEventManager&) = delete;
   void Trace(Visitor*) const;
 
-  WebInputEventResult DispatchMouseEvent(
+  // Returns the DOM event that was dispatched plus the result of dispatch.
+  std::pair<MouseEvent*, WebInputEventResult> DispatchMouseEvent(
       EventTarget*,
       const AtomicString&,
       const WebMouseEvent&,
@@ -82,7 +83,7 @@ class CORE_EXPORT MouseEventManager final
   void Clear();
 
   void NodeChildrenWillBeRemoved(ContainerNode&);
-  void NodeWillBeRemoved(Node& node_to_be_removed);
+  void NodeWillBeRemoved(Node&);
 
   void SendBoundaryEvents(EventTarget* exited_target,
                           bool original_exited_target_removed,
@@ -203,7 +204,7 @@ class CORE_EXPORT MouseEventManager final
   void ClearDragDataTransfer();
   DataTransfer* CreateDraggingDataTransfer() const;
 
-  void HandleRemoveSubtree(Node& node, bool inclusive);
+  void HandleRemoveSubtree(Node&, bool include_root);
   void ResetDragSource();
   bool HoverStateDirty();
 

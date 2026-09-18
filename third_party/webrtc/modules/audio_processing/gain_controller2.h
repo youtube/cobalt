@@ -70,10 +70,7 @@ class GainController2 {
   // computes the speech probability via `vad_`.
   // Handles input volume changes; if the caller cannot determine whether an
   // input volume change occurred, set `input_volume_changed` to false.
-  // TODO(bugs.webrtc.org/7494): Remove `speech_probability`.
-  void Process(std::optional<float> speech_probability,
-               bool input_volume_changed,
-               AudioBuffer* audio);
+  void Process(bool input_volume_changed, AudioBuffer* audio);
 
   static bool Validate(const AudioProcessing::Config::GainController2& config);
 

@@ -96,12 +96,11 @@ class MaglevGraphBuilder {
     int result_size_;
   };
 
-  explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
-                              MaglevCompilationUnit* compilation_unit,
-                              Graph* graph,
-                              MaglevCallerDetails* caller_details = nullptr);
+  V8_EXPORT_PRIVATE explicit MaglevGraphBuilder(
+      LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
+      Graph* graph, MaglevCallerDetails* caller_details = nullptr);
 
-  bool Build();
+  V8_EXPORT_PRIVATE bool Build();
 
   ReduceResult BuildInlineFunction(SourcePosition call_site_position,
                                    ValueNode* context, ValueNode* function,
@@ -914,6 +913,7 @@ class MaglevGraphBuilder {
   V(ArrayPrototypeValues)                      \
   V(ArrayPrototypePush)                        \
   V(ArrayPrototypePop)                         \
+  V(DataViewPrototypeGetByteLength)            \
   V(DataViewPrototypeGetInt8)                  \
   V(DataViewPrototypeSetInt8)                  \
   V(DataViewPrototypeGetInt16)                 \
@@ -1032,17 +1032,13 @@ class MaglevGraphBuilder {
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
-#endif
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult BuildCallKnownJSFunction(ValueNode* context, ValueNode* function,
                                         ValueNode* new_target,
-#ifdef V8_ENABLE_LEAPTIERING
                                         JSDispatchHandle dispatch_handle,
-#endif
                                         compiler::SharedFunctionInfoRef shared,
                                         base::Vector<ValueNode*> arguments);
   MaybeReduceResult TryBuildCallKnownJSFunction(
@@ -1050,9 +1046,7 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
-#endif
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1069,9 +1063,7 @@ class MaglevGraphBuilder {
                                     CallArguments& args, float call_frequency);
   MaybeReduceResult TryBuildInlineCall(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
-#endif
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1086,9 +1078,7 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceCallForNewClosure(
       ValueNode* target_node, ValueNode* target_context,
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
-#endif
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1342,10 +1332,16 @@ class MaglevGraphBuilder {
   ReduceResult BuildGetKeyedProperty(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
+  ReduceResult BuildSetKeyedProperty(
+      ValueNode* object, ValueNode* index, compiler::AccessMode access_mode,
+      const compiler::FeedbackSource& feedback_source,
+      const compiler::ProcessedFeedback& processed_feedback,
+      base::FunctionRef<ReduceResult()> generic_setter);
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
                                       LoadType length_type = LoadType::kSmi);
+  ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(ValueNode* object);
 
   ReduceResult BuildLoadJSFunctionFeedbackCell(ValueNode* closure);

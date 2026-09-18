@@ -178,7 +178,7 @@ BrowserDelegate* BrowserControllerImpl::NewTabWithPostData(
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_API |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-  navigate_params.window_action = NavigateParams::SHOW_WINDOW;
+  navigate_params.window_action = NavigateParams::WindowAction::kShowWindow;
   navigate_params.post_data =
       network::ResourceRequestBody::CreateFromCopyOfBytes(post_data);
   navigate_params.extra_headers = std::string(extra_headers);
@@ -268,8 +268,11 @@ void BrowserControllerImpl::OnBrowserAdded(Browser* browser) {
 }
 
 void BrowserControllerImpl::OnBrowserRemoved(Browser* browser) {
-  if (BrowserList::GetInstance()->empty()) {
-    for (auto& observer : observers_) {
+  ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
+  for (auto& observer : observers_) {
+    observer.OnBrowserClosed(browser_delegate);
+
+    if (BrowserList::GetInstance()->empty()) {
       observer.OnLastBrowserClosed();
     }
   }

@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager_impl.h"
 
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/clock.h"
@@ -27,7 +28,7 @@ using autofill::test::FormDescription;
 using autofill::test::GetServerTypes;
 using base::test::RunOnceCallback;
 using one_time_tokens::OneTimeTokenServiceImpl;
-
+using ::testing::_;
 namespace autofill {
 
 namespace {
@@ -37,6 +38,14 @@ class MockSmsOtpBackend : public one_time_tokens::SmsOtpBackend {
   MOCK_METHOD(void,
               RetrieveSmsOtp,
               (base::OnceCallback<void(const one_time_tokens::OtpFetchReply&)>),
+              (override));
+};
+
+class MockOtpPhishGuardDelegate : public OtpPhishGuardDelegate {
+ public:
+  MOCK_METHOD(void,
+              StartOtpPhishGuardCheck,
+              (const GURL&, base::OnceCallback<void(bool)>),
               (override));
 };
 
@@ -50,6 +59,10 @@ class OtpManagerImplTest : public testing::Test,
 
   void SetUp() override {
     InitAutofillClient();
+    auto otp_phish_guard_delegate =
+        std::make_unique<MockOtpPhishGuardDelegate>();
+    autofill_client().set_otp_phish_guard_delegate(
+        std::move(otp_phish_guard_delegate));
     CreateAutofillDriver();
   }
 
@@ -95,12 +108,18 @@ class OtpManagerImplTest : public testing::Test,
     AddForm(form_description);
   }
 
+  MockOtpPhishGuardDelegate& otp_phish_guard_delegate() {
+    return static_cast<MockOtpPhishGuardDelegate&>(
+        *autofill_client().GetOtpPhishGuardDelegate());
+  }
+
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   MockSmsOtpBackend sms_otp_backend_;
   OneTimeTokenServiceImpl one_time_token_service_{&sms_otp_backend_};
+  base::HistogramTester histogram_tester_;
 };
 
 // Tests that no query is issued to the SMS backend if a form does not contain
@@ -132,7 +151,9 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_TriggersFirstRetrieval) {
   // Prepare the handling of SMS requests from the SMS backend.
   one_time_tokens::OtpFetchReply reply = GetDefaultOtpFetchReply();
   EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
-      .WillOnce(RunOnceCallback<0>(GetDefaultOtpFetchReply()));
+      .WillOnce(RunOnceCallback<0>(reply));
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -157,6 +178,8 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_DoesNotTriggerWhileInProgress) {
       .WillOnce(
           [&](base::OnceCallback<void(const one_time_tokens::OtpFetchReply&)>
                   callback) { sms_backend_callback = std::move(callback); });
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -181,10 +204,12 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_DoesNotTriggerWhileInProgress) {
 TEST_F(OtpManagerImplTest, GetOtpSuggestions_FetchesSmsOnlyOnce) {
   OtpManagerImpl otp_manager(autofill_manager(), &one_time_token_service_);
 
-  // Prepare the handling of SMS requests from the SMS backend.
   one_time_tokens::OtpFetchReply reply = GetDefaultOtpFetchReply();
   EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
       .WillOnce(RunOnceCallback<0>(GetDefaultOtpFetchReply()));
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false))
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -220,6 +245,8 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_NewCallInvalidatesOldCallback) {
       .WillOnce(
           [&](base::OnceCallback<void(const one_time_tokens::OtpFetchReply&)>
                   callback) { sms_backend_callback = std::move(callback); });
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -262,6 +289,8 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_EmptyOtpIsNotStored) {
 
   EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
       .WillOnce(RunOnceCallback<0>(reply));
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -288,6 +317,8 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_FiltersExpiredOtps) {
       .WillOnce(
           [&](base::OnceCallback<void(const one_time_tokens::OtpFetchReply&)>
                   callback) { sms_backend_callback = std::move(callback); });
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce(RunOnceCallback<1>(false));
 
   // Observing an OTP field is supposed to trigger an SMS OTP request.
   AddFormWithOtpField();
@@ -312,6 +343,110 @@ TEST_F(OtpManagerImplTest, GetOtpSuggestions_FiltersExpiredOtps) {
   base::test::TestFuture<const std::vector<std::string>> future2;
   otp_manager.GetOtpSuggestions(future2.GetCallback());
   EXPECT_FALSE(future2.IsReady());
+}
+
+// Tests that no suggestions are returned if the phishing check returns true.
+TEST_F(OtpManagerImplTest, GetOtpSuggestions_PhishingCheckReturnsTrue) {
+  OtpManagerImpl otp_manager(autofill_manager(), &one_time_token_service_);
+
+  // Prepare the handling of SMS requests from the SMS backend.
+  one_time_tokens::OtpFetchReply reply = GetDefaultOtpFetchReply();
+  EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
+      .WillOnce(RunOnceCallback<0>(reply));
+  base::OnceCallback<void(bool)> phish_guard_callback;
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce([&](const GURL&, base::OnceCallback<void(bool)> callback) {
+        phish_guard_callback = std::move(callback);
+      });
+
+  // Observing an OTP field is supposed to trigger an SMS OTP request.
+  AddFormWithOtpField();
+
+  base::test::TestFuture<const std::vector<std::string>> future;
+  otp_manager.GetOtpSuggestions(future.GetCallback());
+
+  // The phish guard check is in progress, so the future should not be ready.
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate a 50ms latency in the phishing check.
+  task_environment_.AdvanceClock(base::Milliseconds(50));
+  std::move(phish_guard_callback).Run(true);  // Phishing detected
+
+  EXPECT_TRUE(future.Get().empty());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.CheckPerformed", true, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.Latency", 50, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.Verdict",
+      /*OneTimeTokensPhishGuardVerdict::kPhishing*/ 1, 1);
+}
+
+// Tests that suggestions are returned if the phishing check returns false.
+TEST_F(OtpManagerImplTest, GetOtpSuggestions_PhishingCheckReturnsFalse) {
+  OtpManagerImpl otp_manager(autofill_manager(), &one_time_token_service_);
+
+  // Prepare the handling of SMS requests from the SMS backend.
+  one_time_tokens::OtpFetchReply reply = GetDefaultOtpFetchReply();
+  EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
+      .WillOnce(RunOnceCallback<0>(reply));
+  base::OnceCallback<void(bool)> phish_guard_callback;
+  EXPECT_CALL(otp_phish_guard_delegate(), StartOtpPhishGuardCheck)
+      .WillOnce([&](const GURL&, base::OnceCallback<void(bool)> callback) {
+        phish_guard_callback = std::move(callback);
+      });
+
+  // Observing an OTP field is supposed to trigger an SMS OTP request.
+  AddFormWithOtpField();
+
+  base::test::TestFuture<const std::vector<std::string>> future;
+  otp_manager.GetOtpSuggestions(future.GetCallback());
+
+  // The phish guard check is in progress, so the future should not be ready.
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate a 50ms latency in the phishing check.
+  task_environment_.AdvanceClock(base::Milliseconds(50));
+  std::move(phish_guard_callback).Run(false);  // No phishing
+
+  ASSERT_EQ(future.Get().size(), 1u);
+  EXPECT_EQ(future.Get()[0], reply.otp_value->value());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.CheckPerformed", true, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.Latency", 50, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.Verdict",
+      /*OneTimeTokensPhishGuardVerdict::kNotPhishing*/ 2, 1);
+}
+
+// Tests that suggestions are returned if there is no phishing check delegate,
+// and that the verdict is logged as kUnknown.
+TEST_F(OtpManagerImplTest, GetOtpSuggestions_NoPhishingDelegate) {
+  autofill_client().set_otp_phish_guard_delegate(nullptr);
+  OtpManagerImpl otp_manager(autofill_manager(), &one_time_token_service_);
+
+  // Prepare the handling of SMS requests from the SMS backend.
+  one_time_tokens::OtpFetchReply reply = GetDefaultOtpFetchReply();
+  EXPECT_CALL(sms_otp_backend_, RetrieveSmsOtp)
+      .WillOnce(RunOnceCallback<0>(reply));
+
+  // Observing an OTP field is supposed to trigger an SMS OTP request.
+  AddFormWithOtpField();
+
+  base::test::TestFuture<const std::vector<std::string>> future;
+  otp_manager.GetOtpSuggestions(future.GetCallback());
+
+  ASSERT_EQ(future.Get().size(), 1u);
+  EXPECT_EQ(future.Get()[0], reply.otp_value->value());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.CheckPerformed", false, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Autofill.OneTimeTokens.PhishGuard.Verdict",
+      /*OneTimeTokensPhishGuardVerdict::kUnknown*/ 0, 1);
 }
 
 }  // namespace autofill

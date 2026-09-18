@@ -39,6 +39,8 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
       return ValueRepresentation::kInt32;
     case UseRepresentation::kUint32:
       return ValueRepresentation::kUint32;
+    case UseRepresentation::kShiftedInt53:
+      return ValueRepresentation::kShiftedInt53;
     case UseRepresentation::kFloat64:
       return ValueRepresentation::kFloat64;
     case UseRepresentation::kHoleyFloat64:
@@ -158,6 +160,13 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
       }
       return nullptr;
     }
+    case UseRepresentation::kShiftedInt53: {
+      auto cst = reducer_.TryGetShiftedInt53Constant(node);
+      if (cst.has_value()) {
+        return reducer_.GetShiftedInt53Constant(cst.value());
+      }
+      return nullptr;
+    }
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
       DCHECK(conversion_type.has_value());
@@ -186,9 +195,20 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   }
   // We try getting constant before bailing out and/or calling the reducer,
   // since it does not emit a conversion node.
-  if (auto cst = GetConstantWithRepresentation(node, use_repr, conversion_type))
+  if (ValueNode* cst =
+          GetConstantWithRepresentation(node, use_repr, conversion_type)) {
     return cst;
-  if (node->is_tagged()) return nullptr;
+  }
+  if (node->is_tagged()) {
+    // TODO(victorgomes): No alternatives for shift int53.
+    if (use_repr == UseRepresentation::kShiftedInt53) return nullptr;
+    // Check if we already have a canonical conversion.
+    NodeInfo* node_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), node);
+    auto& alternative = node_info->alternative();
+    if (ValueNode* alt = alternative.get(use_repr)) return alt;
+    return nullptr;
+  }
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
   // current_node_ does not have a deopt info.
@@ -203,6 +223,8 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       DCHECK(conversion_type.has_value());
       return reducer_.GetTruncatedInt32ForToNumber(
           node, GetAllowedTypeFromConversionType(*conversion_type));
+    case UseRepresentation::kShiftedInt53:
+      return reducer_.GetShiftedInt53(node);
     case UseRepresentation::kFloat64:
       DCHECK(conversion_type.has_value());
       return reducer_.GetFloat64ForToNumber(
@@ -312,14 +334,12 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
 
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
-  if (node->is_const()) {
-    if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
-            node->input_node(0), node->offset(),
-            ContextSlotMutability::kImmutable)) {
-      return ReplaceWith(cached_value);
-    }
+  if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
+          node->input_node(0), node->offset(),
+          node->is_const() ? ContextSlotMutability::kImmutable
+                           : ContextSlotMutability::kMutable)) {
+    return ReplaceWith(cached_value);
   }
-  // TODO(victorgomes): Optimize non-immutable loads.
   return ProcessResult::kContinue;
 }
 
@@ -402,37 +422,44 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
-    CheckMaps* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  MaybeReduceResult result =
-      reducer_.TryFoldCheckMaps(node->input_node(0), node->maps());
+template <typename NodeT>
+ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
+                                                     ValueNode* object_map) {
+  KnownMapsMerger<compiler::ZoneRefSet<Map>> merger(broker(), reducer_.zone(),
+                                                    node->maps());
+  MaybeReduceResult result = reducer_.TryFoldCheckMaps(
+      node->input_node(0), object_map, node->maps(), merger);
   if (result.IsDoneWithAbort()) {
     reducer_.graph()->set_may_have_unreachable_blocks(true);
     return ProcessResult::kTruncateBlock;
   }
   if (result.IsDone()) {
+    if (merger.emit_check_with_migration()) {
+      return ProcessResult::kContinue;
+    }
     return ProcessResult::kRemove;
   }
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
+    CheckMaps* node, const ProcessingState& state) {
+  return ProcessCheckMaps(node);
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt(
     CheckMapsWithMigrationAndDeopt* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node);
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigration(
     CheckMapsWithMigration* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node);
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithAlreadyLoadedMap(
     CheckMapsWithAlreadyLoadedMap* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node, node->map_input().node());
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(
@@ -641,6 +668,24 @@ ProcessResult MaglevGraphOptimizer::VisitStoreContextSlotWithWriteBarrier(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStoreSmiContextCell(
+    StoreSmiContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreInt32ContextCell(
+    StoreInt32ContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFloat64ContextCell(
+    StoreFloat64ContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult
 MaglevGraphOptimizer::VisitStoreTrustedPointerFieldWithWriteBarrier(
     StoreTrustedPointerFieldWithWriteBarrier* node,
@@ -769,18 +814,6 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConstantGapMove(
-    ConstantGapMove* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitGapMove(GapMove* node,
-                                                 const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitIdentity(
     Identity* node, const ProcessingState& state) {
   // If a non-eager inlined function returns a tagged value, we substitute the
@@ -821,12 +854,6 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
 
 ProcessResult MaglevGraphOptimizer::VisitCallBuiltin(
     CallBuiltin* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCallCPPBuiltin(
-    CallCPPBuiltin* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1134,6 +1161,16 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
+    LoadDataViewByteLength* node, const ProcessingState& state) {
+  if (ValueNode* cached = known_node_aspects().TryFindLoadedConstantProperty(
+          node->receiver_input().node(),
+          PropertyKey::ArrayBufferViewByteLength())) {
+    return ReplaceWith(cached);
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntTypedArrayElement(
     LoadSignedIntTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1332,12 +1369,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedInt32ToUint32(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToUint32(
-    CheckedIntPtrToUint32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitUnsafeInt32ToUint32(
     UnsafeInt32ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1380,12 +1411,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32(
-    CheckedHoleyFloat64ToUint32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32(
     TruncateUint32ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1394,12 +1419,6 @@ ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32(
 
 ProcessResult MaglevGraphOptimizer::VisitTruncateHoleyFloat64ToInt32(
     TruncateHoleyFloat64ToInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitUnsafeUint32ToInt32(
-    UnsafeUint32ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1535,15 +1554,14 @@ UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
 UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
+UNTAGGING_CASE(CheckedNumberToShiftedInt53, ShiftedInt53, {})
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
-UNTAGGING_CASE(CheckedNumberToFloat64, Float64,
-               TaggedToFloat64ConversionType::kOnlyNumber)
-UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64,
-               node->conversion_type())
-UNTAGGING_CASE(UncheckedNumberToFloat64, Float64,
+UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
+UNTAGGING_CASE(UnsafeNumberToFloat64, Float64,
                TaggedToFloat64ConversionType::kOnlyNumber)
 #undef UNTAGGING_CASE
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
@@ -1561,6 +1579,23 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
       CHECK(result.IsDone());
     }
     return ReplaceWith(input);
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToFloat64(
+    CheckedNumberToFloat64* node, const ProcessingState& state) {
+  if (ValueNode* alt = GetUntaggedValueWithRepresentation(
+          node->input_node(0), UseRepresentation::kFloat64,
+          TaggedToFloat64ConversionType::kOnlyNumber)) {
+    if (alt->Is<CheckedNumberOrOddballToFloat64>() ||
+        alt->Is<UnsafeNumberOrOddballToFloat64>()) {
+      // The alternative check is weaker then the current node. We should not
+      // elide it.
+      // TODO(victorgomes): consider having a to_number alternative?
+      return ProcessResult::kContinue;
+    }
+    return ReplaceWith(alt);
   }
   return ProcessResult::kContinue;
 }
@@ -1583,8 +1618,8 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64(
-    Float64ToHoleyFloat64* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
+    ChangeFloat64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1767,12 +1802,6 @@ ProcessResult MaglevGraphOptimizer::VisitNumberToString(
 
 ProcessResult MaglevGraphOptimizer::VisitUpdateJSArrayLength(
     UpdateJSArrayLength* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitVirtualObject(
-    VirtualObject* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1992,6 +2021,17 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Compare(
 ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
     Int32ToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitShiftedInt53AddWithOverflow(
+    ShiftedInt53AddWithOverflow* node, const ProcessingState& state) {
+  MaybeReduceResult fold_result =
+      reducer_.TryFoldShiftedInt53Add(node->input_node(0), node->input_node(1));
+  if (fold_result.IsDoneWithValue()) {
+    return ReplaceWith(fold_result.value());
+  }
+  // TODO(victorgomes): Add range optimization.
   return ProcessResult::kContinue;
 }
 
@@ -2423,12 +2463,6 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfJSReceiver(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfTypeOf(
-    BranchIfTypeOf* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitJump(Jump* node,
                                               const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -2440,6 +2474,24 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
+
+#define UNIMPLEMENTED_NODE(name)                                            \
+  ProcessResult MaglevGraphOptimizer::Visit##name(name*,                    \
+                                                  const ProcessingState&) { \
+    return ProcessResult::kContinue;                                        \
+  }
+UNIMPLEMENTED_NODE(CheckedShiftedInt53ToInt32)
+UNIMPLEMENTED_NODE(CheckedShiftedInt53ToUint32)
+UNIMPLEMENTED_NODE(CheckedIntPtrToShiftedInt53)
+UNIMPLEMENTED_NODE(CheckedHoleyFloat64ToShiftedInt53)
+UNIMPLEMENTED_NODE(UnsafeSmiTagShiftedInt53)
+UNIMPLEMENTED_NODE(ShiftedInt53ToNumber)
+UNIMPLEMENTED_NODE(ChangeInt32ToShiftedInt53)
+UNIMPLEMENTED_NODE(ChangeUint32ToShiftedInt53)
+UNIMPLEMENTED_NODE(ChangeShiftedInt53ToFloat64)
+UNIMPLEMENTED_NODE(TruncateShiftedInt53ToInt32)
+UNIMPLEMENTED_NODE(CheckedSmiTagShiftedInt53)
+UNIMPLEMENTED_NODE(ShiftedInt53ToBoolean)
 
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
     JumpLoop* node, const ProcessingState& state) {
@@ -2459,6 +2511,20 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
 
   return ProcessResult::kContinue;
 }
+
+// Nodes never emitted before Graph optimizer.
+#define UNREACHABLE_NODES(X) \
+  X(ConstantGapMove)         \
+  X(GapMove)                 \
+  X(VirtualObject)
+
+#define UNREACHEABLE_VISITOR(Node)                                          \
+  ProcessResult MaglevGraphOptimizer::Visit##Node(Node* node,               \
+                                                  const ProcessingState&) { \
+    UNREACHABLE();                                                          \
+  }
+
+UNREACHABLE_NODES(UNREACHEABLE_VISITOR)
 
 }  // namespace maglev
 }  // namespace internal

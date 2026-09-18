@@ -773,6 +773,8 @@ void X11Window::Restore() {
   if (IsMinimized()) {
     SetWMSpecState(false, x11::GetAtom("_NET_WM_STATE_HIDDEN"),
                    x11::Atom::None);
+  } else if (IsFullscreen()) {
+    SetFullscreen(false, display::kInvalidDisplayId);
   } else if (IsMaximized()) {
     should_maximize_after_map_ = false;
     SetWMSpecState(false, x11::GetAtom("_NET_WM_STATE_MAXIMIZED_VERT"),
@@ -1015,11 +1017,10 @@ void X11Window::SetShape(std::unique_ptr<ShapeRects> native_shape,
       native_region.op(gfx::RectToSkIRect(rect), SkRegion::kUnion_Op);
     }
     if (!transform.IsIdentity() && !native_region.isEmpty()) {
-      SkPath path_in_dip;
-      if (native_region.getBoundaryPath(&path_in_dip)) {
-        SkPath path_in_pixels;
-        path_in_dip.transform(gfx::TransformToFlattenedSkMatrix(transform),
-                              &path_in_pixels);
+      if (!native_region.isEmpty()) {
+        const SkPath path_in_pixels =
+            native_region.getBoundaryPath().makeTransform(
+                gfx::TransformToFlattenedSkMatrix(transform));
         xregion = x11::CreateRegionFromSkPath(path_in_pixels);
       } else {
         xregion = std::make_unique<std::vector<x11::Rectangle>>();

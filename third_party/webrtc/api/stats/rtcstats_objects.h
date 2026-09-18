@@ -398,6 +398,7 @@ class RTC_EXPORT RTCRemoteInboundRtpStreamStats final
   std::optional<double> fraction_lost;
   std::optional<double> total_round_trip_time;
   std::optional<int32_t> round_trip_time_measurements;
+  std::optional<int64_t> packets_with_bleached_ect1_marking;
 };
 
 // https://w3c.github.io/webrtc-stats/#remoteoutboundrtpstats-dict*

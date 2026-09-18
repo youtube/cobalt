@@ -31,7 +31,7 @@
 
 namespace webrtc {
 
-class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
+class RTC_EXPORT PacketTransportInternal {
  public:
   virtual const std::string& transport_name() const = 0;
 
@@ -129,7 +129,7 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
 
  protected:
   PacketTransportInternal();
-  ~PacketTransportInternal() override;
+  virtual ~PacketTransportInternal();
 
   void NotifyPacketReceived(const ReceivedIpPacket& packet);
   void NotifyOnClose();
@@ -165,6 +165,5 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // P2P_BASE_PACKET_TRANSPORT_INTERNAL_H_

@@ -25,7 +25,6 @@
 #include "api/test/rtc_error_matchers.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
-#include "p2p/base/port_interface.h"
 #include "p2p/base/stun_port.h"
 #include "p2p/base/turn_port.h"
 #include "p2p/client/relay_port_factory_interface.h"
@@ -34,11 +33,11 @@
 #include "p2p/test/test_turn_server.h"
 #include "p2p/test/turn_server.h"
 #include "rtc_base/fake_clock.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
@@ -71,8 +70,7 @@ enum ServerType { kStun, kTurn };
 
 // Class to test LocalNetworkAccess integration with STUN and TURN ports.
 class LocalNetworkAccessPortTest
-    : public sigslot::has_slots<>,
-      public ::testing::TestWithParam<
+    : public ::testing::TestWithParam<
           std::tuple<ServerType, absl::string_view, LnaFakeResult>> {
  public:
   LocalNetworkAccessPortTest() {

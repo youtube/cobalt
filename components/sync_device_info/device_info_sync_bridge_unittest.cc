@@ -535,7 +535,9 @@ class DeviceInfoSyncBridgeTest : public testing::Test,
         std::move(local_device_info_provider),
         DataTypeStoreTestUtil::FactoryForForwardingStore(store_.get()),
         mock_processor_.CreateForwardingProcessor(),
-        std::make_unique<DeviceInfoPrefs>(&pref_service_, &clock_));
+        std::make_unique<DeviceInfoPrefs>(&pref_service_, &clock_),
+        task_environment_.GetMainThreadTaskRunnerWithPriority(
+            base::TaskPriority::BEST_EFFORT));
     bridge_->AddObserver(this);
   }
 
@@ -687,7 +689,7 @@ class DeviceInfoSyncBridgeTest : public testing::Test,
   int change_count_ = 0;
 
   // In memory data type store needs to be able to post tasks.
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironmentWithMainThreadPriorities task_environment_;
 
   NiceMock<MockDataTypeLocalChangeProcessor> mock_processor_;
 

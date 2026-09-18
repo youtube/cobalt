@@ -61,10 +61,6 @@ class RenderingTracker : public AssembledFrameCallback,
   // All members of the config should be explicitly set by the user.
   struct Config {
     uint32_t ssrc = 0;
-    // Time to wait for a keyframe, before timing out.
-    TimeDelta max_wait_for_keyframe = TimeDelta::MinusInfinity();
-    // Time to wait for a delta frame, before timing out.
-    TimeDelta max_wait_for_frame = TimeDelta::MinusInfinity();
     // Fixed render delay term added to the render timestamps.
     TimeDelta render_delay = TimeDelta::MinusInfinity();
   };

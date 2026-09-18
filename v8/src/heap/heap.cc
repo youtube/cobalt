@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "absl/functional/overload.h"
+#include "include/v8-callbacks.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
@@ -291,7 +293,9 @@ Heap::Heap()
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
-      loading_track_("Loading", 0, tracing_track_) {
+      loading_track_("Loading", 0, tracing_track_),
+      gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -1017,10 +1021,13 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
-  if (v8_flags.large_page_pool_timeout == 0 &&
+  // We provide a fallback for the case when the page pool timeout is disabled.
+  // This is to prevent unbounded growth of the pool for the non-default
+  // configuration.
+  if (V8_UNLIKELY(v8_flags.page_pool_timeout == 0) &&
       collector == GarbageCollector::MARK_COMPACTOR) {
     if (auto* memory_pool = isolate_->isolate_group()->memory_pool()) {
-      memory_pool->ReleaseLargeImmediately();
+      memory_pool->ReleaseImmediately(isolate_);
     }
   }
 }
@@ -1741,7 +1748,7 @@ void Heap::CollectGarbage(
     } else {
       tracer()->StopFullCycleIfFinished();
     }
-    RecomputeLimits(collector, base::TimeTicks::Now());
+    RecomputeLimits(collector);
   });
 
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
@@ -1941,12 +1948,44 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     return;
   }
 
-  if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung();
-  } else {
+  std::string json_str;
+
+  const bool is_major = collector == GarbageCollector::MARK_COMPACTOR;
+  const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
+                                 : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
+
+  if (is_gc_tracing_category_enabled()) {
+    ::heap::base::UnsafeJsonEmitter json;
+
+    json.object_start()
+        .p("epoch", tracer()->CurrentEpoch(scope_id))
+        .p("gc_reason", ToString(gc_reason))
+        .p("reason", reason)
+        .p("old_gen_allocation_limit", old_generation_allocation_limit())
+        .p("old_gen_consumed_bytes", OldGenerationConsumedBytes())
+        .p("old_gen_allocation_limit_consumed_bytes",
+           OldGenerationAllocationLimitConsumedBytes())
+        .p("old_gen_space_available", OldGenerationSpaceAvailable())
+        .p("global_allocation_limit", global_allocation_limit())
+        .p("global_consumed_bytes", GlobalConsumedBytes())
+        .p("global_memory_available", GlobalMemoryAvailable())
+        .object_end();
+
+    json_str = json.ToString();
+  }
+
+  TRACE_EVENT2("v8",
+               is_major ? "V8.GCIncrementalMarkingStart"
+                        : "V8.GCMinorIncrementalMarkingStart",
+               "epoch", tracer()->CurrentEpoch(scope_id), "value",
+               TRACE_STR_COPY(json_str.c_str()));
+
+  if (is_major) {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
-    CompleteSweepingFull();
+    CompleteSweepingFull(CompleteSweepingReason::kStartMarking);
+  } else {
+    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
   }
 
   std::optional<SafepointScope> safepoint_scope;
@@ -2014,8 +2053,8 @@ void CompleteArrayBufferSweeping(Heap* heap) {
 }
 }  // namespace
 
-void Heap::CompleteSweepingFull() {
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
+void Heap::CompleteSweepingFull(CompleteSweepingReason reason) {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap, reason);
 
   DCHECK(!sweeping_in_progress());
   DCHECK_IMPLIES(cpp_heap(),
@@ -2274,20 +2313,20 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
       DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, collector);
       // TODO(333906585): It's not necessary to complete full sweeping here.
       // Make sure that only the OLD_SPACE is swept.
-      CompleteSweepingFull();
+      CompleteSweepingFull(CompleteSweepingReason::kMinorGC);
     } else {
-      CompleteSweepingYoung();
+      CompleteSweepingYoung(CompleteSweepingReason::kMinorGC);
       if (v8_flags.verify_heap) {
         // If heap verification is enabled, we want to ensure that sweeping is
         // completed here, as it will be triggered from Heap::Verify anyway.
         // In this way, sweeping finalization is accounted to the corresponding
         // full GC cycle.
-        CompleteSweepingFull();
+        CompleteSweepingFull(CompleteSweepingReason::kTesting);
       }
     }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
-    CompleteSweepingFull();
+    CompleteSweepingFull(CompleteSweepingReason::kMajorGC);
   }
 
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
@@ -2465,10 +2504,11 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
     shared_space_isolate->heap()->CollectAllGarbage(
         current_gc_flags_, gc_reason, current_gc_callback_flags_);
     return true;
-  } else
+  } else {
     return shared_space_isolate->heap()
         ->TriggerAndWaitForGCFromBackgroundThread(local_heap,
                                                   RequestedGCKind::kMajor);
+  }
 }
 
 bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
@@ -2495,13 +2535,13 @@ bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
   }
 }
 
-void Heap::CompleteSweepingYoung() {
+void Heap::CompleteSweepingYoung(CompleteSweepingReason reason) {
   DCHECK(!v8_flags.sticky_mark_bits);
 
   // If sweeping is in progress and there are no sweeper tasks running, finish
   // the sweeping here, to avoid having to pause and resume during the young
   // generation GC.
-  FinishSweepingIfOutOfWork();
+  FinishSweepingIfOutOfWork(reason);
 
   EnsureYoungSweepingCompleted();
 
@@ -2537,7 +2577,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 }
 
 Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
-    LimitsComputationBoundaries boundaries, const char* caller) {
+    LimitBounds boundaries, const char* caller) {
   DCHECK(!using_initial_limit());
   tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = CurrentHeapGrowingMode();
@@ -2610,7 +2650,7 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
+  if (is_gc_tracing_category_enabled()) [[unlikely]] {
     ::heap::base::UnsafeJsonEmitter json;
 
     json.object_start()
@@ -2625,24 +2665,27 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
            preliminary_old_generation_allocation_limit)
         .p("old_gen_consumed_bytes_at_last_gc",
            old_gen_consumed_bytes_at_last_gc)
+        .p("old_gen_consumed_bytes", OldGenerationConsumedBytes())
         .p("global_gc_speed", embedder_gc_speed.value_or(0))
         .p("global_mutator_speed", embedder_speed)
-        .p("global_growing_factor", embedder_growing_factor)
+        .p("global_growing_factor", global_growing_factor)
         .p("global_allocation_limit", global_allocation_limit())
-        .p("new_global_allocation_limit", next_global_allocation_limit)
+        .p("next_global_allocation_limit", next_global_allocation_limit)
         .p("preliminary_global_allocation_limit",
            preliminary_global_allocation_limit)
         .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
+        .p("global_consumed_bytes", GlobalConsumedBytes())
+        .p("embedder_size_at_last_gc", embedder_size_at_last_gc_)
+        .p("external_growing_factor", external_growing_factor)
+        .p("external_memory_low_since_mark_compact",
+           external_memory_.low_since_mark_compact())
         .object_end();
 
     std::string json_str = json.ToString();
 
-    isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
-                                  json_str.c_str());
-
-    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
-                         TRACE_EVENT_SCOPE_THREAD, "value",
-                         TRACE_STR_COPY(json_str.c_str()));
+    TRACE_EVENT_INSTANT1(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCUpdateAllocationLimits",
+        TRACE_EVENT_SCOPE_THREAD, "value", TRACE_STR_COPY(json_str.c_str()));
   }
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
@@ -2651,32 +2694,23 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
   return {next_old_generation_allocation_limit, next_global_allocation_limit};
 }
 
-void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
-  if (IsYoungGenerationCollector(collector) &&
-      !HasLowYoungGenerationAllocationRate()) {
-    return;
-  }
-  if (using_initial_limit()) {
-    DCHECK(IsYoungGenerationCollector(collector));
-    return;
-  }
-
+void Heap::RecomputeLimits(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    const LimitsComputationResult new_limits = UpdateAllocationLimits({});
+    const LimitsComputationResult new_limits =
+        UpdateAllocationLimits({}, "RecomputeLimitsAfterMajorGC");
 
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
                                new_limits.old_generation_allocation_limit,
-                           time);
+                           base::TimeTicks::Now());
     }
-  } else {
-    DCHECK(HasLowYoungGenerationAllocationRate());
-    UpdateAllocationLimits(
-        LimitsComputationBoundaries::AtMostCurrentLimits(this));
+  } else if (v8_flags.scavenger_updates_allocation_limit &&
+             IsYoungGenerationCollector(collector) &&
+             HasLowYoungGenerationAllocationRate() && !using_initial_limit()) {
+    UpdateAllocationLimits(LimitBounds::AtMostCurrentLimits(this),
+                           "RecomputeLimitsAfterMinorGC");
   }
-
-  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
@@ -2710,8 +2744,7 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  UpdateAllocationLimits(
-      LimitsComputationBoundaries::AtLeastCurrentLimits(this));
+  UpdateAllocationLimits(LimitBounds::AtLeastCurrentLimits(this));
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -3694,8 +3727,8 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
 RIGHT_TRIMMABLE_ARRAY_LIST(DEF_RIGHT_TRIM)
 #undef DEF_RIGHT_TRIM
 
-void Heap::MakeHeapIterable() {
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+void Heap::MakeHeapIterable(CompleteSweepingReason reason) {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
 
   MakeLinearAllocationAreasIterable();
 }
@@ -3887,7 +3920,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   bool high_heap_ratio =
       (old_generation_size >=
        v8_flags.ineffective_gc_size_threshold * max_old_generation_size());
-  if (v8_flags.external_memory_accounted_in_global_limit) {
+  if (v8_flags.ineffective_gc_includes_global) {
     high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
                                            max_global_memory_size_);
   }
@@ -4493,7 +4526,7 @@ void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  MakeHeapIterable();
+  MakeHeapIterable(CompleteSweepingReason::kCollectCodeStatistics);
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
   // We do not look for code in new space, or map space.  If code
   // somehow ends up in those spaces, we would miss it here.
@@ -4714,7 +4747,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
-  MakeHeapIterable();
+  MakeHeapIterable(CompleteSweepingReason::kTesting);
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -5108,12 +5141,16 @@ void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
 #if V8_OS_ANDROID
 // static
 bool Heap::IsHighEndAndroid(uint64_t physical_memory) {
+#if defined(V8_TARGET_ARCH_32_BIT)
+  return false;
+#else
   if (v8_flags.high_end_android) {
     return true;
   }
 
   return (physical_memory / GB) >=
          v8_flags.high_end_android_physical_memory_threshold;
+#endif  // defined(V8_TARGET_ARCH_32_BIT)
 }
 #endif  // V8_OS_ANDROID
 
@@ -5288,9 +5325,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         max_old_generation_size, constraints.physical_memory_size_in_bytes());
   }
 
-  CHECK_IMPLIES(
-      v8_flags.max_heap_size > 0,
-      v8_flags.max_semi_space_size == 0 || v8_flags.max_old_space_size == 0);
+  CHECK_NO_SECURITY_IMPACT(v8_flags.max_heap_size == 0 ||
+                           v8_flags.max_semi_space_size == 0 ||
+                           v8_flags.max_old_space_size == 0);
 
   // Initialize min_semispace_size_.
   {
@@ -5436,14 +5473,13 @@ void Heap::ConfigureHeapDefault() {
 namespace {
 
 void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
-  stats->start = cage->base();
+  stats->start = HexAddress(cage->base());
   stats->size = cage->size();
   base::BoundedPageAllocator::Stats allocator_stats =
       cage->page_allocator()->RecordStats();
   stats->free_size = allocator_stats.free_size;
   stats->largest_free_region = allocator_stats.largest_free_region;
-  stats->last_allocation_status =
-      static_cast<size_t>(allocator_stats.allocation_status);
+  stats->last_allocation_status = allocator_stats.allocation_status;
 }
 
 }  // anonymous namespace
@@ -5467,9 +5503,12 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->memory_allocator_size = memory_allocator()->Size();
   stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
-  stats->os_error = base::OS::GetLastError();
+  stats->isolate_count = isolate_->isolate_group()->GetIsolateCount();
+  stats->last_os_error = base::OS::GetLastError();
   stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
                            isolate_->string_table()->GetCurrentMemoryUsage();
+  stats->is_main_isolate =
+      isolate_->isolate_group()->main_isolate() == isolate_;
 #if V8_COMPRESS_POINTERS
   RecordStatsForCage(isolate_->isolate_group()->GetPtrComprCage(),
                      &stats->main_cage);
@@ -5506,6 +5545,93 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   total += trusted_space()->SizeOfObjects();
   total += trusted_lo_space()->SizeOfObjects();
   return total;
+}
+
+namespace {
+constexpr char kCrashKeyPrefix[] = "v8-oom-";
+constexpr size_t kCrashKeyPrefixLen = sizeof(kCrashKeyPrefix) - 1;
+
+// Turn a field name like `last_few_messages` into the crash key
+// `v8-oom-last-few-messages`. The result needs to be static because of the
+// CrashKey API.
+template <size_t N>
+consteval std::array<char, kCrashKeyPrefixLen + N> BuildCrashKeyName(
+    const char (&name)[N]) {
+  std::array<char, kCrashKeyPrefixLen + N> data{};
+  for (size_t i = 0; i < kCrashKeyPrefixLen; ++i) data[i] = kCrashKeyPrefix[i];
+  for (size_t i = 0; i < N; ++i) {
+    char c = name[i];
+    data[kCrashKeyPrefixLen + i] = (c == '_') ? '-' : c;
+  }
+  return data;
+}
+}  // anonymous namespace
+
+void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
+  if (!isolate()->HasCrashKeyStringCallbacks()) {
+    return;
+  }
+
+  Isolate* isolate = this->isolate();
+  auto add_crash_key = absl::Overload(
+      [isolate](const char* name, const size_t& value) {
+        constexpr size_t kBufferSize = 32;
+        static char buffer[kBufferSize];
+        size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
+      [isolate](const char* name, const HexAddress& value) {
+        constexpr size_t kBufferSize = 32;
+        static char buffer[kBufferSize];
+        size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", *value);
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
+      [isolate](const char* name, const TraceRingBuffer& value) {
+        std::string_view value_view(value, std::strlen(value));
+        isolate->AddCrashKeyString(name, CrashKeySize::Size1024, value_view);
+      },
+      [isolate](const char* name, bool value) {
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   value ? "true" : "false");
+      },
+      [isolate](const char* name,
+                base::BoundedPageAllocator::AllocationStatus value) {
+        isolate->AddCrashKeyString(name, CrashKeySize::Size64, ToString(value));
+      },
+      []<typename T>(const char*, const T&) {
+        static_assert(std::is_void_v<T>);
+      });
+
+#define HANDLE_PRIMITIVE_FIELD(name, value)                          \
+  static constexpr auto crash_key_##name = BuildCrashKeyName(#name); \
+  add_crash_key(crash_key_##name.data(), value);
+
+#define HANDLE_CAGE_STATS_FIELD(name, value)                 \
+  HANDLE_PRIMITIVE_FIELD(name##_start, value.start);         \
+  HANDLE_PRIMITIVE_FIELD(name##_size, value.size);           \
+  HANDLE_PRIMITIVE_FIELD(name##_free_size, value.free_size); \
+  HANDLE_PRIMITIVE_FIELD(name##_largest_free_region,         \
+                         value.largest_free_region);         \
+  HANDLE_PRIMITIVE_FIELD(name##_last_allocation_status,      \
+                         value.last_allocation_status);
+
+#define HANDLE_GENERIC_FIELD(type, name)               \
+  do {                                                 \
+    auto visitor = absl::Overload(                     \
+        [&add_crash_key](const CodeCageStats& value) { \
+          HANDLE_CAGE_STATS_FIELD(name, value)         \
+        },                                             \
+        [&add_crash_key](const auto& value) {          \
+          HANDLE_PRIMITIVE_FIELD(name, value)          \
+        });                                            \
+    visitor(heap_stats.name);                          \
+  } while (false);
+  HEAP_STATS_FIELDS(HANDLE_GENERIC_FIELD);
+#undef HANDLE_GENERIC_FIELD
+#undef HANDLE_CAGE_STATS_FIELD
+#undef HANDLE_PRIMITIVE_FIELD
 }
 
 size_t Heap::OldGenerationWastedBytes() const {
@@ -5581,6 +5707,14 @@ size_t Heap::GlobalConsumedBytesAtLastGC() const {
          (v8_flags.external_memory_accounted_in_global_limit
               ? external_memory_.low_since_mark_compact()
               : 0);
+}
+
+size_t Heap::OldGenerationAllocationLimitForTesting() const {
+  return old_generation_allocation_limit();
+}
+
+size_t Heap::GlobalAllocationLimitForTesting() const {
+  return global_allocation_limit();
 }
 
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
@@ -6468,7 +6602,7 @@ void Heap::StartTearDown() {
   }
 
   // the heap during teardown.
-  CompleteSweepingFull();
+  CompleteSweepingFull(CompleteSweepingReason::kTearDown);
 
   if (v8_flags.concurrent_marking) {
     concurrent_marking()->Pause();
@@ -7066,7 +7200,7 @@ HeapObjectIterator::HeapObjectIterator(
     : heap_(heap),
       safepoint_scope_(safepoint_scope_or_nullptr),
       space_iterator_(heap_) {
-  heap_->MakeHeapIterable();
+  heap_->MakeHeapIterable(CompleteSweepingReason::kHeapObjectIterator);
   switch (filtering) {
     case kFilterUnreachable:
       filter_ = std::make_unique<UnreachableObjectsFilter>(heap_);
@@ -7682,7 +7816,7 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-void Heap::FinishSweepingIfOutOfWork() {
+void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
   if (sweeper()->major_sweeping_in_progress() &&
       sweeper()->UsingMajorSweeperTasks() &&
       !sweeper()->AreMajorSweeperTasksRunning()) {
@@ -7691,7 +7825,7 @@ void Heap::FinishSweepingIfOutOfWork() {
     // to complete sweeping though.
     DCHECK_IMPLIES(!delay_sweeper_tasks_for_testing_,
                    !sweeper()->HasUnsweptPagesForMajorSweeping());
-    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
   }
   if (cpp_heap()) {
     // Ensure that sweeping is also completed for the C++ managed heap, if one
@@ -7700,7 +7834,23 @@ void Heap::FinishSweepingIfOutOfWork() {
   }
 }
 
-void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
+void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
+                                   CompleteSweepingReason reason) {
+  if (is_gc_tracing_category_enabled()) [[unlikely]] {
+    ::heap::base::UnsafeJsonEmitter json;
+    json.object_start()
+        .p("sweeping_reason", ToString(reason))
+        .p("mode", ToString(mode))
+        .p("epoch", tracer()->CurrentEpoch(
+                        GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED))
+        .object_end();
+    std::string json_str = json.ToString();
+
+    TRACE_GC_EPOCH_ARG1(
+        tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
+        ThreadKind::kMain, "value", TRACE_STR_COPY(json_str.c_str()));
+  }
+
   CompleteArrayBufferSweeping(this);
 
   EnsureQuarantinedPagesSweepingCompleted();
@@ -7711,11 +7861,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
     sweeper()->EnsureMajorCompleted();
 
     if (was_major_sweeping_in_progress) {
-      TRACE_GC_EPOCH_WITH_FLOW(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                               ThreadKind::kMain,
-                               sweeper_->GetTraceIdForFlowEvent(
-                                   GCTracer::Scope::MC_COMPLETE_SWEEPING),
-                               TRACE_EVENT_FLAG_FLOW_IN);
       old_space()->RefillFreeList();
       code_space()->RefillFreeList();
       if (shared_space()) {
@@ -7764,10 +7909,9 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
       !tracer()->IsSweepingInProgress());
 
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    if (!using_initial_limit()) {
-      UpdateAllocationLimits({});
-    }
+  if (v8_flags.external_memory_accounted_in_global_limit &&
+      !using_initial_limit()) {
+    UpdateAllocationLimits({});
   }
 }
 

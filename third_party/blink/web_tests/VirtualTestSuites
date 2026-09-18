@@ -28,6 +28,27 @@
   "content_shell.filter so that they can be run in blink_wpt_tests step.",
   "TODO(crbug.com/380755410): Find a way to do this systematically.",
 
+  {
+    "prefix": "ai_relax_user_activation",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "external/wpt/ai/language-model/language-model-create-sticky-user-activation.tentative.https.window.js"
+    ],
+    "args": ["--enable-features=AIRelaxUserActivationReqs"],
+    "exclusive_tests": "ALL",
+    "owners": ["msw@chromium.org", "iahouma@google.com", "chrome-chia@google.com"],
+    "expires": "never"
+  },
+  {
+    "prefix": "ai_require_transient_user_activation",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "external/wpt/ai/language-model/language-model-create-transient-user-activation.tentative.https.window.js"
+    ],
+    "args": ["--disable-features=AIRelaxUserActivationReqs"],
+    "owners": ["msw@chromium.org", "iahouma@google.com", "chrome-chia@google.com"],
+    "expires": "never"
+  },
   "This suite tests some android features on Linux and should never expire.",
   {
     "prefix": "android",
@@ -390,7 +411,7 @@
     ]
   },
   {
-    "prefix": "css-anchor-update-enabled",
+    "prefix": "css-anchor-update-disabled",
     "owners": [
       "ikilpatrick@chromium.org",
       "rendering-core-dev@chromium.org"
@@ -404,7 +425,7 @@
       "external/wpt/css/css-anchor-position"
     ],
     "args": [
-      "--enable-blink-features=CSSAnchorUpdate"
+      "--disable-blink-features=CSSAnchorUpdate"
     ],
     "expires": "Aug 13, 2026"
   },
@@ -547,26 +568,6 @@
       "--blink-settings=preferredColorScheme=0"
     ],
     "expires": "never"
-  },
-  {
-    "prefix": "dark-mode-classifier-transparency-and-num-colors",
-    "owners": [
-      "peconn@chromium.org",
-      "pdr@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "dark-mode/images"
-    ],
-    "args": [
-      "--blink-settings=preferredColorScheme=0,forceDarkModeEnabled=true",
-      "--dark-mode-settings=ImageClassifierPolicy=1"
-    ],
-    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "dark-mode-default",
@@ -1177,11 +1178,11 @@
     ],
     "bases": [
       "wpt_internal/fenced_frame",
-      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.tentative.https.window.js"
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.https.window.js"
     ],
     "exclusive_tests": [
       "wpt_internal/fenced_frame",
-      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.tentative.https.window.js"
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.https.window.js"
     ],
     "args": [
       "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesDefaultMode"
@@ -2523,7 +2524,7 @@
     ],
     "bases": [],
     "args": [
-      "--disable-blink-features=PermissionElement,GeolocationElement"
+      "--disable-blink-features=PermissionElement,GeolocationElement,InstallElement"
     ],
     "owners": [
       "permissions-core@google.com"
@@ -4315,25 +4316,6 @@
     "expires": "never"
   },
   {
-    "prefix": "svg2-cascade",
-    "owners": [
-      "futhark@chromium.org",
-      "pdr@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/svg",
-      "paint/invalidation/svg",
-      "svg"
-    ],
-    "args": [
-      "--enable-blink-features=Svg2Cascade"
-    ],
-    "expires": "Dec 1, 2025"
-  },
-  {
     "prefix": "enable-shared-worker-bfcache",
     "owners": ["annasato@chromium.org"],
     "platforms": ["Mac", "Win", "Linux"],
@@ -4868,6 +4850,17 @@
     ],
     "args": [
       "--disable-features=DeprecateUnload"
+    ],
+    "exclusive_tests": [
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/001.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/002.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/003.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/004.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/005.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/unload/004.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/unload/007.html",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/unload/unload-main-frame-same-origin.window.js",
+      "external/wpt/html/browsers/browsing-the-web/unloading-documents/unload/unload-main-frame-cross-origin.window.js"
     ],
     "expires": "Jun 1, 2026",
     "owners": [
@@ -5976,5 +5969,41 @@
       "masonf@chromium.org"
     ],
     "expires": "Aug 1, 2026"
+  },
+  {
+    "prefix": "xslt-special-trial-disabled",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "fast/css/dumpAsText/xml-stylesheet-pi-not-in-prolog.xml",
+      "fast/parser",
+      "fast/xsl",
+      "external/wpt/dom/xslt",
+      "http/tests/xsl",
+      "http/tests/document-policy/resources/document-policy-in-xsl.xslt",
+      "http/tests/misc/xslt-bad-import.html",
+      "loader/resources/document-updated-by-xslt.svg",
+      "svg/custom/invalid-xslt-crash.svg",
+      "external/wpt/fetch/metadata/xslt.https.sub.html"
+    ],
+    "args": [ "--disable-blink-features=XSLTSpecialTrial" ],
+    "owners": [
+      "masonf@chromium.org"
+    ],
+    "expires": "Aug 1, 2026"
+  },
+  {
+    "prefix": "rust-xml",
+    "platforms": ["Linux"],
+    "bases": [
+      "fast/xmlhttprequest/",
+      "external/wpt/custom-elements/parser/parser-uses-create-an-element-for-a-token-svg.svg",
+      "external/wpt/svg/painting",
+      "http/tests/security/contentTypeOptions/xml-external-entity.xml"
+    ],
+    "args": [ "--enable-features=XMLParsingRust" ],
+    "owners": [
+      "drott@chromium.org"
+    ],
+    "expires": "Nov 1, 2026"
   }
 ]

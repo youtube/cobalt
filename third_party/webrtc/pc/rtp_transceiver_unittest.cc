@@ -779,6 +779,51 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 }
 
 TEST_F(RtpTransceiverTestForHeaderExtensions,
+       AnswerCanUseOtherHdrExtensionsThanPrAnswer) {
+  const std::string content_name("my_mid");
+  auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
+  EXPECT_CALL(*mock_channel, media_type())
+      .WillRepeatedly(Return(MediaType::AUDIO));
+  EXPECT_CALL(*mock_channel, voice_media_send_channel())
+      .WillRepeatedly(Return(nullptr));
+  EXPECT_CALL(*mock_channel, mid()).WillRepeatedly(ReturnRef(content_name));
+  EXPECT_CALL(*mock_channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
+  transceiver_->SetChannel(std::move(mock_channel),
+                           [](const std::string&) { return nullptr; });
+
+  AudioContentDescription description_pr_answer;
+  description_pr_answer.set_rtp_header_extensions({RtpExtension("uri1", 1)});
+  transceiver_->OnNegotiationUpdate(SdpType::kPrAnswer, &description_pr_answer);
+
+  EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
+              ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped)));
+
+  AudioContentDescription description_answer;
+  description_answer.set_rtp_header_extensions(
+      {RtpExtension("uri1", 1), RtpExtension("uri2", 2)});
+  transceiver_->OnNegotiationUpdate(SdpType::kAnswer, &description_answer);
+
+  EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
+              ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped)));
+
+  ClearChannel();
+}
+
+TEST_F(RtpTransceiverTestForHeaderExtensions,
        ReturnsNegotiatedHdrExtsSecondTime) {
   RtpHeaderExtensions extensions = {RtpExtension("uri1", 1),
                                     RtpExtension("uri2", 2)};

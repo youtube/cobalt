@@ -199,30 +199,6 @@ ContentsContainerView* MultiContentsView::GetContentsContainerViewFor(
   return nullptr;
 }
 
-gfx::Size MultiContentsView::GetContentsSize() const {
-  const int drop_target_width =
-      IsDragAndDropEnabled() ? drop_target_view_->GetPreferredWidth(width())
-                             : 0;
-  const int separator_height =
-      contents_separators_.should_show_top
-          ? contents_separators_.top_separator->GetPreferredSize().height()
-          : 0;
-
-  const int leading_separator_width =
-      contents_separators_.should_show_leading
-          ? contents_separators_.leading_separator->GetPreferredSize().height()
-          : 0;
-
-  const int trailing_separator_width =
-      contents_separators_.should_show_trailing
-          ? contents_separators_.trailing_separator->GetPreferredSize().height()
-          : 0;
-
-  return gfx::Size(width() - drop_target_width - leading_separator_width -
-                       trailing_separator_width,
-                   height() - separator_height);
-}
-
 bool MultiContentsView::IsInSplitView() const {
   return resize_area_->GetVisible();
 }
@@ -680,7 +656,9 @@ void MultiContentsView::SetShouldShowTopSeparator(bool should_show) {
   end_contents_view_inset_.set_top(
       should_show ? 0 : MultiContentsView::kSplitViewContentInset);
 
-  InvalidateLayout();
+  // This can be called during BrowserView layout, so protect against creating a
+  // layout loop.
+  InvalidateLayout(/*avoid_propagate_during_layout=*/true);
 }
 
 void MultiContentsView::SetShouldShowLeadingSeparator(bool should_show) {
@@ -691,7 +669,9 @@ void MultiContentsView::SetShouldShowLeadingSeparator(bool should_show) {
   start_contents_view_inset_.set_left(
       should_show ? 0 : MultiContentsView::kSplitViewContentInset);
 
-  InvalidateLayout();
+  // This can be called during BrowserView layout, so protect against creating a
+  // layout loop.
+  InvalidateLayout(/*avoid_propagate_during_layout=*/true);
 }
 
 void MultiContentsView::SetShouldShowTrailingSeparator(bool should_show) {
@@ -702,7 +682,9 @@ void MultiContentsView::SetShouldShowTrailingSeparator(bool should_show) {
   end_contents_view_inset_.set_right(
       should_show ? 0 : MultiContentsView::kSplitViewContentInset);
 
-  InvalidateLayout();
+  // This can be called during BrowserView layout, so protect against creating a
+  // layout loop.
+  InvalidateLayout(/*avoid_propagate_during_layout=*/true);
 }
 
 BEGIN_METADATA(MultiContentsView)

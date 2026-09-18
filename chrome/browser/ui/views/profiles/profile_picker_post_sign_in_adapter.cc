@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/profiles/profile_picker_post_sign_in_adapter.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
@@ -73,7 +74,7 @@ void OnManagementUserChoice(signin::SigninChoiceCallback callback,
   // - from main view: returns to the main view,
   // - from FRE: opens a signed out browser,
   // - from profile menu: closes the picker.
-  ProfilePicker::CancelSignedInFlow();
+  ProfilePicker::CancelSignInFlow();
 }
 
 }  //  namespace
@@ -326,7 +327,11 @@ void ProfilePickerPostSignInAdapter::SwitchToHistorySyncOptinFinished() {
       static_cast<HistorySyncOptinUI*>(contents()->GetWebUI()->GetController());
   CHECK(!on_post_signin_in_finished_callback_->is_null());
   history_sync_optin_ui->Initialize(
-      /*browser=*/nullptr, std::move(on_post_signin_in_finished_callback_));
+      /*browser=*/nullptr,
+      // Note: the value of `should_close_modal_dialog` does not matter, it has
+      // no effect when `browser` is set to null.
+      /*should_close_modal_dialog=*/std::nullopt,
+      std::move(on_post_signin_in_finished_callback_));
 }
 
 void ProfilePickerPostSignInAdapter::SwitchToManagedUserProfileNoticeFinished(

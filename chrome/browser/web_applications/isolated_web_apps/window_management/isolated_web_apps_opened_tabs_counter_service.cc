@@ -4,38 +4,36 @@
 
 #include "chrome/browser/web_applications/isolated_web_apps/window_management/isolated_web_apps_opened_tabs_counter_service.h"
 
+#include <algorithm>
+#include <memory>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/check_is_test.h"
 #include "base/containers/contains.h"
+#include "base/functional/bind.h"
 #include "base/i18n/message_formatter.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/types/expected_macros.h"
-#include "chrome/browser/extensions/api/tabs/tabs_api.h"
+#include "base/time/time.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_handler.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/window_management/isolated_web_apps_opened_tabs_counter_service_delegate.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
-#include "chrome/browser/web_applications/web_app_filter.h"
-#include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
-#include "chrome/browser/web_applications/web_app_tab_helper.h"
-#include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/webapps/common/web_app_id.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/message_center/public/cpp/notification.h"
 
@@ -44,6 +42,11 @@ namespace web_app {
 namespace {
 
 constexpr int kMaxNotificationShowCount = 3;
+
+// The time window to check for a burst of opened tabs.
+constexpr base::TimeDelta kBurstWindow = base::Seconds(5);
+// The number of tabs opened within the window to trigger a notification.
+constexpr int kBurstThreshold = 3;
 
 constexpr std::string_view
     kIsolatedWebAppsOpenedTabsCounterNotificationPattern =
@@ -61,6 +64,28 @@ std::string GetNotificationIdForApp(const webapps::AppId& app_id) {
 }
 
 }  // namespace
+
+struct IsolatedWebAppsOpenedTabsCounterService::TrackedTabData {
+  TrackedTabData(const webapps::AppId& app_id,
+                 base::Time creation_time,
+                 std::unique_ptr<TabObserver> observer)
+      : app_id(app_id),
+        creation_time(creation_time),
+        observer(std::move(observer)) {}
+  ~TrackedTabData() = default;
+
+  TrackedTabData(TrackedTabData&&) = default;
+  TrackedTabData& operator=(TrackedTabData&&) = default;
+
+  webapps::AppId app_id;
+  base::Time creation_time;
+  std::unique_ptr<TabObserver> observer;
+};
+
+void IsolatedWebAppsOpenedTabsCounterService::TabObserver::
+    WebContentsDestroyed() {
+  service_->HandleTabClosure(web_contents());
+}
 
 bool ShouldShowNotificationForWindowOpen(const web_app::WebApp& web_app) {
   if (!web_app.isolation_data()) {
@@ -94,13 +119,6 @@ IsolatedWebAppsOpenedTabsCounterService::
       base::BindOnce(
           &IsolatedWebAppsOpenedTabsCounterService::RetrieveNotificationStates,
           weak_ptr_factory_.GetWeakPtr()));
-
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile() == profile) {
-      browser->tab_strip_model()->AddObserver(this);
-    }
-  }
-  browser_list_observation_.Observe(BrowserList::GetInstance());
 }
 
 void IsolatedWebAppsOpenedTabsCounterService::RetrieveNotificationStates() {
@@ -133,57 +151,18 @@ IsolatedWebAppsOpenedTabsCounterService::
     ~IsolatedWebAppsOpenedTabsCounterService() = default;
 
 void IsolatedWebAppsOpenedTabsCounterService::Shutdown() {
-  for (const auto& [app_id, _] : app_tab_counts_) {
+  for (const auto& [app_id, _] : app_tab_timestamps_) {
     CloseNotification(app_id);
   }
 
-  app_tab_counts_.clear();
-  opened_by_app_map_.clear();
+  app_tab_timestamps_.clear();
+  tracked_tabs_.clear();
 }
 
-void IsolatedWebAppsOpenedTabsCounterService::OnBrowserAdded(Browser* browser) {
-  if (browser->profile() == profile()) {
-    browser->tab_strip_model()->AddObserver(this);
-  }
-}
-
-void IsolatedWebAppsOpenedTabsCounterService::OnBrowserRemoved(
-    Browser* browser) {
-  if (browser->profile() == profile()) {
-    browser->tab_strip_model()->RemoveObserver(this);
-  }
-}
-
-void IsolatedWebAppsOpenedTabsCounterService::OnTabStripModelChanged(
-    TabStripModel* tab_strip_model,
-    const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {
-  switch (change.type()) {
-    case TabStripModelChange::Type::kInserted:
-      for (const auto& content_with_id : change.GetInsert()->contents) {
-        HandleOpenerCountIfTracked(content_with_id.contents);
-      }
-      break;
-    case TabStripModelChange::Type::kRemoved:
-      for (const auto& content_with_id : change.GetRemove()->contents) {
-        // We only want to decrease the count if the tab was deleted, but not
-        // when moved to another tab group.
-        if (content_with_id.remove_reason ==
-            TabStripModelChange::RemoveReason::kDeleted) {
-          HandleTabClosure(content_with_id.contents);
-        }
-      }
-      break;
-    default:
-      break;
-  }
-}
-
-void IsolatedWebAppsOpenedTabsCounterService::HandleOpenerCountIfTracked(
-    content::WebContents* contents) {
-  ASSIGN_OR_RETURN(webapps::AppId opener_app_id,
-                   MaybeGetOpenerIsolatedWebAppId(contents), [] {});
-
+void IsolatedWebAppsOpenedTabsCounterService::OnWebContentsCreated(
+    const webapps::AppId& opener_app_id,
+    content::WebContents* new_contents,
+    base::Time navigation_start_time) {
   if (!base::Contains(notification_states_cache_, opener_app_id)) {
     const web_app::WebApp* web_app =
         web_app::WebAppProvider::GetForWebApps(profile())
@@ -196,80 +175,80 @@ void IsolatedWebAppsOpenedTabsCounterService::HandleOpenerCountIfTracked(
     }
   }
 
-  if (base::Contains(opened_by_app_map_, contents)) {
-    return;
+  if (tracked_tabs_
+          .try_emplace(new_contents, opener_app_id, navigation_start_time,
+                       std::make_unique<TabObserver>(new_contents, this))
+          .second) {
+    AddTabTimestampForApp(opener_app_id, navigation_start_time);
+    UpdateOrRemoveNotificationForOpener(opener_app_id);
   }
-
-  IncrementTabCountForApp(opener_app_id);
-  opened_by_app_map_[contents] = opener_app_id;
-  UpdateOrRemoveNotificationForOpener(opener_app_id);
 }
 
 void IsolatedWebAppsOpenedTabsCounterService::HandleTabClosure(
     content::WebContents* contents) {
-  // If WebContents were not opened by an IWA then there is nothing to do.
-  if (!base::Contains(opened_by_app_map_, contents)) {
+  auto it = tracked_tabs_.find(contents);
+  if (it == tracked_tabs_.end()) {
     return;
   }
-  // Stop tracking closed WebContents and update the count of opened child
-  // WebContents for its opener.
-  webapps::AppId opener_app_id = opened_by_app_map_[contents];
-  opened_by_app_map_.erase(contents);
-  DecrementTabCountForApp(opener_app_id);
+
+  webapps::AppId opener_app_id = it->second.app_id;
+  base::Time creation_time = it->second.creation_time;
+  tracked_tabs_.erase(it);
+
+  RemoveTabTimestampForApp(opener_app_id, creation_time);
   UpdateOrRemoveNotificationForOpener(opener_app_id);
 }
 
-std::optional<webapps::AppId>
-IsolatedWebAppsOpenedTabsCounterService::MaybeGetOpenerIsolatedWebAppId(
-    content::WebContents* contents) {
-  content::RenderFrameHost* opener_rfh = contents->GetOpener();
-  if (!opener_rfh) {
-    return std::nullopt;
-  }
-
-  content::WebContents* opener_web_contents =
-      content::WebContents::FromRenderFrameHost(opener_rfh);
-
-  if (!opener_web_contents) {
-    return std::nullopt;
-  }
-
-  // Check if the opener is an IWA that is not policy-installed.
-  web_app::WebAppProvider* provider =
-      web_app::WebAppProvider::GetForWebApps(profile());
-
-  const webapps::AppId* app_id =
-      web_app::WebAppTabHelper::GetAppId(opener_web_contents);
-  if (app_id && provider->registrar_unsafe().IsIsolated(*app_id)) {
-    return *app_id;
-  }
-
-  return std::nullopt;
+void IsolatedWebAppsOpenedTabsCounterService::AddTabTimestampForApp(
+    const webapps::AppId& app_id,
+    base::Time timestamp) {
+  app_tab_timestamps_[app_id].push_back(timestamp);
 }
 
-void IsolatedWebAppsOpenedTabsCounterService::IncrementTabCountForApp(
-    const webapps::AppId& app_id) {
-  app_tab_counts_[app_id]++;
-}
-
-void IsolatedWebAppsOpenedTabsCounterService::DecrementTabCountForApp(
-    const webapps::AppId& app_id) {
-  if (!base::Contains(app_tab_counts_, app_id)) {
+void IsolatedWebAppsOpenedTabsCounterService::RemoveTabTimestampForApp(
+    const webapps::AppId& app_id,
+    base::Time timestamp) {
+  auto it = app_tab_timestamps_.find(app_id);
+  if (it == app_tab_timestamps_.end()) {
     return;
   }
-  CHECK(app_tab_counts_[app_id] > 0);
 
-  app_tab_counts_[app_id]--;
-  if (app_tab_counts_[app_id] == 0) {
-    app_tab_counts_.erase(app_id);
+  auto& timestamps = it->second;
+  std::erase(timestamps, timestamp);
+
+  if (timestamps.empty()) {
+    app_tab_timestamps_.erase(it);
   }
 }
 
 void IsolatedWebAppsOpenedTabsCounterService::
     UpdateOrRemoveNotificationForOpener(const webapps::AppId& app_id) {
-  auto tab_count_it = app_tab_counts_.find(app_id);
-  int tab_count =
-      (tab_count_it == app_tab_counts_.end()) ? 0 : tab_count_it->second;
+  int tab_count = 0;
+
+  if (auto it = app_tab_timestamps_.find(app_id);
+      it != app_tab_timestamps_.end()) {
+    auto& timestamps = it->second;
+
+    // Prune timestamps older than the burst window.
+    const base::Time cutoff =
+        web_app::WebAppProvider::GetForWebApps(profile())->clock().Now() -
+        kBurstWindow;
+    std::erase_if(timestamps,
+                  [cutoff](const base::Time& t) { return t < cutoff; });
+    tab_count = timestamps.size();
+    if (tab_count == 0) {
+      app_tab_timestamps_.erase(it);
+    }
+  }
+
+  // If there are no longer any tracked tabs for this app, close the
+  // corresponding notification if it's active.
+  if (tab_count == 0) {
+    if (apps_with_active_notifications_.contains(app_id)) {
+      CloseNotification(app_id);
+    }
+    return;
+  }
 
   auto notification_state_it = notification_states_cache_.find(app_id);
 
@@ -283,28 +262,34 @@ void IsolatedWebAppsOpenedTabsCounterService::
   }
   auto& notification_state = notification_state_it->second;
 
-  // Conditions to close or suppress the notification:
-  // 1. Not enough tabs are open.
-  // 2. Notification has been shown the maximum number of times.
-  // 3. User has permanently dismissed it.
-  if (tab_count <= 1 ||
-      notification_state.times_shown() >= kMaxNotificationShowCount ||
-      notification_state.acknowledged()) {
-    if (apps_with_active_notifications_.contains(app_id)) {
-      CloseNotification(app_id);
-      PersistNotificationState(app_id);
-    }
+  if (notification_state.acknowledged() ||
+      notification_state.times_shown() >= kMaxNotificationShowCount) {
     return;
   }
 
-  if (!apps_with_active_notifications_.contains(app_id)) {
-    notification_state = IsolationData::OpenedTabsCounterNotificationState(
-        notification_state.acknowledged(),
-        notification_state.times_shown() + 1);
-    apps_with_active_notifications_.insert(app_id);
+  if (tab_count >= kBurstThreshold) {
+    if (!apps_with_active_notifications_.contains(app_id)) {
+      RegisterFirstTimeActiveAppNotification(app_id);
+    }
+    CreateAndDisplayNotification(app_id, tab_count);
+  }
+}
+
+void IsolatedWebAppsOpenedTabsCounterService::
+    RegisterFirstTimeActiveAppNotification(const webapps::AppId& app_id) {
+  auto it = notification_states_cache_.find(app_id);
+
+  if (it == notification_states_cache_.end()) {
+    return;
   }
 
-  CreateAndDisplayNotification(app_id, tab_count);
+  auto& notification_state = it->second;
+
+  notification_state = IsolationData::OpenedTabsCounterNotificationState(
+      notification_state.acknowledged(), notification_state.times_shown() + 1);
+
+  apps_with_active_notifications_.insert(app_id);
+
   PersistNotificationState(app_id);
 }
 
@@ -376,15 +361,16 @@ void IsolatedWebAppsOpenedTabsCounterService::CreateAndDisplayNotification(
 void IsolatedWebAppsOpenedTabsCounterService::CloseAllWebContentsOpenedByApp(
     const webapps::AppId& app_id) {
   std::vector<content::WebContents*> web_contents_to_close;
-  for (auto const& [web_contents, opener_app_id] : opened_by_app_map_) {
-    if (opener_app_id == app_id) {
+  for (auto const& [web_contents, tab_data] : tracked_tabs_) {
+    if (tab_data.app_id == app_id) {
       web_contents_to_close.push_back(web_contents);
     }
   }
 
   for (content::WebContents* web_contents : web_contents_to_close) {
-    // This will trigger OnTabStripModelChanged, which in turn will remove
-    // contents from `opened_by_app_map_` and decrement counts.
+    // Closing the WebContents will trigger its observer, which in turn will
+    // call HandleTabClosure, removing the contents from `tracked_tabs_` and
+    // removing the timestamp.
     web_contents->Close();
   }
 }

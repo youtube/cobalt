@@ -522,6 +522,10 @@ inline TryTactic CssValueIDToPlatformEnum(CSSValueID v) {
       return TryTactic::kFlipInline;
     case CSSValueID::kFlipStart:
       return TryTactic::kFlipStart;
+    case CSSValueID::kFlipX:
+      return TryTactic::kFlipX;
+    case CSSValueID::kFlipY:
+      return TryTactic::kFlipY;
     default:
       NOTREACHED();
   }
@@ -538,6 +542,10 @@ inline CSSValueID PlatformEnumToCSSValueID(TryTactic v) {
       return CSSValueID::kFlipInline;
     case TryTactic::kFlipStart:
       return CSSValueID::kFlipStart;
+    case TryTactic::kFlipX:
+      return CSSValueID::kFlipX;
+    case TryTactic::kFlipY:
+      return CSSValueID::kFlipY;
   }
 }
 
@@ -671,6 +679,37 @@ inline CSSValueID PlatformEnumToCSSValueID(PositionAreaRegion v) {
     case PositionAreaRegion::kAny:
       return CSSValueID::kAny;
   }
+}
+
+template <>
+inline TextJustify CssValueIDToPlatformEnum(CSSValueID v) {
+  switch (v) {
+    case CSSValueID::kNone:
+      return TextJustify::kNone;
+    case CSSValueID::kInterWord:
+      return TextJustify::kInterWord;
+    case CSSValueID::kInterCharacter:
+    case CSSValueID::kDistribute:
+      return TextJustify::kInterCharacter;
+    case CSSValueID::kAuto:
+    default:
+      return TextJustify::kAuto;
+  }
+}
+
+template <>
+inline CSSValueID PlatformEnumToCSSValueID(TextJustify v) {
+  switch (v) {
+    case TextJustify::kAuto:
+      return CSSValueID::kAuto;
+    case TextJustify::kNone:
+      return CSSValueID::kNone;
+    case TextJustify::kInterWord:
+      return CSSValueID::kInterWord;
+    case TextJustify::kInterCharacter:
+      return CSSValueID::kInterCharacter;
+  }
+  NOTREACHED();
 }
 
 }  // namespace blink

@@ -1223,6 +1223,7 @@ rtc_library("peer_connection") {
     ":ice_server_parsing",
     ":jsep_transport_controller",
     ":legacy_stats_collector",
+    ":media_session",
     ":peer_connection_internal",
     ":peer_connection_message_handler",
     ":rtc_stats_collector",

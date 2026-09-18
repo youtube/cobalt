@@ -236,8 +236,15 @@ enum ActionResultCode {
   // File picker was confirmed.
   kFilePickerConfirmed = 35,
 
-  // File pikcer was cancelled.
+  // File picker was cancelled.
   kFilePickerCancelled = 36,
+
+  // The execution engine already had an existing action sequence when a new
+  // sequence was provided.
+  kExecutionEngineExistingAction = 37,
+
+  // Navigation to external protocol was blocked
+  kExternalProtocolNavigationBlocked = 38,
 
   // Please see the comment above about adding new values.
 
@@ -319,7 +326,8 @@ enum ActionResultCode {
   kSelectOptionDisabled = 602,
 
   // The invoking the tool resulted in an unexpected value.
-  kSelectUnexpectedValue = 603,
+  // DEPRECATED: Unused
+  // kSelectUnexpectedValue = 603,
 
   // Please see the comment above about adding new values.
 

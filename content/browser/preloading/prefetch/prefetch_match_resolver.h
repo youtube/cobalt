@@ -56,10 +56,12 @@ enum class PrefetchPotentialCandidateServingResult {
   // determined.
   kNotServedIneligiblePrefetch = 4,
 
+  // Deprecated
+  //
   // The candidate is not served because the candidate received
   // `OnDeterminedHead()` but its associated `PrefetchServableState` is
   // not `kServable`.
-  kNotServedUnsatisfiedPrefetchServeableState = 5,
+  // kNotServedUnsatisfiedPrefetchServeableState = 5,
 
   // The candidate is not served because the candidate's
   // `PrefetchServiceWorkerState` was matched with the expected one when
@@ -77,7 +79,29 @@ enum class PrefetchPotentialCandidateServingResult {
   // `PrefetchBlockUntilHeadTimeout()`.
   kNotServedBlockUntilHeadTimeout = 8,
 
-  kMaxValue = kNotServedBlockUntilHeadTimeout,
+  // The candidate is not served because
+  // `PrefetchContainer::Observer::OnDeterminedHead()` is called with
+  // `PrefetchServableState::kShouldBlockUntilHeadReceived`. Basically, we don't
+  // expect to enter this path, but there is a buggy corner case.
+  kNotServedOnDeterminedHeadWithShouldBlockUntilHeadReceived = 9,
+  // The candidate is not served because
+  // `PrefetchContainer::Observer::OnDeterminedHead()` is called but the
+  // prefetch has been expired.
+  kNotServedOnDeterminedHeadWithServableExpired = 10,
+  // The candidate is not served due to ineligible redirect.
+  kNotServedIneligibleRedirect = 11,
+  // The candidate is not served because the loading is failed.
+  kNotServedLoadFailed = 12,
+  // The candidate is not served because
+  // `PrefetchContainer::Observer::OnDeterminedHead()` is called with
+  // `PrefetchServableState::kNotServable` except for expired nor failure. We
+  // don't expect to enter this path.
+  kNotServedOnDeterminedHeadWithNotServableUnknown = 13,
+
+  // A special value for `PrefetchMatchResolver::UnblockForNoCandidates()`.
+  kNotServedNoCandidates = 13,
+
+  kMaxValue = kNotServedNoCandidates,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/prefetch/enums.xml)
 
@@ -141,6 +165,8 @@ class CONTENT_EXPORT PrefetchMatchResolver final
       base::WeakPtr<PrefetchServingPageMetricsContainer>
           serving_page_metrics_container,
       Callback callback);
+
+  void AttachPrefetchMatchPrerenderDebugMetrics();
 
  private:
   struct CandidateData final {

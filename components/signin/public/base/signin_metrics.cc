@@ -176,6 +176,10 @@ void LogSignInStarted(AccessPoint access_point) {
   base::UmaHistogramEnumeration("Signin.SignIn.Started", access_point);
 }
 
+void LogSigninPendingOffered(AccessPoint access_point) {
+  base::UmaHistogramEnumeration("Signin.SigninPending.Offered", access_point);
+}
+
 #if BUILDFLAG(IS_IOS)
 void LogSigninWithAccountType(SigninAccountType account_type) {
   base::UmaHistogramEnumeration("Signin.AccountType.SigninConsent",
@@ -657,6 +661,10 @@ void RecordSigninUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(
           base::UserMetricsAction("Signin_Signin_FromNtpFeaturePromo"));
       break;
+    case AccessPoint::kEnterpriseDialogAfterSigninInterception:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Signin_FromEnterpriseDialogAfterSigninInterception"));
+      break;
   }
 }
 
@@ -791,6 +799,10 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
     case AccessPoint::kUserManagerWithPrefilledEmail:
       base::RecordAction(base::UserMetricsAction(
           "Signin_Impression_FromUserManagerWithPrefilledEmail"));
+      break;
+    case AccessPoint::kEnterpriseDialogAfterSigninInterception:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Impression_FromEnterpriseDialogAfterSigninInterception"));
       break;
     case AccessPoint::kEnterpriseSignoutCoordinator:
     case AccessPoint::kExtensions:

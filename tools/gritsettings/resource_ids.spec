@@ -97,18 +97,25 @@
     "includes": [2200],
     "structures": [2220],
   },
+  # Both browser_resources.grd for chrome/browser/actor/resources and
+  # chrome/browser/actor/resources/internal start with the same ids because only
+  # one of them is built depending on if is_chrome_branded is true.
   "chrome/browser/actor/resources/internal/browser_resources.grd": {
     "structures": [2230],
     "messages": [2235],
-    "includes": [2250],
+    "includes": [2240],
   },
   "chrome/browser/actor/resources/browser_resources.grd": {
     "structures": [2230],
     "messages": [2235],
-    "includes": [2250],
+    "includes": [2240],
+  },
+  "chrome/browser/actor/resources/common_resources.grd": {
+    "META": {"join": 2},
+    "messages": [2245],
   },
   "chrome/browser/dev_ui_browser_resources.grd": {
-    "includes": [2240],
+    "includes": [2250],
   },
   "chrome/browser/nearby_sharing/internal/nearby_share_internal_icons.grd": {
     "includes": [2260],
@@ -485,6 +492,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/key_value_pair_viewer_shared/resources.grd": {
    "META": {"sizes": {"includes": [10]}},
     "includes": [4160],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/legion_internals/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [4170],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/lens/overlay/resources.grd": {
     "META": {"sizes": {"includes": [90]}},
@@ -1060,11 +1071,22 @@
     "META": {"align": 1000},
     "includes": [7000]
   },
+  # Both Chrome and Chromium alternative states data must start with the same id.
+  # Depending on the build only one of them is used.
+  "components/autofill/core/browser/geo/autofill_alternative_state_name_map_resources.grd":{
+    "META": {"sizes": {"includes": [250]}}, # Reserve space for ~225 resources
+    "includes": [7010]
+  },
+  "components/autofill/core/browser/geo/chrome_alternative_state_name_maps/alternative_state_name_map_resources.grd":{
+    "META": {"sizes": {"includes": [250]}}, # Reserve space for ~225 resources
+    "includes": [7010]
+  },
   # Chromium strings and Google Chrome strings must start at the same id.
   # We only use one file depending on whether we're building Chromium or
   # Google Chrome.
   "components/components_chromium_strings.grd": {
     # Big alignment at start of section.
+    "META": {"join": 2},
     "messages": [7020],
   },
   "components/components_google_chrome_strings.grd": {

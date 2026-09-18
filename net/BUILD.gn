@@ -533,6 +533,7 @@ component("net") {
     "disk_cache/cache_util.h",
     "disk_cache/disk_cache.cc",
     "disk_cache/disk_cache.h",
+    "disk_cache/cache_encryption_delegate.h",
     "disk_cache/memory/mem_backend_impl.cc",
     "disk_cache/memory/mem_backend_impl.h",
     "disk_cache/memory/mem_entry_impl.cc",
@@ -834,8 +835,6 @@ component("net") {
     "proxy_resolution/pac_file_fetcher_impl.h",
     "proxy_resolution/polling_proxy_config_service.cc",
     "proxy_resolution/polling_proxy_config_service.h",
-    "proxy_resolution/proxy_bypass_rules.cc",
-    "proxy_resolution/proxy_bypass_rules.h",
     "proxy_resolution/proxy_config.cc",
     "proxy_resolution/proxy_config.h",
     "proxy_resolution/proxy_config_service.cc",
@@ -844,6 +843,8 @@ component("net") {
     "proxy_resolution/proxy_config_service_fixed.h",
     "proxy_resolution/proxy_config_with_annotation.cc",
     "proxy_resolution/proxy_config_with_annotation.h",
+    "proxy_resolution/proxy_host_matching_rules.cc",
+    "proxy_resolution/proxy_host_matching_rules.h",
     "proxy_resolution/proxy_info.cc",
     "proxy_resolution/proxy_info.h",
     "proxy_resolution/proxy_list.cc",
@@ -990,6 +991,8 @@ component("net") {
     "socket/socket_options.h",
     "socket/socket_performance_watcher.h",
     "socket/socket_performance_watcher_factory.h",
+    "socket/socket_pool_additional_capacity.cc",
+    "socket/socket_pool_additional_capacity.h",
     "socket/socket_tag.cc",
     "socket/socket_tag.h",
     "socket/socks5_client_socket.cc",
@@ -2963,8 +2966,8 @@ target(_test_target_type, "net_unittests") {
     "proxy_resolution/network_delegate_error_observer_unittest.cc",
     "proxy_resolution/pac_file_decider_unittest.cc",
     "proxy_resolution/pac_file_fetcher_impl_unittest.cc",
-    "proxy_resolution/proxy_bypass_rules_unittest.cc",
     "proxy_resolution/proxy_config_unittest.cc",
+    "proxy_resolution/proxy_host_matching_rules_unittest.cc",
     "proxy_resolution/proxy_info_unittest.cc",
     "proxy_resolution/proxy_list_unittest.cc",
     "quic/bidirectional_stream_quic_impl_unittest.cc",
@@ -3025,6 +3028,7 @@ target(_test_target_type, "net_unittests") {
     "socket/mock_client_socket_pool_manager.h",
     "socket/sequenced_socket_data_unittest.cc",
     "socket/socket_bio_adapter_unittest.cc",
+    "socket/socket_pool_additional_capacity_unittest.cc",
     "socket/socket_tag_unittest.cc",
     "socket/socks5_client_socket_unittest.cc",
     "socket/socks_client_socket_unittest.cc",
@@ -3185,7 +3189,9 @@ target(_test_target_type, "net_unittests") {
     "HpackHeaderTableFuzzTest.CanCallMethodSequence",
     "HttpNoVarySearchTest.AreEquivalentImplementationsMatch",
     "PickleTest.FuzzRoundTrip",
+    "QuicheHostnameUtilsFuzzTest.FuzzPropertyNormalizationIsIdempotentForValidSni",
     "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
+    "SocketPoolAdditionalCapacityTest.ValidateRandomizedInputs",
     "TransportParametersFuzzTest.ParseTransportParametersDoesNotCrash",
     "UrlUnescapeIteratorTest.SameOutputAsUnescapePercentEncodedUrl",
   ]
@@ -3786,8 +3792,8 @@ fuzzer_test("net_parse_proxy_list_fuzzer") {
   ]
 }
 
-fuzzer_test("net_parse_proxy_bypass_rules_fuzzer") {
-  sources = [ "proxy_resolution/parse_proxy_bypass_rules_fuzzer.cc" ]
+fuzzer_test("net_parse_proxy_host_matching_rules_fuzzer") {
+  sources = [ "proxy_resolution/parse_proxy_host_matching_rules_fuzzer.cc" ]
 
   libfuzzer_options = [
     # The proxy bypass rules aren't very complicated, so this is more than
@@ -3808,7 +3814,8 @@ fuzzer_test("net_parse_proxy_rules_fuzzer") {
     ":net_fuzzer_test_support",
     "//net",
   ]
-  dict = "data/fuzzer_dictionaries/net_parse_proxy_bypass_rules_fuzzer.dict"
+  dict =
+      "data/fuzzer_dictionaries/net_parse_proxy_host_matching_rules_fuzzer.dict"
 }
 
 fuzzer_test("net_get_domain_and_registry_fuzzer") {

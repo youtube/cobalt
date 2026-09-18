@@ -67,7 +67,6 @@ import org.chromium.chrome.browser.pdf.PdfInfo;
 import org.chromium.chrome.browser.pdf.PdfUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.rlz.RevenueStats;
-import org.chromium.chrome.browser.tab.TabUtils.UseDesktopUserAgentCaller;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
@@ -163,6 +162,9 @@ class TabImpl implements Tab {
 
     /** Unique id of this tab (within its container). */
     private final int mId;
+
+    /** Whether the tab is archived. */
+    private final boolean mIsArchived;
 
     /** The Profile associated with this tab. */
     private final Profile mProfile;
@@ -363,13 +365,15 @@ class TabImpl implements Tab {
      * @param id The id this tab should be identified with.
      * @param profile The profile associated with this Tab.
      * @param launchType Type indicating how this tab was launched.
+     * @param isArchived Whether the tab is archived.
      */
     @SuppressLint("HandlerLeak")
-    TabImpl(int id, Profile profile, @TabLaunchType int launchType) {
+    TabImpl(int id, Profile profile, @TabLaunchType int launchType, boolean isArchived) {
         mId = TabIdManager.getInstance().generateValidId(id);
         mProfile = profile;
         assert mProfile != null;
         mRootId = mId;
+        mIsArchived = isArchived;
 
         // Override the configuration for night mode to always stay in light mode until all UIs in
         // Tab are inflated from activity context instead of application context. This is to
@@ -1021,7 +1025,7 @@ class TabImpl implements Tab {
             loadUrl(mPendingLoadParams);
             mPendingLoadParams = null;
         } else {
-            restoreIfNeeded(caller);
+            restoreIfNeeded();
         }
 
         // If we are trying to share a tab, and it has never been loaded, then it will not have its
@@ -1061,14 +1065,14 @@ class TabImpl implements Tab {
             return;
         }
 
-        switchUserAgentIfNeeded(UseDesktopUserAgentCaller.RELOAD);
+        switchUserAgentIfNeeded();
         getWebContents().getNavigationController().reload(true);
     }
 
     @Override
     public void reloadIgnoringCache() {
         if (getWebContents() != null) {
-            switchUserAgentIfNeeded(UseDesktopUserAgentCaller.RELOAD_IGNORING_CACHE);
+            switchUserAgentIfNeeded();
             getWebContents().getNavigationController().reloadBypassingCache(true);
         }
     }
@@ -1415,7 +1419,14 @@ class TabImpl implements Tab {
 
             boolean needsInitWebContents = true;
             boolean createWebContents = webContents == null;
-            if (ChromeFeatureList.sLoadAllTabsAtStartup.isEnabled()) {
+            // TODO(crbug.com/448420873): For HeadlessTabModel we might not have a WindowAndroid.
+            // For archived tabs, we don't want to create a WebContents. Archived and headless tab
+            // models are not associated with BrowserWindowInterface so this shouldn't be an issue
+            // for now. In future we should reconsider whether these tab models should even hold a
+            // TabImpl vs some kind of light weight tab representation.
+            if (ChromeFeatureList.sLoadAllTabsAtStartup.isEnabled()
+                    && mWindowAndroid != null
+                    && !mIsArchived) {
                 if (mWebContentsState != null) {
                     assert webContents == null;
 
@@ -1680,7 +1691,13 @@ class TabImpl implements Tab {
                     // Wait until the content/ draws the transition.
                     CompositorViewHolder viewHolder =
                             assumeNonNull(getActivity()).getCompositorViewHolderSupplier().get();
-                    viewHolder.requestRender(() -> assumeNonNull(getView()).setAlpha(0f));
+                    viewHolder.requestRender(
+                            () -> {
+                                var currView = getView();
+                                if (currView != null) {
+                                    currView.setAlpha(0f);
+                                }
+                            });
                 }
                 return;
             case AnimationStage.WAITING_FOR_EMBEDDER_CONTENT_FOR_COMMITTED_ENTRY:
@@ -2282,7 +2299,7 @@ class TabImpl implements Tab {
      * the load codepath is the same (run in loadIfNecessary()) and the same caching policies of
      * history load are used.
      */
-    private void restoreIfNeeded(@TabLoadIfNeededCaller int caller) {
+    private void restoreIfNeeded() {
         // Attempts to display the Paint Preview representation of this Tab.
         if (isFrozen()) StartupPaintPreviewHelper.showPaintPreviewOnRestore(this);
 
@@ -2302,7 +2319,7 @@ class TabImpl implements Tab {
             if (mWebContents != null) {
                 // Invoke switchUserAgentIfNeeded() from restoreIfNeeded() instead of loadIfNeeded()
                 // to avoid reload without explicit user intent.
-                switchUserAgentIfNeeded(UseDesktopUserAgentCaller.LOAD_IF_NEEDED + caller);
+                switchUserAgentIfNeeded();
                 mWebContents.getNavigationController().loadIfNecessary();
             }
             mIsBeingRestored = true;
@@ -2710,14 +2727,14 @@ class TabImpl implements Tab {
                 "Android.RequestDesktopSite.UseDesktopUserAgent", value);
     }
 
-    private void switchUserAgentIfNeeded(int caller) {
+    private void switchUserAgentIfNeeded() {
         if (calculateUserAgentOverrideOption(null) == UserAgentOverrideOption.INHERIT
                 || getWebContents() == null) {
             return;
         }
         boolean usingDesktopUserAgent =
                 getWebContents().getNavigationController().getUseDesktopUserAgent();
-        TabUtils.switchUserAgent(this, /* switchToDesktop= */ !usingDesktopUserAgent, caller);
+        TabUtils.switchUserAgent(this, /* switchToDesktop= */ !usingDesktopUserAgent);
     }
 
     /** Sets the TabLaunchType for tabs launched with an unset launch type. */

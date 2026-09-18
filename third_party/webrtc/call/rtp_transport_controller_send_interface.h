@@ -22,6 +22,7 @@
 #include "api/fec_controller.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_packet_sender.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
@@ -30,9 +31,11 @@
 #include "api/units/timestamp.h"
 #include "call/rtp_config.h"
 #include "common_video/frame_counts.h"
+#include "modules/congestion_controller/rtp/congestion_controller_feedback_stats.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/network_route.h"
 
 namespace webrtc {
@@ -160,9 +163,12 @@ class RtpTransportControllerSendInterface {
   virtual NetworkControllerInterface* GetNetworkController() = 0;
 
   // Called once it's known that the remote end supports RFC 8888.
-  virtual void EnableCongestionControlFeedbackAccordingToRfc8888() = 0;
+  virtual void SetPreferredRtcpCcAckType(
+      RtcpFeedbackType preferred_rtcp_cc_ack_type) = 0;
   // Count of RFC8888 feedback reports received
   virtual std::optional<int> ReceivedCongestionControlFeedbackCount() const = 0;
+  virtual flat_map<uint32_t, ReceivedCongestionControlFeedbackStats>
+  GetCongestionControlFeedbackStatsPerSsrc() const = 0;
   // Count of transport-cc feedback reports received
   virtual std::optional<int> ReceivedTransportCcFeedbackCount() const = 0;
 };

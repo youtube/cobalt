@@ -1167,7 +1167,9 @@ bool coefficient_from_nibble<2>(uint32_t nibble, uint32_t *result) {
   if (constant_time_declassify_int(nibble < 15)) {
     // Knowing bounds on |nibble| seems to tempt some versions of Clang to emit
     // a branch, if we don't have a barrier in |mod_sub|.
-    *result = mod_sub(2, value_barrier_u32(nibble % 5));
+    // Constant time "nibble % 5".
+    nibble = nibble - 5 * ((205 * nibble) >> 10);
+    *result = mod_sub(2, value_barrier_u32(nibble));
     return true;
   }
   return false;

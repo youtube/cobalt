@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -812,7 +813,7 @@ std::optional<bool> HeapObjectData::TryGetBooleanValue(
   // Keep in sync with Object::BooleanValue.
   auto result = TryGetBooleanValueImpl(broker);
   DCHECK_IMPLIES(
-      broker->IsMainThread() && result.has_value(),
+      broker->IsMainThread() && result.has_value() && !IsAnyHole(*object()),
       result.value() == Object::BooleanValue(*object(), broker->isolate()));
   return result;
 }
@@ -2396,9 +2397,7 @@ OptionalSharedFunctionInfoRef FeedbackCellRef::shared_function_info(
   return vector->shared_function_info(broker);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 HEAP_ACCESSOR_C(FeedbackCell, JSDispatchHandle, dispatch_handle)
-#endif
 
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info(
     JSHeapBroker* broker) const {
@@ -2498,9 +2497,7 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
 
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-#ifdef V8_ENABLE_LEAPTIERING
 HEAP_ACCESSOR_C(JSFunction, JSDispatchHandle, dispatch_handle)
-#endif
 
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C

@@ -28,9 +28,6 @@ BASE_DECLARE_FEATURE(kTestFeature);
 // the Safety Check module in the Magic Stack.
 BASE_DECLARE_FEATURE(kSafetyCheckAutorunByManagerKillswitch);
 
-// Feature to add the Safety Check module to the Magic Stack.
-BASE_DECLARE_FEATURE(kSafetyCheckMagicStack);
-
 // Killswitch for conditionally hiding the Safety Check module in the Magic
 // Stack if no issues are found.
 BASE_DECLARE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch);
@@ -62,13 +59,6 @@ const base::TimeDelta SuppressDelayForSafetyCheckNotificationsIfPresent();
 // Returns the time duration of user inactivity that must elapse before Safety
 // Check notifications are displayed.
 const base::TimeDelta InactiveThresholdForSafetyCheckNotifications();
-
-// A parameter representing how many hours must elapse before the Safety Check
-// is automatically run in the Magic Stack.
-extern const char kSafetyCheckMagicStackAutorunHoursThreshold[];
-
-// How many hours between each autorun of the Safety Check in the Magic Stack.
-const base::TimeDelta TimeDelayForSafetyCheckAutorun();
 
 // Feature to enable the refactored implementation of the `OmahaService`, using
 // new `OmahaServiceObserver`(s) for Omaha clients. Acts as a killswitch.
@@ -311,6 +301,9 @@ extern const char kAIMPrototypeTabPickerParamOnFlightAPC[];
 // Feature flag for the tab picker in the aim prototype.
 BASE_DECLARE_FEATURE(kAIMPrototypeTabPicker);
 
+// Returns true is we should use cached APCs in the aim prototype.
+bool IsAimPrototypeTabPickerCachedAPCEnabled();
+
 // Variations of AIM prototype.
 extern const char kAIMPrototypeParam[];
 extern const char kAIMPrototypeParamAllOmniboxEntrypoints[];
@@ -427,9 +420,6 @@ BASE_DECLARE_FEATURE(kOnlyAccessClipboardAsync);
 
 // Whether the Safety Check Manager can automatically trigger Safety Checks.
 bool IsSafetyCheckAutorunByManagerEnabled();
-
-// Whether the Safety Check module should be shown in the Magic Stack.
-bool IsSafetyCheckMagicStackEnabled();
 
 // Whether the Safety Check module is hidden when no issues are found.
 bool ShouldHideSafetyCheckModuleIfNoIssues();
@@ -1024,6 +1014,12 @@ bool IsNTPBackgroundCustomizationEnabled();
 // enabled.
 BASE_DECLARE_FEATURE(kRunDefaultStatusCheck);
 
+// Feature flag to enable the custom color slider on the NTP.
+BASE_DECLARE_FEATURE(kNTPBackgroundColorSlider);
+
+// Checks if the custom color slider is enabled on the NTP.
+bool IsNTPBackgroundColorSliderEnabled();
+
 // Returns whether `kRunDefaultStatusCheck` is enabled.
 bool IsRunDefaultStatusCheckEnabled();
 
@@ -1154,5 +1150,23 @@ bool ShouldShowKeyboardAccessory();
 bool ShouldShowKeyboardAccessorySymbols();
 // Returns true if lens and voice search can be shown in the keyboard accessory.
 bool ShouldShowKeyboardAccessoryFeatures();
+
+// Enables the LocationBarBadgeMigration feature.
+BASE_DECLARE_FEATURE(kLocationBarBadgeMigration);
+
+// Returns true if the LocationBarBadgeMigration feature is enabled.
+bool IsLocationBarBadgeMigrationEnabled();
+
+// Enables the IOSFusebox feature.
+BASE_DECLARE_FEATURE(kIOSFusebox);
+
+// Returns true if the IOSFusebox feature is enabled.
+bool IsIOSFuseboxEnabled();
+
+// Enables the Composebox feature.
+BASE_DECLARE_FEATURE(kComposeboxIOS);
+
+// Returns true if the Composebox feature is enabled.
+bool IsComposeboxIOSEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -1488,7 +1488,8 @@ ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseStreamInternal(
     if (tag == kExpectedV1Tag) {
       // Parse the protobuf event from the buffer.
       rtclog::EventStream event_stream;
-      if (!event_stream.ParseFromArray(event_start.data(), total_event_size)) {
+      if (!event_stream.ParseFromString(
+              absl::string_view(event_start.data(), total_event_size))) {
         RTC_LOG(LS_WARNING)
             << "Failed to parse legacy-format protobuf message.";
         RTC_PARSE_WARN_AND_RETURN_SUCCESS_IF(allow_incomplete_logs_,
@@ -1502,7 +1503,8 @@ ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseStreamInternal(
     } else {
       // Parse the protobuf event from the buffer.
       rtclog2::EventStream event_stream;
-      if (!event_stream.ParseFromArray(event_start.data(), total_event_size)) {
+      if (!event_stream.ParseFromString(
+              absl::string_view(event_start.data(), total_event_size))) {
         RTC_LOG(LS_WARNING) << "Failed to parse new-format protobuf message.";
         RTC_PARSE_WARN_AND_RETURN_SUCCESS_IF(allow_incomplete_logs_,
                                              kIncompleteLogError);

@@ -5,6 +5,7 @@
 #include "components/history/core/test/history_backend_db_base_test.h"
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -118,9 +119,19 @@ bool HistoryBackendDBBaseTest::SetDatabaseVersion(int version) const {
 
 void HistoryBackendDBBaseTest::DeleteBackend() {
   if (backend_) {
+    // The backend is ref-counted and won't be deleted right away if a database
+    // error queued a `KillHistoryDatabase` task (which holds a reference on the
+    // backend). Thus, releasing the backend pointer isn't enough here, we need
+    // to explicitly wait for the object to be deleted.
+    base::RunLoop loop;
+    backend_->SetOnBackendDestroyTask(
+        base::SingleThreadTaskRunner::GetCurrentDefault(), loop.QuitClosure());
+
     backend_->Closing();
     db_ = nullptr;
     backend_ = nullptr;
+
+    loop.Run();
   }
 }
 

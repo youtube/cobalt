@@ -43,6 +43,8 @@ struct PacketFeedback {
   uint32_t ssrc = 0;
   uint16_t rtp_sequence_number = 0;
   bool is_retransmission = false;
+  bool sent_with_ect1 = false;
+  bool previously_reported_lost = false;
 };
 
 class InFlightBytesTracker {

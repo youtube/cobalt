@@ -12,11 +12,15 @@
 #include "third_party/skia/include/core/SkTypeface.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include <android/api-level.h>
+
 #include "base/base_paths_android.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "third_party/skia/include/ports/SkFontMgr_android.h"
+#include "third_party/skia/include/ports/SkFontMgr_android_ndk.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
 #include "third_party/skia/include/ports/SkFontScanner_FreeType.h"
 #endif
@@ -60,6 +64,10 @@ bool g_factory_called = false;
 // This is a purposefully leaky pointer that has ownership of the FontMgr.
 SkFontMgr* g_fontmgr_override = nullptr;
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kUseAndroidNDKFontAPI, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 }  // namespace
 
 namespace skia {
@@ -68,6 +76,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   if (g_fontmgr_override) {
     return sk_ref_sp(g_fontmgr_override);
   }
+
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   return SkFontMgr_New_Cobalt();
 #else
@@ -92,6 +101,14 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(kUseAndroidNDKFontAPI) &&
+      android_get_device_api_level() > __ANDROID_API_V__) {
+    sk_sp<SkFontMgr> ndk_fontmgr =
+        SkFontMgr_New_AndroidNDK(false, SkFontScanner_Make_Fontations());
+    if (ndk_fontmgr && ndk_fontmgr->countFamilies()) {
+      return ndk_fontmgr;
+    }
+  }
   return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);

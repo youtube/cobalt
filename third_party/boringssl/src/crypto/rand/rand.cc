@@ -73,5 +73,5 @@ void RAND_get_system_entropy_for_custom_prng(uint8_t *buf, size_t len) {
   if (len > 256) {
     abort();
   }
-  CRYPTO_sysrand_for_seed(buf, len);
+  CRYPTO_sysrand(buf, len);
 }

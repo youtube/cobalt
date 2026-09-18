@@ -121,7 +121,7 @@ void FakeNetworkSocket::OnPacketReceived(EmulatedIpPacket packet) {
     // where pending_packet will be read and reset. This call is done without
     // any thread switch (see AsyncUDPSocket::OnReadEvent) so it's safe to
     // assume that SignalReadEvent() will block until the packet has been read.
-    SignalReadEvent(this);
+    NotifyReadEvent(this);
     RTC_DCHECK(!pending_);
   };
   thread_->PostTask(SafeTask(alive_, std::move(task)));

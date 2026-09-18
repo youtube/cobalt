@@ -132,8 +132,8 @@ class RTC_EXPORT EncodedImage {
 
   std::optional<int> TemporalIndex() const { return temporal_index_; }
   void SetTemporalIndex(std::optional<int> temporal_index) {
-    RTC_DCHECK_GE(temporal_index_.value_or(0), 0);
-    RTC_DCHECK_LT(temporal_index_.value_or(0), kMaxTemporalStreams);
+    RTC_DCHECK_GE(temporal_index.value_or(0), 0);
+    RTC_DCHECK_LT(temporal_index.value_or(0), kMaxTemporalStreams);
     temporal_index_ = temporal_index;
   }
 

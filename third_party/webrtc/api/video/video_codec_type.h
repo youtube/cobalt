@@ -24,6 +24,31 @@ enum VideoCodecType {
   kVideoCodecH265,
 };
 
+template <typename Sink>
+void AbslStringify(Sink& sink, VideoCodecType codec_type) {
+  switch (codec_type) {
+    case kVideoCodecGeneric:
+      sink.Append("Generic");
+      return;
+    case kVideoCodecVP8:
+      sink.Append("VP8");
+      return;
+    case kVideoCodecVP9:
+      sink.Append("VP9");
+      return;
+    case kVideoCodecAV1:
+      sink.Append("AV1");
+      return;
+    case kVideoCodecH264:
+      sink.Append("H264");
+      return;
+    case kVideoCodecH265:
+      sink.Append("H265");
+      return;
+  }
+  sink.Append("Unknown");
+}
+
 }  // namespace webrtc
 
 #endif  // API_VIDEO_VIDEO_CODEC_TYPE_H_

@@ -12,6 +12,10 @@ rtc_library("speech_level_estimator") {
   sources = [
     "speech_level_estimator.cc",
     "speech_level_estimator.h",
+    "speech_level_estimator_experimental_impl.cc",
+    "speech_level_estimator_experimental_impl.h",
+    "speech_level_estimator_impl.cc",
+    "speech_level_estimator_impl.h",
   ]
 
   visibility = [
@@ -25,6 +29,7 @@ rtc_library("speech_level_estimator") {
     ":common",
     "..:apm_logging",
     "../../../api:array_view",
+    "../../../api:field_trials_view",
     "../../../api/audio:audio_processing",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
@@ -214,8 +219,6 @@ rtc_library("input_volume_controller") {
     "../../../api:array_view",
     "../../../api/audio:audio_processing",
     "../../../rtc_base:checks",
-    "../../../rtc_base:checks",
-    "../../../rtc_base:gtest_prod",
     "../../../rtc_base:gtest_prod",
     "../../../rtc_base:logging",
     "../../../rtc_base:safe_minmax",
@@ -296,7 +299,10 @@ rtc_library("speech_level_estimator_unittest") {
   testonly = true
   configs += [ "..:apm_debug_dump" ]
 
-  sources = [ "speech_level_estimator_unittest.cc" ]
+  sources = [
+    "speech_level_estimator_experimental_unittest.cc",
+    "speech_level_estimator_unittest.cc",
+  ]
   deps = [
     ":common",
     ":speech_level_estimator",

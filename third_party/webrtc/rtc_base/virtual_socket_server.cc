@@ -220,7 +220,7 @@ void VirtualSocket::SafetyBlock::MaybeSignalReadEvent() {
       return;
     }
   }
-  socket_.SignalReadEvent(&socket_);
+  socket_.NotifyReadEvent(&socket_);
 }
 
 int VirtualSocket::Close() {
@@ -439,7 +439,7 @@ void VirtualSocket::PostPacket(TimeDelta delay,
       [safety = std::move(safety), socket,
        packet = std::move(packet)]() mutable {
         if (safety->AddPacket(std::move(packet))) {
-          socket->SignalReadEvent(socket);
+          socket->NotifyReadEvent(socket);
         }
       },
       delay);
@@ -477,7 +477,7 @@ void VirtualSocket::SafetyBlock::PostConnect(TimeDelta delay,
       case Signal::kNone:
         break;
       case Signal::kReadEvent:
-        safety->socket_.SignalReadEvent(&safety->socket_);
+        safety->socket_.NotifyReadEvent(&safety->socket_);
         break;
       case Signal::kConnectEvent:
         safety->socket_.NotifyConnectEvent(&safety->socket_);
@@ -618,7 +618,7 @@ void VirtualSocket::OnSocketServerReadyToSend() {
   }
   if (type_ == SOCK_DGRAM) {
     ready_to_send_ = true;
-    SignalWriteEvent(this);
+    NotifyWriteEvent(this);
   } else {
     RTC_DCHECK(type_ == SOCK_STREAM);
     // This will attempt to empty the full send buffer, and will fire
@@ -650,7 +650,7 @@ void VirtualSocket::UpdateSend(size_t data_size) {
 void VirtualSocket::MaybeSignalWriteEvent(size_t capacity) {
   if (!ready_to_send_ && (send_buffer_.size() < capacity)) {
     ready_to_send_ = true;
-    SignalWriteEvent(this);
+    NotifyWriteEvent(this);
   }
 }
 

@@ -936,9 +936,6 @@ blink::WebNavigationTimings BuildNavigationTimings(
   renderer_navigation_timings.parent_resource_timing_access =
       browser_navigation_timings.parent_resource_timing_access;
 
-  renderer_navigation_timings.system_entropy_at_navigation_start =
-      browser_navigation_timings.system_entropy_at_navigation_start;
-
   return renderer_navigation_timings;
 }
 
@@ -2623,8 +2620,11 @@ void RenderFrameImpl::CommitNavigation(
   AssertNavigationCommits assert_navigation_commits(
       this, kMayReplaceInitialEmptyDocument);
 
+  base::ElapsedTimer elapsed_timer;
   SetOldPageLifecycleStateFromNewPageCommitIfNeeded(
       commit_params->old_page_info.get(), common_params->url);
+  base::TimeDelta total_lifecycle_events_processing_time_on_commit =
+      elapsed_timer.Elapsed();
 
   bool was_initiated_in_this_frame =
       navigation_client_impl_ &&
@@ -2655,6 +2655,9 @@ void RenderFrameImpl::CommitNavigation(
       ToWebPolicyContainer(std::move(policy_container));
   navigation_params->view_transition_state =
       std::move(commit_params->view_transition_state);
+  navigation_params->navigation_timings
+      .total_lifecycle_events_processing_time_on_commit =
+      total_lifecycle_events_processing_time_on_commit;
 
   if (frame_->IsOutermostMainFrame() && permissions_policy) {
     navigation_params->permissions_policy_override = permissions_policy;
@@ -5658,22 +5661,6 @@ void RenderFrameImpl::SynchronouslyCommitAboutBlankForBug778318(
         initiator->ToWebLocalFrame()->GetDocument().Url().GetString();
   }
 
-  // To prevent pages from being able to abuse window.open() to determine the
-  // system entropy, always set a fixed value of 'normal', for consistency with
-  // other top-level navigations.
-  if (IsMainFrame()) {
-    navigation_params->navigation_timings.system_entropy_at_navigation_start =
-        blink::mojom::SystemEntropy::kNormal;
-  } else {
-    // Sub frames always have an empty entropy state since they are generally
-    // renderer-initiated. See
-    // https://docs.google.com/document/d/1D6DqptsCEd3wPRsZ0q1iwVBAXXmhxZuLV-KKFI0ptCg/edit?usp=sharing
-    // for background.
-    DCHECK_EQ(blink::mojom::SystemEntropy::kEmpty,
-              navigation_params->navigation_timings
-                  .system_entropy_at_navigation_start);
-  }
-
   frame_->CommitNavigation(std::move(navigation_params), BuildDocumentState());
 }
 
@@ -6231,8 +6218,8 @@ void RenderFrameImpl::BeginNavigationInternal(
         "Navigation.RendererInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
     if (start_diff_under_threshold &&
-        GetContentClient()->ShouldIgnoreDuplicateNavs() &&
-        !features::kSkipIgnoreRendererInitiatedNavs.Get()) {
+        GetContentClient()->ShouldIgnoreDuplicateNavs(
+            common_params->url, /*is_renderer_initiated=*/true)) {
       if (!base::FeatureList::IsEnabled(
               features::kIgnoreDuplicateNavsOnlyWithUserGesture) ||
           common_params->has_user_gesture) {

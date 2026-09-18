@@ -4,10 +4,12 @@
 
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
 
+#include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
-#include "components/sessions/content/session_tab_helper.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/views/widget/widget.h"
 
 namespace glic {
@@ -92,8 +94,11 @@ void GlicRegionCaptureController::OnRegionSelected(const gfx::Rect& rect) {
     return;
   }
   auto result = mojom::CaptureRegionResult::New();
-  result->tab_id = sessions::SessionTabHelper::IdForTab(web_contents_).id();
-  result->region = mojom::CapturedRegion::NewRect(rect);
+  result->tab_id = GetTabId(web_contents_);
+  content::RenderWidgetHostView* view =
+      web_contents_->GetPrimaryMainFrame()->GetView();
+  result->region = mojom::CapturedRegion::NewRect(
+      gfx::ScaleToEnclosingRect(rect, view->GetDeviceScaleFactor()));
   capture_region_observer_->OnUpdate(std::move(result), std::nullopt);
 }
 

@@ -79,23 +79,24 @@
 
   _faviconLoader->FaviconForPageUrl(
       tabURL, kDesiredSmallFaviconSizePt, kMinFaviconSizePt,
-      /*fallback_to_google_server=*/true, ^(FaviconAttributes* attributes) {
-        [weakSelf onFaviconReceived:attributes];
+      /*fallback_to_google_server=*/true,
+      ^(FaviconAttributes* attributes, bool cached) {
+        [weakSelf onFaviconReceived:attributes cached:cached];
       });
 }
 
 // Called when the favicon has been received.
-- (void)onFaviconReceived:(FaviconAttributes*)attributes {
+- (void)onFaviconReceived:(FaviconAttributes*)attributes cached:(BOOL)cached {
   if (_sendTabPromoItem) {
     // Favicon callback has already been executed, update the image and return.
-    if (!attributes.usesDefaultImage) {
+    if (!cached || attributes.faviconImage) {
       _sendTabPromoItem.faviconImage = attributes.faviconImage;
     }
     return;
   }
 
   _sendTabPromoItem = [[SendTabPromoItem alloc] init];
-  if (!attributes.usesDefaultImage) {
+  if (!cached || attributes.faviconImage) {
     _sendTabPromoItem.faviconImage = attributes.faviconImage;
   }
   _sendTabPromoItem.standaloneDelegate = self;

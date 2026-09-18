@@ -7,12 +7,14 @@ package org.chromium.chrome.browser.settings;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -29,6 +31,8 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.window.layout.WindowMetricsCalculator;
+
+import com.google.android.material.appbar.AppBarLayout;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
@@ -190,9 +194,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         getModalDialogManagerSupplier()),
                 /* recursive= */ true);
         fragmentManager.registerFragmentLifecycleCallbacks(
-                new WideDisplayPaddingApplier(), /* recursive= */ false);
+                new WideDisplayPaddingApplier(), /* recursive= */ true);
         fragmentManager.registerFragmentLifecycleCallbacks(
-                new SettingsMetricsReporter(), /* recursive= */ false);
+                new SettingsMetricsReporter(), /* recursive= */ true);
 
         if (isContainmentEnabled()) {
             // In multi-column mode, the main settings fragment is a child of the
@@ -251,7 +255,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         // If savedInstanceState is non-null, then the activity is being
         // recreated and super.onCreate() has already recreated the fragment.
         if (savedInstanceState == null) {
-            if (ChromeFeatureList.sSettingsMultiColumn.isEnabled()) {
+            // In standalone mode, we shouldn't have multi column.
+            if (!mStandalone && isMultiColumnSettingEnabled()) {
                 // Do NOT set MAIN_FRAGMENT_TAG in this case, so page-title updating,
                 // setting the padding depending on window size, and metrics are temporarily
                 // disabled for development.
@@ -268,6 +273,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 setFragmentAnimation(transaction, fragment);
                 transaction.commit();
             }
+        } else {
+            mMultiColumnSettings =
+                    (MultiColumnSettings)
+                            fragmentManager.findFragmentByTag(MULTI_COLUMN_FRAGMENT_TAG);
         }
 
         if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
@@ -278,12 +287,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         }
 
         if (!mStandalone) {
-            if (ChromeFeatureList.sSettingsMultiColumn.isEnabled()) {
+            if (isMultiColumnSettingEnabled()) {
                 assert mMultiColumnSettings != null;
                 mMultiColumnTitleUpdater =
                         new MultiColumnTitleUpdater(
                                 mMultiColumnSettings,
-                                /* context= */ this,
+                                actionBar.getContext(),
                                 findViewById(R.id.settings_detailed_pane_title),
                                 this::setTitle);
                 mMultiColumnSettings.addObserver(mMultiColumnTitleUpdater);
@@ -304,6 +313,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
             findViewById(R.id.content).setBackgroundColor(backgroundColor);
             findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor);
+        }
+        if (isContainmentEnabled() || isMultiColumnSettingEnabled()) {
+            AppBarLayout appBarLayout = findViewById(R.id.app_bar_layout);
+            appBarLayout.setElevation(0);
+            appBarLayout.setStateListAnimator(null);
         }
     }
 
@@ -334,7 +348,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
      * multi-column mode.
      */
     private boolean getUseMultiColumn() {
-        if (!ChromeFeatureList.sSettingsMultiColumn.isEnabled()) return false;
+        if (!isMultiColumnSettingEnabled()) return false;
 
         var windowMetrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(this);
         return windowMetrics.getBounds().width()
@@ -345,6 +359,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     /** Returns true if the AndroidSettingsContainment feature is enabled. */
     private static boolean isContainmentEnabled() {
         return ChromeFeatureList.sAndroidSettingsContainment.isEnabled();
+    }
+
+    /** Returns true if the AndroidSettingsContainment feature is enabled. */
+    private static boolean isMultiColumnSettingEnabled() {
+        return ChromeFeatureList.sSettingsMultiColumn.isEnabled();
     }
 
     @Override
@@ -416,8 +435,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
      * MainSettings when in multi-column, two-pane mode.
      */
     private boolean shouldSkipContainmentForMainSettings(PreferenceFragmentCompat fragment) {
-        return fragment instanceof MainSettings
-                && getUseMultiColumn()
+        return fragment instanceof MainSettings && isMultiColumnSettingsVisible();
+    }
+
+    public boolean isMultiColumnSettingsVisible() {
+        return getUseMultiColumn()
                 && mMultiColumnSettings != null
                 && mMultiColumnSettings.isTwoPane();
     }
@@ -846,6 +868,13 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         UiUtils.setStatusBarIconColor(
                 getWindow().getDecorView().getRootView(),
                 getResources().getBoolean(R.bool.window_light_status_bar));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            int color = SemanticColorUtils.getDefaultBgColor(this);
+            var taskDescription =
+                    new ActivityManager.TaskDescription.Builder().setStatusBarColor(color).build();
+            setTaskDescription(taskDescription);
+        }
     }
 
     @Override
@@ -953,10 +982,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 Fragment fragment,
                 View view,
                 @Nullable Bundle savedInstanceState) {
-            if (MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
-                // Apply the wide display style after the main fragment is committed since its views
-                // (particularly a recycler view) are not accessible before the transaction
-                // completes.
+            if (fragment instanceof PreferenceFragmentCompat
+                    || MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
                 WideDisplayPadding.apply(fragment, SettingsActivity.this);
             }
         }

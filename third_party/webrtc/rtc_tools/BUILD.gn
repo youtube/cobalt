@@ -393,6 +393,7 @@ if (!build_with_chromium) {
         "//rtc_base/system:file_wrapper",
         "//test:fileutils",
         "//test:test_support",
+        "//third_party/abseil-cpp/absl/strings:string_view",
       ]
     }
   }

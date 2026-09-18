@@ -369,19 +369,26 @@ bool PdfInkModule::OnMouseDown(const blink::WebMouseEvent& event) {
   }
 
   gfx::PointF position = normalized_event.PositionInWidget();
-  if (is_drawing_stroke()) {
-    MaybeFinishStrokeForMissingMouseUpEvent();
-
-    if (IsHighlightingTextAtPosition(position)) {
-      return StartTextHighlight(position, event.ClickCount(), event.TimeStamp(),
-                                ink::StrokeInput::ToolType::kMouse);
-    }
-
-    return StartStroke(position, event.TimeStamp(),
-                       ink::StrokeInput::ToolType::kMouse);
+  if (is_erasing_stroke()) {
+    return StartEraseStroke(position, ink::StrokeInput::ToolType::kMouse);
   }
 
-  return StartEraseStroke(position, ink::StrokeInput::ToolType::kMouse);
+  if (is_drawing_stroke()) {
+    MaybeFinishStrokeForMissingMouseUpEvent();
+  } else if (features::kPdfInk2TextHighlighting.Get() &&
+             is_text_highlighting()) {
+    const EventDetails& event_details = text_highlight_state().input_last_event;
+    FinishTextHighlight(event_details.position,
+                        /*is_multi_click=*/false, event_details.tool_type);
+  }
+
+  if (IsHighlightingTextAtPosition(position)) {
+    return StartTextHighlight(position, event.ClickCount(),
+                              ink::StrokeInput::ToolType::kMouse);
+  }
+
+  return StartStroke(position, event.TimeStamp(),
+                     ink::StrokeInput::ToolType::kMouse);
 }
 
 bool PdfInkModule::OnMouseUp(const blink::WebMouseEvent& event) {
@@ -442,17 +449,17 @@ bool PdfInkModule::OnMouseMove(const blink::WebMouseEvent& event) {
       return false;
     }
 
-    const DrawingStrokeState::EventDetails& input_last_event =
-        state.input_last_event.value();
+    const EventDetails& input_last_event = state.input_last_event.value();
     return OnMouseUp(GenerateLeftMouseUpEvent(input_last_event.position,
                                               input_last_event.timestamp));
   }
 
   if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
-    // Mouse up event does not modify the text selection, so the position does
-    // not matter here.
-    return OnMouseUp(
-        GenerateLeftMouseUpEvent(gfx::PointF(), base::TimeTicks::Now()));
+    // Text highlighting is not sensitive to particular timestamps, just use
+    // current time.
+    return OnMouseUp(GenerateLeftMouseUpEvent(
+        text_highlight_state().input_last_event.position,
+        base::TimeTicks::Now()));
   }
 
   CHECK(is_erasing_stroke());
@@ -482,18 +489,25 @@ bool PdfInkModule::OnTouchStart(const blink::WebTouchEvent& event) {
   }
 
   gfx::PointF position = event.touches[0].PositionInWidget();
-  if (is_drawing_stroke()) {
-    MaybeFinishStrokeForMissingMouseUpEvent();
-
-    if (IsHighlightingTextAtPosition(position)) {
-      // Multi-click text selection for touch is not supported.
-      return StartTextHighlight(position, /*click_count=*/1, event.TimeStamp(),
-                                tool_type);
-    }
-    return StartStroke(position, event.TimeStamp(), tool_type);
+  if (is_erasing_stroke()) {
+    return StartEraseStroke(position, tool_type);
   }
 
-  return StartEraseStroke(position, tool_type);
+  if (is_drawing_stroke()) {
+    MaybeFinishStrokeForMissingMouseUpEvent();
+  } else if (features::kPdfInk2TextHighlighting.Get() &&
+             is_text_highlighting()) {
+    const EventDetails& event_details = text_highlight_state().input_last_event;
+    FinishTextHighlight(event_details.position,
+                        /*is_multi_click=*/false, event_details.tool_type);
+  }
+
+  if (IsHighlightingTextAtPosition(position)) {
+    // Multi-click text selection for touch is not supported.
+    return StartTextHighlight(position, /*click_count=*/1, tool_type);
+  }
+
+  return StartStroke(position, event.TimeStamp(), tool_type);
 }
 
 bool PdfInkModule::OnTouchEnd(const blink::WebTouchEvent& event) {
@@ -549,8 +563,7 @@ void PdfInkModule::MaybeFinishStrokeForMissingMouseUpEvent() {
   }
 
   CHECK(state.input_last_event.has_value());
-  const DrawingStrokeState::EventDetails& input_last_event =
-      state.input_last_event.value();
+  const EventDetails& input_last_event = state.input_last_event.value();
   bool mouse_up_result = OnMouseUp(GenerateLeftMouseUpEvent(
       input_last_event.position, input_last_event.timestamp));
   CHECK(mouse_up_result);
@@ -597,8 +610,7 @@ bool PdfInkModule::StartStroke(const gfx::PointF& position,
   // area between this location and the next position, and to possibly
   // compensate for missed input events.
   CHECK(!state.input_last_event.has_value());
-  state.input_last_event =
-      DrawingStrokeState::EventDetails{position, timestamp, tool_type};
+  state.input_last_event = EventDetails{position, timestamp, tool_type};
 
   return true;
 }
@@ -630,8 +642,7 @@ bool PdfInkModule::ContinueStroke(const gfx::PointF& position,
   if (page_index != state.page_index && last_page_index != state.page_index) {
     // If `position` is outside the page, and so was `last_position`, then just
     // update `last_input_event` and treat the event as handled.
-    state.input_last_event =
-        DrawingStrokeState::EventDetails{position, timestamp, tool_type};
+    state.input_last_event = EventDetails{position, timestamp, tool_type};
     return true;
   }
 
@@ -653,8 +664,7 @@ bool PdfInkModule::ContinueStroke(const gfx::PointF& position,
 
     // Remember `position` and `timestamp` for use in the next event and treat
     // event as handled.
-    state.input_last_event =
-        DrawingStrokeState::EventDetails{position, timestamp, tool_type};
+    state.input_last_event = EventDetails{position, timestamp, tool_type};
     return true;
   }
 
@@ -683,8 +693,7 @@ bool PdfInkModule::ContinueStroke(const gfx::PointF& position,
   }
 
   // Remember `position` and `timestamp` for use in the next event.
-  state.input_last_event =
-      DrawingStrokeState::EventDetails{position, timestamp, tool_type};
+  state.input_last_event = EventDetails{position, timestamp, tool_type};
 
   return true;
 }
@@ -924,11 +933,13 @@ void PdfInkModule::EraseHelper(const gfx::PointF& position, int page_index) {
 
 bool PdfInkModule::StartTextHighlight(const gfx::PointF& position,
                                       int click_count,
-                                      base::TimeTicks timestamp,
                                       ink::StrokeInput::ToolType tool_type) {
   client_->StrokeStarted();
 
   current_tool_state_.emplace<TextHighlightState>();
+  // Text highlighting does not need the timestamp of the event.
+  text_highlight_state().input_last_event =
+      EventDetails{.position = position, .tool_type = tool_type};
 
   bool is_double_click = click_count == 2;
   bool is_triple_click = click_count == 3;
@@ -967,8 +978,14 @@ bool PdfInkModule::ContinueTextHighlight(const gfx::PointF& position) {
     return true;
   }
 
+  if (state.input_last_event.position == position) {
+    // Position did not change, so do nothing.
+    return true;
+  }
+
   client_->ExtendSelectionByPoint(position);
   state.highlight_strokes = GetTextSelectionAsStrokes();
+  state.input_last_event.position = position;
   return true;
 }
 
@@ -976,6 +993,10 @@ bool PdfInkModule::FinishTextHighlight(const gfx::PointF& position,
                                        bool is_multi_click,
                                        ink::StrokeInput::ToolType tool_type) {
   CHECK(is_text_highlighting());
+
+  // Process `position` as though it was the last point of movement first, in
+  // case a move event was missed.
+  ContinueTextHighlight(position);
 
   auto& state = text_highlight_state();
   if (!state.finished_multi_click) {
@@ -1023,11 +1044,15 @@ bool PdfInkModule::FinishTextHighlight(const gfx::PointF& position,
     return true;
   }
 
-  // Reset state back to a drawing highlighter brush.
+  // Reset state back to a drawing highlighter brush. `position` may reference a
+  // field in `TextHighlightState`, which would be destroyed after resetting, so
+  // check for selectable text or link area first.
+  const bool is_text_or_link_area =
+      client_->IsSelectableTextOrLinkArea(position);
   current_tool_state_.emplace<DrawingStrokeState>();
   drawing_stroke_state().brush_type = PdfInkBrush::Type::kHighlighter;
 
-  if (!client_->IsSelectableTextOrLinkArea(position)) {
+  if (!is_text_or_link_area) {
     MaybeSetCursor();
   }
   return true;
@@ -1225,8 +1250,7 @@ void PdfInkModule::HandleSetAnnotationBrushMessage(
         // PdfInkModule is currently drawing a stroke.  Finish that before
         // transitioning, using the last known input.
         CHECK(state.input_last_event.has_value());
-        const DrawingStrokeState::EventDetails& input_last_event =
-            state.input_last_event.value();
+        const EventDetails& input_last_event = state.input_last_event.value();
         FinishStroke(input_last_event.position, input_last_event.timestamp,
                      input_last_event.tool_type);
       }

@@ -18,7 +18,6 @@
 #include "api/candidate.h"
 #include "api/transport/enums.h"
 #include "p2p/base/candidate_pair_interface.h"
-#include "p2p/base/connection.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
@@ -59,13 +58,10 @@ class MockIceTransport : public IceTransportInternal {
   // before candidate gathering can start.
   MOCK_METHOD(void, SetIceParameters, (const IceParameters&), (override));
   MOCK_METHOD(void, SetRemoteIceParameters, (const IceParameters&), (override));
-  MOCK_METHOD(IceParameters*, local_ice_parameters, (), (const, override));
-  MOCK_METHOD(IceParameters*, remote_ice_parameters, (), (const, override));
   MOCK_METHOD(void, SetRemoteIceMode, (IceMode), (override));
   MOCK_METHOD(void, SetIceConfig, (const IceConfig& config), (override));
   MOCK_METHOD(const IceConfig&, config, (), (const override));
   MOCK_METHOD(std::optional<int>, GetRttEstimate, (), (override));
-  MOCK_METHOD(const Connection*, selected_connection, (), (const, override));
   MOCK_METHOD(std::optional<const CandidatePair>,
               GetSelectedCandidatePair,
               (),

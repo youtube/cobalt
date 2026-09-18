@@ -23,8 +23,6 @@
 
 BASE_FEATURE(kTestFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSafetyCheckMagicStack, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSafetyCheckAutorunByManagerKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -56,9 +54,6 @@ const char kSafetyCheckAllowSafeBrowsingNotifications[] =
 
 const char kSafetyCheckAllowUpdateChromeNotifications[] =
     "SafetyCheckAllowUpdateChromeNotifications";
-
-const char kSafetyCheckMagicStackAutorunHoursThreshold[] =
-    "SafetyCheckMagicStackAutorunHoursThreshold";
 
 const char kSafetyCheckNotificationsProvisionalEnabled[] =
     "SafetyCheckNotificationsProvisionalEnabled";
@@ -112,14 +107,6 @@ const base::TimeDelta InactiveThresholdForSafetyCheckNotifications() {
       kSafetyCheckNotifications, kSafetyCheckNotificationsUserInactiveThreshold,
       /*default_value=*/
       kSafetyCheckNotificationDefaultDelay);
-}
-
-// How many hours between each autorun of the Safety Check in the Magic Stack.
-const base::TimeDelta TimeDelayForSafetyCheckAutorun() {
-  int delay = base::GetFieldTrialParamByFeatureAsInt(
-      kSafetyCheckMagicStack, kSafetyCheckMagicStackAutorunHoursThreshold,
-      /*default_value=*/720);
-  return base::Hours(delay);
 }
 
 BASE_FEATURE(kHideToolbarsInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -227,6 +214,12 @@ const char kAIMPrototypeTabPickerParamOnFlightAPC[] =
 
 // Feature flag for the tab picker in the aim prototype.
 BASE_FEATURE(kAIMPrototypeTabPicker, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAimPrototypeTabPickerCachedAPCEnabled() {
+  std::string param = base::GetFieldTrialParamValueByFeature(
+      kAIMPrototypeTabPicker, kAIMPrototypeTabPickerParam);
+  return param == kAIMPrototypeTabPickerParamCachedAPC;
+}
 
 BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -336,10 +329,6 @@ BASE_FEATURE(kOnlyAccessClipboardAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsSafetyCheckAutorunByManagerEnabled() {
   return base::FeatureList::IsEnabled(kSafetyCheckAutorunByManagerKillswitch);
-}
-
-bool IsSafetyCheckMagicStackEnabled() {
-  return base::FeatureList::IsEnabled(kSafetyCheckMagicStack);
 }
 
 bool ShouldHideSafetyCheckModuleIfNoIssues() {
@@ -1042,6 +1031,12 @@ int MaxRecentlyUsedBackgrounds() {
   return kMaxRecentlyUsedBackgrounds.Get();
 }
 
+BASE_FEATURE(kNTPBackgroundColorSlider, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsNTPBackgroundColorSliderEnabled() {
+  return base::FeatureList::IsEnabled(kNTPBackgroundColorSlider);
+}
+
 BASE_FEATURE(kRunDefaultStatusCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsRunDefaultStatusCheckEnabled() {
@@ -1181,6 +1176,9 @@ bool IsSyncedSetUpEnabled() {
 BASE_FEATURE(kMultilineBrowserOmnibox, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsMultilineBrowserOmniboxEnabled() {
+  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kMultilineBrowserOmnibox);
 }
 
@@ -1226,4 +1224,25 @@ bool ShouldShowKeyboardAccessoryFeatures() {
   std::string feature_param = base::GetFieldTrialParamValueByFeature(
       kDisableKeyboardAccessory, kDisableKeyboardAccessoryParam);
   return feature_param == kDisableKeyboardAccessoryOnlyFeatures;
+}
+
+BASE_FEATURE(kLocationBarBadgeMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsLocationBarBadgeMigrationEnabled() {
+  return base::FeatureList::IsEnabled(kLocationBarBadgeMigration);
+}
+
+BASE_FEATURE(kIOSFusebox, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSFuseboxEnabled() {
+  return base::FeatureList::IsEnabled(kIOSFusebox);
+}
+
+BASE_FEATURE(kComposeboxIOS, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsComposeboxIOSEnabled() {
+  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kComposeboxIOS);
 }

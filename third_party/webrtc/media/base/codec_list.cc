@@ -117,6 +117,17 @@ RTCErrorOr<CodecList> CodecList::Create(const std::vector<Codec>& codecs) {
   return CodecList(codecs);
 }
 
+bool CodecList::PushIfNotPresent(const Codec& codec) {
+  for (const Codec& present_codec : codecs_) {
+    if (present_codec.id == codec.id) {
+      RTC_DCHECK(present_codec == codec);
+      return false;
+    }
+  }
+  push_back(codec);
+  return true;
+}
+
 void CodecList::CheckConsistency() {
   RTC_DCHECK(CheckInputConsistency(codecs_).ok());
 }

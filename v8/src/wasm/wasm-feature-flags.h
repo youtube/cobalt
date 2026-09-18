@@ -35,12 +35,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Custom Descriptors proposal. */                                           \
-  /* https://github.com/WebAssembly/custom-descriptors */                      \
-  /* Note: the JS Interop part of the proposal is enabled by */                \
-  /* --experimental-wasm-js-interop for now. */                                \
-  /* V8 side owner: jkummerow */                                               \
-  V(custom_descriptors, "custom descriptors", false)                           \
                                                                                \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
@@ -65,7 +59,10 @@
   /* Compilation hints */                                                      \
   /* https://github.com/WebAssembly/compilation-hints */                       \
   /* V8 side owner: ecmziegler, manoskouk */                                   \
-  V(compilation_hints, "compilation hints", false)
+  V(compilation_hints, "compilation hints", false)                             \
+                                                                               \
+  /* V8 side owner: thibaudm */                                                \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via
@@ -75,6 +72,12 @@
 // that this list is empty most of the time and that features spend extended
 // time right before or after this phase.
 #define FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(V) /*      (force 80 columns) */ \
+  /* Custom Descriptors proposal. */                                           \
+  /* https://github.com/WebAssembly/custom-descriptors */                      \
+  /* Note: the JS Interop part of the proposal is enabled by */                \
+  /* --experimental-wasm-js-interop for now. */                                \
+  /* V8 side owner: jkummerow */                                               \
+  V(custom_descriptors, "custom descriptors", false)                           \
   // add pre-staged features right before this line
 
 // #############################################################################
@@ -97,9 +100,6 @@
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
-                                                                               \
-  /* V8 side owner: thibaudm */                                                \
-  V(growable_stacks, "growable stacks for jspi", false)                        \
                                                                                \
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \

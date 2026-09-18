@@ -269,7 +269,7 @@ export class SearchboxElement extends SearchboxElementBase {
         reflect: true,
       },
 
-      realboxLayoutMode: {
+      searchboxLayoutMode: {
         type: String,
         reflect: true,
       },
@@ -400,7 +400,7 @@ export class SearchboxElement extends SearchboxElementBase {
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
-  accessor realboxLayoutMode: string = '';
+  accessor searchboxLayoutMode: string = '';
   accessor ntpRealboxNextEnabled: boolean = false;
   accessor cyclingPlaceholders: boolean = false;
   accessor composeboxEnabled: boolean = false;
@@ -431,6 +431,12 @@ export class SearchboxElement extends SearchboxElementBase {
   protected accessor isThumbnailDeletable_: boolean = false;
   private accessor useWebkitSearchIcons_: boolean = false;
   protected accessor tabSuggestions_: TabInfo[] = [];
+  protected showVoiceSearchInExpandedRealbox: boolean =
+      loadTimeData.getBoolean('expandedSearchboxShowVoiceSearch');
+
+  protected get shouldShowVoiceSearch_(): boolean {
+    return this.dropdownIsVisible && this.showVoiceSearchInExpandedRealbox;
+  }
 
   private pageHandler_: PageHandlerInterface;
   private callbackRouter_: PageCallbackRouter;
@@ -527,14 +533,6 @@ export class SearchboxElement extends SearchboxElementBase {
     }
 
     if (this.ntpRealboxNextEnabled) {
-      if (changedPrivateProperties.has('dropdownIsVisible')) {
-        this.dispatchEvent(new CustomEvent('dropdown-visible-changed', {
-          bubbles: true,
-          composed: true,
-          detail: {value: this.dropdownIsVisible},
-        }));
-      }
-
       if (changedPrivateProperties.has('inputFocused_')) {
         this.fire('searchbox-input-focus-changed', {value: this.inputFocused_});
       }
@@ -771,7 +769,18 @@ export class SearchboxElement extends SearchboxElementBase {
     this.queryAutocomplete_(this.$.input.value);
   }
 
-  protected onInputPaste_() {
+  protected onInputPaste_(e: ClipboardEvent) {
+    if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+      const files = Array.from(e.clipboardData.files);
+      if (files.length > 0) {
+        e.preventDefault();
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        this.$.context.addFiles(dataTransfer.files);
+        return;
+      }
+    }
+
     this.pastedInInput_ = true;
   }
 

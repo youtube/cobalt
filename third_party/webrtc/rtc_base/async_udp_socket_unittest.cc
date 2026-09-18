@@ -86,7 +86,7 @@ TEST(AsyncUDPSocketTest, ArrivalTimeStampCanBeBeforeCurrentTime) {
       .WillRepeatedly([&](AsyncPacketSocket*, const ReceivedIpPacket& packet) {
         EXPECT_EQ(packet.arrival_time(), webrtc_clock.CurrentTime());
       });
-  socket_ptr->SignalReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
 
   // Let 10ms pass until next read event.
   webrtc_clock.AdvanceTime(TimeDelta::Millis(10));
@@ -103,7 +103,7 @@ TEST(AsyncUDPSocketTest, ArrivalTimeStampCanBeBeforeCurrentTime) {
         EXPECT_EQ(packet.arrival_time(),
                   webrtc_clock.CurrentTime() - TimeDelta::Millis(5));
       });
-  socket_ptr->SignalReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
 }
 
 TEST(AsyncUDPSocketTest, InitiallyBufferedPacketsGetSameArrivalTime) {
@@ -135,15 +135,15 @@ TEST(AsyncUDPSocketTest, InitiallyBufferedPacketsGetSameArrivalTime) {
   EXPECT_CALL(received_packet_callback, Call)
       .Times(3)
       .WillRepeatedly([&](AsyncPacketSocket*, const ReceivedIpPacket& packet) {
-        // Despite the packets being received at different times, They all have
+        // Despite the packets being received at different times, they all have
         // the same timestamp.
         EXPECT_EQ(packet.arrival_time(), webrtc_clock.CurrentTime());
       });
   // But assume, CPU is blocked and can not read the packet at the pace they
   // arrive. Instead they are read one after each other a bit later.
-  socket_ptr->SignalReadEvent(socket_ptr);
-  socket_ptr->SignalReadEvent(socket_ptr);
-  socket_ptr->SignalReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
 }
 
 TEST(AsyncUDPSocketTest, ArrivalTimeStampCanNotBeAfterCurrentTime) {
@@ -168,7 +168,7 @@ TEST(AsyncUDPSocketTest, ArrivalTimeStampCanNotBeAfterCurrentTime) {
       .WillRepeatedly([&](AsyncPacketSocket*, const ReceivedIpPacket& packet) {
         EXPECT_EQ(packet.arrival_time(), webrtc_clock.CurrentTime());
       });
-  socket_ptr->SignalReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
 
   // Let 10ms pass until next read event.
   webrtc_clock.AdvanceTime(TimeDelta::Millis(10));
@@ -186,7 +186,7 @@ TEST(AsyncUDPSocketTest, ArrivalTimeStampCanNotBeAfterCurrentTime) {
         // time.
         EXPECT_EQ(packet.arrival_time(), webrtc_clock.CurrentTime());
       });
-  socket_ptr->SignalReadEvent(socket_ptr);
+  socket_ptr->NotifyReadEvent(socket_ptr);
 }
 
 }  // namespace webrtc

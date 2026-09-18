@@ -82,6 +82,7 @@ const char* colortype_name(SkColorType ct) {
         case kRGBA_F16_SkColorType:           return "RGBA_F16";
         case kRGBA_F32_SkColorType:           return "RGBA_F32";
         case kR8G8_unorm_SkColorType:         return "R8G8_unorm";
+        case kR16_unorm_SkColorType:          return "R16_unorm";
         case kR16G16_unorm_SkColorType:       return "R16G16_unorm";
         case kR16G16_float_SkColorType:       return "R16G16_float";
         case kR16G16B16A16_unorm_SkColorType: return "R16G16B16A16_unorm";
@@ -116,6 +117,7 @@ const char* colortype_depth(SkColorType ct) {
         case kRGBA_F16_SkColorType:           return "F16";
         case kRGBA_F32_SkColorType:           return "F32";
         case kR8G8_unorm_SkColorType:         return "88";
+        case kR16_unorm_SkColorType:          return "R16";
         case kR16G16_unorm_SkColorType:       return "1616";
         case kR16G16_float_SkColorType:       return "F16F16";
         case kR16G16B16A16_unorm_SkColorType: return "16161616";
@@ -760,7 +762,8 @@ void ExtractPathsFromSKP(const char filepath[], std::function<PathSniffCallback>
         std::function<PathSniffCallback> fPathSniffCallback;
     };
 
-    sk_sp<SkPicture> skp = SkPicture::MakeFromStream(&stream);
+    // We don't need to decode images etc, so we can pass nullptr for the deserial procs.
+    sk_sp<SkPicture> skp = SkPicture::MakeFromStream(&stream, nullptr);
     if (!skp) {
         SkDebugf("ExtractPaths: couldn't load skp at \"%s\"\n", filepath);
         return;

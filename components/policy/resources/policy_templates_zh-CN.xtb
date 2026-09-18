@@ -136,6 +136,7 @@
 
       如果您未设置此政策，系统将会使用默认的个人资料目录。</translation>
 <translation id="1053981429146436598">一组与专用网络请求设置相关的政策。请参阅 https://wicg.github.io/private-network-access/。</translation>
+<translation id="1055159224864957792">本地密码</translation>
 <translation id="1059069692400941670">禁止在首次运行时导入默认搜索引擎</translation>
 <translation id="1060020040574767394">配置自定义水印设置</translation>
 <translation id="1062011392452772310">为设备启用远程认证</translation>
@@ -1216,6 +1217,17 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 <translation id="1834796168555733063">禁止使用密码管理工具保存通行密钥</translation>
 <translation id="1836380138559328229">在设备级别保存有效的 Wi-Fi 凭据</translation>
 <translation id="1837165432382702436">页面的高度（以微米为单位）</translation>
+<translation id="1838075279369174832">通过设置此政策，您可以控制在 <ph name="PRODUCT_OS_NAME" /> 上登录和重新进行身份验证时，可以使用哪些本地身份验证方式。
+
+      若要：
+
+      * 允许使用所有本地身份验证方式（包括日后新增的方式），请使用 ["ALL"]。
+
+      * 仅允许使用 PIN 码，请使用 ["PIN"]。
+
+      * 仅允许使用本地密码，请使用 ["LOCAL_PASSWORD"]。
+
+      如果此政策未设置或设为空列表，受管理的用户将无法使用任何本地身份验证方式。</translation>
 <translation id="1838910874018595451">Kerberos 票据的预填充配置</translation>
 <translation id="1839042185432919430">允许自助服务终端 Web 应用在设备离线的情况下启动时显示网络提示</translation>
 <translation id="1839711547980672664">允许打开 <ph name="CHROME_DEVTOOLS_NAME" />的网址格式列表</translation>
@@ -1898,6 +1910,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2306505001667207184">每当自动选择政策与多个证书匹配时，都会提示用户选择客户端证书。</translation>
 <translation id="230713790688681130">启用印地语 Inscript 布局</translation>
 <translation id="2307496301287881990">报告显示状态和图形状态</translation>
+<translation id="2308084581803907194">高复杂度</translation>
 <translation id="2308899582897965249">停用静默打印</translation>
 <translation id="2309284543927494965">禁止更新</translation>
 <translation id="2309341709647905294">不报告相应设备所插接的外围设备的相关信息</translation>
@@ -2708,6 +2721,19 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       如果未设置，此政策在受管理设备上会处于停用状态，在消费者拥有的设备上则会处于启用状态。
       请注意，停用此政策只会停用针对系统级跟踪记录的收集功能。针对浏览器跟踪记录的收集功能不会受此政策影响。</translation>
 <translation id="2922511125678964398">允许强制门户身份验证忽略代理设置</translation>
+<translation id="2923126158151236068">此政策旨在规定用户在 <ph name="PRODUCT_OS_NAME" /> 上设置本地身份验证方式（PIN 码和本地密码）时，必须满足的最低复杂度要求。
+
+如果未设置此政策，则复杂度默认为“无”。
+
+当用户设置新的本地 PIN 码/密码或更改现有 PIN 码/密码时，系统会强制执行此政策的要求。
+
+复杂度基于 Android 的密码质量指标 (https://developers.google.com/android/management/reference/rest/v1/PasswordRequirements)，并针对 <ph name="PRODUCT_OS_NAME" /> 进行了调整：
+- 1 = 无：需要 PIN 码/密码，但对其内容或长度没有限制。
+- 2 = 低：基本复杂度要求。
+- 3 = 中等：更严格的长度和字符类型要求。
+- 4 = 高：复杂性要求最高，需要多种字符类型。
+
+如需详细了解每个级别对 PIN 码和密码的要求，请参阅帮助中心内的相关文章。</translation>
 <translation id="2926813071464307947">停用渲染程序应用容器沙盒</translation>
 <translation id="2931888116345994552">如果此政策未设置或已启用，即意味着允许更新 <ph name="PRODUCT_NAME" /> 中的所有组件。
 
@@ -3474,6 +3500,15 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
       如果此政策已停用或未设置，系统会关闭 DTC。因此，DTC 无法收集、处理和报告设备的遥测与诊断数据。</translation>
 <translation id="3442589735857147823">允许用户使用所需的虚拟机来支持 Linux 应用</translation>
+<translation id="34476328503285475">通过设置此政策，您可以预先配置在 <ph name="PRODUCT_NAME" /> 的“新标签页”页面上显示多达 10 个自定义快捷方式。
+
+设置之后，用户在其个人快捷方式之外，还会默认看到这些快捷方式。用户可以在“自定义 Chrome”面板中控制其所属组织的快捷方式的显示情况。
+
+快捷方式网址不得重复。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> 设为 true，用户可以更改快捷方式的名称。如果此政策设为 false 或未设置，用户无法修改快捷方式的名称。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> 设为 true，用户可以移除快捷方式。如果此政策设为 false 或未设置，用户无法移除快捷方式。</translation>
 <translation id="3450649825886735618">不使用任何 Google 网络服务来帮助修正拼写错误</translation>
 <translation id="3451422488938880786"> 允许启用/停用国际键盘快捷键重新映射</translation>
 <translation id="3451901387456196887">在 <ph name="PRODUCT_NAME" /> 菜单中为用户提供通过使用访问代码或扫描二维码选择投放设备的选项。</translation>
@@ -4710,6 +4745,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4341199399451274159">如果 <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> 已开启，您便可通过设置 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> 来指定搜索服务提供商支持的字符编码。编码是 UTF-8、GB2312 和 ISO-8859-1 之类的代码页名称。系统会按照您指定的顺序尝试这些编码。
 
       如果您不设置 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />，系统将使用 UTF-8。</translation>
+<translation id="4346542905412554336">代理替换规则</translation>
 <translation id="4347908978527632940">如果设为 true 且该用户是受监管用户，则其他 Android 应用可以通过内容提供方查询该用户的网络限制。
 
           如果设为 false 或未设置，则内容提供方不会返回任何信息。</translation>
@@ -5900,6 +5936,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="5163889437570441600">允许使用 <ph name="PRODUCT_NAME" /> 向设备投放内容。
 
           如果此政策设为 False，用户将无法向其设备投放内容。如果此政策设为 True，用户将能够投放内容。如果未设置此政策，用户将被禁止向已注册的 Chrome 操作系统设备投放内容，但可将内容投放到未注册的设备。</translation>
+<translation id="5166766992668636906">中等复杂度</translation>
 <translation id="5168529971295111207">此政策已被弃用，请改用 ProxyMode。
 
           可让您指定 <ph name="PRODUCT_NAME" /> 使用的代理服务器，并禁止用户更改代理设置。
@@ -7470,6 +7507,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="6144046700495610112">如果此政策已启用，当首次运行浏览器时，系统将会从先前的默认浏览器导入自动填充表单数据。如果此政策已停用或未设置，当首次运行浏览器时，系统不会导入任何自动填充表单数据。
 
       用户可以触发导入对话框，系统将会根据此政策的值选中或不选中“自动填充表单数据”复选框。</translation>
+<translation id="6144246313478615705">为本地 PIN 码和密码设置最低复杂度</translation>
 <translation id="614551633868957694">Chrome 应用和扩展程序</translation>
 <translation id="614616930188030377">系统会将此列表中的网址格式与请求网址的安全来源进行比对。
       如果找到了匹配项或者 chrome://flags/#enable-webrtc-hide-local-ips-with-mdns 已停用，本地 IP 地址就会显示在 WebRTC ICE 候选路径中。
@@ -8135,9 +8173,9 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6523079496775454310">为非受管设备上的受管用户启用设备信号意见征求功能</translation>
 <translation id="6523608518493993483">此政策让管理员能够对磁盘上的浏览器 HTTP 缓存进行加密。
 
-如果此政策已启用，浏览器缓存将会加密。
+如果已启用此政策，浏览器缓存会被加密。
 
-如果此政策已停用或未设置，浏览器缓存将不会加密。
+如果已停用或未设置此政策，则浏览器缓存不会被加密。
 
 加密浏览器缓存可能会影响性能。</translation>
 <translation id="6527674993612811419">在不安全的表单中显示警告并停用自动填充功能</translation>
@@ -8640,6 +8678,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6851199885688265233">启用“光标突出显示”无障碍功能</translation>
 <translation id="6851315055469993882">启用全局范围的 HTTP 身份验证缓存</translation>
 <translation id="6851788229123189909">此政策用于控制用户在登录新的 <ph name="PRODUCT_OS_NAME" /> 设备时，是否会自动从上一个会话中退出账号。如果此政策已启用，当成功登录新的 <ph name="PRODUCT_OS_NAME" /> 设备后，用户将会从上一个会话中退出账号。如果此政策已停用或未设置，只有在 <ph name="FLOATING_SSO_ENABLED_POLICY_NAME" /> 或 <ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" /> 政策已启用的情况下，用户才会从上一个会话中退出账号。</translation>
+<translation id="6854694645176150141">配置允许的本地身份验证方式</translation>
 <translation id="6854767649023671426">如果此政策已启用或未设置，系统将会在收到针对录像设备的使用请求时提示用户，但 VideoCaptureAllowedUrls 列表中设置的网址除外。
 
       如果此政策已停用，系统将会关闭提示，而且只有 VideoCaptureAllowedUrls 列表中设置的网址可以使用录像设备。
@@ -8940,6 +8979,17 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 系统会忽略所有无效条目。</translation>
 <translation id="7044883996351280650">控制 Android 备份和恢复服务</translation>
 <translation id="7045221780834308118">如果已启用此政策，第三方 Web 应用将能使用 Desk API 来控制 <ph name="PRODUCT_OS_NAME" /> 桌面。如果未设置或已停用此政策，<ph name="DESK_API_NAME" /> 将不可用。此政策仅适用于已注册的设备。</translation>
+<translation id="704591686761455167">此政策用于控制在提取和导航期间是否对 Blob 网址进行分区。
+如果此政策已启用或未设置，Blob 网址将被分区。
+如果此政策已停用，则 Blob 网址不会分区。
+
+如果 <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 或 <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" /> 对给定的顶级源停用了存储分区，则 Blob 网址也不会分区。
+
+如果您必须使用此政策，请在 <ph name="BUG_URL" /> 上提交 bug，说明使用情形。此政策的预定有效期会一直持续到 <ph name="PRODUCT_NAME" /> 146 版，之后我们将移除旧版实现。
+
+注意：在浏览器运行期间，只有新启动的渲染程序进程才会反映对此政策的更改。
+
+如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</translation>
 <translation id="7046113122884041950">不允许使用 Smart Lock</translation>
 <translation id="7046997898355294677">显示隐私权通知，直到被用户关闭</translation>
 <translation id="7047495632846973438">指定是让系统遵循还是忽略显示面截取权限政策。</translation>
@@ -9530,12 +9580,24 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7491720878670299691">轮询网络数据并检查是否发生事件的时间间隔。所允许的最低时间间隔为 1 分钟。
 
       如果此政策未设置，系统会应用默认时间间隔（1 分钟）。</translation>
+<translation id="7496284563199466390">控制哪些受管理的用户可以设置 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策。</translation>
 <translation id="7498595166686106721">
       显示面截取权限政策会根据以下网址所链接到的规范限制对 getDisplayMedia() 的调用：https://www.w3.org/TR/screen-capture/#feature-policy-integration。但是，如果此政策已停用，系统便不会强制执行这项要求，而是会允许从那些未被此政策列入许可名单的上下文中调用 getDisplayMedia()。这项企业政策只是暂时性政策，预计将于 <ph name="PRODUCT_NAME" /> 100 版之后移除。此政策旨在解除对所用应用不符合规范但需要时间进行修正的企业用户的限制。
 
       如果此政策已启用或未设置，网站只能从已被显示面截取权限政策列入许可名单的上下文中调用 getDisplayMedia()。
 
       如果此政策已停用，即使相应上下文未被显示面截取权限政策列入许可名单，网站也能从这些上下文中调用 getDisplayMedia()。请注意，别处设定的限制可能仍然适用。</translation>
+<translation id="750408442628578356">控制 Gemini 应用是否可以代表用户在网页上执行操作。
+
+0/未设置 = Gemini 应用可以在网页上执行操作。
+
+1 = Gemini 应用不得在网页上执行操作。
+
+如果 Gemini 应用已停用，此政策将不会产生任何影响。例如，可通过 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策停用 Gemini 应用。
+
+如需详细了解 Chrome 中的 Gemini，请访问 https://support.google.com/chrome/a/answer/16291696。
+
+Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置此政策并不能保证该功能会启用，仍需取决于实际可用情况。如需详细了解推出情况，请查看企业版版本说明：https://support.google.com/chrome/a/answer/7679408?hl=en</translation>
 <translation id="7506745375479451616">此政策旨在控制从 <ph name="IE_PRODUCT_NAME" /> 切换至 <ph name="PRODUCT_NAME" /> 时应使用哪个命令打开网址。此政策可设为一个可执行文件路径，也可设为 <ph name="PRODUCT_NAME_PLACEHOLDER" /> 以自动检测 <ph name="PRODUCT_NAME" /> 的位置。
 
       如果您不设置此政策，当从 Internet Explorer 中启动 <ph name="PRODUCT_NAME" /> 时，<ph name="IE_PRODUCT_NAME" /> 将会自动检测 <ph name="PRODUCT_NAME" /> 自有的可执行文件路径。
@@ -9617,6 +9679,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
       如果用户的设备不是受管理设备，则此功能的可用性还取决于用户是不是设备所有者。</translation>
 <translation id="7570291542739287032">仅限云端</translation>
+<translation id="7572641760104970905">无复杂度</translation>
 <translation id="757395965347379751">启用此设置后，只要 SHA-1 签名证书成功验证并关联到本地安装的 CA 证书，<ph name="PRODUCT_NAME" /> 就会允许使用这些证书。
 
       请注意，此政策取决于操作系统证书验证堆栈是否允许 SHA-1 签名。如果操作系统更新更改了操作系统处理 SHA-1 证书的方式，则此政策可能不再有效。此外，此政策仅用作临时解决方法，旨在为企业提供更多时间来弃用 SHA-1。系统将于 2019 年 1 月 1 日（或左右）取消此政策。
@@ -9710,6 +9773,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7648907905084499629">让所有网站上的 Cookie 都采用 <ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" /> 行为</translation>
 <translation id="7657261947024629645">针对性能进行优化。</translation>
 <translation id="76580522298425324">允许不需要之前的用户手势即可截取屏幕</translation>
+<translation id="7661379728107156839">低复杂度</translation>
 <translation id="7666228839913571182">允许使用第三方 Cookie</translation>
 <translation id="7666782560345386904">增强型自动填充功能的设置</translation>
 <translation id="7669630878711068277">如果此政策已启用或未设置，用户便可在 <ph name="PRODUCT_NAME" /> 中使用打印功能，但无法更改相关设置。
@@ -10243,6 +10307,21 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
       如果您设置了此政策，用户将无法更改或覆盖它。</translation>
 <translation id="8080200590486938727">停用插件查找器</translation>
+<translation id="8082268442825947283">设置此政策会配置规则，根据目标网址和其他条件选择浏览器使用的代理。如果通过 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 扩展程序 API 或用户手动设置了代理，此政策将优先于这些代理设置。
+
+如果您未设置此政策，其他代理政策或用户设置不会受到影响。
+
+当浏览器需要决定使用哪个代理时，系统会按顺序评估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的条目，直到某个条目至少与 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的一个网址主机匹配，并且满足 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 中的所有条目为止。对于此类匹配情况，<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> 中的值将作为代理。如果未找到匹配项，代理设置将回退到 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策中设置的内容。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> 字段条目对应于 PAC 文件的字符串值，例如：
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+第一个可访问的条目将用作代理。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 字段列出了所有必须满足的条件，只有满足后，系统才会使用其替换规则来决定要使用的代理。如果未设置，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中至少有一个主机匹配，就会使用该条目。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件会检查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" />是否能够解析为 IP 地址。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值为“<ph name="PROXY_OVERRIDE_RULES_RESOLVES" />”，则认为满足条件。如果该值设为 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，则当解析失败时，系统会认为条件已满足。</translation>
 <translation id="8086746212954621799">将此政策设为 true 即可停用自动更新功能。
 
 如果此政策设为 false 或未配置，<ph name="PRODUCT_OS_NAME" /> 设备就会自动检查更新。
@@ -10438,6 +10517,9 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="8225579382697740712">控制对 WebHID API 的使用</translation>
 <translation id="8229912067600517877">启用开发者工具</translation>
 <translation id="8238421250255592181">一个布尔值标记，用于表明屏幕键盘能否提供自动填充功能。</translation>
+<translation id="8238558579601006178">如果此政策设为 0 或未设置，<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策将仅在关联用户的用户范围内应用。
+如果此政策设为 1，<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策将在用户范围内应用，即使该用户未关联也是如此。
+如果此政策设为 2，当 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的来源是用户时，系统将永远不会应用该政策。</translation>
 <translation id="8239109177194627162">禁止使用“自动填充”功能填写信用卡信息</translation>
 <translation id="8239143983379015783">强制启用永久配额</translation>
 <translation id="8240976615241583524">通过设置此政策，您可以限制 WebRTC 在尝试查找最佳的可用连接时会使用的 IP 地址和接口。

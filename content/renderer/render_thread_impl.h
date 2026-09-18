@@ -81,7 +81,7 @@ class RasterDarkModeFilter;
 
 namespace gpu {
 class GpuChannelHost;
-class ClientSharedImageInterface;
+class SharedImageInterface;
 }
 
 namespace media {
@@ -171,6 +171,7 @@ class CONTENT_EXPORT RenderThreadImpl
   void WriteIntoTrace(
       perfetto::TracedProto<perfetto::protos::pbzero::RenderProcessHost> proto)
       override;
+  blink::mojom::PerformanceTier GetCpuPerformanceTier() override;
 
   // IPC::Listener implementation via ChildThreadImpl:
   void OnAssociatedInterfaceRequest(
@@ -267,7 +268,7 @@ class CONTENT_EXPORT RenderThreadImpl
       GetVideoFrameCompositorContextProvider(
           scoped_refptr<viz::RasterContextProvider>);
 
-  scoped_refptr<gpu::ClientSharedImageInterface>
+  scoped_refptr<gpu::SharedImageInterface>
   GetRenderThreadSharedImageInterface();
 
   // Returns a worker context provider that will be bound on the compositor
@@ -410,6 +411,7 @@ class CONTENT_EXPORT RenderThreadImpl
       const blink::UserAgentMetadata& user_agent_metadata,
       const std::vector<std::string>& cors_exempt_header_list,
       blink::mojom::OriginTrialsSettingsPtr origin_trial_settings,
+      blink::mojom::PerformanceTier cpu_performance_tier,
       uint64_t trace_id) override;
   void UpdateScrollbarTheme(
       mojom::UpdateScrollbarThemeParamsPtr params) override;
@@ -528,7 +530,7 @@ class CONTENT_EXPORT RenderThreadImpl
 
   scoped_refptr<viz::RasterContextProvider> shared_worker_context_provider_;
 
-  scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface_;
+  scoped_refptr<gpu::SharedImageInterface> shared_image_interface_;
 
   HistogramCustomizer histogram_customizer_;
 
@@ -586,6 +588,9 @@ class CONTENT_EXPORT RenderThreadImpl
   // off only one asynchronous request.
   bool cached_items_requested_ = false;
   bool use_cached_routing_table_ = false;
+
+  blink::mojom::PerformanceTier cpu_performance_tier_ =
+      blink::mojom::PerformanceTier::kUnknown;
 
   std::optional<base::ThreadPoolInstance::ScopedRestrictedTasks>
       restrict_thread_pool_;

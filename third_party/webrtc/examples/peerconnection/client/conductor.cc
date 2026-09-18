@@ -97,17 +97,18 @@ std::unique_ptr<TestVideoCapturer> CreateCapturer(
   const size_t kFps = 30;
   std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
       webrtc::VideoCaptureFactory::CreateDeviceInfo());
-  if (!info) {
-    return nullptr;
-  }
-  int num_devices = info->NumberOfDevices();
-  for (int i = 0; i < num_devices; ++i) {
-    std::unique_ptr<TestVideoCapturer> capturer =
-        webrtc::test::CreateVideoCapturer(kWidth, kHeight, kFps, i);
-    if (capturer) {
-      return capturer;
+  if (info) {
+    int num_devices = info->NumberOfDevices();
+    for (int i = 0; i < num_devices; ++i) {
+      std::unique_ptr<TestVideoCapturer> capturer =
+          webrtc::test::CreateVideoCapturer(kWidth, kHeight, kFps, i);
+      if (capturer) {
+        return capturer;
+      }
     }
   }
+  RTC_LOG(LS_WARNING)
+      << "No video capture device found; using synthetic video.";
   auto frame_generator = webrtc::test::CreateSquareFrameGenerator(
       kWidth, kHeight, std::nullopt, std::nullopt);
   return std::make_unique<webrtc::test::FrameGeneratorCapturer>(
@@ -130,6 +131,8 @@ class CapturerTrackSource : public webrtc::VideoTrackSource {
  protected:
   explicit CapturerTrackSource(std::unique_ptr<TestVideoCapturer> capturer)
       : VideoTrackSource(/*remote=*/false), capturer_(std::move(capturer)) {}
+
+  ~CapturerTrackSource() override = default;
 
  private:
   webrtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
@@ -259,6 +262,7 @@ void Conductor::DeletePeerConnection() {
   main_wnd_->StopRemoteRenderer();
   peer_connection_ = nullptr;
   peer_connection_factory_ = nullptr;
+  local_video_source_ = nullptr;
   peer_id_ = -1;
   loopback_ = false;
 }
@@ -514,11 +518,11 @@ void Conductor::AddTracks() {
                       << result_or_error.error().message();
   }
 
-  webrtc::scoped_refptr<CapturerTrackSource> video_device =
-      CapturerTrackSource::Create(env_.task_queue_factory());
-  if (video_device) {
+  local_video_source_ = CapturerTrackSource::Create(env_.task_queue_factory());
+  if (local_video_source_) {
     webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
-        peer_connection_factory_->CreateVideoTrack(video_device, kVideoLabel));
+        peer_connection_factory_->CreateVideoTrack(local_video_source_,
+                                                   kVideoLabel));
     main_wnd_->StartLocalRenderer(video_track_.get());
 
     result_or_error = peer_connection_->AddTrack(video_track_, {kStreamId});
@@ -527,7 +531,8 @@ void Conductor::AddTracks() {
                         << result_or_error.error().message();
     }
   } else {
-    RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
+    RTC_LOG(LS_WARNING)
+        << "No local video track; proceeding without local video";
   }
 
   main_wnd_->SwitchToStreamingUI();
@@ -601,6 +606,9 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
     case TRACK_REMOVED: {
       // Remote peer stopped sending a track.
       auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(data);
+      // Ensure we detach our renderer before releasing the track to avoid
+      // referencing a destroyed track from the renderer.
+      main_wnd_->StopRemoteRenderer();
       track->Release();
       break;
     }

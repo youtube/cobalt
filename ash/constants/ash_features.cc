@@ -59,16 +59,6 @@ BASE_FEATURE(kAnnotatorMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApnRevamp, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether to enable ARC ADB sideloading support.
-BASE_FEATURE(kArcAdbSideloadingFeature,
-             "ArcAdbSideloading",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Controls whether to enable support for ARC ADB sideloading for managed
-// accounts and/or devices.
-BASE_FEATURE(kArcManagedAdbSideloadingSupport,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls whether to defer loading of active tabs of background (occluded)
 // browser windows during session restore.
 BASE_FEATURE(kAshSessionRestoreDeferOccludedActiveTabLoad,
@@ -139,10 +129,6 @@ const base::FeatureParam<double> kBatterySaverActivationChargePercent{
 BASE_FEATURE(kBatterySaverAlwaysOn,
              "CrosBatterySaverAlwaysOn",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables or disables the usage of fixed Bluetooth A2DP packet size to improve
-// audio performance in noisy environment.
-BASE_FEATURE(kBluetoothFixA2dpPacketSize, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables the Bluetooth Quality Report feature.
 BASE_FEATURE(kBluetoothQualityReport, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -282,7 +268,7 @@ BASE_FEATURE(kBocaHostAudio, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables or disables using audio for the Kiosk client in the Boca app.
 BASE_FEATURE(kBocaAudioForKiosk, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCrosSwitcher, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCrosSwitcher, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Indicates whether the camera super resolution is supported. Note that this
 // feature is overridden by login_manager based on whether a per-board build
@@ -662,9 +648,6 @@ BASE_FEATURE(kEphemeralNetworkPolicies,
 BASE_FEATURE(kESimEmptyActivationCodeSupported,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enable or disable support for touchpad with haptic feedback.
-BASE_FEATURE(kExoHapticFeedbackSupport, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables version 4 of the zwp_linux_dmabuf_v1 Wayland protocol.
 // This version adds support for dynamic feedback, allowing the compositor to
 // give clients hints about more optimal DRM formats and modifiers depending on
@@ -686,10 +669,6 @@ BASE_FEATURE(kExperimentalRgbKeyboardPatterns,
 
 // Enables extended updates opt-in functionality.
 BASE_FEATURE(kExtendedUpdatesOptInFeature, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables policy that controls feature to allow Family Link accounts on school
-// owned devices.
-BASE_FEATURE(kFamilyLinkOnSchoolDevice, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the Fast Pair feature.
 BASE_FEATURE(kFastPair, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -843,22 +822,6 @@ BASE_FEATURE(kFlexFirmwareUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 // and if we show the user selectable UI when the policy is enabled.
 BASE_FEATURE(kFloatingSso, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables Floating Workspace V2 feature on ChromeOS
-BASE_FEATURE(kFloatingWorkspaceV2, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Maximum delay to wait for restoring Floating Workspace V2 after login.
-constexpr base::FeatureParam<base::TimeDelta>
-    kFloatingWorkspaceV2MaxTimeAvailableForRestoreAfterLogin{
-        &kFloatingWorkspaceV2, "MaxTimeAvailableForRestoreAfterLoginV2",
-        base::Seconds(30)};
-
-// Time interval to capture current desk as desk template and upload template to
-// server.
-constexpr base::FeatureParam<base::TimeDelta>
-    kFloatingWorkspaceV2PeriodicJobIntervalInSeconds{
-        &kFloatingWorkspaceV2, "PeriodicJobIntervalInSeconds",
-        base::Seconds(30)};
-
 // If enabled, makes the Projector app use server side speech
 // recognition instead of on-device speech recognition.
 BASE_FEATURE(kForceEnableServerSideSpeechRecognition,
@@ -907,12 +870,6 @@ BASE_FEATURE(kGaiaRecordAccountCreation, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Gamepad Support.
 BASE_FEATURE(kGameDashboardGamepadSupport, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables the Game Dashboard for additional PWA games.
-BASE_FEATURE(kGameDashboardGamePWAs, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables additional games being evaluated for the Game Dashboard.
-BASE_FEATURE(kGameDashboardGamesInTest, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the Game Dashboard Main Menu utility views.
 BASE_FEATURE(kGameDashboardUtilities, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1114,9 +1071,6 @@ BASE_FEATURE(kHindiInscriptLayout, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHomeButtonQuickAppAccess, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables a call-to-action label beside the home button.
-BASE_FEATURE(kHomeButtonWithText, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Helpful notifications for devices with Hybrid Chargers.
 BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1193,11 +1147,6 @@ BASE_FEATURE(kImeSystemEmojiPickerVariantGrouping,
 // idle.
 BASE_FEATURE(kImeSwitchCheckConnectionStatus, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether to show new improved UI for cryptohome errors that happened
-// during login. UI contains links to help center and might provide actions
-// that can be taken to resolve the problem.
-BASE_FEATURE(kImprovedLoginErrorHandling, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls whether to show new management disclosure UI page instead of the
 // management warning bubble.
 BASE_FEATURE(kImprovedManagementDisclosure, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1241,17 +1190,9 @@ BASE_FEATURE(kInternalServerSideSpeechRecognitionUSMModelFinch,
 BASE_FEATURE(kIppFirstSetupForUsbPrinters, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Romaji/Kana mode switch for Japanese VK.
-BASE_FEATURE(kJapaneseInputModeSwitchInVK, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kJapaneseInputModeSwitchInVK, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kJupiterScreensaver, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Controls whether the "Remember password" button in the Kerberos "Add account"
-// dialog should be checked by default.
-BASE_FEATURE(kKerberosRememberPasswordByDefault,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables IME button in the floating accessibility menu for the Kiosk session.
-BASE_FEATURE(kKioskEnableImeButton, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables automatic downloading and installing fonts via language packs, based
 // on the user's preferences.
@@ -1260,12 +1201,6 @@ BASE_FEATURE(kLanguagePacksFonts, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables loading in fonts via language packs on login, even after a download.
 const base::FeatureParam<bool> kLanguagePacksFontsLoadAfterDownloadDuringLogin =
     {&kLanguagePacksFonts, "load_after_download_during_login", true};
-
-// If enabled, the Language Pack corresponding to the application locale is
-// downloaded and installed during OOBE. This pre-fetching is aimed at improving
-// user experience so that they have language resources available as early as
-// possible.
-BASE_FEATURE(kLanguagePacksInOobe, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the UI and relative logic to manage Language Packs in Settings.
 // This feature allows users to install/remove languages and input methods
@@ -1287,10 +1222,6 @@ BASE_FEATURE(kLauncherContinueSectionWithRecentsRollout,
 
 // Uses short intervals for launcher nudge for testing if enabled.
 BASE_FEATURE(kLauncherNudgeShortInterval, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, the launcher nudge prefs will be reset at the start of each new
-// user session.
-BASE_FEATURE(kLauncherNudgeSessionReset, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Segmentation flag for local image search.
 BASE_FEATURE(kFeatureManagementLocalImageSearch,
@@ -1541,10 +1472,6 @@ BASE_FEATURE(kOobeChoobe, base::FEATURE_ENABLED_BY_DEFAULT);
 // If enabled, CrOS events for OOBE and onboarding flow will be recorded.
 BASE_FEATURE(kOobeCrosEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, Drive Pinning Screen will be shown during
-// the new user onboarding flow.
-BASE_FEATURE(kOobeDrivePinning, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled , Personalized Onboarding + App Recommendations
 // will be shown if eligible during user onboarding flow.
 BASE_FEATURE(kOobePersonalizedOnboarding, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1593,6 +1520,9 @@ BASE_FEATURE(kFeatureManagementOobeSimon, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables the OOBE QuickStart flow on the login screen.
 BASE_FEATURE(kOobeQuickStartOnLoginScreen, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the enforcement of AutoEnrollment check in OOBE.
+BASE_FEATURE(kOobeAutoEnrollmentCheckForced, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables Orca for ARC apps.
 BASE_FEATURE(kOrcaArc, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2747,10 +2677,6 @@ bool IsExternalKeyboardInDiagnosticsAppEnabled() {
   return base::FeatureList::IsEnabled(kEnableExternalKeyboardsInDiagnostics);
 }
 
-bool IsFamilyLinkOnSchoolDeviceEnabled() {
-  return base::FeatureList::IsEnabled(kFamilyLinkOnSchoolDevice);
-}
-
 bool IsFastInkForSoftwareCursorEnabled() {
   return base::FeatureList::IsEnabled(kEnableFastInkForSoftwareCursor);
 }
@@ -2845,10 +2771,6 @@ bool IsFlexFirmwareUpdateEnabled() {
 
 bool IsFloatingSsoAllowed() {
   return base::FeatureList::IsEnabled(kFloatingSso);
-}
-
-bool IsFloatingWorkspaceV2Enabled() {
-  return base::FeatureList::IsEnabled(kFloatingWorkspaceV2);
 }
 
 bool ShouldForceEnableServerSideSpeechRecognition() {
@@ -3000,10 +2922,6 @@ bool IsHomeButtonQuickAppAccessEnabled() {
          base::FeatureList::IsEnabled(kQuickAppAccessTestUI);
 }
 
-bool IsHomeButtonWithTextEnabled() {
-  return base::FeatureList::IsEnabled(kHomeButtonWithText);
-}
-
 bool IsHybridChargerNotificationsEnabled() {
   return base::FeatureList::IsEnabled(kHybridChargerNotifications);
 }
@@ -3058,14 +2976,6 @@ bool IsJupiterScreensaverEnabled() {
          IsTimeOfDayScreenSaverEnabled();
 }
 
-bool IsKerberosRememberPasswordByDefaultEnabled() {
-  return base::FeatureList::IsEnabled(kKerberosRememberPasswordByDefault);
-}
-
-bool IsLanguagePacksInOobeEnabled() {
-  return base::FeatureList::IsEnabled(kLanguagePacksInOobe);
-}
-
 bool IsLauncherContinueSectionWithRecentsEnabled() {
   // If the holdback feature flag is enabled, the feature should be disabled,
   // but only if the device is eligible for the study. Exclusion happens
@@ -3085,10 +2995,6 @@ bool IsLauncherContinueSectionWithRecentsEnabled() {
 
 bool IsLauncherNudgeShortIntervalEnabled() {
   return base::FeatureList::IsEnabled(kLauncherNudgeShortInterval);
-}
-
-bool IsLauncherNudgeSessionResetEnabled() {
-  return base::FeatureList::IsEnabled(kLauncherNudgeSessionReset);
 }
 
 bool IsLinkCrossDeviceDogfoodFeedbackEnabled() {
@@ -3132,14 +3038,6 @@ bool IsLockScreenHideSensitiveNotificationsSupported() {
 
 bool IsGameDashboardGamepadSupportEnabled() {
   return base::FeatureList::IsEnabled(kGameDashboardGamepadSupport);
-}
-
-bool IsGameDashboardGamePWAsEnabled() {
-  return base::FeatureList::IsEnabled(kGameDashboardGamePWAs);
-}
-
-bool IsGameDashboardGamesInTestEnabled() {
-  return base::FeatureList::IsEnabled(kGameDashboardGamesInTest);
 }
 
 bool AreGameDashboardUtilitiesEnabled() {
@@ -3311,6 +3209,10 @@ bool IsOobeDisplaySizeEnabled() {
 bool IsOobeInputMethodsEnabled() {
   return IsOobeChoobeEnabled() &&
          base::FeatureList::IsEnabled(kOobeInputMethods);
+}
+
+bool IsOobeAutoEnrollmentCheckForcedEnabled() {
+  return base::FeatureList::IsEnabled(kOobeAutoEnrollmentCheckForced);
 }
 
 bool IsOobeSplitModifierKeyboardInfoEnabled() {

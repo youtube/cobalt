@@ -23,6 +23,7 @@
 #include "api/test/network_emulation/leaky_bucket_network_queue.h"
 #include "api/test/network_emulation/network_queue.h"
 #include "api/test/simulated_network.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -337,6 +338,12 @@ std::vector<PacketDeliveryInfo> SimulatedNetwork::DequeueDeliverablePackets(
   // NextDeliveryTimeUs after DequeueDeliverablePackets. See
   // NetworkBehaviorInterface.
   UpdateNextProcessTime();
+
+  if (!config_state_.config.forward_ecn) {
+    for (PacketDeliveryInfo& packet : packets_to_deliver) {
+      packet.ecn = EcnMarking::kNotEct;
+    }
+  }
   return packets_to_deliver;
 }
 

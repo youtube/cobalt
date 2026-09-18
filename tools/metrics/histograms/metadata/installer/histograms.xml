@@ -202,22 +202,18 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Setup.Install.LzmaUnPackStatus_{UnPackConsumer}"
-    enum="UnPackStatus" expires_after="2025-12-07">
-  <owner>zmin@chromium.org</owner>
+    enum="UnPackStatus" expires_after="never">
+<!-- expires-never: used to monitor unpack status of setup installer. -->
+
+  <owner>waffles@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>
     Record the status of unpacking the contents of a 7z file. {UnPackConsumer}
   </summary>
   <token key="UnPackConsumer">
-    <variant name="ChromeArchivePatch"
-        summary="compressed patch: chrome_patch.packed.7z holding
-                 chrome_patch.diff (small)."/>
     <variant name="CompressedChromeArchive"
         summary="compressed archive: chrome.packed.7z holding chrome.7z
                  (big)."/>
-    <variant name="SetupExePatch"
-        summary="compressed patch: setup_patch.packed.7z holding
-                 setup_patch.diff (small)."/>
     <variant name="UncompressedChromeArchive"
         summary="uncompressed archive: chrome.7z holding install dir (big)."/>
   </token>
@@ -277,6 +273,27 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram
+    name="Setup.Install.UnbufferedFileWriter.DeterminePhysicalSectorSizeResult"
+    enum="DeterminePhysicalSectorSizeResult" expires_after="2026-09-28">
+  <owner>grt@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The result of an attempt to determine the size of a physical sector of the
+    disk to which a file is to be written. Recorded once per process.
+  </summary>
+</histogram>
+
+<histogram name="Setup.Install.UnbufferedFileWriter.PhysicalSectorSize"
+    units="bytes" expires_after="2026-09-28">
+  <owner>grt@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The number of bytes per physical sector reported for the disk to which a
+    file is to be written. Recorded once per process.
+  </summary>
+</histogram>
+
 <histogram name="Setup.Install.UnbufferedFileWriter.{Operation}.Error"
     enum="WinGetLastError" expires_after="2026-09-28">
   <owner>grt@chromium.org</owner>
@@ -289,7 +306,6 @@ chromium-metrics-reviews@google.com.
     <variant name="Allocate"/>
     <variant name="ClearDelete"/>
     <variant name="Create"/>
-    <variant name="GetInfo"/>
     <variant name="SetInfo"/>
     <variant name="Write"/>
   </token>

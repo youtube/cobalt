@@ -23,6 +23,7 @@
 #include "api/rtc_error.h"
 #include "api/test/rtc_error_matchers.h"
 #include "p2p/test/test_turn_server.h"
+#include "pc/peer_connection.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "pc/test/integration_test_helpers.h"
 #include "rtc_base/socket_address.h"
@@ -252,10 +253,7 @@ TEST_F(PeerConnectionPrAnswerSwitchTest, SendMediaNoDataChannel) {
   ASSERT_FALSE(HasFailure());
 }
 
-// This test completes, but is disabled because feedback type switching
-// does not work yet.
-// TODO: issues.webrtc.org/448848876 - enable when underlying issue fixed.
-TEST_F(PeerConnectionPrAnswerSwitchTest, DISABLED_MediaWithCcfbFirstThenTwcc) {
+TEST_F(PeerConnectionPrAnswerSwitchTest, MediaWithCcfbFirstThenTwcc) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
   SetFieldTrials("Callee2",
                  "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
@@ -284,18 +282,20 @@ TEST_F(PeerConnectionPrAnswerSwitchTest, DISABLED_MediaWithCcfbFirstThenTwcc) {
   media_expectations.CalleeExpectsSomeAudio();
   media_expectations.CalleeExpectsSomeVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
-  auto pc_internal = caller()->pc_internal();
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return pc_internal->FeedbackAccordingToRfc8888CountForTesting();
-          },
-          Gt(0)),
-      IsRtcOk());
+  PeerConnection* caller_pc_internal = caller()->pc_internal();
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return caller_pc_internal
+                        ->FeedbackAccordingToRfc8888CountForTesting();
+                  },
+                  Gt(0)),
+              IsRtcOk());
   // There should be no transport-cc generated.
-  EXPECT_THAT(pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
-              Eq(0));
-  // The final answer does TWCC.
+  EXPECT_THAT(
+      caller_pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
+      Eq(0));
+  // The final answer does TWCC and send audio and video.
+  second_callee->AddAudioVideoTracks();
   second_callee->ReceiveSdpMessage(SdpType::kOffer, saved_offer);
   EXPECT_THAT(
       WaitUntil([&] { return caller()->SignalingStateStable(); }, IsTrue()),
@@ -303,21 +303,32 @@ TEST_F(PeerConnectionPrAnswerSwitchTest, DISABLED_MediaWithCcfbFirstThenTwcc) {
   WaitConnected(/* prAnswer= */ false, caller(), second_callee.get());
   ASSERT_FALSE(HasFailure());
 
-  int old_ccfb_count = pc_internal->FeedbackAccordingToRfc8888CountForTesting();
+  int old_ccfb_count =
+      caller_pc_internal->FeedbackAccordingToRfc8888CountForTesting();
   int old_twcc_count =
-      pc_internal->FeedbackAccordingToTransportCcCountForTesting();
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return pc_internal->FeedbackAccordingToTransportCcCountForTesting();
-          },
-          Gt(old_twcc_count)),
-      IsRtcOk());
+      caller_pc_internal->FeedbackAccordingToTransportCcCountForTesting();
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return caller_pc_internal
+                        ->FeedbackAccordingToTransportCcCountForTesting();
+                  },
+                  Gt(old_twcc_count)),
+              IsRtcOk());
   // These expects are easier to interpret than the WaitUntil log result.
-  EXPECT_THAT(pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
-              Gt(old_twcc_count));
-  EXPECT_THAT(pc_internal->FeedbackAccordingToRfc8888CountForTesting(),
+  EXPECT_THAT(
+      caller_pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
+      Gt(old_twcc_count));
+  EXPECT_THAT(caller_pc_internal->FeedbackAccordingToRfc8888CountForTesting(),
               Eq(old_ccfb_count));
+
+  PeerConnection* second_callee_pc_internal = second_callee->pc_internal();
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return second_callee_pc_internal
+                        ->FeedbackAccordingToTransportCcCountForTesting();
+                  },
+                  Gt(0)),
+              IsRtcOk());
 }
 
 }  // namespace webrtc

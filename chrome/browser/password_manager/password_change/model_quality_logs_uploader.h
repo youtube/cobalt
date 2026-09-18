@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_PASSWORD_MANAGER_PASSWORD_CHANGE_MODEL_QUALITY_LOGS_UPLOADER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/model_quality/model_quality_logs_uploader_service.h"
 
@@ -16,6 +17,7 @@ class WebContents;
 
 namespace password_manager {
 enum class LogInWithChangedPasswordOutcome;
+struct PasswordForm;
 }
 
 // Helper class which handles Model Logging Quality logic and uploads the
@@ -47,22 +49,19 @@ class ModelQualityLogsUploader {
   void SetOpenFormQuality(
       const std::optional<optimization_guide::proto::PasswordChangeResponse>&
           response,
-      std::unique_ptr<LoggingData> logging_data,
-      base::Time server_request_start_time);
+      std::unique_ptr<LoggingData> logging_data);
 
   // Sets quality data for Step=SUBMIT_FORM_STEP.
   void SetSubmitFormQuality(
       const std::optional<optimization_guide::proto::PasswordChangeResponse>&
           response,
-      std::unique_ptr<LoggingData> logging_data,
-      base::Time server_request_start_time);
+      std::unique_ptr<LoggingData> logging_data);
 
   // Sets quality data for Step=VERIFY_SUBMISSION_STEP.
   void SetVerifySubmissionQuality(
       const std::optional<optimization_guide::proto::PasswordChangeResponse>&
           response,
-      std::unique_ptr<LoggingData> logging_data,
-      base::Time server_request_start_time);
+      std::unique_ptr<LoggingData> logging_data);
 
   // To be called if no form is seen after actuating on
   // Step=OPEN_FORM_STEP.
@@ -72,31 +71,35 @@ class ModelQualityLogsUploader {
   // in Step=OPEN_FORM_STEP (e.g. Page Content is unavailable).
   void SetOpenFormUnexpectedFailure();
 
-  // To be called if the flow is interrupted
-  // (e.g., if the tab or dialog are closed).
-  void SetFlowInterrupted();
-
-  // To be called if the flow is halted
-  // because an OTP was detected.
-  void SetOtpDetected();
+  // To be called if the flow is interrupted (e.g., if the tab or dialog are
+  // closed).
+  void SetFlowInterrupted(FlowStep step, QualityStatus quality_status);
 
   // Marks a flow step as skipped, indicating no
   // model call was made for this step.
-  void MarkStepSkipped(
-      optimization_guide::proto::PasswordChangeRequest::FlowStep step);
+  void MarkStepSkipped(FlowStep step);
 
   // To be called if element to click was not found
   // in Step=OPEN_FORM_STEP.
-  void OpenFormTargetElementNotFound();
-
-  // To be called if element to click was not found
-  // in Step=OPEN_FORM_STEP.
-  void SubmitFormTargetElementNotFound();
+  void RecordButtonClickFailure(FlowStep step,
+                                actor::mojom::ActionResultCode failure);
 
   // Called when the user clicks 'continue' during the login check step
   // to begin the password change flow, which may indicate an incorrect
   // classification of the user's login state by the model.
   void LoginCheckSkipped();
+
+  // Called when the leak check is shown to the user. Sets information about the
+  // password form which triggered the leak check.
+  void SetLoginPasswordFormInfo(
+      const password_manager::PasswordForm& password_form);
+
+  // Called when APC flow discovers the change password form. Logs password form
+  // information, e. g. form signature, fields & buttons texts.
+  void SetChangePasswordFormData(
+      const password_manager::PasswordForm& password_form);
+
+  void SetStepDuration(FlowStep step, base::TimeDelta duration);
 
   // Records the outcome of the first login attempt
   // using a previously saved APC-password and immediately
@@ -111,21 +114,6 @@ class ModelQualityLogsUploader {
   const optimization_guide::proto::LogAiDataRequest& GetFinalLog() const {
     return final_log_data_;
   }
-
-  void SetOpenFormQualityStatus(QualityStatus quality_status) {
-    final_log_data_.mutable_password_change_submission()
-        ->mutable_quality()
-        ->mutable_open_form()
-        ->set_status(quality_status);
-  }
-
-  void SetSubmitFormQualityStatus(QualityStatus quality_status) {
-    final_log_data_.mutable_password_change_submission()
-        ->mutable_quality()
-        ->mutable_submit_form()
-        ->set_status(quality_status);
-  }
-
 #endif
 
  private:

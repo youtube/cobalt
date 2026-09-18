@@ -27,6 +27,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
@@ -93,7 +94,7 @@ UIImage* kPrimaryAccountAvatar = [[UIImage alloc] init];
 
 #pragma mark - AccountMenuDataSource
 
-- (const std::vector<GaiaId>)secondaryAccountsGaiaIDs {
+- (std::vector<GaiaId>)secondaryAccountsGaiaIDs {
   return _secondaryAccountsGaiaIDs;
 }
 
@@ -106,8 +107,10 @@ UIImage* kPrimaryAccountAvatar = [[UIImage alloc] init];
 }
 
 - (UIImage*)imageForGaiaID:(const GaiaId&)gaiaID {
-  return _accountManagerService->GetIdentityAvatarWithIdentity(
-      [self identityForGaiaID:gaiaID], IdentityAvatarSize::TableViewIcon);
+  return GetApplicationContext()
+      ->GetIdentityAvatarProvider()
+      ->GetIdentityAvatar([self identityForGaiaID:gaiaID],
+                          IdentityAvatarSize::TableViewIcon);
 }
 
 - (BOOL)isGaiaIDManaged:(const GaiaId&)gaiaID {

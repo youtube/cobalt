@@ -179,7 +179,7 @@ bool SkPath::isRect(SkRect* rect, bool* isClosed, SkPathDirection* direction) co
     SkDEBUGCODE(this->validate();)
     SkSpan<const SkPoint> pts = this->points();
     SkSpan<const SkPathVerb> vbs = this->verbs();
-    if (auto rc = SkPathPriv::IsRectContour(pts, vbs, fPathRef->getSegmentMasks(), false)) {
+    if (auto rc = SkPathPriv::IsRectContour(pts, vbs, this->getSegmentMasks(), false)) {
         if (rect) {
             *rect = rc->fRect;
         }
@@ -188,6 +188,26 @@ bool SkPath::isRect(SkRect* rect, bool* isClosed, SkPathDirection* direction) co
         }
         if (direction) {
             *direction = rc->fDirection;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool SkPath::isOval(SkRect* bounds) const {
+    if (auto info = this->getOvalInfo()) {
+        if (bounds) {
+            *bounds = info->fBounds;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool SkPath::isRRect(SkRRect* rrect) const {
+    if (auto info = this->getRRectInfo()) {
+        if (rrect) {
+            *rrect = info->fRRect;
         }
         return true;
     }
@@ -490,6 +510,22 @@ std::optional<SkPath::IterRec> SkPath::RawIter::next() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+SkPath SkPath::makeFillType(SkPathFillType ft) const {
+    SkPath copy = *this;
+    copy.setFillType(ft);
+    return copy;
+}
+
+SkPath SkPath::makeToggleInverseFillType() const {
+    return this->makeFillType(SkPathFillType_ToggleInverse(fFillType));
+}
+
+SkPath SkPath::makeIsVolatile(bool v) const {
+    SkPath copy = *this;
+    copy.fIsVolatile = v;
+    return copy;
+}
+
 SkPathConvexity SkPath::computeConvexity() const {
     if (auto c = this->getConvexityOrUnknown(); c != SkPathConvexity::kUnknown) {
         return c;
@@ -570,16 +606,6 @@ SkPath SkPath::Circle(SkScalar x, SkScalar y, SkScalar r, SkPathDirection dir) {
 
 SkPath SkPath::RRect(const SkRect& r, SkScalar rx, SkScalar ry, SkPathDirection dir) {
     return RRect(SkRRect::MakeRectXY(r, rx, ry), dir);
-}
-
-// TODO: evolve this one to the source of truth (when we have SkPathData),
-//       and have makeTransform() call it and mark the non-finite flag if it fails.
-std::optional<SkPath> SkPath::tryMakeTransform(const SkMatrix& matrix) const {
-    auto path = this->makeTransform(matrix);
-    if (path.isFinite()) {
-        return path;
-    }
-    return {};
 }
 
 SkPathFirstDirection SkPathPriv::ComputeFirstDirection(const SkPath& path) {

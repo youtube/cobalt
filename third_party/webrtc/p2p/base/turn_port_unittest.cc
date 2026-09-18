@@ -184,7 +184,7 @@ class TurnPortTestVirtualSocketServer : public VirtualSocketServer {
   using VirtualSocketServer::LookupBinding;
 };
 
-class TestConnectionWrapper : public sigslot::has_slots<> {
+class TestConnectionWrapper {
  public:
   explicit TestConnectionWrapper(Connection* conn) : connection_(conn) {
     conn->SubscribeDestroyed(this, [this](Connection* connection) {
@@ -192,7 +192,7 @@ class TestConnectionWrapper : public sigslot::has_slots<> {
     });
   }
 
-  ~TestConnectionWrapper() override {
+  ~TestConnectionWrapper() {
     if (connection_) {
       connection_->UnsubscribeDestroyed(this);
     }

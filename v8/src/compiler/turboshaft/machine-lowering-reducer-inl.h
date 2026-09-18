@@ -62,9 +62,10 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  V<Word32> REDUCE(Word32SignHint)(V<Word32> input, Word32SignHintOp::Sign) {
-    // As far as Machine operations are concerned, Int32 and Uint32 are both
-    // Word32.
+  V<Float64OrWord32> REDUCE(TypeHint)(V<Float64OrWord32> input,
+                                      TypeHintOp::Type) {
+    // As far as Machine operations are concerned, Int32/Uint32 are both Word32,
+    // and Float64/HoleyFloat64 are both Float64.
     return input;
   }
 
@@ -1691,6 +1692,23 @@ class MachineLoweringReducer : public Next {
         }
 #endif
 
+#if V8_STATIC_ROOTS_BOOL
+        if (v8_flags.unmap_holes && !v8_flags.turbolev) {
+          // TruncateJSPrimitiveToUntagged(Object -> Bit) is pure in Turbofan,
+          // and can thus float above hole checks. This will lead to either
+          // segfaulting at runtime because we try to read the map of the hole
+          // (or straight up int3 if MachineOptimizationReducer tries to
+          // constant-fold the map load from the hole and inserts an
+          // Unreachable). We thus do a hole check here to avoid this kind of
+          // issues.
+          IF (SafeIsAnyHole(V<HeapObject>::Cast(object))) {
+            GOTO(done, 0);
+          }
+        }
+#else
+        DCHECK(!v8_flags.unmap_holes);
+#endif  // V8_STATIC_ROOTS_BOOL
+
         // Load the map of {object}.
         V<Map> map = __ LoadMapField(object);
 
@@ -2798,7 +2816,7 @@ class MachineLoweringReducer : public Next {
 
   V<Object> REDUCE(LoadStackArgument)(V<WordPtr> base, V<WordPtr> index) {
     // Note that this is a load of a Tagged value
-    // (MemoryRepresentation::TaggedPointer()), but since it's on the stack
+    // (MemoryRepresentation::AnyTagged()), but since it's on the stack
     // where stack slots are all kSystemPointerSize, we use kSystemPointerSize
     // for element_size_log2. On 64-bit plateforms with pointer compression,
     // this means that we're kinda loading a 32-bit value from an array of
@@ -2811,7 +2829,7 @@ class MachineLoweringReducer : public Next {
         CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize;
 #endif
     return __ Load(base, index, LoadOp::Kind::RawAligned(),
-                   MemoryRepresentation::TaggedPointer(), offset,
+                   MemoryRepresentation::AnyTagged(), offset,
                    kSystemPointerSizeLog2);
   }
 
@@ -3650,6 +3668,10 @@ class MachineLoweringReducer : public Next {
                 __ Word32Equal(__ UntagSmi(V<Smi>::Cast(candidate_key)), key),
                 done, candidate);
           } ELSE IF (__ TaggedEqual(
+                        candidate_key,
+                        __ HeapConstant(factory_->hash_table_hole_value()))) {
+            // Deleted entry, continue to the next one.
+          } ELSE IF (__ TaggedEqual(
                         __ LoadMapField(candidate_key),
                         __ HeapConstant(factory_->heap_number_map()))) {
             GOTO_IF(__ Float64Equal(__ LoadHeapNumberValue(
@@ -4184,6 +4206,22 @@ class MachineLoweringReducer : public Next {
     }
     return *undetectable_objects_protector_;
   }
+
+#if V8_STATIC_ROOTS_BOOL
+  V<Word32> SafeIsAnyHole(V<HeapObject> object) {
+    Address cage_base = isolate_->cage_base();
+    V<WordPtr> ptr = __ BitcastHeapObjectToWordPtr(object);
+    ScopedVar<Word32> result(this, 0);
+    IF (__ Word32BitwiseAnd(
+            __ UintPtrLessThanOrEqual(
+                i::detail::kMinStaticHoleValue + cage_base, ptr),
+            __ UintPtrLessThanOrEqual(
+                ptr, i::detail::kMaxStaticHoleValue + cage_base))) {
+      result = 1;
+    }
+    return result;
+  }
+#endif
 
   Isolate* isolate_ = __ data() -> isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;

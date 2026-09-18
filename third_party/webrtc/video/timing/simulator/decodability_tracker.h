@@ -11,6 +11,7 @@
 #ifndef VIDEO_TIMING_SIMULATOR_DECODABILITY_TRACKER_H_
 #define VIDEO_TIMING_SIMULATOR_DECODABILITY_TRACKER_H_
 
+#include <cstdint>
 #include <memory>
 
 #include "absl/base/nullability.h"
@@ -37,7 +38,13 @@ class DecodabilityTrackerEvents {
 // timing.
 class DecodabilityTracker : public AssembledFrameCallback {
  public:
+  // All members of the config should be explicitly set by the user.
+  struct Config {
+    uint32_t ssrc = 0;
+  };
+
   DecodabilityTracker(const Environment& env,
+                      const Config& config,
                       DecodabilityTrackerEvents* absl_nonnull observer);
   ~DecodabilityTracker() override;
 
@@ -56,6 +63,7 @@ class DecodabilityTracker : public AssembledFrameCallback {
   // Environment.
   SequenceChecker sequence_checker_;
   const Environment env_;
+  const Config config_;
 
   // Worker object.
   FrameBuffer frame_buffer_ RTC_GUARDED_BY(sequence_checker_);

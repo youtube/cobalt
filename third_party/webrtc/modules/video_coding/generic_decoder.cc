@@ -148,7 +148,9 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
   decodedImage.set_ntp_time_ms(frame_info->ntp_time_ms);
   decodedImage.set_packet_infos(frame_info->packet_infos);
   decodedImage.set_rotation(frame_info->rotation);
-  decodedImage.set_color_space(frame_info->color_space);
+  if (frame_info->color_space.has_value()) {
+    decodedImage.set_color_space(*frame_info->color_space);
+  }
   VideoFrame::RenderParameters render_parameters = timing_->RenderParameters();
   if (render_parameters.max_composition_delay_in_frames) {
     // Subtract frames that are in flight.

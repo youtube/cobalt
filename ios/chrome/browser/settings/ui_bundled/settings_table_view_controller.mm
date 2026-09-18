@@ -129,7 +129,6 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_image_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
@@ -138,6 +137,7 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -731,7 +731,8 @@ struct EnhancedSafeBrowsingActivePromoData
                 accessibilityHint:
                     l10n_util::GetNSString(
                         IDS_IOS_TOGGLE_SETTING_MANAGED_ACCESSIBILITY_HINT)
-          accessibilityIdentifier:kSettingsSignInDisabledCellId];
+          accessibilityIdentifier:kSettingsSignInDisabledCellId
+                         selector:@selector(didTapSigninDisabledInfoButton:)];
   signinDisabledItem.textColor = [UIColor colorNamed:kTextSecondaryColor];
   return signinDisabledItem;
 }
@@ -819,7 +820,8 @@ struct EnhancedSafeBrowsingActivePromoData
                 accessibilityHint:
                     l10n_util::GetNSString(
                         IDS_IOS_TOGGLE_SETTING_MANAGED_ACCESSIBILITY_HINT)
-          accessibilityIdentifier:kSettingsManagedSearchEngineCellId];
+          accessibilityIdentifier:kSettingsManagedSearchEngineCellId
+                         selector:@selector(didTapManagedUIInfoButton:)];
 
   return _managedSearchEngineItem;
 }
@@ -980,7 +982,8 @@ struct EnhancedSafeBrowsingActivePromoData
                   accessibilityHint:
                       l10n_util::GetNSString(
                           IDS_IOS_TOGGLE_SETTING_MANAGED_ACCESSIBILITY_HINT)
-            accessibilityIdentifier:kSettingsArticleSuggestionsCellId];
+            accessibilityIdentifier:kSettingsArticleSuggestionsCellId
+                           selector:@selector(didTapManagedUIInfoButton:)];
   }
 
   return _managedFeedSettingsItem;
@@ -1181,7 +1184,8 @@ struct EnhancedSafeBrowsingActivePromoData
                                imageBackground:(UIColor*)imageBackground
                              accessibilityHint:(NSString*)accessibilityHint
                        accessibilityIdentifier:
-                           (NSString*)accessibilityIdentifier {
+                           (NSString*)accessibilityIdentifier
+                                      selector:(SEL)selector {
   TableViewInfoButtonItem* infoButton =
       [[TableViewInfoButtonItem alloc] initWithType:type];
   infoButton.text = text;
@@ -1195,55 +1199,9 @@ struct EnhancedSafeBrowsingActivePromoData
   }
   infoButton.accessibilityHint = accessibilityHint;
   infoButton.accessibilityIdentifier = accessibilityIdentifier;
+  infoButton.target = self;
+  infoButton.selector = selector;
   return infoButton;
-}
-
-#pragma mark - UITableViewDataSource
-
-- (UITableViewCell*)tableView:(UITableView*)tableView
-        cellForRowAtIndexPath:(NSIndexPath*)indexPath {
-  UITableViewCell* cell = [super tableView:tableView
-                     cellForRowAtIndexPath:indexPath];
-  if (_settingsAreDismissed) {
-    return cell;
-  }
-  NSInteger itemType = [self.tableViewModel itemTypeForIndexPath:indexPath];
-
-  switch (itemType) {
-    case SettingsItemTypeManagedDefaultSearchEngine: {
-      TableViewInfoButtonCell* managedCell =
-          base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
-      [managedCell.trailingButton
-                 addTarget:self
-                    action:@selector(didTapManagedUIInfoButton:)
-          forControlEvents:UIControlEventTouchUpInside];
-      break;
-    }
-    case SettingsItemTypeSigninDisabled: {
-      // Adds a trailing button with more information when the sign-in policy
-      // has been enabled by the organization.
-      TableViewInfoButtonCell* managedCell =
-          base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
-      [managedCell.trailingButton
-                 addTarget:self
-                    action:@selector(didTapSigninDisabledInfoButton:)
-          forControlEvents:UIControlEventTouchUpInside];
-      break;
-    }
-    case SettingsItemTypeManagedArticlesForYou: {
-      TableViewInfoButtonCell* managedCell =
-          base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
-      [managedCell.trailingButton
-                 addTarget:self
-                    action:@selector(didTapManagedUIInfoButton:)
-          forControlEvents:UIControlEventTouchUpInside];
-      break;
-    }
-    default:
-      break;
-  }
-
-  return cell;
 }
 
 #pragma mark - UITableViewDelegate
@@ -1406,7 +1364,8 @@ struct EnhancedSafeBrowsingActivePromoData
       break;
     case SettingsItemTypeTableCellCatalog:
       [self.navigationController
-          pushViewController:[[TableCellCatalogViewController alloc] init]
+          pushViewController:[[TableCellCatalogViewController alloc]
+                                 initWithBrowser:_browser]
                     animated:YES];
       break;
     case SettingsItemTypeButtonCatalog:
@@ -1775,7 +1734,7 @@ struct EnhancedSafeBrowsingActivePromoData
     return;
   }
   identityAccountItem.image =
-      self.accountManagerService->GetIdentityAvatarWithIdentity(
+      GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
           _identity, IdentityAvatarSize::TableViewIcon);
   identityAccountItem.text = _identity.userFullName;
   identityAccountItem.detailText = _identity.userEmail;

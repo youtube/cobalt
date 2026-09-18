@@ -217,6 +217,8 @@ found in the LICENSE file.
     <dimen name="bookmark_bar_padding">8dp</dimen>
     <dimen name="bookmark_bar_overflow_button_margin_start">4dp</dimen>
     <dimen name="bookmark_bar_overflow_button_height_total">32dp</dimen>
+    <!-- bookmark_bar_overflow_button_height_total(32) + bookmark_bar_padding(8) -->
+    <dimen name="bookmark_bar_min_height">40dp</dimen>
 
     <!-- Custom Tabs dimensions -->
     <dimen name="custom_tabs_drag_handle_padding_top">12dp</dimen>
@@ -303,8 +305,6 @@ found in the LICENSE file.
 
     <dimen name="context_menu_popup_header_image_max_size">36dp</dimen>
     <dimen name="context_menu_popup_header_monogram_size">16dp</dimen>
-
-    <dimen name="context_menu_flyout_popup_horizontal_overlap">8dp</dimen>
 
     <!-- History Navigation UI Item -->
     <dimen name="navigation_bubble_size">44dp</dimen>
@@ -429,6 +429,9 @@ found in the LICENSE file.
     <dimen name="tab_strip_group_context_menu_max_width">392dp</dimen>
     <dimen name="tab_strip_context_menu_min_width">200dp</dimen>
     <dimen name="tab_strip_context_menu_max_width">300dp</dimen>
+
+    <!-- Link Hover Status Bar dimensions. -->
+    <dimen name="link_hover_status_bar_max_width">300dp</dimen>
 
     <!--  Reader mode prefs dimensions. -->
     <dimen name="reader_mode_prefs_font_style_container_width">280dp</dimen>

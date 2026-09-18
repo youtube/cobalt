@@ -7,8 +7,10 @@ import '/strings.m.js';
 
 import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {getCss} from './aim_app.css.js';
 import {getHtml} from './aim_app.html.js';
 
 export class OmniboxAimAppElement extends CrLitElement {
@@ -16,9 +18,16 @@ export class OmniboxAimAppElement extends CrLitElement {
     return 'omnibox-aim-app';
   }
 
+  static override get styles() {
+    return getCss();
+  }
+
   override render() {
     return getHtml.bind(this)();
   }
+
+  protected searchboxLayoutMode_: string =
+      loadTimeData.getString('searchboxLayoutMode');
 
   private isDebug_: boolean =
       new URLSearchParams(window.location.search).has('debug');
@@ -26,10 +35,11 @@ export class OmniboxAimAppElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.eventTracker_.add(
-        document.documentElement, 'visibilitychange',
-        this.onVisibilitychange_.bind(this));
-    this.onVisibilitychange_();
+
+    const composebox = this.shadowRoot.querySelector('cr-composebox');
+    assert(composebox);
+    composebox.focusInput();
+
     if (!this.isDebug_) {
       this.eventTracker_.add(
           document.documentElement, 'contextmenu', (e: Event) => {
@@ -41,16 +51,6 @@ export class OmniboxAimAppElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.eventTracker_.removeAll();
-  }
-
-  private onVisibilitychange_() {
-    if (document.visibilityState !== 'visible') {
-      return;
-    }
-
-    const composebox = this.shadowRoot.querySelector('cr-composebox');
-    assert(composebox);
-    composebox.focus();
   }
 }
 

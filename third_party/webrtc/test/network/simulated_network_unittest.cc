@@ -18,6 +18,7 @@
 
 #include "api/test/network_emulation/leaky_bucket_network_queue.h"
 #include "api/test/simulated_network.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -710,6 +711,30 @@ TEST(SimulatedNetworkTest, CanUseInjectedQueueAndDropPacketsAtQueueHead) {
                            AllOf(Field(&PacketDeliveryInfo::packet_id, 1),
                                  Field(&PacketDeliveryInfo::receive_time_us,
                                        PacketDeliveryInfo::kNotReceived))));
+}
+
+TEST(SimulatedNetworkTest, DefaultPropagateEcn) {
+  SimulatedNetwork network = SimulatedNetwork({});
+  ASSERT_TRUE(network.EnqueuePacket(
+      PacketInFlightInfo(DataSize::Bytes(125), Timestamp::Seconds(1),
+                         /*packet_id=*/0, EcnMarking::kCe)));
+  EXPECT_THAT(
+      network.DequeueDeliverablePackets(network.NextDeliveryTimeUs().value()),
+      ElementsAre(Field(&PacketDeliveryInfo::ecn, EcnMarking::kCe)));
+}
+
+TEST(SimulatedNetworkTest, CanBleachEcn) {
+  SimulatedNetwork network = SimulatedNetwork({.forward_ecn = false});
+  ASSERT_TRUE(network.EnqueuePacket(
+      PacketInFlightInfo(DataSize::Bytes(125), Timestamp::Seconds(1),
+                         /*packet_id=*/0, EcnMarking::kEct1)));
+  ASSERT_TRUE(network.EnqueuePacket(
+      PacketInFlightInfo(DataSize::Bytes(125), Timestamp::Seconds(1),
+                         /*packet_id=*/0, EcnMarking::kCe)));
+  EXPECT_THAT(
+      network.DequeueDeliverablePackets(network.NextDeliveryTimeUs().value()),
+      ElementsAre(Field(&PacketDeliveryInfo::ecn, EcnMarking::kNotEct),
+                  Field(&PacketDeliveryInfo::ecn, EcnMarking::kNotEct)));
 }
 
 // TODO(bugs.webrtc.org/14525): Re-enable when the DCHECK will be uncommented

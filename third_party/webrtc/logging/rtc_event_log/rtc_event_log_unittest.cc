@@ -886,23 +886,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 class RtcEventLogCircularBufferTest
     : public ::testing::TestWithParam<RtcEventLog::EncodingType> {
- public:
-  RtcEventLogCircularBufferTest()
-      : encoding_type_(GetParam()),
-        verifier_(encoding_type_),
-        log_storage_(),
-        log_output_factory_(log_storage_.CreateFactory()) {}
-  const RtcEventLog::EncodingType encoding_type_;
-  const test::EventVerifier verifier_;
-  MemoryLogStorage log_storage_;
-  std::unique_ptr<LogWriterFactoryInterface> log_output_factory_;
 };
 
 TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   // TODO(terelius): Maybe make a separate RtcEventLogImplTest that can access
   // the size of the cyclic buffer?
   constexpr size_t kNumEvents = 20000;
-  constexpr int64_t kStartTimeSeconds = 1;
+  constexpr Timestamp kUtcTime = Timestamp::Seconds(200);
   constexpr int32_t kStartBitrate = 1000000;
 
   auto test_info = ::testing::UnitTest::GetInstance()->current_test_info();
@@ -911,56 +901,55 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   std::replace(test_name.begin(), test_name.end(), '/', '_');
   const std::string temp_filename = test::OutputPath() + test_name;
 
-  std::unique_ptr<ScopedFakeClock> fake_clock =
-      std::make_unique<ScopedFakeClock>();
-  fake_clock->SetTime(Timestamp::Seconds(kStartTimeSeconds));
+  // Use ScopedFakeClock to control result of `TimeUTCMicros` during
+  // `StartLogging`.
+  ScopedFakeClock utc_clock;
+  utc_clock.SetTime(kUtcTime);
+  const RtcEventLog::EncodingType encoding_type = GetParam();
+  MemoryLogStorage log_storage;
+  SimulatedClock clock(Timestamp::Seconds(1));
 
-  // Create a scope for the TQ and event log factories.
-  // This way, we make sure that task queue instances that may rely on a clock
-  // have been torn down before we run the verification steps at the end of
-  // the test.
-  int64_t start_time_us, utc_start_time_us, stop_time_us;
+  std::unique_ptr<RtcEventLog> log =
+      RtcEventLogFactory().Create(CreateTestEnvironment(
+          {.field_trials = FieldTrialsFor(encoding_type), .time = &clock}));
 
-  {
-    // When `log` goes out of scope, the contents are flushed to the output.
-    std::unique_ptr<RtcEventLog> log =
-        RtcEventLogFactory().Create(CreateTestEnvironment(
-            {.field_trials = FieldTrialsFor(encoding_type_)}));
-
-    for (size_t i = 0; i < kNumEvents; i++) {
-      // The purpose of the test is to verify that the log can handle
-      // more events than what fits in the internal circular buffer. The exact
-      // type of events does not matter so we chose ProbeSuccess events for
-      // simplicity.
-      // We base the various values on the index. We use this for some basic
-      // consistency checks when we read back.
-      log->Log(std::make_unique<RtcEventProbeResultSuccess>(
-          i, kStartBitrate + i * 1000));
-      fake_clock->AdvanceTime(TimeDelta::Millis(10));
-    }
-    start_time_us = TimeMicros();
-    utc_start_time_us = TimeUTCMicros();
-    log->StartLogging(log_output_factory_->Create(temp_filename),
-                      RtcEventLog::kImmediateOutput);
-    fake_clock->AdvanceTime(TimeDelta::Millis(10));
-    stop_time_us = TimeMicros();
-    log->StopLogging();
+  for (size_t i = 0; i < kNumEvents; i++) {
+    // The purpose of the test is to verify that the log can handle
+    // more events than what fits in the internal circular buffer. The exact
+    // type of events does not matter so we chose ProbeSuccess events for
+    // simplicity.
+    // We base the various values on the index. We use this for some basic
+    // consistency checks when we read back.
+    log->Log(std::make_unique<RtcEventProbeResultSuccess>(
+        i, kStartBitrate + i * 1000));
+    clock.AdvanceTime(TimeDelta::Millis(10));
   }
+  Timestamp start_time = clock.CurrentTime();
+
+  log->StartLogging(log_storage.CreateFactory()->Create(temp_filename),
+                    RtcEventLog::kImmediateOutput);
+  clock.AdvanceTime(TimeDelta::Millis(10));
+  Timestamp stop_time = clock.CurrentTime();
+  log->StopLogging();
+
+  // When `log` is deleted, the contents are flushed to the output.
+  log.reset();
 
   // Read the generated log from memory.
   ParsedRtcEventLog parsed_log;
-  auto it = log_storage_.logs().find(temp_filename);
-  ASSERT_TRUE(it != log_storage_.logs().end());
+  auto it = log_storage.logs().find(temp_filename);
+  ASSERT_TRUE(it != log_storage.logs().end());
   ASSERT_TRUE(parsed_log.ParseString(it->second).ok());
 
   const auto& start_log_events = parsed_log.start_log_events();
   ASSERT_EQ(start_log_events.size(), 1u);
-  verifier_.VerifyLoggedStartEvent(start_time_us, utc_start_time_us,
-                                   start_log_events[0]);
+  const test::EventVerifier verifier(encoding_type);
+  verifier.VerifyLoggedStartEvent(start_time.us(), kUtcTime.us(),
+                                  start_log_events[0]);
 
   const auto& stop_log_events = parsed_log.stop_log_events();
   ASSERT_EQ(stop_log_events.size(), 1u);
-  verifier_.VerifyLoggedStopEvent(stop_time_us, stop_log_events[0]);
+  verifier.VerifyLoggedStopEvent(stop_time.us(), stop_log_events[0]);
 
   const auto& probe_success_events = parsed_log.bwe_probe_success_events();
   // If the following fails, it probably means that kNumEvents isn't larger
@@ -969,21 +958,17 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   EXPECT_LT(probe_success_events.size(), kNumEvents);
 
   ASSERT_GT(probe_success_events.size(), 1u);
-  int64_t first_timestamp_ms = probe_success_events[0].timestamp.ms();
   uint32_t first_id = probe_success_events[0].id;
   int32_t first_bitrate_bps = probe_success_events[0].bitrate_bps;
-  // We want to reset the time to what we used when generating the events, but
-  // the fake clock implementation DCHECKS if time moves backwards. We therefore
-  // recreate the clock. However we must ensure that the old fake_clock is
-  // destroyed before the new one is created, so we have to reset() first.
-  fake_clock.reset();
-  fake_clock = std::make_unique<ScopedFakeClock>();
-  fake_clock->SetTime(Timestamp::Millis(first_timestamp_ms));
+
+  Timestamp log_time = probe_success_events[0].timestamp;
   for (size_t i = 1; i < probe_success_events.size(); i++) {
-    fake_clock->AdvanceTime(TimeDelta::Millis(10));
-    verifier_.VerifyLoggedBweProbeSuccessEvent(
-        RtcEventProbeResultSuccess(first_id + i, first_bitrate_bps + i * 1000),
-        probe_success_events[i]);
+    log_time += TimeDelta::Millis(10);
+    RtcEventProbeResultSuccess expected(first_id + i,
+                                        first_bitrate_bps + i * 1000);
+    expected.SetTimestamp(log_time);
+    verifier.VerifyLoggedBweProbeSuccessEvent(expected,
+                                              probe_success_events[i]);
   }
 }
 

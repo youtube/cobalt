@@ -69,13 +69,11 @@ The utility in `util/fipstools/break-hash.go` can be used to corrupt the FIPS mo
 
 FIPS 140-2 requires that one of its PRNGs be used (which they call DRBGs). In BoringCrypto, we use CTR-DRBG with AES-256 exclusively and `RAND_bytes` (the primary interface for the rest of the system to get random data) takes its output from there.
 
-The DRBG state is kept in a thread-local structure and is seeded from one of the following entropy sources in preference order: RDRAND (on Intel chips), `getrandom`, and `/dev/urandom`. In the case of `/dev/urandom`, in order to ensure that the system has a minimum level of entropy, BoringCrypto polls the kernel until the estimated entropy is at least 256 bits. This is a poor man's version of `getrandom` and we strongly recommend using a kernel recent enough to support the real thing.
+The DRBG state is kept in a thread-local structure and is seeded from one of the following entropy sources in preference order: RDRAND (on Intel chips) and `getrandom`.
 
 In FIPS mode, each of those entropy sources is subject to a 10× overread. That is, when *n* bytes of entropy are needed, *10n* bytes will be read from the entropy source and XORed down to *n* bytes. Reads from the entropy source are also processed in blocks of 16 bytes and if two consecutive chunks are equal the process will abort.
 
-In the case that the seed is taken from RDRAND, getrandom will also be queried with `GRND_NONBLOCK` to attempt to obtain additional entropy from the operating system. If available, that extra entropy will be XORed into the whitened seed.
-
-On Android, only `getrandom` is supported and, when seeding for the first time, the system property `ro.boringcrypto.hwrand` is queried. If set to `true` then `getrandom` will be called with the `GRND_RANDOM` flag. Only entropy draws destined for DRBG seeds are affected by this. We are not suggesting that there is any security advantage at all to doing this, and thus recommend that Android vendors do _not_ set this flag.
+In the case that the seed is taken from RDRAND, getrandom will also be queried to obtain additional entropy from the operating system.
 
 The CTR-DRBG is reseeded every 4096 calls to `RAND_bytes`. Thus the process will randomly crash about every 2¹³⁵ calls.
 

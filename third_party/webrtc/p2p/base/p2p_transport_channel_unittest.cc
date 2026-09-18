@@ -301,8 +301,7 @@ bool HasRemoteAddress(const CandidatePairInterface* pair,
 // and that the result is what we expect.
 // Note that this class is a base class for use by other tests, who will provide
 // specialized test behavior.
-class P2PTransportChannelTestBase : public ::testing::Test,
-                                    public sigslot::has_slots<> {
+class P2PTransportChannelTestBase : public ::testing::Test {
  public:
   P2PTransportChannelTestBase()
       : vss_(new VirtualSocketServer()),
@@ -388,7 +387,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     Candidate candidate;
   };
 
-  struct Endpoint : public sigslot::has_slots<> {
+  struct Endpoint {
     Endpoint()
         : role_(ICEROLE_UNKNOWN),
           role_conflict_(false),

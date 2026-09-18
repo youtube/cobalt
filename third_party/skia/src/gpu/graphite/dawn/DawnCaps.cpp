@@ -694,7 +694,7 @@ void DawnCaps::initFormatTable(const wgpu::Device& device) {
         info = &fFormatTable[GetFormatIndex(wgpu::TextureFormat::R16Unorm)];
         if (supportUnorm16) {
             info->fFlags = FormatInfo::kAllFlags & ~FormatInfo::kStorage_Flag;
-            info->fColorTypeInfoCount = 1;
+            info->fColorTypeInfoCount = 2;
             info->fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info->fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: R16Unorm, Surface: kA16_unorm
@@ -705,6 +705,13 @@ void DawnCaps::initFormatTable(const wgpu::Device& device) {
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
                 ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
                 ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
+            }
+            // Format: R16Unorm, Surface: kR16_unorm
+            {
+                auto& ctInfo = info->fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = kR16_unorm_SkColorType;
+                ctInfo.fTransferColorType = kR16_unorm_SkColorType;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
         }
     }
@@ -947,24 +954,25 @@ void DawnCaps::initFormatTable(const wgpu::Device& device) {
 
     std::fill_n(fColorTypeToFormatTable, kSkColorTypeCnt, wgpu::TextureFormat::Undefined);
 
-    this->setColorType(kAlpha_8_SkColorType,          { wgpu::TextureFormat::R8Unorm });
-    this->setColorType(kRGBA_8888_SkColorType,        { wgpu::TextureFormat::RGBA8Unorm });
-    this->setColorType(kRGB_888x_SkColorType,
-                       {wgpu::TextureFormat::RGBA8Unorm, wgpu::TextureFormat::BGRA8Unorm});
-    this->setColorType(kBGRA_8888_SkColorType,        { wgpu::TextureFormat::BGRA8Unorm });
-    this->setColorType(kGray_8_SkColorType,           { wgpu::TextureFormat::R8Unorm });
-    this->setColorType(kR8_unorm_SkColorType,         { wgpu::TextureFormat::R8Unorm });
-    this->setColorType(kRGBA_F16_SkColorType,         { wgpu::TextureFormat::RGBA16Float });
-    this->setColorType(kRGB_F16F16F16x_SkColorType,   { wgpu::TextureFormat::RGBA16Float });
-    this->setColorType(kA16_float_SkColorType,        { wgpu::TextureFormat::R16Float });
-    this->setColorType(kR8G8_unorm_SkColorType,       { wgpu::TextureFormat::RG8Unorm });
+    this->setColorType(kAlpha_8_SkColorType,          { wgpu::TextureFormat::R8Unorm      });
+    this->setColorType(kRGBA_8888_SkColorType,        { wgpu::TextureFormat::RGBA8Unorm   });
+    this->setColorType(kRGB_888x_SkColorType,         { wgpu::TextureFormat::RGBA8Unorm,
+                                                        wgpu::TextureFormat::BGRA8Unorm   });
+    this->setColorType(kBGRA_8888_SkColorType,        { wgpu::TextureFormat::BGRA8Unorm   });
+    this->setColorType(kGray_8_SkColorType,           { wgpu::TextureFormat::R8Unorm      });
+    this->setColorType(kR8_unorm_SkColorType,         { wgpu::TextureFormat::R8Unorm      });
+    this->setColorType(kRGBA_F16_SkColorType,         { wgpu::TextureFormat::RGBA16Float  });
+    this->setColorType(kRGB_F16F16F16x_SkColorType,   { wgpu::TextureFormat::RGBA16Float  });
+    this->setColorType(kA16_float_SkColorType,        { wgpu::TextureFormat::R16Float     });
+    this->setColorType(kR8G8_unorm_SkColorType,       { wgpu::TextureFormat::RG8Unorm     });
     this->setColorType(kRGBA_1010102_SkColorType,     { wgpu::TextureFormat::RGB10A2Unorm });
     this->setColorType(kRGB_101010x_SkColorType,      { wgpu::TextureFormat::RGB10A2Unorm });
-    this->setColorType(kR16G16_float_SkColorType,     { wgpu::TextureFormat::RG16Float });
+    this->setColorType(kR16G16_float_SkColorType,     { wgpu::TextureFormat::RG16Float    });
 
 #if !defined(__EMSCRIPTEN__)
-    this->setColorType(kA16_unorm_SkColorType,        { wgpu::TextureFormat::R16Unorm });
-    this->setColorType(kR16G16_unorm_SkColorType,     { wgpu::TextureFormat::RG16Unorm });
+    this->setColorType(kA16_unorm_SkColorType,        { wgpu::TextureFormat::R16Unorm     });
+    this->setColorType(kR16_unorm_SkColorType,        { wgpu::TextureFormat::R16Unorm     });
+    this->setColorType(kR16G16_unorm_SkColorType,     { wgpu::TextureFormat::RG16Unorm    });
 #endif
 }
 
@@ -1161,6 +1169,87 @@ ImmutableSamplerInfo DawnCaps::getImmutableSamplerInfo(const TextureInfo& textur
 
     // If the YCbCr conversion for is invalid, then return a default ImmutableSamplerInfo struct.
     return {};
+}
+
+#if !defined(__EMSCRIPTEN__)
+static constexpr const char* filter_mode_to_str(wgpu::FilterMode mode) {
+    switch (mode) {
+        case wgpu::FilterMode::Undefined: return "undefined";
+        case wgpu::FilterMode::Nearest:   return "nearest";
+        case wgpu::FilterMode::Linear:    return "linear";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr const char* model_to_str(uint32_t c) {
+    switch (c) {
+        case 0 /* VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY */:   return "RGB-I";
+        case 1 /* VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY */: return "YCbCr-I";
+        case 2 /* VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709 */:      return "709";
+        case 3 /* VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601 */:      return "601";
+        case 4 /* VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020 */:     return "2020";
+        default:                                                       return "unknown";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr const char* range_to_str(uint32_t r) {
+    switch (r) {
+        case 0 /* VK_SAMPLER_YCBCR_RANGE_ITU_FULL */:   return "full";
+        case 1 /* VK_SAMPLER_YCBCR_RANGE_ITU_NARROW */: return "narrow";
+        default:                                        return "unknown";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr char swizzle_to_str(uint32_t c, char identityAnswer) {
+    switch (c) {
+        case 0 /* VK_COMPONENT_SWIZZLE_IDENTITY */: return identityAnswer;
+        case 1 /* VK_COMPONENT_SWIZZLE_ZERO */:     return '0';
+        case 2 /* VK_COMPONENT_SWIZZLE_ONE */:      return '1';
+        case 3 /* VK_COMPONENT_SWIZZLE_R */:        return 'r';
+        case 4 /* VK_COMPONENT_SWIZZLE_G */:        return 'g';
+        case 5 /* VK_COMPONENT_SWIZZLE_B */:        return 'b';
+        case 6 /* VK_COMPONENT_SWIZZLE_A */:        return 'a';
+        default:                                    return '?';
+    }
+    SkUNREACHABLE;
+}
+#endif
+
+std::string DawnCaps::toString(const ImmutableSamplerInfo& immutableSamplerInfo) const {
+#if defined(__EMSCRIPTEN__)
+    return "";
+#else
+    const wgpu::YCbCrVkDescriptor info =
+                DawnDescriptorFromImmutableSamplerInfo(immutableSamplerInfo);
+    if (!DawnDescriptorIsValid(info)) {
+        return "";
+    }
+
+    std::string result;
+
+    if (info.vkFormat == 0) {
+        result += 'x';
+        result += std::to_string(info.externalFormat);
+    } else {
+        result += std::to_string(info.vkFormat);
+    }
+
+    result += " ";
+    result += model_to_str(info.vkYCbCrModel);
+    result += "+";
+    result += range_to_str(info.vkYCbCrRange);
+    result += info.vkXChromaOffset ? " mid"  : " cos";  // midpoint or cosited-even
+    result += info.vkYChromaOffset ? " mid " : " cos "; // midpoint or cosited-even
+    result += filter_mode_to_str(info.vkChromaFilter);
+    result += info.forceExplicitReconstruction ? " T " : " F ";
+    result += swizzle_to_str(info.vkComponentSwizzleRed,   'r');
+    result += swizzle_to_str(info.vkComponentSwizzleGreen, 'g');
+    result += swizzle_to_str(info.vkComponentSwizzleBlue,  'b');
+    result += swizzle_to_str(info.vkComponentSwizzleAlpha, 'a');
+    return result;
+#endif
 }
 
 void DawnCaps::buildKeyForTexture(SkISize dimensions,

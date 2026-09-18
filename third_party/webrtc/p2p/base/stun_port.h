@@ -31,6 +31,7 @@
 #include "p2p/base/stun_request.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/dscp.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_constants.h"
@@ -210,7 +211,7 @@ class RTC_EXPORT UDPPort : public Port {
       absl::string_view reason);
 
   // Sends STUN requests to the server.
-  void OnSendPacket(const void* data, size_t size, StunRequest* req);
+  void SendStunRequest(const void* data, size_t size, StunRequest* req);
 
   // TODO(mallinaht): Move this up to Port when SignalAddressReady is
   // changed to SignalPortReady.

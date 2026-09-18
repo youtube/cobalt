@@ -18,6 +18,7 @@
 #include "api/environment/environment.h"
 #include "api/ref_counted_base.h"
 #include "api/scoped_refptr.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
@@ -214,12 +215,23 @@ int32_t Dav1dDecoder::Decode(const EncodedImage& encoded_image,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
+  ColorSpace color_space(
+      ColorSpace::PrimaryID::kUnspecified, ColorSpace::TransferID::kUnspecified,
+      ColorSpace::MatrixID::kUnspecified,
+      dav1d_picture.seq_hdr->color_range ? ColorSpace::RangeID::kFull
+                                         : ColorSpace::RangeID::kLimited);
+  // AV1 color space defines match ISO 23001-8:2016 via ISO/IEC 23091-4/ITU-T
+  // H.273. https://aomediacodec.github.io/av1-spec/#color-config-semantics
+  color_space.set_primaries_from_uint8(dav1d_picture.seq_hdr->pri);
+  color_space.set_transfer_from_uint8(dav1d_picture.seq_hdr->trc);
+  color_space.set_matrix_from_uint8(dav1d_picture.seq_hdr->mtrx);
+
   VideoFrame decoded_frame =
       VideoFrame::Builder()
           .set_video_frame_buffer(wrapped_buffer)
           .set_rtp_timestamp(encoded_image.RtpTimestamp())
           .set_ntp_time_ms(encoded_image.ntp_time_ms_)
-          .set_color_space(encoded_image.ColorSpace())
+          .set_color_space(color_space)
           .build();
 
   // Corresponds to QP_base in

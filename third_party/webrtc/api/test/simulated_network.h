@@ -97,6 +97,9 @@ struct BuiltInNetworkBehaviorConfig {
   int avg_burst_loss_length = -1;
   // Additional bytes to add to packet size.
   int packet_overhead = 0;
+  // Forward ECN from previous nodes in the network. If false, ECN bits
+  // are set to not ECT. See https://www.rfc-editor.org/rfc/rfc9331.html.
+  bool forward_ecn = true;
 };
 
 // Interface that represents a Network behaviour.

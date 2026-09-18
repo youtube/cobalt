@@ -115,6 +115,12 @@ class RTC_EXPORT RtpTransceiverInterface : public RefCountInterface {
   virtual void SetDirection(RtpTransceiverDirection new_direction);
   virtual RTCError SetDirectionWithError(RtpTransceiverDirection new_direction);
 
+  // The receptive attributes indicates whether the receiver is expecting to
+  // receive RTP data. See [[Receptive]] in
+  // https://w3c.github.io/webrtc-pc/#dfn-receptive
+  // TODO: issues.chromium.org/issues/40821064 - make pure virtual.
+  virtual bool receptive() const;
+
   // The current_direction attribute indicates the current direction negotiated
   // for this transceiver. If this transceiver has never been represented in an
   // offer/answer exchange, or if the transceiver is stopped, the value is null.

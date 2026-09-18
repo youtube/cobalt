@@ -231,9 +231,6 @@ class PageInfo : private content_settings::CookieControlsObserver,
   // Handles opening the link to show cookies settings and records the event.
   void OpenCookiesSettingsView();
 
-  // Handles opening the link to show Incognito tracking protection settings.
-  void OpenIncognitoSettingsView();
-
   // Handles opening the link to show all sites settings with a filter for
   // current site's fps  and records the event.
   void OpenAllSitesViewFilteredToRws();
@@ -421,9 +418,6 @@ class PageInfo : private content_settings::CookieControlsObserver,
   // The flag that controls whether an infobar is displayed after the website
   // settings UI is closed or not.
   bool show_info_bar_;
-
-  // The type of reload the info bar should trigger when closed.
-  content::ReloadType info_bar_reload_type_ = content::ReloadType::NORMAL;
 
   // The Omnibox URL of the website for which to display site permissions and
   // site information.

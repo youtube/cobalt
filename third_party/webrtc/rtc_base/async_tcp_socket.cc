@@ -60,8 +60,10 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(
 
   socket_->SubscribeConnectEvent(
       [this](Socket* socket) { OnConnectEvent(socket); });
-  socket_->SignalReadEvent.connect(this, &AsyncTCPSocketBase::OnReadEvent);
-  socket_->SignalWriteEvent.connect(this, &AsyncTCPSocketBase::OnWriteEvent);
+  socket_->SubscribeReadEvent(this,
+                              [this](Socket* socket) { OnReadEvent(socket); });
+  socket_->SubscribeWriteEvent(
+      this, [this](Socket* socket) { OnWriteEvent(socket); });
   socket_->SubscribeCloseEvent(
       [this](Socket* socket, int error) { OnCloseEvent(socket, error); });
 }
@@ -224,7 +226,7 @@ void AsyncTCPSocketBase::OnWriteEvent(Socket* socket) {
   }
 
   if (outbuf_.empty()) {
-    SignalReadyToSend(this);
+    NotifyReadyToSend(this);
   }
 }
 
@@ -263,7 +265,7 @@ int AsyncTCPSocket::Send(const void* pv,
                              env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
-  SignalSentPacket(this, sent_packet);
+  NotifySentPacket(this, sent_packet);
 
   // We claim to have sent the whole thing, even if we only sent partial
   return static_cast<int>(cb);
@@ -294,7 +296,8 @@ AsyncTcpListenSocket::AsyncTcpListenSocket(const Environment& env,
                                            std::unique_ptr<Socket> socket)
     : env_(env), socket_(std::move(socket)) {
   RTC_DCHECK(socket_.get() != nullptr);
-  socket_->SignalReadEvent.connect(this, &AsyncTcpListenSocket::OnReadEvent);
+  socket_->SubscribeReadEvent(this,
+                              [this](Socket* socket) { OnReadEvent(socket); });
   if (socket_->Listen(kListenBacklog) < 0) {
     RTC_LOG(LS_ERROR) << "Listen() failed with error " << socket_->GetError();
   }
@@ -331,7 +334,7 @@ void AsyncTcpListenSocket::OnReadEvent(Socket* socket) {
   HandleIncomingConnection(absl::WrapUnique(new_socket));
 
   // Prime a read event in case data is waiting.
-  new_socket->SignalReadEvent(new_socket);
+  new_socket->NotifyReadEvent(new_socket);
 }
 
 void AsyncTcpListenSocket::HandleIncomingConnection(

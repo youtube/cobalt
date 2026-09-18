@@ -2,21 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/apple/swift_source_set.gni")
+import("//ios/build/chrome_build.gni")
 
 source_set("model") {
   sources = [
-    "credential_exporter.h",
-    "credential_exporter.mm",
-    "credential_importer.h",
-    "credential_importer.mm",
     "ios_passkey_model_factory.cc",
     "ios_passkey_model_factory.h",
   ]
   deps = [
-    ":credential_exchange_types",
-    ":credential_export_manager_swift",
-    ":credential_import_manager_swift",
     "//base",
     "//components/affiliations/core/browser:affiliations",
     "//components/password_manager/core/browser/affiliation:affiliation_fetching",
@@ -33,31 +26,21 @@ source_set("model") {
   ]
 }
 
-source_set("credential_exchange_types") {
+source_set("ios_chrome_passkey_client") {
   sources = [
-    "credential_exchange_passkey.h",
-    "credential_exchange_passkey.mm",
-    "credential_exchange_password.h",
-    "credential_exchange_password.mm",
+    "ios_chrome_passkey_client.h",
+    "ios_chrome_passkey_client.mm",
   ]
-}
+  deps = [
+    "//components/webauthn/ios",
+    "//components/webauthn/ios:features",
+    "//ios/chrome/browser/credential_provider/model:buildflags",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/web/public",
+  ]
 
-swift_source_set("credential_export_manager_swift") {
-  bridge_header = "credential_import_manager_swift_bridge.h"
-  sources = [ "credential_export_manager.swift" ]
-  deps = [ ":credential_exchange_types" ]
-  frameworks = [
-    "AuthenticationServices.framework",
-    "Foundation.framework",
-  ]
-}
-
-swift_source_set("credential_import_manager_swift") {
-  bridge_header = "credential_import_manager_swift_bridge.h"
-  sources = [ "credential_import_manager.swift" ]
-  deps = [ ":credential_exchange_types" ]
-  frameworks = [
-    "AuthenticationServices.framework",
-    "Foundation.framework",
-  ]
+  if (ios_enable_credential_provider_extension) {
+    deps += [ "//ios/chrome/browser/credential_provider/model" ]
+  }
 }

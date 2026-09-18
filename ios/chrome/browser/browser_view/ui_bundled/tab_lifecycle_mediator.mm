@@ -284,9 +284,14 @@
 
     // TODO(crbug.com/448157489): Remove this or refactor to
     // `HandlerForProtocol`.
-    if (IsAskGeminiSnackbarEnabled()) {
+    if (IsAskGeminiSnackbarEnabled() || IsWebPageReportedImagesSheetEnabled()) {
       BWGTabHelper->SetSnackbarCommandsHandler(
           static_cast<id<SnackbarCommands>>(_commandDispatcher));
+    }
+
+    if (IsAskGeminiChipEnabled()) {
+      BWGTabHelper->SetLocationBarBadgeCommandsHandler(
+          id<LocationBarBadgeCommands>(_commandDispatcher));
     }
   }
 
@@ -300,9 +305,10 @@
   if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
     ChooseFileTabHelper* chooseFileTabHelper =
         ChooseFileTabHelper::FromWebState(webState);
-    CHECK(chooseFileTabHelper);
-    chooseFileTabHelper->SetFileUploadPanelHandler(
-        HandlerForProtocol(_commandDispatcher, FileUploadPanelCommands));
+    if (chooseFileTabHelper) {
+      chooseFileTabHelper->SetFileUploadPanelHandler(
+          HandlerForProtocol(_commandDispatcher, FileUploadPanelCommands));
+    }
   }
 }
 
@@ -425,6 +431,9 @@
     if (IsAskGeminiSnackbarEnabled()) {
       BWGTabHelper->SetSnackbarCommandsHandler(nil);
     }
+    if (IsAskGeminiChipEnabled()) {
+      BWGTabHelper->SetLocationBarBadgeCommandsHandler(nil);
+    }
   }
 
   FindTabHelper* findTabHelper = FindTabHelper::FromWebState(webState);
@@ -435,8 +444,9 @@
   if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
     ChooseFileTabHelper* chooseFileTabHelper =
         ChooseFileTabHelper::FromWebState(webState);
-    CHECK(chooseFileTabHelper);
-    chooseFileTabHelper->SetFileUploadPanelHandler(nil);
+    if (chooseFileTabHelper) {
+      chooseFileTabHelper->SetFileUploadPanelHandler(nil);
+    }
   }
 }
 

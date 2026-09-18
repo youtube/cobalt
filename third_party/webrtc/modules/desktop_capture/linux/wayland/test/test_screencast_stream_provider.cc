@@ -48,7 +48,7 @@ TestScreenCastStreamProvider::TestScreenCastStreamProvider(Observer* observer,
     return;
   }
 
-  pw_init(/*argc=*/nullptr, /*argc=*/nullptr);
+  pw_initializer_ = std::make_unique<PipeWireInitializer>();
 
   pw_main_loop_ = pw_thread_loop_new("pipewire-test-main-loop", nullptr);
 

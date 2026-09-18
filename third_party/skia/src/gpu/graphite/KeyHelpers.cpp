@@ -567,7 +567,7 @@ ImageShaderBlock::ImageData::ImageData(const SkSamplingOptions& sampling,
 
 void ImageShaderBlock::AddBlock(const KeyContext& keyContext, const ImageData& imgData) {
     if (keyContext.recorder() && !imgData.fTextureProxy) {
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -773,7 +773,7 @@ void YUVImageShaderBlock::AddBlock(const KeyContext& keyContext, const ImageData
     if (keyContext.recorder() &&
         (!imgData.fTextureProxies[0] || !imgData.fTextureProxies[1] ||
          !imgData.fTextureProxies[2] || !imgData.fTextureProxies[3])) {
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -1700,29 +1700,35 @@ static void add_to_key(const KeyContext& keyContext, const SkBlendShader* shader
             });
 }
 
-static SkMatrix matrix_invert_or_identity(const SkMatrix& matrix) {
-    SkMatrix inverseMatrix;
-    if (!matrix.invert(&inverseMatrix)) {
-        inverseMatrix.setIdentity();
+template <typename AddInnerToKeyT>
+static void add_local_matrix_to_key(const KeyContext& keyContext,
+                                    const SkMatrix& localMatrix,
+                                    const SkMatrix& postInverseMatrix,
+                                    AddInnerToKeyT addInnerToKey) {
+    auto lmInverse = localMatrix.invert();
+    if (!lmInverse) {
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
+        return;
     }
 
-    return inverseMatrix;
+    lmInverse->postConcat(postInverseMatrix);
+
+    LocalMatrixShaderBlock::BeginBlock(keyContext,
+                                       LocalMatrixShaderBlock::LMShaderData(*lmInverse));
+    KeyContextWithLocalMatrix lmContext(keyContext, localMatrix);
+    addInnerToKey(lmContext);
+    keyContext.paintParamsKeyBuilder()->endBlock();
 }
 
 static void add_to_key(const KeyContext& keyContext, const SkCTMShader* shader) {
     // CTM shaders are always given device coordinates, so we don't have to modify the CTM itself
     // with keyContext's local transform.
-
-    SkMatrix lmInverse = matrix_invert_or_identity(shader->ctm());
-    LocalMatrixShaderBlock::LMShaderData lmShaderData(lmInverse);
-
-    KeyContextWithLocalMatrix newContext(keyContext, shader->ctm());
-
-    LocalMatrixShaderBlock::BeginBlock(newContext, lmShaderData);
-
-    AddToKey(newContext, shader->proxyShader().get());
-
-    keyContext.paintParamsKeyBuilder()->endBlock();
+    add_local_matrix_to_key(keyContext,
+                            /*localMatrix=*/shader->ctm(),
+                            /*postInverseMatrix=*/SkMatrix::I(),
+                            [&](const KeyContext& childCtx) {
+                                    AddToKey(childCtx, shader->proxyShader().get());
+                            });
 }
 
 static void add_to_key(const KeyContext& keyContext, const SkColorShader* shader) {
@@ -1767,22 +1773,25 @@ static void add_to_key(const KeyContext& keyContext, const SkEmptyShader*) {
 }
 
 static void add_yuv_image_to_key(const KeyContext& keyContext,
-                                 const SkImageShader* origShader,
-                                 sk_sp<const SkImage> imageToDraw,
-                                 SkSamplingOptions sampling) {
+                                 const SkImage* imageToDraw,
+                                 SkRect subset,
+                                 SkSamplingOptions sampling,
+                                 SkTileMode tileModeX,
+                                 SkTileMode tileModeY,
+                                 bool isRaw) {
     SkASSERT(!imageToDraw->isAlphaOnly());
 
-    const Image_YUVA* yuvaImage = static_cast<const Image_YUVA*>(imageToDraw.get());
+    const Image_YUVA* yuvaImage = static_cast<const Image_YUVA*>(imageToDraw);
     const SkYUVAInfo& yuvaInfo = yuvaImage->yuvaInfo();
     // We would want to add a translation to the local matrix to handle other sitings.
     SkASSERT(yuvaInfo.sitingX() == SkYUVAInfo::Siting::kCentered);
     SkASSERT(yuvaInfo.sitingY() == SkYUVAInfo::Siting::kCentered);
 
     YUVImageShaderBlock::ImageData imgData(sampling,
-                                           origShader->tileModeX(),
-                                           origShader->tileModeY(),
+                                           tileModeX,
+                                           tileModeY,
                                            imageToDraw->dimensions(),
-                                           origShader->subset());
+                                           subset);
     for (int locIndex = 0; locIndex < SkYUVAInfo::kYUVAChannelCount; ++locIndex) {
         const TextureProxyView& view = yuvaImage->proxyView(locIndex);
         if (view) {
@@ -1884,7 +1893,7 @@ static void add_yuv_image_to_key(const KeyContext& keyContext,
     SkAlphaType srcAT = imageToDraw->alphaType() == kPremul_SkAlphaType
                                 ? kUnpremul_SkAlphaType
                                 : imageToDraw->alphaType();
-    if (origShader->isRaw()) {
+    if (isRaw) {
         // Because we've avoided the premul alpha step in the YUV shader, we need to make sure
         // it happens when drawing unpremul (i.e., non-opaque) images.
         steps = SkColorSpaceXformSteps(imageToDraw->colorSpace(),
@@ -1915,16 +1924,19 @@ static void add_yuv_image_to_key(const KeyContext& keyContext,
             });
 }
 
-static void add_to_key(const KeyContext& keyContext,
-                       const SkImageShader* shader) {
-    SkASSERT(shader);
-
+static void add_image_to_key(const KeyContext& keyContext,
+                             const SkImage* image,
+                             SkRect subset,
+                             SkSamplingOptions sampling,
+                             SkTileMode tileModeX,
+                             SkTileMode tileModeY,
+                             bool isRaw) {
     auto [ imageToDraw, newSampling ] = GetGraphiteBacked(keyContext.recorder(),
-                                                          shader->image().get(),
-                                                          shader->sampling());
+                                                          image,
+                                                          sampling);
     if (!imageToDraw) {
-        SKGPU_LOG_W("Couldn't convert ImageShader's image to a Graphite-backed image");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        SKGPU_LOG_W("Couldn't convert SkImage a Graphite-backed representation");
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -1943,19 +1955,22 @@ static void add_to_key(const KeyContext& keyContext,
                                                              keyContext.drawContext());
     if (as_IB(imageToDraw)->isYUVA()) {
         return add_yuv_image_to_key(keyContext,
-                                    shader,
-                                    std::move(imageToDraw),
-                                    newSampling);
+                                    imageToDraw.get(),
+                                    subset,
+                                    newSampling,
+                                    tileModeX,
+                                    tileModeY,
+                                    isRaw);
     }
 
     auto view = AsView(imageToDraw.get());
     SkASSERT(newSampling.mipmap == SkMipmapMode::kNone || view.mipmapped() == Mipmapped::kYes);
 
-    ImageShaderBlock::ImageData imgData(shader->sampling(),
-                                        shader->tileModeX(),
-                                        shader->tileModeY(),
+    ImageShaderBlock::ImageData imgData(newSampling,
+                                        tileModeX,
+                                        tileModeY,
                                         view.proxy()->dimensions(),
-                                        shader->subset());
+                                        subset);
 
     // Here we detect pixel aligned blit-like image draws. Some devices have low precision filtering
     // and will produce degraded (blurry) images unexpectedly for sequential exact pixel blits when
@@ -1985,7 +2000,7 @@ static void add_to_key(const KeyContext& keyContext,
     ColorSpaceTransformBlock::ColorSpaceTransformData colorXformData(
             SwizzleClassToReadEnum(readSwizzle));
 
-    if (!shader->isRaw()) {
+    if (!isRaw) {
         colorXformData.fSteps = SkColorSpaceXformSteps(imageToDraw->colorSpace(),
                                                        imageToDraw->alphaType(),
                                                        keyContext.dstColorInfo().colorSpace(),
@@ -2027,77 +2042,77 @@ static void add_to_key(const KeyContext& keyContext,
             });
 }
 
-static void add_to_key(const KeyContext& keyContext, const SkLocalMatrixShader* shader) {
+static void add_to_key(const KeyContext& keyContext, const SkImageShader* shader) {
     SkASSERT(shader);
-    auto wrappedShader = shader->wrappedShader().get();
+    add_image_to_key(keyContext, shader->image().get(), shader->subset(), shader->sampling(),
+                     shader->tileModeX(), shader->tileModeY(), shader->isRaw());
+}
 
-    // Fold the texture's origin flip into the local matrix so that the image shader doesn't need
-    // additional state.
-    SkMatrix matrix;
-
-    SkShaderBase* wrappedShaderBase = as_SB(wrappedShader);
-    if (wrappedShaderBase->type() == SkShaderBase::ShaderType::kImage) {
-        auto imgShader = static_cast<const SkImageShader*>(wrappedShader);
-        // If the image is not graphite backed then we can assume the origin will be TopLeft as we
-        // require that in the ImageProvider utility. Also Graphite YUV images are assumed to be
-        // TopLeft origin.
-        auto imgBase = as_IB(imgShader->image());
-        if (imgBase->isGraphiteBacked()) {
-            // The YUV formats can encode their own origin including reflection and rotation,
-            // so we need to concat that to the local matrix transform.
-            if (imgBase->isYUVA()) {
-                auto imgYUVA = static_cast<const Image_YUVA*>(imgBase);
-                SkASSERT(imgYUVA);
-                matrix = matrix_invert_or_identity(imgYUVA->yuvaInfo().originMatrix());
-            } else {
-                auto imgGraphite = static_cast<Image*>(imgBase);
-                SkASSERT(imgGraphite);
-                const auto& view = imgGraphite->textureProxyView();
-                if (view.origin() == Origin::kBottomLeft) {
-                    matrix.setScaleY(-1);
-                    matrix.setTranslateY(view.height());
-                }
+static SkMatrix get_image_origin_matrix(const SkImage* image) {
+    // If the image is not graphite backed then we can assume the origin will be TopLeft as we
+    // require that in the ImageProvider utility. Also Graphite YUV images are assumed to be TopLeft
+    // origin.
+    SkASSERT(image);
+    const auto* imgBase = as_IB(image);
+    if (imgBase->isGraphiteBacked()) {
+        // The YUV formats can encode their own origin including reflection and rotation,
+        // so we need to concat that to the local matrix transform.
+        if (imgBase->isYUVA()) {
+            auto imgYUVA = static_cast<const Image_YUVA*>(imgBase);
+            return imgYUVA->yuvaInfo().inverseOriginMatrix();
+        } else {
+            const auto& view = static_cast<const Image*>(imgBase)->textureProxyView();
+            if (view.origin() == Origin::kBottomLeft) {
+                return SkMatrix::ScaleTranslate(1.f, -1.f, 0.f, view.height());
             }
-
-        }
-    } else if (wrappedShaderBase->type() == SkShaderBase::ShaderType::kGradientBase) {
-        auto gradShader = static_cast<const SkGradientBaseShader*>(wrappedShader);
-        matrix = gradShader->getGradientMatrix();
-
-        // Override the conical gradient matrix since graphite uses a different algorithm
-        // than the ganesh and raster backends.
-        if (gradShader->asGradient() == SkShaderBase::GradientType::kConical) {
-            auto conicalShader = static_cast<const SkConicalGradient*>(gradShader);
-
-            SkMatrix conicalMatrix;
-            if (conicalShader->getType() == SkConicalGradient::Type::kRadial) {
-                SkPoint center = conicalShader->getStartCenter();
-                conicalMatrix.postTranslate(-center.fX, -center.fY);
-
-                float scale = sk_ieee_float_divide(1, conicalShader->getDiffRadius());
-                conicalMatrix.postScale(scale, scale);
-            } else {
-                auto mx = (SkConicalGradient::MapToUnitX(conicalShader->getStartCenter(),
-                                                         conicalShader->getEndCenter()));
-                SkASSERT(mx);
-                conicalMatrix = mx.value_or(SkMatrix::I());
-            }
-            matrix = conicalMatrix;
         }
     }
+    // Otherwise no modification required
+    return SkMatrix::I();
+}
 
-    SkMatrix lmInverse = matrix_invert_or_identity(shader->localMatrix());
-    lmInverse.postConcat(matrix);
+static SkMatrix get_gradient_matrix(const SkGradientBaseShader* gradShader) {
+    // Override the conical gradient matrix since graphite uses a different algorithm
+    // than the ganesh and raster backends.
+    if (gradShader->asGradient() == SkShaderBase::GradientType::kConical) {
+        auto conicalShader = static_cast<const SkConicalGradient*>(gradShader);
 
-    LocalMatrixShaderBlock::LMShaderData lmShaderData(lmInverse);
+        if (conicalShader->getType() == SkConicalGradient::Type::kRadial) {
+            SkMatrix conicalMatrix = SkMatrix::Translate(-conicalShader->getStartCenter());
+            float scale = sk_ieee_float_divide(1, conicalShader->getDiffRadius());
+            conicalMatrix.postScale(scale, scale);
+            return conicalMatrix;
+        } else {
+            auto mx = (SkConicalGradient::MapToUnitX(conicalShader->getStartCenter(),
+                                                     conicalShader->getEndCenter()));
+            return *mx;
+        }
+    } else {
+        // Use the standard gradient matrix for other types
+        return gradShader->getGradientMatrix();
+    }
+}
 
-    KeyContextWithLocalMatrix newContext(keyContext, shader->localMatrix());
+static void add_to_key(const KeyContext& keyContext, const SkLocalMatrixShader* shader) {
+    SkASSERT(shader);
+    // Fold the texture's origin flip into the local matrix so that the image shader doesn't need
+    // additional state; the same goes for gradient shader's gradient matrix coord conversion.
+    SkShaderBase* wrappedShaderBase = as_SB(shader->wrappedShader().get());
+    SkMatrix xtraMatrix = SkMatrix::I();
+    if (wrappedShaderBase->type() == SkShaderBase::ShaderType::kImage) {
+        auto imgShader = static_cast<const SkImageShader*>(wrappedShaderBase);
+        xtraMatrix = get_image_origin_matrix(imgShader->image().get());
+    } else if (wrappedShaderBase->type() == SkShaderBase::ShaderType::kGradientBase) {
+        auto gradShader = static_cast<const SkGradientBaseShader*>(wrappedShaderBase);
+        xtraMatrix = get_gradient_matrix(gradShader);
+    }
 
-    LocalMatrixShaderBlock::BeginBlock(newContext, lmShaderData);
-
-    AddToKey(newContext, wrappedShader);
-
-    keyContext.paintParamsKeyBuilder()->endBlock();
+    add_local_matrix_to_key(keyContext,
+                            shader->localMatrix(),
+                            /*postInverseMatrix=*/xtraMatrix,
+                            [&](const KeyContext& childCtx) {
+                                    AddToKey(childCtx, wrappedShaderBase);
+                            });
 }
 
 // If either of these change then the corresponding change must also be made in the SkSL
@@ -2125,7 +2140,7 @@ static void add_to_key(const KeyContext& keyContext, const SkPerlinNoiseShader* 
 
     if (!perm || !noise) {
         SKGPU_LOG_W("Couldn't create tables for PerlinNoiseShader");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -2164,7 +2179,7 @@ static void add_to_key(const KeyContext& keyContext,
                                                        props);
     if (!info.success) {
         SKGPU_LOG_W("Couldn't access PictureShaders' Image info");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -2184,7 +2199,7 @@ static void add_to_key(const KeyContext& keyContext,
                                            &info.props);
     if (!surface) {
         SKGPU_LOG_W("Could not create surface to render PictureShader");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -2194,7 +2209,7 @@ static void add_to_key(const KeyContext& keyContext,
     // list this works out okay, but will need to be addressed before we move off that system.
     if (!img) {
         SKGPU_LOG_W("Couldn't create SkImage for PictureShader");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -2203,7 +2218,7 @@ static void add_to_key(const KeyContext& keyContext,
                                                 SkSamplingOptions(shader->filter()), &shaderLM);
     if (!imgShader) {
         SKGPU_LOG_W("Couldn't create SkImageShader for PictureShader");
-        keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+        keyContext.paintParamsKeyBuilder()->addErrorBlock();
         return;
     }
 
@@ -2233,13 +2248,13 @@ static void add_to_key(const KeyContext& keyContext,
 static void add_to_key(const KeyContext& keyContext,
                        const SkTransformShader* shader) {
     SKGPU_LOG_W("Raster-only SkShader (SkTransformShader) encountered");
-    keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+    keyContext.paintParamsKeyBuilder()->addErrorBlock();
 }
 
 static void add_to_key(const KeyContext& keyContext,
                        const SkTriColorShader* shader) {
     SKGPU_LOG_W("Raster-only SkShader (SkTriColorShader) encountered");
-    keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+    keyContext.paintParamsKeyBuilder()->addErrorBlock();
 }
 
 static void add_to_key(const KeyContext& keyContext,
@@ -2385,7 +2400,7 @@ static void add_gradient_to_key(const KeyContext& keyContext,
                     create_color_and_offset_bitmap(colorCount, colors, positions);
             if (colorsAndOffsetsBitmap.empty()) {
                 SKGPU_LOG_W("Couldn't create GradientShader's color and offset bitmap");
-                keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+                keyContext.paintParamsKeyBuilder()->addErrorBlock();
                 return;
             }
             shader->setCachedBitmap(colorsAndOffsetsBitmap);
@@ -2395,7 +2410,7 @@ static void add_gradient_to_key(const KeyContext& keyContext,
                                                 "GradientTexture");
         if (!proxy) {
             SKGPU_LOG_W("Couldn't create GradientShader's color and offset bitmap proxy");
-            keyContext.paintParamsKeyBuilder()->addBlock(BuiltInCodeSnippetID::kError);
+            keyContext.paintParamsKeyBuilder()->addErrorBlock();
             return;
         }
     }
@@ -2520,6 +2535,23 @@ void AddToKey(const KeyContext& keyContext, const SkShader* shader) {
 #undef M
     }
     SkUNREACHABLE;
+}
+
+// An SkImageShader object on a paint is actually always an SkLocalMatrixShader composed with an
+// SkImageShader. This creates the same call sequence with the decomposed objects.
+void AddToKey(const KeyContext& keyContext, const PaintParams::SimpleImage& simpleImage) {
+    add_local_matrix_to_key(keyContext,
+                            simpleImage.fLocalMatrix ? *simpleImage.fLocalMatrix : SkMatrix::I(),
+                            get_image_origin_matrix(simpleImage.fImage),
+                            [&](const KeyContext& childCtx) {
+                                    add_image_to_key(childCtx,
+                                                     simpleImage.fImage,
+                                                     simpleImage.fSubset,
+                                                     simpleImage.fSamplingOptions,
+                                                     SkTileMode::kClamp,
+                                                     SkTileMode::kClamp,
+                                                     /*isRaw=*/false);
+                            });
 }
 
 void AddFixedBlendMode(const KeyContext& keyContext, SkBlendMode bm) {

@@ -21,16 +21,18 @@
 
 #entrypoint {
   --cr-button-disabled-text-color:
-      var(--color-new-tab-page-composebox-context-entrypoint-text-disabled);
-  --cr-button-text-color: var(--color-new-tab-page-composebox-file-chip-text);
+      var(--color-composebox-context-entrypoint-text-disabled);
+  --cr-button-text-color: var(--color-composebox-file-chip-text);
   --cr-hover-background-color:
-      var(--color-new-tab-page-composebox-context-entrypoint-hover-background);
+      var(--color-composebox-context-entrypoint-hover-background);
   --cr-icon-button-margin-start: 6px;
+  --icon-block-padding-small: 10px;
   border: initial;
+  gap: 4px;
 }
 
 #entrypoint:not([disabled]) {
-  --cr-icon-button-fill-color: var(--cr-button-text-color);
+  --cr-icon-button-fill-color: var(--composebox-context-menu-entrypoint-button-color, --cr-button-text-color);
 }
 
 #description {
@@ -40,13 +42,13 @@
 
 #menu {
   --color-sys-divider:
-  var(--color-new-tab-page-composebox-file-carousel-divider);
+  var(--color-composebox-file-carousel-divider);
   --cr-action-menu-overflow: visible;
-  --cr-menu-background-color: var(--color-new-tab-page-composebox-background);
+  --cr-menu-background-color: var(--color-composebox-background);
   --cr-menu-border-radius: 16px;
-  --cr-primary-text-color: var(--color-new-tab-page-composebox-file-chip-text);
+  --cr-primary-text-color: var(--color-composebox-file-chip-text);
   --cr-hover-background-color:
-      var(--color-new-tab-page-composebox-context-entrypoint-hover-background);
+      var(--color-composebox-context-entrypoint-hover-background);
 }
 
 .suggestion-container {
@@ -108,7 +110,7 @@
 }
 
 .dropdown-item[disabled] {
-  color: var(--color-new-tab-page-composebox-context-entrypoint-text-disabled);
+  color: var(--color-composebox-context-entrypoint-text-disabled);
   cursor: default;
 }
 
@@ -131,6 +133,6 @@
 }
 
 #createImage {
-  --iron-icon-height: 18px;
-  --iron-icon-width: 18px;
+  --iron-icon-height: 16px;
+  --iron-icon-width: 16px;
 }

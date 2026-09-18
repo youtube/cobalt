@@ -1711,6 +1711,14 @@ targets.binaries.console_test_launcher(
     module_scheme = "gtest",
 )
 
+targets.binaries.console_test_launcher(
+    name = "chrome_public_test_ar_apk",
+    label = "//chrome/android:chrome_public_test_ar_apk",
+    # All references have been moved to starlark
+    skip_usage_check = True,
+    module_scheme = "junit",
+)
+
 targets.binaries.generated_script(
     name = "build_rust_tests",
     label = "//build/rust/tests:build_rust_tests",
@@ -1899,7 +1907,6 @@ targets.binaries.generated_script(
             "--smoke-test-mode",
         ],
     ),
-    module_scheme = "flat",
 )
 
 targets.binaries.generated_script(

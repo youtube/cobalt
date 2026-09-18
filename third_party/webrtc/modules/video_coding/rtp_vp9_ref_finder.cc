@@ -34,16 +34,18 @@ RtpFrameReferenceFinder::ReturnVector RtpVp9RefFinder::ManageFrame(
   const RTPVideoHeaderVP9& codec_header =
       std::get<RTPVideoHeaderVP9>(frame->GetRtpVideoHeader().video_type_header);
 
+  if (codec_header.temporal_idx >= kMaxTemporalLayers ||
+      codec_header.spatial_idx >= kMaxSpatialLayers) {
+    return {};
+  }
+
   if (codec_header.temporal_idx != kNoTemporalIdx)
     frame->SetTemporalIndex(codec_header.temporal_idx);
   frame->SetSpatialIndex(codec_header.spatial_idx);
   frame->SetId(codec_header.picture_id & (kFrameIdLength - 1));
 
   FrameDecision decision;
-  if (codec_header.temporal_idx >= kMaxTemporalLayers ||
-      codec_header.spatial_idx >= kMaxSpatialLayers) {
-    decision = kDrop;
-  } else if (codec_header.flexible_mode) {
+  if (codec_header.flexible_mode) {
     decision = ManageFrameFlexible(frame.get(), codec_header);
   } else {
     if (codec_header.tl0_pic_idx == kNoTl0PicIdx) {

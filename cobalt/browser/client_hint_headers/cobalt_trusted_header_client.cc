@@ -40,6 +40,7 @@ void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
 void CobaltTrustedHeaderClient::OnHeadersReceived(
     const std::string& headers,
     const net::IPEndPoint& remote_endpoint,
+    const std::optional<net::SSLInfo>& ssl_info,
     OnHeadersReceivedCallback callback) {
   // Cobalt does not currently need to act on response headers, so this is a
   // no-op.

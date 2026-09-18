@@ -64,6 +64,19 @@ class DesktopBnplUiDelegateBrowserTest
     }
   }
 
+  void RemoveUi() {
+    switch (GetParam().dialog) {
+      case DialogEnum::kSelectBnplIssuer: {
+        GetDesktopBnplUiDelegate()->RemoveSelectBnplIssuerOrProgressUi();
+        break;
+      }
+      case DialogEnum::kBnplTos: {
+        GetDesktopBnplUiDelegate()->RemoveBnplTosOrProgressUi();
+        break;
+      }
+    }
+  }
+
   DesktopBnplUiDelegate* GetDesktopBnplUiDelegate() {
     return static_cast<DesktopBnplUiDelegate*>(
         ChromeAutofillClient::FromWebContents(web_contents())
@@ -109,6 +122,14 @@ IN_PROC_BROWSER_TEST_P(DesktopBnplUiDelegateBrowserTest,
   browser()->window()->Close();
   // Wait until the browser window is closed.
   base::RunLoop().RunUntilIdle();
+}
+
+// Ensures that removing the dialog after showing won't crash the browser.
+IN_PROC_BROWSER_TEST_P(DesktopBnplUiDelegateBrowserTest,
+                       ShowAndVerifyUi_ThenCloseUi) {
+  ShowAndVerifyUi();
+  // Remove the dialog.
+  RemoveUi();
 }
 
 }  // namespace autofill::payments

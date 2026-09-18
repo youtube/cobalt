@@ -61,4 +61,9 @@ RTCError RtpTransceiverInterface::SetDirectionWithError(
   return RTCError::OK();
 }
 
+bool RtpTransceiverInterface::receptive() const {
+  RTC_DCHECK_NOTREACHED() << "Default implementation called";
+  return false;
+}
+
 }  // namespace webrtc

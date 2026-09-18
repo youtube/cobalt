@@ -298,13 +298,21 @@ class MaglevReducer {
       ValueNode* node, ValueNode** constant_node = nullptr);
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
+  std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);
   std::optional<double> TryGetFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,
       TaggedToFloat64ConversionType conversion_type);
 
   template <typename MapContainer>
-  MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
-                                     const MapContainer& maps);
+  MaybeReduceResult TryFoldCheckConstantMaps(ValueNode* object,
+                                             const MapContainer& maps);
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckConstantMaps(compiler::MapRef map,
+                                             const MapContainer& maps);
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckMaps(ValueNode* object, ValueNode* object_map,
+                                     const MapContainer& maps,
+                                     KnownMapsMerger<MapContainer>& merger);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 
@@ -323,6 +331,12 @@ class MaglevReducer {
   //
   // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+
+  // Get a ShiftInt53 representation node whose value is equivalent to the given
+  // node.
+  //
+  // Deopts if the value is not exactly representable as an Int32.
+  ValueNode* GetShiftedInt53(ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the ToInt32
   // truncation of the given node (including a ToNumber call). Only trivial
@@ -445,6 +459,9 @@ class MaglevReducer {
   Int32Constant* GetInt32Constant(int32_t constant) {
     return graph()->GetInt32Constant(constant);
   }
+  ShiftedInt53Constant* GetShiftedInt53Constant(ShiftedInt53 constant) {
+    return graph()->GetShiftedInt53Constant(constant);
+  }
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
     return graph()->GetIntPtrConstant(constant);
   }
@@ -493,6 +510,8 @@ class MaglevReducer {
                                                    ValueNode* left,
                                                    int32_t cst_right);
   bool TryFoldInt32CompareOperation(Operation op, int32_t left, int32_t right);
+
+  MaybeReduceResult TryFoldShiftedInt53Add(ValueNode* left, ValueNode* right);
 
   template <Operation kOperation>
   MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(

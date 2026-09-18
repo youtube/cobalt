@@ -27,19 +27,18 @@
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
 
 // A test echo server, echoes back any packets sent to it.
 // Useful for unit tests.
-class TestEchoServer : public sigslot::has_slots<> {
+class TestEchoServer {
  public:
   TestEchoServer(const Environment& env,
                  Thread* thread,
                  const SocketAddress& addr);
-  ~TestEchoServer() override;
+  virtual ~TestEchoServer();
 
   TestEchoServer(const TestEchoServer&) = delete;
   TestEchoServer& operator=(const TestEchoServer&) = delete;
@@ -84,6 +83,5 @@ class TestEchoServer : public sigslot::has_slots<> {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // RTC_BASE_TEST_ECHO_SERVER_H_

@@ -2015,7 +2015,6 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
       object, field_offset, kCodeIndirectPointerTag));
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
     TNode<JSDispatchHandleT> handle) {
@@ -2066,7 +2065,6 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   return Load<Uint16T>(table, offset);
 }
 
-#endif  // V8_ENABLE_LEAPTIERING
 
 void CodeStubAssembler::TailCallJSCode(
     TNode<Code> code, TNode<Context> context, TNode<JSFunction> function,
@@ -2090,12 +2088,7 @@ void CodeStubAssembler::TailCallJSCode(
     TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
     TNode<JSDispatchHandleT> dispatch_handle) {
-#ifdef V8_ENABLE_LEAPTIERING
   TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
-#else
-  TNode<Code> code =
-      LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
-#endif  // V8_ENABLE_LEAPTIERING
 
   CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
                                 dispatch_handle);
@@ -2206,15 +2199,8 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
 void CodeStubAssembler::SetSupportsDynamicParameterCount(
     TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle) {
   TNode<Uint16T> dynamic_parameter_count;
-#ifdef V8_ENABLE_LEAPTIERING
   dynamic_parameter_count =
       LoadParameterCountFromJSDispatchTable(dispatch_handle);
-#else
-  // TODO(olivf): Remove once leaptiering is supported everywhere.
-  TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(callee);
-  dynamic_parameter_count =
-      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared);
-#endif
   SetDynamicJSParameterCount(dynamic_parameter_count);
 }
 
@@ -11844,10 +11830,10 @@ void CodeStubAssembler::Lookup(TNode<Name> unique_name, TNode<Array> array,
   }
   GotoIf(Word32Equal(number_of_valid_entries, Int32Constant(0)), if_not_found);
   Label linear_search(this), binary_search(this);
-  const int kMaxElementsForLinearSearch = 32;
-  Branch(Uint32LessThanOrEqual(number_of_valid_entries,
-                               Int32Constant(kMaxElementsForLinearSearch)),
-         &linear_search, &binary_search);
+  Branch(
+      Uint32LessThanOrEqual(number_of_valid_entries,
+                            Int32Constant(Array::kMaxElementsForLinearSearch)),
+      &linear_search, &binary_search);
   BIND(&linear_search);
   {
     LookupLinear<Array>(unique_name, array, number_of_valid_entries, if_found,
@@ -17459,6 +17445,8 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
     TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
     TNode<Number> current_index = LoadObjectField<Number>(
         array_iterator, JSArrayIterator::kNextIndexOffset);
+    GotoIf(TaggedIsNotSmi(current_index), &reach_end);
+
     TNode<Smi> smi_index = CAST(current_index);
     GotoIf(SmiGreaterThanOrEqual(smi_index, length), &reach_end);
 
@@ -18196,7 +18184,6 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
     RootIndex idx) {
@@ -18221,7 +18208,6 @@ TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
 }
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 
-#endif  // V8_ENABLE_LEAPTIERING
 
 void CodeStubAssembler::DispatchOnInstanceType(
     TNode<Object> value, TVariable<Uint16T>* type_out, Label* if_default,
@@ -18454,7 +18440,6 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
   // builtin id, so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode().
   DCHECK(sfi->HasBuiltinId());
-#ifdef V8_ENABLE_LEAPTIERING
   const TNode<JSDispatchHandleT> dispatch_handle =
       LoadBuiltinDispatchHandle(function);
   CSA_DCHECK(this,
@@ -18463,10 +18448,6 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
   USE(sfi);
-#else
-  const TNode<Code> code = LoadBuiltin(SmiConstant(sfi->builtin_id()));
-  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
-#endif  // V8_ENABLE_LEAPTIERING
 
   return CAST(fun);
 }

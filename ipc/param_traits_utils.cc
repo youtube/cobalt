@@ -41,7 +41,6 @@
 #include <tchar.h>
 
 #include "ipc/handle_win.h"
-#include "ipc/platform_file_for_transit.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/file_descriptor_posix.h"
 #include "ipc/ipc_platform_file_attachment_posix.h"
@@ -966,38 +965,6 @@ bool ParamTraits<base::subtle::PlatformSharedMemoryRegion::Mode>::Read(
   return true;
 }
 
-#if BUILDFLAG(IS_WIN)
-void ParamTraits<PlatformFileForTransit>::Write(base::Pickle* m,
-                                                const param_type& p) {
-  m->WriteBool(p.IsValid());
-  if (p.IsValid()) {
-    HandleWin handle_win(p.GetHandle());
-    ParamTraits<HandleWin>::Write(m, handle_win);
-    ::CloseHandle(p.GetHandle());
-  }
-}
-
-bool ParamTraits<PlatformFileForTransit>::Read(const base::Pickle* m,
-                                               base::PickleIterator* iter,
-                                               param_type* r) {
-  bool is_valid;
-  if (!iter->ReadBool(&is_valid)) {
-    return false;
-  }
-  if (!is_valid) {
-    *r = PlatformFileForTransit();
-    return true;
-  }
-
-  HandleWin handle_win;
-  if (!ParamTraits<HandleWin>::Read(m, iter, &handle_win)) {
-    return false;
-  }
-  *r = PlatformFileForTransit(handle_win.get_handle());
-  return true;
-}
-#endif  // BUILDFLAG(IS_WIN)
-
 void ParamTraits<base::FilePath>::Write(base::Pickle* m, const param_type& p) {
   p.WriteToPickle(m);
 }
@@ -1154,28 +1121,18 @@ void ParamTraits<Message>::Write(base::Pickle* m, const Message& p) {
   // may or may not be safe to send between 32-bit and 64-bit systems, but we
   // leave that up to the code sending the message to ensure.
   // TODO(crbug.com/40511454): remove this code.
-  m->WriteUInt32(static_cast<uint32_t>(p.routing_id()));
-  m->WriteUInt32(p.type());
-  m->WriteUInt32(p.flags());
   m->WriteData(p.payload_bytes());
 }
 
 bool ParamTraits<Message>::Read(const base::Pickle* m,
                                 base::PickleIterator* iter,
                                 Message* r) {
-  uint32_t routing_id, type, flags;
-  if (!iter->ReadUInt32(&routing_id) || !iter->ReadUInt32(&type) ||
-      !iter->ReadUInt32(&flags)) {
-    return false;
-  }
-
   size_t payload_size;
   const char* payload;
   if (!iter->ReadData(&payload, &payload_size)) {
     return false;
   }
 
-  r->SetHeaderValues(static_cast<int32_t>(routing_id), type, flags);
   r->WriteBytes(payload, payload_size);
   return true;
 }

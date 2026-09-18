@@ -92,7 +92,7 @@ void BackingStoreTestBase::CreateFactoryAndBackingStore() {
       quota_manager_proxy_, std::move(blob_storage_context),
       std::move(fsa_context));
   std::tie(std::ignore, std::ignore, data_loss_info_) =
-      bucket_context_->InitBackingStoreIfNeeded(/*create_if_missing=*/true);
+      bucket_context_->InitBackingStore(/*create_if_missing=*/true);
 
   backing_store_ = bucket_context_->backing_store();
 }
@@ -228,14 +228,17 @@ IndexedDBExternalObject BackingStoreTestBase::CreateFileInfo(
 
 IndexedDBExternalObject BackingStoreTestBase::CreateBlobInfo(
     const std::u16string& type,
-    std::string_view blob_data) {
+    std::optional<std::string_view> blob_data) {
   mojo::PendingRemote<blink::mojom::Blob> remote;
   auto fake_blob = std::make_unique<storage::FakeBlob>(
       base::Uuid::GenerateRandomV4().AsLowercaseString());
-  fake_blob->set_body(blob_data);
+  if (blob_data) {
+    fake_blob->set_body(*blob_data);
+  }
   mojo::MakeSelfOwnedReceiver(std::move(fake_blob),
                               remote.InitWithNewPipeAndPassReceiver());
-  IndexedDBExternalObject info(std::move(remote), type, blob_data.size());
+  IndexedDBExternalObject info(std::move(remote), type,
+                               blob_data ? blob_data->size() : 64);
   return info;
 }
 

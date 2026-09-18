@@ -14,7 +14,10 @@
 
 namespace webrtc {
 
-PortInterface::PortInterface() = default;
+PortInterface::PortInterface()
+    : unknown_address_trampoline_(this),
+      read_packet_trampoline_(this),
+      sent_packet_trampoline_(this) {}
 
 PortInterface::~PortInterface() = default;
 

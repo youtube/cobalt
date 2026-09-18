@@ -1,5 +1,5 @@
 <!-- go/cmark -->
-<!--* freshness: {owner: 'danilchap' reviewed: '2025-04-25'} *-->
+<!--* freshness: {owner: 'danilchap' reviewed: '2025-10-28'} *-->
 
 # WebRTC coding style guide
 
@@ -140,22 +140,28 @@ For example,
 | `const T* ptr, size_t num_elements` | `ArrayView<const T>` |
 | `T* ptr, size_t num_elements`       | `ArrayView<T>`       |
 
-See the [source code for `ArrayView`](api/array_view.h) for more detailed
+See the [source code for `ArrayView`][ArrayView] for more detailed
 docs.
+
+[ArrayView]: https://webrtc.googlesource.com/src/+/refs/heads/main/api/array_view.h
 
 ### Strings
 
 WebRTC uses std::string, with content assumed to be UTF-8. Note that this
 has to be verified whenever accepting external input.
 
-For concatenation of strings, use webrtc::StrJoin or webrtc::SimpleStringBuilder
-directly.
+For concatenation of strings, use `webrtc::StrJoin` or
+`webrtc::SimpleStringBuilder` directly.
 
 The following string building tools are NOT recommended:
-* The + operator. See https://abseil.io/tips/3 for why not.
-* absl::StrCat, absl::StrAppend, absl::StrJoin. These are optimized for
+
+* The + operator. See [String Concatenation and operator+][totw-3] for why not.
+* `absl::StrCat`, `absl::StrAppend`, `absl::StrJoin`. These are optimized for
   speed, not code size, and have significant code size overhead.
-* strcat. It is too easy to create buffer overflows.
+* [`std::strcat`][std-strcat]. It is too easy to create buffer overflows.
+
+[totw-3]: https://abseil.io/tips/3
+[std-strcat]: https://en.cppreference.com/w/cpp/string/byte/strcat.html
 
 ### sigslot
 
@@ -246,7 +252,7 @@ For this reason running presubmit on old WebRTC python script might trigger fail
 The failures can either be fixed are ignored by adding the script to the [PYLINT_OLD_STYLE][old-style-lint] list.
 
 [chr-py-style]: https://chromium.googlesource.com/chromium/src/+/main/styleguide/python/python.md
-[old-style-lint]: https://source.chromium.org/chromium/_/webrtc/src/+/9b81d2c954128831c62d8a0657c7f955b3c02d32:PRESUBMIT.py;l=50
+[old-style-lint]: https://webrtc.googlesource.com/src/+/f70dc714a073397356f6ed866481da73f90f0b96/PRESUBMIT.py#48
 
 ## Build files
 
@@ -301,7 +307,7 @@ Prefer to restrict the `visibility` if possible:
 
 Setting `visibility = [ "*" ]` means that targets outside the WebRTC tree can
 depend on this target; use this only for build targets whose headers are part of
-the [native WebRTC API](native-api.md).
+the [native WebRTC API](../native-api.md).
 
 ### Conditional compilation with the C preprocessor
 

@@ -1681,6 +1681,7 @@ if (rtc_include_tests) {
       ":candidate",
       ":datagram_connection",
       "../p2p:transport_description",
+      "../rtc_base:refcount",
       "//test:test_support",
       "//testing/gmock",
     ]
@@ -1789,6 +1790,7 @@ if (rtc_include_tests) {
       "video:rtp_video_frame_assembler_unittests",
       "video:video_frame",
       "video:video_frame_metadata_unittest",
+      "video/corruption_detection:corruption_detection_unittests",
       "video/corruption_detection:frame_instrumentation_data_reader_unittest",
       "video/corruption_detection:frame_instrumentation_data_unittest",
       "video/corruption_detection:frame_instrumentation_evaluation_unittest",

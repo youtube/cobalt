@@ -1167,16 +1167,16 @@ Call::Stats Call::GetStats() const {
 
   stats.sent_ccfb_stats_per_ssrc =
       receive_side_cc_.GetCongestionControllerStatsPerSsrc();
+  stats.received_ccfb_stats_per_ssrc =
+      transport_send_->GetCongestionControlFeedbackStatsPerSsrc();
 
   return stats;
 }
 
 void Call::SetPreferredRtcpCcAckType(
     RtcpFeedbackType preferred_rtcp_cc_ack_type) {
-  if (preferred_rtcp_cc_ack_type == RtcpFeedbackType::CCFB) {
-    receive_side_cc_.EnableSendCongestionControlFeedbackAccordingToRfc8888();
-    transport_send_->EnableCongestionControlFeedbackAccordingToRfc8888();
-  }  //  else default to transport CC if correct header extension is negotiated
+  receive_side_cc_.SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
+  transport_send_->SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
 }
 
 std::optional<int> Call::FeedbackAccordingToRfc8888Count() {

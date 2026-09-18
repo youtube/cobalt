@@ -140,6 +140,7 @@ ci/Linux FYI Release (AMD RX 5500 XT)
 ci/Linux FYI Release (AMD RX 7600)
 ci/Linux FYI Release (Intel UHD 630)
 ci/Linux FYI Release (Intel UHD 770)
+ci/Linux FYI Release (NVIDIA RTX 4070 Super)
 ci/Linux FYI Release (NVIDIA)
 ci/Linux MSan Builder
 ci/Linux MSan Tests
@@ -523,12 +524,14 @@ try/gpu-fyi-try-linux-amd-890m-exp
 try/gpu-fyi-try-linux-amd-rel
 try/gpu-fyi-try-linux-amd-rx-7600-rel
 try/gpu-fyi-try-linux-intel-arc-140v-exp
+try/gpu-fyi-try-linux-intel-arc-b570-exp
 try/gpu-fyi-try-linux-intel-exp
 try/gpu-fyi-try-linux-intel-rel
 try/gpu-fyi-try-linux-intel-uhd770-rel
 try/gpu-fyi-try-linux-nvidia-dbg
 try/gpu-fyi-try-linux-nvidia-exp
 try/gpu-fyi-try-linux-nvidia-rel
+try/gpu-fyi-try-linux-nvidia-rtx-4070-super-rel
 try/gpu-fyi-try-linux-nvidia-tsn
 try/gpu-fyi-try-linux-wayland-amd-rel
 try/gpu-fyi-try-linux-wayland-intel-rel
@@ -564,6 +567,7 @@ try/gpu-fyi-try-win11-qualcomm-snapdragon-x-elite-rel-64
 try/gpu-fyi-try-win11-x64-amd-780m-exp
 try/gpu-fyi-try-win11-x64-amd-890m-exp
 try/gpu-fyi-try-win11-x64-intel-arc-140v-exp
+try/gpu-fyi-try-win11-x64-intel-arc-b570-exp
 try/gpu-try-android-pixel-2-64
 try/gpu-try-linux-nvidia-rel
 try/gpu-try-mac-amd-retina-dbg

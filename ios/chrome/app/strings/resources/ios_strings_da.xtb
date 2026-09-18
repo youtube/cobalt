@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">Du har allerede gemt dette brugernavn for dette website</translation>
 <translation id="1497590942294823549">Menu → Adgangs­kode­admin­istrator</translation>
 <translation id="1498283581832036924">Din <ph name="WEBSITE" />-konto slettes ikke.</translation>
+<translation id="1503814213414825943">Vælg de konti, du vil eksportere til en anden app.</translation>
 <translation id="1506061864768559482">Søgemaskine</translation>
 <translation id="1506063256525392513">Det giver dig mulighed for at tage og uploade billeder samt scanne QR-koder</translation>
 <translation id="1508263560970797965">Fortsæt i inkognito</translation>
@@ -238,7 +239,6 @@
 <translation id="188237709236611317">Menulinje for smartsortering</translation>
 <translation id="1883255238294161206">Skjul liste</translation>
 <translation id="1888854257756214946">Vælg adgangskode…</translation>
-<translation id="1889872080060107187">Du logger ind på <ph name="URL" /></translation>
 <translation id="1890237935065108104">Denne indstilling er ikke tilgængelig.</translation>
 <translation id="1894023287452300670">Hold øje med prisen her</translation>
 <translation id="189531189292803889">Din iPad blev for nylig gendannet, hvilket muligvis har ændret din standardbrowser.</translation>
@@ -277,6 +277,7 @@
 <translation id="199425419756152024">Se adgangskode</translation>
 <translation id="1996318269856535896">Du kan stadig bruge dine eksisterende browserdata på denne enhed. For at bruge dem skal du logge ud af din administrerede konto.</translation>
 <translation id="2010008505735295285">Genindlæs</translation>
+<translation id="2012723204723845092">Velkommen tilbage.</translation>
 <translation id="2015722694326466240">Angiv en adgangskode på din enhed, før du kan se adgangskoder.</translation>
 <translation id="201759455285471444">Udvid fanegruppe.</translation>
 <translation id="202070562065520783">Forklar dette til mig</translation>
@@ -647,6 +648,7 @@
 <translation id="3530024057633834563">Der er ingen gemte adgangskoder eller adgangsnøgler, men du kan slette listen over websites og apps, hvor du har valgt aldrig at gemme loginoplysninger. Konti, du har oprettet til websites og apps, slettes ikke.</translation>
 <translation id="3530206579861815432">Find hurtigt åbne og nyligt lukkede faner på dine synkroniserede enheder.</translation>
 <translation id="3530767473765895035">Administrer konti på denne enhed…</translation>
+<translation id="353340646084395154">Præferencerne for siden Ny fane er fjernet</translation>
 <translation id="3533436815740441613">Ny fane</translation>
 <translation id="3540141921715814660">Føj til Bogmærker</translation>
 <translation id="3546122170015471515">Maps (preview) på Google.com</translation>
@@ -675,6 +677,7 @@
 <translation id="3642060527569456384">Fanegrupper gemmes og opdateres automatisk på alle dine enheder.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} adgangskode gemmes kun på denne enhed. Hvis du vil bruge den på dine andre enheder, skal du gemme den på din Google-konto, {email}.}one{{count} adgangskode gemmes kun på denne enhed. Hvis du vil bruge den på dine andre enheder, skal du gemme den på din Google-konto, {email}.}other{{count} adgangskoder gemmes kun på denne enhed. Hvis du vil bruge dem på dine andre enheder, skal du gemme dem på din Google-konto, {email}.}}</translation>
 <translation id="3659297405161482746">Der blev ikke fundet nogen betalingsmetoder</translation>
+<translation id="3662966164093827811">{count,plural, =1{1 er valgt}one{# er valgt}other{# er valgt}}</translation>
 <translation id="3668816008081204991">Læselisten er skjult</translation>
 <translation id="3670030362669914947">Nummer</translation>
 <translation id="3679163990085797665">Slet læste</translation>
@@ -739,6 +742,7 @@
 <translation id="3926703470020109118">Downloaden blev annulleret</translation>
 <translation id="3929457972718048006">Adresser</translation>
 <translation id="3931215329146376310">{count,plural, =1{Ny adgangskode til dette website}one{Ny adgangskode til dette website}other{Nye adgangskoder til dette website}}</translation>
+<translation id="3933372629914873850">Du logger ind på <ph name="URL" /></translation>
 <translation id="3934905113567851655">Knib fingrene sammen for at tilpasse størrelse</translation>
 <translation id="3940195383040445971">Følg prisudvikling på faner</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Luk {COUNT} fane}one{Luk {COUNT} fane}other{Luk {COUNT} faner}}</translation>
@@ -1000,6 +1004,7 @@
 <translation id="4894963374040315706">Det giver dig mulighed for at søge ved hjælp af stemmen</translation>
 <translation id="4895540042460820904">Senest åbnet</translation>
 <translation id="4896467949657706481">Fanerne er blevet lukket: Du er blevet logget ud</translation>
+<translation id="4911042367886397055">Velkommen tilbage, <ph name="USER_NAME" />.</translation>
 <translation id="4913626501929406101">Du kan på sikker vis dele en kopi af din adgangskode med en anden i din familiegruppe. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="4917025507570489430">Du kan bruge eksisterende browserdata, når du er logget ind som <ph name="USER_EMAIL" />. Din organisation kan muligvis se disse data.</translation>
 <translation id="4918086044614829423">Accepter</translation>
@@ -1051,6 +1056,7 @@
 <translation id="508645147179720015">Noten indeholder mere end 1.000 tegn</translation>
 <translation id="5087098519049306025">Prissporing</translation>
 <translation id="5090832849094901128">Fjernelse af denne adgangskode sletter ikke din konto på <ph name="WEBSITE" />.</translation>
+<translation id="5113960131843706315">Henter dine ting…</translation>
 <translation id="5118462200606189584">Tilføj konto…</translation>
 <translation id="5118764316110575523">Fra</translation>
 <translation id="5119329531859909472">Tryk på Overvåg for at overvåge produktet</translation>
@@ -1096,6 +1102,7 @@
 <translation id="5242899254250321823">Skift adgangskode på website</translation>
 <translation id="5248640482715684545">Dette website forsøger at åbne en anden app.</translation>
 <translation id="5250371859659394278">Via en ukendt kilde</translation>
+<translation id="5269913829202614649">Tilpas startsiden</translation>
 <translation id="5271265092610673171">{count,plural, =1{Et obligatorisk felt er tomt. Udfyld det, inden du gemmer.}one{Et obligatorisk felt er tomt. Udfyld det, inden du gemmer.}other{Nogle obligatoriske felter er tomme. Udfyld dem, inden du gemmer.}}</translation>
 <translation id="5271549068863921519">Gem adgangskode</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) vil gerne invitere dig til en fanegruppe. Alle med linket kan redigere alle faner, så vær opmærksom på det, når du deltager. Linket udløber om 48 timer.</translation>
@@ -1120,6 +1127,7 @@
 <translation id="537853552771686272">Administrer de emner og websites, du er interesseret i</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} er lukket}one{{count} closed}other{{count} er lukket}}</translation>
 <translation id="5394975111793637642">Skjul kortet Produktanmeldelser til dig</translation>
+<translation id="5407806496954700135">Vil du anvende dine tilpasninger af siden Ny fane fra en anden enhed?</translation>
 <translation id="5414763847370083940">Du får en underretning, hvis prisen falder på et website.</translation>
 <translation id="5415289094036440596">Adgangsnøgler kan ikke deles</translation>
 <translation id="5416455648658732408">Flyt til fanegruppe</translation>
@@ -1324,6 +1332,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6103540626693881831">Kryptering på enheden</translation>
 <translation id="611361228753138223">Websites, du har besøgt for nylig på denne enhed</translation>
 <translation id="611705554202268369">Foretag et langt tryk for at føje til en fanegruppe</translation>
+<translation id="6117260878488959646">Der opstod en fejl. Prøv igen senere.</translation>
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">Vil du deaktivere Beskyttet browsing?</translation>
 <translation id="6123514585040403489">Dine faner lukkes</translation>
@@ -1346,6 +1355,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6172428250974276014">Ja, hold dataene adskilt (anbefales)</translation>
 <translation id="6173499589275053515">Adgangskoden er blevet gemt på din Google-konto, <ph name="EMAIL" /></translation>
 <translation id="6181969657494915430">Søg efter noget på skærmen</translation>
+<translation id="6182851675249594487">Tilpasset farvetema</translation>
 <translation id="6187302354554850004">Sidst synkroniseret: <ph name="LAST_USED_TIME" /></translation>
 <translation id="6188737759358894319">Oprettet <ph name="DATE" /></translation>
 <translation id="6189413832092199491">Ulæst</translation>
@@ -1420,7 +1430,6 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6418346271604475326">Forbereder PDF</translation>
 <translation id="6421038304268477484">Oversat tekst</translation>
 <translation id="6429213933892582367">Åbn Valgmuligheder for adgangskoder</translation>
-<translation id="6434591244308415567">Der opstod en fejl. Prøv igen senere.</translation>
 <translation id="6435236283694032571">Føj til læselisten</translation>
 <translation id="6435307030888827407">Forbliv logget ud</translation>
 <translation id="6436318499800111867">Delt med mig <ph name="SHARED_WITH_ME_DATE" /></translation>
@@ -1755,6 +1764,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="7696316012653762532">Valgmuligheder for oversættelse af side</translation>
 <translation id="7700527812567437847">Søg på skærmen med Google Lens</translation>
 <translation id="7701040980221191251">Ingen</translation>
+<translation id="7708668404222666001">Dine præferencer for siden Ny fane er anvendt</translation>
 <translation id="7708994397325774423">Få alle dine adgangskoder</translation>
 <translation id="7711440461521638739">Du genbruger ikke nogen adgangskoder</translation>
 <translation id="7712361583414030698">Viser offlineversion</translation>

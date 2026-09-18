@@ -15,8 +15,12 @@ if (rtc_enable_protobuf) {
     sources = [
       "assembler.cc",
       "assembler.h",
+      "decodability_simulator.cc",
+      "decodability_simulator.h",
       "decodability_tracker.cc",
       "decodability_tracker.h",
+      "rendering_simulator.cc",
+      "rendering_simulator.h",
       "rendering_tracker.cc",
       "rendering_tracker.h",
       "rtc_event_log_driver.cc",
@@ -28,6 +32,7 @@ if (rtc_enable_protobuf) {
       "../../../api:array_view",
       "../../../api:field_trials",
       "../../../api:rtp_headers",
+      "../../../api:rtp_packet_info",
       "../../../api:rtp_parameters",
       "../../../api:scoped_refptr",
       "../../../api:sequence_checker",
@@ -37,6 +42,7 @@ if (rtc_enable_protobuf) {
       "../../../api/environment:environment_factory",
       "../../../api/task_queue",
       "../../../api/task_queue:pending_task_safety_flag",
+      "../../../api/units:data_size",
       "../../../api/units:time_delta",
       "../../../api/units:timestamp",
       "../../../api/video:encoded_frame",
@@ -53,11 +59,13 @@ if (rtc_enable_protobuf) {
       "../../../rtc_base:checks",
       "../../../rtc_base:logging",
       "../../../rtc_base:macromagic",
+      "../../../rtc_base:rtc_numerics",
       "../../../test/time_controller",
       "../../../video",
       "../../../video:task_queue_frame_decode_scheduler",
       "../../../video:video_stream_buffer_controller",
       "../../../video/render:incoming_video_stream",
+      "//third_party/abseil-cpp/absl/algorithm:container",
       "//third_party/abseil-cpp/absl/base:nullability",
       "//third_party/abseil-cpp/absl/container:flat_hash_map",
       "//third_party/abseil-cpp/absl/container:flat_hash_set",
@@ -68,11 +76,28 @@ if (rtc_enable_protobuf) {
   }
 
   if (rtc_include_tests) {
+    test_resources = [
+      "../../../resources/video/timing/simulator/video_recv_av1_pt45.rtceventlog",
+      "../../../resources/video/timing/simulator/video_recv_sequential_join_vp8_vp9_av1.rtceventlog",
+      "../../../resources/video/timing/simulator/video_recv_vp8_pt96.rtceventlog",
+      "../../../resources/video/timing/simulator/video_recv_vp9_pt98.rtceventlog",
+    ]
+
+    if (is_ios) {
+      bundle_data("simulator_tests_bundle_data") {
+        testonly = true
+        sources = test_resources
+        outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+      }
+    }
+
     rtc_library("simulator_tests") {
       testonly = true
       sources = [
         "assembler_unittest.cc",
+        "decodability_simulator_unittest.cc",
         "decodability_tracker_unittest.cc",
+        "rendering_simulator_unittest.cc",
         "rendering_tracker_unittest.cc",
         "rtc_event_log_driver_unittest.cc",
         "rtp_packet_simulator_unittest.cc",
@@ -84,6 +109,7 @@ if (rtc_enable_protobuf) {
         "../../../api:sequence_checker",
         "../../../api/environment",
         "../../../api/transport/rtp:dependency_descriptor",
+        "../../../api/units:data_size",
         "../../../api/units:time_delta",
         "../../../api/units:timestamp",
         "../../../api/video:encoded_frame",
@@ -101,6 +127,10 @@ if (rtc_enable_protobuf) {
         "//third_party/abseil-cpp/absl/functional:any_invocable",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
+      data = test_resources
+      if (is_ios) {
+        deps += [ ":simulator_tests_bundle_data" ]
+      }
     }
   }
 }

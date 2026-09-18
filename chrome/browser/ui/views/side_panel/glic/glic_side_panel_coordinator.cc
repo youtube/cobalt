@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_scope.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
+#include "chrome/common/chrome_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "glic_side_panel_coordinator.h"
 #include "ui/actions/actions.h"
@@ -35,7 +36,7 @@ GlicSidePanelCoordinator::GlicSidePanelCoordinator(
     tabs::TabInterface* tab,
     SidePanelRegistry* side_panel_registry)
     : tab_(tab), side_panel_registry_(side_panel_registry) {
-  CHECK(base::FeatureList::IsEnabled(features::kGlicMultiInstance));
+  CHECK(GlicEnabling::IsMultiInstanceEnabledByFlags());
   auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(
       tab->GetBrowserWindowInterface()->GetProfile());
   on_glic_enabled_changed_subscription_ =
@@ -63,6 +64,9 @@ void GlicSidePanelCoordinator::CreateAndRegisterEntry() {
   }
 
   auto entry = std::make_unique<SidePanelEntry>(
+      base::FeatureList::IsEnabled(features::kGlicUseToolbarHeightSidePanel)
+          ? SidePanelEntry::PanelType::kToolbar
+          : SidePanelEntry::PanelType::kContent,
       SidePanelEntry::Key(SidePanelEntry::Id::kGlic),
       base::BindRepeating(&GlicSidePanelCoordinator::CreateView,
                           base::Unretained(this)),
@@ -76,7 +80,7 @@ void GlicSidePanelCoordinator::CreateAndRegisterEntry() {
   side_panel_registry_->Register(std::move(entry));
 }
 
-void GlicSidePanelCoordinator::Show() {
+void GlicSidePanelCoordinator::Show(bool suppress_animations) {
   auto* window_side_panel_coordinator = GetWindowSidePanelCoordinator();
   if (!window_side_panel_coordinator || !entry_) {
     return;
@@ -90,15 +94,19 @@ void GlicSidePanelCoordinator::Show() {
     }
     return;
   }
-  window_side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
+  SidePanelUIBase::UniqueKey unique_key{
+      .tab_handle = tab_->GetHandle(),
+      .key = SidePanelEntry::Key(SidePanelEntry::Id::kGlic)};
+  window_side_panel_coordinator->Show(unique_key, std::nullopt,
+                                      suppress_animations);
 }
 
 void GlicSidePanelCoordinator::Close() {
   auto* window_side_panel_coordinator = GetWindowSidePanelCoordinator();
-  if (!window_side_panel_coordinator || !IsShowing()) {
+  if (!window_side_panel_coordinator || !IsShowing() || !entry_) {
     return;
   }
-  window_side_panel_coordinator->Close();
+  window_side_panel_coordinator->Close(entry_->type());
 }
 
 bool GlicSidePanelCoordinator::IsShowing() const {

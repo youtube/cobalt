@@ -246,6 +246,8 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
 
   if (i_isolate->heap()->HasBeenSetUp()) {
     i_isolate->heap()->RecordStats(&heap_stats);
+    i_isolate->heap()->ReportStatsAsCrashKeys(heap_stats);
+
     if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(heap_stats.last_few_messages, '\n');
       if (first_newline == nullptr || first_newline[1] == '\0')
@@ -959,6 +961,27 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
   i::EmbedderDataSlot::store_tagged(*data, index, *val);
   DCHECK_EQ(*Utils::OpenDirectHandle(*value),
             *Utils::OpenDirectHandle(*GetEmbedderData(index)));
+}
+
+v8::Local<v8::Data> Context::SlowGetEmbedderDataV2(int index) {
+  const char* location = "v8::Context::GetEmbedderDataV2()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  return Utils::ToLocal(i::direct_handle(
+      i::EmbedderDataSlot(*data, index).load_tagged(), i_isolate));
+}
+
+void Context::SetEmbedderDataV2(int index, v8::Local<Data> value) {
+  const char* location = "v8::Context::SetEmbedderDataV2()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
+  if (data.is_null()) return;
+  auto val = Utils::OpenDirectHandle(*value);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
+  DCHECK_EQ(*Utils::OpenDirectHandle(*value),
+            *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
 }
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
@@ -2123,6 +2146,24 @@ Local<FixedArray> ModuleRequest::GetImportAttributes() const {
   i::Isolate* i_isolate = i::Isolate::Current();
   return ToApiHandle<FixedArray>(
       i::direct_handle(self->import_attributes(), i_isolate));
+}
+
+Local<Value> Module::GetResourceName() const {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DisallowGarbageCollection no_gc;
+
+  i::DirectHandle<i::SyntheticModule> synthetic_module;
+  if (i::TryCast<i::SyntheticModule>(self, &synthetic_module)) {
+    return ToApiHandle<Value>(
+        i::direct_handle(synthetic_module->name(), i_isolate));
+  }
+
+  i::DirectHandle<i::SharedFunctionInfo> sfi(
+      i::Cast<i::SourceTextModule>(self)->GetSharedFunctionInfo(), i_isolate);
+  CHECK(IsScript(sfi->script()));
+  return ToApiHandle<Value>(
+      i::direct_handle(i::Cast<i::Script>(sfi->script())->name(), i_isolate));
 }
 
 Module::Status Module::GetStatus() const {
@@ -3865,9 +3906,9 @@ void v8::Value::CheckCast(Data* that) {
   Utils::ApiCheck(that->IsValue(), "v8::Value::Cast", "Data is not a Value");
 }
 
-void External::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(that->IsExternal(), "v8::External::Cast",
-                  "Value is not an External");
+void v8::External::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(that->IsValue() && v8::Value::Cast(that)->IsExternal(),
+                  "v8::External::Cast", "Value is not an External");
 }
 
 void v8::Object::CheckCast(Value* that) {
@@ -8540,14 +8581,18 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Catch};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
   i::DirectHandle<i::Object> args[] = {i_isolate->factory()->undefined_value(),
-                                       Utils::OpenDirectHandle(*handler)};
+                                       Utils::OpenDirectHandle(*handler),
+                                       return_promise};
   // Do not call the built-in Promise.prototype.catch!
   // v8::Promise should not call out to a monkeypatched Promise.prototype.then
   // as the implementation of Promise.prototype.catch does.
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 MaybeLocal<Promise> Promise::Then(Local<Context> context,
@@ -8555,10 +8600,18 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Then};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler),
+                                       i_isolate->factory()->undefined_value(),
+                                       return_promise};
+  // Do not call the built-in Promise.prototype.then!
+  // v8::Promise should not trigger species lookup on a monkeypatched Promise
+  // as the implementation of Promise.prototype.then does.
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 MaybeLocal<Promise> Promise::Then(Local<Context> context,
@@ -8567,11 +8620,18 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Then};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*on_fulfilled),
-                                       Utils::OpenDirectHandle(*on_rejected)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+                                       Utils::OpenDirectHandle(*on_rejected),
+                                       return_promise};
+  // Do not call the built-in Promise.prototype.then!
+  // v8::Promise should not trigger species lookup on a monkeypatched Promise
+  // as the implementation of Promise.prototype.then does.
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 bool Promise::HasHandler() const {
@@ -10488,6 +10548,12 @@ void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   i_isolate->SetAddCrashKeyCallback(callback);
 }
 
+void Isolate::SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback alloc,
+                                         SetCrashKeyStringCallback set) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetCrashKeyStringCallbacks(alloc, set);
+}
+
 void Isolate::LowMemoryNotification() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   {
@@ -11358,10 +11424,12 @@ CpuProfiler* CpuProfiler::New(Isolate* v8_isolate,
 CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
                                          unsigned max_samples,
                                          int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context)
+                                         MaybeLocal<Context> filter_context,
+                                         CpuProfileSource profile_source)
     : mode_(mode),
       max_samples_(max_samples),
-      sampling_interval_us_(sampling_interval_us) {
+      sampling_interval_us_(sampling_interval_us),
+      profile_source_(profile_source) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);
@@ -12265,16 +12333,13 @@ template <typename T>
 bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
+  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+  // TODO(https://crbug.com/455600234): remove.
+  START_ALLOW_USE_DEPRECATED()
   CHECK(info.This()->IsValue());
+  END_ALLOW_USE_DEPRECATED()
   CHECK(info.HolderV2()->IsObject());
   CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
-  // Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-  // TODO(https://crbug.com/333672197): remove.
-  START_ALLOW_USE_DEPRECATED()
-  CHECK(info.Holder()->IsObject());
-  CHECK_IMPLIES(info.Holder() != info.HolderV2(),
-                i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.Holder())));
-  END_ALLOW_USE_DEPRECATED()
   i::Tagged<i::Object> key = i::PropertyCallbackArguments::GetPropertyKey(info);
   CHECK(i::IsSmi(key) || i::IsName(key));
   CHECK(info.Data()->IsValue());

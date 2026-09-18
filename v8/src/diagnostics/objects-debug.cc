@@ -297,6 +297,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WASM_DISPATCH_TABLE_TYPE:
       TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
       break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      TrustedCast<WasmDispatchTableForImports>(*this)
+          ->WasmDispatchTableForImportsVerify(isolate);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectVerify(isolate);
       break;
@@ -892,7 +896,6 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, v);
   CHECK(IsUndefined(v) || IsClosureFeedbackCellArray(v) || IsFeedbackVector(v));
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
@@ -902,7 +905,6 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
         kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
-#endif
 }
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
@@ -1362,7 +1364,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // Ensure that the function's meta map belongs to the same native context.
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
@@ -1399,7 +1400,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
             entrypoint == code_from_table->instruction_start());
 #undef CASE
 
-#endif  // V8_ENABLE_LEAPTIERING
 
   DirectHandle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
@@ -2581,6 +2581,23 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
   }
 }
 
+void WasmDispatchTableForImports::WasmDispatchTableForImportsVerify(
+    Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  int len = length();
+  for (int i = 0; i < len; ++i) {
+    Tagged<Object> arg = implicit_arg(i);
+    Object::VerifyPointer(isolate, arg);
+    CHECK(IsWasmTrustedInstanceData(arg) || IsWasmImportData(arg) ||
+          arg == Smi::zero());
+    if (!v8_flags.wasm_jitless) {
+      // call_target always null with the interpreter.
+      CHECK_EQ(arg == Smi::zero(), target(i) == wasm::kInvalidWasmCodePointer);
+    }
+  }
+}
+
 void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
   if (has_trusted_dispatch_table() &&
@@ -2974,6 +2991,8 @@ void JSObject::SpillInformation::Print() {
 }
 
 bool DescriptorArray::IsSortedNoDuplicates() {
+  // Up to the linear search limit the array is not sorted and that's fine.
+  if (number_of_descriptors() <= kMaxElementsForLinearSearch) return true;
   Tagged<Name> current_key;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
@@ -2996,6 +3015,8 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 }
 
 bool TransitionArray::IsSortedNoDuplicates() {
+  // Up to the linear search limit the array is not sorted and that's fine.
+  if (number_of_transitions() <= kMaxElementsForLinearSearch) return true;
   Tagged<Name> prev_key;
   PropertyKind prev_kind = PropertyKind::kData;
   PropertyAttributes prev_attributes = NONE;

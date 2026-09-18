@@ -10,6 +10,8 @@
 
 namespace password_manager::features {
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_FEATURE(kActorActiveDisablesFillingOnPageLoad,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLogin, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginFieldVisibilityCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -56,7 +58,7 @@ BASE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCheckLoginStateBeforePasswordChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClearUndecryptablePasswords,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_IOS)
@@ -82,7 +84,7 @@ BASE_FEATURE(kDownloadModelForPasswordChange,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDisableFillingOnPageLoadForLeakedCredentials,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -153,6 +155,8 @@ BASE_FEATURE(kShowRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kThrottlePasswordChangeDialog, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSkipUndecryptablePasswords,
 #if BUILDFLAG(IS_WIN)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -160,6 +164,8 @@ BASE_FEATURE(kSkipUndecryptablePasswords,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kStopLoginCheckOnFailedLogin, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTriggerPasswordResyncAfterDeletingUndecryptablePasswords,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -182,7 +188,7 @@ BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnablePasswordManagerMojoApi, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRunPasswordChangeInBackgroundTab,
              base::FEATURE_DISABLED_BY_DEFAULT);

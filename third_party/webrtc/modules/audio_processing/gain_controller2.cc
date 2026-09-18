@@ -113,13 +113,13 @@ GainController2::GainController2(
                /*histogram_name_prefix=*/"Agc2"),
       calls_since_last_limiter_log_(0) {
   RTC_DCHECK(Validate(config));
-  data_dumper_.InitiateNewSetOfRecordings();
 
   if (config.input_volume_controller.enabled ||
       config.adaptive_digital.enabled) {
     // Create dependencies.
-    speech_level_estimator_ = std::make_unique<SpeechLevelEstimator>(
-        &data_dumper_, config.adaptive_digital, kAdjacentSpeechFramesThreshold);
+    speech_level_estimator_ = SpeechLevelEstimator::Create(
+        env.field_trials(), &data_dumper_, config.adaptive_digital,
+        kAdjacentSpeechFramesThreshold);
     if (use_internal_vad)
       vad_ = std::make_unique<VoiceActivityDetectorWrapper>(
           kVadResetPeriodMs, cpu_features_, sample_rate_hz);
@@ -180,9 +180,7 @@ void GainController2::Analyze(int applied_input_volume,
   }
 }
 
-void GainController2::Process(std::optional<float> speech_probability,
-                              bool input_volume_changed,
-                              AudioBuffer* audio) {
+void GainController2::Process(bool input_volume_changed, AudioBuffer* audio) {
   recommended_input_volume_ = std::nullopt;
 
   data_dumper_.DumpRaw("agc2_applied_input_volume_changed",
@@ -198,21 +196,16 @@ void GainController2::Process(std::optional<float> speech_probability,
   DeinterleavedView<float> float_frame = audio->view();
 
   // Compute speech probability.
+  float speech_probability = 0.0f;
   if (vad_) {
     // When the VAD component runs, `speech_probability` should not be specified
     // because APM should not run the same VAD twice (as an APM sub-module and
     // internally in AGC2).
-    RTC_DCHECK(!speech_probability.has_value());
     speech_probability = vad_->Analyze(float_frame);
-  }
-  if (speech_probability.has_value()) {
-    RTC_DCHECK_GE(*speech_probability, 0.0f);
-    RTC_DCHECK_LE(*speech_probability, 1.0f);
   }
   // The speech probability may not be defined at this step (e.g., when the
   // fixed digital controller alone is enabled).
-  if (speech_probability.has_value())
-    data_dumper_.DumpRaw("agc2_speech_probability", *speech_probability);
+  data_dumper_.DumpRaw("agc2_speech_probability", speech_probability);
 
   // Compute audio, noise and speech levels.
   AudioLevels audio_levels = ComputeAudioLevels(float_frame, data_dumper_);
@@ -224,33 +217,25 @@ void GainController2::Process(std::optional<float> speech_probability,
   }
   std::optional<SpeechLevel> speech_level;
   if (speech_level_estimator_) {
-    RTC_DCHECK(speech_probability.has_value());
-    speech_level_estimator_->Update(
-        audio_levels.rms_dbfs, audio_levels.peak_dbfs, *speech_probability);
+    speech_level_estimator_->Update(audio_levels.rms_dbfs, speech_probability);
     speech_level =
-        SpeechLevel{.is_confident = speech_level_estimator_->is_confident(),
-                    .rms_dbfs = speech_level_estimator_->level_dbfs()};
+        SpeechLevel{.is_confident = speech_level_estimator_->IsConfident(),
+                    .rms_dbfs = speech_level_estimator_->GetLevelDbfs()};
   }
 
   // Update the recommended input volume.
   if (input_volume_controller_) {
     RTC_DCHECK(speech_level.has_value());
-    RTC_DCHECK(speech_probability.has_value());
-    if (speech_probability.has_value()) {
-      recommended_input_volume_ =
-          input_volume_controller_->RecommendInputVolume(
-              *speech_probability,
-              speech_level->is_confident
-                  ? std::optional<float>(speech_level->rms_dbfs)
-                  : std::nullopt);
-    }
+    recommended_input_volume_ = input_volume_controller_->RecommendInputVolume(
+        speech_probability, speech_level->is_confident
+                                ? std::optional<float>(speech_level->rms_dbfs)
+                                : std::nullopt);
   }
 
   if (adaptive_digital_controller_) {
     RTC_DCHECK(saturation_protector_);
-    RTC_DCHECK(speech_probability.has_value());
     RTC_DCHECK(speech_level.has_value());
-    saturation_protector_->Analyze(*speech_probability, audio_levels.peak_dbfs,
+    saturation_protector_->Analyze(speech_probability, audio_levels.peak_dbfs,
                                    speech_level->rms_dbfs);
     float headroom_db = saturation_protector_->HeadroomDb();
     data_dumper_.DumpRaw("agc2_headroom_db", headroom_db);
@@ -258,7 +243,7 @@ void GainController2::Process(std::optional<float> speech_probability,
     data_dumper_.DumpRaw("agc2_limiter_envelope_dbfs", limiter_envelope_dbfs);
     RTC_DCHECK(noise_rms_dbfs.has_value());
     adaptive_digital_controller_->Process(
-        /*info=*/{.speech_probability = *speech_probability,
+        /*info=*/{.speech_probability = speech_probability,
                   .speech_level_dbfs = speech_level->rms_dbfs,
                   .speech_level_reliable = speech_level->is_confident,
                   .noise_rms_dbfs = *noise_rms_dbfs,

@@ -16,6 +16,7 @@
 #include "base/notimplemented.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/language_detection/core/language_detection_provider.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
@@ -83,6 +84,7 @@ TsModel::~TsModel() {
 std::unique_ptr<TsModel> TsModel::Create(
     const ChromeML& chrome_ml,
     mojom::TextSafetyModelParamsPtr params) {
+  TRACE_EVENT("optimization_guide", "TsModel::Create");
   auto ts_model = base::WrapUnique(new TsModel(chrome_ml));
   if (params->language_assets &&
       !ts_model->InitLanguageDetection(std::move(params->language_assets))) {
@@ -96,6 +98,7 @@ std::unique_ptr<TsModel> TsModel::Create(
 }
 
 bool TsModel::InitLanguageDetection(mojom::LanguageModelAssetsPtr assets) {
+  TRACE_EVENT("optimization_guide", "TsModel::InitLanguageDetection");
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   auto tflite_model =
       std::make_unique<language_detection::LanguageDetectionModel>();
@@ -111,6 +114,7 @@ bool TsModel::InitLanguageDetection(mojom::LanguageModelAssetsPtr assets) {
 
 DISABLE_CFI_DLSYM
 bool TsModel::InitTextSafetyModel(mojom::TextSafetyModelAssetsPtr assets) {
+  TRACE_EVENT("optimization_guide", "TsModel::InitTextSafetyModel");
   if (!data_.Initialize(std::move(assets->data)) ||
       !sp_model_.Initialize(std::move(assets->sp_model))) {
     return false;
@@ -125,24 +129,29 @@ bool TsModel::InitTextSafetyModel(mojom::TextSafetyModelAssetsPtr assets) {
 
 void TsModel::StartSession(
     mojo::PendingReceiver<mojom::TextSafetySession> session) {
+  TRACE_EVENT("optimization_guide", "TsModel::StartSession");
   sessions_.Add(this, std::move(session));
 }
 
 void TsModel::ClassifyTextSafety(const std::string& text,
                                  ClassifyTextSafetyCallback callback) {
+  TRACE_EVENT("optimization_guide", "TsModel::ClassifyTextSafety");
   std::move(callback).Run(ClassifyTextSafety(text));
 }
 void TsModel::DetectLanguage(const std::string& text,
                              DetectLanguageCallback callback) {
+  TRACE_EVENT("optimization_guide", "TsModel::DetectLanguage");
   std::move(callback).Run(DetectLanguage(text));
 }
 
 void TsModel::Clone(mojo::PendingReceiver<mojom::TextSafetySession> session) {
+  TRACE_EVENT("optimization_guide", "TsModel::Clone");
   StartSession(std::move(session));
 }
 
 DISABLE_CFI_DLSYM
 mojom::SafetyInfoPtr TsModel::ClassifyTextSafety(const std::string& text) {
+  TRACE_EVENT("optimization_guide", "TsModel::ClassifyTextSafety");
   if (!model_) {
     return nullptr;
   }

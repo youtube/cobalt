@@ -58,11 +58,11 @@
 #include "net/http/http_request_headers.h"
 #include "net/log/net_log.h"
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
-#include "net/proxy_resolution/proxy_bypass_rules.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_service.h"
 #include "net/proxy_resolution/proxy_config_service_fixed.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/proxy_resolution/proxy_host_matching_rules.h"
 #include "net/proxy_resolution/proxy_info.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
@@ -697,7 +697,8 @@ TEST_F(WebSocketEndToEndTest, ProxyPacUsed) {
       ProxyConfigWithAnnotation(proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS));
   std::unique_ptr<ProxyResolutionService> proxy_resolution_service(
       ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
-          std::move(proxy_config_service), NetLog::Get(),
+          std::move(proxy_config_service),
+          /*host_resolver_for_override_rules=*/nullptr, NetLog::Get(),
           /*quick_check_enabled=*/true));
   ASSERT_EQ(ws_server.host_port_pair().host(), "127.0.0.1");
   context_builder_->set_proxy_resolution_service(

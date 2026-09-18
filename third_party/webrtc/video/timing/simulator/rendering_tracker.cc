@@ -35,6 +35,9 @@ namespace webrtc::video_timing_simulator {
 
 namespace {
 
+constexpr TimeDelta kMaxWaitForKeyframe = TimeDelta::Seconds(10);
+constexpr TimeDelta kMaxWaitForFrame = TimeDelta::Seconds(10);
+
 // TODO: b/423646186 - Consider adding some variability to the decode time, and
 // update VCMTiming accordingly.
 VideoFrame SimulateDecode(const EncodedFrame& encoded_frame) {
@@ -65,8 +68,8 @@ RenderingTracker::RenderingTracker(const Environment& env,
           video_timing_.get(),
           /*stats_proxy=*/this,
           /*receiver=*/this,
-          config.max_wait_for_keyframe,
-          config.max_wait_for_frame,
+          kMaxWaitForKeyframe,
+          kMaxWaitForFrame,
           std::make_unique<TaskQueueFrameDecodeScheduler>(&env_.clock(),
                                                           simulator_queue_),
           env_.field_trials()),
@@ -79,8 +82,6 @@ RenderingTracker::RenderingTracker(const Environment& env,
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   // Validation.
   RTC_DCHECK_NE(config.ssrc, 0u);
-  RTC_DCHECK(config.max_wait_for_keyframe.IsFinite());
-  RTC_DCHECK(config.max_wait_for_frame.IsFinite());
   RTC_DCHECK(config.render_delay.IsFinite());
   // Setup.
   ResetVideoStreamBufferControllerObserverStats();
@@ -107,11 +108,12 @@ void RenderingTracker::OnAssembledFrame(
   std::optional<int64_t> last_continuous_frame_id =
       video_stream_buffer_controller_.InsertFrame(std::move(assembled_frame));
   if (!last_continuous_frame_id.has_value()) {
-    RTC_LOG(LS_INFO) << "Inserted ssrc=" << config_.ssrc
-                     << ", frame_id=" << frame_id
-                     << ", is_keyframe=" << is_keyframe
-                     << " into VideoStreamBufferController but stream was"
-                     << " still not continuous";
+    RTC_LOG(LS_WARNING) << "VideoStreamBufferController did not report "
+                           "continuity for inserted frame_id="
+                        << frame_id << ", is_keyframe=" << is_keyframe
+                        << " on ssrc=" << config_.ssrc
+                        << " (simulated_ts=" << env_.clock().CurrentTime()
+                        << ")";
   }
 }
 
@@ -156,9 +158,9 @@ void RenderingTracker::OnEncodedFrame(
 
 void RenderingTracker::OnDecodableFrameTimeout(TimeDelta wait_time) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
-  RTC_LOG(LS_WARNING) << "Stream ssrc=" << config_.ssrc
-                      << " timed out (wait_ms=" << wait_time.ms()
-                      << ", ts_ms=" << env_.clock().TimeInMilliseconds() << ")";
+  RTC_LOG(LS_WARNING) << "VideoStreamBufferController timed out after wait_ms="
+                      << wait_time << " on ssrc=" << config_.ssrc
+                      << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
   // TODO: b/423646186 - Consider adding this as a callback event.
   video_stream_buffer_controller_.StartNextDecode(/*keyframe_required=*/true);
 }

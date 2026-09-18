@@ -176,18 +176,25 @@ bool StreamInterfaceChannel::Flush() {
   return false;
 }
 
-bool StreamInterfaceChannel::OnPacketReceived(const char* data, size_t size) {
+bool StreamInterfaceChannel::OnPacketReceived(ArrayView<const uint8_t> data) {
   RTC_DCHECK_RUN_ON(&callback_sequence_);
   if (packets_.size() > 0) {
     RTC_LOG(LS_WARNING) << "Packet already in queue.";
   }
-  bool ret = packets_.WriteBack(data, size, nullptr);
+  bool ret = packets_.WriteBack(reinterpret_cast<const char*>(data.data()),
+                                data.size(), nullptr);
   if (!ret) {
     // Somehow we received another packet before the SSLStreamAdapter read the
     // previous one out of our temporary buffer. In this case, we'll log an
     // error and still signal the read event, hoping that it will read the
     // packet currently in packets_.
     RTC_LOG(LS_ERROR) << "Failed to write packet to queue.";
+  }
+  // If we use DTLS-in-STUN, the controller should be informed about incoming
+  // packets so it can acknowledge them.  Note that this packet may have been
+  // emitted by the controller.
+  if (dtls_stun_piggyback_controller_) {
+    dtls_stun_piggyback_controller_->ReportDtlsPacket(data);
   }
   FireEvent(SE_READ, 0);
   return ret;
@@ -584,7 +591,7 @@ int DtlsTransportInternalImpl::SendPacket(
         // an encrypted packet, rather than calling the
         // StreamInterfaceChannel::Write function. Such change would remove the
         // need of the next_packet_options_.
-        StreamResult result = dtls_->WriteAll(
+        StreamResult result = dtls_->Write(
             MakeArrayView(reinterpret_cast<const uint8_t*>(data), size),
             written, error);
         if (result != SR_SUCCESS) {
@@ -593,6 +600,10 @@ int DtlsTransportInternalImpl::SendPacket(
           downward_->ClearNextPacketOptions();
           return -1;
         }
+        // For DTLS, a SSL_Write operation will either send the entire data in a
+        // single record, or fail the entire send. See for example the
+        // documentation on SSL_write in boringssl/src/include/openssl/ssl.h
+        RTC_CHECK(written == size);
         return static_cast<int>(size);
       }
     case DtlsTransportState::kFailed:
@@ -1025,8 +1036,7 @@ bool DtlsTransportInternalImpl::HandleDtlsPacket(
     ArrayView<const uint8_t> payload) {
   // Pass to the StreamInterfaceChannel which ends up being passed to the DTLS
   // stack.
-  return downward_->OnPacketReceived(
-      reinterpret_cast<const char*>(payload.data()), payload.size());
+  return downward_->OnPacketReceived(payload);
 }
 
 void DtlsTransportInternalImpl::set_receiving(bool receiving) {

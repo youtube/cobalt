@@ -44,6 +44,7 @@ rtc_library("video_codecs_api") {
   sources = [
     "av1_profile.cc",
     "av1_profile.h",
+    "encoder_speed_controller.h",
     "h264_profile_level_id.cc",
     "h264_profile_level_id.h",
     "sdp_video_format.cc",
@@ -91,6 +92,8 @@ rtc_library("video_codecs_api") {
     "../../rtc_base/system:rtc_export",
     "../environment",
     "../units:data_rate",
+    "../units:time_delta",
+    "../units:timestamp",
     "../video:encoded_image",
     "../video:render_resolution",
     "../video:resolution",
@@ -103,6 +106,16 @@ rtc_library("video_codecs_api") {
     "//third_party/abseil-cpp/absl/container:inlined_vector",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+rtc_library("encoder_speed_controller_factory") {
+  visibility = [ "*" ]
+  sources = [ "encoder_speed_controller.cc" ]
+  deps = [
+    ":video_codecs_api",
+    "../../api/units:time_delta",
+    "../../modules/video_coding:encoder_speed_controller_impl",
   ]
 }
 

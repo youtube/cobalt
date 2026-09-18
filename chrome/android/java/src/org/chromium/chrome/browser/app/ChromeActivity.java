@@ -59,6 +59,7 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.UnownedUserDataSupplier;
 import org.chromium.chrome.R;
@@ -174,7 +175,6 @@ import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabUtils;
-import org.chromium.chrome.browser.tab.TabUtils.UseDesktopUserAgentCaller;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
@@ -438,6 +438,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     private boolean mIsTopResumedActivity;
 
     private @Nullable TabStateThemeResourceProvider mThemeResourceProvider;
+
+    private final OneshotSupplierImpl<ChromeAndroidTask> mChromeAndroidTaskSupplier =
+            new OneshotSupplierImpl<>();
 
     protected ChromeActivity() {
         mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
@@ -1047,23 +1050,25 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             var chromeAndroidTask =
                     chromeAndroidTaskTracker.obtainTask(
                             browserWindowType,
-                            activityWindowAndroid,
-                            currentTabModel,
-                            multiInstanceManager,
+                            new ChromeAndroidTask.ActivityScopedObjects(
+                                    activityWindowAndroid, currentTabModel, multiInstanceManager),
                             pendingId);
 
-            // 2. Associate the current TabModel with ChromeAndroidTask's underlying native
-            // AndroidBrowserWindow object.
-            currentTabModel.associateWithBrowserWindow(
-                    chromeAndroidTask.getOrCreateNativeBrowserWindowPtr());
-
-            // 3. Add windowing features.
+            // 2. Add windowing features.
             ChromeAndroidTaskFeature extensionWindowControllerBridge =
                     ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask);
             if (extensionWindowControllerBridge != null) {
                 chromeAndroidTask.addFeature(extensionWindowControllerBridge);
             }
+
+            // 3. Make the ChromeAndroidTask available via OneshotSupplier.
+            mChromeAndroidTaskSupplier.set(chromeAndroidTask);
         }
+    }
+
+    /** Returns an {@link OneshotSupplier} for {@link ChromeAndroidTask}. */
+    protected final OneshotSupplier<ChromeAndroidTask> getChromeAndroidTaskSupplier() {
+        return mChromeAndroidTaskSupplier;
     }
 
     @Override
@@ -2764,10 +2769,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                     profile, currentTab.getUrl(), usingDesktopUserAgent);
             // Use TabUtils.switchUserAgent() instead of Tab.reload(). Because we need to reload
             // with LoadOriginalRequestURL. See http://crbug/1418587 for details.
-            TabUtils.switchUserAgent(
-                    currentTab,
-                    usingDesktopUserAgent,
-                    UseDesktopUserAgentCaller.ON_MENU_OR_KEYBOARD_ACTION);
+            TabUtils.switchUserAgent(currentTab, usingDesktopUserAgent);
             TrackerFactory.getTrackerForProfile(profile)
                     .notifyEvent(EventConstants.APP_MENU_DESKTOP_SITE_EXCEPTION_ADDED);
             RequestDesktopUtils.recordUserChangeUserAgent(usingDesktopUserAgent, getActivityTab());

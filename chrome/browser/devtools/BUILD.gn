@@ -134,6 +134,7 @@ static_library("devtools") {
     "//components/enterprise/buildflags",
     "//components/paint_preview/buildflags",
     "//components/variations/service",
+    "//components/vector_icons",
     "//components/webapps/common",
     "//content/public/browser",
     "//net",
@@ -355,6 +356,7 @@ static_library("devtools") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/browser/badging",
+      "//chrome/browser/custom_handlers",
       "//chrome/browser/first_party_sets",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/media_router",

@@ -228,11 +228,9 @@ QuicConnection::QuicConnection(
       multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
       connection_id_generator_(generator),
       received_client_addresses_cache_(kMaxReceivedClientAddressSize),
-      current_packet_content_(NO_FRAMES_RECEIVED),
       perspective_(perspective),
       owns_writer_(owns_writer),
-      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
-      least_unacked_plus_1_(GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -1218,8 +1216,6 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   }
 
   // Initialize the current packet content state.
-  current_packet_content_ = NO_FRAMES_RECEIVED;
-  is_current_packet_connectivity_probing_ = false;
   has_path_challenge_in_current_packet_ = false;
   current_effective_peer_migration_type_ = NO_CHANGE;
 
@@ -2252,11 +2248,6 @@ void QuicConnection::OnPacketComplete() {
     return;
   }
 
-  if (IsCurrentPacketConnectivityProbing()) {
-    QUICHE_DCHECK(!version().HasIetfQuicFrames() && !ignore_gquic_probing_);
-    ++stats_.num_connectivity_probing_received;
-  }
-
   QUIC_DVLOG(1) << ENDPOINT << "Got"
                 << (SupportsMultiplePacketNumberSpaces()
                         ? (" " +
@@ -2267,14 +2258,6 @@ void QuicConnection::OnPacketComplete() {
                 << " for "
                 << GetServerConnectionIdAsRecipient(
                        last_received_packet_info_.header, perspective_);
-
-  QUIC_DLOG_IF(INFO, current_packet_content_ == SECOND_FRAME_IS_PADDING)
-      << ENDPOINT << "Received a padded PING packet. is_probing: "
-      << IsCurrentPacketConnectivityProbing();
-
-  if (!version().HasIetfQuicFrames() && !ignore_gquic_probing_) {
-    MaybeRespondToConnectivityProbingOrMigration();
-  }
 
   current_effective_peer_migration_type_ = NO_CHANGE;
 
@@ -2292,32 +2275,6 @@ void QuicConnection::OnPacketComplete() {
 
   ClearLastFrames();
   CloseIfTooManyOutstandingSentPackets();
-}
-
-void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
-  QUICHE_DCHECK(!version().HasIetfQuicFrames());
-  if (IsCurrentPacketConnectivityProbing()) {
-    visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
-                               last_received_packet_info_.source_address,
-                               /*is_connectivity_probe=*/true);
-    return;
-  }
-  if (perspective_ == Perspective::IS_CLIENT) {
-    // This node is a client, notify that a speculative connectivity probing
-    // packet has been received anyway.
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received a speculative connectivity probing packet for "
-                  << GetServerConnectionIdAsRecipient(
-                         last_received_packet_info_.header, perspective_)
-                  << " from ip:port: "
-                  << last_received_packet_info_.source_address.ToString()
-                  << " to ip:port: "
-                  << last_received_packet_info_.destination_address.ToString();
-    visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
-                               last_received_packet_info_.source_address,
-                               /*is_connectivity_probe=*/false);
-    return;
-  }
 }
 
 bool QuicConnection::IsValidStatelessResetToken(
@@ -2818,7 +2775,6 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
                   << "Unable to process packet.  Last packet processed: "
                   << last_received_packet_info_.header.packet_number;
     current_packet_data_ = nullptr;
-    is_current_packet_connectivity_probing_ = false;
 
     MaybeProcessCoalescedPackets();
     return;
@@ -2849,7 +2805,6 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   SetPingAlarm();
   RetirePeerIssuedConnectionIdsNoLongerOnPath();
   current_packet_data_ = nullptr;
-  is_current_packet_connectivity_probing_ = false;
 }
 
 void QuicConnection::OnBlockedWriterCanWrite() {
@@ -5623,10 +5578,6 @@ void QuicConnection::OnConnectionMigration() {
   }
 }
 
-bool QuicConnection::IsCurrentPacketConnectivityProbing() const {
-  return is_current_packet_connectivity_probing_;
-}
-
 bool QuicConnection::ack_frame_updated() const {
   return uber_received_packet_manager_.IsAckFrameUpdated();
 }
@@ -5737,68 +5688,6 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     return connected_;
   }
 
-  if (!ignore_gquic_probing_) {
-    // Packet content is tracked to identify connectivity probe in non-IETF
-    // version, where a connectivity probe is defined as
-    // - a padded PING packet with peer address change received by server,
-    // - a padded PING packet on new path received by client.
-
-    if (current_packet_content_ == NOT_PADDED_PING) {
-      // We have already learned the current packet is not a connectivity
-      // probing packet. Peer migration should have already been started earlier
-      // if needed.
-      return connected_;
-    }
-
-    if (type == PING_FRAME) {
-      if (current_packet_content_ == NO_FRAMES_RECEIVED) {
-        current_packet_content_ = FIRST_FRAME_IS_PING;
-        return connected_;
-      }
-    }
-
-    // In Google QUIC, we look for a packet with just a PING and PADDING.
-    // If the condition is met, mark things as connectivity-probing, causing
-    // later processing to generate the correct response.
-    if (type == PADDING_FRAME &&
-        current_packet_content_ == FIRST_FRAME_IS_PING) {
-      current_packet_content_ = SECOND_FRAME_IS_PADDING;
-      QUIC_CODE_COUNT_N(gquic_padded_ping_received, 1, 2);
-      if (perspective_ == Perspective::IS_SERVER) {
-        is_current_packet_connectivity_probing_ =
-            current_effective_peer_migration_type_ != NO_CHANGE;
-        if (is_current_packet_connectivity_probing_) {
-          QUIC_CODE_COUNT_N(gquic_padded_ping_received, 2, 2);
-        }
-        QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
-            << ENDPOINT
-            << "Detected connectivity probing packet. "
-               "current_effective_peer_migration_type_:"
-            << current_effective_peer_migration_type_;
-      } else {
-        is_current_packet_connectivity_probing_ =
-            (last_received_packet_info_.source_address != peer_address()) ||
-            (last_received_packet_info_.destination_address !=
-             default_path_.self_address);
-        QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
-            << ENDPOINT
-            << "Detected connectivity probing packet. "
-               "last_packet_source_address:"
-            << last_received_packet_info_.source_address
-            << ", peer_address_:" << peer_address()
-            << ", last_packet_destination_address:"
-            << last_received_packet_info_.destination_address
-            << ", default path self_address :" << default_path_.self_address;
-      }
-      return connected_;
-    }
-
-    current_packet_content_ = NOT_PADDED_PING;
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_gquic_probing);
-    QUICHE_DCHECK_EQ(current_packet_content_, NO_FRAMES_RECEIVED);
-  }
-
   if (GetLargestReceivedPacket().IsInitialized() &&
       last_received_packet_info_.header.packet_number ==
           GetLargestReceivedPacket()) {
@@ -5858,9 +5747,10 @@ void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
     QuicPacketNumber largest_packet_peer_knows_is_acked =
         sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
             last_received_packet_info_.decrypted_level);
-    if (least_unacked_plus_1_ &&
-        largest_packet_peer_knows_is_acked.IsInitialized()) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_least_unacked_plus_1);
+    if (largest_packet_peer_knows_is_acked.IsInitialized()) {
+      // The ReceivedPacketManager should not wait for
+      // largest_packet_peer_knows_is_acked, so add one before calling
+      // DontWaitForPacketsBefore().
       ++largest_packet_peer_knows_is_acked;
     }
     uber_received_packet_manager_.DontWaitForPacketsBefore(

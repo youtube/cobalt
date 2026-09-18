@@ -27,8 +27,7 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "components/ip_protection/common/masked_domain_list_manager.h"        // nogncheck
-#include "components/ip_protection/common/probabilistic_reveal_token_registry.h"// nogncheck
+#include "components/ip_protection/common/masked_domain_list_manager.h"  // nogncheck
 #include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -233,9 +232,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       base::File regular_browsing_file,
       uint64_t regular_browsing_file_size) override;
 
-  void UpdateProbabilisticRevealTokenRegistry(
-      base::Value::Dict registry) override;
-
 #if BUILDFLAG(IS_ANDROID)
   void DumpWithoutCrashing(base::Time dump_request_time) override;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -332,11 +328,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   ip_protection::MaskedDomainListManager* masked_domain_list_manager() const {
     return masked_domain_list_manager_.get();
-  }
-
-  ip_protection::ProbabilisticRevealTokenRegistry*
-  probabilistic_reveal_token_registry() const {
-    return probabilistic_reveal_token_registry_.get();
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
@@ -509,11 +500,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   std::unique_ptr<ip_protection::MaskedDomainListManager>
       masked_domain_list_manager_;
-
-  // Holds the list of domains that have registered to receive Probabilistic
-  // Reveal Tokens.
-  std::unique_ptr<ip_protection::ProbabilisticRevealTokenRegistry>
-      probabilistic_reveal_token_registry_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   // A per-process_id map of origins that are white-listed to allow

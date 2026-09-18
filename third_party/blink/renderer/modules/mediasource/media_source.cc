@@ -226,7 +226,7 @@ SourceBuffer* MediaSource::addSourceBuffer(const String& type,
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     LogAndThrowDOMException(
         exception_state, DOMExceptionCode::kNotSupportedError,
-        "The type provided ('" + type + "') is unsupported.");
+        StrCat({"The type provided ('", type, "') is unsupported."}));
     return nullptr;
   }
 
@@ -1715,8 +1715,8 @@ std::unique_ptr<WebSourceBuffer> MediaSource::CreateWebSourceBuffer(
       // then throw a NotSupportedError exception and abort these steps.
       LogAndThrowDOMException(
           exception_state, DOMExceptionCode::kNotSupportedError,
-          "The type provided ('" + type +
-              "') is not supported for SourceBuffer creation.");
+          StrCat({"The type provided ('", type,
+                  "') is not supported for SourceBuffer creation."}));
       return nullptr;
     case WebMediaSource::kAddStatusReachedIdLimit:
       DCHECK(!web_source_buffer);

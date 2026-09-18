@@ -111,8 +111,10 @@ class WebApkInstallTaskTest : public testing::Test {
   WebApkInstallTaskTest& operator=(const WebApkInstallTaskTest&) = delete;
 
   void SetUp() override {
-    testing::Test::SetUp();
     EXPECT_TRUE(profile_manager_->SetUp());
+
+    arc_app_test_.PreProfileSetUp();
+
     profile_ = profile_manager_->CreateTestingProfile("test");
 
     app_service_test_.SetUp(profile());
@@ -125,9 +127,10 @@ class WebApkInstallTaskTest : public testing::Test {
     profile()->GetPrefs()->SetBoolean(
         apps::webapk_prefs::kGeneratedWebApksEnabled, false);
 
-    arc_test_.SetUp(profile());
+    arc_app_test_.SetUp(profile());
+
     auto* arc_bridge_service =
-        arc_test_.arc_service_manager()->arc_bridge_service();
+        arc_app_test_.arc_service_manager()->arc_bridge_service();
     fake_webapk_instance_ = std::make_unique<arc::FakeWebApkInstance>();
     arc_bridge_service->webapk()->SetInstance(fake_webapk_instance_.get());
 
@@ -141,7 +144,7 @@ class WebApkInstallTaskTest : public testing::Test {
         &arc_features_getter_);
   }
 
-  void TearDown() override { arc_test_.TearDown(); }
+  void TearDown() override { arc_app_test_.TearDown(); }
 
   bool InstallWebApk(std::string app_id) {
     apps::WebApkInstallTask install_task(profile(), app_id);
@@ -182,7 +185,7 @@ class WebApkInstallTaskTest : public testing::Test {
   std::unique_ptr<TestingProfileManager> profile_manager_;
   raw_ptr<TestingProfile> profile_;
   apps::AppServiceTest app_service_test_;
-  ArcAppTest arc_test_;
+  ArcAppTest arc_app_test_;
 
   net::EmbeddedTestServer test_server_;
 

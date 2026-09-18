@@ -13,24 +13,29 @@ enum class LocationBarBadgeType;
 // Consumer for the location bar badge mediator.
 @protocol LocationBarBadgeConsumer
 
-// Shows/hides badge.
-- (void)setBadge:(LocationBarBadgeType)badge hidden:(BOOL)hidden;
-
 // Update the consumer with a new badge configuration.
 - (void)setBadgeConfig:(LocationBarBadgeConfiguration*)config;
 
-// Notify the consumer to show the entrypoint.
-- (void)showEntrypoint;
+// Notify the consumer to show the badge.
+- (void)showBadge;
 
-// Notify the consumer to transition back to the small entrypoint.
-- (void)transitionToSmallEntrypoint;
+// Notify the consumer to hide badge.
+- (void)hideBadge;
 
-// Notify the consumer to transition to the large entrypoint for a loud moment.
-- (void)transitionToLargeEntrypoint;
+// Notify the consumer to collapse badge container. Can correlate to
+// transforming the chip into a badge.
+- (void)collapseBadgeContainer;
+
+// Notify the consumer to expand badge container. Can correlate to transforming
+// the badge into a chip.
+- (void)expandBadgeContainer;
 
 // Notify the consumer to highlight the badge. When `highlight` is YES, the
 // badge animates to blue, otherwise it animates back to its default color.
 - (void)highlightBadge:(BOOL)highlight;
+
+// Checks if the badge is visible.
+- (BOOL)isBadgeVisible;
 
 @end
 

@@ -122,6 +122,8 @@ int PASCAL wWinMain(HINSTANCE instance,
     if (!wnd.PreTranslateMessage(&msg)) {
       ::TranslateMessage(&msg);
       ::DispatchMessage(&msg);
+      // Also make sure that TaskQueue/Thread messages are processed.
+      webrtc::Thread::Current()->ProcessMessages(0);
     }
   }
 
@@ -131,6 +133,8 @@ int PASCAL wWinMain(HINSTANCE instance,
       if (!wnd.PreTranslateMessage(&msg)) {
         ::TranslateMessage(&msg);
         ::DispatchMessage(&msg);
+        // Also make sure that TaskQueue/Thread messages are processed.
+        webrtc::Thread::Current()->ProcessMessages(0);
       }
     }
   }

@@ -23,16 +23,19 @@ gcc_copts = [
     # This list of warnings should match those in the top-level CMakeLists.txt.
     "-Wall",
     "-Wformat=2",
-    "-Wsign-compare",
     "-Wmissing-field-initializers",
-    "-Wwrite-strings",
     "-Wshadow",
+    "-Wsign-compare",
+    "-Wtype-limits",
+    "-Wvla",
+    "-Wwrite-strings",
     "-fno-common",
     "-fno-strict-aliasing",
 ]
 
 gcc_copts_cxx = [
     "-Wmissing-declarations",
+    "-Wnon-virtual-dtor",
 ]
 
 gcc_copts_c = [
@@ -131,7 +134,7 @@ def handle_mixed_c_cxx(
             deps = deps,
             testonly = testonly,
             alwayslink = alwayslink,
-            **linkstatic_kwargs(linkstatic),
+            **linkstatic_kwargs(linkstatic)
         )
 
         # Build the remainder as a C-only target.

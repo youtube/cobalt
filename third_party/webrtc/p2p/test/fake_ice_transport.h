@@ -32,7 +32,6 @@
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
 #include "p2p/base/candidate_pair_interface.h"
-#include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
@@ -196,11 +195,11 @@ class FakeIceTransport : public IceTransportInternal {
     RTC_DCHECK_RUN_ON(network_thread_);
     return remote_ice_mode_;
   }
-  const IceParameters* local_ice_parameters() const override {
+  const IceParameters* local_ice_parameters() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return &ice_parameters_;
   }
-  const IceParameters* remote_ice_parameters() const override {
+  const IceParameters* remote_ice_parameters() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return &remote_ice_parameters_;
   }
@@ -314,7 +313,6 @@ class FakeIceTransport : public IceTransportInternal {
 
   std::optional<int> GetRttEstimate() override { return rtt_estimate_; }
 
-  const Connection* selected_connection() const override { return nullptr; }
   std::optional<const CandidatePair> GetSelectedCandidatePair() const override {
     return std::nullopt;
   }

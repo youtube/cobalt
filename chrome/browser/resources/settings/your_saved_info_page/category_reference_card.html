@@ -3,12 +3,13 @@
     background-color: var(--cr-card-background-color);
     box-shadow: var(--cr-card-shadow);
     border-radius: var(--cr-card-border-radius);
+    overflow: hidden;
   }
 
   hr {
     border: none;
     border-top: 1px solid var(--cr-separator-color);
-    margin: 0 20px;
+    margin: -1px 20px 0;
   }
 
   .chips-container {
@@ -22,7 +23,7 @@
     --chip-icon-size_: var(--cr-icon-size);
     --color-chip-border: transparent;
     --color-chip-icon: var(--cr-secondary-text-color);
-    --cr-chip-border-radius: 20px;
+    --cr-chip-border-radius: 4px;
     --cr-chip-height: 36px;
     display: flex;
     flex-direction: column;
@@ -52,8 +53,8 @@
     <cr-chip>
       <cr-icon icon="[[item.icon]]"></cr-icon>
       <span>[[item.label]]</span>
-      <span class="counter" hidden$="[[!item.counter]]">
-        ([[item.counter]])
+      <span class="counter" hidden$="[[!item.count]]">
+        ([[item.count]])
       </span>
     </cr-chip>
   </template>

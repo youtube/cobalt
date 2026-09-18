@@ -25,6 +25,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
 import org.chromium.chrome.browser.toolbar.top.ToolbarChildButton;
 import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.function.Supplier;
@@ -119,9 +120,16 @@ public class ForwardButtonCoordinator extends ToolbarChildButton {
         return mImageButton.getVisibility() == View.VISIBLE;
     }
 
+    // TODO(crbug.com/455658153): Ensure setVisibility() can handle multiple sources for setting
+    //  visibility. Currently this only accounts for visibility being set due to the width of the
+    //  ToolbarTablet.
+    public void setVisibility(boolean visibility) {
+        mImageButton.setVisibility(visibility ? View.VISIBLE : View.GONE);
+    }
+
     @Override
-    public void setVisibility(boolean visible) {
-        mImageButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+    public void setHasSpaceToShow(boolean hasSpaceToShow) {
+        setVisibility(hasSpaceToShow);
     }
 
     /** Updates whether the forward button is enabled based on the current Tab. */
@@ -190,7 +198,13 @@ public class ForwardButtonCoordinator extends ToolbarChildButton {
     private void maybeUnfocusUrlBar() {
         LocationBar locationBar = mLocationBarSupplier.get();
         if (locationBar != null && locationBar.getOmniboxStub() != null) {
-            locationBar.getOmniboxStub().setUrlBarFocus(false, null, OmniboxFocusReason.UNFOCUS);
+            locationBar
+                    .getOmniboxStub()
+                    .setUrlBarFocus(
+                            false,
+                            null,
+                            OmniboxFocusReason.UNFOCUS,
+                            AutocompleteRequestType.SEARCH);
         }
     }
 

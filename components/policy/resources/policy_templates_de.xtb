@@ -136,6 +136,7 @@ Ab <ph name="PRODUCT_NAME" /> 140 wird das Verhalten der Funktion durch die Ric
 
       Sollte diese Richtlinie nicht konfiguriert sein, kommt das Standardprofilverzeichnis zum Einsatz.</translation>
 <translation id="1053981429146436598">Eine Gruppe von Richtlinien zu den Einstellungen für Anfragen an private Netzwerke.  Siehe https://wicg.github.io/private-network-access/.</translation>
+<translation id="1055159224864957792">Lokales Passwort</translation>
 <translation id="1059069692400941670">Import der Standardsuchmaschine bei der ersten Ausführung deaktivieren</translation>
 <translation id="1060020040574767394">Benutzerdefinierte Einstellungen des Wasserzeichens konfigurieren</translation>
 <translation id="1062011392452772310">Remote-Bescheinigung (Remote Attestation) für das Gerät aktivieren</translation>
@@ -831,7 +832,7 @@ Beide haben den gleichen Effekt auf das Browserverhalten.</translation>
 <translation id="1561424797596341174">Überschreiben von Richtlinien für Fehlerbehebungs-Builds des Hosts für den Remote-Zugriff</translation>
 <translation id="1561967320164410511">U2F plus Erweiterungen zur individuellen Bestätigung</translation>
 <translation id="1562846754315919408">Benachrichtigen, wenn USB-Geräte erkannt werden</translation>
-<translation id="1563745847791078494">Ist die Richtlinie konfiguriert, wird die standardmäßige Startseiten-URL in <ph name="PRODUCT_NAME" /> festgelegt. Die Startseite wird über die Schaltfläche „Startseite“ geöffnet. Auf dem Computer werden die Seiten, die beim Hochfahren geöffnet werden, über die „<ph name="RESTORE_ON_STARTUP_POLICY_NAME" />“-Richtlinien gesteuert.
+<translation id="1563745847791078494">Ist die Richtlinie konfiguriert, wird die standardmäßige Startseiten-URL in <ph name="PRODUCT_NAME" /> festgelegt. Die Startseite wird über den Button „Startseite“ geöffnet. Auf dem Computer werden die Seiten, die beim Hochfahren geöffnet werden, über die „<ph name="RESTORE_ON_STARTUP_POLICY_NAME" />“-Richtlinien gesteuert.
 
 Wenn die „Neuer Tab“-Seite durch den Nutzer oder „<ph name="HOMEPAGE_IS_NEW_TAB_PAGE_POLICY_NAME" />“ als Startseite festgelegt ist, hat diese Richtlinie keine Auswirkung.
 
@@ -877,13 +878,13 @@ Wenn die Richtlinie nicht konfiguriert ist, gilt „<ph name="DEFAULT_DIRECT_SOC
 URL-Muster dürfen nicht im Konflikt mit „<ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" />“ stehen. Keine Richtlinie hat Vorrang, falls eine URL mit beiden übereinstimmt.
 
 Ausführliche Informationen zu gültigen URL-Mustern findest du unter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. <ph name="WILDCARD_VALUE" /> ist kein akzeptierter Wert für diese Richtlinie.</translation>
-<translation id="1578495851351913403">Wenn du diese Richtlinie konfigurierst, wird in den Displayeinstellungen unter jedem Display eine neue Ein/Aus-Schaltfläche angezeigt. Im normalen Spiegelmodus werden alle Displays auf ein Display gespiegelt, aber mit der neuen Ein/Aus-Schaltfläche können Nutzer ein Display von der Spiegelung ausschließen und als erweitertes Display anzeigen lassen.
+<translation id="1578495851351913403">Wenn du diese Richtlinie konfigurierst, wird in den Displayeinstellungen unter jedem Display ein neuer Ein/Aus-Button angezeigt. Im normalen Spiegelmodus werden alle Displays auf ein Display gespiegelt, aber mit dem neuen Ein/Aus-Button können Nutzer ein Display von der Spiegelung ausschließen und als erweitertes Display anzeigen lassen.
 
 Wenn die Richtlinie aktiviert ist, wird für jedes Display die Option angezeigt, es vom Spiegelmodus auszuschließen. Der Nutzer kann dann auswählen, welches Display aktiviert werden soll.
 
-Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, wird die Ein/Aus-Schaltfläche ausgeblendet.
+Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, wird der Ein/Aus-Button ausgeblendet.
 
-Hinweis: Diese Richtlinie wirkt sich nur auf die Benutzeroberfläche aus. Die vorhandenen Einstellungen werden unter ChromeOS beibehalten, wenn die Ein/Aus-Schaltfläche ausgeblendet ist.</translation>
+Hinweis: Diese Richtlinie wirkt sich nur auf die Benutzeroberfläche aus. Die vorhandenen Einstellungen werden unter ChromeOS beibehalten, wenn der Ein/Aus-Button ausgeblendet ist.</translation>
 <translation id="1579027593897822029">Liste der Aktionen, die ausgeführt werden sollen, wenn das Zeitlimit in der Richtlinie „<ph name="IDLE_TIMEOUT_POLICY_NAME" />“ erreicht ist.
 
 Warnung: Das Festlegen dieser Richtlinie kann sich auf lokale private Daten auswirken und diese dauerhaft entfernen. Wir empfehlen, die Einstellungen vor der Bereitstellung zu testen, um das versehentliche Löschen von privaten Daten zu verhindern.
@@ -1229,6 +1230,15 @@ Diese Richtlinie hat keine Auswirkungen, wenn die Option zum Beibehalten von bes
 <translation id="1834796168555733063">Speichern von Passkeys im Passwortmanager deaktivieren</translation>
 <translation id="1836380138559328229">Anmeldedaten für das aktive WLAN auf Geräteebene speichern</translation>
 <translation id="1837165432382702436">Seitenhöhe in Mikrometern</translation>
+<translation id="1838075279369174832">Durch die Konfiguration der Richtlinie wird festgelegt, welche lokalen Authentifizierungsfaktoren für die Anmeldung und die erneute Authentifizierung in <ph name="PRODUCT_OS_NAME" /> verwendet werden können.
+
+      * Alle lokalen Authentifizierungsfaktoren zulassen: ["ALL"] (umfasst auch zukünftige Faktoren).
+
+      * Nur PIN zulassen: ["PIN"].
+
+      * Nur lokale Passwörter zulassen: ["LOCAL_PASSWORD"].
+
+      Wenn die Richtlinie nicht konfiguriert oder eine leere Liste festgelegt ist, stehen verwalteten Nutzern keine lokalen Authentifizierungsfaktoren zur Verfügung.</translation>
 <translation id="1838910874018595451">Voreingestellte Konfiguration für Kerberos-Tickets</translation>
 <translation id="1839042185432919430">Zulassen, dass die Kiosk-Web-App beim Start der App eine Netzwerkaufforderung anzeigt, wenn das Gerät offline ist</translation>
 <translation id="1839711547980672664">Liste der URL-Muster, für die das Öffnen von <ph name="CHROME_DEVTOOLS_NAME" /> zulässig ist</translation>
@@ -1909,6 +1919,7 @@ Ist diese Richtlinie nicht konfiguriert, können Nutzer die im Launcher angepinn
 <translation id="2306505001667207184">Fordert Nutzer auf, das Clientzertifikat auszuwählen, wenn die Richtlinie für die automatische Auswahl zu mehreren Zertifikaten passt.</translation>
 <translation id="230713790688681130">Inscript-Layout für Hindi aktivieren</translation>
 <translation id="2307496301287881990">Status von Display und Grafikkarte melden</translation>
+<translation id="2308084581803907194">Hohe Komplexität</translation>
 <translation id="2308899582897965249">Stummes Drucken deaktivieren</translation>
 <translation id="2309284543927494965">Updates blockieren</translation>
 <translation id="2309341709647905294">Keine Daten zu Peripheriegeräten melden, die an das Gerät angeschlossen sind</translation>
@@ -2720,6 +2731,19 @@ Wenn diese Richtlinie aktiviert ist, kann das Verhalten von Funktionstasten mit 
       Wenn die Richtlinie nicht konfiguriert ist, wird sie für verwaltete Geräte deaktiviert und für nutzereigene Geräte aktiviert.
       Bitte beachte, dass beim Deaktivieren nur die systemweite Trace-Erfassung deaktiviert wird. Die Erfassung von Browser-Traces ist von dieser Richtlinie nicht betroffen.</translation>
 <translation id="2922511125678964398">Erlauben, dass die Captive-Portal-Authentifizierung Proxy-Einstellungen ignoriert</translation>
+<translation id="2923126158151236068">Mit dieser Richtlinie werden die Mindestanforderungen an die Komplexität von lokalen Authentifizierungsfaktoren (PINs und lokale Passwörter) konfiguriert, die von Nutzern unter <ph name="PRODUCT_OS_NAME" /> festgelegt werden.
+
+Wenn diese Richtlinie nicht konfiguriert ist, wird standardmäßig die Komplexitätsstufe „Keine“ verwendet.
+
+Die Anforderungen dieser Richtlinie werden erzwungen, wenn ein Nutzer eine lokale PIN bzw. ein lokales Passwort ändert oder neu einrichtet.
+
+Die Komplexitätsstufen basieren auf den Android-Messwerten für die Passwortqualität (https://developers.google.com/android/management/reference/rest/v1/PasswordRequirements) und wurden für <ph name="PRODUCT_OS_NAME" /> angepasst:
+– 1 = Keine: Eine PIN bzw. ein Passwort ist erforderlich, aber es gibt keine Einschränkungen hinsichtlich Inhalt oder Länge.
+– 2 = Niedrig: Grundlegende Anforderungen an die Komplexität.
+– 3 = Mittel: Strengere Anforderungen an Länge und Zeichentyp.
+– 4 = Hoch: Stärkste Komplexitätsanforderungen, die mehrere Zeichentypen erfordern.
+
+In der Hilfe findest du detaillierte Erklärungen dazu, was die einzelnen Stufen für PINs und Passwörter bedeuten.</translation>
 <translation id="2926813071464307947">Renderer-App-Container-Sandbox deaktivieren</translation>
 <translation id="2931888116345994552">Mit der Richtlinie werden Komponentenupdates für alle Komponenten in <ph name="PRODUCT_NAME" /> aktiviert, sofern sie nicht festgelegt oder auf „Aktiviert“ gesetzt ist.
 
@@ -3490,6 +3514,15 @@ Wenn die Richtlinie nicht konfiguriert ist, wird die Browsernavigation verhinder
 
       Ist die Richtlinie deaktiviert oder nicht konfiguriert, wird DTC ausgeschaltet und kann keine Telemetrie- und Diagnosedaten von dem Gerät erheben, verarbeiten oder melden.</translation>
 <translation id="3442589735857147823">Zulassen, dass Nutzer virtuelle Maschinen verwenden, die für Linux-Apps benötigt werden</translation>
+<translation id="34476328503285475">Wenn du diese Richtlinie festlegst, werden in <ph name="PRODUCT_NAME" /> auf der Seite „Neuer Tab“ bis zu 10 benutzerdefinierte Verknüpfungen vorkonfiguriert.
+
+Wenn diese Richtlinie festgelegt ist, sehen Nutzer diese Verknüpfungen standardmäßig zusätzlich zu ihren persönlichen Verknüpfungen. Nutzer können die Sichtbarkeit der Verknüpfungen ihrer Organisation im Bereich „Chrome anpassen“ steuern.
+
+URLs von Verknüpfungen müssen eindeutig sein.
+
+Wenn die Richtlinie „<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />“ auf „true“ festgelegt ist, können Nutzer den Namen der Verknüpfung ändern. Wenn die Richtlinie auf „false“ oder nicht festgelegt ist, können Nutzer den Namen nicht bearbeiten.
+
+Wenn die Richtlinie „<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />“ auf „true“ festgelegt ist, können Nutzer die Verknüpfung entfernen. Wenn die Richtlinie auf „false“ oder nicht festgelegt ist, können Nutzer die Verknüpfung nicht entfernen.</translation>
 <translation id="3450649825886735618">Rechtschreibfehler nicht mithilfe von Google-Webdiensten korrigieren</translation>
 <translation id="3451422488938880786"> Ermöglicht das Aktivieren/Deaktivieren der Neuzuordnung von internationalen Tastenkürzeln</translation>
 <translation id="3451901387456196887">Nutzer erhalten im <ph name="PRODUCT_NAME" />-Menü die Option, Übertragungsgeräte mithilfe eines Zugriffscodes oder durch Scannen eines QR-Codes auszuwählen.</translation>
@@ -4739,6 +4772,7 @@ Hinweis: Diese Richtlinie ersetzt die Richtlinie „<ph name="ARC_GLS_POLICY_NAM
 <translation id="4341199399451274159">Wenn "<ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />" aktiviert ist, gibt "<ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />" die Zeichencodierungen an, die vom Suchanbieter unterstützt werden. Dazu werden Codeseiten-Namen wie "UTF-8", "GB2312" oder "ISO-8859-1" verwendet. Sie werden in der angegebenen Reihenfolge ausprobiert
 
       Wenn "<ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />" nicht konfiguriert ist, wird "UTF-8" verwendet.</translation>
+<translation id="4346542905412554336">Proxy-Überschreibungsregeln</translation>
 <translation id="4347908978527632940">Wenn "true" eingestellt ist und der Nutzer ein betreuter Nutzer ist, können andere Android-Apps die Webeinschränkungen des Nutzers über einen Contentanbieter abfragen.
 
           Wenn "false" oder nichts eingestellt ist, gibt der Contentanbieter keine Informationen zurück.</translation>
@@ -5951,6 +5985,7 @@ Falsch formatierte Domains werden ignoriert.</translation>
 <translation id="5163889437570441600">Hiermit wird das Streamen von Inhalten an das Gerät über <ph name="PRODUCT_NAME" /> erlaubt.
 
           Wenn diese Richtlinie auf „false“ gesetzt ist, ist es Nutzern nicht möglich, Inhalte auf ihr Gerät zu streamen. Ist sie auf „true“ gesetzt, können Nutzer Inhalte streamen. Wenn die Richtlinie nicht konfiguriert ist, können Nutzer keine Inhalte an angemeldete Chrome OS-Geräte streamen, aber an nicht angemeldete Geräte.</translation>
+<translation id="5166766992668636906">Mittlere Komplexität</translation>
 <translation id="5168529971295111207">Diese Richtlinie wurde eingestellt. Verwende stattdessen "ProxyMode".
 
           Mit dieser Richtlinie kannst du angeben, welcher Proxyserver von <ph name="PRODUCT_NAME" /> verwendet werden soll, und verhindern, dass Nutzer die Proxyeinstellungen ändern.
@@ -6161,7 +6196,7 @@ Ist die Richtlinie nicht konfiguriert, wird der Standardwert von 0 Grad verwend
 <translation id="5258445772095084618">Zulassen, dass nicht verknüpfte Nutzer virtuelle Maschinen verwenden, die für Linux-Apps benötigt werden</translation>
 <translation id="5258651513421638932">Isolierten Apps erlauben, eine Verbindung zu Smartcards herzustellen</translation>
 <translation id="5262320080678421295">Zertifikaten nicht vertrauen, die von der Legacy-PKI der Symantec Corporation ausgestellt wurden</translation>
-<translation id="5265613843467285323">Ein/Aus-Schaltfläche für „Display im Spiegelmodus ausschließen“ anzeigen.</translation>
+<translation id="5265613843467285323">Ein/Aus-Button für „Display im Spiegelmodus ausschließen“ anzeigen.</translation>
 <translation id="5270408671043421978">Vorabladen von <ph name="ARC_VM" />-Bildern deaktivieren</translation>
 <translation id="5272332743749468542">Nutzern Zugriff auf „Display im Spiegelmodus ausschließen“ gewähren</translation>
 <translation id="5273744932022326215">Hiermit wird die Bedienungshilfe "Mauszeiger hervorheben" auf dem Anmeldebildschirm aktiviert.
@@ -6261,7 +6296,7 @@ Ist die Richtlinie deaktiviert, können der Browser‑ und der Downloadverlauf n
 <translation id="5323271643727095577">Dialogfeld zum Abbrechen nicht anzeigen, wenn „event.preventDefault()“ für ein „beforeunload“-Ereignis aufgerufen wird. Dialogfeld zum Abbrechen anzeigen, wenn „beforeunload event.returnValue“ der leere String für ein „beforeunload“-Ereignis ist.</translation>
 <translation id="5324430722441910403">Einstellungen für die Websitesuche</translation>
 <translation id="5326431956495937408">Wenn die Richtlinie aktiviert ist, können Nutzer ihre Passwörter gemäß den Familiendiensten an Familienmitglieder senden und von ihnen empfangen.
-Ist sie aktiviert oder nicht konfiguriert, gibt es im Passwortmanager eine Schaltfläche, über die ein Passwort gesendet werden kann.
+Ist sie aktiviert oder nicht konfiguriert, gibt es im Passwortmanager einen Button, über die ein Passwort gesendet werden kann.
 Empfangene Passwörter werden im Konto des Nutzers gespeichert und sind im Passwortmanager verfügbar.
 
 Ist die Richtlinie deaktiviert, können Nutzer keine Passwörter vom Passwortmanager aus an andere Nutzer senden und auch keine Passwörter von anderen Nutzern empfangen.
@@ -7526,6 +7561,7 @@ Andere Einschränkungen wie die der Richtlinien ArcEnabled und UnaffiliatedArcAl
 <translation id="6144046700495610112">Wenn die Richtlinie aktiviert ist, werden bei der ersten Ausführung Autofill-Kreditkartendaten aus dem Standardbrowser importiert. Ist die Richtlinie deaktiviert oder nicht konfiguriert, werden bei der ersten Ausführung keine Autofill-Formulardaten importiert.
 
       Nutzer können einen Importdialog öffnen. Das Kästchen für die Autofill-Formulardaten wird je nach Konfiguration dieser Richtlinie aktiviert oder deaktiviert.</translation>
+<translation id="6144246313478615705">Mindestanforderung an die Komplexität von lokalen PINs und Passwörtern festlegen</translation>
 <translation id="614551633868957694">Chrome-Apps und ‑Erweiterungen</translation>
 <translation id="614616930188030377">Muster in dieser Liste werden mit der Sicherheitsherkunft der anfragenden URL abgeglichen.
       Wenn Übereinstimmungen gefunden werden oder chrome://flags/#enable-webrtc-hide-local-ips-with-mdns deaktiviert ist, werden die lokalen IP-Adressen in WebRTC ICE-Kandidaten angezeigt.
@@ -8188,6 +8224,13 @@ Diese Richtlinie wirkt sich nicht auf die von Chrome Enterprise Connectors konfi
 <translation id="6520802717075138474">Suchmaschinen bei erster Ausführung aus Standardbrowser importieren</translation>
 <translation id="6521971538031711337">Verwaltetem Nutzer nicht erlauben, seinen Gerätehostnamen zu konfigurieren</translation>
 <translation id="6523079496775454310">Einwilligung für Gerätesignale für verwaltete Nutzer auf nicht verwalteten Geräten aktivieren</translation>
+<translation id="6523608518493993483">Mit dieser Richtlinie können Administratoren den HTTP-Cache des Browsers auf dem Datenträger verschlüsseln.
+
+Wenn diese Richtlinie aktiviert ist, wird der Browser-Cache verschlüsselt.
+
+Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, wird der Browser-Cache nicht verschlüsselt.
+
+Die Verschlüsselung des Browser-Caches kann sich auf die Leistung auswirken.</translation>
 <translation id="6527674993612811419">In unsicheren Formularen Warnungen anzeigen und Autofill deaktivieren</translation>
 <translation id="6532769014584932288">Wakelocks zulassen</translation>
 <translation id="6533881418188970751">Nutzer vor dem Download nach dem Speicherort für die Datei fragen</translation>
@@ -8691,6 +8734,7 @@ Hinweis: Nutzer können Cookies blockieren und so auf Google-Dienste zugreifen, 
 Wenn die Richtlinie aktiviert ist, wird der Nutzer bei erfolgreicher Anmeldung auf einem neuen <ph name="PRODUCT_OS_NAME" />-Gerät von seiner vorherigen Sitzung abgemeldet.
 
 Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, wird der Nutzer nur dann von seiner vorherigen Sitzung abgemeldet, wenn die Richtlinie „<ph name="FLOATING_SSO_ENABLED_POLICY_NAME" />“ oder „<ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" />“ aktiviert ist.</translation>
+<translation id="6854694645176150141">Zugelassene lokale Authentifizierungsfaktoren konfigurieren</translation>
 <translation id="6854767649023671426">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, wird beim Zugriff für Videoaufnahmen beim Nutzer nachgefragt. Ausgenommen sind URLs in der Liste "VideoCaptureAllowedUrls".
 
       Ist diese Richtlinie deaktiviert, wird nie beim Nutzer nachgefragt und die Möglichkeit für Videoaufnahmen steht nur URLs in der Liste "VideoCaptureAllowedUrls" zur Verfügung.
@@ -8990,6 +9034,17 @@ Nur gültige HTTPS-Ursprünge sind zulässig. Platzhalter werden nicht unterstü
 Ungültige Einträge werden ignoriert.</translation>
 <translation id="7044883996351280650">Android-Dienst "Sicherung und Wiederherstellung" konfigurieren</translation>
 <translation id="7045221780834308118">Wenn die Richtlinie aktiviert ist, können Webanwendungen von Drittanbietern die Desk API verwenden, um <ph name="PRODUCT_OS_NAME" />-Desktops zu steuern. Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, ist die <ph name="DESK_API_NAME" /> nicht verfügbar. Die Richtlinie wird nur auf registrierten Geräten angewendet.</translation>
+<translation id="704591686761455167">Mit dieser Richtlinie wird festgelegt, ob Blob-URLs beim Abrufen und Navigieren partitioniert werden.
+Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, werden Blob-URLs partitioniert.
+Ist die Richtlinie deaktiviert, werden Blob-URLs nicht partitioniert.
+
+Blob-URLs werden ebenfalls nicht partitioniert, wenn die Speicherpartitionierung für einen Ursprung der obersten Ebene deaktiviert ist (entweder durch „<ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" />“ oder „<ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />“).
+
+Falls du die Richtlinie verwenden musst, melde auf <ph name="BUG_URL" /> einen Fehler unter Angabe deines Anwendungsfalls. Die Richtlinie kann bis zum Ende von Version 146 von <ph name="PRODUCT_NAME" /> verwendet werden. Danach wird die alte Implementierung entfernt.
+
+HINWEIS: Während der Browser ausgeführt wird, werden Änderungen an dieser Richtlinie nur für neu gestartete Rendererprozesse übernommen.
+
+Ausführliche Informationen zur Drittanbieter-Speicherpartitionierung findest du unter https://developers.google.com/privacy-sandbox/cookies/storage-partitioning.</translation>
 <translation id="7046113122884041950">Smart Lock nicht zulassen</translation>
 <translation id="7046997898355294677">Datenschutzhinweise anzeigen, bis sie vom Nutzer geschlossen werden</translation>
 <translation id="7047495632846973438">Gibt an, ob die Richtlinie für Berechtigungen zur Display-Erfassung ausgewählt ist oder übersprungen wird.</translation>
@@ -9585,12 +9640,24 @@ Ist die Richtlinie nicht konfiguriert, entspricht dies der Einstellung „<ph na
 <translation id="7491720878670299691">Häufigkeit, mit der Netzwerkdaten gepollt und auf Ereignisse geprüft werden. Die geringste zulässige Häufigkeit beträgt 1 Minute.
 
       Wenn die Richtlinie nicht konfiguriert ist, beträgt die Häufigkeit standardmäßig 1 Minute.</translation>
+<translation id="7496284563199466390">Bestimmt, welche verwalteten Nutzer die Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ festlegen können.</translation>
 <translation id="7498595166686106721">
       Die Richtlinie für Berechtigungen zur Display-Erfassung ermöglicht Zugriff auf „getDisplayMedia()“ gemäß dieser Spezifikation: https://www.w3.org/TR/screen-capture/#feature-policy-integration. Ist die Richtlinie jedoch deaktiviert, wird diese Anforderung nicht erzwungenund „getDisplayMedia()“ wird aus Kontexten zugelassen, die andernfalls nicht zulässig wären. Diese Unternehmensrichtlinie ist vorübergehend. Nach Version 100 von <ph name="PRODUCT_NAME" /> wird sie voraussichtlich entfernt. Sie soll Unternehmensnutzer freigeben, deren Anwendung nicht spezifikationskonform ist, jedoch erst nach einiger Zeit angepasst werden kann.
 
       Ist die Richtlinie aktiviert oder nicht konfiguriert, können Websites „getDisplayMedia()“ nur aus Kontexten anrufen, die auf der Zulassungsliste der Richtlinie für Berechtigungen zur Display-Erfassung aufgeführt sind.
 
       Wenn die Richtlinie deaktiviert ist, können Websites „getDisplayMedia()“ auch aus Kontexten anrufen, die nicht auf der Zulassungsliste der Richtlinie für Berechtigungen zur Display-Erfassung aufgeführt sind. Andere Einschränkungen können dennoch gültig sein.</translation>
+<translation id="750408442628578356">Diese Richtlinie legt fest, ob die Gemini App im Namen des Nutzers Aktionen auf Webseiten ausführen darf.
+
+0 / nicht festgelegt = Die Gemini App darf Aktionen auf Webseiten ausführen.
+
+1 = Die Gemini App darf keine Aktionen auf Webseiten ausführen.
+
+Diese Richtlinie hat keine Auswirkungen, wenn die Gemini App deaktiviert ist. Beispielsweise kann die Gemini App durch die Richtlinie „<ph name="GEMINI_SETTINGS_POLICY_NAME" />“ deaktiviert werden.
+
+Unter https://support.google.com/chrome/a/answer/16291696 findest du weitere Informationen zu Gemini in Chrome.
+
+Gemini kann nicht in allen Ländern und Sprachen Aktionen ausführen. Auch wenn du diese Richtlinie festlegst, kann die Funktion möglicherweise nicht aktiviert werden, da sie von der Verfügbarkeit abhängig ist. Weitere Informationen zur Einführung der Funktion findest du in den Versionshinweisen für Chrome Enterprise: https://support.google.com/chrome/a/answer/7679408?</translation>
 <translation id="7506745375479451616">Mit dieser Richtlinie wird der Befehl konfiguriert, mit dem URLs in <ph name="PRODUCT_NAME" /> geöffnet werden, wenn von <ph name="IE_PRODUCT_NAME" /> dorthin gewechselt wird. Diese Richtlinie kann mit einem Pfad zur ausführbaren Datei oder <ph name="PRODUCT_NAME_PLACEHOLDER" /> konfiguriert werden, damit das Verzeichnis von <ph name="PRODUCT_NAME" /> automatisch erkannt wird.
 
       Ist die Richtlinie nicht konfiguriert, erkennt <ph name="IE_PRODUCT_NAME" /> den Pfad zur ausführbaren Datei von <ph name="PRODUCT_NAME" /> automatisch, wenn <ph name="PRODUCT_NAME" /> über Internet Explorer geöffnet wird.
@@ -9672,6 +9739,7 @@ Wenn die Richtlinie leer bleibt, sind keine Ausnahmen zu „<ph name="FLOATING_S
 
       Bei nicht verwalteten Geräten ist es auch wichtig, ob der jeweilige Nutzer der Geräteeigentümer ist.</translation>
 <translation id="7570291542739287032">Nur Cloud</translation>
+<translation id="7572641760104970905">Keine Komplexität</translation>
 <translation id="757395965347379751">Wenn diese Einstellung aktiviert ist, werden von <ph name="PRODUCT_NAME" /> SHA-1-signierte Zertifikate genehmigt, vorausgesetzt sie werden erfolgreich überprüft und bilden eine Kette zu einem lokal installierten CA-Zertifikat.
 
       Diese Richtlinie setzt voraus, dass vom Zertifikatüberprüfungsstapel des Betriebssystems SHA-1-Signaturen zugelassen werden. Wenn sich durch ein Update des Betriebssystems die Handhabung von SHA-1-Zertifikaten ändert, ist diese Richtlinie nicht mehr wirksam. Diese Richtlinie dient zur vorübergehenden Problemumgehung, um Unternehmen mehr Zeit zu geben, SHA-1 zu ersetzen. Diese Richtlinie wird ab dem 1. Januar 2019 entfernt.
@@ -9765,6 +9833,7 @@ Wenn du diese Richtlinie konfigurieren möchtest, muss die Richtlinie <ph name="
 <translation id="7648907905084499629">Verhalten "<ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" />" für alle Cookies auf allen Websites verwenden</translation>
 <translation id="7657261947024629645">Für eine optimale Leistung.</translation>
 <translation id="76580522298425324">Bildschirmaufnahme ohne vorherige Nutzergeste zulassen</translation>
+<translation id="7661379728107156839">Geringe Komplexität</translation>
 <translation id="7666228839913571182">Drittanbieter-Cookies zulassen</translation>
 <translation id="7666782560345386904">Einstellungen für das erweiterte Autofill</translation>
 <translation id="7669630878711068277">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, können Nutzer in „<ph name="PRODUCT_NAME" />“ drucken. Nutzer können diese Einstellung nicht ändern.
@@ -10299,6 +10368,21 @@ Ist die Richtlinie deaktiviert, wird die Funktion für den komprimierten Wörter
 
       Ist diese Richtlinie festgelegt, kann der Nutzer sie weder ändern noch überschreiben.</translation>
 <translation id="8080200590486938727">Plug-in-Suchfunktion deaktivieren</translation>
+<translation id="8082268442825947283">Wenn du diese Richtlinie festlegst, werden Regeln konfiguriert, über die der vom Browser verwendete Proxy je nach der Ziel-URL und anderen Bedingungen ausgewählt wird. Diese Richtlinie hat Vorrang vor den Proxy-Einstellungen, die über die Richtlinie „<ph name="PROXY_SETTINGS_POLICY_NAME" />“, die Erweiterungs-API „<ph name="PROXY_SETTINGS_EXTENSION_API" />“ oder manuelle Nutzereinstellungen festgelegt werden, sofern vorhanden.
+
+Wenn die Richtlinie nicht festgelegt ist, hat dies keine Auswirkungen auf andere Proxy-Richtlinien oder Nutzereinstellungen.
+
+Wenn die Proxy-Auswahl über den Browser getroffen wird, werden die Einträge der Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ der Reihe nach ausgewertet, bis ein Eintrag eine Übereinstimmung mit mindestens einem der URL-Hosts in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> hat und alle Einträge in <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> erfüllt sind. Der Wert in <ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> wird als Proxy für eine solche Übereinstimmung verwendet. Wenn keine Übereinstimmung gefunden wird, werden die Proxy-Einstellungen auf die in der Richtlinie „<ph name="PROXY_SETTINGS_POLICY_NAME" />“ festgelegten Werte zurückgesetzt.
+
+Die Einträge im Feld „<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" />“ entsprechen Stringwerten von PAC-Dateien wie:
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+Der erste erreichbare Eintrag wird als Proxy verwendet.
+
+Das Feld „<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />“ enthält eine Liste von Bedingungen, die alle erfüllt sein müssen, damit die Überschreibungsregel zur Auswahl des zu verwendenden Proxys genutzt wird. Bei Nichtfestlegung wird der Eintrag verwendet, solange mindestens ein Host in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> übereinstimmt.
+
+Die Bedingung „<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" />“ prüft, ob das angegebene DNS „<ph name="PROXY_OVERRIDE_RULES_HOST" />“ in eine IP-Adresse aufgelöst werden kann. Wenn der Wert von <ph name="PROXY_OVERRIDE_RULES_RESULT" /> „<ph name="PROXY_OVERRIDE_RULES_RESOLVES" />“ ist, gilt die Bedingung als erfüllt. Wenn der Wert stattdessen auf „<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />“ festgelegt ist, gilt die Bedingung als erfüllt, wenn die Auflösung fehlgeschlagen ist.</translation>
 <translation id="8086746212954621799">Bei Festlegung auf „true“ werden automatische Updates deaktiviert.
 
 Ist diese Einstellung nicht konfiguriert oder auf „false“ gesetzt, suchen <ph name="PRODUCT_OS_NAME" />-Geräte automatisch nach Updates.
@@ -10494,6 +10578,9 @@ Diese Richtlinie wird auf den Inkognitomodus angewendet. Das bedeutet, dass der 
 <translation id="8225579382697740712">Verwendung der WebHID API verwalten</translation>
 <translation id="8229912067600517877">Entwicklertools aktivieren</translation>
 <translation id="8238421250255592181">Boolescher Parameter, der angibt, ob für die Bildschirmtastatur die automatische Vervollständigung aktiviert ist.</translation>
+<translation id="8238558579601006178">Wenn diese Richtlinie auf „0“ festgelegt oder nicht konfiguriert ist, wird die Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ nur auf Nutzerebene für Nutzer angewendet, die mit einer Organisation verknüpft sind.
+Wenn diese Richtlinie auf „1“ festgelegt ist, wird die Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ auf Nutzerebene angewendet, auch wenn der Nutzer nicht mit einer Organisation verknüpft ist.
+Wenn diese Richtlinie auf „2“ festgelegt ist, wird die Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ nie angewendet, wenn die Quelle ein Nutzer ist.</translation>
 <translation id="8239109177194627162">Autofill für Kreditkarten deaktivieren</translation>
 <translation id="8239143983379015783">Aktivierung des persistenten Kontingents erzwingen</translation>
 <translation id="8240976615241583524">Mit dieser Richtlinie kannst du einschränken, welche IP-Adressen und Schnittstellen WebRTC bei der Suche nach der bestmöglichen Verbindung verwenden kann.
@@ -11029,7 +11116,7 @@ Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durc
 Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8566842294717252664">Web Store auf der "Neuer Tab"-Seite und im App Launcher ausblenden</translation>
 <translation id="8567697114274003779">Benutzerdefiniertes Unternehmenslabel für ein verwaltetes Profil festlegen</translation>
-<translation id="8571069584826006598">Ursprüngen der isolierten Web-App erlauben, den Nutzer über die WebPrinting API um Zugriff auf lokale Drucker zu bitten</translation>
+<translation id="8571069584826006598">Ursprüngen der isolierten Web-App erlauben, den Nutzer um Zugriff auf lokale Drucker über die WebPrinting API zu bitten</translation>
 <translation id="8571119890730528225">Drittanbieter-Speicherpartitionierung deaktivieren.</translation>
 <translation id="8571314270766672278">Bei Versionsdowngrade ein Rollback durchführen und das Gerät zurücksetzen; dabei die Registrierung möglichst erhalten</translation>
 <translation id="8571871284943706125">Mit dieser Richtlinie wird festgelegt, ob Ereignisse in CRD-Sitzungen auf registrierten Geräten für verknüpfte Nutzer gemeldet werden.

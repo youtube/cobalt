@@ -63,7 +63,6 @@ class MandatoryReauthSettingsPageMetricsTest
 
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
-    personal_data_manager().SetPrefService(autofill_client()->GetPrefs());
     personal_data_manager()
         .payments_data_manager()
         .SetPaymentMethodsMandatoryReauthEnabled(IsFeatureTurnedOn());
@@ -194,7 +193,10 @@ class AutofillPrivateApiUnitTest : public extensions::ExtensionApiTest {
             autofill::features::kAutofillAiWalletVehicleRegistration,
         },
         /*disabled_features=*/
-        {autofill::features::kAutofillAiIgnoreLocale});
+        {autofill::features::kAutofillAiIgnoreLocale,
+         autofill::features::kAutofillAiNationalIdCard,
+         autofill::features::kAutofillAiKnownTravelerNumber,
+         autofill::features::kAutofillAiRedressNumber});
   }
   AutofillPrivateApiUnitTest(const AutofillPrivateApiUnitTest&) = delete;
   AutofillPrivateApiUnitTest& operator=(const AutofillPrivateApiUnitTest&) =
@@ -203,7 +205,6 @@ class AutofillPrivateApiUnitTest : public extensions::ExtensionApiTest {
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
     payments_data_manager().SetSyncingForTest(/*is_syncing_for_test=*/true);
-    payments_data_manager().SetPrefService(autofill_client()->GetPrefs());
   }
 
   void TearDownOnMainThread() override {

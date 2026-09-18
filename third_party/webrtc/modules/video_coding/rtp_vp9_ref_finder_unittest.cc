@@ -23,6 +23,7 @@
 #include "api/rtp_packet_infos.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame_type.h"
@@ -662,6 +663,34 @@ TEST_F(RtpVp9RefFinderTest, StashedFramesDoNotWrapTl0Backwards) {
   EXPECT_THAT(frames_, SizeIs(1));
   Insert(Frame().Pid(129).SidAndTid(0, 0).Tl0(129));
   EXPECT_THAT(frames_, SizeIs(2));
+}
+
+TEST_F(RtpVp9RefFinderTest, TemporalIndexTooHighDropsFrame) {
+  // kMaxTemporalLayers is 5.
+  Insert(Frame().Pid(0).SidAndTid(0, 5).AsKeyFrame());
+  EXPECT_THAT(frames_, SizeIs(0));
+
+  // Using a GoF frame type.
+  GofInfoVP9 ss;
+  ss.SetGofInfoVP9(kTemporalStructureMode1);
+  Insert(Frame().Pid(1).SidAndTid(0, 5).Tl0(0).AsKeyFrame().Gof(&ss));
+  EXPECT_THAT(frames_, SizeIs(0));
+}
+
+TEST_F(RtpVp9RefFinderTest, SpatialIndexTooHighDropsFrame) {
+  Insert(Frame().Pid(0).SidAndTid(kMaxSpatialLayers, 0).AsKeyFrame());
+  EXPECT_THAT(frames_, SizeIs(0));
+
+  // Using a GoF frame type.
+  GofInfoVP9 ss;
+  ss.SetGofInfoVP9(kTemporalStructureMode1);
+  Insert(Frame()
+             .Pid(1)
+             .SidAndTid(kMaxSpatialLayers, 0)
+             .Tl0(0)
+             .AsKeyFrame()
+             .Gof(&ss));
+  EXPECT_THAT(frames_, SizeIs(0));
 }
 
 }  // namespace webrtc

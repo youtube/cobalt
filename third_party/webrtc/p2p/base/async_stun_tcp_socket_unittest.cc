@@ -104,8 +104,10 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
     ASSERT_EQ(client->Bind(kClientAddr), 0);
     ASSERT_EQ(client->Connect(listen_socket_->GetLocalAddress()), 0);
     send_socket_ = std::make_unique<AsyncStunTCPSocket>(env, std::move(client));
-    send_socket_->SignalSentPacket.connect(
-        this, &AsyncStunTCPSocketTest::OnSentPacket);
+    send_socket_->SubscribeSentPacket(
+        this, [this](AsyncPacketSocket* socket, const SentPacketInfo& info) {
+          OnSentPacket(socket, info);
+        });
     vss_->ProcessMessagesUntilIdle();
   }
 

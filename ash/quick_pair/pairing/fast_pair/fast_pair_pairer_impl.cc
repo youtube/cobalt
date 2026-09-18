@@ -78,8 +78,7 @@ bool ShouldBeEnabledForLoginStatus(ash::LoginStatus status) {
 
 }  // namespace
 
-namespace ash {
-namespace quick_pair {
+namespace ash::quick_pair {
 
 // static
 FastPairPairerImpl::Factory* FastPairPairerImpl::Factory::g_test_factory_ =
@@ -575,7 +574,6 @@ void FastPairPairerImpl::AttemptSendAccountKey() {
     // fail. Instead of proceeding, call the callback and return.
     if (ash::features::IsFastPairBleRotationEnabled() &&
         fast_pair_handshake_->DidBleAddressRotate()) {
-      // TODO (b/268055837): add metric for when we get in this scenario.
       CD_LOG(VERBOSE, Feature::FP)
           << __func__ << ": BLE Address rotated, running callback";
       fast_pair_handshake_->RunBleAddressRotationCallback();
@@ -975,5 +973,4 @@ bool FastPairPairerImpl::StopCreateBondTimer(const std::string& callback_name) {
   return false;
 }
 
-}  // namespace quick_pair
-}  // namespace ash
+}  // namespace ash::quick_pair

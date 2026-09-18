@@ -6,12 +6,22 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "include/v8-callbacks.h"
+#include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -35,6 +45,7 @@
 #include "src/sandbox/external-pointer-table.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -67,63 +78,69 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
+  if (v8_flags.minor_ms) return;
 
-  size_t old, young;
+  struct GenerationLimit {
+    uint64_t heap_size;
+    uint64_t expected_young_size;
+    uint64_t expected_old_size;
+  };
 
-  // Low memory
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, 1 * KB, &young, &old);
-  ASSERT_EQ(0u, old);
-  ASSERT_EQ(0u, young);
+  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
+  static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
+  static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
-  // On tiny heap max semi space capacity is set to the default capacity which
-  // MinorMS does not double.
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory, 1 * KB + (v8_flags.minor_ms ? 2 : 3) * 512u * KB, &young,
-      &old);
-  ASSERT_EQ(1u * KB, old);
-  ASSERT_EQ((v8_flags.minor_ms ? 2 : 3) * 512u * KB, young);
+  // Here we just need to pick a large enough value.
+  static constexpr uint64_t kPhysicalMemory = 16 * kGB;
 
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory, 128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-      &young, &old);
-  ASSERT_EQ(128u * hlm * MB, old);
-  ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB, young);
+#if defined(V8_TARGET_ARCH_32_BIT)
+  std::vector<GenerationLimit> limits = {
+      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
+      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
+      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
+      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
+      {256 * kMB, 22 * kMB + 512 * kKB, 233 * kMB + 512 * kKB},
+      {512 * kMB, 44 * kMB + 256 * kKB, 467 * kMB + 768 * kKB},
+      {1 * kGB, 87 * kMB + 768 * kKB, 936 * kMB + 31},
+      {2 * kGB, 96 * kMB, 1952 * kMB},
+      {3 * kGB, 96 * kMB, 2976 * kMB},
+      {4 * kGB, 0, 0},
+      {8 * kGB, 0, 0},
+  };
+#else
+  std::vector<GenerationLimit> limits = {
+      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
+      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
+      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
+      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
+      {256 * kMB, 1 * kMB + 512 * kKB, 254 * kMB + 512 * kKB},
+      {512 * kMB, 23 * kMB + 256 * kKB, 488 * kMB + 768 * kKB},
+      {1 * kGB, 46 * kMB + 512 * kKB, 977 * kMB + 512 * kKB},
+      {2 * kGB, 92 * kMB + 256 * kKB, 1955 * kMB + 768 * kKB},
+      {3 * kGB, 96 * kMB, 2976 * kMB},
+      {4 * kGB, 96 * kMB, 4000 * kMB},
+      {8 * kGB, 96 * kMB, 8096 * kMB},
+  };
+#endif
 
-  // High memory
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size / 4 +
-          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-              (v8_flags.minor_ms ? (2 * 4) : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size / 4, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                (v8_flags.minor_ms ? (2 * 4) : 3),
-            young);
-
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size / 2 +
-          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-              (v8_flags.minor_ms ? (2 * 2) : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size / 2, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                (v8_flags.minor_ms ? (2 * 2) : 3),
-            young);
-
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size, old);
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                (v8_flags.minor_ms ? 2 : 3),
-            young);
+  for (const GenerationLimit& limit : limits) {
+    size_t actual_young, actual_old;
+    i::Heap::GenerationSizesFromHeapSize(kPhysicalMemory, limit.heap_size,
+                                         &actual_young, &actual_old);
+    if (limit.expected_old_size != actual_old ||
+        limit.expected_young_size != actual_young) {
+      printf(
+          "FAIL for %.1fMB: old (actual=%.1fMB expected %.1fMB); young "
+          "(actual=%.1fMB expected %.1fMB)",
+          static_cast<double>(limit.heap_size) / MB,
+          static_cast<double>(actual_old) / MB,
+          static_cast<double>(limit.expected_old_size) / MB,
+          static_cast<double>(actual_young) / MB,
+          static_cast<double>(limit.expected_young_size) / MB);
+    }
+    EXPECT_EQ(limit.expected_old_size, actual_old);
+    EXPECT_EQ(limit.expected_young_size, actual_young);
+  }
 }
 
 void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
@@ -157,9 +174,80 @@ TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
       static_cast<uint64_t>(8) * GB, 1);
 }
 
-#if V8_COMPRESS_POINTERS
+TEST(Heap, LimitsComputationBoundariesClamp) {
+  using Boundaries = Heap::LimitBounds;
+  Boundaries boundaries;
+  boundaries.minimum_old_generation_allocation_limit = 100u;
+  boundaries.maximum_old_generation_allocation_limit = 200u;
+  boundaries.minimum_global_allocation_limit = 300u;
+  boundaries.maximum_global_allocation_limit = 600u;
+
+  EXPECT_EQ(100u, boundaries.bounded_old_generation_allocation_limit(50u));
+  EXPECT_EQ(150u, boundaries.bounded_old_generation_allocation_limit(150u));
+  EXPECT_EQ(200u, boundaries.bounded_old_generation_allocation_limit(250u));
+
+  EXPECT_EQ(300u, boundaries.bounded_global_allocation_limit(100u));
+  EXPECT_EQ(450u, boundaries.bounded_global_allocation_limit(450u));
+  EXPECT_EQ(600u, boundaries.bounded_global_allocation_limit(900u));
+}
+
+TEST(Heap, LimitsComputationBoundariesAtLeastAndAtMost) {
+  Heap::LimitBounds boundaries;
+  boundaries.maximum_old_generation_allocation_limit = 200u;
+  boundaries.maximum_global_allocation_limit = 400u;
+
+  boundaries.AtLeast(120u, 150u);
+  EXPECT_EQ(120u, boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.minimum_global_allocation_limit);
+
+  boundaries.AtLeast(0u, 0u);
+  EXPECT_EQ(120u, boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.minimum_global_allocation_limit);
+
+  const size_t kSizeMax = std::numeric_limits<size_t>::max();
+  boundaries.AtMost(kSizeMax, kSizeMax);
+  EXPECT_EQ(200u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(400u, boundaries.maximum_global_allocation_limit);
+
+  boundaries.AtMost(180u, 300u);
+  EXPECT_EQ(180u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(300u, boundaries.maximum_global_allocation_limit);
+
+  boundaries.AtMost(100u, 100u);
+  EXPECT_EQ(120u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.maximum_global_allocation_limit);
+}
+
+TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
+  Heap* heap = i_isolate()->heap();
+
+  const size_t kSizeMax = std::numeric_limits<size_t>::max();
+  Heap::LimitBounds no_boundaries;
+  EXPECT_EQ(0u, no_boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(0u, no_boundaries.minimum_global_allocation_limit);
+  EXPECT_EQ(kSizeMax, no_boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(kSizeMax, no_boundaries.maximum_global_allocation_limit);
+
+  Heap::LimitBounds at_least = Heap::LimitBounds::AtLeastCurrentLimits(heap);
+  EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
+            at_least.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
+            at_least.minimum_global_allocation_limit);
+  EXPECT_EQ(kSizeMax, at_least.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(kSizeMax, at_least.maximum_global_allocation_limit);
+
+  Heap::LimitBounds at_most = Heap::LimitBounds::AtMostCurrentLimits(heap);
+  EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
+            at_most.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
+            at_most.maximum_global_allocation_limit);
+  EXPECT_EQ(0u, at_most.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(0u, at_most.minimum_global_allocation_limit);
+}
+
 namespace {
-size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
+std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
+    uint64_t physical_memory) {
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   v8::Isolate::CreateParams create_params;
@@ -168,44 +256,134 @@ size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   size_t max_old_generation_size = i_isolate->heap()->MaxOldGenerationSize();
+  size_t young_generation_size = i_isolate->heap()->MaxSemiSpaceSize();
   isolate->Dispose();
-  return max_old_generation_size;
+  return std::make_pair(max_old_generation_size, young_generation_size);
 }
 }  // anonymous namespace
 
-TEST_F(HeapTest, ExpectedMaxOldGenerationSize) {
+TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
+  if (v8_flags.max_semi_space_size != 0) return;
+
+  struct OldLimit {
+    uint64_t physical_memory;
+    // Max old generation allocation limit for 32-bit.
+    uint64_t arch_32bit;
+    // Max old generation allocation limit for 64-bit (no pointer compression).
+    uint64_t arch_64bit;
+    // Max old generation allocation limit for 64-bit with pointer compression.
+    uint64_t arch_ptr_compr;
+  };
+
+  struct YoungLimit {
+    uint64_t physical_memory;
+    uint64_t scavenger;
+    uint64_t scavenger_android;
+    uint64_t minor_ms;
+  };
+
+  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
+  static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
+  static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
+
+  // Expected young generation limits.
+  std::vector<YoungLimit> young_limits = {
+      {512 * kMB, 512 * kKB, 512 * kKB, 1 * kMB},
+      {1 * kGB, 8 * kMB, 2 * kMB, 72 * kMB},
+      {1536 * kMB, 16 * kMB, 4 * kMB, 72 * kMB},
+      {2 * kGB, 16 * kMB, 4 * kMB, 72 * kMB},
+      {3 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {4 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {6 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {8 * kGB - 1, 32 * kMB, 8 * kMB, 72 * kMB},
+      {8 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {15 * kGB - 1, 32 * kMB, 32 * kMB, 72 * kMB},
+      {15 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {16 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {32 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+  };
+
+  const size_t max_young_gen =
+      v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
+
+  // Expected old generation limits.
+  std::vector<OldLimit> old_limits = {
+      {512 * kMB, 128 * kMB, 256 * kMB, 256 * kMB},
+      {1 * kGB, 256 * kMB, 512 * kMB, 512 * kMB},
+      {1536 * kMB, 384 * kMB, 768 * kMB, 768 * kMB},
+      {2 * kGB, 512 * kMB, 1 * kGB, 1 * kGB},
+      {3 * kGB, 768 * kMB, 1536 * kMB, 1536 * kMB},
+      {4 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {6 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {8 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
+      {8 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {15 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
+      {15 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+      {16 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+      {32 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+  };
+
+  EXPECT_EQ(young_limits.size(), old_limits.size());
+  size_t last = 0;
+
+  for (size_t i = 0; i < young_limits.size(); i++) {
+    // Make sure that list is sorted by physical memory size.
+    EXPECT_LT(last, young_limits[i].physical_memory);
+    last = young_limits[i].physical_memory;
+
+    // Make sure that same physical memory is tested for both old & young.
+    EXPECT_EQ(young_limits[i].physical_memory, old_limits[i].physical_memory);
+  }
+
+  // There are no devices with < 1GB of RAM. We only test 512MB so we can show
+  // that limits remain the same.
+  EXPECT_EQ(512 * kMB, young_limits[0].physical_memory);
+  EXPECT_EQ(1 * kGB, young_limits[1].physical_memory);
+
+  for (size_t i = 0; i < old_limits.size(); i++) {
+    const YoungLimit& young_limit = young_limits[i];
+    const OldLimit& old_limit = old_limits[i];
+    uint64_t physical_memory = old_limit.physical_memory;
+
 #if V8_OS_ANDROID
-  static constexpr bool is_android = true;
-  v8_flags.high_end_android_physical_memory_threshold = 8;
+    // On Android we currently use Desktop-like limits on devices with >= 8GB of
+    // RAM.
+    EXPECT_EQ(v8_flags.high_end_android_physical_memory_threshold, 8u);
+    const uint64_t expected_old =
+        physical_memory >= 8 * kGB && kSystemPointerSize == 8
+            ? old_limit.arch_ptr_compr
+            : old_limit.arch_32bit;
+    // Android enforces 8MB limit on semi-space size unless high-end android
+    // mode is enabled.
+    const uint64_t expected_young = v8_flags.minor_ms
+                                        ? young_limit.minor_ms
+                                        : young_limit.scavenger_android;
+#elif defined(V8_TARGET_ARCH_32_BIT)
+    const uint64_t expected_old = old_limit.arch_32bit;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
+#elif V8_COMPRESS_POINTERS
+    const uint64_t expected_old = old_limit.arch_ptr_compr;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
 #else
-  static constexpr bool is_android = false;
-#endif  // V8_OS_ANDROID
+    const uint64_t expected_old = old_limit.arch_64bit;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
+#endif
 
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(256) * MB
-                       : static_cast<uint64_t>(512) * MB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(1) * GB));
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(512) * MB
-                       : static_cast<uint64_t>(1) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(2) * GB));
+    auto [actual_old, actual_young] =
+        HeapLimitsForPhysicalMemory(physical_memory);
 
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
-                       : static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(4) * GB));
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
-                       : static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB - 1));
-  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB));
-  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB - 1));
+    if (actual_old != expected_old || actual_young != expected_young) {
+      printf("Error for physical memory size %dMB\n",
+             static_cast<int>(physical_memory / kMB));
+    }
 
-  size_t young_gen = v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
-  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB));
-  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(16) * GB));
+    EXPECT_EQ(actual_old, expected_old);
+    EXPECT_EQ(actual_young, expected_young);
+  }
 }
-#endif  // V8_COMPRESS_POINTERS
 
 TEST_F(HeapTest, ASLR) {
 #if V8_TARGET_ARCH_X64
@@ -308,7 +486,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
   heap->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause(base::TimeTicks::Now());
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
@@ -538,7 +717,8 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     InvokeMinorGC();
   }
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   CHECK(heap->InOldSpace(*arr));
   CHECK(HeapLayout::InYoungGeneration(arr->get(0)));
@@ -1120,6 +1300,251 @@ TEST_F(HeapTest,
   ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
       this, AllocationType::kOld,
       [this](Tagged<String> object) { InvokeMajorGC(); });
+}
+
+namespace {
+using v8::CrashKey;
+using v8::CrashKeySize;
+using v8::OOMDetails;
+
+class CrashKeyStore {
+ public:
+  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
+    InstallCallbacks();
+  }
+
+  CrashKeyStore(const CrashKeyStore&) = delete;
+  CrashKeyStore& operator=(const CrashKeyStore&) = delete;
+
+  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
+
+  const std::string& ValueForKey(const std::string& name) const {
+    auto it = entries_.find(name);
+    CHECK(it != entries_.end());
+    CHECK_NOT_NULL(it->second.get());
+    return it->second->value;
+  }
+
+  bool HasKey(const std::string& name) const {
+    return entries_.find(name) != entries_.end();
+  }
+
+  size_t size() const { return entries_.size(); }
+
+  std::unordered_set<std::string> KeyNames() const {
+    std::unordered_set<std::string> names;
+    names.reserve(entries_.size());
+    for (const auto& [name, unused] : entries_) {
+      static_cast<void>(unused);
+      names.insert(name);
+    }
+    return names;
+  }
+
+ private:
+  struct Entry {
+    CrashKeySize size;
+    std::string value;
+  };
+
+  void InstallCallbacks() {
+    isolate_->SetCrashKeyStringCallbacks(
+        [this](const char key[], CrashKeySize size) {
+          return AllocateKey(key, size);
+        },
+        [this](CrashKey crash_key, const std::string_view value) {
+          SetValue(crash_key, value);
+        });
+  }
+
+  CrashKey AllocateKey(const char key[], CrashKeySize size) {
+    auto [it, inserted] = entries_.emplace(key, nullptr);
+    if (inserted || it->second == nullptr) {
+      it->second = std::make_unique<Entry>();
+    }
+    Entry* entry_ptr = it->second.get();
+    entry_ptr->size = size;
+    entry_ptr->value.clear();
+    return static_cast<CrashKey>(entry_ptr);
+  }
+
+  void SetValue(CrashKey crash_key, const std::string_view value) {
+    auto* entry = static_cast<Entry*>(crash_key);
+    bool found = false;
+    for (const auto& [name, entry_holder] : entries_) {
+      if (entry_holder.get() == entry) {
+        found = true;
+        break;
+      }
+    }
+    CHECK(found);
+    entry->value.assign(value.begin(), value.end());
+  }
+
+  Isolate* isolate_;
+  std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
+};
+}  // anonymous namespace
+
+TEST_F(HeapTest, ReportStatsAsCrashKeys) {
+  CrashKeyStore crash_key_store(i_isolate());
+
+  HeapStats stats;
+  auto next_value = [value = size_t{1}]() mutable { return value++; };
+  stats.ro_space_size = next_value();
+  stats.ro_space_capacity = next_value();
+  stats.new_space_size = next_value();
+  stats.new_space_capacity = next_value();
+  stats.old_space_size = next_value();
+  stats.old_space_capacity = next_value();
+  stats.code_space_size = next_value();
+  stats.code_space_capacity = next_value();
+  stats.map_space_size = next_value();
+  stats.map_space_capacity = next_value();
+  stats.lo_space_size = next_value();
+  stats.code_lo_space_size = next_value();
+  stats.global_handle_count = next_value();
+  stats.weak_global_handle_count = next_value();
+  stats.pending_global_handle_count = next_value();
+  stats.near_death_global_handle_count = next_value();
+  stats.free_global_handle_count = next_value();
+  stats.memory_allocator_size = next_value();
+  stats.memory_allocator_capacity = next_value();
+  stats.malloced_memory = next_value();
+  stats.malloced_peak_memory = next_value();
+  stats.isolate_count = next_value();
+  stats.is_main_isolate = true;
+  stats.last_os_error = next_value();
+
+  stats.main_cage.start = HexAddress(0x1000);
+  stats.main_cage.size = next_value();
+  stats.main_cage.free_size = next_value();
+  stats.main_cage.largest_free_region = next_value();
+  stats.main_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kSuccess;
+
+  stats.trusted_cage.start = HexAddress(0x2000);
+  stats.trusted_cage.size = next_value();
+  stats.trusted_cage.free_size = next_value();
+  stats.trusted_cage.largest_free_region = next_value();
+  stats.trusted_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kFailedToCommit;
+
+  stats.code_cage.start = HexAddress(0x3000);
+  stats.code_cage.size = next_value();
+  stats.code_cage.free_size = next_value();
+  stats.code_cage.largest_free_region = next_value();
+  stats.code_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kRanOutOfReservation;
+
+  constexpr char kMessages[] = "Last GC: minor; reason: testing";
+  std::strncpy(stats.last_few_messages, kMessages,
+               sizeof(stats.last_few_messages) - 1);
+  stats.last_few_messages[sizeof(stats.last_few_messages) - 1] = '\0';
+
+  heap()->ReportStatsAsCrashKeys(stats);
+  auto remaining_keys = crash_key_store.KeyNames();
+
+  const std::vector<std::pair<std::string, size_t>> expected_size_fields = {
+      {"v8-oom-ro-space-size", stats.ro_space_size},
+      {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
+      {"v8-oom-new-space-size", stats.new_space_size},
+      {"v8-oom-new-space-capacity", stats.new_space_capacity},
+      {"v8-oom-old-space-size", stats.old_space_size},
+      {"v8-oom-old-space-capacity", stats.old_space_capacity},
+      {"v8-oom-code-space-size", stats.code_space_size},
+      {"v8-oom-code-space-capacity", stats.code_space_capacity},
+      {"v8-oom-map-space-size", stats.map_space_size},
+      {"v8-oom-map-space-capacity", stats.map_space_capacity},
+      {"v8-oom-lo-space-size", stats.lo_space_size},
+      {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
+      {"v8-oom-global-handle-count", stats.global_handle_count},
+      {"v8-oom-weak-global-handle-count", stats.weak_global_handle_count},
+      {"v8-oom-pending-global-handle-count", stats.pending_global_handle_count},
+      {"v8-oom-near-death-global-handle-count",
+       stats.near_death_global_handle_count},
+      {"v8-oom-free-global-handle-count", stats.free_global_handle_count},
+      {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
+      {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
+      {"v8-oom-malloced-memory", stats.malloced_memory},
+      {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
+      {"v8-oom-isolate-count", stats.isolate_count},
+      {"v8-oom-last-os-error", stats.last_os_error},
+  };
+
+  for (const auto& [key, value] : expected_size_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  const std::vector<std::pair<std::string, size_t>> expected_cage_fields = {
+      {"v8-oom-main-cage-size", stats.main_cage.size},
+      {"v8-oom-main-cage-free-size", stats.main_cage.free_size},
+      {"v8-oom-main-cage-largest-free-region",
+       stats.main_cage.largest_free_region},
+      {"v8-oom-trusted-cage-size", stats.trusted_cage.size},
+      {"v8-oom-trusted-cage-free-size", stats.trusted_cage.free_size},
+      {"v8-oom-trusted-cage-largest-free-region",
+       stats.trusted_cage.largest_free_region},
+      {"v8-oom-code-cage-size", stats.code_cage.size},
+      {"v8-oom-code-cage-free-size", stats.code_cage.free_size},
+      {"v8-oom-code-cage-largest-free-region",
+       stats.code_cage.largest_free_region},
+  };
+
+  for (const auto& [key, value] : expected_cage_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  std::vector<std::pair<std::string, std::string>> expected_string_fields = {
+      {"v8-oom-main-cage-start", "0x1000"},
+      {"v8-oom-trusted-cage-start", "0x2000"},
+      {"v8-oom-code-cage-start", "0x3000"},
+      {"v8-oom-is-main-isolate", "true"},
+      {"v8-oom-last-few-messages", kMessages},
+      {"v8-oom-main-cage-last-allocation-status",
+       base::ToString(stats.main_cage.last_allocation_status)},
+      {"v8-oom-trusted-cage-last-allocation-status",
+       base::ToString(stats.trusted_cage.last_allocation_status)},
+      {"v8-oom-code-cage-last-allocation-status",
+       base::ToString(stats.code_cage.last_allocation_status)},
+  };
+
+  for (const auto& [key, expected] : expected_string_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(expected, crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  EXPECT_THAT(remaining_keys, ::testing::IsEmpty());
+}
+
+namespace {
+CrashKeyStore* g_crash_key_store_for_oom = nullptr;
+
+void FatalMemoryErrorCallbackForTest(const char* location,
+                                     const OOMDetails& details) {
+  static_cast<void>(location);
+  static_cast<void>(details);
+  CHECK_NOT_NULL(g_crash_key_store_for_oom);
+  CHECK_GT(g_crash_key_store_for_oom->size(), 0u);
+  g_crash_key_store_for_oom = nullptr;
+  std::abort();
+}
+}  // anonymous namespace
+
+TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
+  CrashKeyStore crash_key_store(i_isolate());
+  g_crash_key_store_for_oom = &crash_key_store;
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        v8::V8::SetFatalMemoryErrorCallback(FatalMemoryErrorCallbackForTest);
+        heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM");
+      },
+      "");
 }
 
 }  // namespace internal

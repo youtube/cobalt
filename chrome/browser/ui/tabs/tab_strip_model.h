@@ -714,7 +714,11 @@ class TabStripModel {
 
   // Gets the root of the tab strip model. Used to traverse the tab topology.
   const tabs::TabCollection* Root(
-      base::PassKey<tabs_api::MojoTreeBuilder> key) const;
+      std::variant<base::PassKey<tabs_api::MojoTreeBuilder>,
+                   base::PassKey<tabs_api::TabStripModelAdapterImpl>> key)
+      const;
+
+  const tabs::TabCollection* GetRootForTesting() const;
 
   // Finds the group id for a tab collection. Note that this API can be error
   // prone. Make sure to read and understand the potential problems with
@@ -730,6 +734,7 @@ class TabStripModel {
 
   // View API //////////////////////////////////////////////////////////////////
 
+  // LINT.IfChange(TabContextMenuCommand)
   // Context menu functions. Tab groups uses command ids following CommandLast
   // for entries in the 'Add to existing group' submenu.
   enum ContextMenuCommand {
@@ -769,6 +774,7 @@ class TabStripModel {
 #endif
     CommandLast
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/histograms.xml:TabContextMenuCommand)
 
   // Returns true if the specified command is enabled. If |context_index| is
   // selected the response applies to all selected tabs.
@@ -870,6 +876,11 @@ class TabStripModel {
   // Convert between tabs and indices.
   int GetIndexOfTab(const tabs::TabInterface* tab) const;
   tabs::TabInterface* GetTabAtIndex(int index) const;
+  // Gets the tabs at the specified indices using two pointers instead of
+  // calling GetTabAtIndex repeatedly, making the runtime O(count()) instead of
+  // O(indices.size() * count()). Requires indices to be strictly ascending.
+  std::vector<tabs::TabInterface*> GetTabsAtIndices(
+      const std::vector<int>& indices) const;
 
   // TODO(349161508) remove this method once tabs dont need to be converted
   // into webcontents.
@@ -1114,10 +1125,10 @@ class TabStripModel {
                           uint32_t close_types,
                           DetachNotifications* notifications);
 
-  // Returns the WebContentses at the specified indices. This does no checking
-  // of the indices, it is assumed they are valid.
+  // Returns the WebContentses at the specified indices. Requires indices to be
+  // strictly ascending or descending.
   std::vector<content::WebContents*> GetWebContentsesByIndices(
-      const std::vector<int>& indices) const;
+      std::vector<int> indices) const;
 
   // Sets the selection to |new_model| and notifies any observers.
   // Note: This function might end up sending 0 to 3 notifications in the

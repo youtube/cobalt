@@ -4,17 +4,26 @@
 
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_coordinator.h"
 
+#import "base/time/time.h"
+#import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/coordinator/contextual_panel_entrypoint_mediator.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/coordinator/contextual_panel_entrypoint_mediator_delegate.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/ui/contextual_panel_entrypoint_consumer.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/animated_scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_coordinator_delegate.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator_delegate.h"
 #import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_view_controller.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
@@ -22,7 +31,6 @@
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
-
 @interface LocationBarBadgeCoordinator () <
     ContextualPanelEntrypointCommands,
     ContextualPanelEntrypointMediatorDelegate,
@@ -31,7 +39,7 @@
 
 @implementation LocationBarBadgeCoordinator {
   // The mediator for location bar badge.
-  LocationBarBadgeMediator* _locationBarBadgeMediator;
+  LocationBarBadgeMediator* _mediator;
   // The mediator for contextual panel badge and chip.
   ContextualPanelEntrypointMediator* _contextualPanelEntryPointMediator;
   // Observer that updates LocationBarBadgeViewController for
@@ -42,6 +50,8 @@
   std::unique_ptr<AnimatedScopedFullscreenDisabler> _animatedFullscreenDisabler;
   // Command dispatcher.
   CommandDispatcher* _dispatcher;
+  // Pref service.
+  raw_ptr<PrefService> _prefService;
 }
 
 - (void)start {
@@ -51,20 +61,31 @@
   if (IsContextualPanelEnabled()) {
     [self createContextualPanelEntryPointMediator];
   }
-  _locationBarBadgeMediator = [[LocationBarBadgeMediator alloc] init];
-  _locationBarBadgeMediator.consumer = _viewController;
-  _locationBarBadgeMediator.delegate = self;
-  _viewController.mutator = _locationBarBadgeMediator;
-  [_dispatcher startDispatchingToTarget:_locationBarBadgeMediator
+  feature_engagement::Tracker* tracker =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile);
+  _prefService = self.browser->GetProfile()->GetPrefs();
+  _mediator = [[LocationBarBadgeMediator alloc]
+      initWithWebStateList:self.browser->GetWebStateList()
+                   tracker:tracker
+               prefService:_prefService
+             geminiService:BwgServiceFactory::GetForProfile(self.profile)];
+  _mediator.consumer = _viewController;
+  _mediator.delegate = self;
+  _viewController.mutator = _mediator;
+  id<BWGCommands> BWGCommandHandler =
+      HandlerForProtocol(_dispatcher, BWGCommands);
+  _mediator.BWGCommandHandler = BWGCommandHandler;
+  [_dispatcher startDispatchingToTarget:_mediator
                             forProtocol:@protocol(LocationBarBadgeCommands)];
 }
 
 - (void)stop {
   _viewController = nil;
   [self stopContextualPanelEntrypointMediator];
-  [_dispatcher stopDispatchingToTarget:_locationBarBadgeMediator];
+  [_dispatcher stopDispatchingToTarget:_mediator];
   _dispatcher = nil;
-  _locationBarBadgeMediator = nil;
+  [_mediator disconnect];
+  _mediator = nil;
   _locationBarBadgeFullscreenUIUpdater = nullptr;
   _animatedFullscreenDisabler = nullptr;
 }

@@ -33,7 +33,7 @@ static void passive_get_seed_entropy(uint8_t *out_entropy,
   if (bcm_success(BCM_rand_bytes_hwrng(out_entropy, out_entropy_len))) {
     *out_want_additional_input = 1;
   } else {
-    CRYPTO_sysrand_for_seed(out_entropy, out_entropy_len);
+    CRYPTO_sysrand(out_entropy, out_entropy_len);
   }
 }
 

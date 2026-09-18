@@ -329,8 +329,6 @@ int GainControlImpl::enable_limiter(bool enable) {
 }
 
 void GainControlImpl::Initialize(size_t num_proc_channels, int sample_rate_hz) {
-  data_dumper_->InitiateNewSetOfRecordings();
-
   RTC_DCHECK(sample_rate_hz == 16000 || sample_rate_hz == 32000 ||
              sample_rate_hz == 48000);
 

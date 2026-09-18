@@ -11,9 +11,9 @@
 #ifndef RTC_BASE_PLATFORM_THREAD_H_
 #define RTC_BASE_PLATFORM_THREAD_H_
 
-#include <functional>
 #include <optional>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "rtc_base/platform_thread_types.h"  // IWYU pragma: keep
 
@@ -85,14 +85,14 @@ class PlatformThread final {
   // Creates a started joinable thread which will be joined when the returned
   // PlatformThread destructs or Finalize() is called.
   static PlatformThread SpawnJoinable(
-      std::function<void()> thread_function,
+      absl::AnyInvocable<void() &&> thread_function,
       absl::string_view name,
       ThreadAttributes attributes = ThreadAttributes());
 
   // Creates a started detached thread. The caller has to use external
   // synchronization as nothing is provided by the PlatformThread construct.
   static PlatformThread SpawnDetached(
-      std::function<void()> thread_function,
+      absl::AnyInvocable<void() &&> thread_function,
       absl::string_view name,
       ThreadAttributes attributes = ThreadAttributes());
 
@@ -106,10 +106,11 @@ class PlatformThread final {
 
  private:
   PlatformThread(Handle handle, bool joinable);
-  static PlatformThread SpawnThread(std::function<void()> thread_function,
-                                    absl::string_view name,
-                                    ThreadAttributes attributes,
-                                    bool joinable);
+  static PlatformThread SpawnThread(
+      absl::AnyInvocable<void() &&> thread_function,
+      absl::string_view name,
+      ThreadAttributes attributes,
+      bool joinable);
 
   std::optional<Handle> handle_;
   bool joinable_ = false;

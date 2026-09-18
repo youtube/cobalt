@@ -166,7 +166,7 @@ int32_t AudioDeviceModuleImpl::CreatePlatformSpecificObjects(
   audio_device_.reset(new AudioDeviceDummy());
   RTC_LOG(LS_INFO) << "Dummy Audio APIs will be utilized";
 #elif defined(WEBRTC_DUMMY_FILE_DEVICES)
-  audio_device_.reset(FileAudioDeviceFactory::CreateFileAudioDevice());
+  audio_device_ = FileAudioDeviceFactory::CreateFileAudioDevice(env);
   if (audio_device_) {
     RTC_LOG(LS_INFO) << "Will use file-playing dummy device.";
   } else {

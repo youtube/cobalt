@@ -87,7 +87,7 @@ class SignalTrampolineBase<sigslot::signal<Args...>>
     callbacks_.AddReceiver(tag, std::move(callback));
   }
   void Unsubscribe(const void* tag) { callbacks_.RemoveReceivers(tag); }
-  void Notify(Args... args) { callbacks_.Send(args...); }
+  void Notify(Args... args) { callbacks_.Send(std::forward<Args>(args)...); }
 
  private:
   CallbackList<Args...> callbacks_;
@@ -96,6 +96,33 @@ class SignalTrampolineBase<sigslot::signal<Args...>>
 template <typename T, auto member_signal>
 using SignalTrampolineMemberBase =
     SignalTrampolineBase<typename internal::member_pointer_traits<
+        decltype(member_signal)>::member_type>;
+
+// Repeat above for mt_policy = multi_threaded_local
+template <typename SignalT>
+class MultiThreadSignalTrampolineBase;
+
+template <typename... Args>
+class MultiThreadSignalTrampolineBase<
+    sigslot::signal_with_thread_policy<sigslot::multi_threaded_local, Args...>>
+    : public sigslot::has_slots<sigslot::multi_threaded_local> {
+ public:
+  void Subscribe(absl::AnyInvocable<void(Args...)> callback) {
+    callbacks_.AddReceiver(std::move(callback));
+  }
+  void Subscribe(const void* tag, absl::AnyInvocable<void(Args...)> callback) {
+    callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void Unsubscribe(const void* tag) { callbacks_.RemoveReceivers(tag); }
+  void Notify(Args... args) { callbacks_.Send(std::forward<Args>(args)...); }
+
+ private:
+  CallbackList<Args...> callbacks_;
+};
+
+template <typename T, auto member_signal>
+using MultiThreadSignalTrampolineMemberBase =
+    MultiThreadSignalTrampolineBase<typename internal::member_pointer_traits<
         decltype(member_signal)>::member_type>;
 
 }  // namespace internal
@@ -110,6 +137,29 @@ class SignalTrampoline
   explicit SignalTrampoline(T* that) {
     (that->*member_signal).connect(static_cast<Base*>(this), &Base::Notify);
   }
+};
+
+// Note that a MultiThreadSignalTrampoline MUST be a member of the object
+// of type T.
+template <class T, auto member_signal>
+class MultiThreadSignalTrampoline
+    : public internal::MultiThreadSignalTrampolineMemberBase<T, member_signal> {
+ private:
+  using Base =
+      internal::MultiThreadSignalTrampolineMemberBase<T, member_signal>;
+
+ public:
+  explicit MultiThreadSignalTrampoline(T* that) {
+    (that->*member_signal).connect(static_cast<Base*>(this), &Base::Notify);
+    owner_ = that;
+  }
+  // This disconnect avoids a lock inversion issue in sigslot.
+  ~MultiThreadSignalTrampoline() {
+    (owner_->*member_signal).disconnect(static_cast<Base*>(this));
+  }
+
+ private:
+  T* owner_;
 };
 
 }  // namespace webrtc

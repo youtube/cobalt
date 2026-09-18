@@ -67,8 +67,8 @@ class RtcEventLogDriver {
 
   // Factory that creates a stream given the environment and the stream SSRC.
   using StreamInterfaceFactory =
-      absl::AnyInvocable<std::unique_ptr<StreamInterface>(Environment, uint32_t)
-                             const>;
+      absl::AnyInvocable<std::unique_ptr<StreamInterface>(const Environment&,
+                                                          uint32_t) const>;
 
   // Slack added after final event, in order to catch any straggling frames.
   static constexpr TimeDelta kShutdownAdvanceTimeSlack = TimeDelta::Millis(100);

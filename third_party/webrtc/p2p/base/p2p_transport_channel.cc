@@ -208,8 +208,10 @@ P2PTransportChannel::P2PTransportChannel(
       regathering_config, this, network_thread_);
   // We populate the change in the candidate filter to the session taken by
   // the transport.
-  allocator_->SignalCandidateFilterChanged.connect(
-      this, &P2PTransportChannel::OnCandidateFilterChanged);
+  allocator_->SubscribeCandidateFilterChanged(
+      this, [this](uint32_t prev_filter, uint32_t cur_filter) {
+        OnCandidateFilterChanged(prev_filter, cur_filter);
+      });
   ice_event_log_.set_event_log(&env_.event_log());
 
   ParseFieldTrials(env_.field_trials());
@@ -246,6 +248,7 @@ P2PTransportChannel::~P2PTransportChannel() {
     RemoveConnection(connection);
     connection->Destroy();
   }
+  allocator_->UnsubscribeCandidateFilterChanged(this);
   resolvers_.clear();
 }
 

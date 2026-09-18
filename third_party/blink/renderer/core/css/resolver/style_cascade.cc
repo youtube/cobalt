@@ -19,7 +19,6 @@
 #include "third_party/blink/renderer/core/css/css_cyclic_variable_value.h"
 #include "third_party/blink/renderer/core/css/css_flip_revert_value.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
-#include "third_party/blink/renderer/core/css/css_if_eval.h"
 #include "third_party/blink/renderer/core/css/css_invalid_variable_value.h"
 #include "third_party/blink/renderer/core/css/css_math_function_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
@@ -33,7 +32,6 @@
 #include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/if_condition.h"
 #include "third_party/blink/renderer/core/css/kleene_value.h"
-#include "third_party/blink/renderer/core/css/media_eval_utils.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/css/parser/css_if_parser.h"
@@ -58,6 +56,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_builder.h"
 #include "third_party/blink/renderer/core/css/resolver/style_builder_converter.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
+#include "third_party/blink/renderer/core/css/route_query.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_rule_function_declarations.h"
 #include "third_party/blink/renderer/core/css/try_value_flips.h"
@@ -1227,8 +1226,7 @@ const CSSValue* StyleCascade::ResolveSubstitutions(
     const MixinParameterBindings* mixin_parameter_bindings,
     CascadeResolver& resolver) {
   HeapVector<Member<const MixinParameterBindings>, 4> binding_chain;
-  if (mixin_parameter_bindings && !IsA<CSSUnparsedDeclarationValue>(value) &&
-      !IsA<cssvalue::CSSPendingSubstitutionValue>(value)) {
+  if (mixin_parameter_bindings) {
     // Even though we are within a mixin, it's not given that we
     // actually need the mixin bindings to compute a value;
     // there's no need to use CPU cycles to set up the entire stack
@@ -1236,7 +1234,17 @@ const CSSValue* StyleCascade::ResolveSubstitutions(
     // a CSSUnparsedDeclarationValue, we don't have a parser context
     // to resolve all of these values against. So in these cases,
     // we just ignore the entire mixin context.
-    mixin_parameter_bindings = nullptr;
+    if (const auto* v1 = DynamicTo<CSSUnparsedDeclarationValue>(value)) {
+      if (!v1->VariableDataValue()->NeedsVariableResolution()) {
+        mixin_parameter_bindings = nullptr;
+      }
+    } else if (const auto* v2 =
+                   DynamicTo<cssvalue::CSSPendingSubstitutionValue>(value)) {
+      DCHECK(
+          v2->ShorthandValue()->VariableDataValue()->NeedsVariableResolution());
+    } else {
+      mixin_parameter_bindings = nullptr;
+    }
   }
 
   for (const MixinParameterBindings* cur_bindings = mixin_parameter_bindings;
@@ -1415,7 +1423,12 @@ const CSSValue* StyleCascade::ResolvePendingSubstitution(
     }
   }
 
-  NOTREACHED();
+  // Reaching this point means that the shorthand parser did not produce
+  // a value for `property` (one of the longhands), which should never happen.
+  //
+  // TODO(crbug.com/40527196): We can reach here due to our incorrect adjustment
+  // of writing-mode and direction for table display types.
+  return cssvalue::CSSUnsetValue::Create();
 }
 
 const CSSValue* StyleCascade::ResolveRevert(const CSSProperty& property,
@@ -2343,11 +2356,23 @@ bool StyleCascade::ResolveAutoBaseInto(CSSParserTokenStream& stream,
   }
   LookupAndApply(appearance, resolver);
 
-  // Note that the InBaseSelectAppearance() flag is set by StyleAdjuster,
+  // Note that the InBaseAppearance() flag is set by StyleAdjuster,
   // which hasn't happened yet. Therefore we also need to check
-  // HasBaseSelectAppearance() here.
-  bool has_base_appearance = state_.StyleBuilder().HasBaseAppearance() ||
-                             state_.StyleBuilder().InBaseAppearance();
+  // state_.StyleBuilder().Appearance() here, which we are using instead of
+  // EffectiveAppearance() because EffectiveAppearance hasn't been calculated
+  // from Appearance yet.
+  Element& element = state_.GetElement();
+  bool has_base_appearance = false;
+  if (element.SupportsBaseAppearance(state_.StyleBuilder().Appearance())) {
+    has_base_appearance = true;
+  } else if (state_.StyleBuilder().InBaseAppearance()) {
+    // Don't allow base appearance to be inherited to elements which actually
+    // support the appearance property.
+    bool could_support_base_appearance =
+        element.SupportsBaseAppearance(AppearanceValue::kBase) ||
+        element.SupportsBaseAppearance(AppearanceValue::kBaseSelect);
+    has_base_appearance = !could_support_base_appearance;
+  }
 
   if (has_base_appearance) {
     // We want to the second argument.
@@ -2623,42 +2648,6 @@ KleeneValue StyleCascade::EvalIfStyleFeature(
   return KleeneValue::kFalse;
 }
 
-KleeneValue StyleCascade::EvalIfTest(const IfCondition& if_condition,
-                                     const TreeScope* tree_scope,
-                                     CascadeResolver& resolver,
-                                     const CSSParserContext& context,
-                                     FunctionContext* function_context,
-                                     bool& is_attr_tainted) {
-  if (auto* n = DynamicTo<IfTestStyle>(if_condition)) {
-    const MediaQueryExpNode* query_exp = n->GetMediaQueryExpNode();
-    DCHECK(query_exp);
-
-    return MediaEval(*query_exp, [this, &tree_scope, &resolver, &context,
-                                  &function_context, &is_attr_tainted](
-                                     const MediaQueryFeatureExpNode& feature) {
-      return EvalIfStyleFeature(feature, tree_scope, resolver, context,
-                                function_context, is_attr_tainted);
-    });
-  }
-  if (auto* n = DynamicTo<IfTestMedia>(if_condition)) {
-    DCHECK(RuntimeEnabledFeatures::CSSInlineIfForMediaQueriesEnabled());
-
-    const MediaQuerySet* query_set = n->GetMediaQuerySet();
-    DCHECK(query_set);
-
-    state_.StyleBuilder().SetAffectedByFunctionalMedia();
-    return GetDocument().GetStyleEngine().EvaluateFunctionalMediaQuery(
-               *query_set)
-               ? KleeneValue::kTrue
-               : KleeneValue::kFalse;
-  }
-  if (auto* n = DynamicTo<IfTestSupports>(if_condition)) {
-    DCHECK(RuntimeEnabledFeatures::CSSInlineIfForSupportsQueriesEnabled());
-    return n->GetResult() ? KleeneValue::kTrue : KleeneValue::kFalse;
-  }
-  NOTREACHED();
-}
-
 bool StyleCascade::EvalIfCondition(CSSParserTokenStream& stream,
                                    const TreeScope* tree_scope,
                                    CascadeResolver& resolver,
@@ -2666,18 +2655,60 @@ bool StyleCascade::EvalIfCondition(CSSParserTokenStream& stream,
                                    FunctionContext* function_context,
                                    bool& is_attr_tainted) {
   CSSIfParser parser(context);
-  const IfCondition* if_condition = parser.ConsumeIfCondition(stream);
-  DCHECK(if_condition);
+  const ConditionalExpNode* root_expression = parser.ConsumeIfCondition(stream);
+  DCHECK(root_expression);
   stream.ConsumeWhitespace();
   DCHECK_EQ(stream.Peek().GetType(), kColonToken);
   stream.ConsumeIncludingWhitespace();
 
-  return IfEval(*if_condition,
-                [this, &tree_scope, &resolver, &context, &function_context,
-                 &is_attr_tainted](const IfCondition& if_condition) {
-                  return EvalIfTest(if_condition, tree_scope, resolver, context,
-                                    function_context, is_attr_tainted);
-                }) == KleeneValue::kTrue;
+  class Handler : public ConditionalExpNodeVisitor {
+    STACK_ALLOCATED();
+
+   public:
+    using EvaluateStyleFunc =
+        base::FunctionRef<KleeneValue(const MediaQueryFeatureExpNode&)>;
+
+    Handler(EvaluateStyleFunc evaluate_style_func,
+            StyleResolverState& resolver_state)
+        : evaluate_style_func_(evaluate_style_func),
+          resolver_state_(resolver_state) {}
+
+    KleeneValue EvaluateRouteQueryExpNode(
+        const RouteQueryExpNode& node) override {
+      // Evaluate route() function
+      bool result = node.GetRouteTest().Matches(resolver_state_.GetDocument());
+      return result ? KleeneValue::kTrue : KleeneValue::kFalse;
+    }
+
+    KleeneValue EvaluateMediaQueryFeatureExpNode(
+        const MediaQueryFeatureExpNode& node) override {
+      // Evaluate style() function
+      return evaluate_style_func_(node);
+    }
+
+    KleeneValue EvaluateMediaQuerySet(const MediaQuerySet& query) override {
+      // Evaluate media() function
+      DCHECK(RuntimeEnabledFeatures::CSSInlineIfForMediaQueriesEnabled());
+      resolver_state_.StyleBuilder().SetAffectedByFunctionalMedia();
+      StyleEngine& style_engine =
+          resolver_state_.GetDocument().GetStyleEngine();
+      bool result = style_engine.EvaluateFunctionalMediaQuery(query);
+      return result ? KleeneValue::kTrue : KleeneValue::kFalse;
+    }
+
+   private:
+    EvaluateStyleFunc evaluate_style_func_;
+    StyleResolverState& resolver_state_;
+  };
+
+  auto evaluate_if_style_feature_func =
+      [&](const MediaQueryFeatureExpNode& feature) {
+        return EvalIfStyleFeature(feature, tree_scope, resolver, context,
+                                  function_context, is_attr_tainted);
+      };
+
+  Handler evaluation_context(evaluate_if_style_feature_func, state_);
+  return root_expression->Evaluate(evaluation_context) == KleeneValue::kTrue;
 }
 
 bool StyleCascade::ResolveIfInto(CSSParserTokenStream& stream,

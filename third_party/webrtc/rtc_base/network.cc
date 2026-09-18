@@ -22,6 +22,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -318,6 +319,15 @@ bool NetworkManager::GetDefaultLocalAddress(int /* family */,
 
 MdnsResponderInterface* NetworkManager::GetMdnsResponder() const {
   return nullptr;
+}
+
+void NetworkManager::SubscribeNetworksChanged(
+    absl::AnyInvocable<void()> callback) {
+  networks_changed_trampoline_.Subscribe(std::move(callback));
+}
+
+void NetworkManager::SubscribeError(absl::AnyInvocable<void()> callback) {
+  error_trampoline_.Subscribe(std::move(callback));
 }
 
 NetworkManagerBase::NetworkManagerBase()

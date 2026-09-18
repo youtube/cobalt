@@ -21,11 +21,11 @@
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/buffer.h"
+#include "rtc_base/callback_list.h"
+#include "rtc_base/callback_list_with_locks.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 // IWYU pragma: begin_exports
 #if defined(WEBRTC_POSIX)
@@ -161,44 +161,59 @@ class RTC_EXPORT Socket {
   // For example SignalReadEvent::connect will be called in AsyncUDPSocket ctor
   // but at the same time the SocketDispatcher may be signaling the read event.
   // ready to read
-  sigslot::signal1<Socket*, sigslot::multi_threaded_local> SignalReadEvent;
+  void SubscribeReadEvent(void* tag,
+                          absl::AnyInvocable<void(Socket*)> callback) {
+    read_event_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeReadEvent(void* tag) {
+    read_event_callbacks_.RemoveReceivers(tag);
+  }
+  void NotifyReadEvent(Socket* socket) { read_event_callbacks_.Send(socket); }
   // ready to write
-  sigslot::signal1<Socket*, sigslot::multi_threaded_local> SignalWriteEvent;
-  sigslot::signal1<Socket*> SignalConnectEvent;  // connected
+  void SubscribeWriteEvent(void* tag,
+                           absl::AnyInvocable<void(Socket*)> callback) {
+    write_event_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeWriteEvent(void* tag) {
+    write_event_callbacks_.RemoveReceivers(tag);
+  }
+  void NotifyWriteEvent(Socket* socket) { write_event_callbacks_.Send(socket); }
   void SubscribeConnectEvent(void* tag,
                              absl::AnyInvocable<void(Socket*)> callback) {
-    connect_event_trampoline_.Subscribe(tag, std::move(callback));
+    connect_event_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void UnsubscribeConnectEvent(void* tag) {
-    connect_event_trampoline_.Unsubscribe(tag);
+    connect_event_callbacks_.RemoveReceivers(tag);
   }
   void SubscribeConnectEvent(absl::AnyInvocable<void(Socket*)> callback) {
-    connect_event_trampoline_.Subscribe(std::move(callback));
+    connect_event_callbacks_.AddReceiver(std::move(callback));
   }
-  void NotifyConnectEvent(Socket* socket) { SignalConnectEvent(socket); }
+  void NotifyConnectEvent(Socket* socket) {
+    connect_event_callbacks_.Send(socket);
+  }
 
-  sigslot::signal2<Socket*, int> SignalCloseEvent;  // closed
   void SubscribeCloseEvent(void* tag,
                            absl::AnyInvocable<void(Socket*, int)> callback) {
-    close_event_trampoline_.Subscribe(tag, std::move(callback));
+    close_event_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void UnsubscribeCloseEvent(void* tag) {
-    close_event_trampoline_.Unsubscribe(tag);
+    close_event_callbacks_.RemoveReceivers(tag);
   }
   void SubscribeCloseEvent(absl::AnyInvocable<void(Socket*, int)> callback) {
-    close_event_trampoline_.Subscribe(std::move(callback));
+    close_event_callbacks_.AddReceiver(std::move(callback));
   }
   void NotifyCloseEvent(Socket* socket, int error) {
-    SignalCloseEvent(socket, error);
+    close_event_callbacks_.Send(socket, error);
   }
 
  protected:
-  Socket() : connect_event_trampoline_(this), close_event_trampoline_(this) {}
+  Socket() = default;
 
  private:
-  SignalTrampoline<Socket, &Socket::SignalConnectEvent>
-      connect_event_trampoline_;
-  SignalTrampoline<Socket, &Socket::SignalCloseEvent> close_event_trampoline_;
+  CallbackListWithLocks<Socket*> read_event_callbacks_;
+  CallbackListWithLocks<Socket*> write_event_callbacks_;
+  CallbackList<Socket*> connect_event_callbacks_;
+  CallbackList<Socket*, int> close_event_callbacks_;
 };
 
 }  //  namespace webrtc

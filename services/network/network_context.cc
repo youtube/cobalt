@@ -2747,7 +2747,6 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   bool requires_ipp_proxy_delegate = false;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   auto* mdl_manager = network_service_->masked_domain_list_manager();
-  auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   requires_ipp_proxy_delegate =
       (mdl_manager->IsEnabled() ||
        !net::features::kIpPrivacyUnconditionalProxyDomainList.Get().empty()) &&
@@ -2764,10 +2763,9 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
     auto ip_protection_core_impl =
         std::make_unique<ip_protection::IpProtectionCoreImplMojo>(
             std::move(params_->ip_protection_control), core_host_remote,
-            mdl_manager, prt_registry, params_->enable_ip_protection,
+            mdl_manager, params_->enable_ip_protection,
             params_->ip_protection_incognito,
-            std::move(params_->initial_ip_protection_tokens),
-            params_->ip_protection_data_directory);
+            std::move(params_->initial_ip_protection_tokens));
     builder.set_proxy_delegate(
         std::make_unique<ip_protection::IpProtectionProxyDelegate>(
             ip_protection_core_impl.get()));

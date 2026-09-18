@@ -11,7 +11,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_constants.h"
 #import "ios/chrome/browser/autofill/model/form_suggestion_constants.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_ui_constants.h"
+#import "ios/chrome/browser/bookmarks/public/bookmarks_ui_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/download/ui/download_manager_constants.h"
@@ -26,7 +26,7 @@
 #import "ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_views_utils.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
-#import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_constants.h"
+#import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_table_view_controller.h"
@@ -967,6 +967,11 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)tabsSettingsButton {
+  if (IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled()) {
+    return [ChromeMatchersAppInterface
+        buttonWithAccessibilityLabelID:
+            (IDS_IOS_TABS_AND_TAB_GROUPS_MANAGEMENT_SETTINGS)];
+  }
   return [ChromeMatchersAppInterface
       buttonWithAccessibilityLabelID:(IDS_IOS_TABS_MANAGEMENT_SETTINGS)];
 }
@@ -1515,25 +1520,6 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
   };
   return [[GREYElementMatcherBlock alloc] initWithMatchesBlock:matches
                                               descriptionBlock:describe];
-}
-
-+ (id<GREYMatcher>)historyEntryForURL:(NSString*)URL title:(NSString*)title {
-  GREYMatchesBlock matches = ^BOOL(TableViewURLCell* cell) {
-    return [cell.titleLabel.text isEqualToString:title] &&
-           [cell.URLLabel.text isEqualToString:URL];
-  };
-
-  GREYDescribeToBlock describe = ^(id<GREYDescription> description) {
-    [description appendText:@"view containing URL text: "];
-    [description appendText:URL];
-    [description appendText:@" title text: "];
-    [description appendText:title];
-  };
-  return grey_allOf(
-      grey_kindOfClass([TableViewURLCell class]),
-      [[GREYElementMatcherBlock alloc] initWithMatchesBlock:matches
-                                           descriptionBlock:describe],
-      grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)settingsToolbarAddButton {

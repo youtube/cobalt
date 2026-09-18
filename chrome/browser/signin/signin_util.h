@@ -20,6 +20,7 @@
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "net/cookies/canonical_cookie.h"
+#include "ui/base/interaction/element_identifier.h"
 
 class GaiaId;
 class Profile;
@@ -34,6 +35,9 @@ class SyncService;
 }
 
 namespace signin_util {
+
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kSigninErrorDialogId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kSigninErrorDialogOkButtonId);
 
 enum class ProfileSeparationPolicyState {
   kEnforcedByExistingProfile,
@@ -208,14 +212,16 @@ bool IsSyncingUserSelectableTypesAllowedByPolicy(
 // groups through the settings.
 // This method does not take into account the feature flag
 // `ReplaceSyncPromosWithSignInPromos`.
-bool HasExplicitlyDisabledHistorySync(Profile& profile);
+bool HasExplicitlyDisabledHistorySync(
+    const syncer::SyncService* sync_service,
+    const signin::IdentityManager* identity_manager);
 
 // Returns the value `ShouldShowHistorySyncOptinResult::kShow`
 // if the necessary conditions to show the History Sync Optin screen
 // are met. Otherwise it returns a skip reason.
 // This method does not take into account the feature flag
 // `ReplaceSyncPromosWithSignInPromos`.
-// TODO(crbug.com/419741847): Consider using also on mobile and moving the
+// TODO(crbug.com/457397173): Consider using also on mobile and moving the
 // method as necessary.
 ShouldShowHistorySyncOptinResult ShouldShowHistorySyncOptinScreen(
     Profile& profile);
@@ -224,6 +230,13 @@ ShouldShowHistorySyncOptinResult ShouldShowHistorySyncOptinScreen(
 // currently signed into Chrome. If a type cannot be enabled (e.g. by policy),
 // this does not do anything for that type.
 void EnableHistorySync(syncer::SyncService* sync_service);
+
+// Returns true if the history sync optin screen could be offered via the given
+// `access_point`. Returns false if enabling history sync is expected to be done
+// via other means for the given access point and the history sync screen should
+// not be shown.
+bool IsValidAccessPointForHistoryOptinScreen(
+    signin_metrics::AccessPoint access_point);
 
 // The avatar sync promo is only shown to users with specific sign in states.
 // Requires the feature enabling through

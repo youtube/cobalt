@@ -64,6 +64,30 @@ TEST(SigslotTrampolineTest, FireSignal1) {
   item.NotifySignal1(7);
 }
 
+class ClassWithMultiThreadSlots {
+ public:
+  ClassWithMultiThreadSlots() : signal_0_trampoline_(this) {}
+  void NotifySignal0() { Signal0(); }
+  void SubscribeSignal0(absl::AnyInvocable<void()> callback) {
+    signal_0_trampoline_.Subscribe(std::move(callback));
+  }
+
+ private:
+  sigslot::signal0<sigslot::multi_threaded_local> Signal0;
+  MultiThreadSignalTrampoline<ClassWithMultiThreadSlots,
+                              &ClassWithMultiThreadSlots::Signal0>
+      signal_0_trampoline_;
+};
+
+TEST(SigslotTrampolineTest, FireSignal0MultiThread) {
+  ClassWithMultiThreadSlots item;
+  StrictMock<MockFunction<void()>> mock_slot;
+  item.SubscribeSignal0(mock_slot.AsStdFunction());
+  Mock::VerifyAndClearExpectations(&mock_slot);  // No call before Notify
+  EXPECT_CALL(mock_slot, Call());
+  item.NotifySignal0();
+}
+
 }  // namespace
 
 }  // namespace webrtc

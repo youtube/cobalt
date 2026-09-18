@@ -43,6 +43,7 @@ load(
     "perfetto_android_jni_library",
     "perfetto_android_library",
     "perfetto_android_instrumentation_test",
+    "perfetto_protozero_descriptor_diff",
 )
 
 package(default_visibility = [PERFETTO_CONFIG.root + ":__subpackages__"])
@@ -715,8 +716,6 @@ perfetto_cc_library(
             ":src_traced_probes_sys_stats_sys_stats",
             ":src_traced_probes_system_info_cpu_info_features_allowlist",
             ":src_traced_probes_system_info_system_info",
-            ":src_traced_probes_user_list_user_list",
-            ":src_traced_probes_user_list_user_list_parser",
             ":src_tracing_ipc_producer_producer",
         ],
     }),
@@ -1241,6 +1240,16 @@ perfetto_filegroup(
     ],
 )
 
+# GN target: //protos/third_party/chromium:extension_descriptor
+perfetto_protozero_descriptor_diff(
+    name = "protos_third_party_chromium_extension_descriptor",
+    outs = [
+        "protos/third_party/chromium/chrome_track_event_extension.descriptor",
+    ],
+    minuend = "protos_third_party_chromium_descriptor",
+    subtrahend = "protos_perfetto_trace_descriptor",
+)
+
 # GN target: //src/android_internal:headers
 perfetto_filegroup(
     name = "src_android_internal_headers",
@@ -1550,6 +1559,30 @@ perfetto_filegroup(
     srcs = [
         "src/profiling/deobfuscator.cc",
         "src/profiling/deobfuscator.h",
+    ],
+)
+
+# GN target: //src/protozero/descriptor_diff:lib
+perfetto_filegroup(
+    name = "src_protozero_descriptor_diff_lib",
+    srcs = [
+        "src/protozero/descriptor_diff/descriptor_diff.cc",
+        "src/protozero/descriptor_diff/descriptor_diff.h",
+    ],
+)
+
+# GN target: //src/protozero/descriptor_diff:protozero_descriptor_diff
+perfetto_cc_binary(
+    name = "src_protozero_descriptor_diff_protozero_descriptor_diff",
+    srcs = [
+        ":src_protozero_descriptor_diff_lib",
+        "src/protozero/descriptor_diff/main.cc",
+    ],
+    deps = [
+        ":protos_perfetto_common_zero",
+        ":protozero",
+        ":src_base_base",
+        ":src_base_version",
     ],
 )
 
@@ -2377,10 +2410,10 @@ perfetto_cc_proto_descriptor(
 perfetto_cc_proto_descriptor(
     name = "src_trace_processor_importers_proto_gen_cc_chrome_track_event_descriptor",
     deps = [
-        ":protos_third_party_chromium_descriptor",
+        ":protos_third_party_chromium_extension_descriptor",
     ],
     outs = [
-        "src/trace_processor/importers/proto/chrome_track_event.descriptor.h",
+        "src/trace_processor/importers/proto/chrome_track_event_extension.descriptor.h",
     ],
 )
 
@@ -3057,6 +3090,7 @@ perfetto_filegroup(
 perfetto_filegroup(
     name = "src_trace_processor_perfetto_sql_stdlib_android_cujs_cujs",
     srcs = [
+        "src/trace_processor/perfetto_sql/stdlib/android/cujs/cujs_base.sql",
         "src/trace_processor/perfetto_sql/stdlib/android/cujs/sysui_cujs.sql",
     ],
 )
@@ -4350,24 +4384,6 @@ perfetto_filegroup(
     ],
 )
 
-# GN target: //src/traced/probes/user_list:user_list
-perfetto_filegroup(
-    name = "src_traced_probes_user_list_user_list",
-    srcs = [
-        "src/traced/probes/user_list/user_list_data_source.cc",
-        "src/traced/probes/user_list/user_list_data_source.h",
-    ],
-)
-
-# GN target: //src/traced/probes/user_list:user_list_parser
-perfetto_filegroup(
-    name = "src_traced_probes_user_list_user_list_parser",
-    srcs = [
-        "src/traced/probes/user_list/user_list_parser.cc",
-        "src/traced/probes/user_list/user_list_parser.h",
-    ],
-)
-
 # GN target: //src/traced/probes:data_source
 perfetto_filegroup(
     name = "src_traced_probes_data_source",
@@ -5473,7 +5489,6 @@ perfetto_proto_library(
         "protos/perfetto/config/android/protolog_config.proto",
         "protos/perfetto/config/android/surfaceflinger_layers_config.proto",
         "protos/perfetto/config/android/surfaceflinger_transactions_config.proto",
-        "protos/perfetto/config/android/user_list_config.proto",
         "protos/perfetto/config/android/windowmanager_config.proto",
     ],
     visibility = [
@@ -6290,7 +6305,6 @@ perfetto_proto_library(
         "protos/perfetto/trace/android/network_trace.proto",
         "protos/perfetto/trace/android/packages_list.proto",
         "protos/perfetto/trace/android/pixel_modem_events.proto",
-        "protos/perfetto/trace/android/user_list.proto",
     ],
     visibility = [
         PERFETTO_CONFIG.proto_library_visibility,

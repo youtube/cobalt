@@ -12,8 +12,10 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "modules/audio_device/dummy/file_audio_device.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_utils.h"  // IWYU pragma: keep
@@ -24,7 +26,8 @@ bool FileAudioDeviceFactory::_isConfigured = false;
 char FileAudioDeviceFactory::_inputAudioFilename[MAX_FILENAME_LEN] = "";
 char FileAudioDeviceFactory::_outputAudioFilename[MAX_FILENAME_LEN] = "";
 
-FileAudioDevice* FileAudioDeviceFactory::CreateFileAudioDevice() {
+std::unique_ptr<FileAudioDevice> FileAudioDeviceFactory::CreateFileAudioDevice(
+    const Environment& env) {
   // Bail out here if the files haven't been set explicitly.
   // audio_device_impl.cc should then fall back to dummy audio.
   if (!_isConfigured) {
@@ -35,7 +38,8 @@ FileAudioDevice* FileAudioDeviceFactory::CreateFileAudioDevice() {
 
     return nullptr;
   }
-  return new FileAudioDevice(_inputAudioFilename, _outputAudioFilename);
+  return std::make_unique<FileAudioDevice>(env, _inputAudioFilename,
+                                           _outputAudioFilename);
 }
 
 void FileAudioDeviceFactory::SetFilenamesToUse(

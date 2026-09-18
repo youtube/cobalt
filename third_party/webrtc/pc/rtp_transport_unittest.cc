@@ -27,7 +27,6 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -49,7 +48,7 @@ constexpr uint16_t kRemoteNetId = 2;
 constexpr int kLastPacketId = 100;
 constexpr int kTransportOverheadPerPacket = 28;  // Ipv4(20) + UDP(8).
 
-class SignalObserver : public sigslot::has_slots<> {
+class SignalObserver {
  public:
   explicit SignalObserver(RtpTransport* transport) {
     transport_ = transport;
@@ -360,6 +359,40 @@ TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
   EXPECT_EQ(observer.last_recv_rtp_packet().ecn(), EcnMarking::kEct1);
 
   transport.UnregisterRtpDemuxerSink(&observer);
+}
+
+TEST(RtpTransportTest, RtcpSentAsEct1IfReceivedRtpPacketAsEct1) {
+  AutoThread thread;
+  RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
+  // Setup FakePacketTransport to send packets to itself.
+  FakePacketTransport fake_rtp("fake_rtp");
+  fake_rtp.SetDestination(&fake_rtp, true);
+  transport.SetRtpPacketTransport(&fake_rtp);
+  // Setup RTCP transport to send to another fake transport.
+  FakePacketTransport fake_rtcp_recipient("rtcp_recipient");
+  FakePacketTransport fake_rtcp("fake_rtcp");
+  fake_rtcp.SetDestination(&fake_rtcp_recipient, true);
+  transport.SetRtcpPacketTransport(&fake_rtcp);
+
+  AsyncSocketPacketOptions rtp_options;
+  rtp_options.ect_1 = true;
+  const int flags = 0;
+  Buffer rtp_data(kRtpData, kRtpLen);
+  // Receive RTP packet as ECT1 (since `fake_rtp` sends packets to `transport`).
+  fake_rtp.SendPacket(rtp_data.data<char>(), kRtpLen, rtp_options, flags);
+
+  CopyOnWriteBuffer rtcp_packet_payload;
+  rtcp_packet_payload.SetData("hello");
+  transport.SendRtcpPacket(&rtcp_packet_payload, AsyncSocketPacketOptions(),
+                           flags);
+  EXPECT_TRUE(fake_rtcp.last_sent_packet_options().ect_1);
+
+  // but if next RTP packet is received as not ect, RTCP is sent as not ECT.
+  rtp_options.ect_1 = false;
+  fake_rtp.SendPacket(rtp_data.data<char>(), kRtpLen, rtp_options, flags);
+  transport.SendRtcpPacket(&rtcp_packet_payload, AsyncSocketPacketOptions(),
+                           flags);
+  EXPECT_FALSE(fake_rtcp.last_sent_packet_options().ect_1);
 }
 
 // Test that SignalPacketReceived does not fire when a RTP packet with an

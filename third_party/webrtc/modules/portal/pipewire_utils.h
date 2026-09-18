@@ -49,6 +49,17 @@ class PipeWireThreadLoopLock {
   pw_thread_loop* const loop_;
 };
 
+// RAII wrapper for PipeWire initialization/deinitialization
+class PipeWireInitializer {
+ public:
+  PipeWireInitializer();
+  ~PipeWireInitializer();
+
+  // Non-copyable
+  PipeWireInitializer(const PipeWireInitializer&) = delete;
+  PipeWireInitializer& operator=(const PipeWireInitializer&) = delete;
+};
+
 // We should synchronize DMA Buffer object access from CPU to avoid potential
 // cache incoherency and data loss.
 // See

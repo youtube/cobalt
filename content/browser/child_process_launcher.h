@@ -96,13 +96,10 @@ struct RenderProcessPriority {
                         bool boost_for_pending_views,
                         bool boost_for_loading,
                         bool boost_for_discard,
-                        bool is_spare_renderer
 #if BUILDFLAG(IS_ANDROID)
-                        ,
+                        bool is_spare_renderer,
                         ChildProcessImportance importance
-#endif
-#if !BUILDFLAG(IS_ANDROID)
-                        ,
+#else
                         std::optional<base::Process::Priority> priority_override
 #endif
   );
@@ -172,12 +169,12 @@ struct RenderProcessPriority {
   // discard logic.
   bool boost_for_discard;
 
+#if BUILDFLAG(IS_ANDROID)
   // |is_spare_renderer| is true if this process should be treated as a spare
   // renderer. The process will be given a moderate priority even it is not
   // visible and used.
   bool is_spare_renderer;
 
-#if BUILDFLAG(IS_ANDROID)
   ChildProcessImportance importance;
 #endif
 
@@ -239,6 +236,13 @@ class CONTENT_EXPORT ChildProcessLauncher
     virtual bool CanUseWarmUpConnection();
     // Whether the process should be set to the priority of a spare renderer.
     virtual bool HasSpareRendererPriority();
+    // The callback function triggered when the spare renderer priority has been
+    // successfully updated to normal renderer priority.
+    // If the child process is dead when trying to update
+    // the priority, is_alive will be false. The callback will be triggered
+    // after calling
+    // RenderProcessHostImpl::GraduateSpareToNormalRendererPriority.
+    virtual void OnSpareRendererPriorityGraduated(bool is_alive) {}
 #endif
 
    protected:
@@ -335,6 +339,10 @@ class CONTENT_EXPORT ChildProcessLauncher
               DWORD last_error,
 #endif
               int error_code);
+
+#if BUILDFLAG(IS_ANDROID)
+  void OnSpareRendererPriorityGraduated(bool is_alive);
+#endif
 
 #if BUILDFLAG(IS_MAC)
   // base::PortProvider::Observer:

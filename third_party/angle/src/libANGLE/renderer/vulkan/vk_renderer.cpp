@@ -475,7 +475,26 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessages[] = {
       "VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT)",
       "prior_access = VK_PIPELINE_STAGE_2_BLIT_BIT(VK_ACCESS_2_TRANSFER_READ_BIT)",
       "command = vkCmdDraw", "prior_command = vkCmdBlitImage"}},
-};
+    // https://anglebug.com/456785955
+    {"SYNC-HAZARD-WRITE-AFTER-WRITE",
+     false,
+     {"message_type = RenderPassLoadOpError", "hazard_type = WRITE_AFTER_WRITE",
+      "access = "
+      "VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT(VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_"
+      "BIT)",
+      "prior_access = "
+      "VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT(VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)",
+      "command = vkCmdBeginRenderPass", "prior_command = vkCmdEndRenderPass",
+      "load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE"}},
+    {"SYNC-HAZARD-READ-AFTER-WRITE",
+     false,
+     {"message_type = RenderPassLoadOpError", "hazard_type = READ_AFTER_WRITE",
+      "access = "
+      "VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT(VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT)",
+      "prior_access = "
+      "VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT(VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)",
+      "command = vkCmdBeginRenderPass", "prior_command = vkCmdEndRenderPass",
+      "load_op = VK_ATTACHMENT_LOAD_OP_LOAD"}}};
 
 // Messages that should not be generated if the feature to force-enable providing the size pointer
 // to vkCmdBindVertexBuffers2() is disabled.
@@ -647,7 +666,7 @@ bool SyncvalMessageMatchesSkip(const char *messageId,
                                const char *message,
                                const vk::SkippedSyncvalMessage &skip)
 {
-    // TODO(http://angleproject:391284743): Ongoing transition: textual matches -> extraProperties.
+    // TODO(http://anglebug.com/391284743): Ongoing transition: textual matches -> extraProperties.
     // The skip should include at least one extraProperty
     ASSERT(skip.extraProperties[0]);
 
@@ -5471,6 +5490,10 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsMultiview, mMultiviewFeatures.multiview == VK_TRUE);
 
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsMultiviewMultisampleRenderToTexture,
+                            mFeatures.supportsMultisampledRenderToSingleSampled.enabled &&
+                                mFeatures.supportsMultiview.enabled);
+
     // VK_EXT_device_fault can provide more information when the device is lost.
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsDeviceFault,
@@ -5699,12 +5722,9 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // or extensions. For the purpose of testing coverage, we would still enable ES 3.2 on these
     // platforms. However, once a listed test platform is updated to a version that does support
     // ES 3.2, it should be unlisted.
-    ANGLE_FEATURE_CONDITION(
-        &mFeatures, exposeES32ForTesting,
-        mFeatures.exposeNonConformantExtensionsAndVersions.enabled &&
-            (isSoftwareRenderer || isPixel4 ||
-             (IsLinux() && isNvidia && driverVersion < angle::VersionTriple(441, 0, 0)) ||
-             (IsWindows() && isIntel)));
+    ANGLE_FEATURE_CONDITION(&mFeatures, exposeES32ForTesting,
+                            mFeatures.exposeNonConformantExtensionsAndVersions.enabled &&
+                                (isSoftwareRenderer || isPixel4 || (IsWindows() && isIntel)));
 
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsMemoryBudget,
@@ -6260,6 +6280,8 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsHostImageCopy,
                             mHostImageCopyFeatures.hostImageCopy == VK_TRUE &&
                                 mHostImageCopyProperties.identicalMemoryTypeRequirements);
+    // Software renderers always benefit from host-image-copy, because that's just memcpy.
+    ANGLE_FEATURE_CONDITION(&mFeatures, allowHostImageCopyAfterInitialUpload, isSoftwareRenderer);
 
     // 1) host vk driver does not natively support ETC format.
     // 2) host vk driver supports BC format.

@@ -45,6 +45,10 @@ function getShowMoreButton(): CrButtonElement|null {
   return $$<CrButtonElement>(mostVisited, '#showMore');
 }
 
+function getShowLessButton(): CrButtonElement|null {
+  return $$<CrButtonElement>(mostVisited, '#showLess');
+}
+
 function assertTileLength(length: number) {
   assertEquals(length, queryTiles().length);
 }
@@ -100,6 +104,8 @@ function createBrowserProxy() {
   handler.setResultFor('updateMostVisitedTile', Promise.resolve({
     success: true,
   }));
+  handler.setResultFor(
+      'getMostVisitedExpandedState', Promise.resolve({isExpanded: false}));
 }
 
 class FakeMediaQueryList extends EventTarget implements MediaQueryList {
@@ -161,14 +167,14 @@ function leaveUrlInput() {
 interface SetUpTestOptions {
   singleRow: boolean;
   reflowOnOverflow: boolean;
-  enableShowMoreButton: boolean;
+  expandableTilesEnabled: boolean;
 }
 
 function setUpTest(providedOptions: Partial<SetUpTestOptions> = {}) {
   const defaultOptions = {
     singleRow: false,
     reflowOnOverflow: false,
-    enableShowMoreButton: false,
+    expandableTilesEnabled: false,
   };
   const options = {...defaultOptions, ...providedOptions};
   document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -179,8 +185,8 @@ function setUpTest(providedOptions: Partial<SetUpTestOptions> = {}) {
   mostVisited = new MostVisitedElement();
   mostVisited.singleRow = options.singleRow;
   mostVisited.reflowOnOverflow = options.reflowOnOverflow;
-  if (options.enableShowMoreButton) {
-    mostVisited.setAttribute('enable-show-more-button', '');
+  if (options.expandableTilesEnabled) {
+    mostVisited.setAttribute('expandable-tiles-enabled', '');
   }
   document.body.appendChild(mostVisited);
   assertEquals(1, handler.getCallCount('updateMostVisitedInfo'));
@@ -282,44 +288,215 @@ suite('ShowAddButton', () => {
       });
 });
 
-suite('ShowMoreButton', () => {
+suite('ExpandableTiles', () => {
   suiteSetup(() => {
     loadTimeData.overrideValues({
       maxTilesBeforeShowMore: MAX_TILES_BEFORE_SHOW_MORE,
     });
   });
 
+  test('initializes isExpanded to true from pref', async () => {
+    createBrowserProxy();
+    handler.setResultFor(
+        'getMostVisitedExpandedState', Promise.resolve({isExpanded: true}));
+    createWindowProxy();
+
+    mostVisited = new MostVisitedElement();
+    mostVisited.setAttribute('expandable-tiles-enabled', '');
+    document.body.appendChild(mostVisited);
+    await wide();
+
+    await handler.whenCalled('getMostVisitedExpandedState');
+    await microtasksFinished();
+    await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 1);
+    assertTrue(mostVisited['showAll_']);
+    assertTrue(isVisible(getShowLessButton()));
+    assertFalse(isVisible(getShowMoreButton()));
+  });
+
   test('Show more button is shown with 6 or more tiles', async () => {
-    await setUpTest({reflowOnOverflow: true, enableShowMoreButton: true});
+    await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
     await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 1);
     assertTrue(isVisible(getShowMoreButton()));
     assertAddShortcutHidden();
     assertHiddenTileLength(0);
   });
 
-  test('Show more button is hidden with 5 or fewer tiles', async () => {
-    await setUpTest({reflowOnOverflow: true, enableShowMoreButton: true});
-    await addTiles(MAX_TILES_BEFORE_SHOW_MORE);
-    assertFalse(isVisible(getShowMoreButton()));
-    assertAddShortcutShown();
-  });
+  test(
+      'Show more and show less buttons are hidden with 5 or fewer tiles',
+      async () => {
+        await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
+        await addTiles(MAX_TILES_BEFORE_SHOW_MORE);
+        assertFalse(isVisible(getShowMoreButton()));
+        assertFalse(isVisible(getShowLessButton()));
+        assertAddShortcutShown();
+      });
 
   test(
-      'Clicking the show more button shows all tiles and hides the button',
+      'When the number of tiles is 6, toggle between show more and show less',
       async () => {
-        await setUpTest({reflowOnOverflow: true, enableShowMoreButton: true});
-        await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 2);  // 7 tiles.
+        await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
+        await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 1);
         const showMoreButton = getShowMoreButton();
         assertTrue(isVisible(showMoreButton));
         assertAddShortcutHidden();
-        assertHiddenTileLength(1);  // 7 tiles, 6 visible, so 1 hidden.
+        assertHiddenTileLength(0);
 
+        // Click "Show more", expect "Show less" and "Add shortcut" to be shown.
         showMoreButton!.click();
+        const isExpanded =
+            await handler.whenCalled('setMostVisitedExpandedState');
+        assertTrue(isExpanded);
+        handler.resetResolver('setMostVisitedExpandedState');
         await microtasksFinished();
 
         assertFalse(isVisible(getShowMoreButton()));
+        assertTrue(isVisible(getShowLessButton()));
         assertAddShortcutShown();
         assertHiddenTileLength(0);
+
+        // Click "Show less", "Show more" shown and "Add shortcut" hidden
+        const ShowLessButton = getShowLessButton();
+        ShowLessButton!.click();
+        const isExpanded2 =
+            await handler.whenCalled('setMostVisitedExpandedState');
+        assertFalse(isExpanded2);
+        await microtasksFinished();
+
+        assertTrue(isVisible(getShowMoreButton()));
+        assertFalse(isVisible(getShowLessButton()));
+        assertAddShortcutHidden();
+        assertHiddenTileLength(0);
+      });
+
+  test('clicking show more shows all tiles and show less button', async () => {
+    await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
+    await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 2);  // 7 tiles.
+    const showMoreButton = getShowMoreButton();
+    assertTrue(isVisible(showMoreButton));
+    assertAddShortcutHidden();
+    assertHiddenTileLength(1);  // 7 tiles, 6 visible, so 1 hidden.
+
+    showMoreButton!.click();
+    await microtasksFinished();
+
+    assertFalse(isVisible(getShowMoreButton()));
+    assertTrue(isVisible(getShowLessButton()));
+    assertAddShortcutShown();
+    assertHiddenTileLength(0);
+  });
+
+  test('clicking show less hides tiles and show more button', async () => {
+    await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
+    await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 2);  // 7 tiles.
+    const showMoreButton = getShowMoreButton();
+    const showLessButton = getShowLessButton();
+
+    assertTrue(isVisible(showMoreButton));
+    assertFalse(isVisible(showLessButton));
+    assertAddShortcutHidden();
+    assertHiddenTileLength(1);
+
+    // Click "Show more".
+    showMoreButton!.click();
+    await microtasksFinished();
+
+    assertFalse(isVisible(showMoreButton));
+    assertTrue(isVisible(showLessButton));
+    assertAddShortcutShown();
+    assertHiddenTileLength(0);
+
+    // Click "Show less".
+    showLessButton!.click();
+    await microtasksFinished();
+
+    assertTrue(isVisible(showMoreButton));
+    assertFalse(isVisible(showLessButton));
+    assertAddShortcutHidden();
+    assertHiddenTileLength(1);
+  });
+
+  test(
+      'show more and show less buttons do not move during drag and drop',
+      async () => {
+        await setUpTest({reflowOnOverflow: true, expandableTilesEnabled: true});
+        await addTiles(MAX_TILES_BEFORE_SHOW_MORE + 2);  // 7 tiles.
+
+        const showMoreButton = getShowMoreButton()!;
+        assertTrue(isVisible(showMoreButton));
+        const showMoreButtonRect = showMoreButton.getBoundingClientRect();
+
+        // Simulate drag and drop.
+        const tiles = queryTiles();
+        const first = tiles[0]!;
+        const second = tiles[1]!;
+        const firstRect = first.getBoundingClientRect();
+        const secondRect = second.getBoundingClientRect();
+        first.dispatchEvent(new DragEvent('dragstart', {
+          clientX: firstRect.x + firstRect.width / 2,
+          clientY: firstRect.y + firstRect.height / 2,
+        }));
+        await microtasksFinished();
+
+        // Check position of "Show more" button immediately after drag starts.
+        let newShowMoreButtonRect = showMoreButton.getBoundingClientRect();
+        assertDeepEquals(showMoreButtonRect, newShowMoreButtonRect);
+
+        const reorderCalled = handler.whenCalled('reorderMostVisitedTile');
+        document.dispatchEvent(new DragEvent('drop', {
+          clientX: secondRect.x + 1,
+          clientY: secondRect.y + 1,
+        }));
+        document.dispatchEvent(new DragEvent('dragend', {
+          clientX: secondRect.x + 1,
+          clientY: secondRect.y + 1,
+        }));
+        await mostVisited.updateComplete;
+        await reorderCalled;
+
+        // Check position of "Show more" button.
+        newShowMoreButtonRect = showMoreButton.getBoundingClientRect();
+        assertDeepEquals(showMoreButtonRect, newShowMoreButtonRect);
+
+        // Expand to show "Show less" button.
+        showMoreButton.click();
+        await microtasksFinished();
+
+        const showLessButton = getShowLessButton()!;
+        assertTrue(isVisible(showLessButton));
+        const showLessButtonRect = showLessButton.getBoundingClientRect();
+
+        // Simulate another drag and drop.
+        const newTiles = queryTiles();
+        const newFirst = newTiles[0]!;
+        const newSecond = newTiles[1]!;
+        const newFirstRect = newFirst.getBoundingClientRect();
+        const newSecondRect = newSecond.getBoundingClientRect();
+        newFirst.dispatchEvent(new DragEvent('dragstart', {
+          clientX: newFirstRect.x + newFirstRect.width / 2,
+          clientY: newFirstRect.y + newFirstRect.height / 2,
+        }));
+        await microtasksFinished();
+
+        // Check position of "Show less" button immediately after drag starts.
+        let newShowLessButtonRect = showLessButton.getBoundingClientRect();
+        assertDeepEquals(showLessButtonRect, newShowLessButtonRect);
+
+        const reorderCalledAgain = handler.whenCalled('reorderMostVisitedTile');
+        document.dispatchEvent(new DragEvent('drop', {
+          clientX: newSecondRect.x + 1,
+          clientY: newSecondRect.y + 1,
+        }));
+        document.dispatchEvent(new DragEvent('dragend', {
+          clientX: newSecondRect.x + 1,
+          clientY: newSecondRect.y + 1,
+        }));
+        await mostVisited.updateComplete;
+        await reorderCalledAgain;
+
+        // Check position of "Show less" button.
+        newShowLessButtonRect = showLessButton.getBoundingClientRect();
+        assertDeepEquals(showLessButtonRect, newShowLessButtonRect);
       });
 });
 
@@ -1036,6 +1213,131 @@ suite('Modification', () => {
       await leaveUrlInput();
       assertFalse(inputUrl.invalid);
     });
+
+    test(
+        'shortcut already exists (enterprise and custom link with same url)',
+        async () => {
+          await addTiles(
+              [
+                {
+                  title: 'e1',
+                  titleDirection: TextDirection.LEFT_TO_RIGHT,
+                  url: {url: `https://e1/`},
+                  source: TileSource.ENTERPRISE_SHORTCUTS,
+                  titleSource: 0,
+                  isQueryTile: false,
+                  allowUserEdit: true,
+                  allowUserDelete: true,
+                },
+                {
+                  title: 'c1',
+                  titleDirection: TextDirection.LEFT_TO_RIGHT,
+                  url: {url: `https://e1/`},
+                  source: TileSource.CUSTOM_LINKS,
+                  titleSource: 1,
+                  isQueryTile: false,
+                  allowUserEdit: true,
+                  allowUserDelete: true,
+                },
+              ],
+              /*customLinksEnabled=*/ true, /*visible=*/ true,
+              /*enterpriseShortcutsEnabled=*/ true);
+
+          // Open edit dialog for the enteprise shortcut (index 0).
+          const enterpriseShortcutTile = queryTiles()[0]!;
+          enterpriseShortcutTile
+              .querySelector<HTMLElement>('#actionMenuButton')!.click();
+          $$<HTMLElement>(mostVisited, '#actionMenuViewOrEdit').click();
+          await microtasksFinished();
+
+          // Action button should be visible and clickable.
+          assertTrue(mostVisited.$.dialog.open);
+          const actionButton =
+              mostVisited.$.dialog.querySelector<CrButtonElement>(
+                  '.action-button')!;
+          assertFalse(actionButton.disabled);
+          actionButton.click();
+          await microtasksFinished();
+          assertFalse(mostVisited.$.dialog.open);
+
+          // Open edit dialog for the custom link (index 1).
+          const customLinkTile = queryTiles()[1]!;
+          customLinkTile.querySelector<HTMLElement>(
+                            '#actionMenuButton')!.click();
+          $$<HTMLElement>(mostVisited, '#actionMenuViewOrEdit').click();
+          await microtasksFinished();
+
+          // Try to set its URL to the enterprise shortcut's URL (which is the
+          // same as its own, but we're testing the logic).
+          inputUrl.value = 'https://e1/';
+          await inputUrl.updateComplete;
+          assertFalse(mostVisited['dialogShortcutAlreadyExists_']);
+          assertFalse(inputUrl.invalid);
+          await leaveUrlInput();
+          assertFalse(inputUrl.invalid);
+
+          // Save button should be visible and clickable.
+          assertTrue(mostVisited.$.dialog.open);
+          const saveButton =
+              mostVisited.$.dialog.querySelector<CrButtonElement>(
+                  '.action-button')!;
+          assertFalse(saveButton.disabled);
+          saveButton.click();
+          await microtasksFinished();
+          assertFalse(mostVisited.$.dialog.open);
+        });
+
+    test('edit custom link to duplicate enterprise shortcut url', async () => {
+      await addTiles(
+          [
+            {
+              title: 'e1',
+              titleDirection: TextDirection.LEFT_TO_RIGHT,
+              url: {url: `https://e1/`},
+              source: TileSource.ENTERPRISE_SHORTCUTS,
+              titleSource: 0,
+              isQueryTile: false,
+              allowUserEdit: true,
+              allowUserDelete: true,
+            },
+            {
+              title: 'c1',
+              titleDirection: TextDirection.LEFT_TO_RIGHT,
+              url: {url: `https://c1/`},
+              source: TileSource.CUSTOM_LINKS,
+              titleSource: 1,
+              isQueryTile: false,
+              allowUserEdit: true,
+              allowUserDelete: true,
+            },
+          ],
+          /*customLinksEnabled=*/ true, /*visible=*/ true,
+          /*enterpriseShortcutsEnabled=*/ true);
+
+      // Open edit dialog for the custom link (index 1).
+      const customLinkTile = queryTiles()[1]!;
+      customLinkTile.querySelector<HTMLElement>('#actionMenuButton')!.click();
+      $$<HTMLElement>(mostVisited, '#actionMenuViewOrEdit').click();
+      await microtasksFinished();
+
+      // Try to set its URL to the enterprise shortcut's URL.
+      // Save button should be visible and clickable.
+      inputUrl.value = 'https://e1/';
+      await inputUrl.updateComplete;
+      assertFalse(mostVisited['dialogShortcutAlreadyExists_']);
+      assertFalse(inputUrl.invalid);
+      await leaveUrlInput();
+      assertFalse(inputUrl.invalid);
+
+      const saveButton = mostVisited.$.dialog.querySelector<CrButtonElement>(
+          '.action-button')!;
+      assertFalse(saveButton.disabled);
+      const updateCalled = handler.whenCalled('updateMostVisitedTile');
+      saveButton.click();
+      const [_oldTile, newUrl, _newTitle] = await updateCalled;
+      assertEquals('https://e1/', newUrl.url);
+      assertFalse(mostVisited.$.dialog.open);
+    });
   });
 
   test('remove with action menu', async () => {
@@ -1743,6 +2045,62 @@ suite('EnterpriseShortcuts', () => {
     await microtasksFinished();
     assertFalse(mostVisited.$.dialog.open);
     assertEquals(0, handler.getCallCount('updateMostVisitedTile'));
+  });
+
+  test('view enterprise shortcut then add shortcut', async () => {
+    await addTiles(
+        [
+          createEnterpriseShortcut(
+              0, /*allowUserEdit=*/ false, /*allowUserDelete=*/ true),
+          {
+            title: 'c',
+            titleDirection: TextDirection.LEFT_TO_RIGHT,
+            url: {url: `https://c/`},
+            source: TileSource.CUSTOM_LINKS,
+            titleSource: 1,
+            isQueryTile: false,
+            allowUserEdit: true,
+            allowUserDelete: true,
+          },
+        ],
+        /*customLinksEnabled=*/ true, /*visible=*/ true,
+        /*enterpriseShortcutsEnabled=*/ true);
+    const enterpriseTile = queryTiles()[0]!;
+    enterpriseTile.querySelector<HTMLElement>('#actionMenuButton')!.click();
+    $$<HTMLElement>(mostVisited, '#actionMenuViewOrEdit').click();
+    await microtasksFinished();
+
+    // Verify dialog state for enterprise shortcut.
+    assertTrue(mostVisited.$.dialog.open);
+    let policySubtitleContainer =
+        mostVisited.$.dialog.querySelector<HTMLElement>(
+            '#policySubtitleContainer');
+    assertTrue(isVisible(policySubtitleContainer));
+    let urlInput = $$<CrInputElement>(mostVisited, '#dialogInputUrl');
+    assertTrue(urlInput.readonly);
+    let nameInput = $$<CrInputElement>(mostVisited, '#dialogInputName');
+    assertTrue(nameInput.readonly);
+
+    // Close the dialog.
+    const saveButton =
+        mostVisited.$.dialog.querySelector<CrButtonElement>('.action-button')!;
+    saveButton.click();
+    await microtasksFinished();
+    assertFalse(mostVisited.$.dialog.open);
+
+    // Open the add shortcut dialog.
+    mostVisited.$.addShortcut.click();
+    await microtasksFinished();
+
+    // Verify dialog state for adding a new shortcut.
+    assertTrue(mostVisited.$.dialog.open);
+    policySubtitleContainer = mostVisited.$.dialog.querySelector<HTMLElement>(
+        '#policySubtitleContainer');
+    assertFalse(isVisible(policySubtitleContainer));
+    urlInput = $$<CrInputElement>(mostVisited, '#dialogInputUrl');
+    assertFalse(urlInput.readonly);
+    nameInput = $$<CrInputElement>(mostVisited, '#dialogInputName');
+    assertFalse(nameInput.readonly);
   });
 
   test('action menu enabled/disabled based on permissions', async () => {

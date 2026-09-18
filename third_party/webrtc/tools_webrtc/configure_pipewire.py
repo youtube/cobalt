@@ -14,59 +14,58 @@ import os
 import subprocess
 import sys
 
-_SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-_SRC_DIR = os.path.dirname(_SCRIPT_DIR)
+
+def _get_pipewire_dir():
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    src_dir = os.path.dirname(script_dir)
+
+    pipewire_dir = os.path.join(src_dir, 'third_party', 'pipewire-1.4',
+                                'linux-amd64')
+
+    return pipewire_dir
 
 
-def _GetPipeWireDir():
-  pipewire_dir = os.path.join(_SRC_DIR, 'third_party', 'pipewire',
-                              'linux-amd64')
+def _configure_pipewire_paths(path):
+    library_dir = os.path.join(path, 'lib64')
+    pipewire_binary_dir = os.path.join(path, 'bin')
+    pipewire_config_prefix = os.path.join(path, 'share', 'pipewire')
+    pipewire_module_dir = os.path.join(library_dir, 'pipewire-0.3')
+    spa_plugin_dir = os.path.join(library_dir, 'spa-0.2')
+    wireplumber_config_dir = os.path.join(path, 'share', 'wireplumber')
+    wireplumber_data_dir = os.path.join(path, 'share', 'wireplumber')
+    wireplumber_module_dir = os.path.join(library_dir, 'wireplumber-0.5')
 
-  if not os.path.isdir(pipewire_dir):
-    pipewire_dir = None
-
-  return pipewire_dir
-
-
-def _ConfigurePipeWirePaths(path):
-  library_dir = os.path.join(path, 'lib64')
-  pipewire_binary_dir = os.path.join(path, 'bin')
-  pipewire_config_prefix = os.path.join(path, 'share', 'pipewire')
-  pipewire_module_dir = os.path.join(library_dir, 'pipewire-0.3')
-  spa_plugin_dir = os.path.join(library_dir, 'spa-0.2')
-  media_session_config_dir = os.path.join(pipewire_config_prefix,
-                                          'media-session.d')
-
-  env_vars = os.environ
-  env_vars['LD_LIBRARY_PATH'] = library_dir
-  env_vars['PIPEWIRE_CONFIG_PREFIX'] = pipewire_config_prefix
-  env_vars['PIPEWIRE_MODULE_DIR'] = pipewire_module_dir
-  env_vars['SPA_PLUGIN_DIR'] = spa_plugin_dir
-  env_vars['MEDIA_SESSION_CONFIG_DIR'] = media_session_config_dir
-  env_vars['PIPEWIRE_RUNTIME_DIR'] = '/tmp'
-  env_vars['PATH'] = env_vars['PATH'] + ':' + pipewire_binary_dir
+    env_vars = os.environ
+    env_vars['LD_LIBRARY_PATH'] = library_dir
+    env_vars['PIPEWIRE_CONFIG_PREFIX'] = pipewire_config_prefix
+    env_vars['PIPEWIRE_MODULE_DIR'] = pipewire_module_dir
+    env_vars['SPA_PLUGIN_DIR'] = spa_plugin_dir
+    env_vars['PIPEWIRE_RUNTIME_DIR'] = '/tmp'
+    env_vars['PATH'] = env_vars['PATH'] + ':' + pipewire_binary_dir
+    env_vars['WIREPLUMBER_CONFIG_DIR'] = wireplumber_config_dir
+    env_vars['WIREPLUMBER_DATA_DIR'] = wireplumber_data_dir
+    env_vars['WIREPLUMBER_MODULE_DIR'] = wireplumber_module_dir
 
 
 def main():
-  pipewire_dir = _GetPipeWireDir()
+    pipewire_dir = _get_pipewire_dir()
 
-  if pipewire_dir is None:
-    print('configure-pipewire: Couldn\'t find directory %s' % pipewire_dir)
-    return 1
+    if not os.path.isdir(pipewire_dir):
+        print('configure-pipewire: Couldn\'t find directory %s' % pipewire_dir)
+        return 1
 
-  _ConfigurePipeWirePaths(pipewire_dir)
+    _configure_pipewire_paths(pipewire_dir)
 
-  pipewire_process = subprocess.Popen(["pipewire"], stdout=None)
-  pipewire_media_session_process = subprocess.Popen(["pipewire-media-session"],
-                                                    stdout=None)
+    pipewire_process = subprocess.Popen(["pipewire"], stdout=None)
+    wireplumber_process = subprocess.Popen(["wireplumber"], stdout=None)
 
-  return_value = subprocess.call(sys.argv[1:])
+    return_value = subprocess.call(sys.argv[1:])
 
-  pipewire_media_session_process.terminate()
-  pipewire_process.terminate()
+    wireplumber_process.terminate()
+    pipewire_process.terminate()
 
-  return return_value
+    return return_value
 
 
 if __name__ == '__main__':
-  sys.exit(main())
+    sys.exit(main())

@@ -366,6 +366,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"askAboutThisTab", IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB},
       {"askAboutThisTabAriaLabel",
        IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL},
+      {"removeToolChipAriaLabel", IDS_COMPOSE_REMOVE_TOOL_CHIP_A11Y_LABEL},
+      {"composeFileTypesAllowedError",
+       IDS_NTP_COMPOSE_FILE_TYPE_NOT_ALLOWED_ERROR},
+      {"composeboxDragAndDropHint", IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -403,12 +407,17 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
   source->AddBoolean("searchboxCr23SteadyStateShadow",
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
 
-  source->AddBoolean("searchboxShowComposeAnimation",
-                     profile->GetPrefs()->GetInteger(
-                         prefs::kNtpComposeButtonShownCountPrefName) <
-                         ntp_composebox::FeatureConfig::Get()
-                             .config.entry_point()
-                             .num_page_load_animations());
+  auto composebox_config = ntp_composebox::FeatureConfig::Get().config;
+  source->AddString("maxFilesReachedError",
+                    l10n_util::GetStringFUTF16(
+                        IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+                        base::NumberToString16(
+                            composebox_config.composebox().max_num_files())));
+  source->AddBoolean(
+      "searchboxShowComposeAnimation",
+      profile->GetPrefs()->GetInteger(
+          prefs::kNtpComposeButtonShownCountPrefName) <
+          composebox_config.entry_point().num_page_load_animations());
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -642,6 +651,7 @@ SearchboxHandler::CreateAutocompleteMatch(
 
   searchbox::mojom::AutocompleteMatchPtr mojom_match =
       searchbox::mojom::AutocompleteMatch::New();
+  mojom_match->is_hidden = match.ShouldHideBasedOnStarterPack(turl_service);
   mojom_match->allowed_to_be_default_match = match.allowed_to_be_default_match;
   mojom_match->contents = match.contents;
   for (const auto& contents_class : match.contents_class) {

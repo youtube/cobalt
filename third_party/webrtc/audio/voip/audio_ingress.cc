@@ -78,9 +78,8 @@ AudioMixer::Source::AudioFrameInfo AudioIngress::GetAudioFrameWithInfo(
   // Get 10ms raw PCM data from the ACM.
   bool muted = false;
   {
-    MutexLock lock(&lock_);
-    if ((neteq_->GetAudio(audio_frame, &muted) != NetEq::kOK) ||
-        !resampler_helper_.MaybeResample(sampling_rate, audio_frame)) {
+    MutexLock lock(&neteq_mutex_);
+    if (neteq_->GetAudio(audio_frame, &muted) != NetEq::kOK) {
       RTC_DLOG(LS_ERROR) << "GetAudio() failed!";
       // In all likelihood, the audio in this frame is garbage. We return an
       // error so that the audio mixer module doesn't add it to the mix. As
@@ -89,6 +88,8 @@ AudioMixer::Source::AudioFrameInfo AudioIngress::GetAudioFrameWithInfo(
       return AudioMixer::Source::AudioFrameInfo::kError;
     }
   }
+
+  resampler_helper_.MaybeResample(sampling_rate, audio_frame);
 
   if (muted) {
     AudioFrameOperations::Mute(audio_frame);
@@ -121,6 +122,7 @@ AudioMixer::Source::AudioFrameInfo AudioIngress::GetAudioFrameWithInfo(
     }
     // For clock rate, default to the playout sampling rate if we haven't
     // received any packets yet.
+    MutexLock lock(&neteq_mutex_);
     std::optional<NetEq::DecoderFormat> decoder =
         neteq_->GetCurrentDecoderFormat();
     int clock_rate = decoder ? decoder->sdp_format.clockrate_hz
@@ -154,6 +156,7 @@ void AudioIngress::SetReceiveCodecs(
       receive_codec_info_[kv.first] = kv.second.clockrate_hz;
     }
   }
+  MutexLock lock(&neteq_mutex_);
   neteq_->SetCodecs(codecs);
 }
 
@@ -203,13 +206,14 @@ void AudioIngress::ReceivedRTPPacket(ArrayView<const uint8_t> rtp_packet) {
   size_t payload_data_length = payload_length - header.paddingLength;
   auto data_view = ArrayView<const uint8_t>(payload, payload_data_length);
 
-  // Push the incoming payload (parsed and ready for decoding) into the ACM.
-  if (data_view.empty()) {
-    neteq_->InsertEmptyPacket(header);
-  } else if (neteq_->InsertPacket(header, data_view,
-                                  env_.clock().CurrentTime()) < 0) {
-    RTC_DLOG(LS_ERROR) << "ChannelReceive::OnReceivedPayloadData() unable to "
-                          "insert packet into NetEq";
+  // Push the incoming payload (parsed and ready for decoding) into NetEq.
+  if (!data_view.empty()) {
+    MutexLock lock(&neteq_mutex_);
+    if (neteq_->InsertPacket(header, data_view, env_.clock().CurrentTime()) <
+        0) {
+      RTC_DLOG(LS_ERROR) << "ChannelReceive::OnReceivedPayloadData() unable to "
+                            "insert packet into NetEq";
+    }
   }
 }
 
@@ -265,6 +269,7 @@ NetworkStatistics AudioIngress::GetNetworkStatistics() const {
   stats.meanWaitingTimeMs = -1;
   stats.maxWaitingTimeMs = 1;
 
+  MutexLock lock(&neteq_mutex_);
   NetEqNetworkStatistics neteq_stat = neteq_->CurrentNetworkStatistics();
   stats.currentBufferSize = neteq_stat.current_buffer_size_ms;
   stats.preferredBufferSize = neteq_stat.preferred_buffer_size_ms;
@@ -309,8 +314,14 @@ ChannelStatistics AudioIngress::GetChannelStatistics() {
   ChannelStatistics channel_stats;
 
   // Get clockrate for current decoder ahead of jitter calculation.
-  auto decoder = neteq_->GetCurrentDecoderFormat();
-  const uint32_t clockrate_hz = decoder ? decoder->sdp_format.clockrate_hz : 0;
+  uint32_t clockrate_hz = 0;
+  {
+    MutexLock lock(&neteq_mutex_);
+    auto decoder = neteq_->GetCurrentDecoderFormat();
+    if (decoder) {
+      clockrate_hz = decoder->sdp_format.clockrate_hz;
+    }
+  }
 
   StreamStatistician* statistician =
       rtp_receive_statistics_->GetStatistician(remote_ssrc_);

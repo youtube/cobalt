@@ -6,28 +6,39 @@
 
 #include <optional>
 #include <string_view>
+#include <tuple>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/run_loop.h"
+#include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_file_util.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_test_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -39,21 +50,41 @@
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/javascript_dialogs/app_modal_dialog_controller.h"
+#include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/test_frame_navigation_observer.h"
+#include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_utils.h"
+#include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/input/web_mouse_event.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/point_conversions.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+#include "url/gurl.h"
 
 using ::base::test::TestFuture;
 using ::optimization_guide::proto::ClickAction;
+using ::testing::_;
 
 namespace actor {
 
@@ -101,7 +132,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
                                 base::Unretained(this))) {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
-                              features::kGlicActor},
+                              features::kGlicActor,
+                              kGlicExternalProtocolActionResultCode},
         /*disabled_features=*/{features::kGlicWarming});
   }
   ExecutionEngineBrowserTest(const ExecutionEngineBrowserTest&) = delete;
@@ -119,6 +151,10 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
+    if (UseCertTestNames()) {
+      embedded_https_test_server().SetSSLConfig(
+          net::EmbeddedTestServer::CERT_TEST_NAMES);
+    }
     ASSERT_TRUE(embedded_https_test_server().Start());
 
     StartNewTask();
@@ -138,6 +174,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
 
     content::SetBrowserClientForTesting(&mock_browser_client_);
   }
+
+  virtual bool UseCertTestNames() const { return false; }
 
  protected:
   void StartNewTask() {
@@ -170,12 +208,14 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
 
   void ClickTarget(
       std::string_view query_selector,
-      mojom::ActionResultCode expected_code = mojom::ActionResultCode::kOk) {
-    std::optional<int> dom_node_id =
-        content::GetDOMNodeId(*main_frame(), query_selector);
+      mojom::ActionResultCode expected_code = mojom::ActionResultCode::kOk,
+      content::RenderFrameHost* execution_target = nullptr) {
+    content::RenderFrameHost& rfh =
+        execution_target ? *execution_target : *main_frame();
+    std::optional<int> dom_node_id = content::GetDOMNodeId(rfh, query_selector);
     ASSERT_TRUE(dom_node_id);
     std::unique_ptr<ToolRequest> click =
-        MakeClickRequest(*main_frame(), dom_node_id.value());
+        MakeClickRequest(rfh, dom_node_id.value());
     ActResultFuture result;
     actor_task().Act(ToRequestList(click), result.GetCallback());
     if (expected_code == mojom::ActionResultCode::kOk) {
@@ -408,7 +448,8 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest,
       "example.com", "/actor/external_protocol_links.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
 
-  ClickTarget("#mailto", mojom::ActionResultCode::kTriggeredNavigationBlocked);
+  ClickTarget("#mailto",
+              mojom::ActionResultCode::kExternalProtocolNavigationBlocked);
 }
 
 // We need to follow a link which then spawns the external protocol request in
@@ -431,6 +472,296 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest,
 
   EXPECT_FALSE(browser_client().external_protocol_result().value());
 }
+
+// TODO(crbug.com/456759397): Add coverage for multi-tab cases in
+// foreground/background visibility metric.
+
+// Android uses a different dropdown UI that doesn't respect styling.
+#if !BUILDFLAG(IS_ANDROID)
+class ExecutionEnginePixelBrowserTest : public ExecutionEngineBrowserTest {
+ public:
+  ExecutionEnginePixelBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kGlicActorInternalPopups);
+  }
+
+  void SetUp() override {
+    EnablePixelOutput();
+    ExecutionEngineBrowserTest::SetUp();
+  }
+
+  // Captures the page with CopyFromSurface() and returns true if any red
+  // pixels are found.
+  bool HasRedPixels() {
+    bool found_red = false;
+    base::RunLoop run_loop;
+    web_contents()->GetRenderWidgetHostView()->CopyFromSurface(
+        gfx::Rect(), gfx::Size(),
+        base::BindLambdaForTesting(
+            [&](const viz::CopyOutputBitmapWithMetadata& result) {
+              const SkBitmap& bitmap = result.bitmap;
+              ASSERT_FALSE(bitmap.drawsNothing());
+              for (int x = 0; x < bitmap.width() && !found_red; ++x) {
+                for (int y = 0; y < bitmap.height() && !found_red; ++y) {
+                  if (bitmap.getColor(x, y) == SK_ColorRED) {
+                    found_red = true;
+                  }
+                }
+              }
+              base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+                  FROM_HERE, run_loop.QuitClosure());
+            }));
+    run_loop.Run();
+    return found_red;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// TODO: b/456801048 - Fix test flakiness on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_DropdownCapturedWhenActing DISABLED_DropdownCapturedWhenActing
+#else
+#define MAYBE_DropdownCapturedWhenActing DropdownCapturedWhenActing
+#endif  // BUILDFLAG(IS_LINUX)
+
+// Tests that dropdown menus are visible in captures during an actor-controlled
+// state.
+IN_PROC_BROWSER_TEST_F(ExecutionEnginePixelBrowserTest,
+                       MAYBE_DropdownCapturedWhenActing) {
+  // Render an HTML <select> element whose second item appears red.
+  // The second item should appear when the element is clicked.
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/actor/red_dropdown.html")));
+  EXPECT_TRUE(WaitForRenderFrameReady(web_contents()->GetPrimaryMainFrame()));
+  content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents());
+
+  base::RunLoop loop;
+  actor_task().AddTab(
+      active_tab()->GetHandle(),
+      base::BindLambdaForTesting([&](mojom::ActionResultPtr result) {
+        EXPECT_TRUE(IsOk(*result));
+        loop.Quit();
+      }));
+  loop.Run();
+
+  // Set the actor task to an actor-controlled state.
+  actor_task().SetState(ActorTask::State::kActing);
+
+  {
+    content::ShowPopupWidgetWaiter dropdown_waiter(web_contents(),
+                                                   main_frame());
+    ClickTarget("#select");
+    dropdown_waiter.Wait();
+    ASSERT_FALSE(dropdown_waiter.last_initial_rect().IsEmpty());
+  }
+  content::WaitForCopyableViewInFrame(main_frame());
+
+  // CopyFromSurface() should have seen red pixels from the dropdown.
+  EXPECT_TRUE(HasRedPixels());
+
+  // Dismissing popups only happens on Mac -- it happens to shift back to the
+  // external UI.
+#if BUILDFLAG(IS_MAC)
+  // Move to a non-actor-controlled state, which should dismiss the popup.
+  actor_task().SetState(ActorTask::State::kPausedByUser);
+
+  // Capture again, and expect no red pixels.
+  EXPECT_FALSE(HasRedPixels());
+
+  // Re-open the popup. Since the actor is not in an actor-controlled state,
+  // the popup should be external and not styled.
+  {
+    content::ShowPopupWidgetWaiter dropdown_waiter(web_contents(),
+                                                   main_frame());
+    content::SimulateMouseClickAt(
+        web_contents(), /*modifiers=*/0, blink::WebMouseEvent::Button::kLeft,
+        gfx::ToFlooredPoint(content::GetCenterCoordinatesOfElementWithId(
+            web_contents(), "select")));
+    dropdown_waiter.Wait();
+    ASSERT_FALSE(dropdown_waiter.last_initial_rect().IsEmpty());
+    content::WaitForCopyableViewInFrame(main_frame());
+  }
+
+  // Capture again, and expect no red pixels.
+  EXPECT_FALSE(HasRedPixels());
+
+  // Now, go back to an actor-controlled state again, and re-open the popup. We
+  // should get red pixels again.
+  actor_task().SetState(ActorTask::State::kReflecting);
+  actor_task().SetState(ActorTask::State::kActing);
+
+  {
+    content::ShowPopupWidgetWaiter dropdown_waiter(web_contents(),
+                                                   main_frame());
+    ClickTarget("#select");
+    dropdown_waiter.Wait();
+    ASSERT_FALSE(dropdown_waiter.last_initial_rect().IsEmpty());
+  }
+  content::WaitForCopyableViewInFrame(main_frame());
+
+  // CopyFromSurface() should have seen red pixels from the dropdown.
+  EXPECT_TRUE(HasRedPixels());
+#endif  // BUILDFLAG(IS_MAC)
+}
+
+// Only Mac switches between internal and external popups, so this test only
+// makes sense on that platform.
+#if BUILDFLAG(IS_MAC)
+
+// Determines the ordering of when the the cross-origin iframe is created.
+enum class CreateFrameHappens {
+  kBeforeStateTransistions,
+  kAfterStateTransistions,
+};
+
+// Determines if expecting the popup to use internal (when actor controlled) or
+// external (when user controlled) popup UI. Only the internal UI is stylable
+// with red.
+enum class ExpectedPopupType {
+  kInternal,
+  kExternal,
+};
+
+class ExecutionEngineDropdownCaptureOopifBrowserTest
+    : public ExecutionEnginePixelBrowserTest,
+      public ::testing::WithParamInterface<
+          std::tuple<CreateFrameHappens, ExpectedPopupType>> {
+ public:
+  bool UseCertTestNames() const override { return true; }
+
+  CreateFrameHappens GetCreateFrameHappens() const {
+    return std::get<0>(GetParam());
+  }
+
+  ExpectedPopupType GetExpectedPopupType() const {
+    return std::get<1>(GetParam());
+  }
+
+  // Helper function that clicks and opens a popup. This function works both in
+  // actor-controlled and non-actor-controlled states.
+  void ClickSelect(std::string_view select_id,
+                   content::RenderFrameHost* execution_target = nullptr) {
+    content::RenderFrameHost& rfh =
+        execution_target ? *execution_target : *main_frame();
+    content::ShowPopupWidgetWaiter dropdown_waiter(web_contents(), &rfh);
+    if (actor_task().IsUnderActorControl()) {
+      ClickTarget(base::StrCat({"#", select_id}),
+                  /*expected_code=*/mojom::ActionResultCode::kOk,
+                  /*execution_target=*/&rfh);
+    } else {
+      blink::WebMouseEvent mouse_event(
+          blink::WebInputEvent::Type::kMouseDown,
+          blink::WebInputEvent::kNoModifiers,
+          blink::WebInputEvent::GetStaticTimeStampForTests());
+      mouse_event.button = blink::WebPointerProperties::Button::kLeft;
+      mouse_event.SetPositionInWidget(
+          content::GetCenterCoordinatesOfElementWithId(&rfh, select_id));
+      rfh.GetRenderWidgetHost()->ForwardMouseEvent(mouse_event);
+    }
+    dropdown_waiter.Wait();
+    ASSERT_FALSE(dropdown_waiter.last_initial_rect().IsEmpty());
+  }
+
+  void DoStateTransitions() {
+    base::RunLoop loop;
+    actor_task().AddTab(
+        active_tab()->GetHandle(),
+        base::BindLambdaForTesting([&](mojom::ActionResultPtr result) {
+          EXPECT_TRUE(IsOk(*result));
+          loop.Quit();
+        }));
+    loop.Run();
+
+    // Set the actor task to an actor-controlled state.
+    actor_task().SetState(ActorTask::State::kActing);
+
+    if (GetExpectedPopupType() == ExpectedPopupType::kExternal) {
+      // Now, transition back to a user-controlled state.
+      actor_task().SetState(ActorTask::State::kPausedByUser);
+    }
+  }
+};
+
+// Ensure that internal / external popup mode correctly propagates to
+// newly-created out-of-process (cross-origin) iframes, even those created after
+// moving to an actor-controlled state.
+//
+// Transition to an actor-controlled state, then create a new out-of-process
+// iframe that contains a <select> tag.
+//
+// When the actor opens the select dropdown, it uses the internal UI (styled
+// with red) and is visible in the screenshot.
+IN_PROC_BROWSER_TEST_P(ExecutionEngineDropdownCaptureOopifBrowserTest,
+                       OutOfProcIframeDropdowns) {
+  // The main frame is a.test, the iframe with the popup (created dynamically)
+  // is in b.test.
+  const url::Origin origin_b =
+      url::Origin::Create(embedded_https_test_server().GetURL("b.test", "/"));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_https_test_server().GetURL(
+                     "a.test", base::StrCat({"/actor/oopif_red_dropdown.html?",
+                                             origin_b.Serialize()}))));
+  EXPECT_TRUE(WaitForRenderFrameReady(web_contents()->GetPrimaryMainFrame()));
+  content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents());
+
+  switch (GetCreateFrameHappens()) {
+    case CreateFrameHappens::kBeforeStateTransistions:
+      EXPECT_TRUE(content::ExecJs(web_contents(), "createIframe();"));
+      DoStateTransitions();
+      break;
+    case CreateFrameHappens::kAfterStateTransistions:
+      DoStateTransitions();
+      EXPECT_TRUE(content::ExecJs(web_contents(), "createIframe();"));
+      break;
+  }
+
+  // Get a handle to the out of process iframe.
+  content::RenderFrameHost* iframe =
+      ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+  ASSERT_NE(iframe, nullptr);
+
+  // Now click on the <select> in the out of process iframe, and then look for
+  // red pixels.
+  ClickSelect("select", /*execution_target=*/iframe);
+  content::WaitForCopyableViewInFrame(iframe);
+
+  // CopyFromSurface() should have seen red pixels from the dropdown.
+  switch (GetExpectedPopupType()) {
+    case ExpectedPopupType::kInternal:
+      EXPECT_TRUE(HasRedPixels());
+      break;
+    case ExpectedPopupType::kExternal:
+      EXPECT_FALSE(HasRedPixels());
+      break;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    ExecutionEngineDropdownCaptureOopifBrowserTest,
+    ::testing::Combine(
+        ::testing::Values(CreateFrameHappens::kBeforeStateTransistions,
+                          CreateFrameHappens::kAfterStateTransistions),
+        ::testing::Values(ExpectedPopupType::kInternal,
+                          ExpectedPopupType::kExternal)),
+    [](const testing::TestParamInfo<
+        std::tuple<CreateFrameHappens, ExpectedPopupType>>& info) {
+      return base::StrCat(
+          {"CreateFrameHappens_",
+           std::get<0>(info.param) ==
+                   CreateFrameHappens::kBeforeStateTransistions
+               ? "BeforeStateTransistions"
+               : "AfterStateTransitions",
+           "__ExpectedPopupType_",
+           std::get<1>(info.param) == ExpectedPopupType::kInternal
+               ? "Internal"
+               : "External"});
+    });
+
+#endif  // BUILDFLAG(IS_MAC)
+
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class ExecutionEngineFileSystemAccessApiBrowserTest
     : public ExecutionEngineBrowserTest,
@@ -543,328 +874,106 @@ INSTANTIATE_TEST_SUITE_P(All,
                          ExecutionEngineDangerousContentBrowserTest,
                          testing::Bool());
 
-class ExecutionEngineOriginGatingBrowserTest
+class ExecutionEngineSkipBeforeUnloadBrowserTest
     : public ExecutionEngineBrowserTest,
-      public testing::WithParamInterface<bool> {
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
  public:
-  ExecutionEngineOriginGatingBrowserTest() {
-    scoped_feature_list_.InitWithFeatureState(kGlicCrossOriginNavigationGating,
-                                              origin_gating_enabled());
+  ExecutionEngineSkipBeforeUnloadBrowserTest() {
+    if (IsSkipFeatureEnabled()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          kGlicSkipBeforeUnloadDialogAndNavigate);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          kGlicSkipBeforeUnloadDialogAndNavigate);
+    }
   }
 
-  bool origin_gating_enabled() { return GetParam(); }
+  bool IsActorActive() const { return std::get<0>(GetParam()); }
+  bool IsSkipFeatureEnabled() const { return std::get<1>(GetParam()); }
 
-  void CreateMockNavigationConfirmationResponse(
-      std::optional<TaskId> expected_task_id,
-      url::Origin expected_navigation_origin,
-      bool permission_granted) {
-    navigation_confirmation_subscription_ =
-        actor_keyed_service()->AddRequestToConfirmNavigationSubscriberCallback(
-            base::BindLambdaForTesting(
-                [expected_task_id, expected_navigation_origin,
-                 permission_granted](
-                    const TaskId& got_task_id,
-                    const url::Origin& got_navigation_origin,
-                    ActorKeyedService::NavigationConfirmationCallback
-                        callback) {
-                  if (expected_task_id) {
-                    EXPECT_EQ(got_task_id, *expected_task_id);
-                  }
-                  EXPECT_EQ(got_navigation_origin, expected_navigation_origin);
-                  // Send a mock IPC response.
-                  std::move(callback).Run(
-                      webui::mojom::NavigationConfirmationResponse::New(
-                          webui::mojom::ConfirmationRequestResult::
-                              NewPermissionGranted(permission_granted)));
-                }));
+  void WaitForAppModalDialogToClose() {
+    ASSERT_TRUE(base::test::RunUntil([] {
+      return !javascript_dialogs::AppModalDialogQueue::GetInstance()
+                  ->HasActiveDialog();
+    }));
   }
 
-  void CreateMockUserConfirmationDialogResponse(
-      url::Origin expected_navigation_origin,
-      bool permission_granted) {
-    user_confirmation_dialog_subscription_ =
-        actor_keyed_service()
-            ->AddRequestToShowUserConfirmationDialogSubscriberCallback(
-                base::BindLambdaForTesting(
-                    [expected_navigation_origin, permission_granted](
-                        const url::Origin& got_navigation_origin,
-                        ActorKeyedService::UserConfirmationDialogCallback
-                            callback) {
-                      // Verify the request is what the IPC expects.
-                      EXPECT_EQ(got_navigation_origin,
-                                expected_navigation_origin);
-                      // Send a mock IPC response.
-                      std::move(callback).Run(
-                          webui::mojom::UserConfirmationDialogResponse::New(
-                              webui::mojom::ConfirmationRequestResult::
-                                  NewPermissionGranted(permission_granted)));
-                    }));
+  void CancelActiveAppModalDialog() {
+    auto* dialog_queue = javascript_dialogs::AppModalDialogQueue::GetInstance();
+    ASSERT_TRUE(javascript_dialogs::AppModalDialogQueue::GetInstance()
+                    ->HasActiveDialog());
+    javascript_dialogs::AppModalDialogController* dialog =
+        dialog_queue->active_dialog();
+    dialog->OnCancel(true);
+    WaitForAppModalDialogToClose();
   }
-
- protected:
-  base::HistogramTester histogram_tester_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
-  base::CallbackListSubscription navigation_confirmation_subscription_;
-  base::CallbackListSubscription user_confirmation_dialog_subscription_;
 };
 
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       ConfirmNavigationToNewOrigin_Denied) {
-  const GURL start_url =
-      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
-  const GURL second_url =
-      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
-
-  CreateMockNavigationConfirmationResponse(actor_task().id(),
-                                           url::Origin::Create(second_url),
-                                           /*permission_granted=*/false);
-
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", start_url)));
-
-  ClickTarget("#link", mojom::ActionResultCode::kOk);
-
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", second_url)));
-
-  ClickTarget("#link",
-              origin_gating_enabled()
-                  ? mojom::ActionResultCode::kTriggeredNavigationBlocked
-                  : mojom::ActionResultCode::kOk);
-
-  // The first navigation should log that gating was not applied. The second
-  // should log that gating was applied.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      false, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      true, origin_gating_enabled() ? 1 : 0);
-  // Should log that there was one same-site navigation and one cross-site
-  // navigation.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
-                                      false, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
-                                      true, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", false,
-                                      origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", true,
-                                      origin_gating_enabled() ? 1 : 0);
-  // Should log that permission was *denied* once.
-  histogram_tester_.ExpectBucketCount(
-      "Actor.NavigationGating.PermissionGranted", false,
-      origin_gating_enabled() ? 1 : 0);
-}
-
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       ConfirmNavigationToNewOrigin_Granted) {
-  const GURL start_url = embedded_https_test_server().GetURL(
-      "www.example.com", "/actor/link.html");
-  const GURL second_url = embedded_https_test_server().GetURL(
-      "sub.example.com", "/actor/blank.html");
-
-  CreateMockNavigationConfirmationResponse(actor_task().id(),
-                                           url::Origin::Create(second_url),
-                                           /*permission_granted=*/true);
-
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", start_url)));
-
-  ClickTarget("#link", mojom::ActionResultCode::kOk);
-
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", second_url)));
-
-  ClickTarget("#link", mojom::ActionResultCode::kOk);
-
-  // The first navigation should log that gating was not applied. The second
-  // should log that gating was applied.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      false, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      true, origin_gating_enabled() ? 1 : 0);
-  // Should log that there was only a cross-origin navigation and not a
-  // cross-site navigation.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
-                                      false, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
-                                      true, origin_gating_enabled() ? 1 : 0);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", false,
-                                      origin_gating_enabled() ? 2 : 0);
-  // Should log that permission was *granted* once.
-  histogram_tester_.ExpectBucketCount(
-      "Actor.NavigationGating.PermissionGranted", true,
-      origin_gating_enabled() ? 1 : 0);
-}
-
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       ConfirmBlockedOriginWithUser_Denied) {
-  const GURL start_url =
-      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
-  const GURL blocked_url = embedded_https_test_server().GetURL(
-      "blocked.example.com", "/actor/blank.html");
-
-  CreateMockUserConfirmationDialogResponse(url::Origin::Create(blocked_url),
-                                           /*permission_granted=*/false);
-
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", start_url)));
-
-  ClickTarget("#link", mojom::ActionResultCode::kOk);
-
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", blocked_url)));
-
-  // The navigation will be blocked by the Optimization Guide blocklist.
-  ClickTarget("#link", mojom::ActionResultCode::kTriggeredNavigationBlocked);
-}
-
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       ConfirmBlockedOriginWithUser_Granted) {
-  const GURL start_url =
-      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
-  const GURL blocked_url = embedded_https_test_server().GetURL(
-      "blocked.example.com", "/actor/blank.html");
-
-  CreateMockUserConfirmationDialogResponse(url::Origin::Create(blocked_url),
-                                           /*permission_granted=*/true);
-
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", start_url)));
-
-  ClickTarget("#link", mojom::ActionResultCode::kOk);
-
-  EXPECT_TRUE(content::ExecJs(web_contents(),
-                              content::JsReplace("setLink($1);", blocked_url)));
-
-  // The IPC will only allow navigation if kGlicCrossOriginNavigationGating is
-  // enabled.
-  ClickTarget("#link",
-              origin_gating_enabled()
-                  ? mojom::ActionResultCode::kOk
-                  : mojom::ActionResultCode::kTriggeredNavigationBlocked);
-}
-
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       AddWritableMainframeOrigins) {
-  // This test is not meaningful if origin gating is disabled.
-  if (!origin_gating_enabled()) {
-    return;
+// This test is to ensure that the beforeunload dialog is skipped when the
+//  kGlicSkipBeforeUnloadDialogAndNavigate feature is enabled and the actor is
+//  active on the renderer.
+IN_PROC_BROWSER_TEST_P(ExecutionEngineSkipBeforeUnloadBrowserTest,
+                       SkipBeforeUnloadDialogAndNavigate) {
+  if (IsActorActive()) {
+    base::test::TestFuture<mojom::ActionResultPtr> future;
+    actor_task().AddTab(active_tab()->GetHandle(), future.GetCallback());
+    mojom::ActionResultPtr result = future.Take();
+    ASSERT_TRUE(IsOk(*result));
+  } else {
+    actor_keyed_service()->ResetForTesting();
   }
 
-  const GURL cross_origin_url =
-      embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
-  const GURL link_page_url = embedded_https_test_server().GetURL(
-      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(cross_origin_url.spec())}));
+  const GURL beforeunload_url =
+      embedded_test_server()->GetURL("/actor/beforeunload.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), beforeunload_url));
 
-  // Mock IPC response waill always reject navigation.
-  CreateMockNavigationConfirmationResponse(
-      actor_task().id(), url::Origin::Create(cross_origin_url),
-      /*permission_granted=*/false);
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::PrepContentsForBeforeUnloadTest(web_contents);
+  ASSERT_EQ(beforeunload_url, web_contents->GetLastCommittedURL());
 
-  // Start on link page on foo.com.
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), link_page_url));
-  // Click on full-page link to bar.com only.
-  std::unique_ptr<ToolRequest> click_link =
-      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
-  ActResultFuture result1;
-  actor_task().Act(ToRequestList(click_link), result1.GetCallback());
-  // Expect the navigation to be blocked by origin gating.
-  ExpectErrorResult(result1,
-                    mojom::ActionResultCode::kTriggeredNavigationBlocked);
+  const GURL target_url = embedded_test_server()->GetURL("/title1.html");
 
-  // Add bar.com's origin to writable mainframe origins.
-  actor_task().GetExecutionEngine()->AddWritableMainframeOrigins(
-      {url::Origin::Create(cross_origin_url)});
+  bool should_skip_dialog = IsActorActive() && IsSkipFeatureEnabled();
 
-  // Click on full-page link to bar.com only.
-  std::unique_ptr<ToolRequest> click_link_again =
-      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
-  ActResultFuture result2;
-  actor_task().Act(ToRequestList(click_link_again), result2.GetCallback());
-  // Now the navigation should not be blocked.
-  ExpectOkResult(result2);
-}
+  if (should_skip_dialog) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), target_url));
+    content::WaitForLoadStop(web_contents);
 
-IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
-                       OriginGatingNavigateAction) {
-  // This test is not meaningful if origin gating is disabled.
-  if (!origin_gating_enabled()) {
-    return;
+    EXPECT_EQ(target_url, web_contents->GetLastCommittedURL());
+    EXPECT_FALSE(web_contents->NeedToFireBeforeUnloadOrUnloadEvents());
+
+  } else {
+    // Expect navigation to be blocked by beforeunload dialogs and no navigation
+    // to occur.
+    web_contents->GetController().LoadURL(target_url, content::Referrer(),
+                                          ::ui::PAGE_TRANSITION_TYPED,
+                                          std::string());
+
+    ui_test_utils::WaitForAppModalDialog();
+    EXPECT_EQ(beforeunload_url, web_contents->GetLastCommittedURL());
+    CancelActiveAppModalDialog();
   }
-
-  const GURL start_url =
-      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
-  const GURL cross_origin_url =
-      embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
-  const GURL link_page_url = embedded_https_test_server().GetURL(
-      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(cross_origin_url.spec())}));
-
-  // Mock IPC response waill always reject navigation.
-  // Task ID is not constant throughout this test so we do not check the IPC
-  // request for the ID.
-  CreateMockNavigationConfirmationResponse(
-      /*expected_task_id=*/std::nullopt, url::Origin::Create(cross_origin_url),
-      /*permission_granted=*/false);
-
-  // Start on foo.com.
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
-  // Navigate to bar.com.
-  std::unique_ptr<ToolRequest> navigate_x_origin =
-      MakeNavigateRequest(*active_tab(), cross_origin_url.spec());
-  // Navigate to foo.com page with a link to bar.com.
-  std::unique_ptr<ToolRequest> navigate_to_link_page =
-      MakeNavigateRequest(*active_tab(), link_page_url.spec());
-  // Clicks on full-page link to bar.com.
-  std::unique_ptr<ToolRequest> click_link =
-      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
-
-  ActResultFuture result1;
-  actor_task().Act(
-      ToRequestList(navigate_x_origin, navigate_to_link_page, click_link),
-      result1.GetCallback());
-  ExpectOkResult(result1);
-
-  // Test that navigation allowlist is not persisted across separate tasks.
-  auto previous_id = actor_task().id();
-  actor_keyed_service()->ResetForTesting();
-  StartNewTask();
-  ASSERT_NE(previous_id, actor_task().id());
-
-  // Start on link page on foo.com.
-  ASSERT_TRUE(content::NavigateToURL(web_contents(), link_page_url));
-  // Click on full-page link to bar.com only.
-  std::unique_ptr<ToolRequest> click_link_only =
-      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
-
-  ActResultFuture result2;
-  actor_task().Act(ToRequestList(click_link_only), result2.GetCallback());
-  // Expect the navigation to be blocked by origin gating.
-  ExpectErrorResult(result2,
-                    mojom::ActionResultCode::kTriggeredNavigationBlocked);
-
-  // All but the last navigation should not have gating applied.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      false, 3);
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
-                                      true, 1);
-  // Should log that permission was denied the one time it was prompted.
-  histogram_tester_.ExpectBucketCount(
-      "Actor.NavigationGating.PermissionGranted", false, 1);
-  // Should log the allow-list has 2 entries at the end of the first task.
-  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AllowListSize", 2,
-                                      1);
 }
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         ExecutionEngineOriginGatingBrowserTest,
-                         testing::Bool());
+struct SkipBeforeUnloadTestNameGenerator {
+  template <class ParamType>
+  std::string operator()(const testing::TestParamInfo<ParamType>& info) const {
+    return base::StringPrintf(
+        "%s_%s", std::get<0>(info.param) ? "ActorActive" : "ActorInactive",
+        std::get<1>(info.param) ? "SkipFeatureEnabled" : "SkipFeatureDisabled");
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ExecutionEngineSkipBeforeUnloadBrowserTest,
+    testing::Combine(testing::Bool(),   // IsActorActive
+                     testing::Bool()),  // IsSkipFeatureEnabled
+    SkipBeforeUnloadTestNameGenerator());
 
 }  // namespace
 

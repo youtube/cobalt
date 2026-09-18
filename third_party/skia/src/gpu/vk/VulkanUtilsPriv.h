@@ -165,6 +165,7 @@ static constexpr size_t VkFormatBytesPerBlock(VkFormat vkFormat) {
         case VK_FORMAT_R16G16_UNORM:              return 4;
         case VK_FORMAT_R16G16B16A16_UNORM:        return 8;
         case VK_FORMAT_R16G16_SFLOAT:             return 4;
+        case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16: return 8;
         // Currently we are just over estimating this value to be used in gpu size calculations even
         // though the actually size is probably less. We should instead treat planar formats similar
         // to compressed textures that go through their own special query for calculating size.
@@ -298,6 +299,41 @@ static constexpr const char* VkFormatToStr(VkFormat vkFormat) {
 
         default:                                 return "Unknown";
     }
+}
+
+static constexpr const char* VkModelToStr(VkSamplerYcbcrModelConversion c) {
+    switch (c) {
+        case VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY:   return "RGB-I";
+        case VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY: return "YCbCr-I";
+        case VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709:      return "709";
+        case VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601:      return "601";
+        case VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020:     return "2020";
+        default:                                               return "unknown";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr const char* VkRangeToStr(VkSamplerYcbcrRange r) {
+    switch (r) {
+        case VK_SAMPLER_YCBCR_RANGE_ITU_FULL:   return "full";
+        case VK_SAMPLER_YCBCR_RANGE_ITU_NARROW: return "narrow";
+        default:                                return "unknown";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr char VkSwizzleToStr(VkComponentSwizzle c, char identityAnswer) {
+    switch (c) {
+        case VK_COMPONENT_SWIZZLE_IDENTITY: return identityAnswer;
+        case VK_COMPONENT_SWIZZLE_ZERO:     return '0';
+        case VK_COMPONENT_SWIZZLE_ONE:      return '1';
+        case VK_COMPONENT_SWIZZLE_R:        return 'r';
+        case VK_COMPONENT_SWIZZLE_G:        return 'g';
+        case VK_COMPONENT_SWIZZLE_B:        return 'b';
+        case VK_COMPONENT_SWIZZLE_A:        return 'a';
+        default:                            return '?';
+    }
+    SkUNREACHABLE;
 }
 
 #ifdef SK_BUILD_FOR_ANDROID

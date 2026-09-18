@@ -17,6 +17,7 @@
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/audio_device_generic.h"
 #include "rtc_base/checks.h"
@@ -25,7 +26,6 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -38,9 +38,11 @@ const size_t kPlayoutBufferSize =
 const size_t kRecordingBufferSize =
     kRecordingFixedSampleRate / 100 * kRecordingNumChannels * 2;
 
-FileAudioDevice::FileAudioDevice(absl::string_view inputFilename,
+FileAudioDevice::FileAudioDevice(const Environment& env,
+                                 absl::string_view inputFilename,
                                  absl::string_view outputFilename)
-    : _ptrAudioBuffer(nullptr),
+    : env_(env),
+      _ptrAudioBuffer(nullptr),
       _recordingBuffer(nullptr),
       _playoutBuffer(nullptr),
       _recordingFramesLeft(0),
@@ -453,7 +455,7 @@ bool FileAudioDevice::PlayThreadProcess() {
   if (!_playing) {
     return false;
   }
-  int64_t currentTime = TimeMillis();
+  int64_t currentTime = env_.clock().TimeInMilliseconds();
   mutex_.Lock();
 
   if (_lastCallPlayoutMillis == 0 ||
@@ -472,7 +474,7 @@ bool FileAudioDevice::PlayThreadProcess() {
   _playoutFramesLeft = 0;
   mutex_.Unlock();
 
-  int64_t deltaTimeMillis = TimeMillis() - currentTime;
+  int64_t deltaTimeMillis = env_.clock().TimeInMilliseconds() - currentTime;
   if (deltaTimeMillis < 10) {
     Thread::SleepMs(10 - deltaTimeMillis);
   }
@@ -485,7 +487,7 @@ bool FileAudioDevice::RecThreadProcess() {
     return false;
   }
 
-  int64_t currentTime = TimeMillis();
+  int64_t currentTime = env_.clock().TimeInMilliseconds();
   mutex_.Lock();
 
   if (_lastCallRecordMillis == 0 || currentTime - _lastCallRecordMillis >= 10) {
@@ -505,7 +507,7 @@ bool FileAudioDevice::RecThreadProcess() {
 
   mutex_.Unlock();
 
-  int64_t deltaTimeMillis = TimeMillis() - currentTime;
+  int64_t deltaTimeMillis = env_.clock().TimeInMilliseconds() - currentTime;
   if (deltaTimeMillis < 10) {
     Thread::SleepMs(10 - deltaTimeMillis);
   }

@@ -60,7 +60,7 @@ class RtcEvent {
     FakeEvent,  // For unit testing.
   };
 
-  RtcEvent();
+  RtcEvent() = default;
   RtcEvent(const RtcEvent&) = default;
   RtcEvent& operator=(const RtcEvent&) = delete;
   virtual ~RtcEvent() = default;
@@ -87,7 +87,7 @@ class RtcEvent {
   explicit RtcEvent(int64_t timestamp_us) : timestamp_us_(timestamp_us) {}
 
  private:
-  int64_t timestamp_us_;
+  int64_t timestamp_us_ = 0;
 };
 
 }  // namespace webrtc

@@ -86,10 +86,16 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   void NodeChildrenWillBeRemoved(ContainerNode& container) {
     mouse_event_manager_->NodeChildrenWillBeRemoved(container);
+    pointer_event_manager_->NodeChildrenWillBeRemoved(container);
   }
+
   void NodeWillBeRemoved(Node& node) {
     mouse_event_manager_->NodeWillBeRemoved(node);
     pointer_event_manager_->NodeWillBeRemoved(node);
+  }
+
+  PointerEventManager* GetPointerEventManagerForTesting() {
+    return pointer_event_manager_;
   }
 
   void UpdateSelectionForMouseDrag();
@@ -297,6 +303,10 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   TaskHandle& GetDelayedNavigationTaskHandle();
 
   base::debug::CrashKeyString* CrashKeyForBug1519197() const;
+
+  // Testing helper: Returns the LocalFrame from a target node for drag/drop.
+  // This exposes the logic of LocalFrameFromTargetNode for testing purposes.
+  static LocalFrame* LocalFrameFromTargetNodeForTesting(Node* target);
 
  private:
   WebInputEventResult HandleMouseMoveOrLeaveEvent(

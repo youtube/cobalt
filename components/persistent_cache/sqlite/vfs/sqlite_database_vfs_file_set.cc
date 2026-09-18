@@ -47,7 +47,8 @@ std::optional<SqliteVfsFileSet> SqliteVfsFileSet::Create(
     return std::nullopt;
   }
 
-  auto shared_lock = base::UnsafeSharedMemoryRegion::Create(sizeof(LockState));
+  auto shared_lock =
+      base::UnsafeSharedMemoryRegion::Create(sizeof(SharedAtomicLock));
   if (!shared_lock.IsValid()) {
     return std::nullopt;
   }
@@ -106,6 +107,10 @@ std::array<base::File, 2> SqliteVfsFileSet::DuplicateFiles(
 
 base::UnsafeSharedMemoryRegion SqliteVfsFileSet::DuplicateLock() const {
   return shared_lock_.Duplicate();
+}
+
+void SqliteVfsFileSet::Abandon() {
+  db_file_->Abandon();
 }
 
 base::FilePath SqliteVfsFileSet::GetJournalVirtualFilePath() const {

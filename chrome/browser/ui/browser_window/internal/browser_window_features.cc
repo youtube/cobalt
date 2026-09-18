@@ -43,6 +43,7 @@
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/embedder_browser_window_features.h"
 #include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
+#include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
@@ -202,7 +203,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   // later.
   browser_ = browser;
 
-  app_browser_controller_ = web_app::MaybeCreateAppBrowserController(browser);
+  searchbox_context_data_ = std::make_unique<SearchboxContextData>();
+
+  app_browser_controller_ =
+      GetUserDataFactory().CreateInstanceWithFactoryMethod(
+          *browser, &web_app::MaybeCreateAppBrowserController, browser);
 
   browser_actions_ = std::make_unique<BrowserActions>(browser);
 
@@ -274,7 +279,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 #if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
       DCHECK(features::HasTabSearchToolbarButton());
-      glic_iph_controller_ = std::make_unique<glic::GlicIphController>(browser);
+      glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
+          browser, *glic::GlicKeyedService::Get(profile));
       glic_nudge_controller_ =
           std::make_unique<tabs::GlicNudgeController>(browser);
     }
@@ -283,7 +289,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     if (tabs::IsVerticalTabsFeatureEnabled()) {
       vertical_tab_strip_state_controller_ =
           std::make_unique<tabs::VerticalTabStripStateController>(
-              profile->GetPrefs());
+              profile->GetPrefs(), browser_actions_->root_action_item());
     }
   }
 
@@ -652,7 +658,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         std::make_unique<CommentsSidePanelCoordinator>(browser_view->browser());
   }
 #if BUILDFLAG(ENABLE_GLIC)
-  if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance) &&
+  if (!glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
       glic::GlicKeyedService::Get(browser_view->GetProfile())) {
     glic_side_panel_coordinator_ =
         std::make_unique<glic::GlicLegacySidePanelCoordinator>(
@@ -685,7 +691,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         glic::GlicKeyedService::Get(browser_view->GetProfile());
     if (glic_service) {
       glic_button_controller_ = std::make_unique<glic::GlicButtonController>(
-          browser_view->GetProfile(),
+          browser_view->GetProfile(), *browser_,
           BrowserElementsViews::From(browser_view->browser())
               ->GetViewAs<TabStripActionContainer>(
                   kTabStripActionContainerElementId),
@@ -693,7 +699,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
       if (features::kGlicActorUiTaskIcon.Get() &&
           browser_->GetProfile()->IsRegularProfile()) {
-        if (features::kGlicActorUiNudgeRedesign.Get()) {
+        if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
           // Includes browser twice to enable injecting for testing.
           glic_actor_nudge_controller_ =
               GetUserDataFactory()
@@ -914,6 +920,24 @@ SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
 
 ToastController* BrowserWindowFeatures::toast_controller() {
   return toast_service_ ? toast_service_->toast_controller() : nullptr;
+}
+
+LocationBar* BrowserWindowFeatures::location_bar() {
+  // Return nullptr if not initialized. This can happen in tests where
+  // BrowserWindowFeatures is stubbed without being initialized with a browser.
+  if (!browser_) {
+    return nullptr;
+  }
+  return browser_->GetBrowserForMigrationOnly()->window()->GetLocationBar();
+}
+
+const LocationBar* BrowserWindowFeatures::location_bar() const {
+  // Return nullptr if not initialized. This can happen in tests where
+  // BrowserWindowFeatures is stubbed without being initialized with a browser.
+  if (!browser_) {
+    return nullptr;
+  }
+  return browser_->GetBrowserForMigrationOnly()->window()->GetLocationBar();
 }
 
 FindBarController* BrowserWindowFeatures::GetFindBarController() {

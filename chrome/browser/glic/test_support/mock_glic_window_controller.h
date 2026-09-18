@@ -61,6 +61,10 @@ class MockGlicWindowController
               AddWindowActivationChangedCallback,
               (WindowActivationChangedCallback),
               (override));
+  MOCK_METHOD(base::CallbackListSubscription,
+              AddGlobalShowHideCallback,
+              (base::RepeatingClosure),
+              (override));
   MOCK_METHOD(void, Preload, (), (override));
   MOCK_METHOD(void,
               Reload,
@@ -86,6 +90,7 @@ class MockGlicWindowController
               AddActiveInstanceChangedCallbackAndNotifyImmediately,
               (ActiveInstanceChangedCallback callback),
               (override));
+  MOCK_METHOD(GlicInstance*, GetActiveInstance, (), (override));
   MOCK_METHOD(void, SidePanelShown, (BrowserWindowInterface*), (override));
   MOCK_METHOD(Host&, host, (), (override));
   MOCK_METHOD(const InstanceId&, id, (), (const, override));
@@ -94,7 +99,7 @@ class MockGlicWindowController
               RemoveGlobalStateObserver,
               (PanelStateObserver*),
               (override));
-  MOCK_METHOD(mojom::PanelState, GetGlobalPanelState, (), (override));
+  MOCK_METHOD(glic::GlicInstanceMetrics*, instance_metrics, (), (override));
 
   base::WeakPtr<GlicWindowControllerInterface> GetWeakPtr() override {
     return weak_ptr_factory_.GetWeakPtr();

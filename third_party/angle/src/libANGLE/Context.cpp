@@ -606,9 +606,8 @@ class ScopedPLSFramebufferFetchDrawBuffersDisable
 }  // anonymous namespace
 
 #if defined(ANGLE_PLATFORM_APPLE)
-// TODO(angleproject:6479): Due to a bug in Apple's dyld loader, `thread_local` will cause
-// excessive memory use. Temporarily avoid it by using pthread's thread
-// local storage instead.
+// TODO(http://anglebug.com/42264979): Due to a bug in Apple's dyld loader, `thread_local` will
+// cause excessive memory use. Temporarily avoid it by using pthread's thread local storage instead.
 static angle::TLSIndex GetCurrentValidContextTLSIndex()
 {
     static angle::TLSIndex CurrentValidContextIndex = TLS_INVALID_INDEX;
@@ -903,7 +902,7 @@ void Context::initializeDefaultResources()
 
     for (int i = 0; i < mState.getCaps().maxUniformBufferBindings; i++)
     {
-        bindBufferRange(BufferBinding::Uniform, i, {0}, 0, -1);
+        bindBufferRange(BufferBinding::Uniform, i, {0}, 0, 0);
     }
 
     // Initialize GLES1 renderer if appropriate.
@@ -3842,6 +3841,7 @@ Extensions Context::generateSupportedExtensions() const
         supportedExtensions.multiviewOVR                 = false;
         supportedExtensions.multiview2OVR                = false;
         supportedExtensions.multiviewMultisampleANGLE    = false;
+        supportedExtensions.multiviewMultisampledRenderToTextureOVR = false;
         supportedExtensions.copyTexture3dANGLE           = false;
         supportedExtensions.textureMultisampleANGLE      = false;
         supportedExtensions.textureQueryLodEXT           = false;
@@ -5439,6 +5439,35 @@ void Context::framebufferTextureMultiview(GLenum target,
         framebuffer->resetAttachment(this, attachment);
     }
 
+    mState.setObjectDirty(target);
+}
+
+void Context::framebufferTextureMultisampleMultiview(GLenum target,
+                                                     GLenum attachment,
+                                                     TextureID texturePacked,
+                                                     GLint level,
+                                                     GLsizei samples,
+                                                     GLint baseViewIndex,
+                                                     GLsizei numViews)
+{
+    Framebuffer *framebuffer = mState.getTargetFramebuffer(target);
+    ASSERT(framebuffer);
+
+    if (texturePacked.value != 0)
+    {
+        Texture *textureObj = getTexture(texturePacked);
+
+        ImageIndex index;
+        ASSERT(textureObj->getType() == TextureType::_2DArray);
+        index = ImageIndex::Make2DArrayRange(level, baseViewIndex, numViews);
+        framebuffer->setAttachmentMultisampleMultiview(
+            this, GL_TEXTURE, attachment, index, textureObj, samples, numViews, baseViewIndex);
+        textureObj->onBindToMSRTTFramebuffer();
+    }
+    else
+    {
+        framebuffer->resetAttachment(this, attachment);
+    }
     mState.setObjectDirty(target);
 }
 

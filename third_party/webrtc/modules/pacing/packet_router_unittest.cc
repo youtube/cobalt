@@ -409,7 +409,7 @@ TEST_F(PacketRouterTest,
 }
 
 TEST_F(PacketRouterTest,
-       AllocateTransportSequenceNumberWithoutExtensionIfRfc8888Enabled) {
+       AllocateTransportSequenceNumberWithoutExtensionIfConfigured) {
   const uint16_t kSsrc1 = 1234;
 
   PacketRouter packet_router;
@@ -423,7 +423,8 @@ TEST_F(PacketRouterTest,
   EXPECT_CALL(rtp_1, CanSendPacket).WillRepeatedly(Return(true));
 
   packet_router.AddSendRtpModule(&rtp_1, false);
-  packet_router.ConfigureForRfc8888Feedback(/*send_rtp_packets_as_ect1=*/false);
+  packet_router.ConfigureForRtcpFeedback(/*set_transport_seq=*/true,
+                                         /*send_rtp_packets_as_ect1=*/false);
 
   auto packet = BuildRtpPacket(kSsrc1);
   EXPECT_CALL(notify_bwe_callback, Call)
@@ -445,7 +446,8 @@ TEST_F(PacketRouterTest, SendPacketsAsEct1IfConfigured) {
   ON_CALL(rtp_1, CanSendPacket).WillByDefault(Return(kSsrc1));
 
   packet_router.AddSendRtpModule(&rtp_1, false);
-  packet_router.ConfigureForRfc8888Feedback(/*send_rtp_packets_as_ect1=*/true);
+  packet_router.ConfigureForRtcpFeedback(/*set_transport_seq=*/true,
+                                         /*send_rtp_packets_as_ect1=*/true);
 
   testing::Sequence s;
   EXPECT_CALL(
@@ -458,7 +460,8 @@ TEST_F(PacketRouterTest, SendPacketsAsEct1IfConfigured) {
       .InSequence(s);
 
   packet_router.SendPacket(BuildRtpPacket(kSsrc1), PacedPacketInfo());
-  packet_router.ConfigureForRfc8888Feedback(/*send_rtp_packets_as_ect1=*/false);
+  packet_router.ConfigureForRtcpFeedback(/*set_transport_seq=*/true,
+                                         /*send_rtp_packets_as_ect1=*/false);
   packet_router.SendPacket(BuildRtpPacket(kSsrc1), PacedPacketInfo());
 
   packet_router.OnBatchComplete();

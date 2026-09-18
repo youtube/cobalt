@@ -59,6 +59,7 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   void set_top_controls_shown_ratio(float ratio) {
     top_controls_shown_ratio_ = ratio;
   }
+  void set_infobar_visible(bool visible) { infobar_visible_ = visible; }
 
   // BrowserViewLayout::Delegate overrides:
   bool ShouldDrawTabStrip() const override { return should_draw_tab_strip_; }
@@ -81,6 +82,7 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   int GetTopInsetInBrowserView() const override { return 0; }
   bool IsToolbarVisible() const override { return toolbar_visible_; }
   bool IsBookmarkBarVisible() const override { return bookmark_bar_visible_; }
+  bool IsInfobarVisible() const override { return infobar_visible_; }
   bool IsContentsSeparatorEnabled() const override {
     return content_separator_enabled_;
   }
@@ -101,10 +103,10 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
       const Browser::WindowFeature feature) const override {
     static constexpr auto kSupportedFeatures =
         base::MakeFixedFlatSet<Browser::WindowFeature>({
-            Browser::FEATURE_TABSTRIP,
-            Browser::FEATURE_TOOLBAR,
-            Browser::FEATURE_LOCATIONBAR,
-            Browser::FEATURE_BOOKMARKBAR,
+            Browser::WindowFeature::kFeatureTabStrip,
+            Browser::WindowFeature::kFeatureToolbar,
+            Browser::WindowFeature::kFeatureLocationBar,
+            Browser::WindowFeature::kFeatureBookmarkBar,
         });
     return kSupportedFeatures.contains(feature);
   }
@@ -122,6 +124,7 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   bool should_draw_tab_strip_ = true;
   bool toolbar_visible_ = true;
   bool bookmark_bar_visible_ = true;
+  bool infobar_visible_ = false;
   bool content_separator_enabled_ = true;
   bool top_controls_slide_enabled_ = false;
   float top_controls_shown_ratio_ = 1.f;
@@ -179,10 +182,10 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         .WillRepeatedly(testing::ReturnRef(data_host_));
     immersive_mode_controller_ = std::make_unique<MockImmersiveModeController>(
         &browser_window_interface_);
-    main_region_ =
+    main_background_region_ =
         browser_view_->AddChildView(CreateFixedSizeView(kDefaultViewSize));
-    main_container_ =
-        main_region_->AddChildView(CreateFixedSizeView(kDefaultViewSize));
+    main_container_ = main_background_region_->AddChildView(
+        CreateFixedSizeView(kDefaultViewSize));
 
     top_container_ = main_container_->AddChildView(
         CreateFixedSizeView(gfx::Size(kBaseWidth, 60)));
@@ -259,7 +262,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
     // The other views are children of |browser_view_| and will be destroyed
     // along with it after TearDown(). Null out the pointers to avoid them
     // dangling.
-    main_region_ = nullptr;
+    main_background_region_ = nullptr;
     main_container_ = nullptr;
     top_container_ = nullptr;
     webui_tab_strip_ = nullptr;
@@ -293,7 +296,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   std::unique_ptr<views::View> browser_view_;
 
   // Views owned by |browser_view_|.
-  raw_ptr<views::View> main_region_;
+  raw_ptr<views::View> main_background_region_;
   raw_ptr<views::View> top_container_;
   raw_ptr<TabStripRegionView> tab_strip_region_view_;
   raw_ptr<views::View> webui_tab_strip_;

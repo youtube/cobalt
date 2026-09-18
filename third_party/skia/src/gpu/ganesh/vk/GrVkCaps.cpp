@@ -1245,7 +1245,7 @@ void GrVkCaps::initFormatTable(const GrContextOptions& contextOptions,
         auto& info = this->getFormatInfo(format);
         info.init(contextOptions, interface, physDev, properties, format);
         if (SkToBool(info.fOptimalFlags & FormatInfo::kTexturable_Flag)) {
-            info.fColorTypeInfoCount = 1;
+            info.fColorTypeInfoCount = 2;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_R16_UNORM, Surface: kAlpha_16
@@ -1257,6 +1257,14 @@ void GrVkCaps::initFormatTable(const GrContextOptions& contextOptions,
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
                 ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
                 ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
+            }
+            // Format: VK_FORMAT_R16_UNORM, Surface: kR16_unorm
+            {
+                constexpr GrColorType ct = GrColorType::kR_16;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
         }
     }
@@ -1437,6 +1445,7 @@ void GrVkCaps::initFormatTable(const GrContextOptions& contextOptions,
     this->setColorType(GrColorType::kRG_1616,          { VK_FORMAT_R16G16_UNORM });
     this->setColorType(GrColorType::kRGBA_16161616,    { VK_FORMAT_R16G16B16A16_UNORM });
     this->setColorType(GrColorType::kRG_F16,           { VK_FORMAT_R16G16_SFLOAT });
+    this->setColorType(GrColorType::kRGBA_10x6,        { VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16});
 }
 
 void GrVkCaps::FormatInfo::InitFormatFlags(VkFormatFeatureFlags vkFlags, uint16_t* flags) {

@@ -28,6 +28,7 @@
 #include "components/language_detection/core/browser/language_detection_model_provider.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "content/browser/ai/echo_ai_manager_impl.h"
+#include "content/browser/cpu_performance/cpu_performance.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/webauth/default_authenticator_request_client_delegate.h"
 #include "content/public/browser/anchor_element_preconnect_delegate.h"
@@ -1821,6 +1822,11 @@ bool ContentBrowserClient::ShouldUseFirstPartyStorageKey(
   return false;
 }
 
+bool ContentBrowserClient::ShouldSkipBeforeUnloadDialog(
+    content::RenderFrameHost* rfh) {
+  return false;
+}
+
 std::unique_ptr<ResponsivenessCalculatorDelegate>
 ContentBrowserClient::CreateResponsivenessCalculatorDelegate() {
   return nullptr;
@@ -2025,12 +2031,6 @@ ContentBrowserClient::GetClipboardTypesIfPolicyApplied(
   return std::nullopt;
 }
 
-bool ContentBrowserClient::ShouldEnableCanvasNoise(
-    BrowserContext* browser_context,
-    const GURL& origin) {
-  return false;
-}
-
 bool ContentBrowserClient::UsePrefetchPrerenderIntegration() {
   return false;
 }
@@ -2053,5 +2053,11 @@ bool ContentBrowserClient::ShouldAnimateBackForwardTransitions() {
   return false;
 #endif
 }
+
+blink::mojom::PerformanceTier ContentBrowserClient::GetCpuPerformanceTier() {
+  return content::cpu_performance::GetTier();
+}
+
+void ContentBrowserClient::RecordAssistedLogin(AssistedLoginType login_type) {}
 
 }  // namespace content

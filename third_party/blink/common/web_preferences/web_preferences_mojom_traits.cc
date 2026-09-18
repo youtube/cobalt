@@ -68,6 +68,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       data.shrinks_standalone_images_to_fit();
   out->text_areas_are_resizable = data.text_areas_are_resizable();
   out->allow_scripts_to_close_windows = data.allow_scripts_to_close_windows();
+  out->allow_window_focus_without_user_gesture =
+      data.allow_window_focus_without_user_gesture();
   out->remote_fonts_enabled = data.remote_fonts_enabled();
   out->javascript_can_access_clipboard = data.javascript_can_access_clipboard();
   out->dns_prefetching_enabled = data.dns_prefetching_enabled();
@@ -241,6 +243,10 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->content_based_fingerprinting_protection_enabled =
       data.content_based_fingerprinting_protection_enabled();
   out->ai_prompt_api_enabled = data.ai_prompt_api_enabled();
+
+#if BUILDFLAG(IS_MAC)
+  out->should_disable_external_popups = data.should_disable_external_popups();
+#endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_ANDROID)
   out->should_screenshot_on_mainframe_same_doc_navigation =

@@ -8,7 +8,9 @@
 #include <stddef.h>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -21,9 +23,10 @@
 class LocationBarView;
 class OmniboxController;
 class OmniboxViewViews;
-class OmniboxPopupPresenter;
+class OmniboxPopupPresenterBase;
 
-class OmniboxPopupViewWebUI : public OmniboxPopupView {
+class OmniboxPopupViewWebUI : public OmniboxPopupView,
+                              OmniboxEditModel::Observer {
  public:
   OmniboxPopupViewWebUI(OmniboxViewViews* omnibox_view,
                         OmniboxController* controller,
@@ -39,6 +42,13 @@ class OmniboxPopupViewWebUI : public OmniboxPopupView {
   void ProvideButtonFocusHint(size_t line) override;
   void OnDragCanceled() override;
   void GetPopupAccessibleNodeData(ui::AXNodeData* node_data) const override;
+
+  // OmniboxEditModel::Observer:
+  void OnSelectionChanged(OmniboxPopupSelection old_selection,
+                          OmniboxPopupSelection selection) override {}
+  void OnMatchIconUpdated(size_t index) override {}
+  void OnContentsChanged() override;
+  void OnAiModeChanged(bool ai_mode) override {}
 
  protected:
   friend class OmniboxPopupViewWebUITest;
@@ -56,7 +66,11 @@ class OmniboxPopupViewWebUI : public OmniboxPopupView {
   raw_ptr<LocationBarView> location_bar_view_;
 
   // The presenter that manages its own widget and WebUI presentation.
-  std::unique_ptr<OmniboxPopupPresenter> presenter_;
+  std::unique_ptr<OmniboxPopupPresenterBase> presenter_;
+
+  // Observe `OmniboxEditModel` for updates that require updating the views.
+  base::ScopedObservation<OmniboxEditModel, OmniboxEditModel::Observer>
+      edit_model_observation_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_VIEW_WEBUI_H_

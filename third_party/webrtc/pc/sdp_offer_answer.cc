@@ -1906,6 +1906,8 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
           transceiver->set_current_direction(media_desc->direction());
           transceiver->set_fired_direction(media_desc->direction());
         }
+        transceiver->set_receptive(
+            RtpTransceiverDirectionHasRecv(media_desc->direction()));
       }
       pc_->RunWithObserver([&](auto observer) {
         for (const auto& transceiver : remove_list) {
@@ -2302,6 +2304,8 @@ void SdpOfferAnswerHandler::ApplyRemoteDescriptionUpdateTransceiverState(
         // OnTrack event, we must use the proxied transceiver.
         now_receiving_transceivers.push_back(transceiver_ext);
       }
+    } else {
+      transceiver->set_receptive(false);
     }
     // 2.2.8.1.9: If direction is "sendonly" or "inactive", and transceiver's
     // [[FiredDirection]] slot is either "sendrecv" or "recvonly", process the
@@ -3343,7 +3347,7 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
     auto stable_state = transceivers_stable_state_pair.second;
 
     if (stable_state.did_set_fired_direction()) {
-      // If this rollback triggers going from not receiving to receving again,
+      // If this rollback triggers going from not receiving to receiving again,
       // we need to fire "ontrack".
       bool previously_fired_direction_is_recv =
           transceiver->fired_direction().has_value() &&
@@ -3356,9 +3360,16 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
           currently_fired_direction_is_recv) {
         now_receiving_transceivers.push_back(transceiver);
       }
+
       transceiver->internal()->set_fired_direction(
           stable_state.fired_direction());
     }
+
+    // https://github.com/w3c/webrtc-pc/issues/3081
+    transceiver->internal()->set_receptive(
+        transceiver->internal()->current_direction() &&
+        RtpTransceiverDirectionHasRecv(
+            *transceiver->internal()->current_direction()));
 
     if (stable_state.remote_stream_ids()) {
       std::vector<scoped_refptr<MediaStreamInterface>> added_streams;

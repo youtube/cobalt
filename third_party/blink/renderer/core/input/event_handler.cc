@@ -71,6 +71,7 @@
 #include "third_party/blink/renderer/core/html/html_dialog_element.h"
 #include "third_party/blink/renderer/core/html/html_frame_element_base.h"
 #include "third_party/blink/renderer/core/html/html_frame_set_element.h"
+#include "third_party/blink/renderer/core/html/html_plugin_element.h"
 #include "third_party/blink/renderer/core/input/event_handling_util.h"
 #include "third_party/blink/renderer/core/input/input_device_capabilities.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
@@ -1333,11 +1334,23 @@ WebInputEventResult EventHandler::HandleMouseReleaseEvent(
 
 static LocalFrame* LocalFrameFromTargetNode(Node* target) {
   auto* html_frame_base_element = DynamicTo<HTMLFrameElementBase>(target);
-  if (!html_frame_base_element)
-    return nullptr;
+  if (html_frame_base_element) {
+    // Cross-process drag and drop is not yet supported.
+    return DynamicTo<LocalFrame>(html_frame_base_element->ContentFrame());
+  }
 
-  // Cross-process drag and drop is not yet supported.
-  return DynamicTo<LocalFrame>(html_frame_base_element->ContentFrame());
+  if (RuntimeEnabledFeatures::DragAndDropPluginElementSupportEnabled()) {
+    auto* html_plugin_element = DynamicTo<HTMLPlugInElement>(target);
+    if (html_plugin_element) {
+      return DynamicTo<LocalFrame>(html_plugin_element->ContentFrame());
+    }
+  }
+
+  return nullptr;
+}
+
+LocalFrame* EventHandler::LocalFrameFromTargetNodeForTesting(Node* target) {
+  return LocalFrameFromTargetNode(target);
 }
 
 WebInputEventResult EventHandler::UpdateDragAndDrop(
@@ -2154,11 +2167,15 @@ WebInputEventResult EventHandler::SendContextMenuEvent(
 
   Element* target_element =
       override_target_element ? override_target_element : mev.InnerElement();
-  WebInputEventResult result = mouse_event_manager_->DispatchMouseEvent(
-      EffectiveMouseEventTargetElement(target_element),
-      event_type_names::kContextmenu, event, nullptr, nullptr, false, event.id,
-      PointerEventFactory::PointerTypeNameForWebPointPointerType(
-          event.pointer_type));
+  WebInputEventResult result =
+      mouse_event_manager_
+          ->DispatchMouseEvent(
+              EffectiveMouseEventTargetElement(target_element),
+              event_type_names::kContextmenu, event, nullptr, nullptr, false,
+              event.id,
+              PointerEventFactory::PointerTypeNameForWebPointPointerType(
+                  event.pointer_type))
+          .second;
   if (result == WebInputEventResult::kHandledApplication) {
     UseCounter::Count(document, WebFeature::kContextMenuEventDefaultPrevented);
   }

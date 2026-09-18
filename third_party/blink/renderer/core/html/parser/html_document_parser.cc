@@ -767,9 +767,7 @@ bool HTMLDocumentParser::PumpTokenizer() {
     {
       RUNTIME_CALL_TIMER_SCOPE(
           isolate, RuntimeCallStats::CounterId::kHTMLTokenizerNextToken);
-      base::ElapsedTimer timer;
       token = tokenizer_.NextToken(input_.Current());
-      total_tokenization_time_ += timer.Elapsed();
       if (!token) {
         break;
       }
@@ -823,11 +821,6 @@ bool HTMLDocumentParser::PumpTokenizer() {
         break;
       }
     }
-  }
-
-  if (tokens_parsed) {
-    total_parsing_time_ +=
-        chunk_parsing_timer.Elapsed() - time_executing_script;
   }
 
   base::TimeDelta pump_tokenizer_elapsed_time = pump_tokenizer_timer.Elapsed();
@@ -1096,19 +1089,6 @@ void HTMLDocumentParser::CommitPreloadedData() {
 
 void HTMLDocumentParser::end() {
   DCHECK(!IsDetached());
-
-  if (!IsParsingFragment() && GetDocument()->IsInOutermostMainFrame() &&
-      base::TimeTicks::IsHighResolution()) {
-    base::UmaHistogramCustomMicrosecondsTimes(
-        "Blink.HTMLParsing.TokenizationTime.MainDocument",
-        total_tokenization_time_, base::Microseconds(1), base::Seconds(10),
-        100);
-    if (!total_parsing_time_.is_zero()) {
-      base::UmaHistogramPercentage(
-          "Blink.HTMLParsing.TokenizationTimePercentage.MainDocument",
-          total_tokenization_time_ * 100 / total_parsing_time_);
-    }
-  }
 
   // Informs the the rest of WebCore that parsing is really finished (and
   // deletes this).
@@ -1395,7 +1375,6 @@ void HTMLDocumentParser::ExecuteScriptsWaitingForResources() {
 }
 
 void HTMLDocumentParser::ExecuteScriptsWaitingForPrerenderActivation() {
-  CHECK(RuntimeEnabledFeatures::PrerenderUntilScriptEnabled());
   CHECK(!GetDocument()->IsScriptBlockedUntilPrerenderActivation());
   if (IsStopped()) {
     return;

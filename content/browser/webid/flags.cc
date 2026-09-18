@@ -11,6 +11,7 @@
 #include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "services/network/public/cpp/features.h"
 
 namespace content::webid {
 
@@ -41,7 +42,8 @@ bool IsDigitalCredentialsCreationEnabled() {
 }
 
 bool IsSameSiteLaxEnabled() {
-  return base::FeatureList::IsEnabled(features::kFedCmSameSiteLax);
+  return base::FeatureList::IsEnabled(
+      network::features::kSendSameSiteLaxForFedCM);
 }
 
 bool IsLightweightModeEnabled() {
@@ -92,6 +94,10 @@ bool IsPreservePortsForTestingEnabled() {
 
 bool IsErrorAttributeEnabled() {
   return base::FeatureList::IsEnabled(features::kFedCmErrorAttribute);
+}
+
+bool IsNavigationInterceptionEnabled() {
+  return base::FeatureList::IsEnabled(features::kFedCmNavigationInterception);
 }
 
 }  // namespace content::webid

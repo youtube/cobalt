@@ -956,7 +956,7 @@ void View::SetLayoutManagerUseConstrainedSpace(
   InvalidateLayout();
 }
 
-void View::InvalidateLayout() {
+void View::InvalidateLayout(bool avoid_propagate_during_layout) {
   if (invalidating_) {
     return;
   }
@@ -982,7 +982,11 @@ void View::InvalidateLayout() {
   }
 
   if (parent_) {
-    parent_->InvalidateLayout();
+    // When avoid propagation is on, only propagate invalidations while the
+    // parent isn't being laid out; this prevents layout loops.
+    if (!avoid_propagate_during_layout || !parent_->performing_layout_) {
+      parent_->InvalidateLayout();
+    }
   } else {
     Widget* widget = GetWidget();
     if (widget) {
@@ -1399,8 +1403,6 @@ void View::Paint(const PaintInfo& parent_paint_info) {
       clip_recorder.ClipRect(gfx::Rect(paint_info.paint_recording_size()) +
                              paint_info.offset_from_parent());
     } else {
-      SkPath clip_path_in_parent = clip_path_;
-
       // Transform |clip_path_| from local space to parent recording space.
       gfx::Transform to_parent_recording_space;
 
@@ -1409,7 +1411,7 @@ void View::Paint(const PaintInfo& parent_paint_info) {
           SkFloatToScalar(paint_info.paint_recording_scale_x()),
           SkFloatToScalar(paint_info.paint_recording_scale_y()));
 
-      clip_path_in_parent.transform(
+      const SkPath clip_path_in_parent = clip_path_.makeTransform(
           gfx::TransformToFlattenedSkMatrix(to_parent_recording_space));
       clip_recorder.ClipPathWithAntiAliasing(clip_path_in_parent);
     }
@@ -3637,7 +3639,7 @@ void View::LayoutImmediately() {
   });
   invalidates_during_layout_ = 0;
   ++layouts_since_last_paint_;
-  base::AutoReset allow_layout(&layout_allowed_, true);
+  base::AutoReset performing_layout(&performing_layout_, true);
 
   ++current_layout_call_depth_;
   ++max_layout_call_depth_;

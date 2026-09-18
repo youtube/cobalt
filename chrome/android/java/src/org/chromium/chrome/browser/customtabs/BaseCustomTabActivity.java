@@ -103,7 +103,6 @@ import org.chromium.chrome.browser.init.ActivityProfileProvider;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
-import org.chromium.chrome.browser.night_mode.PowerSavingModeMonitor;
 import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
@@ -268,8 +267,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     public CustomTabNightModeStateController getCustomTabNightModeStateController() {
         if (mNightModeStateController == null) {
             mNightModeStateController =
-                    new CustomTabNightModeStateController(
-                            getLifecycleDispatcher(), PowerSavingModeMonitor.getInstance());
+                    new CustomTabNightModeStateController(getLifecycleDispatcher());
         }
         return mNightModeStateController;
     }
@@ -364,6 +362,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getTabModelSelectorSupplier(),
                         getBrowserControlsManager(),
                         getWindowAndroid(),
+                        getChromeAndroidTaskSupplier(),
                         getLifecycleDispatcher(),
                         getLayoutManagerSupplier(),
                         /* menuOrKeyboardActionController= */ this,
@@ -392,7 +391,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         () -> getCustomTabActivityNavigationController().openCurrentUrlInBrowser(),
                         getEdgeToEdgeManager(),
                         getAppHeaderCoordinator(),
-                        this::getBrowserServicesThemeColorProvider);
+                        this::getBrowserServicesThemeColorProvider,
+                        getClientPackageNameProvider().get());
         return mBaseCustomTabRootUiCoordinator;
     }
 
@@ -636,6 +636,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getCipherFactory(),
                         getLifecycleDispatcher());
 
+        getCustomTabActivityTabFactory().setActivityType(getActivityType());
         // Finish reparenting as soon as possible as it may be blocking navigation.
         getCustomTabActivityTabController()
                 .setUpInitialTab(hiddenTab != null ? hiddenTab.tab : null);
@@ -749,7 +750,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         if (intentDataProvider.isWebappOrWebApkActivity()) initializeForWebappOrWebApk();
         if (mIntentDataProvider.isTrustedWebActivity()) initializeForTwa();
 
-        getCustomTabActivityTabFactory().setActivityType(getActivityType());
         getCustomTabDelegateFactory()
                 .setEphemeralTabCoordinatorSupplier(
                         mRootUiCoordinator.getEphemeralTabCoordinatorSupplier());
@@ -1549,8 +1549,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getInsetObserver(),
                         getLifecycleDispatcher(),
                         getSavedInstanceState(),
-                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider(),
-                        /* minHeightPx= */ 0);
+                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider());
 
         return mAppHeaderCoordinator;
     }

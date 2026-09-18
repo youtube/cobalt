@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSION_ACTION_VIEW_CONTROLLER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
@@ -24,7 +23,6 @@
 
 class ExtensionActionPlatformDelegate;
 class IconWithBadgeImageSource;
-class ExtensionsContainerViews;
 enum class PopupShowAction;
 
 namespace extensions {
@@ -40,10 +38,12 @@ class ImageModel;
 }
 
 // The Views controller for an ExtensionAction that is shown on the toolbar
-// (such as a page or browser action). Since this class doesn't own the
-// extension or extension action in question, be sure to check for validity
-// using ExtensionIsValid() before using those members (see also comments above
-// ExtensionIsValid()).
+// (such as a page or browser action).
+//
+// This class doesn't own the extension or extension action in question. It is
+// safe to call methods after the extension is uninstalled, but they will return
+// undefined values, except GetId().
+//
 // TODO(crbug.com/437774758): Enable this class on Desktop Android.
 class ExtensionActionViewController
     : public ToolbarActionViewController,
@@ -56,7 +56,6 @@ class ExtensionActionViewController
   static std::unique_ptr<ExtensionActionViewController> Create(
       const extensions::ExtensionId& extension_id,
       BrowserWindowInterface* browser,
-      ExtensionsContainerViews* extensions_container,
       std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate);
 
   // Returns whether any of `actions` given have access to the `web_contents`.
@@ -92,14 +91,8 @@ class ExtensionActionViewController
   ui::MenuModel* GetContextMenu(
       extensions::ExtensionContextMenuModel::ContextMenuSource
           context_menu_source) override;
-  void OnContextMenuShown(
-      extensions::ExtensionContextMenuModel::ContextMenuSource source) override;
-  void OnContextMenuClosed(
-      extensions::ExtensionContextMenuModel::ContextMenuSource source) override;
   void ExecuteUserAction(InvocationSource source) override;
   void TriggerPopupForAPI(ShowPopupCallback callback) override;
-  void UpdateHoverCard(ToolbarActionView* action_view,
-                       ToolbarActionHoverCardUpdateType update_type) override;
   void RegisterCommand() override;
   void UnregisterCommand() override;
 
@@ -149,7 +142,6 @@ class ExtensionActionViewController
   const extensions::ExtensionAction* extension_action() const {
     return extension_action_;
   }
-  ToolbarActionViewDelegate* view_delegate() { return view_delegate_; }
   ExtensionActionPlatformDelegate* platform_delegate() {
     return platform_delegate_.get();
   }
@@ -165,7 +157,6 @@ class ExtensionActionViewController
       BrowserWindowInterface* browser,
       extensions::ExtensionAction* extension_action,
       extensions::ExtensionRegistry* extension_registry,
-      ExtensionsContainerViews* extensions_container,
       std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate);
 
   // Returns the current web contents.
@@ -198,6 +189,9 @@ class ExtensionActionViewController
       content::WebContents* web_contents,
       const gfx::Size& size);
 
+  // The extension ID.
+  extensions::ExtensionId extension_id_;
+
   // The extension associated with the action we're displaying.
   scoped_refptr<const extensions::Extension> extension_;
 
@@ -211,9 +205,6 @@ class ExtensionActionViewController
   // by this class.
   const raw_ptr<extensions::ExtensionAction, DanglingUntriaged>
       extension_action_;
-
-  // The corresponding ExtensionsContainerViews on the toolbar.
-  const raw_ptr<ExtensionsContainerViews> extensions_container_;
 
   // The context menu model for the extension.
   std::unique_ptr<extensions::ExtensionContextMenuModel> context_menu_model_;

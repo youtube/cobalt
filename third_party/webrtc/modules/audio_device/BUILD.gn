@@ -241,6 +241,7 @@ if (!build_with_chromium) {
       ":audio_device_buffer",
       ":audio_device_generic",
       "../../api/audio:audio_device",
+      "../../api/environment",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:platform_thread",

@@ -120,6 +120,10 @@
 
   # https://crbug.com/v8/8766
   'AllGolden/BytecodeGeneratorTest.CompilationMatchesExpectation/WideRegisters': [SKIP],
+
+  # Need to un-skip once GenerationSizesFromHeapSize has be refactored.
+  # http://crrev.com/c/7117498
+  'Heap.GenerationSizesFromHeapSize': [SKIP],
 }],  # arch == ppc64
 
 ##############################################################################
@@ -388,5 +392,11 @@
   # Tests too slow in non-optimized debug mode.
   'LogAllTest.LogAll': [SKIP],
 }],  # 'full_debug'
+
+##############################################################################
+['ubsan', {
+  # https://crbug.com/456051623
+  'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
+}],  # 'ubsan'
 
 ]

@@ -5,6 +5,7 @@
 #include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -93,6 +94,36 @@ void PageContentMetadataObserver::PrimaryPageChanged(content::Page& page) {
   DispatchMetadata();
 }
 
+void PageContentMetadataObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->HasCommitted() ||
+      navigation_handle->IsSameDocument()) {
+    return;
+  }
+
+  content::RenderFrameHost* render_frame_host =
+      navigation_handle->GetRenderFrameHost();
+
+  // PrimaryPageChanged handles main frame navigations. We only care about
+  // subframes here.
+  if (!render_frame_host->GetParent()) {
+    return;
+  }
+
+  // Only handle navigations in the primary page.
+  if (&render_frame_host->GetPage() != &web_contents()->GetPrimaryPage()) {
+    return;
+  }
+
+  // A navigation has committed in a subframe, so the document in the frame has
+  // changed. We need to tear down the old observer and create a new one.
+  // We don't call RenderFrameDeleted() since that is for when the frame is
+  // actually removed. In this case, the frame persists and is reused for a new
+  // document.
+  frame_data_.erase(render_frame_host);
+  RenderFrameCreated(render_frame_host);
+}
+
 void PageContentMetadataObserver::UpdateFrameObservers() {
   auto* primary_main_frame = web_contents()->GetPrimaryMainFrame();
   if (!primary_main_frame) {
@@ -114,14 +145,14 @@ void PageContentMetadataObserver::DispatchMetadata() {
     if (frame_data.metadata) {
       page_metadata->frame_metadata.push_back(frame_data.metadata->Clone());
     } else {
-      const auto& url = render_frame_host->GetLastCommittedURL();
-      if (url.is_empty() || url.IsAboutBlank()) {
-        continue;
-      }
       // Create a representation for a frame with no matching meta tags.
       auto frame_metadata = blink::mojom::FrameMetadata::New();
-      frame_metadata->url = GetURLForFrameMetadata(
-          url, render_frame_host->GetLastCommittedOrigin());
+      frame_metadata->url =
+          GetURLForFrameMetadata(render_frame_host->GetLastCommittedURL(),
+                                 render_frame_host->GetLastCommittedOrigin());
+      if (frame_metadata->url.is_empty()) {
+        continue;
+      }
       page_metadata->frame_metadata.push_back(std::move(frame_metadata));
     }
   }

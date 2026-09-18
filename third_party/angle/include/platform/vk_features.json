@@ -314,6 +314,14 @@
             "issue": "http://anglebug.com/42264577"
         },
         {
+            "name": "supports_multiview_multisample_render_to_texture",
+            "category": "Features",
+            "description": [
+                "VkDevice supports the VK_KHR_multiview and VK_EXT_multisampled_render_to_single_sampled extension"
+            ],
+            "issue": "http://anglebug.com/42261787"
+        },
+        {
             "name": "force_D16_tex_filter",
             "category": "Workarounds",
             "description": [
@@ -1491,6 +1499,15 @@
             "description": [
                 "When using VK_EXT_host_image_copy, use VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT for images created",
                 "for luminance/alpha textures"
+            ]
+        },
+        {
+            "name": "allow_host_image_copy_after_initial_upload",
+            "category": "Features",
+            "description": [
+                "When using VK_EXT_host_image_copy, do CPU copies also if data is uploaded to the texture after ",
+                "its initialization. This feature is best disabled for CPU-intensive workloads that do frequent ",
+                "uploads to the same texture."
             ]
         },
         {

@@ -233,6 +233,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
 
   void CreateSharedUdpPort(const SocketAddress& server_addr,
                            std::unique_ptr<AsyncPacketSocket> socket) {
+    // Destroy existing stun_port_, if any, before overwriting socket_.
+    if (stun_port_) {
+      stun_port_ = nullptr;
+    }
     if (socket) {
       socket_ = std::move(socket);
     } else {
@@ -322,9 +326,11 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   webrtc::AutoSocketServerThread thread_;
   webrtc::NATSocketFactory nat_factory_;
   webrtc::BasicPacketSocketFactory nat_socket_factory_;
+  // Note that stun_port_ can refer to socket_, so must be destroyed
+  // before it.
+  std::unique_ptr<webrtc::AsyncPacketSocket> socket_;
   std::unique_ptr<webrtc::UDPPort> stun_port_;
   std::vector<webrtc::TestStunServer::StunServerPtr> stun_servers_;
-  std::unique_ptr<webrtc::AsyncPacketSocket> socket_;
   std::unique_ptr<webrtc::MdnsResponderProvider> mdns_responder_provider_;
   std::unique_ptr<webrtc::NATServer> nat_server_;
   bool done_;

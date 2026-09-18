@@ -955,6 +955,7 @@ chromium-metrics-reviews@google.com.
   <int value="87" label="Enterprise management disclaimer after browser focus"/>
   <int value="88" label="Enterprise management disclaimer after signin"/>
   <int value="89" label="New Tab Page sign-in feature promo"/>
+  <int value="90" label="Enterprise dialog after signin interception"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">
@@ -989,7 +990,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Interrupted"/>
 </enum>
 
-<!-- LINT.ThenChange(//ios/chrome/browser/authentication/ui_bundled/signin/add_account_signin/add_account_signin_manager.h:SigninAddAccountToDeviceResult) -->
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/add_account_signin/add_account_signin_manager.h:SigninAddAccountToDeviceResult) -->
 
 <enum name="SigninAndroidAddAccountState">
   <int value="0" label="Requested"/>
@@ -1229,7 +1230,7 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="26" label="User tapped on undo right after signin">
     User tapped on the 'Undo' button in a snackbar shown right after signin
-    through promo in bookmarks and reading list page (iOS only).
+    through promo in bookmarks and reading list page.
   </int>
   <int value="27" label="User declined history sync after dedicated sign-in">
     User has signed-in previously for the sole purpose of enabling history sync

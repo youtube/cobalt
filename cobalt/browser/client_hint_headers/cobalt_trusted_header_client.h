@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 #define COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 
+#include <optional>
+
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -40,6 +42,7 @@ class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
                            OnBeforeSendHeadersCallback callback) override;
   void OnHeadersReceived(const std::string& headers,
                          const net::IPEndPoint& endpoint,
+                         const std::optional<net::SSLInfo>& ssl_info,
                          OnHeadersReceivedCallback callback) override;
 };
 

@@ -20,7 +20,6 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 typedef std::map<int, std::string> Peers;
 
@@ -37,7 +36,7 @@ struct PeerConnectionClientObserver {
   virtual ~PeerConnectionClientObserver() {}
 };
 
-class PeerConnectionClient : public sigslot::has_slots<> {
+class PeerConnectionClient {
  public:
   enum State {
     NOT_CONNECTED,

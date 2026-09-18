@@ -54,7 +54,6 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
@@ -98,7 +97,7 @@ void SetRemoteFingerprintFromCert(DtlsTransportInternalImpl* transport,
           .ok());
 }
 
-class DtlsTestClient : public sigslot::has_slots<> {
+class DtlsTestClient {
  public:
   explicit DtlsTestClient(absl::string_view name) : name_(name) {}
   void CreateCertificate(KeyType key_type) {

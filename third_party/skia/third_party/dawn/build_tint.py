@@ -20,7 +20,8 @@ import sys
 
 from cmake_utils import (
     add_common_cmake_args, combine_into_library, discover_dependencies,
-    get_cmake_os_cpu, get_windows_settings, quote_if_needed, write_depfile)
+    get_cmake_os_cpu, get_windows_settings, quote_if_needed, write_depfile,
+    get_third_party_locations)
 
 
 def main():
@@ -61,14 +62,10 @@ def main():
       f"-DCMAKE_CXX_COMPILER={quote_if_needed(args.cxx)}",
       f"-DCMAKE_SYSTEM_NAME={target_os}",
       f"-DCMAKE_SYSTEM_PROCESSOR={target_cpu}",
-      # Fetch dependencies using DEPS, which is required for stand-alone builds.
-      "-DDAWN_FETCH_DEPENDENCIES=ON",
+      # This is handled by GN
+      "-DDAWN_FETCH_DEPENDENCIES=OFF",
       "-DDAWN_ENABLE_INSTALL=OFF",
       f"-DCMAKE_BUILD_TYPE={args.build_type}",
-      "-DDAWN_USE_X11=OFF",
-      # Samples and tests are not needed and may have extra dependencies.
-      "-DDAWN_BUILD_SAMPLES=OFF",
-      "-DTINT_BUILD_TESTS=OFF",
       # skslc needs WGSL support.
       "-DTINT_BUILD_WGSL_READER=ON",
       "-DTINT_BUILD_WGSL_WRITER=ON",
@@ -85,6 +82,7 @@ def main():
       "-DDAWN_ENABLE_OPENGLES=OFF",
       "-DDAWN_ENABLE_VULKAN=OFF",
   ]
+  configure_cmd += get_third_party_locations()
   if args.enable_rtti:
     configure_cmd.append("-DDAWN_ENABLE_RTTI=ON")
 

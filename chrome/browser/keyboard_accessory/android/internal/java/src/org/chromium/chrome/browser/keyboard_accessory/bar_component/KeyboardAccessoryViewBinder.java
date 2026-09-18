@@ -272,7 +272,7 @@ class KeyboardAccessoryViewBinder {
                 // required UI.
                 chipView.setBorder(
                         chipView.getResources().getDimensionPixelSize(R.dimen.chip_border_width),
-                        chipView.getContext().getColor(R.color.black_alpha_12));
+                        chipView.getContext().getColorStateList(R.color.black_alpha_12));
             } else {
                 chipView.setEnabled(true);
                 iconAlpha = COMPLETE_OPACITY_ALPHA;
@@ -281,7 +281,7 @@ class KeyboardAccessoryViewBinder {
             if (iconDrawable != null) {
                 iconDrawable.setAlpha((int) (255 * iconAlpha));
             }
-            chipView.setIcon(iconDrawable, /* tintWithTextColor= */ false);
+            chipView.setIconWithTint(iconDrawable, /* tintWithTextColor= */ false);
 
             @Nullable String voiceOver = item.getSuggestion().getVoiceOver();
             if (!TextUtils.isEmpty(voiceOver)) {

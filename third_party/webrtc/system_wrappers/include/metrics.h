@@ -132,6 +132,20 @@ void NoOp(const Ts&...) {}
                              webrtc::metrics::HistogramFactoryGetCounts( \
                                  name, min, max, bucket_count))
 
+// IMPORTANT: To capture the value 0, set `min = 1`. This function creates an
+// implicit underflow bucket for all values `< min`. It also creates an
+// implicit overflow bucket for values `>= max`.
+//
+// The main bucket range covers the values from `min` to `max - 1`.
+//
+// If capturing integers and wanting exact values, the number of buckets
+// has to be equal to (max - min) + 2, to make room for the underflow
+// and overflow buckets.
+//
+// Example usage:
+//   RTC_HISTOGRAM_COUNTS_LINEAR(name, sample, 1, 49, 50);
+//
+// Captures 0 in underflow, [1-48] in main range, >=49 in overflow.
 #define RTC_HISTOGRAM_COUNTS_LINEAR(name, sample, min, max, bucket_count)      \
   RTC_HISTOGRAM_COMMON_BLOCK(name, sample,                                     \
                              webrtc::metrics::HistogramFactoryGetCountsLinear( \

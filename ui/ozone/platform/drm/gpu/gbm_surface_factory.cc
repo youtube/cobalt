@@ -308,7 +308,6 @@ GbmSurfaceFactory::CreateVulkanImplementation(bool use_swiftshader,
 scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmapForVulkan(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
     gfx::BufferUsage usage,
     VkDevice vk_device,
     VkDeviceMemory* vk_device_memory,
@@ -319,8 +318,8 @@ scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmapForVulkan(
   NativePixmapUsageSet native_pixmap_usage =
       BufferUsageToNativePixmapUsage(usage);
   drm_thread_proxy_->CreateBuffer(
-      widget, size, /*framebuffer_size=*/size, format, native_pixmap_usage,
-      GbmPixmap::kFlagNoModifiers, &buffer, &framebuffer);
+      widget, size, /*framebuffer_size=*/size, gfx::BufferFormat::BGRA_8888,
+      native_pixmap_usage, GbmPixmap::kFlagNoModifiers, &buffer, &framebuffer);
   if (!buffer)
     return nullptr;
 
@@ -340,7 +339,7 @@ scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmapForVulkan(
   DCHECK(vk_image_fd.is_valid());
 
   // TODO(spang): Fix this for formats other than gfx::BufferFormat::BGRA_8888
-  DCHECK_EQ(viz::GetSharedImageFormat(format),
+  DCHECK_EQ(viz::SinglePlaneFormat::kBGRA_8888,
             display::DisplaySnapshot::PrimaryFormat());
   VkFormat vk_format = VK_FORMAT_B8G8R8A8_SRGB;
 
@@ -389,7 +388,7 @@ scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmap(
     gfx::AcceleratedWidget widget,
     gpu::VulkanDeviceQueue* device_queue,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     std::optional<gfx::Size> framebuffer_size) {
   if (framebuffer_size &&
@@ -401,8 +400,9 @@ scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmap(
   std::unique_ptr<GbmBuffer> buffer;
   scoped_refptr<DrmFramebuffer> framebuffer;
   drm_thread_proxy_->CreateBuffer(
-      widget, size, framebuffer_size ? *framebuffer_size : size, format,
-      native_pixmap_usage, /*flags=*/0, &buffer, &framebuffer);
+      widget, size, framebuffer_size ? *framebuffer_size : size,
+      viz::SharedImageFormatToBufferFormat(format), native_pixmap_usage,
+      /*flags=*/0, &buffer, &framebuffer);
   if (!buffer)
     return nullptr;
   return base::MakeRefCounted<GbmPixmap>(this, std::move(buffer),
@@ -413,7 +413,7 @@ scoped_refptr<gfx::NativePixmap>
 GbmSurfaceFactory::CreateNativePixmapFromHandleInternal(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
   if (handle.planes.size() > GBM_MAX_PLANES) {
     return nullptr;
@@ -422,7 +422,8 @@ GbmSurfaceFactory::CreateNativePixmapFromHandleInternal(
   std::unique_ptr<GbmBuffer> buffer;
   scoped_refptr<DrmFramebuffer> framebuffer;
   drm_thread_proxy_->CreateBufferFromHandle(
-      widget, size, format, std::move(handle), &buffer, &framebuffer);
+      widget, size, viz::SharedImageFormatToBufferFormat(format),
+      std::move(handle), &buffer, &framebuffer);
   if (!buffer)
     return nullptr;
   return base::MakeRefCounted<GbmPixmap>(this, std::move(buffer),
@@ -445,16 +446,15 @@ GbmSurfaceFactory::CreateNativePixmapFromHandle(
       return protected_pixmap;
   }
 
-  return CreateNativePixmapFromHandleInternal(
-      widget, size, viz::SharedImageFormatToBufferFormat(format),
-      std::move(handle));
+  return CreateNativePixmapFromHandleInternal(widget, size, format,
+                                              std::move(handle));
 }
 
 scoped_refptr<gfx::NativePixmap>
 GbmSurfaceFactory::CreateNativePixmapForProtectedBufferHandle(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
   // Create a new NativePixmap without querying the external service for any
   // existing mappings.

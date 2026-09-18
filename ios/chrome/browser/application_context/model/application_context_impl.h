@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -18,7 +18,6 @@
 namespace auto_deletion {
 class AutoDeletionService;
 }  // namespace auto_deletion
-
 namespace base {
 class CommandLine;
 class SequencedTaskRunner;
@@ -91,6 +90,7 @@ class ApplicationContextImpl : public ApplicationContext {
   network::NetworkConnectionTracker* GetNetworkConnectionTracker() override;
   BrowserPolicyConnectorIOS* GetBrowserPolicyConnector() override;
   id<SingleSignOnService> GetSingleSignOnService() override;
+  signin::AvatarProvider* GetIdentityAvatarProvider() override;
   SystemIdentityManager* GetSystemIdentityManager() override;
   AccountProfileMapper* GetAccountProfileMapper() override;
   IncognitoSessionTracker* GetIncognitoSessionTracker() override;
@@ -175,6 +175,7 @@ class ApplicationContextImpl : public ApplicationContext {
   scoped_refptr<SafeBrowsingService> safe_browsing_service_;
 
   __strong id<SingleSignOnService> single_sign_on_service_ = nil;
+  std::unique_ptr<signin::AvatarProvider> resized_avatar_caches_;
   std::unique_ptr<SystemIdentityManager> system_identity_manager_;
   std::unique_ptr<AccountProfileMapper> account_profile_mapper_;
 

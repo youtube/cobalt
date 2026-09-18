@@ -122,8 +122,8 @@ void TurnServer::AddInternalServerSocket(
       ServerSocketInfo{.proto = protocol,
                        .ssl_adapter_factory = std::move(ssl_adapter_factory)});
   RTC_DCHECK(inserted);
-  iter->first->SignalReadEvent.connect(this,
-                                       &TurnServer::OnNewInternalConnection);
+  iter->first->SubscribeReadEvent(
+      this, [this](Socket* socket) { OnNewInternalConnection(socket); });
 }
 
 void TurnServer::SetExternalSocketFactory(PacketSocketFactory* factory,

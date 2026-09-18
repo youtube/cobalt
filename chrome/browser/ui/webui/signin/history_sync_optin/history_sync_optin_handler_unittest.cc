@@ -56,7 +56,7 @@ class HistorySyncOptinHandlerTest : public testing::TestWithParam<bool> {
   void SetUp() override {
     handler_ = std::make_unique<HistorySyncOptinHandler>(
         handler_remote_.BindNewPipeAndPassReceiver(), page_.BindAndGetRemote(),
-        /*browser=*/nullptr, profile(),
+        /*browser=*/nullptr, profile(), /*should_close_modal_dialog=*/true,
         HistorySyncOptinHelper::FlowCompletedCallback(base::DoNothing()));
   }
 
@@ -262,6 +262,15 @@ TEST_P(HistorySyncOptinHandlerTest, OnScreenModeTimeout) {
                                      1);
   histogram_tester_.ExpectUniqueSample(
       "Signin.AccountCapabilities.ImmediatelyAvailable", false, 1);
+}
+
+// Tests that the dialog does not crash if a button is pressed more than once.
+// Regression test for crbug.com/449140137.
+TEST_P(HistorySyncOptinHandlerTest, DoubleClickingDoesNotCrash) {
+  AccountInfo account_info = SignInAndSetUpSyncService();
+  DisableAllSyncedDataTypes();
+  handler_->Accept();
+  handler_->Reject();
 }
 
 // This boolean parameter controls the value of the account capability

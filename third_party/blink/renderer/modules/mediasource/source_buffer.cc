@@ -955,9 +955,9 @@ void SourceBuffer::Remove_Locked(
   if (end <= start || std::isnan(end)) {
     MediaSource::LogAndThrowTypeError(
         *exception_state,
-        "The end value provided (" + String::Number(end) +
-            ") must be greater than the start value provided (" +
-            String::Number(start) + ").");
+        StrCat({"The end value provided (", String::Number(end),
+                ") must be greater than the start value provided (",
+                String::Number(start), ")."}));
     return;
   }
 
@@ -1097,7 +1097,8 @@ void SourceBuffer::ChangeType_Locked(
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kNotSupportedError,
-        "Changing to the type provided ('" + type + "') is not supported.");
+        StrCat({"Changing to the type provided ('", type,
+                "') is not supported."}));
     return;
   }
 

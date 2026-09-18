@@ -7,6 +7,7 @@
 #import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_action_delegate.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
 #import "ios/chrome/common/ui/util/chrome_button.h"
@@ -37,6 +38,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 
 // Redefine properties as readwrite for internal use.
 @property(nonatomic, strong, readwrite) UIView* contentView;
+@property(nonatomic, strong, readwrite) ButtonStackConfiguration* configuration;
 @property(nonatomic, strong, readwrite) ChromeButton* primaryActionButton;
 @property(nonatomic, strong, readwrite) ChromeButton* secondaryActionButton;
 @property(nonatomic, strong, readwrite) ChromeButton* tertiaryActionButton;
@@ -44,8 +46,6 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 @end
 
 @implementation ButtonStackViewController {
-  // Configuration for the buttons.
-  ButtonStackConfiguration* _configuration;
   // Stack view for the action buttons.
   UIStackView* _actionStackView;
   // The bottom constraint for the action stack view against the safe area.
@@ -58,11 +58,6 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   UIScrollView* _scrollView;
   // The gradient mask for the scroll view.
   CAGradientLayer* _gradientMask;
-
-  // Whether the view is in the loading state.
-  BOOL _isLoading;
-  // Whether the view is in the confirmed state.
-  BOOL _isConfirmed;
   // Whether the gradient view is shown.
   BOOL _showsGradientView;
 }
@@ -71,8 +66,6 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   self = [super initWithNibName:nil bundle:nil];
   if (self) {
     _configuration = configuration;
-    _isLoading = configuration.isLoading;
-    _isConfirmed = configuration.isConfirmed;
     _scrollEnabled = YES;
     _showsVerticalScrollIndicator = YES;
     _showsGradientView = YES;
@@ -156,36 +149,50 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   [_scrollView setContentOffset:CGPointMake(0, scrollLimit) animated:YES];
 }
 
+- (CGFloat)buttonStackHeight {
+  // Calculate the size the stack view needs without forcing a full layout pass.
+  CGFloat stackHeight =
+      [_actionStackView
+          systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
+          .height;
+  if (stackHeight > 0) {
+    return stackHeight + self.actionStackBottomMargin;
+  }
+  return 0;
+}
+
 #pragma mark - ButtonStackConsumer
 
 - (void)setLoading:(BOOL)loading {
-  if (_isLoading == loading) {
+  if (self.configuration.isLoading == loading) {
     return;
   }
-  _isLoading = loading;
-  if (_isLoading) {
+  self.configuration.loading = loading;
+  if (self.configuration.isLoading) {
     // isLoading and isConfirmed are mutually exclusive.
-    _isConfirmed = NO;
+    self.configuration.confirmed = NO;
   }
   [self updateButtonState];
 }
 
 - (void)setConfirmed:(BOOL)confirmed {
-  if (_isConfirmed == confirmed) {
+  if (self.configuration.isConfirmed == confirmed) {
     return;
   }
-  _isConfirmed = confirmed;
-  if (_isConfirmed) {
+  self.configuration.confirmed = confirmed;
+  if (self.configuration.isConfirmed) {
     // isLoading and isConfirmed are mutually exclusive.
-    _isLoading = NO;
+    self.configuration.loading = NO;
   }
   [self updateButtonState];
 }
 
 - (void)updateConfiguration:(ButtonStackConfiguration*)configuration {
-  _configuration = configuration;
-  _isLoading = configuration.isLoading;
-  _isConfirmed = configuration.isConfirmed;
+  self.configuration = configuration;
+  [self reloadConfiguration];
+}
+
+- (void)reloadConfiguration {
   [self reconfigureButtons];
   [self updateButtonState];
 }
@@ -266,18 +273,24 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   // will handle showing/hiding them based on the current configuration.
   self.tertiaryActionButton =
       [self createButtonForStyle:_configuration.tertiaryButtonStyle];
+  self.tertiaryActionButton.accessibilityIdentifier =
+      kButtonStackTertiaryActionAccessibilityIdentifier;
   [self.tertiaryActionButton addTarget:self
                                 action:@selector(handleTertiaryAction)
                       forControlEvents:UIControlEventTouchUpInside];
 
   self.primaryActionButton =
       [self createButtonForStyle:_configuration.primaryButtonStyle];
+  self.primaryActionButton.accessibilityIdentifier =
+      kButtonStackPrimaryActionAccessibilityIdentifier;
   [self.primaryActionButton addTarget:self
                                action:@selector(handlePrimaryAction)
                      forControlEvents:UIControlEventTouchUpInside];
 
   self.secondaryActionButton =
       [self createButtonForStyle:_configuration.secondaryButtonStyle];
+  self.secondaryActionButton.accessibilityIdentifier =
+      kButtonStackSecondaryActionAccessibilityIdentifier;
   [self.secondaryActionButton addTarget:self
                                  action:@selector(handleSecondaryAction)
                        forControlEvents:UIControlEventTouchUpInside];
@@ -372,20 +385,25 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 // Sets up the layout constraints for the contentView and actionStackView.
 - (void)setupConstraints {
   UILayoutGuide* safeAreaLayoutGuide = self.view.safeAreaLayoutGuide;
+  UIView* view = self.view;
 
   // Scroll container view constraints.
   [NSLayoutConstraint activateConstraints:@[
-    [_scrollContainerView.topAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.topAnchor],
+    [_scrollContainerView.topAnchor constraintEqualToAnchor:view.topAnchor],
     [_scrollContainerView.bottomAnchor
         constraintEqualToAnchor:_actionStackView.topAnchor],
     [_scrollContainerView.leadingAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.leadingAnchor],
+        constraintEqualToAnchor:view.leadingAnchor],
     [_scrollContainerView.trailingAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.trailingAnchor],
+        constraintEqualToAnchor:view.trailingAnchor],
   ]];
   AddSameConstraints(_scrollView, _scrollContainerView);
+
+  // contentView view constraints.
   AddSameConstraints(_scrollView, _contentView);
+  [NSLayoutConstraint activateConstraints:@[
+    [_contentView.widthAnchor constraintEqualToAnchor:_scrollView.widthAnchor],
+  ]];
 
   // Ensures the content view either fills the scroll view (for short content)
   // or expands to enable scrolling (for long content).
@@ -400,7 +418,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   _actionStackSafeAreaBottomConstraint.priority = UILayoutPriorityDefaultHigh;
 
   _actionStackBottomConstraint = [_actionStackView.bottomAnchor
-      constraintLessThanOrEqualToAnchor:self.view.bottomAnchor
+      constraintLessThanOrEqualToAnchor:view.bottomAnchor
                                constant:-self.actionStackBottomMargin];
 
   // Action stack view constraints.
@@ -419,23 +437,26 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 // Updates the buttons appearance and enabled state based on the current
 // `isLoading` and `isConfirmed` flags.
 - (void)updateButtonState {
-  const BOOL showingProgressState = _isLoading || _isConfirmed;
+  const BOOL showingProgressState =
+      self.configuration.isLoading || self.configuration.isConfirmed;
   _primaryActionButton.enabled = !showingProgressState;
   _secondaryActionButton.enabled = !showingProgressState;
   _tertiaryActionButton.enabled = !showingProgressState;
 
-  _primaryActionButton.tunedDownStyle = _isConfirmed;
-
-  if (_isLoading) {
+  _primaryActionButton.imageView.accessibilityIdentifier = nil;
+  _primaryActionButton.tunedDownStyle = self.configuration.isConfirmed;
+  if (self.configuration.isLoading) {
     _primaryActionButton.primaryButtonImage = PrimaryButtonImageSpinner;
-  } else if (_isConfirmed) {
+  } else if (self.configuration.isConfirmed) {
     _primaryActionButton.primaryButtonImage = PrimaryButtonImageCheckmark;
+    _primaryActionButton.imageView.accessibilityIdentifier =
+        kButtonStackCheckmarkSymbolAccessibilityIdentifier;
   } else {
     _primaryActionButton.primaryButtonImage = PrimaryButtonImageNone;
   }
 
   _primaryActionButton.title =
-      showingProgressState ? @"" : _configuration.primaryActionString;
+      showingProgressState ? @"" : self.configuration.primaryActionString;
 }
 
 // Handles the tap event for the primary action button.

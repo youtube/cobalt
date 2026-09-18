@@ -106,6 +106,9 @@ class FakePacketTransport : public PacketTransportInternal {
   void SetError(int error) { error_ = error; }
 
   const CopyOnWriteBuffer* last_sent_packet() { return &last_sent_packet_; }
+  const AsyncSocketPacketOptions& last_sent_packet_options() const {
+    return last_sent_packet_options_;
+  }
 
   std::optional<NetworkRoute> network_route() const override {
     return network_route_;
@@ -141,6 +144,7 @@ class FakePacketTransport : public PacketTransportInternal {
   void SendPacketInternal(const CopyOnWriteBuffer& packet,
                           const AsyncSocketPacketOptions& options) {
     last_sent_packet_ = packet;
+    last_sent_packet_options_ = options;
     if (dest_) {
       dest_->NotifyPacketReceived(ReceivedIpPacket(
           packet, SocketAddress(), Timestamp::Micros(TimeMicros()),
@@ -149,6 +153,7 @@ class FakePacketTransport : public PacketTransportInternal {
   }
 
   CopyOnWriteBuffer last_sent_packet_;
+  AsyncSocketPacketOptions last_sent_packet_options_;
   std::string transport_name_;
   FakePacketTransport* dest_ = nullptr;
   bool writable_ = false;

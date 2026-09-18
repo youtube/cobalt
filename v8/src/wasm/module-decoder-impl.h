@@ -1929,12 +1929,17 @@ class ModuleDecoderImpl : public Decoder {
 
           uint8_t frequency = inner.consume_u8("frequency");
 
+          if (!(frequency <= 64 || frequency == 127)) {
+            inner.error("invalid frequency");
+            break;
+          }
+
           // Skip remaining hint bytes.
           if (hint_length > 1) {
             inner.consume_bytes(hint_length - 1);
           }
 
-          frequencies.emplace(std::pair{func_index, byte_offset}, frequency);
+          frequencies[func_index].emplace_back(byte_offset, frequency);
         }
       }
 
@@ -2038,8 +2043,8 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
 
-          call_targets.emplace(std::pair{func_index, byte_offset},
-                               call_targets_for_offset);
+          call_targets[func_index].emplace_back(byte_offset,
+                                                call_targets_for_offset);
         }
         if (inner.failed()) break;
       }

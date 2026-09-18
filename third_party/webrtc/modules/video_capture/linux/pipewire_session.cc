@@ -306,7 +306,7 @@ void PipeWireSession::InitPipeWire(int fd) {
 
 RTC_NO_SANITIZE("cfi-icall")
 bool PipeWireSession::StartPipeWire(int fd) {
-  pw_init(/*argc=*/nullptr, /*argv=*/nullptr);
+  pw_initializer_ = std::make_unique<PipeWireInitializer>();
 
   pw_main_loop_ = pw_thread_loop_new("pipewire-main-loop", nullptr);
 

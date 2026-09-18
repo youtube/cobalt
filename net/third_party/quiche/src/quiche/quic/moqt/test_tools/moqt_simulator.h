@@ -17,6 +17,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
@@ -206,6 +207,9 @@ class MoqtSimulator {
 
   MoqtSession* client_session() { return client_endpoint_.session(); }
   MoqtSession* server_session() { return server_endpoint_.session(); }
+  quic::QuicSession* client_quic_session() {
+    return client_endpoint_.quic_session();
+  }
 
   std::string GetClientSessionCongestionControl();
 
@@ -215,12 +219,18 @@ class MoqtSimulator {
   // The fraction of objects received on time.
   float received_on_time_fraction() const;
 
+  // The trace of the client session (the publisher).
+  const quic_trace::Trace& client_trace() {
+    return *client_endpoint_.trace_visitor()->trace();
+  }
+
   // Outputs the results of the simulation to stdout.
   void HumanReadableOutput();
   void CustomOutput(absl::string_view format);
 
  private:
   quic::simulator::Simulator simulator_;
+  ObjectReceiver receiver_;
   MoqtClientEndpoint client_endpoint_;
   MoqtServerEndpoint server_endpoint_;
   quic::simulator::Switch switch_;
@@ -229,7 +239,6 @@ class MoqtSimulator {
   quic::simulator::SymmetricLink server_link_;
   MoqtKnownTrackPublisher publisher_;
   ObjectGenerator generator_;
-  ObjectReceiver receiver_;
   MoqtBitrateAdjuster adjuster_;
   SimulationParameters parameters_;
 

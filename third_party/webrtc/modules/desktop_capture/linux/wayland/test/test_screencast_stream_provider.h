@@ -16,9 +16,11 @@
 #include <spa/utils/hook.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "modules/desktop_capture/linux/wayland/screencast_stream_utils.h"
 #include "modules/desktop_capture/rgba_color.h"
+#include "modules/portal/pipewire_utils.h"
 
 namespace webrtc {
 
@@ -61,6 +63,7 @@ class TestScreenCastStreamProvider {
   uint32_t pw_node_id_ = 0;
 
   // PipeWire types
+  std::unique_ptr<PipeWireInitializer> pw_initializer_;
   struct pw_context* pw_context_ = nullptr;
   struct pw_core* pw_core_ = nullptr;
   struct pw_stream* pw_stream_ = nullptr;

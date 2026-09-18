@@ -168,6 +168,21 @@ class Span : public internal::SpanStorage<T, N> {
   // NOLINTNEXTLINE(google-explicit-constructor): same as std::span.
   constexpr Span(T (&array)[NA]) : internal::SpanStorage<T, N>(array, NA) {}
 
+  // TODO(crbug.com/457351017): Add tests for these c'tors.
+  template <size_t NA, typename U,
+            typename = internal::EnableIfContainer<std::array<U, NA>, T>,
+            typename = std::enable_if_t<N == NA || N == dynamic_extent>>
+  // NOLINTNEXTLINE(google-explicit-constructor): same as std::span.
+  constexpr Span(std::array<U, NA> &array)
+      : internal::SpanStorage<T, N>(array.data(), NA) {}
+
+  template <size_t NA, typename U,
+            typename = internal::EnableIfContainer<const std::array<U, NA>, T>,
+            typename = std::enable_if_t<N == NA || N == dynamic_extent>>
+  // NOLINTNEXTLINE(google-explicit-constructor): same as std::span.
+  constexpr Span(const std::array<U, NA> &array)
+      : internal::SpanStorage<T, N>(array.data(), NA) {}
+
   template <
       size_t NA, typename U,
       typename = std::enable_if_t<std::is_convertible_v<U (*)[], T (*)[]>>,
@@ -310,6 +325,10 @@ template <typename T>
 Span(T *, size_t) -> Span<T>;
 template <typename T, size_t size>
 Span(T (&array)[size]) -> Span<T, size>;
+template <typename T, size_t size>
+Span(std::array<T, size> &array) -> Span<T, size>;
+template <typename T, size_t size>
+Span(const std::array<T, size> &array) -> Span<const T, size>;
 template <
     typename C,
     typename T = std::remove_pointer_t<decltype(std::declval<C>().data())>,

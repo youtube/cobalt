@@ -16,6 +16,7 @@
 
 #include "api/environment/environment.h"
 #include "api/media_types.h"
+#include "api/rtp_parameters.h"
 #include "api/sequence_checker.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
@@ -46,7 +47,7 @@ class ReceiveSideCongestionController : public CallStatsObserver {
 
   ~ReceiveSideCongestionController() override = default;
 
-  void EnableSendCongestionControlFeedbackAccordingToRfc8888();
+  void SetPreferredRtcpCcAckType(RtcpFeedbackType preferred_rtcp_cc_ack_type);
 
   void OnReceivedPacket(const RtpPacketReceived& packet, MediaType media_type);
 

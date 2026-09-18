@@ -66,7 +66,7 @@ class RTC_EXPORT DatagramConnection : public RefCountInterface {
     };
     virtual void OnSendOutcome(SendOutcome send_outcome) {}
 
-    // TODO(crbug.com/443019066): Migrate to OnSent.
+    // TODO(crbug.com/443019066): Migrate to OnSendOutcome.
     virtual void OnSendError() {}
 
     // Notification of an error unrelated to sending. Observers should
@@ -95,18 +95,13 @@ class RTC_EXPORT DatagramConnection : public RefCountInterface {
     // performed, the caller is responsible for ensuring uniqueness and handing
     // rollovers.
     PacketId id = 0;
+    ArrayView<const uint8_t> payload;
   };
 
-  // SendPacket on this connection. Listen to Observer::OnSendOutcome for
-  // whether sending was successful or not.
-  virtual void SendPacket(ArrayView<const uint8_t> data,
-                          PacketSendParameters params) {}
-
-  // TODO(crbug.com/443019066): Migrate to version with params.
-  virtual bool SendPacket(ArrayView<const uint8_t> data) {
-    SendPacket(data, PacketSendParameters());
-    return true;
-  }
+  // Send a batch of packets on this connection. Listen to
+  // Observer::OnSendOutcome for notification of whether each was sent
+  // successfully.
+  virtual void SendPackets(ArrayView<PacketSendParameters> packets) = 0;
 
   // Initiate closing connection and releasing resources. Must be called before
   // destruction.

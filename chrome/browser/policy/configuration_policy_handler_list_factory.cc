@@ -254,6 +254,7 @@
 #include "chrome/browser/enterprise/signin/enterprise_signin_prefs.h"
 #include "chrome/browser/external_protocol/auto_launch_protocols_policy_handler.h"
 #include "components/device_signals/core/browser/pref_names.h"  // nogncheck due to crbug.com/1125897
+#include "components/proxy_config/proxy_config_pref_names.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
@@ -593,6 +594,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kOriginKeyedProcessesEnabled,
     base::Value::Type::BOOLEAN },
 #endif // !BUILDFLAG(IS_ANDROID)
+  { key::kDefaultIdleDetectionSetting,
+    prefs::kManagedDefaultIdleDetectionSetting,
+    base::Value::Type::INTEGER },
   { key::kDefaultImagesSetting,
     prefs::kManagedDefaultImagesSetting,
     base::Value::Type::INTEGER },
@@ -1099,6 +1103,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kSafeSitesFilterBehavior,
     policy_prefs::kSafeSitesFilterBehavior,
     base::Value::Type::INTEGER },
+  { key::kIdleDetectionAllowedForUrls,
+    prefs::kManagedIdleDetectionAllowedForUrls,
+    base::Value::Type::LIST },
+  { key::kIdleDetectionBlockedForUrls,
+    prefs::kManagedIdleDetectionBlockedForUrls,
+    base::Value::Type::LIST },
 
 #if !BUILDFLAG(IS_CHROMEOS)
   { key::kChromeVariations,
@@ -2455,6 +2465,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     glic::prefs::kGlicActuationOnWeb,
     base::Value::Type::INTEGER },
 #endif  // BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  { key::kEnableProxyOverrideRulesForAllUsers,
+    proxy_config::prefs::kEnableProxyOverrideRulesForAllUsers,
+    base::Value::Type::INTEGER },
+#endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 };
 // clang-format on
 
@@ -2471,6 +2486,11 @@ const SchemaValidatingPolicyToPreferenceMapEntry kSchemaValidatingPolicyMap[] =
 #if BUILDFLAG(IS_CHROMEOS)
   { key::kExternalStorageAllowlist,
     disks::prefs::kExternalStorageAllowlist,
+    SCHEMA_ALLOW_UNKNOWN,
+    SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
+    SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED },
+  { key::kLocalAuthFactorsComplexity,
+    ash::prefs::kLocalAuthFactorsComplexity,
     SCHEMA_ALLOW_UNKNOWN,
     SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
     SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED },

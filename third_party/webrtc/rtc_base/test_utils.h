@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "rtc_base/socket.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 namespace testing {
@@ -37,16 +36,18 @@ enum StreamSinkEvent {
   SSE_ERROR = 16
 };
 
-class StreamSink : public sigslot::has_slots<> {
+class StreamSink {
  public:
   StreamSink();
-  ~StreamSink() override;
+  virtual ~StreamSink();
 
   void Monitor(Socket* socket) {
     socket->SubscribeConnectEvent(
         this, [this](Socket* socket) { OnConnectEvent(socket); });
-    socket->SignalReadEvent.connect(this, &StreamSink::OnReadEvent);
-    socket->SignalWriteEvent.connect(this, &StreamSink::OnWriteEvent);
+    socket->SubscribeReadEvent(this,
+                               [this](Socket* socket) { OnReadEvent(socket); });
+    socket->SubscribeWriteEvent(
+        this, [this](Socket* socket) { OnWriteEvent(socket); });
     socket->SubscribeCloseEvent(this, [this](Socket* socket, int error) {
       OnCloseEvent(socket, error);
     });
@@ -55,8 +56,8 @@ class StreamSink : public sigslot::has_slots<> {
   }
   void Unmonitor(Socket* socket) {
     socket->UnsubscribeConnectEvent(this);
-    socket->SignalReadEvent.disconnect(this);
-    socket->SignalWriteEvent.disconnect(this);
+    socket->UnsubscribeReadEvent(this);
+    socket->UnsubscribeWriteEvent(this);
     socket->UnsubscribeCloseEvent(this);
 
     events_.erase(socket);

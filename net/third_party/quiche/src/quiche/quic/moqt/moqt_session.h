@@ -77,19 +77,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
               std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
               MoqtSessionCallbacks callbacks = MoqtSessionCallbacks());
   ~MoqtSession() {
-    is_closing_ = true;
-    if (goaway_timeout_alarm_ != nullptr) {
-      goaway_timeout_alarm_->PermanentCancel();
-    }
-    for (const TrackNamespace& track_namespace :
-         incoming_subscribe_namespace_.GetSubscribedNamespaces()) {
-      callbacks_.incoming_subscribe_namespace_callback(track_namespace,
-                                                       std::nullopt, nullptr);
-    }
-    for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
-      callbacks_.incoming_publish_namespace_callback(track_namespace,
-                                                     std::nullopt, nullptr);
-    }
+    CleanUpState();
     std::move(callbacks_.session_deleted_callback)();
   }
 
@@ -185,7 +173,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                                                         interface);
   }
 
-  void Close() { session_->CloseSession(0, "Application closed"); }
+  void Close() {
+    session_->CloseSession(0, "Application closed");
+    CleanUpState();
+  }
 
   // Tells the session that the highest send order for pending streams in a
   // subscription has changed. If |old_send_order| is nullopt, this is the
@@ -359,7 +350,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
    public:
     PublishedSubscription(MoqtSession* session,
                           std::shared_ptr<MoqtTrackPublisher> track_publisher,
-                          const MoqtSubscribe& subscribe,
+                          const MoqtSubscribe& subscribe, uint64_t track_alias,
                           MoqtPublishingMonitorInterface* monitoring_interface);
     // TODO(martinduke): Immediately reset all the streams.
     ~PublishedSubscription();
@@ -371,7 +362,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
-    std::optional<uint64_t> track_alias() const { return track_alias_; }
+    uint64_t track_alias() const { return track_alias_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
     MoqtPriority subscriber_priority() const { return subscriber_priority_; }
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
@@ -390,13 +381,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
-    void ProcessObjectAck(const MoqtObjectAck& message) {
-      if (monitoring_interface_ == nullptr) {
-        return;
-      }
-      monitoring_interface_->OnObjectAckReceived(
-          message.group_id, message.object_id, message.delta_from_deadline);
-    }
+    void ProcessObjectAck(const MoqtObjectAck& message);
 
     // Updates the window and other properties of the subscription in question.
     void Update(Location start, std::optional<uint64_t> end,
@@ -470,7 +455,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
-    std::optional<const uint64_t> track_alias_;
+    const uint64_t track_alias_;
     MoqtFilterType filter_type_;
     bool forward_;
     // If window_ is nullopt, any arriving objects are ignored. This could be
@@ -786,6 +771,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // the error can be propagated downstream, if necessary.
   void OnMalformedTrack(RemoteTrack* track);
 
+  // When the session is closing, clean up state without waiting for the
+  // underlying WebTransport session to be destroyed.
+  void CleanUpState();
+
   bool is_closing_ = false;
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;
@@ -798,6 +787,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   bool sent_goaway_ = false;
   bool received_goaway_ = false;
+
+  MoqtTraceRecorder trace_recorder_;
 
   // Upstream SUBSCRIBE state.
   // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id.
@@ -878,8 +869,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // If true, use a non-standard design where a timer starts for group n when
   // the first object of group n+1 arrives.
   bool alternate_delivery_timeout_ = false;
-
-  MoqtTraceRecorder trace_recorder_;
 
   quiche::QuicheWeakPtrFactory<MoqtSessionInterface> weak_ptr_factory_;
 

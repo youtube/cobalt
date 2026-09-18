@@ -171,9 +171,9 @@ std::vector<std::u16string> GetLabelsForSuggestions(
   entities.insert(entities.end(), other_entities_that_can_fill_section.begin(),
                   other_entities_that_can_fill_section.end());
 
-  std::vector<EntityLabel> labels = GetLabelsForEntities(
-      entities, trigger_field_attributes,
-      /*prioritize_disambiguating_types=*/true, app_locale);
+  std::vector<EntityLabel> labels =
+      GetLabelsForEntities(entities, trigger_field_attributes,
+                           /*only_disambiguating_types=*/true, app_locale);
 
   // Drop the labels for the `other_entities_that_can_fill_section`.
   if (labels.size() > entities_to_suggest.size()) {
@@ -480,9 +480,7 @@ std::vector<Suggestion> CreateAutofillAiFillingSuggestions(
 
 }  // namespace
 
-AutofillAiSuggestionGenerator::AutofillAiSuggestionGenerator(
-    const AutofillClient& client)
-    : client_(client) {}
+AutofillAiSuggestionGenerator::AutofillAiSuggestionGenerator() = default;
 AutofillAiSuggestionGenerator::~AutofillAiSuggestionGenerator() = default;
 
 void AutofillAiSuggestionGenerator::FetchSuggestionData(
@@ -509,11 +507,12 @@ void AutofillAiSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
+    const AutofillClient& client,
     const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::OnceCallback<void(ReturnedSuggestions)> callback) {
   GenerateSuggestions(
-      form, trigger_field, form_structure, trigger_autofill_field,
+      form, trigger_field, form_structure, trigger_autofill_field, client,
       all_suggestion_data,
       [&callback](ReturnedSuggestions returned_suggestions) {
         std::move(callback).Run(std::move(returned_suggestions));
@@ -530,12 +529,6 @@ void AutofillAiSuggestionGenerator::FetchSuggestionData(
         void(std::pair<SuggestionDataSource,
                        std::vector<SuggestionGenerator::SuggestionData>>)>
         callback) {
-  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
-  if (!MayPerformAutofillAiAction(client, AutofillAiAction::kFilling)) {
-    callback({SuggestionDataSource::kAutofillAi, {}});
-    return;
-  }
-
   const EntityDataManager* entity_manager = client.GetEntityDataManager();
   if (!entity_manager || !form_structure || !trigger_autofill_field) {
     callback({SuggestionDataSource::kAutofillAi, {}});
@@ -566,10 +559,11 @@ void AutofillAiSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
+    const AutofillClient& client,
     const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
-  const EntityDataManager* entity_manager = client_->GetEntityDataManager();
+  const EntityDataManager* entity_manager = client.GetEntityDataManager();
   if (!entity_manager || !form_structure || !trigger_autofill_field) {
     callback({FillingProduct::kAutofillAi, {}});
     return;
@@ -594,7 +588,7 @@ void AutofillAiSuggestionGenerator::GenerateSuggestions(
       entity_manager->GetEntityInstances(),
       AttributeTypeAssignment(form_structure->fields(),
                               trigger_autofill_field->section()),
-      client_->GetAppLocale());
+      client.GetAppLocale());
   callback({FillingProduct::kAutofillAi, std::move(suggestions)});
 }
 

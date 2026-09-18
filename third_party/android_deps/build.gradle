@@ -12,9 +12,6 @@ repositories {
 dependencies {
     // Note about the configuration names: they are defined in buildSrc/ChromiumPlugin
 
-    // Needed only by internal targets:
-    compile 'com.android.support:support-annotations:28.0.0'
-
     compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
 
     // buildCompile needed because we add a custom dep of onto this from guava

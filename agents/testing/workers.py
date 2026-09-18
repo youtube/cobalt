@@ -20,9 +20,9 @@ import time
 
 import checkout_helpers
 import constants
+import eval_config
 import promptfoo_installation
 import results
-import eval_config
 
 sys.path.append(str(constants.CHROMIUM_SRC))
 from agents.common import tempfile_ext
@@ -55,12 +55,7 @@ class WorkDir(contextlib.AbstractContextManager):
 
     def __enter__(self) -> 'WorkDir':
         if self.path.exists():
-            if self.force:
-                self._clean()
-            else:
-                raise FileExistsError(
-                    f'Workdir already exists at: {self.path}. Remove it '
-                    'manually or use --force to remove it.')
+            self._clean()
 
         logging.info('Creating new workdir: %s', self.path)
         start_time = time.time()
@@ -118,6 +113,8 @@ class WorkerOptions:
     sandbox: bool
     # An optional path to a gemini-cli binary to use.
     gemini_cli_bin: pathlib.Path | None = None
+    # An optional path to a nodejs binary to use.
+    node_bin: pathlib.Path | None = None
 
 
 class WorkerPool:
@@ -138,8 +135,11 @@ class WorkerPool:
         """
         assert num_workers > 0
         # Create a copy so that options cannot be externally modified.
+        # This is not done for result_options because its result_handlers are
+        # liable to contain callables that use locks under the hood for thread
+        # safety, which causes errors with deepcopy due to them being
+        # un-picklable.
         worker_options = copy.deepcopy(worker_options)
-        result_options = copy.deepcopy(result_options)
 
         self._result_thread = results.ResultThread(
             result_options=result_options)
@@ -252,14 +252,14 @@ def _extract_metrics_from_promptfoo_results(
     if not results_json:
         return {}
 
-    metrics = {
+    extracted_metrics = {
         'token_usage':
         _extract_token_usage_from_promptfoo_results(results_json),
     }
     score = _extract_score_from_promptfoo_results(results_json)
     if score is not None:
-        metrics['score'] = score
-    return metrics
+        extracted_metrics['score'] = score
+    return extracted_metrics
 
 
 def _load_promptfoo_results(results_file: pathlib.Path) -> dict[str, any]:
@@ -472,6 +472,9 @@ class WorkerThread(threading.Thread):
                     '--var',
                     f'gemini_cli_bin={self._worker_options.gemini_cli_bin}'
                 ])
+            if self._worker_options.node_bin:
+                command.extend(
+                    ['--var', f'node_bin={self._worker_options.node_bin}'])
 
             start_time = time.time()
             proc = self._promptfoo.run(command, cwd=workdir.path / 'src')

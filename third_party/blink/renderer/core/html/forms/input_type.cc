@@ -317,10 +317,6 @@ void InputType::SetValueAsDecimal(const Decimal& new_value,
   GetElement().SetValue(Serialize(new_value), event_behavior);
 }
 
-String InputType::ConvertFromVisibleValue(const String& visible_value) const {
-  return SanitizeValue(visible_value);
-}
-
 void InputType::ReadingChecked() const {}
 
 void InputType::WillUpdateCheckedness(bool) {}
@@ -1318,6 +1314,10 @@ void InputType::AddWarningToConsole(const char* message_format,
           mojom::ConsoleMessageLevel::kWarning,
           String::Format(message_format,
                          JSONValue::QuoteString(value).Utf8().c_str())));
+}
+
+bool InputType::SupportsBaseAppearance(Element::BaseAppearanceValue) const {
+  return false;
 }
 
 }  // namespace blink

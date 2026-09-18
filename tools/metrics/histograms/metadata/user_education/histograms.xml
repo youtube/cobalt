@@ -134,6 +134,8 @@ chromium-metrics-reviews@google.com.
       summary="the module for Lens Overlay Full Page Translate"/>
   <variant name="Mobilepasswords"
       summary="the module for getting passwords on mobile"/>
+  <variant name="PdfInk2" summary="the module for PDF Ink Signatures"/>
+  <variant name="PdfSaveToDrive" summary="the module for PDF Save to Drive"/>
   <variant name="PerformanceInterventionUI"
       summary="the module for Performance Intervention"/>
   <variant name="ReadAnythingReadAloud" summary="Read Anything Read Aloud"/>
@@ -283,7 +285,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.MessageShown.TimeInQueue" units="ms"
-    expires_after="2026-02-22">
+    expires_after="2026-04-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>

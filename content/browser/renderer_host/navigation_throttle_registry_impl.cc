@@ -28,12 +28,17 @@
 #include "content/browser/renderer_host/partitioned_popins/partitioned_popins_navigation_throttle.h"
 #include "content/browser/renderer_host/renderer_cancellation_throttle.h"
 #include "content/browser/renderer_host/subframe_history_navigation_throttle.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/webid/navigation_interceptor.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/common/features.h"
 #include "content/public/browser/navigation_handle.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+#include "content/browser/renderer_host/android_spare_renderer_navigation_throttle.h"
+#else
 #include "content/browser/picture_in_picture/document_picture_in_picture_navigation_throttle.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace content {
 
@@ -86,11 +91,17 @@ void NavigationThrottleRegistryImpl::RegisterNavigationThrottles() {
   // navigation altogether.
   BlockedSchemeNavigationThrottle::MaybeCreateAndAdd(*this);
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kAndroidWarmUpSpareRendererWithTimeout) &&
+      features::kAndroidSpareRendererAddNavigationThrottle.Get()) {
+    AndroidSpareRendererNavigationThrottle::CreateAndAdd(*this);
+  }
+#else
   // Prevent cross-document navigations from document picture-in-picture
   // windows.
   DocumentPictureInPictureNavigationThrottle::MaybeCreateAndAdd(*this);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   AncestorThrottle::CreateAndAdd(*this);
 
@@ -141,6 +152,13 @@ void NavigationThrottleRegistryImpl::RegisterNavigationThrottles() {
   // Add a throttle to manage top-frame navigations from a partitioned popin.
   // See https://explainers-by-googlers.github.io/partitioned-popins/
   PartitionedPopinsNavigationThrottle::MaybeCreateAndAdd(*this);
+
+  // Maybe add a throttle to manage navigations from relying parties to FedCM
+  // identity providers.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  content::webid::NavigationInterceptor::MaybeCreateAndAdd(*this);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+
   // DO NOT ADD any throttles after this line.
 
   // Insert all testing NavigationThrottles last.

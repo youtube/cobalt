@@ -406,8 +406,6 @@ rtc_library("video_coding_utility") {
   sources = [
     "utility/bandwidth_quality_scaler.cc",
     "utility/bandwidth_quality_scaler.h",
-    "utility/corruption_detection_settings_generator.cc",
-    "utility/corruption_detection_settings_generator.h",
     "utility/decoded_frames_history.cc",
     "utility/decoded_frames_history.h",
     "utility/frame_dropper.cc",
@@ -453,6 +451,7 @@ rtc_library("video_coding_utility") {
     "../../api/video:video_codec_constants",
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
+    "../../api/video/corruption_detection:corruption_detection_settings_generator",
     "../../api/video/corruption_detection:filter_settings",
     "../../api/video_codecs:video_codecs_api",
     "../../common_video",
@@ -482,6 +481,22 @@ rtc_library("video_coding_utility") {
     "svc:scalability_mode_util",
     "//third_party/abseil-cpp/absl/numeric:bits",
     "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+rtc_library("encoder_speed_controller_impl") {
+  visibility = [ "*" ]
+  sources = [
+    "utility/encoder_speed_controller_impl.cc",
+    "utility/encoder_speed_controller_impl.h",
+  ]
+  deps = [
+    "../../api:array_view",
+    "../../api/units:time_delta",
+    "../../api/units:timestamp",
+    "../../api/video_codecs:video_codecs_api",
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
   ]
 }
 
@@ -611,6 +626,8 @@ rtc_library("webrtc_vp8") {
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
     "../../api/video:video_rtp_headers",
+    "../../api/video/corruption_detection:corruption_detection_settings_generator",
+    "../../api/video_codecs:encoder_speed_controller_factory",
     "../../api/video_codecs:scalability_mode",
     "../../api/video_codecs:video_codecs_api",
     "../../api/video_codecs:vp8_temporal_layers_factory",
@@ -1226,10 +1243,9 @@ if (rtc_include_tests) {
       "rtp_vp8_ref_finder_unittest.cc",
       "rtp_vp9_ref_finder_unittest.cc",
       "utility/bandwidth_quality_scaler_unittest.cc",
-      "utility/corruption_detection_settings_generator_unittest.cc",
       "utility/decoded_frames_history_unittest.cc",
+      "utility/encoder_speed_controller_impl_unittest.cc",
       "utility/frame_dropper_unittest.cc",
-      "utility/frame_sampler_unittest.cc",
       "utility/framerate_controller_deprecated_unittest.cc",
       "utility/ivf_file_reader_unittest.cc",
       "utility/ivf_file_writer_unittest.cc",
@@ -1252,6 +1268,7 @@ if (rtc_include_tests) {
       ":chain_diff_calculator",
       ":codec_globals_headers",
       ":encoded_frame",
+      ":encoder_speed_controller_impl",
       ":frame_dependencies_calculator",
       ":frame_helpers",
       ":frame_sampler",
@@ -1312,6 +1329,7 @@ if (rtc_include_tests) {
       "../../api/video:video_frame",
       "../../api/video:video_frame_type",
       "../../api/video:video_rtp_headers",
+      "../../api/video/corruption_detection:corruption_detection_unittests",
       "../../api/video/corruption_detection:filter_settings",
       "../../api/video/corruption_detection:frame_instrumentation_data",
       "../../api/video_codecs:scalability_mode",

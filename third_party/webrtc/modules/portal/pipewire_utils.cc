@@ -50,4 +50,14 @@ PipeWireThreadLoopLock::~PipeWireThreadLoopLock() {
   pw_thread_loop_unlock(loop_);
 }
 
+RTC_NO_SANITIZE("cfi-icall")
+PipeWireInitializer::PipeWireInitializer() {
+  pw_init(/*argc=*/nullptr, /*argv=*/nullptr);
+}
+
+RTC_NO_SANITIZE("cfi-icall")
+PipeWireInitializer::~PipeWireInitializer() {
+  pw_deinit();
+}
+
 }  // namespace webrtc

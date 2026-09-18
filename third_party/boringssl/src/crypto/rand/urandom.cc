@@ -31,10 +31,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#if defined(OPENSSL_ANDROID)
-#include <sys/system_properties.h>
-#endif
-
 #if !defined(OPENSSL_ANDROID)
 #define OPENSSL_HAS_GETAUXVAL
 #endif
@@ -51,8 +47,6 @@
 #if defined(OPENSSL_HAS_GETAUXVAL)
 #include <sys/auxv.h>
 #endif
-
-#include <openssl/mem.h>
 
 #include "../internal.h"
 #include "getrandom_fillin.h"
@@ -98,30 +92,6 @@ static int urandom_fd;
 // |init_once| was called and zero otherwise.
 static int getrandom_ready;
 
-// extra_getrandom_flags_for_seed contains a value that is ORed into the flags
-// for getrandom() when reading entropy for a seed.
-static int extra_getrandom_flags_for_seed;
-
-// On Android, check a system property to decide whether to set
-// |extra_getrandom_flags_for_seed| otherwise they will default to zero.  If
-// ro.oem_boringcrypto_hwrand is true then |extra_getrandom_flags_for_seed| will
-// be set to GRND_RANDOM, causing all random data to be drawn from the same
-// source as /dev/random.
-static void maybe_set_extra_getrandom_flags(void) {
-#if defined(BORINGSSL_FIPS) && defined(OPENSSL_ANDROID)
-  char value[PROP_VALUE_MAX + 1];
-  int length = __system_property_get("ro.boringcrypto.hwrand", value);
-  if (length < 0 || length > PROP_VALUE_MAX) {
-    return;
-  }
-
-  value[length] = 0;
-  if (OPENSSL_strcasecmp(value, "true") == 0) {
-    extra_getrandom_flags_for_seed = GRND_RANDOM;
-  }
-#endif
-}
-
 #endif  // USE_NR_getrandom
 
 static CRYPTO_once_t rand_once = CRYPTO_ONCE_INIT;
@@ -152,7 +122,6 @@ static void init_once(void) {
 
   if (have_getrandom) {
     urandom_fd = kHaveGetrandom;
-    maybe_set_extra_getrandom_flags();
     return;
   }
 #endif  // USE_NR_getrandom
@@ -226,19 +195,11 @@ static void wait_for_entropy(void) {
 
 // fill_with_entropy writes |len| bytes of entropy into |out|. It returns one
 // on success and zero on error. This function will block until the entropy pool
-// is initialized. If |seed| is one, this function will OR in the value of
-// |*extra_getrandom_flags_for_seed()| when using |getrandom|.
-static int fill_with_entropy(uint8_t *out, size_t len, int seed) {
+// is initialized.
+static int fill_with_entropy(uint8_t *out, size_t len) {
   if (len == 0) {
     return 1;
   }
-
-#if defined(USE_NR_getrandom)
-  int getrandom_flags = 0;
-  if (seed) {
-    getrandom_flags |= extra_getrandom_flags_for_seed;
-  }
-#endif
 
   CRYPTO_init_sysrand();
   // TODO(crbug.com/446280903): After the change to uniformly use OS entropy has
@@ -254,7 +215,7 @@ static int fill_with_entropy(uint8_t *out, size_t len, int seed) {
 
     if (urandom_fd == kHaveGetrandom) {
 #if defined(USE_NR_getrandom)
-      r = boringssl_getrandom(out, len, getrandom_flags);
+      r = boringssl_getrandom(out, len, 0);
 #else  // USE_NR_getrandom
       fprintf(stderr, "urandom fd corrupt.\n");
       abort();
@@ -279,14 +240,7 @@ void CRYPTO_init_sysrand(void) { CRYPTO_once(&rand_once, init_once); }
 
 // CRYPTO_sysrand puts |requested| random bytes into |out|.
 void CRYPTO_sysrand(uint8_t *out, size_t requested) {
-  if (!fill_with_entropy(out, requested, /*seed=*/0)) {
-    perror("entropy fill failed");
-    abort();
-  }
-}
-
-void CRYPTO_sysrand_for_seed(uint8_t *out, size_t requested) {
-  if (!fill_with_entropy(out, requested, /*seed=*/1)) {
+  if (!fill_with_entropy(out, requested)) {
     perror("entropy fill failed");
     abort();
   }

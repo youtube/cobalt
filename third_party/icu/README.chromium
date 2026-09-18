@@ -261,3 +261,8 @@ D. Local Modifications
     patches/unnecessary_virtual_specifier.patch
   - https://issues.chromium.org/issues/403236787
   - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3489.diff
+
+12. Patch incorrect call to front().
+  - patches/uloc.patch
+  - https://g-issues.chromium.org/issues/451657601
+  - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3752.diff

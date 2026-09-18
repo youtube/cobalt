@@ -56,9 +56,6 @@
 #if !defined(GRND_NONBLOCK)
 #define GRND_NONBLOCK 1
 #endif
-#if !defined(GRND_RANDOM)
-#define GRND_RANDOM 2
-#endif
 
 #endif  // OPENSSL_LINUX
 

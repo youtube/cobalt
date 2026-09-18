@@ -38,6 +38,48 @@ import java.util.List;
 @NullMarked
 public abstract class MultiInstanceManager {
     public static final int INVALID_TASK_ID = -1; // Defined in android.app.ActivityTaskManager.
+    public static final String NEW_WINDOW_APP_SOURCE_HISTOGRAM =
+            "Android.MultiWindowMode.NewWindow.AppSource";
+
+    @VisibleForTesting
+    static final String CLOSE_WINDOW_APP_SOURCE_HISTOGRAM =
+            "Android.MultiWindowMode.CloseWindow.AppSource";
+
+    // These values are persisted to logs. Entries should not be renumbered and numeric values
+    // should never be reused.
+    @IntDef({
+        NewWindowAppSource.OTHER,
+        NewWindowAppSource.MENU,
+        NewWindowAppSource.WINDOW_MANAGER,
+        NewWindowAppSource.KEYBOARD_SHORTCUT
+    })
+    public @interface NewWindowAppSource {
+        int OTHER = 0;
+        int MENU = 1;
+        int WINDOW_MANAGER = 2;
+        int KEYBOARD_SHORTCUT = 3;
+
+        // Be sure to also update enums.xml when updating these values.
+        int NUM_ENTRIES = 4;
+    }
+
+    // These values are persisted to logs. Entries should not be renumbered and
+    // numeric values should never be reused.
+    @IntDef({
+        CloseWindowAppSource.WINDOW_MANAGER,
+        CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION,
+        CloseWindowAppSource.NO_TABS_IN_WINDOW
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface CloseWindowAppSource {
+        int OTHER = 0;
+        int WINDOW_MANAGER = 1;
+        int RETENTION_PERIOD_EXPIRATION = 2;
+        int NO_TABS_IN_WINDOW = 3;
+
+        // Update enums.xml when updating these values.
+        int NUM_ENTRIES = 4;
+    }
 
     /** Should be called when multi-instance mode is started. */
     public static void onMultiInstanceModeStarted() {
@@ -52,6 +94,21 @@ public abstract class MultiInstanceManager {
     protected static int sMergedInstanceTaskId;
 
     protected static List<Integer> sTestDisplayIds = new ArrayList<>();
+
+    /** The type of tab/profile the activity supports. */
+    @IntDef({
+        SupportedProfileType.UNSET,
+        SupportedProfileType.REGULAR,
+        SupportedProfileType.OFF_THE_RECORD,
+        SupportedProfileType.MIXED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SupportedProfileType {
+        int UNSET = 0;
+        int REGULAR = 1;
+        int OFF_THE_RECORD = 2;
+        int MIXED = 3;
+    }
 
     /**
      * Called during activity startup to check whether the activity is recreated because the
@@ -121,8 +178,9 @@ public abstract class MultiInstanceManager {
      * existing instance to the new one.
      *
      * @param tabs Tabs that are to be moved to a new Chrome instance.
+     * @param source The new window creation source used for metrics.
      */
-    public void moveTabsToNewWindow(List<Tab> tabs) {
+    public void moveTabsToNewWindow(List<Tab> tabs, @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -131,8 +189,10 @@ public abstract class MultiInstanceManager {
      * existing instance to the new one.
      *
      * @param tabGroupMetadata The object containing the metadata of the tab group.
+     * @param source The new window creation source used for metrics.
      */
-    public void moveTabGroupToNewWindow(TabGroupMetadata tabGroupMetadata) {
+    public void moveTabGroupToNewWindow(
+            TabGroupMetadata tabGroupMetadata, @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -201,8 +261,9 @@ public abstract class MultiInstanceManager {
      * dialog to select which window to move {@param tabs} to.
      *
      * @param tabs The list of tabs to move.
+     * @param source The new window creation source used for metrics.
      */
-    public void moveTabsToOtherWindow(List<Tab> tabs) {
+    public void moveTabsToOtherWindow(List<Tab> tabs, @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -222,8 +283,10 @@ public abstract class MultiInstanceManager {
      * opens a dialog to select which window to move the matching group to.
      *
      * @param tabGroupMetadata The metadata for the group to move.
+     * @param source The new window creation source used for metrics.
      */
-    public void moveTabGroupToOtherWindow(TabGroupMetadata tabGroupMetadata) {
+    public void moveTabGroupToOtherWindow(
+            TabGroupMetadata tabGroupMetadata, @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -250,9 +313,10 @@ public abstract class MultiInstanceManager {
      * @param taskId Task ID of the activity.
      * @param preferNew Boolean indicating a fresh new instance is preferred over the one that will
      *     load previous tab files from disk.
+     * @param profileType The type of tab/profile the activity supports.
      */
     public abstract Pair<Integer, Integer> allocInstanceId(
-            int windowId, int taskId, boolean preferNew);
+            int windowId, int taskId, boolean preferNew, @SupportedProfileType int profileType);
 
     /**
      * Initialize the manager with the allocated instance ID.
@@ -345,15 +409,26 @@ public abstract class MultiInstanceManager {
     public abstract void setTabModelObserverForTesting(
             TabModelSelectorTabModelObserver tabModelObserver);
 
+    // The instance types are defined as bit flags, so they can be or-ed to reflect
+    // more than one value. Or-ed values should be validated at points of access.
     @IntDef({
         PersistedInstanceType.ANY,
         PersistedInstanceType.ACTIVE,
-        PersistedInstanceType.INACTIVE
+        PersistedInstanceType.INACTIVE,
+        PersistedInstanceType.OFF_THE_RECORD
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PersistedInstanceType {
+        // Represents any instance not bound by any specific type.
         int ANY = 0;
+
+        // Represents an active instance that is associated with a live task.
         int ACTIVE = 1;
+
+        // Represents an inactive instance that is not associated with a live task.
         int INACTIVE = 2;
+
+        // Represents an instance for an incognito-only window.
+        int OFF_THE_RECORD = 4;
     }
 }

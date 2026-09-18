@@ -288,8 +288,12 @@ void TCPPort::OnNewConnection(AsyncListenSocket* socket,
       [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
         OnReadPacket(socket, packet);
       });
-  incoming.socket->SignalReadyToSend.connect(this, &TCPPort::OnReadyToSend);
-  incoming.socket->SignalSentPacket.connect(this, &TCPPort::OnSentPacket);
+  incoming.socket->SubscribeReadyToSend(
+      this, [this](AsyncPacketSocket* socket) { OnReadyToSend(socket); });
+  incoming.socket->SubscribeSentPacket(
+      this, [this](AsyncPacketSocket* socket, const SentPacketInfo& info) {
+        OnSentPacket(socket, info);
+      });
 
   RTC_LOG(LS_VERBOSE) << ToString() << ": Accepted connection from "
                       << incoming.addr.ToSensitiveString();
@@ -628,8 +632,12 @@ void TCPConnection::ConnectSocketSignals(AsyncPacketSocket* socket) {
   if (outgoing_) {
     socket->SubscribeConnect(
         this, [this](AsyncPacketSocket* socket) { OnConnect(socket); });
-    socket->SignalSentPacket.connect(this, &TCPConnection::OnSentPacket);
-    socket->SignalReadyToSend.connect(this, &TCPConnection::OnReadyToSend);
+    socket->SubscribeSentPacket(
+        this, [this](AsyncPacketSocket* socket, const SentPacketInfo& info) {
+          OnSentPacket(socket, info);
+        });
+    socket->SubscribeReadyToSend(
+        this, [this](AsyncPacketSocket* socket) { OnReadyToSend(socket); });
   }
 
   // For incoming connections, this re-register ReceivedPacketCallback to the
@@ -649,8 +657,8 @@ void TCPConnection::DisconnectSocketSignals(AsyncPacketSocket* socket) {
   if (outgoing_) {
     // Incoming connections do not register these signals in TCPConnection.
     socket->UnsubscribeConnect(this);
-    socket->SignalReadyToSend.disconnect(this);
-    socket->SignalSentPacket.disconnect(this);
+    socket->UnsubscribeReadyToSend(this);
+    socket->UnsubscribeSentPacket(this);
   }
   socket->DeregisterReceivedPacketCallback();
   socket->UnsubscribeCloseEvent(this);

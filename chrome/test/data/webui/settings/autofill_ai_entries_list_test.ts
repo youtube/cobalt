@@ -74,8 +74,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
     // By default, the user is not opted in.
     entityDataManager.setGetOptInStatusResponse(false);
 
-    entriesList =
-        document.createElement('settings-autofill-ai-entries-list-element');
+    entriesList = document.createElement('settings-autofill-ai-entries-list');
     entriesList.prefs = settingsPrefs.prefs;
     document.body.appendChild(entriesList);
     return flushTasks();
@@ -143,6 +142,39 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
     // disabled, which essentially means the feature is off.
     entriesList.setPrefValue('autofill.profile_enabled', false);
     await flushTasks();
+    assertTrue(addButton.disabled);
+  });
+
+  test('AddButtonEnabledByDefaultWhenAllowEditingPrefUnset', async function() {
+    entriesList.ineligibleUser = false;
+    entriesList.allowEditingPref = null; // Explicitly unset
+    updateOptInStatus(true);
+    await flushTasks();
+
+    const addButton = entriesList.shadowRoot!.querySelector<CrButtonElement>(
+        '#addEntityInstance');
+    assertTrue(!!addButton);
+    assertFalse(addButton.disabled);
+  });
+
+  test('DisableAddButtotBasedOnAllowEditingPrefValue', async function() {
+    entriesList.ineligibleUser = false;
+    entriesList.allowEditingPref = {
+      key: '',
+      type: chrome.settingsPrivate.PrefType.BOOLEAN,
+      value: true,
+    };
+    updateOptInStatus(true);
+    await flushTasks();
+
+    const addButton = entriesList.shadowRoot!.querySelector<CrButtonElement>(
+        '#addEntityInstance');
+    assertTrue(!!addButton);
+    assertFalse(addButton.disabled);
+
+    entriesList.set('allowEditingPref.value', false);
+    await flushTasks();
+
     assertTrue(addButton.disabled);
   });
 });
@@ -231,7 +263,7 @@ suite('AutofillAiEntriesListUiTest', function() {
         chrome.autofillPrivate.EntityInstanceWithLabels[] = [
       {
         guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc181',
-        type: testEntityTypes[1]!,
+        type: testEntityTypes[2]!,
         entityInstanceLabel: 'Toyota',
         entityInstanceSubLabel: 'Car',
         storedInWallet: true,
@@ -275,10 +307,10 @@ suite('AutofillAiEntriesListUiTest', function() {
     CrSettingsPrefs.resetForTesting();
   });
 
-  async function createPage() {
-    entriesList =
-        document.createElement('settings-autofill-ai-entries-list-element');
+  async function createPage(allowedEntityTypes: Set<number>|null = null) {
+    entriesList = document.createElement('settings-autofill-ai-entries-list');
     entriesList.prefs = settingsPrefs.prefs;
+    entriesList.allowedEntityTypes = allowedEntityTypes;
     document.body.appendChild(entriesList);
     await flushTasks();
 
@@ -342,6 +374,21 @@ suite('AutofillAiEntriesListUiTest', function() {
     assertTrue(listItems[2]!.textContent.includes('Toyota'));
     assertTrue(listItems[2]!.textContent.includes('Car'));
     assertFalse(isVisible(listItems[3]!));
+  });
+
+  test('EntityInstancesFilteredWhenFilterProvided', async function() {
+    await createPage(new Set([
+      0,  // Passport
+    ]));
+
+    const listItems =
+        entityInstancesListElement.querySelectorAll<HTMLElement>('.list-item');
+
+    // Only pasport and hidden placeholder entry should remain
+    assertEquals(2, listItems.length);
+    assertTrue(listItems[0]!.textContent.includes('John Doe'));
+    assertTrue(listItems[0]!.textContent.includes('Passport'));
+    assertFalse(isVisible(listItems[1]!));
   });
 
   interface RemoveEntityInstanceParams {
@@ -505,6 +552,33 @@ suite('AutofillAiEntriesListUiTest', function() {
     }
   });
 
+  test('AddButtonShowsSortedEntityInstancesList', async function() {
+    // Exclude passports
+    const allowedEntityTypes =
+        testEntityTypes.filter((type) => type.typeNameAsString !== 'Passport');
+    assertEquals(allowedEntityTypes.length, testEntityTypes.length - 1);
+
+    await createPage(
+        new Set<number>(allowedEntityTypes.map((type) => type.typeName)));
+
+    const addButton = entriesList.shadowRoot!.querySelector<HTMLElement>(
+        '#addEntityInstance');
+    assertTrue(!!addButton);
+    addButton.click();
+    await flushTasks();
+
+    const addSpecificEntityTypeButtons =
+        entriesList.shadowRoot!.querySelectorAll<HTMLElement>(
+            '#addSpecificEntityType, #addEntityInstanceFromWallet');
+    assertEquals(
+        allowedEntityTypes.length, addSpecificEntityTypeButtons.length);
+    for (let i = 0; i < allowedEntityTypes.length; i++) {
+      assertTrue(
+          addSpecificEntityTypeButtons[i]!.textContent.includes(
+              allowedEntityTypes[i]!.typeNameAsString));
+    }
+  });
+
   test('EntityTypesStorableInWalletHaveOpenInNewIcon', async function() {
     await createPage();
     const addButton = entriesList.shadowRoot!.querySelector<HTMLElement>(
@@ -532,14 +606,16 @@ suite('AutofillAiEntriesListUiTest', function() {
             chrome.autofillPrivate.EntityInstanceWithLabels[] = [
           {
             guid: 'a521fc41-d672-4947-ab39-8bc9d49b08d2',
-            type: testEntityTypes[0]!,
+            type: testEntityTypes.find(
+                (type) => type.typeNameAsString === 'Password')!,
             entityInstanceLabel: 'Tom Clark',
             entityInstanceSubLabel: 'Passport',
             storedInWallet: false,
           },
           {
             guid: 'db56681d-9598-4e37-825c-7977f52fbcee',
-            type: testEntityTypes[1]!,
+            type: testEntityTypes.find(
+                (type) => type.typeNameAsString === 'Car')!,
             entityInstanceLabel: 'Honda',
             entityInstanceSubLabel: 'Car',
             storedInWallet: false,
@@ -571,6 +647,58 @@ suite('AutofillAiEntriesListUiTest', function() {
         assertTrue(listItems[2]!.textContent.includes('Tom Clark'));
         assertTrue(listItems[2]!.textContent.includes('Passport'));
         assertFalse(isVisible(listItems[3]!));
+      });
+
+  test(
+      'EntityInstancesChangedListenerUpdatesAndFiltersEntries',
+      async function() {
+        // Only passports
+        const allowedEntityTypes = testEntityTypes.filter(
+            (type) => type.typeNameAsString === 'Passport');
+        assertEquals(allowedEntityTypes.length, 1);
+
+        await createPage(
+            new Set<number>(allowedEntityTypes.map((type) => type.typeName)));
+
+        const newTestEntityInstancesWithLabels:
+            chrome.autofillPrivate.EntityInstanceWithLabels[] = [
+          {
+            guid: 'a521fc41-d672-4947-ab39-8bc9d49b08d2',
+            type: testEntityTypes.find(
+                (type) => type.typeNameAsString === 'Passport')!,
+            entityInstanceLabel: 'Tom Clark',
+            entityInstanceSubLabel: 'Passport',
+            storedInWallet: false,
+          },
+          {
+            guid: 'db56681d-9598-4e37-825c-7977f52fbcee',
+            type: testEntityTypes.find(
+                (type) => type.typeNameAsString === 'Car')!,
+            entityInstanceLabel: 'Honda',
+            entityInstanceSubLabel: 'Car',
+            storedInWallet: false,
+          },
+          {
+            guid: '1a89869f-dff2-461a-8ef8-769e0e1c66f7',
+            type: testEntityInstance.type,
+            entityInstanceLabel: 'Tom Clark',
+            entityInstanceSubLabel: 'Driver\'s license',
+            storedInWallet: false,
+          },
+        ];
+
+        entityDataManager.callEntityInstancesChangedListener(
+            newTestEntityInstancesWithLabels);
+        await flushTasks();
+
+        const listItems =
+            entityInstancesListElement.querySelectorAll<HTMLElement>(
+                '.list-item');
+        // One entity instance and a hidden element should be present.
+        assertEquals(2, listItems.length);
+        assertTrue(listItems[0]!.textContent.includes('Tom Clark'));
+        assertTrue(listItems[0]!.textContent.includes('Passport'));
+        assertFalse(isVisible(listItems[1]!));
       });
 
   test('EntriesDoNotDisappearAfterOptInStatusChange', async function() {
@@ -698,8 +826,7 @@ suite('AutofillAiEntriesListLongLabelsUiTest', function() {
     settingsPrefs.set(
         `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
         ModelExecutionEnterprisePolicyValue.ALLOW);
-    entriesList =
-        document.createElement('settings-autofill-ai-entries-list-element');
+    entriesList = document.createElement('settings-autofill-ai-entries-list');
     entriesList.prefs = settingsPrefs.prefs;
     document.body.appendChild(entriesList);
 

@@ -11,6 +11,7 @@
 #ifndef PC_CODEC_VENDOR_H_
 #define PC_CODEC_VENDOR_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -102,9 +103,6 @@ class CodecVendor {
       const RtpTransceiverDirection& offer,
       const RtpTransceiverDirection& answer) const;
 
-  CodecList all_video_codecs() const;
-  CodecList all_audio_codecs() const;
-
   TypedCodecVendor audio_send_codecs_;
   TypedCodecVendor audio_recv_codecs_;
 
@@ -125,6 +123,13 @@ class CodecLookupHelper {
   // in selection of the correct context.
   virtual CodecVendor* GetCodecVendor() = 0;
 };
+
+// A helper function to merge codecs numbered in one PT numberspace
+// into a list numbered in another PT numberspace. Exposed for testing.
+RTCError MergeCodecsForTesting(const CodecList& reference_codecs,
+                               const std::string& mid,
+                               CodecList& offered_codecs,
+                               PayloadTypeSuggester& pt_suggester);
 
 }  //  namespace webrtc
 

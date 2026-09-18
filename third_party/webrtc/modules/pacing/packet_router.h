@@ -56,10 +56,12 @@ class PacketRouter : public PacingController::PacketSender {
       absl::AnyInvocable<void(const RtpPacketToSend& packet,
                               const PacedPacketInfo& pacing_info)> callback);
 
-  // Ensures that PacketRouter generates transport sequence numbers for all RTP
-  // packets. If `send_rtp_packets_as_ect1` is true, packets will be requested
-  // to be sent as ect1.
-  void ConfigureForRfc8888Feedback(bool send_rtp_packets_as_ect1);
+  // If `set_transport_seq` is true, PacketRouter generates transport sequence
+  // numbers for all RTP packets even if transport sequence number header
+  // extension has not been negotiated. If `send_rtp_packets_as_ect1` is true,
+  // packets will be requested to be sent as ect1.
+  void ConfigureForRtcpFeedback(bool set_transport_seq,
+                                bool send_rtp_packets_as_ect1);
 
   void AddSendRtpModule(RtpRtcpInterface* rtp_module, bool remb_candidate);
   void RemoveSendRtpModule(RtpRtcpInterface* rtp_module);
@@ -121,8 +123,9 @@ class PacketRouter : public PacingController::PacketSender {
       RTC_GUARDED_BY(thread_checker_);
 
   uint64_t transport_seq_ RTC_GUARDED_BY(thread_checker_);
-  bool use_cc_feedback_according_to_rfc8888_ RTC_GUARDED_BY(thread_checker_) =
-      false;
+  // If `set_transport_seq_` is true, a transport sequence number is created per
+  // packet even if it is not sent in a header extension.
+  bool set_transport_seq_ RTC_GUARDED_BY(thread_checker_) = false;
   bool send_rtp_packets_as_ect1_ RTC_GUARDED_BY(thread_checker_) = false;
   absl::AnyInvocable<void(RtpPacketToSend& packet,
                           const PacedPacketInfo& pacing_info)>

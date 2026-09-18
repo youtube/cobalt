@@ -18,6 +18,7 @@
 #include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
 #include "api/video_codecs/video_decoder.h"
@@ -38,6 +39,11 @@ constexpr uint8_t kAv1FrameWith36x20EncodededAnd32x16RenderResolution[] = {
     0x12, 0x00, 0x0a, 0x06, 0x18, 0x15, 0x23, 0x9f, 0x60, 0x10, 0x32, 0x18,
     0x20, 0x03, 0xe0, 0x01, 0xf2, 0xb0, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00,
     0x00, 0xf2, 0x44, 0xd6, 0xa5, 0x3b, 0x7c, 0x8b, 0x7c, 0x8c, 0x6b, 0x9a};
+
+constexpr uint8_t kAv1FrameWithBT709FullRangeColorSpace[] = {
+    0x12, 0x00, 0x0a, 0x0d, 0x00, 0x00, 0x00, 0x02, 0xaf, 0xff, 0x89, 0x5f,
+    0x22, 0x02, 0x02, 0x03, 0x08, 0x32, 0x0e, 0x10, 0x00, 0xac, 0x02, 0x05,
+    0x14, 0x20, 0x81, 0x00, 0x02, 0x00, 0x95, 0xe1, 0xe0};
 
 EncodedImage CreateEncodedImage(ArrayView<const uint8_t> data) {
   EncodedImage image;
@@ -111,6 +117,18 @@ TEST(Dav1dDecoderTest, DoesNotCropToRenderResolutionWhenCropIsDisabled) {
       CreateEncodedImage(kAv1FrameWith36x20EncodededAnd32x16RenderResolution));
   EXPECT_EQ(decoder.decoded_frame().width(), 36);
   EXPECT_EQ(decoder.decoded_frame().height(), 20);
+}
+
+TEST(Dav1dDecoderTest, SetsColorSpaceOnDecodedFrame) {
+  TestAv1Decoder decoder(CreateEnvironment());
+  decoder.Decode(
+      CreateEncodedImage(kAv1FrameWithBT709FullRangeColorSpace));
+  auto color_space = decoder.decoded_frame().color_space();
+  EXPECT_TRUE(color_space.has_value());
+  EXPECT_EQ(color_space->primaries(), ColorSpace::PrimaryID::kBT709);
+  EXPECT_EQ(color_space->transfer(), ColorSpace::TransferID::kBT709);
+  EXPECT_EQ(color_space->matrix(), ColorSpace::MatrixID::kBT709);
+  EXPECT_EQ(color_space->range(), ColorSpace::RangeID::kFull);
 }
 
 }  // namespace

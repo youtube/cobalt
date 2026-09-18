@@ -144,8 +144,13 @@ class PasswordChangeDelegateImplTest : public ChromeRenderViewHostTestHarness {
   PasswordChangeDelegate* delegate() { return delegate_.get(); }
 
   void CreateDelegate() {
+    password_manager::PasswordForm form;
+    form.url = GURL(kChangePasswordURL);
+    form.signon_realm = GURL(kChangePasswordURL).GetWithEmptyPath().spec();
+    form.username_value = kTestEmail;
+    form.password_value = kPassword;
     delegate_ = std::make_unique<PasswordChangeDelegateImpl>(
-        GURL(kChangePasswordURL), kTestEmail, kPassword, tab_interface_.get());
+        GURL(kChangePasswordURL), std::move(form), tab_interface_.get());
     delegate_->SetCustomUIController(
         std::make_unique<MockPasswordChangeUIController>(delegate_.get()));
   }
@@ -201,6 +206,7 @@ TEST_F(PasswordChangeDelegateImplTest, PasswordChangeFormNotFound) {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
 
   delegate()->StartPasswordChangeFlow();
+  delegate()->OnUserSkippedLoginCheck();
 
   EXPECT_EQ(delegate()->GetCurrentState(),
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
@@ -372,4 +378,17 @@ TEST_F(PasswordChangeDelegateImplTest, OnPasswordChangeDeclined) {
   EXPECT_CALL(mock_leak_delegate, OnLeakDialogHidden);
 
   task_environment()->RunUntilIdle();
+}
+
+TEST_F(PasswordChangeDelegateImplTest, LoginPasswordFormIsLogged) {
+  CreateDelegate();
+  delegate()->StartPasswordChangeFlow();
+
+  optimization_guide::proto::PasswordChangeQuality quality =
+      static_cast<PasswordChangeDelegateImpl*>(delegate())
+          ->logs_uploader()
+          ->GetFinalLog()
+          .password_change_submission()
+          .quality();
+  EXPECT_TRUE(quality.has_login_form_data());
 }

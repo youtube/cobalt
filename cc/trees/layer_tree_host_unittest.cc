@@ -64,6 +64,7 @@
 #include "cc/trees/clip_node.h"
 #include "cc/trees/compositor_commit_data.h"
 #include "cc/trees/effect_node.h"
+#include "cc/trees/frame_data.h"
 #include "cc/trees/layer_tree_host_impl.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "cc/trees/paint_holding_reason.h"
@@ -1337,7 +1338,7 @@ class LayerTreeHostTestSurfaceDamage : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     LayerImpl* root_impl = impl->active_tree()->LayerById(root_->id());
     LayerImpl* child_impl = impl->active_tree()->LayerById(child_->id());
@@ -1476,7 +1477,7 @@ class LayerTreeHostTestLayerListSurfaceDamage : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     LayerImpl* child_a_impl = impl->active_tree()->LayerById(child_a_->id());
     LayerImpl* child_b_impl = impl->active_tree()->LayerById(child_b_->id());
@@ -1584,7 +1585,7 @@ class LayerTreeHostTestNoDamageCausesNoInvalidate : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     PostSetNeedsCommitToMainThread();
     return draw_result;
@@ -2360,7 +2361,7 @@ class LayerTreeHostTestTransformTreeDamageIsUpdated : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     if (impl->active_tree()->source_frame_number() == 1) {
       EXPECT_FALSE(
@@ -2535,7 +2536,7 @@ class LayerTreeHostTestSetNeedsRedrawRect : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
 
@@ -2799,7 +2800,7 @@ class LayerTreeHostTestDeviceScaleFactorChange : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     if (host_impl->active_tree()->source_frame_number() == 0) {
       EXPECT_EQ(1.f, host_impl->active_tree()->device_scale_factor());
@@ -2848,7 +2849,7 @@ class LayerTreeHostTestRasterColorSpaceChange : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
 
@@ -2991,7 +2992,7 @@ class LayerTreeHostTestSetNeedsCommitWithForcedRedraw
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
 
@@ -3087,7 +3088,7 @@ class LayerTreeHostTestUndrawnLayersDamageLater : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
 
@@ -3187,7 +3188,7 @@ class LayerTreeHostTestDamageWithScale : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
 
@@ -3620,7 +3621,7 @@ class LayerTreeHostTestDeviceScaleFactorScalesViewportAndLayers
         impl->active_tree()->LayerById(child_layer_->id()));
 
     // Compute all the layer transforms for the frame.
-    LayerTreeHostImpl::FrameData frame_data;
+    FrameData frame_data;
     impl->PrepareToDraw(&frame_data);
     impl->DidDrawAllLayers(frame_data);
 
@@ -5670,7 +5671,7 @@ class LayerTreeHostTestTreeActivationCallback : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     ++num_commits_;
     switch (num_commits_) {
@@ -6657,12 +6658,13 @@ class LayerTreeHostTestGpuRasterizationDisabled : public LayerTreeHostTest {
   }
 
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_FALSE(host_impl->pending_tree()->use_gpu_rasterization());
+    EXPECT_FALSE(
+        host_impl->pending_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_FALSE(host_impl->use_gpu_rasterization());
   }
 
   void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_FALSE(host_impl->active_tree()->use_gpu_rasterization());
+    EXPECT_FALSE(host_impl->active_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_FALSE(host_impl->use_gpu_rasterization());
     EndTest();
   }
@@ -6700,12 +6702,12 @@ class LayerTreeHostTestGpuRasterizationSupportedButDisabled
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_FALSE(host_impl->sync_tree()->use_gpu_rasterization());
+    EXPECT_FALSE(host_impl->sync_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_FALSE(host_impl->use_gpu_rasterization());
   }
 
   void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_FALSE(host_impl->active_tree()->use_gpu_rasterization());
+    EXPECT_FALSE(host_impl->active_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_FALSE(host_impl->use_gpu_rasterization());
     EndTest();
   }
@@ -6741,12 +6743,12 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
   }
 
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_TRUE(host_impl->sync_tree()->use_gpu_rasterization());
+    EXPECT_TRUE(host_impl->sync_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_TRUE(host_impl->use_gpu_rasterization());
   }
 
   void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) override {
-    EXPECT_TRUE(host_impl->active_tree()->use_gpu_rasterization());
+    EXPECT_TRUE(host_impl->active_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_TRUE(host_impl->use_gpu_rasterization());
     EndTest();
   }
@@ -6804,7 +6806,7 @@ class LayerTreeHostTestGpuRasterizationEnabledWithMSAA : public LayerTreeTest {
     EXPECT_GT(host_impl->GetMSAASampleCountForRaster(
                   *raster_source->GetDisplayItemList()),
               0);
-    EXPECT_TRUE(host_impl->pending_tree()->use_gpu_rasterization());
+    EXPECT_TRUE(host_impl->pending_tree()->raster_caps().use_gpu_rasterization);
     EXPECT_TRUE(host_impl->use_gpu_rasterization());
     EndTest();
   }
@@ -7269,7 +7271,7 @@ class LayerTreeHostTestCrispUpAfterPinchEnds : public LayerTreeHostTest {
   void AfterTest() override { host_impl_ = nullptr; }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     host_impl_ = host_impl;
     current_page_scale_factor_ =
@@ -7446,7 +7448,7 @@ class RasterizeWithGpuRasterizationCreatesResources : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_NE(0u, host_impl->resource_pool()->resource_count());
     EndTest();
@@ -7487,7 +7489,7 @@ class GpuRasterizationRasterizesBorderTiles : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(15u, host_impl->resource_pool()->resource_count());
     EndTest();
@@ -7536,7 +7538,7 @@ class LayerTreeHostTestContinuousDrawWhenCreatingVisibleTiles
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     current_page_scale_factor_ =
         host_impl->active_tree()->current_page_scale_factor();
@@ -7933,7 +7935,7 @@ class LayerTreeHostTestPaintedDeviceScaleFactor : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
     EXPECT_EQ(2.0f, host_impl->active_tree()->painted_device_scale_factor());
@@ -7982,7 +7984,7 @@ class LayerTreeHostTestLocalSurfaceId : public LayerTreeHostTest {
   void BeginTest() override {}
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
     EXPECT_EQ(GetCurrentLocalSurfaceId(),
@@ -8007,7 +8009,7 @@ class LayerTreeHostTestLocalSurfaceIdSkipChildNum : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
     // We should not be picking up the newer |child_local_surface_id_|.
@@ -8053,7 +8055,7 @@ class LayerTreeHostTestRequestNewLocalSurfaceId : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
     EXPECT_EQ(GetCurrentLocalSurfaceId(),
@@ -8160,7 +8162,7 @@ class LayerTreeHostTestSubmitFrameMetadata : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     EXPECT_EQ(DrawResult::kSuccess, draw_result);
     EXPECT_EQ(0, num_swaps_);
@@ -8202,7 +8204,7 @@ class LayerTreeHostTestSubmitFrameResources : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame,
+                                   FrameData* frame,
                                    DrawResult draw_result) override {
     frame->render_passes.clear();
 
@@ -8265,7 +8267,7 @@ class LayerTreeHostTestBeginFrameAcks : public LayerTreeHostTest {
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     frame_data_ = frame_data;
     return draw_result;
@@ -8301,7 +8303,7 @@ class LayerTreeHostTestBeginFrameAcks : public LayerTreeHostTest {
   bool compositor_frame_submitted_ = false;
   bool layers_drawn_ = false;
   viz::BeginFrameArgs current_begin_frame_args_;
-  raw_ptr<LayerTreeHostImpl::FrameData> frame_data_;
+  raw_ptr<FrameData> frame_data_;
 };
 
 MULTI_THREAD_BLOCKNOTIFY_TEST_F(LayerTreeHostTestBeginFrameAcks);
@@ -10159,7 +10161,7 @@ class LayerTreeHostTestDelayRecreateTiling
   }
 
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
+                                   FrameData* frame_data,
                                    DrawResult draw_result) override {
     if (host_impl->pending_tree() &&
         host_impl->pending_tree()->source_frame_number() == 2) {

@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_image_data_source.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_metrics_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_metrics_recorder.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_view_controller.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_view_controller_audience.h"
@@ -436,7 +437,6 @@ using segmentation_platform::TipIdentifier;
     _shopCardMediator.shopCardActionDelegate = self;
   }
 
-  if (IsSafetyCheckMagicStackEnabled()) {
     IOSChromeSafetyCheckManager* safetyCheckManager =
         IOSChromeSafetyCheckManagerFactory::GetForProfile(profile);
     _safetyCheckMediator = [[SafetyCheckMagicStackMediator alloc]
@@ -446,7 +446,6 @@ using segmentation_platform::TipIdentifier;
                       profileState:self.browser->GetSceneState().profileState];
     _safetyCheckMediator.presentationAudience = self;
     [moduleMediators addObject:_safetyCheckMediator];
-  }
 
   if (send_tab_to_self::
           IsSendTabIOSPushNotificationsEnabledWithMagicStackCard()) {
@@ -695,13 +694,9 @@ using segmentation_platform::TipIdentifier;
 
 // Presents the Best of Google bundle install page in the App Store.
 - (void)presentAppStoreBundlePage {
-  // TODO(crbug.com/442590744): Fix crash when passing `nil` completion. This
-  // method call is intentionally passed an empty completion block. Passing a
-  // `nil` completion results in a crash from the `AppStoreBundleService` API.
   [_appBundlePromoMediator
       presentAppStoreBundlePage:self.magicStackCollectionView
-                 withCompletion:^{
-                 }];
+                 withCompletion:nil];
 }
 
 - (void)didTapDefaultBrowserPromo {
@@ -860,6 +855,7 @@ using segmentation_platform::TipIdentifier;
     case ContentSuggestionsModuleType::kAppBundlePromo: {
       registry->NotifyCardShown(
           segmentation_platform::kAppBundlePromoEphemeralModule);
+      UMA_HISTOGRAM_BOOLEAN(kAppBundlePromoImpression, true);
       break;
     }
     case ContentSuggestionsModuleType::kDefaultBrowser: {
@@ -1120,8 +1116,6 @@ using segmentation_platform::TipIdentifier;
 // Safety Check item `type`, this method fires a UI command to present the
 // Update Chrome page, Password Checkup, or Safety Check half sheet.
 - (void)didSelectSafetyCheckItem:(SafetyCheckItemType)type {
-  CHECK(IsSafetyCheckMagicStackEnabled());
-
   [self.NTPActionsDelegate safetyCheckOpened];
   Browser* browser = self.browser;
   [_magicStackRankingModel logMagicStackEngagementForType:

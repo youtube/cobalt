@@ -94,9 +94,6 @@ base::ProcessId GetSelfPID() {
 }  // namespace
 
 // static
-constexpr size_t Channel::kMaximumMessageSize;
-
-// static
 std::unique_ptr<Channel> Channel::Create(
     mojo::ScopedMessagePipeHandle handle,
     Mode mode,
@@ -261,10 +258,6 @@ Channel::CreateThreadSafeChannel() {
 
 void Channel::OnPeerPidReceived(int32_t peer_pid) {
   listener_->OnChannelConnected(peer_pid);
-}
-
-void Channel::OnBrokenDataReceived() {
-  listener_->OnBadMessageReceived();
 }
 
 void Channel::AddGenericAssociatedInterface(

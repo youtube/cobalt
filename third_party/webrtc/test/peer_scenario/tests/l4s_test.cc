@@ -787,5 +787,86 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   EXPECT_EQ(packets_received_with_ce_stats, 0);
 }
 
+TEST(L4STest, RtcpSentAsEct1IfRtpWithEct1Received) {
+  PeerScenario s(*test_info_);
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
+  config.field_trials.Set("WebRTC-Bwe-ScreamV2", "Enabled");
+  config.disable_encryption = true;
+  PeerScenarioClient* caller = s.CreateClient(config);
+  PeerScenarioClient* callee = s.CreateClient(config);
+  EmulatedNetworkNode* caller_to_callee_node =
+      s.net()->NodeBuilder().Build().node;
+  EmulatedNetworkNode* callee_to_caller_node =
+      s.net()->NodeBuilder().Build().node;
+  int rtcp_ecn_count = 0;
+  int rtcp_not_ect_count = 0;
+  callee_to_caller_node->router()->SetWatcher(
+      [&](const EmulatedIpPacket& packet) {
+        if (!IsRtcpPacket(packet.data)) {
+          return;
+        }
+        if (packet.ecn == EcnMarking::kEct1 || packet.ecn == EcnMarking::kCe) {
+          rtcp_ecn_count++;
+        } else {
+          rtcp_not_ect_count++;
+        }
+      });
+
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 15;
+  caller->CreateAudio("AUDIO_1", AudioOptions());
+  caller->CreateVideo("VIDEO_1", video_conf);
+
+  s.SimpleConnection(caller, callee, {caller_to_callee_node},
+                     {callee_to_caller_node});
+  s.ProcessMessages(TimeDelta::Seconds(1));
+
+  EXPECT_GT(rtcp_ecn_count, 0);
+  EXPECT_EQ(rtcp_not_ect_count, 0);
+}
+
+TEST(L4STest, RtcpSentAsNotEctIfRtpEcnBleached) {
+  PeerScenario s(*test_info_);
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
+  config.field_trials.Set("WebRTC-Bwe-ScreamV2", "Enabled");
+  config.disable_encryption = true;
+  PeerScenarioClient* caller = s.CreateClient(config);
+  PeerScenarioClient* callee = s.CreateClient(config);
+
+  EmulatedNetworkNode* caller_to_callee_node =
+      s.net()->NodeBuilder().config({.forward_ecn = false}).Build().node;
+  EmulatedNetworkNode* callee_to_caller_node =
+      s.net()->NodeBuilder().Build().node;
+  int rtcp_ecn_count = 0;
+  int rtcp_not_ect_count = 0;
+
+  callee_to_caller_node->router()->SetWatcher(
+      [&](const EmulatedIpPacket& packet) {
+        if (!IsRtcpPacket(packet.data)) {
+          return;
+        }
+        if (packet.ecn == EcnMarking::kEct1 || packet.ecn == EcnMarking::kCe) {
+          rtcp_ecn_count++;
+        } else {
+          rtcp_not_ect_count++;
+        }
+      });
+
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 15;
+  caller->CreateAudio("AUDIO_1", AudioOptions());
+  caller->CreateVideo("VIDEO_1", video_conf);
+  s.SimpleConnection(caller, callee, {caller_to_callee_node},
+                     {callee_to_caller_node});
+  s.ProcessMessages(TimeDelta::Seconds(1));
+
+  EXPECT_EQ(rtcp_ecn_count, 0);
+  EXPECT_GT(rtcp_not_ect_count, 0);
+}
+
 }  // namespace
 }  // namespace webrtc

@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/bits.h"
+#include "src/base/container-utils.h"
 #include "src/base/division-by-constant.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -309,6 +310,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
         return GetFloat64(input);
       case ValueRepresentation::kHoleyFloat64:
         return GetHoleyFloat64(input);
+      case ValueRepresentation::kShiftedInt53:
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
       case ValueRepresentation::kNone:
@@ -592,8 +594,17 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-              {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
+              {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
+
+    case ValueRepresentation::kShiftedInt53:
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagShiftedInt53>({value}));
+      }
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<ShiftedInt53ToNumber>({value}));
 
     case ValueRepresentation::kIntPtr:
       if (!IsEmptyNodeType(node_info->type()) &&
@@ -665,7 +676,50 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       return alternative.set_int32(
           AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({value}));
 
+    case ValueRepresentation::kShiftedInt53:
+      return alternative.set_int32(
+          AddNewNodeNoInputConversion<CheckedShiftedInt53ToInt32>({value}));
+
     case ValueRepresentation::kInt32:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetShiftedInt53(ValueNode* value) {
+  value->MaybeRecordUseReprHint(UseRepresentation::kShiftedInt53);
+
+  ValueRepresentation representation =
+      value->properties().value_representation();
+  if (representation == ValueRepresentation::kShiftedInt53) return value;
+
+  if (std::optional<ShiftedInt53> cst = TryGetShiftedInt53Constant(value)) {
+    return graph()->GetShiftedInt53Constant(cst.value());
+  }
+  // We could emit unconditional eager deopts for other kinds of constant, but
+  // it's not necessary, the appropriate checking conversion nodes will deopt.
+
+  switch (representation) {
+    case ValueRepresentation::kTagged:
+      return AddNewNodeNoInputConversion<CheckedNumberToShiftedInt53>({value});
+    case ValueRepresentation::kUint32:
+      return AddNewNodeNoInputConversion<ChangeUint32ToShiftedInt53>({value});
+    case ValueRepresentation::kFloat64:
+    // The check here will also work for the hole NaN, so we can treat
+    // HoleyFloat64 as Float64.
+    case ValueRepresentation::kHoleyFloat64:
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToShiftedInt53>(
+          {value});
+
+    case ValueRepresentation::kIntPtr:
+      return AddNewNodeNoInputConversion<CheckedIntPtrToShiftedInt53>({value});
+
+    case ValueRepresentation::kInt32:
+      return AddNewNodeNoInputConversion<ChangeInt32ToShiftedInt53>({value});
+
+    case ValueRepresentation::kShiftedInt53:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -713,6 +767,13 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
       }
       return {};
     }
+    case Opcode::kShiftedInt53Constant: {
+      int64_t int64_value = value->Cast<ShiftedInt53Constant>()->ToInt64();
+      if (int64_value >= INT32_MIN && int64_value <= INT32_MAX) {
+        return static_cast<int32_t>(int64_value);
+      }
+      return {};
+    }
     case Opcode::kSmiConstant:
       return value->Cast<SmiConstant>()->value().value();
     case Opcode::kFloat64Constant: {
@@ -726,6 +787,44 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
   }
   if (auto c = TryGetConstantAlternative(value)) {
     return TryGetInt32Constant(*c);
+  }
+  return {};
+}
+
+template <typename BaseT>
+std::optional<ShiftedInt53> MaglevReducer<BaseT>::TryGetShiftedInt53Constant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kConstant: {
+      compiler::ObjectRef object = value->Cast<Constant>()->object();
+      if (!object.IsHeapNumber()) return {};
+      double double_value = object.AsHeapNumber().value();
+      if (double_value == 0 && std::signbit(double_value)) return {};
+      if (!IsSafeInteger(double_value)) return {};
+      return ShiftedInt53(double_value);
+    }
+    case Opcode::kInt32Constant:
+      return ShiftedInt53(value->Cast<Int32Constant>()->value());
+    case Opcode::kUint32Constant: {
+      uint32_t uint32_value = value->Cast<Uint32Constant>()->value();
+      return ShiftedInt53(static_cast<int64_t>(uint32_value));
+    }
+    case Opcode::kShiftedInt53Constant:
+      return value->Cast<ShiftedInt53Constant>()->as_shifted_int53();
+    case Opcode::kSmiConstant:
+      return ShiftedInt53(value->Cast<SmiConstant>()->value().value());
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      if (double_value == 0 && std::signbit(double_value)) return {};
+      if (!IsSafeInteger(double_value)) return {};
+      return ShiftedInt53(double_value);
+    }
+    default:
+      break;
+  }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetShiftedInt53Constant(*c);
   }
   return {};
 }
@@ -853,7 +952,9 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       return alternative.set_truncated_int32_to_number(
           AddNewNodeNoInputConversion<TruncateHoleyFloat64ToInt32>({value}));
     }
-
+    case ValueRepresentation::kShiftedInt53:
+      return alternative.set_truncated_int32_to_number(
+          AddNewNodeNoInputConversion<TruncateShiftedInt53ToInt32>({value}));
     case ValueRepresentation::kIntPtr: {
       // This is not an efficient implementation, but this only happens in
       // corner cases.
@@ -963,6 +1064,9 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
           UNREACHABLE();
       }
     }
+    case ValueRepresentation::kShiftedInt53:
+      return alternative.set_float64(
+          AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value}));
     case ValueRepresentation::kIntPtr:
       return alternative.set_float64(
           AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value}));
@@ -1013,6 +1117,8 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
     }
     case Opcode::kInt32Constant:
       return value->Cast<Int32Constant>()->value();
+    case Opcode::kShiftedInt53Constant:
+      return value->Cast<ShiftedInt53Constant>()->ToInt64();
     case Opcode::kSmiConstant:
       return value->Cast<SmiConstant>()->value().value();
     case Opcode::kFloat64Constant:
@@ -1100,34 +1206,89 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
     new_nodes_at_.clear();
   }
 }
+template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
+    compiler::MapRef map, const MapContainer& maps) {
+  if (!base::contains(maps, map)) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+  if (map.IsHeapNumberMap()) return ReduceResult::Done();
+  if (map.is_stable()) {
+    broker()->dependencies()->DependOnStableMap(map);
+    return ReduceResult::Done();
+  }
+  return {};
+}
 
 template <typename BaseT>
 template <typename MapContainer>
-MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
     ValueNode* object, const MapContainer& maps) {
   // For constants with stable maps that match one of the desired maps, we
   // don't need to emit a map check, and can use the dependency -- we
   // can't do this for unstable maps because the constant could migrate
   // during compilation.
   if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
-    compiler::MapRef constant_map = constant->map(broker());
-    if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-    }
-    // TODO(verwaest): Reduce maps to the constant map.
-    if (constant_map.is_stable()) {
-      broker()->dependencies()->DependOnStableMap(constant_map);
-      return ReduceResult::Done();
-    }
-    return {};
+    return TryFoldCheckConstantMaps(constant->map(broker()), maps);
   }
 
   if (NodeTypeIs(GetType(object), NodeType::kNumber)) {
-    auto heap_number_map =
+    compiler::MapRef heap_number_map =
         MakeRef(broker(), local_isolate()->factory()->heap_number_map());
-    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
-      return ReduceResult::Done();
+    return TryFoldCheckConstantMaps(heap_number_map, maps);
+  }
+
+  // TODO(verwaest): Support other objects with possible known stable maps as
+  // well.
+
+  return {};
+}
+
+template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+    ValueNode* object, ValueNode* object_map, const MapContainer& maps,
+    KnownMapsMerger<MapContainer>& merger) {
+  RETURN_IF_DONE(TryFoldCheckConstantMaps(object, maps));
+  if (object_map) {
+    if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object_map)) {
+      CHECK(constant->IsMap());
+      RETURN_IF_DONE(TryFoldCheckConstantMaps(constant->AsMap(), maps));
     }
+  }
+
+  // Calculates if known maps are a subset of maps, their map intersection and
+  // whether we should emit check with migration.
+  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+
+  if (IsEmptyNodeType(IntersectType(merger.node_type(), GetType(object)))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+
+  // If the known maps are the subset of the maps to check, we are done.
+  if (merger.known_maps_are_subset_of_requested_maps()) {
+    // The node type of known_info can get out of sync with the possible maps.
+    // For instance after merging with an effectively dead branch (i.e., check
+    // contradicting all possible maps).
+    // TODO(olivf) Try to combine node_info and possible maps and ensure that
+    // narrowing the type also clears impossible possible_maps.
+    NodeInfo* known_info = GetOrCreateInfoFor(object);
+    if (!NodeTypeIs(known_info->type(), merger.node_type())) {
+      known_info->UnionType(merger.node_type());
+    }
+#ifdef DEBUG
+    // Double check that, for every possible map, it's one of the maps we'd
+    // want to check.
+    for (compiler::MapRef possible_map :
+         known_node_aspects().TryGetInfoFor(object)->possible_maps()) {
+      DCHECK_NE(std::find(maps.begin(), maps.end(), possible_map), maps.end());
+    }
+#endif
+    return ReduceResult::Done();
+  }
+
+  if (merger.intersect_set().is_empty()) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
@@ -1165,11 +1326,11 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
       return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      return AddNewNodeNoAbort<UncheckedNumberToFloat64>({node});
+      return AddNewNodeNoAbort<UnsafeNumberToFloat64>({node});
 
     } else {
-      return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
-          {node}, conversion_type);
+      return AddNewNodeNoAbort<UnsafeNumberOrOddballToFloat64>({node},
+                                                               conversion_type);
     }
   } else {
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
@@ -1203,6 +1364,10 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
       return ReduceResult::Done();
     }
     // TODO(victorgomes): Emit deopt.
+  }
+  if (input->Is<CheckedSmiUntag>()) {
+    // Smi-ness is already checked!
+    return input;
   }
   return AddNewNode<CheckedSmiSizedInt32>({input});
 }
@@ -1275,7 +1440,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
 
     // Deopt if {left} is not an Int32.
     EnsureInt32(left);
-    if (left->properties().is_conversion()) {
+    if (left->is_conversion()) {
       return left->input(0).node();
     }
     return left;
@@ -1462,6 +1627,27 @@ bool MaglevReducer<BaseT>::TryFoldInt32CompareOperation(Operation op,
     default:
       UNREACHABLE();
   }
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldShiftedInt53Add(
+    ValueNode* left, ValueNode* right) {
+  std::optional<ShiftedInt53> cst_left = TryGetShiftedInt53Constant(left);
+  std::optional<ShiftedInt53> cst_right = TryGetShiftedInt53Constant(right);
+  if (cst_left && cst_right) {
+    int64_t result = cst_left->ToInt64() + cst_right->ToInt64();
+    // TODO(victorgomes): Does this mean we need to deopt?
+    if (!IsSafeInteger(result)) return {};
+    return graph_->GetShiftedInt53Constant(ShiftedInt53(result));
+  }
+  if (!cst_left && !cst_right) return {};
+  if (cst_left && cst_left->value() == 0) {
+    return GetShiftedInt53(right);
+  }
+  if (cst_right && cst_right->value() == 0) {
+    return GetShiftedInt53(left);
+  }
+  return {};
 }
 
 template <typename BaseT>

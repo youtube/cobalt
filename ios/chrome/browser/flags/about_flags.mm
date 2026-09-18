@@ -43,7 +43,6 @@
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/feature_list.h"
 #import "components/feed/feed_feature_list.h"
-#import "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
 #import "components/history/core/browser/features.h"
 #import "components/ntp_tiles/features.h"
 #import "components/ntp_tiles/switches.h"
@@ -90,10 +89,10 @@
 #import "components/webui/flags/flags_ui_switches.h"
 #import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
-#import "ios/chrome/browser/aim/prototype/public/features.h"
 #import "ios/chrome/browser/autofill/model/features.h"
 #import "ios/chrome/browser/badges/model/features.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
+#import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public/features.h"
 #import "ios/chrome/browser/crash_report/model/features.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
@@ -1236,25 +1235,24 @@ const FeatureEntry::FeatureVariation
          std::size(kAutofillVcnEnrollStrikeExpiryTime_30Days), nullptr}};
 // LINT.ThenChange(/chrome/browser/about_flags.cc:AutofillVcnEnrollStrikeExpiryTime)
 
-const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm1[] = {
-    {kWelcomeBackInFirstRunParam, "1"}};
-const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm2[] = {
-    {kWelcomeBackInFirstRunParam, "2"}};
-const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm3[] = {
-    {kWelcomeBackInFirstRunParam, "3"}};
-const FeatureEntry::FeatureParam kWelcomeBackInFirstRunArm4[] = {
-    {kWelcomeBackInFirstRunParam, "4"}};
+const FeatureEntry::FeatureParam kWelcomeBackArm1[] = {
+    {kWelcomeBackParam, "1"}};
+const FeatureEntry::FeatureParam kWelcomeBackArm2[] = {
+    {kWelcomeBackParam, "2"}};
+const FeatureEntry::FeatureParam kWelcomeBackArm3[] = {
+    {kWelcomeBackParam, "3"}};
+const FeatureEntry::FeatureParam kWelcomeBackArm4[] = {
+    {kWelcomeBackParam, "4"}};
 
-const FeatureEntry::FeatureVariation kWelcomeBackInFirstRunVariations[] = {
-    {" - Variant A: Basics with Locked Incognito", kWelcomeBackInFirstRunArm1,
-     std::size(kWelcomeBackInFirstRunArm1), nullptr},
-    {" - Variant B: Basics with Save & Autofill Passwords",
-     kWelcomeBackInFirstRunArm2, std::size(kWelcomeBackInFirstRunArm2),
-     nullptr},
-    {" - Variant C: Productivity & Shopping", kWelcomeBackInFirstRunArm3,
-     std::size(kWelcomeBackInFirstRunArm3), nullptr},
-    {" - Variant D: Sign-in Benefits", kWelcomeBackInFirstRunArm4,
-     std::size(kWelcomeBackInFirstRunArm4), nullptr},
+const FeatureEntry::FeatureVariation kWelcomeBackVariations[] = {
+    {" - Variant A: Basics with Locked Incognito", kWelcomeBackArm1,
+     std::size(kWelcomeBackArm1), nullptr},
+    {" - Variant B: Basics with Save & Autofill Passwords", kWelcomeBackArm2,
+     std::size(kWelcomeBackArm2), nullptr},
+    {" - Variant C: Productivity & Shopping", kWelcomeBackArm3,
+     std::size(kWelcomeBackArm3), nullptr},
+    {" - Variant D: Sign-in Benefits", kWelcomeBackArm4,
+     std::size(kWelcomeBackArm4), nullptr},
 };
 
 const FeatureEntry::FeatureParam kBestOfAppFREArm1[] = {{"variant", "1"}};
@@ -1330,42 +1328,15 @@ const FeatureEntry::FeatureVariation kPageActionMenuVariations[] = {
 const FeatureEntry::FeatureParam kAskGeminiChipUseSnackbarVariation[] = {
     {kAskGeminiChipUseSnackbar, "true"},
 };
+const FeatureEntry::FeatureParam kAskGeminiChipIgnoreCriteriaVariation[] = {
+    {kAskGeminiChipIgnoreCriteria, "true"},
+};
 const FeatureEntry::FeatureVariation kAskGeminiChipVariations[] = {
     {"Use Snackbar", kAskGeminiChipUseSnackbarVariation,
      std::size(kAskGeminiChipUseSnackbarVariation), nullptr},
+    {"Ignore FET and Time Criteria", kAskGeminiChipIgnoreCriteriaVariation,
+     std::size(kAskGeminiChipIgnoreCriteriaVariation), nullptr},
 };
-
-// LINT.IfChange(FingerprintingProtectionFeatureParams)
-const FeatureEntry::FeatureParam
-    kEnableFingerprintingProtectionFilter_WithLogging[] = {
-        {"activation_level", "enabled"},
-        {"enable_console_logging", "true"}};
-const FeatureEntry::FeatureParam
-    kEnableFingerprintingProtectionFilter_DryRunWithLogging[] = {
-        {"activation_level", "dry_run"},
-        {"enable_console_logging", "true"}};
-const FeatureEntry::FeatureVariation
-    kEnableFingerprintingProtectionFilterVariations[] = {
-        {" - with Console Logs",
-         kEnableFingerprintingProtectionFilter_WithLogging,
-         std::size(kEnableFingerprintingProtectionFilter_WithLogging), nullptr},
-        {" - Dry Run with Console Logs",
-         kEnableFingerprintingProtectionFilter_DryRunWithLogging,
-         std::size(kEnableFingerprintingProtectionFilter_DryRunWithLogging),
-         nullptr}};
-
-const FeatureEntry::FeatureParam
-    kEnableFingerprintingProtectionFilterInIncognito_WithLogging[] = {
-        {"activation_level", "enabled"},
-        {"enable_console_logging", "true"}};
-const FeatureEntry::FeatureVariation
-    kEnableFingerprintingProtectionFilterInIncognitoVariations[] = {
-        {" - with Console Logs",
-         kEnableFingerprintingProtectionFilterInIncognito_WithLogging,
-         std::size(
-             kEnableFingerprintingProtectionFilterInIncognito_WithLogging),
-         nullptr}};
-// LINT.ThenChange(//chrome/browser/about_flags.cc:FingerprintingProtectionFeatureParams)
 
 // LINT.IfChange(DataSharingVersioningChoices)
 const FeatureEntry::Choice kDataSharingVersioningStateChoices[] = {
@@ -1389,20 +1360,20 @@ const FeatureEntry::FeatureVariation kOmniboxAimShortcutTypedStateVariations[] =
       std::size(kOmniboxAimShortcutTypedStateEnabledForTypedLength15),
       nullptr}};
 
-const FeatureEntry::FeatureParam kAimPrototypeDevToolsForceFailure[] = {
+const FeatureEntry::FeatureParam kAIMPrototypeDevToolsForceFailure[] = {
     {kForceUploadFailureParam, "true"}};
-const FeatureEntry::FeatureParam kAimPrototypeDevToolsSlowLoad[] = {
+const FeatureEntry::FeatureParam kAIMPrototypeDevToolsSlowLoad[] = {
     {kImageLoadDelayMsParam, "1000"}};
-const FeatureEntry::FeatureParam kAimPrototypeDevToolsSlowUpload[] = {
+const FeatureEntry::FeatureParam kAIMPrototypeDevToolsSlowUpload[] = {
     {kUploadDelayMsParam, "3000"}};
 
-const FeatureEntry::FeatureVariation kAimPrototypeDevToolsVariations[] = {
-    {"Force Failure", kAimPrototypeDevToolsForceFailure,
-     std::size(kAimPrototypeDevToolsForceFailure), nullptr},
-    {"Slow Load (1s)", kAimPrototypeDevToolsSlowLoad,
-     std::size(kAimPrototypeDevToolsSlowLoad), nullptr},
-    {"Slow Upload (3s)", kAimPrototypeDevToolsSlowUpload,
-     std::size(kAimPrototypeDevToolsSlowUpload), nullptr}};
+const FeatureEntry::FeatureVariation kAIMPrototypeDevToolsVariations[] = {
+    {"Force Failure", kAIMPrototypeDevToolsForceFailure,
+     std::size(kAIMPrototypeDevToolsForceFailure), nullptr},
+    {"Slow Load (1s)", kAIMPrototypeDevToolsSlowLoad,
+     std::size(kAIMPrototypeDevToolsSlowLoad), nullptr},
+    {"Slow Upload (3s)", kAIMPrototypeDevToolsSlowUpload,
+     std::size(kAIMPrototypeDevToolsSlowUpload), nullptr}};
 
 const FeatureEntry::FeatureParam kMobilePromoOnDesktopLens[] = {
     {kMobilePromoOnDesktopPromoTypeParam, "1"},
@@ -1558,6 +1529,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kNTPBackgroundCustomizationName,
      flag_descriptions::kNTPBackgroundCustomizationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNTPBackgroundCustomization)},
+    {"ntp-background-color-slider",
+     flag_descriptions::kNTPBackgroundColorSliderName,
+     flag_descriptions::kNTPBackgroundColorSliderDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kNTPBackgroundColorSlider)},
     {"ntp-alpha-background-collections",
      flag_descriptions::kNtpAlphaBackgroundCollectionsName,
      flag_descriptions::kNtpAlphaBackgroundCollectionsDescription,
@@ -1729,11 +1704,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOptimizationGuideDebugLogsDescription,
      flags_ui::kOsIos,
      SINGLE_VALUE_TYPE(optimization_guide::switches::kDebugLoggingEnabled)},
-    {"optimization-guide-push-notifications",
-     flag_descriptions::kOptimizationGuidePushNotificationClientName,
-     flag_descriptions::kOptimizationGuidePushNotificationClientDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(optimization_guide::features::kPushNotifications)},
     {"intents-on-measurements", flag_descriptions::kMeasurementsName,
      flag_descriptions::kMeasurementsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(web::features::kEnableMeasurements)},
@@ -1914,9 +1884,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kSpotlightNeverRetainIndexName,
      flag_descriptions::kSpotlightNeverRetainIndexDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kSpotlightNeverRetainIndex)},
-    {"safety-check-magic-stack", flag_descriptions::kSafetyCheckMagicStackName,
-     flag_descriptions::kSafetyCheckMagicStackDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kSafetyCheckMagicStack)},
     {"tab-resumption", flag_descriptions::kTabResumptionName,
      flag_descriptions::kTabResumptionDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kTabResumption)},
@@ -2497,11 +2464,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
          autofill::features::kAutofillVcnEnrollStrikeExpiryTime,
          kAutofillVcnEnrollStrikeExpiryTimeOptions,
          "AutofillVcnEnrollStrikeExpiryTime")},
-    {"ios-welcome-back-screen", flag_descriptions::kWelcomeBackInFirstRunName,
-     flag_descriptions::kWelcomeBackInFirstRunDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kWelcomeBackInFirstRun,
-                                    kWelcomeBackInFirstRunVariations,
-                                    "WelcomeBackInFirstRun")},
+    {"ios-welcome-back-screen", flag_descriptions::kWelcomeBackName,
+     flag_descriptions::kWelcomeBackDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kWelcomeBack,
+                                    kWelcomeBackVariations,
+                                    "WelcomeBack")},
     {"autofill-enable-flat-rate-card-benefits-from-curinos",
      flag_descriptions::kAutofillEnableFlatRateCardBenefitsFromCurinosName,
      flag_descriptions::
@@ -2539,11 +2506,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kReaderModeReadabilityDistillerDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(dom_distiller::kReaderModeUseReadability)},
-    {"reader-mode-default-browser-promo-enabled",
-     flag_descriptions::kReaderModeDefaultBrowserPromoName,
-     flag_descriptions::kReaderModeDefaultBrowserPromoDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kEnableReaderModeDefaultBrowserPromo)},
     {"best-of-app-fre", flag_descriptions::kBestOfAppFREName,
      flag_descriptions::kBestOfAppFREDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kBestOfAppFRE,
@@ -2557,12 +2519,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kImportPasswordsFromSafariName,
      flag_descriptions::kImportPasswordsFromSafariDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kImportPasswordsFromSafari)},
-    {"enable-password-manager-trusted-vault-widget",
-     flag_descriptions::kIOSEnablePasswordManagerTrustedVaultWidgetName,
-     flag_descriptions::kIOSEnablePasswordManagerTrustedVaultWidgetDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(password_manager::features::
-                            kIOSEnablePasswordManagerTrustedVaultWidget)},
     {"enable-profile-reporting",
      flag_descriptions::kIOSEnableCloudProfileReportingName,
      flag_descriptions::kIOSEnableCloudProfileReportingDescription,
@@ -2649,27 +2605,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kLensTripleCameraEnabledName,
      flag_descriptions::kLensTripleCameraEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kLensTripleCameraEnabled)},
-    // LINT.IfChange(FingerprintingProtectionFeatureEntries)
-    {"enable-fingerprinting-protection-blocklist",
-     flag_descriptions::kEnableFingerprintingProtectionBlocklistName,
-     flag_descriptions::kEnableFingerprintingProtectionBlocklistDescription,
-     flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         fingerprinting_protection_filter::features::
-             kEnableFingerprintingProtectionFilter,
-         kEnableFingerprintingProtectionFilterVariations,
-         "EnableFingerprintingProtectionFilter")},
-    {"enable-fingerprinting-protection-blocklist-incognito",
-     flag_descriptions::kEnableFingerprintingProtectionBlocklistInIncognitoName,
-     flag_descriptions::
-         kEnableFingerprintingProtectionBlocklistInIncognitoDescription,
-     flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         fingerprinting_protection_filter::features::
-             kEnableFingerprintingProtectionFilterInIncognito,
-         kEnableFingerprintingProtectionFilterInIncognitoVariations,
-         "EnableFingerprintingProtectionFilterInIncognito")},
-    // LINT.ThenChange(//chrome/browser/about_flags.cc:FingerprintingProtectionFeatureEntries)
     // LINT.IfChange(DataSharingVersioning)
     {"shared-data-types-kill-switch",
      flag_descriptions::kDataSharingVersioningStatesName,
@@ -2771,8 +2706,8 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_VALUE_TYPE(kLensStrokesAPIEnabled)},
     {"aim-prototype-devtools", flag_descriptions::kAIMPrototypeDevToolsName,
      flag_descriptions::kAIMPrototypeDevToolsDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kAimPrototypeDevTools,
-                                    kAimPrototypeDevToolsVariations,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototypeDevTools,
+                                    kAIMPrototypeDevToolsVariations,
                                     "AimPrototypeDevTools")},
     {"autofill-manual-testing-data",
      flag_descriptions::kAutofillManualTestingDataName,
@@ -2789,9 +2724,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kMobilePromoOnDesktop,
                                     kMobilePromoOnDesktopVariations,
                                     "MobilePromoOnDesktop")},
-    {"remove-autofill-badges", flag_descriptions::kRemoveAutofillBadgesName,
-     flag_descriptions::kRemoveAutofillBadgesDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAutofillBadgeRemoval)},
     {"ios-default-browser-magic-stack",
      flag_descriptions::kDefaultBrowserMagicStackIosName,
      flag_descriptions::kDefaultBrowserMagicStackIosDescription,
@@ -2931,6 +2863,44 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kDisableKeyboardAccessory,
                                     kDisableKeyboardAccessoryVariations,
                                     "DisableKeyboardAccessoryVariations")},
+    {"mdm-errors-for-dasher-accounts-handling",
+     flag_descriptions::kHandleMdmErrorsForDasherAccountsName,
+     flag_descriptions::kHandleMdmErrorsForDasherAccountsDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(switches::kHandleMdmErrorsForDasherAccounts)},
+    {"location-bar-badge-migration",
+     flag_descriptions::kLocationBarBadgeMigrationName,
+     flag_descriptions::kLocationBarBadgeMigrationDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kLocationBarBadgeMigration)},
+    {"webpage-reported-images-sheet",
+     flag_descriptions::kWebPageReportedImagesSheetName,
+     flag_descriptions::kWebPageReportedImagesSheetDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kWebPageReportedImagesSheet)},
+    {"ios-fusebox", flag_descriptions::kIOSFuseboxName,
+     flag_descriptions::kIOSFuseboxDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSFusebox)},
+    {"image-context-menu-gemini-entry-point",
+     flag_descriptions::kImageContextMenuGeminiEntryPointName,
+     flag_descriptions::kImageContextMenuGeminiEntryPointDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kImageContextMenuGeminiEntryPoint)},
+    {"composebox-compact-mode", flag_descriptions::kComposeboxCompactModeName,
+     flag_descriptions::kComposeboxCompactModeDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxCompactMode)},
+    {"composebox-force-top", flag_descriptions::kComposeboxForceTopName,
+     flag_descriptions::kComposeboxForceTopDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxForceTop)},
+    {"composebox-aim-nudge", flag_descriptions::kComposeboxAIMNudgeName,
+     flag_descriptions::kComposeboxAIMNudgeDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxAIMNudge)},
+    {"composebox-ios", flag_descriptions::kComposeboxIOSName,
+     flag_descriptions::kComposeboxIOSDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxIOS)},
+    {"gemini-immediate-overlay", flag_descriptions::kGeminiImmediateOverlayName,
+     flag_descriptions::kGeminiImmediateOverlayDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiImmediateOverlay)},
+    {"gemini-navigation-promo", flag_descriptions::kGeminiNavigationPromoName,
+     flag_descriptions::kGeminiNavigationPromoDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiNavigationPromo)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

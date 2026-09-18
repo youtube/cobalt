@@ -861,7 +861,6 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::Make(
     ShaderErrorHandler* errorHandler = sharedContext->caps()->shaderErrorHandler();
 
     const RenderStep* step = sharedContext->rendererProvider()->lookup(pipelineDesc.renderStepID());
-    const bool useStorageBuffers = sharedContext->caps()->storageBufferSupport();
 
     if (step->staticAttributes().size() + step->appendAttributes().size() >
         sharedContext->vulkanCaps().maxVertexAttributes()) {
@@ -874,12 +873,9 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::Make(
             ShaderInfo::Make(sharedContext->caps(),
                              sharedContext->shaderCodeDictionary(),
                              runtimeDict,
+                             renderPassDesc,
                              step,
                              pipelineDesc.paintParamsID(),
-                             useStorageBuffers,
-                             renderPassDesc.fColorAttachment.fFormat,
-                             renderPassDesc.fWriteSwizzle,
-                             renderPassDesc.fDstReadStrategy,
                              &descContainer);
 
     // Populate an array of sampler ptrs where a sampler's index within the array indicates their
@@ -1009,6 +1005,7 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::Make(
         pipeline = sk_sp<VulkanGraphicsPipeline>(
                 new VulkanGraphicsPipeline(sharedContext,
                                            pipelineInfo,
+                                           shaderInfo->pipelineLabel(),
                                            program->releaseLayout(),
                                            vkPipeline,
                                            shadersPipeline,
@@ -1278,9 +1275,13 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::MakeLoadMSAAPipeline(
 
     SkASSERT(vertexBindingDescriptions.empty());
     SkASSERT(vertexAttributeDescriptions.empty());
+
+    std::string pipelineLabel = "LoadMSAAFromResolve + ";
+    pipelineLabel += renderPassDesc.toString().c_str();
     return sk_sp<VulkanGraphicsPipeline>(
             new VulkanGraphicsPipeline(sharedContext,
                                        /*pipelineInfo=*/{},  // leave empty for an internal pipeline
+                                       pipelineLabel,
                                        loadMSAAProgram.layout(),
                                        vkPipeline,
                                        /*shadersPipeline=*/VK_NULL_HANDLE,
@@ -1296,6 +1297,7 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::MakeLoadMSAAPipeline(
 VulkanGraphicsPipeline::VulkanGraphicsPipeline(
         const VulkanSharedContext* sharedContext,
         const PipelineInfo& pipelineInfo,
+        std::string_view pipelineLabel,
         VkPipelineLayout pipelineLayout,
         VkPipeline pipeline,
         VkPipeline shadersPipeline,
@@ -1306,7 +1308,7 @@ VulkanGraphicsPipeline::VulkanGraphicsPipeline(
         const DepthStencilSettings& depthStencilSettings,
         VertexInputBindingDescriptions&& vertexBindingDescriptions,
         VertexInputAttributeDescriptions&& vertexAttributeDescriptions)
-    : GraphicsPipeline(sharedContext, pipelineInfo)
+    : GraphicsPipeline(sharedContext, pipelineInfo, pipelineLabel)
     , fPipelineLayout(pipelineLayout)
     , fPipeline(pipeline)
     , fShadersPipeline(shadersPipeline)

@@ -11,11 +11,11 @@
 #include "rtc_base/platform_thread.h"
 
 #include <algorithm>
-#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "rtc_base/platform_thread_types.h"
 
@@ -98,15 +98,15 @@ DWORD WINAPI RunPlatformThread(void* param) {
   // contains the result from GetLastError() and to make sure it does not
   // falsely report a Windows error we call SetLastError here.
   ::SetLastError(ERROR_SUCCESS);
-  auto function = static_cast<std::function<void()>*>(param);
-  (*function)();
+  auto function = static_cast<absl::AnyInvocable<void() &&>*>(param);
+  std::move (*function)();
   delete function;
   return 0;
 }
 #else
 void* RunPlatformThread(void* param) {
-  auto function = static_cast<std::function<void()>*>(param);
-  (*function)();
+  auto function = static_cast<absl::AnyInvocable<void() &&>*>(param);
+  std::move (*function)();
   delete function;
   return nullptr;
 }
@@ -135,7 +135,7 @@ PlatformThread::~PlatformThread() {
 }
 
 PlatformThread PlatformThread::SpawnJoinable(
-    std::function<void()> thread_function,
+    absl::AnyInvocable<void() &&> thread_function,
     absl::string_view name,
     ThreadAttributes attributes) {
   return SpawnThread(std::move(thread_function), name, attributes,
@@ -143,7 +143,7 @@ PlatformThread PlatformThread::SpawnJoinable(
 }
 
 PlatformThread PlatformThread::SpawnDetached(
-    std::function<void()> thread_function,
+    absl::AnyInvocable<void() &&> thread_function,
     absl::string_view name,
     ThreadAttributes attributes) {
   return SpawnThread(std::move(thread_function), name, attributes,
@@ -177,7 +177,7 @@ void PlatformThread::Finalize() {
 }
 
 PlatformThread PlatformThread::SpawnThread(
-    std::function<void()> thread_function,
+    absl::AnyInvocable<void() &&> thread_function,
     absl::string_view name,
     ThreadAttributes attributes,
     bool joinable) {
@@ -185,12 +185,12 @@ PlatformThread PlatformThread::SpawnThread(
   RTC_DCHECK(!name.empty());
   // TODO(tommi): Consider lowering the limit to 15 (limit on Linux).
   RTC_DCHECK(name.length() < 64);
-  auto start_thread_function_ptr =
-      new std::function<void()>([thread_function = std::move(thread_function),
-                                 name = std::string(name), attributes] {
+  auto start_thread_function_ptr = new absl::AnyInvocable<void() &&>(
+      [thread_function = std::move(thread_function), name = std::string(name),
+       attributes]() mutable {
         SetCurrentThreadName(name.c_str());
         SetPriority(attributes.priority);
-        thread_function();
+        std::move(thread_function)();
       });
 #if defined(WEBRTC_WIN)
   // See bug 2902 for background on STACK_SIZE_PARAM_IS_A_RESERVATION.

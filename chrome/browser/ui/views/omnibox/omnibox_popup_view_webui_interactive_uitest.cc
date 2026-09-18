@@ -15,9 +15,9 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/omnibox/features.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
@@ -80,8 +80,12 @@ class OmniboxPopupViewWebUITest : public InProcessBrowserTest {
     return browser_view->toolbar()->location_bar();
   }
   OmniboxViewViews* omnibox_view() { return location_bar()->omnibox_view(); }
-  OmniboxController* controller() { return omnibox_view()->controller(); }
-  OmniboxEditModel* edit_model() { return omnibox_view()->model(); }
+  OmniboxController* controller() {
+    return location_bar()->GetOmniboxController();
+  }
+  OmniboxEditModel* edit_model() {
+    return location_bar()->GetOmniboxController()->edit_model();
+  }
   OmniboxPopupViewWebUI* popup_view() {
     return static_cast<OmniboxPopupViewWebUI*>(
         location_bar()->GetOmniboxPopupView());
@@ -180,7 +184,7 @@ void OmniboxPopupViewWebUITest::SetUp() {
 
 void OmniboxPopupViewWebUITest::WaitForHandler() {
   auto* omnibox_popup_webui_content =
-      popup_view()->presenter_->GetOmniboxPopupWebUIContent();
+      popup_view()->presenter_->GetWebUIContent();
 
   auto* web_contents = omnibox_popup_webui_content->GetWebContents();
   content::WaitForLoadStop(web_contents);

@@ -130,6 +130,7 @@ UPLOAD_SKIA_JSON_BUILDERS = frozenset([
     'android-corsola-steelix-8gb-perf',
     'android-nissa-uldren-8gb-perf',
     'linux-builder-perf',
+    'linux-falcon-rak-5070-perf',
     'linux-perf-fyi',
     'linux-perf-rel',
     'linux-processor-perf',
@@ -149,6 +150,7 @@ UPLOAD_SKIA_JSON_BUILDERS = frozenset([
     'win-10_laptop_low_end-processor-perf',
     'win-10_laptop_low_end-perf_HP-Candidate',
     'win-11-processor-perf',  # One of the lightweight processors.
+    'win-falcon-rak-5070-perf',
     'win64-builder-perf',
     'win-arm64-snapdragon-elite-perf',
 ])
@@ -225,8 +227,7 @@ FYI_BUILDERS = {
         'tests': [{
             'isolate':
             'performance_web_engine_test_suite',
-            'extra_args':
-            ['--output-format=histograms'] +
+            'extra_args': ['--output-format=histograms'] +
             bot_platforms.FUCHSIA_EXEC_ARGS['nelson'],
             'type':
             TEST_TYPES.TELEMETRY,
@@ -244,8 +245,7 @@ FYI_BUILDERS = {
         'tests': [{
             'isolate':
             'performance_web_engine_test_suite',
-            'extra_args':
-            ['--output-format=histograms'] +
+            'extra_args': ['--output-format=histograms'] +
             bot_platforms.FUCHSIA_EXEC_ARGS['nelson'],
             'type':
             TEST_TYPES.TELEMETRY,
@@ -263,8 +263,7 @@ FYI_BUILDERS = {
         'tests': [{
             'isolate':
             'performance_web_engine_test_suite',
-            'extra_args':
-            ['--output-format=histograms'] +
+            'extra_args': ['--output-format=histograms'] +
             bot_platforms.FUCHSIA_EXEC_ARGS['sherlock'],
             'type':
             TEST_TYPES.TELEMETRY,
@@ -282,8 +281,7 @@ FYI_BUILDERS = {
         'tests': [{
             'isolate':
             'performance_web_engine_test_suite',
-            'extra_args':
-            ['--output-format=histograms'] +
+            'extra_args': ['--output-format=histograms'] +
             bot_platforms.FUCHSIA_EXEC_ARGS['sherlock'],
             'type':
             TEST_TYPES.TELEMETRY,
@@ -305,6 +303,8 @@ FYI_BUILDERS = {
                 'extra_args': [
                     '--output-format=histograms',
                     '--experimental-tbmv3-metrics',
+                    # crbug.com/457520120#comment3 Disabling the feature on waterfall.
+                    '--extra-browser-args=--disable-features=SessionRestoreInfobar',
                 ],
             },
         ],
@@ -385,14 +385,6 @@ BUILDERS = {
     'android-builder-perf': {
         'tests': [
             {
-                'name': 'resource_sizes_monochrome_minimal_apks',
-                'isolate': 'resource_sizes_monochrome_minimal_apks',
-                'type': TEST_TYPES.GENERIC,
-                'resultdb': {
-                    'has_native_resultdb_integration': True,
-                },
-            },
-            {
                 'name': 'resource_sizes_trichrome_google',
                 'isolate': 'resource_sizes_trichrome_google',
                 'type': TEST_TYPES.GENERIC,
@@ -427,14 +419,6 @@ BUILDERS = {
     },
     'android_arm64-builder-perf': {
         'tests': [
-            {
-                'name': 'resource_sizes_monochrome_minimal_apks',
-                'isolate': 'resource_sizes_monochrome_minimal_apks',
-                'type': TEST_TYPES.GENERIC,
-                'resultdb': {
-                    'has_native_resultdb_integration': True,
-                },
-            },
             {
                 'name': 'resource_sizes_trichrome_google',
                 'isolate': 'resource_sizes_trichrome_google',
@@ -610,7 +594,12 @@ BUILDERS = {
             'device_os_flavor': 'google',
         },
     },
-    'android-desktop-x64-builder-perf': {},
+    'android-desktop-arm-builder-perf': {
+        'additional_compile_targets': ['trichrome_google_64_32_minimal_apks'],
+    },
+    'android-desktop-x64-builder-perf': {
+        'additional_compile_targets': ['trichrome_google_64_minimal_apks'],
+    },
     'android-brya-kano-i5-8gb-perf': {
         'tests': [{
             'isolate':
@@ -968,6 +957,25 @@ BUILDERS = {
             'synthetic_product_name': 'PowerEdge R350 (Dell Inc.)'
         },
     },
+    'linux-falcon-rak-5070-perf': {
+        'tests': [
+            {
+                'isolate': 'performance_test_suite',
+                'extra_args': [
+                    '--assert-gpu-compositing',
+                ],
+            },
+        ],
+        'platform':
+        'linux',
+        'dimension': {
+            'os': 'Ubuntu-24.04.3',
+            'pool':
+            'chrome.tests.perf',
+            'synthetic_product_name':
+            'System Product Name [System Version] (Falcon Northwest)',
+        },
+    },
     'linux-processor-perf': {
         'platform': 'linux',
         'perf_processor': True,
@@ -1128,12 +1136,16 @@ BUILDERS = {
         'platform':
         'mac',
         'dimension': {
-            'cpu': 'arm',
-            'mac_model': 'Mac16,10',
-            'os': 'Mac',
-            'pool': 'chrome.tests.perf',
+            'cpu':
+            'arm',
+            'mac_model':
+            'Mac16,10',
+            'os':
+            'Mac',
+            'pool':
+            'chrome.tests.perf',
             'synthetic_product_name':
-                'Mac16,10_arm64-64-Apple_M4_apple m4_32768_APPLE SSD AP2048Z',
+            'Mac16,10_arm64-64-Apple_M4_apple m4_32768_APPLE SSD AP2048Z',
         },
     },
     'mac-m4-mini-processor-perf': {
@@ -1191,9 +1203,12 @@ BUILDERS = {
     'win-10_laptop_low_end-perf': {
         'tests': [
             {
-                'isolate': 'performance_test_suite',
+                'isolate':
+                'performance_test_suite',
                 'extra_args': [
                     '--assert-gpu-compositing',
+                    # crbug.com/457520120#comment3 Disabling the feature on waterfall.
+                    '--extra-browser-args=--disable-features=SessionRestoreInfobar',
                 ],
             },
         ],
@@ -1219,9 +1234,12 @@ BUILDERS = {
     'win-10_laptop_low_end-perf-pgo': {
         'tests': [
             {
-                'isolate': 'performance_test_suite',
+                'isolate':
+                'performance_test_suite',
                 'extra_args': [
                     '--assert-gpu-compositing',
+                    # crbug.com/457520120#comment3 Disabling the feature on waterfall.
+                    '--extra-browser-args=--disable-features=SessionRestoreInfobar',
                 ],
             },
         ],
@@ -1242,9 +1260,12 @@ BUILDERS = {
     'win-10-perf': {
         'tests': [
             {
-                'isolate': 'performance_test_suite',
+                'isolate':
+                'performance_test_suite',
                 'extra_args': [
                     '--assert-gpu-compositing',
+                    # crbug.com/457520120#comment3 Disabling the feature on waterfall.
+                    '--extra-browser-args=--disable-features=SessionRestoreInfobar',
                 ],
             },
         ],
@@ -1261,9 +1282,12 @@ BUILDERS = {
     'win-10-perf-pgo': {
         'tests': [
             {
-                'isolate': 'performance_test_suite',
+                'isolate':
+                'performance_test_suite',
                 'extra_args': [
                     '--assert-gpu-compositing',
+                    # crbug.com/457520120#comment3 Disabling the feature on waterfall.
+                    '--extra-browser-args=--disable-features=SessionRestoreInfobar',
                 ],
             },
         ],
@@ -1327,6 +1351,27 @@ BUILDERS = {
             'os': 'Windows-11-22631.2428',
             'gpu': '102b:0536-4.5.0.5',
             'synthetic_product_name': 'PowerEdge R350 (Dell Inc.)'
+        },
+    },
+    'win-falcon-rak-5070-perf': {
+        'tests': [
+            {
+                'isolate': 'performance_test_suite',
+                'extra_args': [
+                    '--assert-gpu-compositing',
+                ],
+            },
+        ],
+        'platform':
+        'win',
+        'target_bits':
+        64,
+        'dimension': {
+            'os': 'Windows-11-26100.1742',
+            'pool':
+            'chrome.tests.perf',
+            'synthetic_product_name':
+            'System Product Name [System Version] (Falcon Northwest)'
         },
     },
     'win-11-processor-perf': {
@@ -1507,11 +1552,10 @@ GTEST_BENCHMARKS = {
         'enga@chromium.org', 'Dawn',
         'https://dawn.googlesource.com/dawn/+/HEAD/src/tests/perf_tests/README.md'
     ),
-    # (crbug.com/445456830) temporarily disabled
-    # 'tint_benchmark':
-    # BenchmarkMetadata(
-    #     'jrprice@google.com, dsinclair@chromium.org', 'Dawn>Tint',
-    #     'https://dawn.googlesource.com/dawn/+/HEAD/docs/tint/benchmark.md'),
+    'tint_benchmark':
+    BenchmarkMetadata(
+        'jrprice@google.com, dsinclair@chromium.org', 'Dawn>Tint',
+        'https://dawn.googlesource.com/dawn/+/HEAD/docs/tint/benchmark.md'),
 }
 
 RESOURCE_SIZES_METADATA = BenchmarkMetadata(
@@ -1520,7 +1564,6 @@ RESOURCE_SIZES_METADATA = BenchmarkMetadata(
      'tools/binary_size/README.md#resource_sizes_py'))
 
 OTHER_BENCHMARKS = {
-    'resource_sizes_monochrome_minimal_apks': RESOURCE_SIZES_METADATA,
     'resource_sizes_trichrome_google': RESOURCE_SIZES_METADATA,
     'resource_sizes_system_webview_google_bundle': RESOURCE_SIZES_METADATA,
 }

@@ -1265,6 +1265,7 @@ set(
   pki/general_names.cc
   pki/input.cc
   pki/ip_util.cc
+  pki/merkle_tree.cc
   pki/name_constraints.cc
   pki/ocsp.cc
   pki/parse_certificate.cc
@@ -1315,6 +1316,7 @@ set(
   pki/general_names.h
   pki/input.h
   pki/ip_util.h
+  pki/merkle_tree.h
   pki/mock_signature_verify_cache.h
   pki/name_constraints.h
   pki/nist_pkits_unittest.h
@@ -1354,6 +1356,7 @@ set(
   pki/general_names_unittest.cc
   pki/input_unittest.cc
   pki/ip_util_unittest.cc
+  pki/merkle_tree_unittest.cc
   pki/mock_signature_verify_cache.cc
   pki/name_constraints_unittest.cc
   pki/nist_pkits_unittest.cc

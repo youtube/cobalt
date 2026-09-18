@@ -260,6 +260,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo supportsMultiviewMultisampleRenderToTexture = {
+        "supportsMultiviewMultisampleRenderToTexture",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
     FeatureInfo forceD16TexFilter = {
         "forceD16TexFilter",
         FeatureCategory::VulkanWorkarounds,
@@ -1138,6 +1144,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo forceHostImageCopyForLuma = {
         "forceHostImageCopyForLuma",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo allowHostImageCopyAfterInitialUpload = {
+        "allowHostImageCopyAfterInitialUpload",
         FeatureCategory::VulkanFeatures,
         &members,
     };

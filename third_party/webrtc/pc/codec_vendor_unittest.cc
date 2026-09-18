@@ -10,7 +10,6 @@
 
 #include "pc/codec_vendor.h"
 
-#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -39,9 +38,13 @@
 namespace webrtc {
 namespace {
 
-using testing::Contains;
-using testing::Eq;
-using testing::Field;
+using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::Ne;
+using ::testing::Not;
+using ::testing::Pair;
 
 Codec CreateRedAudioCodec(absl::string_view encoding_id) {
   Codec red = CreateAudioCodec(63, "red", 48000, 2);
@@ -241,6 +244,138 @@ TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerWithCollision) {
           RtpTransceiverDirection::kSendOnly, current_content, remote_codecs,
           pt_suggester);
   EXPECT_THAT(answered_codecs, IsRtcOkAndHolds(remote_codecs));
+}
+
+TEST(CodecVendorMergeTest, BasicTestSetup) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_TRUE(error.ok());
+}
+
+TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  Codec some_codec = CreateVideoCodec(97, "foo");
+  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  ASSERT_THAT(pt_or_error.value(), Eq(97));
+  reference_codecs.push_back(some_codec);
+  merged_codecs.push_back(some_codec);
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(1));
+  EXPECT_THAT(merged_codecs[0].id, Eq(97));
+}
+
+TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  Codec some_codec = CreateVideoCodec(97, "foo");
+  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  ASSERT_THAT(pt_or_error.value(), Eq(97));
+  merged_codecs.push_back(some_codec);
+  // Use the same PT for a reference codec. This should be renumbered.
+  Codec some_other_codec = CreateVideoCodec(97, "bar");
+  reference_codecs.push_back(some_other_codec);
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(2));
+  // Both foo and bar should be present
+  EXPECT_THAT(merged_codecs.codecs(),
+              UnorderedElementsAre(Field("name", &Codec::name, "foo"),
+                                   Field("name", &Codec::name, "bar")));
+  // Foo should retain 97
+  EXPECT_THAT(merged_codecs.codecs(),
+              Contains(AllOf(Field("name", &Codec::name, "foo"),
+                             Field("id", &Codec::id, 97))));
+  // Bar should not have 97
+  EXPECT_THAT(merged_codecs.codecs(),
+              Contains(AllOf(Field("name", &Codec::name, "bar"),
+                             Field("id", &Codec::id, Ne(97)))));
+}
+
+TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  Codec some_codec = CreateAudioCodec(100, "foo", 8000, 1);
+  merged_codecs.push_back(some_codec);
+  // Push into "reference" with a different ID
+  some_codec.id = 102;
+  reference_codecs.push_back(some_codec);
+  Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
+  ASSERT_EQ(red_codec.GetResiliencyType(), Codec::ResiliencyType::kRed);
+  red_codec.params[kCodecParamNotInNameValueFormat] = "102/102";
+  reference_codecs.push_back(red_codec);
+  // Merging should add the RED codec with parameter 100/100
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(2));
+  EXPECT_THAT(
+      merged_codecs.codecs(),
+      Contains(AllOf(Field("name", &Codec::name, "red"),
+                     Field("params", &Codec::params,
+                           ElementsAre(Pair(kCodecParamNotInNameValueFormat,
+                                            "100/100"))))));
+}
+
+TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  Codec some_codec = CreateAudioCodec(100, "foo", 8000, 1);
+  merged_codecs.push_back(some_codec);
+  // Push into "reference" with a different ID
+  some_codec.id = 102;
+  reference_codecs.push_back(some_codec);
+  Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
+  ASSERT_EQ(red_codec.GetResiliencyType(), Codec::ResiliencyType::kRed);
+  red_codec.params[kCodecParamNotInNameValueFormat] = "102/102";
+  reference_codecs.push_back(red_codec);
+  // Push the same red codec into `merged_codecs` with the 100 id
+  red_codec.params[kCodecParamNotInNameValueFormat] = "100/100";
+  merged_codecs.push_back(red_codec);
+  // Merging should note the duplication and not add another codec.
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(2));
+  EXPECT_THAT(
+      merged_codecs.codecs(),
+      Contains(AllOf(Field("name", &Codec::name, "red"),
+                     Field("params", &Codec::params,
+                           ElementsAre(Pair(kCodecParamNotInNameValueFormat,
+                                            "100/100"))))));
+}
+
+TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  Codec some_codec = CreateAudioCodec(100, "foo", 8000, 1);
+  Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
+  // Adds a RED codec that refers to codec 102, which does not exist.
+  red_codec.params[kCodecParamNotInNameValueFormat] = "100/102";
+  reference_codecs.push_back(some_codec);
+  reference_codecs.push_back(red_codec);
+  // The bogus RED codec should result in an error return.
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
+  EXPECT_FALSE(error.ok());
+  EXPECT_THAT(error.type(), Eq(RTCErrorType::INTERNAL_ERROR));
 }
 
 }  // namespace

@@ -119,7 +119,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   # Note clang-cl is odd and sets both CLANG and MSVC. We base our configuration
   # primarily on our normal Clang one.
-  set(C_CXX_FLAGS "-fno-strict-aliasing -Werror -Wformat=2 -Wsign-compare -Wwrite-strings -Wvla -Wshadow -Wtype-limits -Wmissing-field-initializers")
+  set(C_CXX_FLAGS "-Werror -Wformat=2 -Wmissing-field-initializers -Wshadow -Wsign-compare -Wtype-limits -Wvla -Wwrite-strings -fno-strict-aliasing")
   if(MSVC)
     # clang-cl sets different default warnings than clang. It also treats -Wall
     # as -Weverything, to match MSVC. Instead -W3 is the alias for -Wall.
@@ -133,7 +133,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
       set(C_CXX_FLAGS "${C_CXX_FLAGS} -ggdb")
     endif()
 
-    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wall -fvisibility=hidden -fno-common")
+    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wall -fno-common -fvisibility=hidden")
   endif()
 
   if(CLANG)

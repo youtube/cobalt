@@ -137,7 +137,13 @@ bool RtpTransport::SendRtpPacket(CopyOnWriteBuffer* packet,
 bool RtpTransport::SendRtcpPacket(CopyOnWriteBuffer* packet,
                                   const AsyncSocketPacketOptions& options,
                                   int flags) {
-  return SendPacket(true, packet, options, flags);
+  if (received_rtp_with_ecn_) {
+    AsyncSocketPacketOptions options_with_send_as_ect1 = options;
+    options_with_send_as_ect1.ect_1 = true;
+    return SendPacket(true, packet, options_with_send_as_ect1, flags);
+  } else {
+    return SendPacket(true, packet, options, flags);
+  }
 }
 
 bool RtpTransport::SendPacket(bool rtcp,
@@ -188,6 +194,7 @@ void RtpTransport::DemuxPacket(CopyOnWriteBuffer packet,
   RtpPacketReceived parsed_packet(&header_extension_map_);
   parsed_packet.set_arrival_time(arrival_time);
   parsed_packet.set_ecn(ecn);
+  received_rtp_with_ecn_ = (ecn == EcnMarking::kEct1 || ecn == EcnMarking::kCe);
 
   if (!parsed_packet.Parse(std::move(packet))) {
     RTC_LOG(LS_ERROR)

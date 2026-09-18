@@ -59,8 +59,7 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
                                const uint8_t* digest,
                                size_t digest_len,
                                SSLRole ssl_role) override;
-  void SendPacket(ArrayView<const uint8_t> data,
-                  PacketSendParameters params) override;
+  void SendPackets(ArrayView<PacketSendParameters> packets) override;
 
   void Terminate(
       absl::AnyInvocable<void()> terminate_complete_callback) override;
@@ -87,6 +86,8 @@ class RTC_EXPORT DatagramConnectionInternal : public DatagramConnection,
 
  private:
   void DispatchSendOutcome(PacketId id, Observer::SendOutcome::Status status);
+  void SendSinglePacket(const PacketSendParameters& packet,
+                        bool last_packet_in_batch);
 
   enum class State { kActive, kTerminated };
   State current_state_ = State::kActive;

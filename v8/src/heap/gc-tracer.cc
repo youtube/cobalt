@@ -439,12 +439,16 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
 
   heap_->UpdateTotalGCTime(duration);
 
-  if (v8_flags.trace_gc_ignore_scavenger && is_young) return;
-
-  if (v8_flags.trace_gc_nvp) {
+  if (heap_->is_gc_tracing_category_enabled()) {
     PrintNVP();
   } else {
-    Print();
+    if (v8_flags.trace_gc_ignore_scavenger && is_young) return;
+
+    if (v8_flags.trace_gc_nvp) {
+      PrintNVP();
+    } else {
+      Print();
+    }
   }
 
   // Reset here because Print() still uses these scopes.
@@ -1125,6 +1129,8 @@ void GCTracer::PrintNVP() const {
           .p("sweep.new_lo", current_scope(Scope::MC_SWEEP_NEW_LO))
           .p("sweep.old", current_scope(Scope::MC_SWEEP_OLD))
           .p("sweep.start_jobs", current_scope(Scope::MC_SWEEP_START_JOBS))
+          .p("is_incremental",
+             current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR)
           .p("incremental", current_scope(Scope::MC_INCREMENTAL))
           .p("incremental.finalize.external.prologue",
              current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE))
@@ -1166,11 +1172,16 @@ void GCTracer::PrintNVP() const {
   }
 
   std::string json_str = json.object_end().ToString();
-  heap_->isolate()->PrintWithTimestamp("GC: %s\n", json_str.c_str());
 
-  TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
-                       TRACE_EVENT_SCOPE_THREAD, "value",
-                       TRACE_STR_COPY(json_str.c_str()));
+  if (v8_flags.trace_gc_nvp) {
+    heap_->isolate()->PrintWithTimestamp("GC: %s\n", json_str.c_str());
+  }
+
+  if (heap_->is_gc_tracing_category_enabled()) {
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
+                         TRACE_EVENT_SCOPE_THREAD, "value",
+                         TRACE_STR_COPY(json_str.c_str()));
+  }
 }
 
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes,

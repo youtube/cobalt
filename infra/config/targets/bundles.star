@@ -338,6 +338,7 @@ targets.bundle(
 targets.bundle(
     name = "android_ar_gtests",
     targets = [
+        "chrome_public_test_ar_apk",
         # Name is vr_*, but actually has AR tests.
         "vr_android_unittests",
     ],
@@ -482,6 +483,7 @@ targets.bundle(
         "chrome_public_test_apk_desktop",
         "chrome_public_unit_test_apk",
         "extensions_unittests",
+        "media_unittests",
         "unit_tests",
         "video_encode_accelerator_tests",
     ],
@@ -1393,8 +1395,6 @@ targets.bundle(
                     # https://crbug.com/549140
                     idempotent = False,
                 ),
-                # TODO(b/451296512): Remove experimental.
-                experiment_percentage = 100,
             ),
             "has_native_resultdb_integration",
         ],
@@ -1414,8 +1414,6 @@ targets.bundle(
                     # https://crbug.com/549140
                     idempotent = False,
                 ),
-                # TODO(b/451296512): Remove experimental.
-                experiment_percentage = 100,
             ),
             "has_native_resultdb_integration",
         ],
@@ -3409,12 +3407,6 @@ targets.bundle(
     targets = [
         "gpu_webgl_conformance_telemetry_tests",
     ],
-    per_test_modifications = {
-        "webgl_conformance_tests": targets.mixin(
-            # TODO(b/451296512): Remove experimental.
-            experiment_percentage = 100,
-        ),
-    },
 )
 
 # The command buffer perf tests are only run on Windows.

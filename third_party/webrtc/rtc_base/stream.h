@@ -103,21 +103,6 @@ class RTC_EXPORT StreamInterface {
   // Return true if flush is successful.
   virtual bool Flush();
 
-  //
-  // CONVENIENCE METHODS
-  //
-  // These methods are implemented in terms of other methods, for convenience.
-  //
-
-  // WriteAll is a helper function which repeatedly calls Write until all the
-  // data is written, or something other than SR_SUCCESS is returned.  Note that
-  // unlike Write, the argument 'written' is always set, and may be non-zero
-  // on results other than SR_SUCCESS.  The remaining arguments have the
-  // same semantics as Write.
-  StreamResult WriteAll(ArrayView<const uint8_t> data,
-                        size_t& written,
-                        int& error);
-
  protected:
   StreamInterface();
 

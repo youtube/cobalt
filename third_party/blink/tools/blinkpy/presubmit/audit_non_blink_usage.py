@@ -1485,6 +1485,14 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/public/platform/web_video_frame_submitter.h',
+        ],
+        'allowed': [
+            'gpu::SharedImageInterface',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/public/web/web_dom_activity_logger.h',
         ],
         'allowed': [
@@ -2609,6 +2617,8 @@ _CONFIG = [
         'allowed': [
             'blink_mojom::.+',
             'webnn::.+',
+            'gpu::SharedImageInterface',
+            'viz::SinglePlaneFormat',
         ]
     },
     {
@@ -2756,19 +2766,23 @@ _CONFIG = [
     },
     {
         'paths': [
-            'third_party/blink/renderer/modules/canvas/canvas_noise_test_util.h',
-            'third_party/blink/renderer/modules/canvas/canvas_noise_test_util.cc',
-        ],
-        'allowed': [
-            'viz::TestRasterInterface',
-        ]
-    },
-    {
-        'paths': [
             'third_party/blink/renderer/core/inspector/thread_debugger_common_impl.cc',
         ],
         'allowed': [
             'gin::kThreadDebuggerCommonImplTag',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/xml/parser/xml_document_parser_rs.cc',
+            'third_party/blink/renderer/core/xml/parser/xml_document_parser_rs.h',
+            'third_party/blink/renderer/core/xml/parser/xml_ffi_callbacks.h',
+        ],
+        'allowed': [
+            'rust::(Str(ing)?|Box|Vec)',
+            'xml_ffi::.*',
+            'base::(StringViewToRustSlice|RustStrToStringView)',
+            're2::StringPiece',
         ]
     }
 ]

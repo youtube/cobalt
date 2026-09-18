@@ -83,7 +83,7 @@ int AsyncStunTCPSocket::Send(const void* pv,
 
   SentPacketInfo sent_packet(options.packet_id,
                              env_.clock().TimeInMilliseconds());
-  SignalSentPacket(this, sent_packet);
+  NotifySentPacket(this, sent_packet);
 
   // We claim to have sent the whole thing, even if we only sent partial
   return static_cast<int>(cb);

@@ -43,7 +43,6 @@
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
@@ -585,23 +584,12 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // Signals and trampolines. These will eventually be removed and replaced
   // with straight CallbackLists (or simple callbacks).
   // TODO: https://issues.webrtc.org/42222066 - replace and delete.
-
-  // Downstream code uses this signal. We will continue firing it along with the
-  // callback list. The signal can be deleted once all downstream usages are
-  // replaced with the new CallbackList implementation.
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
   sigslot::signal1<Port*> SignalPortComplete;
   // Downstream code uses this signal. We will continue firing it along with the
   // callback list. The signal can be deleted once all downstream usages are
   // replaced with the new CallbackList implementation.
   sigslot::signal1<Port*> SignalPortError;
-
-  SignalTrampoline<PortInterface, &PortInterface::SignalUnknownAddress>
-      unknown_address_trampoline_;
-  SignalTrampoline<PortInterface, &PortInterface::SignalReadPacket>
-      read_packet_trampoline_;
-  SignalTrampoline<PortInterface, &PortInterface::SignalSentPacket>
-      sent_packet_trampoline_;
 
   // Keep as the last member variable.
   WeakPtrFactory<Port> weak_factory_ RTC_GUARDED_BY(thread_);

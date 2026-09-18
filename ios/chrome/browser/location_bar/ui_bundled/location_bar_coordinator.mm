@@ -17,7 +17,6 @@
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/search_engines/util.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/aim/prototype/coordinator/aim_prototype_availability.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_button_factory.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_delegate.h"
@@ -27,6 +26,7 @@
 #import "ios/chrome/browser/badges/ui_bundled/incognito_badge_mediator.h"
 #import "ios/chrome/browser/badges/ui_bundled/incognito_badge_view_controller.h"
 #import "ios/chrome/browser/badges/ui_bundled/incognito_badge_view_visibility_delegate.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_availability.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/coordinator/contextual_panel_entrypoint_coordinator.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/coordinator/contextual_panel_entrypoint_coordinator_delegate.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/ui/contextual_panel_entrypoint_visibility_delegate.h"
@@ -271,7 +271,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       didMoveToParentViewController:self.viewController];
   self.viewController.offsetProvider = [self.omniboxCoordinator offsetProvider];
 
-  if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled()) {
+  if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
+      IsLocationBarBadgeMigrationEnabled()) {
     self.locationBarBadgeCoordinator = [[LocationBarBadgeCoordinator alloc]
         initWithBaseViewController:self.viewController
                            browser:self.browser];
@@ -314,8 +315,10 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     self.readerModeChipCoordinator = [[ReaderModeChipCoordinator alloc]
         initWithBaseViewController:self.viewController
                            browser:self.browser];
-    self.readerModeChipCoordinator.visibilityDelegate =
-        self.viewController.readerModeChipVisibilityDelegate;
+    if (!IsLocationBarBadgeMigrationEnabled()) {
+      self.readerModeChipCoordinator.visibilityDelegate =
+          self.viewController.readerModeChipVisibilityDelegate;
+    }
     [self.readerModeChipCoordinator start];
     [self.viewController setReaderModeChipView:self.readerModeChipCoordinator
                                                    .viewController.view];
@@ -328,8 +331,10 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       [[BadgeViewController alloc] initWithButtonFactory:buttonFactory];
   self.badgeViewController.layoutGuideCenter =
       LayoutGuideCenterForBrowser(self.browser);
-  self.badgeViewController.visibilityDelegate =
-      [self.viewController badgeViewVisibilityDelegate];
+  if (!IsLocationBarBadgeMigrationEnabled()) {
+    self.badgeViewController.visibilityDelegate =
+        [self.viewController badgeViewVisibilityDelegate];
+  }
   [self.viewController addChildViewController:self.badgeViewController];
   [self.viewController setBadgeView:self.badgeViewController.view];
   [self.badgeViewController didMoveToParentViewController:self.viewController];
@@ -355,8 +360,10 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   if (isIncognito) {
     self.incognitoBadgeViewController = [[IncognitoBadgeViewController alloc]
         initWithButtonFactory:buttonFactory];
-    self.incognitoBadgeViewController.visibilityDelegate =
-        [self.viewController incognitoBadgeViewVisibilityDelegate];
+    if (!IsLocationBarBadgeMigrationEnabled()) {
+      self.incognitoBadgeViewController.visibilityDelegate =
+          [self.viewController incognitoBadgeViewVisibilityDelegate];
+    }
 
     [self.viewController
         addChildViewController:self.incognitoBadgeViewController];
@@ -370,19 +377,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     self.incognitoBadgeMediator.consumer = self.incognitoBadgeViewController;
     _incognitoBadgeFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
         fullscreenController, self.incognitoBadgeViewController);
-  }
-
-  if (IsAskGeminiChipEnabled()) {
-    // Overrides visibility delegates to use badge view from
-    // LocationBarBadgeContainer.
-    LocationBarBadgeMediator* locationBarBadgeMediator =
-        self.locationBarBadgeCoordinator.mediator;
-    // TODO(crbug.com/445786272): Properly create mediator delegate.
-    self.readerModeChipCoordinator.visibilityDelegate =
-        locationBarBadgeMediator;
-    self.incognitoBadgeViewController.visibilityDelegate =
-        locationBarBadgeMediator;
-    self.badgeViewController.visibilityDelegate = locationBarBadgeMediator;
   }
 
   self.mediator = [[LocationBarMediator alloc] initWithIsIncognito:isIncognito];
@@ -433,6 +427,12 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
   [_sharingCoordinator stop];
   _sharingCoordinator = nil;
+
+  if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
+      IsLocationBarBadgeMigrationEnabled()) {
+    [self.locationBarBadgeCoordinator stop];
+    self.locationBarBadgeCoordinator = nil;
+  }
 
   [self.contextualPanelEntrypointCoordinator stop];
   self.contextualPanelEntrypointCoordinator.delegate = nil;
@@ -528,8 +528,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   if (immediately) {
     [self loadURLForQuery:sanitizedQuery];
   } else {
-    if (MaybeShowAIMPrototype(self.browser, AIMPrototypeEntrypoint::kOther,
-                              /*query=*/query)) {
+    if (MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kOther,
+                            /*query=*/query)) {
       return;
     }
     [self focusOmnibox];
@@ -575,15 +575,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 #pragma mark - OmniboxCommands
 
 - (void)focusOmniboxFromFakebox {
-  if (MaybeShowAIMPrototype(self.browser,
-                            AIMPrototypeEntrypoint::kNTPFakebox)) {
+  if (MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kNTPFakebox)) {
     return;
   }
   [self.omniboxCoordinator focusOmnibox];
 }
 
 - (void)focusOmnibox {
-  if (MaybeShowAIMPrototype(self.browser, AIMPrototypeEntrypoint::kOther)) {
+  if (MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kOther)) {
     return;
   }
   // When the NTP and fakebox are visible, make the fakebox animates into place
@@ -607,7 +606,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   if (base::FeatureList::IsEnabled(kAIMPrototype)) {
     id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-    [commands hideAIMPrototypeImmediately:NO];
+    [commands hideComposeboxImmediately:NO];
   }
   if (self.isCancellingOmniboxEdit) {
     return;

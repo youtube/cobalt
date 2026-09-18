@@ -93,6 +93,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2018528049276128029">Ang bawat profile ay may sariling impormasyon sa Chrome tulad ng mga bookmark, history, mga password, at iba pa</translation>
 <translation id="2018879682492276940">Hindi na-install. Pakisubukan ulit.</translation>
 <translation id="2024959665595762054">Para magamit at ma-save ang data sa Chrome sa iyong Google Account, i-verify na ikaw ito</translation>
+<translation id="2026377840141807639">Nagbibigay-daan sa iyo ang mga profile sa Chrome na panatilihing magkahiwalay ang personal na pag-browse at trabaho. Magdagdag ng bagong profile ngayon.</translation>
 <translation id="2034233344106846793">Awtomatikong ina-upgrade ng Chrome ang mga hindi secure na koneksyon sa HTTPS kapag posible</translation>
 <translation id="2039417478970545937">Mga Setting.</translation>
 <translation id="2091012649849228750">Para makatanggap ng mga update sa Google Chrome sa hinaharap, kakailanganin mo ng Windows 10 o mas bago. Gumagamit ng Windows 8 ang computer na ito.</translation>
@@ -155,8 +156,8 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2738871930057338499">Hindi makakonekta sa Internet. HTTP 403 Forbidden. Tingnan ang configuration ng iyong proxy.</translation>
 <translation id="2742320827292110288">Babala: Hindi mapipigilan ng Google Chrome ang pagtatala ng mga extension ng iyong history ng pag-browse. Upang i-disable ang extension na ito sa Incognito mode, alisin sa pagkakapili ang opsyong ito.</translation>
 <translation id="2753623023919742414">I-click para maghanap</translation>
+<translation id="2757826245013442432">{COUNT,plural, =0{Nire-require ng Advanced na Proteksyon na ilunsad mo ulit ang Chrome para ma-apply ang isang update}=1{Nire-require ng Advanced na Proteksyon na ilunsad mo ulit ang Chrome para ma-apply ang isang update. Hindi magbubukas ulit ang iyong Incognito window.}one{Nire-require ng Advanced na Proteksyon na ilunsad mo ulit ang Chrome para ma-apply ang isang update. Hindi magbubukas ulit ang iyong # Incognito window.}other{Nire-require ng Advanced na Proteksyon na ilunsad mo ulit ang Chrome para ma-apply ang isang update. Hindi magbubukas ulit ang iyong # na Incognito window.}}</translation>
 <translation id="2765403129283291972">Kailangan ng Chrome ng pahintulot na i-access ang iyong mikropono para sa site na ito</translation>
-<translation id="2770231113462710648">Baguhin ang default na browser sa:</translation>
 <translation id="2775140325783767197">Hindi masuri ng Chrome ang iyong mga password. Subukang tingnan ang iyong koneksyon sa internet.</translation>
 <translation id="2797864378188255696">Kapag nagsa-sign in sa mga serbisyo ng Google tulad ng Gmail o YouTube gamit ang <ph name="USER_EMAIL" />, puwede kang awtomatikong mag-sign in sa Chrome gamit ang parehong account</translation>
 <translation id="2799162042226656283">Ang Iyong Chrome</translation>
@@ -269,6 +270,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="3968962723676998462">Ilagay ang iyong passphrase para magamit at ma-save ang data sa Chrome sa account mo, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="3973161977468201858">Gustong i-delete ng Google Chrome ang iyong data sa Google Password Manager. I-type ang iyong password sa Windows para payagan ito.</translation>
 <translation id="400161754580828648">Para i-share ang iyong screen, payagan ang pag-record ng screen para sa Chrome sa System Settings.</translation>
+<translation id="4012899077942246412">Habang naka-sign in ka, magagamit mo ang iyong mga password at higit pa mula sa Google Account mo sa Chrome. Para baguhin ito, pumunta sa “Iyong account sa Chrome.”</translation>
 <translation id="4022972681110646219">Isalin ang screen</translation>
 <translation id="4023601594785368013">Orihinal na wika: <ph name="LANGUAGE" /></translation>
 <translation id="4035053306113201399">Kailangang ma-restart ang ChromeOS para mailapat ang update.</translation>
@@ -367,6 +369,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 Maaaring hindi available ang ilang tampok. Mangyaring tumukoy ng ibang direktoryo ng profile o gumamit ng mas bagong bersyon ng Chrome.</translation>
 <translation id="5174969993834422967">Kadalasan mong bina-block ang mga notification. Para hayaan ang site na itong abisuhan ka, i-click ang icon ng notification sa kanang sulok ng iyong bar ng lokasyon.</translation>
 <translation id="5174983315706567306">Hindi sapat ang disk space.</translation>
+<translation id="5190467473654176081">I-customize ang Chrome para bigyan ito ng bagong hitsura</translation>
 <translation id="5201744974236816379">Update sa Chrome</translation>
 <translation id="521447420733633466">Kung magpapahiram ka ng device, puwedeng mag-browse nang hiwalay ang mga kaibigan at kapamilya, at puwede nilang i-set up ang Chrome sa paraang gusto nila</translation>
 <translation id="5234764350956374838">Huwag pansinin</translation>
@@ -390,6 +393,7 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="5510398294750420479">I-download ang Chrome sa iyong telepono para magkaroon ng karagdagang layer ng proteksyon kapag on the go ka</translation>
 <translation id="5524890928877629608">kaliwang sulok sa itaas ng lugar para sa paghahanap: kaliwa <ph name="LEFT" />%, itaas <ph name="TOP" />%</translation>
 <translation id="5530733413481476019">Pabilisin ang Chrome</translation>
+<translation id="5550137307985173298">I-click ang button na I-customize ang Chrome sa Page na Bagong Tab para bigyan ang Chrome ng bagong hitsura</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Nagkaroon ng error sa startup: patakbuhin ang installer bilang karaniwang user, hindi bilang administrator.</translation>
 <translation id="5596627076506792578">Higit pang opsyon</translation>
@@ -418,6 +422,7 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="5736850870166430177">Kung susubukan ng site na nakawin ang iyong password, o kapag nag-download ka ng mapaminsalang file, posible ring magpadala ang Chrome sa Ligtas na Pag-browse ng mga URL, kabilang ang ilang content ng page</translation>
 <translation id="5756509061973259733">Mayroon nang profile sa Chrome na gumagamit ng account na ito sa device na ito</translation>
 <translation id="5759947850379142561">Pumili ng anumang text o larawang hahanapin gamit ang Google Lens o pindutin ang escape para lumabas sa Google Lens</translation>
+<translation id="5762867845020858790">Magdagdag ng bagong profile sa Chrome para panatilihing magkakahiwalay ang mga bookmark, password, at setting.</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> - Google Chrome Canary</translation>
 <translation id="5804318322022881572">Hindi mailunsad ang Chrome. Subukang muli.</translation>
 <translation id="5809516625706423866">Hindi makakonekta sa Internet. HTTP 401 Unauthorized. Tingnan ang configuration ng iyong proxy.</translation>
@@ -445,6 +450,7 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="6025087594896450715">Magre-restart ang Google Chrome sa <ph name="REMAINING_TIME" /></translation>
 <translation id="6040143037577758943">Isara</translation>
 <translation id="604424701295382420">Na-pin na! Maa-access mo ulit ang Google Lens mula sa bagong button sa toolbar</translation>
+<translation id="6046028983725193307">Para i-share ang audio ng system, buksan ang Mga Setting ng System at payagan ang 'Pag-record Lang ng Audio ng System' para sa Chrome. Pagkatapos, kakailanganin mong i-restart ang Chrome.</translation>
 <translation id="6069027071882229820">Kopyahin bilang larawan</translation>
 <translation id="6070348360322141662">Para sa karagdagang seguridad, ie-encrypt ng Google Chrome ang iyong data</translation>
 <translation id="6075300983329039771">Nire-require ka ng iyong organisasyong <ph name="MANAGER" /> na mag-sign in sa Chrome</translation>
@@ -518,13 +524,13 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="6800285125190089494">Mas mabilis na makapag-sign in sa mga site gamit ang mga na-save na password para sa Chrome sa iOS</translation>
 <translation id="6831043979455480757">Isalin</translation>
 <translation id="683440813066116847">Inbound na panuntunan para sa Google Chrome Canary upang payagan ang trapiko ng mDNS.</translation>
+<translation id="6841242485723266823">Tinutulungan ka ng mga profile sa Chrome na paghiwa-hiwalayin ang iba't ibang bahagi ng iyong buhay. Magdagdag ng bagong profile ngayon.</translation>
 <translation id="684888714667046800">Hindi makakonekta sa Internet. Kung gumagamit ka ng firewall, tiyaking nasa allowlist ang <ph name="PRODUCT_EXE_NAME" />.</translation>
 <translation id="6877155553248388166">kanang sulok sa ibaba ng lugar para sa paghahanap: kanan <ph name="RIGHT" />%, ibaba <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Ina-update ang Chrome</translation>
 <translation id="6885412569789873916">Mga Chrome Beta App</translation>
 <translation id="6893363893008038481">Alisin ang Account sa Chrome</translation>
 <translation id="6896758677409633944">Copy</translation>
-<translation id="6927941417289800361">Habang naka-sign in ka, magagamit mo ang iyong mga password at higit pa mula sa Google Account mo sa Chrome. Puwede mo itong baguhin anumang oras sa mga setting.</translation>
 <translation id="6930294499209825">Pinapanatiling up to date ang iyong software ng Google. Kung na-disable o inihinto ang serbisyong ito, hindi mapapanatiling up to date ang software mo ng Google, ibig sabihin, hindi maaayos ang mga kahinaan sa seguridad na posibleng mangyari at puwedeng hindi gumana ang mga feature. Kusang nag-a-uninstall ang serbisyong ito kapag walang software ng Google na gumagamit dito.</translation>
 <translation id="6933858244219479645">ChromeOS System</translation>
 <translation id="6938166777909186039">Para makatanggap ng mga update sa Google Chrome sa hinaharap, mangangailangan ka ng Windows 10 o mas bago. Ang computer na ito ay gumagamit ng Windows 8.1.</translation>
@@ -649,6 +655,7 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="8255190535488645436">Ginagamit ng Google Chrome ang iyong camera at mikropono.</translation>
 <translation id="8267953129876836456">Nakakita ang Chrome ng ilang rekomendasyon sa kaligtasan para sa pagsusuri mo</translation>
 <translation id="8286862437124483331">Sinusubukan ng Google Chrome na ipakita ang mga password. I-type ang iyong password sa Windows upang payagan ito.</translation>
+<translation id="8289399803055125418">Gamitin ang iyong <ph name="BEGIN_LINK" />sariling passphrase<ph name="END_LINK" /> para i-encrypt ang lahat ng data sa Chrome sa Google Account mo. Hindi ie-encrypt ng iyong passphrase ang mga address at anumang data na naka-save sa Google Wallet. Hindi masi-sync ang history ng pag-browse mula sa Chrome.</translation>
 <translation id="829923460755755423">Magdagdag ng shortcut papuntang Google Password Manager</translation>
 <translation id="8313851650939857356">Nagkaroon ng error sa startup: <ph name="STARTUP_ERROR" />.</translation>
 <translation id="8321888067342493336">I-save bilang larawan</translation>
@@ -675,13 +682,13 @@ Hindi magawang bawiin ng Google Chrome ang iyong mga setting.</translation>
 <translation id="8533056045953418157">Itakda ang Google Chrome bilang iyong default na viewer ng PDF</translation>
 <translation id="8555465886620020932">Error sa serbisyo: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">Maghanap sa listahan ng wika</translation>
-<translation id="8575047640889685742">Gamitin ang iyong <ph name="BEGIN_LINK" />sariling passphrase<ph name="END_LINK" /> para i-encrypt ang lahat ng data sa Chrome sa Google Account mo. Hindi mae-encrypt ang mga paraan ng pagbabayad at address mula sa Google Pay. Hindi masi-sync ang history ng pag-browse mula sa Chrome.</translation>
 <translation id="8601359445272098721">Bago! Puwede kang magsalin ng text at mga larawan sa iyong screen sa pamamagitan ng pagpili sa button na "isalin ang screen"</translation>
 <translation id="8614913330719544658">Hindi gumagana ang Google Chrome. Ilunsad muli ngayon?</translation>
 <translation id="861702415419836452">Kailangan ng Chrome ng pahintulot na i-access ang iyong camera para gumawa ng 3D na mapa ng kapaligiran mo</translation>
 <translation id="8625237574518804553">{0,plural, =1{Muling ilulunsad ang Chrome sa loob ng 1 minuto}one{Muling ilulunsad ang Chrome sa loob ng # minuto}other{Muling ilulunsad ang Chrome sa loob ng # na minuto}}</translation>
 <translation id="8637932705841171563">Para i-share ang iyong window, payagan ang pag-record ng screen para sa Chrome sa System Settings</translation>
 <translation id="8641606876632989680">Aabisuhan ka ng Chrome kapag nag-sign in ka gamit ang nakompromisong password</translation>
+<translation id="8647930742055103497">Panatilihin ang lahat sa Chrome</translation>
 <translation id="8656634243791296665">Buksan ang Gemini sa Chrome Dev</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8677922833187616101">Palaging Ipakita ang Shortcut ng Google AI Mode</translation>

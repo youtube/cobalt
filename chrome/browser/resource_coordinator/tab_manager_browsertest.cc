@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/memory_pressure/fake_memory_pressure_monitor.h"
@@ -103,10 +104,8 @@ class ExpectStateTransitionObserver : public LifecycleUnitObserver {
 
  private:
   // LifecycleUnitObserver:
-  void OnLifecycleUnitStateChanged(
-      LifecycleUnit* lifecycle_unit,
-      LifecycleUnitState last_state,
-      LifecycleUnitStateChangeReason reason) override {
+  void OnLifecycleUnitStateChanged(LifecycleUnit* lifecycle_unit,
+                                   LifecycleUnitState last_state) override {
     EXPECT_EQ(lifecycle_unit, lifecycle_unit_);
     if (lifecycle_unit_->GetState() == expected_state_) {
       run_loop_.Quit();
@@ -134,10 +133,8 @@ class DiscardWaiter : public LifecycleUnitObserver {
   void Wait() { run_loop_.Run(); }
 
  private:
-  void OnLifecycleUnitStateChanged(
-      LifecycleUnit* lifecycle_unit,
-      LifecycleUnitState last_state,
-      LifecycleUnitStateChangeReason reason) override {
+  void OnLifecycleUnitStateChanged(LifecycleUnit* lifecycle_unit,
+                                   LifecycleUnitState last_state) override {
     if (lifecycle_unit->GetState() == mojom::LifecycleUnitState::DISCARDED) {
       run_loop_.Quit();
     }
@@ -448,32 +445,6 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest, InvalidOrEmptyURL) {
       tab_manager()->DiscardTabImpl(LifecycleUnitDiscardReason::EXTERNAL));
 }
 
-// Makes sure that the TabDiscardDoneCB callback is called after
-// DiscardTabImpl() returns.
-IN_PROC_BROWSER_TEST_P(TabManagerTest, TabDiscardDoneCallback) {
-  // Open two tabs.
-  NavigateToURLWithDisposition(browser(), GURL(chrome::kChromeUIAboutURL),
-                               WindowOpenDisposition::CURRENT_TAB,
-                               ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-
-  NavigateToURLWithDisposition(browser(), GURL(chrome::kChromeUICreditsURL),
-                               WindowOpenDisposition::NEW_BACKGROUND_TAB,
-                               ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-
-  ASSERT_EQ(2, tsm()->count());
-
-  struct CallbackState {
-    bool called_ = false;
-    void Run() { called_ = true; }
-  } callback_state;
-
-  TabManager::TabDiscardDoneCB callback{
-      base::BindOnce(&CallbackState::Run, base::Unretained(&callback_state))};
-  EXPECT_TRUE(tab_manager()->DiscardTabImpl(
-      LifecycleUnitDiscardReason::EXTERNAL, std::move(callback)));
-  EXPECT_TRUE(callback_state.called_);
-}
-
 // Makes sure that PDF pages are protected.
 IN_PROC_BROWSER_TEST_P(TabManagerTest, ProtectPDFPages) {
   // Start the embedded test server so we can get served the required PDF page.
@@ -602,7 +573,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest, ProtectVideoTabs) {
 IN_PROC_BROWSER_TEST_P(TabManagerTest,
                        MAYBE_ProtectDevToolsTabsFromDiscarding) {
   // Get two tabs open, the second one being the foreground tab.
-  GURL test_page(ui_test_utils::GetTestUrl(
+  GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(), base::FilePath(FILE_PATH_LITERAL("simple.html"))));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page));
   // Open a DevTools window for the first.
@@ -748,7 +719,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest,
 IN_PROC_BROWSER_TEST_P(TabManagerTestWithTwoTabs, TabUrgentDiscardAndNavigate) {
   const char kDiscardedStateJS[] = "window.document.wasDiscarded;";
 
-  GURL test_page(ui_test_utils::GetTestUrl(
+  GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(), base::FilePath(FILE_PATH_LITERAL("simple.html"))));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page));
 
@@ -776,7 +747,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTestWithTwoTabs,
                        EmitsLatencyMetrics_NoFastShutdown) {
   base::HistogramTester histogram_tester;
 
-  const GURL test_page(ui_test_utils::GetTestUrl(
+  const GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(), base::FilePath(FILE_PATH_LITERAL("simple.html"))));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page));
 
@@ -807,7 +778,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTestWithTwoTabs,
                        EmitsLatencyMetrics_FastShutdown) {
   base::HistogramTester histogram_tester;
 
-  const GURL test_page(ui_test_utils::GetTestUrl(
+  const GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(), base::FilePath(FILE_PATH_LITERAL("simple.html"))));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page));
 
@@ -839,7 +810,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTestWithTwoTabs,
 }
 
 IN_PROC_BROWSER_TEST_P(TabManagerTest, DiscardedTabHasNoProcess) {
-  GURL test_page(ui_test_utils::GetTestUrl(
+  GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(), base::FilePath(FILE_PATH_LITERAL("simple.html"))));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page));
   content::WebContents* web_contents = tsm()->GetActiveWebContents();

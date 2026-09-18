@@ -232,6 +232,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // remote) after which the only valid reason to go back to null is rollback.
   void set_fired_direction(std::optional<RtpTransceiverDirection> direction);
 
+  void set_receptive(bool receptive);
+
   // According to JSEP rules for SetRemoteDescription, RtpTransceivers can be
   // reused only if they were added by AddTrack.
   void set_created_by_addtrack(bool created_by_addtrack) {
@@ -273,6 +275,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
       RtpTransceiverDirection new_direction) override;
   std::optional<RtpTransceiverDirection> current_direction() const override;
   std::optional<RtpTransceiverDirection> fired_direction() const override;
+  bool receptive() const override;
   RTCError StopStandard() override;
   void StopInternal() override;
   RTCError SetCodecPreferences(ArrayView<RtpCodecCapability> codecs) override;
@@ -346,6 +349,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   bool created_by_addtrack_ = false;
   bool reused_for_addtrack_ = false;
   bool has_ever_been_used_to_send_ = false;
+  bool receptive_ RTC_GUARDED_BY(thread_) = false;
 
   // Accessed on both thread_ and the network thread. Considered safe
   // because all access on the network thread is within an invoke()
@@ -385,6 +389,7 @@ PROXY_CONSTMETHOD0(RtpTransceiverDirection, direction)
 PROXY_METHOD1(RTCError, SetDirectionWithError, RtpTransceiverDirection)
 PROXY_CONSTMETHOD0(std::optional<RtpTransceiverDirection>, current_direction)
 PROXY_CONSTMETHOD0(std::optional<RtpTransceiverDirection>, fired_direction)
+PROXY_CONSTMETHOD0(bool, receptive)
 PROXY_METHOD0(RTCError, StopStandard)
 PROXY_METHOD0(void, StopInternal)
 PROXY_METHOD1(RTCError, SetCodecPreferences, ArrayView<RtpCodecCapability>)

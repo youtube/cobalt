@@ -371,10 +371,12 @@ static_library("common") {
     "crash_process.cc",
     "crash_process.h",
     "create_desktop_interaction_strategy_factory.cc",
+    "cursor_visibility_notifier.cc",
+    "cursor_visibility_notifier.h",
     "daemon_process.cc",
     "daemon_process.h",
-    "desktop_and_cursor_composer_notifier.cc",
-    "desktop_and_cursor_composer_notifier.h",
+    "delegating_desktop_display_info_monitor.cc",
+    "delegating_desktop_display_info_monitor.h",
     "desktop_and_cursor_conditional_composer.cc",
     "desktop_process.cc",
     "desktop_process.h",
@@ -482,6 +484,8 @@ static_library("common") {
     "test_echo_extension_session.h",
     "video_memory_utils.cc",
     "video_memory_utils.h",
+    "webrtc_mouse_cursor_monitor_adaptor.cc",
+    "webrtc_mouse_cursor_monitor_adaptor.h",
     "xsession_chooser_ui.inc",
     "zombie_host_detector.cc",
     "zombie_host_detector.h",
@@ -721,10 +725,6 @@ static_library("common") {
     ]
     libs += [ "crypt32.lib" ]
     deps += [
-      # On Windows, we use //media/gpu/MediaFoundationVideoEncodeAcceleratorWin
-      # to detect whether HW encoder is supported by the system.
-      "//media",
-      "//media/gpu",
       "//mojo/core/embedder",
       "//remoting/base/crash",
       "//remoting/host/crash:crash_uploader",
@@ -808,6 +808,7 @@ source_set("unit_tests") {
     "config_file_watcher_unittest.cc",
     "corp_host_status_logger_unittest.cc",
     "daemon_process_unittest.cc",
+    "delegating_desktop_display_info_monitor_unittest.cc",
     "desktop_display_info_unittest.cc",
     "desktop_process_unittest.cc",
     "desktop_session_agent_unittest.cc",
@@ -841,6 +842,7 @@ source_set("unit_tests") {
     "setup/host_starter_oauth_helper_unittest.cc",
     "setup/me2me_native_messaging_host_unittest.cc",
     "setup/pin_validator_unittest.cc",
+    "webrtc_mouse_cursor_monitor_adaptor_unittest.cc",
     "zombie_host_detector_unittest.cc",
   ]
 

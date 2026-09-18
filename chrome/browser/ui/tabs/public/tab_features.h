@@ -25,12 +25,12 @@ class MemorySaverChipTabHelper;
 class PinnedTranslateActionListener;
 class Profile;
 class PwaInstallPageActionController;
+class ReadAnythingController;
 class ReadAnythingSidePanelController;
 class RollBackModeBInfoBarController;
 class SidePanelRegistry;
 class TabResourceUsageTabHelper;
 class TabUIHelper;
-class ThumbnailTabHelper;
 class TranslatePageActionController;
 class QwacWebContentsObserver;
 class ManagePasswordsPageActionController;
@@ -178,6 +178,8 @@ class TabFeatures {
     return side_panel_registry_.get();
   }
 
+  // TODO(crbug.com/447418049): This will be removed in the future when
+  // ownership of this controller is migrated to ReadAnythingController.
   ReadAnythingSidePanelController* read_anything_side_panel_controller() {
     return read_anything_side_panel_controller_.get();
   }
@@ -327,6 +329,9 @@ class TabFeatures {
   std::unique_ptr<customize_chrome::SidePanelController>
       customize_chrome_side_panel_controller_;
 
+  // Responsible for managing the read anything (Reading mode) feature.
+  std::unique_ptr<ReadAnythingController> read_anything_controller_;
+
   std::unique_ptr<ReadAnythingSidePanelController>
       read_anything_side_panel_controller_;
 
@@ -467,8 +472,6 @@ class TabFeatures {
 
   std::unique_ptr<NewTabPagePreloadPipelineManager>
       new_tab_page_preload_pipeline_manager_;
-
-  std::unique_ptr<ThumbnailTabHelper> thumbnail_tab_helper_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)

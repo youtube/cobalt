@@ -38,6 +38,7 @@
 #include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/mock_fast_checkout_client.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_phish_guard_delegate.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
@@ -148,6 +149,7 @@ class TestAutofillClientTemplate : public T {
   TestPersonalDataManager& GetPersonalDataManager() override {
     if (!test_personal_data_manager_) {
       test_personal_data_manager_ = std::make_unique<TestPersonalDataManager>();
+      test_personal_data_manager_->SetPrefService(GetPrefs());
     }
     return *test_personal_data_manager_.get();
   }
@@ -383,8 +385,8 @@ class TestAutofillClientTemplate : public T {
     return autofill_payment_methods_enabled_;
   }
 
-  bool IsImportingToWalletEnabled() const override {
-    return import_to_wallet_enabled_;
+  bool IsWalletStorageEnabled() const override {
+    return wallet_storage_enabled_;
   }
 
   bool IsAutocompleteEnabled() const override { return true; }
@@ -457,6 +459,15 @@ class TestAutofillClientTemplate : public T {
   bool IsLastQueriedField(FieldGlobalId field_id) override { return true; }
 #endif
 
+  OtpPhishGuardDelegate* GetOtpPhishGuardDelegate() override {
+    return otp_phish_guard_delegate_.get();
+  }
+
+  void set_otp_phish_guard_delegate(
+      std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate) {
+    otp_phish_guard_delegate_ = std::move(otp_phish_guard_delegate);
+  }
+
   void set_test_addresses(
       std::vector<AutofillProfile> test_addresses) override {
     for (AutofillProfile& profile : test_addresses) {
@@ -497,8 +508,8 @@ class TestAutofillClientTemplate : public T {
     }
   }
 
-  void SetImportingToWalletEnabled(bool import_to_wallet_enabled) {
-    import_to_wallet_enabled_ = import_to_wallet_enabled;
+  void SetWalletStorageEnabled(bool wallet_storage_enabled) {
+    wallet_storage_enabled_ = wallet_storage_enabled;
   }
 
   // Sets up prefs and identity state to simulate an opted-in AutofillAI user.
@@ -681,6 +692,7 @@ class TestAutofillClientTemplate : public T {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder_;
   signin::IdentityTestEnvironment identity_test_env_;
   raw_ptr<syncer::SyncService> test_sync_service_ = nullptr;
+  std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate_;
   std::unique_ptr<AutofillPlusAddressDelegate> plus_address_delegate_;
   std::unique_ptr<IdentityCredentialDelegate> identity_credential_delegate_;
   std::unique_ptr<PasswordManagerDelegate> password_manager_delegate_;
@@ -711,7 +723,7 @@ class TestAutofillClientTemplate : public T {
 
   bool autofill_profile_enabled_ = true;
   bool autofill_payment_methods_enabled_ = true;
-  bool import_to_wallet_enabled_ = true;
+  bool wallet_storage_enabled_ = true;
 
   // NULL by default.
   std::unique_ptr<test::AutofillTestingPrefService> prefs_;

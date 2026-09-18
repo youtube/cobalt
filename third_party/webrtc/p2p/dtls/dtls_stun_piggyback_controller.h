@@ -84,6 +84,12 @@ class DtlsStunPiggybackController {
   void ReportDataPiggybacked(std::optional<ArrayView<uint8_t>> data,
                              std::optional<std::vector<uint32_t>> acks);
 
+  // Called by
+  // * DTLSTransport when receiving a DTLS packet (possibly after the packet
+  //   was emitted by this class).
+  // * This class when processing a DTLS packet.
+  void ReportDtlsPacket(ArrayView<const uint8_t> data);
+
   int GetCountOfReceivedData() const { return data_recv_count_; }
 
  private:
@@ -96,7 +102,7 @@ class DtlsStunPiggybackController {
   std::vector<uint32_t> handshake_messages_received_
       RTC_GUARDED_BY(sequence_checker_);
 
-  // Count of data attributes received.
+  // Count of embedded data attributes received.
   int data_recv_count_ = 0;
 
   // In practice this will be the network thread.

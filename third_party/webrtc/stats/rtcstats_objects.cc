@@ -341,16 +341,17 @@ RTCOutboundRtpStreamStats::RTCOutboundRtpStreamStats(std::string id,
 
 RTCOutboundRtpStreamStats::~RTCOutboundRtpStreamStats() {}
 
-// clang-format off
-WEBRTC_RTCSTATS_IMPL(
-    RTCRemoteInboundRtpStreamStats, RTCReceivedRtpStreamStats,
-        "remote-inbound-rtp",
+WEBRTC_RTCSTATS_IMPL(  //
+    RTCRemoteInboundRtpStreamStats,
+    RTCReceivedRtpStreamStats,
+    "remote-inbound-rtp",
     AttributeInit("localId", &local_id),
     AttributeInit("roundTripTime", &round_trip_time),
     AttributeInit("fractionLost", &fraction_lost),
     AttributeInit("totalRoundTripTime", &total_round_trip_time),
-    AttributeInit("roundTripTimeMeasurements", &round_trip_time_measurements))
-// clang-format on
+    AttributeInit("roundTripTimeMeasurements", &round_trip_time_measurements),
+    AttributeInit("packetsWithBleachedEct1Marking",
+                  &packets_with_bleached_ect1_marking))
 
 RTCRemoteInboundRtpStreamStats::RTCRemoteInboundRtpStreamStats(
     std::string id,

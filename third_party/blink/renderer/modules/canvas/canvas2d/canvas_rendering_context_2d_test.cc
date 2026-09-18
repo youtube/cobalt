@@ -3221,7 +3221,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, HibernationWithUnclosedLayer) {
   // when getting out of hibernation, so this mock will not see the later calls
   // to `RasterRecord`.
   cc::PaintRecord hibernation_raster;
-  EXPECT_CALL(*provider, Snapshot(FlushReason::kHibernating, _)).Times(1);
+  EXPECT_CALL(*provider, Snapshot(FlushReason::kOther, _)).Times(1);
   EXPECT_CALL(*provider, RasterRecord)
       .Times(1)
       .WillOnce(SaveArg<0>(&hibernation_raster));
@@ -3560,6 +3560,7 @@ TEST_P(CanvasRenderingContext2DTestImageChromium, LowLatencyIsSingleBuffered) {
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }
 
+#if BUILDFLAG(IS_WIN)
 class CanvasRenderingContext2DTestSwapChain
     : public CanvasRenderingContext2DTestAccelerated {
  protected:
@@ -3602,4 +3603,6 @@ TEST_P(CanvasRenderingContext2DTestSwapChain, LowLatencyIsSingleBuffered) {
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }
+#endif
+
 }  // namespace blink

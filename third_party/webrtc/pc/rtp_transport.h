@@ -130,6 +130,7 @@ class RtpTransport : public RtpTransportInternal {
   PacketTransportInternal* rtcp_packet_transport_ = nullptr;
 
   bool ready_to_send_ = false;
+  bool received_rtp_with_ecn_ = false;
   bool rtp_ready_to_send_ = false;
   bool rtcp_ready_to_send_ = false;
 

@@ -426,6 +426,23 @@ void main()
 })";
     }
 
+    // Same as getRenderYUVFS(), but with the yuv layout specified multiple times, which should not
+    // make a difference.  Some tests use this shader instead of getRenderYUVFS() just to exercise
+    // compiling such a shader.
+    const char *getRenderYUV2FS() const
+    {
+        return R"(#version 300 es
+#extension GL_EXT_YUV_target : require
+precision highp float;
+uniform vec4 u_color;
+layout (yuv, yuv, yuv) out vec4 color;
+
+void main()
+{
+    color = u_color;
+})";
+    }
+
     void testSetUp() override
     {
         mTextureProgram = CompileProgram(getVS(), getTextureFS());
@@ -496,6 +513,11 @@ void main()
             ASSERT_NE(0u, mRenderYUVProgram) << "shader compilation failed.";
 
             mRenderYUVUniformLocation = glGetUniformLocation(mRenderYUVProgram, "u_color");
+
+            mRenderYUVProgram2 = CompileProgram(getVSESSL3(), getRenderYUV2FS());
+            ASSERT_NE(0u, mRenderYUVProgram2) << "shader compilation failed.";
+
+            mRenderYUVUniformLocation = glGetUniformLocation(mRenderYUVProgram2, "u_color");
         }
 
         if (IsGLExtensionEnabled(kExternalESSL3Ext))
@@ -1814,6 +1836,7 @@ void main()
     GLint mFetchYUVVSUniformLocation = -1;
 
     GLuint mRenderYUVProgram        = 0;
+    GLuint mRenderYUVProgram2       = 0;
     GLint mRenderYUVUniformLocation = -1;
 
     CounterNameToIndexMap mCounterNameToIndexMap;
@@ -4719,11 +4742,11 @@ TEST_P(ImageTestES3, RenderToYUVAHB)
     ASSERT_GL_NO_ERROR();
     EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
 
-    glUseProgram(mRenderYUVProgram);
+    glUseProgram(mRenderYUVProgram2);
     glUniform4f(mRenderYUVUniformLocation, kYUVColorRedY[0] / 255.0f, kYUVColorRedCb[0] / 255.0f,
                 kYUVColorRedCr[0] / 255.0f, 1.0f);
 
-    drawQuad(mRenderYUVProgram, "position", 0.0f);
+    drawQuad(mRenderYUVProgram2, "position", 0.0f);
     ASSERT_GL_NO_ERROR();
 
     // ReadPixels returns the RGB converted color
@@ -10129,6 +10152,70 @@ void main()
 
     // For completeness, check source too
     verifyResults2D(source, GLColor::blue.data());
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Basic test for using an EGL image as storage for compute
+// This is similar to the above UseSourceTextureAsStorageImage but is a bit more basic
+// and mirrors an application issue.
+TEST_P(ImageTestES31, UseEGLImageAsStorage)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
+
+    EGLWindow *window = getEGLWindow();
+
+    const GLColor originalColor = GLColor::yellow;
+
+    // Create a storage texture, pre-populate with yellow
+    GLTexture source;
+    glBindTexture(GL_TEXTURE_2D, source);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, 1, 1);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, originalColor.data());
+
+    // Create an image bound to our target texture
+    EGLImageKHR image =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                          reinterpretHelper<EGLClientBuffer>(source), kDefaultAttribs);
+    ASSERT_EGL_SUCCESS();
+
+    // Create another texture make it a sibling of the original
+    GLTexture target;
+    glBindTexture(GL_TEXTURE_2D, target);
+    glEGLImageTargetTexStorageEXT(GL_TEXTURE_2D, image, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    // Just write blue to the image
+    const char kCS[] = R"(#version 310 es
+layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
+layout(rgba8) uniform highp writeonly image2D img;
+void main()
+{
+    imageStore(img, ivec2(0, 0), vec4(0.0, 0.0, 1.0, 1.0));
+})";
+
+    ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
+    glUseProgram(program);
+
+    // Use the target texture as a storage image
+    glBindImageTexture(0, target, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+    // TODO (http://issuetracker.google.com/456806880)
+    // Turn this back on when the VVL error is fixed.
+    // glDispatchCompute(1, 1, 1);
+    EXPECT_GL_NO_ERROR();
+
+    // We want to sample the target texture, so use the appropriate barrier
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+
+    // Make sure the target sees the update written to the image.
+    // TODO (http://issuetracker.google.com/456806880)
+    // Turn this back on when the VVL error is fixed.
+    // verifyResults2D(target, GLColor::blue.data());
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);

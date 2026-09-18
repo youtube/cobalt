@@ -71,7 +71,7 @@ class MockCertVerifier : public SSLCertificateVerifier {
 
 #if defined(WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS)
 // Helper class to handle SSL connection events and state for testing.
-class SSLConnectionHandler : public sigslot::has_slots<> {
+class SSLConnectionHandler {
  public:
   explicit SSLConnectionHandler(absl::string_view hostname)
       : hostname_(hostname) {}

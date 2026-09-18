@@ -193,11 +193,12 @@ TEST_F(EventEmitterUnittest, ListenersDestroyingContext) {
     RunFunction(add_listener_function, context, std::size(args), args);
   }
 
-  EXPECT_EQ(kNumListeners, event_emitter->GetNumListeners());
+  EXPECT_EQ(kNumListeners, event_emitter->GetNumListenersForTesting());
 
   v8::LocalVector<v8::Value> args(isolate());
   event_emitter->Fire(context, &args, /*filter=*/nullptr,
-                      /*on_dispatched_callback=*/v8::Local<v8::Function>());
+                      /*on_dispatched_callback=*/v8::Local<v8::Function>(),
+                      /*listener_error_callback=*/v8::Local<v8::Function>());
 
   EXPECT_TRUE(closure_data.did_invalidate_context);
 }

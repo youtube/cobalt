@@ -8,6 +8,7 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.ui.mojom.ImeTextSpanType;
 
 /** Data for a text span with IME suggestions. */
 @JNINamespace("content")
@@ -16,11 +17,20 @@ public class ImeTextSpan {
     private final int mStartOffset;
     private final int mEndOffset;
     private final String[] mSuggestions;
+    private final @ImeTextSpanType.EnumType int mType;
+    private final boolean mShouldHideSuggestionMenu;
 
-    private ImeTextSpan(int startOffset, int endOffset, String[] suggestions) {
+    private ImeTextSpan(
+            int startOffset,
+            int endOffset,
+            String[] suggestions,
+            @ImeTextSpanType.EnumType int type,
+            boolean shouldHideSuggestionMenu) {
         mStartOffset = startOffset;
         mEndOffset = endOffset;
         mSuggestions = suggestions;
+        mType = type;
+        mShouldHideSuggestionMenu = shouldHideSuggestionMenu;
     }
 
     /**
@@ -44,8 +54,28 @@ public class ImeTextSpan {
         return mSuggestions;
     }
 
+    /**
+     * @return The boolean value which indicates if the suggestion menu should be hidden.
+     */
+    public boolean shouldHideSuggestionMenu() {
+        return mShouldHideSuggestionMenu;
+    }
+
+    /**
+     * @return The type for the span. See {@link ImeTextSpan.MojomImeTextSpanType}
+     */
+    public @ImeTextSpanType.EnumType int getType() {
+        return mType;
+    }
+
     @CalledByNative
-    private static ImeTextSpan create(int startOffset, int endOffset, String[] suggestions) {
-        return new ImeTextSpan(startOffset, endOffset, suggestions);
+    private static ImeTextSpan create(
+            int startOffset,
+            int endOffset,
+            String[] suggestions,
+            @ImeTextSpanType.EnumType int type,
+            boolean shouldHideeSuggestionMenu) {
+        return new ImeTextSpan(
+                startOffset, endOffset, suggestions, type, shouldHideeSuggestionMenu);
     }
 }

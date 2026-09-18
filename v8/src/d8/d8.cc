@@ -72,6 +72,7 @@
 #include "src/profiler/profile-generator.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
@@ -96,11 +97,6 @@
 #include "src/fuzzilli/cov.h"
 #include "src/fuzzilli/fuzzilli.h"
 #endif  // V8_FUZZILLI
-
-#ifdef V8_USE_PERFETTO
-#include "perfetto/tracing/track_event.h"
-#include "perfetto/tracing/track_event_legacy.h"
-#endif  // V8_USE_PERFETTO
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
@@ -866,18 +862,18 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
           i_isolate, kModuleEmbedderDataEstimate,
           std::make_shared<ModuleEmbedderData>(
               reinterpret_cast<v8::Isolate*>(i_isolate)));
-  v8::Local<v8::Value> module_data = Utils::ToLocal(module_data_managed);
-  context->SetEmbedderData(kModuleEmbedderDataIndex, module_data);
+  v8::Local<v8::Data> module_data = Utils::ToLocal(module_data_managed);
+  context->SetEmbedderDataV2(kModuleEmbedderDataIndex, module_data);
   return module_data_managed->get();
 }
 
 std::shared_ptr<ModuleEmbedderData> GetModuleDataFromContext(
     Local<Context> context) {
-  v8::Local<v8::Value> module_data =
-      context->GetEmbedderData(kModuleEmbedderDataIndex);
+  v8::Local<v8::Data> module_data =
+      context->GetEmbedderDataV2(kModuleEmbedderDataIndex);
   i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Cast<i::Managed<ModuleEmbedderData>>(
-          Utils::OpenDirectHandle<Value, i::Object>(module_data));
+          Utils::OpenDirectHandle<Data, i::Object>(module_data));
   return module_data_managed->get();
 }
 
@@ -3025,10 +3021,19 @@ void Shell::WasmDeserializeModule(
     ThrowError(isolate, "Second argument must be a TypedArray");
     return;
   }
+
+  i::wasm::WasmEnabledFeatures enabled_features =
+      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
+  i::wasm::CompileTimeImports compile_time_imports =
+      i::WasmJs::CompileTimeImportsFromArgument(
+          Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
+
   i::DirectHandle<i::JSArrayBuffer> buffer =
       i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
   i::DirectHandle<i::JSTypedArray> wire_bytes =
       i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
+  // Note: These checks must be executed *after* evaluating compile time
+  // imports, as that calls back into JS and can detach buffers.
   if (buffer->was_detached()) {
     ThrowError(isolate, "First argument is detached");
     return;
@@ -3037,12 +3042,6 @@ void Shell::WasmDeserializeModule(
     ThrowError(isolate, "Second argument's buffer is detached");
     return;
   }
-
-  i::wasm::WasmEnabledFeatures enabled_features =
-      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
-  i::wasm::CompileTimeImports compile_time_imports =
-      i::WasmJs::CompileTimeImportsFromArgument(
-          Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
 
   i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
       wire_bytes->GetBuffer(i_isolate);
@@ -6150,8 +6149,9 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
 }  // namespace
 
 bool Shell::SetOptions(int argc, char* argv[]) {
-  bool logfile_per_isolate = false;
   options.d8_path = argv[0];
+  bool disallow_unsafe_flags = false;
+  bool exit_on_flag_contradictions = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
     if (FlagMatches("--", &argv[i])) {
@@ -6174,8 +6174,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
                            /*keep_flag=*/true)) {
       check_d8_flag_contradictions = true;
-    } else if (FlagMatches("--logfile-per-isolate", &argv[i])) {
-      logfile_per_isolate = true;
+    } else if (FlagMatches("--exit-on-contradictory-flags", &argv[i],
+                           /*keep_flag=*/true)) {
+      check_d8_flag_contradictions = true;
+      exit_on_flag_contradictions = true;
+    } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
+                           /*keep_flag=*/true)) {
+      disallow_unsafe_flags = true;
     } else if (FlagMatches("--shell", &argv[i])) {
       options.interactive_shell = true;
     } else if (FlagMatches("--test", &argv[i])) {
@@ -6352,6 +6357,42 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+  DCHECK(options.num_isolates);
+
+  if (disallow_unsafe_flags) {
+    const auto check_flag_is_not_specified =
+        [&]<typename T>(const ShellOptions::DisallowReassignment<T>& flag) {
+          if (!flag.WasSpecified()) {
+            return;
+          }
+          base::OS::PrintError(
+              "Command-line provided flag --%s is prohibited by "
+              "--disallow-unsafe-flags.\n",
+              flag.name());
+          if (exit_on_flag_contradictions) {
+            base::OS::ExitProcess(-1);
+          } else {
+            base::OS::Abort();
+          }
+        };
+    // The --disallow-unsafe-flags is meant to block known unsafe configurations
+    // and mitigate spurious reports due invalid flag combinations/values. To
+    // prevent AI agents and/or fuzzers from using a new unsafe flag, add it to
+    // the list below.
+    check_flag_is_not_specified(options.trace_enabled);
+    check_flag_is_not_specified(options.trace_config);
+    check_flag_is_not_specified(options.trace_path);
+    check_flag_is_not_specified(options.enable_inspector);
+    check_flag_is_not_specified(options.lcov_file);
+    check_flag_is_not_specified(options.simulate_errors);
+    check_flag_is_not_specified(options.enable_os_system);
+    check_flag_is_not_specified(options.snapshot_blob);
+    check_flag_is_not_specified(options.thread_pool_size);
+    check_flag_is_not_specified(options.thread_pool_size);
+    check_flag_is_not_specified(options.dump_counters);
+    check_flag_is_not_specified(options.dump_counters_nvp);
+  }
+
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
     if (options.perf_ctl_fd == -1 || options.perf_ack_fd == -1) {
@@ -6374,6 +6415,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --module  execute a file as a JavaScript module\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::v8_flags.abort_on_contradictory_flags = true;
+  static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
+  i::FlagList::SetFlagsFromString(kStandaloneD8ShellFlag,
+                                  strlen(kStandaloneD8ShellFlag));
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
   i::FlagList::ResolveContradictionsWhenFuzzing();
@@ -6415,10 +6459,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
   current->End(argc);
-
-  if (!logfile_per_isolate && options.num_isolates) {
-    V8::SetFlagsFromString("--no-logfile-per-isolate");
-  }
 
   return true;
 }
@@ -7107,12 +7147,6 @@ int Shell::Main(int argc, char* argv[]) {
     g_platform = MakeDelayedTasksPlatform(std::move(g_platform), random_seed);
   }
 
-  if (i::v8_flags.trace_turbo_cfg_file == nullptr) {
-    V8::SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
-  }
-  if (i::v8_flags.redirect_code_traces_to == nullptr) {
-    V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
-  }
   v8::V8::InitializePlatform(g_platform.get());
 
   // Disable flag freezing if we are producing a code cache, because for that we

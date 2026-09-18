@@ -174,7 +174,18 @@ struct RTC_EXPORT PacketResult {
 
   SentPacket sent_packet;
   Timestamp receive_time = Timestamp::PlusInfinity();
+  // Ecn marking from the feedback report how this packet was received.
   EcnMarking ecn = EcnMarking::kNotEct;
+
+  // Indicates if packet was sent with ECN marking 'ect1'.
+  bool sent_with_ect1 = false;
+
+  // Indicates if packet was reported lost for the first time.
+  bool reported_lost_for_the_first_time = false;
+
+  // Indicates if packet was recovered, i.e., previously feedback report marked
+  // this packet as lost, but current report marks it as received.
+  bool reported_recovered_for_the_first_time = false;
 
   // `rtp_packet_info` is only set if the feedback is related to a RTP packet.
   std::optional<RtpPacketInfo> rtp_packet_info;

@@ -8,12 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "modules/audio_processing/agc2/speech_level_estimator.h"
-
 #include <memory>
 
 #include "api/audio/audio_processing.h"
 #include "modules/audio_processing/agc2/agc2_common.h"
+#include "modules/audio_processing/agc2/speech_level_estimator_impl.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
 #include "test/gtest.h"
@@ -35,11 +34,10 @@ constexpr float kConvergenceSpeedTestsLevelTolerance = 0.5f;
 // Provides the `vad_level` value `num_iterations` times to `level_estimator`.
 void RunOnConstantLevel(int num_iterations,
                         float rms_dbfs,
-                        float peak_dbfs,
                         float speech_probability,
-                        SpeechLevelEstimator& level_estimator) {
+                        SpeechLevelEstimatorImpl& level_estimator) {
   for (int i = 0; i < num_iterations; ++i) {
-    level_estimator.Update(rms_dbfs, peak_dbfs, speech_probability);
+    level_estimator.Update(rms_dbfs, speech_probability);
   }
 }
 
@@ -51,11 +49,11 @@ constexpr float kMaxSpeechProbability = 1.0f;
 struct TestLevelEstimator {
   explicit TestLevelEstimator(int adjacent_speech_frames_threshold)
       : data_dumper(0),
-        estimator(std::make_unique<SpeechLevelEstimator>(
+        estimator(std::make_unique<SpeechLevelEstimatorImpl>(
             &data_dumper,
             AdaptiveDigitalConfig{},
             adjacent_speech_frames_threshold)),
-        initial_speech_level_dbfs(estimator->level_dbfs()),
+        initial_speech_level_dbfs(estimator->GetLevelDbfs()),
         level_rms_dbfs(initial_speech_level_dbfs / 2.0f),
         level_peak_dbfs(initial_speech_level_dbfs / 3.0f) {
     RTC_DCHECK_LT(level_rms_dbfs, level_peak_dbfs);
@@ -65,7 +63,7 @@ struct TestLevelEstimator {
            "level is wide enough for the tests";
   }
   ApmDataDumper data_dumper;
-  std::unique_ptr<SpeechLevelEstimator> estimator;
+  std::unique_ptr<SpeechLevelEstimatorImpl> estimator;
   const float initial_speech_level_dbfs;
   const float level_rms_dbfs;
   const float level_peak_dbfs;
@@ -75,14 +73,12 @@ struct TestLevelEstimator {
 TEST(GainController2SpeechLevelEstimator, LevelStabilizes) {
   TestLevelEstimator level_estimator(/*adjacent_speech_frames_threshold=*/1);
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence,
-                     level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
+                     level_estimator.level_rms_dbfs, kMaxSpeechProbability,
                      *level_estimator.estimator);
-  const float estimated_level_dbfs = level_estimator.estimator->level_dbfs();
+  const float estimated_level_dbfs = level_estimator.estimator->GetLevelDbfs();
   RunOnConstantLevel(/*num_iterations=*/1, level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
-                     *level_estimator.estimator);
-  EXPECT_NEAR(level_estimator.estimator->level_dbfs(), estimated_level_dbfs,
+                     kMaxSpeechProbability, *level_estimator.estimator);
+  EXPECT_NEAR(level_estimator.estimator->GetLevelDbfs(), estimated_level_dbfs,
               0.1f);
 }
 
@@ -91,10 +87,9 @@ TEST(GainController2SpeechLevelEstimator, LevelStabilizes) {
 TEST(GainController2SpeechLevelEstimator, IsNotConfident) {
   TestLevelEstimator level_estimator(/*adjacent_speech_frames_threshold=*/1);
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence / 2,
-                     level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
+                     level_estimator.level_rms_dbfs, kMaxSpeechProbability,
                      *level_estimator.estimator);
-  EXPECT_FALSE(level_estimator.estimator->is_confident());
+  EXPECT_FALSE(level_estimator.estimator->IsConfident());
 }
 
 // Checks that the level controller becomes confident when enough speech frames
@@ -102,10 +97,9 @@ TEST(GainController2SpeechLevelEstimator, IsNotConfident) {
 TEST(GainController2SpeechLevelEstimator, IsConfident) {
   TestLevelEstimator level_estimator(/*adjacent_speech_frames_threshold=*/1);
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence,
-                     level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
+                     level_estimator.level_rms_dbfs, kMaxSpeechProbability,
                      *level_estimator.estimator);
-  EXPECT_TRUE(level_estimator.estimator->is_confident());
+  EXPECT_TRUE(level_estimator.estimator->IsConfident());
 }
 
 // Checks that the estimated level is not affected by the level of non-speech
@@ -114,16 +108,15 @@ TEST(GainController2SpeechLevelEstimator, EstimatorIgnoresNonSpeechFrames) {
   TestLevelEstimator level_estimator(/*adjacent_speech_frames_threshold=*/1);
   // Simulate speech.
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence,
-                     level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
+                     level_estimator.level_rms_dbfs, kMaxSpeechProbability,
                      *level_estimator.estimator);
-  const float estimated_level_dbfs = level_estimator.estimator->level_dbfs();
+  const float estimated_level_dbfs = level_estimator.estimator->GetLevelDbfs();
   // Simulate full-scale non-speech.
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence,
-                     /*rms_dbfs=*/0.0f, /*peak_dbfs=*/0.0f,
-                     kNoSpeechProbability, *level_estimator.estimator);
+                     /*rms_dbfs=*/0.0f, kNoSpeechProbability,
+                     *level_estimator.estimator);
   // No estimated level change is expected.
-  EXPECT_FLOAT_EQ(level_estimator.estimator->level_dbfs(),
+  EXPECT_FLOAT_EQ(level_estimator.estimator->GetLevelDbfs(),
                   estimated_level_dbfs);
 }
 
@@ -131,10 +124,9 @@ TEST(GainController2SpeechLevelEstimator, EstimatorIgnoresNonSpeechFrames) {
 TEST(GainController2SpeechLevelEstimator, ConvergenceSpeedBeforeConfidence) {
   TestLevelEstimator level_estimator(/*adjacent_speech_frames_threshold=*/1);
   RunOnConstantLevel(/*num_iterations=*/kNumFramesToConfidence,
-                     level_estimator.level_rms_dbfs,
-                     level_estimator.level_peak_dbfs, kMaxSpeechProbability,
+                     level_estimator.level_rms_dbfs, kMaxSpeechProbability,
                      *level_estimator.estimator);
-  EXPECT_NEAR(level_estimator.estimator->level_dbfs(),
+  EXPECT_NEAR(level_estimator.estimator->GetLevelDbfs(),
               level_estimator.level_rms_dbfs,
               kConvergenceSpeedTestsLevelTolerance);
 }
@@ -146,21 +138,20 @@ TEST(GainController2SpeechLevelEstimator, ConvergenceSpeedAfterConfidence) {
   RunOnConstantLevel(
       /*num_iterations=*/kNumFramesToConfidence,
       /*rms_dbfs=*/level_estimator.initial_speech_level_dbfs,
-      /*peak_dbfs=*/level_estimator.initial_speech_level_dbfs + 6.0f,
       kMaxSpeechProbability, *level_estimator.estimator);
   // No estimate change should occur, but confidence is achieved.
-  ASSERT_FLOAT_EQ(level_estimator.estimator->level_dbfs(),
+  ASSERT_FLOAT_EQ(level_estimator.estimator->GetLevelDbfs(),
                   level_estimator.initial_speech_level_dbfs);
-  ASSERT_TRUE(level_estimator.estimator->is_confident());
+  ASSERT_TRUE(level_estimator.estimator->IsConfident());
   // After confidence.
   constexpr float kConvergenceTimeAfterConfidenceNumFrames = 700;  // 7 seconds.
   static_assert(
       kConvergenceTimeAfterConfidenceNumFrames > kNumFramesToConfidence, "");
   RunOnConstantLevel(
       /*num_iterations=*/kConvergenceTimeAfterConfidenceNumFrames,
-      level_estimator.level_rms_dbfs, level_estimator.level_peak_dbfs,
-      kMaxSpeechProbability, *level_estimator.estimator);
-  EXPECT_NEAR(level_estimator.estimator->level_dbfs(),
+      level_estimator.level_rms_dbfs, kMaxSpeechProbability,
+      *level_estimator.estimator);
+  EXPECT_NEAR(level_estimator.estimator->GetLevelDbfs(),
               level_estimator.level_rms_dbfs,
               kConvergenceSpeedTestsLevelTolerance);
 }
@@ -173,31 +164,28 @@ class SpeechLevelEstimatorParametrization
 
 TEST_P(SpeechLevelEstimatorParametrization, DoNotAdaptToShortSpeechSegments) {
   TestLevelEstimator level_estimator(adjacent_speech_frames_threshold());
-  const float initial_level = level_estimator.estimator->level_dbfs();
+  const float initial_level = level_estimator.estimator->GetLevelDbfs();
   ASSERT_LT(initial_level, level_estimator.level_peak_dbfs);
   for (int i = 0; i < adjacent_speech_frames_threshold() - 1; ++i) {
     SCOPED_TRACE(i);
     level_estimator.estimator->Update(level_estimator.level_rms_dbfs,
-                                      level_estimator.level_peak_dbfs,
                                       kMaxSpeechProbability);
-    EXPECT_EQ(initial_level, level_estimator.estimator->level_dbfs());
+    EXPECT_EQ(initial_level, level_estimator.estimator->GetLevelDbfs());
   }
   level_estimator.estimator->Update(level_estimator.level_rms_dbfs,
-                                    level_estimator.level_peak_dbfs,
                                     kLowSpeechProbability);
-  EXPECT_EQ(initial_level, level_estimator.estimator->level_dbfs());
+  EXPECT_EQ(initial_level, level_estimator.estimator->GetLevelDbfs());
 }
 
 TEST_P(SpeechLevelEstimatorParametrization, AdaptToEnoughSpeechSegments) {
   TestLevelEstimator level_estimator(adjacent_speech_frames_threshold());
-  const float initial_level = level_estimator.estimator->level_dbfs();
+  const float initial_level = level_estimator.estimator->GetLevelDbfs();
   ASSERT_LT(initial_level, level_estimator.level_peak_dbfs);
   for (int i = 0; i < adjacent_speech_frames_threshold(); ++i) {
     level_estimator.estimator->Update(level_estimator.level_rms_dbfs,
-                                      level_estimator.level_peak_dbfs,
                                       kMaxSpeechProbability);
   }
-  EXPECT_LT(initial_level, level_estimator.estimator->level_dbfs());
+  EXPECT_LT(initial_level, level_estimator.estimator->GetLevelDbfs());
 }
 
 INSTANTIATE_TEST_SUITE_P(GainController2,

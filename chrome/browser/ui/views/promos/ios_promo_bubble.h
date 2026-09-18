@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/views/bubble/bubble_border.h"
 
 namespace views {
@@ -24,6 +25,9 @@ class Profile;
 
 enum class IOSPromoBubbleType;
 enum class IOSPromoType;
+class IOSPromoBubbleView;
+
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kIOSPromoBubbleElementId);
 
 // A view for the bubble promo that encourages feature usage on iOS.
 class IOSPromoBubble {
@@ -61,6 +65,13 @@ class IOSPromoBubble {
   static bool IsPromoTypeVisible(IOSPromoType promo_type);
 
  private:
+  friend class ::IOSPromoBubbleView;
+
+  // Returns the config for the given `promo_type` and `bubble_type`.
+  static IOSPromoConstants::IOSPromoTypeConfigs SetUpBubble(
+      IOSPromoType promo_type,
+      IOSPromoBubbleType bubble_type);
+
   // Creates the content view for the promo bubble, which includes the body and
   // buttons. Depedning on the BubbleLayout, the content view takes up either
   // the entire bubble, or is added as a footer to the bubble.

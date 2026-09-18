@@ -75,7 +75,6 @@
 <translation id="2576431527583832481">Chrome тукушто се подобри! Достапна е нова верзија.</translation>
 <translation id="257708665678654955">Дали сакате Google Chrome следниот пат да ви понуди да преведува страници од <ph name="LANGUAGE_NAME" /> од овој сајт?</translation>
 <translation id="2668242166988961773">Пребарувајте со глас во Chrome.</translation>
-<translation id="2695886661449553974">Chrome не може да провери дали има ажурирања. Обидете се повторно подоцна.</translation>
 <translation id="2703746758996815929">За да добивате корисни совети за Chrome, вклучете ги известувањата во поставките за iOS.</translation>
 <translation id="2728851697704606655">Преведувајте со Google Lens</translation>
 <translation id="2736805085127235148">Во моментов, известувањата за Chrome се исклучени во вашите поставки за уредот.</translation>
@@ -170,6 +169,7 @@
 <translation id="5162467219239570114">Chrome е застарен. Ако нема достапно ажурирање во <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, можно е уредот веќе да не поддржува нови верзии на Chrome.</translation>
 <translation id="5184329579814168207">Отвори во Chrome</translation>
 <translation id="5190139289262548459">Вашата организација, <ph name="DOMAIN" />, управува со сметката на којашто сте најавени, а и со тоа како се користи Chrome.</translation>
+<translation id="5209238444239954363">Chrome не можеше да провери дали има ажурирања. Обидете се повторно подоцна.</translation>
 <translation id="5305440589062022504">Ја отвора Password Manager во Chrome</translation>
 <translation id="5310957470610282541">Некои од вашите податоци од Chrome сѐ уште не се зачувани во вашата сметка на Google.
 Почекајте неколку минути пред да се одјавите. Ако се одјавите сега, податоциве ќе се избришат.</translation>

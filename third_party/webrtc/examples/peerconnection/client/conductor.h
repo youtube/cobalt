@@ -137,6 +137,11 @@ class Conductor : public webrtc::PeerConnectionObserver,
   MainWindow* main_wnd_;
   std::deque<std::string*> pending_messages_;
   std::string server_;
+  // Holds a reference to the local video source so that its underlying
+  // capturer is released only after the PeerConnection (and any tracks/senders)
+  // have been torn down. This helps ensure the capturer is destroyed on the
+  // same thread it was created on when DeletePeerConnection() runs.
+  webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface> local_video_source_;
 };
 
 #endif  // EXAMPLES_PEERCONNECTION_CLIENT_CONDUCTOR_H_

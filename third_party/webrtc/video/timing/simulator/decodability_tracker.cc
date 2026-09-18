@@ -30,15 +30,19 @@ constexpr int kMaxFrameBufferSize = 800;
 constexpr int kMaxFrameBufferHistory = 1 << 13;
 
 DecodabilityTracker::DecodabilityTracker(const Environment& env,
+                                         const Config& config,
                                          DecodabilityTrackerEvents* absl_nonnull
                                              observer)
     : env_(env),
+      config_(config),
       frame_buffer_(kMaxFrameBufferSize,
                     kMaxFrameBufferHistory,
                     env.field_trials()),
       observer_(*observer),
       decoded_frame_id_cb_(nullptr) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
+  // Validation.
+  RTC_DCHECK_NE(config.ssrc, 0u);
 }
 
 DecodabilityTracker::~DecodabilityTracker() {
@@ -56,7 +60,8 @@ void DecodabilityTracker::OnAssembledFrame(
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_CHECK(decoded_frame_id_cb_) << "Callback must be set before running";
   if (!frame_buffer_.InsertFrame(std::move(assembled_frame))) {
-    RTC_LOG(LS_ERROR) << "FrameBuffer insertion error";
+    RTC_LOG(LS_ERROR) << "FrameBuffer insertion error for ssrc=" << config_.ssrc
+                      << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
   }
   RTC_DCHECK_EQ(frame_buffer_.GetTotalNumberOfDroppedFrames(), 0)
       << "The FrameBuffer should never drop frames when used by the "

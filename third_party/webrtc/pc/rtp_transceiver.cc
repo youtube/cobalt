@@ -581,6 +581,16 @@ std::optional<RtpTransceiverDirection> RtpTransceiver::fired_direction() const {
   return fired_direction_;
 }
 
+bool RtpTransceiver::receptive() const {
+  RTC_DCHECK_RUN_ON(thread_);
+  return receptive_;
+}
+
+void RtpTransceiver::set_receptive(bool receptive) {
+  RTC_DCHECK_RUN_ON(thread_);
+  receptive_ = receptive;
+}
+
 void RtpTransceiver::StopSendingAndReceiving() {
   // 1. Let sender be transceiver.[[Sender]].
   // 2. Let receiver be transceiver.[[Receiver]].
