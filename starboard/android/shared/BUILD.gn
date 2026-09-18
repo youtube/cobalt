@@ -404,6 +404,9 @@ static_library("media_codec_video_decoder_helpers") {
   deps = [
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
+
+    # TODO: b/545881570 - Make this target depend on experimental_feature only.
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 }
 
