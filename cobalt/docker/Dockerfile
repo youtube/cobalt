@@ -134,6 +134,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openbox \
     python3 \
     x11-xserver-utils \
+    xauth \
     xcompmgr \
     xcvt \
     xserver-xorg-core \
@@ -146,13 +147,14 @@ FROM base AS webtest
 
 # Install any necessary dependencies for headless web tests
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    fuse-overlayfs \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
     libgles2-mesa-dev \
     libpangocairo-1.0-0 \
     libxdamage1 \
     libxkbcommon-x11-0 \
-    xvfb \
     x11-utils \
-    fuse-overlayfs \
+    xauth \
+    xvfb \
   && rm -rf /var/lib/apt/lists/*

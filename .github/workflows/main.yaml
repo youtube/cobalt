@@ -417,22 +417,12 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Build base docker image
-        if: needs.initialize.outputs.docker_service != ''
-        id: build-base-docker-image
-        uses: ./.github/actions/docker
-        with:
-          docker_service: base
-          is_pr: ${{ (github.event_name == 'pull_request') }}
-          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         if: needs.initialize.outputs.docker_service != ''
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: ${{ needs.initialize.outputs.docker_service }}
-          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -451,20 +441,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Build base docker image
-        id: build-base-docker-image
-        uses: ./.github/actions/docker
-        with:
-          docker_service: base
-          is_pr: ${{ (github.event_name == 'pull_request') }}
-          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
-          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -483,20 +464,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Build base docker image
-        id: build-base-docker-image
-        uses: ./.github/actions/docker
-        with:
-          docker_service: base
-          is_pr: ${{ (github.event_name == 'pull_request') }}
-          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
-          base_docker_tag: ${{ steps.build-base-docker-image.outputs.docker_tag }}
           is_pr: ${{ (github.event_name == 'pull_request') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
