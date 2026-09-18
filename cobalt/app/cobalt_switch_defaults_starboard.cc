@@ -21,7 +21,11 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
+<<<<<<< HEAD
 #include "gpu/command_buffer/service/gpu_switches.h"
+=======
+#include "gpu/config/gpu_switches.h"
+>>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
@@ -123,13 +127,13 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Enable memory saving mode with little v8 performance tradeoff.
        "--optimize-for-size "
-       // Set initial old space size to 16MB and max old space size to 512MB.
-       "--initial-old-space-size=16 "
-       "--max-old-space-size=512 "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
+<<<<<<< HEAD
       // Limit GPU memory available to 64MB.
       {blink::switches::kForceGpuMemAvailableMb, "64"},
+=======
+>>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
   };
   return kCobaltSwitchDefaults;
 }

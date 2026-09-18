@@ -22,7 +22,11 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
+<<<<<<< HEAD
 #include "gpu/command_buffer/service/gpu_switches.h"
+=======
+#include "gpu/config/gpu_switches.h"
+>>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -116,6 +120,7 @@ TEST(CobaltSwitchDefaultsTest, GfxAngleOverride) {
   // for running in Forge environments.
 }
 
+<<<<<<< HEAD
 TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
   const auto input_argv = std::to_array<const char*>({"PROGRAM"});
   const int input_argc = static_cast<int>(input_argv.size());
@@ -126,6 +131,8 @@ TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
   EXPECT_EQ(std::string("64"), gpu_mem);
 }
 
+=======
+>>>>>>> a4fe1d725d7 (cobalt: Gate V8 and GPU memory runtime flags with base::Feature (#12595))
 TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const auto input_argv = std::to_array<const char*>({"PROGRAM"});
   const int input_argc = static_cast<int>(input_argv.size());
