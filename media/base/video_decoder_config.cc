@@ -83,10 +83,6 @@ bool VideoDecoderConfig::IsValidConfig() const {
          gfx::Rect(coded_size_).Contains(visible_rect_);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// TODO(b/545325130): Explicitly signal SbPlayer of a changeType() call when
-// the config/mime_type is identical to the current config/mime_type.
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
   return codec() == config.codec() && profile() == config.profile() &&
          alpha_mode() == config.alpha_mode() &&
@@ -98,9 +94,6 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-         mime_type() == config.mime_type() &&
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
          hdr_metadata() == config.hdr_metadata() && level() == config.level();
 }
 
@@ -122,9 +115,6 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", mime_type: " << mime_type()
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 
   if (hdr_metadata().has_value()) {

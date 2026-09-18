@@ -25,7 +25,7 @@
 #include "sandbox/policy/linux/sandbox_linux.h"
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
+#if !BUILDFLAG(IS_FUCHSIA) && \
     !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
 #include "base/feature_list.h"
 #include "third_party/dawn/include/dawn/dawn_proc.h"          // nogncheck
@@ -65,7 +65,7 @@ void UpdateSandboxOptionsForGpu(
 }
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
+#if !BUILDFLAG(IS_FUCHSIA) && \
     !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
 // If this feature is enabled, a WebGPU device is created for each valid
 // adapter. This makes sure any relevant drivers or other libs are loaded before
@@ -80,7 +80,7 @@ BASE_FEATURE(kOnDeviceModelWarmDrivers,
 #endif
 
 bool ShouldWarmDrivers() {
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || \
+#if BUILDFLAG(IS_FUCHSIA) || \
     (BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
   return false;
 #else

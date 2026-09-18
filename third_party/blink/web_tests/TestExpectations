@@ -9947,16 +9947,3 @@ crbug.com/457578724 [ Win11-arm64 ] external/wpt/webxr/xrView_visibility_mask_ch
 
 # Gardener 2025-11-05, 2025-11-06
 crbug.com/457924681 [ Linux ] external/wpt/css/css-anchor-position/anchored-transition-display-none-001.html [ Failure Timeout ]
-
-# Cobalt bug: b/461834934.
-wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
-
-# Cobalt bug: b/405993906.
-wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
-
-# Cobalt bug: b/405997906.
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]

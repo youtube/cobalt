@@ -77,14 +77,6 @@ leveldb_env::Options MakeOnDiskOptions() {
   return options;
 }
 
-#if BUILDFLAG(IS_COBALT)
-leveldb::WriteOptions CreateSyncWriteOptions() {
-  leveldb::WriteOptions options;
-  options.sync = true;
-  return options;
-}
-#endif
-
 DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
   base::span key_span(key);
@@ -181,13 +173,8 @@ DbStatus DomStorageDatabaseLevelDB::Put(KeyView key, ValueView value) {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
   }
-#if BUILDFLAG(IS_COBALT)
-  return FromLevelDBStatus(
-      db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value)));
-#else
   return FromLevelDBStatus(
       db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value)));
-#endif
 }
 
 DbStatus DomStorageDatabaseLevelDB::GetPrefixed(

@@ -96,10 +96,7 @@ class RendererImplTest : public ::testing::Test {
   RendererImplTest(const RendererImplTest&) = delete;
   RendererImplTest& operator=(const RendererImplTest&) = delete;
 
-  ~RendererImplTest() override {
-    Destroy();
-    SetMediaClient(nullptr);
-  }
+  ~RendererImplTest() override { Destroy(); }
 
  protected:
   void Destroy() {

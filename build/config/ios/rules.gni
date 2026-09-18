@@ -8,7 +8,6 @@ import("//build/config/apple/mobile_bundle_data.gni")
 import("//build/config/apple/mobile_config.gni")
 import("//build/config/apple/symbols.gni")
 import("//build/config/compiler/compiler.gni")
-import("//build/config/ios/config.gni")
 import("//build/config/ios/ios_sdk.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/siso.gni")
@@ -362,8 +361,6 @@ template("ios_app_bundle") {
         get_label_info(invoker.intents_target, "name") + ".module_info.json"
 
     action(_metadata_extraction) {
-      forward_variables_from(invoker, [ "testonly" ])
-
       _output_dir = "$target_out_dir/$target_name"
       _binary_path = "$target_out_dir/$_output_name"
 
@@ -416,8 +413,6 @@ template("ios_app_bundle") {
     }
 
     bundle_data(_metadata_bundledata) {
-      forward_variables_from(invoker, [ "testonly" ])
-
       public_deps = [ ":$_metadata_extraction" ]
       sources = get_target_outputs(":$_metadata_extraction")
       outputs = [ "{{bundle_resources_dir}}/" +

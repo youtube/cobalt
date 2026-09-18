@@ -557,14 +557,6 @@ void MemoryCache::OnMemoryPressure(base::MemoryPressureLevel level) {
           features::kReleaseResourceStrongReferencesOnMemoryPressure)) {
     ClearStrongReferences();
   }
-
-#if BUILDFLAG(IS_COBALT)
-  if (level == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
-      base::FeatureList::IsEnabled(
-          features::kEvictMemoryCacheOnCriticalMemoryPressure)) {
-    EvictResources();
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void MemoryCache::OnReleaseMemory() {

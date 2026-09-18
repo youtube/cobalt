@@ -15,7 +15,6 @@
 #include "client/client_argv_handling.h"
 
 #include "base/strings/stringprintf.h"
-#include "build/build_config.h"
 
 namespace crashpad {
 
@@ -33,9 +32,6 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TOOLCHAIN)
-    const base::FilePath& ca_certificates_path,
-#endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments) {
@@ -58,13 +54,6 @@ std::vector<std::string> BuildHandlerArgvStrings(
     argv_strings.push_back(FormatArgumentString("url", url));
   }
 
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TOOLCHAIN)
-  if (!ca_certificates_path.empty()) {
-    argv_strings.push_back(FormatArgumentString("ca-certificates-path",
-                                                ca_certificates_path.value()));
-  }
-#endif
-
   for (const auto& kv : annotations) {
     argv_strings.push_back(
         FormatArgumentString("annotation", kv.first + '=' + kv.second));
@@ -77,27 +66,6 @@ std::vector<std::string> BuildHandlerArgvStrings(
 
   return argv_strings;
 }
-
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TOOLCHAIN)
-std::vector<std::string> BuildHandlerArgvStrings(
-    const base::FilePath& handler,
-    const base::FilePath& database,
-    const base::FilePath& metrics_dir,
-    const std::string& url,
-    const std::map<std::string, std::string>& annotations,
-    const std::vector<std::string>& arguments,
-    const std::vector<base::FilePath>& attachments) {
-  base::FilePath empty_path;
-  return BuildHandlerArgvStrings(handler,
-                                 database,
-                                 metrics_dir,
-                                 url,
-                                 empty_path,
-                                 annotations,
-                                 arguments,
-                                 attachments);
-}
-#endif
 
 void StringVectorToCStringVector(const std::vector<std::string>& strings,
                                  std::vector<const char*>* c_strings) {

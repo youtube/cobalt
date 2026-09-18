@@ -212,10 +212,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUseSmallSingleSlotSpans);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 
-#if BUILDFLAG(IS_COBALT)
-BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers);
-#endif  // BUILDFLAG(IS_COBALT)
-
 }  // namespace base::features
 
 #endif  // BASE_ALLOCATOR_PARTITION_ALLOC_FEATURES_H_
