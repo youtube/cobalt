@@ -102,9 +102,9 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
           }
         }
 #if BUILDFLAG(IS_STARBOARD)
-        // On Starboard, default to 0 (disable CC image cache items limit,
-        // previously set via cobalt_switch_defaults_starboard).
-        return static_cast<size_t>(0);
+        // Cache 15 decoded images. Scroll FPS doubles once 13 are cached;
+        // 15 adds margin and costs ~1 MB of GPU memory. See b/562624433.
+        return static_cast<size_t>(15);
 #else
         return static_cast<size_t>(
             2000);  // kNormalMaxItemsInCacheForGpu default
