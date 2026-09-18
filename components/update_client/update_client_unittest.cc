@@ -2294,12 +2294,8 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       scoped_refptr<MockInstaller> installer =
           base::MakeRefCounted<MockInstaller>();
 
-<<<<<<< HEAD
-=======
 #if !BUILDFLAG(IS_STARBOARD)
-      EXPECT_CALL(*installer, OnUpdateError(_)).Times(0);
->>>>>>> parent of 13b33d35ced (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      EXPECT_CALL(*installer, DoInstall(_));
+      EXPECT_CALL(*installer, OnUpdateError(_)).Times(0);      EXPECT_CALL(*installer, DoInstall(_));
       EXPECT_CALL(*installer, GetInstalledFile(_)).Times(0);
       EXPECT_CALL(*installer, Uninstall()).Times(0);
 #endif

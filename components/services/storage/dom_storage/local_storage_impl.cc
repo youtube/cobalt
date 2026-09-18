@@ -594,9 +594,7 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     return;
   }
 
-<<<<<<< HEAD
-=======
-  // Verify DB schema version.
+// Verify DB schema version.
   if (database_) {
     database_->RunDatabaseTask(
         base::BindOnce(
@@ -641,12 +639,9 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
 #if BUILDFLAG(IS_COBALT)
     LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError", status);
 #endif
-    DeleteAndRecreateDatabase();
-    return;
-  }
-
->>>>>>> parent of 13b33d35ced (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  OnConnectionFinished();
+      DeleteAndRecreateDatabase();
+      return;
+  }  OnConnectionFinished();
 }
 
 void LocalStorageImpl::OnConnectionFinished() {
