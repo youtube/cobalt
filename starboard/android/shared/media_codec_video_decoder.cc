@@ -501,7 +501,7 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
 
 bool MediaCodecVideoDecoder::NeedsCodecRebuildForColorChange(
     const scoped_refptr<InputBuffer>& input_buffer) const {
-  if (video_codec_ != kSbMediaVideoCodecVp9 || !media_decoder_) {
+  if (!media_decoder_) {
     return false;
   }
   const bool stream_is_hdr =
