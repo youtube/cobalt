@@ -20,10 +20,12 @@
 #include <limits.h>
 #include <pthread.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -32,6 +34,7 @@
 #include "starboard/aosp/shared/application_aosp.h"
 #include "starboard/aosp/shared/window_surface.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -45,6 +48,18 @@ namespace {
 // store file into a 1MB stack buffer. Use 2MB, the same size Cobalt 25 and RDK
 // use.
 constexpr size_t kStarboardMainStackSize = 2 * 1024 * 1024;
+
+// How long SurfaceHolder.surfaceDestroyed() may block waiting to drop the
+// surface. This blocks the Android UI thread, so it has to stay well under the
+// 5s ANR threshold.
+constexpr int64_t kSurfaceReleaseTimeoutUsec = 2'000'000;
+
+// The loader runs once per process, Android can destroy and re-create
+// MainActivity while keeping the process alive (configuration changes),
+// and SurfaceHolder hands a new surface o a live Activity when the window
+// is rebuilt, so surfaceCreated() runs more than once. This flag is used
+// to ensure that spawning the loader thread a second time never happens.
+std::atomic<bool> g_loader_started{false};
 
 void* StarboardMain(void* /*context*/) {
   pthread_setname_np(pthread_self(), "StarboardMain");
@@ -96,8 +111,23 @@ void* StarboardMain(void* /*context*/) {
   }
   argv.push_back(nullptr);
 
-  main(static_cast<int>(args.size()), argv.data());
-  return nullptr;
+  int error_level = main(static_cast<int>(args.size()), argv.data());
+
+  // End the process once SbRunStarboardMain() returns (when the activity is
+  // destroyed) so the next launch starts clean. Android keeps the process
+  // running and may reuse it to re-create the Activity, and MainActivity would
+  // see leftover state such as a non-null BaseStarboardBridge, treat it as a
+  // warm start and never start the loader again. Forcing it to start again
+  // wouldn't work, SbEventHandle() deletes Cobalt's AppEventDelegate on
+  // kSbEventTypeStop and never re-creates it, so the next start event is
+  // dropped.
+  //
+  // _exit() instead exit(): DoStop() already flushed stdio, so the extra
+  // teardown exit() runs isn't needed.
+  SB_LOG(INFO) << "cobalt_loader: Starboard exited with " << error_level
+               << "; ending the process.";
+
+  _exit(error_level);
 }
 
 }  // namespace
@@ -105,25 +135,33 @@ void* StarboardMain(void* /*context*/) {
 namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
-  pthread_attr_t attr;
-  if (pthread_attr_init(&attr) != 0) {
-    SB_LOG(ERROR) << "Failed to initialize StarboardMain thread attributes";
+  if (g_loader_started.exchange(true)) {
+    SB_LOG(WARNING)
+        << "cobalt_loader: StarboardMain is already running; ignoring.";
     return;
   }
 
-  if (pthread_attr_setstacksize(&attr, kStarboardMainStackSize) != 0 ||
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0) {
-    SB_LOG(ERROR) << "Failed to set StarboardMain thread attributes";
-    pthread_attr_destroy(&attr);
-    return;
-  }
+  pthread_attr_t attr;
+  SB_CHECK(pthread_attr_init(&attr) == 0)
+      << "Failed to initialize the StarboardMain thread attributes";
+  SB_CHECK(pthread_attr_setstacksize(&attr, kStarboardMainStackSize) == 0)
+      << "Failed to set the StarboardMain thread stack size";
+  SB_CHECK(pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) == 0)
+      << "Failed to set the StarboardMain thread detach state";
 
   pthread_t thread;
-  if (pthread_create(&thread, &attr, &StarboardMain, nullptr) != 0) {
-    SB_LOG(ERROR) << "Failed to create StarboardMain thread";
-  }
+  SB_CHECK(pthread_create(&thread, &attr, &StarboardMain, nullptr) == 0)
+      << "Failed to create the StarboardMain thread";
 
   pthread_attr_destroy(&attr);
+}
+
+jboolean JNI_MainActivity_IsLoaderStarted(JNIEnv* /*env*/) {
+  return g_loader_started.load();
+}
+
+jboolean JNI_MainActivity_HasSurface(JNIEnv* /*env*/) {
+  return android::shared::HasWindowSurface();
 }
 
 // MainActivity hands the Activity window's Surface to Starboard here.
@@ -138,7 +176,43 @@ void JNI_MainActivity_NativeOnSurfaceCreated(
 
 void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
   SB_LOG(INFO) << "cobalt_loader: Starboard surface destroyed.";
-  starboard::android::shared::SetWindowSurface(nullptr);
+  ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
+  if (application == nullptr) {
+    // Nothing is running yet, or it is already gone; just drop the surface.
+    starboard::android::shared::SetWindowSurface(nullptr);
+    return;
+  }
+  int64_t start_usec = starboard::CurrentMonotonicTime();
+  bool released =
+      application->ReleaseWindowSurfaceAndWait(kSurfaceReleaseTimeoutUsec);
+
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface released after "
+               << (starboard::CurrentMonotonicTime() - start_usec) / 1000
+               << " ms, released=" << released;
+}
+
+void JNI_MainActivity_NativeSendBlurEvent(JNIEnv* /*env*/) {
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->Blur(nullptr, nullptr);
+  }
+}
+
+void JNI_MainActivity_NativeSendFocusEvent(JNIEnv* /*env*/) {
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->Focus(nullptr, nullptr);
+  }
+}
+
+void JNI_MainActivity_NativeSendConcealEvent(JNIEnv* /*env*/) {
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->Conceal(nullptr, nullptr);
+  }
+}
+
+void JNI_MainActivity_NativeSendStopEvent(JNIEnv* /*env*/) {
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->Stop(0);
+  }
 }
 
 jboolean JNI_MainActivity_NativeSendKeyEvent(JNIEnv* /*env*/,
