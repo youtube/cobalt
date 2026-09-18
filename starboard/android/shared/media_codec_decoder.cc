@@ -434,6 +434,11 @@ bool MediaCodecDecoder::Flush() {
   return true;
 }
 
+void MediaCodecDecoder::PrewarmReplacementCodec() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  media_codec_bridge_->PrewarmReplacementCodec();
+}
+
 void MediaCodecDecoder::AudioDecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.

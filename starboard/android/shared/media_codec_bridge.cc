@@ -372,6 +372,17 @@ jint MediaCodecBridge::Flush() {
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
 }
 
+void MediaCodecBridge::PrewarmReplacementCodec() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_prewarmReplacementCodec(env, j_media_codec_bridge_);
+}
+
+// static
+void MediaCodecBridge::DiscardPrewarmedCodecs() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_discardPrewarmedCodecs(env);
+}
+
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result(

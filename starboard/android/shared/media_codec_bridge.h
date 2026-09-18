@@ -89,6 +89,12 @@ class MediaCodecBridge : public MediaCodec {
   void SetPlaybackRate(double playback_rate) override;
   bool Restart() override;
   jint Flush() override;
+  void PrewarmReplacementCodec() override;
+
+  // Releases every codec that was prewarmed but never claimed.  Safe to call
+  // when there are none.
+  static void DiscardPrewarmedCodecs();
+
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
 
