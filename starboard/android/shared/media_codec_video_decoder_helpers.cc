@@ -20,12 +20,20 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 
-bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
+bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
+                               const std::string& max_video_capabilities) {
+  if (features.GetBool(kMediaForceSoftwareVideoDecoder)) {
+    SB_LOG(INFO) << "Use software decoder as `kMediaForceSoftwareVideoDecoder` "
+                 << "is set in experimental features.";
+    return true;
+  }
+
   if (max_video_capabilities.empty()) {
     return false;
   }
@@ -35,20 +43,6 @@ bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
   if (!mime_type) {
     SB_LOG(INFO) << "Use hardware decoder as `max_video_capabilities` ("
                  << max_video_capabilities << ") is invalid.";
-    return false;
-  }
-
-  std::string software_decoder_expectation =
-      mime_type->GetParamStringValue("softwaredecoder", "");
-  if (software_decoder_expectation == "required" ||
-      software_decoder_expectation == "preferred") {
-    SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return true;
-  } else if (software_decoder_expectation == "disallowed" ||
-             software_decoder_expectation == "unpreferred") {
-    SB_LOG(INFO) << "Use hardware decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
     return false;
   }
 

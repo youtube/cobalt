@@ -31,6 +31,13 @@
 namespace media {
 
 bool IsHlsUrl(const GURL& url) {
+  if (url.SchemeIs("data")) {
+    auto spec = url.spec();
+    auto comma = spec.find(',');
+    auto header = (comma != std::string::npos) ? spec.substr(0, comma) : spec;
+    return header.find("application/x-mpegurl") != std::string::npos ||
+           header.find("application/vnd.apple.mpegurl") != std::string::npos;
+  }
   auto path = url.path_piece();
   return path.ends_with(".m3u8") ||
          path.find("hls_variant") != std::string_view::npos;

@@ -55,7 +55,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
-      SbMediaAudioFrameStorageType audio_frame_storage_type,
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -65,7 +64,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   SbAudioSink Create(int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,
-                     SbMediaAudioFrameStorageType audio_frame_storage_type,
                      SbAudioSinkFrameBuffers frame_buffers,
                      int frames_per_channel,
                      Callbacks callbacks,
@@ -73,6 +71,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      std::optional<int> tunnel_mode_audio_session_id,
                      bool is_web_audio,
                      bool allow_audio_writing_on_pause,
+                     bool pause_using_audio_track_state,
                      void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -118,6 +117,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
+      bool pause_using_audio_track_state,
       void* context);
   static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
       Type* type,
@@ -131,6 +131,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
+      bool pause_using_audio_track_state,
       std::unique_ptr<AudioTrack> fake_audio_track,
       void* context);
 
@@ -146,6 +147,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       int64_t start_media_time,
                       std::optional<int> tunnel_mode_audio_session_id,
                       bool allow_audio_writing_on_pause,
+                      bool pause_using_audio_track_state,
                       std::unique_ptr<AudioTrack> audio_track,
                       void* context);
   ~AudioTrackAudioSink() override;
@@ -183,6 +185,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const raw_ptr<void> context_;
 
   const bool allow_audio_writing_on_pause_;
+  const bool pause_using_audio_track_state_;
 
   // Guaranteed to be non-null.
   const std::unique_ptr<AudioTrack> audio_track_;

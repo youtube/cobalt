@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/media.h"
+// clang-format on
+
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/tvos/shared/media/playback_capabilities.h"
 
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  SB_DCHECK(output_index >= 0);
+  SB_DCHECK_GE(output_index, 0);
   SB_DCHECK(out_configuration);
 
-  return starboard::shared::uikit::PlaybackCapabilities::GetAudioConfiguration(
+  return starboard::PlaybackCapabilities::GetAudioConfiguration(
       output_index, out_configuration);
 }

@@ -108,8 +108,7 @@ class GlobalFeatures {
 
   // Construct a FilePath for a pref file and ensure its parent directory
   // exists.
-  base::FilePath GetPrefFilePath(const base::FilePath::CharType filename[],
-                                 const char* label);
+  base::FilePath GetPrefFilePath(std::string_view filename, const char* label);
 
   std::unique_ptr<base::FeatureList::Accessor> accessor_;
 

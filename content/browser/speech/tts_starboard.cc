@@ -14,11 +14,13 @@
 
 #include "content/browser/speech/tts_platform_impl.h"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/tts_controller.h"
@@ -152,7 +154,15 @@ void TtsPlatformImplStarboard::GetVoices(std::vector<VoiceData>* out_voices) {
   voice.name = "Starboard";
   // Starboard API dictates language should be the same as
   // SbSystemGetLocaleId().
-  voice.lang = SbSystemGetLocaleId();
+  const char* locale_id = SbSystemGetLocaleId();
+  if (locale_id && locale_id[0] != '\0' && strcmp(locale_id, "C") != 0 &&
+      strcmp(locale_id, "POSIX") != 0) {
+    voice.lang = locale_id;
+  } else {
+    LOG(WARNING) << "SbSystemGetLocaleId() returned null or invalid locale id; "
+                 << "defaulting to empty string.";
+    voice.lang.clear();
+  }
   voice.events.insert(TTS_EVENT_START);
   voice.events.insert(TTS_EVENT_END);
 }

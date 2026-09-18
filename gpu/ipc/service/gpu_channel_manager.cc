@@ -770,7 +770,9 @@ void GpuChannelManager::DoWakeUpGpu() {
   glFinish();
   DidAccessGpu();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -831,7 +833,7 @@ void GpuChannelManager::OnBackgroundCleanup() {
   // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif
 
 void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

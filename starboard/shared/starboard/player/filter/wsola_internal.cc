@@ -300,11 +300,9 @@ int FullSearch(int low_limit,
 
 int OptimalIndex(const DecodedAudio* search_block,
                  const DecodedAudio* target_block,
-                 SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval) {
   int channels = search_block->channels();
   SB_DCHECK_EQ(channels, target_block->channels());
-  SB_DCHECK_EQ(storage_type, kSbMediaAudioFrameStorageTypeInterleaved);
 
   int target_size = target_block->frames();
   int num_candidate_blocks = search_block->frames() - (target_size - 1);

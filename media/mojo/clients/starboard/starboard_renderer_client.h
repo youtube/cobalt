@@ -16,6 +16,8 @@
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -112,6 +114,9 @@ class MEDIA_EXPORT StarboardRendererClient
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
   void GetSbWindowHandle() override;
 #if BUILDFLAG(IS_IOS_TVOS)
+  void OnEncryptedMediaInitDataEncountered(
+      const std::string& init_data_type,
+      const std::vector<uint8_t>& init_data) override;
   void OnDurationChange(base::TimeDelta duration) override;
   void OnBufferedTimeRangesChange(base::TimeDelta start,
                                   base::TimeDelta length) override;

@@ -64,6 +64,12 @@ pipeline () {
   ##############################################################################
   cd "${GCLIENT_ROOT}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
+  # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+  # `--end-of-options` to `git checkout`. Need to update git on runners.
+  git -C tools/depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+  export DEPOT_TOOLS_UPDATE=0
+  git config --global --add safe.directory '*'
+  source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${GCLIENT_ROOT}/tools/depot_tools"
   # Conditionally enable RBE variables
   local custom_vars=""
@@ -113,9 +119,9 @@ EOF
   # Build Cobalt.
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
 
-  # Extract test targets from JSON for non-nightly (e.g. presubmit) builds.
+  # Extract test targets from JSON for non-release configs (e.g. devel).
   local json_targets=""
-  if ! is_nightly_build; then
+  if ! is_release_config; then
     local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/${TARGET_PLATFORM}/test_targets.json"
     if [[ -f "${test_targets_json}" ]]; then
       # Extract test targets from the JSON file (list of dicts schema)

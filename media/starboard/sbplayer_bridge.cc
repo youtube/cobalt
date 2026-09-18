@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -648,10 +649,21 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     const unsigned char* init_data,
     unsigned int init_data_length) {
   SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
-  DCHECK(
-      !sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.is_null());
-  sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.Run(
-      init_data_type, init_data, init_data_length);
+  auto data_span = base::span(init_data, init_data_length);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnEncryptedMediaInitDataEncountered,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     std::string(init_data_type),
+                     std::vector<uint8_t>(data_span.begin(), data_span.end())));
+}
+
+void SbPlayerBridge::OnEncryptedMediaInitDataEncountered(
+    std::string init_data_type,
+    std::vector<uint8_t> init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
+  on_encrypted_media_init_data_encountered_cb_.Run(init_data_type, init_data);
 }
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {

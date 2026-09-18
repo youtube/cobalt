@@ -83,6 +83,7 @@
   ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
+// Deprecated: Use C++17 static_assert instead.
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)
@@ -128,6 +129,9 @@ struct CompileAssert {};
 #endif
 #endif  // SB_PRINTF_FORMAT
 
+// Deprecated: Per the Google C++ Style Guide, comment out unused parameter
+// names (e.g., `void* /*context*/` or `Type /*param_name*/`), or use
+// `[[maybe_unused]]` if conditionally unused.
 // Trivially references a parameter that is otherwise unreferenced, preventing a
 // compiler warning on some platforms.
 #if !defined(SB_UNREFERENCED_PARAMETER)
