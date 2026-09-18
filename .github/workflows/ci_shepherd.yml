@@ -305,6 +305,10 @@ jobs:
       actions: read
       pull-requests: read
       statuses: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     outputs:
       overall_state: ${{ steps.extract.outputs.overall_state }}
       overall_desc: ${{ steps.extract.outputs.overall_desc }}
@@ -357,6 +361,13 @@ jobs:
           echo "overall_state=${overall_state:-pending}" >> "${GITHUB_OUTPUT}"
           echo "overall_desc=${overall_desc:-Checks are running}" >> "${GITHUB_OUTPUT}"
 
+      - name: Configure environment for Gemini CLI
+        if: steps.parse.outputs.run_analysis == 'true'
+        run: |
+          echo "GEMINI_CLI_TRUST_WORKSPACE=true" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+
       - name: Checkout PR files
         if: steps.parse.outputs.run_analysis == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -372,15 +383,12 @@ jobs:
       - name: Run Gemini PR Shepherd Analysis
         id: gemini-analysis
         if: steps.parse.outputs.run_analysis == 'true'
-        env:
-          GEMINI_CLI_TRUST_WORKSPACE: 'true'
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_DEBUG: 'true'
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
+          gemini_debug: true
+          gemini_model: 'gemini-2.5-flash'
           upload_artifacts: true
           prompt: |
             Analyze the CI test failures for this pull request using the pr-shepherd skill (github.com/youtube/cobalt/pull/12679).
