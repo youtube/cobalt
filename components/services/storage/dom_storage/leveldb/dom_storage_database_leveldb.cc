@@ -85,15 +85,7 @@ leveldb::WriteOptions CreateSyncWriteOptions() {
 }
 #endif
 
-std::unique_ptr<leveldb::DB> TryOpenDB(
-    const leveldb_env::Options& options,
-    const std::string& name,
-    DomStorageDatabaseLevelDB::StatusCallback callback) {
-  std::unique_ptr<leveldb::DB> db;
-  leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
-  std::move(callback).Run(FromLevelDBStatus(status));
-  return db;
-}DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
+DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
   base::span key_span(key);
   base::span value_span(value);

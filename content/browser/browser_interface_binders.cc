@@ -1707,7 +1707,8 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &ServiceWorkerHost::BindUsbService, base::Unretained(host)));
-#endif  if (base::FeatureList::IsEnabled(
+#endif
+  if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<ServiceWorkerHost>,

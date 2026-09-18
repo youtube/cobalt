@@ -18,7 +18,8 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
-#include "base/path_service.h"#include "third_party/skia/include/ports/SkFontMgr_android.h"
+#include "base/path_service.h"
+#include "third_party/skia/include/ports/SkFontMgr_android.h"
 #include "third_party/skia/include/ports/SkFontMgr_android_ndk.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
 #include "third_party/skia/include/ports/SkFontScanner_FreeType.h"
@@ -107,7 +108,8 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     if (ndk_fontmgr && ndk_fontmgr->countFamilies()) {
       return ndk_fontmgr;
     }
-  }  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
+  }
+  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);
 #elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
@@ -125,7 +127,6 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   return SkFontMgr_New_Custom_Empty();
 #else
   return SkFontMgr::RefEmpty();
-#endif
 #endif
 }
 
