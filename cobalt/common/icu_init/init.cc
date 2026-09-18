@@ -65,8 +65,10 @@ off_t GetIcuDataLength(const std::string& data_path) {
   struct stat st;
   int stat_result = stat(data_path.c_str(), &st);
   if (stat_result != 0 || st.st_size <= 0) {
-    SB_LOG(WARNING) << "Failed to stat ICU data " << data_path << ", error "
-                    << strerror(errno);
+    SB_CHECK(stat_result != -1) << "Failed to stat ICU data " << data_path
+                                << ", error " << strerror(errno);
+    SB_CHECK(stat_result == 0 && st.st_size > 0)
+        << "ICU data file unexpectedly has zero length.";
     return -1;
   }
   return st.st_size;
