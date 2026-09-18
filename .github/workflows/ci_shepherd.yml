@@ -299,7 +299,7 @@ jobs:
     concurrency:
       group: shepherd-analysis-${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
       cancel-in-progress: false
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
@@ -365,6 +365,8 @@ jobs:
           ref: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           fetch-depth: 1
           filter: blob:none
+          sparse-checkout: |
+            .github
 
       - name: Run Gemini PR Shepherd Analysis
         id: gemini-analysis
