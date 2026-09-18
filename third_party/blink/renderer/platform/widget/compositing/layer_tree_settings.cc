@@ -615,8 +615,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
            settings.skewport_extrapolation_limit_in_screen_pixels) =
       GetTilingInterestAreaSizes();
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
   // When enabled, overrides the compositor skewport target times, which control
   // speculative pre-rastering of offscreen tiles. Both params default to 0,
@@ -638,9 +636,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   }
 #endif
 
-  settings.dynamic_safe_area_insets_on_scroll_enabled =
-      RuntimeEnabledFeatures::DynamicSafeAreaInsetsOnScrollEnabled();
->>>>>>> 3764056d1c0 (cobalt: Gate compositor skewport target time with base::Feature (#12664))
   return settings;
 }
 
