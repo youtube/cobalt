@@ -27,6 +27,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "services/data_decoder/public/cpp/safe_xml_parser.h"
+#include "services/data_decoder/public/cpp/service_provider.h"
 #include "services/data_decoder/public/mojom/xml_parser.mojom.h"
 #include "third_party/blink/public/mojom/speech/speech_synthesis.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -741,6 +742,16 @@ void TtsControllerImpl::StripSSML(
     base::OnceCallback<void(const std::string&)> on_ssml_parsed) {
   // Skip parsing and return if not xml.
   if (utterance.find("<?xml") == std::string::npos) {
+    std::move(on_ssml_parsed).Run(utterance);
+    return;
+  }
+
+  // The parse below is performed by the Data Decoder service. Embedders are
+  // not required to install a ServiceProvider for it (Cobalt, for example,
+  // does not), and on USE_BLINK builds DataDecoder::GetService() is a
+  // LOG(FATAL) when none has been set. Speak the utterance unparsed instead of
+  // terminating the browser process. See b/563468674.
+  if (!data_decoder::ServiceProvider::Get()) {
     std::move(on_ssml_parsed).Run(utterance);
     return;
   }
