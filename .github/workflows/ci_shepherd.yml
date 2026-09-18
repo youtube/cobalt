@@ -37,13 +37,14 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-      statuses: write
       actions: read
     outputs:
       pr_number: ${{ steps.anchor.outputs.pr_number }}
       comment_id: ${{ steps.anchor.outputs.comment_id }}
       head_sha: ${{ steps.anchor.outputs.head_sha }}
       workflow_state: ${{ steps.report.outputs.state }}
+      workflow_desc: ${{ steps.report.outputs.desc }}
+      workflow_id: ${{ steps.report.outputs.workflow_id }}
     steps:
       - name: Create Anchor Comment
         id: anchor
@@ -188,40 +189,12 @@ jobs:
           echo "desc=${desc}" >> "${GITHUB_OUTPUT}"
           echo "workflow_id=${WORKFLOW}" >> "${GITHUB_OUTPUT}"
 
-      - name: Update Triggering Workflow Commit Status
-        id: update-status
-        if: steps.anchor.outputs.head_sha != '' && (github.event.workflow_run.name != '' || inputs.workflow_name != '')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ steps.anchor.outputs.head_sha }}
-          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
-          WORKFLOW_ID: ${{ steps.report.outputs.workflow_id }}
-          STATE: ${{ steps.report.outputs.state }}
-          DESC: ${{ steps.report.outputs.desc }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          run_url="${RUN_URL:-}"
-          if [[ -z "${run_url}" && -n "${WORKFLOW_ID}" ]]; then
-            run_url="https://github.com/${REPO}/actions/runs/${WORKFLOW_ID}"
-          fi
-
-          params=(-f state="${STATE}" -f description="${DESC}" -f context="CI / ${WORKFLOW_NAME}")
-          if [[ -n "${run_url}" ]]; then
-            params+=(-f target_url="${run_url}")
-          fi
-
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" "${params[@]}"
 
   deflake:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: write
-      statuses: write
     outputs:
       rerun_triggered: ${{ steps.rerun.outputs.rerun_triggered || 'false' }}
     steps:
@@ -283,12 +256,6 @@ jobs:
           gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
           echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
 
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="pending" \
-            -f target_url="${RUN_URL}" \
-            -f description="Retrying failed jobs" \
-            -f context="CI / ${WORKFLOW_NAME}" 2>/dev/null || true
-
           # Sleep to allow GitHub API to transition the run status to in_progress/queued
           sleep 5
 
@@ -321,6 +288,8 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           RERUN_TRIGGERED: ${{ needs.deflake.outputs.rerun_triggered || 'false' }}
+          CURRENT_WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
+          CURRENT_WORKFLOW_STATE: ${{ needs.init-comment.outputs.workflow_state }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
@@ -339,8 +308,20 @@ jobs:
             exit 0
           fi
 
-          IFS=$'\t' read -r all_done overall_state overall_desc has_failure < <(echo "${status_json}" | jq -r --arg rerun "${RERUN_TRIGGERED}" '
-            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] as $ci |
+          current_wf="${CURRENT_WORKFLOW_NAME:-}"
+          current_st="${CURRENT_WORKFLOW_STATE:-}"
+
+          IFS=$'\t' read -r all_done overall_state overall_desc has_failure < <(echo "${status_json}" | jq -r \
+            --arg rerun "${RERUN_TRIGGERED}" \
+            --arg cur_wf "${current_wf}" \
+            --arg cur_st "${current_st}" '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] as $raw_ci |
+            (if ($cur_wf != "" and $cur_st != "") then
+              ($raw_ci | map(if .context == ("CI / " + $cur_wf) then .state = $cur_st else . end)) +
+              (if ($raw_ci | any(.context == ("CI / " + $cur_wf))) then [] else [{context: ("CI / " + $cur_wf), state: $cur_st}] end)
+            else
+              $raw_ci
+            end) as $ci |
             ($ci | length > 0 and ($ci | all(.state != "pending")) and $rerun != "true") as $done |
             ($ci | any(.state == "failure" or .state == "error")) as $failed |
             if ($done | not) then
@@ -368,12 +349,11 @@ jobs:
           echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
           echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
 
-      - name: Checkout PR files
+      - name: Checkout files
         if: steps.parse.outputs.run_analysis == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-          ref: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: |
@@ -383,7 +363,7 @@ jobs:
       - name: Run Gemini PR Shepherd Analysis
         id: gemini-analysis
         if: steps.parse.outputs.run_analysis == 'true'
-        uses: google-github-actions/run-gemini-cli@v0
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
@@ -441,31 +421,48 @@ jobs:
             echo "${DELIMITER}"
           } >> "${GITHUB_OUTPUT}"
 
-  comment-pr:
+  update-status:
     runs-on: ubuntu-latest
-    needs: [init-comment, shepherd-analysis]
-    if: always() && needs.init-comment.outputs.pr_number != '' && !cancelled()
+    needs: [init-comment, deflake, shepherd-analysis]
+    if: always() && !cancelled()
     timeout-minutes: 5
     permissions:
       statuses: write
-      pull-requests: write
+      pull-requests: read
+      actions: read
     steps:
-      - name: Generate and Post Shepherd Report
-        id: report
+      - name: Update Triggering Workflow and Overall Commit Status
+        id: update-status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           PR_NUMBER: ${{ needs.init-comment.outputs.pr_number }}
-          COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
+          WORKFLOW_ID: ${{ needs.init-comment.outputs.workflow_id }}
+          STATE: ${{ needs.init-comment.outputs.workflow_state }}
+          DESC: ${{ needs.init-comment.outputs.workflow_desc }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
           OVERALL_STATE: ${{ needs.shepherd-analysis.outputs.overall_state }}
           OVERALL_DESC: ${{ needs.shepherd-analysis.outputs.overall_desc }}
-          FINDINGS: ${{ needs.shepherd-analysis.outputs.findings }}
         shell: bash
         run: |
           set -euo pipefail
 
-          # Update the overall status if all checks are done
+          if [[ -n "${HEAD_SHA}" && -n "${WORKFLOW_NAME}" ]]; then
+            run_url="${RUN_URL:-}"
+            if [[ -z "${run_url}" && -n "${WORKFLOW_ID}" ]]; then
+              run_url="https://github.com/${REPO}/actions/runs/${WORKFLOW_ID}"
+            fi
+
+            params=(-f state="${STATE}" -f description="${DESC}" -f context="CI / ${WORKFLOW_NAME}")
+            if [[ -n "${run_url}" ]]; then
+              params+=(-f target_url="${run_url}")
+            fi
+
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" "${params[@]}"
+          fi
+
           if [[ -n "${OVERALL_STATE:-}" && "${OVERALL_STATE}" != "pending" ]]; then
             all_pass_url="https://github.com/${REPO}/commit/${HEAD_SHA}"
             if [[ -n "${PR_NUMBER}" ]]; then
@@ -478,9 +475,30 @@ jobs:
               -f description="${OVERALL_DESC}" \
               -f context="CI / All Pass"
 
-            # Sleep to allow GitHub API to propagate the updated commit status
-            sleep 10
+            sleep 5
           fi
+
+  comment-pr:
+    runs-on: ubuntu-latest
+    needs: [init-comment, update-status, shepherd-analysis]
+    if: always() && needs.init-comment.outputs.pr_number != '' && !cancelled()
+    timeout-minutes: 5
+    permissions:
+      statuses: read
+      pull-requests: write
+    steps:
+      - name: Generate and Post Shepherd Report
+        id: report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ needs.init-comment.outputs.pr_number }}
+          COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          FINDINGS: ${{ needs.shepherd-analysis.outputs.findings }}
+        shell: bash
+        run: |
+          set -euo pipefail
 
           # Generate markdown status table from the commit statuses.
           {
