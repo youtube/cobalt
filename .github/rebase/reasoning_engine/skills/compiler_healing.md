@@ -53,11 +53,13 @@ When something that used to work has broken after a roll, **run both on the rele
      * Use `TOOL_UPSTREAM_DIFF: <path>/BUILD.gn` to check whether the milestone **split, renamed, or moved** the owning target. If a file migrated to a new target, upstream had no reason to carry Cobalt's configuration across, and every guarded declaration in that file will silently vanish.
      * The fix belongs in the `BUILD.gn`, replicating the Cobalt-specific configuration onto the new owning target. Never delete the guarded declaration or the Cobalt config block to silence the error.
 6. Linker Errors (`ld.lld: error: undefined symbol: Class::Method`):
-   - When encountering an undefined symbol error during linking, locate the class declaration (`.h`) and implementation (`.cc`) files using `TOOL_FIND_FILE` or `TOOL_GREP`.
-   - If the implementation exists in a `.cc` file:
-     * Check if the `.cc` file is in `sources` of its parent subsystem `BUILD.gn`.
-     * CRITICAL: Check whether downstream rules in that `BUILD.gn` (such as `sources -= [...]`, `filter_exclude(sources, [...])`, or `if (!enable_privacy_sandbox_apis)` / `if (is_cobalt)`) unintentionally strip or exclude the `.cc` file!
-     * If a wildcard exclusion (e.g. `"fenced_frame/*"`) accidentally strips necessary files like `fenced_frame_viewport_observer.cc`, refine the `filter_exclude` list in that `BUILD.gn` to preserve the needed source files.
+   - Note that linker diagnostics often point `Target` to a `BUILD.gn` file, while the actual caller is shown in `>>> referenced by path/to/caller.cc:LINE` (or `Referencing Source Location`). Always inspect **both** the `BUILD.gn` and the referencing `.cc` caller!
+   - When the symbol's implementation exists in a `.cc` file that is excluded by `BUILD.gn` (via `filter_exclude`, `sources -= [...]`, `if (!enable_privacy_sandbox_apis)`, or `if (is_cobalt)`), determine which case applies:
+     * **Case A — Entire subsystem is intentionally disabled in Cobalt (MOST COMMON):**
+       If `BUILD.gn` excludes a whole feature directory under a disabled flag — such as `"webid/*"`, `"browsing_topics/*"`, `"attribution_reporting/*"`, `"interest_group/*"`, or `"shared_storage/*"` under `if (!enable_privacy_sandbox_apis)` — **NEVER re-add those `.cc` files to `BUILD.gn`!** Re-adding one file from a disabled subsystem pulls in a cascading chain of transitive undefined symbols.
+       Instead, open the referencing caller `.cc` file (`FILE: path/to/caller.cc`) and wrap the new upstream call site (and its `#include`) in `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` or `#if !BUILDFLAG(IS_COBALT)`. Check sibling files (e.g., `render_frame_host_impl.cc`) to confirm the exact `BUILDFLAG(...)` macro used for that subsystem.
+     * **Case B — Unintentionally stripped helper file for an enabled feature:**
+       Only if Cobalt actively uses the feature and a wildcard exclusion accidentally caught a required shared observer/helper file (e.g. `fenced_frame_viewport_observer.cc` needed by core frame code), refine the exclusion list in `BUILD.gn`.
    - If the implementation is actually missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`).
 7. Missing Include Headers ('<header.h>' file not found):
    - When Clang reports `'<header.h>' file not found`:

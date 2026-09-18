@@ -901,6 +901,44 @@ void Foo() {{}}
       self.assertIn(rtc_gn, res)
       self.assertEqual(res[rtc_gn], 167)
 
+  def test_gn_duplicate_object_file_extraction_and_summary(self):
+    """Tests 'The target //dir:name' without colon and unique GN summaries."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      buildconfig = os.path.join(tmp_dir, "build/config/BUILDCONFIG.gn")
+      gfx_gn = os.path.join(tmp_dir, "ui/gfx/BUILD.gn")
+      os.makedirs(os.path.dirname(buildconfig), exist_ok=True)
+      os.makedirs(os.path.dirname(gfx_gn), exist_ok=True)
+      with open(buildconfig, "w", encoding="utf-8") as f:
+        f.write("# buildconfig")
+      with open(gfx_gn, "w", encoding="utf-8") as f:
+        f.write("# gfx")
+
+      gn_out_1 = ("WARNING: Existing args.gn was overwritten.\n"
+                  "Running gn gen out/android-arm_devel --check\n"
+                  "ERROR at //build/config/BUILDCONFIG.gn:602:5: "
+                  "Duplicate object file\n"
+                  "    target(_target_type, target_name) {\n"
+                  "    ^----------------------------------\n"
+                  "The target //ui/gfx:gfx\n"
+                  "generates two object files with the same name:\n"
+                  "  clang_x64/obj/ui/gfx/gfx/achoreographer_compat.o\n")
+      gn_out_2 = gn_out_1.replace("achoreographer_compat.o", "blit.o")
+
+      # 1. Target files must prioritize ui/gfx/BUILD.gn first and defer
+      # BUILDCONFIG.gn to the end.
+      files = list(extract_gn_target_files(gn_out_1, tmp_dir).keys())
+      self.assertEqual(files, [gfx_gn, buildconfig])
+
+      # 2. Error summaries must include the specific object file so distinct
+      # duplicate object files do not compare equal or increment stuck_count.
+      resolver = GNGenResolver(tmp_dir, "android-arm", "devel")
+      sum1 = resolver.extract_diagnostics(gn_out_1, "")[0].error_message
+      sum2 = resolver.extract_diagnostics(gn_out_2, "")[0].error_message
+      self.assertNotEqual(sum1, sum2)
+      self.assertIn("//ui/gfx:gfx", sum1)
+      self.assertIn("achoreographer_compat.o", sum1)
+      self.assertIn("blit.o", sum2)
+
   def test_reject_nested_file_in_search_replace(self):
     """Tests that SEARCH/REPLACE blocks with nested FILE: are rejected."""
     with tempfile.NamedTemporaryFile("w+", suffix=".gn", delete=False) as tmp:
@@ -1536,6 +1574,62 @@ target("foo") {{}}
       # Iteration 1: stuck_count = 0; Iteration 2: stuck_count = 1; ...
       # Iteration 9: stuck_count = 8 -> circuit breaker triggers and halts loop
       self.assertEqual(iteration_count, 9)
+
+  def test_distinct_errors_on_same_file_do_not_trigger_anti_loop(self):
+    """Distinct errors on one file must not trigger Anti-Loop or breaker."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      build_gn = os.path.join(tmpdir, "BUILD.gn")
+      with open(build_gn, "w", encoding="utf-8") as f:
+        f.write("# baseline\n")
+      expert_flags = []
+
+      class MultiErrorResolver(BaseResolver):
+        """Simulates 5 distinct linker errors targeting the same BUILD.gn."""
+
+        @property
+        def name(self) -> str:
+          return "MultiErrorResolver"
+
+        def run_command(self, iteration: int):
+          if iteration <= 5:
+            msg = f"BUILD.gn:1: error: undefined symbol sym_{iteration}"
+            return False, msg, ""
+          return True, "build passed", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out
+          return [
+              CompilerDiagnostic(
+                  file_path=build_gn,
+                  line_number=1,
+                  column=1,
+                  error_message=output,
+                  raw_snippet=output,
+                  notes=[],
+              )
+          ]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records, expert_guidance
+          expert_flags.append(use_expert)
+          return "", "flash", build_gn
+
+      resolver = MultiErrorResolver(repo_path=tmpdir, max_iterations=10)
+      with mock.patch("subprocess.run") as mock_run:
+        res = resolver.run_resolution_loop()
+      self.assertTrue(res)
+      # Anti-Loop git checkout must never be invoked when errors are distinct.
+      for call in mock_run.call_args_list:
+        args = call[0][0] if call[0] else []
+        self.assertNotIn("checkout", args)
+      # use_expert escalates once file_error_counts reaches 3 (iterations 3..5).
+      self.assertEqual(expert_flags, [False, False, True, True, True])
 
   def test_base_resolver_delayed_fix_recording(self):
     """Verifies fix is only recorded in engine when verified cleared."""

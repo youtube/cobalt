@@ -1720,9 +1720,8 @@ class BaseResolver(abc.ABC):
       if target_f:
         self.file_error_counts[target_f] += 1
 
-      # Repetition check -> escalate to Expert Agent
-      if (error_summary == last_error_summary or
-          self.file_error_counts.get(target_f, 0) >= 2):
+      # Repetition check -> only count consecutive identical errors
+      if error_summary == last_error_summary:
         stuck_count += 1
       else:
         stuck_count = 0
@@ -1799,7 +1798,7 @@ class BaseResolver(abc.ABC):
             f"{rel_target_file or error_summary}. Halting runaway build.",
             file=sys.stderr,
         )
-        break
+        return False
 
       use_expert = stuck_count >= 2 or self.file_error_counts.get(target_f,
                                                                   0) >= 3

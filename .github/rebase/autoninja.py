@@ -286,13 +286,17 @@ def _parse_linker_error(ctx: ParseContext) -> Optional[CompilerDiagnostic]:
 
   target_f = target_build_file or ref_file or os.path.join(
       ctx.repo_path, "BUILD.gn")
+  notes = ctx.action_notes()
+  if ref_file and target_f != ref_file:
+    rel_ref = os.path.relpath(ref_file, ctx.repo_path)
+    notes.append(f"Referencing Source Location: {rel_ref}:{ref_line}")
   return CompilerDiagnostic(
       file_path=target_f,
       line_number=ref_line if target_f == ref_file else 1,
       column=1,
       error_message=f"Linker error: {primary_err}",
       raw_snippet="\n".join(linker_lines[:30]),
-      notes=ctx.action_notes(),
+      notes=notes,
   )
 
 

@@ -45,8 +45,8 @@ class GNDiagnostic:
 #   "gn_file"    -> //path/file.gn  => that file, with optional :line
 #   "source"     -> ERROR at //f.cc => that file AND its sibling BUILD.gn
 _GN_TARGET_DIR_PATTERNS = (
-    # 1. Target definitions: "The target: //dir:target"
-    re.compile(r"The target:\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
+    # 1. Target definitions: "The target: //dir:target" or "The target //..."
+    re.compile(r"The target:?\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
     # 2. Caller targets missing a dependency: "dependency of //dir:target"
     re.compile(r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
     # 4. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
@@ -128,7 +128,7 @@ def extract_gn_target_files(
   # first. BUILDCONFIG.gn is still appended at the end as a fallback.
   deferred_gn_files: Dict[str, Optional[int]] = {}
   defer_buildconfig = ("Source file not found" in output or
-                       "The target:" in output)
+                       "The target" in output)
   for f, line_str in _GN_FILE_PATTERN.findall(output):
     full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
     if os.path.isfile(full_p) and full_p not in unique_gn_files:
@@ -225,8 +225,12 @@ class GNGenResolver(BaseResolver):
   def extract_diagnostics(self, build_output: str,
                           siso_output: str) -> List[Any]:
     del siso_output  # Unused in GN generation
-    stripped = build_output.strip()
-    error_summary = stripped.splitlines()[0] if stripped else "GN Error"
+    err_lines = [
+        l.strip()
+        for l in build_output.splitlines()
+        if l.strip() and not l.strip().startswith(("WARNING:", "Running gn"))
+    ]
+    error_summary = " | ".join(err_lines[:6]) if err_lines else "GN Error"
     target_files = extract_gn_target_files(build_output, self.repo_path)
     is_structural = any(kw in build_output.lower() for kw in (
         "unexpected token",
