@@ -37,7 +37,9 @@ class MODULES_EXPORT DialServerManager final
       public Supplement<ExecutionContext>,
       public in_app_dial::mojom::blink::DialRequestHandler {
  public:
-  static const char kSupplementName[];
+  // This will be used again in a future milestone.
+  // static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   static DialServerManager* From(ExecutionContext*);
 

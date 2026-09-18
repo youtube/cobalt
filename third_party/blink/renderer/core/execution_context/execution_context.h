@@ -131,7 +131,7 @@ enum ReferrerPolicySource { kPolicySourceHttpHeader, kPolicySourceMetaTag };
 // by an extension developer, but these share an ExecutionContext (the window)
 // in common.
 class CORE_EXPORT ExecutionContext
-    : public Supplementable<ExecutionContext, 34>,
+    : public Supplementable<ExecutionContext, 35>,
       public MojoBindingContext,
       public UseCounterAndConsoleLogger,
       public FeatureContext {
@@ -170,7 +170,9 @@ class CORE_EXPORT ExecutionContext
     kGlobalIndexedDBImpl = 30,
     kExecutionContextClipboardEventState = 31,
     kCachedVideoFramePool = 32,
-    kCanvasResourceProviderCache = 33
+    kCanvasResourceProviderCache = 33,
+
+    kDialServerManager = 34
   };
 
   ExecutionContext(const ExecutionContext&) = delete;
