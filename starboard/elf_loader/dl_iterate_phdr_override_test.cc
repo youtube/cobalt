@@ -13,28 +13,10 @@
 // limitations under the License.
 
 // This file tests the dl_iterate_phdr override used by Cobalt Evergreen.
-//
-// Background:
-// In Linux, dl_iterate_phdr() is a standard system function provided by the C
-// library (glibc). It allows programs to query the list of all shared libraries
-// currently loaded into memory, along with their memory addresses and program
-// headers. Diagnostic and debugging tools—most notably AddressSanitizer (ASan)
-// and stack unwinding tools—rely on dl_iterate_phdr() during a crash to map
-// memory addresses in a stack trace back to specific library files on disk.
-//
-// Cobalt Evergreen loads its shared libraries (such as libcobalt.so) using a
-// custom in-memory ELF loader rather than the operating system's dynamic linker
-// (dlopen). Because the operating system is unaware of these custom-loaded
-// libraries, the default glibc dl_iterate_phdr() does not list them. Without an
-// override, crash reports and stack traces display "(<unknown module>)" for any
-// code executing inside an Evergreen library.
-//
-// The dl_iterate_phdr override solves this by intercepting calls to
-// dl_iterate_phdr(), querying glibc for all host system libraries first, and
-// then appending the custom-loaded Evergreen library using metadata registered
-// with EvergreenInfo.
 
-#include "starboard/elf_loader/dl_iterate_phdr_override.h"
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 
 #include <link.h>
 #include <string.h>
@@ -73,7 +55,8 @@ int HostLibsCallback(struct dl_phdr_info* info, size_t size, void* data) {
 
 class DlIteratePhdrOverrideTest : public ::testing::Test {
  protected:
-  void SetUp() override { InitDlIteratePhdrOverride(); }
+  void SetUp() override { SetEvergreenInfo(nullptr); }
+  void TearDown() override { SetEvergreenInfo(nullptr); }
 };
 
 // Test 1: EnumeratesHostLibraries
@@ -126,9 +109,8 @@ int EvergreenCallback(struct dl_phdr_info* info, size_t size, void* data) {
 // it.
 //
 // How it works:
-// 1. A mock Evergreen library is registered using SetEvergreenInfo(),
-// specifying
-//    a mock base memory address, a file path ("/test/path/libcobalt.so"), and
+// 1. A mock Evergreen library is registered using SetEvergreenInfo() with a
+//    mock base memory address, a file path ("/test/path/libcobalt.so"), and
 //    mock ELF program headers (PT_LOAD segments representing code and data).
 // 2. dl_iterate_phdr() is called to iterate through all libraries.
 // 3. The test callback verifies that the Evergreen library is found in the
@@ -136,8 +118,6 @@ int EvergreenCallback(struct dl_phdr_info* info, size_t size, void* data) {
 //    properties (virtual addresses, memory sizes, and read/write/execute flags)
 //    match the registered metadata.
 TEST_F(DlIteratePhdrOverrideTest, EnumeratesEvergreenLibraryWhenRegistered) {
-  SetEvergreenInfo(nullptr);
-
   constexpr size_t kMockLoadSize = 0x200000;
   const char* kMockPath = "/test/path/libcobalt.so";
 
@@ -176,8 +156,6 @@ TEST_F(DlIteratePhdrOverrideTest, EnumeratesEvergreenLibraryWhenRegistered) {
   EXPECT_EQ(ctx.phdrs[1].p_type, static_cast<ElfW(Word)>(PT_LOAD));
   EXPECT_EQ(ctx.phdrs[1].p_vaddr, static_cast<ElfW(Addr)>(0x7000));
   EXPECT_EQ(ctx.phdrs[1].p_memsz, static_cast<ElfW(Xword)>(0x3000));
-
-  SetEvergreenInfo(nullptr);
 }
 
 int EarlyTermCallback(struct dl_phdr_info* info, size_t size, void* data) {
@@ -196,10 +174,27 @@ int EarlyTermCallback(struct dl_phdr_info* info, size_t size, void* data) {
 // According to the dl_iterate_phdr() specification, if the caller's callback
 // function returns a non-zero integer, the iteration must stop immediately,
 // and dl_iterate_phdr() must return that exact non-zero value to the caller.
-// This test provides a callback that returns a non-zero value (1234) on the
-// very first library visited. It verifies that dl_iterate_phdr() halts
-// immediately, called the callback only once, and propagated the return value.
+// This test registers a mock Evergreen library and provides a callback that
+// returns a non-zero value (1234) on the very first host library visited. It
+// verifies that dl_iterate_phdr() halts immediately, invokes the callback only
+// once (skipping both remaining host libraries and the registered Evergreen
+// library), and propagates the return value.
 TEST_F(DlIteratePhdrOverrideTest, EarlyTermination) {
+  const char* kMockPath = "/test/path/libcobalt.so";
+  ElfW(Phdr) mock_phdr;
+  memset(&mock_phdr, 0, sizeof(mock_phdr));
+  mock_phdr.p_type = PT_LOAD;
+
+  EvergreenInfo info;
+  memset(&info, 0, sizeof(info));
+  starboard::strlcpy(info.file_path_buf, kMockPath, sizeof(info.file_path_buf));
+  info.base_address = kMockBase;
+  info.load_size = 0x10000;
+  info.phdr_table = reinterpret_cast<uint64_t>(&mock_phdr);
+  info.phdr_table_num = 1;
+
+  EXPECT_TRUE(SetEvergreenInfo(&info));
+
   int call_count = 0;
   int result = dl_iterate_phdr(EarlyTermCallback, &call_count);
   EXPECT_EQ(result, 1234);
@@ -309,7 +304,7 @@ TEST_F(DlIteratePhdrOverrideTest, AsyncSignalSafetyZeroAllocations) {
   ctx.expected_phdr = &mock_phdr;
 
   auto cb = [](struct dl_phdr_info* info, size_t size, void* data)
-                SB_NO_SANITIZE_ADDRESS -> int {
+                __attribute__((no_sanitize("address"))) -> int {
     auto* c = static_cast<StackCheckContext*>(data);
     if (info->dlpi_name &&
         strcmp(info->dlpi_name, "/test/path/libcobalt.so") == 0) {

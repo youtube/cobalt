@@ -104,8 +104,6 @@
 #define _GNU_SOURCE
 #endif
 
-#include "starboard/elf_loader/dl_iterate_phdr_override.h"
-
 #include <dlfcn.h>
 #include <link.h>
 #include <string.h>
@@ -113,6 +111,13 @@
 #include <atomic>
 
 #include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/export.h"
+
+#if defined(__clang__) || defined(__GNUC__)
+#define SB_NO_SANITIZE_ADDRESS __attribute__((no_sanitize("address")))
+#else
+#define SB_NO_SANITIZE_ADDRESS
+#endif
 
 namespace {
 
@@ -127,15 +132,16 @@ typedef int (*DlIteratePhdrFn)(int (*callback)(struct dl_phdr_info* info,
 // requiring mutex locks.
 std::atomic<DlIteratePhdrFn> g_real_dl_iterate_phdr{nullptr};
 
-}  // namespace
-
-extern "C" {
-
 // Resolves glibc's original dl_iterate_phdr() implementation using dlsym()
 // with RTLD_NEXT. RTLD_NEXT instructs the dynamic linker to search for the
 // next occurrence of the symbol in libraries loaded after the current one,
 // bypassing this override and returning the real system function.
-void InitDlIteratePhdrOverride() {
+//
+// Automatically runs during process startup before main() is entered.
+// This guarantees that g_real_dl_iterate_phdr is initialized early and safely,
+// so that if a crash occurs later, dl_iterate_phdr() will never need to call
+// dlsym() from inside a crash signal handler.
+__attribute__((constructor)) void InitDlIteratePhdrOverride() {
   if (g_real_dl_iterate_phdr.load(std::memory_order_relaxed) == nullptr) {
     DlIteratePhdrFn real_fn =
         reinterpret_cast<DlIteratePhdrFn>(dlsym(RTLD_NEXT, "dl_iterate_phdr"));
@@ -143,13 +149,9 @@ void InitDlIteratePhdrOverride() {
   }
 }
 
-// Automatically runs during process startup before main() is entered.
-// This guarantees that g_real_dl_iterate_phdr is initialized early and safely,
-// so that if a crash occurs later, dl_iterate_phdr() will never need to call
-// dlsym() from inside a crash signal handler.
-__attribute__((constructor)) static void AutoInitDlIteratePhdrOverride() {
-  InitDlIteratePhdrOverride();
-}
+}  // namespace
+
+extern "C" {
 
 // Overrides the standard dl_iterate_phdr() function.
 //
@@ -169,6 +171,15 @@ SB_EXPORT_PLATFORM SB_NO_SANITIZE_ADDRESS int dl_iterate_phdr(
     void* data) {
   DlIteratePhdrFn real_fn =
       g_real_dl_iterate_phdr.load(std::memory_order_acquire);
+  // AddressSanitizer's __asan_init() runs in .preinit_array—before any
+  // .init_array (__attribute__((constructor))) functions execute—and calls
+  // dl_iterate_phdr() during process startup. Resolve the real function here
+  // on that startup call so that g_real_dl_iterate_phdr is guaranteed to be
+  // populated before main() and never resolved inside a crash signal handler.
+  if (!real_fn) {
+    InitDlIteratePhdrOverride();
+    real_fn = g_real_dl_iterate_phdr.load(std::memory_order_acquire);
+  }
 
   // Step 1: Delegate to glibc's real dl_iterate_phdr() to enumerate all
   // standard system libraries (e.g. libc, libpthread).
