@@ -4854,6 +4854,9 @@ void WebFrameWidgetImpl::CloseMysteryHudMenu(bool reset_all) {
   SetLayerTreeDebugState(debug_state);
 }
 
+// Detects the 6-button TV remote Mystery Code key sequence to unlock the
+// interactive compositor HUD menu and routes subsequent remote button presses
+// to toggle HUD overlays (see docs/mystery_hud_menu.md).
 bool WebFrameWidgetImpl::HandleCobaltMysteryCode(
     const WebKeyboardEvent& event) {
   auto is_up = [](int key) { return key == VKEY_UP; };
@@ -4874,6 +4877,7 @@ bool WebFrameWidgetImpl::HandleCobaltMysteryCode(
   if (mystery_hud_menu_active_) {
     if (base::TimeTicks::Now() > mystery_menu_deadline_) {
       CloseMysteryHudMenu(/*reset_all=*/false);
+      return false;
     } else {
       if (event.GetType() == WebInputEvent::Type::kKeyUp) {
         return true;
