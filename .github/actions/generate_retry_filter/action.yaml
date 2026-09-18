@@ -31,48 +31,30 @@ runs:
         rm -rf "${GITHUB_WORKSPACE}/retry_filters_artifact"
         mkdir -p "${FILTER_DIR}"
 
-        generate_filter_json() {
+        generate_filter_file() {
           local output_file="$1"
           shift
           local xml_files=("$@")
-          local failed_tests_json
-          local has_crash="false"
 
           # Check if any XML file has an associated crash marker file.
           for xml_file in "${xml_files[@]}"; do
             if [ -f "${xml_file%.xml}.crash" ]; then
-              has_crash="true"
-              break
+              return 0
             fi
           done
 
-          # Extract failing test names from parser output.
-          raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
-          failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
+          local raw_filter
+          raw_filter=$(python3 cobalt/tools/junit_mini_parser.py \
+            --format=filter "${xml_files[@]}" || true)
 
-          # Build filter JSON.
-          filter_json=$(jq -n \
-            --argjson tests "${failed_tests_json:-"[]"}" \
-            --arg outcome "${OUTCOME}" \
-            --arg has_crash "${has_crash}" '
-            # If a crash occurred, do not write a filter so the original filters are re-used.
-            if $has_crash == "true" then
-              empty
-            # If there are failing tests, run only those tests.
-            elif ($tests | length) > 0 then
-              { failing_tests: [], tests_to_run: $tests }
-            # If target passed with no failures, skip all (*).
-            elif $outcome == "success" then
-              { failing_tests: ["*"], tests_to_run: [] }
-            # If target failed but no failing tests were identified (e.g. runner crash or timeout),
-            # do not write a filter so the original test set is retried.
-            else
-              empty
-            end
-          ')
+          # If target failed but no failing tests were identified (e.g. runner crash or timeout),
+          # do not write a filter so the original test set is retried.
+          if [ "${OUTCOME}" != "success" ] && [ "${raw_filter}" = "-*" ]; then
+            return 0
+          fi
 
-          if [ -n "${filter_json}" ]; then
-            echo "${filter_json}" > "${output_file}"
+          if [ -n "${raw_filter}" ]; then
+            echo "${raw_filter}" > "${output_file}"
           fi
         }
 
@@ -80,13 +62,13 @@ runs:
         xml_files=("${RESULTS_DIR}"/**/"${TEST_TARGET}"*.xml)
         if [ ${#xml_files[@]} -gt 0 ]; then
           # Generate global filter
-          generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_filter.json" "${xml_files[@]}"
+          generate_filter_file "${FILTER_DIR}/${TEST_TARGET}.filter" "${xml_files[@]}"
 
           # Also generate shard-specific filter files if shards exist
           for xml_file in "${xml_files[@]}"; do
             if [[ "${xml_file}" =~ /shard_([0-9]+)/ ]]; then
               shard_id="${BASH_REMATCH[1]}"
-              generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_${shard_id}_filter.json" "${xml_file}"
+              generate_filter_file "${FILTER_DIR}/${TEST_TARGET}_${shard_id}.filter" "${xml_file}"
             fi
           done
         fi

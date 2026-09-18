@@ -1,0 +1,2 @@
+-CobaltMetricsServiceClientTest.IdleTimerIsRepeatingAndKeepsFiring
+-HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly
