@@ -65,7 +65,15 @@ config("starboard") {
   if (target_os != "ios") {
     sb_out_dir =
         get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
-    ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+    rpath_dir = rebase_path(sb_out_dir, root_build_dir)
+    if (rpath_dir == ".") {
+      ldflags = [ "-Wl,-rpath=\$ORIGIN" ]
+    } else {
+      ldflags = [
+        "-Wl,-rpath=\$ORIGIN/" + rpath_dir,
+        "-Wl,-rpath=\$ORIGIN",
+      ]
+    }
   }
 }
 
