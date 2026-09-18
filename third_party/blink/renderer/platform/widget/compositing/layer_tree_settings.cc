@@ -504,7 +504,7 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
   #if BUILDFLAG(IS_COBALT)
-    settings.max_memory_for_prepaint_percentage = 0;
+    settings.max_memory_for_prepaint_percentage = 20;
   #else
     settings.max_memory_for_prepaint_percentage = 67;
   #endif
