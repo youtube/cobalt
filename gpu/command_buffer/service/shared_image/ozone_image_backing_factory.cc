@@ -92,18 +92,6 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
     viz::SharedImageFormat format,
     gfx::BufferUsage usage) {
   CHECK(viz::HasEquivalentBufferFormat(format));
-<<<<<<< HEAD
-  scoped_refptr<gfx::NativePixmap> pixmap =
-      ui::OzonePlatform::GetInstance()
-          ->GetSurfaceFactoryOzone()
-          ->CreateNativePixmap(gpu::kNullSurfaceHandle,
-                               vulkan_context_provider
-                                   ? vulkan_context_provider->GetDeviceQueue()
-                                   : nullptr,
-                               size, format, usage, size);
-=======
-  gfx::BufferFormat buffer_format =
-      viz::SharedImageFormatToBufferFormat(format);
   VulkanDeviceQueue* device_queue = nullptr;
 #if BUILDFLAG(ENABLE_VULKAN)
   if (vulkan_context_provider) {
@@ -114,8 +102,7 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()
           ->CreateNativePixmap(gpu::kNullSurfaceHandle, device_queue, size,
-                               buffer_format, usage, size);
->>>>>>> parent of cf1d68658d6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+                               format, usage, size);
 
   if (!pixmap.get()) {
     DLOG(ERROR) << "Failed to create pixmap " << size.ToString() << ",  "
