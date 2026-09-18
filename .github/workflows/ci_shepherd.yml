@@ -364,13 +364,15 @@ jobs:
           persist-credentials: false
           ref: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           fetch-depth: 1
+          filter: blob:none
 
       - name: Run Gemini PR Shepherd Analysis
         id: gemini-analysis
         if: steps.parse.outputs.run_analysis == 'true'
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
         uses: google-github-actions/run-gemini-cli@v0
         with:
-          skill: pr-shepherd
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
           prompt: |
