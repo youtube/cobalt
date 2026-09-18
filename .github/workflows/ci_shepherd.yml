@@ -199,11 +199,12 @@ jobs:
           WORKFLOW_ID: ${{ steps.report.outputs.workflow_id }}
           STATE: ${{ steps.report.outputs.state }}
           DESC: ${{ steps.report.outputs.desc }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
         shell: bash
         run: |
           set -euo pipefail
 
-          run_url="${github.event.workflow_run.html_url:-}"
+          run_url="${RUN_URL:-}"
           if [[ -z "${run_url}" && -n "${WORKFLOW_ID}" ]]; then
             run_url="https://github.com/${REPO}/actions/runs/${WORKFLOW_ID}"
           fi
@@ -370,7 +371,7 @@ jobs:
         uses: google-github-actions/run-gemini-cli@v0
         with:
           skill: pr-shepherd
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
           prompt: |
             Analyze the CI test failures for this pull request using the pr-shepherd skill (github.com/youtube/cobalt/pull/12679).
