@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
@@ -33,6 +34,24 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/meminfo_dump_provider.h"
+#endif
+
+// Virtual address (VA) space fragmentation telemetry is only actionable on
+// 32-bit platforms, where the user-space address range is limited to ~3GB and
+// allocators can abort even when physical memory is available.
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+#include <algorithm>
+#include <cmath>
+
+#include "base/containers/span.h"
+#include "base/feature_list.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/functional/function_ref.h"
+#include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/task/thread_pool.h"
+#include "cobalt/browser/features.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -321,6 +340,186 @@ static const char* MetricSizeToVersionSuffix(
   }
 }
 
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+// Longest stretch of a /proc/self/maps line the parser looks at in one piece.
+// Matches base/profiler/stack_base_address_posix.cc, which reads
+// /proc/self/maps on Android with the same 1024-byte budget.
+inline constexpr size_t kMaxLineLength = 1024;
+
+// seq_file generates /proc files a page at a time, so a page-sized read is the
+// natural granularity.
+inline constexpr size_t kReadChunkSize = 4096;
+
+// The kernel appends a "gate VMA" after the process's mappings ([vectors] on
+// ARM, [vsyscall] on x86-64). Mirrors ContainsGateVMA() and the early break in
+// ReadProcMaps(); see base/debug/proc_maps_linux.cc.
+bool IsGateVma(std::string_view line) {
+  if (line.ends_with("\n")) {
+    line.remove_suffix(1);
+  }
+  return line.ends_with(" [vectors]") || line.ends_with(" [vsyscall]");
+}
+
+// Running totals while walking /proc/self/maps.
+struct VmaWalkState {
+  uint64_t prev_vm_end = 0;
+  uint64_t largest_free_gap = 0;
+  uint64_t total_unmapped_va = 0;
+  size_t vma_count = 0;
+  bool first_vma = true;
+};
+
+// Folds one maps line into `state`.
+void ConsumeMapsLine(std::string_view line, VmaWalkState* state) {
+  // Every record begins with "<start>-<end> ", so the range is the text up to
+  // the first space.
+  const std::string_view range = line.substr(0, line.find(' '));
+  const size_t dash = range.find('-');
+  if (dash == std::string_view::npos) {
+    return;
+  }
+
+  uint64_t vm_start = 0;
+  uint64_t vm_end = 0;
+  if (!base::HexStringToUInt64(range.substr(0, dash), &vm_start) ||
+      !base::HexStringToUInt64(range.substr(dash + 1), &vm_end)) {
+    return;
+  }
+
+  // The kernel always emits VMAs in ascending, non-overlapping order, so
+  // anything that goes backwards is not a real maps entry.
+  if (vm_end < vm_start) {
+    return;
+  }
+  if (!state->first_vma && vm_start < state->prev_vm_end) {
+    return;
+  }
+
+  state->vma_count++;
+  if (!state->first_vma && vm_start > state->prev_vm_end) {
+    uint64_t gap = vm_start - state->prev_vm_end;
+    if (gap > state->largest_free_gap) {
+      state->largest_free_gap = gap;
+    }
+    state->total_unmapped_va += gap;
+  }
+  state->first_vma = false;
+  state->prev_vm_end = vm_end;
+}
+
+// `read_chunk` returns the number of bytes written into the buffer, or nullopt
+// on error.
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CalculateVirtualAddressSpaceMetricsInternal(
+    base::FunctionRef<std::optional<size_t>(base::span<uint8_t> /*buffer*/)>
+        read_chunk) {
+  VmaWalkState state;
+  bool reached_gate_vma = false;
+
+  // Records longer than this are split; the remainder is parsed as if it began
+  // a fresh line, which ConsumeMapsLine() rejects.
+  char line[kMaxLineLength];
+  size_t line_length = 0;
+  uint8_t chunk[kReadChunkSize];
+
+  while (!reached_gate_vma) {
+    const std::optional<size_t> bytes_read = read_chunk(base::span(chunk));
+    if (!bytes_read.has_value() || *bytes_read == 0) {
+      break;
+    }
+    for (uint8_t byte : base::span(chunk).first(*bytes_read)) {
+      line[line_length++] = static_cast<char>(byte);
+      if (byte != '\n' && line_length != kMaxLineLength) {
+        continue;
+      }
+      const std::string_view record(line, line_length);
+      line_length = 0;
+      if (IsGateVma(record)) {
+        reached_gate_vma = true;
+        break;
+      }
+      ConsumeMapsLine(record, &state);
+    }
+  }
+
+  // seq_file newline-terminates every record, so a buffered tail here means
+  // the input was truncated. Fold it in rather than dropping it: that would
+  // lose both the VMA and the gap preceding it.
+  if (line_length > 0 && !reached_gate_vma) {
+    const std::string_view record(line, line_length);
+    if (!IsGateVma(record)) {
+      ConsumeMapsLine(record, &state);
+    }
+  }
+
+  if (state.vma_count == 0) {
+    return std::nullopt;
+  }
+
+  CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics metrics;
+  metrics.vma_count = state.vma_count;
+  metrics.largest_free_gap_mb = state.largest_free_gap / kMiB;
+  metrics.total_unmapped_va_mb = state.total_unmapped_va / kMiB;
+
+  if (state.total_unmapped_va > 0) {
+    double ratio = 1.0 - (static_cast<double>(state.largest_free_gap) /
+                          static_cast<double>(state.total_unmapped_va));
+    metrics.fragmentation_ratio_pct =
+        std::clamp(static_cast<int>(std::round(ratio * 100.0)), 0, 100);
+  } else {
+    // No unmapped space at all between the lowest and highest mapping.
+    metrics.fragmentation_ratio_pct = 100;
+  }
+
+  return metrics;
+}
+
+bool ShouldSampleVirtualAddressSpace() {
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltVirtualAddressSpaceMetrics)) {
+    return false;
+  }
+  return base::ShouldRecordSubsampledMetric(
+      features::kVirtualAddressSpaceSampleProbabilityParam.Get());
+}
+
+void EmitVirtualAddressSpaceMetrics() {
+  base::File maps(base::FilePath("/proc/self/maps"),
+                  base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!maps.IsValid()) {
+    DLOG(WARNING) << "Failed to open /proc/self/maps for VA metrics: "
+                  << base::File::ErrorToString(maps.error_details());
+    return;
+  }
+
+  auto metrics = CalculateVirtualAddressSpaceMetricsInternal(
+      [&maps](base::span<uint8_t> buffer) {
+        return maps.ReadAtCurrentPos(buffer);
+      });
+
+  if (!metrics) {
+    return;
+  }
+
+  // These accumulators are 64-bit and the histogram API takes an int. Clamping
+  // rather than wrapping matters because a wrapped value goes negative.
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.LargestFreeGapMb",
+      base::saturated_cast<int>(metrics->largest_free_gap_mb));
+
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Experimental.VirtualAddress.TotalUnmappedVaMb",
+      base::saturated_cast<int>(metrics->total_unmapped_va_mb));
+
+  base::UmaHistogramPercentage(
+      "Memory.Experimental.VirtualAddress.FragmentationRatio",
+      metrics->fragmentation_ratio_pct);
+
+  base::UmaHistogramCounts100000("Memory.Experimental.VirtualAddress.VmaCount",
+                                 base::saturated_cast<int>(metrics->vma_count));
+}
+#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+
 }  // namespace
 
 CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
@@ -590,6 +789,17 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+  if (ShouldSampleVirtualAddressSpace()) {
+    // Walking /proc/self/maps blocks and visits every VMA in the process, so it
+    // must not run on this sequence, which is USER_BLOCKING.
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&EmitVirtualAddressSpaceMetrics));
+  }
+#endif
   // UMA metrics for media buffer memory usage
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes =
@@ -603,6 +813,27 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   if (callback_for_testing_) {
     std::move(callback_for_testing_).Run();
   }
+}
+
+// static
+std::optional<CobaltMemoryMetricsEmitter::VirtualAddressSpaceMetrics>
+CobaltMemoryMetricsEmitter::CalculateVirtualAddressSpaceMetricsForTesting(
+    const std::string& maps_content) {
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+  // Hands the canned text over in chunks exactly as base::File would, so the
+  // tests drive the same line splitter the production reader uses.
+  size_t pos = 0;
+  auto read_chunk = [&maps_content, &pos](base::span<uint8_t> buffer) {
+    const size_t count = std::min(buffer.size(), maps_content.size() - pos);
+    buffer.first(count).copy_from(
+        base::as_byte_span(maps_content).subspan(pos, count));
+    pos += count;
+    return std::optional<size_t>(count);
+  };
+  return CalculateVirtualAddressSpaceMetricsInternal(read_chunk);
+#else
+  return std::nullopt;
+#endif
 }
 
 }  // namespace cobalt
