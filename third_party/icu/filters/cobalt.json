@@ -221,61 +221,9 @@
 // Removed locales per cast/patch_locale.sh:
 // "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "coll_tree": {
-      "filterType": "union",
-      "unionOf": [
-        {
-          "includelist": [
-            "en",
-            "en_US"
-          ]
-        },
-        {
-          "filterType": "language",
-          "includeChildren": false,
-          "includelist": [
-            "am",
-            "ar",
-            "bg",
-            "ca",
-            "cs",
-            "da",
-            "de",
-            "el",
-            "en",
-            "es",
-            "fa",
-            "fi",
-            "fil",
-            "fr",
-            "he",
-            "hi",
-            "hr",
-            "hu",
-            "id",
-            "it",
-            "iw",
-            "ja",
-            "ko",
-            "lt",
-            "lv",
-            "nl",
-            "no",
-            "pl",
-            "pt",
-            "ro",
-            "ru",
-            "sk",
-            "sl",
-            "sr",
-            "sv",
-            "sw",
-            "th",
-            "tr",
-            "uk",
-            "vi",
-            "zh"
-          ]
-        }
+      "includelist": [
+        "en",
+        "en_US"
       ]
     },
     "rbnf_tree": {
