@@ -9,6 +9,7 @@
 
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder_test.h"
 
+#include "build/build_config.h"
 #include "cc/test/fake_layer_tree_host_client.h"
 #include "cc/trees/effect_node.h"
 #include "cc/trees/scroll_node.h"
@@ -7326,12 +7327,28 @@ TEST_P(PaintPropertyTreeBuilderTest, DontPromoteTrivial3DWithLowEndDevice) {
   )HTML");
 
   const auto* non_scroll_properties = PaintPropertiesForElement("non-scroll");
+#if BUILDFLAG(IS_STARBOARD)
+  // On Starboard, kTrivial3DTransform is preserved to allow hardware
+  // compositing of translateZ(0) transforms on TV SoCs.
+  EXPECT_TRUE(
+      non_scroll_properties->Transform()->HasDirectCompositingReasons());
+  EXPECT_TRUE(
+      non_scroll_properties->Transform()->DirectCompositingReasons() &
+      CompositingReason::kTrivial3DTransform);
+#else
   EXPECT_FALSE(
       non_scroll_properties->Transform()->HasDirectCompositingReasons());
+#endif
   EXPECT_FALSE(non_scroll_properties->Effect());
 
   const auto* scroll_properties = PaintPropertiesForElement("scroll");
+#if BUILDFLAG(IS_STARBOARD)
+  EXPECT_TRUE(scroll_properties->Transform()->HasDirectCompositingReasons());
+  EXPECT_TRUE(scroll_properties->Transform()->DirectCompositingReasons() &
+              CompositingReason::kTrivial3DTransform);
+#else
   EXPECT_FALSE(scroll_properties->Transform()->HasDirectCompositingReasons());
+#endif
   // We still prefer composited scrolling with Trivial 3d transform.
   EXPECT_EQ(CompositedScrollingPreference::kPreferred,
             scroll_properties->Scroll()->GetCompositedScrollingPreference());
@@ -7341,6 +7358,36 @@ TEST_P(PaintPropertyTreeBuilderTest, DontPromoteTrivial3DWithLowEndDevice) {
   EXPECT_FALSE(effect_properties->Transform()->HasDirectCompositingReasons());
   EXPECT_FALSE(effect_properties->Effect()->HasDirectCompositingReasons());
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+TEST_P(PaintPropertyTreeBuilderTest, PreserveTrivial3DTransformOnStarboard) {
+  class LowEndPlatform : public TestingPlatformSupport {
+    bool IsLowEndDevice() override { return true; }
+  };
+
+  ScopedTestingPlatformSupport<LowEndPlatform> platform;
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #shelf { width: 1920px; height: 360px; transform: translateZ(0px); }
+      #card { width: 300px; height: 200px; transform: translate3d(100px, 0px, 0px); }
+    </style>
+    <div id='shelf'></div>
+    <div id='card'></div>
+  )HTML");
+
+  const auto* shelf_props = PaintPropertiesForElement("shelf");
+  ASSERT_TRUE(shelf_props && shelf_props->Transform());
+  EXPECT_TRUE(shelf_props->Transform()->HasDirectCompositingReasons());
+  EXPECT_TRUE(shelf_props->Transform()->DirectCompositingReasons() &
+              CompositingReason::kTrivial3DTransform);
+
+  const auto* card_props = PaintPropertiesForElement("card");
+  ASSERT_TRUE(card_props && card_props->Transform());
+  EXPECT_TRUE(card_props->Transform()->HasDirectCompositingReasons());
+  EXPECT_TRUE(card_props->Transform()->DirectCompositingReasons() &
+              CompositingReason::kTrivial3DTransform);
+}
+#endif
 
 #define EXPECT_BACKGROUND_CLIP(properties, rect)                            \
   do {                                                                      \
