@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,25 @@
 namespace cobalt {
 
 namespace {
+
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  if (!event || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  if (data->link && std::string_view(data->link).find("launch=preload") !=
+                        std::string_view::npos) {
+    return true;
+  }
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    if (data->argument_values[i] &&
+        std::string_view(data->argument_values[i]).find("launch=preload") !=
+            std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -165,6 +185,11 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
         runner_->OnStart(event);
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
+        // Transition to kConcealed after OnStart creates the native window
+        // when launched in background preload mode (e.g. Samsung Tizen).
+        if (event->type == kSbEventTypeStart && HasPreloadLaunchParam(event)) {
+          TransitionToLifeCycleState(ApplicationState::kConcealed);
+        }
         return;
       default:
         // Robustly handle events received before the application has started or
@@ -222,6 +247,7 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      TransitionToLifeCycleState(ApplicationState::kStarted);
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:
