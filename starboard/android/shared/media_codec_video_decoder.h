@@ -71,6 +71,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   struct TunnelModeConfig {
     std::optional<int> audio_session_id;
     bool force_secure_pipeline = false;
+    bool enable_vsp_adjustment = false;
   };
 
   struct PipelineConfig {
@@ -185,6 +186,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool require_software_codec_;
 
   const std::optional<int> tunnel_mode_audio_session_id_;
+  const bool enable_vsp_adjustment_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
