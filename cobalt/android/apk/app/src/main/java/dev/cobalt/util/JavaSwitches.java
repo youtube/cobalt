@@ -129,11 +129,6 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
-  /** Flag to force SurfaceView for UI rendering (legacy fallback). */
-  // We keep this fallback for emergency brake.
-  // TODO: b/542337082 - Remove this after 09/17 (2-weeks after full-launch).
-  public static final String SURFACE_VIEW_UI_RENDERING = "SurfaceViewUiRendering";
-
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
 
@@ -473,10 +468,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE)) {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.SURFACE_VIEW_UI_RENDERING)) {
-      extraCommandLineArgs.add("--use-surface-view-for-ui");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
