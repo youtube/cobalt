@@ -80,6 +80,15 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 
+// Enables virtual address space fragmentation metrics, which are only
+// collected on 32-bit Android.
+extern const base::Feature kCobaltVirtualAddressSpaceMetrics;
+
+// Probability of emitting the metrics on any given memory collection cycle
+// (default 0.01, i.e. one cycle in a hundred).
+extern const base::FeatureParam<double>
+    kVirtualAddressSpaceSampleProbabilityParam;
+
 // Enables Cobalt Memory Attribution Manager.
 extern const base::Feature kCobaltMemoryAttributionManager;
 
@@ -105,6 +114,8 @@ extern const base::Feature kEnablePictureInPicture;
 
 // Enables native memory ablation study to verify Finch and memory metrics.
 extern const base::Feature kCobaltNativeMemoryAblation;
+// Disables the dismiss button on network error dialogs
+BASE_DECLARE_FEATURE(kDisableNetworkDialogDismissButton);
 
 // Memory ablation size to allocate in Megabytes (default: 0).
 extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;

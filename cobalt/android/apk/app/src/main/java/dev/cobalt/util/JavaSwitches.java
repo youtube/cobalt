@@ -61,18 +61,8 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
-  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
-  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
-      "EnableAutoRetryOnNetworkRecovery";
-
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
-
-  /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
-  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
-
-  /** flag to enable aggressive HTTP disk cache and V8 generated code cache tuning exclusions. */
-  public static final String ENABLE_HTTP_AND_V8_CACHE_TUNING = "EnableHttpAndV8CacheTuning";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -91,9 +81,6 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to enable the GPU shader disk cache. */
-  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -121,6 +108,10 @@ public class JavaSwitches {
 
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
+
+  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
+  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
+      "EnableCobaltContentLengthAwareMojoPipeSizing";
 
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
@@ -430,6 +421,11 @@ public class JavaSwitches {
       }
     }
 
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
+      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
+    }
+
     StringJoiner featureParams = new StringJoiner("/");
     String interestAreaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
@@ -451,22 +447,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
-      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
-    }
-
     String maxHttpCacheSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.MAX_HTTP_CACHE_SIZE);
     if (maxHttpCacheSize != null) {
       extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING)) {
-      extraCommandLineArgs.add("--enable-http-and-v8-cache-tuning");
     }
 
     if (jsFlags.length() > 0) {
@@ -522,8 +506,7 @@ public class JavaSwitches {
       enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
     }
     if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown =
-          javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
       if (cooldown != null) {
         String cooldownVal = cooldown.replaceAll("[^0-9]", "");
         if (!cooldownVal.isEmpty()) {

@@ -23,6 +23,7 @@
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -124,19 +125,33 @@ void JNI_BaseStarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
 void JNI_BaseStarboardBridge_HandleDeepLink(JNIEnv* env,
                                             const JavaParamRef<jstring>& jurl,
                                             jboolean applicationStarted) {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   const std::string& url = ConvertJavaStringToUTF8(env, jurl);
 
+#if BUILDFLAG(IS_STARBOARD)
+  // AOSP can't depend on cobalt::browser::DeepLinkManager directly (see
+  // b/492704919), so route the warm-start case through Application::Link()
+  // instead, which cobalt/app already forwards to DeepLinkManager on every
+  // platform. This function also runs once for cold start (from
+  // BaseStarboardBridge's constructor, with applicationStarted always
+  // false), but that call happens before Application even exists, so it's
+  // a no-op here by construction. MainActivity instead passes the link as
+  // a "--link=<url>" startup argument, which Application::Run() already
+  // threads to DeepLinkManager before the app is considered started.
+  if (applicationStarted && !url.empty()) {
+    Application::Get()->Link(url.c_str());
+  }
+#else
+  // Non-AOSP targets can depend on cobalt/browser directly, so they still
+  // call DeepLinkManager here. Whether this stays the long-term shape for
+  // AOSP too, or AOSP's event-based path above becomes the general pattern
+  // instead, is still an open question.
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   if (applicationStarted) {
-    // Warm start deeplink
     manager->OnDeepLink(url);
   } else {
-    // Cold start deeplink
     manager->set_deep_link(url);
   }
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_BaseStarboardBridge_SetAndroidOSExperience(JNIEnv* env,
@@ -229,11 +244,12 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url) {
+                                         const std::string& url,
+                                         bool disable_dismiss_button) {
   SB_DCHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url));
+      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
@@ -293,6 +309,15 @@ SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
 SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return false;
+  }
+  return Java_BaseStarboardBridge_getWasLowMemoryKilled(
+             env, j_starboard_bridge_) == JNI_TRUE;
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {

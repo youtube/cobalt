@@ -240,10 +240,7 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
-    switches.put(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE, "1");
-    switches.put(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING, "1");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
@@ -272,10 +269,7 @@ public class JavaSwitchesTest {
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
     assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--enable-gpu-shader-disk-cache");
     assertThat(args).contains("--max-http-cache-size=50000000");
-    assertThat(args).contains("--enable-css-and-wasm-for-http-cache");
-    assertThat(args).contains("--enable-http-and-v8-cache-tuning");
     assertThat(args).contains("--avoid-cc-reuse-resource");
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
     assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
@@ -326,10 +320,7 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
-    switches.put(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE, "1");
-    switches.put(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING, "1");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
@@ -356,10 +347,7 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
     assertThat(args).doesNotContain("--enable-scaling-clipped-images");
     assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--enable-gpu-shader-disk-cache");
     assertThat(args).doesNotContain("--max-http-cache-size=50000000");
-    assertThat(args).doesNotContain("--enable-css-and-wasm-for-http-cache");
-    assertThat(args).doesNotContain("--enable-http-and-v8-cache-tuning");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
     assertThat(args).doesNotContain("--use-surface-view-for-ui");
     assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
