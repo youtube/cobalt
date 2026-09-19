@@ -2727,9 +2727,7 @@ class CONTENT_EXPORT WebContentsImpl
   WindowOpenDisposition original_window_open_disposition_ =
       WindowOpenDisposition::UNKNOWN;
 
-<<<<<<< HEAD
-=======
-  // If this window was opened as a new partitioned popin this will contain the
+// If this window was opened as a new partitioned popin this will contain the
   // properties needed to setup partitioning which aligns with the opener.
   // See https://explainers-by-googlers.github.io/partitioned-popins/
   std::optional<PartitionedPopinOpenerProperties>
@@ -2749,9 +2747,7 @@ class CONTENT_EXPORT WebContentsImpl
   // See https://explainers-by-googlers.github.io/partitioned-popins/
   base::WeakPtr<WebContents> opened_partitioned_popin_;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // Tracks the number of same-site fenced frames in the viewport per top-level
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)  // Tracks the number of same-site fenced frames in the viewport per top-level
   // page load and stores it in the primary main frame's PageUserData. Metrics
   // are logged via UMA every time the PageUserData is destroyed.
   std::unique_ptr<FencedFrameViewportObserver> fenced_frame_viewport_observer_;
