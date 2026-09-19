@@ -132,6 +132,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void WriteEndOfStream() override;
   void Reset() override;
   void ResetForTeardown() override;
+  bool CanChangeStream() const override;
+  void PrepareStreamChange() override;
+  void CommitStreamChange() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
