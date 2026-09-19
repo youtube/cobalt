@@ -224,7 +224,8 @@ class MEDIA_EXPORT DecoderBuffer
     if (external_memory_) {
       return external_memory_->handle();
     }
-    return Allocator::kInvalidHandle;
+    return end_of_stream() ? Allocator::kInvalidHandle
+                           : reinterpret_cast<Allocator::Handle>(data());
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

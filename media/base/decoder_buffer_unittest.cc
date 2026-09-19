@@ -307,4 +307,47 @@ TEST(DecoderBufferTest, IsEncrypted) {
   EXPECT_TRUE(buffer->is_encrypted());
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST(DecoderBufferTest, NullAllocatorUsesHeapArray) {
+  auto* original_allocator = DecoderBuffer::Allocator::Get();
+  if (original_allocator) {
+    DecoderBuffer::Allocator::Set(nullptr);
+  }
+
+  // When allocator is null (e.g. kCobaltDisableDecoderBufferAllocator enabled),
+  // DecoderBuffer falls back to base::HeapArray / PartitionAlloc.
+  auto buffer = base::MakeRefCounted<DecoderBuffer>(200);
+  EXPECT_EQ(buffer->size(), 200u);
+  EXPECT_NE(buffer->data(), nullptr);
+  EXPECT_EQ(buffer->handle(),
+            reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer->data()));
+
+  // Verify write and read work properly on buffer
+  uint8_t test_data[200];
+  memset(test_data, 0x42, sizeof(test_data));
+  memcpy(buffer->writable_data(), test_data, sizeof(test_data));
+  EXPECT_EQ(memcmp(buffer->data(), test_data, sizeof(test_data)), 0);
+
+  // Test constructor with data copy
+  auto buffer_copy =
+      base::MakeRefCounted<DecoderBuffer>(DemuxerStream::UNKNOWN, test_data, sizeof(test_data));
+  EXPECT_EQ(buffer_copy->size(), sizeof(test_data));
+  EXPECT_EQ(memcmp(buffer_copy->data(), test_data, sizeof(test_data)), 0);
+  EXPECT_EQ(buffer_copy->handle(),
+            reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer_copy->data()));
+
+  // Test FromArray when allocator is null
+  auto heap_array = base::HeapArray<uint8_t>::Uninit(50);
+  memset(heap_array.data(), 0x33, 50);
+  auto buffer_from_array = DecoderBuffer::FromArray(std::move(heap_array));
+  EXPECT_EQ(buffer_from_array->size(), 50u);
+  EXPECT_EQ(buffer_from_array->data()[0], 0x33);
+
+  // Restore allocator if it was previously set
+  if (original_allocator) {
+    DecoderBuffer::Allocator::Set(original_allocator);
+  }
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

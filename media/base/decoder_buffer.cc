@@ -76,6 +76,10 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   }
 
   if (size > 0) {
+    if (!s_allocator) {
+      memcpy(writable_data(), data, size);
+      return;
+    }
     s_allocator->Write(allocator_data_->handle, data, size);
   }
 }
@@ -127,12 +131,18 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {
+        if (!s_allocator) {
+          return std::nullopt;
+        }
         if (size == 0) {
           return std::nullopt;
         }
         CHECK(s_allocator);
         return AllocatorData(type, s_allocator->Allocate(type, size), size);
-      }()) {}
+      }()),
+      data_(!s_allocator && size > 0
+                ? base::HeapArray<uint8_t>::Uninit(size)
+                : base::HeapArray<uint8_t>()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
