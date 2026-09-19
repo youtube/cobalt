@@ -20,6 +20,12 @@
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+extern "C" {
+bool IsTestExecutable() {
+  return true;
+}
+}
+
 namespace {
 
 int RunTests(int argc, char** argv) {
