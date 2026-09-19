@@ -286,8 +286,6 @@ Serial* Serial::serial(NavigatorBase&) {
 
 // --- WebNN / ML C++ Stubs ---
 
-const char NavigatorML::kSupplementName[] = "NavigatorML";
-
 ML* NavigatorML::ml(NavigatorBase&) {
   return nullptr;
 }

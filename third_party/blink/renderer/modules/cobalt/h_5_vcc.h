@@ -44,6 +44,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
  public:
   static const char kSupplementName[];
+  static constexpr unsigned kSupplementIndex = 1;
 
   // For window.h5vcc
   static H5vcc* h5vcc(LocalDOMWindow&);

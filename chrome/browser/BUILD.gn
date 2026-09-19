@@ -3541,6 +3541,7 @@ static_library("browser") {
       "//components/payments/content/android",
       "//components/payments/content/android:jni_headers",
       "//components/payments/content/android/ui",
+      "//components/permissions/android:core",
       "//components/permissions/android:native",
       "//components/plus_addresses/core/browser/resources/strings",
       "//components/plus_addresses/core/common:features",
