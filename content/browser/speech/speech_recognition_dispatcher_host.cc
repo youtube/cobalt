@@ -209,6 +209,17 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
     config.grammars.push_back(*grammar_ptr);
   }
 
+  // Embedders are permitted to skip creating a SpeechRecognitionManager (e.g.
+  // Cobalt does not create one; see the IS_COBALT carve-out in
+  // content/browser/browser_main_loop.cc). Returning early drops
+  // `params->client`, closing the session-client pipe. Blink's
+  // SpeechRecognition installs a disconnect handler on that pipe and turns the
+  // closure into an `error` event (kNetwork) followed by `end`, rather than
+  // this process dereferencing null. See b/563468674.
+  if (!SpeechRecognitionManager::GetInstance()) {
+    return;
+  }
+
   if (SpeechRecognitionManager::GetInstance()->UseOnDeviceSpeechRecognition(
           config) &&
       params->audio_forwarder.is_valid()) {

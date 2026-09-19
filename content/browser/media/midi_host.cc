@@ -68,6 +68,14 @@ void MidiHost::BindReceiver(
     midi::MidiService* midi_service,
     mojo::PendingReceiver<midi::mojom::MidiSessionProvider> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  // Embedders are permitted to skip creating a MidiService (e.g. Cobalt does
+  // not; see the IS_COBALT carve-out in content/browser/browser_main_loop.cc),
+  // in which case `midi_service` is null and the MidiHost constructor's
+  // CHECK() would abort the browser process. Drop the receiver instead; the
+  // renderer observes a closed pipe. See b/563468674.
+  if (!midi_service) {
+    return;
+  }
   mojo::MakeSelfOwnedReceiver(
       base::WrapUnique(new MidiHost(render_process_id, midi_service)),
       std::move(receiver));
