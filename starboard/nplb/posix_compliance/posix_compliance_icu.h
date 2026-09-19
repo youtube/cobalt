@@ -17,14 +17,19 @@
 
 #include <mutex>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "cobalt/common/icu_init/init.h"
+#endif
 
 namespace starboard {
 namespace nplb {
 
 inline void InitializePosixIcuOnce() {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   static std::once_flag flag;
   std::call_once(flag, []() { cobalt::common::icu_init::EnsureInitialized(); });
+#endif
 }
 
 }  // namespace nplb
