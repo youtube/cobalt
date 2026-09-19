@@ -1021,17 +1021,6 @@ void SharedContextState::MarkContextLost(error::ContextLostReason reason) {
       owned_gr_context_.reset();
     }
     UpdateSkiaOwnedMemorySize();
-
-#if BUILDFLAG(IS_COBALT)
-    // In Cobalt, explicitly destroy native EGL context handles on context loss
-    // so no active context references remain when shutting down the EGL display.
-    if (context_) {
-      context_->Destroy();
-    }
-    if (real_context_ && real_context_ != context_) {
-      real_context_->Destroy();
-    }
-#endif
   }
 }
 

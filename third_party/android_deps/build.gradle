@@ -12,8 +12,6 @@ repositories {
 dependencies {
     // Note about the configuration names: they are defined in buildSrc/ChromiumPlugin
 
-    compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
-
     // buildCompile needed because we add a custom dep of onto this from guava
     // to fix "unknown enum constant ReflectionSupport$Level.FULL".
     buildCompile 'com.google.j2objc:j2objc-annotations:2.8'

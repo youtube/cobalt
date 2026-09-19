@@ -32,9 +32,7 @@
 #include "services/network/public/mojom/oblivious_http_request.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#include "services/network/trust_tokens/trust_token_request_helper_factory.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_request_helper_factory.h"
 
 namespace network {
 
@@ -161,10 +159,8 @@ class ObliviousHttpRequestHandler::RequestState {
  public:
   mojom::ObliviousHttpRequestPtr request;
   std::unique_ptr<SimpleURLLoader> loader;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<TrustTokenRequestHelperFactory> trust_token_helper_factory;
   std::unique_ptr<TrustTokenRequestHelper> trust_token_helper;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   net::NetLogWithSource net_log;
   std::optional<StatefulObliviousHttpClient> ohttp_client;
 };
@@ -225,7 +221,6 @@ void ObliviousHttpRequestHandler::StartRequest(
       net::NetLog::Get(), net::NetLogSourceType::URL_REQUEST);
   state->net_log.BeginEvent(net::NetLogEventType::OBLIVIOUS_HTTP_REQUEST);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (state->request->trust_token_params) {
     state->trust_token_helper_factory =
         std::make_unique<TrustTokenRequestHelperFactory>(
@@ -264,11 +259,9 @@ void ObliviousHttpRequestHandler::StartRequest(
             base::Unretained(this), id));
     return;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   ContinueHandlingRequest(/*headers=*/std::nullopt, id);
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void ObliviousHttpRequestHandler::OnDoneConstructingTrustTokenHelper(
     mojo::RemoteSetElementId id,
     TrustTokenStatusOrRequestHelper status_or_helper) {
@@ -302,7 +295,6 @@ void ObliviousHttpRequestHandler::OnDoneBeginningTrustTokenOperation(
   }
   ContinueHandlingRequest(std::move(headers), id);
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void ObliviousHttpRequestHandler::ContinueHandlingRequest(
     std::optional<net::HttpRequestHeaders> headers,
@@ -494,7 +486,6 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
     return;
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (state->trust_token_helper) {
     state->trust_token_helper->Finalize(
         *headers,
@@ -504,13 +495,11 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
             std::string(bhttp_response->body())));
     return;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   NotifyComplete(id, inner_status_code, std::move(headers),
                  std::string(bhttp_response->body()));
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void ObliviousHttpRequestHandler::OnDoneFinalizingTrustTokenOperation(
     mojo::RemoteSetElementId id,
     int inner_response_code,
@@ -524,7 +513,6 @@ void ObliviousHttpRequestHandler::OnDoneFinalizingTrustTokenOperation(
   }
   NotifyComplete(id, inner_response_code, std::move(headers), std::move(body));
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void ObliviousHttpRequestHandler::NotifyComplete(
     mojo::RemoteSetElementId id,
