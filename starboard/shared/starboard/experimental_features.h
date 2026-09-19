@@ -218,6 +218,9 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioPullSink(
+    "Media.NdkAudioPullSink");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
     "Media.NdkAudioTrack");
 
