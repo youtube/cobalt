@@ -59,6 +59,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/system_get_used_cpu_memory.cc",
     "//starboard/shared/win32/system_raise_platform_error.cc",
     "//starboard/shared/win32/system_symbolize.cc",
+    "//starboard/shared/win32/time_zone.cc",
     "//starboard/shared/win32/time_zone_get_name.cc",
     "//starboard/shared/win32/window_create.cc",
     "//starboard/shared/win32/window_destroy.cc",
