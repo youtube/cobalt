@@ -268,7 +268,6 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
     "metrics/cobalt_process_state_summary_manager.cc",
     "metrics/cobalt_process_state_summary_manager.h",
-    "metrics/cobalt_process_state_summary_manager_stub.cc",
   ]
   deps = [
     ":features",
@@ -284,6 +283,12 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+  if (is_android) {
+    sources += [ "metrics/cobalt_process_state_summary_manager_android.cc" ]
+    deps += [ "//cobalt/android:jni_headers" ]
+  } else {
+    sources += [ "metrics/cobalt_process_state_summary_manager_stub.cc" ]
+  }
 }
 
 source_set("command_line_logger") {
