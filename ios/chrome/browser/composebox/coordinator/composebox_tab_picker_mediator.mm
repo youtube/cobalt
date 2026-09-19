@@ -89,13 +89,13 @@
 
 #pragma mark - private
 
-/// Creates grid items. Depending on the feature flag `kAIMPrototypeTabPicker`
-/// param value, this will either fetch tabs that have a persisted tab context
-/// or create items for all tabs in the web state list. The completion handler
-/// is called with the created items.
+/// Creates grid items. Depending on the feature flag
+/// `kComposeboxTabPickerVariation` param value, this will either fetch tabs
+/// that have a persisted tab context or create items for all tabs in the web
+/// state list. The completion handler is called with the created items.
 - (void)createGridItemsWithCompletion:
     (void (^)(NSArray<GridItemIdentifier*>*))completion {
-  if (!IsAimPrototypeTabPickerCachedAPCEnabled()) {
+  if (!IsComposeboxTabPickerCachedAPCEnabled()) {
     completion(CreateTabItems(self.webStateList,
                               TabGroupRange(0, self.webStateList->count())));
     return;
@@ -142,10 +142,14 @@
 
   for (int i = 0; i < self.webStateList->count(); ++i) {
     web::WebState* webState = self.webStateList->GetWebStateAt(i);
+    GridItemIdentifier* item = [GridItemIdentifier tabIdentifier:webState];
     if (validCachedwebStatesIDs.contains(base::NumberToString(
             webState->GetUniqueIdentifier().identifier()))) {
-      [items addObject:[GridItemIdentifier tabIdentifier:webState]];
+      item.tabSwitcherItem.hidesSnapshot = NO;
+    } else {
+      item.tabSwitcherItem.hidesSnapshot = YES;
     }
+    [items addObject:item];
   }
 
   completion(items);

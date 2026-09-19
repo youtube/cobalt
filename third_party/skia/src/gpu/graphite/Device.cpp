@@ -324,11 +324,11 @@ bool is_simple_shape(const Shape& shape, const Transform& localToDevice, SkStrok
     return false;
 }
 
-bool use_compute_atlas_when_available(PathRendererStrategy strategy) {
-    return strategy == PathRendererStrategy::kComputeAnalyticAA ||
+bool use_compute_atlas_when_available(std::optional<PathRendererStrategy> strategy) {
+    return !strategy.has_value() ||
+           strategy == PathRendererStrategy::kComputeAnalyticAA ||
            strategy == PathRendererStrategy::kComputeMSAA16 ||
-           strategy == PathRendererStrategy::kComputeMSAA8 ||
-           strategy == PathRendererStrategy::kDefault;
+           strategy == PathRendererStrategy::kComputeMSAA8;
 }
 
 class ScopedDrawBuilder {
@@ -898,8 +898,7 @@ void Device::drawPaint(const SkPaint& paint) {
     this->drawGeometry(this->localToDeviceTransform(),
                        Geometry(inverseFill),
                        PaintParams(paint),
-                       DefaultFillStyle(),
-                       /*pathEffect=*/nullptr);
+                       DefaultFillStyle());
 }
 
 void Device::drawRect(const SkRect& r, const SkPaint& paint) {
@@ -918,11 +917,11 @@ void Device::drawRect(const SkRect& r, const SkPaint& paint) {
             style.setStrokeStyle(strokeWidth, strokeAndFill);
         }
     }
-    this->drawGeometry(this->localToDeviceTransform(),
-                       Geometry(Shape(rectToDraw)),
-                       PaintParams(paint),
-                       style,
-                       paint.getPathEffect());
+    this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                     Geometry(Shape(rectToDraw)),
+                                     PaintParams(paint),
+                                     style,
+                                     paint.getPathEffect());
 }
 
 void Device::drawVertices(const SkVertices* vertices, sk_sp<SkBlender> blender,
@@ -937,8 +936,7 @@ void Device::drawVertices(const SkVertices* vertices, sk_sp<SkBlender> blender,
     this->drawGeometry(this->localToDeviceTransform(),
                        Geometry(sk_ref_sp(vertices)),
                        PaintParams(paint, primitiveBlender, skipColorXform),
-                       DefaultFillStyle(),
-                       /*pathEffect=*/nullptr);
+                       DefaultFillStyle());
 }
 
 bool Device::drawAsTiledImageRect(SkCanvas* canvas,
@@ -1000,11 +998,11 @@ void Device::drawOval(const SkRect& oval, const SkPaint& paint) {
     if (paint.getPathEffect()) {
         // Dashing requires that the oval path starts on the right side and travels clockwise. This
         // is the default for the SkPath::Oval constructor, as used by SkBitmapDevice.
-        this->drawGeometry(this->localToDeviceTransform(),
-                           Geometry(Shape(SkPath::Oval(oval))),
-                           PaintParams(paint),
-                           SkStrokeRec(paint),
-                           paint.getPathEffect());
+        this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                         Geometry(Shape(SkPath::Oval(oval))),
+                                         PaintParams(paint),
+                                         SkStrokeRec(paint),
+                                         paint.getPathEffect());
     } else {
         // TODO: This has wasted effort from the SkCanvas level since it instead converts rrects
         // that happen to be ovals into this, only for us to go right back to rrect.
@@ -1025,11 +1023,11 @@ void Device::drawArc(const SkArc& arc, const SkPaint& paint) {
           !arc.isWedge()))) {
         this->drawRRect(SkRRect::MakeOval(arc.oval()), paint);
     } else {
-        this->drawGeometry(this->localToDeviceTransform(),
-                           Geometry(Shape(arc)),
-                           PaintParams(paint),
-                           SkStrokeRec(paint),
-                           paint.getPathEffect());
+        this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                         Geometry(Shape(arc)),
+                                         PaintParams(paint),
+                                         SkStrokeRec(paint),
+                                         paint.getPathEffect());
     }
 }
 
@@ -1059,11 +1057,11 @@ void Device::drawRRect(const SkRRect& rr, const SkPaint& paint) {
         rrectToDraw.setRRect(snappedRRect);
     }
 
-    this->drawGeometry(this->localToDeviceTransform(),
-                       Geometry(rrectToDraw),
-                       PaintParams(paint),
-                       style,
-                       paint.getPathEffect());
+    this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                     Geometry(rrectToDraw),
+                                     PaintParams(paint),
+                                     style,
+                                     paint.getPathEffect());
 }
 
 void Device::drawDRRect(const SkRRect& outer, const SkRRect& inner, const SkPaint& paint) {
@@ -1240,11 +1238,11 @@ void Device::drawPath(const SkPath& path, const SkPaint& paint) {
     }
 
     // Full path rendering required
-    this->drawGeometry(this->localToDeviceTransform(),
-                       Geometry(Shape(path)),
-                       PaintParams(paint),
-                       SkStrokeRec(paint),
-                       paint.getPathEffect());
+    this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                     Geometry(Shape(path)),
+                                     PaintParams(paint),
+                                     SkStrokeRec(paint),
+                                     paint.getPathEffect());
 }
 
 void Device::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> points,
@@ -1273,11 +1271,11 @@ void Device::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> points,
     const PaintParams paintParams(paint);
     size_t inc = mode == SkCanvas::kLines_PointMode ? 2 : 1;
     for (size_t i = 0; i < count; i += inc) {
-        this->drawGeometry(this->localToDeviceTransform(),
-                           Geometry(Shape(points[i], points[i + next])),
-                           paintParams,
-                           stroke,
-                           paint.getPathEffect());
+        this->drawGeometryWithPathEffect(this->localToDeviceTransform(),
+                                         Geometry(Shape(points[i], points[i + next])),
+                                         paintParams,
+                                         stroke,
+                                         paint.getPathEffect());
     }
 }
 
@@ -1294,8 +1292,7 @@ void Device::drawEdgeAAQuad(const SkRect& rect,
     this->drawGeometry(this->localToDeviceTransform(),
                        Geometry(quad),
                        PaintParams(color, mode),
-                       DefaultFillStyle(),
-                       /*pathEffect=*/nullptr);
+                       DefaultFillStyle());
 }
 
 void Device::drawEdgeAAImageSet(const SkCanvas::ImageSetEntry set[], int count,
@@ -1354,8 +1351,7 @@ void Device::drawEdgeAAImageSet(const SkCanvas::ImageSetEntry set[], int count,
         this->drawGeometry(xtraXform ?  localToDevice.concat(SkM44(*xtraXform)) : localToDevice,
                            Geometry(quad),
                            PaintParams(paint, imageShader, set[i].fAlpha),
-                           DefaultFillStyle(),
-                           /*pathEffect*/nullptr);
+                           DefaultFillStyle());
 
         dstClipIndex += 4 * set[i].fHasClip;
     }
@@ -1457,8 +1453,7 @@ void Device::drawAtlasSubRun(const sktext::gpu::AtlasSubRun* subRun,
                                                    fRecorder,
                                                    rendererData)),
                                paintParams,
-                               DefaultFillStyle(),
-                               /*pathEffect=*/nullptr);
+                               DefaultFillStyle());
         }
         subRunCursor += glyphsRegenerated;
 
@@ -1473,22 +1468,14 @@ void Device::drawAtlasSubRun(const sktext::gpu::AtlasSubRun* subRun,
     }
 }
 
-void Device::drawGeometry(const Transform& localToDevice,
-                          Geometry&& geometry,
-                          const PaintParams& paint,
-                          SkStrokeRec style,
-                          const SkPathEffect* pathEffect) {
-    ASSERT_SINGLE_OWNER
-    ScopedDrawBuilder scopedDrawBuilder(fRecorder);
-    if (!localToDevice.valid()) {
-        // If the transform is not invertible or not finite then drawing isn't well defined.
-        SKGPU_LOG_W("Skipping draw with non-invertible/non-finite transform.");
-        return;
-    }
-
+void Device::drawGeometryWithPathEffect(const Transform& localToDevice,
+                                        Geometry&& geometry,
+                                        const PaintParams& paint,
+                                        SkStrokeRec style,
+                                        const SkPathEffect* pathEffect) {
     // Path effects are applied on the CPU, which may modify the geometry to draw.
     // TODO(b/238757903): Handle dashing on the GPU when possible (e.g. straight lines)
-    if (pathEffect) {
+    if (pathEffect && localToDevice.valid()) {
         // Apply the path effect before anything else, which if we are applying here, means that we
         // are dealing with a Shape. drawVertices (and a SkVertices geometry) should pass in
         // kIgnorePathEffect per SkCanvas spec. Text geometry also should pass in kIgnorePathEffect
@@ -1521,6 +1508,21 @@ void Device::drawGeometry(const Transform& localToDevice,
         // Fallthrough, remaining code assumes the effect has been applied to `geometry` and `style`
     }
 
+    this->drawGeometry(localToDevice, std::move(geometry), paint, style);
+}
+
+void Device::drawGeometry(const Transform& localToDevice,
+                          Geometry&& geometry,
+                          const PaintParams& paint,
+                          SkStrokeRec style) {
+    ASSERT_SINGLE_OWNER
+
+    if (!localToDevice.valid()) {
+        // If the transform is not invertible or not finite then drawing isn't well defined.
+        SKGPU_LOG_W("Skipping draw with non-invertible/non-finite transform.");
+        return;
+    }
+
     // TODO: The tessellating and atlas path renderers haven't implemented perspective yet, so
     // transform to device space so we draw something approximately correct (barring local coord
     // issues).
@@ -1530,10 +1532,11 @@ void Device::drawGeometry(const Transform& localToDevice,
         devicePath.setIsVolatile(true);
         // TODO(b/452415460): This fallback breaks perspective interpolation for local coords and
         // it causes strokes to render in device space.
-        this->drawGeometry(Transform::Identity(), Geometry(Shape(devicePath)), paint, style,
-                           /*pathEffect=*/nullptr);
+        this->drawGeometry(Transform::Identity(), Geometry(Shape(devicePath)), paint, style);
         return;
     }
+
+    ScopedDrawBuilder scopedDrawBuilder(fRecorder);
 
     // Calculate the clipped bounds of the draw and determine the clip elements that affect the
     // draw without updating the clip stack.
@@ -1992,10 +1995,9 @@ std::pair<const Renderer*, PathAtlas*> Device::chooseRenderer(const Transform& l
     //    2. Fall back to CPU raster AA if hardware MSAA is disabled or it was explicitly requested
     //       via ContextOptions (including if the path is small enough).
     //    3. Otherwise use tessellation.
+    std::optional<PathRendererStrategy> strategy;
 #if defined(GPU_TEST_UTILS)
-    PathRendererStrategy strategy = fRecorder->priv().caps()->requestedPathRendererStrategy();
-#else
-    PathRendererStrategy strategy = PathRendererStrategy::kDefault;
+    strategy = fRecorder->priv().caps()->requestedPathRendererStrategy();
 #endif
 
     PathAtlas* pathAtlas = nullptr;
@@ -2024,7 +2026,7 @@ std::pair<const Renderer*, PathAtlas*> Device::chooseRenderer(const Transform& l
                                           all(drawBounds.size() <= minPathSizeForMSAA));
     if (!pathAtlas && atlasProvider->isAvailable(AtlasProvider::PathAtlasFlags::kRaster) &&
         (strategy == PathRendererStrategy::kRasterAA ||
-         (strategy == PathRendererStrategy::kDefault && useRasterAtlasByDefault))) {
+         (!strategy.has_value() && useRasterAtlasByDefault))) {
         // NOTE: RasterPathAtlas doesn't implement `PathAtlas::isSuitableForAtlasing` as it doesn't
         // reject paths (unlike ComputePathAtlas).
         pathAtlas = atlasProvider->getRasterPathAtlas();
@@ -2222,8 +2224,7 @@ void Device::drawSpecial(SkSpecialImage* special,
     this->drawGeometry(Transform(SkM44(localToDevice)),
                        Geometry(EdgeAAQuad(dst, aaFlags)),
                        PaintParams(paint, imageShader),
-                       DefaultFillStyle(),
-                       /*pathEffect=*/nullptr);
+                       DefaultFillStyle());
 }
 
 void Device::drawCoverageMask(const SkSpecialImage* mask,
@@ -2262,8 +2263,7 @@ void Device::drawCoverageMask(const SkSpecialImage* mask,
     this->drawGeometry(Transform(SkM44(localToDevice)),
                        Geometry(maskShape),
                        PaintParams(paint),
-                       DefaultFillStyle(),
-                       /*pathEffect=*/nullptr);
+                       DefaultFillStyle());
 }
 
 sk_sp<SkSpecialImage> Device::snapSpecial(const SkIRect& subset, bool forceCopy) {
@@ -2347,8 +2347,7 @@ bool Device::drawBlurredRRect(const SkRRect& rrect, const SkPaint& paint, float 
     this->drawGeometry(this->localToDeviceTransform(),
                        Geometry(*analyticBlur),
                        PaintParams(paint),
-                       SkStrokeRec(paint),
-                       /*pathEffect=*/nullptr);
+                       SkStrokeRec(paint));
     return true;
 }
 

@@ -235,12 +235,11 @@ GLImplementationParts GetNamedGLImplementation(const std::string& gl_name,
   return GLImplementationParts(kGLImplementationNone);
 }
 
-GLImplementationParts GetSoftwareGLImplementation() {
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(features::kAllowD3D11WarpFallback)) {
+GLImplementationParts GetSoftwareGLImplementation(
+    const base::CommandLine* command_line) {
+  if (features::IsWARPAllowed(command_line)) {
     return GLImplementationParts(ANGLEImplementation::kD3D11Warp);
   }
-#endif
   return GLImplementationParts(ANGLEImplementation::kSwiftShader);
 }
 
@@ -252,6 +251,9 @@ bool IsSoftwareGLImplementation(GLImplementationParts implementation) {
 GL_EXPORT bool IsSwiftShaderGLImplementation(
     GLImplementationParts implementation) {
   return implementation.angle == ANGLEImplementation::kSwiftShader;
+}
+GL_EXPORT bool IsWARPGLImplementation(GLImplementationParts implementation) {
+  return implementation.angle == ANGLEImplementation::kD3D11Warp;
 }
 
 void SetGLImplementationCommandLineSwitches(
@@ -268,7 +270,8 @@ void SetGLImplementationCommandLineSwitches(
 }
 
 void SetSoftwareGLCommandLineSwitches(base::CommandLine* command_line) {
-  GLImplementationParts implementation = GetSoftwareGLImplementation();
+  GLImplementationParts implementation =
+      GetSoftwareGLImplementation(command_line);
   SetGLImplementationCommandLineSwitches(implementation, command_line);
 }
 
@@ -278,15 +281,13 @@ void SetSoftwareWebGLCommandLineSwitches(base::CommandLine* command_line) {
   command_line->RemoveSwitch(switches::kUseGL);
   command_line->RemoveSwitch(switches::kUseANGLE);
 
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(features::kAllowD3D11WarpFallback)) {
+  if (features::IsWARPAllowed(command_line)) {
     command_line->AppendSwitchASCII(switches::kUseGL,
                                     kGLImplementationANGLEName);
     command_line->AppendSwitchASCII(switches::kUseANGLE,
                                     kANGLEImplementationD3D11WarpForWebGLName);
     return;
   }
-#endif
 
   command_line->AppendSwitchASCII(switches::kUseGL, kGLImplementationANGLEName);
   command_line->AppendSwitchASCII(switches::kUseANGLE,
@@ -317,7 +318,7 @@ GetRequestedGLImplementationFromCommandLine(
   }
 #endif
   if (overrideUseSoftwareGL) {
-    return GetSoftwareGLImplementation();
+    return GetSoftwareGLImplementation(command_line);
   }
 
   if (!command_line->HasSwitch(switches::kUseGL) &&

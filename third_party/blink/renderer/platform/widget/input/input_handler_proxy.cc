@@ -421,8 +421,11 @@ void InputHandlerProxy::HandleInputEventWithLatencyInfo(
                .Get() &&
            gesture_event.data.scroll_update.delta_x == 0 &&
            gesture_event.data.scroll_update.delta_y == 0);
+      if (should_filter_out_event) {
+        return;
+      }
 
-      if (scroll_predictor_ && !should_filter_out_event) {
+      if (scroll_predictor_) {
         std::unique_ptr<EventWithCallback> event_to_dispatch =
             scroll_predictor_->ResampleScrollEvents(
                 std::move(event_with_callback),
@@ -693,6 +696,10 @@ bool InputHandlerProxy::GenerateAndDispatchSyntheticScrollPrediction(
           currently_active_gesture_device_.value(),
           currently_active_gesture_scroll_modifiers_.value_or(0));
 
+  if (!event_with_callback) {
+    return false;
+  }
+
   int64_t trace_id = event_with_callback->latency_info().trace_id();
   TRACE_EVENT("input,benchmark,latencyInfo", "LatencyInfo.Flow",
               [&](perfetto::EventContext ctx) {
@@ -828,15 +835,9 @@ InputHandlerProxy::RouteToTypeSpecificHandler(
   if (event_with_callback->metrics()) {
     event_with_callback->WillStartProcessingForMetrics();
     done_callback = base::BindOnce(
-        [](EventWithCallback* event, bool handled) {
+        [](EventWithCallback* event) {
           event->DidCompleteProcessingForMetrics();
-          bool keep_metrics =
-              handled ||
-              cc::EventMetrics::ShouldKeepEvenWithoutCausingFrameUpdate(
-                  event->metrics()->type());
-          std::unique_ptr<cc::EventMetrics> result =
-              keep_metrics ? event->TakeMetrics() : nullptr;
-          return result;
+          return event->TakeMetrics();
         },
         event_with_callback);
   }

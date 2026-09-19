@@ -77,11 +77,7 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
   placeholder_config->add_placeholders(
       omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_PLAN);
   placeholder_config->add_placeholders(
-      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_COMPARE);
-  placeholder_config->add_placeholders(
       omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_RESEARCH);
-  placeholder_config->add_placeholders(
-      omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_TEACH);
   placeholder_config->add_placeholders(
       omnibox::NTPComposeboxConfig_PlaceholderConfig_Placeholder_WRITE);
 
@@ -261,12 +257,12 @@ const base::FeatureParam<bool> kShowSubmit(&kNtpComposebox, "ShowSubmit", true);
 
 const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(&kNtpComposebox,
                                                 "ShowVoiceSearchInSteadyComposebox",
-                                                false);
+                                                true);
 
 const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
                                                 &kNtpComposebox,
                                                 "ShowVoiceSearchInExpandedComposebox",
-                                                false);
+                                                true);
 
 const base::FeatureParam<bool> kShowSmartCompose(&kNtpComposebox,
                                                  "ShowSmartCompose",
@@ -281,10 +277,15 @@ const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
     "ContextMenuMaxTabSuggestions",
     5);
 
+const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection(
+    &kNtpComposebox,
+    "ContextMenuEnableMultiTabSelection",
+    false);
+
 const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox, "MaxNumFiles", 1);
 
-const base::FeatureParam<bool> kEnableDragAndDrop(&kNtpComposebox,
-                                                  "EnableDragAndDrop",
+const base::FeatureParam<bool> kEnableContextDragAndDrop(&kNtpComposebox,
+                                                  "EnableContextDragAndDrop",
                                                   true);
 
 const base::FeatureParam<bool> kCloseComposeboxByEscape(&kNtpComposebox,
@@ -295,6 +296,10 @@ const base::FeatureParam<bool> kCloseComposeboxByClickOutside(
                                                     &kNtpComposebox,
                                                     "CloseComposeboxByClickOutside",
                                                     true);
+const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
+    &kNtpComposebox,
+    "AddTabUploadDelayOnRecentTabChipClick",
+    true);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 
@@ -331,6 +336,18 @@ bool IsNtpRealboxNextEnabled(Profile* profile) {
 }
 
 BASE_FEATURE(kNtpRealboxNext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<PlaceholderText>::Option kSteadyPlaceholderOptions[] =
+    {
+        {PlaceholderText::ASK_OR_TYPE, "AskOrType"},
+        {PlaceholderText::ASK, "Ask"},
+};
+
+const base::FeatureParam<PlaceholderText> kSteadyPlaceholder(
+    &kNtpRealboxNext,
+    "SteadyPlaceholder",
+    PlaceholderText::ASK_OR_TYPE,
+    &kSteadyPlaceholderOptions);
 
 const base::FeatureParam<bool> kCyclingPlaceholders(&kNtpRealboxNext,
                                                     "CyclingPlaceholders",

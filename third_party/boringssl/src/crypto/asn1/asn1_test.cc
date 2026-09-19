@@ -50,7 +50,7 @@
 template <typename T, typename U>
 void TestSerialize(T obj, int (*i2d_func)(U a, uint8_t **pp),
                    bssl::Span<const uint8_t> expected) {
-  static_assert(std::is_convertible<T, U>::value,
+  static_assert(std::is_convertible_v<T, U>,
                 "incompatible parameter to i2d_func");
   // Test the allocating version first. It is easiest to debug.
   uint8_t *ptr = nullptr;

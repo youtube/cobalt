@@ -122,11 +122,12 @@ StorageLoadedDataAndroid::StorageLoadedDataAndroid(
     std::unique_ptr<StorageLoadedData> data)
     : data_(std::move(data)) {
   base::android::ScopedJavaLocalRef<jobjectArray> loaded_tab_states =
-      CreateLoadedTabStates(env, data_->loaded_tabs);
+      CreateLoadedTabStates(env, data_->GetLoadedTabs());
   base::android::ScopedJavaLocalRef<jobjectArray> loaded_groups =
-      CreateGroupCollectionData(env, data_->loaded_groups);
+      CreateGroupCollectionData(env, data_->GetLoadedGroups());
   j_object_ = Java_StorageLoadedData_createData(
-      env, reinterpret_cast<intptr_t>(this), loaded_tab_states, loaded_groups);
+      env, reinterpret_cast<intptr_t>(this), loaded_tab_states, loaded_groups,
+      data_->GetActiveTabIndex().value_or(-1));
 }
 
 StorageLoadedDataAndroid::~StorageLoadedDataAndroid() = default;
@@ -137,7 +138,8 @@ void StorageLoadedDataAndroid::Destroy(JNIEnv* env) {
 
 base::android::ScopedJavaLocalRef<jobject>
 StorageLoadedDataAndroid::GetJavaObject() const {
-  return j_object_;
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return j_object_.AsLocalRef(env);
 }
 
 StorageLoadedData* StorageLoadedDataAndroid::GetData() const {

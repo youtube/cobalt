@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "chrome/browser/tab/payload.h"
 #include "chrome/browser/tab/storage_update_unit.h"
 #include "chrome/browser/tab/tab_state_storage_database.h"
 #include "chrome/browser/tab/tab_state_storage_updater.h"
@@ -23,15 +24,22 @@ namespace {
 class SaveNodeUpdateUnit : public StorageUpdateUnit {
  public:
   SaveNodeUpdateUnit(int id,
+                     std::string window_tag,
+                     bool is_off_the_record,
                      TabStorageType type,
                      std::unique_ptr<StoragePackage> package)
-      : id_(id), type_(type), package_(std::move(package)) {}
+      : id_(id),
+        window_tag_(std::move(window_tag)),
+        is_off_the_record_(is_off_the_record),
+        type_(type),
+        package_(std::move(package)) {}
 
   bool Execute(TabStateStorageDatabase* db,
                OpenTransaction* transaction) override {
     std::string payload = package_->SerializePayload();
     std::string children = package_->SerializeChildren();
-    bool success = db->SaveNode(transaction, id_, type_, std::move(payload),
+    bool success = db->SaveNode(transaction, id_, std::move(window_tag_),
+                                is_off_the_record_, type_, std::move(payload),
                                 std::move(children));
     if (!success) {
       DLOG(ERROR) << "Could not perform save node operation.";
@@ -41,8 +49,30 @@ class SaveNodeUpdateUnit : public StorageUpdateUnit {
 
  private:
   int id_;
+  std::string window_tag_;
+  bool is_off_the_record_;
   TabStorageType type_;
   std::unique_ptr<StoragePackage> package_;
+};
+
+class SavePayloadUpdateUnit : public StorageUpdateUnit {
+ public:
+  SavePayloadUpdateUnit(int id, std::unique_ptr<Payload> payload)
+      : id_(id), payload_(std::move(payload)) {}
+
+  bool Execute(TabStateStorageDatabase* db,
+               OpenTransaction* transaction) override {
+    std::string payload = payload_->SerializePayload();
+    bool success = db->SaveNodePayload(transaction, id_, std::move(payload));
+    if (!success) {
+      DLOG(ERROR) << "Could not perform save node operation.";
+    }
+    return success;
+  }
+
+ private:
+  int id_;
+  std::unique_ptr<Payload> payload_;
 };
 
 class SaveChildrenUpdateUnit : public StorageUpdateUnit {
@@ -92,10 +122,19 @@ TabStateStorageUpdaterBuilder::~TabStateStorageUpdaterBuilder() = default;
 
 void TabStateStorageUpdaterBuilder::SaveNode(
     int id,
+    std::string window_tag,
+    bool is_off_the_record,
     TabStorageType type,
     std::unique_ptr<StoragePackage> package) {
+  updater_->Add(std::make_unique<SaveNodeUpdateUnit>(
+      id, std::move(window_tag), is_off_the_record, type, std::move(package)));
+}
+
+void TabStateStorageUpdaterBuilder::SaveNodePayload(
+    int id,
+    std::unique_ptr<Payload> payload) {
   updater_->Add(
-      std::make_unique<SaveNodeUpdateUnit>(id, type, std::move(package)));
+      std::make_unique<SavePayloadUpdateUnit>(id, std::move(payload)));
 }
 
 void TabStateStorageUpdaterBuilder::SaveChildren(

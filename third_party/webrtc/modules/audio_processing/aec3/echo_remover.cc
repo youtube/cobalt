@@ -21,6 +21,7 @@
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec3_fft.h"
@@ -392,6 +393,7 @@ void EchoRemoverImpl::ProcessCapture(
     Y[ch].Spectrum(optimization_, Y2[ch]);
     E[ch].Spectrum(optimization_, E2[ch]);
   }
+  const auto& nearend_spectrum = aec_state_.UsableLinearEstimate() ? E2 : Y2;
   // `y_old_` and `e_old_` now point to the current block. Though their channel
   // layout is already suitable for residual echo estimation, an alias is
   // created for clarity.
@@ -421,7 +423,7 @@ void EchoRemoverImpl::ProcessCapture(
   data_dumper_->DumpWav("aec3_output_linear2", kBlockSize, &e[0][0], 16000, 1);
 
   // Estimate the comfort noise.
-  cng_.Compute(aec_state_.SaturatedCapture(), Y2, comfort_noise,
+  cng_.Compute(aec_state_.SaturatedCapture(), nearend_spectrum, comfort_noise,
                high_band_comfort_noise);
 
   // Only do the below processing if the output of the audio processing module
@@ -442,7 +444,6 @@ void EchoRemoverImpl::ProcessCapture(
                        [](float a, float b) { return std::min(a, b); });
       }
     }
-    const auto& nearend_spectrum = aec_state_.UsableLinearEstimate() ? E2 : Y2;
 
     // Suppressor echo estimate.
     const auto& echo_spectrum =

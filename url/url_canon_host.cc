@@ -249,8 +249,7 @@ bool DoSimpleHost(std::basic_string_view<INCHAR> host,
     if (source == '%') {
       // Unescape first, if possible.
       // Source will be used only if decode operation was successful.
-      if (!DecodeEscaped(host.data(), &i, host.length(),
-                         reinterpret_cast<unsigned char*>(&source))) {
+      if (!DecodeEscaped(host, &i, reinterpret_cast<unsigned char*>(&source))) {
         // Invalid escaped character. There is nothing that can make this
         // host valid. We append an escaped percent so the URL looks reasonable
         // and mark as failed.
@@ -494,7 +493,7 @@ bool DoOpaqueHost(const std::basic_string_view<CharT> host,
     // > 4. Return the result of running UTF-8 percent-encode on input using
     // > the C0 control percent-encode set.
     if (IsInC0ControlPercentEncodeSet(ch)) {
-      AppendUTF8EscapedChar(host.data(), &i, host_len, &output);
+      AppendUtf8EscapedChar(host, &i, &output);
     } else {
       output.push_back(ch);
     }
@@ -529,7 +528,7 @@ void DoHost(std::basic_string_view<CHAR> spec,
     return;
   }
 
-  std::basic_string_view<CHAR> host_view = host.as_string_view_on(spec.data());
+  std::basic_string_view<CHAR> host_view = host.AsViewOn(spec);
   bool success;
   if constexpr (canon_mode == CanonMode::kSpecialURL ||
                 canon_mode == CanonMode::kFileURL) {

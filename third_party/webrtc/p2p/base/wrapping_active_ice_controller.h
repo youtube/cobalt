@@ -14,6 +14,7 @@
 #include <memory>
 
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "p2p/base/active_ice_controller_interface.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_agent_interface.h"
@@ -22,7 +23,6 @@
 #include "p2p/base/ice_switch_reason.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/transport_description.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -78,7 +78,7 @@ class WrappingActiveIceController : public ActiveIceControllerInterface {
 
   void PruneConnections();
 
-  Thread* const network_thread_;
+  TaskQueueBase* const network_thread_;
   ScopedTaskSafety task_safety_;
 
   bool started_pinging_ RTC_GUARDED_BY(network_thread_) = false;

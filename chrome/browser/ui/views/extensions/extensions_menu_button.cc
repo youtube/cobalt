@@ -7,7 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
-#include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
+#include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/views/bubble_menu_item_factory.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
@@ -22,15 +22,15 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 
-ExtensionsMenuButton::ExtensionsMenuButton(
-    Browser* browser,
-    ToolbarActionViewController* controller)
+ExtensionsMenuButton::ExtensionsMenuButton(Browser* browser,
+                                           ToolbarActionViewModel* model)
     : HoverButton(base::BindRepeating(&ExtensionsMenuButton::ButtonPressed,
                                       base::Unretained(this)),
                   std::u16string()),
       browser_(browser),
-      controller_(controller) {
-  controller_->SetDelegate(this);
+      model_(model) {
+  model_->SetUpdateObserver(base::BindRepeating(
+      &ExtensionsMenuButton::UpdateState, base::Unretained(this)));
 }
 
 ExtensionsMenuButton::~ExtensionsMenuButton() = default;
@@ -48,18 +48,17 @@ void ExtensionsMenuButton::AddedToWidget() {
   UpdateState();
 }
 
-// ToolbarActionViewDelegate:
 void ExtensionsMenuButton::UpdateState() {
   ChromeLayoutProvider* const provider = ChromeLayoutProvider::Get();
   const int icon_size =
       provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
   SetImageModel(Button::STATE_NORMAL,
-                controller_->GetIcon(GetCurrentWebContents(),
-                                     gfx::Size(icon_size, icon_size)));
+                model_->GetIcon(GetCurrentWebContents(),
+                                gfx::Size(icon_size, icon_size)));
 
-  SetText(controller_->GetActionName());
-  SetTooltipText(controller_->GetTooltip(GetCurrentWebContents()));
-  SetEnabled(controller_->IsEnabled(GetCurrentWebContents()));
+  SetText(model_->GetActionName());
+  SetTooltipText(model_->GetTooltip(GetCurrentWebContents()));
+  SetEnabled(model_->IsEnabled(GetCurrentWebContents()));
 
   if (base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControl)) {
@@ -84,8 +83,8 @@ content::WebContents* ExtensionsMenuButton::GetCurrentWebContents() const {
 void ExtensionsMenuButton::ButtonPressed() {
   base::RecordAction(
       base::UserMetricsAction("Extensions.Toolbar.ExtensionActivatedFromMenu"));
-  controller_->ExecuteUserAction(
-      ToolbarActionViewController::InvocationSource::kMenuEntry);
+  model_->ExecuteUserAction(
+      ToolbarActionViewModel::InvocationSource::kMenuEntry);
 }
 
 BEGIN_METADATA(ExtensionsMenuButton)

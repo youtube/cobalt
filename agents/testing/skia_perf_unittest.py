@@ -42,6 +42,8 @@ class QueueResultForUploadUnittest(unittest.TestCase):
                                                  metrics={
                                                      'a': 1.0,
                                                  },
+                                                 prompt=None,
+                                                 response=None,
                                              ),
                                          ])
         self.reporter.queue_result_for_upload(test_result)
@@ -117,7 +119,9 @@ class CreateDashboardJsonUnittest(unittest.TestCase):
 
     def test_basic(self):
         self.mock_merge_metrics.return_value = {
-            'test.yaml.a': [1.0, 2.0],
+            'test.yaml': {
+                'a': [1.0, 2.0],
+            },
         }
         self.mock_generate_stats.return_value = [
             {
@@ -134,12 +138,14 @@ class CreateDashboardJsonUnittest(unittest.TestCase):
                 'test_revision',
                 'key': {
                     'benchmark': 'gcli_prompt_eval',
-                    'bot': 'test_builder',
+                    'builder_group': 'test_builder_group',
+                    'builder': 'test_builder',
                 },
                 'results': [
                     {
                         'key': {
-                            'test': 'test.yaml.a',
+                            'test': 'test.yaml',
+                            'metric': 'a',
                         },
                         'measurements': {
                             'stat': [

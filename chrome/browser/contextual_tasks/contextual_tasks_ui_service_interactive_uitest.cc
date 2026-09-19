@@ -39,6 +39,39 @@ class ContextualTasksUiServiceInteractiveUiTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class TabStripModelObserverImpl : public TabStripModelObserver {
+ public:
+  explicit TabStripModelObserverImpl(
+      ContextualTasksContextController* controller,
+      const base::Uuid& task_id)
+      : controller_(controller), task_id_(task_id) {}
+
+  void OnTabStripModelChanged(
+      TabStripModel* tab_strip_model,
+      const TabStripModelChange& change,
+      const TabStripSelectionChange& selection) override {
+    if (change.type() == TabStripModelChange::kInserted) {
+      for (const auto& contents : change.GetInsert()->contents) {
+        SessionID session_id =
+            sessions::SessionTabHelper::IdForTab(contents.contents);
+        std::optional<ContextualTask> task =
+            controller_->GetContextualTaskForTab(session_id);
+        if (task.has_value()) {
+          EXPECT_EQ(task->GetTaskId(), task_id_);
+          was_inserted_ = true;
+        }
+      }
+    }
+  }
+
+  bool was_inserted() const { return was_inserted_; }
+
+ private:
+  raw_ptr<ContextualTasksContextController> controller_;
+  base::Uuid task_id_;
+  bool was_inserted_ = false;
+};
+
 IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
                        OnThreadLinkClicked_CreatesNewTabAndAssociates) {
   // Add a new tab.
@@ -59,6 +92,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
       sessions::SessionTabHelper::IdForTab(
           browser()->tab_strip_model()->GetWebContentsAt(0)));
 
+  TabStripModelObserverImpl observer(contextual_tasks_controller,
+                                     task1.GetTaskId());
+  browser()->tab_strip_model()->AddObserver(&observer);
+
   ContextualTasksSidePanelCoordinator* coordinator =
       ContextualTasksSidePanelCoordinator::From(browser());
   RunTestSequence(
@@ -77,24 +114,17 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
 
         // Call the OnThreadLinkClicked() method.
         const GURL clicked_url("https://google.com/");
-        service->OnThreadLinkClicked(clicked_url, task1.GetTaskId(), nullptr);
+        service->OnThreadLinkClicked(clicked_url, task1.GetTaskId(), nullptr,
+                                     browser()->GetWeakPtr());
 
-        content::WebContents* new_content =
-            browser()->tab_strip_model()->GetWebContentsAt(2);
-        SessionID new_session_Id =
-            sessions::SessionTabHelper::IdForTab(new_content);
-
-        // Verify that the captured SessionID is valid and matches the new tab.
-        EXPECT_TRUE(new_session_Id.is_valid());
-        std::optional<ContextualTask> associated_task =
-            contextual_tasks_controller->GetContextualTaskForTab(
-                new_session_Id);
-        EXPECT_TRUE(associated_task);
-        EXPECT_EQ(associated_task->GetTaskId(), task1.GetTaskId());
+        EXPECT_TRUE(observer.was_inserted());
       }));
+  browser()->tab_strip_model()->RemoveObserver(&observer);
 }
-IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
-                       OnTaskChangedInPanel_ActivatesMostRecentTab) {
+
+IN_PROC_BROWSER_TEST_F(
+    ContextualTasksUiServiceInteractiveUiTest,
+    OnTaskChangedInPanel_SwitchAllTabAffiliation_ActivatesMostRecentTab) {
   // Add two new tabs.
   chrome::AddTabAt(browser(), GURL(chrome::kChromeUISettingsURL), -1, true);
   chrome::AddTabAt(browser(), GURL(chrome::kChromeUIHistoryURL), -1, true);
@@ -107,23 +137,78 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
           browser()->profile());
   ASSERT_TRUE(service);
 
-  // Create a task and associate it with the two new tabs.
-  ContextualTask task = contextual_tasks_controller->CreateTask();
+  // Create two tasks.
+  ContextualTask task1 = contextual_tasks_controller->CreateTask();
+  ContextualTask task2 = contextual_tasks_controller->CreateTask();
+
+  // Associate the two new tabs with the first task.
   content::WebContents* tab1_contents =
       browser()->tab_strip_model()->GetWebContentsAt(1);
   content::WebContents* tab2_contents =
       browser()->tab_strip_model()->GetWebContentsAt(2);
-  contextual_tasks_controller->AssociateTabWithTask(
-      task.GetTaskId(), sessions::SessionTabHelper::IdForTab(tab1_contents));
-  contextual_tasks_controller->AssociateTabWithTask(
-      task.GetTaskId(), sessions::SessionTabHelper::IdForTab(tab2_contents));
+  SessionID tab1_id = sessions::SessionTabHelper::IdForTab(tab1_contents);
+  SessionID tab2_id = sessions::SessionTabHelper::IdForTab(tab2_contents);
+  contextual_tasks_controller->AssociateTabWithTask(task1.GetTaskId(), tab1_id);
+  contextual_tasks_controller->AssociateTabWithTask(task1.GetTaskId(), tab2_id);
 
   // Activate the first tab.
-  browser()->tab_strip_model()->ActivateTabAt(0);
-  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
 
-  // Call OnTaskChangedInPanel and verify that the second tab is activated.
-  service->OnTaskChangedInPanel(browser(), task.GetTaskId());
-  EXPECT_EQ(2, browser()->tab_strip_model()->active_index());
+  // Call OnTaskChangedInPanel and verify that both tabs are now associated with
+  // the second task.
+  service->OnTaskChangedInPanel(browser(), task2.GetTaskId());
+  EXPECT_EQ(task2.GetTaskId(),
+            contextual_tasks_controller->GetContextualTaskForTab(tab1_id)
+                ->GetTaskId());
+  EXPECT_EQ(task2.GetTaskId(),
+            contextual_tasks_controller->GetContextualTaskForTab(tab2_id)
+                ->GetTaskId());
 }
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
+                       OnTaskChangedInPanel_WithInvalidTaskId) {
+  // Add two new tabs.
+  chrome::AddTabAt(browser(), GURL(chrome::kChromeUISettingsURL), -1, true);
+  chrome::AddTabAt(browser(), GURL(chrome::kChromeUIHistoryURL), -1, true);
+
+  ContextualTasksContextController* contextual_tasks_controller =
+      ContextualTasksContextControllerFactory::GetForProfile(
+          browser()->profile());
+  ContextualTasksUiService* service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          browser()->profile());
+  ASSERT_TRUE(service);
+
+  // Create two tasks.
+  ContextualTask task1 = contextual_tasks_controller->CreateTask();
+  ContextualTask task2 = contextual_tasks_controller->CreateTask();
+
+  // Associate the two new tabs with the 2 tasks.
+  content::WebContents* tab1_contents =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+  content::WebContents* tab2_contents =
+      browser()->tab_strip_model()->GetWebContentsAt(2);
+  SessionID tab1_id = sessions::SessionTabHelper::IdForTab(tab1_contents);
+  SessionID tab2_id = sessions::SessionTabHelper::IdForTab(tab2_contents);
+  contextual_tasks_controller->AssociateTabWithTask(task1.GetTaskId(), tab1_id);
+  contextual_tasks_controller->AssociateTabWithTask(task2.GetTaskId(), tab2_id);
+
+  // Activate the first tab.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+
+  // Call OnTaskChangedInPanel and verify that the first tab is now associated
+  // with an empty task.
+  service->OnTaskChangedInPanel(browser(), base::Uuid());
+  std::optional<ContextualTask> empty_task =
+      contextual_tasks_controller->GetContextualTaskForTab(tab1_id);
+
+  EXPECT_NE(task2.GetTaskId(), empty_task->GetTaskId());
+  EXPECT_NE(task1.GetTaskId(), empty_task->GetTaskId());
+  EXPECT_FALSE(empty_task->GetThread());
+  EXPECT_EQ(empty_task->GetTabIds().size(), 1u);
+  EXPECT_EQ(empty_task->GetTabIds()[0], tab1_id);
+}
+
 }  // namespace contextual_tasks

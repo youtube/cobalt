@@ -96,8 +96,6 @@ class NewTabPageHandler
                     segmentation_platform::SegmentationPlatformService*
                         segmentation_platform_service,
                     content::WebContents* web_contents,
-                    std::unique_ptr<NewTabPageFeaturePromoHelper>
-                        customize_chrome_feature_promo_helper,
                     const base::Time& ntp_navigation_start_time,
                     const std::vector<ntp::ModuleIdDetail>* module_id_details);
 
@@ -142,8 +140,6 @@ class NewTabPageHandler
   void GetModulesOrder(GetModulesOrderCallback callback) override;
   void UpdateModulesLoadable() override;
   void UpdateActionChipsVisibility() override;
-  void MaybeShowFeaturePromo(
-      new_tab_page::mojom::IphFeature iph_feature) override;
   void OnAppRendered(double time) override;
   void OnOneGoogleBarRendered(double time) override;
   void OnPromoRendered(double time,
@@ -197,15 +193,15 @@ class NewTabPageHandler
   void LogEvent(NTPLoggingEventType event);
 
   typedef base::OnceCallback<void(bool success,
-                                  std::unique_ptr<std::string> body)>
+                                  std::optional<std::string> body)>
       OnFetchResultCallback;
   void Fetch(const GURL& url, OnFetchResultCallback on_result);
   void OnFetchResult(const network::SimpleURLLoader* loader,
                      OnFetchResultCallback on_result,
-                     std::unique_ptr<std::string> body);
+                     std::optional<std::string> body);
   void OnLogFetchResult(OnDoodleImageRenderedCallback callback,
                         bool success,
-                        std::unique_ptr<std::string> body);
+                        std::optional<std::string> body);
 
   ntp_tiles::TileType GetTileType() const;
   bool IsActionChipsVisible() const;

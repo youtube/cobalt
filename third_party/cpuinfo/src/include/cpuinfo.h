@@ -510,6 +510,8 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_cortex_x3 = 0x00300503,
 	/** ARM Cortex-X4. */
 	cpuinfo_uarch_cortex_x4 = 0x00300504,
+	/** ARM Cortex-X925. */
+	cpuinfo_uarch_cortex_x925 = 0x00300505,
 
 	/** ARM Cortex-A510. */
 	cpuinfo_uarch_cortex_a510 = 0x00300551,
@@ -521,6 +523,8 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_cortex_a715 = 0x00300572,
 	/** ARM Cortex-A720. */
 	cpuinfo_uarch_cortex_a720 = 0x00300573,
+	/** ARM Cortex-A725. */
+	cpuinfo_uarch_cortex_a725 = 0x00300574,
 
 	/** Qualcomm Scorpion. */
 	cpuinfo_uarch_scorpion = 0x00400100,
@@ -732,7 +736,7 @@ struct cpuinfo_cluster {
 	uint64_t frequency;
 };
 
-#define CPUINFO_PACKAGE_NAME_MAX 48
+#define CPUINFO_PACKAGE_NAME_MAX 64
 
 struct cpuinfo_package {
 	/** SoC or processor chip model name */

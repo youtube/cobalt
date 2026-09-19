@@ -171,30 +171,6 @@ void PlusAddressServiceImpl::RemoveObserver(PlusAddressService::Observer* o) {
   observers_.RemoveObserver(o);
 }
 
-bool PlusAddressServiceImpl::IsPlusAddressCreationEnabled(
-    const url::Origin& origin,
-    bool is_off_the_record) const {
-  // Disabled plus address filling implies that plus address creation is
-  // disabled.
-  if (!IsPlusAddressFillingEnabled(origin)) {
-    return false;
-  }
-
-  // Only offer plus address creation on https domains.
-  if (origin.scheme() != url::kHttpsScheme) {
-    return false;
-  }
-
-  // Don't offer plus address creation for off-the-record sessions.
-  if (is_off_the_record) {
-    return false;
-  }
-
-  // We've met the prerequisites. If this isn't an OTR session and the global
-  // settings toggle isn't off, plus address creation is supported.
-  return setting_service_->GetIsPlusAddressesEnabled();
-}
-
 bool PlusAddressServiceImpl::ShouldShowManualFallback(
     const url::Origin& origin,
     bool is_off_the_record) const {
@@ -324,26 +300,21 @@ std::vector<Suggestion> PlusAddressServiceImpl::GetSuggestionsFromPlusAddresses(
     const url::Origin& origin,
     const autofill::FormFieldData& focused_field,
     bool is_plus_address_manually_triggered) {
+  // TODO(crbug.com/409962888): Remove early return and add a CHECK once
+  // `BrowserAutofillManager` doesn't call this method anymore.
   if (!IsPlusAddressFillingEnabled(origin)) {
     return {};
   }
 
   std::vector<Suggestion> suggestions =
-      PlusAddressSuggestionHelper(&setting_service_.get(),
-                                  plus_address_allocator_.get(),
-                                  std::move(origin))
-          .GetSuggestions(plus_addresses, focused_field,
-                          is_plus_address_manually_triggered);
+      PlusAddressSuggestionHelper().GetSuggestions(
+          plus_addresses, focused_field, is_plus_address_manually_triggered);
   const autofill::DenseSet<SuggestionType> suggestion_types(suggestions,
                                                             &Suggestion::type);
 
   using enum AutofillPlusAddressDelegate::SuggestionEvent;
   if (suggestion_types.contains(SuggestionType::kFillExistingPlusAddress)) {
     RecordAutofillSuggestionEvent(kExistingPlusAddressSuggested);
-  } else if (suggestion_types.contains_any(
-                 {SuggestionType::kCreateNewPlusAddress,
-                  SuggestionType::kCreateNewPlusAddressInline})) {
-    RecordAutofillSuggestionEvent(kCreateNewPlusAddressSuggested);
   }
   return suggestions;
 }
@@ -624,118 +595,6 @@ size_t PlusAddressServiceImpl::GetPlusAddressesCount() {
   return GetPlusProfiles().size();
 }
 
-void PlusAddressServiceImpl::OnClickedRefreshInlineSuggestion(
-    const url::Origin& last_committed_primary_main_frame_origin,
-    base::span<const autofill::Suggestion> current_suggestions,
-    size_t current_suggestion_index,
-    base::OnceCallback<void(std::vector<autofill::Suggestion>,
-                            AutofillSuggestionTriggerSource)>
-        update_suggestions_callback) {
-  RecordAutofillSuggestionEvent(
-      SuggestionEvent::kRefreshPlusAddressInlineClicked);
-  std::vector<Suggestion> updated_suggestions(current_suggestions.begin(),
-                                              current_suggestions.end());
-  PlusAddressSuggestionHelper(&setting_service_.get(),
-                              plus_address_allocator_.get(),
-                              last_committed_primary_main_frame_origin)
-      .RefreshPlusAddressForSuggestion(
-          updated_suggestions[current_suggestion_index]);
-  std::move(update_suggestions_callback)
-      .Run(
-          std::move(updated_suggestions),
-          AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess);
-}
-
-void PlusAddressServiceImpl::OnShowedInlineSuggestion(
-    const url::Origin& primary_main_frame_origin,
-    base::span<const Suggestion> current_suggestions,
-    UpdateSuggestionsCallback update_suggestions_callback) {
-  auto it = std::ranges::find(current_suggestions,
-                              SuggestionType::kCreateNewPlusAddressInline,
-                              &Suggestion::type);
-  CHECK(it != current_suggestions.end());
-  if (it->GetPayload<Suggestion::PlusAddressPayload>().address.has_value()) {
-    // Only record if this is not in a loading state - otherwise it represents
-    // a state in which we are waiting for a response from a create call.
-    if (!it->is_loading) {
-      RecordAutofillSuggestionEvent(
-          SuggestionEvent::kCreateNewPlusAddressInlineSuggested);
-    }
-
-    // The suggestion already has a plus address - there is nothing to do.
-    return;
-  }
-
-  RecordAutofillSuggestionEvent(
-      SuggestionEvent::kCreateNewPlusAddressInlineReserveLoadingStateShown);
-  PlusAddressRequestCallback callback = base::BindOnce(
-      [](std::vector<Suggestion> suggestions, size_t suggestion_index,
-         UpdateSuggestionsCallback update_callback,
-         const PlusProfileOrError& profile_or_error) {
-        if (!profile_or_error.has_value()) {
-          suggestions[suggestion_index] =
-              PlusAddressSuggestionHelper::GetPlusAddressErrorSuggestion(
-                  profile_or_error.error());
-          metrics::RecordAutofillSuggestionEvent(
-              SuggestionEvent::kErrorDuringReserve);
-          std::move(update_callback)
-              .Run(std::move(suggestions),
-                   AutofillSuggestionTriggerSource::
-                       kPlusAddressUpdatedInBrowserProcess);
-          return;
-        }
-        PlusAddressSuggestionHelper::SetSuggestedPlusAddressForSuggestion(
-            profile_or_error->plus_address, suggestions[suggestion_index]);
-        std::move(update_callback)
-            .Run(std::move(suggestions),
-                 AutofillSuggestionTriggerSource::
-                     kPlusAddressUpdatedInBrowserProcess);
-      },
-      std::vector<Suggestion>(current_suggestions.begin(),
-                              current_suggestions.end()),
-      it - current_suggestions.begin(), std::move(update_suggestions_callback));
-  RefreshPlusAddress(primary_main_frame_origin, std::move(callback));
-}
-
-void PlusAddressServiceImpl::OnAcceptedInlineSuggestion(
-    const url::Origin& primary_main_frame_origin,
-    base::span<const Suggestion> current_suggestions,
-    size_t current_suggestion_index,
-    UpdateSuggestionsCallback update_suggestions_callback,
-    HideSuggestionsCallback hide_suggestions_callback,
-    PlusAddressCallback fill_field_callback,
-    ShowAffiliationErrorDialogCallback show_affiliation_error_dialog,
-    ShowErrorDialogCallback show_error_dialog,
-    base::OnceClosure reshow_suggestions) {
-  RecordAutofillSuggestionEvent(
-      SuggestionEvent::kCreateNewPlusAddressInlineChosen);
-  const std::u16string suggested_address =
-      current_suggestions[current_suggestion_index]
-          .GetPayload<Suggestion::PlusAddressPayload>()
-          .address.value();
-  PlusAddress requested_plus_address(base::UTF16ToUTF8(suggested_address));
-
-  // First, update the suggestions to show a loading state.
-  std::vector<Suggestion> updated_suggestions(current_suggestions.begin(),
-                                              current_suggestions.end());
-  PlusAddressSuggestionHelper::SetLoadingStateForSuggestion(
-      /*is_loading=*/true, updated_suggestions[current_suggestion_index]);
-  std::move(update_suggestions_callback)
-      .Run(
-          std::move(updated_suggestions),
-          AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess);
-
-  ConfirmPlusAddress(
-      primary_main_frame_origin, std::move(requested_plus_address),
-      base::BindOnce(&PlusAddressServiceImpl::OnConfirmInlineCreation,
-                     base::Unretained(this),
-                     std::move(hide_suggestions_callback),
-                     std::move(fill_field_callback),
-                     std::move(show_affiliation_error_dialog),
-                     std::move(show_error_dialog),
-                     std::move(reshow_suggestions), requested_plus_address));
-}
-
 std::map<std::string, std::string>
 PlusAddressServiceImpl::GetPlusAddressHatsData() const {
   auto time_pref_to_string = [&](std::string_view pref) {
@@ -753,45 +612,6 @@ PlusAddressServiceImpl::GetPlusAddressHatsData() const {
            time_pref_to_string(prefs::kFirstPlusAddressCreationTime)},
           {hats::kLastPlusAddressFillingTime,
            time_pref_to_string(prefs::kLastPlusAddressFillingTime)}};
-}
-
-void PlusAddressServiceImpl::OnConfirmInlineCreation(
-    HideSuggestionsCallback hide_callback,
-    PlusAddressCallback fill_callback,
-    ShowAffiliationErrorDialogCallback show_affiliation_error,
-    ShowErrorDialogCallback show_error,
-    base::OnceClosure reshow_suggestions,
-    const PlusAddress& requested_address,
-    const PlusProfileOrError& profile_or_error) {
-  // Always hide the popup.
-  std::move(hide_callback)
-      .Run(autofill::SuggestionHidingReason::kAcceptSuggestion);
-
-  if (profile_or_error.has_value()) {
-    // The returned address was not the requested one. This means that there
-    // must already exist an address for an affiliated domain.
-    if (requested_address != profile_or_error->plus_address) {
-      std::move(show_affiliation_error)
-          .Run(GetOriginForDisplay(*profile_or_error),
-               base::UTF8ToUTF16(profile_or_error->plus_address.value()));
-      return;
-    }
-    std::move(fill_callback).Run(profile_or_error->plus_address.value());
-    return;
-  }
-
-  if (profile_or_error.error().IsQuotaError()) {
-    std::move(show_error)
-        .Run(PlusAddressErrorDialogType::kQuotaExhausted,
-             /*on_accepted=*/base::DoNothing());
-    return;
-  }
-  std::move(show_error)
-      .Run(profile_or_error.error().IsTimeoutError()
-               ? PlusAddressErrorDialogType::kTimeout
-               : PlusAddressErrorDialogType::kGenericError,
-           /*on_accepted=*/std::move(reshow_suggestions));
-  return;
 }
 
 }  // namespace plus_addresses

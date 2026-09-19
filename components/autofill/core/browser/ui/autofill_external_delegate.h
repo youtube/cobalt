@@ -181,20 +181,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   void DidAcceptPaymentsSuggestion(const Suggestion& suggestion,
                                    const SuggestionMetadata& metadata);
 
-  // Creates a specialized version of a single field fill callback that converts
-  // the argument from UTF8 to UTF16 and set `EMAIL_ADDRESS` as the filled type.
-  PlusAddressCallback CreatePlusAddressCallback(SuggestionType suggestion_type);
-
-  // Creates a plus address callback (see `CreatePlusAddressCallback`) which
-  // triggers a plus address was created using the manual fallback.
-  PlusAddressCallback CreateInlinePlusAddressCallback(
-      SuggestionType suggestion_type);
-
-  // Informs the `AutofillPlusAddress` delegate and passes callbacks for
-  // hiding/updating suggestions UI and filling.
-  void DidAcceptCreateNewPlusAddressInlineSuggestion(
-      const Suggestion& suggestion);
-
   // Called when a credit card is scanned using device camera.
   void OnCreditCardScanned(const CreditCard& card);
 

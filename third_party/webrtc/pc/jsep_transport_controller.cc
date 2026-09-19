@@ -11,7 +11,6 @@
 #include "pc/jsep_transport_controller.h"
 
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -35,7 +34,9 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/data_channel_transport_interface.h"
+#include "api/transport/ecn_marking.h"
 #include "api/transport/enums.h"
+#include "api/units/timestamp.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
@@ -1178,9 +1179,10 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
           payload_type_picker_);
 
   jsep_transport->rtp_transport()->SubscribeRtcpPacketReceived(
-      this, [this](CopyOnWriteBuffer* buffer, int64_t packet_time_ms) {
+      this, [this](CopyOnWriteBuffer packet,
+                   std::optional<Timestamp> arrival_time, EcnMarking ecn) {
         RTC_DCHECK_RUN_ON(network_thread_);
-        OnRtcpPacketReceived_n(buffer, packet_time_ms);
+        OnRtcpPacketReceived_n(std::move(packet), arrival_time, ecn);
       });
   jsep_transport->rtp_transport()->SetUnDemuxableRtpPacketReceivedHandler(
       [this](RtpPacketReceived& packet) {
@@ -1495,10 +1497,13 @@ void JsepTransportController::UpdateAggregateStates_n() {
   }
 }
 
-void JsepTransportController::OnRtcpPacketReceived_n(CopyOnWriteBuffer* packet,
-                                                     int64_t packet_time_us) {
+void JsepTransportController::OnRtcpPacketReceived_n(
+    CopyOnWriteBuffer packet,
+    std::optional<webrtc::Timestamp> arrival_time,
+    EcnMarking ecn) {
   RTC_DCHECK(config_.rtcp_handler);
-  config_.rtcp_handler(*packet, packet_time_us);
+  config_.rtcp_handler(std::move(packet),
+                       arrival_time.has_value() ? arrival_time->us() : -1);
 }
 
 void JsepTransportController::OnUnDemuxableRtpPacketReceived_n(

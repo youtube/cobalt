@@ -521,8 +521,8 @@ static int bf_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int bf_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                         size_t len) {
+static int bf_ecb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                const uint8_t *in, size_t len) {
   BF_KEY *bf_key = reinterpret_cast<BF_KEY *>(ctx->cipher_data);
 
   while (len >= BF_BLOCK) {
@@ -536,15 +536,15 @@ static int bf_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
   return 1;
 }
 
-static int bf_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                         size_t len) {
+static int bf_cbc_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                const uint8_t *in, size_t len) {
   BF_KEY *bf_key = reinterpret_cast<BF_KEY *>(ctx->cipher_data);
   BF_cbc_encrypt(in, out, len, bf_key, ctx->iv, ctx->encrypt);
   return 1;
 }
 
-static int bf_cfb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                         size_t len) {
+static int bf_cfb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                const uint8_t *in, size_t len) {
   BF_KEY *bf_key = reinterpret_cast<BF_KEY *>(ctx->cipher_data);
   int num = ctx->num;
   BF_cfb64_encrypt(in, out, len, bf_key, ctx->iv, &num, ctx->encrypt);
@@ -560,7 +560,9 @@ static const EVP_CIPHER bf_ecb = {
     /* ctx_size= */ sizeof(BF_KEY),
     /* flags= */ EVP_CIPH_ECB_MODE | EVP_CIPH_VARIABLE_LENGTH,
     /* init= */ bf_init_key,
-    /* cipher= */ bf_ecb_cipher,
+    /* cipher_update= */ bf_ecb_cipher_update,
+    /* cipher_final= */ nullptr,
+    /* update_aad= */ nullptr,
     /* cleanup= */ nullptr,
     /* ctrl= */ nullptr,
 };
@@ -573,7 +575,9 @@ static const EVP_CIPHER bf_cbc = {
     /* ctx_size= */ sizeof(BF_KEY),
     /* flags= */ EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH,
     /* init= */ bf_init_key,
-    /* cipher= */ bf_cbc_cipher,
+    /* cipher_update= */ bf_cbc_cipher_update,
+    /* cipher_final= */ nullptr,
+    /* update_aad= */ nullptr,
     /* cleanup= */ nullptr,
     /* ctrl= */ nullptr,
 };
@@ -586,7 +590,9 @@ static const EVP_CIPHER bf_cfb = {
     /* ctx_size= */ sizeof(BF_KEY),
     /* flags= */ EVP_CIPH_CFB_MODE | EVP_CIPH_VARIABLE_LENGTH,
     /* init= */ bf_init_key,
-    /* cipher= */ bf_cfb_cipher,
+    /* cipher_update= */ bf_cfb_cipher_update,
+    /* cipher_final= */ nullptr,
+    /* update_aad= */ nullptr,
     /* cleanup= */ nullptr,
     /* ctrl= */ nullptr,
 };

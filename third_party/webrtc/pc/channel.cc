@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -20,6 +19,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
@@ -409,7 +409,7 @@ void BaseChannel::OnNetworkRouteChanged(
 }
 
 void BaseChannel::SetFirstPacketReceivedCallback(
-    std::function<void()> callback) {
+    absl::AnyInvocable<void() &&> callback) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK(!on_first_packet_received_ || !callback);
 
@@ -422,11 +422,20 @@ void BaseChannel::SetFirstPacketReceivedCallback(
   on_first_packet_received_ = std::move(callback);
 }
 
-void BaseChannel::SetFirstPacketSentCallback(std::function<void()> callback) {
+void BaseChannel::SetFirstPacketSentCallback(
+    absl::AnyInvocable<void() &&> callback) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK(!on_first_packet_sent_ || !callback);
 
   on_first_packet_sent_ = std::move(callback);
+}
+
+void BaseChannel::SetPacketReceivedCallback_n(
+    absl::AnyInvocable<void()> callback) {
+  RTC_DCHECK_RUN_ON(network_thread());
+  RTC_DCHECK(!on_packet_received_n_ || !callback);
+
+  on_packet_received_n_ = std::move(callback);
 }
 
 void BaseChannel::OnTransportReadyToSend(bool ready) {
@@ -478,7 +487,7 @@ bool BaseChannel::SendPacket(bool rtcp,
   }
 
   if (on_first_packet_sent_ && options.info_signaled_after_sent.is_media) {
-    on_first_packet_sent_();
+    std::move(on_first_packet_sent_)();
     on_first_packet_sent_ = nullptr;
   }
 
@@ -491,7 +500,7 @@ void BaseChannel::OnRtpPacket(const RtpPacketReceived& parsed_packet) {
   RTC_DCHECK(network_initialized());
 
   if (on_first_packet_received_) {
-    on_first_packet_received_();
+    std::move(on_first_packet_received_)();
     on_first_packet_received_ = nullptr;
   }
 
@@ -511,6 +520,9 @@ void BaseChannel::OnRtpPacket(const RtpPacketReceived& parsed_packet) {
                            "SRTP is inactive and crypto is required "
                         << ToString();
     return;
+  }
+  if (on_packet_received_n_) {
+    on_packet_received_n_();
   }
   media_receive_channel()->OnPacketReceived(parsed_packet);
 }

@@ -154,8 +154,8 @@ static int aes_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int aes_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+static int aes_cbc_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                 const uint8_t *in, size_t len) {
   EVP_AES_KEY *dat = (EVP_AES_KEY *)ctx->cipher_data;
 
   if (dat->stream.cbc) {
@@ -169,8 +169,8 @@ static int aes_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
   return 1;
 }
 
-static int aes_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+static int aes_ecb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                 const uint8_t *in, size_t len) {
   size_t bl = ctx->cipher->block_size;
   EVP_AES_KEY *dat = (EVP_AES_KEY *)ctx->cipher_data;
 
@@ -186,16 +186,16 @@ static int aes_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
   return 1;
 }
 
-static int aes_ctr_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+static int aes_ctr_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                 const uint8_t *in, size_t len) {
   EVP_AES_KEY *dat = (EVP_AES_KEY *)ctx->cipher_data;
   CRYPTO_ctr128_encrypt_ctr32(in, out, len, &dat->ks.ks, ctx->iv, ctx->buf,
                               &ctx->num, dat->stream.ctr);
   return 1;
 }
 
-static int aes_ofb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+static int aes_ofb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                 const uint8_t *in, size_t len) {
   EVP_AES_KEY *dat = (EVP_AES_KEY *)ctx->cipher_data;
 
   CRYPTO_ofb128_encrypt(in, out, len, &dat->ks.ks, ctx->iv, &ctx->num,
@@ -366,56 +366,55 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr) {
   }
 }
 
-static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+static int aes_gcm_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                 const uint8_t *in, size_t len) {
   EVP_AES_GCM_CTX *gctx = reinterpret_cast<EVP_AES_GCM_CTX *>(ctx->cipher_data);
 
   // If not set up, return error
-  if (!gctx->key_set) {
-    return -1;
-  }
-  if (!gctx->iv_set) {
-    return -1;
-  }
-
-  if (len > INT_MAX) {
-    // This function signature can only express up to |INT_MAX| bytes encrypted.
-    //
-    // TODO(https://crbug.com/boringssl/494): Make the internal |EVP_CIPHER|
-    // calling convention |size_t|-clean.
-    return -1;
-  }
-
-  if (in) {
-    if (out == nullptr) {
-      if (!CRYPTO_gcm128_aad(&gctx->key, &gctx->gcm, in, len)) {
-        return -1;
-      }
-    } else if (ctx->encrypt) {
-      if (!CRYPTO_gcm128_encrypt(&gctx->key, &gctx->gcm, in, out, len)) {
-        return -1;
-      }
-    } else {
-      if (!CRYPTO_gcm128_decrypt(&gctx->key, &gctx->gcm, in, out, len)) {
-        return -1;
-      }
-    }
-    return (int)len;
-  } else {
-    if (!ctx->encrypt) {
-      if (gctx->taglen < 0 || !CRYPTO_gcm128_finish(&gctx->key, &gctx->gcm,
-                                                    ctx->buf, gctx->taglen)) {
-        return -1;
-      }
-      gctx->iv_set = 0;
-      return 0;
-    }
-    CRYPTO_gcm128_tag(&gctx->key, &gctx->gcm, ctx->buf, 16);
-    gctx->taglen = 16;
-    // Don't reuse the IV
-    gctx->iv_set = 0;
+  if (!gctx->key_set || !gctx->iv_set) {
     return 0;
   }
+
+  if (ctx->encrypt) {
+    return CRYPTO_gcm128_encrypt(&gctx->key, &gctx->gcm, in, out, len);
+  } else {
+    return CRYPTO_gcm128_decrypt(&gctx->key, &gctx->gcm, in, out, len);
+  }
+}
+
+static int aes_gcm_cipher_final(EVP_CIPHER_CTX *ctx) {
+  EVP_AES_GCM_CTX *gctx = reinterpret_cast<EVP_AES_GCM_CTX *>(ctx->cipher_data);
+
+  // If not set up, return error
+  if (!gctx->key_set || !gctx->iv_set) {
+    return 0;
+  }
+
+  if (!ctx->encrypt) {
+    if (gctx->taglen < 0 ||
+        !CRYPTO_gcm128_finish(&gctx->key, &gctx->gcm, ctx->buf, gctx->taglen)) {
+      return 0;
+    }
+    gctx->iv_set = 0;
+    return 1;
+  }
+  CRYPTO_gcm128_tag(&gctx->key, &gctx->gcm, ctx->buf, 16);
+  gctx->taglen = 16;
+  // Don't reuse the IV
+  gctx->iv_set = 0;
+  return 1;
+}
+
+static int aes_gcm_update_aad(EVP_CIPHER_CTX *ctx, const uint8_t *in,
+                              size_t len) {
+  EVP_AES_GCM_CTX *gctx = reinterpret_cast<EVP_AES_GCM_CTX *>(ctx->cipher_data);
+
+  // If not set up, return error
+  if (!gctx->key_set || !gctx->iv_set) {
+    return 0;
+  }
+
+  return CRYPTO_gcm128_aad(&gctx->key, &gctx->gcm, in, len);
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_cbc) {
@@ -428,7 +427,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_cbc) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CBC_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_cbc_cipher;
+  out->cipher_update = aes_cbc_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_ctr) {
@@ -441,7 +440,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_ctr) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CTR_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ctr_cipher;
+  out->cipher_update = aes_ctr_cipher_update;
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ecb_generic) {
@@ -453,7 +452,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ecb_generic) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ecb_cipher;
+  out->cipher_update = aes_ecb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_ofb) {
@@ -466,7 +465,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_ofb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_OFB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ofb_cipher;
+  out->cipher_update = aes_ofb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_gcm) {
@@ -481,7 +480,9 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_128_gcm) {
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
-  out->cipher = aes_gcm_cipher;
+  out->cipher_update = aes_gcm_cipher_update;
+  out->cipher_final = aes_gcm_cipher_final;
+  out->update_aad = aes_gcm_update_aad;
   out->cleanup = aes_gcm_cleanup;
   out->ctrl = aes_gcm_ctrl;
 }
@@ -496,7 +497,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_cbc) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CBC_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_cbc_cipher;
+  out->cipher_update = aes_cbc_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_ctr) {
@@ -509,7 +510,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_ctr) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CTR_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ctr_cipher;
+  out->cipher_update = aes_ctr_cipher_update;
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ecb_generic) {
@@ -521,7 +522,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ecb_generic) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ecb_cipher;
+  out->cipher_update = aes_ecb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_ofb) {
@@ -534,7 +535,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_ofb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_OFB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ofb_cipher;
+  out->cipher_update = aes_ofb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_gcm) {
@@ -549,7 +550,9 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_192_gcm) {
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
-  out->cipher = aes_gcm_cipher;
+  out->cipher_update = aes_gcm_cipher_update;
+  out->cipher_final = aes_gcm_cipher_final;
+  out->update_aad = aes_gcm_update_aad;
   out->cleanup = aes_gcm_cleanup;
   out->ctrl = aes_gcm_ctrl;
 }
@@ -564,7 +567,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_cbc) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CBC_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_cbc_cipher;
+  out->cipher_update = aes_cbc_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_ctr) {
@@ -577,7 +580,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_ctr) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_CTR_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ctr_cipher;
+  out->cipher_update = aes_ctr_cipher_update;
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ecb_generic) {
@@ -589,7 +592,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ecb_generic) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ecb_cipher;
+  out->cipher_update = aes_ecb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_ofb) {
@@ -602,7 +605,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_ofb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_OFB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_ofb_cipher;
+  out->cipher_update = aes_ofb_cipher_update;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_gcm) {
@@ -617,15 +620,17 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_aes_256_gcm) {
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
-  out->cipher = aes_gcm_cipher;
+  out->cipher_update = aes_gcm_cipher_update;
+  out->cipher_final = aes_gcm_cipher_final;
+  out->update_aad = aes_gcm_update_aad;
   out->cleanup = aes_gcm_cleanup;
   out->ctrl = aes_gcm_ctrl;
 }
 
 #if defined(HWAES_ECB)
 
-static int aes_hw_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out,
-                             const uint8_t *in, size_t len) {
+static int aes_hw_ecb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                    const uint8_t *in, size_t len) {
   size_t bl = ctx->cipher->block_size;
 
   if (len < bl) {
@@ -648,7 +653,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_128_ecb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_hw_ecb_cipher;
+  out->cipher_update = aes_hw_ecb_cipher_update;
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_192_ecb) {
@@ -660,7 +665,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_192_ecb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_hw_ecb_cipher;
+  out->cipher_update = aes_hw_ecb_cipher_update;
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_256_ecb) {
@@ -672,7 +677,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_256_ecb) {
   out->ctx_size = sizeof(EVP_AES_KEY);
   out->flags = EVP_CIPH_ECB_MODE;
   out->init = aes_init_key;
-  out->cipher = aes_hw_ecb_cipher;
+  out->cipher_update = aes_hw_ecb_cipher_update;
 }
 
 #define EVP_ECB_CIPHER_FUNCTION(keybits)            \

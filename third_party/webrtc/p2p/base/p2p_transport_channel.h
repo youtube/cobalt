@@ -38,6 +38,7 @@
 #include "api/local_network_access_permission.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -72,7 +73,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -444,7 +444,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       owned_dns_resolver_factory_;
   LocalNetworkAccessPermissionFactoryInterface* const lna_permission_factory_
       RTC_GUARDED_BY(network_thread_);
-  Thread* const network_thread_;
+  TaskQueueBase* const network_thread_;
   bool incoming_only_ RTC_GUARDED_BY(network_thread_);
   int error_ RTC_GUARDED_BY(network_thread_);
   std::vector<std::unique_ptr<PortAllocatorSession>> allocator_sessions_

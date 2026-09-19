@@ -108,14 +108,18 @@ class RecomputePhiUseHintsProcessor {
           DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUint32ToInt32>());
+          DCHECK(!node->Is<TruncateFloat64ToInt32>());
           DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
         } else if (node->Is<TruncateUint32ToInt32>() ||
+                   node->Is<TruncateFloat64ToInt32>() ||
                    node->Is<TruncateHoleyFloat64ToInt32>() ||
                    node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
                    node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
           use_repr = UseRepresentation::kTruncatedInt32;
+        } else if (node->Is<NumberToString>()) {
+          use_repr = UseRepresentation::kTaggedForNumberToString;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
                                live_loop_phis_.contains(phi));
@@ -343,16 +347,9 @@ class AnyUseMarkingProcessor {
     return ProcessResult::kContinue;
   }
 
-#ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
-    if (!v8_flags.maglev_untagged_phis) {
-      // These nodes are removed in the phi representation selector, if we are
-      // running without it. Just remove it here.
-      return ProcessResult::kRemove;
-    }
-    UNREACHABLE();
+    return ProcessResult::kRemove;
   }
-#endif  // DEBUG
 
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);

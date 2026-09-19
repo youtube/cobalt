@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/policy/dm_token_utils.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service_factory.h"
 #include "chrome/browser/ui/browser.h"
@@ -976,7 +977,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
   views::View* overlay_view = browser_view()->overlay_view();
 
   // Verify top_container is parented to browser_view before fullscreen
-  EXPECT_EQ(browser_view()->main_container(), top_container->parent());
+  EXPECT_EQ(browser_view(), top_container->parent());
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
 
   // Verify top_container is parented to overlay after entering fullscreen
@@ -985,7 +986,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
   browser_view()->GetExclusiveAccessContext()->ExitFullscreen();
 
   // Verify top_container is re-parented to browser_view after fullscreen exit
-  EXPECT_EQ(browser_view()->main_container(), top_container->parent());
+  EXPECT_EQ(browser_view(), top_container->parent());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewTabRevealFullscreen) {
@@ -1045,7 +1046,9 @@ class FakeRealTimeUrlLookupService
 
 class BrowserViewDataProtectionTest : public InProcessBrowserTest {
  public:
-  BrowserViewDataProtectionTest() {
+  BrowserViewDataProtectionTest()
+      : scoped_prewarm_feature_list_(test::ScopedPrewarmFeatureList::
+                                         PrewarmState::kEnabledWithNoTrigger) {
     scoped_feature_list_.InitAndEnableFeature(features::kSideBySide);
   }
   BrowserViewDataProtectionTest(const BrowserViewDataProtectionTest&) = delete;
@@ -1095,6 +1098,12 @@ class BrowserViewDataProtectionTest : public InProcessBrowserTest {
 
  private:
   base::CallbackListSubscription create_services_subscription_;
+  // TODO(https://crbug.com/458274323): browser()->GetWidget() seems returning
+  // a wrong Widget, one for the prewarm page, unexpectedly, might be due to
+  // missing MPArch support?
+  // Investigate details, and fix it to remove this workaround so that
+  // DC_Screenshot test can pass stably.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 

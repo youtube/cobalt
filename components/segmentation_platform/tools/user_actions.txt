@@ -40,7 +40,9 @@ MobileTabSwitched
 MobileToolbarForward
 NewTabPage.MostVisited.Clicked
 NewTabPage.SearchBox.Lens
+Notifications.Tips.Lens
 PasswordManager_Autofilled
+SafeBrowsing.Settings.EnhancedProtectionClicked
 SharingHubAndroid.SendTabToSelfSelected
 Suggestions.Content.Opened
 TabGroup.Created.OpenInNewTab

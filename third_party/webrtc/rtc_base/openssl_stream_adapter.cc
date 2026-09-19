@@ -32,6 +32,7 @@
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
@@ -46,7 +47,6 @@
 #include "rtc_base/stream.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/task_utils/repeating_task.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 
 #ifdef OPENSSL_IS_BORINGSSL
@@ -325,7 +325,7 @@ OpenSSLStreamAdapter::OpenSSLStreamAdapter(
     const FieldTrialsView* field_trials)
     : stream_(std::move(stream)),
       handshake_error_(std::move(handshake_error)),
-      owner_(Thread::Current()),
+      owner_(TaskQueueBase::Current()),
       state_(SSL_NONE),
       role_(SSL_CLIENT),
       ssl_read_needs_write_(false),

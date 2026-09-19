@@ -510,7 +510,7 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
 
     OnBeforeArcTestSetup();
 
-    arc_app_test_.SetUp(profile_.get());
+    arc_app_test_.PostProfileSetUp(profile_.get());
 
     web_app::FakeWebAppProvider::Get(profile_.get())->Start();
     CreateBuilder();
@@ -523,10 +523,11 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
 
   void TearDown() override {
     shelf_controller_.reset();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     ResetBuilder();
     extensions::ExtensionServiceTestBase::TearDown();
     browser_controller_.reset();
+    arc_app_test_.PostProfileTearDown();
   }
 
   ArcState GetArcState() const { return GetParam(); }
@@ -948,13 +949,16 @@ class ArcAppModelBuilderRecreate : public ArcAppModelBuilderTest {
     // TODO(crbug.com/454468678): This should be called before profile is
     // created.
     arc_app_test()->PreProfileSetUp();
-    arc_app_test()->SetUp(profile_.get());
+    arc_app_test()->PostProfileSetUp(profile_.get());
     CreateBuilder();
   }
 
   void StopArc() {
-    arc_app_test()->TearDown();
+    arc_app_test()->PreProfileTearDown();
     RemoveArcApps(profile_.get(), model_updater());
+    // TODO(crbug.com/454468678): This should be called after profile is
+    // deleted.
+    arc_app_test()->PostProfileTearDown();
     ResetBuilder();
   }
 

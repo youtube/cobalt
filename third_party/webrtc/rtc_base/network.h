@@ -224,10 +224,19 @@ class RTC_EXPORT Network {
           const IPAddress& prefix,
           int prefix_length,
           AdapterType type);
-  // Copying a Network only works if signal listeners have not been set.
-  Network(const Network& o);
+  // A Network is immovable.
+  // Until we can convert all users to Clone(), we have to preserve
+  // a Copy and Move operator.
+  // TODO: https://issues.webrtc.org/458708077 - delete this operator.
+  Network(const Network&);
+  Network& operator=(const Network&) = delete;
   Network(Network&&) = default;
+  Network& operator=(Network&&) = delete;
   ~Network();
+
+  // The Clone operator creates a new network
+  // with the same configuration, but no connected signals.
+  std::unique_ptr<Network> Clone() const;
 
   // This signal is fired whenever type() or underlying_type_for_vpn() changes.
   // Mutable, to support connecting on the const Network passed to Port

@@ -86,10 +86,6 @@
   # BUG(chromium:1497251): Probably some data race in the interpreter.
   'regress/regress-1497251': [SKIP],
 
-  # https://crbug.com/350694471 Currently too flaky.
-  'shared-memory/async-synchronization-workers-terminated': [SKIP],
-  'shared-memory/condition-async-wait-realm-disposed': [SKIP],
-
   # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
@@ -1491,12 +1487,6 @@
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['arch == riscv64 and pointer_compression', {
-  # Needs sandbox enabled.
-  'shared-memory/condition-async-wait-timeout': [SKIP],
-  'shared-memory/condition-async-wait-realm-disposed': [SKIP],
-  'shared-memory/mutex-async-lock-workers-timeout': [SKIP],
-  'shared-memory/mutex-async-lock-realm-disposed': [SKIP],
-
   # Maglev code bails out due to incorrect overflow check when pointer
   # compression is enabled, but the test checks that the function remains
   # optimized and thus fails.
@@ -1912,17 +1902,6 @@
   # Wasm code coverage is not supported yet.
   'wasm/wasm-code-coverage': [SKIP],
 }],  # arch in [ppc64, s390x]'
-
-##############################################################################
-['arch in [ppc64, s390x] and pointer_compression', {
-
-  # Needs sandbox enabled.
-  'shared-memory/condition-async-wait-timeout' :[SKIP],
-  'shared-memory/condition-async-wait-realm-disposed' :[SKIP],
-  'shared-memory/mutex-async-lock-workers-timeout' :[SKIP],
-  'shared-memory/mutex-async-lock-realm-disposed' :[SKIP],
-
-}],  # arch in [ppc64, s390x] and pointer_compression'
 
 ##############################################################################
 ['pointer_compression and not pointer_compression_shared_cage', {
@@ -2509,6 +2488,7 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-346597059': [SKIP],
   'regress/wasm/regress-349640002': [SKIP],
+  'regress/wasm/regress-455832038': [SKIP],
   'compiler/regress-347724915': [SKIP],
   'regress/regress-crbug-418520151': [SKIP],
 
@@ -2527,6 +2507,7 @@
   'regress/wasm/regress-382816108': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
+  'regress/wasm/regress-454276076': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],

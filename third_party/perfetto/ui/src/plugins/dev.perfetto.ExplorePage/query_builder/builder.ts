@@ -82,6 +82,7 @@ import {QueryService} from './query_service';
 import {findErrors, findWarnings} from './query_builder_utils';
 import {NodeIssues} from './node_issues';
 import {UIFilter} from './operations/filter';
+import {MaterializationService} from './materialization_service';
 
 export interface BuilderAttrs {
   readonly trace: Trace;
@@ -110,18 +111,36 @@ export interface BuilderAttrs {
   readonly onDeleteNode: (node: QueryNode) => void;
   readonly onClearAllNodes: () => void;
   readonly onDuplicateNode: (node: QueryNode) => void;
-  readonly onRemoveFilter: (node: QueryNode, filter: UIFilter) => void;
   readonly onConnectionRemove: (fromNode: QueryNode, toNode: QueryNode) => void;
+  readonly onFilterAdd: (node: QueryNode, filter: UIFilter) => void;
 
   // Import / Export JSON
   readonly onImport: () => void;
   readonly onExport: () => void;
 
   readonly onImportWithStatement: () => void;
+
+  // Node state change callback
+  readonly onNodeStateChange?: () => void;
+
+  // Undo / Redo
+  readonly onUndo?: () => void;
+  readonly onRedo?: () => void;
+  readonly canUndo?: boolean;
+  readonly canRedo?: boolean;
+}
+
+enum SelectedView {
+  kInfo = 0,
+  kModify = 1,
+  kSql = 2,
+  kProto = 3,
+  kComment = 4,
 }
 
 export class Builder implements m.ClassComponent<BuilderAttrs> {
   private queryService: QueryService;
+  private materializationService: MaterializationService;
   private query?: Query | Error;
   private queryExecuted: boolean = false;
   private isQueryRunning: boolean = false;
@@ -131,9 +150,13 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
   private response?: QueryResponse;
   private dataSource?: DataGridDataSource;
   private drawerVisibility = SplitPanelDrawerVisibility.VISIBLE;
+  private selectedView: SelectedView = SelectedView.kInfo;
 
   constructor({attrs}: m.Vnode<BuilderAttrs>) {
     this.queryService = new QueryService(attrs.trace.engine);
+    this.materializationService = new MaterializationService(
+      attrs.trace.engine,
+    );
   }
 
   view({attrs}: m.CVnode<BuilderAttrs>) {
@@ -153,6 +176,15 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
       this.queryExecuted = false;
       this.isQueryRunning = false;
       this.isAnalyzing = false;
+      const hasModifyPanel = selectedNode.nodeSpecificModify() != null;
+      // If current view is Info, switch to Modify (if available) when selecting a new node
+      if (this.selectedView === SelectedView.kInfo && hasModifyPanel) {
+        this.selectedView = SelectedView.kModify;
+      }
+      // If current view is Modify but modify panel is not available, switch to Info
+      if (this.selectedView === SelectedView.kModify && !hasModifyPanel) {
+        this.selectedView = SelectedView.kInfo;
+      }
     }
     this.previousSelectedNode = selectedNode;
 
@@ -161,6 +193,30 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
         'pf-query-builder-layout',
         this.isExplorerCollapsed && 'explorer-collapsed',
       ) || '';
+
+    // When no nodes exist, show only the graph (which renders EmptyGraph)
+    // without any panels or split layout
+    if (rootNodes.length === 0) {
+      return m(Graph, {
+        rootNodes,
+        selectedNode,
+        onNodeSelected,
+        nodeLayouts: attrs.nodeLayouts,
+        onNodeLayoutChange: attrs.onNodeLayoutChange,
+        onDeselect: attrs.onDeselect,
+        onAddSourceNode: attrs.onAddSourceNode,
+        onClearAllNodes,
+        onDuplicateNode: attrs.onDuplicateNode,
+        onAddOperationNode: (id, node) => attrs.onAddOperationNode(id, node),
+        devMode: attrs.devMode,
+        onDevModeChange: attrs.onDevModeChange,
+        onDeleteNode: attrs.onDeleteNode,
+        onConnectionRemove: attrs.onConnectionRemove,
+        onImport: attrs.onImport,
+        onImportWithStatement: attrs.onImportWithStatement,
+        onExport: attrs.onExport,
+      });
+    }
 
     const explorer = selectedNode
       ? m(NodeExplorer, {
@@ -182,10 +238,13 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
           onAnalysisStateChange: (isAnalyzing: boolean) => {
             this.isAnalyzing = isAnalyzing;
           },
-          onchange: () => {},
+          onchange: () => {
+            attrs.onNodeStateChange?.();
+          },
           isCollapsed: this.isExplorerCollapsed,
-          onToggleCollapse: () => {
-            this.isExplorerCollapsed = !this.isExplorerCollapsed;
+          selectedView: this.selectedView,
+          onViewChange: (view: number) => {
+            this.selectedView = view;
           },
         })
       : m(ExplorePageHelp, {
@@ -226,7 +285,12 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
               dataSource: this.dataSource,
               isQueryRunning: this.isQueryRunning,
               isAnalyzing: this.isAnalyzing,
-              onchange: () => {},
+              onchange: () => {
+                attrs.onNodeStateChange?.();
+              },
+              onFilterAdd: (filter) => {
+                attrs.onFilterAdd(selectedNode, filter);
+              },
               isFullScreen:
                 this.drawerVisibility === SplitPanelDrawerVisibility.FULLSCREEN,
               onFullScreenToggle: () => {
@@ -267,7 +331,6 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
           onImport: attrs.onImport,
           onImportWithStatement: attrs.onImportWithStatement,
           onExport: attrs.onExport,
-          onRemoveFilter: attrs.onRemoveFilter,
         }),
         selectedNode &&
           m(
@@ -282,21 +345,140 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
                   title: `Invalid node: ${selectedNode.state.issues?.getTitle() ?? ''}`,
                 }),
               ),
-            this.isExplorerCollapsed &&
-              m(Button, {
-                icon: Icons.GoBack,
-                title: 'Expand panel',
-                onclick: () => {
-                  this.isExplorerCollapsed = false;
-                },
-                variant: ButtonVariant.Filled,
-                rounded: true,
-                iconFilled: true,
-                intent: Intent.Primary,
-              }),
           ),
+        m(
+          '.pf-qb-floating-controls-bottom',
+          attrs.onUndo &&
+            m(Button, {
+              icon: Icons.Undo,
+              title: 'Undo (Ctrl+Z)',
+              onclick: attrs.onUndo,
+              disabled: !attrs.canUndo,
+              variant: ButtonVariant.Filled,
+              rounded: true,
+              iconFilled: true,
+              intent: Intent.Primary,
+            }),
+          attrs.onRedo &&
+            m(Button, {
+              icon: Icons.Redo,
+              title: 'Redo (Ctrl+Shift+Z)',
+              onclick: attrs.onRedo,
+              disabled: !attrs.canRedo,
+              variant: ButtonVariant.Filled,
+              rounded: true,
+              iconFilled: true,
+              intent: Intent.Primary,
+            }),
+        ),
       ),
       m('.pf-qb-explorer', explorer),
+      selectedNode &&
+        m(
+          '.pf-qb-side-panel',
+          m(Button, {
+            icon: Icons.Info,
+            title: 'Info',
+            className:
+              this.selectedView === SelectedView.kInfo &&
+              !this.isExplorerCollapsed
+                ? 'pf-active'
+                : '',
+            onclick: () => {
+              if (
+                this.selectedView === SelectedView.kInfo &&
+                !this.isExplorerCollapsed
+              ) {
+                this.isExplorerCollapsed = true;
+              } else {
+                this.selectedView = SelectedView.kInfo;
+                this.isExplorerCollapsed = false;
+              }
+            },
+          }),
+          selectedNode.nodeSpecificModify() != null &&
+            m(Button, {
+              icon: Icons.Edit,
+              title: 'Edit',
+              className:
+                this.selectedView === SelectedView.kModify &&
+                !this.isExplorerCollapsed
+                  ? 'pf-active'
+                  : '',
+              onclick: () => {
+                if (
+                  this.selectedView === SelectedView.kModify &&
+                  !this.isExplorerCollapsed
+                ) {
+                  this.isExplorerCollapsed = true;
+                } else {
+                  this.selectedView = SelectedView.kModify;
+                  this.isExplorerCollapsed = false;
+                }
+              },
+            }),
+          m(Button, {
+            icon: 'code',
+            title: 'SQL',
+            className:
+              this.selectedView === SelectedView.kSql &&
+              !this.isExplorerCollapsed
+                ? 'pf-active'
+                : '',
+            onclick: () => {
+              if (
+                this.selectedView === SelectedView.kSql &&
+                !this.isExplorerCollapsed
+              ) {
+                this.isExplorerCollapsed = true;
+              } else {
+                this.selectedView = SelectedView.kSql;
+                this.isExplorerCollapsed = false;
+              }
+            },
+          }),
+          m(Button, {
+            icon: 'data_object',
+            title: 'Proto',
+            className:
+              this.selectedView === SelectedView.kProto &&
+              !this.isExplorerCollapsed
+                ? 'pf-active'
+                : '',
+            onclick: () => {
+              if (
+                this.selectedView === SelectedView.kProto &&
+                !this.isExplorerCollapsed
+              ) {
+                this.isExplorerCollapsed = true;
+              } else {
+                this.selectedView = SelectedView.kProto;
+                this.isExplorerCollapsed = false;
+              }
+            },
+          }),
+          m(Button, {
+            icon: 'comment',
+            title: 'Comment',
+            iconFilled: !!selectedNode.state.comment,
+            className:
+              this.selectedView === SelectedView.kComment &&
+              !this.isExplorerCollapsed
+                ? 'pf-active'
+                : '',
+            onclick: () => {
+              if (
+                this.selectedView === SelectedView.kComment &&
+                !this.isExplorerCollapsed
+              ) {
+                this.isExplorerCollapsed = true;
+              } else {
+                this.selectedView = SelectedView.kComment;
+                this.isExplorerCollapsed = false;
+              }
+            },
+          }),
+        ),
     );
   }
 
@@ -323,7 +505,7 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
     return undefined;
   }
 
-  private runQuery(node: QueryNode) {
+  private async runQuery(node: QueryNode) {
     if (
       this.query === undefined ||
       this.query instanceof Error ||
@@ -333,7 +515,9 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
     }
 
     this.isQueryRunning = true;
-    this.queryService.runQuery(queryToRun(this.query)).then((response) => {
+
+    try {
+      const response = await this.queryService.runQuery(queryToRun(this.query));
       this.response = response;
       const ds = new InMemoryDataSource(this.response.rows);
       this.dataSource = {
@@ -370,11 +554,37 @@ export class Builder implements m.ClassComponent<BuilderAttrs> {
         node.state.issues = undefined;
       }
 
+      // Update columns for SQL source nodes and trigger re-analysis
       if (node instanceof SqlSourceNode) {
         node.onQueryExecuted(this.response.columns);
       }
+
+      // Automatically materialize the node after successful execution
+      if (isAQuery(this.query) && !error && !warning) {
+        try {
+          await this.materializationService.materializeNode(node, this.query);
+        } catch (e) {
+          console.error('Failed to materialize node:', e);
+          // Don't block the UI on materialization errors
+        }
+      }
+
+      // Force re-analysis for SQL source nodes so downstream nodes can see updated columns
+      if (node instanceof SqlSourceNode) {
+        this.query = undefined;
+        this.queryExecuted = false;
+      }
+    } catch (e) {
+      console.error('Failed to run query:', e);
+      // Set error state on the node
+      if (!node.state.issues) {
+        node.state.issues = new NodeIssues();
+      }
+      node.state.issues.queryError =
+        e instanceof Error ? e : new Error(String(e));
+    } finally {
       this.isQueryRunning = false;
       m.redraw();
-    });
+    }
   }
 }

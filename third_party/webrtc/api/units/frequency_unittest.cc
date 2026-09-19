@@ -85,27 +85,6 @@ TEST(FrequencyTest, ComparisonOperators) {
   EXPECT_LT(Frequency::MinusInfinity(), Frequency::Zero());
 }
 
-TEST(FrequencyTest, Clamping) {
-  const Frequency upper = Frequency::Hertz(800);
-  const Frequency lower = Frequency::Hertz(100);
-  const Frequency under = Frequency::Hertz(100);
-  const Frequency inside = Frequency::Hertz(500);
-  const Frequency over = Frequency::Hertz(1000);
-  EXPECT_EQ(under.Clamped(lower, upper), lower);
-  EXPECT_EQ(inside.Clamped(lower, upper), inside);
-  EXPECT_EQ(over.Clamped(lower, upper), upper);
-
-  Frequency mutable_frequency = lower;
-  mutable_frequency.Clamp(lower, upper);
-  EXPECT_EQ(mutable_frequency, lower);
-  mutable_frequency = inside;
-  mutable_frequency.Clamp(lower, upper);
-  EXPECT_EQ(mutable_frequency, inside);
-  mutable_frequency = over;
-  mutable_frequency.Clamp(lower, upper);
-  EXPECT_EQ(mutable_frequency, upper);
-}
-
 TEST(FrequencyTest, MathOperations) {
   const int64_t kValueA = 457;
   const int64_t kValueB = 260;

@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Toca Aplicacións e, a continuación, Aplicacións predeterminadas</translation>
 <translation id="1415402041810619267">URL truncado</translation>
 <translation id="1415855080660575082">Permite que Chrome comparta as pestanas recentes co teu dispositivo para que se mostren na lista de aplicacións e nos resultados de busca do aparello. Activa ou desactiva esta opción na configuración de Chrome.</translation>
+<translation id="1420688843103859429">Pasa dous dedos no panel táctil para navegar cara adiante ou cara atrás</translation>
 <translation id="1432650420699700107">Os sitios poden pedir permiso para conectarse a calquera dispositivo da túa rede local</translation>
 <translation id="1448064542941920355">Reducir zoom</translation>
 <translation id="1464044141348608623">Non permitir que os sitios saiban cando estás utilizando o dispositivo de maneira activa</translation>
@@ -218,7 +219,6 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="3285500645985761267">Permitir que os sitios relacionados vexan a túa actividade no grupo</translation>
 <translation id="3295019059349372795">Capítulo 11: A marabillosa Cidade Esmeralda de Oz</translation>
 <translation id="3295602654194328831">Ocultar información</translation>
-<translation id="3328801116991980348">Información do sitio</translation>
 <translation id="3333961966071413176">Todos os contactos</translation>
 <translation id="3360338140203645771">Eliminar niveis de zoom?</translation>
 <translation id="3362437373201486687">Buscando dispositivos Bluetooth</translation>
@@ -243,6 +243,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="3611658447322220736">Os sitios pechados recentemente poden rematar de enviar e recibir datos</translation>
 <translation id="3619294456800709762">Os sitios poden acceder ao modo de pantalla superposta automaticamente</translation>
 <translation id="3628308229821498208">Buscas suxeridas</translation>
+<translation id="363748948745453283">Estase usando a localización aproximada</translation>
 <translation id="3641456520301071208">Os sitios poden pedirche permiso para acceder á localización</translation>
 <translation id="3658847490588580244">Panel inferior do navegador predeterminado</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> sitio no grupo de sitios de <ph name="RWS_OWNER" /> pode ver a túa actividade no grupo}other{<ph name="RWS_MEMBERS_COUNT" /> sitios no grupo de sitios de <ph name="RWS_OWNER" /> poden ver a túa actividade no grupo}}</translation>
@@ -433,8 +434,10 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="5750869797196646528">Seguimento das mans</translation>
 <translation id="5753570386948603678">Eliminar do historial</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> (bloqueado)</translation>
+<translation id="5792627621688759634">Pasar dedo entre as páxinas cun panel táctil</translation>
 <translation id="5801457289562671820">Recomendación da túa organización</translation>
 <translation id="5804241973901381774">Permisos</translation>
+<translation id="5817042798620209981">Información do sitio, cadro de diálogo</translation>
 <translation id="5822675474983796325">Panel inferior de Personaliza a páxina Nova pestana aberto a altura completa</translation>
 <translation id="5833899990800318936">Non permitir que os sitios utilicen JavaScript</translation>
 <translation id="583673505367439042">Os sitios poden pedirche permiso para editar ficheiros e cartafoles do teu dispositivo</translation>

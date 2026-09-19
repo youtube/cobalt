@@ -35,7 +35,9 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/data_channel_transport_interface.h"
+#include "api/transport/ecn_marking.h"
 #include "api/transport/sctp_transport_factory_interface.h"
+#include "api/units/timestamp.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
@@ -117,7 +119,7 @@ class JsepTransportController : public PayloadTypeSuggester {
     Observer* transport_observer = nullptr;
     // Must be provided and valid for the lifetime of the
     // JsepTransportController instance.
-    absl::AnyInvocable<void(const webrtc::CopyOnWriteBuffer& packet,
+    absl::AnyInvocable<void(const CopyOnWriteBuffer& packet,
                             int64_t packet_time_us) const>
         rtcp_handler;
     absl::AnyInvocable<void(const RtpPacketReceived& parsed_packet) const>
@@ -128,7 +130,7 @@ class JsepTransportController : public PayloadTypeSuggester {
 
     // Factory for SCTP transports.
     SctpTransportFactoryInterface* sctp_factory = nullptr;
-    std::function<void(webrtc::SSLHandshakeError)> on_dtls_handshake_error_;
+    std::function<void(SSLHandshakeError)> on_dtls_handshake_error_;
   };
 
   // The ICE related events are fired on the `network_thread`.
@@ -459,8 +461,9 @@ class JsepTransportController : public PayloadTypeSuggester {
       RTC_RUN_ON(network_thread_);
   void UpdateAggregateStates_n() RTC_RUN_ON(network_thread_);
 
-  void OnRtcpPacketReceived_n(CopyOnWriteBuffer* packet, int64_t packet_time_us)
-      RTC_RUN_ON(network_thread_);
+  void OnRtcpPacketReceived_n(CopyOnWriteBuffer packet,
+                              std::optional<Timestamp> arrival_time,
+                              EcnMarking ecn) RTC_RUN_ON(network_thread_);
   void OnUnDemuxableRtpPacketReceived_n(const RtpPacketReceived& packet)
       RTC_RUN_ON(network_thread_);
 

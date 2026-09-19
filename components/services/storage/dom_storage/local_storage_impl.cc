@@ -59,10 +59,6 @@ namespace {
 
 static const int kStaleBucketCutoffInDays = 400;
 
-constexpr std::string_view kVersionKey = "VERSION";
-const int64_t kMinSchemaVersion = 1;
-const int64_t kCurrentLocalStorageSchemaVersion = 1;
-
 // After this many consecutive commit errors we'll throw away the entire
 // database.
 const int kCommitErrorThreshold = 8;
@@ -122,6 +118,7 @@ void DeleteStorageKeys(AsyncDomStorageDatabase* database,
           storage_keys),
       std::move(callback));
 }
+
 StorageAreaImpl::Options createOptions() {
   // Delay for a moment after a value is set in anticipation
   // of other values being set, so changes are batched.
@@ -178,20 +175,15 @@ class LocalStorageImpl::StorageAreaHolder final
             context_->origins_to_purge_on_shutdown_.end()) {
       return;
     }
-    context_->database_->RunDatabaseTask(
-        base::BindOnce(
-            [](const blink::StorageKey& storage_key,
-               DomStorageDatabaseLevelDB& db) {
-              std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
-                  db.CreateBatchOperation();
-              batch->Put(
-                  LocalStorageLevelDB::CreateAccessMetaDataKey(storage_key),
-                  LocalStorageLevelDB::CreateAccessMetaDataValue(
-                      /*last_accessed=*/base::Time::Now()));
-              return batch->Commit();
-            },
-            storage_key_),
-        base::BindOnce([](DbStatus status) {
+
+    // Update the storage area map's last access time.
+    DomStorageDatabase::Metadata usage;
+    usage.map_metadata.push_back({
+        .map_locator{kLocalStorageSessionId, storage_key_},
+        .last_accessed{base::Time::Now()},
+    });
+    context_->database_->PutMetadata(
+        std::move(usage), base::BindOnce([](DbStatus status) {
           base::UmaHistogramBoolean(
               "LocalStorage.AccessMetaDataUpdateAtShutdown", status.ok());
         }));
@@ -210,16 +202,6 @@ class LocalStorageImpl::StorageAreaHolder final
   void PrepareToCommit(
       std::vector<DomStorageDatabase::KeyValuePair>* extra_entries_to_add,
       std::vector<DomStorageDatabase::Key>* extra_keys_to_delete) override {
-    // Write schema version if not already done so before.
-    if (!context_->database_initialized_) {
-      const std::string version =
-          base::NumberToString(kCurrentLocalStorageSchemaVersion);
-      extra_entries_to_add->emplace_back(
-          DomStorageDatabase::Key(kVersionKey.begin(), kVersionKey.end()),
-          DomStorageDatabase::Value(version.begin(), version.end()));
-      context_->database_initialized_ = true;
-    }
-
     DomStorageDatabase::Key access_metadata_key =
         LocalStorageLevelDB::CreateAccessMetaDataKey(storage_key_);
     DomStorageDatabase::Key write_metadata_key =
@@ -612,6 +594,8 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     return;
   }
 
+<<<<<<< HEAD
+=======
   // Verify DB schema version.
   if (database_) {
     database_->RunDatabaseTask(
@@ -661,6 +645,7 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
     return;
   }
 
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   OnConnectionFinished();
 }
 

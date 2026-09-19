@@ -1126,7 +1126,10 @@ if (is_android) {
       "log",
       "GLESv2",
     ]
-    deps = [ "//third_party/abseil-cpp/absl/cleanup" ]
+    deps = [
+      ":checks",
+      "//third_party/abseil-cpp/absl/cleanup",
+    ]
   }
 }
 
@@ -1553,8 +1556,8 @@ rtc_library("rtc_certificate_generator") {
   deps = [
     ":checks",
     ":ssl",
-    ":threading",
     "../api:scoped_refptr",
+    "../api/task_queue",
     "system:rtc_export",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
@@ -1721,6 +1724,7 @@ rtc_library("ssl_adapter") {
     "../api:array_view",
     "../api:field_trials_view",
     "../api:sequence_checker",
+    "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
     "../api/units:time_delta",
     "system:rtc_export",

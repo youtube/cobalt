@@ -2247,7 +2247,6 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
 #endif
   class MockInstaller : public CrxInstaller {
    public:
-    MOCK_METHOD1(OnUpdateError, void(int error));
     MOCK_METHOD1(DoInstall, void(const base::FilePath& unpack_path));
     MOCK_METHOD1(GetInstalledFile,
                  std::optional<base::FilePath>(const std::string& file));
@@ -2295,8 +2294,11 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       scoped_refptr<MockInstaller> installer =
           base::MakeRefCounted<MockInstaller>();
 
+<<<<<<< HEAD
+=======
 #if !BUILDFLAG(IS_STARBOARD)
       EXPECT_CALL(*installer, OnUpdateError(_)).Times(0);
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       EXPECT_CALL(*installer, DoInstall(_));
       EXPECT_CALL(*installer, GetInstalledFile(_)).Times(0);
       EXPECT_CALL(*installer, Uninstall()).Times(0);

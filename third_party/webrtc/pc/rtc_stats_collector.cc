@@ -1629,6 +1629,11 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
        transceiver_stats_infos_) {
     const auto& track_media_info_map =
         transceiver_stats_info.track_media_info_map;
+    // The transceiver will still exist but in a stopped state after pc.close().
+    if (transceiver_stats_info.current_direction ==
+        RtpTransceiverDirection::kStopped) {
+      continue;
+    }
     for (const auto& sender : transceiver_stats_info.transceiver->senders()) {
       const auto& sender_internal = sender->internal();
       const auto& track = sender_internal->track();
@@ -2219,6 +2224,9 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
       }
     }
   });
+  for (auto& stats : transceiver_stats_infos_) {
+    stats.current_direction = stats.transceiver->current_direction();
+  }
 
   // We jump to the worker thread and call GetStats() on each media channel as
   // well as GetCallStats(). At the same time we construct the
@@ -2253,6 +2261,11 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
     // and keep track of whether we have at least one audio receiver.
     bool has_audio_receiver = false;
     for (auto& stats : transceiver_stats_infos_) {
+      // The transceiver will still exist but in a stopped state after
+      // pc.close().
+      if (stats.current_direction == RtpTransceiverDirection::kStopped) {
+        continue;
+      }
       auto transceiver = stats.transceiver;
       std::optional<VoiceMediaInfo> voice_media_info;
       std::optional<VideoMediaInfo> video_media_info;
@@ -2294,10 +2307,6 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
     audio_device_stats_ =
         has_audio_receiver ? pc_->GetAudioDeviceStats() : std::nullopt;
   });
-
-  for (auto& stats : transceiver_stats_infos_) {
-    stats.current_direction = stats.transceiver->current_direction();
-  }
 }
 
 void RTCStatsCollector::OnSctpDataChannelStateChanged(

@@ -34,7 +34,6 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/page/page.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -43,19 +42,19 @@ class WebNoStatePrefetchClient;
 
 class CORE_EXPORT NoStatePrefetchClient
     : public GarbageCollected<NoStatePrefetchClient>,
-      public Supplement<Page> {
+      public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
-
   NoStatePrefetchClient(Page&, WebNoStatePrefetchClient*);
   NoStatePrefetchClient(const NoStatePrefetchClient&) = delete;
   NoStatePrefetchClient& operator=(const NoStatePrefetchClient&) = delete;
 
   virtual bool IsPrefetchOnly();
+  void Trace(Visitor* visitor) const override { visitor->Trace(page_); }
 
   static NoStatePrefetchClient* From(Page*);
 
  private:
+  Member<Page> page_;
   WebNoStatePrefetchClient* client_;
 };
 

@@ -101,18 +101,18 @@ Flag<Config> OptionalBoolFalseFlag(const char *name,
 
 template <typename T>
 bool StringToInt(T *out, const char *str) {
-  static_assert(std::is_integral<T>::value, "not an integral type");
+  static_assert(std::is_integral_v<T>, "not an integral type");
 
   // |strtoull| allows leading '-' with wraparound. Additionally, both
   // functions accept empty strings and leading whitespace.
   if (!OPENSSL_isdigit(static_cast<unsigned char>(*str)) &&
-      (!std::is_signed<T>::value || *str != '-')) {
+      (!std::is_signed_v<T> || *str != '-')) {
     return false;
   }
 
   errno = 0;
   char *end;
-  if (std::is_signed<T>::value) {
+  if (std::is_signed_v<T>) {
     static_assert(sizeof(T) <= sizeof(long long),
                   "type too large for long long");
     long long value = strtoll(str, &end, 10);

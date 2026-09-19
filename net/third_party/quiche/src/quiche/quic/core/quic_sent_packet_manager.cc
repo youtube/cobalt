@@ -191,9 +191,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     initial_congestion_window_ = 50;
     send_algorithm_->SetInitialCongestionWindowInPackets(50);
   }
-  if (config.HasClientRequestedIndependentOption(kIW2X, perspective) &&
-      GetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_2x_initial_cwnd);
+  if (config.HasClientRequestedIndependentOption(kIW2X, perspective)) {
     initial_congestion_window_ *= 2;
     send_algorithm_->SetInitialCongestionWindowInPackets(
         initial_congestion_window_);
@@ -332,11 +330,31 @@ void QuicSentPacketManager::AdjustNetworkParameters(
     QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_bursts);
     pacing_sender_.SetBurstTokens(kConservativeUnpacedBurst);
   }
-  send_algorithm_->AdjustNetworkParameters(params);
+
+  SendAlgorithmInterface::NetworkParams new_params = params;
+
+  if (params.clamp_cwnd_and_rtt_before_send_algorithm) {
+    static constexpr QuicBandwidth kAbsurdlyLargeMaxBandwidth =
+        QuicBandwidth::FromKBytesPerSecond(2 * 1024 * 1024);  // 16 Gbps
+    static constexpr QuicTime::Delta kAbsurdlyLargeMinRtt =
+        QuicTime::Delta::FromMilliseconds(512 * 1024);  // ~8.7 minutes
+    // These constants are safe to multiply with `QuicByteCount
+    // operator*(QuicBandwidth, QuicTime::Delta)`. Therefore, the clamped
+    // bandwidth and rtt are also safe to multiply.
+    static_assert(
+        kAbsurdlyLargeMaxBandwidth.ToBytesPerPeriodSafe(kAbsurdlyLargeMinRtt)
+            .has_value());
+    new_params.bandwidth =
+        std::min(params.bandwidth, kAbsurdlyLargeMaxBandwidth);
+    new_params.rtt = std::min(params.rtt, kAbsurdlyLargeMinRtt);
+  }
+
+  send_algorithm_->AdjustNetworkParameters(new_params);
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnAdjustNetworkParameters(
-        bandwidth, rtt.IsZero() ? rtt_stats_.MinOrInitialRtt() : rtt, old_cwnd,
-        send_algorithm_->GetCongestionWindow());
+        new_params.bandwidth,
+        new_params.rtt.IsZero() ? rtt_stats_.MinOrInitialRtt() : new_params.rtt,
+        old_cwnd, send_algorithm_->GetCongestionWindow());
   }
 }
 

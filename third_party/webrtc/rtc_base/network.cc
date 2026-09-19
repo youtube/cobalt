@@ -1152,6 +1152,21 @@ Network::Network(const Network& o)
 
 Network::~Network() = default;
 
+std::unique_ptr<Network> Network::Clone() const {
+  auto clone = std::make_unique<Network>(name_, description_, prefix_,
+                                         prefix_length_, type_);
+  clone->key_ = key_;
+  clone->ips_ = ips_;
+  clone->scope_id_ = scope_id_;
+  clone->ignored_ = ignored_;
+  clone->underlying_type_for_vpn_ = underlying_type_for_vpn_;
+  clone->preference_ = preference_;
+  clone->active_ = active_;
+  clone->id_ = id_;
+  clone->network_preference_ = network_preference_;
+  return clone;
+}
+
 // Sets the addresses of this network. Returns true if the address set changed.
 // Change detection is short circuited if the changed argument is true.
 bool Network::SetIPs(const std::vector<InterfaceAddress>& ips, bool changed) {

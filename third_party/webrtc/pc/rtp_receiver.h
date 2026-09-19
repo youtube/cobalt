@@ -63,6 +63,8 @@ class RtpReceiverInternal : public RtpReceiverInterface {
   // Call this to notify the RtpReceiver when the first packet has been received
   // on the corresponding channel.
   virtual void NotifyFirstPacketReceived() = 0;
+  // Similar to the above but done whenever the receptive flag changed.
+  virtual void NotifyFirstPacketReceivedAfterReceptiveChange() = 0;
 
   // Set the associated remote media streams for this receiver. The remote track
   // will be removed from any streams that are no longer present and added to

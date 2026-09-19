@@ -127,7 +127,7 @@ inline size_t GetAllNames(const char **out, size_t max_out,
     span[0] = fixed_names[i];
     span = span.subspan(1);
   }
-  span = span.subspan(0, /* up to */ objects.size());
+  span = span.first(std::min(span.size(), objects.size()));
   for (size_t i = 0; i < span.size(); i++) {
     span[i] = objects[i].*name;
   }
@@ -166,7 +166,7 @@ class RefCounted {
     CheckSubClass() = default;
   };
   RefCounted(CheckSubClass) {
-    static_assert(std::is_base_of<RefCounted, Derived>::value,
+    static_assert(std::is_base_of_v<RefCounted, Derived>,
                   "Derived must subclass RefCounted<Derived>");
   }
 

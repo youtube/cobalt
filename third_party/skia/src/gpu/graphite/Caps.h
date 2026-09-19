@@ -101,7 +101,7 @@ public:
 #if defined(GPU_TEST_UTILS)
     std::string_view deviceName() const { return fDeviceName; }
 
-    PathRendererStrategy requestedPathRendererStrategy() const {
+    std::optional<PathRendererStrategy> requestedPathRendererStrategy() const {
         return fRequestedPathRendererStrategy;
     }
 #endif
@@ -560,9 +560,9 @@ protected:
 
 #if defined(GPU_TEST_UTILS)
     std::string fDeviceName;
-    int fMaxTextureAtlasSize = 2048;
-    PathRendererStrategy fRequestedPathRendererStrategy;
+    std::optional<PathRendererStrategy> fRequestedPathRendererStrategy;
 #endif
+
     size_t fGlyphCacheTextureMaximumBytes = 2048 * 1024 * 4;
 
     float fMinMSAAPathSize = 0;

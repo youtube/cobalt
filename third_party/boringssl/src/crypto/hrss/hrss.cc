@@ -753,7 +753,7 @@ static void poly3_invert_vec(struct poly3 *out, const struct poly3 *in) {
     const crypto_word_t delta_is_non_zero = ~constant_time_is_zero_w(delta);
     const vec_t g_has_constant_term = vec_broadcast_bit(g_a[0]);
     const vec_t mask_w = {
-        static_cast<std::remove_reference<decltype(mask_w[0])>::type>(
+        static_cast<std::remove_reference_t<decltype(mask_w[0])>>(
             delta_is_non_negative & delta_is_non_zero)};
     const vec_t mask = vec_broadcast_bit(mask_w) & g_has_constant_term;
 

@@ -371,8 +371,8 @@ static int cast_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int cast_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                           size_t len) {
+static int cast_ecb_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                  const uint8_t *in, size_t len) {
   CAST_KEY *cast_key = reinterpret_cast<CAST_KEY *>(ctx->cipher_data);
 
   while (len >= CAST_BLOCK) {
@@ -386,8 +386,8 @@ static int cast_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
   return 1;
 }
 
-static int cast_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                           size_t len) {
+static int cast_cbc_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                  const uint8_t *in, size_t len) {
   CAST_KEY *cast_key = reinterpret_cast<CAST_KEY *>(ctx->cipher_data);
   CAST_cbc_encrypt(in, out, len, cast_key, ctx->iv, ctx->encrypt);
   return 1;
@@ -401,7 +401,9 @@ static const EVP_CIPHER cast5_ecb = {
     /* ctx_size= */ sizeof(CAST_KEY),
     /* flags= */ EVP_CIPH_ECB_MODE | EVP_CIPH_VARIABLE_LENGTH,
     /* init= */ cast_init_key,
-    /* cipher= */ cast_ecb_cipher,
+    /* cipher_update= */ cast_ecb_cipher_update,
+    /* cipher_final= */ nullptr,
+    /* update_aad= */ nullptr,
     /* cleanup= */ nullptr,
     /* ctrl= */ nullptr,
 };
@@ -414,7 +416,9 @@ static const EVP_CIPHER cast5_cbc = {
     /* ctx_size= */ sizeof(CAST_KEY),
     /* flags= */ EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH,
     /* init= */ cast_init_key,
-    /* cipher= */ cast_cbc_cipher,
+    /* cipher_update= */ cast_cbc_cipher_update,
+    /* cipher_final= */ nullptr,
+    /* update_aad= */ nullptr,
     /* cleanup= */ nullptr,
     /* ctrl= */ nullptr,
 };

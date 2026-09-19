@@ -18,6 +18,21 @@
 
 namespace blink {
 
+<<<<<<< HEAD
+MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
+    base::Location location,
+    base::MemoryPressureListenerTag tag,
+    base::MemoryPressureListener* listener)
+    : registration_(std::in_place, location, tag, listener) {}
+
+MemoryPressureListenerRegistration::~MemoryPressureListenerRegistration() {
+  CHECK(!registration_);
+}
+
+void MemoryPressureListenerRegistration::Dispose() {
+  registration_.reset();
+}
+=======
 #if BUILDFLAG(IS_COBALT)
 namespace {
 const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
@@ -33,6 +48,7 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 }
 }  // namespace
 #endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;

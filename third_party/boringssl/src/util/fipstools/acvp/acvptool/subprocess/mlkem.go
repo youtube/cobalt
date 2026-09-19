@@ -3,6 +3,7 @@ package subprocess
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -78,6 +79,17 @@ type mlkemEncapDecapTestResponse struct {
 	ID uint64 `json:"tcId"`
 	C  string `json:"c,omitempty"`
 	K  string `json:"k,omitempty"`
+}
+
+func decodeNonEmptyHex(in string) ([]byte, error) {
+	ret, err := hex.DecodeString(in)
+	if err != nil {
+		return nil, err
+	}
+	if len(ret) == 0 {
+		return nil, errors.New("empty string")
+	}
+	return ret, nil
 }
 
 type mlkem struct{}
@@ -202,14 +214,14 @@ func (m *mlkem) processEncapDecap(vectorSet []byte, t Transactable) (any, error)
 			cmdName := group.ParameterSet + "/decap"
 
 			for _, test := range group.Tests {
-				dk, err := hex.DecodeString(test.DK)
-				if err != nil || len(dk) == 0 {
+				dk, err := decodeNonEmptyHex(test.DK)
+				if err != nil {
 					return nil, fmt.Errorf("failed to decode dk in test case %d/%d: %s",
 						group.ID, test.ID, err)
 				}
 
-				c, err := hex.DecodeString(test.C)
-				if err != nil || len(c) == 0 {
+				c, err := decodeNonEmptyHex(test.C)
+				if err != nil {
 					return nil, fmt.Errorf("failed to decode c in test case %d/%d: %s",
 						group.ID, test.ID, err)
 				}

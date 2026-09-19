@@ -387,7 +387,7 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
   static bool HasNetwork(const std::vector<const Network*>& networks,
                          const Network& to_be_found) {
     auto it =
-        absl::c_find_if(networks, [to_be_found](const Network* network) {
+        absl::c_find_if(networks, [&to_be_found](const Network* network) {
           return network->description() == to_be_found.description() &&
                  network->name() == to_be_found.name() &&
                  network->prefix() == to_be_found.prefix();

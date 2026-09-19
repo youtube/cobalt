@@ -418,7 +418,7 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   // Install fake apps.
   arc_app_test.app_instance()->SendRefreshAppList(arc_app_test.fake_apps());
@@ -449,14 +449,16 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
   }
   VerifyAppTypeIsInitialized(AppType::kArc);
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(PublisherTest, ArcAppsRemoveApps) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   // Install fake apps.
   arc_app_test.app_instance()->SendRefreshAppList(arc_app_test.fake_apps());
@@ -475,14 +477,16 @@ TEST_F(PublisherTest, ArcAppsRemoveApps) {
     }
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(PublisherTest, ArcAppsSetLaunchTime) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   // Install fake apps.
   arc_app_test.app_instance()->SendRefreshAppList(arc_app_test.fake_apps());
@@ -507,14 +511,16 @@ TEST_F(PublisherTest, ArcAppsSetLaunchTime) {
     }
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   const auto& fake_apps = arc_app_test.fake_apps();
   std::string package_name1 = fake_apps[0]->package_name;
@@ -600,7 +606,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
                            /*accessing_microphone=*/false);
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

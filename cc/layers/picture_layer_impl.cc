@@ -295,7 +295,7 @@ void PictureLayerImpl::AppendQuadsSpecialization(
          iter; ++iter) {
       SkColor4f color;
       float width;
-      if (*iter && iter->draw_info().IsReadyToDraw()) {
+      if (*iter && iter->IsReadyToDraw()) {
         TileDrawInfo::Mode mode = iter->draw_info().mode();
         if (mode == TileDrawInfo::SOLID_COLOR_MODE) {
           color = DebugColors::SolidColorTileBorderColor();
@@ -306,7 +306,7 @@ void PictureLayerImpl::AppendQuadsSpecialization(
         } else if (iter.resolution() == HIGH_RESOLUTION) {
           color = DebugColors::HighResTileBorderColor();
           width = DebugColors::HighResTileBorderWidth(device_scale_factor);
-        } else if (iter->contents_scale_key() > max_contents_scale) {
+        } else if (iter->contents_scale_key() > raster_contents_scale_key()) {
           color = DebugColors::AboveHighResTileBorderColor();
           width = DebugColors::AboveHighResTileBorderWidth(device_scale_factor);
         } else {
@@ -325,18 +325,6 @@ void PictureLayerImpl::AppendQuadsSpecialization(
       gfx::Rect visible_geometry_rect = geometry_rect;
       debug_border_quad->SetNew(shared_quad_state, geometry_rect,
                                 visible_geometry_rect, color, width);
-    }
-  }
-
-  if (layer_tree_impl()->debug_state().highlight_non_lcd_text_layers) {
-    SkColor4f color =
-        DebugColors::NonLCDTextHighlightColor(lcd_text_disallowed_reason());
-    if (color != SkColors::kTransparent &&
-        GetRasterSource()->GetDisplayItemList()->AreaOfDrawText(
-            gfx::Rect(bounds()))) {
-      render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>()->SetNew(
-          shared_quad_state, debug_border_rect, debug_border_rect, color,
-          append_quads_data);
     }
   }
 

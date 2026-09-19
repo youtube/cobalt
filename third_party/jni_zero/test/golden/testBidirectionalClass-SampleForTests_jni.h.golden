@@ -402,7 +402,7 @@ static jni_zero::ScopedJavaLocalRef<jobject> Java_SampleForTests_addStructA(
       "addStructA",
       "(Lorg/jni_zero/SampleForTests$InnerStructA;Lorg/jni_zero/extrapackage/ImportsTinySample;)Lorg/jni_zero/SampleForTests$InnerStructA;",
       &cached_method_id);
-  auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), a.obj());
+  auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), a.obj(), b.obj());
   return jni_zero::ScopedJavaLocalRef<jobject>::Adopt(env, _ret);
 }
 

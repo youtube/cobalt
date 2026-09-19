@@ -87,6 +87,9 @@ struct WasmFunction {
   bool imported = false;
   bool exported = false;
   bool declared = false;
+  // TODO(jkummerow): Should we merge {sig_index} and {exact} into a
+  // {ValueType} field?
+  bool exact = false;  // Only meaningful for imported functions.
 };
 
 // Static representation of a wasm global variable.
@@ -1111,7 +1114,7 @@ class TruncatedUserString {
  public:
   template <typename T>
   explicit TruncatedUserString(base::Vector<T> name)
-      : TruncatedUserString(name.begin(), name.length()) {}
+      : TruncatedUserString(name.begin(), name.size()) {}
 
   TruncatedUserString(const uint8_t* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}

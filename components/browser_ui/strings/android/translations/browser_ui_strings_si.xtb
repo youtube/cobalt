@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">යෙදුම් තට්ටු කර පෙරනිමි යෙදුම් තට්ටු කරන්න</translation>
 <translation id="1415402041810619267">URL කපන ලදි</translation>
 <translation id="1415855080660575082">ඔබේ උපාංගයේ යෙදුම් ලැයිස්තුවේ සහ සෙවීම් ප්‍රතිඵලවල ඒවා දැකීමට Chrome හට ඔබේ මෑත කාලීන පටිති ඔබේ උපාංගය සමග බෙදා ගැනීමට ඉඩ දෙන්න. ඔබට Chrome සැකසීම් තුළ මෙය ක්‍රියාත්මක හෝ ක්‍රියා විරහිත කළ හැක.</translation>
+<translation id="1420688843103859429">ස්පර්ශ පුවරුව මත ඇඟිලි දෙකකින් ස්වයිප් කිරීමෙන් පසුපසට සහ ඉදිරියට සංචාලනය කරන්න</translation>
 <translation id="1432650420699700107">අඩවි වලට ඔබේ දේශීය ජාලයේ ඕනෑම උපාංගයකට සම්බන්ධ වීමට විමසිය හැක</translation>
 <translation id="1448064542941920355">විශාලනය අඩු කරන්න</translation>
 <translation id="1464044141348608623">ඔබ ඔබගේ උපාංගය සක්‍රියව භාවිත කරන විට දැන ගැනීමට අඩවිවලට ඉඩ නොදෙන්න</translation>
@@ -218,7 +219,6 @@
 <translation id="3285500645985761267">සමූහය තුළ ඔබේ ක්‍රියාකාරකම් බැලීමට අදාළ වෙබ් අඩවිවලට ඉඩ දෙන්න</translation>
 <translation id="3295019059349372795">11වන පරිච්ඡේදය: The Wonderful Emerald City of Oz</translation>
 <translation id="3295602654194328831">තතු සඟවන්න</translation>
-<translation id="3328801116991980348">අඩවි තොරතුරු</translation>
 <translation id="3333961966071413176">සියලු සම්බන්ධතා</translation>
 <translation id="3360338140203645771">සුරැකි විශාලන මට්ටම් මකන්න ද?</translation>
 <translation id="3362437373201486687">බ්ලූටූත් උපාංග සඳහා ස්කෑන් කරමින්</translation>
@@ -243,6 +243,7 @@
 <translation id="3611658447322220736">මෑතදී වැසූ අඩවිවලට දත්ත යැවීම සහ ලැබීම අවසන් කළ හැකිය</translation>
 <translation id="3619294456800709762">අඩවිවලට පින්තූරය තුළ පින්තූරයට ස්වයංක්‍රීයව ඇතුළු විය හැක</translation>
 <translation id="3628308229821498208">යෝජිත සෙවීම්</translation>
+<translation id="363748948745453283">දළ ස්ථානය භාවිතා කිරීම</translation>
 <translation id="3641456520301071208">අඩවි ඔබගේ ස්ථානය ඉල්ලිය හැකිය</translation>
 <translation id="3658847490588580244">පෙරනිමි බ්‍රව්සර පහළ පත්‍රය</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{සමූහය තුළ ඔබේ ක්‍රියාකාරකම් දැකිය හැකි <ph name="RWS_OWNER" />ගේ අඩවි සමූහයේ <ph name="RWS_MEMBERS_COUNT" /> අඩවියක්}one{සමූහය තුළ ඔබේ ක්‍රියාකාරකම් දැකිය හැකි <ph name="RWS_OWNER" />ගේ අඩවි සමූහයේ වෙබ් අඩවි <ph name="RWS_MEMBERS_COUNT" />ක්}other{සමූහය තුළ ඔබේ ක්‍රියාකාරකම් දැකිය හැකි <ph name="RWS_OWNER" />ගේ අඩවි සමූහයේ වෙබ් අඩවි <ph name="RWS_MEMBERS_COUNT" />ක්}}</translation>
@@ -433,8 +434,10 @@
 <translation id="5750869797196646528">දෑත් නිරීක්ෂණය</translation>
 <translation id="5753570386948603678">ඉතිහාසයෙන් මකන්න</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> අවහිර කරන ලදී</translation>
+<translation id="5792627621688759634">ස්පර්ශ පුවරුවක් භාවිතයෙන් පිටු අතර ස්වයිප් කරන්න</translation>
 <translation id="5801457289562671820">ඔබේ සංවිධානය විසින් නිර්දේශ කර ඇත</translation>
 <translation id="5804241973901381774">අවසර</translation>
+<translation id="5817042798620209981">අඩවි තොරතුරු, සංවාදය</translation>
 <translation id="5822675474983796325">සම්පූර්ණ උසින් විවෘත කර ඇති ඔබේ නව පටිති පිටුවේ පහළ පත්‍රය අභිරුචිකරණය කරන්න</translation>
 <translation id="5833899990800318936">ජාවාස්ක්‍රිප්ට් භාවිත කිරීමට අඩවිවලට ඉඩ නොදෙන්න</translation>
 <translation id="583673505367439042">අඩවි ඔබගේ උපාංගයෙහි ගොනු සහ ෆෝල්ඩර සංස්කරණය කිරීමට ඉල්ලිය හැකිය</translation>

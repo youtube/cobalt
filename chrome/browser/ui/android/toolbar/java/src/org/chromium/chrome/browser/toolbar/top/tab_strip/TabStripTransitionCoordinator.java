@@ -12,11 +12,8 @@ import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.View.OnLayoutChangeListener;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.CallbackController;
 import org.chromium.base.ResettersForTesting;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -39,9 +36,11 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     // configuration changed.
     private static final int TRANSITION_DELAY_MS = 200;
 
-    /** Observes height of tab strip that could change during run time. */
-    // TODO(crbug.com/41481630): Rework the observer interface.
-    public interface TabStripHeightObserver {
+    /**
+     * Interface that exposes methods to handle tab strip height transitions that can impact strip
+     * visibility.
+     */
+    public interface TabStripTransitionHandler {
         /**
          * Called when the tab strip requests an update when control container changes its width.
          *
@@ -75,14 +74,18 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
          */
         default void onFadeTransitionRequested(float newOpacity, int durationMs) {}
 
-        /** Returns the observable supplier for the {@link StripVisibilityState}. */
-        ObservableSupplier<Integer> getStripVisibilityStateSupplier();
+        /** Returns whether the tab strip is hidden by the fade transition. */
+        default boolean isHiddenByFadeTransition() {
+            return false;
+        }
 
         /**
          * Returns the min strip width (in dp) required for it to become visible by a fade
          * transition.
          */
-        int getFadeTransitionThresholdDp();
+        default int getFadeTransitionThresholdDp() {
+            return 0;
+        }
     }
 
     private final CallbackController mCallbackController = new CallbackController();
@@ -124,6 +127,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
      * @param desktopWindowStateManager The {@link DesktopWindowStateManager} instance.
      * @param tabStripTransitionDelegateSupplier Supplier for the {@link
      *     TabStripTransitionDelegate}.
+     * @param tabStripTransitionHandler The {@link TabStripTransitionHandler} instance to facilitate
+     *     tab strip visibility transitions.
      */
     public TabStripTransitionCoordinator(
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
@@ -132,7 +137,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
             int tabStripHeightFromResource,
             TabObscuringHandler tabObscuringHandler,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier) {
+            OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
+            TabStripTransitionHandler tabStripTransitionHandler) {
         mControlContainer = controlContainer;
         mTabStripHeightFromResource = tabStripHeightFromResource;
         mDesktopWindowStateManager = desktopWindowStateManager;
@@ -147,7 +153,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
                         mCallbackController,
                         mHandler,
                         tabObscuringHandler,
-                        tabStripTransitionDelegateSupplier);
+                        tabStripTransitionDelegateSupplier,
+                        tabStripTransitionHandler);
         mFadeTransitionHandler =
                 new FadeTransitionHandler(tabStripTransitionDelegateSupplier, mCallbackController);
 
@@ -214,7 +221,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         mForceFadeInStrip =
                 mDesktopWindowingModeChanged
                         && mHeightTransitionHandler.isHeightTransitionBlocked()
-                        && (getStripVisibilityState() & StripVisibilityState.HIDDEN_BY_FADE) != 0;
+                        && isTabStripHiddenByFadeTransition();
 
         mAppHeaderState = newState;
         if (mAppHeaderState.isInDesktopWindow()) {
@@ -240,18 +247,6 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     /** Return the current tab strip height. */
     public int getTabStripHeight() {
         return mHeightTransitionHandler.getTabStripHeight();
-    }
-
-    /** Add observer for tab strip height change. */
-    public void addObserver(TabStripHeightObserver observer) {
-        mHeightTransitionHandler.addObserver(observer);
-    }
-
-    // Tab strip height transition implementation methods.
-
-    /** Remove observer for tab strip height change. */
-    public void removeObserver(TabStripHeightObserver observer) {
-        mHeightTransitionHandler.removeObserver(observer);
     }
 
     /** Request the token to defer the tab strip height transition to a later time. */
@@ -384,10 +379,9 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         }
     }
 
-    private @StripVisibilityState int getStripVisibilityState() {
-        assert mTabStripTransitionDelegateSupplier.get() != null
-                : "Expected a non-null strip transition delegate.";
-        return mTabStripTransitionDelegateSupplier.get().getStripVisibilityStateSupplier().get();
+    private boolean isTabStripHiddenByFadeTransition() {
+        return mTabStripTransitionDelegateSupplier.get() != null
+                && mTabStripTransitionDelegateSupplier.get().isHiddenByFadeTransition();
     }
 
     private int calculateTopPadding() {
@@ -408,16 +402,6 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     public static void setHeightTransitionThresholdForTesting(int transitionThresholdForTesting) {
         sHeightTransitionThresholdForTesting = transitionThresholdForTesting;
         ResettersForTesting.register(() -> sHeightTransitionThresholdForTesting = null);
-    }
-
-    /**
-     * @return The min strip width (in dp) required for it to become visible by a fade transition.
-     */
-    @VisibleForTesting
-    public int getFadeTransitionThresholdDp() {
-        TabStripTransitionDelegate delegate = mTabStripTransitionDelegateSupplier.get();
-        assert delegate != null : "Expected a non-null strip transition delegate.";
-        return delegate.getFadeTransitionThresholdDp();
     }
 
     HeightTransitionHandler getHeightTransitionHandlerForTesting() {

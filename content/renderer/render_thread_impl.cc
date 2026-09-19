@@ -131,7 +131,6 @@
 #include "net/base/port_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
-#include "partition_alloc/memory_reclaimer.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
@@ -1564,9 +1563,9 @@ void RenderThreadImpl::UpdateSystemColorInfo(
   }
 }
 
-void RenderThreadImpl::PurgePluginListCache(bool reload_pages) {
+void RenderThreadImpl::PurgePluginListCache() {
 #if BUILDFLAG(ENABLE_PLUGINS)
-  blink::ResetPluginCache(reload_pages);
+  blink::ResetPluginCache();
 
   for (auto& observer : observers_)
     observer.PluginListChanged();
@@ -1669,6 +1668,8 @@ void RenderThreadImpl::OnRendererHidden() {
         base::Process::Priority::kBestEffort);
   }
 
+  blink_isolates_pressure_listener_.OnRendererHidden();
+
   // TODO(rmcilroy): Remove IdleHandler and replace it with an IdleTask
   // scheduled by the RendererScheduler - http://crbug.com/469210.
   if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
@@ -1682,6 +1683,8 @@ void RenderThreadImpl::OnRendererVisible() {
     blink::WebV8Features::SetIsolatePriority(
         base::Process::Priority::kUserBlocking);
   }
+
+  blink_isolates_pressure_listener_.OnRendererVisible();
 
   if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
     return;
@@ -1721,6 +1724,8 @@ void RenderThreadImpl::OnMemoryPressure(
             memory_pressure_level));
       });
 
+<<<<<<< HEAD
+=======
   v8::MemoryPressureLevel v8_memory_pressure_level =
       static_cast<v8::MemoryPressureLevel>(memory_pressure_level);
 
@@ -1743,19 +1748,10 @@ void RenderThreadImpl::OnMemoryPressure(
     blink::MemoryPressureNotificationToAllIsolates(v8_memory_pressure_level);
   }
 
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (blink_platform_impl_) {
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
   }
-  if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
-    discardable_memory_allocator_->ReleaseFreeMemory();
-
-    // Do not call into blink if it is not initialized.
-    if (blink_platform_impl_) {
-      // Purge Skia font cache, resource cache, and image filter.
-      SkGraphics::PurgeAllCaches();
-    }
-  }
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 }
 
 void RenderThreadImpl::OnRendererInterfaceReceiver(

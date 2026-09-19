@@ -41,6 +41,17 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Not In Fullscreen"/>
 </enum>
 
+<!-- LINT.IfChange(DataImportCredentialConflictScreenAction) -->
+
+<enum name="DataImportCredentialConflictScreenAction">
+  <int value="0" label="Cancel"/>
+  <int value="1" label="Deselect All"/>
+  <int value="2" label="Select All"/>
+  <int value="3" label="Continue"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/data_import/public/metrics.h:DataImportCredentialConflictScreenAction) -->
+
 <enum name="DesktopIOSPromoAction">
   <int value="0" label="Dismissed"/>
   <int value="1" label="ExplicitlyClosed"/>
@@ -576,6 +587,26 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Drive"/>
 </enum>
 
+<!-- LINT.IfChange(IOSFileUploadPanelCameraActionVariant) -->
+
+<enum name="IOSFileUploadPanelCameraActionVariant">
+  <int value="0" label="PhotoAndVideo"/>
+  <int value="1" label="Video"/>
+  <int value="2" label="Photo"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelCameraActionVariant) -->
+
+<!-- LINT.IfChange(IOSFileUploadPanelContextMenuActionVariant) -->
+
+<enum name="IOSFileUploadPanelContextMenuActionVariant">
+  <int value="0" label="FilePicker"/>
+  <int value="1" label="PhotoPicker"/>
+  <int value="2" label="Camera"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelContextMenuActionVariant) -->
+
 <!-- LINT.IfChange(IOSFileUploadPanelContextMenuVariant) -->
 
 <enum name="IOSFileUploadPanelContextMenuVariant">
@@ -584,6 +615,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelContextMenuVariant) -->
+
+<!-- LINT.IfChange(IOSFileUploadPanelEntryPointVariant) -->
+
+<enum name="IOSFileUploadPanelEntryPointVariant">
+  <int value="0" label="ContextMenu"/>
+  <int value="1" label="Camera"/>
+  <int value="2" label="FilePicker"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelEntryPointVariant) -->
 
 <!-- LINT.IfChange(IOSGeminiEntryPoint) -->
 
@@ -594,6 +635,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Omnibox Chip (Skipped AI Hub)"/>
   <int value="4" label="Tab Reopen"/>
   <int value="5" label="Diamond"/>
+  <int value="6" label="Image long-press context menu"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
@@ -696,6 +738,27 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Notification"/>
   <int value="10" label="External action opened in Chrome"/>
 </enum>
+
+<!-- LINT.IfChange(IOSLocationBarBadgeType) -->
+
+<enum name="IOSLocationBarBadgeType">
+  <int value="0" label="None"/>
+  <int value="1" label="PasswordSave"/>
+  <int value="2" label="PasswordUpdate"/>
+  <int value="3" label="Incognito"/>
+  <int value="4" label="Overflow"/>
+  <int value="5" label="SaveCard"/>
+  <int value="6" label="Translate"/>
+  <int value="7" label="SaveAddressProfile"/>
+  <int value="8" label="PermissionsCamera"/>
+  <int value="9" label="PermissionsMicrophone"/>
+  <int value="10" label="ContextualPanelEntryPointSample"/>
+  <int value="11" label="PriceInsights"/>
+  <int value="12" label="ReaderMode"/>
+  <int value="13" label="GeminiContextualCueChip"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/location_bar/badge/model/badge_type.h:LocationBarBadgeType) -->
 
 <!-- LINT.IfChange(IOSLocationBarLeadingIconType) -->
 
@@ -1268,6 +1331,19 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Incognito image search item"/>
   <int value="9" label="Incognito text search item"/>
 </enum>
+
+<!-- LINT.IfChange(IOSSigninFullscreenPromoEvents) -->
+
+<enum name="IOSSigninFullscreenPromoEvents">
+  <int value="0" label="Promo Manager Triggered"/>
+  <int value="1" label="Promo not shown due to policy"/>
+  <int value="2" label="Promo not shown because the UI was blocked."/>
+  <int value="3" label="Promo UI Started"/>
+  <int value="4" label="Sign in UI Started"/>
+  <int value="5" label="HistorySync UI Started"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h:SigninFullscreenPromoEvents) -->
 
 <enum name="IOSSpotlightAction">
   <int value="0" label="New Tab"/>
@@ -1889,17 +1965,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/ios/chrome/browser/safari_data_import/public/metrics.h:SafariDataImportExportEducationAction) -->
 
-<!-- LINT.IfChange(SafariDataImportPasswordConflictScreenAction) -->
-
-<enum name="SafariDataImportPasswordConflictScreenAction">
-  <int value="0" label="Cancel"/>
-  <int value="1" label="Deselect All"/>
-  <int value="2" label="Select All"/>
-  <int value="3" label="Continue"/>
-</enum>
-
-<!-- LINT.ThenChange(/ios/chrome/browser/safari_data_import/public/metrics.h:SafariDataImportPasswordConflictScreenAction) -->
-
 <!-- LINT.IfChange(SafariDataImportStage) -->
 
 <enum name="SafariDataImportStage">
@@ -1915,6 +1980,21 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h:SafariDataImportStage) -->
+
+<!-- LINT.IfChange(SyncedSetUpAppliedPref) -->
+
+<enum name="SyncedSetUpAppliedPref">
+  <int value="0" label="OmniboxPosition"/>
+  <int value="1" label="MagicStackHomeModule"/>
+  <int value="2" label="MostVisitedHomeModule"/>
+  <int value="3" label="PriceTrackingHomeModule"/>
+  <int value="4" label="SafetyCheckHomeModule"/>
+  <int value="5" label="TabResumptionHomeModule"/>
+  <int value="6" label="TipsHomeModule"/>
+  <int value="7" label="Unknown"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h:SyncedSetUpAppliedPref) -->
 
 <!-- LINT.IfChange(SyncedSetUpRemotePrefDifference) -->
 

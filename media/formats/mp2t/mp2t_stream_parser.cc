@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/formats/mp2t/mp2t_stream_parser.h"
 
 #include <memory>
 #include <optional>
 #include <utility>
 
+#include "base/containers/span_reader.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/numerics/checked_math.h"
@@ -347,7 +343,6 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
   DCHECK_GE(max_pending_bytes_to_inspect, 0);
 
   auto queue_data = ts_byte_queue_.Data();
-  const uint8_t* ts_buffer = queue_data.data();
   size_t queue_size = queue_data.size();
   CHECK_GE(queue_size, uninspected_pending_bytes_);
 
@@ -368,34 +363,23 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
   uninspected_pending_bytes_ -= inspection_increment;
   DCHECK_GE(uninspected_pending_bytes_, 0u);
 
-  int bytes_to_pop = 0;
-
-  while (true) {
-    if (ts_buffer_size < TsPacket::kPacketSize) {
-      break;
-    }
-
+  base::SpanReader reader(queue_data.first(ts_buffer_size));
+  while (reader.remaining() >= TsPacket::kPacketSize) {
     // Synchronization.
-    size_t skipped_bytes = TsPacket::Sync(ts_buffer, ts_buffer_size);
+    size_t skipped_bytes = TsPacket::Sync(reader.remaining_span());
     if (skipped_bytes > 0) {
       DVLOG(1) << "Packet not aligned on a TS syncword:"
                << " skipped_bytes=" << skipped_bytes;
-      CHECK_GE(ts_buffer_size, skipped_bytes);
-      ts_buffer_size -= skipped_bytes;
-      ts_buffer += skipped_bytes;
-      bytes_to_pop += skipped_bytes;
+      reader.Skip(skipped_bytes);
       continue;
     }
 
     // Parse the TS header, skipping 1 byte if the header is invalid.
-    std::unique_ptr<TsPacket> ts_packet(
-        TsPacket::Parse(ts_buffer, ts_buffer_size));
+    std::unique_ptr<TsPacket> ts_packet =
+        TsPacket::Parse(reader.remaining_span());
     if (!ts_packet) {
       DVLOG(1) << "Error: invalid TS packet";
-      CHECK_GE(ts_buffer_size, 1u);
-      ts_buffer_size--;
-      ts_buffer++;
-      bytes_to_pop++;
+      reader.Skip(1u);
       continue;
     }
     DVLOG(LOG_LEVEL_TS)
@@ -434,9 +418,7 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
     }
 
     // Go to the next packet.
-    ts_buffer_size -= TsPacket::kPacketSize;
-    ts_buffer += TsPacket::kPacketSize;
-    bytes_to_pop += TsPacket::kPacketSize;
+    reader.Skip(TsPacket::kPacketSize);
   }
 
   if (!FinishInitializationIfNeeded()) {
@@ -452,7 +434,7 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
     return ParseStatus::kFailed;
   }
 
-  ts_byte_queue_.Pop(bytes_to_pop);
+  ts_byte_queue_.Pop(reader.num_read());
   if (uninspected_pending_bytes_ > 0) {
     return ParseStatus::kSuccessHasMoreData;
   }

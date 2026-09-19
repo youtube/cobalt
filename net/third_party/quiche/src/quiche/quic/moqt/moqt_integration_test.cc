@@ -685,12 +685,12 @@ TEST_F(MoqtIntegrationTest, CleanPublishDone) {
   EXPECT_FALSE(client_->session()->SubscribeCurrentObject(
       full_track_name, &subscribe_visitor_, VersionSpecificParameters()));
   queue->RemoveAllSubscriptions();  // Induce a PUBLISH_DONE.
-  bool subscribe_done = false;
+  bool publish_done = false;
   EXPECT_CALL(subscribe_visitor_, OnPublishDone).WillOnce([&]() {
-    subscribe_done = true;
+    publish_done = true;
   });
-  success = test_harness_.RunUntilWithDefaultTimeout(
-      [&]() { return subscribe_done; });
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return publish_done; });
   EXPECT_TRUE(success);
   // Subscription is deleted; the client session should not immediately reject
   // a new attempt.
@@ -746,13 +746,13 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   client_->session()->SubscribeCurrentObject(full_track_name,
                                              &subscribe_visitor_, parameters);
   EXPECT_CALL(monitoring, OnObjectAckSupportKnown(parameters.oack_window_size));
-  EXPECT_CALL(
-      monitoring,
-      OnObjectAckReceived(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123)));
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(10, 20),
+                                  quic::QuicTimeDelta::FromMicroseconds(-123)));
   bool done = false;
-  EXPECT_CALL(
-      monitoring,
-      OnObjectAckReceived(100, 200, quic::QuicTimeDelta::FromMicroseconds(456)))
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(100, 200),
+                                  quic::QuicTimeDelta::FromMicroseconds(456)))
       .WillOnce([&] { done = true; });
   bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);

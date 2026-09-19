@@ -221,7 +221,7 @@ Timestamp VCMTiming::RenderTimeInternal(uint32_t frame_timestamp,
   // Make sure the actual delay stays in the range of `min_playout_delay_`
   // and `max_playout_delay_`.
   TimeDelta actual_delay =
-      current_delay_.Clamped(min_playout_delay_, max_playout_delay_);
+      std::clamp(current_delay_, min_playout_delay_, max_playout_delay_);
   return estimated_complete_time + actual_delay;
 }
 

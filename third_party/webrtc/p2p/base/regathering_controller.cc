@@ -10,19 +10,23 @@
 
 #include "p2p/base/regathering_controller.h"
 
+#include <optional>
+
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "p2p/base/ice_transport_internal.h"
+#include "p2p/base/packet_transport_internal.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/thread.h"
+#include "rtc_base/network_route.h"
 
 namespace webrtc {
 
 BasicRegatheringController::BasicRegatheringController(
     const Config& config,
     IceTransportInternal* ice_transport,
-    Thread* thread)
+    TaskQueueBase* thread)
     : config_(config), ice_transport_(ice_transport), thread_(thread) {
   RTC_DCHECK(thread_);
   RTC_DCHECK_RUN_ON(thread_);

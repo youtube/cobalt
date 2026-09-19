@@ -329,6 +329,7 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"addContextTitle", IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE},
       {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
       {"addTab", IDS_NTP_COMPOSE_MOST_RECENT_TABS},
+      {"dismissButton", IDS_NTP_DISMISS},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
       {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL},
       {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
@@ -369,7 +370,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"removeToolChipAriaLabel", IDS_COMPOSE_REMOVE_TOOL_CHIP_A11Y_LABEL},
       {"composeFileTypesAllowedError",
        IDS_NTP_COMPOSE_FILE_TYPE_NOT_ALLOWED_ERROR},
-      {"composeboxDragAndDropHint", IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT},
+      {"listening", IDS_NEW_TAB_VOICE_LISTENING},
+      {"details", IDS_NEW_TAB_VOICE_DETAILS},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -408,11 +410,14 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
 
   auto composebox_config = ntp_composebox::FeatureConfig::Get().config;
+  source->AddString("composeboxDragAndDropHint",
+                    l10n_util::GetPluralStringFUTF16(
+                        IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT,
+                        composebox_config.composebox().max_num_files()));
   source->AddString("maxFilesReachedError",
-                    l10n_util::GetStringFUTF16(
+                    l10n_util::GetPluralStringFUTF16(
                         IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
-                        base::NumberToString16(
-                            composebox_config.composebox().max_num_files())));
+                        composebox_config.composebox().max_num_files()));
   source->AddBoolean(
       "searchboxShowComposeAnimation",
       profile->GetPrefs()->GetInteger(
@@ -873,6 +878,15 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
     if (GetAimToolMode() !=
         omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD) {
       autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
+    }
+  }
+  if (controller_->client()->GetContextualInputData().has_value()) {
+    auto context_data = controller_->client()->GetContextualInputData().value();
+    if (context_data.page_title.has_value() &&
+        context_data.page_url.has_value()) {
+      autocomplete_input.set_context_tab_title(
+          base::UTF8ToUTF16(context_data.page_title.value()));
+      autocomplete_input.set_context_tab_url(context_data.page_url.value());
     }
   }
 

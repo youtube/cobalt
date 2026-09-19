@@ -10,6 +10,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "components/viz/common/input/viz_touch_state.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/android/transfer_input_to_viz_result.h"
 #include "content/public/browser/render_widget_host.h"
@@ -60,7 +61,7 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   static constexpr const char* kEventsAfterTransferHistogram =
       "Android.InputOnViz.Browser.EventsAfterTransfer";
   static constexpr const char* kTransferInputToVizResultHistogram =
-      "Android.InputOnViz.Browser.TransferInputToVizResult";
+      "Android.InputOnViz.Browser.TransferInputToVizResult2";
   static constexpr const char* kEventsInDroppedSequenceHistogram =
       "Android.InputOnViz.Browser.NumEventsInDroppedSequence";
   static constexpr const char* kEventTypesInDroppedSequenceHistogram =
@@ -73,8 +74,6 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   }
   bool FilterRedundantDownEvent(const ui::MotionEvent& event);
 
-  void OnDetachedFromWindow();
-
   enum class RequestInputBackReason {
     kStartDragAndDropGesture = 0,
     kStartTouchSelectionDragGesture = 1,
@@ -82,14 +81,21 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   };
   void RequestInputBack(RequestInputBackReason reason);
 
-  void OnTouchEnd(base::TimeTicks event_time);
-
   // Virtual for testing.
+  // This is "potentially" active due to a race: Viz might have ended its
+  // previous sequence but not yet updated shared memory. If the Browser then
+  // sees a new DOWN event, it cannot distinguish a stale "active" state from a
+  // genuine multi-touch. The caller must reconcile this ambiguity (e.g., via
+  // `browser_would_have_handled=true`).
   virtual bool IsTouchSequencePotentiallyActiveOnViz() const;
 
   RenderWidgetHost::InputEventObserver& GetInputObserver() {
     return input_observer_;
   }
+
+ protected:
+  // Virtual for testing.
+  virtual const viz::VizTouchState* GetVizTouchState() const;
 
  private:
   class InputObserver : public RenderWidgetHost::InputEventObserver {
@@ -138,10 +144,6 @@ class CONTENT_EXPORT InputTransferHandlerAndroid {
   // transferred to VizCompositor. See
   // (https://developer.android.com/reference/android/view/MotionEvent#getDownTime())
   base::TimeTicks cached_transferred_sequence_down_time_ms_;
-  // When set stores the event time corresponding to action of transferred touch
-  // sequence. The variable is reset when it's deemed there's no ongoing touch
-  // sequence on Viz.
-  std::optional<base::TimeTicks> cached_transferred_sequence_event_time_us_;
 
   int num_events_in_dropped_sequence_ = 0;
 

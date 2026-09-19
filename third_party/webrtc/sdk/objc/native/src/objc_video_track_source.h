@@ -13,6 +13,7 @@
 
 #import "base/RTCVideoCapturer.h"
 
+#include "api/environment/environment.h"
 #include "media/base/adapted_video_track_source.h"
 #include "rtc_base/timestamp_aligner.h"
 #include "sdk/objc/base/RTCMacros.h"
@@ -25,11 +26,11 @@ RTC_FWD_DECL_OBJC_CLASS(RTC_OBJC_TYPE(RTCVideoFrame));
 
 namespace webrtc {
 
-class ObjCVideoTrackSource : public webrtc::AdaptedVideoTrackSource {
+class ObjCVideoTrackSource : public AdaptedVideoTrackSource {
  public:
-  ObjCVideoTrackSource();
-  explicit ObjCVideoTrackSource(bool is_screencast);
-  explicit ObjCVideoTrackSource(RTCObjCVideoSourceAdapter* adapter);
+  ObjCVideoTrackSource(const Environment& env, bool is_screencast);
+  ObjCVideoTrackSource(const Environment& env,
+                       RTCObjCVideoSourceAdapter* adapter);
 
   bool is_screencast() const override;
 
@@ -48,8 +49,9 @@ class ObjCVideoTrackSource : public webrtc::AdaptedVideoTrackSource {
   void OnOutputFormatRequest(int width, int height, int fps);
 
  private:
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::TimestampAligner timestamp_aligner_;
+  const Environment env_;
+  VideoBroadcaster broadcaster_;
+  TimestampAligner timestamp_aligner_;
 
   RTCObjCVideoSourceAdapter* adapter_;
   bool is_screencast_;

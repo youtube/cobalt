@@ -13,9 +13,13 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/field_trials.h"
+#include "api/transport/ecn_marking.h"
+#include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/base/p2p_constants.h"
@@ -36,13 +40,16 @@
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
+using ::webrtc::CopyOnWriteBuffer;
 using ::webrtc::CreateTestFieldTrials;
 using ::webrtc::DtlsSrtpTransport;
+using ::webrtc::EcnMarking;
 using ::webrtc::FakeDtlsTransport;
 using ::webrtc::FakeIceTransport;
 using ::webrtc::FieldTrials;
 using ::webrtc::RtpTransport;
 using ::webrtc::SrtpTransport;
+using ::webrtc::Timestamp;
 
 constexpr int kRtpAuthTagLen = 10;
 
@@ -83,8 +90,10 @@ class DtlsSrtpTransportTest : public ::testing::Test {
 
     dtls_srtp_transport1_->SubscribeRtcpPacketReceived(
         &transport_observer1_,
-        [this](webrtc::CopyOnWriteBuffer* buffer, int64_t packet_time_ms) {
-          transport_observer1_.OnRtcpPacketReceived(buffer, packet_time_ms);
+        [this](CopyOnWriteBuffer packet, std::optional<Timestamp> arrival_time,
+               EcnMarking ecn) {
+          transport_observer1_.OnRtcpPacketReceived(std::move(packet),
+                                                    arrival_time, ecn);
         });
     dtls_srtp_transport1_->SubscribeReadyToSend(
         &transport_observer1_,
@@ -92,8 +101,10 @@ class DtlsSrtpTransportTest : public ::testing::Test {
 
     dtls_srtp_transport2_->SubscribeRtcpPacketReceived(
         &transport_observer2_,
-        [this](webrtc::CopyOnWriteBuffer* buffer, int64_t packet_time_ms) {
-          transport_observer2_.OnRtcpPacketReceived(buffer, packet_time_ms);
+        [this](CopyOnWriteBuffer packet, std::optional<Timestamp> arrival_time,
+               EcnMarking ecn) {
+          transport_observer2_.OnRtcpPacketReceived(std::move(packet),
+                                                    arrival_time, ecn);
         });
     dtls_srtp_transport2_->SubscribeReadyToSend(
         &transport_observer2_,

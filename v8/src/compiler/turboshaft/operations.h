@@ -261,11 +261,13 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(FastApiCall)                                \
   V(FindOrderedHashEntry)                       \
   V(LoadDataViewElement)                        \
+  V(LoadDataViewElementFromDataPointer)         \
   V(LoadFieldByIndex)                           \
   V(LoadMessage)                                \
   V(LoadStackArgument)                          \
   V(LoadTypedElement)                           \
   V(StoreDataViewElement)                       \
+  V(StoreDataViewElementToDataPointer)          \
   V(StoreMessage)                               \
   V(StoreTypedElement)                          \
   V(MaybeGrowFastElements)                      \
@@ -5068,9 +5070,7 @@ struct ConvertJSPrimitiveToUntaggedOp
     kUint32,
     kBit,
     kFloat64,
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     kHoleyFloat64,
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
     kBoolean,
@@ -5097,9 +5097,7 @@ struct ConvertJSPrimitiveToUntaggedOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       case UntaggedKind::kHoleyFloat64:
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
   }
@@ -6105,7 +6103,7 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::WordPtr(),
                           MaybeRegisterRepresentation::WordPtr(),
                           MaybeRegisterRepresentation::Word32()>();
   }
@@ -6121,6 +6119,38 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
       : Base(object, storage, index, is_little_endian),
         element_type(element_type) {}
 
+
+  auto options() const { return std::tuple{element_type}; }
+};
+
+struct LoadDataViewElementFromDataPointerOp
+    : FixedArityOperationT<3, LoadDataViewElementFromDataPointerOp> {
+  ExternalArrayType element_type;
+
+  static constexpr OpEffects effects = OpEffects()
+                                           // We read mutable memory.
+                                           .CanReadMemory()
+                                           // We rely on the input type.
+                                           .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return VectorForRep(RegisterRepresentationForArrayType(element_type));
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  OpIndex storage() const { return Base::input(0); }
+  OpIndex index() const { return Base::input(1); }
+  OpIndex is_little_endian() const { return Base::input(2); }
+
+  LoadDataViewElementFromDataPointerOp(OpIndex storage, OpIndex index,
+                                       OpIndex is_little_endian,
+                                       ExternalArrayType element_type)
+      : Base(storage, index, is_little_endian), element_type(element_type) {}
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -6203,7 +6233,7 @@ struct StoreDataViewElementOp
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return InitVectorOf(
         storage,
-        {RegisterRepresentation::Tagged(), RegisterRepresentation::Tagged(),
+        {RegisterRepresentation::Tagged(), RegisterRepresentation::WordPtr(),
          RegisterRepresentation::WordPtr(),
          RegisterRepresentationForArrayType(element_type),
          RegisterRepresentation::Word32()});
@@ -6221,6 +6251,42 @@ struct StoreDataViewElementOp
       : Base(object, storage, index, value, is_little_endian),
         element_type(element_type) {}
 
+
+  auto options() const { return std::tuple{element_type}; }
+};
+
+struct StoreDataViewElementToDataPointerOp
+    : FixedArityOperationT<4, StoreDataViewElementToDataPointerOp> {
+  ExternalArrayType element_type;
+
+  static constexpr OpEffects effects =
+      OpEffects()
+          // We are reading the backing store pointer and writing into it.
+          .CanReadMemory()
+          .CanWriteMemory()
+          // We rely on the input type and a valid index.
+          .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(
+        storage,
+        {RegisterRepresentation::WordPtr(), RegisterRepresentation::WordPtr(),
+         RegisterRepresentationForArrayType(element_type),
+         RegisterRepresentation::Word32()});
+  }
+
+  OpIndex storage() const { return Base::input(0); }
+  OpIndex index() const { return Base::input(1); }
+  OpIndex value() const { return Base::input(2); }
+  OpIndex is_little_endian() const { return Base::input(3); }
+
+  StoreDataViewElementToDataPointerOp(OpIndex storage, OpIndex index,
+                                      OpIndex value, OpIndex is_little_endian,
+                                      ExternalArrayType element_type)
+      : Base(storage, index, value, is_little_endian),
+        element_type(element_type) {}
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -7177,7 +7243,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   WasmTypeCheckConfig config;
 
-  static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
+  static constexpr OpEffects effects =
+      OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
                  WasmTypeCheckConfig config)
@@ -9007,30 +9074,37 @@ struct Simd256LoadTransformOp
   V(I64x4SConvertI32x4)                                 \
   V(I64x4UConvertI32x4)
 
-#define FOREACH_SIMD_256_UNARY_OPCODE(V) \
-  V(S256Not)                             \
-  V(I8x32Abs)                            \
-  V(I8x32Neg)                            \
-  V(I16x16ExtAddPairwiseI8x32S)          \
-  V(I16x16ExtAddPairwiseI8x32U)          \
-  V(I32x8ExtAddPairwiseI16x16S)          \
-  V(I32x8ExtAddPairwiseI16x16U)          \
-  V(I16x16Abs)                           \
-  V(I16x16Neg)                           \
-  V(I32x8Abs)                            \
-  V(I32x8Neg)                            \
-  V(F32x8Abs)                            \
-  V(F32x8Neg)                            \
-  V(F32x8Sqrt)                           \
-  V(F64x4Abs)                            \
-  V(F64x4Neg)                            \
-  V(F64x4Sqrt)                           \
-  V(I32x8UConvertF32x8)                  \
-  V(I32x8SConvertF32x8)                  \
-  V(F32x8UConvertI32x8)                  \
-  V(F32x8SConvertI32x8)                  \
-  V(I32x8RelaxedTruncF32x8S)             \
-  V(I32x8RelaxedTruncF32x8U)             \
+#define FOREACH_SIMD_256_UNARY_OPTIONAL_OPCODE(V) \
+  V(F32x8Ceil)                                    \
+  V(F32x8Floor)                                   \
+  V(F32x8Trunc)                                   \
+  V(F32x8NearestInt)
+
+#define FOREACH_SIMD_256_UNARY_OPCODE(V)    \
+  V(S256Not)                                \
+  V(I8x32Abs)                               \
+  V(I8x32Neg)                               \
+  V(I16x16ExtAddPairwiseI8x32S)             \
+  V(I16x16ExtAddPairwiseI8x32U)             \
+  V(I32x8ExtAddPairwiseI16x16S)             \
+  V(I32x8ExtAddPairwiseI16x16U)             \
+  V(I16x16Abs)                              \
+  V(I16x16Neg)                              \
+  V(I32x8Abs)                               \
+  V(I32x8Neg)                               \
+  V(F32x8Abs)                               \
+  V(F32x8Neg)                               \
+  V(F32x8Sqrt)                              \
+  V(F64x4Abs)                               \
+  V(F64x4Neg)                               \
+  V(F64x4Sqrt)                              \
+  V(I32x8UConvertF32x8)                     \
+  V(I32x8SConvertF32x8)                     \
+  V(F32x8UConvertI32x8)                     \
+  V(F32x8SConvertI32x8)                     \
+  V(I32x8RelaxedTruncF32x8S)                \
+  V(I32x8RelaxedTruncF32x8U)                \
+  FOREACH_SIMD_256_UNARY_OPTIONAL_OPCODE(V) \
   FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {

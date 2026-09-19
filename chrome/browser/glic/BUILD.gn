@@ -16,15 +16,19 @@ assert(enable_glic)
 # the "impl" target.
 source_set("glic") {
   sources = [
-    "browser_ui/glic_animated_effect_view.h",
-    "browser_ui/glic_border_view.h",
+    "browser_ui/animated_effect_view.h",
+    "browser_ui/context_sharing_border_view.h",
+    "browser_ui/context_sharing_border_view_controller.h",
+    "browser_ui/context_sharing_border_view_controller_impl.h",
     "browser_ui/glic_button_controller.h",
     "browser_ui/glic_button_controller_delegate.h",
     "browser_ui/glic_iph_controller.h",
     "browser_ui/glic_tab_indicator_helper.h",
-    "browser_ui/glic_tab_underline_view.h",
     "browser_ui/glic_vector_icon_manager.h",
     "browser_ui/scoped_glic_button_indicator.h",
+    "browser_ui/tab_underline_view.h",
+    "browser_ui/tab_underline_view_controller.h",
+    "browser_ui/tab_underline_view_controller_impl.h",
     "fre/glic_fre_ui.h",
     "gemini_act_on_web_settings_policy_handler.h",
     "glic_hotkey.h",
@@ -97,9 +101,6 @@ source_set("glic") {
     "//components/user_education/common",
     "//ui/base/interaction",
   ]
-  if (use_aura) {
-    public_deps += [ "//ui/wm" ]
-  }
 }
 
 source_set("enum") {
@@ -178,6 +179,8 @@ source_set("impl") {
     "public/glic_keyed_service_factory.cc",
     "service/glic_instance_coordinator_impl.cc",
     "service/glic_instance_coordinator_impl.h",
+    "service/glic_instance_coordinator_metrics.cc",
+    "service/glic_instance_coordinator_metrics.h",
     "service/glic_instance_helper.cc",
     "service/glic_instance_impl.cc",
     "service/glic_instance_impl.h",
@@ -185,6 +188,8 @@ source_set("impl") {
     "service/glic_instance_metrics.h",
     "service/glic_metrics_session_manager.cc",
     "service/glic_metrics_session_manager.h",
+    "service/glic_state_tracker.cc",
+    "service/glic_state_tracker.h",
     "service/glic_tab_creation_observer.cc",
     "service/glic_tab_creation_observer.h",
     "service/glic_ui_embedder.h",
@@ -253,6 +258,7 @@ source_set("impl") {
     "//chrome/browser/ui:layout_constants",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/passwords",
     "//chrome/browser/ui/profiles",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/toasts",
@@ -262,6 +268,7 @@ source_set("impl") {
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/side_panel",
     "//chrome/common",
+    "//components/application_locale_storage",
     "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
     "//components/favicon/content",
     "//components/feature_engagement/public:feature_constants",
@@ -286,6 +293,9 @@ source_set("impl") {
 
   if (is_mac) {
     deps += [ "//ui/accelerated_widget_mac" ]
+  }
+  if (is_chromeos) {
+    deps += [ "//ash" ]
   }
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
@@ -336,6 +346,7 @@ source_set("unit_tests") {
     "host/glic_cookie_synchronizer_unittest.cc",
     "host/guest_util_unittest.cc",
     "public/glic_enabling_unittest.cc",
+    "service/glic_instance_coordinator_metrics_unittest.cc",
     "service/glic_metrics_session_manager_unittest.cc",
     "widget/glic_panel_hotkey_delegate_unittest.cc",
     "widget/local_hotkey_manager_unittest.cc",
@@ -347,6 +358,7 @@ source_set("unit_tests") {
     "//chrome/browser:global_features",
     "//chrome/browser/background",
     "//chrome/browser/background/glic",
+    "//chrome/browser/contextual_cueing:test_support",
     "//chrome/browser/glic/browser_ui:unit_tests",
     "//chrome/browser/glic/fre:unit_tests",
     "//chrome/browser/glic/media:unit_tests",
@@ -426,7 +438,6 @@ source_set("interactive_ui_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
-    "glic_profile_manager_interactive_uitest.cc",
     "glic_settings_util_interactive_uitest.cc",
     "glic_user_status_interactive_uitest.cc",
     "host/glic_actor_click_tool_interactive_uitest.cc",
@@ -454,6 +465,13 @@ source_set("interactive_ui_tests") {
     "widget/glic_window_controller_interactive_uitest.cc",
     "widget/glic_window_resize_animation_interactive_uitest.cc",
   ]
+
+  # ChromeOS disallows multi profile. So, ProfileManager is not supported.
+  # See also crbug.com/450679848.
+  if (!is_chromeos) {
+    sources += [ "glic_profile_manager_interactive_uitest.cc" ]
+  }
+
   deps = [
     ":glic",
     ":impl",
@@ -465,6 +483,7 @@ source_set("interactive_ui_tests") {
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/contextual_cueing:test_support",
     "//chrome/browser/devtools:test_support",
+    "//chrome/browser/glic:mojo_bindings",
     "//chrome/browser/glic/browser_ui:interactive_ui_tests",
     "//chrome/browser/glic/fre",
     "//chrome/browser/glic/fre:interactive_ui_tests",

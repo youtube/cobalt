@@ -144,7 +144,6 @@
 #if BUILDFLAG(IS_WIN)
 #include <shlobj.h>
 
-#include "base/files/file_util.h"
 #include "base/test/test_reg_util_win.h"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -379,6 +378,9 @@ void BrowserTestBase::SetUp() {
     command_line->AppendSwitch(switches::kDisableGpu);
     command_line->RemoveSwitch(switches::kDisableSoftwareCompositingFallback);
   }
+
+  // Disable D3D11 WARP for consistent cross-platform software rendering.
+  command_line->AppendSwitch(switches::kDisableD3D11Warp);
 
   // The layout of windows on screen is unpredictable during tests, so disable
   // occlusion when running browser tests.

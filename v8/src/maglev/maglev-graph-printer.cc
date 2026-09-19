@@ -707,6 +707,7 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
                           MaglevGraphLabeller::Provenance provenance,
                           MaglevGraphLabeller::Provenance existing_provenance) {
+  if (!v8_flags.maglev_print_provenance) return;
   DisallowGarbageCollection no_gc;
 
   // Print function every time the compilation unit changes.
@@ -800,6 +801,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << "ʰᶠ";
       break;
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -986,6 +988,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             os_ << "ʰᶠ";
             break;
           case ValueRepresentation::kIntPtr:
+          case ValueRepresentation::kRawPtr:
           case ValueRepresentation::kNone:
             UNREACHABLE();
         }

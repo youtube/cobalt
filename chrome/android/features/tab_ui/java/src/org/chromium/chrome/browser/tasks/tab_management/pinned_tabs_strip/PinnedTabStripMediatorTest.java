@@ -93,6 +93,7 @@ public class PinnedTabStripMediatorTest {
     @Mock private BottomSheetController mBottomSheetController;
     @Mock private ModalDialogManager mModalDialogManager;
     @Mock private Runnable mOnTabGroupCreation;
+    @Mock private View mMockView;
 
     @Captor private ArgumentCaptor<TabModelObserver> mTabModelObserverCaptor;
 
@@ -212,12 +213,46 @@ public class PinnedTabStripMediatorTest {
     }
 
     @Test
+    public void testGetVisiblePinnedTabs_PartiallyObscuredRowIsPinned() {
+        // Create a scenario where the first visible row is partially obscured.
+        // Tab 1 (pinned, scrolled off)
+        mTabListModel.add(createTabListItem(1, true));
+        // Tab 2 (pinned, scrolled off)
+        mTabListModel.add(createTabListItem(2, true));
+        // Tab 3 (pinned, first in the partially obscured row)
+        mTabListModel.add(createTabListItem(3, true));
+        // Tab 4 (pinned, second in the partially obscured row)
+        mTabListModel.add(createTabListItem(4, true));
+        // Tab 4 (not pinned)
+        mTabListModel.add(createTabListItem(5, false));
+
+        // Simulate the layout manager returning a view for the first visible item (Tab 3).
+        when(mMockView.getBottom())
+                .thenReturn(50); // Partially obscured (less than rowCoverage: 85).
+        when(mLayoutManager.findViewByPosition(2)).thenReturn(mMockView);
+        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(2); // Tab 3 is first visible
+        when(mLayoutManager.getSpanCount()).thenReturn(2); // Two tabs per row
+
+        mMediator.onScrolled();
+
+        // Expect Tab 1, Tab 2, Tab 3 and Tab 4 to be in pinned bar.
+        assertThat(mPinnedTabsModelList.size()).isEqualTo(4);
+        assertThat(mPinnedTabsModelList.get(0).model.get(TabProperties.TAB_ID)).isEqualTo(1);
+        assertThat(mPinnedTabsModelList.get(1).model.get(TabProperties.TAB_ID)).isEqualTo(2);
+        assertThat(mPinnedTabsModelList.get(2).model.get(TabProperties.TAB_ID)).isEqualTo(3);
+        assertThat(mPinnedTabsModelList.get(3).model.get(TabProperties.TAB_ID)).isEqualTo(4);
+    }
+
+    @Test
     public void testUpdatePinnedTabsModel_AddNewTabs() {
         mTabListModel.add(createTabListItem(1, true));
-        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(1);
+        mTabListModel.add(createTabListItem(2, true));
+        mTabListModel.add(createTabListItem(3, true));
+        mTabListModel.add(createTabListItem(4, false));
+        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(3);
         mMediator.onScrolled();
-        assertEquals(1, mPinnedTabsModelList.size());
-        assertEquals(0, mStripPropertyModel.get(PinnedTabStripProperties.SCROLL_TO_POSITION));
+        assertEquals(3, mPinnedTabsModelList.size());
+        assertEquals(2, mStripPropertyModel.get(PinnedTabStripProperties.SCROLL_TO_POSITION));
     }
 
     @Test
@@ -303,6 +338,33 @@ public class PinnedTabStripMediatorTest {
                 PinnedTabStripUtils.getMinAllowedWidthForPinTabStripItemPx(
                         mActivity.getResources());
         assertEquals(minWidth, cardSize.getWidth());
+    }
+
+    @Test
+    public void testOnCardSizeChanged_SpanCountChange_UpdatesPinnedTabs() {
+        // Add pinned tabs to the main model.
+        for (int i = 0; i < 5; i++) {
+            mTabListModel.add(createTabListItem(i, true));
+        }
+        mTabListModel.add(createTabListItem(5, false));
+
+        // Set initial state: first visible is item 2.
+        // This means tabs 0 and 1 are pinned and scrolled off.
+        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(2);
+        mMediator.onScrolled();
+        assertEquals(2, mPinnedTabsModelList.size());
+
+        // Simulate screen size change, span count changes. Let's assume with a larger screen or
+        // smaller cards, more items are visible on screen at once. If the user has scrolled to the
+        // same position, the first visible item index might be higher.
+        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(3);
+        mTabListItemSizeChangedObserver.onSizeChanged(3, new Size(200, 0));
+
+        // Verify pinned tabs bar is updated. Now tabs 0, 1, 2 are pinned and scrolled off.
+        assertEquals(3, mPinnedTabsModelList.size());
+        assertEquals(0, mPinnedTabsModelList.get(0).model.get(TabProperties.TAB_ID));
+        assertEquals(1, mPinnedTabsModelList.get(1).model.get(TabProperties.TAB_ID));
+        assertEquals(2, mPinnedTabsModelList.get(2).model.get(TabProperties.TAB_ID));
     }
 
     @Test

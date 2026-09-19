@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.h"
 
+#include "base/containers/adapters.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
@@ -851,11 +852,8 @@ void OffsetNodeGeometry(mojom::blink::AIPageContentNode& node,
 }  // namespace
 
 // static
-const char AIPageContentAgent::kSupplementName[] = "AIPageContentAgent";
-
-// static
 AIPageContentAgent* AIPageContentAgent::From(Document& document) {
-  return Supplement<Document>::From<AIPageContentAgent>(document);
+  return document.GetAIPageContentAgent();
 }
 
 // static
@@ -870,7 +868,7 @@ void AIPageContentAgent::BindReceiver(
   if (!agent) {
     agent = MakeGarbageCollected<AIPageContentAgent>(
         base::PassKey<AIPageContentAgent>(), *frame);
-    Supplement<Document>::ProvideTo(document, agent);
+    document.SetAIPageContentAgent(agent);
   }
   agent->Bind(std::move(receiver));
 }
@@ -883,15 +881,14 @@ AIPageContentAgent* AIPageContentAgent::GetOrCreateForTesting(
     DCHECK(document.GetFrame());
     agent = MakeGarbageCollected<AIPageContentAgent>(
         base::PassKey<AIPageContentAgent>(), *document.GetFrame());
-    Supplement<Document>::ProvideTo(document, agent);
+    document.SetAIPageContentAgent(agent);
   }
   return agent;
 }
 
 AIPageContentAgent::AIPageContentAgent(base::PassKey<AIPageContentAgent>,
                                        LocalFrame& frame)
-    : Supplement<Document>(*frame.GetDocument()),
-      receiver_set_(this, frame.DomWindow()) {
+    : document_(*frame.GetDocument()), receiver_set_(this, frame.DomWindow()) {
   DCHECK(frame.GetDocument());
 }
 
@@ -901,12 +898,12 @@ void AIPageContentAgent::Bind(
     mojo::PendingReceiver<mojom::blink::AIPageContentAgent> receiver) {
   receiver_set_.Add(
       std::move(receiver),
-      GetSupplementable()->GetTaskRunner(TaskType::kInternalUserInteraction));
+      document_->GetTaskRunner(TaskType::kInternalUserInteraction));
 }
 
 void AIPageContentAgent::Trace(Visitor* visitor) const {
+  visitor->Trace(document_);
   visitor->Trace(receiver_set_);
-  Supplement<Document>::Trace(visitor);
 }
 
 void AIPageContentAgent::DidFinishPostLifecycleSteps(const LocalFrameView&) {
@@ -921,7 +918,7 @@ void AIPageContentAgent::GetAIPageContent(
     GetAIPageContentCallback callback) {
   base::TimeTicks start_time = base::TimeTicks::Now();
 
-  LocalFrameView* view = GetSupplementable()->View();
+  LocalFrameView* view = document_->View();
 
   // If there's no lifecycle pending, we can't rely on post lifecycle
   // notifications and the layout is likely clean.
@@ -958,8 +955,7 @@ void AIPageContentAgent::GetAIPageContentSync(
 
   const auto end_time = base::TimeTicks::Now();
   RecordLatencyMetrics(start_time, sync_start_time, end_time,
-                       GetSupplementable()->GetFrame()->IsOutermostMainFrame(),
-                       *options);
+                       document_->GetFrame()->IsOutermostMainFrame(), *options);
   std::move(callback).Run(std::move(content));
 }
 
@@ -1001,7 +997,7 @@ String AIPageContentAgent::DumpContentNodeForTest(Node* node) {
 
 mojom::blink::AIPageContentPtr AIPageContentAgent::GetAIPageContentInternal(
     const mojom::blink::AIPageContentOptions& options) const {
-  LocalFrame* frame = GetSupplementable()->GetFrame();
+  LocalFrame* frame = document_->GetFrame();
   if (!frame || !frame->GetDocument() || !frame->GetDocument()->View()) {
     return nullptr;
   }
@@ -1708,9 +1704,9 @@ void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
   }
 
   int32_t next_z_order = 1;
-  std::for_each(hit_nodes.rbegin(), hit_nodes.rend(), [&](auto node_id) {
-    if (dom_node_to_z_order_.contains(node_id)) {
-      return;
+  for (DOMNodeId node_id : base::Reversed(hit_nodes)) {
+    if (dom_node_to_z_order_.Contains(node_id)) {
+      continue;
     }
 
     auto* node = DOMNodeIds::NodeForId(node_id);
@@ -1719,10 +1715,10 @@ void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
     if (!node->IsDocumentNode() &&
         !document.ElementForHitTest(node,
                                     TreeScope::HitTestPointType::kInternal)) {
-      return;
+      continue;
     }
-    dom_node_to_z_order_[node_id] = next_z_order++;
-  });
+    dom_node_to_z_order_.insert(node_id, next_z_order++);
+  }
 }
 
 void AIPageContentAgent::ContentBuilder::AddPageInteractionInfo(
@@ -1893,9 +1889,14 @@ void AIPageContentAgent::ContentBuilder::AddInteractionInfoForHitTesting(
     return;
   }
 
-  auto it = dom_node_to_z_order_.find(DOMNodeIds::ExistingIdForNode(node));
+  DOMNodeId dom_node_id = DOMNodeIds::ExistingIdForNode(node);
+  if (dom_node_id <= kInvalidDOMNodeId) {
+    return;
+  }
+
+  auto it = dom_node_to_z_order_.find(dom_node_id);
   if (it != dom_node_to_z_order_.end()) {
-    interaction_info.document_scoped_z_order = it->second;
+    interaction_info.document_scoped_z_order = it->value;
   }
 }
 

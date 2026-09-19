@@ -95,35 +95,14 @@ class OPENSSL_EXPORT Input {
   constexpr uint8_t operator[](size_t idx) const { return data_[idx]; }
   constexpr uint8_t front() const { return data_.front(); }
   constexpr uint8_t back() const { return data_.back(); }
-  constexpr Input subspan(size_t pos = 0, size_t len = dynamic_extent) const {
+  constexpr Input subspan(size_t pos, size_t len) const {
     return Input(data_.subspan(pos, len));
+  }
+  constexpr Input subspan(size_t pos) const {
+    return Input(data_.subspan(pos));
   }
   constexpr Input first(size_t len) const { return Input(data_.first(len)); }
   constexpr Input last(size_t len) const { return Input(data_.last(len)); }
-
-  // Deprecated: use BytesAsStringView and convert to std::string.
-  //
-  // Returns a copy of the data represented by this object as a std::string.
-  std::string AsString() const;
-
-  // Deprecated: Use ByteAsString. 
-  //
-  // Returns a std::string_view pointing to the same data as the Input. The
-  // resulting string_view must not outlive the data that was used to construct
-  // this Input.
-  std::string_view AsStringView() const { return BytesAsStringView(data_); }
-
-  // Deprecated: This class implicitly converts to bssl::Span<const uint8_t>.
-  //
-  // Returns a span pointing to the same data as the Input. The resulting span
-  // must not outlive the data that was used to construct this Input.
-  Span<const uint8_t> AsSpan() const { return *this; }
-
-  // Deprecated: Use size() instead.
-  constexpr size_t Length() const { return size(); }
-
-  // Deprecated: Use data() instead.
-  constexpr const uint8_t *UnsafeData() const { return data(); }
 
  private:
   // TODO(crbug.com/770501): Replace this type with span altogether.

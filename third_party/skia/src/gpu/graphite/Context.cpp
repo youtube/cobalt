@@ -634,7 +634,7 @@ void Context::asyncReadPixelsYUV420(std::unique_ptr<Recorder> recorder,
     }
 
     this->finalizeAsyncReadPixels(std::move(recorder),
-                                  {transfers, readAlpha ? 4 : 3},
+                                  {transfers, readAlpha ? 4u : 3u},
                                   params.fCallback,
                                   params.fCallbackContext);
 }
@@ -1021,8 +1021,6 @@ bool ContextPriv::supportsPathRendererStrategy(PathRendererStrategy strategy) {
     AtlasProvider::PathAtlasFlagsBitMask pathAtlasFlags =
             AtlasProvider::QueryPathAtlasSupport(this->caps());
     switch (strategy) {
-        case PathRendererStrategy::kDefault:
-            return true;
         case PathRendererStrategy::kComputeAnalyticAA:
         case PathRendererStrategy::kComputeMSAA16:
         case PathRendererStrategy::kComputeMSAA8:

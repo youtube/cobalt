@@ -25,6 +25,7 @@
 #include <openssl/aead.h>
 #include <openssl/bytestring.h>
 #include <openssl/chacha.h>
+#include <openssl/cipher.h>
 #include <openssl/curve25519.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
@@ -4317,14 +4318,16 @@ static enum ssl_ticket_aead_result_t decrypt_ticket_with_cipher_ctx(
     if (!plaintext.InitForOverwrite(ciphertext.size())) {
       return ssl_ticket_aead_error;
     }
-    int len1, len2;
-    if (!EVP_DecryptUpdate(cipher_ctx, plaintext.data(), &len1,
-                           ciphertext.data(), (int)ciphertext.size()) ||
-        !EVP_DecryptFinal_ex(cipher_ctx, plaintext.data() + len1, &len2)) {
+    size_t len1, len2;
+    if (!EVP_DecryptUpdate_ex(cipher_ctx, plaintext.data(), &len1,
+                              plaintext.size(), ciphertext.data(),
+                              (int)ciphertext.size()) ||
+        !EVP_DecryptFinal_ex2(cipher_ctx, plaintext.data() + len1, &len2,
+                              plaintext.size() - len1)) {
       ERR_clear_error();
       return ssl_ticket_aead_ignore_ticket;
     }
-    plaintext.Shrink(static_cast<size_t>(len1) + len2);
+    plaintext.Shrink(len1 + len2);
   }
 
   *out = std::move(plaintext);

@@ -11,12 +11,13 @@
 #ifndef PC_JSEP_TRANSPORT_COLLECTION_H_
 #define PC_JSEP_TRANSPORT_COLLECTION_H_
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
@@ -87,11 +88,12 @@ class BundleManager {
 class JsepTransportCollection {
  public:
   JsepTransportCollection(
-      std::function<bool(const std::string& mid,
-                         webrtc::JsepTransport* transport)> map_change_callback,
-      std::function<void()> state_change_callback)
-      : map_change_callback_(map_change_callback),
-        state_change_callback_(state_change_callback) {}
+      absl::AnyInvocable<bool(const std::string& mid,
+                              webrtc::JsepTransport* transport)>
+          map_change_callback,
+      absl::AnyInvocable<void()> state_change_callback)
+      : map_change_callback_(std::move(map_change_callback)),
+        state_change_callback_(std::move(state_change_callback)) {}
 
   void RegisterTransport(const std::string& mid,
                          std::unique_ptr<JsepTransport> transport);
@@ -155,11 +157,11 @@ class JsepTransportCollection {
   std::map<std::string, JsepTransport*> stable_mid_to_transport_
       RTC_GUARDED_BY(sequence_checker_);
   // Callback used to inform subscribers of altered transports.
-  const std::function<bool(const std::string& mid,
-                           webrtc::JsepTransport* transport)>
+  absl::AnyInvocable<bool(const std::string& mid,
+                          webrtc::JsepTransport* transport)>
       map_change_callback_;
   // Callback used to inform subscribers of possibly altered state.
-  const std::function<void()> state_change_callback_;
+  absl::AnyInvocable<void()> state_change_callback_;
 };
 
 }  // namespace webrtc

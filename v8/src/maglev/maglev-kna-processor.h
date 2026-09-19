@@ -254,7 +254,9 @@ class RecomputeKnownNodeAspectsProcessor {
                       truncated_int32_to_number, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
@@ -265,8 +267,9 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UnsafeNumberOrOddballToFloat64, float64, NumberOrOddball)
   PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(HoleyFloat64ToSilencedFloat64, float64, Number)
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToHoleyFloat64, holey_float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 
@@ -327,11 +330,16 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <typename NodeT>
   void ProcessLoadContextSlot(NodeT* node) {
+    ValueNode* context = node->input_node(0);
     ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
-        node->input_node(0), node->offset(),
+        context, node->offset(),
         node->is_const() ? ContextSlotMutability::kImmutable
                          : ContextSlotMutability::kMutable);
     if (!cached_value) cached_value = node;
+    if (!node->is_const()) {
+      known_node_aspects().UpdateMayHaveAliasingContexts(
+          broker(), broker()->local_isolate(), context);
+    }
   }
 
   ProcessResult ProcessNode(LoadContextSlot* node) {
@@ -365,32 +373,6 @@ class RecomputeKnownNodeAspectsProcessor {
   ProcessResult ProcessNode(StoreFloat64ContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
                             node->value_input().node(), node->slot_offset());
-    return ProcessResult::kContinue;
-  }
-
-  void UpdateMaps(ValueNode* object, const compiler::ZoneRefSet<Map>& maps) {
-    KnownMapsMerger<compiler::ZoneRefSet<Map>> merger(broker(), zone(), maps);
-    merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
-    merger.UpdateKnownNodeAspects(object, known_node_aspects());
-  }
-
-  ProcessResult ProcessNode(CheckMaps* node) {
-    UpdateMaps(node->receiver_input().node(), node->maps());
-    return ProcessResult::kContinue;
-  }
-
-  ProcessResult ProcessNode(CheckMapsWithMigration* node) {
-    UpdateMaps(node->receiver_input().node(), node->maps());
-    return ProcessResult::kContinue;
-  }
-
-  ProcessResult ProcessNode(CheckMapsWithMigrationAndDeopt* node) {
-    UpdateMaps(node->receiver_input().node(), node->maps());
-    return ProcessResult::kContinue;
-  }
-
-  ProcessResult ProcessNode(CheckMapsWithAlreadyLoadedMap* node) {
-    UpdateMaps(node->object_input().node(), node->maps());
     return ProcessResult::kContinue;
   }
 

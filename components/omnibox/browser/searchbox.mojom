@@ -102,6 +102,8 @@ struct TabInfo {
   string title;
   // The URL of the tab.
   url.mojom.Url url;
+  // Whether the tab is suitable for display in the recent tab chip.
+  bool show_in_recent_tab_chip;
   // The time the tab was last active.
   mojo_base.mojom.TimeTicks last_active;
 };
@@ -121,13 +123,15 @@ enum ToolMode {
 // this struct is being iterated on and usage must currently be flagged with
 // `MojomWorkInProgress`.
 struct FileAttachmentStub {
-  // The unique identifier of the file.
+  // A client-side unique identifier referring to a specific file upload. The
+  // UUID is assigned on the browser-side.
   mojo_base.mojom.UnguessableToken uuid;
   // The name of the file.
   string name;
   // The mime type of the file.
   string mime_type;
-  // The data URL of the file if it is an image.
+  // A data URL for an image preview of the file (may only be supplied for
+  // images but is independent of MIME type).
   string? image_data_url;
 };
 
@@ -151,6 +155,16 @@ struct TabAttachmentStub {
 union SearchContextAttachmentStub {
   FileAttachmentStub file_attachment;
   TabAttachmentStub tab_attachment;
+};
+
+// Represents the context of a search query.
+struct SearchContextStub {
+  // The input text of the search query.
+  string input;
+  // A list of attachments to the search context.
+  array<SearchContextAttachmentStub> attachments;
+  // The mode of the search query.
+  ToolMode tool_mode;
 };
 
 // Information about a contextual input.

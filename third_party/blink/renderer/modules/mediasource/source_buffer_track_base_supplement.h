@@ -15,14 +15,12 @@ class SourceBuffer;
 
 class SourceBufferTrackBaseSupplement
     : public GarbageCollected<SourceBufferTrackBaseSupplement>,
-      public Supplement<TrackBase> {
+      public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
-
   static SourceBuffer* sourceBuffer(TrackBase&);
   static void SetSourceBuffer(TrackBase&, SourceBuffer*);
 
-  SourceBufferTrackBaseSupplement(TrackBase& track);
+  SourceBufferTrackBaseSupplement() = default;
   void Trace(Visitor*) const override;
 
  private:

@@ -25,7 +25,8 @@ struct ScreamV2Parameters {
   FieldTrialParameter<DataSize> min_ref_window;
 
   // Exponentially Weighted Moving Average (EWMA) factor for l4s_alpha.
-  FieldTrialParameter<double> l4s_avg_g;
+  FieldTrialParameter<double> l4s_avg_g_up;
+  FieldTrialParameter<double> l4s_avg_g_down;
 
   // Maximum Segment Size (MSS)
   // Size of the largest data segment that a sender is able to transmit. I.e

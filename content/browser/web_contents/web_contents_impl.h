@@ -143,7 +143,6 @@ class JavaScriptDialogDismissNotifier;
 class MediaSession;
 class MediaWebContentsObserver;
 class NFCHost;
-class PartitionedPopinsController;
 class PreloadingAttempt;
 class RenderFrameHost;
 class RenderFrameHostImpl;
@@ -479,10 +478,9 @@ class CONTENT_EXPORT WebContentsImpl
   Visibility GetVisibility() override;
   bool NeedToFireBeforeUnloadOrUnloadEvents() override;
   void DispatchBeforeUnload(bool auto_cancel) override;
-  void AttachInnerWebContents(
-      std::unique_ptr<WebContents> inner_web_contents,
-      RenderFrameHost* render_frame_host,
-      bool is_full_page) override;
+  void AttachInnerWebContents(std::unique_ptr<WebContents> inner_web_contents,
+                              RenderFrameHost* render_frame_host,
+                              bool is_full_page) override;
   void AttachUnownedInnerWebContents(
       base::PassKey<UnownedInnerWebContentsClient>,
       WebContents* inner_web_contents,
@@ -1095,6 +1093,10 @@ class CONTENT_EXPORT WebContentsImpl
       NavigationRequest* navigation_request_to_exclude) override;
   bool MaybeCopyContentAreaAsBitmap(
       base::OnceCallback<void(const SkBitmap&)> callback) override;
+#if BUILDFLAG(IS_ANDROID)
+  bool MaybeCopyContentAreaAsHardwareBuffer(
+      HardwareBufferResultCallback callback) override;
+#endif
   bool SupportsForwardTransitionAnimation() override;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1591,35 +1593,6 @@ class CONTENT_EXPORT WebContentsImpl
 
   bool IsPopup() const override;
 
-  bool IsPartitionedPopin() const override;
-
-  const struct PartitionedPopinOpenerProperties&
-  GetPartitionedPopinOpenerProperties() const override;
-
-  // Returns the opener of this window if this window is a partitioned popin
-  // and the opener still exists. This may return null for if the opener was
-  // already deleted even if this window is a popin.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  RenderFrameHostImpl* GetPartitionedPopinOpener(
-      base::PassKey<PartitionedPopinsController>) const;
-
-  // Clears `partitioned_popin_opener_` to test what happens if the opener
-  // disappears after the popin is opened.
-  void ClearPartitionedPopinOpenerForTesting();
-
-  WebContents* GetOpenedPartitionedPopin() const override;
-
-  // Returns the origin of the popin's opener if this is a partitioned popin.
-  // CHECKS if this is not a partitioned popin, as it should never be called
-  // in that case. This is used in permissions checks.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  GURL GetPartitionedPopinEmbedderOrigin(
-      base::PassKey<StorageAccessGrantPermissionContext>) const override;
-
-  // Same as GetPartitionedPopinEmbedderOrigin but for testing to bypass
-  // PassKey requirements.
-  GURL GetPartitionedPopinEmbedderOriginForTesting() const;
-
  private:
   using FrameTreeIterationCallback = base::FunctionRef<void(FrameTree&)>;
   using RenderViewHostIterationCallback =
@@ -1753,8 +1726,8 @@ class CONTENT_EXPORT WebContentsImpl
     // WebContents. If `should_take_ownership` is true, this WebContents will
     // take ownership of `inner_web_contents`.
     void AttachInnerWebContents(WebContents* inner_web_contents,
-      RenderFrameHostImpl* render_frame_host,
-      bool should_take_ownership);
+                                RenderFrameHostImpl* render_frame_host,
+                                bool should_take_ownership);
 
     // Detaches `inner_web_contents` from the outer WebContents.
     void DetachInnerWebContents(WebContents* inner_web_contents);
@@ -1967,9 +1940,9 @@ class CONTENT_EXPORT WebContentsImpl
   // Internal implementation of AttachInnerWebContents() and
   // AttachUnownedInnerWebContents().
   void AttachInnerWebContentsImpl(WebContents* inner_web_contents,
-    RenderFrameHost* render_frame_host,
-    bool is_full_page,
-    bool should_take_ownership);
+                                  RenderFrameHost* render_frame_host,
+                                  bool is_full_page,
+                                  bool should_take_ownership);
 
   // Internal implementation of DetachUnownedInnerWebContents() that does not
   // require a pass key. Called by ~WebContentsImpl.
@@ -2201,23 +2174,12 @@ class CONTENT_EXPORT WebContentsImpl
   // WarmUp a spare render process for future navigations.
   void WarmUpAndroidSpareRenderer();
 
-  // If the new window will be a partitioned popin, we need to validate the
-  // settings and set the opener.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  void SetPartitionedPopinOpenerOnNewWindowIfNeeded(
-      WebContentsImpl* new_window,
-      const mojom::CreateNewWindowParams& params,
-      RenderFrameHostImpl* opener);
-
   // Creates a new ForwardingAudioStreamFactory.
   std::unique_ptr<ForwardingAudioStreamFactory> CreateAudioStreamFactory();
 
   // Cancel any pending dialogs created from the delegate's
   // JavascriptDialogManager.
   void CancelDialogManagerDialogs(bool reset_state);
-
-  // See GetPartitionedPopinEmbedderOrigin for details.
-  GURL GetPartitionedPopinEmbedderOriginImpl() const;
 
   // Recursively constructs a vector of AXNodeData objects for the children of
   // the given |node|.
@@ -2765,6 +2727,8 @@ class CONTENT_EXPORT WebContentsImpl
   WindowOpenDisposition original_window_open_disposition_ =
       WindowOpenDisposition::UNKNOWN;
 
+<<<<<<< HEAD
+=======
   // If this window was opened as a new partitioned popin this will contain the
   // properties needed to setup partitioning which aligns with the opener.
   // See https://explainers-by-googlers.github.io/partitioned-popins/
@@ -2786,6 +2750,7 @@ class CONTENT_EXPORT WebContentsImpl
   base::WeakPtr<WebContents> opened_partitioned_popin_;
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Tracks the number of same-site fenced frames in the viewport per top-level
   // page load and stores it in the primary main frame's PageUserData. Metrics
   // are logged via UMA every time the PageUserData is destroyed.

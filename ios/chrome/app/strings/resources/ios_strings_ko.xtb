@@ -213,7 +213,7 @@
 <translation id="17906873777101817">비밀번호 및 패스키 저장 여부 확인</translation>
 <translation id="1794893174442046596">탭 그룹</translation>
 <translation id="1807893857950749072">가격 추적 알림 허용…</translation>
-<translation id="1809929083618343438">선택한 정보가 Chrome에서 삭제되지만, 이 정보가 Google 계정에서 삭제되지는 않습니다</translation>
+<translation id="1809929083618343438">선택한 정보가 Chrome에서 삭제되지만 Google 계정에서는 삭제되지 않습니다</translation>
 <translation id="1810976980198522421">취소</translation>
 <translation id="1815941218935345331">비밀번호</translation>
 <translation id="1818687879307252150">{count,plural, =0{유출된 비밀번호 없음}=1{유출된 비밀번호 {count}개}other{유출된 비밀번호 {count}개}}</translation>
@@ -545,7 +545,7 @@
 <translation id="3081338492074632642">저장하려는 비밀번호가 <ph name="WEBSITE" />의 비밀번호와 일치하는지 확인하세요.</translation>
 <translation id="3087734570205094154">맨 아래</translation>
 <translation id="309710370695886264">재사용된 비밀번호가 1개 있습니다. 안전을 위해 지금 문제를 해결하세요.</translation>
-<translation id="3099402981545350675">이 기기에 저장된 주소가 삭제됩니다. 또한 선택한 정보가 Chrome에서 삭제되지만, 이 정보가 Google 계정에서 삭제되지는 않습니다</translation>
+<translation id="3099402981545350675">이 기기에 저장된 주소가 삭제됩니다. 또한 선택한 정보가 Chrome에서 삭제되지만 Google 계정에서는 삭제되지 않습니다.</translation>
 <translation id="3106258548858559536">읽기 모드 사용 중지</translation>
 <translation id="3106690631878101882">번역 숨기기</translation>
 <translation id="310900540163454140"><ph name="WEBSITE" />의 비밀번호를 삭제하시겠습니까?</translation>
@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">AI 모드로 검색</translation>
 <translation id="3557336313807607643">주소록에 추가</translation>
 <translation id="355765753469272474">실행취소</translation>
+<translation id="3565012355885596568">이미지를 로드할 수 없습니다</translation>
 <translation id="3565930036634619844">탭. <ph name="NUMBER_OF_TABS" />개 중 <ph name="TAB_INDEX" />번째.</translation>
 <translation id="3572607909481582402">내 Google 계정에서</translation>
 <translation id="3575234738189584619">렌즈로 검색</translation>
@@ -1314,6 +1315,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6045460247888249350">제목 추가</translation>
 <translation id="6052269326659653305">프로필 전환</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">동영상 촬영</translation>
 <translation id="6059830886158432458">여기에서 스토리 및 활동을 관리하세요.</translation>
 <translation id="6066301408025741299">취소하려면 탭하세요.</translation>
 <translation id="6074656473835429958">알림 받기</translation>
@@ -1815,6 +1817,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7866872729285243843">어느 기기에서나 읽기 목록을 사용하려면 설정에서 '읽기 목록'을 사용 설정하세요.</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> 자동 완성 양식</translation>
 <translation id="7879275349003161544">다운로드 표시</translation>
+<translation id="7882689957034389473">사진 촬영</translation>
 <translation id="7883882164760409935">비밀번호를 재사용했습니다.</translation>
 <translation id="7887174313503389866">주요 개인 정보 보호 및 보안 제어 기능을 둘러보세요. 추가 옵션을 알아보려면 개별 설정으로 이동합니다</translation>
 <translation id="7887198238286927132">Chrome에서는 개인 정보 보호를 위해 이 입력란을 자동 완성하지 않습니다.</translation>
@@ -1998,6 +2001,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8551311254462607218">주소 표시줄에서 Google 렌즈 카메라 아이콘을 탭합니다.</translation>
 <translation id="8556590991644167667">{count,plural, =1{경고 {count}개를 닫았습니다}other{경고 {count}개를 닫았습니다}}</translation>
 <translation id="8558046478684552694">그룹 닫기.</translation>
+<translation id="8559858985063901027">패스키</translation>
 <translation id="8560253818350321773">자주 사용하는 항목을 먼저 표시합니다.</translation>
 <translation id="8561999115126307258">{count,plural, =1{키보드 위에 비밀번호 옵션 {count}개가 있습니다.}other{키보드 위에 비밀번호 옵션 {count}개가 있습니다.}}</translation>
 <translation id="8564894539416715395">새 탭 페이지</translation>

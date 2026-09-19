@@ -19,7 +19,6 @@
 #include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -53,6 +52,7 @@
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #endif
 #include "components/services/storage/storage_service_impl.h"
+#include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/variations/net/variations_http_headers.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/aggregation_service/aggregation_service.h"
@@ -2176,6 +2176,18 @@ void StoragePartitionImpl::OnAuthRequired(
           // reaches here.
           is_primary_main_frame_navigation = false;
           is_navigation_request = false;
+        } else if (service_worker_client->is_initiated_by_prefetch()) {
+          // Do not process auth requests associated with prefetching clients
+          // because there are no corresponding Window yet.
+          // `is_initiated_by_prefetch()` can be true here (and similarly at
+          // `OnCertificateRequested()`) e.g. when a speculation rules prefetch
+          // request is intercepted by a ServiceWorker fetch handler and then
+          // is fetched as a ServiceWorker subresource via
+          // `event.respondWith(fetch(event.request))`.
+          static_cast<mojo::Remote<network::mojom::AuthChallengeResponder>>(
+              std::move(auth_challenge_responder))
+              ->OnAuthCredentials(std::nullopt);
+          return;
         } else if (NavigationRequest* ongoing_navigation =
                        service_worker_client
                            ->GetOngoingNavigationRequestBeforeCommit(
@@ -2482,6 +2494,13 @@ void StoragePartitionImpl::OnCertificateRequested(
               service_worker_client->GetRenderFrameHostId();
           context = URLLoaderNetworkContext::CreateForRenderFrameHost(
               render_frame_host_id);
+        } else if (service_worker_client->is_initiated_by_prefetch()) {
+          // Do not process certification requests associated with prefetching
+          // clients because there are no corresponding Window yet. See also the
+          // comment at `OnAuthRequired()` for when `is_initiated_by_prefetch()`
+          // can be true here.
+          CallCancelRequest(std::move(cert_responder));
+          return;
         } else if (NavigationRequest* ongoing_navigation =
                        service_worker_client
                            ->GetOngoingNavigationRequestBeforeCommit(
@@ -3795,7 +3814,7 @@ void StoragePartitionImpl::InitNetworkContext() {
   context_params->cors_exempt_header_list.push_back(
       GetCorsExemptRequestedWithHeaderName());
   variations::UpdateCorsExemptHeaderForVariations(context_params.get());
-
+  variations::UpdateCorsExemptHeaderForOmniboxAutofocus(context_params.get());
   cors_exempt_header_list_ = context_params->cors_exempt_header_list;
 
   if (base::FeatureList::IsEnabled(

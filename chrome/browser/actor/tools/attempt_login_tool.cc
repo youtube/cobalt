@@ -13,7 +13,10 @@
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor_webui.mojom-data-view.h"
 #include "chrome/common/actor_webui.mojom.h"
@@ -78,9 +81,31 @@ AttemptLoginTool::AttemptLoginTool(TaskId task_id,
                                    tabs::TabInterface& tab)
     : Tool(task_id, tool_delegate), tab_handle_(tab.GetHandle()) {}
 
-AttemptLoginTool::~AttemptLoginTool() = default;
+AttemptLoginTool::~AttemptLoginTool() {
+  // Uploading the quality log on the destruction of the tool.
+  tabs::TabInterface* tab = tab_handle_.Get();
+  Profile* profile =
+      tab ? Profile::FromBrowserContext(tab->GetContents()->GetBrowserContext())
+          : nullptr;
+  // TODO(crbug,com/459397449): Update where the log is uploaded and
+  // send a pointer to the profile/service when creating the log instead
+  // of at the moment of uploading.
+  if (!profile) {
+    return;
+  }
+  OptimizationGuideKeyedService* opt_guide_service =
+      OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  if (opt_guide_service &&
+      base::FeatureList::IsEnabled(
+          password_manager::features::kActorLoginQualityLogs)) {
+    // TODO(crbug.com/459393643): Add a check for filtering out logs of
+    // enterprise users.
+    quality_logger_.UploadFinalLog(
+        opt_guide_service->GetModelQualityLogsUploaderService());
+  }
+}
 
-void AttemptLoginTool::Validate(ValidateCallback callback) {
+void AttemptLoginTool::Validate(ToolCallback callback) {
   if (!base::FeatureList::IsEnabled(password_manager::features::kActorLogin)) {
     PostResponseTask(std::move(callback),
                      MakeResult(mojom::ActionResultCode::kToolUnknown));
@@ -90,7 +115,7 @@ void AttemptLoginTool::Validate(ValidateCallback callback) {
   PostResponseTask(std::move(callback), MakeOkResult());
 }
 
-void AttemptLoginTool::Invoke(InvokeCallback callback) {
+void AttemptLoginTool::Invoke(ToolCallback callback) {
   tabs::TabInterface* tab = tab_handle_.Get();
   if (!tab) {
     PostResponseTask(std::move(callback),
@@ -115,14 +140,16 @@ void AttemptLoginTool::Invoke(InvokeCallback callback) {
         tab, user_selected_credential_and_pemission->credential,
         user_selected_credential_and_pemission->permission_duration ==
             webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow,
+        quality_logger_.AsWeakPtr(),
         base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                        weak_ptr_factory_.GetWeakPtr()));
     return;
   }
 
   GetActorLoginService().GetCredentials(
-      tab, base::BindOnce(&AttemptLoginTool::OnGetCredentials,
-                          weak_ptr_factory_.GetWeakPtr()));
+      tab, quality_logger_.AsWeakPtr(),
+      base::BindOnce(&AttemptLoginTool::OnGetCredentials,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void AttemptLoginTool::OnGetCredentials(
@@ -306,6 +333,7 @@ void AttemptLoginTool::OnCredentialSelected(
       tab, *selected_credential,
       response->permission_duration ==
           webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow,
+      quality_logger_.AsWeakPtr(),
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -318,8 +346,9 @@ void AttemptLoginTool::OnAttemptLogin(
     return;
   }
 
+  mojom::ActionResultCode code = LoginResultToActorResult(login_status.value());
   PostResponseTask(std::move(invoke_callback_),
-                   MakeResult(LoginResultToActorResult(login_status.value())));
+                   IsOk(code) ? MakeOkResult() : MakeResult(code));
 }
 
 std::string AttemptLoginTool::DebugString() const {
@@ -339,7 +368,7 @@ AttemptLoginTool::GetObservationDelayer(
 }
 
 void AttemptLoginTool::UpdateTaskBeforeInvoke(ActorTask& task,
-                                              InvokeCallback callback) const {
+                                              ToolCallback callback) const {
   task.AddTab(tab_handle_, std::move(callback));
 }
 

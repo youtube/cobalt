@@ -658,7 +658,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                                     isolate);
   wasm::Suspend suspend = import_data->suspend();
 
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig,
+  // We don't need to care about exactness of the import here, because that
+  // has already been validated (hence no kLinkError can happen here).
+  wasm::CanonicalValueType expected_type = wasm::CanonicalValueType::Ref(
+      sig->index(), wasm::kNotShared, wasm::RefTypeKind::kFunction);
+  wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
@@ -1175,10 +1179,13 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }
-    // TODO(14616): Pass the correct instance data.
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
     DirectHandle<Object> result =
         isolate->factory()->NewWasmArrayFromElementSegment(
-            trusted_instance_data, trusted_instance_data, segment_index, offset,
+            trusted_instance_data, shared_instance, segment_index, offset,
             length, rtt, element_type);
     if (IsSmi(*result)) {
       return ThrowWasmError(
@@ -1257,10 +1264,12 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // now.
     AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    // TODO(14616): Fix the instance data.
-    std::optional<MessageTemplate> opt_error =
-        wasm::InitializeElementSegment(&zone, isolate, trusted_instance_data,
-                                       trusted_instance_data, segment_index);
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
+    std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+        &zone, isolate, trusted_instance_data, shared_instance, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }
@@ -1349,7 +1358,7 @@ class PrototypesSetup : public wasm::Decoder {
     method_wrapper_->set_language_mode(LanguageMode::kStrict);
   }
 
-  Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
+  Tagged<Object> SetupPrototypes(DirectHandle<Object> constructors) {
     uint32_t num_prototypes = consume_u32v("number of prototypes");
     FOR_WITH_HANDLE_SCOPE(isolate(), uint32_t proto_index = 0, proto_index,
                           proto_index < num_prototypes && ok(), proto_index++) {
@@ -1538,7 +1547,11 @@ class PrototypesSetup : public wasm::Decoder {
   DirectHandle<JSFunction> InstallConstructor(
       DirectHandle<JSReceiver> prototype,
       DirectHandle<WasmExportedFunction> wasm_function,
-      DirectHandle<String> name, DirectHandle<JSObject> all_constructors) {
+      DirectHandle<String> name, DirectHandle<Object> all_constructors) {
+    if (!IsJSReceiver(*all_constructors)) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+      return {};
+    }
     DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
         isolate_->native_context(), wasm::kConstructorFunctionContextLength);
     context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
@@ -1573,8 +1586,9 @@ class PrototypesSetup : public wasm::Decoder {
     prop.set_configurable(true);
     prop.set_writable(true);
     prop.set_value(constructor);
-    if (!JSReceiver::DefineOwnProperty(isolate_, all_constructors, name, &prop,
-                                       Just(ShouldThrow::kThrowOnError))
+    if (!JSReceiver::DefineOwnProperty(isolate_,
+                                       Cast<JSReceiver>(all_constructors), name,
+                                       &prop, Just(ShouldThrow::kThrowOnError))
              .FromMaybe(false)) {
       return {};
     }
@@ -1680,8 +1694,7 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   DirectHandle<WasmTrustedInstanceData> shared_instance =
-      instance->has_shared_part() ? DirectHandle<WasmTrustedInstanceData>(
-                                        instance->shared_part(), isolate)
+      instance->has_shared_part() ? handle(instance->shared_part(), isolate)
                                   : instance;
   std::optional<MessageTemplate> opt_error =
       wasm::InitializeElementSegment(&zone, isolate, instance, shared_instance,
@@ -1704,11 +1717,10 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
   if (!IsWasmArray(args[1])) return ThrowWasmError(isolate, illegal_cast);
   if (!IsWasmArray(args[2])) return ThrowWasmError(isolate, illegal_cast);
-  if (!IsJSObject(args[3])) return ThrowWasmError(isolate, illegal_cast);
   DirectHandle<WasmArray> prototypes(Cast<WasmArray>(args[0]), isolate);
   DirectHandle<WasmArray> functions(Cast<WasmArray>(args[1]), isolate);
   DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
-  DirectHandle<JSObject> constructors(Cast<JSObject>(args[3]), isolate);
+  DirectHandle<Object> constructors(args[3], isolate);
   {
     Tagged<Object> expected_prototypes_map =
         MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
@@ -1744,7 +1756,7 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
   DCHECK_EQ(3, args.length());
 
   uint32_t* stack_buffer = reinterpret_cast<uint32_t*>(args[0].ptr());
-  DirectHandle<JSObject> constructors(Cast<JSObject>(args[1]), isolate);
+  DirectHandle<Object> constructors(args[1], isolate);
   DirectHandle<WasmTrustedInstanceData> instance(
       TrustedCast<WasmTrustedInstanceData>(args[2]), isolate);
 

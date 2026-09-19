@@ -86,6 +86,7 @@ class VideoRtpReceiver : public RtpReceiverInternal {
   void SetupUnsignaledMediaChannel() override;
   std::optional<uint32_t> ssrc() const override;
   void NotifyFirstPacketReceived() override;
+  void NotifyFirstPacketReceivedAfterReceptiveChange() override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
   void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) override;

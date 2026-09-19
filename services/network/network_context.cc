@@ -3650,6 +3650,8 @@ void NetworkContext::AddQuicHints(
   }
 }
 
+<<<<<<< HEAD
+=======
 void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
   ip_protection::IpProxyStatus status =
       ip_protection::IpProxyStatus::kUnavailable;
@@ -3685,6 +3687,7 @@ void NetworkContext::SetBypassIpProtectionProxy(bool bypass_proxy) {
 #endif
 }
 
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
     const GURL& url) const {

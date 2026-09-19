@@ -11,9 +11,12 @@
 
 #include <fcntl.h>
 #include <stddef.h>
+#include <unistd.h>
 
 #include <unordered_map>
 
+<<<<<<< HEAD
+=======
 #if BUILDFLAG(IS_COBALT)
 #include "base/containers/flat_map.h"
 #include "base/posix/eintr_wrapper.h"
@@ -23,10 +26,12 @@
 #endif
 
 #include "base/files/file_util.h"
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/files/scoped_file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/memory/page_size.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
 

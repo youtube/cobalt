@@ -59,8 +59,8 @@ import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator;
-import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripHeightObserver;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionDelegate;
+import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
@@ -199,7 +199,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             @Nullable HomeButtonDisplay homeButtonDisplay,
             @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
             TopControlsStacker topControlsStacker,
-            BrowserControlsStateProvider browserControlsStateProvider) {
+            BrowserControlsStateProvider browserControlsStateProvider,
+            Supplier<Integer> incognitoWindowCountSupplier) {
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
         mControlContainer = controlContainer;
@@ -275,7 +276,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                 homeButtonDisplay,
                 extensionToolbarCoordinator,
                 normalThemeColorProvider,
-                incognitoStateProvider);
+                incognitoStateProvider,
+                incognitoWindowCountSupplier);
         mAppMenuButtonHelperSupplier = appMenuButtonHelperSupplier;
         new OneShotCallback<>(mAppMenuButtonHelperSupplier, this::setAppMenuButtonHelper);
         homepageEnabledSupplier.addObserver(
@@ -315,6 +317,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      * @param progressInfoCallback Callback when progress bar DrawingInfo has an update.
      * @param captureResourceIdSupplier Provides an id for the captured resource shown by the
      *     compositor.
+     * @param tabStripTransitionHandler Handler that response to tab strip transition.
      */
     public void initializeWithNative(
             Profile profile,
@@ -328,7 +331,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             ObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
             ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             Callback<DrawingInfo> progressInfoCallback,
-            ObservableSupplier<Long> captureResourceIdSupplier) {
+            ObservableSupplier<Long> captureResourceIdSupplier,
+            TabStripTransitionHandler tabStripTransitionHandler) {
         mTrackerSupplier.set(TrackerFactory.getTrackerForProfile(profile));
         mToolbarLayout.setTabCountSupplier(mTabCountSupplier);
         getLocationBar().updateVisualsForState();
@@ -377,7 +381,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                         tabStripHeightResource,
                         mTabObscuringHandler,
                         mDesktopWindowStateManager,
-                        mTabStripTransitionDelegateSupplier);
+                        mTabStripTransitionDelegateSupplier,
+                        tabStripTransitionHandler);
         mToolbarLayout.getContext().registerComponentCallbacks(mTabStripTransitionCoordinator);
         mToolbarLayout.setTabStripTransitionCoordinator(mTabStripTransitionCoordinator);
     }
@@ -406,18 +411,6 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      */
     public void removeOnAttachStateChangeListener(View.OnAttachStateChangeListener listener) {
         mToolbarLayout.removeOnAttachStateChangeListener(listener);
-    }
-
-    /** Add an observer that listens to tab strip height update. */
-    public void addTabStripHeightObserver(TabStripHeightObserver observer) {
-        if (mTabStripTransitionCoordinator == null) return;
-        mTabStripTransitionCoordinator.addObserver(observer);
-    }
-
-    /** Remove the observer that listens to tab strip height update. */
-    public void removeTabStripHeightObserver(TabStripHeightObserver observer) {
-        if (mTabStripTransitionCoordinator == null) return;
-        mTabStripTransitionCoordinator.removeObserver(observer);
     }
 
     /**

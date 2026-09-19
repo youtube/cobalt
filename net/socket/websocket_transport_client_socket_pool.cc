@@ -32,17 +32,16 @@
 namespace net {
 
 WebSocketTransportClientSocketPool::WebSocketTransportClientSocketPool(
-    int max_sockets,
-    int max_sockets_per_group,
+    size_t socket_soft_cap,
     SocketPoolAdditionalCapacity additional_capacity,
     const ProxyChain& proxy_chain,
     const CommonConnectJobParams* common_connect_job_params)
-    : ClientSocketPool(additional_capacity,
+    : ClientSocketPool(socket_soft_cap,
+                       additional_capacity,
                        /*is_for_websockets=*/true,
                        common_connect_job_params,
                        std::make_unique<ConnectJobFactory>()),
-      proxy_chain_(proxy_chain),
-      max_sockets_(max_sockets) {
+      proxy_chain_(proxy_chain) {
   DCHECK(common_connect_job_params->websocket_endpoint_lock_manager);
 }
 
@@ -50,7 +49,7 @@ WebSocketTransportClientSocketPool::~WebSocketTransportClientSocketPool() {
   // Clean up any pending connect jobs.
   FlushWithError(ERR_ABORTED, "");
   CHECK(pending_connects_.empty());
-  CHECK_EQ(0, handed_out_socket_count_);
+  CHECK_EQ(0u, handed_out_socket_count_);
   CHECK(stalled_request_queue_.empty());
   CHECK(stalled_request_map_.empty());
 }
@@ -137,7 +136,7 @@ int WebSocketTransportClientSocketPool::RequestSockets(
     const GroupId& group_id,
     scoped_refptr<SocketParams> params,
     const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
-    int num_sockets,
+    size_t num_sockets,
     bool fail_if_alias_requires_proxy_override,
     CompletionOnceCallback callback,
     const NetLogWithSource& net_log) {
@@ -182,7 +181,7 @@ void WebSocketTransportClientSocketPool::ReleaseSocket(
     const GroupId& group_id,
     std::unique_ptr<StreamSocket> socket,
     int64_t generation) {
-  CHECK_GT(handed_out_socket_count_, 0);
+  CHECK_GT(handed_out_socket_count_, 0u);
   --handed_out_socket_count_;
 
   ActivateStalledRequest();
@@ -228,7 +227,7 @@ void WebSocketTransportClientSocketPool::CloseIdleSocketsInGroup(
   // We have no idle sockets.
 }
 
-int WebSocketTransportClientSocketPool::IdleSocketCount() const {
+size_t WebSocketTransportClientSocketPool::IdleSocketCount() const {
   return 0;
 }
 
@@ -254,12 +253,12 @@ base::Value WebSocketTransportClientSocketPool::GetInfoAsValue(
       base::Value::Dict()
           .Set("name", name)
           .Set("type", type)
-          .Set("handed_out_socket_count", handed_out_socket_count_)
+          .Set("handed_out_socket_count",
+               static_cast<int>(handed_out_socket_count_))
           .Set("connecting_socket_count",
                static_cast<int>(pending_connects_.size()))
           .Set("idle_socket_count", 0)
-          .Set("max_socket_count", max_sockets_)
-          .Set("max_sockets_per_group", max_sockets_)
+          .Set("socket_soft_cap", static_cast<int>(SocketSoftCap()))
           .Set("additional_capacity", std::string(AdditionalCapacity()));
   return base::Value(std::move(dict));
 }
@@ -380,9 +379,8 @@ void WebSocketTransportClientSocketPool::InvokeUserCallback(
 }
 
 bool WebSocketTransportClientSocketPool::ReachedMaxSocketsLimit() const {
-  return handed_out_socket_count_ >= max_sockets_ ||
-         base::checked_cast<int>(pending_connects_.size()) >=
-             max_sockets_ - handed_out_socket_count_;
+  return handed_out_socket_count_ >= SocketSoftCap() ||
+         pending_connects_.size() >= SocketSoftCap() - handed_out_socket_count_;
 }
 
 void WebSocketTransportClientSocketPool::HandOutSocket(

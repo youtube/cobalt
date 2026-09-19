@@ -263,7 +263,7 @@ BASE_FEATURE(kBocaScreenSharingTeacher, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBocaScreenSharingStudent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables sharing host audio in the Boca app.
-BASE_FEATURE(kBocaHostAudio, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBocaHostAudio, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables using audio for the Kiosk client in the Boca app.
 BASE_FEATURE(kBocaAudioForKiosk, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1053,9 +1053,6 @@ BASE_FEATURE(kHelpAppOpensInsteadOfReleaseNotesNotification,
 // is dependent on the 'ScalableIph' feature being enabled as well.
 BASE_FEATURE(kHelpAppWelcomeTips, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enable ChromeOS hibernation features.
-BASE_FEATURE(kHibernate, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables a warning about connecting to hidden WiFi networks.
 // https://crbug.com/903908
 BASE_FEATURE(kHiddenNetworkWarning, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1068,8 +1065,6 @@ BASE_FEATURE(kHideShelfControlsInTabletMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, add Hindi Inscript keyboard layout.
 BASE_FEATURE(kHindiInscriptLayout, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kHomeButtonQuickAppAccess, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Helpful notifications for devices with Hybrid Chargers.
 BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1107,12 +1102,6 @@ BASE_FEATURE(kImeRuleConfig, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables IME downloader experiment logic.
 BASE_FEATURE(kImeDownloaderExperiment, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, use the updated logic for downloading IME artifacts.
-BASE_FEATURE(kImeDownloaderUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, use the updated parameters for the decoder.
-BASE_FEATURE(kImeFstDecoderParamsUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled use experimental US English IME language model.
 BASE_FEATURE(kImeUsEnglishExperimentalModel, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1342,12 +1331,6 @@ constexpr base::FeatureParam<MantisModel>::Option mantis_model_options[] = {
 const base::FeatureParam<MantisModel> kMediaAppImageMantisModelParams{
     &kMediaAppImageMantisModel, "mantis_model", MantisModel::V2,
     &mantis_model_options};
-
-// Controls whether to enable the requirement of a minimum chrome version on the
-// device through the policy DeviceMinimumVersion. If the requirement is
-// not met and the warning time in the policy has expired, the user is
-// restricted from using the session.
-BASE_FEATURE(kMinimumChromeVersion, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables to split left and right modifiers in settings.
 BASE_FEATURE(kModifierSplit, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1767,6 +1750,9 @@ BASE_FEATURE(kQuickUnlockFingerprint, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kQuickUnlockPinAutosubmitBackfill,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables reordering of screens in the recovery flow.
+BASE_FEATURE(kRecoveryFlowReorder, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables or disables Release Notes notifications on non-stable ChromeOS
 // channels. Used for testing.
 BASE_FEATURE(kReleaseNotesNotificationAllChannels,
@@ -1797,9 +1783,6 @@ BASE_FEATURE(kResetShortcutCustomizations, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables ChromeOS scalable IPH.
 BASE_FEATURE(kScalableIph, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables debug feature of ChromeOS Scalable Iph.
-BASE_FEATURE(kScalableIphDebug, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Set all ScalableIph client side config to tracking only config.
 BASE_FEATURE(kScalableIphTrackingOnly, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1944,7 +1927,7 @@ BASE_FEATURE(kSingleCaCertVerificationPhase1, base::FEATURE_ENABLED_BY_DEFAULT);
 // Use a single CA cert for the EAP network if CA cert was selected, no
 // fallback.
 BASE_FEATURE(kSingleCaCertVerificationPhase2,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls enabling/disabling the Sunfish feature.
 BASE_FEATURE(kSunfishFeature, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2909,17 +2892,8 @@ bool IsHeliumArcvmKioskDevModeEnabled() {
          base::FeatureList::IsEnabled(kHeliumArcvmKioskDevMode);
 }
 
-bool IsHibernateEnabled() {
-  return base::FeatureList::IsEnabled(kHibernate);
-}
-
 bool IsHideShelfControlsInTabletModeEnabled() {
   return base::FeatureList::IsEnabled(kHideShelfControlsInTabletMode);
-}
-
-bool IsHomeButtonQuickAppAccessEnabled() {
-  return base::FeatureList::IsEnabled(kHomeButtonQuickAppAccess) ||
-         base::FeatureList::IsEnabled(kQuickAppAccessTestUI);
 }
 
 bool IsHybridChargerNotificationsEnabled() {
@@ -3058,10 +3032,6 @@ bool IsProductivityLauncherImageSearchEnabled() {
 
 bool IsMacAddressRandomizationEnabled() {
   return base::FeatureList::IsEnabled(kMacAddressRandomization);
-}
-
-bool IsMinimumChromeVersionEnabled() {
-  return base::FeatureList::IsEnabled(kMinimumChromeVersion);
 }
 
 bool IsMultiCalendarSupportEnabled() {
@@ -3325,6 +3295,10 @@ bool IsQuickDimEnabled() {
   return base::FeatureList::IsEnabled(kQuickDim) && switches::HasHps();
 }
 
+bool IsRecoveryFlowReorderEnabled() {
+  return base::FeatureList::IsEnabled(kRecoveryFlowReorder);
+}
+
 bool IsRenderArcNotificationsByChromeEnabled() {
   return base::FeatureList::IsEnabled(kRenderArcNotificationsByChrome);
 }
@@ -3347,10 +3321,6 @@ bool IsSameAppWindowCycleEnabled() {
 
 bool IsScalableIphEnabled() {
   return base::FeatureList::IsEnabled(kScalableIph);
-}
-
-bool IsScalableIphDebugEnabled() {
-  return base::FeatureList::IsEnabled(kScalableIphDebug);
 }
 
 bool IsScalableIphTrackingOnlyEnabled() {

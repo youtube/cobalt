@@ -5,6 +5,8 @@
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller.h"
 
 #import "components/password_manager/core/browser/ui/affiliated_group.h"
+#import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/credential_exchange/ui/credential_export_constants.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller_presentation_delegate.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_view_controller_items.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
@@ -28,6 +30,9 @@ const NSInteger kCredentialExportItemType = 0;
 
   // The complete list of credential items to be displayed.
   NSArray<AffiliatedGroupTableViewItem*>* _items;
+
+  // Toolbar button to toggle selecting or deselecting all credential items.
+  UIBarButtonItem* _toggleAllButton;
 }
 
 - (instancetype)init {
@@ -40,11 +45,9 @@ const NSInteger kCredentialExportItemType = 0;
   [super viewDidLoad];
 
   self.title = l10n_util::GetNSString(IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS);
-  self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                           target:self
-                           action:@selector(didTapDone)];
-  self.navigationItem.rightBarButtonItem.enabled = NO;
+
+  self.navigationItem.rightBarButtonItem = [self createContinueButton];
+  _toggleAllButton = [self createToggleAllButton];
 
   self.tableView.allowsMultipleSelectionDuringEditing = YES;
   self.tableView.editing = YES;
@@ -52,7 +55,24 @@ const NSInteger kCredentialExportItemType = 0;
          forCellReuseIdentifier:NSStringFromClass(
                                     [PasswordFormContentCell class])];
 
+  // Add a flexible space to ensure the button remains left-aligned.
+  UIBarButtonItem* flexibleSpace = [[UIBarButtonItem alloc]
+      initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
+                           target:nil
+                           action:nil];
+  self.toolbarItems = @[ _toggleAllButton, flexibleSpace ];
+
   [self configureDataSource];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+  [super viewWillAppear:animated];
+  [self.navigationController setToolbarHidden:NO animated:animated];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+  [super viewWillDisappear:animated];
+  [self.navigationController setToolbarHidden:YES animated:animated];
 }
 
 #pragma mark - Actions
@@ -60,6 +80,17 @@ const NSInteger kCredentialExportItemType = 0;
 - (void)didTapDone {
   // TODO(crbug.com/449701042): Handle credentials selection
   [self.delegate userDidStartExport];
+}
+
+- (void)didTapToggleAllButton {
+  NSUInteger selectedCount = self.tableView.indexPathsForSelectedRows.count;
+  NSUInteger totalCount = _items.count;
+
+  if (selectedCount == totalCount) {
+    [self deselectAllItems];
+  } else {
+    [self selectAllItems];
+  }
 }
 
 #pragma mark - CredentialExportConsumer
@@ -100,12 +131,12 @@ const NSInteger kCredentialExportItemType = 0;
 
 - (void)tableView:(UITableView*)tableView
     didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
-  [self updateTitleAndContinueButton];
+  [self updateUIForSelection];
 }
 
 - (void)tableView:(UITableView*)tableView
     didDeselectRowAtIndexPath:(NSIndexPath*)indexPath {
-  [self updateTitleAndContinueButton];
+  [self updateUIForSelection];
 }
 
 #pragma mark - Private
@@ -164,11 +195,13 @@ const NSInteger kCredentialExportItemType = 0;
 }
 
 // TODO(crbug.com/454566693): Add EGTest.
-// Enables the Continue button if at least one item is selected. Sets the title
-// to the default string when selection is empty, or to the number of selected
-// items otherwise.
-- (void)updateTitleAndContinueButton {
+// Updates the title, "Continue" button state, and "Select All" button text
+// based on the current number of selected items.
+- (void)updateUIForSelection {
+  CHECK(_items.count > 0U);
+
   NSUInteger selectedCount = self.tableView.indexPathsForSelectedRows.count;
+  NSUInteger totalCount = _items.count;
 
   self.navigationItem.rightBarButtonItem.enabled = (selectedCount > 0);
 
@@ -178,6 +211,14 @@ const NSInteger kCredentialExportItemType = 0;
     self.title = l10n_util::GetPluralNSStringF(
         IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_COUNT, selectedCount);
   }
+
+  if (selectedCount == totalCount) {
+    _toggleAllButton.title = l10n_util::GetNSString(
+        IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_DESELECT_ALL_BUTTON);
+  } else {
+    _toggleAllButton.title = l10n_util::GetNSString(
+        IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_SELECT_ALL_BUTTON);
+  }
 }
 
 // Selects all rows in the table view.
@@ -185,7 +226,7 @@ const NSInteger kCredentialExportItemType = 0;
   NSInteger sectionIndex = [[_dataSource snapshot]
       indexOfSectionIdentifier:kCredentialSectionIdentifier];
   if (sectionIndex == NSNotFound) {
-    [self updateTitleAndContinueButton];
+    [self updateUIForSelection];
     return;
   }
 
@@ -197,7 +238,41 @@ const NSInteger kCredentialExportItemType = 0;
                                 animated:NO
                           scrollPosition:UITableViewScrollPositionNone];
   }
-  [self updateTitleAndContinueButton];
+  [self updateUIForSelection];
+}
+
+// Deselects all rows in the table view.
+- (void)deselectAllItems {
+  for (NSIndexPath* indexPath in self.tableView.indexPathsForSelectedRows) {
+    [self.tableView deselectRowAtIndexPath:indexPath animated:NO];
+  }
+  [self updateUIForSelection];
+}
+
+// Creates the button that toggles between selecting and deselecting all items.
+- (UIBarButtonItem*)createToggleAllButton {
+  UIBarButtonItem* button = [[UIBarButtonItem alloc]
+      initWithTitle:l10n_util::GetNSString(
+                        IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_SELECT_ALL_BUTTON)
+              style:UIBarButtonItemStylePlain
+             target:self
+             action:@selector(didTapToggleAllButton)];
+  button.accessibilityIdentifier =
+      kCredentialExportSelectAllButtonAccessibilityIdentifier;
+  return button;
+}
+
+// Creates the "Continue" button for the navigation bar.
+- (UIBarButtonItem*)createContinueButton {
+  UIBarButtonItem* button = [[UIBarButtonItem alloc]
+      initWithTitle:l10n_util::GetNSString(IDS_CONTINUE)
+              style:UIBarButtonItemStyleProminent
+             target:self
+             action:@selector(didTapDone)];
+  button.accessibilityIdentifier =
+      kCredentialExportContinueButtonAccessibilityIdentifier;
+  button.enabled = NO;
+  return button;
 }
 
 @end

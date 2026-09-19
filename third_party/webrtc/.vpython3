@@ -31,6 +31,13 @@ wheel: <
   version: "version:5.8.0.chromium.3"
 >
 
+# Used by:
+#   third_party/catapult
+wheel: <
+  name: "infra/python/wheels/packaging-py2_py3"
+  version: "version:16.8"
+>
+
 # Used by tools_webrtc/perf/process_perf_results.py.
 wheel: <
   name: "infra/python/wheels/httplib2-py3"
@@ -80,7 +87,7 @@ wheel: <
 >
 wheel: <
   name: "infra/python/wheels/protobuf-py3"
-  version: "version:6.32.0"
+  version: "version:6.33.0"
 >
 wheel: <
   name: "infra/python/wheels/requests-py3"

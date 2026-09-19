@@ -19,7 +19,8 @@ namespace webrtc {
 
 ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
     : min_ref_window("MinRefWindow", DataSize::Bytes(3000)),
-      l4s_avg_g("L4sAvgG", 1.0 / 16.0),
+      l4s_avg_g_up("L4sAvgGUp", 1.0 / 8.0),
+      l4s_avg_g_down("L4sAvgGDown", 1.0 / 128.0),
       max_segment_size("MaxSegmentSize", DataSize::Bytes(1000)),
       bytes_in_flight_head_room("BytesInFlightHeadRoom", 1.1),
       beta_loss("BetaLoss", 0.7),
@@ -51,7 +52,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       periodic_padding_interval("PeriodicPadding", TimeDelta::Seconds(10)),
       periodic_padding_duration("PaddingDuration", TimeDelta::Seconds(1)) {
   ParseFieldTrial({&min_ref_window,
-                   &l4s_avg_g,
+                   &l4s_avg_g_up,
+                   &l4s_avg_g_down,
                    &max_segment_size,
                    &bytes_in_flight_head_room,
                    &beta_loss,

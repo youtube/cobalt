@@ -1452,11 +1452,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   TailCallBuiltin(Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame));
 }
 
-namespace {
-
-
-}  // namespace
-
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
   if (v8_flags.debug_code) {
@@ -2712,7 +2707,7 @@ void MacroAssembler::SmiUntagUnsigned(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    AssertSignedBitOfSmiIsZero(reg);
+    AssertSignBitOfSmiIsZero(reg);
     shrl(reg, Immediate(kSmiShift));
   } else {
     shrq(reg, Immediate(kSmiShift));
@@ -2756,7 +2751,7 @@ void MacroAssembler::SmiUntagUnsigned(Register dst, Operand src) {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
       movl(dst, src);
-      AssertSignedBitOfSmiIsZero(dst);
+      AssertSignBitOfSmiIsZero(dst);
       shrl(dst, Immediate(kSmiShift));
     } else {
       movq(dst, src);
@@ -4069,12 +4064,15 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
   Check(below_equal, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
-void MacroAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
+void MacroAssembler::AssertSignBitOfSmiIsZero(Register smi_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   DCHECK(COMPRESS_POINTERS_BOOL);
-  testl(smi_register, Immediate(int32_t{0x10000000}));
-  Check(zero, AbortReason::kSignedBitOfSmiIsNotZero);
+  constexpr int kSmiShiftBits = kSmiTagSize + kSmiShiftSize;
+  constexpr Tagged_t kSmiSignBit = Tagged_t{1}
+                               << (kSmiShiftBits + kSmiValueSize - 1);
+  testl(smi_register, Immediate(static_cast<uint32_t>(kSmiSignBit)));
+  Check(zero, AbortReason::kSignBitOfSmiIsNotZero);
 }
 
 void MacroAssembler::AssertMap(Register object) {
@@ -4945,25 +4943,12 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   leaq(dst, Operand(&current, -pc));
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
+void MacroAssembler::AssertNotDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    LoadProtectedPointerField(
-        scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
-    TestCodeIsMarkedForDeoptimization(scratch);
-  }
-  if (v8_flags.debug_code) {
-    Assert(zero, AbortReason::kInvalidDeoptimizedCode);
-  }
+  LoadProtectedPointerField(scratch,
+                            Operand(kJavaScriptCallCodeStartRegister, offset));
+  TestCodeIsMarkedForDeoptimization(scratch);
+  Assert(zero, AbortReason::kInvalidDeoptimizedCode);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

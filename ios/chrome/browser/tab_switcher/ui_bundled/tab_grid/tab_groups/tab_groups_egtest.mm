@@ -679,7 +679,8 @@ void TapTabGridEditButton() {
   [self testMovingBetweenGroupsUsingGridContextMenuInGrid:/*incognito*/ NO];
 }
 
-- (void)testMovingBetweenGroupsUsingGridContextMenuInIncognitoGrid {
+// TODO(crbug.com/460748104): Test is flaky.
+- (void)FLAKY_testMovingBetweenGroupsUsingGridContextMenuInIncognitoGrid {
   [self testMovingBetweenGroupsUsingGridContextMenuInGrid:/*incognito*/ YES];
 }
 
@@ -1328,7 +1329,13 @@ void TapTabGridEditButton() {
 
 // Tests that the TabGrid is correctly updated when it was presenting a group
 // before being backgrounded while incognito reauth is enabled.
-- (void)testIncognitoReauth {
+// TODO(crbug.com/459852252): Test fails on iPad simulator.
+#if TARGET_IPHONE_SIMULATOR
+#define MAYBE_testIncognitoReauth DISABLED_testIncognitoReauth
+#else
+#define MAYBE_testIncognitoReauth testIncognitoReauth
+#endif
+- (void)MAYBE_testIncognitoReauth {
   [ChromeEarlGrey openNewIncognitoTab];
   [ChromeEarlGreyUI openTabGrid];
 

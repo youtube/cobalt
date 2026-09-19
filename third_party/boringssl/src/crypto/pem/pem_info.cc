@@ -194,10 +194,12 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
       data = nullptr;
     } else if (parse_function != nullptr) {
       EVP_CIPHER_INFO cipher;
+      size_t len_sz = static_cast<size_t>(len);
       if (!PEM_get_EVP_CIPHER_INFO(header, &cipher) ||
-          !PEM_do_header(&cipher, data, &len, cb, u)) {
+          !PEM_do_header(&cipher, data, &len_sz, cb, u)) {
         goto err;
       }
+      len = static_cast<long>(len_sz);
       enum parse_result_t result = parse_function(info, data, len, key_type);
       if (result == parse_new_entry) {
         if (!sk_X509_INFO_push(ret, info)) {

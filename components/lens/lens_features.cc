@@ -90,6 +90,8 @@ BASE_FEATURE(kLensOverlayStraightToSrp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchAimM3, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLensSearchAimM3EnUs, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kLensSearchAimM3UseAimEligibility,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchReinvocationAffordance,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -106,6 +108,9 @@ BASE_FEATURE(kLensSidePanelEnableWebviewResults,
 
 BASE_FEATURE(kLensAimSuggestions, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensAimSuggestionsGradientBackground,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kLensSearchZeroStateCsb, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensVideoCitations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -113,6 +118,9 @@ BASE_FEATURE(kLensVideoCitations, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLensUpdatedFeedbackEntrypoint, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayOptimizationFilter, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayNonBlockingPrivacyNotice,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
     &kLensUpdatedFeedbackEntrypoint, "feedback-toast-timeout-ms", 8000};
@@ -571,6 +579,26 @@ std::string_view LensAimSuggestionModeToString(
     default:
       NOTREACHED();
   }
+}
+
+const base::FeatureParam<int> kAimSuggestionsCount{
+    &kLensAimSuggestions, "number-of-aim-suggestions", 8};
+
+const base::FeatureParam<bool> kEnableAimTypeaheadSuggestions{
+    &kLensAimSuggestions, "enable-typeahead-suggestions", false};
+
+const base::FeatureParam<bool> kClearVsintWhenNoRegionSelection{
+    &kLensAimSuggestions, "clear-vsint-when-no-region-selection", true};
+
+constexpr base::FeatureParam<base::TimeDelta> kLensAimSuggestionTimeout{
+    &kLensAimSuggestions, "lens-aim-suggestion-timeout",
+    base::Milliseconds(10000)};
+
+int GetLensAimSuggestionsCount() {
+  if (!GetAimSuggestionsEnabled()) {
+    return 0;
+  }
+  return kAimSuggestionsCount.Get();
 }
 
 std::string GetHomepageURLForLens() {
@@ -1060,11 +1088,28 @@ bool GetAimSuggestionsEnabled() {
              LensAimSuggestionsType::kNone;
 }
 
+bool GetAimSuggestionsGradientBackgroundEnabled() {
+  return GetAimSuggestionsEnabled() &&
+         base::FeatureList::IsEnabled(kLensAimSuggestionsGradientBackground);
+}
+
 LensAimSuggestionsType GetLensAimSuggestionsType() {
   if (!GetAimSuggestionsEnabled()) {
     return LensAimSuggestionsType::kNone;
   }
   return kLensAimSuggestionsType.Get();
+}
+
+base::TimeDelta GetLensAimSuggestionTimeout() {
+  return kLensAimSuggestionTimeout.Get();
+}
+
+bool IsLensAimTypeAheadSuggestionsEnabled() {
+  return GetAimSuggestionsEnabled() && kEnableAimTypeaheadSuggestions.Get();
+}
+
+bool ClearVsintWhenNoRegionSelection() {
+  return GetAimSuggestionsEnabled() && kClearVsintWhenNoRegionSelection.Get();
 }
 
 bool ShouldCloseOverlayOnAimTransition() {
@@ -1237,6 +1282,10 @@ int GetLensUpdatedFeedbackToastTimeoutMs() {
 
 bool IsLensOverlayOptimizationFilterEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayOptimizationFilter);
+}
+
+bool IsLensOverlayNonBlockingPrivacyNoticeEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayNonBlockingPrivacyNotice);
 }
 
 }  // namespace lens::features

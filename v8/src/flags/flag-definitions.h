@@ -718,11 +718,7 @@ DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_untagged_phis, true,
             "enable phi untagging in the maglev optimizing compiler")
-// The maglev_hoist_osr_value_phi_untagging flag can hoist untaggings over
-// ThrowReferenceErrorIfHole and thus causes a map check on the hole.
-// As such it is incompatible with unmap_holes.
-DEFINE_NEG_IMPLICATION(unmap_holes, maglev_hoist_osr_value_phi_untagging)
-DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, false,
+DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
     maglev_speculative_hoist_phi_untagging,
@@ -750,6 +746,8 @@ DEFINE_BOOL(maglev_print_feedback, true,
             "print feedback vector for maglev compiled code")
 DEFINE_BOOL(maglev_print_inlined, true,
             "print bytecode / feedback vectors also for inlined code")
+DEFINE_BOOL(maglev_print_provenance, true,
+            "print Maglev node provenance, ie, file name, bytecode and offset")
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)
@@ -2365,10 +2363,6 @@ DEFINE_BOOL(trace_mutator_utilization, false,
             "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
-DEFINE_BOOL(incremental_marking_start_user_visible, true,
-            "Starts incremental marking with kUserVisible priority.")
-DEFINE_BOOL(incremental_marking_always_user_visible, true,
-            "Always posts incremental marking with kUserVisible priority.")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
            "threshold for starting incremental marking via a task in percent "
            "of available space: limit - size")
@@ -2879,6 +2873,17 @@ DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 DEFINE_BOOL(external_reference_stats, false,
             "print statistics on external references used during serialization")
 #endif  // DEBUG
+
+#ifdef V8_DUMPLING
+// Dumpling flags start.
+DEFINE_BOOL(interpreter_dumping, false,
+            "enable frame dumping in the interpreter")
+// Needed for function id.
+DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
+DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
+              "File to save the frame dumps to")
+// Dumpling flags end.
+#endif  // V8_DUMPLING
 
 // compilation-cache.cc
 DEFINE_BOOL(compilation_cache, true, "enable compilation cache")

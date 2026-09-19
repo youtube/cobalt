@@ -116,12 +116,6 @@ BASE_FEATURE(kSplitCacheByIncludeCredentials,
 BASE_FEATURE(kSplitCacheByNetworkIsolationKey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Note: Use of this feature is gated on the HTTP cache itself being
-// partitioned, which is controlled by the kSplitCacheByNetworkIsolationKey
-// feature.
-BASE_FEATURE(kSplitCacheByCrossSiteMainFrameNavigationBoolean,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSplitCodeCacheByNetworkIsolationKey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -385,12 +379,6 @@ const base::FeatureParam<bool> kIpPrivacyUseQuicProxiesOnly{
     /*name=*/"IpPrivacyUseQuicProxiesOnly",
     /*default_value=*/false};
 
-const base::FeatureParam<bool>
-    kIpPrivacyUseQuicProxiesWithoutWaitingForConnectResponse{
-        &kEnableIpProtectionProxy,
-        /*name=*/"IpPrivacyUseQuicProxiesWithoutWaitingForConnectResponse",
-        /*default_value=*/false};
-
 const base::FeatureParam<bool> kIpPrivacyFallbackToDirect{
     &kEnableIpProtectionProxy,
     /*name=*/"IpPrivacyFallbackToDirect",
@@ -630,6 +618,11 @@ BASE_FEATURE_PARAM(int,
                    &kDiskCacheBackendExperiment,
                    "SqlDiskCacheShardCount",
                    3);
+BASE_FEATURE_PARAM(bool,
+                   kSqlDiskCacheLoadIndexOnInit,
+                   &kDiskCacheBackendExperiment,
+                   "SqlDiskCacheLoadIndexOnInit",
+                   false);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 BASE_FEATURE(kIgnoreHSTSForLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -845,5 +838,11 @@ BASE_FEATURE_PARAM(std::string,
 
 BASE_FEATURE(kDnsResponseDiscardPartialQuestions,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAddAutomaticWithDohFallbackMode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseQuicProxiesWithoutWaitingForConnectResponse,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace net::features

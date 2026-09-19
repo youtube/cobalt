@@ -14,10 +14,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /** The type of fulfillment for the autocomplete request. */
+// LINT.IfChange(AutocompleteRequestType)
 @IntDef({
     AutocompleteRequestType.SEARCH,
     AutocompleteRequestType.SEARCH_PREFETCH,
-    AutocompleteRequestType.AI_MODE
+    AutocompleteRequestType.AI_MODE,
+    AutocompleteRequestType.IMAGE_GENERATION
 })
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE_USE})
@@ -31,5 +33,12 @@ public @interface AutocompleteRequestType {
 
     /** AI-powered fulfillment. */
     int AI_MODE = 2;
+
+    /** Image generation. */
+    int IMAGE_GENERATION = 3;
+
+    int COUNT = 4;
     /* Note: account for new types in {@link NavigationAttachmentsCoordinator#doesRequestTypeOverrideUrlFulfillment}. */
 }
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:AutocompleteRequestType)

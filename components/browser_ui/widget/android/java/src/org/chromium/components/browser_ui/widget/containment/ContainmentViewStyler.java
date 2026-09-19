@@ -16,7 +16,7 @@ import java.util.List;
 
 /** A utility class for applying styles to views in settings. */
 @NullMarked
-class ContainmentViewStyler {
+public class ContainmentViewStyler {
 
     /**
      * Applies the specified background style to the given view.
@@ -24,7 +24,7 @@ class ContainmentViewStyler {
      * @param view The view to apply the background to.
      * @param style The {@link ContainerStyle} to apply.
      */
-    static void applyBackgroundStyle(View view, ContainerStyle style) {
+    public static void applyBackgroundStyle(View view, ContainerStyle style) {
         if (style == ContainerStyle.EMPTY) {
             view.setBackground(null);
             return;
@@ -40,7 +40,7 @@ class ContainmentViewStyler {
      * @param view The view to apply the margins to.
      * @param style The {@link ContainerStyle} to apply.
      */
-    static void applyMargins(View view, ContainerStyle style) {
+    public static void applyMargins(View view, ContainerStyle style) {
         if (style == ContainerStyle.EMPTY) return;
 
         ViewGroup.MarginLayoutParams layoutParams =
@@ -54,6 +54,42 @@ class ContainmentViewStyler {
     }
 
     /**
+     * Applies the specified padding to the given view.
+     *
+     * @param view The view to apply the padding to.
+     * @param style The {@link ContainerStyle} to apply.
+     */
+    static void applyPadding(View view, ContainerStyle style) {
+        if (style == ContainerStyle.EMPTY) return;
+
+        boolean innerContentPaddingNeutralized = false;
+        // Find the inner RelativeLayout and neutralize its vertical padding.
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                View child = viewGroup.getChildAt(i);
+                if (child instanceof android.widget.RelativeLayout) {
+                    View titleView = child.findViewById(android.R.id.title);
+                    if (titleView != null) {
+                        child.setPadding(0, 0, 0, 0);
+                        innerContentPaddingNeutralized = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Apply custom padding to the root view, conditionally.
+        if (innerContentPaddingNeutralized) {
+            view.setPadding(
+                    style.getHorizontalPadding(),
+                    style.getVerticalPadding(),
+                    style.getHorizontalPadding(),
+                    style.getVerticalPadding());
+        }
+    }
+
+    /**
      * Creates a rounded drawable with the specified top and bottom radii.
      *
      * @param topRadius The radius for the top corners.
@@ -61,7 +97,7 @@ class ContainmentViewStyler {
      * @param color The background color of the drawable.
      * @return A new {@link Drawable} with the specified properties.
      */
-    private static Drawable createRoundedDrawable(float topRadius, float bottomRadius, int color) {
+    public static Drawable createRoundedDrawable(float topRadius, float bottomRadius, int color) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setShape(GradientDrawable.RECTANGLE);
         drawable.setColor(color);
@@ -92,6 +128,7 @@ class ContainmentViewStyler {
         for (int i = 0; i < views.size(); i++) {
             applyBackgroundStyle(views.get(i), styles.get(i));
             applyMargins(views.get(i), styles.get(i));
+            applyPadding(views.get(i), styles.get(i));
         }
     }
 

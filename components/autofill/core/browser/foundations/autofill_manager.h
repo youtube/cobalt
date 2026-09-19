@@ -158,6 +158,9 @@ class AutofillManager
                                          FormGlobalId form,
                                          FieldGlobalId field) {}
 
+    virtual void OnBeforeFocusOnNonFormField(AutofillManager& manager) {}
+    virtual void OnAfterFocusOnNonFormField(AutofillManager& manager) {}
+
     virtual void OnBeforeSelectFieldOptionsDidChange(AutofillManager& manager,
                                                      FormGlobalId form) {}
     virtual void OnAfterSelectFieldOptionsDidChange(AutofillManager& manager,
@@ -256,7 +259,8 @@ class AutofillManager
                                     const FieldGlobalId& field_id);
   virtual void OnSelectControlSelectionChanged(const FormData& form,
                                                const FieldGlobalId& field_id);
-  virtual void OnSelectFieldOptionsDidChange(const FormData& form);
+  virtual void OnSelectFieldOptionsDidChange(const FormData& form,
+                                             const FieldGlobalId& field_id);
   virtual void OnFocusOnFormField(const FormData& form,
                                   const FieldGlobalId& field_id);
   void OnFocusOnNonFormField();
@@ -395,7 +399,9 @@ class AutofillManager
   virtual void OnSelectControlSelectionChangedImpl(
       const FormData& form,
       const FieldGlobalId& field_id) = 0;
-  virtual void OnSelectFieldOptionsDidChangeImpl(const FormData& form) = 0;
+  virtual void OnSelectFieldOptionsDidChangeImpl(
+      const FormData& form,
+      const FieldGlobalId& field_id) = 0;
   virtual void OnFocusOnFormFieldImpl(const FormData& form,
                                       const FieldGlobalId& field_id) = 0;
   virtual void OnFocusOnNonFormFieldImpl() = 0;
@@ -440,7 +446,7 @@ class AutofillManager
 
   // Logs the field types of `form` to chrome://autofill-internals and the
   // autofill-information attribute (if
-  // `features::test::kAutofillShowTypePredictions` is enabled).
+  // `features::debug::kAutofillShowTypePredictions` is enabled).
   void LogCurrentFieldTypes(
       std::variant<const FormData*, const FormStructure*> form);
 
@@ -496,6 +502,19 @@ class AutofillManager
   // Invoked when forms from OnFormsSeen() have been parsed to
   // |form_structures|.
   void OnFormsParsed(const std::vector<FormData>& forms);
+
+  // Updates `form_structures_` with the information in `forms` and `context`,
+  // if available. `context` is available when this function is called as a
+  // result of a parsing operation, `reason` is an indicator of that.
+  // If `preserve_signatures` is true, credit card forms have their
+  // `FormSignature`s preserved. `forms` might contain forms that are not in the
+  // cache (on pageload for example). In that case, the function creates and
+  // adds a `FormStructure` to the cache (`context` should not be `std::nullopt`
+  // in that case).
+  void UpdateFormCache(base::span<const FormData> forms,
+                       base::optional_ref<const AsyncContext> context,
+                       FormStructure::RetrieveFromCacheReason reason,
+                       bool preserve_signatures);
 
   std::unique_ptr<autofill_metrics::FormInteractionsUkmLogger>
   CreateFormInteractionsUkmLogger();

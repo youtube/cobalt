@@ -20,7 +20,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/plugins/chrome_plugin_service_filter.h"
 #include "chrome/browser/plugins/plugin_metadata.h"
-#include "chrome/browser/plugins/plugin_prefs.h"
 #include "chrome/browser/plugins/plugin_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_otr_state.h"
@@ -166,8 +165,7 @@ PluginInfoHostImpl::Context::Context(int render_process_id, Profile* profile)
       extension_registry_(extensions::ExtensionRegistry::Get(profile)),
 #endif
       host_content_settings_map_(
-          HostContentSettingsMapFactory::GetForProfile(profile)),
-      plugin_prefs_(PluginPrefs::GetForProfile(profile)) {
+          HostContentSettingsMapFactory::GetForProfile(profile)) {
 }
 
 PluginInfoHostImpl::Context::~Context() = default;
@@ -188,42 +186,33 @@ void PluginInfoHostImpl::ShutdownOnUIThread() {
 
 PluginInfoHostImpl::~PluginInfoHostImpl() = default;
 
-struct PluginInfoHostImpl::GetPluginInfo_Params {
-  GURL url;
-  url::Origin main_frame_origin;
-  std::string mime_type;
-};
-
 void PluginInfoHostImpl::GetPluginInfo(const GURL& url,
                                        const url::Origin& origin,
                                        const std::string& mime_type,
                                        GetPluginInfoCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  GetPluginInfo_Params params = {url, origin, mime_type};
-  PluginService::GetInstance()->GetPlugins(
-      base::BindOnce(&PluginInfoHostImpl::PluginsLoaded,
-                     weak_factory_.GetWeakPtr(), params, std::move(callback)));
-}
-
-void PluginInfoHostImpl::PluginsLoaded(
-    const GetPluginInfo_Params& params,
-    GetPluginInfoCallback callback,
-    const std::vector<WebPluginInfo>& plugins) {
+  // Refresh plugins.
+  PluginService::GetInstance()->GetPlugins();
   chrome::mojom::PluginInfoPtr output = chrome::mojom::PluginInfo::New();
   // This also fills in |actual_mime_type|.
   std::unique_ptr<PluginMetadata> plugin_metadata;
-  if (context_.FindEnabledPlugin(params.url, params.mime_type, &output->status,
+  if (context_.FindEnabledPlugin(url, mime_type, &output->status,
                                  &output->plugin, &output->actual_mime_type,
                                  &plugin_metadata)) {
     // TODO(crbug.com/40164563): Simplify this once PDF is the only "plugin."
-    context_.DecidePluginStatus(params.url, params.main_frame_origin,
-                                output->plugin,
+    context_.DecidePluginStatus(url, origin, output->plugin,
                                 plugin_metadata->security_status(),
                                 plugin_metadata->identifier(), &output->status);
   }
 
-  GetPluginInfoFinish(params, std::move(output), std::move(callback),
-                      std::move(plugin_metadata));
+  if (plugin_metadata) {
+    output->group_identifier = plugin_metadata->identifier();
+    output->group_name = plugin_metadata->name();
+  }
+
+  context_.MaybeGrantAccess(output->status, output->plugin.path);
+
+  std::move(callback).Run(std::move(output));
 }
 
 void PluginInfoHostImpl::Context::DecidePluginStatus(
@@ -292,11 +281,10 @@ bool PluginInfoHostImpl::Context::FindEnabledPlugin(
     std::unique_ptr<PluginMetadata>* plugin_metadata) const {
   *status = chrome::mojom::PluginStatus::kAllowed;
 
-  bool allow_wildcard = true;
   std::vector<WebPluginInfo> matching_plugins;
   std::vector<std::string> mime_types;
   PluginService::GetInstance()->GetPluginInfoArray(
-      url, mime_type, allow_wildcard, &matching_plugins, &mime_types);
+      url, mime_type, &matching_plugins, &mime_types);
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   std::erase_if(matching_plugins, [&](const WebPluginInfo& info) {
     return info.path.value() == ChromeContentClient::kNotPresent;
@@ -337,21 +325,6 @@ bool PluginInfoHostImpl::Context::FindEnabledPlugin(
   return enabled;
 }
 
-void PluginInfoHostImpl::GetPluginInfoFinish(
-    const GetPluginInfo_Params& params,
-    chrome::mojom::PluginInfoPtr output,
-    GetPluginInfoCallback callback,
-    std::unique_ptr<PluginMetadata> plugin_metadata) {
-  if (plugin_metadata) {
-    output->group_identifier = plugin_metadata->identifier();
-    output->group_name = plugin_metadata->name();
-  }
-
-  context_.MaybeGrantAccess(output->status, output->plugin.path);
-
-  std::move(callback).Run(std::move(output));
-}
-
 // static
 void PluginInfoHostImpl::EnsureFactoryBuilt() {
   PluginInfoHostImplShutdownNotifierFactory::GetInstance();
@@ -365,9 +338,4 @@ void PluginInfoHostImpl::Context::MaybeGrantAccess(
     ChromePluginServiceFilter::GetInstance()->AuthorizePlugin(
         render_process_id_, path);
   }
-}
-
-bool PluginInfoHostImpl::Context::IsPluginEnabled(
-    const content::WebPluginInfo& plugin) const {
-  return plugin_prefs_->IsPluginEnabled(plugin);
 }

@@ -636,7 +636,6 @@ source_set("browser_sources") {
     "//ui/events",
     "//ui/gl",
     "//ui/shell_dialogs",
-    "//ui/surface",
   ]
 
   if (is_cobalt) {

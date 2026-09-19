@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -119,6 +120,15 @@ PacerConfig PacerConfig::Create(Timestamp at_time,
   pacer_config.data_window = send_rate * pacer_config.rate_window();
   pacer_config.pad_window = pad_rate * pacer_config.rate_window();
   return pacer_config;
+}
+
+bool TransportPacketsFeedback::HasPacketWithEcnCe() const {
+  for (const PacketResult& fb : packet_feedbacks) {
+    if (fb.ecn == EcnMarking::kCe) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace webrtc

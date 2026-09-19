@@ -25,6 +25,7 @@ namespace contextual_search {
 enum class ContextualSearchSource {
   kUnknown,
   kNewTabPage,
+  kOmnibox,
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -85,6 +86,8 @@ class ContextualSearchMetricsRecorder {
   std::string MimeTypeToString(lens::MimeType mime_type);
   // Maps contextual search sources to its string version for histogram naming.
   std::string ContextualSearchSourceToString(ContextualSearchSource source);
+  // Maps submission types to its string version for histogram naming.
+  std::string SubmissionTypeToString(SubmissionType submission_type);
 
   // Records several metrics about the query, such the number of characters
   // found in the query.
@@ -96,6 +99,16 @@ class ContextualSearchMetricsRecorder {
   void RecordFileDeletedMetrics(bool success,
                                 lens::MimeType file_type,
                                 FileUploadStatus file_status);
+
+  void RecordTabClickedMetrics(bool has_duplicate_title,
+                               std::optional<int> recency_ranking);
+
+  void RecordTabContextMenuMetrics(int total_tab_count,
+                                   int duplicate_title_count);
+
+  void RecordToolsSubmissionType(SubmissionType submission_type);
+
+  void RecordToolState(SubmissionType submission_type, AimToolState tool_state);
 
  private:
   // Called when the session starts to correctly track session

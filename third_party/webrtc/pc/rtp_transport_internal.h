@@ -11,13 +11,14 @@
 #ifndef PC_RTP_TRANSPORT_INTERNAL_H_
 #define PC_RTP_TRANSPORT_INTERNAL_H_
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/transport/ecn_marking.h"
+#include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "pc/session_description.h"
 #include "rtc_base/async_packet_socket.h"
@@ -67,7 +68,9 @@ class RtpTransportInternal {
   // BaseChannel through the RtpDemuxer callback.
   void SubscribeRtcpPacketReceived(
       const void* tag,
-      absl::AnyInvocable<void(webrtc::CopyOnWriteBuffer*, int64_t)> callback) {
+      absl::AnyInvocable<void(CopyOnWriteBuffer,
+                              std::optional<Timestamp>,
+                              EcnMarking)> callback) {
     callback_list_rtcp_packet_received_.AddReceiver(tag, std::move(callback));
   }
   // There doesn't seem to be a need to unsubscribe from this signal.
@@ -142,9 +145,10 @@ class RtpTransportInternal {
 
  protected:
   void SendReadyToSend(bool arg) { callback_list_ready_to_send_.Send(arg); }
-  void SendRtcpPacketReceived(CopyOnWriteBuffer* buffer,
-                              int64_t packet_time_us) {
-    callback_list_rtcp_packet_received_.Send(buffer, packet_time_us);
+  void SendRtcpPacketReceived(CopyOnWriteBuffer packet,
+                              std::optional<Timestamp> arrival_time,
+                              EcnMarking ecn) {
+    callback_list_rtcp_packet_received_.Send(packet, arrival_time, ecn);
   }
   void NotifyUnDemuxableRtpPacketReceived(RtpPacketReceived& packet) {
     callback_undemuxable_rtp_packet_received_(packet);
@@ -161,7 +165,8 @@ class RtpTransportInternal {
 
  private:
   CallbackList<bool> callback_list_ready_to_send_;
-  CallbackList<CopyOnWriteBuffer*, int64_t> callback_list_rtcp_packet_received_;
+  CallbackList<CopyOnWriteBuffer, std::optional<Timestamp>, EcnMarking>
+      callback_list_rtcp_packet_received_;
   absl::AnyInvocable<void(RtpPacketReceived&)>
       callback_undemuxable_rtp_packet_received_ =
           [](RtpPacketReceived& packet) {};

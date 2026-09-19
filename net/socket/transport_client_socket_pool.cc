@@ -139,15 +139,15 @@ struct TransportClientSocketPool::IdleSocket {
 };
 
 TransportClientSocketPool::TransportClientSocketPool(
-    int max_sockets,
-    int max_sockets_per_group,
+    size_t socket_soft_cap,
+    size_t max_sockets_per_group,
     SocketPoolAdditionalCapacity additional_capacity,
     base::TimeDelta unused_idle_socket_timeout,
     const ProxyChain& proxy_chain,
     bool is_for_websockets,
     const CommonConnectJobParams* common_connect_job_params,
     bool cleanup_on_ip_address_change)
-    : TransportClientSocketPool(max_sockets,
+    : TransportClientSocketPool(socket_soft_cap,
                                 max_sockets_per_group,
                                 additional_capacity,
                                 unused_idle_socket_timeout,
@@ -167,8 +167,8 @@ TransportClientSocketPool::~TransportClientSocketPool() {
   FlushWithError(ERR_ABORTED, kSocketPoolDestroyed);
   DCHECK(group_map_.empty());
   DCHECK(pending_callback_map_.empty());
-  DCHECK_EQ(0, connecting_socket_count_);
-  DCHECK_EQ(0, handed_out_socket_count_);
+  DCHECK_EQ(0u, connecting_socket_count_);
+  DCHECK_EQ(0u, handed_out_socket_count_);
   CHECK(higher_pools_.empty());
 
   if (ssl_client_context_)
@@ -180,8 +180,8 @@ TransportClientSocketPool::~TransportClientSocketPool() {
 
 std::unique_ptr<TransportClientSocketPool>
 TransportClientSocketPool::CreateForTesting(
-    int max_sockets,
-    int max_sockets_per_group,
+    size_t socket_soft_cap,
+    size_t max_sockets_per_group,
     SocketPoolAdditionalCapacity additional_capacity,
     base::TimeDelta unused_idle_socket_timeout,
     base::TimeDelta used_idle_socket_timeout,
@@ -193,7 +193,7 @@ TransportClientSocketPool::CreateForTesting(
     bool connect_backup_jobs_enabled) {
   return base::WrapUnique<TransportClientSocketPool>(
       new TransportClientSocketPool(
-          max_sockets, max_sockets_per_group, additional_capacity,
+          socket_soft_cap, max_sockets_per_group, additional_capacity,
           unused_idle_socket_timeout, used_idle_socket_timeout, proxy_chain,
           is_for_websockets, common_connect_job_params,
           /*cleanup_on_ip_address_change=*/true, std::move(connect_job_factory),
@@ -218,16 +218,17 @@ TransportClientSocketPool::CallbackResultPair::operator=(
 TransportClientSocketPool::CallbackResultPair::~CallbackResultPair() = default;
 
 bool TransportClientSocketPool::IsStalled() const {
-  // If fewer than |max_sockets_| are in use, then clearly |this| is not
+  // If fewer than `SocketSoftCap()` are in use, then clearly `this` is not
   // stalled.
-  if ((handed_out_socket_count_ + connecting_socket_count_) < max_sockets_)
+  if ((handed_out_socket_count_ + connecting_socket_count_) < SocketSoftCap()) {
     return false;
-  // So in order to be stalled, |this| must be using at least |max_sockets_| AND
-  // |this| must have a request that is actually stalled on the global socket
-  // limit.  To find such a request, look for a group that has more requests
-  // than jobs AND where the number of sockets is less than
-  // |max_sockets_per_group_|.  (If the number of sockets is equal to
-  // |max_sockets_per_group_|, then the request is stalled on the group limit,
+  }
+  // So in order to be stalled, `this` must be using at least `SocketSoftCap()`
+  // AND `this` must have a request that is actually stalled on the global
+  // socket limit.  To find such a request, look for a group that has more
+  // requests than jobs AND where the number of sockets is less than
+  // `max_sockets_per_group_`.  (If the number of sockets is equal to
+  // `max_sockets_per_group_`, then the request is stalled on the group limit,
   // which does not count.)
   for (const auto& it : group_map_) {
     if (it.second->CanUseAdditionalSocketSlot(max_sockets_per_group_))
@@ -311,7 +312,7 @@ int TransportClientSocketPool::RequestSockets(
     const GroupId& group_id,
     scoped_refptr<SocketParams> params,
     const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
-    int num_sockets,
+    size_t num_sockets,
     bool fail_if_alias_requires_proxy_override,
     CompletionOnceCallback callback,
     const NetLogWithSource& net_log) {
@@ -385,7 +386,7 @@ int TransportClientSocketPool::RequestSockets(
   // TODO(crbug.com/40843081): Consider support error handlings when needed.
   if (pending_connect_job_count == 0)
     return OK;
-  for (int i = 0; i < num_sockets - pending_connect_job_count; ++i) {
+  for (size_t i = 0; i < num_sockets - pending_connect_job_count; ++i) {
     preconnect_done_closure.Run();
   }
 
@@ -655,7 +656,7 @@ void TransportClientSocketPool::CancelRequest(const GroupId& group_id,
 void TransportClientSocketPool::CloseIdleSockets(
     const char* net_log_reason_utf8) {
   CleanupIdleSockets(true, net_log_reason_utf8);
-  DCHECK_EQ(0, idle_socket_count_);
+  DCHECK_EQ(0u, idle_socket_count_);
 }
 
 void TransportClientSocketPool::CloseIdleSocketsInGroup(
@@ -672,7 +673,7 @@ void TransportClientSocketPool::CloseIdleSocketsInGroup(
     RemoveGroup(it);
 }
 
-int TransportClientSocketPool::IdleSocketCount() const {
+size_t TransportClientSocketPool::IdleSocketCount() const {
   return idle_socket_count_;
 }
 
@@ -716,11 +717,14 @@ base::Value TransportClientSocketPool::GetInfoAsValue(
       base::Value::Dict()
           .Set("name", name)
           .Set("type", type)
-          .Set("handed_out_socket_count", handed_out_socket_count_)
-          .Set("connecting_socket_count", connecting_socket_count_)
-          .Set("idle_socket_count", idle_socket_count_)
-          .Set("max_socket_count", max_sockets_)
-          .Set("max_sockets_per_group", max_sockets_per_group_)
+          .Set("handed_out_socket_count",
+               static_cast<int>(handed_out_socket_count_))
+          .Set("connecting_socket_count",
+               static_cast<int>(connecting_socket_count_))
+          .Set("idle_socket_count", static_cast<int>(idle_socket_count_))
+          .Set("socket_soft_cap", static_cast<int>(SocketSoftCap()))
+          .Set("max_sockets_per_group",
+               static_cast<int>(max_sockets_per_group_))
           .Set("additional_capacity", std::string(AdditionalCapacity()));
 
   if (group_map_.empty())
@@ -746,7 +750,8 @@ base::Value TransportClientSocketPool::GetInfoAsValue(
         base::Value::Dict()
             .Set("pending_request_count",
                  static_cast<int>(group->unbound_request_count()))
-            .Set("active_socket_count", group->active_socket_count())
+            .Set("active_socket_count",
+                 static_cast<int>(group->active_socket_count()))
             .Set("idle_sockets", std::move(idle_socket_list))
             .Set("connect_jobs", std::move(connect_jobs_list))
             .Set("is_stalled",
@@ -792,8 +797,8 @@ bool TransportClientSocketPool::IdleSocket::IsUsable(
 }
 
 TransportClientSocketPool::TransportClientSocketPool(
-    int max_sockets,
-    int max_sockets_per_group,
+    size_t socket_soft_cap,
+    size_t max_sockets_per_group,
     SocketPoolAdditionalCapacity additional_capacity,
     base::TimeDelta unused_idle_socket_timeout,
     base::TimeDelta used_idle_socket_timeout,
@@ -804,11 +809,11 @@ TransportClientSocketPool::TransportClientSocketPool(
     std::unique_ptr<ConnectJobFactory> connect_job_factory,
     SSLClientContext* ssl_client_context,
     bool connect_backup_jobs_enabled)
-    : ClientSocketPool(additional_capacity,
+    : ClientSocketPool(socket_soft_cap,
+                       additional_capacity,
                        is_for_websockets,
                        common_connect_job_params,
                        std::move(connect_job_factory)),
-      max_sockets_(max_sockets),
       max_sockets_per_group_(max_sockets_per_group),
       unused_idle_socket_timeout_(unused_idle_socket_timeout),
       used_idle_socket_timeout_(used_idle_socket_timeout),
@@ -817,8 +822,7 @@ TransportClientSocketPool::TransportClientSocketPool(
       connect_backup_jobs_enabled_(connect_backup_jobs_enabled &&
                                    g_connect_backup_jobs_enabled),
       ssl_client_context_(ssl_client_context) {
-  DCHECK_LE(0, max_sockets_per_group);
-  DCHECK_LE(max_sockets_per_group, max_sockets);
+  DCHECK_LE(max_sockets_per_group, socket_soft_cap);
 
   if (cleanup_on_ip_address_change_)
     NetworkChangeNotifier::AddIPAddressObserver(this);
@@ -1043,10 +1047,10 @@ void TransportClientSocketPool::ReleaseSocket(
   Group* group = i->second;
   CHECK(group);
 
-  CHECK_GT(handed_out_socket_count_, 0);
+  CHECK_GT(handed_out_socket_count_, 0u);
   handed_out_socket_count_--;
 
-  CHECK_GT(group->active_socket_count(), 0);
+  CHECK_GT(group->active_socket_count(), 0u);
   group->DecrementActiveSocketCount();
 
   bool can_resuse_socket = false;
@@ -1170,7 +1174,7 @@ void TransportClientSocketPool::FlushWithError(
 
 void TransportClientSocketPool::RemoveConnectJob(ConnectJob* job,
                                                  Group* group) {
-  CHECK_GT(connecting_socket_count_, 0);
+  CHECK_GT(connecting_socket_count_, 0u);
   connecting_socket_count_--;
 
   DCHECK(group);
@@ -1304,18 +1308,19 @@ void TransportClientSocketPool::CancelAllRequestsWithError(int error) {
 
 bool TransportClientSocketPool::ReachedMaxSocketsLimit() const {
   // Each connecting socket will eventually connect and be handed out.
-  int total =
+  size_t total =
       handed_out_socket_count_ + connecting_socket_count_ + idle_socket_count_;
   // There can be more sockets than the limit since some requests can ignore
   // the limit
-  if (total < max_sockets_)
+  if (total < SocketSoftCap()) {
     return false;
+  }
   return true;
 }
 
 bool TransportClientSocketPool::CloseOneIdleSocketExceptInGroup(
     const Group* exception_group) {
-  CHECK_GT(idle_socket_count_, 0);
+  CHECK_GT(idle_socket_count_, 0u);
 
   for (auto i = group_map_.begin(); i != group_map_.end(); ++i) {
     Group* group = i->second;

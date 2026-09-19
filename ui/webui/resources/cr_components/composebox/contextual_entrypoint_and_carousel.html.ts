@@ -18,8 +18,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
       this.shouldShowRecentTabChip_ ? html`
         <composebox-recent-tab-chip id="recentTabChip"
             class="upload-icon"
-            .recentTab="${this.tabSuggestions[0]}"
-            .inputsDisabled="${this.recentTabChipDisabled_}"
+            .recentTab="${this.recentTabForChip_}"
             @add-tab-context="${this.addTabContext_}">
         </composebox-recent-tab-chip>
         ` :
@@ -63,10 +62,12 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
             @add-tab-context="${this.addTabContext_}"
             @deep-search-click="${this.onDeepSearchClick_}"
             @create-image-click="${this.onCreateImageClick_}"
+            @delete-tab-context="${this.onDeleteFile_}"
             .inCreateImageMode="${this.inCreateImageMode_}"
             .hasImageFiles="${this.hasImageFiles()}"
             .disabledTabIds="${this.addedTabsIds_}"
             .fileNum="${this.files_.size}"
+            .searchboxLayoutMode="${this.searchboxLayoutMode}"
             ?inputs-disabled="${this.inputsDisabled_}"
             ?show-context-menu-description="${showDescription}">
         </cr-composebox-context-menu-entrypoint>
@@ -79,22 +80,33 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
       this.searchboxLayoutMode === 'TallTopContext' && this.showVoiceSearch ?
           voiceSearchButton :
           ''}
+        ${
+      this.searchboxLayoutMode === 'TallTopContext' && this.submitButtonShown ?
+          html`<slot name="submit-button"></slot>` :
+          ''}
       </div>
   `;
 
   // clang-format off
   return html`<!--_html_template_start_-->
   ${this.searchboxLayoutMode === 'Compact' ? contextMenu : ''}
-  ${this.showFileCarousel_ ? html`
-    <cr-composebox-file-carousel
-      part="cr-composebox-file-carousel"
-      id="carousel"
-      class="${this.carouselOnTop_ ? 'top' : ''}"
-      .files="${Array.from(this.files_.values())}"
-      @delete-file="${this.onDeleteFile_}">
-    </cr-composebox-file-carousel> ` : ''}
+  <div part="carousel-container">
+    ${this.showFileCarousel_ ? html`
+      <cr-composebox-file-carousel
+        part="cr-composebox-file-carousel"
+        id="carousel"
+        class="${this.carouselOnTop_ ? 'top' : ''}"
+        .files="${Array.from(this.files_.values())}"
+        @delete-file="${this.onDeleteFile_}">
+      </cr-composebox-file-carousel> ` : ''}
+    ${this.submitButtonShown && (this.searchboxLayoutMode === 'Compact' || this.searchboxLayoutMode === 'TallBottomContext') ?
+      html`<slot name="submit-button"></slot>` :
+      ''}
+  </div>
   ${this.searchboxLayoutMode === 'TallTopContext' ? contextMenu : ''}
-  ${this.showDropdown && (this.showFileCarousel_ || this.searchboxLayoutMode === 'TallTopContext') ? html`
+  ${this.showDropdown && (this.showFileCarousel_ ||
+    this.searchboxLayoutMode === 'TallTopContext' ||
+    this.submitButtonShown) ? html`
   <div class="carousel-divider" part="carousel-divider"></div>` : ''}
   <!-- Suggestions are slotted in from the parent component. -->
   <slot id="dropdownMatches"></slot>

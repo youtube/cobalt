@@ -678,7 +678,7 @@
 <translation id="4035877632587724847">不允许</translation>
 <translation id="4042658354407913408">摘要功能已关闭</translation>
 <translation id="4044093238444069296">无法连接网关</translation>
-<translation id="4046123991198612571">下一曲</translation>
+<translation id="4046123991198612571">下一首</translation>
 <translation id="404928562651467259">警告</translation>
 <translation id="4050208988451295487">以下是一些选项：</translation>
 <translation id="405181879009056822">ChromeOS 设置</translation>
@@ -1473,7 +1473,6 @@
 <translation id="7425832472614771259"><ph name="LANGUAGE_NAME" />转写模型已下载 <ph name="PROGRESS_PERCENTAGE" />%</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">无法停用或移除此 APN。请务必先停用或移除已启用的<ph name="ATTACH" /> APN。</translation>
-<translation id="7458359366992324037">远程显示</translation>
 <translation id="7458970041932198923">若要查看和设置头像，请连接到网络并重新加载此页面。</translation>
 <translation id="7469648432129124067">检测到门户</translation>
 <translation id="7481312909269577407">前进</translation>
@@ -1868,7 +1867,7 @@
 <translation id="921080052717160800">已将图片设为相机背景</translation>
 <translation id="9211490828691860325">所有桌面</translation>
 <translation id="9218016617214286986">显示已知的 APN</translation>
-<translation id="932327136139879170">首页</translation>
+<translation id="932327136139879170">家</translation>
 <translation id="939519157834106403">SSID</translation>
 <translation id="945522503751344254">发送反馈</translation>
 <translation id="950520315903467048">缺少表示<ph name="DIRECTION" />的按键。<ph name="ASSIGN_INSTRUCTION" /></translation>

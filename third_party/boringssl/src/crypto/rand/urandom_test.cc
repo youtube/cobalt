@@ -639,7 +639,6 @@ out:
 // |GetTrace| will observe the real code making.
 static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
   std::vector<Event> ret;
-  bool getrandom_ready = false;
   bool used_daemon = false;
 
   if (have_fork_detection()) {
@@ -648,7 +647,6 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
 
   // Probe for getrandom support
   ret.push_back(Event::GetRandom(1, GRND_NONBLOCK));
-  std::function<void()> wait_for_entropy;
   std::function<bool(size_t)> sysrand;
 
   if (flags & NO_GETRANDOM) {
@@ -678,18 +676,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
       return ret;
     }
 
-    getrandom_ready = (flags & GETRANDOM_NOT_READY) == 0;
-    wait_for_entropy = [&ret, &getrandom_ready] {
-      if (getrandom_ready) {
-        return;
-      }
-
-      ret.push_back(Event::GetRandom(1, GRND_NONBLOCK));
-      ret.push_back(Event::GetRandom(1, 0));
-      getrandom_ready = true;
-    };
-    sysrand = [&ret, &wait_for_entropy](size_t len) {
-      wait_for_entropy();
+    sysrand = [&ret](size_t len) {
       ret.push_back(Event::GetRandom(len, 0));
       return true;
     };

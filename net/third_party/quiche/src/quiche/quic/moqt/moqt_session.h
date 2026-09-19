@@ -66,7 +66,7 @@ class MoqtPublishingMonitorInterface {
 
   virtual void OnObjectAckSupportKnown(
       std::optional<quic::QuicTimeDelta> time_window) = 0;
-  virtual void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
+  virtual void OnObjectAckReceived(Location location,
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };
 
@@ -229,7 +229,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
-    // There is no state to update for SUBSCRIBE_DONE.
     void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnPublishNamespaceMessage(
@@ -700,7 +699,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   };
 
   // Private members of MoqtSession.
-  // Returns true if SUBSCRIBE_DONE was sent.
+  // Returns true if PUBLISH_DONE was sent.
   bool PublishIsDone(uint64_t request_id, PublishDoneCode code,
                      absl::string_view error_reason);
   void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);

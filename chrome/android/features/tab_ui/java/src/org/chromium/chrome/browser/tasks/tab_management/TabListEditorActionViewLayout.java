@@ -51,6 +51,7 @@ public class TabListEditorActionViewLayout extends LinearLayout {
      */
     private ButtonCompat mDoneButton;
 
+    private boolean mIsDoneButtonVisibile;
     private final LinearLayout.LayoutParams mActionViewParams;
 
     private @Nullable ActionViewLayoutDelegate mDelegate;
@@ -98,6 +99,16 @@ public class TabListEditorActionViewLayout extends LinearLayout {
     public void setCreationMode(@CreationMode int creationMode) {
         mCreationMode = creationMode;
         update();
+    }
+
+    public void setDoneButtonVisibility(boolean isDoneButtonVisible) {
+        if (mIsDoneButtonVisibile == isDoneButtonVisible) return;
+        mIsDoneButtonVisibile = isDoneButtonVisible;
+        update();
+    }
+
+    public void setDoneButtonOnClickListener(View.OnClickListener listener) {
+        mDoneButton.setOnClickListener(listener);
     }
 
     /**
@@ -191,7 +202,7 @@ public class TabListEditorActionViewLayout extends LinearLayout {
             // forced into the overflow menu.
             mDelegate.setVisibleActionViews(mVisibleActions);
         }
-        if (mCreationMode == CreationMode.ITEM_PICKER) {
+        if (mIsDoneButtonVisibile) {
             mDoneButton.setVisibility(View.VISIBLE);
             mMenuButton.setVisibility(View.GONE);
             mDoneButton.measure(childMeasureSpec, childMeasureSpec);

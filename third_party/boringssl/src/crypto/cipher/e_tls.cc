@@ -133,12 +133,6 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
     return 0;
   }
 
-  if (in_len > INT_MAX) {
-    // EVP_CIPHER takes int as input.
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
-    return 0;
-  }
-
   if (max_out_tag_len < aead_tls_tag_len(ctx, in_len, extra_in_len)) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
     return 0;
@@ -181,8 +175,9 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
   }
 
   // Encrypt the input.
-  int len;
-  if (!EVP_EncryptUpdate(&tls_ctx->cipher_ctx, out, &len, in, (int)in_len)) {
+  size_t len;
+  if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, out, &len, in_len, in,
+                            in_len)) {
     return 0;
   }
 
@@ -197,19 +192,20 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
   if (early_mac_len != 0) {
     assert(len + block_size - early_mac_len == in_len);
     uint8_t buf[EVP_MAX_BLOCK_LENGTH];
-    int buf_len;
-    if (!EVP_EncryptUpdate(&tls_ctx->cipher_ctx, buf, &buf_len, mac,
-                           (int)early_mac_len)) {
+    size_t buf_len;
+    if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, buf, &buf_len, sizeof(buf),
+                              mac, early_mac_len)) {
       return 0;
     }
-    assert(buf_len == (int)block_size);
+    assert(buf_len == block_size);
     OPENSSL_memcpy(out + len, buf, block_size - early_mac_len);
     OPENSSL_memcpy(out_tag, buf + block_size - early_mac_len, early_mac_len);
   }
   size_t tag_len = early_mac_len;
 
-  if (!EVP_EncryptUpdate(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
-                         mac + tag_len, mac_len - tag_len)) {
+  if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
+                            max_out_tag_len - tag_len, mac + tag_len,
+                            mac_len - tag_len)) {
     return 0;
   }
   tag_len += len;
@@ -222,14 +218,16 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
     uint8_t padding[256];
     unsigned padding_len = block_size - ((in_len + mac_len) % block_size);
     OPENSSL_memset(padding, padding_len - 1, padding_len);
-    if (!EVP_EncryptUpdate(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
-                           padding, (int)padding_len)) {
+    if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
+                              max_out_tag_len - tag_len, padding,
+                              padding_len)) {
       return 0;
     }
     tag_len += len;
   }
 
-  if (!EVP_EncryptFinal_ex(&tls_ctx->cipher_ctx, out_tag + tag_len, &len)) {
+  if (!EVP_EncryptFinal_ex2(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
+                            max_out_tag_len - tag_len)) {
     return 0;
   }
   assert(len == 0);  // Padding is explicit.
@@ -273,12 +271,6 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
     return 0;
   }
 
-  if (in_len > INT_MAX) {
-    // EVP_CIPHER takes int as input.
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
-    return 0;
-  }
-
   // Configure the explicit IV.
   if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE &&
       !tls_ctx->implicit_iv &&
@@ -289,12 +281,14 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
 
   // Decrypt to get the plaintext + MAC + padding.
   size_t total = 0;
-  int len;
-  if (!EVP_DecryptUpdate(&tls_ctx->cipher_ctx, out, &len, in, (int)in_len)) {
+  size_t len;
+  if (!EVP_DecryptUpdate_ex(&tls_ctx->cipher_ctx, out, &len, max_out_len, in,
+                            in_len)) {
     return 0;
   }
   total += len;
-  if (!EVP_DecryptFinal_ex(&tls_ctx->cipher_ctx, out + total, &len)) {
+  if (!EVP_DecryptFinal_ex2(&tls_ctx->cipher_ctx, out + total, &len,
+                            max_out_len - total)) {
     return 0;
   }
   total += len;

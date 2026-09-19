@@ -306,9 +306,12 @@ vs-chromium-project.txt
 /ui/file_manager/integration_tests/tsconfig.json
 /ui/keyboard/keyboard_mojom_bindings.xml
 /ui/gl/resources/angle-metal
+<<<<<<< HEAD
+=======
 /ui/surface/surface.xml
 /ui/surface/surface_gpu_tests.xml
 # /v8 Note: Has been imported as a subtree, and is not ignored in Cobalt.
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 /webkit/data
 /webpagereplay_logs/
 /x86-generic_out/

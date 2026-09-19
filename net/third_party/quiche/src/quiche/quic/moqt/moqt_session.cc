@@ -48,7 +48,6 @@
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/quiche_weak_ptr.h"
-#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
 #define ENDPOINT \
@@ -101,7 +100,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
     : session_(session),
       parameters_(parameters),
       callbacks_(std::move(callbacks)),
-      framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
+      framer_(parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
       local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),
@@ -703,12 +702,12 @@ bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
   std::vector<webtransport::StreamId> streams_to_reset =
       subscription.GetAllStreams();
 
-  MoqtPublishDone subscribe_done;
-  subscribe_done.request_id = request_id;
-  subscribe_done.status_code = code;
-  subscribe_done.stream_count = subscription.streams_opened();
-  subscribe_done.error_reason = error_reason;
-  SendControlMessage(framer_.SerializePublishDone(subscribe_done));
+  MoqtPublishDone publish_done;
+  publish_done.request_id = request_id;
+  publish_done.status_code = code;
+  publish_done.stream_count = subscription.streams_opened();
+  publish_done.error_reason = error_reason;
+  SendControlMessage(framer_.SerializePublishDone(publish_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_DONE message for "
                   << subscription.publisher().GetTrackName();
   // Clean up the subscription
@@ -2016,7 +2015,7 @@ void MoqtSession::PublishedSubscription::Update(
   // TODO: update forward and subscribe filter.
 
   // TODO: reset streams that are no longer in-window.
-  // TODO: send SUBSCRIBE_DONE if required.
+  // TODO: send PUBLISH_DONE if required.
   // TODO: send an error for invalid updates now that it's a part of draft-05.
 }
 
@@ -2343,7 +2342,7 @@ void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
   } else {
     largest_sent_ = sequence;
   }
-  // TODO: send SUBSCRIBE_DONE if the subscription is done.
+  // TODO: send PUBLISH_DONE if the subscription is done.
 }
 
 MoqtSession::OutgoingDataStream::OutgoingDataStream(
@@ -2666,7 +2665,8 @@ void MoqtSession::PublishedSubscription::ProcessObjectAck(
     return;
   }
   monitoring_interface_->OnObjectAckReceived(
-      message.group_id, message.object_id, message.delta_from_deadline);
+      Location(message.group_id, message.object_id),
+      message.delta_from_deadline);
 }
 
 }  // namespace moqt

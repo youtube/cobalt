@@ -248,9 +248,8 @@ std::unique_ptr<DesktopCapturer> WindowCapturerX11::CreateRawWindowCapturer(
   if (!options.x_display())
     return nullptr;
 
-  RTC_LOG(LS_INFO)
-      << "video capture: WindowCapturerX11::CreateRawWindowCapturer creates "
-         "DesktopCapturer of type WindowCapturerX11";
+  RTC_LOG(LS_INFO) << "WindowCapturerX11::CreateRawWindowCapturer creates "
+                      "DesktopCapturer of type WindowCapturerX11";
   return std::unique_ptr<DesktopCapturer>(new WindowCapturerX11(options));
 }
 

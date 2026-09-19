@@ -1473,7 +1473,6 @@
 <translation id="7425832472614771259">Модель расшифровки скачана на <ph name="PROGRESS_PERCENTAGE" /> %. Язык: <ph name="LANGUAGE_NAME" />.</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Не удается отключить или удалить эту точку доступа. Убедитесь, что точки доступа типа <ph name="ATTACH" /> отключены или удалены.</translation>
-<translation id="7458359366992324037">Удаленный дисплей</translation>
 <translation id="7458970041932198923">Чтобы просматривать и настраивать аватары, подключитесь к сети и обновите страницу.</translation>
 <translation id="7469648432129124067">Обнаружен сетевой портал.</translation>
 <translation id="7481312909269577407">Вперед</translation>
@@ -1636,6 +1635,7 @@
 <translation id="8167413449582155132">Фон, созданный с помощью ИИ от Google</translation>
 <translation id="8171020708598805594">Автоматически создавайте расшифровки, получайте краткие пересказы с помощью ИИ от Google и выполняйте поиск по аудиофайлам. Делать записи можно даже без подключения к интернету.</translation>
 <translation id="8179976553408161302">ВВОД</translation>
+<translation id="8181979490873420600">Демонстрация экрана в инструментах для уроков</translation>
 <translation id="8183975772394450380">пляж</translation>
 <translation id="819278132617411009">Работайте эффективнее с ИИ от Google</translation>
 <translation id="8200772114523450471">Возобновить</translation>

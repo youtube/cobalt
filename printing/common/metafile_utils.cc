@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "printing/common/metafile_utils.h"
 
 #include <string_view>
@@ -107,6 +102,12 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
       tag->fTypeString = chrome_pdf::kPDFStructureTypeParagraph;
       break;
     case ax::mojom::Role::kGenericContainer:
+      tag->fTypeString = chrome_pdf::kPDFStructureTypeNonStruct;
+      break;
+    case ax::mojom::Role::kGroup:
+      // A Div is not the same as an HTML div, it can be semantically
+      // meaningful. In the current draft of PDF-AAM, Div will be mapped
+      // to role group.
       tag->fTypeString = chrome_pdf::kPDFStructureTypeDiv;
       break;
     case ax::mojom::Role::kArticle:
@@ -336,7 +337,7 @@ sk_sp<SkPicture> DeserializeOopPicture(const void* data,
   if (length < sizeof(pic_id)) {
     NOTREACHED();  // Should not happen if the content is as written.
   }
-  memcpy(&pic_id, data, sizeof(pic_id));
+  UNSAFE_TODO(memcpy(&pic_id, data, sizeof(pic_id)));
 
   auto* context = reinterpret_cast<PictureDeserializationContext*>(ctx);
   auto iter = context->find(pic_id);

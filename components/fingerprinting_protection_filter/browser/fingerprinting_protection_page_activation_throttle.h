@@ -20,10 +20,6 @@ namespace content {
 class NavigationThrottleRegistry;
 }  // namespace content
 
-namespace privacy_sandbox {
-class TrackingProtectionSettings;
-}  // namespace privacy_sandbox
-
 namespace subresource_filter {
 enum class ActivationDecision;
 namespace mojom {
@@ -33,20 +29,6 @@ class ActivationState;
 }  // namespace subresource_filter
 
 namespace fingerprinting_protection_filter {
-
-// These values are persisted to logs
-// `tools/metrics/ukm/ukm.xml:FingerprintingProtectionException`. Entries should
-// not be renumbered and numeric values should never be reused.
-//
-// LINT.IfChange(ExceptionSource)
-enum class ExceptionSource : int {
-  UNKNOWN = 0,
-  USER_BYPASS = 1,
-  COOKIES = 2,
-  REFRESH_HEURISTIC = 3,
-  EXCEPTION_SOURCE_MAX = REFRESH_HEURISTIC,
-};
-// LINT.ThenChange(//tools/metrics/histograms/enums.xml:FingerprintingProtectionExceptionSource)
 
 struct GetActivationResult {
   subresource_filter::mojom::ActivationLevel level;
@@ -67,7 +49,6 @@ class FingerprintingProtectionPageActivationThrottle
   FingerprintingProtectionPageActivationThrottle(
       content::NavigationThrottleRegistry& registry,
       HostContentSettingsMap* content_settings,
-      privacy_sandbox::TrackingProtectionSettings* tracking_protection_settings,
       PrefService* prefs,
       bool is_incognito = false);
 
@@ -86,8 +67,6 @@ class FingerprintingProtectionPageActivationThrottle
   const char* GetNameForLogging() override;
 
   bool HasContentSettingsCookieException() const;
-
-  bool HasTrackingProtectionException() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(FPFPageActivationThrottleTestGetActivationTest,
@@ -140,8 +119,6 @@ class FingerprintingProtectionPageActivationThrottle
       subresource_filter::mojom::ActivationLevel level) const;
 
   raw_ptr<HostContentSettingsMap> content_settings_;
-  raw_ptr<privacy_sandbox::TrackingProtectionSettings>
-      tracking_protection_settings_;
   raw_ptr<PrefService> prefs_;
 
   // Set to TimeTicks::Now() when the navigation is deferred in

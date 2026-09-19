@@ -203,4 +203,16 @@ std::optional<TreeHash> EvaluateMerkleSubtreeConsistencyProof(
   return computed_root_hash;
 }
 
+std::optional<TreeHash> EvaluateMerkleSubtreeInclusionProof(
+    Span<const uint8_t> inclusion_proof, uint64_t index,
+    TreeHashConstSpan entry_hash, const Subtree &subtree) {
+  if (!subtree.IsValid() || !subtree.Contains(index)) {
+    return std::nullopt;
+  }
+  // Re-root |index| inside of |subtree|.
+  index -= subtree.start;
+  return EvaluateMerkleSubtreeConsistencyProof(
+      subtree.Size(), {index, index + 1}, inclusion_proof, entry_hash);
+}
+
 BSSL_NAMESPACE_END

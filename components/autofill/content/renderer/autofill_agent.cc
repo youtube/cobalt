@@ -40,6 +40,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/optional_ref.h"
 #include "base/types/zip.h"
@@ -56,6 +57,7 @@
 #include "components/autofill/content/renderer/timing.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_constants.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/form_data.h"
@@ -115,47 +117,11 @@ enum class SubmittedFormType { kNull = 0, kExtracted = 1, kCached = 2 };
 constexpr char kSubmissionSourceHistogram[] =
     "Autofill.SubmissionDetectionSource.AutofillAgent";
 
-constexpr char kWebElementFocusabilityHistogram[] =
-    "Autofill.DynamicElement.Focusability";
-
-constexpr char kWebElementTypeHistogram[] = "Autofill.DynamicElement.Type";
-
 // Time to wait in ms to ensure that only a single select or datalist change
 // will be acted upon, instead of multiple in close succession (debounce time).
 constexpr base::TimeDelta kWaitTimeForOptionsChanges = base::Milliseconds(50);
 
 using FormAndField = std::pair<FormData, raw_ref<const FormFieldData>>;
-
-void LogElementTypeAndFocusabilityMetric(const WebNode& node) {
-  static_assert(
-      base::to_underlying(blink::mojom::FormControlType::kMaxValue) == 30,
-      "Update the histogram when the FormControlEnum changes");
-  // Used for metrics. Do not renumber.
-  enum class ElementType {
-    kForm = 31,  // Should be FormControlType::kMaxValue + 1.
-    kOther = 32,
-    kNull = 33,
-    kMaxValue = kNull
-  };
-  if (WebElement element = node.DynamicTo<WebElement>(); !element) {
-    base::UmaHistogramEnumeration(kWebElementTypeHistogram, ElementType::kNull);
-  } else if (WebFormControlElement control_element =
-                 element.DynamicTo<WebFormControlElement>()) {
-    base::UmaHistogramEnumeration(
-        kWebElementTypeHistogram,
-        static_cast<ElementType>(base::to_underlying(
-            control_element.FormControlType())));  // nocheck
-  } else if (element.DynamicTo<WebFormElement>()) {
-    base::UmaHistogramEnumeration(kWebElementTypeHistogram, ElementType::kForm);
-  } else {
-    base::UmaHistogramEnumeration(kWebElementTypeHistogram,
-                                  ElementType::kOther);
-  }
-  if (WebInputElement input_element = node.DynamicTo<WebInputElement>()) {
-    base::UmaHistogramBoolean(kWebElementFocusabilityHistogram,
-                              input_element.IsFocusable());
-  }
-}
 
 void LogRendererExtractLabeledTextNodeValueLatency(base::TimeDelta latency,
                                                    bool is_successful) {
@@ -220,7 +186,7 @@ void LogSubmittedFormMetric(mojom::SubmissionSource source,
 bool ShowPredictions(const WebDocument& document,
                      const FormDataPredictions& form) {
   CHECK(base::FeatureList::IsEnabled(
-      features::test::kAutofillShowTypePredictions));
+      features::debug::kAutofillShowTypePredictions));
   CHECK_EQ(form.data.fields().size(), form.fields.size());
 
   WebFormElement form_element =
@@ -318,7 +284,7 @@ bool ShowPredictions(const WebDocument& document,
         base::NumberToString(field.rank_in_host_form_signature_group),
     });
 
-    if (features::test::kAutofillShowTypePredictionsVerboseParam.Get()) {
+    if (features::debug::kAutofillShowTypePredictionsVerboseParam.Get()) {
       std::u16string truncated_aria_label =
           field_data.aria_label().substr(0, kMaxLabelSize);
       base::ReplaceChars(truncated_aria_label, u"\n", u"|",
@@ -382,7 +348,7 @@ bool ShowPredictions(const WebDocument& document,
     // If the flag is on with parameter :as-title, information will be found as
     // 'title' in the DOM of the element.
     bool title_parameter_on =
-        features::test::kAutofillShowTypePredictionsAsTitleParam.Get();
+        features::debug::kAutofillShowTypePredictionsAsTitleParam.Get();
     if (title_parameter_on) {
       element.SetAttribute("title", WebString::FromUTF8(autofill_info));
     }
@@ -497,8 +463,10 @@ class AutofillAgent::DeferringAutofillDriver : public mojom::AutofillDriver {
     DeferMsg(&mojom::AutofillDriver::SelectControlSelectionChanged, form,
              field_id);
   }
-  void SelectFieldOptionsDidChange(const FormData& form) override {
-    DeferMsg(&mojom::AutofillDriver::SelectFieldOptionsDidChange, form);
+  void SelectFieldOptionsDidChange(const FormData& form,
+                                   FieldRendererId field_id) override {
+    DeferMsg(&mojom::AutofillDriver::SelectFieldOptionsDidChange, form,
+             field_id);
   }
   void AskForValuesToFill(const FormData& form,
                           FieldRendererId field_id,
@@ -590,7 +558,7 @@ void AutofillAgent::Reset() {
   last_queried_element_ = {};
   form_cache_.Reset();
   is_dom_content_loaded_ = false;
-  select_option_change_batch_timer_.Stop();
+  select_option_change_batch_timer_.clear();
   datalist_option_change_batch_timer_.Stop();
   process_forms_after_dynamic_change_timer_.Stop();
   process_forms_form_extraction_timer_.Stop();
@@ -1219,7 +1187,7 @@ void AutofillAgent::ApplyFieldsAction(
 void AutofillAgent::FieldTypePredictionsAvailable(
     const std::vector<FormDataPredictions>& forms) {
   CHECK(base::FeatureList::IsEnabled(
-      features::test::kAutofillShowTypePredictions));
+      features::debug::kAutofillShowTypePredictions));
   WebDocument document = GetDocument();
   if (!document) {
     return;
@@ -1232,7 +1200,7 @@ void AutofillAgent::FieldTypePredictionsAvailable(
 // For all elements the DOM Node ID will be exposed on the DOM
 // as attribute "dom-node-id". This is done for data collection purposes.
 void AutofillAgent::ExposeDomNodeIds() {
-  CHECK(base::FeatureList::IsEnabled(features::test::kShowDomNodeIDs));
+  CHECK(base::FeatureList::IsEnabled(features::debug::kShowDomNodeIDs));
   WebDocument document = GetDocument();
   if (!document) {
     return;
@@ -1656,32 +1624,26 @@ void AutofillAgent::TriggerFormExtractionWithResponse(
                std::move(callback));
 }
 
-void AutofillAgent::ExtractForm(
-    FormRendererId form_id,
+void AutofillAgent::ExtractFormWithField(
+    FieldRendererId field_id,
     base::OnceCallback<void(const std::optional<FormData>&)> callback) {
   WebDocument document = GetDocument();
   if (!document) {
     std::move(callback).Run(std::nullopt);
     return;
   }
-  if (!form_id) {
+  if (WebFormControlElement form_control =
+          form_util::GetFormControlByRendererId(field_id)) {
     if (std::optional<FormData> form = form_util::ExtractFormData(
-            document, WebFormElement(), field_data_manager(),
-            GetCallTimerState(kExtractForm), button_titles_cache())) {
+            document, form_control.GetOwningFormForAutofill(),
+            field_data_manager(), GetCallTimerState(kExtractForm),
+            button_titles_cache())) {
       std::move(callback).Run(std::move(form));
       return;
     }
   }
-  if (WebFormElement form_element = form_util::GetFormByRendererId(form_id)) {
-    if (std::optional<FormData> form = form_util::ExtractFormData(
-            document, form_element, field_data_manager(),
-            GetCallTimerState(kExtractForm), button_titles_cache())) {
-      std::move(callback).Run(std::move(form));
-      return;
-    }
-  }
-  if (WebElement contenteditable = form_util::GetContentEditableByRendererId(
-          FieldRendererId(*form_id))) {
+  if (WebElement contenteditable =
+          form_util::GetContentEditableByRendererId(field_id)) {
     std::move(callback).Run(
         form_util::FindFormForContentEditable(contenteditable));
     return;
@@ -1746,16 +1708,14 @@ void AutofillAgent::ExtractFormsAndNotifyPasswordAutofillAgent(
           &AutofillAgent::ExtractFormsUnthrottled, base::Unretained(this),
           base::BindOnce(
               [](PasswordAutofillAgent* password_autofill_agent,
-                 FormCache* form_cache, int element_id, bool success) {
+                 FormCache* form_cache, bool success) {
                 if (success) {
-                  LogElementTypeAndFocusabilityMetric(
-                      WebNode::FromDomNodeId(element_id));
                   password_autofill_agent->OnDynamicFormsSeen(
                       SynchronousFormCache(form_cache->extracted_forms()));
                 }
               },
               base::Unretained(password_autofill_agent_.get()),
-              base::Unretained(&form_cache_), element.GetDomNodeId()),
+              base::Unretained(&form_cache_)),
           GetCallTimerState(kExtractFormsAndNotifyPasswordAutofillAgent)));
 }
 
@@ -1937,18 +1897,23 @@ void AutofillAgent::SelectFieldOptionsChanged(
     return;
   }
 
-  if (select_option_change_batch_timer_.IsRunning()) {
-    select_option_change_batch_timer_.Stop();
-  }
+  FieldRendererId element_id = form_util::GetFieldRendererId(element);
+  base::OneShotTimer& timer =
+      base::FeatureList::IsEnabled(
+          features::kAutofillSplitTimersForSelectOptionChanges)
+          ? select_option_change_batch_timer_[element_id]
+          : select_option_change_batch_timer_[FieldRendererId()];
 
-  select_option_change_batch_timer_.Start(
-      FROM_HERE, kWaitTimeForOptionsChanges,
-      base::BindRepeating(&AutofillAgent::BatchSelectOptionChange,
-                          base::Unretained(this),
-                          form_util::GetFieldRendererId(element)));
+  if (timer.IsRunning()) {
+    timer.Stop();
+  }
+  timer.Start(FROM_HERE, kWaitTimeForOptionsChanges,
+              base::BindRepeating(&AutofillAgent::BatchSelectOptionChange,
+                                  base::Unretained(this), element_id));
 }
 
 void AutofillAgent::BatchSelectOptionChange(FieldRendererId element_id) {
+  select_option_change_batch_timer_.erase(element_id);
   WebFormControlElement element =
       form_util::GetFormControlByRendererId(element_id);
   if (!element) {
@@ -1965,7 +1930,7 @@ void AutofillAgent::BatchSelectOptionChange(FieldRendererId element_id) {
     auto& [form, field] = *form_and_field;
     if (auto* autofill_driver = unsafe_autofill_driver();
         autofill_driver && !field->options().empty()) {
-      autofill_driver->SelectFieldOptionsDidChange(form);
+      autofill_driver->SelectFieldOptionsDidChange(form, field->renderer_id());
     }
   }
 }

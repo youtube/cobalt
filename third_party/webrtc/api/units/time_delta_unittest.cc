@@ -115,27 +115,6 @@ TEST(TimeDeltaTest, ComparisonOperators) {
   EXPECT_LT(TimeDelta::MinusInfinity(), TimeDelta::Zero());
 }
 
-TEST(TimeDeltaTest, Clamping) {
-  const TimeDelta upper = TimeDelta::Millis(800);
-  const TimeDelta lower = TimeDelta::Millis(100);
-  const TimeDelta under = TimeDelta::Millis(100);
-  const TimeDelta inside = TimeDelta::Millis(500);
-  const TimeDelta over = TimeDelta::Millis(1000);
-  EXPECT_EQ(under.Clamped(lower, upper), lower);
-  EXPECT_EQ(inside.Clamped(lower, upper), inside);
-  EXPECT_EQ(over.Clamped(lower, upper), upper);
-
-  TimeDelta mutable_delta = lower;
-  mutable_delta.Clamp(lower, upper);
-  EXPECT_EQ(mutable_delta, lower);
-  mutable_delta = inside;
-  mutable_delta.Clamp(lower, upper);
-  EXPECT_EQ(mutable_delta, inside);
-  mutable_delta = over;
-  mutable_delta.Clamp(lower, upper);
-  EXPECT_EQ(mutable_delta, upper);
-}
-
 TEST(TimeDeltaTest, CanBeInititializedFromLargeInt) {
   const int kMaxInt = std::numeric_limits<int>::max();
   EXPECT_EQ(TimeDelta::Seconds(kMaxInt).us(),

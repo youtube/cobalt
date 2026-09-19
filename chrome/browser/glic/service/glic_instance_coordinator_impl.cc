@@ -8,9 +8,9 @@
 
 #include "base/check.h"
 #include "base/check_deref.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notimplemented.h"
 #include "base/time/time.h"
@@ -27,6 +27,7 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/glic_instance_metrics.h"
@@ -62,6 +63,11 @@ namespace {
 constexpr base::TimeDelta kSidePanelMaxRecency = base::Minutes(20);
 constexpr base::TimeDelta kFloatyMaxRecency = base::Hours(3);
 
+BASE_FEATURE(kGlicMaxRecency, base::FEATURE_ENABLED_BY_DEFAULT);
+
+constexpr base::FeatureParam<base::TimeDelta> kGlicMaxRecencyValue{
+    &kGlicMaxRecency, "duration", base::Minutes(30)};
+
 base::TimeDelta GetTimeSinceLastActive(GlicInstanceImpl* instance) {
   return base::TimeTicks::Now() - instance->GetLastActiveTime();
 }
@@ -84,7 +90,8 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
       memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kGlicKeyedService,
-          this) {
+          this),
+      metrics_(this) {
   if (base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs)) {
     tab_creation_observer_ = std::make_unique<GlicTabCreationObserver>(
         profile_,
@@ -126,6 +133,7 @@ void GlicInstanceCoordinatorImpl::OnInstanceVisibilityChanged(
   if (instance == active_instance_) {
     ComputeContentAccessIndicator();
   }
+  metrics_.OnInstanceVisibilityChanged();
 }
 
 void GlicInstanceCoordinatorImpl::NotifyActiveInstanceChanged() {
@@ -484,9 +492,14 @@ GlicInstanceCoordinatorImpl::GetRecentlyActiveConversations() {
   // tabs, it will not be included in the list.
   std::vector<GlicInstanceImpl*> sorted_instances;
   for (auto& [id, instance] : instances_) {
-    if (instance->conversation_id().has_value()) {
-      sorted_instances.push_back(instance.get());
+    if (!instance->conversation_id()) {
+      continue;
     }
+    if (base::FeatureList::IsEnabled(kGlicMaxRecency) &&
+        GetTimeSinceLastActive(instance.get()) > kGlicMaxRecencyValue.Get()) {
+      continue;
+    }
+    sorted_instances.push_back(instance.get());
   }
 
   std::sort(sorted_instances.begin(), sorted_instances.end(),
@@ -563,7 +576,9 @@ void GlicInstanceCoordinatorImpl::OnTabCreated(tabs::TabInterface& old_tab,
   }
 
   auto* instance = CreateGlicInstance();
-  instance->Show(ShowOptions::ForSidePanel(new_tab));
+  SidePanelShowOptions side_panel_options{new_tab};
+  side_panel_options.suppress_opening_animation = true;
+  instance->Show(ShowOptions{side_panel_options});
 }
 
 void GlicInstanceCoordinatorImpl::OnMemoryPressure(
@@ -595,6 +610,18 @@ void GlicInstanceCoordinatorImpl::OnMemoryPressure(
   if (least_recently_active_instance) {
     least_recently_active_instance->Hibernate();
   }
+}
+
+std::string GlicInstanceCoordinatorImpl::DescribeForTesting() {
+  std::stringstream ss;
+  for (auto& inst : instances_) {
+    ss << inst.second->DescribeForTesting();  // IN-TEST
+  }
+  if (warmed_instance_) {
+    ss << "(Warming instance) "
+       << warmed_instance_->DescribeForTesting();  // IN-TEST
+  }
+  return ss.str();
 }
 
 }  // namespace glic

@@ -109,26 +109,6 @@ TEST(DataRateTest, ConvertsToAndFromDouble) {
   EXPECT_TRUE(DataRate::BitsPerSec(kInfinity).IsInfinite());
   EXPECT_TRUE(DataRate::KilobitsPerSec(kInfinity).IsInfinite());
 }
-TEST(DataRateTest, Clamping) {
-  const DataRate upper = DataRate::KilobitsPerSec(800);
-  const DataRate lower = DataRate::KilobitsPerSec(100);
-  const DataRate under = DataRate::KilobitsPerSec(100);
-  const DataRate inside = DataRate::KilobitsPerSec(500);
-  const DataRate over = DataRate::KilobitsPerSec(1000);
-  EXPECT_EQ(under.Clamped(lower, upper), lower);
-  EXPECT_EQ(inside.Clamped(lower, upper), inside);
-  EXPECT_EQ(over.Clamped(lower, upper), upper);
-
-  DataRate mutable_rate = lower;
-  mutable_rate.Clamp(lower, upper);
-  EXPECT_EQ(mutable_rate, lower);
-  mutable_rate = inside;
-  mutable_rate.Clamp(lower, upper);
-  EXPECT_EQ(mutable_rate, inside);
-  mutable_rate = over;
-  mutable_rate.Clamp(lower, upper);
-  EXPECT_EQ(mutable_rate, upper);
-}
 
 TEST(DataRateTest, MathOperations) {
   const int64_t kValueA = 450;

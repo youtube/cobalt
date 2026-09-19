@@ -71,6 +71,28 @@ class ExecutionEngine : public ToolDelegate {
     kComplete,
   };
 
+  // This enum represents the possible outcomes of the synchronous part of the
+  // navigation gating logic.
+  // LINT.IfChange(GatingDecision)
+  // These enum values are persisted to logs.  Do not renumber or reuse numeric
+  // values.
+  enum class GatingDecision {
+    // The source origin and navigation origin are the same and should not be
+    // gated.
+    kAllowSameOrigin = 0,
+    // The navigation is allowed by the static allow-list.
+    kAllowByStaticList = 1,
+    // The navigation is blocked by the static block-list. The user will not be
+    // prompted for confirmation.
+    kBlockByStaticList = 2,
+    // The navigation is not on any allowlist or blocklist and requires an
+    // asynchronous check to determine the final outcome.
+    kNeedsAsyncCheck = 3,
+    kMaxValue = kNeedsAsyncCheck,
+  };
+
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:GatingDecision)
+
   class StateObserver : public base::CheckedObserver {
    public:
     ~StateObserver() override = default;
@@ -121,8 +143,10 @@ class ExecutionEngine : public ToolDelegate {
   void RequestToShowAutofillSuggestions(
       std::vector<autofill::ActorFormFillingRequest> requests,
       AutofillSuggestionSelectedCallback callback) override;
+
+  using AllowedOriginSet = absl::flat_hash_set<url::Origin>;
   void AddWritableMainframeOrigins(
-      const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
+      const AllowedOriginSet& added_writable_mainframe_origins);
 
   // Callback invoked when ConfirmCrossOriginNavigation, which spawns an IPC to
   // the web client, receives its response. This callback gets a boolean
@@ -131,7 +155,8 @@ class ExecutionEngine : public ToolDelegate {
       base::OnceCallback<void(bool may_continue)>;
 
   // Returns a boolean indicating if ActorNavigationThrottle should defer a
-  // navigation until the decision callback is invoked.
+  // navigation until the decision callback is invoked. This method can only
+  // be called on the primary main frame or a prerendered main frame.
   bool ShouldGateNavigation(content::NavigationHandle& navigation_handle,
                             NavigationDecisionCallback callback);
 
@@ -207,12 +232,17 @@ class ExecutionEngine : public ToolDelegate {
 
   // `std::nullopt` is returned when the decision to gate the navigation is done
   // async.
-  std::optional<bool> ShouldGateNavigationInternal(
+  GatingDecision ShouldGateNavigationInternal(
       content::NavigationHandle& navigation_handle,
       NavigationDecisionCallback callback);
   void LogNavigationGating(const std::optional<url::Origin>& initiator_origin,
                            const GURL& navigation_url,
                            bool applied_gate);
+
+  // Returns the highest-priority navigation gating decision. Prioritizes
+  // blocking navigations over allowing (except on same origin navigations).
+  GatingDecision DetermineGatingDecision(const GURL& source_url,
+                                         const GURL& destination_url) const;
 
   void CheckNavigationBlocklist(
       const std::optional<url::Origin>& initiator_origin,
@@ -245,9 +275,11 @@ class ExecutionEngine : public ToolDelegate {
   // This may also be called when the browser detects the actor navigating to
   // a novel origin when `kGlicPromptUserForNavigationToNewOrigins` is enabled.
   void SendUserConfirmationDialogRequest(const url::Origin& navigation_origin,
+                                         bool for_blocklisted_origin,
                                          NavigationDecisionCallback callback);
   void OnPromptUserToConfirmNavigationDecision(
       url::Origin navigation_origin,
+      bool for_blocklisted_origin,
       NavigationDecisionCallback callback,
       webui::mojom::UserConfirmationDialogResponsePtr response);
 
@@ -285,9 +317,15 @@ class ExecutionEngine : public ToolDelegate {
   std::vector<ActionResultWithLatencyInfo> action_results_;
 
   // Origins which the browser is allowed to navigate to under actor control
-  // without prompting the user. This is applied to all navigations, including
-  // those initiated by the renderer with web content.
-  absl::flat_hash_set<url::Origin> allowed_navigation_origins_;
+  // without needing to confirm the navigation with the web client. This set can
+  // have origins added to it by the server actions or by confirming the new
+  // origin with the model or user. Sensitive origins that are on the
+  // optimization guide blocklist are not exempt by this list.
+  AllowedOriginSet allowed_navigation_origins_;
+  // Separate allowlist for sensitive origins on the optimization guide
+  // blocklist. We cache these origins separately to not double prompt the user
+  // when they already confirmed the actor can interact with the origin.
+  AllowedOriginSet user_confirmed_blocklisted_origins_;
 
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the

@@ -11,17 +11,18 @@
 #ifndef PC_JSEP_TRANSPORT_H_
 #define PC_JSEP_TRANSPORT_H_
 
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "call/payload_type_picker.h"
 #include "media/sctp/sctp_transport_internal.h"
@@ -39,7 +40,6 @@
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -87,7 +87,7 @@ class JsepTransport {
                 std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
                 std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport,
                 std::unique_ptr<SctpTransportInternal> sctp_transport,
-                std::function<void()> rtcp_mux_active_callback,
+                absl::AnyInvocable<void()> rtcp_mux_active_callback,
                 PayloadTypePicker& suggester);
 
   ~JsepTransport();
@@ -273,7 +273,7 @@ class JsepTransport {
                          TransportStats* stats) const;
 
   // Owning thread, for safety checks
-  const Thread* const network_thread_;
+  const TaskQueueBase* const network_thread_;
   const std::string mid_;
   // needs-ice-restart bit as described in JSEP.
   bool needs_ice_restart_ RTC_GUARDED_BY(network_thread_) = false;
@@ -313,7 +313,7 @@ class JsepTransport {
   // This is invoked when RTCP-mux becomes active and
   // `rtcp_dtls_transport_` is destroyed. The JsepTransportController will
   // receive the callback and update the aggregate transport states.
-  std::function<void()> rtcp_mux_active_callback_;
+  absl::AnyInvocable<void()> rtcp_mux_active_callback_;
 
   // Assigned PTs from the remote description, used when sending.
   PayloadTypeRecorder remote_payload_types_ RTC_GUARDED_BY(network_thread_);

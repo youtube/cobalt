@@ -35,6 +35,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "media/base/audio_source.h"
 #include "media/base/codec.h"
@@ -110,7 +111,7 @@ RtpParameters RestoreEncodingLayers(
 
 class SignalingThreadCallback {
  public:
-  SignalingThreadCallback(Thread* signaling_thread,
+  SignalingThreadCallback(TaskQueueBase* signaling_thread,
                           SetParametersCallback callback)
       : signaling_thread_(signaling_thread), callback_(std::move(callback)) {}
   SignalingThreadCallback(SignalingThreadCallback&& other)
@@ -144,7 +145,7 @@ class SignalingThreadCallback {
     callback_ = nullptr;
   }
 
-  Thread* signaling_thread_;
+  TaskQueueBase* const signaling_thread_;
   SetParametersCallback callback_;
 };
 

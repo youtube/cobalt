@@ -16,11 +16,11 @@
 #import "components/user_data_importer/utility/safari_data_importer.h"
 #import "ios/chrome/browser/data_import/public/import_data_item.h"
 #import "ios/chrome/browser/data_import/public/import_data_item_consumer.h"
+#import "ios/chrome/browser/data_import/public/password_import_item.h"
+#import "ios/chrome/browser/data_import/public/password_import_item_favicon_data_source.h"
 #import "ios/chrome/browser/data_import/ui/data_import_import_stage_transition_handler.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/safari_data_import/model/ios_safari_data_import_client.h"
-#import "ios/chrome/browser/safari_data_import/public/password_import_item.h"
-#import "ios/chrome/browser/safari_data_import/public/password_import_item_favicon_data_source.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/ui/util/url_with_title.h"
@@ -162,7 +162,7 @@
   return YES;
 }
 
-#pragma mark - SafariDataImportPasswordConflictMutator
+#pragma mark - PasswordConflictMutator
 
 - (void)continueToImportPasswords:(NSArray<NSNumber*>*)passwordIdentifiers {
   std::vector<int> selected_password_ids;
@@ -183,7 +183,8 @@
   }
   NSURL* securityScopedURL = urls.firstObject;
   if (![securityScopedURL startAccessingSecurityScopedResource]) {
-    [self.importStageTransitionHandler resetToInitialImportStage:NO];
+    [self.importStageTransitionHandler
+        resetToInitialImportStage:DataImportResetReason::kNoImportableData];
     return;
   }
   _currentSecurityScopedURL = securityScopedURL;
@@ -193,7 +194,8 @@
 }
 
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController*)controller {
-  [self.importStageTransitionHandler resetToInitialImportStage:YES];
+  [self.importStageTransitionHandler
+      resetToInitialImportStage:DataImportResetReason::kUserInitiated];
 }
 
 #pragma mark - Private
@@ -209,7 +211,8 @@
   _importClient->RegisterCallbackOnImportFailure(base::BindOnce(^{
     __strong SafariDataImportImportMediator* strongSelf = weakSelf;
     [strongSelf reset];
-    [strongSelf.importStageTransitionHandler resetToInitialImportStage:NO];
+    [strongSelf.importStageTransitionHandler
+        resetToInitialImportStage:DataImportResetReason::kNoImportableData];
   }));
   _importClientReady = YES;
 }

@@ -56,6 +56,7 @@ class NodeInfo {
   V(int32, Int32, Int32)                                      \
   V(truncated_int32_to_number, TruncatedInt32ToNumber, Int32) \
   V(float64, Float64, Float64)                                \
+  V(holey_float64, HoleyFloat64, HoleyFloat64)                \
   V(checked_value, CheckedValue, Tagged)
 
     enum Kind {
@@ -95,6 +96,7 @@ class NodeInfo {
     ValueNode* get(UseRepresentation repr) {
       switch (repr) {
         case UseRepresentation::kTagged:
+        case UseRepresentation::kTaggedForNumberToString:
           return tagged();
         case UseRepresentation::kInt32:
           return int32();
@@ -328,6 +330,13 @@ class KnownNodeAspects {
     auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
     res->IntersectType(node->GetStaticType(broker));
     return res;
+  }
+
+  ValueNode* TryGetAlternativeFor(ValueNode* node, UseRepresentation repr) {
+    node = node->Unwrap();
+    auto info_it = FindInfo(node);
+    if (!IsValid(info_it)) return nullptr;
+    return info_it->second.alternative().get(repr);
   }
 
   std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) {

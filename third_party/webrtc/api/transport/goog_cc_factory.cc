@@ -17,6 +17,7 @@
 #include "api/transport/network_control.h"
 #include "api/units/time_delta.h"
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
+#include "modules/congestion_controller/goog_cc_scream_network_controller/goog_cc_scream_network_controller.h"
 
 namespace webrtc {
 
@@ -36,6 +37,12 @@ GoogCcNetworkControllerFactory::Create(NetworkControllerConfig config) {
     goog_cc_config.network_state_predictor =
         factory_config_.network_state_predictor_factory
             ->CreateNetworkStatePredictor();
+  }
+  if (factory_config_.rfc_8888_feedback_negotiated &&
+      !config.env.field_trials().IsDisabled("WebRTC-Bwe-ScreamV2") &&
+      config.env.field_trials().Lookup("WebRTC-Bwe-ScreamV2") != "") {
+    return std::make_unique<GoogCcScreamNetworkController>(
+        config, std::move(goog_cc_config));
   }
   return std::make_unique<GoogCcNetworkController>(config,
                                                    std::move(goog_cc_config));

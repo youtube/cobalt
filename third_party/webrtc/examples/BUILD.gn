@@ -490,6 +490,8 @@ if (is_ios || (is_mac && target_cpu != "x86")) {
         "../api/audio:builtin_audio_processing_builder",
         "../api/audio_codecs:builtin_audio_decoder_factory",
         "../api/audio_codecs:builtin_audio_encoder_factory",
+        "../api/environment",
+        "../api/environment:environment_factory",
         "../api/rtc_event_log:rtc_event_log_factory",
         "../rtc_base/synchronization:mutex",
         "../sdk:base_objc",

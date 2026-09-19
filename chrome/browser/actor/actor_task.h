@@ -108,7 +108,10 @@ class ActorTask {
     kModelError = 2,
     kChromeFailure = 3,
     kTabDetached = 4,
-    kMaxValue = kTabDetached,
+    kShutdown = 5,
+    kUserStartedNewChat = 6,
+    kUserLoadedPreviousChat = 7,
+    kMaxValue = kUserLoadedPreviousChat,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason)
 
@@ -229,10 +232,18 @@ class ActorTask {
                              content::WebContents* old_contents,
                              content::WebContents* new_contents);
 
-  void OnFinishedAct(ActCallback callback,
-                     mojom::ActionResultPtr result,
-                     std::optional<size_t> index_of_failed_action,
-                     std::vector<ActionResultWithLatencyInfo> action_results);
+  static void OnFinishedAct(
+      base::WeakPtr<ActorTask> actor_task,
+      ActCallback callback,
+      mojom::ActionResultPtr result,
+      std::optional<size_t> index_of_failed_action,
+      std::vector<ActionResultWithLatencyInfo> action_results);
+  void OnFinishedActImpl(
+      ActCallback callback,
+      mojom::ActionResultPtr result,
+      std::optional<size_t> index_of_failed_action,
+      std::vector<ActionResultWithLatencyInfo> action_results);
+
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);
 

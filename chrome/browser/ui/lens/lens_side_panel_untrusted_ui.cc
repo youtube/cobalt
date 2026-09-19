@@ -127,6 +127,9 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
       lens::features::IsLensSidePanelWebviewResultsEnabled());
   html_source->AddBoolean("enableLensAimSuggestions",
                           lens::features::GetAimSuggestionsEnabled());
+  html_source->AddBoolean(
+      "enableLensAimSuggestionsGradientBackground",
+      lens::features::GetAimSuggestionsGradientBackgroundEnabled());
 
   // Aim M3 flags
   const bool aim_enabled = lens::IsAimM3Enabled(Profile::FromWebUI(web_ui));
@@ -170,8 +173,11 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddString("composeboxAttachmentFileTypes", "");
   html_source->AddInteger("composeboxFileMaxSize", 0);
   html_source->AddInteger("composeboxFileMaxCount", 0);
-  // Disable typed suggest.
-  html_source->AddBoolean("composeboxShowTypedSuggest", false);
+  // Typed suggest is only enabled for typeahead suggestions.
+  html_source->AddBoolean(
+      "composeboxShowTypedSuggest",
+      lens::features::IsLensAimTypeAheadSuggestionsEnabled());
+  html_source->AddBoolean("composeboxShowTypedSuggestWithContext", true);
   // Enable ZPS if suggestions are enabled.
   html_source->AddBoolean("composeboxShowZps",
                           lens::features::GetAimSuggestionsEnabled());
@@ -234,7 +240,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean("composeboxSmartComposeEnabled", false);
   html_source->AddBoolean("composeboxShowDeepSearchButton", false);
   html_source->AddBoolean("composeboxShowCreateImageButton", false);
-  html_source->AddBoolean("dragAndDropEnabled", false);
+  html_source->AddBoolean("composeboxContextDragAndDropEnabled", false);
   html_source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
   html_source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
   html_source->AddBoolean("expandedSearchboxShowVoiceSearch", false);

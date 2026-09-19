@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/payments/legal_message_line.h"
@@ -29,7 +30,8 @@ enum class BnplIssuerEligibilityForPage {
   kNotEligibleIssuerDoesNotSupportMerchant = 2,
   kNotEligibleCheckoutAmountTooLow = 3,
   kNotEligibleCheckoutAmountTooHigh = 4,
-  kMaxValue = kNotEligibleCheckoutAmountTooHigh
+  kTemporarilyEligibleCheckoutAmountNotYetKnown = 5,
+  kMaxValue = kTemporarilyEligibleCheckoutAmountNotYetKnown
 };
 
 // A struct containing a BNPL issuer and the context necessary to display it.
@@ -59,6 +61,7 @@ struct BnplIssuerContext {
 // Contains a string of text and the location of a substring for a link.
 struct TextWithLink {
   std::u16string text;
+  gfx::Range bold_range;
   gfx::Range offset;
   GURL url;
 };
@@ -102,6 +105,11 @@ std::u16string GetBnplIssuerSelectionOptionText(
 
 // Returns the footer text to be displayed in a BNPL flow.
 TextWithLink GetBnplUiFooterText();
+
+// Returns the footer text to be displayed in a BNPL flow with AI-based amount
+// extraction.
+TextWithLink GetBnplUiFooterTextForAi(
+    const PaymentsDataManager& payments_data_manager);
 
 // Returns true if the user has initiated an action on the credit card form
 // and the current context meets all conditions for BNPL eligibility to be

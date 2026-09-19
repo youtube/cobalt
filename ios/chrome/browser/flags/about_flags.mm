@@ -22,6 +22,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/system/sys_info.h"
 #import "components/autofill/core/browser/manual_testing_import.h"
+#import "components/autofill/core/common/autofill_debug_features.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/autofill/core/common/autofill_switches.h"
@@ -98,6 +99,7 @@
 #import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/default_browser/model/features.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
+#import "ios/chrome/browser/default_promo/ui_bundled/features.h"
 #import "ios/chrome/browser/download/ui/features.h"
 #import "ios/chrome/browser/first_run/ui_bundled/features.h"
 #import "ios/chrome/browser/flags/chrome_switches.h"
@@ -200,25 +202,20 @@ const FeatureEntry::FeatureVariation kBottomOmniboxEvolutionVariations[] = {
      std::size(kBottomOmniboxEvolutionForceBottomOmniboxEditState), nullptr},
 };
 
-const FeatureEntry::FeatureParam kAIMPrototypeAllOmniboxEntrypoints[] = {
-    {kAIMPrototypeParam, kAIMPrototypeParamAllOmniboxEntrypoints}};
+const FeatureEntry::FeatureParam kComposeboxTabPickerVariationCachedAPC[] = {
+    {kComposeboxTabPickerVariationParam,
+     kComposeboxTabPickerVariationParamCachedAPC}};
 
-const FeatureEntry::FeatureVariation kAIMPrototypeVariations[] = {
-    {"for all Omnibox entrypoints", kAIMPrototypeAllOmniboxEntrypoints,
-     std::size(kAIMPrototypeAllOmniboxEntrypoints), nullptr},
-};
+const FeatureEntry::FeatureParam kComposeboxTabPickerVariationOnFlightAPC[] = {
+    {kComposeboxTabPickerVariationParam,
+     kComposeboxTabPickerVariationParamOnFlightAPC}};
 
-const FeatureEntry::FeatureParam kAIMPrototypeTabPickerCachedAPC[] = {
-    {kAIMPrototypeTabPickerParam, kAIMPrototypeTabPickerParamCachedAPC}};
-
-const FeatureEntry::FeatureParam kAIMPrototypeTabPickerOnFlightAPC[] = {
-    {kAIMPrototypeTabPickerParam, kAIMPrototypeTabPickerParamOnFlightAPC}};
-
-const FeatureEntry::FeatureVariation kAIMPrototypeTabPickerVariations[] = {
-    {"A) Use Cached APC", kAIMPrototypeTabPickerCachedAPC,
-     std::size(kAIMPrototypeTabPickerCachedAPC), nullptr},
-    {"B) Use On flight APC", kAIMPrototypeTabPickerOnFlightAPC,
-     std::size(kAIMPrototypeTabPickerOnFlightAPC), nullptr},
+const FeatureEntry::FeatureVariation kComposeboxTabPickerVariationVariations[] =
+    {
+        {"A) Use Cached APC", kComposeboxTabPickerVariationCachedAPC,
+         std::size(kComposeboxTabPickerVariationCachedAPC), nullptr},
+        {"B) Use On flight APC", kComposeboxTabPickerVariationOnFlightAPC,
+         std::size(kComposeboxTabPickerVariationOnFlightAPC), nullptr},
 };
 
 const FeatureEntry::FeatureParam kDisableKeyboardAccessoryOnlySymbolsParam[] = {
@@ -1360,20 +1357,20 @@ const FeatureEntry::FeatureVariation kOmniboxAimShortcutTypedStateVariations[] =
       std::size(kOmniboxAimShortcutTypedStateEnabledForTypedLength15),
       nullptr}};
 
-const FeatureEntry::FeatureParam kAIMPrototypeDevToolsForceFailure[] = {
+const FeatureEntry::FeatureParam kComposeboxDevToolsForceFailure[] = {
     {kForceUploadFailureParam, "true"}};
-const FeatureEntry::FeatureParam kAIMPrototypeDevToolsSlowLoad[] = {
+const FeatureEntry::FeatureParam kComposeboxDevToolsSlowLoad[] = {
     {kImageLoadDelayMsParam, "1000"}};
-const FeatureEntry::FeatureParam kAIMPrototypeDevToolsSlowUpload[] = {
+const FeatureEntry::FeatureParam kComposeboxDevToolsSlowUpload[] = {
     {kUploadDelayMsParam, "3000"}};
 
-const FeatureEntry::FeatureVariation kAIMPrototypeDevToolsVariations[] = {
-    {"Force Failure", kAIMPrototypeDevToolsForceFailure,
-     std::size(kAIMPrototypeDevToolsForceFailure), nullptr},
-    {"Slow Load (1s)", kAIMPrototypeDevToolsSlowLoad,
-     std::size(kAIMPrototypeDevToolsSlowLoad), nullptr},
-    {"Slow Upload (3s)", kAIMPrototypeDevToolsSlowUpload,
-     std::size(kAIMPrototypeDevToolsSlowUpload), nullptr}};
+const FeatureEntry::FeatureVariation kComposeboxDevToolsVariations[] = {
+    {"Force Failure", kComposeboxDevToolsForceFailure,
+     std::size(kComposeboxDevToolsForceFailure), nullptr},
+    {"Slow Load (1s)", kComposeboxDevToolsSlowLoad,
+     std::size(kComposeboxDevToolsSlowLoad), nullptr},
+    {"Slow Upload (3s)", kComposeboxDevToolsSlowUpload,
+     std::size(kComposeboxDevToolsSlowUpload), nullptr}};
 
 const FeatureEntry::FeatureParam kMobilePromoOnDesktopLens[] = {
     {kMobilePromoOnDesktopPromoTypeParam, "1"},
@@ -1464,6 +1461,20 @@ const FeatureEntry::FeatureVariation kZeroStateSuggestionsVariations[] = {
      std::size(kZeroStateSuggestionsPlacementAskGeminiParam), nullptr},
 };
 
+const char kFRESignInHeaderTextUpdateParamName[] =
+    "FRESignInHeaderTextUpdateParam";
+const FeatureEntry::FeatureParam kFRESignInHeaderTextUpdateArm0[] = {
+    {kFRESignInHeaderTextUpdateParamName, "Arm0"}};
+const FeatureEntry::FeatureParam kFRESignInHeaderTextUpdateArm1[] = {
+    {kFRESignInHeaderTextUpdateParamName, "Arm1"}};
+
+const FeatureEntry::FeatureVariation kFRESignInHeaderTextUpdateVariations[] = {
+    {"Header variation #1", kFRESignInHeaderTextUpdateArm0,
+     std::size(kFRESignInHeaderTextUpdateArm0), nullptr},
+    {"Header variation #2", kFRESignInHeaderTextUpdateArm1,
+     std::size(kFRESignInHeaderTextUpdateArm1), nullptr},
+};
+
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1521,7 +1532,7 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kShowAutofillTypePredictionsDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
-         autofill::features::test::kAutofillShowTypePredictions)},
+         autofill::features::debug::kAutofillShowTypePredictions)},
     {"sign-in-button-no-avatar", flag_descriptions::kSignInButtonNoAvatarName,
      flag_descriptions::kSignInButtonNoAvatarDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kSignInButtonNoAvatar)},
@@ -1740,6 +1751,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"enable-feed-ablation", flag_descriptions::kEnableFeedAblationName,
      flag_descriptions::kEnableFeedAblationDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableFeedAblation)},
+    {"ios-keyboard-accessory-default-view",
+     flag_descriptions::kIOSKeyboardAccessoryDefaultViewName,
+     flag_descriptions::kIOSKeyboardAccessoryDefaultViewDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSKeyboardAccessoryDefaultView)},
     {"ios-keyboard-accessory-two-bubble",
      flag_descriptions::kIOSKeyboardAccessoryTwoBubbleName,
      flag_descriptions::kIOSKeyboardAccessoryTwoBubbleDescription,
@@ -1831,6 +1846,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kPersistentDefaultBrowserPromoName,
      flag_descriptions::kPersistentDefaultBrowserPromoDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kPersistentDefaultBrowserPromo)},
+    {"default-browser-promo-ipad_instructions",
+     flag_descriptions::kDefaultBrowserPromoIpadInstructionsName,
+     flag_descriptions::kDefaultBrowserPromoIpadInstructionsDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kDefaultBrowserPromoIpadInstructions)},
 #if BUILDFLAG(IOS_BACKGROUND_MODE_ENABLED)
     {"feed-background-refresh-ios",
      flag_descriptions::kFeedBackgroundRefreshName,
@@ -2331,12 +2351,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"non-modal-sign-in-promo", flag_descriptions::kNonModalSignInPromoName,
      flag_descriptions::kNonModalSignInPromoDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kNonModalSignInPromo)},
-    {"suggest-strong-password-in-add-password",
-     flag_descriptions::kSuggestStrongPasswordInAddPasswordName,
-     flag_descriptions::kSuggestStrongPasswordInAddPasswordDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         password_manager::features::kSuggestStrongPasswordInAddPassword)},
     {"autofill-save-card-bottomsheet",
      flag_descriptions::kAutofillSaveCardBottomSheetName,
      flag_descriptions::kAutofillSaveCardBottomSheetDescription,
@@ -2488,10 +2502,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kReaderModeTranslationWithInfobarDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableReaderModeTranslationWithInfobar)},
-    {"reader-mode-debug-info-enabled",
-     flag_descriptions::kReaderModeDebugInfoName,
-     flag_descriptions::kReaderModeDebugInfoDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kEnableReaderModeDebugInfo)},
     {"reader-mode-page-eligibility-enabled",
      flag_descriptions::kReaderModePageEligibilityHeuristicName,
      flag_descriptions::kReaderModePageEligibilityHeuristicDescription,
@@ -2501,6 +2511,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kReaderModeReadabilityHeuristicName,
      flag_descriptions::kReaderModeReadabilityHeuristicDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableReadabilityHeuristic)},
+    {"reader-mode-us-enabled", flag_descriptions::kReaderModeUSEnabledName,
+     flag_descriptions::kReaderModeUSEnabledDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kEnableReaderModeInUS)},
     {"reader-mode-readability-distiller-enabled",
      flag_descriptions::kReaderModeReadabilityDistillerName,
      flag_descriptions::kReaderModeReadabilityDistillerDescription,
@@ -2618,11 +2631,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"diamond-prototype", flag_descriptions::kDiamondPrototypeName,
      flag_descriptions::kDiamondPrototypeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDiamondPrototype)},
-    {"aim-prototype-ios", flag_descriptions::kAIMPrototypeName,
-     flag_descriptions::kAIMPrototypeDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototype,
-                                    kAIMPrototypeVariations,
-                                    "AIMPrototypeVariations")},
     {"omnibox-drs-prototype", flag_descriptions::kOmniboxDRSPrototypeName,
      flag_descriptions::kOmniboxDRSPrototypeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kOmniboxDRSPrototype)},
@@ -2676,12 +2684,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(password_manager::features::
                             kApplyClientsideModelPredictionsForPasswordTypes)},
-    {"apply-clientside-model-predictions-for-otps",
-     flag_descriptions::kApplyClientsideModelPredictionsForOtpsName,
-     flag_descriptions::kApplyClientsideModelPredictionsForOtpsDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         password_manager::features::kApplyClientsideModelPredictionsForOtps)},
     {"page-context-anchor-tags", flag_descriptions::kPageContextAnchorTagsName,
      flag_descriptions::kPageContextAnchorTagsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kPageContextAnchorTags)},
@@ -2704,11 +2706,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"lens-strokes-api-enabled", flag_descriptions::kStrokesAPIEnabledName,
      flag_descriptions::kStrokesAPIEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kLensStrokesAPIEnabled)},
-    {"aim-prototype-devtools", flag_descriptions::kAIMPrototypeDevToolsName,
-     flag_descriptions::kAIMPrototypeDevToolsDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototypeDevTools,
-                                    kAIMPrototypeDevToolsVariations,
-                                    "AimPrototypeDevTools")},
+    {"composebox-devtools", flag_descriptions::kComposeboxDevToolsName,
+     flag_descriptions::kComposeboxDevToolsDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kComposeboxDevTools,
+                                    kComposeboxDevToolsVariations,
+                                    "ComposeboxDevTools")},
     {"autofill-manual-testing-data",
      flag_descriptions::kAutofillManualTestingDataName,
      flag_descriptions::kAutofillManualTestingDataDescription, flags_ui::kOsIos,
@@ -2762,28 +2764,26 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kHideToolbarsInOverflowMenuName,
      flag_descriptions::kHideToolbarsInOverflowMenuDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kHideToolbarsInOverflowMenu)},
-    {"aim-multiline-omnibox", flag_descriptions::kIOSOmniboxUseTextViewName,
-     flag_descriptions::kIOSOmniboxUseTextViewDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kIOSOmniboxUseTextView)},
     {"smart-tab-grouping", flag_descriptions::kSmartTabGroupingName,
      flag_descriptions::kSmartTabGroupingDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kSmartTabGrouping)},
     {"persist-tab-context", flag_descriptions::kPersistTabContextName,
      flag_descriptions::kPersistTabContextDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kPersistTabContext)},
-    {"aim-prototype-autoattach-tab",
-     flag_descriptions::kAIMPrototypeAutoattachTabName,
-     flag_descriptions::kAIMPrototypeAutoattachTabDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAIMPrototypeAutoattachTab)},
-    {"aim-prototype-immersive-srp",
-     flag_descriptions::kAIMPrototypeImmersiveSRPName,
-     flag_descriptions::kAIMPrototypeImmersiveSRPDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAIMPrototypeImmersiveSRP)},
-    {"aim-prototype-tab-picker", flag_descriptions::kAIMPrototypeTabPickerName,
-     flag_descriptions::kAIMPrototypeTabPickerDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototypeTabPicker,
-                                    kAIMPrototypeTabPickerVariations,
-                                    "AimPrototypeTabPicker")},
+    {"composebox-autoattach-tab",
+     flag_descriptions::kComposeboxAutoattachTabName,
+     flag_descriptions::kComposeboxAutoattachTabDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxAutoattachTab)},
+    {"composebox-immersive-srp", flag_descriptions::kComposeboxImmersiveSRPName,
+     flag_descriptions::kComposeboxImmersiveSRPDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxImmersiveSRP)},
+    {"composebox-tab-picker-variation",
+     flag_descriptions::kComposeboxTabPickerVariationName,
+     flag_descriptions::kComposeboxTabPickerVariationDescription,
+     flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kComposeboxTabPickerVariation,
+                                    kComposeboxTabPickerVariationVariations,
+                                    "ComposeboxTabPickerVariation")},
     {"ios-custom-file-upload-menu",
      flag_descriptions::kIOSCustomFileUploadMenuName,
      flag_descriptions::kIOSCustomFileUploadMenuDescription, flags_ui::kOsIos,
@@ -2901,6 +2901,16 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"gemini-navigation-promo", flag_descriptions::kGeminiNavigationPromoName,
      flag_descriptions::kGeminiNavigationPromoDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiNavigationPromo)},
+    {"fre-sign-in-header-text-update",
+     flag_descriptions::kFRESignInHeaderTextUpdateName,
+     flag_descriptions::kFRESignInHeaderTextUpdateDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kFRESignInHeaderTextUpdate,
+                                    kFRESignInHeaderTextUpdateVariations,
+                                    "FRESignInHeaderTextUpdate")},
+    {"most-visited-tiles-customization-ios",
+     flag_descriptions::kMostVisitedTilesCustomizationName,
+     flag_descriptions::kMostVisitedTilesCustomizationDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kMostVisitedTilesCustomizationIOS)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

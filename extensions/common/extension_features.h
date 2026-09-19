@@ -297,8 +297,9 @@ BASE_DECLARE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport);
 // Chrome Enterprise on CWS.
 BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
 
-// Enables the "collapsed listeners" strategy for webRequest lazy listeners.
-BASE_DECLARE_FEATURE(kEnableWebRequestCollapsedListeners);
+// Enables the securityInfo in chrome.webRequest API for extensions.
+// Allowing them to retrieve certificate information from web requests.
+BASE_DECLARE_FEATURE(kWebRequestSecurityInfo);
 
 }  // namespace extensions_features
 

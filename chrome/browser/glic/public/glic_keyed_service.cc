@@ -255,9 +255,10 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
     glic_profile_manager->SetActiveGlic(this);
   }
 
-  if (!GlicEnabling::IsUnifiedFreEnabled(profile_)) {
-    // Show the FRE if not yet completed, and if we have a browser to use.
-    if (fre_controller_->ShouldShowFreDialog()) {
+  // Show the FRE if not yet completed, and if we have a browser to use.
+  if (fre_controller_->ShouldShowFreDialog()) {
+    fre_controller_->MarkFreStartAttempt();
+    if (!GlicEnabling::IsUnifiedFreEnabled(profile_)) {
       Browser* browser = bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
       if (!fre_controller_->CanShowFreDialog(browser)) {
         // If the FRE is blocked because it is already showing, we should
@@ -269,6 +270,7 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
       fre_controller_->ShowFreDialog(browser, source);
       return;
     }
+    fre_controller_->MarkSidepanelFreShown();
   }
 
   window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
@@ -521,6 +523,17 @@ void GlicKeyedService::InterruptActorTask(actor::TaskId task_id) {
 
 void GlicKeyedService::UninterruptActorTask(actor::TaskId task_id) {
   actor_task_manager_->UninterruptActorTask(task_id);
+}
+
+void GlicKeyedService::CreateActorTab(
+    actor::TaskId task_id,
+    bool open_in_background,
+    const std::optional<int32_t>& initiator_tab_id,
+    const std::optional<int32_t>& initiator_window_id,
+    glic::mojom::WebClientHandler::CreateActorTabCallback callback) {
+  actor_task_manager_->CreateActorTab(task_id, open_in_background,
+                                      initiator_tab_id, initiator_window_id,
+                                      std::move(callback));
 }
 
 base::CallbackListSubscription GlicKeyedService::AddTabDataChangedCallback(
