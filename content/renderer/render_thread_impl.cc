@@ -1724,9 +1724,7 @@ void RenderThreadImpl::OnMemoryPressure(
             memory_pressure_level));
       });
 
-<<<<<<< HEAD
-=======
-  v8::MemoryPressureLevel v8_memory_pressure_level =
+v8::MemoryPressureLevel v8_memory_pressure_level =
       static_cast<v8::MemoryPressureLevel>(memory_pressure_level);
 
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
@@ -1746,10 +1744,7 @@ void RenderThreadImpl::OnMemoryPressure(
   if (base::FeatureList::IsEnabled(
           features::kForwardMemoryPressureToBlinkIsolates)) {
     blink::MemoryPressureNotificationToAllIsolates(v8_memory_pressure_level);
-  }
-
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (blink_platform_impl_) {
+  }  if (blink_platform_impl_) {
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
   }
 }

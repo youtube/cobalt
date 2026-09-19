@@ -49,6 +49,7 @@ class CobaltLifecycleController
       public Supplement<LocalDOMWindow> {
  public:
   static const char kSupplementName[];
+  static constexpr unsigned kSupplementIndex = 1;
 
   static CobaltLifecycleController* From(LocalDOMWindow& window);
 
