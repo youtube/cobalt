@@ -219,6 +219,24 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_EnabledByDefault() {
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
+    assertThat(args).contains("--enable-low-end-device-mode");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_NotForcedByExperiment() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+
+    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // physical memory threshold. Devices at or below it stay low-end.
+    assertThat(args).doesNotContain("--enable-low-end-device-mode");
+  }
+
+  @Test
   public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
@@ -375,6 +393,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
     assertThat(args).contains("--force-device-scale-factor=1");
+    // Safe mode / no experiment config must not silently flip low-end mode off.
+    assertThat(args).contains("--enable-low-end-device-mode");
   }
 
   @Test
