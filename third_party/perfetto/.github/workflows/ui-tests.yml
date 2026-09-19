@@ -1,0 +1,135 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow is triggered by analyze.yml
+name: Perfetto CI [ui]
+on:
+  workflow_call:
+env:
+  # /tmp/cache contains {ccache, bazelcache} and generally any other cache
+  # that should be persisted across jobs, but only updated from the main
+  # branch. This is populated by the "Restore cache" step below.
+  PERFETTO_CACHE_DIR: /tmp/cache
+  PERFETTO_ARTIFACTS_ROOT: /tmp/artifacts
+  PYTHONUNBUFFERED: 1
+jobs:
+  ui:
+    runs-on: self-hosted
+    timeout-minutes: 45
+    env:
+      PERFETTO_CI_BUILD_CACHE_KEY: build-cache-ui
+      PERFETTO_CI_JOB_ID: gh-${{ github.run_id }}-ui
+      CI: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fetch the upstream branch as well, so we can diff and see the list of
+      # changed files (unless this is a post-submit test).
+      - name: Fetch upstream branch
+        if: ${{ github.base_ref != '' }}
+        shell: bash
+        run: git fetch origin ${{ github.base_ref }} --depth=1
+
+      - name: Setup artifacts
+        shell: bash
+        run: |
+          PERFETTO_ARTIFACTS_DIR=$PERFETTO_ARTIFACTS_ROOT/$PERFETTO_CI_JOB_ID
+          echo "PERFETTO_ARTIFACTS_DIR=$PERFETTO_ARTIFACTS_DIR" >> $GITHUB_ENV
+          mkdir -p $PERFETTO_ARTIFACTS_DIR
+
+      - uses: ./.github/actions/install-build-deps
+        with:
+          install-flags: --ui
+
+      - name: Restore cache
+        uses: ./.github/actions/cache-on-google-cloud-storage/restore
+        with:
+          directory: ${{ env.PERFETTO_CACHE_DIR }}
+          cache_key: ${{ env.PERFETTO_CI_BUILD_CACHE_KEY }}
+
+      - name: Setup ccache
+        uses: ./.github/actions/setup-ccache
+
+      - name: Build Perfetto UI
+        shell: bash
+        run: |
+          ui/build --out out/ui
+          cp -a out/ui/ui/dist/ "$PERFETTO_ARTIFACTS_DIR/ui"
+
+      - name: Print ccache stats
+        shell: bash
+        run: ccache --show-stats
+
+
+      - name: UI unittests
+        shell: bash
+        run: ui/run-unittests --out out/ui --no-build
+
+      - name: Install Chrome
+        shell: bash
+        run: |
+          mkdir /tmp/chrome
+          cd /tmp/chrome
+          CHROME_VERSION=138.0.7204.92
+          curl -Ls -o chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}-1_amd64.deb
+          dpkg-deb -x chrome.deb  .
+
+      - name: UI integrationtests
+        shell: bash
+        run: ui/run-integrationtests --out out/ui --no-build
+
+        # UI code formatting checks must be done here, rather than repo-checks,
+        # because they need a out/ui build.
+      - name: Check UI code is formatted
+        # base_ref is "" in post-submit, skip the presubmit check in postsubmit
+        # as there is nothing do diff against.
+        if: ${{ github.base_ref != '' }}
+        shell: bash
+        run: ui/format-sources --check-only --upstream origin/${{ github.base_ref }}
+
+      - name: Upload artifacts to GCS
+        if: ${{ always() }}
+        env:
+          GCS_PATH: gs://perfetto-ci-artifacts
+        shell: bash
+        run: |
+          if [[ -d out/ui/ui-test-artifacts ]]; then
+            cp -a out/ui/ui-test-artifacts "$PERFETTO_ARTIFACTS_DIR/ui-test-artifacts"
+          fi
+          
+          if [[ ! -d "$PERFETTO_ARTIFACTS_DIR" || -n "$(find $PERFETTO_ARTIFACTS_DIR -maxdepth 0 -empty)" ]]; then
+            echo "Directory '$PERFETTO_ARTIFACTS_DIR' is empty. Did one of the previous steps fail?"
+            # Don't fail the step if there is nothing to upload.
+            exit 0
+          fi
+          
+          # '--no-user-output-enabled' prevents the `cp` from printing the names
+          # of all copied files to stdout.
+          gcloud storage cp --no-user-output-enabled --recursive "$PERFETTO_ARTIFACTS_DIR" "$GCS_PATH/$PERFETTO_CI_JOB_ID"
+          
+          echo "UI integration test report with screnshots:"
+          echo "https://storage.googleapis.com/perfetto-ci-artifacts/$PERFETTO_CI_JOB_ID/ui-test-artifacts/index.html"
+          echo ""
+          echo "To download locally the changed screenshots run:"
+          echo "tools/download_changed_screenshots.py $PERFETTO_CI_JOB_ID"
+          echo ""
+          echo "Perfetto UI build for this CL"
+          echo "https://storage.googleapis.com/perfetto-ci-artifacts/$PERFETTO_CI_JOB_ID/ui/index.html"
+
+      - name: Update cache (if on main)
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/cache-on-google-cloud-storage/save
+        with:
+          directory: ${{ env.PERFETTO_CACHE_DIR }}
+          cache_key: ${{ env.PERFETTO_CI_BUILD_CACHE_KEY }}

@@ -1,0 +1,29 @@
+# This file define code owners for GitHub pull requests
+# NOTE: The last matching rule is the one that defines the owner.
+
+# General repo-wide owners
+* @google/perfetto-team
+
+# Files/Directories that don't require a strict owner check.
+/Android.bp
+/Android.bp.extras
+/BUILD
+/BUILD.*
+/docs/**/*
+/examples/**/*
+/protos/perfetto/trace/**/*
+/protos/perfetto/config/**/*
+/protos/perfetto/metrics/**/*
+/ui/src/plugins/**/*
+/ui/src/test/**/*
+/tools/**/*
+/test/**/*
+
+# Chromium-specific parts of stdlib is rolled from the chromium repo.
+# The chromium owners should be able to approve the rolls.
+/protos/third_party/chromium/**/* @google/chromium-stdlib-owners
+/src/trace_processor/perfetto_sql/stdlib/chrome/**/* @google/chromium-stdlib-owners
+/test/trace_processor/diff_tests/stdlib/chrome/**/* @google/chromium-stdlib-owners
+/test/data/chrome/**.sha256 @google/chromium-stdlib-owners
+
+/contrib/rust-sdk/ @dreveman @jon-rv @zytyz
