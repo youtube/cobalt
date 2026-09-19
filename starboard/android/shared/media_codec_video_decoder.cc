@@ -348,6 +348,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableTrivialOptimizations)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      shutter_for_punch_out_(pipeline_config.experimental_features.GetBool(
+          kMediaShutterForPunchOut)),
       fix_need_more_input_backpressure_(
           pipeline_config.experimental_features.GetBool(
               kMediaFixNeedMoreInputBackpressure)),
@@ -422,7 +424,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", shutter_for_punch_out="
+               << ToString(shutter_for_punch_out_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -432,7 +436,9 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
   } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
-    CleanUpVideoSurface(decode_target_graphics_context_provider_);
+    if (!shutter_for_punch_out_) {
+      CleanUpVideoSurface(decode_target_graphics_context_provider_);
+    }
   }
 }
 
