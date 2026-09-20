@@ -89,17 +89,17 @@ std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash);
 // |content| must refer to a valid string.
 bool VerifyHash256(const std::string* content,
                    const std::string& expected_hash);
-#else
-// Returns true if the actual SHA-256 hash of the |filepath| matches the
-// |expected_hash|.
-bool VerifyFileHash256(const base::FilePath& filepath,
-                       const std::string& expected_hash);
-#endif   
+#endif  // defined(IN_MEMORY_UPDATES)
 
 #if BUILDFLAG(IS_STARBOARD)
 // Reads the Evergreen version of the installation dir.
 base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 #endif  // BUILDFLAG(IS_STARBOARD)
+
+// Returns true if the actual SHA-256 hash of the |filepath| matches the
+// |expected_hash|.
+bool VerifyFileHash256(const base::FilePath& filepath,
+                       const std::string& expected_hash);
 
 // Returns true if the |brand| parameter matches ^[a-zA-Z]{4}?$ .
 bool IsValidBrand(const std::string& brand);
