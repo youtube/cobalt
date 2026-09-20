@@ -15,13 +15,13 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "base/atomicops.h"
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "include/core/SkStream.h"
@@ -92,7 +92,7 @@ class SkFileMemoryChunkStreamManager {
       stream_provider_array_;
   SkFileMemoryChunkStreamProviderMap stream_provider_map_;
 
-  base::subtle::Atomic32 available_chunk_count_;
+  std::atomic<int> available_chunk_count_{0};
 
   SkFileMemoryChunkStreamManager(const SkFileMemoryChunkStreamManager&) =
       delete;
