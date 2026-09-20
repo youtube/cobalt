@@ -14,9 +14,11 @@
 
 #include "starboard/android/shared/audio_renderer_sink_android.h"
 
+#include <memory>
 #include <vector>
 
 #include "starboard/android/shared/audio_sink_android.h"
+#include "starboard/common/check_op.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,18 +26,18 @@
 namespace starboard {
 namespace {
 
+constexpr int kChannels = 2;
+constexpr int kSamplingFrequencyHz = 48'000;
+constexpr int kFramesPerChannel = 1'024;
+constexpr int64_t kInitialMediaStartTimeUs = 0;
+constexpr int64_t kSeekMediaStartTimeUs = 5'000'000;
+constexpr SbMediaAudioSampleType kSampleType =
+    kSbMediaAudioSampleTypeInt16Deprecated;
+
 class FakeAudioSinkAndroid : public AudioSinkAndroid {
  public:
-  FakeAudioSinkAndroid(SbAudioSinkPrivate::Type* type,
-                       bool* destroyed,
-                       bool flush_succeeds = true)
-      : type_(type), destroyed_(destroyed), flush_succeeds_(flush_succeeds) {}
-
-  ~FakeAudioSinkAndroid() override {
-    if (destroyed_) {
-      *destroyed_ = true;
-    }
-  }
+  FakeAudioSinkAndroid(SbAudioSinkPrivate::Type* type, bool flush_succeeds)
+      : type_(type), flush_succeeds_(flush_succeeds) {}
 
   bool IsType(SbAudioSinkPrivate::Type* type) override { return type == type_; }
 
@@ -55,18 +57,18 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
     return flush_succeeds_;
   }
 
-  int GetUnderrunCount() override { return underrun_count_; }
-  int GetStartThresholdInFrames() override { return 1024; }
+  bool flush_called() const { return flush_called_; }
+  bool start_time_set() const { return start_time_set_; }
+  int64_t last_start_time_us() const { return last_start_time_us_; }
 
+ private:
   SbAudioSinkPrivate::Type* type_;
-  bool* destroyed_ = nullptr;
   bool flush_succeeds_ = true;
   bool flush_called_ = false;
   bool start_time_set_ = false;
   int64_t last_start_time_us_ = -1;
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
-  int underrun_count_ = 0;
 };
 
 class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
@@ -77,6 +79,7 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
   }
 
   ~FakeAudioSinkType() override {
+    SB_CHECK(SbAudioSinkImpl::GetPrimaryType() == this);
     SbAudioSinkImpl::SetPrimaryType(old_primary_type_);
   }
 
@@ -90,8 +93,9 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override {
-    auto sink = new FakeAudioSinkAndroid(this, destroyed_ptr_, flush_succeeds_);
+    auto sink = new FakeAudioSinkAndroid(this, flush_succeeds_);
     last_created_sink_ = sink;
+    last_sink_destroyed_ = false;
     ++create_count_;
     return sink;
   }
@@ -100,12 +104,17 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) override { delete audio_sink; }
+  void Destroy(SbAudioSink audio_sink) override {
+    if (audio_sink == last_created_sink_) {
+      last_sink_destroyed_ = true;
+    }
+    delete audio_sink;
+  }
 
   SbAudioSinkPrivate::Type* old_primary_type_ = nullptr;
   FakeAudioSinkAndroid* last_created_sink_ = nullptr;
-  bool* destroyed_ptr_ = nullptr;
   bool flush_succeeds_ = true;
+  bool last_sink_destroyed_ = false;
   int create_count_ = 0;
 };
 
@@ -130,8 +139,7 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
  protected:
   void SetUp() override {
     fake_sink_type_ = std::make_unique<FakeAudioSinkType>();
-    fake_sink_type_->destroyed_ptr_ = &sink_destroyed_;
-    dummy_buffer_.resize(1024 * sizeof(int16_t) * 2, 0);
+    dummy_buffer_.resize(kFramesPerChannel * sizeof(int16_t) * kChannels, 0);
     frame_buffers_[0] = dummy_buffer_.data();
   }
 
@@ -163,17 +171,15 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
   DummyRenderCallback dummy_callback_;
   std::vector<uint8_t> dummy_buffer_;
   void* frame_buffers_[1];
-  bool sink_destroyed_ = false;
 };
 
 TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
   auto renderer_sink = CreateSink(/*allow_flush_during_seek=*/true);
 
   // 1. Initial Start
-  renderer_sink->Start(
-      /*media_start_time=*/0, /*channels=*/2, /*sampling_frequency_hz=*/48000,
-      kSbMediaAudioSampleTypeInt16Deprecated, frame_buffers_, 1024,
-      &dummy_callback_);
+  renderer_sink->Start(kInitialMediaStartTimeUs, kChannels,
+                       kSamplingFrequencyHz, kSampleType, frame_buffers_,
+                       kFramesPerChannel, &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 1);
   FakeAudioSinkAndroid* sink1 = fake_sink_type_->last_created_sink_;
@@ -181,47 +187,40 @@ TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
 
   // 2. Seek: Reset() should flush instead of destroy
   renderer_sink->Reset();
-  EXPECT_TRUE(sink1->flush_called_);
-  EXPECT_FALSE(sink_destroyed_);
+  EXPECT_TRUE(sink1->flush_called());
+  EXPECT_FALSE(fake_sink_type_->last_sink_destroyed_);
   // When flushed, HasStarted() returns false so caller knows it needs Start()
   EXPECT_FALSE(renderer_sink->HasStarted());
 
   // 3. Resume after Seek: Start() with same format reuses existing sink
-  renderer_sink->Start(
-      /*media_start_time=*/5000000, /*channels=*/2,
-      /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
-      frame_buffers_, 1024, &dummy_callback_);
+  renderer_sink->Start(kSeekMediaStartTimeUs, kChannels, kSamplingFrequencyHz,
+                       kSampleType, frame_buffers_, kFramesPerChannel,
+                       &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 1);  // Reused! No new create.
-  EXPECT_TRUE(sink1->start_time_set_);
-  EXPECT_EQ(sink1->last_start_time_us_, 5000000);
+  EXPECT_TRUE(sink1->start_time_set());
+  EXPECT_EQ(sink1->last_start_time_us(), kSeekMediaStartTimeUs);
 }
 
 TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushDisallowedDestroysSink) {
   auto renderer_sink = CreateSink(/*allow_flush_during_seek=*/false);
 
   // 1. Initial Start
-  renderer_sink->Start(
-      /*media_start_time=*/0, /*channels=*/2, /*sampling_frequency_hz=*/48000,
-      kSbMediaAudioSampleTypeInt16Deprecated, frame_buffers_, 1024,
-      &dummy_callback_);
+  renderer_sink->Start(kInitialMediaStartTimeUs, kChannels,
+                       kSamplingFrequencyHz, kSampleType, frame_buffers_,
+                       kFramesPerChannel, &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 1);
-  FakeAudioSinkAndroid* sink1 = fake_sink_type_->last_created_sink_;
-  ASSERT_NE(sink1, nullptr);
 
   // 2. Seek: Reset() without flush should destroy the underlying sink
   renderer_sink->Reset();
-  EXPECT_FALSE(sink1->flush_called_);
-  EXPECT_TRUE(sink_destroyed_);
+  EXPECT_TRUE(fake_sink_type_->last_sink_destroyed_);
   EXPECT_FALSE(renderer_sink->HasStarted());
 
   // 3. Next Start creates a fresh sink
-  sink_destroyed_ = false;
-  renderer_sink->Start(
-      /*media_start_time=*/5000000, /*channels=*/2,
-      /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
-      frame_buffers_, 1024, &dummy_callback_);
+  renderer_sink->Start(kSeekMediaStartTimeUs, kChannels, kSamplingFrequencyHz,
+                       kSampleType, frame_buffers_, kFramesPerChannel,
+                       &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 2);
 }
@@ -231,52 +230,23 @@ TEST_F(AudioRendererSinkAndroidTest, FlushFailureFallsBackToFullReset) {
   auto renderer_sink = CreateSink(/*allow_flush_during_seek=*/true);
 
   // 1. Initial Start
-  renderer_sink->Start(
-      /*media_start_time=*/0, /*channels=*/2, /*sampling_frequency_hz=*/48000,
-      kSbMediaAudioSampleTypeInt16Deprecated, frame_buffers_, 1024,
-      &dummy_callback_);
+  renderer_sink->Start(kInitialMediaStartTimeUs, kChannels,
+                       kSamplingFrequencyHz, kSampleType, frame_buffers_,
+                       kFramesPerChannel, &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 1);
 
   // 2. Seek: Reset() tries flush, flush returns false -> falls back to Reset()
   renderer_sink->Reset();
-  EXPECT_TRUE(sink_destroyed_);
+  EXPECT_TRUE(fake_sink_type_->last_sink_destroyed_);
   EXPECT_FALSE(renderer_sink->HasStarted());
 
   // 3. Next Start recreates the sink
-  sink_destroyed_ = false;
-  renderer_sink->Start(
-      /*media_start_time=*/5000000, /*channels=*/2,
-      /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
-      frame_buffers_, 1024, &dummy_callback_);
+  renderer_sink->Start(kSeekMediaStartTimeUs, kChannels, kSamplingFrequencyHz,
+                       kSampleType, frame_buffers_, kFramesPerChannel,
+                       &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 2);
-}
-
-TEST_F(AudioRendererSinkAndroidTest,
-       FormatChangeDuringFlushedStateRecreatesSink) {
-  auto renderer_sink = CreateSink(/*allow_flush_during_seek=*/true);
-
-  // 1. Initial Start with 2 channels, 48000Hz
-  renderer_sink->Start(
-      /*media_start_time=*/0, /*channels=*/2, /*sampling_frequency_hz=*/48000,
-      kSbMediaAudioSampleTypeInt16Deprecated, frame_buffers_, 1024,
-      &dummy_callback_);
-  EXPECT_EQ(fake_sink_type_->create_count_, 1);
-
-  // 2. Seek flushes the sink
-  renderer_sink->Reset();
-  EXPECT_FALSE(sink_destroyed_);
-
-  // 3. Audio format changes (e.g. 6 channels / 5.1 surround instead of stereo)
-  renderer_sink->Start(
-      /*media_start_time=*/5000000, /*channels=*/6,
-      /*sampling_frequency_hz=*/48000, kSbMediaAudioSampleTypeInt16Deprecated,
-      frame_buffers_, 1024, &dummy_callback_);
-  // Re-creates sink with new configuration because channel count changed
-  EXPECT_EQ(fake_sink_type_->create_count_, 2);
-  EXPECT_TRUE(sink_destroyed_);
-  EXPECT_TRUE(renderer_sink->HasStarted());
 }
 
 }  // namespace

@@ -49,8 +49,6 @@ class AudioSinkAndroid : public SbAudioSinkImpl {
 
   virtual void SetStartTime(int64_t start_time_us) = 0;
   virtual bool Flush() = 0;
-  virtual int GetUnderrunCount() = 0;
-  virtual int GetStartThresholdInFrames() = 0;
 };
 
 }  // namespace starboard

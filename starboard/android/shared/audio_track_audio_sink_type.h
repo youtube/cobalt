@@ -157,12 +157,13 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
-  int GetUnderrunCount() override;
-  int GetStartThresholdInFrames() override;
   bool Flush() override;
   void SetStartTime(int64_t start_time_us) override {
     start_time_.store(start_time_us);
   }
+
+  int GetUnderrunCount();
+  int GetStartThresholdInFrames();
 
  private:
   class AudioTrackOutThread;

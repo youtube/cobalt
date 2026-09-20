@@ -35,9 +35,9 @@ namespace starboard {
 // Threading Model:
 // This class is not thread-safe and is expected to be called from the player
 // thread.
-class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
+class AudioRendererSinkAndroid final : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(
+  AudioRendererSinkAndroid(
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
       bool enable_video_renderer_vsp_adjustment,
