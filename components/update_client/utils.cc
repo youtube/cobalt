@@ -165,7 +165,7 @@ const std::map<UpdaterStatus, const char*>& GetUpdaterStatusStringMap() {
   });
   return *map;
 }
-#else  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
@@ -198,8 +198,6 @@ bool VerifyFileHash256(const base::FilePath& filepath,
 
   return base::span(sha256_hash) == base::span(expected_hash);
 }
-
-#endif  // BUILDFLAG(IS_STARBOARD)
 
 bool IsValidBrand(const std::string& brand) {
   const size_t kMaxBrandSize = 4;
