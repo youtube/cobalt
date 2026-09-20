@@ -414,6 +414,54 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration in milliseconds taken for startup milestone
+    {Milestone} since the previous milestone.
+  </summary>
+  <token key="Milestone">
+    <variant name="ActivityOnDestroy"/>
+    <variant name="ActivityOnPause"/>
+    <variant name="ActivityOnResume"/>
+    <variant name="ActivityOnStart"/>
+    <variant name="ActivityOnStop"/>
+    <variant name="ActivityWindowConfigured"/>
+    <variant name="ApplicationAndroidInitialize"/>
+    <variant name="DidFinishNavigation"/>
+    <variant name="DidStartNavigation"/>
+    <variant name="JavaActivityCreated"/>
+    <variant name="MainDelegateBasicStartupComplete"/>
+    <variant name="MainDelegatePostEarlyInitialization"/>
+    <variant name="MainDelegatePreSandboxStartup"/>
+    <variant name="PlatformErrorRaised"/>
+    <variant name="PostLibraryLoaderInit"/>
+    <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreCreateThreads"/>
+    <variant name="PreLibraryLoaderInit"/>
+    <variant name="PreStarboardBridgeInit"/>
+    <variant name="ShellCreateWindowNoSplash"/>
+    <variant name="ShellCreateWindowWithSplash"/>
+    <variant name="ShellDidFinishLoad"/>
+    <variant name="ShellDidFinishNavigationNonSplash"/>
+    <variant name="ShellDidStartLoading"/>
+    <variant name="ShellDidStartNavigationNonSplash"/>
+    <variant name="ShellDocumentElementAvailable"/>
+    <variant name="ShellRenderFrameCreated"/>
+    <variant name="SplashObserverDidFailLoad"/>
+    <variant name="SplashObserverDidFinishNavigation"/>
+    <variant name="SplashObserverDidStartLoading"/>
+    <variant name="SplashObserverDidStartNavigation"/>
+    <variant name="StarboardBridgeNativeInit"/>
+    <variant name="StartupGuardObserverDidFailLoad"/>
+    <variant name="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="StartupGuardObserverDidStartLoading"/>
+    <variant name="StartupGuardObserverDidStartNavigation"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>
