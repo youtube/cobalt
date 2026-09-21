@@ -218,11 +218,21 @@ jobs:
             -f target_url="${RUN_URL}"
 
           status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
+          current_wf="${WORKFLOW_NAME:-}"
+          current_st="${state:-}"
 
-          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r '
-            [.statuses[]? | select(.context | startswith("CI /") and .context != "CI / All Pass")] as $ci |
+          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r \
+            --arg cur_wf "${current_wf}" \
+            --arg cur_st "${current_st}" '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] as $raw_ci |
+            (if ($cur_wf != "" and $cur_st != "") then
+              ($raw_ci | map(if .context == ("CI / " + $cur_wf) then .state = $cur_st else . end)) +
+              (if ($raw_ci | any(.context == ("CI / " + $cur_wf))) then [] else [{context: ("CI / " + $cur_wf), state: $cur_st}] end)
+            else
+              $raw_ci
+            end) as $ci |
             if any($ci[]; .state == "failure" or .state == "error") then "failure\tSome checks failed"
-            elif length > 0 and all($ci[]; .state == "success") then "success\tAll checks passed"
+            elif (length > 0 and all($ci[]; .state == "success")) then "success\tAll checks passed"
             else "pending\tChecks are running" end
           ') || true
 
