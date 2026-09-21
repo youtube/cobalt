@@ -57,9 +57,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // disabled.
       ::switches::kNoZygote,
       sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory
-      // (ZeroCopyRasterBufferProvider).
-      blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of
       // the known regressions is 4444 textures, which are then disabled
