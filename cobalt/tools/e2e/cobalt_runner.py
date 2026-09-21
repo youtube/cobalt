@@ -79,7 +79,7 @@ class CobaltRunner:
     logger.info('Launching Cobalt: %s', ' '.join(cmd))
     env = os.environ.copy()
     if 'ASAN_OPTIONS' not in env:
-      env['ASAN_OPTIONS'] = 'exitcode=0:detect_leaks=0'
+      env['ASAN_OPTIONS'] = 'detect_leaks=0'
     # pylint: disable=consider-using-with
     self.log_handle = open(self.log_file, 'w', encoding='utf-8')
     try:
@@ -98,45 +98,69 @@ class CobaltRunner:
     return self.proc.pid
 
   def wait_for_exit(self, timeout: float = 15.0) -> int:
-    """Waits for Cobalt to exit cleanly, escalating to SIGKILL on timeout.
+    """Waits for Cobalt to exit cleanly, raising an error on crash or timeout.
 
     Args:
-      timeout: Seconds to wait before escalating to SIGKILL.
+      timeout: Seconds to wait before escalating to SIGKILL and failing.
 
     Returns:
-      The exit code of the process.
+      The exit code of the process (0 on clean exit).
 
     Raises:
-      AssertionError: If Cobalt exits with an unexpected error code.
+      AssertionError: If Cobalt was not launched, hangs on exit, exits with a
+        non-zero exit code, or logs a fatal crash marker.
     """
-    if not self.proc or self.proc.poll() is not None:
-      return 0 if not self.proc else (self.proc.poll() or 0)
+    if not self.proc:
+      raise AssertionError('Cobalt process was never launched')
 
     start = time.time()
-    while time.time() - start < timeout:
+    ret = self.proc.poll()
+    while ret is None and (time.time() - start < timeout):
+      time.sleep(0.2)
       ret = self.proc.poll()
-      if ret is not None:
-        logger.info('Cobalt exited cleanly with code: %d', ret)
-        if self.log_handle:
-          self.log_handle.close()
-          self.log_handle = None
-        allowed_codes = (0, 143, -signal.SIGPWR, -signal.SIGTERM)
-        if ret not in allowed_codes:
-          raise AssertionError(
-              f'Cobalt exited with unexpected non-zero code {ret}')
-        return ret
-      time.sleep(0.5)
 
-    logger.warning('Cobalt did not stop after %ss. Escalating to SIGKILL...',
-                   timeout)
-    try:
-      os.kill(self.proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
-      pass
     if self.log_handle:
       self.log_handle.close()
       self.log_handle = None
-    return -9
+
+    if ret is None:
+      logger.error('Cobalt hung on exit after %ss. Escalating to SIGKILL...',
+                   timeout)
+      self._kill_process_group()
+      raise AssertionError(
+          f'Cobalt hung on exit and did not stop within {timeout}s')
+
+    logger.info('Cobalt exited cleanly with code: %d', ret)
+    if ret != 0:
+      raise AssertionError(
+          f'Cobalt crashed or exited uncleanly with non-zero code {ret}')
+
+    logs = self.get_log_content()
+    for crash_marker in (
+        'ERROR: AddressSanitizer:',
+        'SUMMARY: AddressSanitizer:',
+        'Received signal ',
+        'Check failed:',
+        'FATAL:',
+    ):
+      if crash_marker in logs:
+        raise AssertionError(
+            f'Crash marker "{crash_marker}" detected in Cobalt logs')
+    return ret
+
+  def _kill_process_group(self) -> None:
+    """Kills the launched process group or process with SIGKILL."""
+    if not self.proc:
+      return
+    try:
+      os.killpg(os.getpgid(self.proc.pid), signal.SIGKILL)
+    except ProcessLookupError:
+      pass
+    except OSError:
+      try:
+        os.kill(self.proc.pid, signal.SIGKILL)
+      except ProcessLookupError:
+        pass
 
   def get_log_content(self) -> str:
     """Reads and returns the complete log content."""
@@ -148,10 +172,7 @@ class CobaltRunner:
   def close(self) -> None:
     """Ensures process is terminated and log file handle is closed."""
     if self.proc and self.proc.poll() is None:
-      try:
-        os.kill(self.proc.pid, signal.SIGKILL)
-      except ProcessLookupError:
-        pass
+      self._kill_process_group()
     if self.log_handle:
       self.log_handle.close()
       self.log_handle = None
