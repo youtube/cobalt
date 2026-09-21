@@ -44,7 +44,9 @@ class MODULES_EXPORT OnScreenKeyboard final
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const char kSupplementName[];
+  // This will be used again in a future milestone.
+  // static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   // For window.onScreenKeyboard
   static OnScreenKeyboard* onScreenKeyboard(LocalDOMWindow&);

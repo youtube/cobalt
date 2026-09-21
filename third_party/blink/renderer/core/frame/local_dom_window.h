@@ -116,7 +116,7 @@ class CORE_EXPORT LocalDOMWindow final
       public WindowOrWorkerGlobalScope,
       public UniversalGlobalScope,
       public WindowEventHandlers,
-      public Supplementable<LocalDOMWindow, 48> {
+      public Supplementable<LocalDOMWindow, 51> {
   USING_PRE_FINALIZER(LocalDOMWindow, Dispose);
 
  public:
@@ -167,7 +167,11 @@ class CORE_EXPORT LocalDOMWindow final
     kGlobalCacheStorageImpl = 44,
     kGlobalPerformanceImpl = 45,
     kGlobalCookieStoreImpl = 46,
-    kAudioRendererSinkCache = 47
+    kAudioRendererSinkCache = 47,
+
+    kH5vcc = 48,
+    kCobaltLifecycleController = 49,
+    kOnScreenKeyboard = 50
   };
 
   class CORE_EXPORT EventListenerObserver : public GarbageCollectedMixin {

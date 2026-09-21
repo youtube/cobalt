@@ -25,7 +25,12 @@
 namespace blink {
 
 // static
-const char DialServerManager::kSupplementName[] = "DialServerManager";
+// This will be used again in a future milestone.
+// const char DialServerManager::kSupplementName[] = "DialServerManager";
+
+// static
+const unsigned DialServerManager::kSupplementIndex =
+    static_cast<unsigned>(ExecutionContext::Supplements::kDialServerManager);
 
 // static
 DialServerManager* DialServerManager::From(ExecutionContext* context) {

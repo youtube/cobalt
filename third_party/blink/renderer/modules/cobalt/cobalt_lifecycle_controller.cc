@@ -21,8 +21,15 @@
 
 namespace blink {
 
-const char CobaltLifecycleController::kSupplementName[] =
-    "CobaltLifecycleController";
+// static
+// This will be used again in a future milestone.
+// const char CobaltLifecycleController::kSupplementName[] =
+//     "CobaltLifecycleController";
+
+// static
+const unsigned CobaltLifecycleController::kSupplementIndex =
+    static_cast<unsigned>(
+        LocalDOMWindow::Supplements::kCobaltLifecycleController);
 
 // static
 CobaltLifecycleController* CobaltLifecycleController::From(

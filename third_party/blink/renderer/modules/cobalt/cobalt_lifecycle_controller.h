@@ -48,7 +48,9 @@ class CobaltLifecycleController
       public FocusChangedObserver,
       public Supplement<LocalDOMWindow> {
  public:
-  static const char kSupplementName[];
+  // This will be used again in a future milestone.
+  // static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   static CobaltLifecycleController* From(LocalDOMWindow& window);
 

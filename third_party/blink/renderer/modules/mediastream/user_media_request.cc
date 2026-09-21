@@ -877,13 +877,7 @@ void UserMediaRequest::OnMediaStreamsInitialized(MediaStreamVector streams) {
     for (const auto& video_track : video_tracks)
       video_track->SetInitialConstraints(video_);
 
-<<<<<<< HEAD
-=======
-    RecordIdentifiabilityMetric(
-        surface_, GetExecutionContext(),
-        IdentifiabilityBenignStringToken(g_empty_string));
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (auto* window = GetWindow()) {
       if (media_type_ == UserMediaRequestType::kUserMedia) {
         PeerConnectionTracker::From(*window).TrackGetUserMediaSuccess(this,
@@ -909,12 +903,7 @@ void UserMediaRequest::FailConstraint(const String& constraint_name,
   DCHECK(!is_resolved_);
   if (!GetExecutionContext())
     return;
-<<<<<<< HEAD
-=======
-  RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
-                              IdentifiabilityBenignStringToken(message));
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
       PeerConnectionTracker::From(*window).TrackGetUserMediaFailure(
@@ -1007,13 +996,7 @@ void UserMediaRequest::Fail(Result error, const String& message) {
   CHECK(exception_code.has_value());
   CHECK(result_enum.has_value());
 
-<<<<<<< HEAD
-=======
-  RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
-                              IdentifiabilityBenignStringToken(message));
-
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
       PeerConnectionTracker::From(*window).TrackGetUserMediaFailure(
