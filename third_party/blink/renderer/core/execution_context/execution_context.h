@@ -135,6 +135,10 @@ class WebCodecsLogger;
 class WebPrintingManager;
 class WebViewAndroid;
 
+#if BUILDFLAG(IS_COBALT)
+class DialServerManager;
+#endif  // BUILDFLAG(IS_COBALT)
+
 enum ReasonForCallingCanExecuteScripts {
   kAboutToExecuteScript,
   kNotAboutToExecuteScript
@@ -164,58 +168,10 @@ enum ReferrerPolicySource { kPolicySourceHttpHeader, kPolicySourceMetaTag };
 // script written by a web author and an "isolated world" content script written
 // by an extension developer, but these share an ExecutionContext (the window)
 // in common.
-<<<<<<< HEAD
 class CORE_EXPORT ExecutionContext : public MojoBindingContext,
                                      public UseCounterAndConsoleLogger,
                                      public FeatureContext {
  public:
-=======
-class CORE_EXPORT ExecutionContext
-    : public Supplementable<ExecutionContext, 35>,
-      public MojoBindingContext,
-      public UseCounterAndConsoleLogger,
-      public FeatureContext {
- public:
-  enum class Supplements {
-    kCodecPressureManagerProvider = 0,
-    kBarcodeDetectorStatics = 1,
-    kRtcTransportDependencies = 2,
-    kServiceWorkerContainer = 3,
-    kPeerConnectionDependencyFactory = 4,
-    kBackgroundReadback = 5,
-    kWebPrintingManager = 6,
-    kWebCodecsLogger = 7,
-    kFileSystemDispatcher = 8,
-    kNotificationManager = 9,
-    kLocalFileSystem = 10,
-    kAIInterfaceProxy = 11,
-    kFileSystemAccessManager = 12,
-    kWebViewAndroid = 13,
-    kPressureObserverManager = 14,
-    kFileSystemObservationCollection = 15,
-    kIdleManager = 16,
-    kImageBitmapFactories = 17,
-    kNavigatorBadge = 18,
-    kCrosKiosk = 19,
-    kDOMScheduler = 20,
-    kScriptedIdleTaskController = 21,
-    kMediaInspectorContextImpl = 22,
-    kReportingContext = 23,
-    kAbortSignalRegistry = 24,
-    kFileBackedBlobFactoryDispatcher = 25,
-    kContextFeatureSettings = 26,
-    kParsedFeaturePolicies = 27,
-    kThrottlingController = 28,
-    kDOMTimerCoordinator = 29,
-    kGlobalIndexedDBImpl = 30,
-    kExecutionContextClipboardEventState = 31,
-    kCachedVideoFramePool = 32,
-    kCanvasResourceProviderCache = 33,
-
-    kDialServerManager = 34
-  };
-
->>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ExecutionContext(const ExecutionContext&) = delete;
   ExecutionContext& operator=(const ExecutionContext&) = delete;
 
@@ -847,6 +803,18 @@ class CORE_EXPORT ExecutionContext
     web_view_android_ = web_view_android;
   }
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_IOS_TVOS)
+  ForwardDeclaredMember<DialServerManager> GetDialServerManager() const {
+    return dial_server_manager_;
+  }
+  void SetDialServerManager(
+      ForwardDeclaredMember<DialServerManager> dial_server_manager) {
+    dial_server_manager_ = dial_server_manager;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
+
  protected:
   ExecutionContext(v8::Isolate* isolate, Agent* agent, bool is_window = false);
   ~ExecutionContext() override;
@@ -953,6 +921,12 @@ class CORE_EXPORT ExecutionContext
   ForwardDeclaredMember<WebCodecsLogger> web_codecs_logger_;
   ForwardDeclaredMember<WebPrintingManager> web_printing_manager_;
   ForwardDeclaredMember<WebViewAndroid> web_view_android_;
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_IOS_TVOS)
+  ForwardDeclaredMember<DialServerManager> dial_server_manager_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace blink
