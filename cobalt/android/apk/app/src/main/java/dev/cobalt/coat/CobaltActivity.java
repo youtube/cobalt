@@ -497,8 +497,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       NetworkChangeNotifier.setAutoDetectConnectivityState(true);
     }
     if (!sIsMemoryPressureInitialized) {
-      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
       MemoryPressureUma.initializeForBrowser();
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
       sIsMemoryPressureInitialized = true;
     }
 
