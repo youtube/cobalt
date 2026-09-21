@@ -29,11 +29,9 @@
 
 SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
     const std::string& name,
-    int cache_capacity_in_bytes) {
-  available_chunk_count_.store(
-      cache_capacity_in_bytes / SkFileMemoryChunk::kSizeInBytes,
-      std::memory_order_relaxed);
-}
+    int cache_capacity_in_bytes)
+    : available_chunk_count_(cache_capacity_in_bytes /
+                             SkFileMemoryChunk::kSizeInBytes) {}
 
 SkFileMemoryChunkStreamProvider*
 SkFileMemoryChunkStreamManager::GetStreamProvider(
