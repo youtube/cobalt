@@ -17,9 +17,13 @@
 // clang-format on
 
 #include <atomic>
+#include <optional>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
 
@@ -60,6 +64,19 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   return bits;
 }
 
+// Budget tiers based off of the values in
+// starboard/android/shared/media_get_video_buffer_budget.cc.
+size_t GetReferenceVideoBufferBudget(int height, int bits_per_pixel) {
+  constexpr size_t kMB = 1024 * 1024;
+  if (height <= 1080) {
+    return 30 * kMB;
+  }
+  if (height <= 2160) {
+    return (bits_per_pixel <= 8 ? 100 : 160) * kMB;
+  }
+  return 200 * kMB;
+}
+
 }  // namespace
 
 void SetVideoBufferSizeReductionPercent(int reduction_pct) {
@@ -77,17 +94,26 @@ size_t GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   size_t limit;
+  int height = 1080;
+  int bits_per_pixel = 8;
   if (!video_config) {
     limit = GetVideoDecoderBufferLimitBytes(
-        VideoCodec::kH264, /*resolution=*/{1920, 1080}, /*bits_per_pixel=*/8);
+        VideoCodec::kH264, /*resolution=*/{1920, 1080}, bits_per_pixel);
   } else {
+    height = video_config->visible_rect().height();
+    bits_per_pixel = GetBitsPerPixel(*video_config);
     limit = GetVideoDecoderBufferLimitBytes(video_config->codec(),
                                             video_config->visible_rect().size(),
-                                            GetBitsPerPixel(*video_config));
+                                            bits_per_pixel);
   }
 
   std::optional<int> reduction_pct =
       g_video_buffer_size_reduction_percent.load();
+  if (!reduction_pct.has_value() &&
+      base::FeatureList::IsEnabled(kCobaltVideoBufferSizeReductionPercent) &&
+      limit >= GetReferenceVideoBufferBudget(height, bits_per_pixel)) {
+    reduction_pct = kCobaltVideoBufferSizeReductionPercentValue.Get();
+  }
   if (!reduction_pct.has_value()) {
     return limit;
   }
