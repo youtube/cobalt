@@ -33,31 +33,42 @@ permissions:
 jobs:
   init-status:
     runs-on: ubuntu-latest
-    if: (github.event.action || inputs.action) == 'in_progress'
     permissions:
       statuses: write
+      actions: write
+      contents: read
       pull-requests: read
+    outputs:
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+      rerun_triggered: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
     steps:
-      - name: Resolve HEAD_SHA
+      - name: Resolve Context
+        id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
-          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
 
+          pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
-          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
-            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
-          echo "HEAD_SHA=${head_sha}" >> "${GITHUB_ENV}"
 
-      - name: Update Workflow Commit Status to Pending
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set Pending Status on In-Progress
+        if: (github.event.action || inputs.action) == 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
         shell: bash
@@ -74,59 +85,8 @@ jobs:
             -f description="Checks are running" \
             -f context="CI / All Pass" || true
 
-  init-comment:
-    runs-on: ubuntu-latest
-    if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
-    permissions:
-      pull-requests: write
-    concurrency:
-      group: ci-shepherd-anchor @ ${{ github.event.workflow_run.head_sha || inputs.pr_number }}
-      cancel-in-progress: false
-    outputs:
-      pr_number: ${{ steps.anchor.outputs.pr_number }}
-      comment_id: ${{ steps.anchor.outputs.comment_id }}
-      head_sha: ${{ steps.anchor.outputs.head_sha }}
-    steps:
-      - name: Create or Find Anchor Comment
-        id: anchor
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          head_sha="${HEAD_SHA:-}"
-          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
-            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
-          fi
-
-          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
-          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
-
-          header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-            --jq --arg h "${header}" '.[] | select((.body // "") | contains($h)) | .id' | head -n1)
-
-          if [[ -z "${comment_id}" ]]; then
-            body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-            comment_id=$(gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --jq '.id')
-          fi
-
-          echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
-
-  deflake:
-    runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'failure'
-    permissions:
-      contents: read
-      actions: write
-    outputs:
-      rerun_triggered: ${{ steps.rerun.outputs.rerun_triggered || 'false' }}
-    steps:
-      - name: Checkout Config
+      - name: Checkout Deflake Config
+        if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -134,14 +94,15 @@ jobs:
           filter: blob:none
           sparse-checkout: .github
 
-      - name: Rerun Failing Tests
-        id: rerun
+      - name: Deflake Failing Tests
+        id: deflake
+        if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
         shell: bash
@@ -174,23 +135,17 @@ jobs:
           gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
           echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
 
-  update-status:
-    runs-on: ubuntu-latest
-    needs: [init-comment, deflake]
-    if: always() && (github.event.workflow_run.conclusion || inputs.action) != '' && !cancelled()
-    permissions:
-      statuses: write
-      actions: read
-    steps:
       - name: Update Workflow and Overall Commit Status
+        id: status
+        if: (github.event.action || inputs.action) != 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
-          RERUN_TRIGGERED: ${{ needs.deflake.outputs.rerun_triggered || 'false' }}
+          RERUN_TRIGGERED: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -264,18 +219,21 @@ jobs:
 
   comment-pr:
     runs-on: ubuntu-latest
-    needs: [init-comment, update-status]
-    if: always() && needs.init-comment.outputs.comment_id != '' && !cancelled()
+    needs: [init-status]
+    if: always() && needs.init-status.outputs.pr_number != '' && !cancelled()
+    concurrency:
+      group: ci-shepherd-anchor @ ${{ needs.init-status.outputs.head_sha }}
+      cancel-in-progress: false
     permissions:
       statuses: read
       pull-requests: write
     steps:
-      - name: Update PR Comment
+      - name: Update PR Anchor Comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
-          COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          HEAD_SHA: ${{ needs.init-status.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.init-status.outputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -294,4 +252,12 @@ jobs:
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
-          gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" -f body="${comment_body}" --silent
+
+          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --jq --arg h "${header}" '.[] | select((.body // "") | contains($h)) | .id' | head -n1)
+
+          if [[ -z "${comment_id}" ]]; then
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${comment_body}" --silent
+          else
+            gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="${comment_body}" --silent
+          fi
