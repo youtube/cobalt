@@ -24,6 +24,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "src/core/SkOSFile.h"
 
@@ -68,23 +69,23 @@ void SkFileMemoryChunkStreamManager::PurgeUnusedMemoryChunks() {
 bool SkFileMemoryChunkStreamManager::TryReserveMemoryChunk() {
   // First check to see if the count is already 0. If it is, then there's no
   // available memory chunk to try to reserve. Simply return failure.
-  if (base::subtle::NoBarrier_Load(&available_chunk_count_) <= 0) {
+  if (available_chunk_count_.load(std::memory_order_relaxed) <= 0) {
     return false;
   }
 
   // Decrement the available count behind a memory barrier. If the return value
-  // is less than 0, then another requester reserved the last available memory
-  // chunk first. In that case, restore the chunk to the count and return
-  // failure.
-  if (base::subtle::Barrier_AtomicIncrement(&available_chunk_count_, -1) < 0) {
-    base::subtle::NoBarrier_AtomicIncrement(&available_chunk_count_, 1);
+  // is <= 0, then another requester reserved the last available memory chunk
+  // first. In that case, restore the chunk to the count and return failure.
+  if (available_chunk_count_.fetch_sub(1) <= 0) {
+    available_chunk_count_.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
   return true;
 }
 
 void SkFileMemoryChunkStreamManager::ReleaseReservedMemoryChunks(size_t count) {
-  base::subtle::NoBarrier_AtomicIncrement(&available_chunk_count_, count);
+  available_chunk_count_.fetch_add(base::saturated_cast<int>(count),
+                                   std::memory_order_relaxed);
 }
 
 SkFileMemoryChunkStreamProvider::SkFileMemoryChunkStreamProvider(
