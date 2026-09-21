@@ -360,21 +360,11 @@ void BlinkInitializer::OnClearWindowObjectInMainWorld(
 // Function defined in third_party/blink/public/web/blink.h.
 void OnProcessForegrounded() {
   Partitions::AdjustPartitionsForForeground();
-#if BUILDFLAG(IS_COBALT)
-  if (auto* reporter = HighestPmfReporter::Instance()) {
-    reporter->OnProcessForegrounded();
-  }
-#endif
 }
 
 // Function defined in third_party/blink/public/web/blink.h.
 void OnProcessBackgrounded() {
   Partitions::AdjustPartitionsForBackground();
-#if BUILDFLAG(IS_COBALT)
-  if (auto* reporter = HighestPmfReporter::Instance()) {
-    reporter->OnProcessBackgrounded();
-  }
-#endif
 }
 
 }  // namespace blink

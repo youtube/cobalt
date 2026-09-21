@@ -23,11 +23,9 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "components/language_detection/content/browser/content_language_detection_driver.h"  // nogncheck
-#include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
-#include "components/language_detection/core/browser/language_detection_model_provider.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "components/language_detection/content/browser/content_language_detection_driver.h"
+#include "components/language_detection/content/common/language_detection.mojom.h"
+#include "components/language_detection/core/browser/language_detection_model_provider.h"
 #include "content/browser/ai/echo_ai_manager_impl.h"
 #include "content/browser/cpu_performance/cpu_performance.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -84,9 +82,6 @@
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
 #include "storage/browser/quota/quota_manager.h"
-#if BUILDFLAG(IS_COBALT)
-#include "storage/browser/quota/quota_settings.h"
-#endif
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
@@ -789,24 +784,6 @@ GeneratedCodeCacheSettings ContentBrowserClient::GetGeneratedCodeCacheSettings(
   // By default, code cache is disabled, embedders should override.
   return GeneratedCodeCacheSettings(false, 0, base::FilePath());
 }
-
-#if BUILDFLAG(IS_COBALT)
-base::FilePath ContentBrowserClient::GetCacheStoragePath(
-    BrowserContext* browser_context,
-    const base::FilePath& partition_path,
-    const base::FilePath& relative_partition_path) {
-  return base::FilePath();
-}
-
-void ContentBrowserClient::GetCacheQuotaSettings(
-    BrowserContext* browser_context,
-    const base::FilePath& cache_path,
-    storage::OptionalQuotaSettingsCallback callback) {
-  storage::GetNominalDynamicSettings(
-      cache_path, browser_context ? browser_context->IsOffTheRecord() : false,
-      storage::GetDefaultDeviceInfoHelper(), std::move(callback));
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 std::string ContentBrowserClient::GetWebUIHostnameForCodeCacheMetrics(
     const GURL& webui_url) const {
@@ -1933,7 +1910,6 @@ void ContentBrowserClient::BindTranslationManager(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::TranslationManager> receiver) {}
 
-#if !BUILDFLAG(IS_COBALT)
 namespace {
 // TODO(https://crbug.com/383035345): Use BASE_FEATURE_PARAM.
 const base::FeatureParam<std::string> kLanguageDetectionLocalFileModelPath{
@@ -1980,7 +1956,6 @@ void ContentBrowserClient::BindLanguageDetectionDriver(
     GetContentLanguageDetectionDriver().AddReceiver(std::move(receiver));
   }
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
 void ContentBrowserClient::QueryInstalledWebAppsByManifestId(
