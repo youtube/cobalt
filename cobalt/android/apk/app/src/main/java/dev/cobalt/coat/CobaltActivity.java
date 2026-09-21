@@ -490,13 +490,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
-    createContent(savedInstanceState);
     if (!NetworkChangeNotifier.isInitialized()) {
       MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
       MemoryPressureUma.initializeForBrowser();
       NetworkChangeNotifier.init();
       NetworkChangeNotifier.setAutoDetectConnectivityState(true);
     }
+    createContent(savedInstanceState);
 
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
