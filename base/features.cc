@@ -99,6 +99,10 @@ BASE_FEATURE_PARAM(int,
                    "initial_old_space_size_mb",
                    16);
 
+BASE_FEATURE(kCobaltV8OptimizeForSize,
+             "CobaltV8OptimizeForSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 // Enabled by default, except on Android where the upstream Chromium defaults
 // are kept until a dedicated experiment has been run there. The memory and
 // performance tradeoff of collapsing the skewport was only validated on TV

@@ -52,6 +52,13 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8MaxOldSpaceSizeMb);
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 
+// When enabled, V8 runs with --optimize-for-size, favoring memory reduction over
+// execution speed. Disabled by default on Cobalt to allow standard execution
+// optimizations and achieve locked 30 FPS UI framerates, while allowing
+// partners (e.g. Samsung low-end devices) or memory-constrained tiers to enable
+// it dynamically via Finch or command line.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
+
 // When enabled, overrides the compositor skewport target times, which control
 // speculative pre-rastering of offscreen tiles. When disabled, the upstream
 // Chromium defaults apply (1.0 software raster / 0.2 GPU raster). Both params
