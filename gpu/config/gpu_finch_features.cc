@@ -418,9 +418,22 @@ BASE_FEATURE(kIncreasedCmdBufferParseSlice,
 // Prune transfer cache entries not accessed recently. This also turns off
 // similar logic in cc::GpuImageDecodeCache which is the largest (often single)
 // client of transfer cache.
+//
+// Cobalt: enabled by default, backporting https://crrev.com/c/8134219
+// (M153, main@{#1666633}), which flipped this to FEATURE_ENABLED_BY_DEFAULT
+// upstream. On Cobalt this flag is the kill switch for idle transfer cache
+// pruning: it gates ServiceTransferCache::MaybePostPruneOldEntries(), which is
+// the only thing that runs while the UI is idle and therefore the only thing
+// that can act on entries once cc::GpuImageDecodeCache finally unlocks them.
+// See also EnablePurgeGpuImageDecodeCache() below.
 BASE_FEATURE(kPruneOldTransferCacheEntries,
              "PruneOldTransferCacheEntries",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_COBALT)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // On platforms with delegated compositing, try to release overlays later, when
 // no new frames are swapped.
@@ -738,7 +751,21 @@ bool IsSkiaGraphitePrecompilationEnabled(
 // Set up such that service side purge depends on the client side purge feature
 // being enabled. And enabling service side purge disables client purge
 bool EnablePurgeGpuImageDecodeCache() {
+#if BUILDFLAG(IS_COBALT)
+  // Backport of https://crrev.com/c/7684855 (M150, main@{#1603481}), which
+  // deleted this function outright so that client-side purging is always on.
+  // Quoting that CL: "it's been discovered there are cases where only client
+  // side purging works (it keeps image locked otherwise, preventing service
+  // side purge)."
+  //
+  // Keeping the function (rather than deleting it as upstream did) minimises
+  // the diff against M138 and preserves a clean A/B: with
+  // kPruneOldTransferCacheEntries disabled, Cobalt behaves exactly like
+  // upstream M138 default (which also evaluates to true).
+  return true;
+#else
   return !base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
+#endif
 }
 bool EnablePruneOldTransferCacheEntries() {
   return base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
