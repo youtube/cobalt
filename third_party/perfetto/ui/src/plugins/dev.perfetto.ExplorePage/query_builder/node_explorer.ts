@@ -1,0 +1,311 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import m from 'mithril';
+
+import {AsyncLimiter} from '../../../base/async_limiter';
+import {
+  analyzeNode,
+  isAQuery,
+  Query,
+  QueryNode,
+  queryToRun,
+} from '../query_node';
+import {Trace} from '../../../public/trace';
+import {SqlSourceNode} from './nodes/sources/sql_source';
+import {CodeSnippet} from '../../../widgets/code_snippet';
+import {AggregationNode} from './nodes/aggregation_node';
+import {NodeIssues} from './node_issues';
+import {TabStrip} from '../../../widgets/tabs';
+import {NodeModifyAttrs} from './node_explorer_types';
+import {Button, ButtonAttrs, ButtonVariant} from '../../../widgets/button';
+
+export interface NodeExplorerAttrs {
+  readonly node?: QueryNode;
+  readonly trace: Trace;
+  readonly onQueryAnalyzed: (query: Query | Error) => void;
+  readonly onAnalysisStateChange?: (isAnalyzing: boolean) => void;
+  readonly onchange?: () => void;
+  readonly resolveNode: (nodeId: string) => QueryNode | undefined;
+  readonly isCollapsed?: boolean;
+  readonly selectedView?: number;
+  readonly onViewChange?: (view: number) => void;
+}
+
+enum SelectedView {
+  kInfo = 0,
+  kModify = 1,
+  kResult = 2,
+}
+
+export class NodeExplorer implements m.ClassComponent<NodeExplorerAttrs> {
+  private readonly tableAsyncLimiter = new AsyncLimiter();
+
+  private prevSqString?: string;
+
+  private currentQuery?: Query | Error;
+  private sqlForDisplay?: string;
+  private resultTabMode: 'sql' | 'proto' = 'sql';
+
+  private renderTitleRow(node: QueryNode): m.Child {
+    return m(
+      '.pf-exp-node-explorer__title-row',
+      m('.title', m('h2', node.getTitle())),
+    );
+  }
+
+  private updateQuery(node: QueryNode, attrs: NodeExplorerAttrs) {
+    // TODO: Re-implement WITH statement dependencies for SqlSourceNode
+    // This was removed during the connection model migration
+    if (node instanceof SqlSourceNode && node.state.sql) {
+      // Validate that the node doesn't reference itself
+      const nodeIds = node.findDependencies();
+      for (const nodeId of nodeIds) {
+        if (nodeId === node.nodeId) {
+          node.state.issues = new NodeIssues();
+          node.state.issues.queryError = new Error(
+            'Node cannot depend on itself',
+          );
+          return;
+        }
+      }
+    }
+
+    const sq = node.getStructuredQuery();
+    if (sq === undefined) {
+      // Report error instead of silently returning
+      const error = new Error(
+        'Cannot generate structured query. This usually means:\n' +
+          '• Multi-source nodes (Union/Merge/Intersect) need at least 2 connected inputs\n' +
+          '• All input ports must be connected\n' +
+          '• Previous nodes must be valid',
+      );
+      this.currentQuery = error;
+      attrs.onQueryAnalyzed(error);
+      return;
+    }
+
+    const curSqString = JSON.stringify(sq.toJSON(), null, 2);
+
+    if (curSqString !== this.prevSqString || node.state.hasOperationChanged) {
+      if (node.state.hasOperationChanged) {
+        node.state.hasOperationChanged = false;
+      }
+      attrs.onAnalysisStateChange?.(true);
+      this.tableAsyncLimiter.schedule(async () => {
+        try {
+          this.currentQuery = await analyzeNode(node, attrs.trace.engine);
+          if (!isAQuery(this.currentQuery)) {
+            attrs.onAnalysisStateChange?.(false);
+            return;
+          }
+          if (node instanceof AggregationNode) {
+            node.updateGroupByColumns();
+          }
+          attrs.onQueryAnalyzed(this.currentQuery);
+          this.prevSqString = curSqString;
+          attrs.onAnalysisStateChange?.(false);
+        } catch (e) {
+          // Silently handle "Already analyzing" errors - the AsyncLimiter
+          // will retry when the current analysis completes
+          if (e instanceof Error && e.message.includes('Already analyzing')) {
+            // Keep isAnalyzing = true, will retry automatically
+            return;
+          }
+          // For other errors, set them as the current query and stop analyzing
+          const error = e instanceof Error ? e : new Error(String(e));
+          this.currentQuery = error;
+          attrs.onQueryAnalyzed(error);
+          attrs.onAnalysisStateChange?.(false);
+        }
+      });
+    }
+  }
+
+  private renderButtons(
+    buttons?: NodeModifyAttrs['topLeftButtons'],
+  ): m.Children {
+    if (!buttons || buttons.length === 0) {
+      return [];
+    }
+    const result: m.Children = [];
+    for (const btn of buttons) {
+      const attrs: Partial<ButtonAttrs> = {
+        onclick: btn.onclick,
+        variant: btn.variant ?? ButtonVariant.Outlined, // Default to Outlined
+      };
+      if (btn.label) attrs.label = btn.label;
+      if (btn.icon) attrs.icon = btn.icon;
+      if (btn.compact !== undefined) attrs.compact = btn.compact;
+      result.push(m(Button, attrs as ButtonAttrs));
+    }
+    return result;
+  }
+
+  private renderCornerButtons(buttons: NodeModifyAttrs): m.Child {
+    if (
+      !buttons.topLeftButtons &&
+      !buttons.topRightButtons &&
+      !buttons.bottomLeftButtons &&
+      !buttons.bottomRightButtons
+    ) {
+      return null;
+    }
+
+    return m('.pf-exp-node-explorer__buttons', [
+      m('.pf-exp-node-explorer__buttons-top', [
+        m(
+          '.pf-exp-node-explorer__buttons-top-left',
+          this.renderButtons(buttons.topLeftButtons),
+        ),
+        m(
+          '.pf-exp-node-explorer__buttons-top-right',
+          this.renderButtons(buttons.topRightButtons),
+        ),
+      ]),
+      m('.pf-exp-node-explorer__buttons-bottom', [
+        m(
+          '.pf-exp-node-explorer__buttons-bottom-left',
+          this.renderButtons(buttons.bottomLeftButtons),
+        ),
+        m(
+          '.pf-exp-node-explorer__buttons-bottom-right',
+          this.renderButtons(buttons.bottomRightButtons),
+        ),
+      ]),
+    ]);
+  }
+
+  private renderSections(sections?: NodeModifyAttrs['sections']): m.Child {
+    if (!sections || sections.length === 0) {
+      return null;
+    }
+
+    return m(
+      '.pf-exp-node-explorer__sections',
+      sections.map((section) =>
+        m(
+          '.pf-exp-node-explorer__section',
+          section.title &&
+            m('h3.pf-exp-node-explorer__section-title', section.title),
+          m('.pf-exp-node-explorer__section-content', section.content),
+        ),
+      ),
+    );
+  }
+
+  private renderModifyView(node: QueryNode): m.Child {
+    const modifyResult = node.nodeSpecificModify();
+
+    // Check if node returned attrs (new pattern) or m.Child (old pattern)
+    if (this.isNodeModifyAttrs(modifyResult)) {
+      const attrs = modifyResult as NodeModifyAttrs;
+      return m('.pf-exp-node-explorer__modify', [
+        this.renderCornerButtons(attrs),
+        this.renderSections(attrs.sections),
+      ]);
+    }
+
+    // Fallback to old pattern for backwards compatibility
+    return modifyResult as m.Child;
+  }
+
+  private isNodeModifyAttrs(value: unknown): value is NodeModifyAttrs {
+    if (value === null || value === undefined) return false;
+    if (typeof value !== 'object') return false;
+
+    const obj = value as Record<string, unknown>;
+
+    // Check if it has any of the NodeModifyAttrs properties
+    return (
+      'sections' in obj ||
+      'topLeftButtons' in obj ||
+      'topRightButtons' in obj ||
+      'bottomLeftButtons' in obj ||
+      'bottomRightButtons' in obj
+    );
+  }
+
+  private renderContent(node: QueryNode, selectedView: number): m.Child {
+    const sql: string =
+      this.sqlForDisplay ??
+      (isAQuery(this.currentQuery)
+        ? queryToRun(this.currentQuery)
+        : 'SQL not available.');
+    const textproto: string = isAQuery(this.currentQuery)
+      ? this.currentQuery.textproto
+      : this.currentQuery instanceof Error
+        ? this.currentQuery.message
+        : 'Proto not available.';
+
+    return m(
+      'article',
+      selectedView === SelectedView.kInfo && node.nodeInfo(),
+      selectedView === SelectedView.kModify && this.renderModifyView(node),
+      selectedView === SelectedView.kResult &&
+        m('.', [
+          m(TabStrip, {
+            tabs: [
+              {key: 'sql', title: 'SQL'},
+              {key: 'proto', title: 'Proto'},
+            ],
+            currentTabKey: this.resultTabMode,
+            onTabChange: (key: string) => {
+              this.resultTabMode = key as 'sql' | 'proto';
+            },
+          }),
+          m('hr', {
+            style: {
+              margin: '0',
+              borderTop: '1px solid var(--separator-color)',
+            },
+          }),
+          this.resultTabMode === 'sql'
+            ? isAQuery(this.currentQuery)
+              ? m(CodeSnippet, {language: 'SQL', text: sql})
+              : m('div', sql)
+            : isAQuery(this.currentQuery)
+              ? m(CodeSnippet, {text: textproto, language: 'textproto'})
+              : m('div', textproto),
+        ]),
+    );
+  }
+
+  view({attrs}: m.CVnode<NodeExplorerAttrs>) {
+    const {node, isCollapsed, selectedView = SelectedView.kInfo} = attrs;
+    if (!node) {
+      return null;
+    }
+
+    // Update the node's onchange callback to point to our attrs.onchange
+    // This ensures that changes in the node's UI components trigger the callback chain
+    node.state.onchange = attrs.onchange;
+
+    // Always analyze to generate the query object (needed to enable Run button)
+    // The autoExecute flag only controls whether we automatically execute after analysis
+    this.updateQuery(node, attrs);
+
+    if (isCollapsed) {
+      return m('.pf-exp-node-explorer.collapsed');
+    }
+
+    return m(
+      `.pf-exp-node-explorer${
+        node instanceof SqlSourceNode ? '.pf-exp-node-explorer-sql-source' : ''
+      }`,
+      m('.pf-exp-node-explorer__header', this.renderTitleRow(node)),
+      this.renderContent(node, selectedView),
+    );
+  }
+}
