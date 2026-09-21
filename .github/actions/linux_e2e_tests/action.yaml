@@ -63,7 +63,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
-        ASAN_OPTIONS: "exitcode=0:detect_leaks=0"
+        ASAN_OPTIONS: "detect_leaks=0"
       run: |
         set -euxo pipefail
         mkdir -p "${GITHUB_WORKSPACE}/results"
