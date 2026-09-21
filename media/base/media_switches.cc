@@ -522,6 +522,15 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
              "CobaltUseExternalMediaMemoryPool",
              base::FEATURE_ENABLED_BY_DEFAULT);
+#if !BUILDFLAG(IS_ANDROIDTV)
+// When disabled, Cobalt will not apply a percentage reduction to the returned
+// value of the media video buffer budget.
+BASE_FEATURE(kCobaltVideoBufferSizeReductionPercent,
+             "CobaltVideoBufferSizeReductionPercent",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int, kCobaltVideoBufferSizeReductionPercentValue, &kCobaltVideoBufferSizeReductionPercent,
+                   "CobaltVideoBufferSizeReductionPercentValue", 10);
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
