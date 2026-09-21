@@ -18,8 +18,11 @@
 
 #include <atomic>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
 
@@ -60,6 +63,31 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   return bits;
 }
 
+// Returns the effective reduction percentage, or nullopt if no reduction should
+// be applied. Precedence:
+//   1. An explicit value set via H5vcc (SetVideoBufferSizeReductionPercent).
+//   2. The Finch-controlled kCobaltVideoBufferSizeReductionPercent feature.
+//   3. No reduction.
+std::optional<int> GetEffectiveVideoBufferSizeReductionPercent() {
+  std::optional<int> h5vcc_pct = g_video_buffer_size_reduction_percent.load();
+  if (h5vcc_pct.has_value()) {
+    return h5vcc_pct;
+  }
+
+  if (!base::FeatureList::IsEnabled(kCobaltVideoBufferSizeReductionPercent)) {
+    return std::nullopt;
+  }
+
+  const int finch_pct = kCobaltVideoBufferSizeReductionPercentValue.Get();
+  if (finch_pct <= 0 || finch_pct >= 100) {
+    LOG(WARNING) << "Ignoring out-of-range "
+                 << kCobaltVideoBufferSizeReductionPercentValue.name << "="
+                 << finch_pct;
+    return std::nullopt;
+  }
+  return finch_pct;
+}
+
 }  // namespace
 
 void SetVideoBufferSizeReductionPercent(int reduction_pct) {
@@ -87,7 +115,7 @@ size_t GetDemuxerStreamVideoMemoryLimit(
   }
 
   std::optional<int> reduction_pct =
-      g_video_buffer_size_reduction_percent.load();
+      GetEffectiveVideoBufferSizeReductionPercent();
   if (!reduction_pct.has_value()) {
     return limit;
   }

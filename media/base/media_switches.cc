@@ -523,6 +523,28 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt reduces the video demuxer buffer budget by
+// |kCobaltVideoBufferSizeReductionPercentValue| percent. An explicit value set
+// via the "Media.VideoBufferSizeReductionPercent" H5vcc setting always takes
+// precedence over this feature.
+//
+// Disabled by default on Android TV while buffer-size experiments are being
+// run through the H5vcc setting, since enabling it there would skew those
+// experiments' control groups. It can still be enabled remotely via Finch.
+BASE_FEATURE(kCobaltVideoBufferSizeReductionPercent,
+             "CobaltVideoBufferSizeReductionPercent",
+#if BUILDFLAG(IS_ANDROIDTV)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else  // BUILDFLAG(IS_ANDROIDTV)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+);
+// Must be in the range (0, 100); out-of-range values are ignored.
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferSizeReductionPercentValue,
+                   &kCobaltVideoBufferSizeReductionPercent,
+                   "CobaltVideoBufferSizeReductionPercentValue",
+                   10);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
