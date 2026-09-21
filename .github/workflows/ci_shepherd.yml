@@ -31,6 +31,164 @@ permissions:
   contents: read
 
 jobs:
+  init-comment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+      contents: read
+      actions: read
+    outputs:
+      pr_number: ${{ steps.anchor.outputs.pr_number }}
+      comment_id: ${{ steps.anchor.outputs.comment_id }}
+      head_sha: ${{ steps.anchor.outputs.head_sha }}
+      workflow_state: ${{ steps.report.outputs.state }}
+      workflow_desc: ${{ steps.report.outputs.desc }}
+      workflow_id: ${{ steps.report.outputs.workflow_id }}
+    steps:
+      - name: Create Anchor Comment
+        id: anchor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER_INPUT: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_number="${PR_NUMBER_INPUT:-}"
+          head_sha="${HEAD_SHA:-}"
+
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --json number --jq '.[0].number // ""')
+          fi
+
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+
+          if [[ -z "${pr_number}" ]]; then
+            echo "No PR found. Skipping anchor comment creation."
+            exit 0
+          fi
+
+          header="<!-- sticky-pull-request-comment: shepherd-report -->"
+
+          # Check for existing comment with header across all pages (--paginate) safely
+          comments_json=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null || true)
+          matching_ids=($(printf '%s\n' "${comments_json}" | jq -s -r --arg h "${header}" '[.[][]? | objects | select((.body // "") | contains($h)) | .id] | .[]' 2>/dev/null || true))
+
+          if [[ ${#matching_ids[@]} -gt 0 ]]; then
+            existing_comment_id="${matching_ids[0]}"
+            echo "Anchor comment already exists (${existing_comment_id}) on PR #${pr_number}."
+            for extra_id in "${matching_ids[@]:1}"; do
+              echo "Removing duplicate anchor comment ${extra_id} on PR #${pr_number}"
+              gh api -X DELETE "repos/${REPO}/issues/comments/${extra_id}" --silent 2>/dev/null || true
+            done
+          else
+            echo "Creating empty anchor sticky PR comment on PR #${pr_number}"
+            json_payload=$(jq -n --arg b "${header}" '{body: $b}')
+            existing_comment_id=$(echo "${json_payload}" | gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" --input - --jq '.id')
+          fi
+
+          echo "comment_id=${existing_comment_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Parse Workflow Report
+        id: report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
+          STATUS: ${{ github.event.workflow_run.status || inputs.action || 'none' }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
+          HEAD_SHA: ${{ steps.anchor.outputs.head_sha }}
+          ACTION: ${{ inputs.action }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${WORKFLOW}" && -n "${HEAD_SHA}" && -n "${WORKFLOW_NAME:-}" ]]; then
+            WORKFLOW=$(gh run list --repo "${REPO}" --commit "${HEAD_SHA}" --workflow "${WORKFLOW_NAME}.yaml" -q '.[0].databaseId' 2>/dev/null || true)
+          fi
+
+          if [[ -n "${WORKFLOW}" ]]; then
+            live_run=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json status,conclusion,attempt 2>/dev/null || true)
+            if [[ -n "${live_run}" ]]; then
+              live_status=$(echo "${live_run}" | jq -r '.status // empty')
+              live_attempt=$(echo "${live_run}" | jq -r '.attempt // empty')
+              if [[ -n "${live_status}" ]]; then
+                STATUS="${ACTION:-${live_status}}"
+              fi
+              if [[ -n "${live_attempt}" ]]; then
+                RUN_ATTEMPT="${live_attempt}"
+              fi
+            fi
+          fi
+
+          # Download latest shepherd-report artifacts per name by artifact ID
+          mkdir -p shepherd_artifacts
+          artifact_ids=()
+          if [[ -n "${WORKFLOW}" ]]; then
+            artifact_ids=($(gh api "repos/${REPO}/actions/runs/${WORKFLOW}/artifacts" --jq '
+              [.artifacts[]? | select(.name | startswith("shepherd-report-"))] |
+              group_by(.name)[] | max_by(.id) | .id
+            ' 2>/dev/null || true))
+          fi
+
+          if [[ ${#artifact_ids[@]} -eq 0 ]]; then
+            if [[ "${STATUS}" == "completed" ]]; then
+              state="failure"
+              desc="Failed"
+            else
+              state="pending"
+              desc="Checks are running"
+              if [[ "${RUN_ATTEMPT}" -gt 1 ]]; then
+                desc="Retrying failed jobs"
+              fi
+            fi
+          else
+            for aid in "${artifact_ids[@]}"; do
+              gh api "repos/${REPO}/actions/artifacts/${aid}/zip" > "${aid}.zip"
+              unzip -qo "${aid}.zip" -d "shepherd_artifacts/${aid}"
+              rm -f "${aid}.zip"
+            done
+
+            shopt -s globstar nullglob
+            reports=(shepherd_artifacts/**/shepherd_report.json)
+            if [[ ${#reports[@]} -eq 0 ]]; then
+              state="failure"
+              desc="Failed"
+            else
+              has_failures=$(jq -s '
+                if length == 0 then true
+                else
+                  any(.[];
+                    any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
+                    or
+                    any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
+                  )
+                end
+              ' "${reports[@]}" 2>/dev/null || echo "true")
+
+              if [[ "${has_failures}" == "true" ]]; then
+                state="failure"
+                desc="Failed"
+              else
+                state="success"
+                desc="Passed"
+              fi
+            fi
+          fi
+
+          echo "state=${state}" >> "${GITHUB_OUTPUT}"
+          echo "desc=${desc}" >> "${GITHUB_OUTPUT}"
+          echo "workflow_id=${WORKFLOW}" >> "${GITHUB_OUTPUT}"
+
   deflake:
     runs-on: ubuntu-latest
     permissions:
@@ -59,6 +217,7 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
         shell: bash
         run: |
           set -euo pipefail
@@ -101,189 +260,120 @@ jobs:
 
   update-status:
     runs-on: ubuntu-latest
-    needs: deflake
+    needs: [init-comment, deflake]
     if: always() && !cancelled()
     timeout-minutes: 5
     permissions:
       statuses: write
       pull-requests: read
       actions: read
-    outputs:
-      pr_number: ${{ steps.update-status.outputs.pr_number }}
-      head_sha: ${{ steps.update-status.outputs.head_sha }}
     steps:
-      - name: Update Triggering Workflow Commit Status
+      - name: Update Triggering Workflow and Overall Commit Status
         id: update-status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ needs.init-comment.outputs.pr_number }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
-          WORKFLOW: ${{ github.event.workflow_run.id }}
-          STATUS: ${{ github.event.workflow_run.status || inputs.action || 'none' }}
-          CONCLUSION: ${{ github.event.workflow_run.conclusion || 'null' }}
+          WORKFLOW_ID: ${{ needs.init-comment.outputs.workflow_id }}
+          STATE: ${{ needs.init-comment.outputs.workflow_state }}
+          DESC: ${{ needs.init-comment.outputs.workflow_desc }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
-          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
-          RERUN_TRIGGERED: ${{ needs.deflake.outputs.rerun_triggered || 'false' }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-          ACTION: ${{ inputs.action }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -z "${WORKFLOW}" ]]; then
-            HEAD_SHA=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
-            WORKFLOW=$(gh run list --repo "${REPO}" --commit "${HEAD_SHA}" --workflow "${WORKFLOW_NAME}.yaml" -q '.[0].databaseId')
-            RUN_URL="https://github.com/${REPO}/actions/runs/${WORKFLOW}"
+          if [[ -n "${HEAD_SHA}" && -n "${WORKFLOW_NAME}" ]]; then
+            run_url="${RUN_URL:-}"
+            if [[ -z "${run_url}" && -n "${WORKFLOW_ID}" ]]; then
+              run_url="https://github.com/${REPO}/actions/runs/${WORKFLOW_ID}"
+            fi
+
+            params=(-f state="${STATE}" -f description="${DESC}" -f context="CI / ${WORKFLOW_NAME}")
+            if [[ -n "${run_url}" ]]; then
+              params+=(-f target_url="${run_url}")
+            fi
+
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" "${params[@]}"
           fi
-
-          # Query live workflow run status from the API to handle out-of-order/delayed event delivery.
-          live_run=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json status,conclusion,attempt 2>/dev/null || true)
-          if [[ -n "${live_run}" ]]; then
-            live_status=$(echo "${live_run}" | jq -r '.status // empty')
-            live_conclusion=$(echo "${live_run}" | jq -r '.conclusion // empty')
-            live_attempt=$(echo "${live_run}" | jq -r '.attempt // empty')
-            if [[ -n "${live_status}" ]]; then
-              STATUS="${ACTION:-${live_status}}"
-              CONCLUSION="${live_conclusion:-null}"
-              [[ "${ACTION:-}" == "in_progress" ]] && CONCLUSION="null"
-            fi
-            if [[ -n "${live_attempt}" ]]; then
-              RUN_ATTEMPT="${live_attempt}"
-            fi
-          fi
-
-          running_statuses=("in_progress" "queued" "requested" "waiting" "pending")
-          if [[ " ${running_statuses[*]} " == *" ${STATUS} "* ]] || [[ "${RERUN_TRIGGERED}" == "true" ]] || [[ "${CONCLUSION}" == "null" || -z "${CONCLUSION}" ]]; then
-            state="pending"
-            desc="Checks are running"
-            if [[ "${RUN_ATTEMPT}" -gt 1 || "${RERUN_TRIGGERED}" == "true" ]]; then
-              desc="Retrying failed jobs"
-            fi
-          else
-            # Download shepherd-report-* artifacts to determine status from validate job reports instead of workflow conclusion.
-            mkdir -p shepherd_artifacts
-            gh run download "${WORKFLOW}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
-
-            shopt -s globstar nullglob
-            reports=(shepherd_artifacts/**/shepherd_report.json)
-            if [[ ${#reports[@]} -eq 0 ]]; then
-              state="failure"
-              desc="Failed"
-            else
-              has_failures=$(jq -s '
-                if length == 0 then true
-                else
-                  any(.[];
-                    any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
-                    or
-                    any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
-                  )
-                end
-              ' "${reports[@]}" 2>/dev/null || echo "true")
-
-              if [[ "${has_failures}" == "true" ]]; then
-                state="failure"
-                desc="Failed"
-              else
-                state="success"
-                desc="Passed"
-              fi
-            fi
-          fi
-
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="${state}" \
-            -f target_url="${RUN_URL}" \
-            -f description="${desc}" \
-            -f context="CI / ${WORKFLOW_NAME}"
-
-          pr_number=$(gh pr list --repo "${REPO}" --search "${HEAD_SHA}" --json number --jq '.[0].number // ""')
-          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
-          echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
           # Query commit statuses and update overall CI commit status (CI / All Pass) for rulesets.
           status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
-          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r '
-            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] |
-            if any(.state == "failure" or .state == "error") then "failure\tSome checks failed"
-            elif length > 0 and all(.state == "success") then "success\tAll checks passed"
+          current_wf="${WORKFLOW_NAME:-}"
+          current_st="${STATE:-}"
+
+          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r \
+            --arg cur_wf "${current_wf}" \
+            --arg cur_st "${current_st}" '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] as $raw_ci |
+            (if ($cur_wf != "" and $cur_st != "") then
+              ($raw_ci | map(if .context == ("CI / " + $cur_wf) then .state = $cur_st else . end)) +
+              (if ($raw_ci | any(.context == ("CI / " + $cur_wf))) then [] else [{context: ("CI / " + $cur_wf), state: $cur_st}] end)
+            else
+              $raw_ci
+            end) as $ci |
+            if any($ci[]; .state == "failure" or .state == "error") then "failure\tSome checks failed"
+            elif (length > 0 and all($ci[]; .state == "success")) then "success\tAll checks passed"
             else "pending\tChecks are running" end
           ') || true
 
-          all_pass_url="https://github.com/${REPO}/commit/${HEAD_SHA}"
-          if [[ -n "${pr_number}" ]]; then
-            all_pass_url="https://github.com/${REPO}/pull/${pr_number}"
-          fi
+          if [[ -n "${overall_state:-}" && "${overall_state}" != "pending" ]]; then
+            all_pass_url="https://github.com/${REPO}/commit/${HEAD_SHA}"
+            if [[ -n "${PR_NUMBER}" ]]; then
+              all_pass_url="https://github.com/${REPO}/pull/${PR_NUMBER}"
+            fi
 
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="${overall_state:-pending}" \
-            -f target_url="${all_pass_url}" \
-            -f description="${overall_desc:-Checks are running}" \
-            -f context="CI / All Pass"
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+              -f state="${overall_state}" \
+              -f target_url="${all_pass_url}" \
+              -f description="${overall_desc}" \
+              -f context="CI / All Pass"
+
+            sleep 5
+          fi
 
   comment-pr:
     runs-on: ubuntu-latest
-    needs: update-status
-    if: always() && needs.update-status.outputs.pr_number != '' && !cancelled()
+    needs: [init-comment, update-status]
+    if: always() && needs.init-comment.outputs.pr_number != '' && !cancelled()
     timeout-minutes: 5
     permissions:
       statuses: read
       pull-requests: write
-    concurrency:
-      # Serialize sticky comment updates per PR so concurrent workflow runs do not race to create duplicate comments.
-      group: ${{ github.workflow }}-comment @ ${{ needs.update-status.outputs.pr_number }}
-      cancel-in-progress: false
     steps:
-      - name: Generate Shepherd Report
+      - name: Generate and Post Shepherd Report
         id: report
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ needs.update-status.outputs.head_sha || github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ needs.init-comment.outputs.pr_number }}
+          COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
         shell: bash
         run: |
           set -euo pipefail
 
-          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status")
+          if [[ -z "${COMMENT_ID:-}" ]]; then
+            echo "No anchor comment ID available. Skipping comment update."
+            exit 0
+          fi
 
-          # Generate a temporary report from the commit statuses.
-          # TODO: Generate a richer report using the shepherd json report.
+          # Generate markdown status table from the commit statuses.
+          {
+            echo "| Context | State | Description |"
+            echo "|---|---|---|"
+          } > shepherd_report.md
+
+          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
           echo "${status_json}" | jq -r '
             {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
-            ["| Context | State | Description |", "|---|---|---|"] +
-            [
-              .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
-              "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
-            ] | join("\n")
-          ' > shepherd_report.md
+            .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
+            "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
+          ' >> shepherd_report.md
 
-      - name: Comment on PR
-        if: always() && steps.report.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ needs.update-status.outputs.pr_number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          pr_number="${PR_NUMBER}"
+          # Update the anchor comment
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          report_content=$(cat shepherd_report.md)
-          comment_body="${header}"$'\n'"${report_content}"
-
-          # Check for existing comment with header across all pages (--paginate) safely
-          comments_json=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null || true)
-          existing_comment_id=$(printf '%s\n' "${comments_json}" | jq -s -r --arg h "${header}" '[.[][]? | objects | select((.body // "") | contains($h))] | .[0].id // empty' 2>/dev/null || true)
-
-          # Construct valid JSON payload safely via jq
+          comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
           json_payload=$(jq -n --arg b "${comment_body}" '{body: $b}')
-
-          if [[ -n "${existing_comment_id}" ]]; then
-            echo "Updating existing sticky PR comment ${existing_comment_id} on PR #${pr_number}"
-            echo "${json_payload}" | gh api -X PATCH "repos/${REPO}/issues/comments/${existing_comment_id}" --input - --silent
-          else
-            echo "Creating new sticky PR comment on PR #${pr_number}"
-            echo "${json_payload}" | gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" --input - --silent
-          fi
+          echo "${json_payload}" | gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" --input - --silent
