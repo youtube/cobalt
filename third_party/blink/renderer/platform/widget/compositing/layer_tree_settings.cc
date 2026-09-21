@@ -667,6 +667,16 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
           static_cast<float>(gpu_value);
     }
   }
+
+  const std::string cobalt_tiling_mode =
+      cmd.GetSwitchValueASCII(::switches::kCobaltTilingMode);
+  if (cobalt_tiling_mode == "single") {
+    settings.single_tile_visible_interest_area = true;
+  } else if (cobalt_tiling_mode == "single-visible") {
+    settings.single_tile_visible_interest_area = true;
+    settings.single_tile_visible_only = true;
+    settings.disallow_non_exact_resource_reuse = true;
+  }
 #endif
 
   settings.dynamic_safe_area_insets_on_scroll_enabled =
