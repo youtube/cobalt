@@ -1748,7 +1748,7 @@ void RenderThreadImpl::OnMemoryPressure(
     blink::MemoryPressureNotificationToAllIsolates(v8_memory_pressure_level);
   }
 
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (blink_platform_impl_) {
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
   }

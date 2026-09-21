@@ -2750,7 +2750,7 @@ class CONTENT_EXPORT WebContentsImpl
   base::WeakPtr<WebContents> opened_partitioned_popin_;
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Tracks the number of same-site fenced frames in the viewport per top-level
   // page load and stores it in the primary main frame's PageUserData. Metrics
   // are logged via UMA every time the PageUserData is destroyed.

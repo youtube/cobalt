@@ -2298,7 +2298,7 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
 =======
 #if !BUILDFLAG(IS_STARBOARD)
       EXPECT_CALL(*installer, OnUpdateError(_)).Times(0);
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       EXPECT_CALL(*installer, DoInstall(_));
       EXPECT_CALL(*installer, GetInstalledFile(_)).Times(0);
       EXPECT_CALL(*installer, Uninstall()).Times(0);

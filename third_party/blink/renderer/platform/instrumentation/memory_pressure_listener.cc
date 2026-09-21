@@ -48,7 +48,7 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 }
 }  // namespace
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;

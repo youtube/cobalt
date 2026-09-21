@@ -1817,4 +1817,4 @@ static inline uint32_t low_index_from_kaffinity(KAFFINITY kaffinity) {
 	_BitScanForward64(&index, (unsigned __int64)kaffinity);
 	return (uint32_t)index;
 }
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

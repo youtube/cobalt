@@ -643,7 +643,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToLittleEndian(float val) {
 #else
   return internal::ToLittleEndian(BitCast<uint32_t>(val));
 #endif
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 // Returns a byte array holding the value of a double encoded as the
 // little-endian encoding of the number.
@@ -662,7 +662,7 @@ inline constexpr std::array<uint8_t, 8u> DoubleToLittleEndian(double val) {
 #else
   return internal::ToLittleEndian(BitCast<uint64_t>(val));
 #endif
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 // Returns a byte array holding the value of a uint8_t encoded as the big-endian
@@ -771,7 +771,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToBigEndian(float val) {
 #else
   return internal::ToLittleEndian(ByteSwap(BitCast<uint32_t>(val)));
 #endif
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 // Returns a byte array holding the value of a double encoded as the big-endian
 // encoding of the number.
@@ -791,7 +791,7 @@ inline constexpr std::array<uint8_t, 8u> DoubleToBigEndian(double val) {
 #else
   return internal::ToLittleEndian(ByteSwap(BitCast<uint64_t>(val)));
 #endif
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace base

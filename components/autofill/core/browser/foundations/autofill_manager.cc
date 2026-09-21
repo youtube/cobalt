@@ -739,7 +739,7 @@ void AutofillManager::ParseFormsAsyncCommon(
           self->NotifyObservers(
               &Observer::OnFieldTypesDetermined, raw_form_structure.global_id(),
               Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
         if (context.log_manager && self->log_manager()) {
           context.log_manager->Flush(*self->log_manager());

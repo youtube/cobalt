@@ -3687,7 +3687,7 @@ void NetworkContext::SetBypassIpProtectionProxy(bool bypass_proxy) {
 #endif
 }
 
->>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fddd5727c2b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
     const GURL& url) const {
