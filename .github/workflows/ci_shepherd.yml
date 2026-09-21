@@ -88,6 +88,7 @@ jobs:
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
       rerun_triggered: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
+      run_analysis: ${{ steps.status.outputs.run_analysis || 'false' }}
     steps:
       - name: Resolve Context
         id: resolve
@@ -189,6 +190,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
@@ -245,28 +247,120 @@ jobs:
             | length > 0 and all(.state == "success")
           ')
 
-          # 3. Determine overall status and description
-          if [[ "${has_failures}" == "true" ]]; then
-            overall_state="failure"
-            overall_desc="Some checks failed"
-          elif [[ "${all_passed}" == "true" ]]; then
-            overall_state="success"
-            overall_desc="All checks passed"
-          else
-            overall_state="pending"
-            overall_desc="Checks are running"
-          fi
+          all_done=$(echo "${status_json}" | jq -r '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")]
+            | length > 0 and all(.state != "pending")
+          ')
 
-          if [[ -n "${overall_state:-}" && "${overall_state}" != "pending" ]]; then
+          # 3. Determine whether to trigger Gemini analysis or finalize overall status
+          run_analysis="false"
+          if [[ "${has_failures}" == "true" && "${all_done}" == "true" ]]; then
+            if [[ -n "${PR_NUMBER:-}" ]]; then
+              run_analysis="true"
+            else
+              gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+                -f state="failure" \
+                -f description="Checks failed" \
+                -f context="CI / All Pass"
+            fi
+          elif [[ "${all_passed}" == "true" ]]; then
             gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-              -f state="${overall_state}" \
-              -f description="${overall_desc}" \
+              -f state="success" \
+              -f description="All checks passed" \
               -f context="CI / All Pass"
           fi
 
-  comment-pr:
+          echo "run_analysis=${run_analysis}" >> "${GITHUB_OUTPUT}"
+
+  shepherd-analysis:
     runs-on: ubuntu-latest
     needs: [init-comment, status-and-deflake]
+    if: always() && needs.status-and-deflake.outputs.run_analysis == 'true' && needs.status-and-deflake.outputs.rerun_triggered != 'true' && !cancelled()
+    concurrency:
+      group: shepherd-analysis @ ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      statuses: write
+    outputs:
+      findings: ${{ steps.extract.outputs.findings }}
+    steps:
+      - name: Configure environment for Gemini CLI
+        run: |
+          echo "GEMINI_CLI_TRUST_WORKSPACE=true" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+
+      - name: Checkout files
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            .agent
+
+      - name: Run Gemini PR Shepherd Analysis
+        id: gemini-analysis
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          github_pr_number: ${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }}
+          gemini_model: 'gemini-2.5-flash'
+          upload_artifacts: true
+          prompt: |
+            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }} using the `gh` tool.
+            Provide your final determination as a JSON object with the following fields:
+            - "verdict": "failure" (if real failure in PR), "flaky" (if failures are due to flakes/infra), or "pass" (if all passed)
+            - "confidence": a number from 0 to 1 indicating your confidence in the verdict
+            - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
+
+            For a flaky verdict all retries of a workflow run must be analyzed/triaged.
+
+      - name: Extract Analysis Results and Finalize Status
+        id: extract
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
+          AGENT_SUMMARY: ${{ steps.gemini-analysis.outputs.summary }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          verdict=$(echo "${AGENT_SUMMARY:-}" | jq -r '.verdict // empty' 2>/dev/null || true)
+          findings=$(echo "${AGENT_SUMMARY:-}" | jq -r '.findings_summary // empty' 2>/dev/null || true)
+          if [[ -z "${findings}" ]]; then
+            findings="${AGENT_SUMMARY:-}"
+          fi
+
+          if [[ "${verdict}" == "flaky" ]]; then
+            overall_state="success"
+            overall_desc="Failures identified as flakes"
+          else
+            overall_state="failure"
+            overall_desc="Checks failed"
+          fi
+
+          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state="${overall_state}" \
+            -f description="${overall_desc}" \
+            -f context="CI / All Pass"
+
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "findings<<${DELIMITER}"
+            echo "${findings}"
+            echo "${DELIMITER}"
+          } >> "${GITHUB_OUTPUT}"
+
+  comment-pr:
+    runs-on: ubuntu-latest
+    needs: [init-comment, status-and-deflake, shepherd-analysis]
     if: always() && needs.init-comment.outputs.comment_id != '' && !cancelled()
     permissions:
       statuses: read
@@ -278,6 +372,7 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
           COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          FINDINGS: ${{ needs.shepherd-analysis.outputs.findings }}
         shell: bash
         run: |
           set -euo pipefail
@@ -293,6 +388,15 @@ jobs:
             .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
             "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
           ' >> shepherd_report.md
+
+          if [[ -n "${FINDINGS:-}" ]]; then
+            {
+              echo ""
+              echo "### 🤖 CI Shepherd Analysis"
+              echo ""
+              echo "${FINDINGS}"
+            } >> shepherd_report.md
+          fi
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
