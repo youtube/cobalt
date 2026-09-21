@@ -24,6 +24,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "src/core/SkOSFile.h"
 
@@ -83,7 +84,8 @@ bool SkFileMemoryChunkStreamManager::TryReserveMemoryChunk() {
 }
 
 void SkFileMemoryChunkStreamManager::ReleaseReservedMemoryChunks(size_t count) {
-  available_chunk_count_.fetch_add(count, std::memory_order_relaxed);
+  available_chunk_count_.fetch_add(base::saturated_cast<int>(count),
+                                   std::memory_order_relaxed);
 }
 
 SkFileMemoryChunkStreamProvider::SkFileMemoryChunkStreamProvider(
