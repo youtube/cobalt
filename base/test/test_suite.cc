@@ -353,28 +353,6 @@ int RunUnitTestsUsingBaseTestSuite(int argc, char** argv) {
 }
 
 TestSuite::TestSuite(int argc, char** argv) : argc_(argc), argv_(argv) {
-#if BUILDFLAG(IS_IOS_TVOS)
-  FilePath cache_dir;
-  bool has_cache_dir = PathService::Get(DIR_CACHE, &cache_dir);
-  constexpr std::string_view kGTestOutputPrefix = "--gtest_output=xml:";
-  argv_as_strings_.reserve(argc);
-  argv_as_pointers_.reserve(argc + 1);
-  for (int i = 0; i < argc; ++i) {
-    std::string arg(argv[i]);
-    if (has_cache_dir && arg.starts_with(kGTestOutputPrefix)) {
-      std::string_view file_path =
-          std::string_view(arg).substr(kGTestOutputPrefix.size());
-      if (!file_path.empty() && file_path[0] != '/') {
-        arg =
-            StrCat({kGTestOutputPrefix, cache_dir.Append(file_path).value()});
-      }
-    }
-    argv_as_strings_.push_back(std::move(arg));
-    argv_as_pointers_.push_back(argv_as_strings_.back().data());
-  }
-  argv_as_pointers_.push_back(nullptr);
-  argv_ = argv_as_pointers_.data();
-#endif  // BUILDFLAG(IS_IOS_TVOS)
   PreInitialize();
 }
 
@@ -679,14 +657,14 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+#if BUILDFLAG(IS_IOS)
+  InitIOSArgs(*argc, argv);
+#endif
+
   // CommandLine::Init() is called earlier from PreInitialize().
   testing::InitGoogleTest(argc, argv);
   testing::InitGoogleMock(argc, argv);
   MaybeInitFuzztest(*argc, argv);
-
-#if BUILDFLAG(IS_IOS)
-  InitIOSArgs(*argc, argv);
-#endif
 }
 
 int TestSuite::RunAllTests() {
