@@ -26,10 +26,6 @@ on: # zizmor: ignore[dangerous-triggers]
         required: true
         type: choice
         options: [in_progress, completed]
-      head_sha:
-        description: 'Commit head SHA'
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -38,15 +34,30 @@ jobs:
   init-status:
     runs-on: ubuntu-latest
     if: (github.event.action || inputs.action) == 'in_progress'
-    timeout-minutes: 2
     permissions:
       statuses: write
+      pull-requests: read
     steps:
+      - name: Resolve HEAD_SHA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          head_sha="${HEAD_SHA_EVENT:-}"
+          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
+            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+          echo "HEAD_SHA=${head_sha}" >> "${GITHUB_ENV}"
+
       - name: Update Workflow Commit Status to Pending
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
         shell: bash
@@ -66,11 +77,10 @@ jobs:
   init-comment:
     runs-on: ubuntu-latest
     if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
-    timeout-minutes: 2
     permissions:
       pull-requests: write
     concurrency:
-      group: ci-shepherd-anchor @ ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+      group: ci-shepherd-anchor @ ${{ github.event.workflow_run.head_sha || inputs.pr_number }}
       cancel-in-progress: false
     outputs:
       pr_number: ${{ steps.anchor.outputs.pr_number }}
@@ -82,14 +92,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
 
+          head_sha="${HEAD_SHA:-}"
+          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
+            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+
           echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
-          echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
@@ -105,7 +120,6 @@ jobs:
   deflake:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'failure'
-    timeout-minutes: 5
     permissions:
       contents: read
       actions: write
@@ -150,9 +164,8 @@ jobs:
 
   update-status:
     runs-on: ubuntu-latest
-    needs: [deflake]
+    needs: [init-comment, deflake]
     if: always() && (github.event.workflow_run.conclusion || inputs.action) != '' && !cancelled()
-    timeout-minutes: 5
     permissions:
       statuses: write
       actions: read
@@ -161,7 +174,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || github.event.workflow_run.head_sha }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
@@ -205,21 +218,11 @@ jobs:
             -f target_url="${RUN_URL}"
 
           status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
-          current_wf="${WORKFLOW_NAME:-}"
-          current_st="${state:-}"
 
-          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r \
-            --arg cur_wf "${current_wf}" \
-            --arg cur_st "${current_st}" '
-            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")] as $raw_ci |
-            (if ($cur_wf != "" and $cur_st != "") then
-              ($raw_ci | map(if .context == ("CI / " + $cur_wf) then .state = $cur_st else . end)) +
-              (if ($raw_ci | any(.context == ("CI / " + $cur_wf))) then [] else [{context: ("CI / " + $cur_wf), state: $cur_st}] end)
-            else
-              $raw_ci
-            end) as $ci |
+          IFS=$'\t' read -r overall_state overall_desc < <(echo "${status_json}" | jq -r '
+            [.statuses[]? | select(.context | startswith("CI /") and .context != "CI / All Pass")] as $ci |
             if any($ci[]; .state == "failure" or .state == "error") then "failure\tSome checks failed"
-            elif (length > 0 and all($ci[]; .state == "success")) then "success\tAll checks passed"
+            elif length > 0 and all($ci[]; .state == "success") then "success\tAll checks passed"
             else "pending\tChecks are running" end
           ') || true
 
@@ -234,7 +237,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [init-comment, update-status]
     if: always() && needs.init-comment.outputs.comment_id != '' && !cancelled()
-    timeout-minutes: 5
     permissions:
       statuses: read
       pull-requests: write
