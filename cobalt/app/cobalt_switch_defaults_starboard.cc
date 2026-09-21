@@ -122,8 +122,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
        "--no-decommit-pooled-pages "
-       // Enable memory saving mode with little v8 performance tradeoff.
-       "--optimize-for-size "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
   };
