@@ -24,7 +24,6 @@
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/numerics/wrapping_math.h"
 #include "base/strings/stringprintf.h"
 #include "src/core/SkOSFile.h"
 
@@ -76,10 +75,9 @@ bool SkFileMemoryChunkStreamManager::TryReserveMemoryChunk() {
   }
 
   // Decrement the available count behind a memory barrier. If the return value
-  // is less than 0, then another requester reserved the last available memory
-  // chunk first. In that case, restore the chunk to the count and return
-  // failure.
-  if (base::WrappingAdd(available_chunk_count_.fetch_add(-1), -1) < 0) {
+  // is <= 0, then another requester reserved the last available memory chunk
+  // first. In that case, restore the chunk to the count and return failure.
+  if (available_chunk_count_.fetch_sub(1) <= 0) {
     available_chunk_count_.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
