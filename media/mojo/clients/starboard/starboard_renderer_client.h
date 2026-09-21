@@ -57,6 +57,8 @@ class MEDIA_EXPORT StarboardRendererClient
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = media::mojom::StarboardRendererClientExtension;
+  using AsyncGetGpuFactoriesCB = base::OnceCallback<void(
+      base::OnceCallback<void(GpuVideoAcceleratorFactories*)>)>;
 
   StarboardRendererClient(
       const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
@@ -73,7 +75,8 @@ class MEDIA_EXPORT StarboardRendererClient
       RequestOverlayInfoCB request_overlay_info_cb
 #endif  // BUILDFLAG(IS_ANDROID)
       ,
-      bool bypass_mojo_for_media = false);
+      bool bypass_mojo_for_media = false,
+      AsyncGetGpuFactoriesCB async_get_gpu_factories_cb = base::NullCallback());
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -131,6 +134,9 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnGpuChannelTokenReady(mojom::CommandBufferIdPtr command_buffer_id,
                               base::OnceClosure complete_cb,
                               const base::UnguessableToken& channel_token);
+  void OnFreshGpuFactoriesReady(mojom::CommandBufferIdPtr command_buffer_id,
+                                base::OnceClosure complete_cb,
+                                GpuVideoAcceleratorFactories* gpu_factories);
   void InitializeMojoRenderer(MediaResource* media_resource,
                               RendererClient* client,
                               PipelineStatusCallback init_cb);
@@ -170,6 +176,7 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
+  AsyncGetGpuFactoriesCB async_get_gpu_factories_cb_;
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCB request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
