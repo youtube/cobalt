@@ -20,6 +20,9 @@ namespace {
 constexpr SkColor kColorSysSurface3_Light = SkColorSetRGB(0xEF, 0xF3, 0xFA);
 constexpr SkColor kColorSysSurface_Light = SkColorSetRGB(0xFF, 0xFF, 0xFF);
 constexpr SkColor kColorSysStateHoverOnSubtle_Light = SkColorSetARGB(0x0F, 0x1F, 0x1F, 0x1F);
+constexpr SkColor kColorGemSysColorPrimary_Light =
+    SkColorSetRGB(0x0B, 0x57, 0xD0);
+constexpr SkColor kColorSysTonalOutline_Light = SkColorSetRGB(0xA8, 0xC7, 0xFA);
 
 }  // namespace
 
@@ -78,13 +81,14 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorComposeboxOutlineHcm] = {
       dark_mode ? SkColorSetRGB(0xFF, 0xFF, 0xFF)
                 : SkColorSetRGB(0x00, 0x00, 0x00)};
-  mixer[kColorComposeboxRecentTabChipOutline] = {
-      ui::kColorSysTonalOutline};
+  mixer[kColorComposeboxRecentTabChipOutline] = {kColorSysTonalOutline_Light};
   mixer[kColorComposeboxScrimBackground] = {ui::kColorSysBase};
-  mixer[kColorComposeboxSubmitButton] = {
+  mixer[kColorComposeboxSubmitButtonBackground] = {
       SkColorSetRGB(0x0B, 0x50, 0xD0)};
   mixer[kColorComposeboxSuggestionActivity] = {
       ui::kColorSysOnSurfaceSubtle};
+  mixer[kColorComposeboxTabSelectorButtonSelected] = {
+      kColorGemSysColorPrimary_Light};
   mixer[kColorComposeboxTypeAhead] = {
       ui::SetAlpha({ui::kColorRefNeutral10}, 0x60)};
   mixer[kColorComposeboxTypeAheadChip] = {
@@ -108,6 +112,7 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
       SkColorSetARGB(0x60, 0x1F, 0x1F, 0x1F)};
   mixer[kColorComposeboxContextEntrypointHoverBackground] = {
       SkColorSetARGB(0x0F, 0x1F, 0x1F, 0x1F)};
+  mixer[kColorComposeboxLink] = {gfx::kGoogleBlue700};
 
   mixer[kColorNewTabPageControlBackgroundHovered] = {
       ui::kColorSysStateHoverOnSubtle};
@@ -115,12 +120,27 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorNewTabPageLink] = {ui::kColorSysPrimary};
   mixer[kColorNewTabPageLogo] = {ui::kColorSysPrimary};
 
-  mixer[kColorNewTabPageMostVisitedTileBackground] = {
-      ui::kColorSysSurfaceVariant};
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures)) {
+    mixer[kColorNewTabPageMostVisitedTileBackground] = {
+        ui::kColorSysBaseContainer};
+  } else {
+    mixer[kColorNewTabPageMostVisitedTileBackground] = {
+        ui::kColorSysSurfaceVariant};
+  }
   mixer[kColorNewTabPageMostVisitedForeground] = {ui::kColorSysOnSurfaceSubtle};
 
   mixer[kColorNewTabPageHistoryClustersModuleItemBackground] = {
       ui::kColorSysBaseContainerElevated};
+
+  // Action chips colors.
+  mixer[kColorNewTabPageActionChipBackground] = {ui::kColorSysBaseContainer};
+  mixer[kColorNewTabPageActionChipBackgroundHover] = {
+      ui::kColorSysStateHoverOnSubtle};
+
+  mixer[kColorNewTabPageActionChipTextTitle] = {ui::kColorSysOnSurface};
+  mixer[kColorNewTabPageActionChipTextBody] = {ui::kColorSysOnSurfaceSubtle};
+  mixer[kColorNewTabPageActionChipDeepSearchIcon] = {
+      ui::kColorSysOnSurfaceSubtle};
 
   mixer[kColorNewTabPageModuleBackground] = {ui::kColorSysBaseContainer};
   mixer[kColorNewTabPageModuleIconBackground] = {ui::kColorSysNeutralContainer};
@@ -229,11 +249,6 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
     mixer[kColorSearchboxShadow] =
         ui::SetAlpha(gfx::kGoogleGrey900,
                      (dark_mode ? /* % opacity */ 0.32 : 0.1) * SK_AlphaOPAQUE);
-
-    // Action chips colors.
-    mixer[kColorNewTabPageActionChipBackground] = {ui::kColorSysBaseContainer};
-    mixer[kColorNewTabPageActionChipBackgroundHover] = {
-        ui::kColorSysStateHoverOnSubtle};
 
     // This determines weather the realbox expanded state background in dark
     // mode will match the omnibox or not.

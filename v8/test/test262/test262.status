@@ -204,9 +204,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
-  # https://github.com/tc39/test262/pull/4417
-  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
@@ -263,9 +260,8 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Duration internal representation (https://github.com/boa-dev/temporal/issues/613/334)
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
+  # "Completely contained within geographic area" rules (https://github.com/boa-dev/temporal/issues/627)
+  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-timezone': [FAIL],
 
   # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
@@ -578,6 +574,7 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
 
@@ -1202,6 +1199,16 @@
   'built-ins/ThrowTypeError/distinct-cross-realm': [SKIP],
   'built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage': [SKIP],
   'intl402/Intl/supportedValuesOf/calendars-required-by-intl-era-monthcode': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback': [SKIP],
+  'language/statements/await-using/syntax/block-scope-syntax-await-using-declarations-mixed-with-without-initializer': [SKIP],
+  'language/statements/using/syntax/using-for-using-of-of': [SKIP],
 }],
 # End roll-watcher patch
 ####

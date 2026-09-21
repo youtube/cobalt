@@ -3880,6 +3880,10 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetVideoReceiverInfo(
         stats.rtx_rtp_stats->packet_counter.header_bytes +
         stats.rtx_rtp_stats->packet_counter.padding_bytes;
     info.packets_received += stats.rtx_rtp_stats->packet_counter.packets;
+    info.packets_received_with_ect1 +=
+        stats.rtx_rtp_stats->packet_counter.packets_with_ect1;
+    info.packets_received_with_ce +=
+        stats.rtx_rtp_stats->packet_counter.packets_with_ce;
   }
 
   if (flexfec_stream_) {
@@ -3899,6 +3903,10 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetVideoReceiverInfo(
             fec_rtp_stats.packet_counter.header_bytes +
             fec_rtp_stats.packet_counter.padding_bytes;
         info.packets_received += fec_rtp_stats.packet_counter.packets;
+        info.packets_received_with_ect1 +=
+            fec_rtp_stats.packet_counter.packets_with_ect1;
+        info.packets_received_with_ce +=
+            fec_rtp_stats.packet_counter.packets_with_ce;
       } else {
         info.fec_packets_received = 0;
       }

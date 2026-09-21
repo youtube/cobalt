@@ -535,7 +535,7 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void onComposeplateButtonClicked(View view) {
-        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
+        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled() && !mIsTablet) {
             mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, null);
             return;
         }
@@ -1044,6 +1044,8 @@ public class NewTabPageLayout extends LinearLayout
      * @return Whether the search box view is scrolled off the screen.
      */
     private boolean isSearchBoxOffscreen() {
+        if (!mScrollDelegate.isScrollViewInitialized()) return false;
+
         return !mScrollDelegate.isChildVisibleAtPosition(0)
                 || mScrollDelegate.getVerticalScrollOffset()
                         > getSearchBoxView().getTop() + mTransitionEndOffset;

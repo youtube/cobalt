@@ -10,10 +10,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentFactory;
@@ -32,10 +37,13 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.payments.BnplIssuerForSettings;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
@@ -51,9 +59,13 @@ public class AutofillBuyNowPayLaterFragmentTest {
     private ChromeSwitchPreference mBnplToggle;
     private ChromeBasePreference mBnplIssuerPref;
     private PreferenceScreen mScreen;
+    private UserActionTester mActionTester;
 
     @Mock private PersonalDataManager mPersonalDataManager;
     @Mock private Profile mProfile;
+    @Mock private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
+    @Mock private Menu mHelpMenu;
+    @Mock private MenuItem mHelpItem;
 
     private static final String AFFIRM_DISPLAY_NAME = "Affirm";
     private static final Long INSTRUMENT_ID = 123L;
@@ -61,8 +73,10 @@ public class AutofillBuyNowPayLaterFragmentTest {
     @Before
     public void setUp() {
         PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
+        mActionTester = new UserActionTester();
         when(mPersonalDataManager.getBnplIssuersForSettings())
                 .thenReturn(new BnplIssuerForSettings[0]);
+        HelpAndFeedbackLauncherFactory.setInstanceForTesting(mHelpAndFeedbackLauncher);
     }
 
     @After
@@ -70,6 +84,7 @@ public class AutofillBuyNowPayLaterFragmentTest {
         if (mScenario != null) {
             mScenario.close();
         }
+        mActionTester.tearDown();
     }
 
     private void launchAutofillBuyNowPayLaterFragment() {
@@ -118,6 +133,27 @@ public class AutofillBuyNowPayLaterFragmentTest {
                 ContextUtils.getApplicationContext()
                         .getString(R.string.autofill_bnpl_settings_label),
                 mAutofillBuyNowPayLaterFragment.getPageTitle().get());
+    }
+
+    @Test
+    public void testHelpMenuTriggersAutofillHelp() {
+        doReturn(mHelpItem)
+                .when(mHelpMenu)
+                .add(Menu.NONE, R.id.menu_id_targeted_help, Menu.NONE, R.string.menu_help);
+        doReturn(R.id.menu_id_targeted_help).when(mHelpItem).getItemId();
+        launchAutofillBuyNowPayLaterFragment();
+        mAutofillBuyNowPayLaterFragment.onCreateOptionsMenu(mHelpMenu, mock(MenuInflater.class));
+        verify(mHelpMenu).clear();
+        verify(mHelpItem).setIcon(R.drawable.ic_help_and_feedback);
+
+        mAutofillBuyNowPayLaterFragment.onOptionsItemSelected(mHelpItem);
+
+        verify(mHelpAndFeedbackLauncher)
+                .show(
+                        mAutofillBuyNowPayLaterFragment.getActivity(),
+                        ContextUtils.getApplicationContext()
+                                .getString(R.string.help_context_autofill),
+                        /* url= */ null);
     }
 
     // Test to verify that the BNPL toggle is displayed on the Preference screen and its label and
@@ -256,5 +292,33 @@ public class AutofillBuyNowPayLaterFragmentTest {
                 "The screen should have only 1 preference (the toggle).",
                 1,
                 mScreen.getPreferenceCount());
+    }
+
+    // Test to verify that the user action is logged when the user clicks on the BNPL issuer terms.
+    @Test
+    public void testBnplIssuerPreference_IssuerTermsLinkClicked() {
+        BnplIssuerForSettings issuer =
+                new BnplIssuerForSettings(
+                        /* iconId= */ R.drawable.bnpl_icon_generic,
+                        /* instrumentId= */ INSTRUMENT_ID,
+                        /* displayName= */ AFFIRM_DISPLAY_NAME);
+        when(mPersonalDataManager.getBnplIssuersForSettings())
+                .thenReturn(new BnplIssuerForSettings[] {issuer});
+        when(mPersonalDataManager.isBuyNowPayLaterEnabled()).thenReturn(true);
+
+        launchAutofillBuyNowPayLaterFragment();
+
+        assertNotNull(mBnplToggle);
+        assertNotNull(mBnplIssuerPref);
+
+        mBnplIssuerPref.performClick();
+
+        assertTrue(
+                "User action should be logged when the user clicks on the BNPL issuer terms.",
+                mActionTester
+                        .getActions()
+                        .contains(
+                                AutofillBuyNowPayLaterFragment
+                                        .BNPL_ISSUER_TERMS_CLICKED_USER_ACTION));
     }
 }

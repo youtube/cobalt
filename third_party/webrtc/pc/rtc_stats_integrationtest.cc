@@ -1234,6 +1234,16 @@ TEST_F(RTCStatsIntegrationTest, GetStatsContainsNoDuplicateAttributes) {
   }
 }
 
+TEST_F(RTCStatsIntegrationTest, GetStatsAfterClose) {
+  StartCall();
+
+  caller_->pc()->Close();
+
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  ASSERT_EQ(report->size(), 1u);
+  EXPECT_EQ(report->begin()->type(), RTCPeerConnectionStats::kType);
+}
+
 TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
   StartCall("WebRTC-Video-CalculatePsnr/Enabled,sampling_interval:1000ms/");
 

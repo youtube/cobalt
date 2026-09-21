@@ -179,9 +179,20 @@ BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBinding);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(
+    kEnableOAuthMultiloginCookiesBindingForNonDefaultPartitions);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBindingServerExperiment);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(bool, kOAuthMultiloginCookieBindingEnforced);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableOAuthMultiloginStandardCookiesBinding);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Enables a separate account-scoped storage for preferences.
@@ -246,9 +257,6 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kHistoryOptInEducationalTip);
 extern const base::FeatureParam<int> kHistoryOptInEducationalTipVariation;
 #endif  // BUILDFLAG(IS_ANDROID)
-
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kInterceptBubblesDismissibleByAvatarButton);
 
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)

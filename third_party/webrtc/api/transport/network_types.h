@@ -213,6 +213,9 @@ struct RTC_EXPORT TransportPacketsFeedback {
   std::vector<PacketResult> LostWithSendInfo() const;
   std::vector<PacketResult> PacketsWithFeedback() const;
   std::vector<PacketResult> SortedByReceiveTime() const;
+
+  // True if at least one packet is CE marked.
+  bool HasPacketWithEcnCe() const;
 };
 
 // Network estimation

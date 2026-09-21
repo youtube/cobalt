@@ -35,6 +35,7 @@ if (rtc_include_tests) {
       "../../../api/test/network_emulation",
       "../../../api/test/network_emulation:network_queue",
       "../../../api/transport:ecn_marking",
+      "../../../api/transport:stun_types",
       "../../../api/units:data_rate",
       "../../../api/units:time_delta",
       "../../../api/video:video_frame",

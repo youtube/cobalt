@@ -47,6 +47,12 @@ class RtpReceiverObserverJni : public RtpReceiverObserverInterface {
     Java_Observer_onFirstPacketReceived(env, j_observer_global_,
                                         NativeToJavaMediaType(env, media_type));
   }
+  void OnFirstPacketReceivedAfterReceptiveChange(
+      MediaType media_type) override {
+    JNIEnv* const env = AttachCurrentThreadIfNeeded();
+    Java_Observer_onFirstPacketReceivedAfterReceptiveChange(
+        env, j_observer_global_, NativeToJavaMediaType(env, media_type));
+  }
 
  private:
   const jni_zero::ScopedJavaGlobalRef<jobject> j_observer_global_;

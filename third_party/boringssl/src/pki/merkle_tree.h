@@ -144,6 +144,17 @@ OPENSSL_EXPORT std::optional<TreeHash> EvaluateMerkleSubtreeConsistencyProof(
     uint64_t n, const Subtree &subtree, Span<const uint8_t> proof,
     TreeHashConstSpan node_hash);
 
+// Performs the procedure defined in section 4.3.2 of
+// draft-davidben-tls-merkle-tree-certs-08, Evaluating a Subtree Inclusion
+// Proof:
+//
+//   Given a subtree inclusion proof, inclusion_proof, for entry index, with
+//   hash entry_hash, of a subtree [start, end), the subtree inclusion proof can
+//   be evaluated to compute the expected subtree hash
+OPENSSL_EXPORT std::optional<TreeHash> EvaluateMerkleSubtreeInclusionProof(
+    Span<const uint8_t> inclusion_proof, uint64_t index,
+    TreeHashConstSpan entry_hash, const Subtree &subtree);
+
 // Helper function to compute the hash value of an interior node in a Merkle
 // tree, i.e. HASH(0x01 || left || right). 32 bytes of output are written to
 // |out|. This function is intended for internal use only and only exists here

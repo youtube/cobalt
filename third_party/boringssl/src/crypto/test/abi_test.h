@@ -212,7 +212,7 @@ template <typename T>
 inline crypto_word_t ToWord(T t) {
   // ABIs typically pass floats and structs differently from integers and
   // pointers. We only need to support the latter.
-  static_assert(std::is_integral<T>::value || std::is_pointer<T>::value,
+  static_assert(std::is_integral_v<T> || std::is_pointer_v<T>,
                 "parameter types must be integral or pointer types");
   // We only support types which fit in registers.
   static_assert(sizeof(T) <= sizeof(crypto_word_t),
@@ -303,7 +303,7 @@ inline crypto_word_t CheckImpl(Result *out, bool unwind, R (*func)(Args...),
 // CheckImpl implementation. It must be specialized for void returns because we
 // call |func| directly.
 template <typename R, typename... Args>
-inline std::enable_if_t<!std::is_void<R>::value, crypto_word_t> CheckImpl(
+inline std::enable_if_t<!std::is_void_v<R>, crypto_word_t> CheckImpl(
     Result *out, bool /* unwind */, R (*func)(Args...),
     typename DeductionGuard<Args>::Type... args) {
   *out = Result();

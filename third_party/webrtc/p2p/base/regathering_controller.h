@@ -15,12 +15,12 @@
 #include <optional>
 
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/port_allocator.h"
 #include "rtc_base/network_route.h"
-#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -55,7 +55,7 @@ class BasicRegatheringController {
   BasicRegatheringController() = delete;
   BasicRegatheringController(const Config& config,
                              IceTransportInternal* ice_transport,
-                             Thread* thread);
+                             TaskQueueBase* thread);
   virtual ~BasicRegatheringController();
   // TODO(qingsi): Remove this method after implementing a new signal in
   // P2PTransportChannel and reacting to that signal for the initial schedules
@@ -93,7 +93,7 @@ class BasicRegatheringController {
   Config config_;
   IceTransportInternal* ice_transport_;
   PortAllocatorSession* allocator_session_ = nullptr;
-  Thread* const thread_;
+  TaskQueueBase* const thread_;
 };
 
 }  // namespace webrtc

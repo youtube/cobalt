@@ -28,6 +28,7 @@
 #include "api/test/network_emulation/network_queue.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/transport/ecn_marking.h"
+#include "api/transport/stun.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -126,31 +127,43 @@ scoped_refptr<const RTCStatsReport> GetStatsAndProcess(
   return stats_collector->report();
 }
 
-std::optional<int64_t> GetPacketsSentWithEct1(
+int64_t GetPacketsSentWithEct1(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   if (stats.empty()) {
-    return std::nullopt;
+    return 0;
   }
-  return stats[0]->packets_sent_with_ect1;
+  int64_t number_of_packets = 0;
+  for (const RTCOutboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_sent_with_ect1.value_or(0);
+  }
+  return number_of_packets;
 }
 
-std::optional<int64_t> GetPacketsReceivedWithEct1(
+int64_t GetPacketsReceivedWithEct1(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   if (stats.empty()) {
-    return std::nullopt;
+    return 0;
   }
-  return stats[0]->packets_received_with_ect1;
+  int64_t number_of_packets = 0;
+  for (const RTCInboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_received_with_ect1.value_or(0);
+  }
+  return number_of_packets;
 }
 
-std::optional<int64_t> GetPacketsReceivedWithCe(
+int64_t GetPacketsReceivedWithCe(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   if (stats.empty()) {
-    return std::nullopt;
+    return 0;
   }
-  return stats[0]->packets_received_with_ce;
+  int64_t number_of_packets = 0;
+  for (const RTCInboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_received_with_ce.value_or(0);
+  }
+  return number_of_packets;
 }
 
 TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
@@ -344,6 +357,30 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachLocalDescription) {
 // is_hardware_accelerated = true }
 // Figure out how to run libvpx instead.
 
+int64_t GetPacketsSent(const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  if (stats.empty()) {
+    return 0;
+  }
+  int64_t number_of_packets = 0;
+  for (const RTCOutboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_sent.value_or(0);
+  }
+  return number_of_packets;
+}
+
+int64_t GetPacketsReceived(const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return 0;
+  }
+  int64_t number_of_packets = 0;
+  for (const RTCInboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_received.value_or(0);
+  }
+  return number_of_packets;
+}
+
 DataRate GetAvailableSendBitrate(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCIceCandidatePairStats>();
@@ -477,6 +514,7 @@ INSTANTIATE_TEST_SUITE_P(
 struct SendMediaTestResult {
   // Stats gathered at the end of the call.
   scoped_refptr<const RTCStatsReport> caller_stats;
+  scoped_refptr<const RTCStatsReport> callee_stats;
 };
 
 struct SendMediaTestParams {
@@ -535,6 +573,7 @@ SendMediaTestResult SendMediaInOneDirection(const SendMediaTestParams params) {
 
   SendMediaTestResult result;
   result.caller_stats = GetStatsAndProcess(s, caller);
+  result.callee_stats = GetStatsAndProcess(s, callee);
   return result;
 }
 
@@ -583,6 +622,49 @@ TEST(L4STest, CallerAdaptsToLinkCapacity600KbpsRtt100msEcnWithScream) {
   DataRate available_bwe = GetAvailableSendBitrate(result.caller_stats);
   EXPECT_GT(available_bwe, DataRate::KilobitsPerSec(350));
   EXPECT_LT(available_bwe, DataRate::KilobitsPerSec(660));
+}
+
+TEST(L4STest, CallerAdaptsToLinkCapacity600KbpsRtt100msEcnWithScreamAfterCe) {
+  SendMediaTestParams params;
+  params.use_dual_pi = true;  // Simulated network will support ECN.
+  params.link_capacity = DataRate::KilobitsPerSec(600);
+  params.one_way_delay = TimeDelta::Millis(50);
+  params.field_trials = {
+      {"WebRTC-RFC8888CongestionControlFeedback", "Enabled,offer:true"},
+      {"WebRTC-Bwe-ScreamV2", "mode:only_after_ce"}};
+
+  SendMediaTestResult result = SendMediaInOneDirection(params);
+  DataRate available_bwe = GetAvailableSendBitrate(result.caller_stats);
+  EXPECT_GT(available_bwe, DataRate::KilobitsPerSec(350));
+  EXPECT_LT(available_bwe, DataRate::KilobitsPerSec(660));
+
+  // All packets are sent as ECT1.
+  EXPECT_EQ(GetPacketsSent(result.caller_stats),
+            GetPacketsSentWithEct1(result.caller_stats));
+  // Not all packets has been received yet.
+  EXPECT_GE(GetPacketsSentWithEct1(result.caller_stats),
+            0.9 * (GetPacketsReceived(result.callee_stats)));
+}
+
+TEST(L4STest, CallerAdaptsToLinkCapacity600KbpsRtt100msEcnWithGoogCcAfterCe) {
+  SendMediaTestParams params;
+  params.use_dual_pi = true;  // Simulated network will support ECN.
+  params.link_capacity = DataRate::KilobitsPerSec(600);
+  params.one_way_delay = TimeDelta::Millis(50);
+  params.field_trials = {
+      {"WebRTC-RFC8888CongestionControlFeedback", "Enabled,offer:true"},
+      {"WebRTC-Bwe-ScreamV2", "mode:goog_cc_with_ect1"}};
+
+  SendMediaTestResult result = SendMediaInOneDirection(params);
+  DataRate available_bwe = GetAvailableSendBitrate(result.caller_stats);
+  EXPECT_GT(available_bwe, DataRate::KilobitsPerSec(350));
+  EXPECT_LT(available_bwe, DataRate::KilobitsPerSec(660));
+
+  // Not all packets are sent as ECT1 since packets are supposed to be sent as
+  // not ECT if CE is detected.
+  EXPECT_GT(GetPacketsSent(result.caller_stats),
+            GetPacketsSentWithEct1(result.caller_stats));
+  EXPECT_GE(GetPacketsReceivedWithCe(result.callee_stats), 1);
 }
 
 TEST(L4STest, CallerAdaptsToLinkCapacity1000KbpsRtt100msEcnWithScream) {
@@ -778,39 +860,41 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   EXPECT_EQ(packets_sent_with_ect1_stats,
             wifi_feedback_counter.ect1() + cellular_feedback_counter.ect1());
 
-  auto callee_stats = GetStatsAndProcess(s, callee);
-  auto packets_received_with_ect1_stats =
-      GetPacketsReceivedWithEct1(callee_stats);
-  auto packets_received_with_ce_stats = GetPacketsReceivedWithCe(callee_stats);
-  EXPECT_EQ(packets_received_with_ect1_stats, wifi_feedback_counter.ect1());
+  scoped_refptr<const RTCStatsReport> callee_stats =
+      GetStatsAndProcess(s, callee);
+  EXPECT_EQ(GetPacketsReceivedWithEct1(callee_stats),
+            wifi_feedback_counter.ect1() + cellular_feedback_counter.ect1());
   // TODO: bugs.webrtc.org/42225697 - testing CE would be useful.
-  EXPECT_EQ(packets_received_with_ce_stats, 0);
+  EXPECT_EQ(GetPacketsReceivedWithCe(callee_stats), 0);
 }
 
 TEST(L4STest, RtcpSentAsEct1IfRtpWithEct1Received) {
+  int ecn_count = 0;
+  int not_ect_count = 0;
   PeerScenario s(*test_info_);
   PeerScenarioClient::Config config;
   config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
                           "Enabled,offer:true");
   config.field_trials.Set("WebRTC-Bwe-ScreamV2", "Enabled");
-  config.disable_encryption = true;
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
   EmulatedNetworkNode* caller_to_callee_node =
       s.net()->NodeBuilder().Build().node;
   EmulatedNetworkNode* callee_to_caller_node =
       s.net()->NodeBuilder().Build().node;
-  int rtcp_ecn_count = 0;
-  int rtcp_not_ect_count = 0;
+  // Callee is not sending media - Thus if Stun is ignored, most packets should
+  // be RTCP. Negotiation is still done using not ECT.
   callee_to_caller_node->router()->SetWatcher(
       [&](const EmulatedIpPacket& packet) {
-        if (!IsRtcpPacket(packet.data)) {
+        if (StunMessage::ValidateFingerprint(
+                reinterpret_cast<const char*>(packet.data.data()),
+                packet.data.size())) {
           return;
         }
         if (packet.ecn == EcnMarking::kEct1 || packet.ecn == EcnMarking::kCe) {
-          rtcp_ecn_count++;
+          ecn_count++;
         } else {
-          rtcp_not_ect_count++;
+          not_ect_count++;
         }
       });
 
@@ -823,11 +907,15 @@ TEST(L4STest, RtcpSentAsEct1IfRtpWithEct1Received) {
                      {callee_to_caller_node});
   s.ProcessMessages(TimeDelta::Seconds(1));
 
-  EXPECT_GT(rtcp_ecn_count, 0);
-  EXPECT_EQ(rtcp_not_ect_count, 0);
+  // Feedback is sent every 25ms. Expect more than 20 feedback packets during
+  // 1S.
+  EXPECT_GT(ecn_count, 20);
+  EXPECT_LT(not_ect_count, 10);
 }
 
 TEST(L4STest, RtcpSentAsNotEctIfRtpEcnBleached) {
+  int rtcp_ecn_count = 0;
+  int rtcp_not_ect_count = 0;
   PeerScenario s(*test_info_);
   PeerScenarioClient::Config config;
   config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
@@ -841,8 +929,6 @@ TEST(L4STest, RtcpSentAsNotEctIfRtpEcnBleached) {
       s.net()->NodeBuilder().config({.forward_ecn = false}).Build().node;
   EmulatedNetworkNode* callee_to_caller_node =
       s.net()->NodeBuilder().Build().node;
-  int rtcp_ecn_count = 0;
-  int rtcp_not_ect_count = 0;
 
   callee_to_caller_node->router()->SetWatcher(
       [&](const EmulatedIpPacket& packet) {

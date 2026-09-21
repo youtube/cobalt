@@ -33,6 +33,7 @@
 #include "services/viz/public/mojom/compositing/layer_context.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/effects/SkHighContrastFilter.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace viz {
@@ -215,6 +216,352 @@ TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
   EXPECT_TRUE(node_impl->will_change_transform);
   EXPECT_TRUE(node_impl->damage_reasons().Has(cc::DamageReason::kUntracked));
   EXPECT_TRUE(node_impl->moved_by_safe_area_bottom);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeToParent) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  gfx::Transform to_parent;
+  to_parent.Scale(2.f, 3.f);
+  to_parent.Translate(10.f, 20.f);
+  node_update->to_parent = to_parent;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->to_parent, to_parent);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeSnapAmount) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  const gfx::Vector2dF kSnapAmount(1.25f, 2.5f);
+  node_update->snap_amount = kSnapAmount;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->snap_amount, kSnapAmount);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeHasPotentialAnimation) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->has_potential_animation = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->has_potential_animation);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeIsCurrentlyAnimating) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->is_currently_animating = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->is_currently_animating);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeScrolls) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->scrolls = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->scrolls);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeShouldUndoOverscroll) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->should_undo_overscroll = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->should_undo_overscroll);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeShouldBeSnapped) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->should_be_snapped = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->should_be_snapped);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeMovedByOuterViewportBoundsDeltaY) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->moved_by_outer_viewport_bounds_delta_y = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->moved_by_outer_viewport_bounds_delta_y);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeTransformChanged) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->transform_changed = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->transform_changed());
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeDelegatesToParentForBackface) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->delegates_to_parent_for_backface = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->delegates_to_parent_for_backface);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeMaximumAnimationScale) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  const float kMaximumAnimationScale = 5.0f;
+  node_update->maximum_animation_scale = kMaximumAnimationScale;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->maximum_animation_scale, kMaximumAnimationScale);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeNodeAndAncestorsAreAnimatedOrInvertible) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->node_and_ancestors_are_animated_or_invertible = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->node_and_ancestors_are_animated_or_invertible);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeIsInvertible) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->is_invertible = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->is_invertible);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeAncestorsAreInvertible) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->ancestors_are_invertible = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->ancestors_are_invertible);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeNodeAndAncestorsAreFlat) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->node_and_ancestors_are_flat = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->node_and_ancestors_are_flat);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeNodeOrAncestorsWillChangeTransform) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  node_update->node_or_ancestors_will_change_transform = true;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->node_or_ancestors_will_change_transform);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
+       UpdateTransformNodeVisibleFrameElementId) {
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootTransformNode();
+  const cc::ElementId kElementId(0x13579BDF02468ACE);
+  node_update->visible_frame_element_id = kElementId;
+  update2->transform_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::TransformNode* node_impl =
+      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->visible_frame_element_id, kElementId);
 }
 
 TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
@@ -713,6 +1060,27 @@ TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest,
             "Invalid parent_id for non-root property tree node");
 }
 
+TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest, PixelMovingFilterId) {
+  // Apply a default valid update first.
+  auto update1 = CreateDefaultUpdate();
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  auto update2 = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootClipNode();
+  node_update->pixel_moving_filter_id = cc::kSecondaryRootPropertyNodeId;
+  update2->clip_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result.has_value());
+
+  cc::ClipNode* node_impl =
+      GetClipNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->pixel_moving_filter_id,
+            cc::kSecondaryRootPropertyNodeId);
+}
+
 class LayerContextImplUpdateDisplayTreeEffectNodeTest
     : public LayerContextImplPropertyTreesTestBase {
  protected:
@@ -1100,6 +1468,428 @@ TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
 
   auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
   ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, SurfaceContentsScale) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const gfx::Vector2dF surface_contents_scale(1.2f, 3.4f);
+  node_update->surface_contents_scale = surface_contents_scale;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->surface_contents_scale, surface_contents_scale);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, SubtreeCaptureId) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const SubtreeCaptureId subtree_capture_id(
+      base::Token(uint64_t{1234}, uint64_t{5678}));
+  node_update->subtree_capture_id = subtree_capture_id;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->subtree_capture_id, subtree_capture_id);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, SubtreeSize) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const gfx::Size subtree_size(12, 34);
+  node_update->subtree_size = subtree_size;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->subtree_size, subtree_size);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
+       ViewTransitionTargetId) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const int32_t view_transition_target_id = 5;
+  node_update->view_transition_target_id = view_transition_target_id;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->view_transition_target_id, view_transition_target_id);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, MaskFilterInfo) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const gfx::MaskFilterInfo mask_filter_info(
+      gfx::RRectF(1.f, 2.f, 3.f, 4.f, 5.f));
+  node_update->mask_filter_info = mask_filter_info;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->mask_filter_info, mask_filter_info);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, DoubleSided) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  node_update->double_sided = true;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_TRUE(node_impl->double_sided);
+}
+
+class LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest
+    : public LayerContextImplUpdateDisplayTreeEffectNodeTest,
+      public ::testing::WithParamInterface<bool> {};
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       TrilinearFiltering) {
+  const bool trilinear_filtering = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (trilinear_filtering) {
+    node_update->trilinear_filtering = trilinear_filtering;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->trilinear_filtering, trilinear_filtering);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TrilinearFiltering,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       SubtreeHidden) {
+  const bool subtree_hidden = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (subtree_hidden) {
+    node_update->subtree_hidden = subtree_hidden;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->subtree_hidden, subtree_hidden);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SubtreeHidden,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       HasPotentialFilterAnimation) {
+  const bool has_potential_filter_animation = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (has_potential_filter_animation) {
+    node_update->has_potential_filter_animation =
+        has_potential_filter_animation;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->has_potential_filter_animation,
+            has_potential_filter_animation);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    HasPotentialFilterAnimation,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       HasPotentialBackdropFilterAnimation) {
+  const bool has_potential_backdrop_filter_animation = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (has_potential_backdrop_filter_animation) {
+    node_update->has_potential_backdrop_filter_animation =
+        has_potential_backdrop_filter_animation;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->has_potential_backdrop_filter_animation,
+            has_potential_backdrop_filter_animation);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    HasPotentialBackdropFilterAnimation,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       HasPotentialOpacityAnimation) {
+  const bool has_potential_opacity_animation = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (has_potential_opacity_animation) {
+    node_update->has_potential_opacity_animation =
+        has_potential_opacity_animation;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->has_potential_opacity_animation,
+            has_potential_opacity_animation);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    HasPotentialOpacityAnimation,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       SubtreeHasCopyRequest) {
+  const bool subtree_has_copy_request = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (subtree_has_copy_request) {
+    node_update->subtree_has_copy_request = subtree_has_copy_request;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->subtree_has_copy_request, subtree_has_copy_request);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SubtreeHasCopyRequest,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       IsFastRoundedCorner) {
+  const bool is_fast_rounded_corner = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (is_fast_rounded_corner) {
+    node_update->is_fast_rounded_corner = is_fast_rounded_corner;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->is_fast_rounded_corner, is_fast_rounded_corner);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    IsFastRoundedCorner,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       MayHaveBackdropEffect) {
+  const bool may_have_backdrop_effect = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (may_have_backdrop_effect) {
+    node_update->may_have_backdrop_effect = may_have_backdrop_effect;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->may_have_backdrop_effect, may_have_backdrop_effect);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MayHaveBackdropEffect,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_P(LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+       NeedsEffectFor2dScaleTransform) {
+  const bool needs_effect_for_2d_scale_transform = GetParam();
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  if (needs_effect_for_2d_scale_transform) {
+    node_update->needs_effect_for_2d_scale_transform =
+        needs_effect_for_2d_scale_transform;
+  }
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->needs_effect_for_2d_scale_transform,
+            needs_effect_for_2d_scale_transform);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    NeedsEffectFor2dScaleTransform,
+    LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest,
+    ::testing::Bool(),
+    [](const testing::TestParamInfo<
+        LayerContextImplUpdateDisplayTreeEffectNodeWithBoolParamTest::
+            ParamType>& info) {
+      std::stringstream name;
+      name << (info.param ? "True" : "False");
+      return name.str();
+    });
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, BackdropFilterBounds) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  const gfx::RRectF backdrop_filter_bounds(1.f, 2.f, 3.f, 4.f, 5.f);
+  SkPath path = SkPath::RRect(SkRRect(backdrop_filter_bounds));
+  node_update->backdrop_filter_bounds = path;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  ASSERT_TRUE(node_impl->backdrop_filter_bounds.has_value());
+  EXPECT_EQ(node_impl->backdrop_filter_bounds->getBounds(), path.getBounds());
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, BackdropFilterQuality) {
+  auto update = CreateDefaultUpdate();
+  auto node_update = CreateDefaultSecondaryRootEffectNode();
+  node_update->backdrop_filter_quality = 2.f;
+  update->effect_nodes.push_back(std::move(node_update));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+
+  cc::EffectNode* node_impl =
+      GetEffectNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
+  ASSERT_TRUE(node_impl);
+  EXPECT_EQ(node_impl->backdrop_filter_quality, 2.f);
 }
 
 class LayerContextImplUpdateDisplayTreeScrollNodeTest

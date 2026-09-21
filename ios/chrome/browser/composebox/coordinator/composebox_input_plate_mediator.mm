@@ -33,6 +33,7 @@
 #import "components/search_engines/template_url_service.h"
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_url_loader.h"
+#import "ios/chrome/browser/composebox/coordinator/web_state_deferred_executor.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -53,113 +54,6 @@
 #import "ui/base/page_transition_types.h"
 #import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
-
-// Utilitary to delay execution until the web state is loaded.
-@interface WebStateDefferedExecutor : NSObject <CRWWebStateObserver>
-
-// Executes the given `completion` once the web state is loaded.
-- (void)webState:(web::WebState*)webState
-    executeOnceLoaded:(ProceduralBlock)completion;
-
-@end
-
-@implementation WebStateDefferedExecutor {
-  // Observer for the web state loading.
-  std::unique_ptr<web::WebStateObserverBridge> _webStateObserverBridge;
-  // Stores the callbacks to be used once the web state is loaded.
-  std::unordered_map<web::WebStateID, ProceduralBlock> _callbacks;
-  // Temporarily stores the active observations.
-  std::unordered_map<web::WebStateID, base::WeakPtr<web::WebState>>
-      _activeObservations;
-}
-
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    _webStateObserverBridge =
-        std::make_unique<web::WebStateObserverBridge>(self);
-  }
-
-  return self;
-}
-
-- (void)webState:(web::WebState*)webState
-    executeOnceLoaded:(ProceduralBlock)completion {
-  _callbacks[webState->GetUniqueIdentifier()] = completion;
-  BOOL realized = webState->IsRealized();
-  BOOL loading = webState->IsLoading();
-
-  if (!realized) {
-    [self observeWebState:webState];
-    [self forceRealizeWebState:webState];
-    return;
-  }
-
-  if (loading) {
-    [self observeWebState:webState];
-    return;
-  }
-
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
-}
-
-#pragma mark - Private
-
-- (void)observeWebState:(web::WebState*)webState {
-  webState->AddObserver(_webStateObserverBridge.get());
-  _activeObservations[webState->GetUniqueIdentifier()] = webState->GetWeakPtr();
-}
-
-- (void)removeObserverForWebState:(web::WebState*)webState {
-  webState->RemoveObserver(_webStateObserverBridge.get());
-  _activeObservations.erase(webState->GetUniqueIdentifier());
-}
-
-- (void)forceRealizeWebState:(web::WebState*)webState {
-  web::IgnoreOverRealizationCheck();
-  webState->ForceRealized();
-}
-
-- (void)callCompletionForID:(web::WebStateID)webStateID {
-  if (auto block = _callbacks[webStateID]) {
-    block();
-    _callbacks.erase(webStateID);
-  }
-}
-
-- (void)removeRemainingWebStateObservations {
-  std::vector<base::WeakPtr<web::WebState>> remainingObservedWebStates;
-  remainingObservedWebStates.reserve(_activeObservations.size());
-
-  for (auto kv : _activeObservations) {
-    remainingObservedWebStates.push_back(kv.second);
-  }
-
-  for (base::WeakPtr<web::WebState> weakWebState : remainingObservedWebStates) {
-    web::WebState* webState = weakWebState.get();
-    if (webState) {
-      [self removeObserverForWebState:webState];
-    }
-  }
-}
-
-- (void)dealloc {
-  [self removeRemainingWebStateObservations];
-}
-
-#pragma mark - CRWWebStateObserver
-
-- (void)webState:(web::WebState*)webState didLoadPageWithSuccess:(BOOL)success {
-  [self removeObserverForWebState:webState];
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
-}
-
-- (void)webStateDestroyed:(web::WebState*)webState {
-  [self removeObserverForWebState:webState];
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
-}
-
-@end
 
 namespace {
 
@@ -255,11 +149,14 @@ CreateInputDataFromAnnotatedPageContent(
       _latestTabSelectionMapping;
 
   // Utilitary to delay execution until the web state is loaded.
-  WebStateDefferedExecutor* _webStateDefferedExecutor;
+  WebStateDeferredExecutor* _webStateDeferredExecutor;
 
   // Check that the different methods are called from the correct sequence, as
   // this class defers work via PostTask APIs.
   SEQUENCE_CHECKER(_sequenceChecker);
+
+  // Whether the textfield is multiline or not.
+  BOOL _isMultiline;
 }
 
 - (instancetype)
@@ -279,7 +176,7 @@ CreateInputDataFromAnnotatedPageContent(
     _composeboxQueryController->InitializeIfNeeded();
     _webStateList = webStateList;
     _faviconLoader = faviconLoader;
-    _webStateDefferedExecutor = [[WebStateDefferedExecutor alloc] init];
+    _webStateDeferredExecutor = [[WebStateDeferredExecutor alloc] init];
     _persistTabContextAgent = persistTabContextAgent;
   }
   return self;
@@ -288,7 +185,7 @@ CreateInputDataFromAnnotatedPageContent(
 - (void)disconnect {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   _faviconLoader = nullptr;
-  _webStateDefferedExecutor = nil;
+  _webStateDeferredExecutor = nil;
   _persistTabContextAgent = nullptr;
   _composeboxObserverBridge.reset();
   _composeboxQueryController.reset();
@@ -298,15 +195,21 @@ CreateInputDataFromAnnotatedPageContent(
   _consumer = nil;
 }
 
-- (void)processImageItemProvider:(NSItemProvider*)itemProvider {
+- (void)processImageItemProvider:(NSItemProvider*)itemProvider
+                         assetID:(NSString*)assetID {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  if (![itemProvider canLoadObjectOfClass:[UIImage class]]) {
+
+  BOOL unableToLoadUIImage =
+      ![itemProvider canLoadObjectOfClass:[UIImage class]];
+  BOOL assetAlreadyLoaded = [self assetAlreadyLoaded:assetID];
+  if (unableToLoadUIImage || assetAlreadyLoaded) {
     return;
   }
 
   ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
       initWithComposeboxInputItemType:ComposeboxInputItemType::
-                                          kComposeboxInputItemTypeImage];
+                                          kComposeboxInputItemTypeImage
+                              assetID:assetID];
   [_items addObject:item];
   [self updateConsumerItems];
   const base::UnguessableToken token = item.token;
@@ -341,20 +244,24 @@ CreateInputDataFromAnnotatedPageContent(
     return;
   }
 
-  web::WebState* webState = _webStateList->GetActiveWebState();
-  BOOL canAttachTab = webState && !IsUrlNtp(webState->GetVisibleURL());
-  [_consumer setCanAttachTabAction:canAttachTab];
-  if (base::FeatureList::IsEnabled(kAIMPrototypeAutoattachTab) &&
-      canAttachTab) {
+  BOOL canAttachCurrentTab = [self updateOptionToAttachCurrentTab];
+  if (base::FeatureList::IsEnabled(kComposeboxAutoattachTab) &&
+      canAttachCurrentTab) {
     [self attachCurrentTabContent];
   }
 }
 
 - (void)processPDFFileURL:(GURL)PDFFileURL {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  NSString* assetID = base::SysUTF8ToNSString(PDFFileURL.spec());
+  if ([self assetAlreadyLoaded:assetID]) {
+    return;
+  }
+
   ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
       initWithComposeboxInputItemType:ComposeboxInputItemType::
-                                          kComposeboxInputItemTypeFile];
+                                          kComposeboxInputItemTypeFile
+                              assetID:assetID];
   item.title = base::SysUTF8ToNSString(PDFFileURL.ExtractFileName());
   [_items addObject:item];
   [self updateConsumerItems];
@@ -382,7 +289,7 @@ CreateInputDataFromAnnotatedPageContent(
     _composeboxQueryController->DeleteFile(item.token);
   }
 
-  if (base::FeatureList::IsEnabled(kAIMPrototypeAutoattachTab) &&
+  if (base::FeatureList::IsEnabled(kComposeboxAutoattachTab) &&
       _items.count == 0) {
     [self.consumer setAIModeEnabled:NO];
   }
@@ -416,6 +323,7 @@ CreateInputDataFromAnnotatedPageContent(
     [_items removeAllObjects];
     [self.consumer setItems:_items];
   }
+  [self updateCompactModeIfNeeded];
 }
 
 #pragma mark - ComposeboxTabPickerSelectionDelegate
@@ -460,14 +368,13 @@ CreateInputDataFromAnnotatedPageContent(
 
     const base::UnguessableToken token =
         [self createInputItemForWebState:webState];
-    _latestTabSelectionMapping[token] = webState->GetUniqueIdentifier();
 
-    if (IsAimPrototypeTabPickerCachedAPCEnabled()) {
+    if (IsComposeboxTabPickerCachedAPCEnabled()) {
       [self attachWebStateContent:webState includeSnapshot:NO token:token];
       continue;
     }
 
-    [_webStateDefferedExecutor webState:webState
+    [_webStateDeferredExecutor webState:webState
                       executeOnceLoaded:^{
                         [weakSelf attachWebStateContent:webState
                                         includeSnapshot:NO
@@ -494,8 +401,10 @@ CreateInputDataFromAnnotatedPageContent(
                                           kComposeboxInputItemTypeTab];
   item.title = base::SysUTF16ToNSString(webState->GetTitle());
   [_items addObject:item];
-  [self updateConsumerItems];
   const base::UnguessableToken token = item.token;
+  _latestTabSelectionMapping[token] = webState->GetUniqueIdentifier();
+
+  [self updateConsumerItems];
 
   if (_faviconLoader) {
     __weak __typeof(self) weakSelf = self;
@@ -526,7 +435,7 @@ CreateInputDataFromAnnotatedPageContent(
   __weak __typeof(self) weakSelf = self;
   base::WeakPtr<web::WebState> weakWebState = webState->GetWeakPtr();
 
-  if (IsAimPrototypeTabPickerCachedAPCEnabled() && _persistTabContextAgent) {
+  if (IsComposeboxTabPickerCachedAPCEnabled() && _persistTabContextAgent) {
     _persistTabContextAgent->GetSingleContextAsync(
         base::NumberToString(weakWebState->GetUniqueIdentifier().identifier()),
         base::BindOnce(^(std::optional<std::unique_ptr<
@@ -617,9 +526,10 @@ CreateInputDataFromAnnotatedPageContent(
   if (!webState) {
     return;
   }
-  const base::UnguessableToken token =
-      [self createInputItemForWebState:webState];
-  [self attachWebStateContent:webState includeSnapshot:YES token:token];
+
+  std::set<web::WebStateID> webStateIDs = [self webStateIDsForAttachedTabs];
+  webStateIDs.insert(webState->GetUniqueIdentifier());
+  [self attachSelectedTabsWithWebStateIDs:webStateIDs];
 }
 
 #pragma mark - ComposeboxFileUploadObserver
@@ -863,6 +773,19 @@ CreateInputDataFromAnnotatedPageContent(
       }));
 }
 
+- (BOOL)assetAlreadyLoaded:(NSString*)assetID {
+  if (!assetID) {
+    return NO;
+  }
+  for (ComposeboxInputItem* item in _items) {
+    if ([item.assetID isEqualToString:assetID]) {
+      return YES;
+    }
+  }
+
+  return NO;
+}
+
 #pragma mark - ComposeboxOmniboxClientDelegate
 
 - (void)omniboxDidAcceptText:(const std::u16string&)text
@@ -890,13 +813,47 @@ CreateInputDataFromAnnotatedPageContent(
 
 #pragma mark - Private helpers
 
+- (BOOL)updateOptionToAttachCurrentTab {
+  web::WebState* webState = _webStateList->GetActiveWebState();
+  if (!webState) {
+    [_consumer setCanAttachCurrentTab:NO];
+    return NO;
+  }
+
+  std::set<web::WebStateID> alreadyProcessedIDs =
+      [self webStateIDsForAttachedTabs];
+  BOOL isNTP = IsUrlNtp(webState->GetVisibleURL());
+  BOOL alreadyProcessed =
+      alreadyProcessedIDs.contains(webState->GetUniqueIdentifier());
+
+  BOOL canAttachTab = !isNTP && !alreadyProcessed;
+  [_consumer setCanAttachCurrentTab:canAttachTab];
+  return canAttachTab;
+}
+
 /// Updates the consumer items and maybe trigger AIM.
 - (void)updateConsumerItems {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   [self.consumer setItems:_items];
+  [self updateOptionToAttachCurrentTab];
   if (_items.count > 0) {
     [self.consumer setAIModeEnabled:YES];
   }
+}
+
+- (void)updateCompactModeIfNeeded {
+  BOOL compactModeAllowed = IsComposeboxCompactModeEnabled();
+  BOOL requiresExpansion = _isMultiline || _AIModeEnabled;
+  BOOL isCompactMode = !requiresExpansion && compactModeAllowed;
+  [self.consumer setIsCompactMode:isCompactMode];
+}
+
+#pragma mark - TextFieldViewContainingHeightDelegate
+
+- (void)textFieldViewContaining:(UIView<TextFieldViewContaining>*)sender
+                didChangeHeight:(CGFloat)height {
+  _isMultiline = sender.numberOfLines > 1;
+  [self updateCompactModeIfNeeded];
 }
 
 @end

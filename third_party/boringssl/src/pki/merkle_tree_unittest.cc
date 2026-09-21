@@ -264,7 +264,7 @@ std::vector<uint8_t> ConcatProof(const std::vector<TreeHash> &proof) {
   return out;
 }
 
-TEST(MerkleTreeTest, VerifySubtreeConsistencyProof) {
+TEST(MerkleTreeTest, VerifySubtreeInclusionProof) {
   ConcatData tree_data(StringAsBytes("label"));
   MerkleTree tree(&tree_data);
 
@@ -272,11 +272,63 @@ TEST(MerkleTreeTest, VerifySubtreeConsistencyProof) {
   auto node_hash = tree.MTH({index, index + 1});
   Subtree subtree{0, 16};
   auto proof = tree.InclusionProof(index, subtree);
+  auto concat_proof = ConcatProof(*proof);
   ASSERT_TRUE(proof.has_value());
   auto root_hash = EvaluateMerkleSubtreeConsistencyProof(
-      subtree.end, {index, index + 1}, ConcatProof(*proof), *node_hash);
+      subtree.end, {index, index + 1}, concat_proof, *node_hash);
   ASSERT_TRUE(root_hash.has_value());
   EXPECT_EQ(root_hash, tree.MTH(subtree));
+  // Check again with EvaluateMerkleSubtreeInclusionProof
+  root_hash = EvaluateMerkleSubtreeInclusionProof(concat_proof, index,
+                                                  *node_hash, subtree);
+  ASSERT_TRUE(root_hash.has_value());
+  EXPECT_EQ(root_hash, tree.MTH(subtree));
+
+  // Build and verify a proof from a subtree with start != 0
+  index = 845;
+  node_hash = tree.MTH({index, index + 1});
+  subtree = {840, 847};
+  proof = tree.InclusionProof(index, subtree);
+  concat_proof = ConcatProof(*proof);
+  ASSERT_TRUE(proof.has_value());
+  root_hash = EvaluateMerkleSubtreeConsistencyProof(
+      subtree.Size(), {index - subtree.start, index - subtree.start + 1},
+      concat_proof, *node_hash);
+  ASSERT_TRUE(root_hash.has_value());
+  EXPECT_EQ(root_hash, tree.MTH(subtree));
+  // Check again with EvaluateMerkleSubtreeInclusionProof
+  root_hash = EvaluateMerkleSubtreeInclusionProof(concat_proof, index,
+                                                  *node_hash, subtree);
+  ASSERT_TRUE(root_hash.has_value());
+  EXPECT_EQ(root_hash, tree.MTH(subtree));
+}
+
+TEST(MerkleTreeTest, SubtreeInclusionProofInvalidArgs) {
+  ConcatData tree_data(StringAsBytes("label"));
+  MerkleTree tree(&tree_data);
+
+  uint64_t index = 845;
+  auto node_hash = tree.MTH({index, index + 1});
+  Subtree subtree = {840, 847};
+  auto proof = tree.InclusionProof(index, subtree);
+  auto concat_proof = ConcatProof(*proof);
+  ASSERT_TRUE(proof.has_value());
+
+  // If the wrong node hash is passed in, the function will still compute a
+  // root hash, but it won't match the expected value.
+  auto wrong_node_hash = tree.MTH({index + 1, index + 2});
+  auto root_hash = EvaluateMerkleSubtreeInclusionProof(
+      concat_proof, index, *wrong_node_hash, subtree);
+  ASSERT_TRUE(root_hash.has_value());
+  EXPECT_NE(root_hash, tree.MTH(subtree));
+
+  // If the subtree isn't valid, the function will fail.
+  ASSERT_FALSE(EvaluateMerkleSubtreeInclusionProof(concat_proof, index,
+                                                   *node_hash, {840, 849}));
+
+  // If the index isn't contained within the subtree, the function will fail.
+  ASSERT_FALSE(EvaluateMerkleSubtreeInclusionProof(concat_proof, 848,
+                                                   *node_hash, {840, 847}));
 }
 
 // Test that the computed consistency proofs match the examples given in RFC

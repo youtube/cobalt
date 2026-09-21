@@ -34,14 +34,15 @@
 
 namespace webrtc {
 
-ObjCVideoTrackSource::ObjCVideoTrackSource() : ObjCVideoTrackSource(false) {}
-
-ObjCVideoTrackSource::ObjCVideoTrackSource(bool is_screencast)
+ObjCVideoTrackSource::ObjCVideoTrackSource(const Environment &env,
+                                           bool is_screencast)
     : AdaptedVideoTrackSource(/* required resolution alignment */ 2),
+      env_(env),
       is_screencast_(is_screencast) {}
 
-ObjCVideoTrackSource::ObjCVideoTrackSource(RTCObjCVideoSourceAdapter *adapter)
-    : adapter_(adapter) {
+ObjCVideoTrackSource::ObjCVideoTrackSource(const Environment &env,
+                                           RTCObjCVideoSourceAdapter *adapter)
+    : env_(env), adapter_(adapter), is_screencast_(false) {
   adapter_.objCVideoTrackSource = this;
 }
 
@@ -73,8 +74,8 @@ void ObjCVideoTrackSource::OnCapturedFrame(RTC_OBJC_TYPE(RTCVideoFrame) *
                                            frame) {
   const int64_t timestamp_us =
       frame.timeStampNs / webrtc::kNumNanosecsPerMicrosec;
-  const int64_t translated_timestamp_us =
-      timestamp_aligner_.TranslateTimestamp(timestamp_us, webrtc::TimeMicros());
+  const int64_t translated_timestamp_us = timestamp_aligner_.TranslateTimestamp(
+      timestamp_us, env_.clock().TimeInMicroseconds());
 
   int adapted_width;
   int adapted_height;

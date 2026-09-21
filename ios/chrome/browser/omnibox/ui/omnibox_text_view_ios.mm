@@ -360,17 +360,12 @@ using enum OmniboxKeyboardAction;
 - (void)updateTextDirection {
   // If the keyboard language direction does not match the device
   // language direction, the alignment of the placeholder text will be off.
-  if (self.text.length == 0 ||
-      _presentationContext == OmniboxPresentationContext::kLensOverlay) {
-    NSLocaleLanguageDirection direction = [NSLocale
-        characterDirectionForLanguage:self.textInputMode.primaryLanguage];
-    if (direction == NSLocaleLanguageDirectionRightToLeft) {
-      [self setTextAlignment:NSTextAlignmentRight];
-    } else {
-      [self setTextAlignment:NSTextAlignmentLeft];
-    }
+  NSLocaleLanguageDirection direction = [NSLocale
+      characterDirectionForLanguage:self.textInputMode.primaryLanguage];
+  if (direction == NSLocaleLanguageDirectionRightToLeft) {
+    [self setTextAlignment:NSTextAlignmentRight];
   } else {
-    [self setTextAlignment:NSTextAlignmentNatural];
+    [self setTextAlignment:NSTextAlignmentLeft];
   }
   self.placeholderLabel.textAlignment = self.textAlignment;
 }
@@ -550,6 +545,13 @@ using enum OmniboxKeyboardAction;
 - (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer
     shouldRecognizeSimultaneouslyWithGestureRecognizer:
         (UIGestureRecognizer*)otherGestureRecognizer {
+  // Prevent conflicts between the pan gesture from the UIScrollView and the
+  // long press scroll gesture (crbug.com/457389541).
+  if ([gestureRecognizer isKindOfClass:UIPanGestureRecognizer.class] &&
+      [otherGestureRecognizer
+          isKindOfClass:UILongPressGestureRecognizer.class]) {
+    return NO;
+  }
   return YES;
 }
 

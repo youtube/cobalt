@@ -239,7 +239,7 @@ static bool GetString(std::string *out, CBS *cbs) {
 template <typename T>
 static bool GetVector(std::vector<T> *out, CBS *cbs) {
   static_assert(
-      std::is_standard_layout<T>::value && std::is_trivially_copyable<T>::value,
+      std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>,
       "GetVector may only be called on standard layout, trivially copyable "
       "types");
 

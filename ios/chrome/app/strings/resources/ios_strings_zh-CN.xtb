@@ -38,7 +38,7 @@
 <translation id="1112015203684611006">打印操作失败。</translation>
 <translation id="1118569444314402022">欢迎回来，<ph name="USER_NAME" /></translation>
 <translation id="1121850836842642159">照片和图片</translation>
-<translation id="1122068467107743258">工作</translation>
+<translation id="1122068467107743258">工作单位</translation>
 <translation id="1126696498560056882">管理此设备上的账号</translation>
 <translation id="1126809382673880764">不会防范危险的网站、下载内容和扩展程序。在 Gmail 和 Google 搜索等其他 Google 服务中，若安全浏览保护可用，您仍将获得该保护。</translation>
 <translation id="1136104150802877429">显示商品评价</translation>
@@ -303,7 +303,7 @@
 <translation id="21133533946938348">固定标签页</translation>
 <translation id="2117650889962717098">切换到无痕模式，保持浏览数据的私密性</translation>
 <translation id="2119636449201577317">打开方式…</translation>
-<translation id="2120553909046681540">您的组织关闭了无痕浏览。</translation>
+<translation id="2120553909046681540">您的组织关闭了私密浏览功能。</translation>
 <translation id="2122754583996902531">您的浏览器处于受管理状态。<ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">我们不会使用您的组织的对话内容来改进模型。Gemini 显示的信息（包括与人相关的信息）不一定准确，请注意核查。<ph name="YOUR_PRIVACY_GEMINI" /></translation>
 <translation id="2139867232736819575">搜索您复制的文字</translation>
@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">使用 AI 模式搜索</translation>
 <translation id="3557336313807607643">添加到通讯录</translation>
 <translation id="355765753469272474">撤消</translation>
+<translation id="3565012355885596568">无法加载图片</translation>
 <translation id="3565930036634619844">标签页。第 <ph name="NUMBER_OF_TABS" /> 个，共 <ph name="TAB_INDEX" /> 个。</translation>
 <translation id="3572607909481582402">在您的 Google 账号中</translation>
 <translation id="3575234738189584619">使用智能镜头搜索</translation>
@@ -963,7 +964,7 @@
 <translation id="4769198578611055647">有助于您在任意设备上访问已保存的通行密钥</translation>
 <translation id="4782952780741793211">确认码：</translation>
 <translation id="4787847736989526091"><ph name="VALUE" />，<ph name="ADDITIONAL_INFO" /></translation>
-<translation id="478808905805139173">在无痕模式下打开？</translation>
+<translation id="478808905805139173">要在无痕模式下打开吗？</translation>
 <translation id="479208892659046780">您最常访问的网站</translation>
 <translation id="4792385443586519711">公司名称</translation>
 <translation id="479628432297359449">停止下载？</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">添加标题</translation>
 <translation id="6052269326659653305">切换个人资料</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">拍摄视频</translation>
 <translation id="6059830886158432458">在此处控制您的报道和活动</translation>
 <translation id="6066301408025741299">点按可取消。</translation>
 <translation id="6074656473835429958">接收通知</translation>
@@ -1477,7 +1479,7 @@
 <translation id="6596481460663245319">使用 Google 搜索图片</translation>
 <translation id="6598432073497341323">{COUNT,plural, =1{1 个密码}other{# 个密码}}</translation>
 <translation id="6601302169302852717">已将此图片保存到 <ph name="USER_EMAIL" /> 所用的 Google 相册</translation>
-<translation id="6603393121510733479">贵单位关闭了无痕浏览。
+<translation id="6603393121510733479">您的组织关闭了私密浏览功能。
 <ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
 <translation id="6606914854592108404">正在运行安全检查…</translation>
 <translation id="6609890790934458793">用于登录 <ph name="WEBSITE" />、<ph name="SECOND_WEBSITE" /> 和 <ph name="THIRD_WEBSITE" /> 的密码将被删除。您的相关账号不会被删除。</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">若要将阅读清单同步到您的所有设备上，请在设置中开启“阅读清单”。</translation>
 <translation id="7874107544081154809">使用<ph name="CELL_ACCESSIBILITY_LABEL" />自动填充表单</translation>
 <translation id="7879275349003161544">显示下载内容</translation>
+<translation id="7882689957034389473">拍照</translation>
 <translation id="7883882164760409935">您有重复使用的密码。</translation>
 <translation id="7887174313503389866">观看导览，了解重要的隐私控制设置和安全控件。如需查看更多选项，请转到各项设置。</translation>
 <translation id="7887198238286927132">为保护您的隐私，Chrome 不会自动填充此字段。</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">在地址栏中，点按“Google 智能镜头”相机图标</translation>
 <translation id="8556590991644167667">{count,plural, =1{您忽略了 {count} 条警告}other{您忽略了 {count} 条警告}}</translation>
 <translation id="8558046478684552694">关闭分组。</translation>
+<translation id="8559858985063901027">密钥</translation>
 <translation id="8560253818350321773">将常用项显示在最前面。</translation>
 <translation id="8561999115126307258">{count,plural, =1{键盘上方显示了 {count} 个密码选项。}other{键盘上方显示了 {count} 个密码选项。}}</translation>
 <translation id="8564894539416715395">新标签页</translation>
@@ -2186,7 +2190,7 @@
 <translation id="926455622548529175">切换并删除</translation>
 <translation id="929748059769569925">突出显示的文字</translation>
 <translation id="932305336591073205">{count,plural, =1{关闭标签页}other{关闭标签页}}</translation>
-<translation id="932327136139879170">首页</translation>
+<translation id="932327136139879170">家</translation>
 <translation id="939472100615258482">当前网站</translation>
 <translation id="939598580284253335">输入口令</translation>
 <translation id="939736085109172342">新建文件夹</translation>

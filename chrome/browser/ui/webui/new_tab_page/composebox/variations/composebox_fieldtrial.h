@@ -53,6 +53,8 @@ extern const base::FeatureParam<bool> kShowRecentTabChip;
 extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
 // The maximum number of tab suggestions to show in the composebox context menu.
 extern const base::FeatureParam<int> kContextMenuMaxTabSuggestions;
+// Whether to enable multi-tab selection in the context menu.
+extern const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection;
 
 // The maximum number of file attachments to upload.
 extern const base::FeatureParam<int> kMaxNumFiles;
@@ -68,7 +70,7 @@ extern const base::FeatureParam<bool> kShowCreateImageTool;
 // Whether to force tools and models to show in the composebox context menu.
 extern const base::FeatureParam<bool> kForceToolsAndModels;
 // Whether to allow drag and drop files on composebox
-extern const base::FeatureParam<bool> kEnableDragAndDrop;
+extern const base::FeatureParam<bool> kEnableContextDragAndDrop;
 
 // Whether to show the submit button in the composebox.
 extern const base::FeatureParam<bool> kShowSubmit;
@@ -82,6 +84,8 @@ extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox;
 extern const base::FeatureParam<bool> kCloseComposeboxByEscape;
 // Whether to exit AI mode when the user clicks outside the composebox.
 extern const base::FeatureParam<bool> kCloseComposeboxByClickOutside;
+// Whether to delay an upload if tab context is added from the recent tab chip.
+extern const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
 
@@ -122,6 +126,14 @@ namespace ntp_realbox {
 // If overridden to false, disables the feature (kill switch). If true, enables
 // the feature.
 BASE_DECLARE_FEATURE(kNtpRealboxNext);
+
+enum class PlaceholderText {
+  ASK_OR_TYPE = 0,
+  ASK = 1,
+};
+
+// The placeholder text to show on the search input.
+extern const base::FeatureParam<PlaceholderText> kSteadyPlaceholder;
 
 // Whether to show a series of cycling placeholder texts on the search input UI.
 extern const base::FeatureParam<bool> kCyclingPlaceholders;

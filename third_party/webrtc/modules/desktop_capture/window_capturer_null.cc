@@ -66,7 +66,7 @@ void WindowCapturerNull::CaptureFrame() {
 // static
 std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateRawWindowCapturer(
     const DesktopCaptureOptions& options) {
-  RTC_LOG(LS_INFO) << "video capture: DesktopCapturer::CreateRawWindowCapturer "
+  RTC_LOG(LS_INFO) << "DesktopCapturer::CreateRawWindowCapturer "
                       "creates DesktopCapturer of type WindowCapturerNull";
   return std::unique_ptr<DesktopCapturer>(new WindowCapturerNull());
 }

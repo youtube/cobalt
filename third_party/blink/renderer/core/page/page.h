@@ -40,7 +40,6 @@
 #include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/page.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/page/page_visibility_state.mojom-blink.h"
-#include "third_party/blink/public/mojom/partitioned_popins/partitioned_popin_params.mojom-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/web/web_lifecycle_update.h"
@@ -54,6 +53,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_issue_storage.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
+#include "third_party/blink/renderer/platform/forward_declared_member.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
@@ -75,6 +75,7 @@ class ColorProvider;
 }  // namespace ui
 
 namespace blink {
+class AudioGraphTracer;
 class AutoscrollController;
 class BrowserControls;
 class ChromeClient;
@@ -85,10 +86,12 @@ class DragCaret;
 class DragController;
 class FocusController;
 class Frame;
+class InternalSettings;
 class LinkHighlight;
 class LocalFrame;
 class LocalFrameView;
 class MediaFeatureOverrides;
+class NoStatePrefetchClient;
 class PageAnimator;
 struct PageScaleConstraints;
 class PageScaleConstraintsSet;
@@ -96,10 +99,12 @@ class PluginData;
 class PointerLockController;
 class PreferenceOverrides;
 class ScopedPagePauser;
-class ScrollingCoordinator;
 class ScrollbarTheme;
+class ScrollingCoordinator;
+class PagePopupController;
 class Settings;
 class SpatialNavigationController;
+class StorageNamespace;
 class SVGDocumentResourceTracker;
 class TopDocumentRootScrollerController;
 class ValidationMessageClient;
@@ -107,26 +112,19 @@ class VisualViewport;
 
 typedef uint64_t LinkHash;
 
-// When calculating storage access for a partitioned popin the
-// `top_frame_origin` is needed to calculate the storage key and the
-// `site_for_cookies` is needed to properly filter cookie access.
-// https://explainers-by-googlers.github.io/partitioned-popins/
-struct PartitionedPopinOpenerProperties {
-  scoped_refptr<SecurityOrigin> top_frame_origin;
-  net::SiteForCookies site_for_cookies;
-};
-
 // A Page roughly corresponds to a tab or popup window in a browser. It owns a
 // tree of frames (a blink::FrameTree). The root frame is called the main frame.
 //
 // Note that frames can be local or remote to this process.
 class CORE_EXPORT Page final : public GarbageCollected<Page>,
-                               public Supplementable<Page>,
+                               public Supplementable<Page, 1>,
                                public SettingsDelegate,
                                public PageScheduler::Delegate {
   friend class Settings;
 
  public:
+  enum class Supplements { kSuspendCaptureObserver = 0 };
+
   // Any pages not owned by a web view should be created using this method.
   static Page* CreateNonOrdinary(
       ChromeClient& chrome_client,
@@ -139,15 +137,13 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
       Page* opener,
       AgentGroupScheduler& agent_group_scheduler,
       const base::UnguessableToken& browsing_context_group_token,
-      const ColorProviderColorMaps* color_provider_colors,
-      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params);
+      const ColorProviderColorMaps* color_provider_colors);
 
   Page(base::PassKey<Page>,
        ChromeClient& chrome_client,
        AgentGroupScheduler& agent_group_scheduler,
        const base::UnguessableToken& browsing_context_group_token,
        const ColorProviderColorMaps* color_provider_colors,
-       blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
        bool is_ordinary);
   Page(const Page&) = delete;
   Page& operator=(const Page&) = delete;
@@ -550,15 +546,45 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // related pages will include the new page instead of the old page, etc.
   void TakePropertiesForLocalMainFrameSwap(Page* old_page);
 
-  // This is true if this page is a partitioned popin.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  bool IsPartitionedPopin() const;
+  PagePopupController* GetPagePopupController() const {
+    return page_popup_controller_;
+  }
+  void SetPagePopupController(PagePopupController* page_popup_controller) {
+    page_popup_controller_ = page_popup_controller;
+  }
 
-  // If this Page is a partitioned popin then this returns the properties
-  // struct, otherwise this function CHECKs. See
-  // https://explainers-by-googlers.github.io/partitioned-popins/
-  const PartitionedPopinOpenerProperties& GetPartitionedPopinOpenerProperties()
-      const;
+  ForwardDeclaredMember<StorageNamespace> GetStorageNamespace() const {
+    return storage_namespace_;
+  }
+  void SetStorageNamespace(
+      ForwardDeclaredMember<StorageNamespace> storage_namespace) {
+    storage_namespace_ = storage_namespace;
+  }
+
+  ForwardDeclaredMember<NoStatePrefetchClient> GetNoStatePrefetchClient()
+      const {
+    return no_state_prefetch_client_;
+  }
+  void SetNoStatePrefetchClient(
+      ForwardDeclaredMember<NoStatePrefetchClient> no_state_prefetch_client) {
+    no_state_prefetch_client_ = no_state_prefetch_client;
+  }
+
+  ForwardDeclaredMember<AudioGraphTracer> GetAudioGraphTracer() const {
+    return audio_graph_tracer_;
+  }
+  void SetAudioGraphTracer(
+      ForwardDeclaredMember<AudioGraphTracer> audio_graph_tracer) {
+    audio_graph_tracer_ = audio_graph_tracer;
+  }
+
+  ForwardDeclaredMember<InternalSettings> GetInternalSettings() const {
+    return internal_settings_;
+  }
+  void SetInternalSettings(
+      ForwardDeclaredMember<InternalSettings> internal_settings) {
+    internal_settings_ = internal_settings;
+  }
 
  private:
   friend class ScopedPagePauser;
@@ -752,21 +778,24 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   Member<CloseTaskHandler> close_task_handler_;
 
-  // When the renderer opens a view representing a Partitioned Popin, the
-  // entire frame tree is partitioned as though it was an iframe in the opener.
-  // These properties are used in document.cc to calculate parameters critical
-  // for access to storage.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  std::optional<PartitionedPopinOpenerProperties>
-      partitioned_popin_opener_properties_;
+  Member<PagePopupController> page_popup_controller_;
+
+  ForwardDeclaredMember<StorageNamespace> storage_namespace_;
+  ForwardDeclaredMember<NoStatePrefetchClient> no_state_prefetch_client_;
+  ForwardDeclaredMember<AudioGraphTracer> audio_graph_tracer_;
+  ForwardDeclaredMember<InternalSettings> internal_settings_;
 };
 
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<Page>;
 
-class CORE_EXPORT InternalSettingsPageSupplementBase : public Supplement<Page> {
+class CORE_EXPORT InternalSettingsPageSupplementBase
+    : public GarbageCollectedMixin {
  public:
-  using Supplement<Page>::Supplement;
-  static const char kSupplementName[];
+  explicit InternalSettingsPageSupplementBase(Page& page) : page_(&page) {}
+  void Trace(Visitor* visitor) const override { visitor->Trace(page_); }
+
+ protected:
+  Member<Page> page_;
 };
 
 }  // namespace blink

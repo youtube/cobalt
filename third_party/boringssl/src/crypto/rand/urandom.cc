@@ -23,30 +23,11 @@
 
 #if defined(OPENSSL_RAND_URANDOM)
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-
-#if !defined(OPENSSL_ANDROID)
-#define OPENSSL_HAS_GETAUXVAL
-#endif
-// glibc prior to 2.16 does not have getauxval and sys/auxv.h. Android has some
-// host builds (i.e. not building for Android itself, so |OPENSSL_ANDROID| is
-// unset) which are still using a 2.15 sysroot.
-//
-// TODO(davidben): Remove this once Android updates their sysroot.
-#if defined(__GLIBC_PREREQ)
-#if !__GLIBC_PREREQ(2, 16)
-#undef OPENSSL_HAS_GETAUXVAL
-#endif
-#endif
-#if defined(OPENSSL_HAS_GETAUXVAL)
-#include <sys/auxv.h>
-#endif
 
 #include "../internal.h"
 #include "getrandom_fillin.h"
@@ -86,14 +67,6 @@ static const int kHaveGetrandom = -3;
 // urandom_fd is a file descriptor to /dev/urandom. It's protected by |once|.
 static int urandom_fd;
 
-#if defined(USE_NR_getrandom)
-
-// getrandom_ready is one if |getrandom| had been initialized by the time
-// |init_once| was called and zero otherwise.
-static int getrandom_ready;
-
-#endif  // USE_NR_getrandom
-
 static CRYPTO_once_t rand_once = CRYPTO_ONCE_INIT;
 
 // init_once initializes the state of this module to values previously
@@ -106,7 +79,6 @@ static void init_once(void) {
   ssize_t getrandom_ret =
       boringssl_getrandom(&dummy, sizeof(dummy), GRND_NONBLOCK);
   if (getrandom_ret == 1) {
-    getrandom_ready = 1;
     have_getrandom = 1;
   } else if (getrandom_ret == -1 && errno == EAGAIN) {
     // We have getrandom, but the entropy pool has not been initialized yet.
@@ -145,67 +117,15 @@ static void init_once(void) {
   urandom_fd = fd;
 }
 
-static CRYPTO_once_t wait_for_entropy_once = CRYPTO_ONCE_INIT;
+void CRYPTO_init_sysrand(void) { CRYPTO_once(&rand_once, init_once); }
 
-static void wait_for_entropy(void) {
-  int fd = urandom_fd;
-  if (fd == kHaveGetrandom) {
-    // |getrandom| and |getentropy| support blocking in |fill_with_entropy|
-    // directly. For |getrandom|, we first probe with a non-blocking call to aid
-    // debugging.
-#if defined(USE_NR_getrandom)
-    if (getrandom_ready) {
-      // The entropy pool was already initialized in |init_once|.
-      return;
-    }
-
-    uint8_t dummy;
-    ssize_t getrandom_ret =
-        boringssl_getrandom(&dummy, sizeof(dummy), GRND_NONBLOCK);
-    if (getrandom_ret == -1 && errno == EAGAIN) {
-      // Attempt to get the path of the current process to aid in debugging when
-      // something blocks.
-      const char *current_process = "<unknown>";
-#if defined(OPENSSL_HAS_GETAUXVAL)
-      const unsigned long getauxval_ret = getauxval(AT_EXECFN);
-      if (getauxval_ret != 0) {
-        current_process = (const char *)getauxval_ret;
-      }
-#endif
-
-      fprintf(
-          stderr,
-          "%s: getrandom indicates that the entropy pool has not been "
-          "initialized. Rather than continue with poor entropy, this process "
-          "will block until entropy is available.\n",
-          current_process);
-
-      getrandom_ret =
-          boringssl_getrandom(&dummy, sizeof(dummy), 0 /* no flags */);
-    }
-
-    if (getrandom_ret != 1) {
-      perror("getrandom");
-      abort();
-    }
-#endif  // USE_NR_getrandom
-    return;
-  }
-}
-
-// fill_with_entropy writes |len| bytes of entropy into |out|. It returns one
-// on success and zero on error. This function will block until the entropy pool
-// is initialized.
-static int fill_with_entropy(uint8_t *out, size_t len) {
+// CRYPTO_sysrand writes |len| bytes of entropy into |out|.
+void CRYPTO_sysrand(uint8_t *out, size_t len) {
   if (len == 0) {
-    return 1;
+    return;
   }
 
   CRYPTO_init_sysrand();
-  // TODO(crbug.com/446280903): After the change to uniformly use OS entropy has
-  // stuck, remove this |wait_for_entropy| hook. The |getrandom| calls below
-  // already wait for entropy. |wait_for_entropy| just added more useful errors.
-  CRYPTO_once(&wait_for_entropy_once, wait_for_entropy);
 
   // Clear |errno| so it has defined value if |read| or |getrandom|
   // "successfully" returns zero.
@@ -227,22 +147,11 @@ static int fill_with_entropy(uint8_t *out, size_t len) {
     }
 
     if (r <= 0) {
-      return 0;
+      perror("entropy fill failed");
+      abort();
     }
     out += r;
     len -= r;
-  }
-
-  return 1;
-}
-
-void CRYPTO_init_sysrand(void) { CRYPTO_once(&rand_once, init_once); }
-
-// CRYPTO_sysrand puts |requested| random bytes into |out|.
-void CRYPTO_sysrand(uint8_t *out, size_t requested) {
-  if (!fill_with_entropy(out, requested)) {
-    perror("entropy fill failed");
-    abort();
   }
 }
 

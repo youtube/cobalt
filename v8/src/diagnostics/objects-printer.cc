@@ -557,7 +557,6 @@ bool IsTheHoleAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_the_hole(index);
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <class T>
 bool IsUndefinedAt(Tagged<T> array, int index) {
   return false;
@@ -565,9 +564,12 @@ bool IsUndefinedAt(Tagged<T> array, int index) {
 
 template <>
 bool IsUndefinedAt(Tagged<FixedDoubleArray> array, int index) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   return array->is_undefined(index);
-}
+#else
+  return false;
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+}
 
 template <class T>
 double GetScalarElement(Tagged<T> array, int index) {
@@ -579,7 +581,7 @@ double GetScalarElement(Tagged<T> array, int index) {
 
 template <class T>
 void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
-  const bool print_the_hole = std::is_same_v<T, FixedDoubleArray>;
+  const bool print_nans = std::is_same_v<T, FixedDoubleArray>;
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
   int previous_index = 0;
@@ -598,14 +600,17 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole && IsTheHoleAt(array, i - 1)) {
+    if (print_nans && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    } else if (IsUndefinedAt(array, i - 1)) {
+    } else if (print_nans && IsUndefinedAt(array, i - 1)) {
       os << "undefined";
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     } else {
-      os << GetScalarElement(array, i - 1);
+      auto value = GetScalarElement(array, i - 1);
+      os << value;
+      if constexpr (print_nans) {
+        os << " (0x" << std::hex << base::double_to_uint64(value) << std::dec
+           << ")";
+      }
     }
     previous_index = i;
     previous_representation = representation;
@@ -642,7 +647,6 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if constexpr (std::is_floating_point_v<ElementType>) {
       if (std::isnan(previous_value)) {
         os << std::setw(12) << ss.str() << ": " << +previous_value << " (0x"
@@ -658,7 +662,6 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
         continue;
       }
     }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     os << std::setw(12) << ss.str() << ": " << +previous_value;
     previous_index = i;
     previous_value = value;
@@ -1276,13 +1279,14 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   if (GetIsolateFromHeapObject(*this, &isolate)) {
     os << "\n - getter: " << AS_PTR(getter(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_getter: "
-         << AS_PTR(maybe_redirected_getter(isolate));
+      os << "\n - getter (redirected): " << AS_PTR(getter_raw(isolate));
     }
     os << "\n - setter: " << AS_PTR(setter(isolate));
   } else {
     os << "\n - getter: " << kUnavailableString;
-    os << "\n - maybe_redirected_getter: " << kUnavailableString;
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - getter (redirected): " << kUnavailableString;
+    }
     os << "\n - setter: " << kUnavailableString;
   }
   os << '\n';
@@ -1294,6 +1298,9 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   if (is_named()) {
     os << " - getter: " << AS_PTR(named_getter(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - getter (redirected): " << AS_PTR(named_getter_raw(isolate));
+    }
     os << "\n - setter: " << AS_PTR(named_setter(isolate));
     os << "\n - query: " << AS_PTR(named_query(isolate));
     os << "\n - descriptor: " << AS_PTR(named_descriptor(isolate));
@@ -1318,8 +1325,6 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
-#undef AS_PTR
-
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   TorqueGeneratedFunctionTemplateInfo<
       FunctionTemplateInfo,
@@ -1327,14 +1332,15 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
 
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
-    os << " - callback: " << reinterpret_cast<void*>(callback(isolate));
+    os << " - callback: " << AS_PTR(callback(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_callback: "
-         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
+      os << "\n - callback (redirected): " << AS_PTR(callback_raw(isolate));
     }
   } else {
     os << "\n - callback: " << kUnavailableString;
-    os << "\n - maybe_redirected_callback: " << kUnavailableString;
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - callback (redirected): " << kUnavailableString;
+    }
   }
 
   os << "\n - serial_number: ";
@@ -1366,6 +1372,8 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   }
   os << '\n';
 }
+
+#undef AS_PTR
 
 void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   PrintHeader(os, type);
@@ -2480,6 +2488,11 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
 
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
+#if V8_ENABLE_WEBASSEMBLY
+    // asm.js functions have HasSourceCode() == true, but their start/end
+    // positions refer to module wire bytes, so the code below won't work.
+    if (HasWasmExportedFunctionData(GetCurrentIsolateForSandbox())) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
     os << "\n - source code: ";
     Tagged<String> source = Cast<String>(Cast<Script>(script())->source());
     int start = StartPosition();
@@ -4083,6 +4096,11 @@ void Map::PrintMapDetails(std::ostream& os) {
 
 void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = instance_type() == MAP_TYPE;
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_map = IsWasmObjectMap(*this);
+#else
+  constexpr bool is_wasm_map = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
   PrintHeader(os, is_meta_map ? "MetaMap" : "Map");
 #else
@@ -4119,8 +4137,9 @@ void Map::MapPrint(std::ostream& os) {
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (may_have_interesting_properties())
+  if (may_have_interesting_properties()) {
     os << "\n - may_have_interesting_properties";
+  }
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
@@ -4135,14 +4154,22 @@ void Map::MapPrint(std::ostream& os) {
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (is_wasm_map) {
+    os << "\n - wasm_type_info: " << Brief(wasm_type_info());
+    Tagged<Object> proto_info = prototype_info();
+    if (!IsSmi(proto_info)) os << "\n - prototype info: " << Brief(proto_info);
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
   os << "\n - prototype_validity_cell: "
      << Brief(prototype_validity_cell(kRelaxedLoad));
-  os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
-     << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+  if (!is_wasm_map) {
+    os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
+       << "#" << NumberOfOwnDescriptors() << ": "
+       << Brief(instance_descriptors());
+  }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.

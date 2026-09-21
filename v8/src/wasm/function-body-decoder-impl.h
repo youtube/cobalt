@@ -1469,10 +1469,13 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
   F(ResumeHandler, base::Vector<const HandlerCase> handlers,                   \
-    int handler_index, const Value* cont_ref)                                  \
+    size_t handler_index, const Value* cont_ref)                               \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
-    const Value args[], const Value returns[])                                 \
+    const Value& cont, const Value args[], const Value returns[])              \
+  F(ResumeThrowRef, const ContIndexImmediate& cont_imm,                        \
+    base::Vector<HandlerCase> handlers, const Value& cont, const Value& exn,   \
+    const Value returns[])                                                     \
   F(Suspend, const TagIndexImmediate& imm, const Value args[],                 \
     const Value returns[])                                                     \
   F(Switch, const TagIndexImmediate& tag_imm,                                  \
@@ -2478,6 +2481,17 @@ class WasmDecoder : public Decoder {
                                                            handler_table);
         while (iterator.has_next()) iterator.next();
         return 1 + src.length + event.length + iterator.length();
+      }
+      case kExprResumeThrowRef: {
+        ContIndexImmediate src(decoder, pc + 1, validate);
+        (ios.TypeIndex(src), ...);
+        EffectHandlerTableImmediate handler_table(decoder, pc + 1 + src.length,
+                                                  validate);
+        (ios.EffectHandlerTable(handler_table), ...);
+        EffectHandlerTableIterator<ValidationTag> iterator(decoder,
+                                                           handler_table);
+        while (iterator.has_next()) iterator.next();
+        return 1 + src.length + iterator.length();
       }
       case kExprSwitch: {
         ContIndexImmediate src(decoder, pc + 1, validate);
@@ -4255,12 +4269,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     const TypeDefinition& type_def = this->module_->type(index);
     ValueType result_type =
         ValueType::Ref(index, type_def.is_shared, RefTypeKind::kFunction);
-    // For imported functions, we must return an inexact type, because
+    // For regular imported functions, we must return an inexact type, because
     // importing checks subtyping, i.e. for function types f1 <: f2, it is
     // legal to provide a function with type f1 when one with type f2 is
     // expected.
+    // Imports of kind "exact function" can produce exact references.
     if (this->enabled_.has_custom_descriptors() &&
-        imm.index >= this->module_->num_imported_functions) {
+        (imm.index >= this->module_->num_imported_functions ||
+         this->module_->functions[imm.index].exact)) {
       result_type = result_type.AsExact();
     }
     Value* value = Push(result_type);
@@ -4733,7 +4749,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (int i = 0; i < handlers.length(); ++i) {
+      for (size_t i = 0; i < handlers.size(); ++i) {
         if (handlers[i].kind == kOnSuspend) {
           // TODO(thibaudm): Push tag params here.
           Value* suspend_cont =
@@ -4754,7 +4770,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ContIndexImmediate cont_imm(this, this->pc_ + 1, validate);
     if (!this->ValidateCont(this->pc_ + 1, cont_imm)) return 0;
 
-    Pop(ValueType::RefNull(cont_imm.heap_type()));
+    Value cont = Pop(ValueType::RefNull(cont_imm.heap_type()));
 
     TagIndexImmediate exc_imm(this, this->pc_ + cont_imm.length + 1, validate);
     if (!this->Validate(this->pc_ + cont_imm.length + 1, exc_imm)) return 0;
@@ -4784,7 +4800,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* returns = PushReturns(contFunSig);
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeThrow, cont_imm, exc_imm, handlers,
-                                       args.data(), returns);
+                                       cont, args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
       for (const HandlerCase& handler : handlers) {
@@ -4795,6 +4811,48 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
     }
     return 1 + exc_imm.length + cont_imm.length + table_length;
+  }
+
+  DECODE(ResumeThrowRef) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    ContIndexImmediate cont_imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, cont_imm)) return 0;
+
+    Value exn = Pop(kWasmExnRef);  // The exception to forward
+
+    Value cont = Pop(ValueType::RefNull(cont_imm.heap_type()));
+
+    EffectHandlerTableImmediate handler_table_imm(
+        this, this->pc_ + cont_imm.length + 1, validate);
+    if (!this->Validate(this->pc_ + cont_imm.length + 1, handler_table_imm)) {
+      return 0;
+    }
+
+    base::Vector<HandlerCase> handlers =
+        this->zone_->template AllocateVector<HandlerCase>(
+            handler_table_imm.table_count);
+
+    int table_length =
+        DecodeEffectHandlerTable(cont_imm, handler_table_imm, handlers);
+    if (table_length < 0) return 0;
+
+    const FunctionSig* contFunSig =
+        this->module_->signature(cont_imm.cont_type->contfun_typeindex());
+    Value* returns = PushReturns(contFunSig);
+
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeThrowRef, cont_imm, handlers, cont,
+                                       exn, returns);
+
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      MarkMightThrow();
+      for (const HandlerCase& handler : handlers) {
+        if (handler.kind == kOnSuspend) {
+          Control* target = control_at(handler.maybe_depth.br.depth);
+          target->br_merge()->reached = true;
+        }
+      }
+    }
+    return 1 + cont_imm.length + table_length;
   }
 
   DECODE(Suspend) {
@@ -5008,6 +5066,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(ContBind);
     DECODE_IMPL(Resume);
     DECODE_IMPL(ResumeThrow);
+    DECODE_IMPL(ResumeThrowRef);
     DECODE_IMPL(Suspend);
     DECODE_IMPL(Switch);
     DECODE_IMPL(BrOnNull);

@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Pretražujte pomoću AI režima</translation>
 <translation id="3557336313807607643">Dodaj u kontakte</translation>
 <translation id="355765753469272474">Opozovi</translation>
+<translation id="3565012355885596568">Učitavanje slika nije uspelo</translation>
 <translation id="3565930036634619844">Kartica. <ph name="TAB_INDEX" /> od <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">Na Google nalogu</translation>
 <translation id="3575234738189584619">Pretražujte pomoću Objektiva</translation>
@@ -1314,6 +1315,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="6045460247888249350">Dodajte naslov</translation>
 <translation id="6052269326659653305">Promenite profil</translation>
 <translation id="605721222689873409">GG</translation>
+<translation id="6058415747854995776">Snimi video</translation>
 <translation id="6059830886158432458">Ovde kontrolišite priče i aktivnosti</translation>
 <translation id="6066301408025741299">Dodirnite da biste otkazali.</translation>
 <translation id="6074656473835429958">Dobijajte obaveštenja</translation>
@@ -1815,6 +1817,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="7866872729285243843">Da bi vam lista za čitanje bila dostupna na svim uređajima, uključite Listu za čitanje u podešavanjima.</translation>
 <translation id="7874107544081154809">Automatski popunite obrazac koristeći <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">Prikazuje preuzimanja</translation>
+<translation id="7882689957034389473">Snimi sliku</translation>
 <translation id="7883882164760409935">Imate lozinke koje koristite za više naloga.</translation>
 <translation id="7887174313503389866">Krenite u obilazak ključnih kontrola privatnosti i bezbednosti. Više opcija potražite u pojedinačnim podešavanjima.</translation>
 <translation id="7887198238286927132">Radi zaštite privatnosti Chrome neće automatski popunjavati ovo polje.</translation>
@@ -1998,6 +2001,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="8551311254462607218">Na traci za adresu dodirnite ikonu kamere Google objektiva</translation>
 <translation id="8556590991644167667">{count,plural, =1{Odbacili ste {count} upozorenje}one{Odbacili ste {count} upozorenje}few{Odbacili ste {count} upozorenja}other{Odbacili ste {count} upozorenja}}</translation>
 <translation id="8558046478684552694">Zatvorite grupu.</translation>
+<translation id="8559858985063901027">Pristupni kodovi</translation>
 <translation id="8560253818350321773">Prvo prikaži često korišćene stavke.</translation>
 <translation id="8561999115126307258">{count,plural, =1{{count} opcija za lozinku je dostupna iznad tastature.}one{{count} opcija za lozinku je dostupna iznad tastature.}few{{count} opcije za lozinku su dostupne iznad tastature.}other{{count} opcija za lozinku je dostupno iznad tastature.}}</translation>
 <translation id="8564894539416715395">Stranica Nova kartica</translation>

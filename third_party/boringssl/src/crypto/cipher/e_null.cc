@@ -27,10 +27,10 @@ static int null_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int null_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                       size_t in_len) {
+static int null_cipher_update(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                              const uint8_t *in, size_t len) {
   if (in != out) {
-    OPENSSL_memcpy(out, in, in_len);
+    OPENSSL_memcpy(out, in, len);
   }
   return 1;
 }
@@ -43,7 +43,9 @@ static const EVP_CIPHER n_cipher = {
     /*ctx_size=*/0,
     /*flags=*/0,
     /*init=*/null_init_key,
-    /*cipher=*/null_cipher,
+    /*cipher_update=*/null_cipher_update,
+    /*cipher_final=*/nullptr,
+    /*update_aad=*/nullptr,
     /*cleanup=*/nullptr,
     /*ctrl=*/nullptr,
 };

@@ -27,7 +27,6 @@
 #include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
-#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_socket_address.h"
@@ -42,7 +41,19 @@ MasqueConnectionPool::MasqueConnectionPool(
       ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       address_family_for_lookup_(address_family_for_lookup),
-      visitor_(visitor) {}
+      visitor_(visitor),
+      dns_resolver_(std::make_shared<DnsResolver>()) {}
+
+MasqueConnectionPool::MasqueConnectionPool(
+    QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
+    bool disable_certificate_verification, int address_family_for_lookup,
+    Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver)
+    : event_loop_(event_loop),
+      ssl_ctx_(ssl_ctx),
+      disable_certificate_verification_(disable_certificate_verification),
+      address_family_for_lookup_(address_family_for_lookup),
+      visitor_(visitor),
+      dns_resolver_(dns_resolver) {}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -218,7 +229,8 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     port = "443";
   }
   quiche::QuicheSocketAddress socket_address =
-      tools::LookupAddress(address_family_for_lookup, host_, port);
+      connection_pool_->GetDnsResolver()->LookupAddress(
+          address_family_for_lookup, host_, port);
   if (!socket_address.IsInitialized()) {
     QUICHE_LOG(ERROR) << "Failed to resolve address for \"" << authority_
                       << "\"";
@@ -372,6 +384,38 @@ absl::StatusOr<bssl::UniquePtr<SSL_CTX>> MasqueConnectionPool::CreateSslCtx(
   SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
   SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
 
+  return ctx;
+}
+
+// static
+absl::StatusOr<bssl::UniquePtr<SSL_CTX>>
+MasqueConnectionPool::CreateSslCtxFromData(
+    const std::string& client_cert_pem_data,
+    const std::string& client_cert_key_data) {
+  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+  // Load public cert.
+  BIO* cert_bio = BIO_new_mem_buf(client_cert_pem_data.c_str(), -1);
+  QUICHE_CHECK(cert_bio);
+  X509* cert = PEM_read_bio_X509(cert_bio, nullptr, nullptr, nullptr);
+  QUICHE_CHECK(cert);
+  BIO_free(cert_bio);
+  int rv = SSL_CTX_use_certificate(ctx.get(), cert);
+  QUICHE_CHECK_EQ(rv, 1);
+  X509_free(cert);
+
+  // Load private key.
+  BIO* key_bio = BIO_new_mem_buf(client_cert_key_data.c_str(), -1);
+  QUICHE_CHECK(key_bio);
+  EVP_PKEY* private_key =
+      PEM_read_bio_PrivateKey(key_bio, nullptr, nullptr, nullptr);
+  QUICHE_CHECK(private_key);
+  BIO_free(key_bio);
+  rv = SSL_CTX_use_PrivateKey(ctx.get(), private_key);
+  QUICHE_CHECK_EQ(rv, 1);
+  EVP_PKEY_free(private_key);
+
+  SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
+  SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
   return ctx;
 }
 

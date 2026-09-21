@@ -237,7 +237,6 @@ class RtpTransportControllerSend final
   const bool reset_feedback_on_route_change_;
   const bool add_pacing_to_cwin_;
   const bool reset_bwe_on_adapter_id_change_;
-  const bool prefer_bwe_using_scream_;
 
   FieldTrialParameter<DataRate> relay_bandwidth_cap_;
 

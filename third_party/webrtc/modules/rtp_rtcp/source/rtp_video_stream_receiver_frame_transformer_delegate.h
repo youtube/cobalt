@@ -17,6 +17,7 @@
 #include "api/frame_transformer_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
@@ -74,7 +75,7 @@ class RtpVideoStreamReceiverFrameTransformerDelegate
   RtpVideoFrameReceiver* receiver_ RTC_GUARDED_BY(network_sequence_checker_);
   scoped_refptr<FrameTransformerInterface> frame_transformer_
       RTC_GUARDED_BY(network_sequence_checker_);
-  Thread* const network_thread_;
+  TaskQueueBase* const network_thread_;
   const uint32_t ssrc_;
   Clock* const clock_;
   bool short_circuit_ RTC_GUARDED_BY(network_sequence_checker_) = false;

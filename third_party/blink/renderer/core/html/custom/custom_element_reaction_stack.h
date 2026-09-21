@@ -22,9 +22,9 @@ class Element;
 class CORE_EXPORT CustomElementReactionStack final
     : public GarbageCollected<CustomElementReactionStack>,
       public NameClient,
-      public Supplement<Agent> {
+      public GarbageCollectedMixin {
  public:
-  explicit CustomElementReactionStack(Agent& agent);
+  CustomElementReactionStack() = default;
   CustomElementReactionStack(const CustomElementReactionStack&) = delete;
   CustomElementReactionStack& operator=(const CustomElementReactionStack&) =
       delete;
@@ -43,7 +43,6 @@ class CORE_EXPORT CustomElementReactionStack final
   void ClearQueue(Element&);
 
   static CustomElementReactionStack& From(Agent& agent);
-  static const char kSupplementName[];
 
  private:
   friend class ResetCustomElementReactionStackForTest;

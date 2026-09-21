@@ -29,7 +29,7 @@ namespace webrtc {
 // static
 std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateRawWindowCapturer(
     const DesktopCaptureOptions& options) {
-  RTC_LOG(LS_INFO) << "video capture: DesktopCapturer::CreateRawWindowCapturer "
+  RTC_LOG(LS_INFO) << "DesktopCapturer::CreateRawWindowCapturer "
                       "creates DesktopCapturer of type WindowCapturerWinGdi";
   std::unique_ptr<DesktopCapturer> capturer(
       WindowCapturerWinGdi::CreateRawWindowCapturer(options));
@@ -40,7 +40,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateRawWindowCapturer(
     // GDI rendering, then Fallback capturer will try to capture it again with
     // WGC.
     RTC_LOG(LS_INFO)
-        << "video capture: DesktopCapturer::CreateRawWindowCapturer creates "
+        << "DesktopCapturer::CreateRawWindowCapturer creates "
            "DesktopCapturer of type FallbackDesktopCapturerWrapper which has a "
            "fallback capturer of type WgcCapturerWin";
     capturer = std::make_unique<BlankDetectorDesktopCapturerWrapper>(

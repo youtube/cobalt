@@ -306,9 +306,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   }
 
   webrtc::Network* MakeNetwork(const webrtc::IPAddress& addr) {
-    networks_.emplace_back("unittest", "unittest", addr, 32);
-    networks_.back().AddIP(addr);
-    return &networks_.back();
+    networks_.emplace_back(
+        std::make_unique<Network>("unittest", "unittest", addr, 32));
+    networks_.back()->AddIP(addr);
+    return networks_.back().get();
   }
 
   webrtc::TestStunServer* stun_server_1() { return stun_servers_[0].get(); }
@@ -319,7 +320,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
 
  private:
   const Environment env_;
-  std::vector<webrtc::Network> networks_;
+  std::vector<std::unique_ptr<webrtc::Network>> networks_;
   webrtc::Network* network_;
 
   std::unique_ptr<webrtc::VirtualSocketServer> ss_;

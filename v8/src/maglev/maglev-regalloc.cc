@@ -378,6 +378,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     printing_visitor_->PreProcessGraph(graph_);
   }
 
+  // LINT.IfChange(maglev_constant_nodes)
   for (const auto& [ref, constant] : graph_->constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
@@ -411,6 +412,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
+  for (const auto& [value, constant] : graph_->holey_float64()) {
+    constant->regalloc_info()->SetConstantLocation();
+    USE(value);
+  }
   for (const auto& [value, constant] : graph_->heap_number()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
@@ -419,6 +424,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
   }
+  // LINT.ThenChange()
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
@@ -1116,9 +1122,15 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
           UpdateUse(phi->input(predecessor_id));
         }
       }
+    } else if (target->is_edge_split_block()) {
+      // MaglevOptimizer can rewrite control flow when folding conditionals.
+      // This can make a spurious edge split block connected by unconditional
+      // jumps.
+      // TODO(victorgomes): consider eliminating those empty blocks before
+      // regalloc.
+      InitializeEmptyBlockRegisterValues(node, target);
     } else {
       // Fallthrough.
-      DCHECK(!target->is_edge_split_block());
       DCHECK_EQ(unconditional->id() + 1, target->first_id());
       DCHECK(AllUsedRegistersLiveAt(target));
     }

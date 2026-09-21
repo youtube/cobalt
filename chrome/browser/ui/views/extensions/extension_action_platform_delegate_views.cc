@@ -13,9 +13,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/accelerator_priority.h"
-#include "chrome/browser/ui/extensions/extension_action_view_controller.h"
+#include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
-#include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/extensions/extensions_container_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -42,11 +41,11 @@ ExtensionActionPlatformDelegateViews::~ExtensionActionPlatformDelegateViews() {
 
 ExtensionActionPlatformDelegateViews*
 ExtensionActionPlatformDelegateViews::GetPopupOwnerDelegate() {
-  ExtensionActionViewController* owner_controller =
-      static_cast<ExtensionActionViewController*>(
-          extensions_container_->GetActionForId(controller_->GetId()));
+  ExtensionActionViewModel* owner_model =
+      static_cast<ExtensionActionViewModel*>(
+          extensions_container_->GetActionForId(model_->GetId()));
   return static_cast<ExtensionActionPlatformDelegateViews*>(
-      owner_controller->platform_delegate());
+      owner_model->platform_delegate());
 }
 
 void ExtensionActionPlatformDelegateViews::DoTriggerPopup(
@@ -64,10 +63,10 @@ void ExtensionActionPlatformDelegateViews::DoTriggerPopup(
 
   popup_host_ = host.get();
   popup_host_observation_.Observe(popup_host_.get());
-  extensions_container_->SetPopupOwner(controller_);
+  extensions_container_->SetPopupOwner(model_);
 
   extensions_container_->PopOutAction(
-      controller_->GetId(),
+      model_->GetId(),
       base::BindOnce(&ExtensionActionPlatformDelegateViews::ShowPopup,
                      weak_factory_.GetWeakPtr(), std::move(host), show_action,
                      by_user, std::move(callback)));
@@ -99,10 +98,10 @@ void ExtensionActionPlatformDelegateViews::ShowPopup(
   views::BubbleBorder::Arrow arrow = views::BubbleBorder::TOP_RIGHT;
   ExtensionPopup::ShowPopup(
       browser_->GetBrowserForMigrationOnly(), std::move(host),
-      extensions_container_->GetReferenceButtonForPopup(controller_->GetId()),
-      arrow, show_action, std::move(callback));
+      extensions_container_->GetReferenceButtonForPopup(model_->GetId()), arrow,
+      show_action, std::move(callback));
 
-  extensions_container_->OnPopupShown(controller_->GetId(), by_user);
+  extensions_container_->OnPopupShown(model_->GetId(), by_user);
 }
 
 void ExtensionActionPlatformDelegateViews::OnPopupClosed() {
@@ -111,22 +110,22 @@ void ExtensionActionPlatformDelegateViews::OnPopupClosed() {
   popup_host_ = nullptr;
   has_opened_popup_ = false;
   extensions_container_->SetPopupOwner(nullptr);
-  if (extensions_container_->GetPoppedOutActionId() == controller_->GetId()) {
+  if (extensions_container_->GetPoppedOutActionId() == model_->GetId()) {
     extensions_container_->UndoPopOut();
   }
-  extensions_container_->OnPopupClosed(controller_->GetId());
+  extensions_container_->OnPopupClosed(model_->GetId());
 }
 
-void ExtensionActionPlatformDelegateViews::AttachToController(
-    ExtensionActionViewController* controller) {
-  CHECK(controller);
-  CHECK(!controller_);
-  controller_ = controller;
+void ExtensionActionPlatformDelegateViews::AttachToModel(
+    ExtensionActionViewModel* model) {
+  CHECK(model);
+  CHECK(!model_);
+  model_ = model;
 }
 
-void ExtensionActionPlatformDelegateViews::DetachFromController() {
-  CHECK(controller_);
-  controller_ = nullptr;
+void ExtensionActionPlatformDelegateViews::DetachFromModel() {
+  CHECK(model_);
+  model_ = nullptr;
 }
 
 void ExtensionActionPlatformDelegateViews::RegisterCommand() {
@@ -138,7 +137,7 @@ void ExtensionActionPlatformDelegateViews::RegisterCommand() {
   extensions::Command extension_command;
   views::FocusManager* focus_manager =
       extensions_container_->GetFocusManagerForAccelerator();
-  if (focus_manager && controller_->GetExtensionCommand(&extension_command)) {
+  if (focus_manager && model_->GetExtensionCommand(&extension_command)) {
     action_keybinding_ =
         std::make_unique<ui::Accelerator>(extension_command.accelerator());
     focus_manager->RegisterAccelerator(*action_keybinding_,
@@ -198,7 +197,7 @@ void ExtensionActionPlatformDelegateViews::TriggerPopup(
 }
 
 void ExtensionActionPlatformDelegateViews::ShowContextMenuAsFallback() {
-  extensions_container_->ShowContextMenuAsFallback(controller_->GetId());
+  extensions_container_->ShowContextMenuAsFallback(model_->GetId());
 }
 
 bool ExtensionActionPlatformDelegateViews::CloseOverflowMenuIfOpen() {
@@ -207,20 +206,20 @@ bool ExtensionActionPlatformDelegateViews::CloseOverflowMenuIfOpen() {
 
 bool ExtensionActionPlatformDelegateViews::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
-  DCHECK(controller_->CanHandleAccelerators());
+  DCHECK(model_->CanHandleAccelerators());
 
-  if (controller_->IsShowingPopup()) {
-    controller_->HidePopup();
+  if (model_->IsShowingPopup()) {
+    model_->HidePopup();
   } else {
-    controller_->ExecuteUserAction(
-        ToolbarActionViewController::InvocationSource::kCommand);
+    model_->ExecuteUserAction(
+        ToolbarActionViewModel::InvocationSource::kCommand);
   }
 
   return true;
 }
 
 bool ExtensionActionPlatformDelegateViews::CanHandleAccelerators() const {
-  return controller_->CanHandleAccelerators();
+  return model_->CanHandleAccelerators();
 }
 
 void ExtensionActionPlatformDelegateViews::OnExtensionHostDestroyed(

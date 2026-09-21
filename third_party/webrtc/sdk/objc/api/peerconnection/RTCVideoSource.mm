@@ -53,29 +53,16 @@ static webrtc::ObjCVideoTrackSource *getObjCVideoSource(
   return nil;
 }
 
-- (instancetype)initWithFactory:
-                    (RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                signalingThread:(webrtc::Thread *)signalingThread
-                   workerThread:(webrtc::Thread *)workerThread {
-  return [self initWithFactory:factory
-               signalingThread:signalingThread
-                  workerThread:workerThread
-                  isScreenCast:NO];
-}
-
-- (instancetype)initWithFactory:
-                    (RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                signalingThread:(webrtc::Thread *)signalingThread
-                   workerThread:(webrtc::Thread *)workerThread
-                   isScreenCast:(BOOL)isScreenCast {
-  webrtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objCVideoTrackSource =
-      webrtc::make_ref_counted<webrtc::ObjCVideoTrackSource>(isScreenCast);
-
-  return [self initWithFactory:factory
-             nativeVideoSource:webrtc::VideoTrackSourceProxy::Create(
-                                   signalingThread,
-                                   workerThread,
-                                   objCVideoTrackSource)];
+- (instancetype)
+      initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+      signalingThread:(webrtc::Thread *)signalingThread
+         workerThread:(webrtc::Thread *)workerThread
+    nativeVideoSource:(webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface>)
+                          nativeVideoSource {
+  return [self
+        initWithFactory:factory
+      nativeVideoSource:webrtc::VideoTrackSourceProxy::Create(
+                            signalingThread, workerThread, nativeVideoSource)];
 }
 
 - (NSString *)description {

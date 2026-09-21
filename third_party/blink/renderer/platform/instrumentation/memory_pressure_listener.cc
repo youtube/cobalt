@@ -34,6 +34,20 @@ const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
 }  // namespace
 #endif  // BUILDFLAG(IS_COBALT)
 
+MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
+    base::Location location,
+    base::MemoryPressureListenerTag tag,
+    base::MemoryPressureListener* listener)
+    : registration_(std::in_place, location, tag, listener) {}
+
+MemoryPressureListenerRegistration::~MemoryPressureListenerRegistration() {
+  CHECK(!registration_);
+}
+
+void MemoryPressureListenerRegistration::Dispose() {
+  registration_.reset();
+}
+
 // static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;
 

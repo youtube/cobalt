@@ -457,7 +457,8 @@ declare_args() {
   v8_enable_experimental_tsa_builtins = false
 
   # Use the encoding of undefined in double values.
-  v8_enable_undefined_double = false
+  # Only enabled for fuzzing in V8 Fuzzilli builds
+  v8_enable_undefined_double = v8_fuzzilli
 
   v8_dcheck_always_on = dcheck_always_on
 
@@ -489,6 +490,9 @@ declare_args() {
 
   # Use a hard-coded secret value when hashing.
   v8_use_default_hasher_secret = true
+
+  # add instrumentation for Dumpling differential fuzzing
+  v8_dumpling = false
 }
 
 # Derived defaults.
@@ -598,7 +602,7 @@ if (v8_enable_external_code_space == "") {
       v8_enable_pointer_compression &&
       v8_enable_pointer_compression_shared_cage &&
       (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-       v8_current_cpu == "loong64")
+       v8_current_cpu == "loong64" || v8_current_cpu == "riscv64")
 }
 if (v8_enable_sparkplug == "") {
   v8_enable_sparkplug = !v8_jitless
@@ -978,6 +982,7 @@ external_v8_defines = [
   "V8_DEPRECATION_WARNINGS",
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_USE_PERFETTO",
+  "V8_USE_PERFETTO_JSON_EXPORT",
   "V8_USE_PERFETTO_SDK",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
@@ -1026,6 +1031,9 @@ if (v8_imminent_deprecation_warnings) {
 }
 if (v8_use_perfetto) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO" ]
+}
+if (v8_use_perfetto_json_export) {
+  enabled_external_v8_defines += [ "V8_USE_PERFETTO_JSON_EXPORT" ]
 }
 if (v8_use_perfetto_sdk) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO_SDK" ]
@@ -1330,6 +1338,9 @@ config("features") {
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
   }
+  if (v8_dumpling) {
+    defines += [ "V8_DUMPLING" ]
+  }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
   }
@@ -1463,7 +1474,6 @@ config("features") {
   if (v8_enable_undefined_double) {
     defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
   }
-  defines += [ "V8_ENABLE_LEAPTIERING" ]
   if (v8_enable_partition_alloc) {
     defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
   }
@@ -6495,6 +6505,15 @@ v8_source_set("v8_base_without_compiler") {
       "src/fuzzilli/cov.h",
       "src/fuzzilli/fuzzilli.cc",
       "src/fuzzilli/fuzzilli.h",
+    ]
+  }
+
+  if (v8_dumpling) {
+    sources += [
+      "src/dumpling/dumpling-manager.cc",
+      "src/dumpling/dumpling-manager.h",
+      "src/dumpling/object-dumping.cc",
+      "src/dumpling/object-dumping.h",
     ]
   }
 

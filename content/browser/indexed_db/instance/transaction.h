@@ -151,8 +151,11 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
   // appropriate helper functions.
   blink::mojom::IDBValuePtr BuildMojoValue(IndexedDBValue value);
 
-  enum class RunTasksResult { kNotFinished, kCommitted, kAborted };
-  StatusOr<RunTasksResult> RunTasks();
+  // Should not be called if `state()` is `FINISHED`. After calling, consult
+  // updated `state()` for what to do next. If `FINISHED`, the transaction can
+  // be deleted. Will return an error if something went wrong when interacting
+  // with backing store.
+  Status RunTasks();
 
   // Returns metadata relevant to idb-internals.
   storage::mojom::IdbTransactionMetadataPtr GetIdbInternalsMetadata() const;
@@ -232,10 +235,13 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
   void OnQuotaCheckDone(bool allowed);
 
   // Turns an IDBValue into a set of IndexedDBExternalObjects in
-  // |external_objects|.
-  uint64_t CreateExternalObjects(
+  // |external_objects|. Note that `value` is untrusted input from the renderer,
+  // and deserialization can fail: in this case, false is returned and the
+  // renderer should be killed.
+  bool CreateExternalObjects(
       blink::mojom::IDBValuePtr& value,
-      std::vector<IndexedDBExternalObject>* external_objects);
+      std::vector<IndexedDBExternalObject>* external_objects,
+      uint64_t* total_size);
 
   Status DoPendingCommit();
 

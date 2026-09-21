@@ -75,7 +75,8 @@ struct builtin : CallDescriptorBuilder {
       DCHECK_EQ(base::tmp::length_v<arguments_t>, arguments_count);
       DCHECK_EQ(desc->ParameterCount(),
                 arguments_count + (Derived::kNeedsContext ? 1 : 0));
-      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc);
+      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc,
+                                                           arguments_count);
 
       // Verify properties.
       DCHECK_EQ(desc->NeedsFrameState(),
@@ -327,19 +328,26 @@ struct builtin : CallDescriptorBuilder {
   using NewRestArgumentsElements =
       NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
 
-  struct NumberToString : public Descriptor<NumberToString> {
-    static constexpr auto kFunction = Builtin::kNumberToString;
-    struct Arguments : ArgumentsBase {
-      ARG(V<Number>, input)
-    };
-    using returns_t = std::tuple<V<String>>;
-
-    static constexpr bool kCanTriggerLazyDeopt = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+#define DECLARE_NUMBER_TO_STRING(Name, Type)                       \
+  struct Name##ToString : public Descriptor<Name##ToString> {      \
+    static constexpr auto kFunction = Builtin::k##Name##ToString;  \
+    struct Arguments : ArgumentsBase {                             \
+      ARG(V<Type>, input)                                          \
+    };                                                             \
+    using returns_t = std::tuple<V<String>>;                       \
+                                                                   \
+    static constexpr bool kCanTriggerLazyDeopt = false;            \
+    static constexpr bool kNeedsContext = false;                   \
+    static constexpr Operator::Properties kProperties =            \
+        Operator::kEliminatable;                                   \
+    static constexpr OpEffects kEffects =                          \
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity(); \
   };
+  DECLARE_NUMBER_TO_STRING(Int32, Word32)
+  DECLARE_NUMBER_TO_STRING(Float64, Float64)
+  DECLARE_NUMBER_TO_STRING(Smi, Smi)
+  DECLARE_NUMBER_TO_STRING(Number, Number)
+#undef DECLARE_NUMBER_TO_STRING
 
   struct ToString : public Descriptor<ToString> {
     static constexpr auto kFunction = Builtin::kToString;

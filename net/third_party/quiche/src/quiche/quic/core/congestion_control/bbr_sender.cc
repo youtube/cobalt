@@ -12,12 +12,15 @@
 #include "absl/base/attributes.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -123,7 +126,9 @@ BbrSender::BbrSender(QuicTime now, const RttStats* rtt_stats,
       bytes_lost_multiplier_while_detecting_overshooting_(2),
       cwnd_to_calculate_min_pacing_rate_(initial_congestion_window_),
       max_congestion_window_with_network_parameters_adjusted_(
-          kMaxInitialCongestionWindow * kDefaultTCPMSS) {
+          kMaxInitialCongestionWindow * kDefaultTCPMSS),
+      exit_startup_on_loss_even_if_app_limited_(
+          GetQuicReloadableFlag(quic_bbr_always_exit_startup_on_loss)) {
   if (stats_) {
     // Clear some startup stats if |stats_| has been used by another sender,
     // which happens e.g. when QuicConnection switch send algorithms.
@@ -253,6 +258,11 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     cwnd_to_calculate_min_pacing_rate_ =
         std::min(initial_congestion_window_, 10 * kDefaultTCPMSS);
   }
+  if (GetQuicReloadableFlag(quic_bbr_exit_startup_on_loss) &&
+      config.HasClientRequestedIndependentOption(kB1AL, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_exit_startup_on_loss, 1, 2);
+    exit_startup_on_loss_even_if_app_limited_ = true;
+  }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
 }
@@ -271,7 +281,7 @@ void BbrSender::ApplyConnectionOptions(
 }
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
-  const QuicBandwidth& bandwidth = params.bandwidth;
+  QuicBandwidth bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
@@ -289,6 +299,11 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       max_congestion_window_with_network_parameters_adjusted_ =
           params.max_initial_congestion_window * kDefaultTCPMSS;
     }
+
+    // It should be safe to multiply `bandwidth` and `cwnd_bootstrapping_rtt`.
+    QUICHE_DCHECK(
+        bandwidth.ToBytesPerPeriodSafe(cwnd_bootstrapping_rtt).has_value());
+
     const QuicByteCount new_cwnd = std::max(
         kMinInitialCongestionWindow * kDefaultTCPMSS,
         std::min(max_congestion_window_with_network_parameters_adjusted_,
@@ -560,6 +575,12 @@ void BbrSender::UpdateGainCyclePhase(QuicTime now,
 
 void BbrSender::CheckIfFullBandwidthReached(
     const SendTimeState& last_packet_send_state) {
+  if (exit_startup_on_loss_even_if_app_limited_ &&
+      ShouldExitStartupDueToLoss(last_packet_send_state)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_exit_startup_on_loss, 2, 2);
+    is_at_full_bandwidth_ = true;
+  }
+
   if (last_sample_is_app_limited_) {
     return;
   }
@@ -577,7 +598,8 @@ void BbrSender::CheckIfFullBandwidthReached(
 
   rounds_without_bandwidth_gain_++;
   if ((rounds_without_bandwidth_gain_ >= num_startup_rtts_) ||
-      ShouldExitStartupDueToLoss(last_packet_send_state)) {
+      (!exit_startup_on_loss_even_if_app_limited_ &&
+       ShouldExitStartupDueToLoss(last_packet_send_state))) {
     QUICHE_DCHECK(has_non_app_limited_sample_);
     is_at_full_bandwidth_ = true;
   }

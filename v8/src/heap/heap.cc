@@ -21,6 +21,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
@@ -327,24 +328,25 @@ size_t Heap::MaxReserved() const {
 }
 
 // static
-size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
-                                                      size_t old_generation) {
+size_t Heap::YoungGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
+  // `physical_memory / kPhysicalMemoryToOldGenerationRatio` is not the actual
+  // heap size, but achieves desires scaling w.r.t. `physical_memory`.
+  const uint64_t target_heap_size =
+      physical_memory / kPhysicalMemoryToOldGenerationRatio;
+  const size_t capped_heap_size =
+      base::saturated_cast<size_t>(target_heap_size);
+  return YoungGenerationSizeFromHeapSize(physical_memory, capped_heap_size);
+}
+
+// static
+size_t Heap::YoungGenerationSizeFromHeapSize(uint64_t physical_memory,
+                                             size_t heap_size) {
   // Compute the semi space size and cap it.
-  bool is_low_memory =
-      old_generation <= Heap::OldGenerationLowMemory(physical_memory);
-  size_t semi_space;
-  if (v8_flags.minor_ms && !is_low_memory) {
-    semi_space = DefaultMaxSemiSpaceSize(physical_memory);
-  } else {
-    size_t ratio = is_low_memory
-                       ? OldGenerationToSemiSpaceRatioLowMemory(physical_memory)
-                       : OldGenerationToSemiSpaceRatio(physical_memory);
-    semi_space = old_generation / ratio;
-    semi_space =
-        std::min({semi_space, DefaultMaxSemiSpaceSize(physical_memory)});
-    semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
-    semi_space = RoundUp(semi_space, PageMetadata::kPageSize);
-  }
+  size_t semi_space = heap_size / HeapSizeToSemiSpaceRatio(physical_memory);
+  semi_space =
+      RoundUp(std::clamp<size_t>(semi_space, 2 * MB,
+                                 DefaultMaxSemiSpaceSize(physical_memory)),
+              PageMetadata::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
@@ -371,23 +373,13 @@ void Heap::GenerationSizesFromHeapSize(uint64_t physical_memory,
                                        size_t* young_generation_size,
                                        size_t* old_generation_size) {
   // Initialize values for the case when the given heap size is too small.
-  *young_generation_size = 0;
-  *old_generation_size = 0;
-  // Binary search for the largest old generation size that fits to the given
-  // heap limit considering the correspondingly sized young generation.
-  size_t lower = 0, upper = heap_size;
-  while (lower + 1 < upper) {
-    size_t old_generation = lower + (upper - lower) / 2;
-    size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-        physical_memory, old_generation);
-    if (old_generation + young_generation <= heap_size) {
-      // This size configuration fits into the given heap limit.
-      *young_generation_size = young_generation;
-      *old_generation_size = old_generation;
-      lower = old_generation;
-    } else {
-      upper = old_generation;
-    }
+  *young_generation_size =
+      RoundUp(YoungGenerationSizeFromHeapSize(physical_memory, heap_size), MB);
+  if (*young_generation_size < heap_size) {
+    *old_generation_size = heap_size - *young_generation_size;
+  } else {
+    *young_generation_size = 0;
+    *old_generation_size = 0;
   }
 }
 
@@ -416,6 +408,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   size_t max_size = DefaultMaxHeapSize(physical_memory);
+
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -1948,44 +1941,12 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     return;
   }
 
-  std::string json_str;
-
-  const bool is_major = collector == GarbageCollector::MARK_COMPACTOR;
-  const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
-                                 : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
-
-  if (is_gc_tracing_category_enabled()) {
-    ::heap::base::UnsafeJsonEmitter json;
-
-    json.object_start()
-        .p("epoch", tracer()->CurrentEpoch(scope_id))
-        .p("gc_reason", ToString(gc_reason))
-        .p("reason", reason)
-        .p("old_gen_allocation_limit", old_generation_allocation_limit())
-        .p("old_gen_consumed_bytes", OldGenerationConsumedBytes())
-        .p("old_gen_allocation_limit_consumed_bytes",
-           OldGenerationAllocationLimitConsumedBytes())
-        .p("old_gen_space_available", OldGenerationSpaceAvailable())
-        .p("global_allocation_limit", global_allocation_limit())
-        .p("global_consumed_bytes", GlobalConsumedBytes())
-        .p("global_memory_available", GlobalMemoryAvailable())
-        .object_end();
-
-    json_str = json.ToString();
-  }
-
-  TRACE_EVENT2("v8",
-               is_major ? "V8.GCIncrementalMarkingStart"
-                        : "V8.GCMinorIncrementalMarkingStart",
-               "epoch", tracer()->CurrentEpoch(scope_id), "value",
-               TRACE_STR_COPY(json_str.c_str()));
-
-  if (is_major) {
+  if (IsYoungGenerationCollector(collector)) {
+    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
+  } else {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
     CompleteSweepingFull(CompleteSweepingReason::kStartMarking);
-  } else {
-    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
   }
 
   std::optional<SafepointScope> safepoint_scope;
@@ -2044,10 +2005,9 @@ void CompleteArrayBufferSweeping(Heap* heap) {
         scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
     }
 
-    TRACE_GC_EPOCH_WITH_FLOW(
-        tracer, scope_id, ThreadKind::kMain,
-        array_buffer_sweeper->GetTraceIdForFlowEvent(scope_id),
-        TRACE_EVENT_FLAG_FLOW_IN);
+    TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, ThreadKind::kMain,
+                             array_buffer_sweeper->GetTraceIdForFlowEvent(),
+                             TRACE_EVENT_FLAG_FLOW_IN);
     array_buffer_sweeper->EnsureFinished();
   }
 }
@@ -2093,7 +2053,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
         break;
       case IncrementalMarkingLimit::kSoftLimit:
         if (auto* job = incremental_marking()->incremental_marking_job()) {
-          job->ScheduleTask(TaskPriority::kUserVisible);
+          job->ScheduleTask();
         }
         break;
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
@@ -2683,9 +2643,9 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
     std::string json_str = json.ToString();
 
-    TRACE_EVENT_INSTANT1(
-        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCUpdateAllocationLimits",
-        TRACE_EVENT_SCOPE_THREAD, "value", TRACE_STR_COPY(json_str.c_str()));
+    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
+                         TRACE_EVENT_SCOPE_THREAD, "value",
+                         TRACE_STR_COPY(json_str.c_str()));
   }
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
@@ -5217,21 +5177,19 @@ size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
-  DCHECK(!v8_flags.minor_ms);
-  // Compute a ration such that when old gen max capacity is set to the highest
-  // supported value, young gen max capacity would also be set to the max.
-  const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
-  DCHECK_GT(max_semi_space_size, 0);
-  return DefaultMaxHeapSize(physical_memory) / max_semi_space_size;
-}
-
-// static
-size_t Heap::OldGenerationToSemiSpaceRatioLowMemory(uint64_t physical_memory) {
-  static const size_t old_generation_to_semi_space_ratio_low_memory =
-      256 * HeapLimitMultiplier(physical_memory);
-  return old_generation_to_semi_space_ratio_low_memory /
-         (v8_flags.minor_ms ? 2 : 1);
+size_t Heap::HeapSizeToSemiSpaceRatio(uint64_t physical_memory) {
+  // The ratio is determined so that we hit DefaultMaxSemiSpaceSize()
+  // at about `heap_size = 256MB`, which corresponds to
+  // `physical_memory = 1GB`.
+  if (v8_flags.minor_ms) {
+    return 4;  // DefaultMaxSemiSpaceSize() = 72MB would give a ratio of 3.55
+  }
+#if defined(ANDROID)
+  if (!IsHighEndAndroid(physical_memory)) {
+    return 128;  // DefaultMaxSemiSpaceSize() = 8MB
+  }
+#endif
+  return 32;  // DefaultMaxSemiSpaceSize() = 32MB
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
@@ -5472,13 +5430,13 @@ void Heap::ConfigureHeapDefault() {
 
 namespace {
 
-void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
+void RecordStatsForCage(VirtualMemoryCage* cage, CageStats* stats) {
   stats->start = HexAddress(cage->base());
-  stats->size = cage->size();
+  stats->size = ByteSize(cage->size());
   base::BoundedPageAllocator::Stats allocator_stats =
       cage->page_allocator()->RecordStats();
-  stats->free_size = allocator_stats.free_size;
-  stats->largest_free_region = allocator_stats.largest_free_region;
+  stats->free_size = ByteSize(allocator_stats.free_size);
+  stats->largest_free_region = ByteSize(allocator_stats.largest_free_region);
   stats->last_allocation_status = allocator_stats.allocation_status;
 }
 
@@ -5487,26 +5445,29 @@ void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
 void Heap::RecordStats(HeapStats* stats) {
   stats->start_marker = HeapStats::kStartMarker;
   stats->end_marker = HeapStats::kEndMarker;
-  stats->ro_space_size = read_only_space_->Size();
-  stats->ro_space_capacity = read_only_space_->Capacity();
-  stats->new_space_size = NewSpaceSize();
-  stats->new_space_capacity = NewSpaceCapacity();
-  stats->old_space_size = old_space_->SizeOfObjects();
-  stats->old_space_capacity = old_space_->Capacity();
-  stats->code_space_size = code_space_->SizeOfObjects();
-  stats->code_space_capacity = code_space_->Capacity();
-  stats->map_space_size = 0;
-  stats->map_space_capacity = 0;
-  stats->lo_space_size = lo_space_->Size();
-  stats->code_lo_space_size = code_lo_space_->Size();
+  stats->ro_space_size = ByteSize(read_only_space_->Size());
+  stats->ro_space_capacity = ByteSize(read_only_space_->Capacity());
+  stats->new_space_size = ByteSize(NewSpaceSize());
+  stats->new_space_capacity = ByteSize(NewSpaceCapacity());
+  stats->old_space_size = ByteSize(old_space_->SizeOfObjects());
+  stats->old_space_capacity = ByteSize(old_space_->Capacity());
+  stats->code_space_size = ByteSize(code_space_->SizeOfObjects());
+  stats->code_space_capacity = ByteSize(code_space_->Capacity());
+  stats->map_space_size = ByteSize(0);
+  stats->map_space_capacity = ByteSize(0);
+  stats->lo_space_size = ByteSize(lo_space_->Size());
+  stats->code_lo_space_size = ByteSize(code_lo_space_->Size());
   isolate_->global_handles()->RecordStats(stats);
-  stats->memory_allocator_size = memory_allocator()->Size();
+  size_t memory_allocator_size = memory_allocator()->Size();
+  stats->memory_allocator_size = ByteSize(memory_allocator_size);
   stats->memory_allocator_capacity =
-      memory_allocator()->Size() + memory_allocator()->Available();
+      ByteSize(memory_allocator_size + memory_allocator()->Available());
   stats->isolate_count = isolate_->isolate_group()->GetIsolateCount();
   stats->last_os_error = base::OS::GetLastError();
-  stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
-                           isolate_->string_table()->GetCurrentMemoryUsage();
+  const size_t allocator_memory =
+      isolate_->allocator()->GetCurrentMemoryUsage() +
+      isolate_->string_table()->GetCurrentMemoryUsage();
+  stats->malloced_memory = ByteSize(allocator_memory);
   stats->is_main_isolate =
       isolate_->isolate_group()->main_isolate() == isolate_;
 #if V8_COMPRESS_POINTERS
@@ -5520,10 +5481,12 @@ void Heap::RecordStats(HeapStats* stats) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  stats->malloced_memory +=
-      i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
+  stats->malloced_memory =
+      ByteSize(stats->malloced_memory.value() +
+               i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
+  stats->malloced_peak_memory =
+      ByteSize(isolate_->allocator()->GetMaxMemoryUsage());
   GetFromRingBuffer(stats->last_few_messages);
 }
 
@@ -5574,16 +5537,33 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
 
   Isolate* isolate = this->isolate();
   auto add_crash_key = absl::Overload(
+      [isolate](const char* name, const ByteSize& value) {
+        constexpr size_t kBufferSize = 32;
+        char buffer[kBufferSize];
+        const size_t bytes = value.value();
+        size_t len;
+        if (bytes >= MB) {
+          len = std::snprintf(buffer, kBufferSize, "%.2fMB",
+                              static_cast<double>(bytes) / MB);
+        } else if (bytes >= KB) {
+          len = std::snprintf(buffer, kBufferSize, "%.2fKB",
+                              static_cast<double>(bytes) / KB);
+        } else {
+          len = std::snprintf(buffer, kBufferSize, "%zuB", bytes);
+        }
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
       [isolate](const char* name, const size_t& value) {
         constexpr size_t kBufferSize = 32;
-        static char buffer[kBufferSize];
+        char buffer[kBufferSize];
         size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
         isolate->AddCrashKeyString(name, CrashKeySize::Size32,
                                    std::string_view(buffer, len));
       },
       [isolate](const char* name, const HexAddress& value) {
         constexpr size_t kBufferSize = 32;
-        static char buffer[kBufferSize];
+        char buffer[kBufferSize];
         size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", *value);
         isolate->AddCrashKeyString(name, CrashKeySize::Size32,
                                    std::string_view(buffer, len));
@@ -5617,16 +5597,16 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
   HANDLE_PRIMITIVE_FIELD(name##_last_allocation_status,      \
                          value.last_allocation_status);
 
-#define HANDLE_GENERIC_FIELD(type, name)               \
-  do {                                                 \
-    auto visitor = absl::Overload(                     \
-        [&add_crash_key](const CodeCageStats& value) { \
-          HANDLE_CAGE_STATS_FIELD(name, value)         \
-        },                                             \
-        [&add_crash_key](const auto& value) {          \
-          HANDLE_PRIMITIVE_FIELD(name, value)          \
-        });                                            \
-    visitor(heap_stats.name);                          \
+#define HANDLE_GENERIC_FIELD(type, name)           \
+  do {                                             \
+    auto visitor = absl::Overload(                 \
+        [&add_crash_key](const CageStats& value) { \
+          HANDLE_CAGE_STATS_FIELD(name, value)     \
+        },                                         \
+        [&add_crash_key](const auto& value) {      \
+          HANDLE_PRIMITIVE_FIELD(name, value)      \
+        });                                        \
+    visitor(heap_stats.name);                      \
   } while (false);
   HEAP_STATS_FIELDS(HANDLE_GENERIC_FIELD);
 #undef HANDLE_GENERIC_FIELD
@@ -7841,8 +7821,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
     json.object_start()
         .p("sweeping_reason", ToString(reason))
         .p("mode", ToString(mode))
-        .p("epoch", tracer()->CurrentEpoch(
-                        GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED))
+        .p("epoch", tracer()->CurrentEpoch())
         .object_end();
     std::string json_str = json.ToString();
 
@@ -7910,8 +7889,16 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
       !tracer()->IsSweepingInProgress());
 
   if (v8_flags.external_memory_accounted_in_global_limit &&
-      !using_initial_limit()) {
-    UpdateAllocationLimits({});
+      !using_initial_limit() &&
+      reason != CompleteSweepingReason::kStartMarking) {
+    // Make sure we don't increase heap limits here.
+    LimitBounds bounds = LimitBounds::AtMostCurrentLimits(this);
+    // But don't go below the soft limits for starting incremental marking.
+    const size_t new_space_capacity = NewSpaceCapacity();
+    bounds.AtLeast(
+        OldGenerationAllocationLimitConsumedBytes() + new_space_capacity,
+        GlobalConsumedBytes() + new_space_capacity);
+    UpdateAllocationLimits(bounds);
   }
 }
 
@@ -7960,7 +7947,7 @@ void Heap::NotifyLoadingEnded() {
   if (auto* job = incremental_marking()->incremental_marking_job()) {
     // The task will start incremental marking (if needed not already started)
     // and advance marking if incremental marking is active.
-    job->ScheduleTask(TaskPriority::kUserVisible);
+    job->ScheduleTask();
   }
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }

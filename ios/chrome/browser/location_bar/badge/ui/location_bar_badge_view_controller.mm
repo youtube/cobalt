@@ -8,10 +8,13 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/badges/ui_bundled/badge_constants.h"
+#import "ios/chrome/browser/badges/ui_bundled/incognito_badge_view_controller.h"
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_util.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/ui/contextual_panel_entrypoint_consumer.h"
 #import "ios/chrome/browser/contextual_panel/entrypoint/ui/contextual_panel_entrypoint_mutator.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_item_configuration.h"
+#import "ios/chrome/browser/contextual_panel/model/contextual_panel_item_type.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
 #import "ios/chrome/browser/location_bar/badge/model/location_bar_badge_configuration.h"
@@ -30,6 +33,23 @@
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
 
+namespace {
+
+// Sets `view.hidden` to `hidden` if necessary. This helper is useful to address
+// a bug where the number of times `.hidden` is set in a view accumulates if it
+// is presented inside of a stack view. As a result, setting `.hidden = YES`
+// twice does not have the same effect as only settings it once.
+void HideViewIfNecessary(UIView* view, BOOL hidden) {
+  if (view.hidden != hidden) {
+    view.hidden = hidden;
+  }
+}
+
+// Height of `unreadIndicatorView`.
+const CGFloat kUnreadIndicatorViewHeight = 6.0;
+
+}  // anonymous namespace
+
 @implementation LocationBarBadgeViewController {
   /// Whether the contextual panel badge should be visible. The placeholder
   /// view trumps the entrypoint when kLensOverlayPriceInsightsCounterfactual is
@@ -37,45 +57,52 @@
   BOOL _contextualPanelEntrypointShouldBeVisible;
   // Whether the location bar badge should be visible.
   BOOL _locationBarBadgeShouldBeVisible;
-
+  /// Whether the incognito badge view should be visible.
+  BOOL _incognitoBadgeViewShouldBeVisible;
+  // A horizontal stack view for different badge setups such as incognito badge
+  // with other badges.
+  UIStackView* _badgeStackView;
+  // The injected view displaying the incognito badge. Nil for non-incognito.
+  UIView* _incognitoBadgeView;
   // The UIButton contains a UIView, which itself contains the
   // badge's image and label. The container (UIButton) is needed for
-  // button-like behavior and to create the shadow around the entire entrypoint
-  // package. The content UIView is needed to populate the inner contents of
-  // the button and to clip the label to the badge's bounds for proper
-  // animations and sizing.
+  // button-like behavior and to create the shadow around the entire
+  // entrypoint package. The content UIView is needed to populate the inner
+  // contents of the button and to clip the label to the badge's bounds for
+  // proper animations and sizing.
   UIButton* _buttonContainer;
   UIView* _badgeContentView;
   UIImageView* _badgeIcon;
   UILabel* _label;
-
   // The small vertical pill-shaped line separating the Location Bar Badge
   // entrypoint and Infobar badges, if present.
   UIView* _separator;
-
   // Constraints for the two states of the trailing edge of the badge
   // container. They are activated/deactivated as needed when the label is
   // shown/hidden.
   NSLayoutConstraint* _expandedContainerTrailingConstraint;
   NSLayoutConstraint* _collapsedContainerTrailingConstraint;
-
+  // Constraint for default leading view. By default, the leading view is
+  // `leadingSpace`. In incognito, the leading view is
+  // `incognitoBadgeView`.
+  NSLayoutConstraint* _defaultLeadingViewConstraint;
   // Whether the badge is tapped. Used to update the badge's colors.
   BOOL _badgeTapped;
   // Whether the entrypoint should currently collapse for fullscreen.
   BOOL _shouldCollapseForFullscreen;
   // Whether there currently are any Infobar badges being shown.
   BOOL _infobarBadgesCurrentlyShown;
-
   // LayoutGuideCenter to register the entrypoint container's view for global
   // access, only when it is large (i.e. dismissable).
   LayoutGuideCenter* _layoutGuideCenter;
-
   // Swipe gesture recognizer for the entrypoint (allows the user to "dismiss"
   // the large chip entrypoint).
   UISwipeGestureRecognizer* _swipeRecognizer;
-
   // Configuration for updating the badge.
   LocationBarBadgeConfiguration* _badgeConfig;
+  // View that displays a blue dot on the top-right corner of the displayed
+  // badge if there are unread badges to be shown in the overflow menu.
+  UIView* _unreadIndicatorView;
 }
 
 #pragma mark - Public
@@ -89,17 +116,25 @@
   self.view.isAccessibilityElement = NO;
   _locationBarBadgeShouldBeVisible = NO;
 
+  _badgeStackView = [[UIStackView alloc] init];
+  _badgeStackView.isAccessibilityElement = NO;
+  _badgeStackView.axis = UILayoutConstraintAxisHorizontal;
+  _badgeStackView.alignment = UIStackViewAlignmentCenter;
+  _badgeStackView.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:_badgeStackView];
+
+  // Setup for capsule badges and chips.
   _buttonContainer = [self configuredButtonContainer];
   _badgeContentView = [self configuredBadgeContentView];
   _badgeIcon = [self configuredBadgeIcon];
   _label = [self configuredLabel];
   _separator = [self configuredSeparator];
 
-  [self.view addSubview:_buttonContainer];
-  [self.view addSubview:_separator];
   [_buttonContainer addSubview:_badgeContentView];
   [_badgeContentView addSubview:_badgeIcon];
   [_badgeContentView addSubview:_label];
+  [_badgeStackView addArrangedSubview:_buttonContainer];
+  [_badgeStackView addArrangedSubview:_separator];
 
   [self updateAccessibilityStatus];
 
@@ -152,6 +187,27 @@
   return anchorPointInWindow;
 }
 
+#pragma mark - Setters
+
+- (void)setIncognitoBadgeViewController:
+    (IncognitoBadgeViewController*)incognitoViewController {
+  incognitoViewController.visibilityDelegate = self;
+  _incognitoBadgeView = incognitoViewController.view;
+  _incognitoBadgeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _incognitoBadgeView.isAccessibilityElement = NO;
+  [_badgeStackView insertArrangedSubview:_incognitoBadgeView atIndex:0];
+  HideViewIfNecessary(_incognitoBadgeView, YES);
+  [self addChildViewController:incognitoViewController];
+  [incognitoViewController didMoveToParentViewController:self];
+  _incognitoBadgeViewController = incognitoViewController;
+
+  _defaultLeadingViewConstraint.active = NO;
+  [NSLayoutConstraint activateConstraints:@[
+    [_incognitoBadgeView.heightAnchor
+        constraintEqualToAnchor:self.view.heightAnchor],
+  ]];
+}
+
 #pragma mark - LocationBarBadgeConsumer
 
 // TODO(crbug.com/448422022): Trigger visibility refresh when a new badge comes
@@ -173,29 +229,45 @@
   _badgeIcon.image = config.badgeImage;
   _badgeConfig = config;
 }
+
 #pragma mark - ContextualPanelEntrypointVisibilityDelegate
 
+// TODO(crbug.com/429140788): Remove after migration and BadgesContainerView
+// is obsolete. Should not be used to update Location Bar Badge visibility.
+// Should instead use `setLocationBarBadgeHidden`.
 - (void)setContextualPanelEntrypointHidden:(BOOL)hidden {
   _contextualPanelEntrypointShouldBeVisible = !hidden;
-  [self setLocationBarBadgeHidden:hidden];
 }
 
 - (void)setContextualPanelItemType:
     (std::optional<ContextualPanelItemType>)itemType {
-  // No-op.
+  [self.visibilityDelegate setContextualPanelItemType:itemType];
 }
 
 - (void)setContextualPanelCurrentlyAnimating:(BOOL)animating {
-  // No-op.
+  [self.visibilityDelegate setContextualPanelCurrentlyAnimating:animating];
+}
+
+#pragma mark - IncognitoBadgeViewVisibilityDelegate
+
+- (void)setIncognitoBadgeViewHidden:(BOOL)hidden {
+  if (_incognitoBadgeViewShouldBeVisible == !hidden) {
+    return;
+  }
+
+  _incognitoBadgeViewShouldBeVisible = !hidden;
+  [self setLocationBarBadgeHidden:hidden];
 }
 
 #pragma mark - Private
 
 // Updates the hidden state of the views.
 - (void)updateViewsVisibility {
-  // TODO(crbug.com/450006763): Based on which view should be visible,
-  // manipulate self.view to change to a specific badge or chip. This replaces
-  // SetViewHiddenIfNecessary() in LocationBarBadgesContainerView.
+  if (_incognitoBadgeView && !_incognitoBadgeViewShouldBeVisible) {
+    HideViewIfNecessary(_badgeStackView, YES);
+  } else {
+    HideViewIfNecessary(_badgeStackView, !_locationBarBadgeShouldBeVisible);
+  }
 
   // Whether the default/placeholder badge should show. Only shown if no other
   // badge or chip is shown.
@@ -214,7 +286,7 @@
       // TODO(crbug.com/454072799): Adapt to record hiding badges for any badge
       // that goes through LocationBarBadge.
       RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kPriceTracking);
-    } else if (_badgeConfig.badgeType == LocationBarBadgeType::kBadgeView) {
+    } else if ([_badgeConfig fromBadgeFactory]) {
       RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kMessage);
     } else if (_badgeConfig.badgeType == LocationBarBadgeType::kReaderMode) {
       RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kReaderMode);
@@ -343,24 +415,28 @@
       constraintEqualToAnchor:_badgeIcon.trailingAnchor];
   _expandedContainerTrailingConstraint = [_buttonContainer.trailingAnchor
       constraintEqualToAnchor:labelTrailingSpace.trailingAnchor];
+  _defaultLeadingViewConstraint = [leadingSpace.leadingAnchor
+      constraintEqualToAnchor:_badgeStackView.leadingAnchor];
 
   [NSLayoutConstraint activateConstraints:@[
     [self.view.widthAnchor
         constraintGreaterThanOrEqualToAnchor:self.view.heightAnchor],
     _collapsedContainerTrailingConstraint,
-    // The entrypoint doesn't fully fill the height of the location bar, so to
+    // The badge doesn't fully fill the height of the location bar, so to
     // make it exactly follow the curvature of the location bar's corner radius,
     // it must be placed with the same amount of margin space horizontally that
     // exists vertically between the entrypoint and the location bar itself.
     [leadingSpace.widthAnchor
         constraintEqualToAnchor:self.view.heightAnchor
                      multiplier:((1 - kBadgeHeightMultiplier) / 2)],
-    [leadingSpace.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
     [leadingSpace.trailingAnchor
         constraintEqualToAnchor:_buttonContainer.leadingAnchor],
-    [_buttonContainer.leadingAnchor
-        constraintEqualToAnchor:leadingSpace.trailingAnchor],
+    _defaultLeadingViewConstraint,
+    [_badgeStackView.leadingAnchor
+        constraintEqualToAnchor:self.view.leadingAnchor],
+    [_badgeStackView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [_badgeStackView.bottomAnchor
+        constraintEqualToAnchor:self.view.bottomAnchor],
     [_separator.centerXAnchor constraintEqualToAnchor:self.view.trailingAnchor],
     [_separator.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
     [_separator.widthAnchor constraintEqualToConstant:kSeparatorWidthConstant],
@@ -370,12 +446,8 @@
     [_buttonContainer.heightAnchor
         constraintEqualToAnchor:self.view.heightAnchor
                      multiplier:kBadgeHeightMultiplier],
-    [_buttonContainer.centerYAnchor
-        constraintEqualToAnchor:self.view.centerYAnchor],
-    [self.view.leadingAnchor
-        constraintEqualToAnchor:leadingSpace.leadingAnchor],
     [self.view.trailingAnchor
-        constraintGreaterThanOrEqualToAnchor:_buttonContainer.trailingAnchor],
+        constraintGreaterThanOrEqualToAnchor:_badgeStackView.trailingAnchor],
     [_badgeIcon.heightAnchor
         constraintEqualToAnchor:_buttonContainer.heightAnchor],
     [_badgeIcon.widthAnchor constraintEqualToAnchor:_badgeIcon.heightAnchor],
@@ -418,7 +490,7 @@
 }
 
 - (void)dismissIPHWithoutAnimation {
-  if (_badgeConfig.badgeType == LocationBarBadgeType::kContextualPanel) {
+  if ([_badgeConfig isContextualPanelEntrypointBadge]) {
     [self.contextualPanelEntryPointMutator dismissIPHAnimated:NO];
   } else {
     [self.mutator dismissIPHAnimated:NO];
@@ -437,7 +509,7 @@
 // animation to collapse the badge container is complete.
 - (void)didCollapseBadgeContainer {
   [self refreshVoiceOverBoundingBoxIfFocused];
-  if (_badgeConfig.badgeType == LocationBarBadgeType::kContextualPanel) {
+  if ([_badgeConfig isContextualPanelEntrypointBadge]) {
     [self.contextualPanelEntryPointMutator
             didCompleteTransitionToSmallEntrypoint];
   } else {
@@ -481,7 +553,9 @@
     buttonContainerBackgroundColor = [UIColor clearColor];
   } else {
     UIColor* untappedBackgroundColor =
-        shouldAccountForVisibleInfobarBadges ? nil : [UIColor clearColor];
+        shouldAccountForVisibleInfobarBadges
+            ? nil
+            : [UIColor colorNamed:kBackgroundColor];
     buttonContainerBackgroundColor = _badgeTapped
                                          ? [UIColor colorNamed:kGrey100Color]
                                          : untappedBackgroundColor;
@@ -540,7 +614,7 @@
   _badgeTapped = YES;
   [self refreshEntrypointVisualElements];
   [self collapseBadgeContainer];
-  if (_badgeConfig.badgeType == LocationBarBadgeType::kContextualPanel) {
+  if ([_badgeConfig isContextualPanelEntrypointBadge]) {
     [self.contextualPanelEntryPointMutator entrypointTapped];
   } else {
     [self.mutator badgeTapped:_badgeConfig.badgeType];
@@ -559,7 +633,7 @@
 
 // Sets center positioning for location bar label.
 - (void)setLocationBarLabelCenteredBetweenContent:(BOOL)centered {
-  if (_badgeConfig.badgeType == LocationBarBadgeType::kContextualPanel) {
+  if ([_badgeConfig isContextualPanelEntrypointBadge]) {
     [self.contextualPanelEntryPointMutator
         setLocationBarLabelCenteredBetweenContent:centered];
   } else {
@@ -571,6 +645,20 @@
 
 - (void)setEntrypointConfig:(ContextualPanelItemConfiguration*)config {
   if (IsAskGeminiChipEnabled()) {
+    LocationBarBadgeType badgeType;
+    switch (config->item_type) {
+      case ContextualPanelItemType::SamplePanelItem:
+        badgeType = LocationBarBadgeType::kContextualPanelEntryPointSample;
+        break;
+      case ContextualPanelItemType::PriceInsightsItem:
+        badgeType = LocationBarBadgeType::kPriceInsights;
+        break;
+      case ContextualPanelItemType::ReaderModeItem:
+        badgeType = LocationBarBadgeType::kReaderMode;
+        break;
+    }
+
+    RecordLocationBarBadgeUpdate(badgeType);
     // TODO(crbug.com/448422022): Store Contextual Panel Entrypoint badges
     // instead of preventing them.
     if (_locationBarBadgeShouldBeVisible) {
@@ -599,7 +687,7 @@
 
     LocationBarBadgeConfiguration* badgeConfig =
         [[LocationBarBadgeConfiguration alloc]
-             initWithBadgeType:LocationBarBadgeType::kContextualPanel
+             initWithBadgeType:badgeType
             accessibilityLabel:accessibilityLabel
                     badgeImage:image];
     badgeConfig.badgeText = base::SysUTF8ToNSString(config->entrypoint_message);
@@ -656,7 +744,7 @@
 }
 
 - (void)hideEntrypoint {
-  if (_badgeConfig.badgeType == LocationBarBadgeType::kContextualPanel) {
+  if ([_badgeConfig isContextualPanelEntrypointBadge]) {
     [self hideBadge];
   }
 }
@@ -742,7 +830,6 @@
   [self collapseBadgeContainer];
   [self transitionToContextualPanelOpenedState:NO];
 
-  _locationBarBadgeShouldBeVisible = NO;
   [self setLocationBarBadgeHidden:YES];
 
   [self updateAccessibilityStatus];
@@ -832,20 +919,35 @@
   return _locationBarBadgeShouldBeVisible;
 }
 
-#pragma mark FullscreenUIElement
+- (void)showUnreadBadge:(BOOL)unread {
+  if (!_unreadIndicatorView && unread) {
+    // Add unread indicator to the displayed badge.
+    _unreadIndicatorView = [[UIView alloc] init];
+    _unreadIndicatorView.layer.cornerRadius = kUnreadIndicatorViewHeight / 2;
+    _unreadIndicatorView.backgroundColor = [UIColor colorNamed:kBlueColor];
+    _unreadIndicatorView.translatesAutoresizingMaskIntoConstraints = NO;
+    _unreadIndicatorView.accessibilityIdentifier =
+        kBadgeUnreadIndicatorAccessibilityIdentifier;
+
+    // TODO(crbug.com/457567241): Add _unreadIndicatorView as a subview and
+    // related constraints.
+    _unreadIndicatorView.hidden = !unread;
+  }
+}
+
+#pragma mark - FullscreenUIElement
 
 - (void)updateForFullscreenProgress:(CGFloat)progress {
   _shouldCollapseForFullscreen = progress <= kFullscreenProgressThreshold;
   if (_shouldCollapseForFullscreen) {
-    [self setLocationBarBadgeHidden:YES];
+    _buttonContainer.hidden = YES;
   } else {
-    [self setLocationBarBadgeHidden:!_locationBarBadgeShouldBeVisible];
-
     // Fade in/out the badge.
     CGFloat alphaValue = fmax((progress - kFullscreenProgressThreshold) /
                                   (1 - kFullscreenProgressThreshold),
                               0);
-    self.view.alpha = alphaValue;
+    _buttonContainer.alpha = alphaValue;
+    _buttonContainer.hidden = NO;
   }
 
   [self updateAccessibilityStatus];

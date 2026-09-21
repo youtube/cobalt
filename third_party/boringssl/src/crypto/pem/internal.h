@@ -33,7 +33,7 @@ int PEM_get_EVP_CIPHER_INFO(const char *header, EVP_CIPHER_INFO *cipher);
 // information in |cipher|. On success, it returns one and sets |*len| to the
 // length of the plaintext. Otherwise, it returns zero. If |cipher| specifies
 // encryption, the key is derived from a password returned from |callback|.
-int PEM_do_header(const EVP_CIPHER_INFO *cipher, uint8_t *data, long *len,
+int PEM_do_header(const EVP_CIPHER_INFO *cipher, uint8_t *data, size_t *len,
                   pem_password_cb *callback, void *u);
 
 

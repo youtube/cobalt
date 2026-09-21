@@ -42,6 +42,8 @@ TEST(ScreamControllerTest, OnNetworkAvailabilityUpdatesTargetRateAndPacerRate) {
   Environment env = CreateTestEnvironment({.time = &clock});
   NetworkControllerConfig config(env);
   config.constraints.starting_rate = DataRate::KilobitsPerSec(123);
+  config.stream_based_config.max_total_allocated_bitrate =
+      DataRate::KilobitsPerSec(456);
   ScreamNetworkController scream_controller(config);
 
   NetworkControlUpdate update =
@@ -85,7 +87,10 @@ TEST(ScreamControllerTest,
   Environment env = CreateTestEnvironment({.time = &clock});
   NetworkControllerConfig config(env);
   config.constraints.starting_rate = DataRate::KilobitsPerSec(50);
+  config.stream_based_config.max_total_allocated_bitrate =
+      DataRate::KilobitsPerSec(1000);
   ScreamNetworkController scream_controller(config);
+  scream_controller.OnNetworkAvailability({.network_available = true});
 
   CcFeedbackGenerator feedback_generator({});
   DataRate send_rate = DataRate::KilobitsPerSec(100);

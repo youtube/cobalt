@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">点按“应用”，然后点按“默认应用”</translation>
 <translation id="1415402041810619267">网址被截断了</translation>
 <translation id="1415855080660575082">允许 Chrome 与您的设备分享您近期打开的标签页，以便在设备的应用列表和搜索结果中查看这些标签页。您可以在 Chrome 设置中开启或关闭此功能。</translation>
+<translation id="1420688843103859429">在触控板上用两根手指滑动，即可向后/向前导航</translation>
 <translation id="1432650420699700107">网站可以请求连接到本地网络上的任何设备</translation>
 <translation id="1448064542941920355">缩小</translation>
 <translation id="1464044141348608623">不允许网站了解您何时在主动使用自己的设备</translation>
@@ -75,7 +76,7 @@
 <translation id="1881806992065048905">“新标签页”页面外观底部动作条</translation>
 <translation id="1887786770086287077">此设备的位置信息使用权已关闭；若想开启这项权限，请转到 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />。</translation>
 <translation id="1906181697255754968">网站通常会访问您设备上的文件和文件夹以实现某些功能（例如自动保存您的工作成果）</translation>
-<translation id="1915307458270490472">中止</translation>
+<translation id="1915307458270490472">挂断</translation>
 <translation id="1919950603503897840">选择联系人</translation>
 <translation id="1923695749281512248">已下载 <ph name="BYTES_DOWNLOADED_WITH_UNITS" />，共 <ph name="FILE_SIZE_WITH_UNITS" /></translation>
 <translation id="1939059826036755332">自动进入画中画模式</translation>
@@ -218,7 +219,6 @@
 <translation id="3285500645985761267">允许关联网站查看您在该群组中的活动记录</translation>
 <translation id="3295019059349372795">第 11 章：奥兹国神奇的翡翠城</translation>
 <translation id="3295602654194328831">隐藏信息</translation>
-<translation id="3328801116991980348">网站信息</translation>
 <translation id="3333961966071413176">所有联系人</translation>
 <translation id="3360338140203645771">要删除已保存的缩放级别？</translation>
 <translation id="3362437373201486687">正在搜寻蓝牙设备</translation>
@@ -243,6 +243,7 @@
 <translation id="3611658447322220736">最近关闭的网站可以完成数据收发操作</translation>
 <translation id="3619294456800709762">网站可以自动进入画中画模式</translation>
 <translation id="3628308229821498208">建议的搜索</translation>
+<translation id="363748948745453283">正在使用大致位置信息</translation>
 <translation id="3641456520301071208">网站可以请求获取您的位置信息</translation>
 <translation id="3658847490588580244">默认浏览器底部动作条</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_OWNER" /> 的网站群组中有 <ph name="RWS_MEMBERS_COUNT" /> 个网站能查看您在该群组中的活动记录}other{<ph name="RWS_OWNER" /> 的网站群组中有 <ph name="RWS_MEMBERS_COUNT" /> 个网站能查看您在该群组中的活动记录}}</translation>
@@ -289,7 +290,7 @@
 <translation id="4002066346123236978">标题</translation>
 <translation id="4031179711345676612">已允许使用麦克风</translation>
 <translation id="4042597221652780603">大致位置</translation>
-<translation id="4046123991198612571">下一曲</translation>
+<translation id="4046123991198612571">下一首</translation>
 <translation id="4077310749977440510">网站通常会读取您的剪贴板内容以实现某些功能，例如保留您所复制文字的格式</translation>
 <translation id="4082080074595021446">由于该 Android 设备的 RAM 不足，因此不允许将特定网站添加为例外网站。</translation>
 <translation id="4149890623864272035">确定要删除所有本地数据（包括 Cookie）并重置此网站的所有权限吗？</translation>
@@ -433,8 +434,10 @@
 <translation id="5750869797196646528">手部跟踪</translation>
 <translation id="5753570386948603678">从下载记录中删除</translation>
 <translation id="5771720122942595109">已禁用“<ph name="PERMISSION_1" />”权限</translation>
+<translation id="5792627621688759634">使用触控板滑动浏览各个页面</translation>
 <translation id="5801457289562671820">由组织推荐</translation>
 <translation id="5804241973901381774">权限</translation>
+<translation id="5817042798620209981">网站信息，对话框</translation>
 <translation id="5822675474983796325">自定义新标签页页面底部动作条已全屏打开</translation>
 <translation id="5833899990800318936">不允许网站使用 JavaScript</translation>
 <translation id="583673505367439042">网站可以请求修改您设备上的文件和文件夹</translation>
@@ -675,7 +678,7 @@
 <translation id="8487700953926739672">可离线使用</translation>
 <translation id="848952951823693243">始终请求访问移动网站</translation>
 <translation id="8492822722330266509">网站可以发送弹出式窗口并使用重定向</translation>
-<translation id="8499083585497694743">将麦克风取消静音</translation>
+<translation id="8499083585497694743">取消麦克风静音</translation>
 <translation id="8514955299594277296">不允许网站将数据保存在设备上（不推荐）</translation>
 <translation id="851751545965956758">禁止网站连接到设备</translation>
 <translation id="8525306231823319788">全屏</translation>

@@ -227,10 +227,17 @@ void ContextualTasksServiceImpl::DetachUrlFromTask(const base::Uuid& task_id,
 void ContextualTasksServiceImpl::AssociateTabWithTask(const base::Uuid& task_id,
                                                       SessionID tab_id) {
   auto it = tasks_.find(task_id);
-  if (it != tasks_.end()) {
-    tab_to_task_[tab_id] = task_id;
-    it->second.AddTabId(tab_id);
+  if (it == tasks_.end()) {
+    return;
   }
+
+  std::optional<ContextualTask> current_task = GetContextualTaskForTab(tab_id);
+  if (current_task) {
+    DisassociateTabFromTask(current_task->GetTaskId(), tab_id);
+  }
+
+  tab_to_task_[tab_id] = task_id;
+  it->second.AddTabId(tab_id);
 }
 
 void ContextualTasksServiceImpl::DisassociateTabFromTask(
@@ -240,6 +247,12 @@ void ContextualTasksServiceImpl::DisassociateTabFromTask(
   auto it = tasks_.find(task_id);
   if (it != tasks_.end()) {
     it->second.RemoveTabId(tab_id);
+  }
+
+  // If the task doesn't have a thread and tabs associated with it,
+  // it can be safely removed here.
+  if (!it->second.GetThread() && it->second.GetTabIds().empty()) {
+    RemoveTaskInternal(task_id, TriggerSource::kLocal);
   }
 }
 

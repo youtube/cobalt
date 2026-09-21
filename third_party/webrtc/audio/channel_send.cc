@@ -691,7 +691,8 @@ void ChannelSend::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
   }
 
   retransmission_rate_limiter_->SetWindowSize(
-      rtt->Clamped(kMinRetransmissionWindow, kMaxRetransmissionWindow).ms());
+      std::clamp(*rtt, kMinRetransmissionWindow, kMaxRetransmissionWindow)
+          .ms());
 
   OnReceivedRtt(rtt->ms());
 }

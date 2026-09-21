@@ -34,15 +34,14 @@ namespace {
 
 // Checks if a given browser is running a windowed app. It will return true for
 // web apps, hosted apps, and packaged V1 apps.
-bool IsAppBrowser(const BrowserWindowInterface* browser) {
-  const BrowserWindowInterface::Type browser_type = browser->GetType();
-  if (browser_type != BrowserWindowInterface::TYPE_APP &&
-      browser_type != BrowserWindowInterface::TYPE_APP_POPUP) {
+bool IsAppBrowser(const ash::BrowserDelegate* browser) {
+  const ash::BrowserType browser_type = browser->GetType();
+  if (browser_type != ash::BrowserType::kApp &&
+      browser_type != ash::BrowserType::kAppPopup) {
     return false;
   }
-  return !web_app::GetAppIdFromApplicationName(
-              browser->GetBrowserForMigrationOnly()->app_name())
-              .empty();
+
+  return browser->GetAppId().has_value();
 }
 
 BrowserWindowInterface* GetBrowserWithTabStripModel(
@@ -152,7 +151,9 @@ void BrowserStatusMonitor::ActiveUserChanged(const std::string& user_email) {
           if (owned && !app_in_shelf) {
             // Adding an app to the shelf consists of two actions: add the
             // browser (shelf item) and add the content (shelf item status).
-            AddAppBrowserToShelf(browser_ptr);
+            ash::BrowserDelegate* browser_delegate =
+                ash::BrowserController::GetInstance()->GetDelegate(browser_ptr);
+            AddAppBrowserToShelf(browser_delegate);
             if (active_web_contents) {
               shelf_controller_->UpdateAppState(active_web_contents,
                                                 false /*remove*/);
@@ -164,7 +165,9 @@ void BrowserStatusMonitor::ActiveUserChanged(const std::string& user_email) {
               shelf_controller_->UpdateAppState(active_web_contents,
                                                 true /*remove*/);
             }
-            RemoveAppBrowserFromShelf(browser_ptr);
+            ash::BrowserDelegate* browser_delegate =
+                ash::BrowserController::GetInstance()->GetDelegate(browser_ptr);
+            RemoveAppBrowserFromShelf(browser_delegate);
           }
 
         } else if (browser_type == BrowserWindowInterface::TYPE_NORMAL) {
@@ -213,9 +216,9 @@ void BrowserStatusMonitor::OnBrowserCreated(
   DCHECK(insert_result.second);
 #endif
 
-  if (IsAppBrowser(browser) &&
+  if (IsAppBrowser(browser_delegate) &&
       multi_user_util::IsProfileFromActiveUser(browser->profile())) {
-    AddAppBrowserToShelf(browser);
+    AddAppBrowserToShelf(browser_delegate);
   }
 }
 
@@ -230,9 +233,9 @@ void BrowserStatusMonitor::OnBrowserClosed(
   DCHECK_EQ(num_removed, 1U);
 #endif
 
-  if (IsAppBrowser(browser) &&
+  if (IsAppBrowser(browser_delegate) &&
       multi_user_util::IsProfileFromActiveUser(browser->profile())) {
-    RemoveAppBrowserFromShelf(browser);
+    RemoveAppBrowserFromShelf(browser_delegate);
   }
 
   UpdateBrowserItemState();
@@ -316,12 +319,11 @@ void BrowserStatusMonitor::OnTabStripModelChanged(
 }
 
 void BrowserStatusMonitor::AddAppBrowserToShelf(
-    BrowserWindowInterface* browser) {
-  DCHECK(IsAppBrowser(browser));
+    ash::BrowserDelegate* browser_delegate) {
+  DCHECK(IsAppBrowser(browser_delegate));
   DCHECK(initialized_);
 
-  const std::string app_id = web_app::GetAppIdFromApplicationName(
-      browser->GetBrowserForMigrationOnly()->app_name());
+  const std::string app_id = *browser_delegate->GetAppId();
   DCHECK(!app_id.empty());
   if (!IsAppBrowserInShelfWithAppId(app_id)) {
     if (auto* chrome_controller = ChromeShelfController::instance()) {
@@ -329,14 +331,16 @@ void BrowserStatusMonitor::AddAppBrowserToShelf(
     }
     shelf_controller_->SetAppStatus(app_id, ash::STATUS_RUNNING);
   }
+  Browser* browser = &browser_delegate->GetBrowser();
   browser_to_app_id_map_[browser] = app_id;
 }
 
 void BrowserStatusMonitor::RemoveAppBrowserFromShelf(
-    BrowserWindowInterface* browser) {
-  DCHECK(IsAppBrowser(browser));
+    ash::BrowserDelegate* browser_delegate) {
+  DCHECK(IsAppBrowser(browser_delegate));
   DCHECK(initialized_);
 
+  Browser* browser = &browser_delegate->GetBrowser();
   auto iter = browser_to_app_id_map_.find(browser);
   if (iter != browser_to_app_id_map_.end()) {
     const std::string app_id = iter->second;

@@ -11,13 +11,13 @@
 #include "pc/jsep_transport.h"
 
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/ice_transport_interface.h"
@@ -97,7 +97,7 @@ JsepTransport::JsepTransport(
     std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
     std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport,
     std::unique_ptr<SctpTransportInternal> sctp_transport,
-    std::function<void()> rtcp_mux_active_callback,
+    absl::AnyInvocable<void()> rtcp_mux_active_callback,
     PayloadTypePicker& suggester)
     : network_thread_(Thread::Current()),
       mid_(mid),

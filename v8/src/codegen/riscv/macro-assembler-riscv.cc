@@ -95,9 +95,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 }
 
 #define __ ACCESS_MASM(masm)
-namespace {
 
-}  // namespace
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
   if (v8_flags.debug_code) {
@@ -516,6 +514,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
     // The common and simple case: we expect exactly one tag.
     static_assert(kExternalPointerShiftedTagMask == 0x7f);
     And(scratch, destination, Operand(kExternalPointerTagMask));
+    SrlWord(scratch, scratch, Operand(kExternalPointerTagShift));
     SbxCheck(eq, AbortReason::kExternalPointerTagMismatch, scratch,
              Operand(tag_range.first));
     And(destination, destination, Operand(kExternalPointerPayloadMask));
@@ -4588,12 +4587,9 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
 
 void MacroAssembler::BranchShortHelper(int32_t offset, Label* L) {
   DCHECK(L == nullptr || offset == 0);
-  {
-    BlockPoolsScope block_pools(this);
-    offset = GetOffset(offset, L, OffsetSize::kOffset21);
-    j(offset);
-  }
-  EmitConstPoolWithoutJumpIfNeeded();
+  BlockPoolsScope block_pools(this);
+  offset = GetOffset(offset, L, OffsetSize::kOffset21);
+  j(offset);
 }
 
 void MacroAssembler::BranchShort(int32_t offset) {
@@ -4976,7 +4972,6 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                   "don't use x5 as target for jumps to avoid RAS pollution");
   if (cond == cc_always) {
     jr(target);
-    EmitConstPoolWithoutJumpIfNeeded();
   } else {
     BlockPoolsScope block_pools(this);
     BRANCH_ARGS_CHECK(cond, rs, rt);
@@ -4995,8 +4990,6 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
     BlockPoolsScope block_pools(this);
     li(t6, Operand(target, rmode));
     Jump(t6, al, zero_reg, Operand(zero_reg));
-    // TODO(kasperl@rivosinc.com): This doesn't make much sense.
-    EmitConstPoolWithoutJumpIfNeeded();
     bind(&skip);
   }
 }
@@ -5182,8 +5175,8 @@ void MacroAssembler::JumpIfMarking(Label* is_marking,
                                    Label::Distance condition_met_distance) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadWord(scratch,
-           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Lbu(scratch,
+      MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
   Branch(is_marking, ne, scratch, Operand(zero_reg));
 }
 
@@ -5191,8 +5184,8 @@ void MacroAssembler::JumpIfNotMarking(Label* not_marking,
                                       Label::Distance condition_met_distance) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadWord(scratch,
-           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Lbu(scratch,
+      MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
   Branch(not_marking, eq, scratch, Operand(zero_reg));
 }
 
@@ -5424,17 +5417,14 @@ void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
 
 void MacroAssembler::BranchLong(Label* L) {
   // Generate position independent long branch.
-  {
-    BlockPoolsScope block_pools(this);
-    int32_t imm = branch_long_offset(L);
-    if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
-        (imm & 1) == 0) {
-      j(imm);
-    } else {
-      GenPCRelativeJump(t6, imm, block_pools);
-    }
+  BlockPoolsScope block_pools(this);
+  int32_t imm = branch_long_offset(L);
+  if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
+      (imm & 1) == 0) {
+    j(imm);
+  } else {
+    GenPCRelativeJump(t6, imm, block_pools);
   }
-  EmitConstPoolWithoutJumpIfNeeded();
 }
 
 void MacroAssembler::BranchAndLinkLong(Label* L) {
@@ -7434,31 +7424,19 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   }
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-void MacroAssembler::BailoutIfDeoptimized() {
+void MacroAssembler::AssertNotDeoptimized() {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    int offset =
-        InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-    LoadProtectedPointerField(
-        scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Lw(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
-  }
-  if (v8_flags.debug_code) {
-    Label not_deoptimized;
-    And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-    Branch(&not_deoptimized, eq, scratch, Operand(zero_reg));
-    Abort(AbortReason::kInvalidDeoptimizedCode);
-    bind(&not_deoptimized);
-  }
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  LoadProtectedPointerField(
+      scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Lw(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
+  Label not_deoptimized;
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(&not_deoptimized, eq, scratch, Operand(zero_reg));
+  Abort(AbortReason::kInvalidDeoptimizedCode);
+  bind(&not_deoptimized);
 }
 
 void MacroAssembler::CallForDeoptimization(
@@ -7686,7 +7664,85 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   LoadWord(destination, MemOperand(scratch, offset));
 }
 
+void MacroAssembler::AmoSub_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  neg(temp, rs2);
+  trapper(pc_offset());
+  amoadd_w(aq, rl, rd, rs1, temp);
+}
+
+void MacroAssembler::AmoSwap_w(bool aq, bool rl, Register rd, Register rs1,
+                               Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoswap_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAdd_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoadd_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAnd_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoand_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoOr_w(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoor_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoXor_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoxor_w(aq, rl, rd, rs1, rs2);
+}
+
 #ifdef V8_TARGET_ARCH_RISCV64
+void MacroAssembler::AmoSub_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  neg(temp, rs2);
+  trapper(pc_offset());
+  amoadd_d(aq, rl, rd, rs1, temp);
+}
+
+void MacroAssembler::AmoSwap_d(bool aq, bool rl, Register rd, Register rs1,
+                               Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoswap_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAdd_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoadd_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAnd_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoand_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoOr_d(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoor_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoXor_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoxor_d(aq, rl, rd, rs1, rs2);
+}
+
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
@@ -7714,9 +7770,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
-#endif  // V8_TARGET_ARCH_RISCV64
 
-#if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::LoadTaggedField(const Register& destination,
                                      const MemOperand& field_operand,
                                      Trapper&& trapper) {

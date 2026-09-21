@@ -17661,12 +17661,6 @@ class StackOverflowThread : public v8::base::Thread {
 TEST(SetStackLimitInThreadAndStackOverflow) {
   // Set a small --stack-size flag.
   i::FlagScope<int> f_stack_size(&i::v8_flags.stack_size, 100);
-  // Trigger GC aggressively to verify that GC does not crash with stack litmit.
-#if defined(V8_TARGET_ARCH_RISCV64)
-  i::FlagScope<size_t> f_heap_size(&i::v8_flags.max_heap_size, 9);
-#else
-  i::FlagScope<size_t> f_heap_size(&i::v8_flags.max_heap_size, 8);
-#endif
   i::FlagScope<bool> f_expose_gc(&i::v8_flags.expose_gc, true);
 
   // ASAN requires more stack space.
@@ -27179,13 +27173,11 @@ HostImportModuleDynamicallyWithAttributesCallbackResolve(
        i < import_attributes->Length() / kAttributeEntrySizeForDynamicImport;
        ++i) {
     Local<String> attribute_key =
-        import_attributes
-            ->Get(context, (i * kAttributeEntrySizeForDynamicImport))
+        import_attributes->Get((i * kAttributeEntrySizeForDynamicImport))
             .As<Value>()
             .As<String>();
     Local<String> attribute_value =
-        import_attributes
-            ->Get(context, (i * kAttributeEntrySizeForDynamicImport) + 1)
+        import_attributes->Get((i * kAttributeEntrySizeForDynamicImport) + 1)
             .As<Value>()
             .As<String>();
     if (v8_str("a")->StrictEquals(attribute_key)) {

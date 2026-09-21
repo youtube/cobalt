@@ -589,6 +589,9 @@
 // Returns the GREYMatcher for the button that closes the tab grid.
 + (id<GREYMatcher>)tabGridDoneButton;
 
+// Returns the GREYMatcher for the button to open the overflow menu.
++ (id<GREYMatcher>)tabGridOverflowMenuButton;
+
 // Returns the GREYMatcher for the button that reverts the close all tabs action
 // in the tab grid.
 + (id<GREYMatcher>)tabGridUndoCloseAllButton;
@@ -945,6 +948,20 @@
 
 // Returns the matcher for the tab groups panel view.
 + (id<GREYMatcher>)tabGroupsPanel;
+
+#pragma mark - Button Stack
+
+// Returns a matcher for the primary button in a button stack.
++ (id<GREYMatcher>)buttonStackPrimaryButton;
+
+// Returns a matcher for the secondary button in a button stack.
++ (id<GREYMatcher>)buttonStackSecondaryButton;
+
+// Returns a matcher for the tertiary button in a button stack.
++ (id<GREYMatcher>)buttonStackTertiaryButton;
+
+// Returns a matcher for the checkmark symbol in a button stack.
++ (id<GREYMatcher>)buttonStackCheckmarkSymbol;
 
 @end
 

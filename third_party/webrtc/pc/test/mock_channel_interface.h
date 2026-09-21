@@ -11,10 +11,10 @@
 #ifndef PC_TEST_MOCK_CHANNEL_INTERFACE_H_
 #define PC_TEST_MOCK_CHANNEL_INTERFACE_H_
 
-#include <functional>
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
@@ -61,11 +61,15 @@ class MockChannelInterface : public ChannelInterface {
   MOCK_METHOD(void, Enable, (bool), (override));
   MOCK_METHOD(void,
               SetFirstPacketReceivedCallback,
-              (std::function<void()>),
+              (absl::AnyInvocable<void() &&>),
               (override));
   MOCK_METHOD(void,
               SetFirstPacketSentCallback,
-              (std::function<void()>),
+              (absl::AnyInvocable<void() &&>),
+              (override));
+  MOCK_METHOD(void,
+              SetPacketReceivedCallback_n,
+              (absl::AnyInvocable<void()>),
               (override));
   MOCK_METHOD(bool,
               SetLocalContent,

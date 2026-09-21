@@ -75,6 +75,10 @@ class MockRtpReceiverInternal : public RtpReceiverInternal {
   MOCK_METHOD(void, SetupUnsignaledMediaChannel, (), (override));
   MOCK_METHOD(std::optional<uint32_t>, ssrc, (), (const, override));
   MOCK_METHOD(void, NotifyFirstPacketReceived, (), (override));
+  MOCK_METHOD(void,
+              NotifyFirstPacketReceivedAfterReceptiveChange,
+              (),
+              (override));
   MOCK_METHOD(void, set_stream_ids, (std::vector<std::string>), (override));
   MOCK_METHOD(void,
               set_transport,

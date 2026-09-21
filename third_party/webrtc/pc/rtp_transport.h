@@ -93,10 +93,6 @@ class RtpTransport : public RtpTransportInternal {
                    Timestamp arrival_time,
                    EcnMarking ecn);
 
-  bool SendPacket(bool rtcp,
-                  CopyOnWriteBuffer* packet,
-                  const AsyncSocketPacketOptions& options,
-                  int flags);
   flat_set<uint32_t> GetSsrcsForSink(RtpPacketSinkInterface* sink);
 
   // Overridden by SrtpTransport.
@@ -107,6 +103,10 @@ class RtpTransport : public RtpTransportInternal {
   virtual void OnWritableState(PacketTransportInternal* packet_transport);
 
  private:
+  bool SendPacket(bool rtcp,
+                  CopyOnWriteBuffer* packet,
+                  const AsyncSocketPacketOptions& options,
+                  int flags);
   // Helper function for SetRt(c)pPacketTransport
   void ChangePacketTransport(PacketTransportInternal* new_transport,
                              PacketTransportInternal*& transport_to_change);

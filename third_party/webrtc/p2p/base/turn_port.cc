@@ -484,11 +484,18 @@ bool TurnPort::CreateTurnClientSocket() {
   }
 
   socket_->SubscribeReadyToSend(
-      this, [this](AsyncPacketSocket* socket) { OnReadyToSend(socket); });
+      this, [this, flag = task_safety_.flag()](AsyncPacketSocket* socket) {
+        if (flag->alive()) {
+          OnReadyToSend(socket);
+        }
+      });
 
   socket_->SubscribeSentPacket(
-      this, [this](AsyncPacketSocket* socket, const SentPacketInfo& info) {
-        OnSentPacket(socket, info);
+      this, [this, flag = task_safety_.flag()](AsyncPacketSocket* socket,
+                                               const SentPacketInfo& info) {
+        if (flag->alive()) {
+          OnSentPacket(socket, info);
+        }
       });
 
   // TCP port is ready to send stun requests after the socket is connected,

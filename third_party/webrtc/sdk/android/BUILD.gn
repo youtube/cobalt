@@ -1656,8 +1656,6 @@ if (is_android) {
         "//third_party/androidx:androidx_test_rules_java",
         "//third_party/androidx:androidx_test_runner_java",
         "//third_party/google-truth:google_truth_java",
-        "//third_party/hamcrest:hamcrest_java",
-        "//third_party/hamcrest:hamcrest_library_java",
         "//third_party/junit",
         "//third_party/mockito:mockito_java",
       ]

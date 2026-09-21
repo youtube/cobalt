@@ -75,6 +75,7 @@ chromium-metrics-reviews@google.com.
   <variant name="FormsClassifications" summary="Forms Classifications"/>
   <variant name="FormsPredictions" summary="Forms Predictions"/>
   <variant name="HistorySearch" summary="History Search"/>
+  <variant name="IosSmartTabGrouping" summary="iOS Smart Tab Grouping"/>
   <variant name="OnDeviceSpeechRecognition"
       summary="On-device Speech Recognition"/>
   <variant name="PasswordChangeSubmission"
@@ -318,17 +319,30 @@ chromium-metrics-reviews@google.com.
                merchant url is eligible for wholesale club credit card
                benefits. Applies to only BMO credit cards that support
                benefits on Chrome."/>
-  <variant name="BuyNowPayLaterAllowlistAffirm"
+  <variant name="BuyNowPayLaterAllowlistAffirmAndroid"
       summary="This optimization helps determine if this merchant page is a
-               good candidate for enabling buy now pay later flow with
-               Affirm."/>
-  <variant name="BuyNowPayLaterAllowlistKlarna"
+               good candidate for enabling buy now pay later flow with Affirm
+               on Android OS."/>
+  <variant name="BuyNowPayLaterAllowlistAffirmDesktop"
       summary="This optimization helps determine if this merchant page is a
-               good candidate for enabling buy now pay later flow with
-               Klarna."/>
-  <variant name="BuyNowPayLaterAllowlistZip"
+               good candidate for enabling buy now pay later flow with Affirm
+               on desktop."/>
+  <variant name="BuyNowPayLaterAllowlistKlarnaAndroid"
       summary="This optimization helps determine if this merchant page is a
-               good candidate for enabling buy now pay later flow with Zip."/>
+               good candidate for enabling buy now pay later flow with Klarna
+               on Android OS."/>
+  <variant name="BuyNowPayLaterAllowlistKlarnaDesktop"
+      summary="This optimization helps determine if this merchant page is a
+               good candidate for enabling buy now pay later flow with Klarna
+               on desktop."/>
+  <variant name="BuyNowPayLaterAllowlistZipAndroid"
+      summary="This optimization helps determine if this merchant page is a
+               good candidate for enabling buy now pay later flow with Zip on
+               Android OS."/>
+  <variant name="BuyNowPayLaterAllowlistZipDesktop"
+      summary="This optimization helps determine if this merchant page is a
+               good candidate for enabling buy now pay later flow with Zip on
+               desktop."/>
   <variant name="BuyNowPayLaterBlocklistAffirm"
       summary="This optimization helps determine if this merchant page should
                be blocked for the buy now pay later flow with Affirm."/>
@@ -448,6 +462,9 @@ chromium-metrics-reviews@google.com.
   <variant name="PrivacyPolicyAnnotation"
       summary="Provides information about whether a URL is a privacy policy
                page."/>
+  <variant name="ReaderModeEligible"
+      summary="Provides information about the eligibility of a URL for
+               Reading Mode."/>
   <variant name="SalientImage"
       summary="Provides information about images for a URL."/>
   <variant name="SavedTabGroup"
@@ -632,7 +649,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.AnnotatedPageContent.TotalNodeCount.{AIPageContentMode}"
-    units="nodes" expires_after="2026-03-08">
+    units="nodes" expires_after="2026-05-10">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <owner>gklassen@chromium.org</owner>
@@ -646,7 +663,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.AnnotatedPageContent.TotalSize2.{AIPageContentMode}"
-    units="KB" expires_after="2026-03-08">
+    units="KB" expires_after="2026-05-10">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <owner>gklassen@chromium.org</owner>
@@ -711,7 +728,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.HintCacheLevelDBStore.Status"
-    enum="OptimizationGuideHintCacheLevelDBStoreStatus" expires_after="M145">
+    enum="OptimizationGuideHintCacheLevelDBStoreStatus"
+    expires_after="2026-05-10">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>
@@ -1076,7 +1094,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceFirstResponseTime.{ModelExecutionFeature}"
-    units="ms" expires_after="2026-03-08">
+    units="ms" expires_after="2026-05-10">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1564,7 +1582,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelHandler.HandlerCreatedToModelAvailable.{OptimizationTarget}"
-    units="ms" expires_after="2026-03-08">
+    units="ms" expires_after="2026-05-10">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -1793,7 +1811,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.AddPageContentResult"
-    enum="BooleanSuccess" expires_after="2026-02-22">
+    enum="BooleanSuccess" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1803,7 +1821,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.AvgPageSize" units="KB"
-    expires_after="2026-02-22">
+    expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1813,7 +1831,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.CachedTabsCount"
-    units="tabs" expires_after="2026-02-22">
+    units="tabs" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1824,7 +1842,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentCache.EligibleTabsCachedPercentage"
-    units="%" expires_after="2026-02-22">
+    units="%" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1835,7 +1853,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.ExtractionAndCachingStatus"
-    enum="PageContentExtractionAndCachingStatus" expires_after="2026-02-22">
+    enum="PageContentExtractionAndCachingStatus" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1845,7 +1863,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.NotCachedTabsCount"
-    units="tabs" expires_after="2026-02-22">
+    units="tabs" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1856,7 +1874,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentCache.RemovePageContentForTabResult"
-    enum="BooleanSuccess" expires_after="2026-02-22">
+    enum="BooleanSuccess" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1866,7 +1884,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.StaleCacheEntriesCount"
-    units="entries" expires_after="2026-02-22">
+    units="entries" expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1876,7 +1894,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.TotalCacheSize" units="KB"
-    expires_after="2026-02-22">
+    expires_after="2026-05-10">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2152,7 +2170,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="OptimizationGuide.PredictionModelStore.ModelRemovalReason.{OptimizationTarget}"
     enum="OptimizationGuidePredictionModelStoreModelRemovalReason"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2262,7 +2280,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.RemoteFetchingEnabled" enum="BooleanEnabled"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>

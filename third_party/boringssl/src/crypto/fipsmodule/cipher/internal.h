@@ -95,8 +95,32 @@ struct evp_cipher_st {
   int (*init)(EVP_CIPHER_CTX *ctx, const uint8_t *key, const uint8_t *iv,
               int enc);
 
-  int (*cipher)(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                size_t inl);
+  // cipher encrypts/decrypts |in|, write output to |out|. Writes exactly |len|
+  // bytes, which must be a multiple of the |block_size|.
+  //
+  // For ciphers where encryption and decryption operations differ, |init|
+  // shall set an internal state for this.
+  //
+  // Returns 1 on success, or 0 on error.
+  int (*cipher_update)(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
+                       size_t len);
+
+  // cipher_final finalizes the cipher, performing possible final
+  // authentication checks.
+  //
+  // Only used for |EVP_CIPH_FLAG_CUSTOM_CIPHER| ciphers.
+  //
+  // Returns 1 on success, or 0 on error. When decrypting, if an error is
+  // returned, the decrypted data must not be used.
+  int (*cipher_final)(EVP_CIPHER_CTX *ctx);
+
+  // update_aad adds |in| (of length |inl|) to the authenticated data for the
+  // encryption operation.
+  //
+  // Only used for |EVP_CIPH_FLAG_CUSTOM_CIPHER| ciphers.
+  //
+  // Returns 1 on success, or 0 on error.
+  int (*update_aad)(EVP_CIPHER_CTX *ctx, const uint8_t *in, size_t inl);
 
   // cleanup, if non-NULL, releases memory associated with the context. It is
   // called if |EVP_CTRL_INIT| succeeds. Note that |init| may not have been

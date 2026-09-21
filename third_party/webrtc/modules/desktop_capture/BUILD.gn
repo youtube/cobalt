@@ -123,7 +123,7 @@ if (rtc_include_tests) {
         "//rtc_base:rtc_event",
       ]
 
-      data = [ "../../third_party/pipewire-1.4" ]
+      data = [ "../../third_party/pipewire" ]
       public_configs = [ "../portal:pipewire_config" ]
     }
   }

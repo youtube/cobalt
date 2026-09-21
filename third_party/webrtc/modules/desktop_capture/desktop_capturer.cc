@@ -82,7 +82,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateWindowCapturer(
 #if defined(RTC_ENABLE_WIN_WGC)
   if (options.allow_wgc_window_capturer() &&
       IsWgcSupported(CaptureType::kWindow)) {
-    RTC_LOG(LS_INFO) << "video capture: DesktopCapturer::CreateWindowCapturer "
+    RTC_LOG(LS_INFO) << "DesktopCapturer::CreateWindowCapturer "
                         "creates DesktopCapturer of type WgcCapturerWin";
     return WgcCapturerWin::CreateRawWindowCapturer(options);
   }
@@ -91,7 +91,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateWindowCapturer(
 #if defined(WEBRTC_WIN)
   if (options.allow_cropping_window_capturer()) {
     RTC_LOG(LS_INFO)
-        << "video capture: DesktopCapturer::CreateWindowCapturer "
+        << "DesktopCapturer::CreateWindowCapturer "
            "creates DesktopCapturer of type CroppingWindowCapturerWin";
     return CroppingWindowCapturer::CreateCapturer(options);
   }
@@ -99,7 +99,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateWindowCapturer(
 
   std::unique_ptr<DesktopCapturer> capturer = CreateRawWindowCapturer(options);
   if (capturer && options.detect_updated_region()) {
-    RTC_LOG(LS_INFO) << "video capture: DesktopCapturer::CreateWindowCapturer "
+    RTC_LOG(LS_INFO) << "DesktopCapturer::CreateWindowCapturer "
                         "creates DesktopCapturer of type "
                         "DesktopCapturerDifferWrapper over a base capturer";
     capturer.reset(new DesktopCapturerDifferWrapper(std::move(capturer)));
@@ -114,7 +114,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateScreenCapturer(
 #if defined(RTC_ENABLE_WIN_WGC)
   if (options.allow_wgc_screen_capturer() &&
       IsWgcSupported(CaptureType::kScreen)) {
-    RTC_LOG(LS_INFO) << "video capture: DesktopCapturer::CreateScreenCapturer "
+    RTC_LOG(LS_INFO) << "DesktopCapturer::CreateScreenCapturer "
                         "creates DesktopCapturer of type WgcCapturerWin";
     return WgcCapturerWin::CreateRawScreenCapturer(options);
   }
@@ -123,7 +123,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateScreenCapturer(
   std::unique_ptr<DesktopCapturer> capturer = CreateRawScreenCapturer(options);
   if (capturer && options.detect_updated_region()) {
     RTC_LOG(LS_INFO)
-        << "video capture: DesktopCapturer::CreateScreenCapturer creates "
+        << "DesktopCapturer::CreateScreenCapturer creates "
            "DesktopCapturer of type DesktopCapturerDifferWrapper over a base "
            "capturer";
     capturer.reset(new DesktopCapturerDifferWrapper(std::move(capturer)));

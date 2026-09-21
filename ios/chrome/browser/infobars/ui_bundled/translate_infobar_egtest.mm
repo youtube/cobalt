@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/infobars/ui_bundled/infobar_constants.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_modal_constants.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_translate_modal_constants.h"
+#import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_constants.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
@@ -319,6 +320,7 @@ void TestResponseProvider::GetLanguageResponse(
       [self isRunningTest:@selector(testNoAutotranslateInReaderMode)] ||
       [self isRunningTest:@selector(testTranslateInClosedReaderMode)]) {
     config.features_enabled.push_back(kEnableReaderMode);
+    config.features_enabled.push_back(kEnableReaderModeInUS);
   }
 
   return config;
@@ -1431,9 +1433,14 @@ void TestResponseProvider::GetLanguageResponse(
                      kBadgeButtonTranslateAcceptedAccessibilityIdentifier)]
       assertWithMatcher:grey_notNil()];
   [ChromeEarlGrey waitForWebStateContainingText:"Translated"];
+  // TODO(crbug.com/457880049): Clean up when feature is enabled by default.
+  NSString* imageViewIdentifier =
+      [ChromeEarlGrey isAskGeminiChipEnabled]
+          ? kLocationBarBadgeImageViewIdentifier
+          : @"ContextualPanelEntrypointImageViewAXID";
   [ChromeEarlGrey
-      waitForSufficientlyVisibleElementWithMatcher:
-          grey_accessibilityID(@"ContextualPanelEntrypointImageViewAXID")];
+      waitForSufficientlyVisibleElementWithMatcher:grey_accessibilityID(
+                                                       imageViewIdentifier)];
 }
 
 // Tests that translation settings in Reader Mode is displayed and that

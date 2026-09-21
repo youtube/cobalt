@@ -199,31 +199,27 @@ std::ostream& operator<<(
 }
 
 // static
-const char DocumentSpeculationRules::kSupplementName[] =
-    "DocumentSpeculationRules";
-
-// static
 DocumentSpeculationRules& DocumentSpeculationRules::From(Document& document) {
   if (DocumentSpeculationRules* self = FromIfExists(document))
     return *self;
 
   auto* self = MakeGarbageCollected<DocumentSpeculationRules>(document);
-  ProvideTo(document, self);
+  document.SetDocumentSpeculationRules(self);
   return *self;
 }
 
 // static
 DocumentSpeculationRules* DocumentSpeculationRules::FromIfExists(
     Document& document) {
-  return Supplement::From<DocumentSpeculationRules>(document);
+  return document.GetDocumentSpeculationRules();
 }
 
 DocumentSpeculationRules::DocumentSpeculationRules(Document& document)
-    : Supplement(document), host_(document.GetExecutionContext()) {
+    : document_(document), host_(document.GetExecutionContext()) {
   if (!base::FeatureList::IsEnabled(features::kLCPTimingPredictorPrerender2)) {
     return;
   }
-  auto* frame = GetSupplementable()->GetFrame();
+  auto* frame = document_->GetFrame();
   if (!frame) {
     return;
   }
@@ -265,8 +261,7 @@ void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
       if (!other_rule_set->source()->IsFromBrowserInjected()) {
         CountSpeculationRulesLoadOutcome(
             SpeculationRulesLoadOutcome::kAutoSpeculationRulesOptedOut);
-        UseCounter::Count(GetSupplementable(),
-                          WebFeature::kAutoSpeculationRulesOptedOut);
+        UseCounter::Count(document_, WebFeature::kAutoSpeculationRulesOptedOut);
         return;
       }
     }
@@ -277,8 +272,7 @@ void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
   DCHECK(!base::Contains(rule_sets_, rule_set));
   rule_sets_.push_back(rule_set);
   if (rule_set->has_document_rule()) {
-    UseCounter::Count(GetSupplementable(),
-                      WebFeature::kSpeculationRulesDocumentRules);
+    UseCounter::Count(document_, WebFeature::kSpeculationRulesDocumentRules);
     InitializeIfNecessary();
     InvalidateAllLinks();
     if (!rule_set->selectors().empty()) {
@@ -287,7 +281,7 @@ void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
   }
   if (!wants_pointer_events_ && rule_set->requires_unfiltered_input()) {
     wants_pointer_events_ = true;
-    Document& document = *GetSupplementable();
+    Document& document = *document_;
     if (auto* frame = document.GetFrame()) {
       frame->GetEventHandlerRegistry().DidAddEventHandler(
           document, EventHandlerRegistry::kPointerEvent);
@@ -295,17 +289,17 @@ void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
   }
   QueueUpdateSpeculationCandidates();
 
-  probe::DidAddSpeculationRuleSet(*GetSupplementable(), *rule_set);
+  probe::DidAddSpeculationRuleSet(*document_, *rule_set);
 
   // Record some use counters about the kinds of actions being proposed.
   if (rule_set->prefetch_rules().size()) {
-    UseCounter::Count(GetSupplementable(),
+    UseCounter::Count(document_,
                       rule_set->source()->IsFromBrowserInjected()
                           ? WebFeature::kSpeculationRulesBrowserPrefetchRule
                           : WebFeature::kSpeculationRulesAuthorPrefetchRule);
   }
   if (rule_set->prerender_rules().size()) {
-    UseCounter::Count(GetSupplementable(),
+    UseCounter::Count(document_,
                       rule_set->source()->IsFromBrowserInjected()
                           ? WebFeature::kSpeculationRulesBrowserPrerenderRule
                           : WebFeature::kSpeculationRulesAuthorPrerenderRule);
@@ -322,8 +316,7 @@ void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
     }
 
     if (!to_remove.empty()) {
-      UseCounter::Count(GetSupplementable(),
-                        WebFeature::kAutoSpeculationRulesOptedOut);
+      UseCounter::Count(document_, WebFeature::kAutoSpeculationRulesOptedOut);
       for (const auto& to_remove_rule_set : to_remove) {
         RemoveRuleSet(to_remove_rule_set);
       }
@@ -345,7 +338,7 @@ void DocumentSpeculationRules::RemoveRuleSet(SpeculationRuleSet* rule_set) {
       std::ranges::none_of(rule_sets_,
                            &SpeculationRuleSet::requires_unfiltered_input)) {
     wants_pointer_events_ = false;
-    Document& document = *GetSupplementable();
+    Document& document = *document_;
     if (auto* frame = document.GetFrame()) {
       frame->GetEventHandlerRegistry().DidRemoveEventHandler(
           document, EventHandlerRegistry::kPointerEvent);
@@ -363,7 +356,7 @@ void DocumentSpeculationRules::RemoveRuleSet(SpeculationRuleSet* rule_set) {
   // clean by the deadline, if necessary.
   QueueUpdateSpeculationCandidates(/*force_style_update=*/true);
 
-  probe::DidRemoveSpeculationRuleSet(*GetSupplementable(), *rule_set);
+  probe::DidRemoveSpeculationRuleSet(*document_, *rule_set);
 }
 
 void DocumentSpeculationRules::AddSpeculationRuleLoader(
@@ -598,7 +591,7 @@ void DocumentSpeculationRules::QueueUpdateSpeculationCandidates(
     needs_microtask = false;
   }
 
-  auto* execution_context = GetSupplementable()->GetExecutionContext();
+  auto* execution_context = document_->GetExecutionContext();
   if (needs_microtask && !microtask_already_queued && execution_context) {
     execution_context->GetAgent()->event_loop()->EnqueueMicrotask(BindOnce(
         &DocumentSpeculationRules::UpdateSpeculationCandidatesMicrotask,
@@ -607,7 +600,7 @@ void DocumentSpeculationRules::QueueUpdateSpeculationCandidates(
 }
 
 void DocumentSpeculationRules::Trace(Visitor* visitor) const {
-  Supplement::Trace(visitor);
+  visitor->Trace(document_);
   visitor->Trace(rule_sets_);
   visitor->Trace(host_);
   visitor->Trace(speculation_rule_loaders_);
@@ -621,7 +614,7 @@ void DocumentSpeculationRules::Trace(Visitor* visitor) const {
 
 mojom::blink::SpeculationHost* DocumentSpeculationRules::GetHost() {
   if (!host_.is_bound()) {
-    auto* execution_context = GetSupplementable()->GetExecutionContext();
+    auto* execution_context = document_->GetExecutionContext();
     if (!execution_context)
       return nullptr;
     execution_context->GetBrowserInterfaceBroker().GetInterface(
@@ -636,7 +629,7 @@ void DocumentSpeculationRules::UpdateSpeculationCandidatesMicrotask() {
 
   // Wait for style to be clean before proceeding. Or force it, if this update
   // needs to happen promptly.
-  Document& document = *GetSupplementable();
+  Document& document = *document_;
   if (document.NeedsLayoutTreeUpdate()) {
     if (pending_update_state_ ==
         PendingUpdateState::kMicrotaskQueuedWithForcedStyleUpdate) {
@@ -651,7 +644,7 @@ void DocumentSpeculationRules::UpdateSpeculationCandidatesMicrotask() {
 }
 
 void DocumentSpeculationRules::UpdateSpeculationCandidates() {
-  Document& document = *GetSupplementable();
+  Document& document = *document_;
   DCHECK_NE(pending_update_state_, PendingUpdateState::kNoUpdate);
   DCHECK(!document.NeedsLayoutTreeUpdate());
 
@@ -695,8 +688,7 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
           tags.push_back(g_null_atom);
         } else {
           // Record that the valid tag is specified by the page.
-          UseCounter::Count(GetSupplementable(),
-                            WebFeature::kSpeculationRulesTags);
+          UseCounter::Count(document_, WebFeature::kSpeculationRulesTags);
         }
 
         candidates.push_back(MakeGarbageCollected<SpeculationCandidate>(
@@ -811,7 +803,7 @@ void DocumentSpeculationRules::AddLinkBasedSpeculationCandidates(
     HTMLAnchorElementBase* link = *it;
     GCedHeapVector<Member<SpeculationCandidate>>* link_candidates =
         MakeGarbageCollected<GCedHeapVector<Member<SpeculationCandidate>>>();
-    Document& document = *GetSupplementable();
+    Document& document = *document_;
     ExecutionContext* execution_context = document.GetExecutionContext();
     CHECK(execution_context);
 
@@ -933,7 +925,7 @@ void DocumentSpeculationRules::InitializeIfNecessary() {
     return;
   initialized_ = true;
   for (Node& node :
-       ShadowIncludingTreeOrderTraversal::DescendantsOf(*GetSupplementable())) {
+       ShadowIncludingTreeOrderTraversal::DescendantsOf(*document_)) {
     if (!node.IsLink())
       continue;
     if (auto* anchor = DynamicTo<HTMLAnchorElementBase>(node)) {
@@ -1032,7 +1024,7 @@ void DocumentSpeculationRules::UpdateSelectors() {
   }
 
   selectors_ = std::move(selectors);
-  GetSupplementable()->GetStyleEngine().DocumentRulesSelectorsChanged();
+  document_->GetStyleEngine().DocumentRulesSelectorsChanged();
 }
 
 void DocumentSpeculationRules::SetPendingUpdateState(

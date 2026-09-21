@@ -164,10 +164,11 @@ class ContentAutofillDriver : public AutofillDriver,
   LocalFrameToken GetFrameToken() const override;
   std::optional<LocalFrameToken> Resolve(FrameToken query) override;
   ContentAutofillDriver* GetParent() override;
+  bool IsActive() const override;
+  bool IsEmbedded() const override;
   ContentAutofillClient& GetAutofillClient() override;
   AutofillManager& GetAutofillManager() override;
   ukm::SourceId GetPageUkmSourceId() const override;
-  bool IsActive() const override;
   bool HasSharedAutofillPermission() const override;
   bool CanShowAutofillUi() const override;
   std::optional<net::IsolationInfo> GetIsolationInfo() override;
@@ -223,8 +224,8 @@ class ContentAutofillDriver : public AutofillDriver,
   void DispatchEmailVerifiedEvent(
       FieldGlobalId field_id,
       const std::string& presentation_token) override;
-  void ExtractForm(FormGlobalId form,
-                   BrowserFormHandler final_handler) override;
+  void ExtractFormWithField(FieldGlobalId field_id,
+                            BrowserFormHandler final_handler) override;
   void RendererShouldAcceptDataListSuggestion(
       const FieldGlobalId& field_id,
       const std::u16string& value) override;
@@ -284,7 +285,8 @@ class ContentAutofillDriver : public AutofillDriver,
       const std::u16string& old_value) override;
   void SelectControlSelectionChanged(const FormData& form,
                                      FieldRendererId field_id) override;
-  void SelectFieldOptionsDidChange(const FormData& form) override;
+  void SelectFieldOptionsDidChange(const FormData& form,
+                                   FieldRendererId field_id) override;
   void CaretMovedInFormField(const FormData& form,
                              FieldRendererId field_id,
                              const gfx::Rect& caret_bounds) override;

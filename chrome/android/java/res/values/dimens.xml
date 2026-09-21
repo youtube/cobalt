@@ -109,9 +109,6 @@ found in the LICENSE file.
     <dimen name="signin_chooser_padding">16dp</dimen>
     <dimen name="signin_screen_top_padding">50dp</dimen>
 
-    <!-- ModalDialogView dimensions -->
-    <dimen name="tab_modal_scrim_vertical_margin">16dp</dimen>
-
     <!-- Should match toolbar_height_no_shadow -->
     <dimen name="control_container_height">@dimen/default_action_bar_height</dimen>
     <dimen name="custom_tabs_control_container_height">@dimen/default_action_bar_height</dimen>
@@ -346,6 +343,7 @@ found in the LICENSE file.
     <dimen name="overflow_menu_update_padding">12dp</dimen>
 
     <!-- Settings dimensions -->
+    <dimen name="settings_single_column_layout_margin">16dp</dimen>
     <dimen name="settings_wide_display_min_padding">16dp</dimen>
     <dimen name="settings_min_multi_column_screen_width">840dp</dimen>
     <dimen name="settings_narrow_header_width">360dp</dimen>
@@ -432,6 +430,7 @@ found in the LICENSE file.
 
     <!-- Link Hover Status Bar dimensions. -->
     <dimen name="link_hover_status_bar_max_width">300dp</dimen>
+    <dimen name="link_hover_status_bar_margin">16dp</dimen>
 
     <!--  Reader mode prefs dimensions. -->
     <dimen name="reader_mode_prefs_font_style_container_width">280dp</dimen>

@@ -166,50 +166,56 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 2);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsString(args[1]));
   DirectHandle<String> left = args.at<String>(0);
   DirectHandle<String> right = args.at<String>(1);
-
-  const bool is_one_byte =
-      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
-  const int length = left->length() + right->length();
-  return *isolate->factory()->NewConsString(left, right, length, is_one_byte);
+  CHECK_UNLESS_FUZZING(left->length() + right->length() >=
+                       ConsString::kMinLength);
+  CHECK_UNLESS_FUZZING(left->length() + right->length() <= String::kMaxLength);
+  return *isolate->factory()->NewConsString(left, right).ToHandleChecked();
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 2);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   Handle<String> string = args.at<String>(0);
-  int index = args.smi_value_at(1);
+  uint32_t index = args.smi_value_at(1);
 
-  CHECK_LT(index, string->length());
+  CHECK_UNLESS_FUZZING(index < string->length());
 
   DirectHandle<String> sliced_string =
       isolate->factory()->NewSubString(string, index, string->length());
-  CHECK(IsSlicedString(*sliced_string));
+  CHECK_UNLESS_FUZZING(IsSlicedString(*sliced_string));
   return *sliced_string;
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
   Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
   DirectHandle<String> internalized =
       isolate->factory()->InternalizeString(string);
-  CHECK(IsInternalizedString(*string));
+  // The argument was either already an internalized string or it is now a thin
+  // string to an internalized string.
+  CHECK(IsInternalizedString(*string) ||
+        (IsThinString(*string) &&
+         IsInternalizedString(Cast<ThinString>(*string)->actual())));
+  CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
   Handle<String> string = args.at<String>(0);
   if (!IsConsString(*string)) {
+    CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
@@ -2206,12 +2212,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   return primitive->NumWaitersForTesting(isolate);
 }
 
-RUNTIME_FUNCTION(
-    Runtime_AtomicsSychronizationNumAsyncWaitersInIsolateForTesting) {
-  return Smi::FromInt(
-      static_cast<uint32_t>(isolate->async_waiter_queue_nodes().size()));
-}
-
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -2353,6 +2353,167 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
                                      args.atOrUndefined(isolate, 1)),
                ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+namespace {
+
+// Parses one or two arguments from Smis into ArgType.
+// Returns false if the arguments were not Smis and true otherwise.
+template <typename ArgType>
+bool ParseArgumentsForTablePrinter(const RuntimeArguments& args,
+                                   Isolate* isolate, ArgType* arg1,
+                                   ArgType* arg2) {
+  if (args.length() > 2) {
+    return false;
+  }
+  if (args.length() == 1) {
+    Tagged<Smi> smi;
+    if (!TryCast(args[0], &smi)) {
+      return false;
+    }
+    *arg1 = static_cast<ArgType>(Smi::ToInt(smi));
+    *arg2 = static_cast<ArgType>(Smi::ToInt(smi) + 1);
+  } else if (args.length() == 2) {
+    Tagged<Smi> smi;
+    if (!TryCast(args[0], &smi)) {
+      return false;
+    }
+    *arg1 = static_cast<ArgType>(Smi::ToInt(smi));
+    if (!TryCast(args[1], &smi)) {
+      return false;
+    }
+    *arg2 = static_cast<ArgType>(Smi::ToInt(smi));
+  }
+  return true;
+}
+
+template <typename EntryFilter>
+void PrintCppHeapPointerTableImpl(Isolate* isolate,
+                                  CppHeapPointerHandle min_handle,
+                                  CppHeapPointerHandle max_handle,
+                                  EntryFilter entry_filter) {
+  PrintF("CppHeapPointerTable:\n");
+#ifdef OBJECT_PRINT
+#ifdef V8_COMPRESS_POINTERS
+  const auto& table = Isolate::Current()->cpp_heap_pointer_table();
+  table.Print(Isolate::Current()->heap()->cpp_heap_pointer_space(), "Old space",
+              min_handle, max_handle, entry_filter);
+#else   // !V8_COMPRESS_POINTERS
+  PrintF("Table not used in this configuration.\n");
+#endif  // !V8_COMPRESS_POINTERS
+#else   // !OBJECT_PRINT
+  PrintF("Object printing not enabled.\n");
+#endif  // !OBJECT_PRINT
+}
+
+template <typename EntryFilter>
+void PrintExternalPointerTableImpl(Isolate* isolate,
+                                   ExternalPointerHandle min_handle,
+                                   ExternalPointerHandle max_handle,
+                                   EntryFilter entry_filter) {
+  PrintF("ExternalPointerTable:\n");
+#ifdef OBJECT_PRINT
+#ifdef V8_COMPRESS_POINTERS
+  const auto& table = Isolate::Current()->external_pointer_table();
+  table.Print(Isolate::Current()->heap()->read_only_external_pointer_space(),
+              "Read-only space", min_handle, max_handle, entry_filter);
+  table.Print(Isolate::Current()->heap()->young_external_pointer_space(),
+              "Young space", min_handle, max_handle, entry_filter);
+  table.Print(Isolate::Current()->heap()->old_external_pointer_space(),
+              "Old space", min_handle, max_handle, entry_filter);
+#else   // !V8_COMPRESS_POINTERS
+  PrintF("Table not used in this configuration.\n");
+#endif  // !V8_COMPRESS_POINTERS
+#else   // !OBJECT_PRINT
+  PrintF("Object printing not enabled.\n");
+#endif  // !OBJECT_PRINT
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_DebugPrintCppHeapPointerTable) {
+  using HandleType = CppHeapPointerHandle;
+  HandleType min_handle = std::numeric_limits<HandleType>::min();
+  HandleType max_handle = std::numeric_limits<HandleType>::max();
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_handle, &max_handle)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintCppHeapPointerTableImpl(isolate, min_handle, max_handle,
+                               [](CppHeapPointerTag) { return true; });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintCppHeapPointerTableFilterTag) {
+  using HandleType = CppHeapPointerHandle;
+  const HandleType min_handle = std::numeric_limits<HandleType>::min();
+  const HandleType max_handle = std::numeric_limits<HandleType>::max();
+  CppHeapPointerTag min_tag = CppHeapPointerTag::kFirstTag;
+  CppHeapPointerTag max_tag = CppHeapPointerTag::kLastTag;
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_tag, &max_tag)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintCppHeapPointerTableImpl(isolate, min_handle, max_handle,
+                               [min_tag, max_tag](CppHeapPointerTag tag) {
+                                 return tag >= min_tag && tag < max_tag;
+                               });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintExternalPointerTable) {
+  using HandleType = ExternalPointerHandle;
+  HandleType min_handle = std::numeric_limits<HandleType>::min();
+  HandleType max_handle = std::numeric_limits<HandleType>::max();
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_handle, &max_handle)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintExternalPointerTableImpl(isolate, min_handle, max_handle,
+                                [](ExternalPointerTag) { return true; });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintExternalPointerTableFilterTag) {
+  using HandleType = ExternalPointerHandle;
+  const HandleType min_handle = std::numeric_limits<HandleType>::min();
+  const HandleType max_handle = std::numeric_limits<HandleType>::max();
+  ExternalPointerTag min_tag = ExternalPointerTag::kFirstExternalPointerTag;
+  ExternalPointerTag max_tag = ExternalPointerTag::kLastExternalPointerTag;
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_tag, &max_tag)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintExternalPointerTableImpl(isolate, min_handle, max_handle,
+                                [min_tag, max_tag](ExternalPointerTag tag) {
+                                  return tag >= min_tag && tag < max_tag;
+                                });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
+}
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
+}
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaN) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewHeapNumberFromBits(kHoleNanInt64);
+}
+
+RUNTIME_FUNCTION(Runtime_GetUndefinedNaN) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+#if V8_ENABLE_UNDEFINED_DOUBLE
+  return *isolate->factory()->NewHeapNumberFromBits(kUndefinedNanInt64);
+#else
+  CHECK_UNLESS_FUZZING(false && "undefined NaNs are disabled via build flag");
+  return ReadOnlyRoots(isolate).undefined_value();
+#endif
 }
 
 }  // namespace internal

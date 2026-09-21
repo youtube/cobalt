@@ -1269,55 +1269,74 @@ static bool SpeedMLKEM1024(const std::string &selected) {
   return true;
 }
 
+template <size_t PublicKeySize, size_t PrivateKeySize, size_t SignatureSize,
+          void GenerateKey(uint8_t *, uint8_t *),
+          int Sign(uint8_t *, const uint8_t *, const uint8_t *, size_t,
+                   const uint8_t *, size_t),
+          int Verify(const uint8_t *, size_t, const uint8_t *, const uint8_t *,
+                     size_t, const uint8_t *, size_t)>
+static bool RunSLHDSA(std::string name) {
+  TimeResults results;
+  if (!TimeFunctionParallel(&results, []() -> bool {
+        std::vector<uint8_t> public_key(PublicKeySize);
+        std::vector<uint8_t> private_key(PrivateKeySize);
+        GenerateKey(public_key.data(), private_key.data());
+        return true;
+      })) {
+    return false;
+  }
+
+  results.Print(name + " key generation");
+
+  std::vector<uint8_t> public_key(PublicKeySize);
+  std::vector<uint8_t> private_key(PrivateKeySize);
+  GenerateKey(public_key.data(), private_key.data());
+  static const uint8_t kMessage[] = {0, 1, 2, 3, 4, 5};
+
+  if (!TimeFunctionParallel(&results, [&private_key]() -> bool {
+        std::vector<uint8_t> out(SignatureSize);
+        Sign(out.data(), private_key.data(), kMessage, sizeof(kMessage),
+             nullptr, 0);
+        return true;
+      })) {
+    return false;
+  }
+
+  results.Print(name + " signing");
+
+  std::vector<uint8_t> signature(SignatureSize);
+  Sign(signature.data(), private_key.data(), kMessage, sizeof(kMessage),
+       nullptr, 0);
+
+  if (!TimeFunctionParallel(&results, [&public_key, &signature]() -> bool {
+        // Note: sizeof(signature) would be wrong here for a std::vector.
+        // Use .size() or the SignatureSize constant.
+        return Verify(signature.data(), signature.size(), public_key.data(),
+                      kMessage, sizeof(kMessage), nullptr, 0) == 1;
+      })) {
+    fprintf(stderr, "%s verify failed.\n", name.c_str());
+    return false;
+  }
+
+  results.Print(name + " verify");
+  return true;
+}
+
 static bool SpeedSLHDSA(const std::string &selected) {
   if (!selected.empty() && selected.find("SLH-DSA") == std::string::npos) {
     return true;
   }
 
-  TimeResults results;
-  if (!TimeFunctionParallel(&results, []() -> bool {
-        uint8_t public_key[SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
-            private_key[SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES];
-        SLHDSA_SHA2_128S_generate_key(public_key, private_key);
-        return true;
-      })) {
-    return false;
-  }
-
-  results.Print("SLHDSA-SHA2-128s key generation");
-
-  uint8_t public_key[SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
-      private_key[SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES];
-  SLHDSA_SHA2_128S_generate_key(public_key, private_key);
-  static const uint8_t kMessage[] = {0, 1, 2, 3, 4, 5};
-
-  if (!TimeFunctionParallel(&results, [&private_key]() -> bool {
-        uint8_t out[SLHDSA_SHA2_128S_SIGNATURE_BYTES];
-        SLHDSA_SHA2_128S_sign(out, private_key, kMessage, sizeof(kMessage),
-                              nullptr, 0);
-        return true;
-      })) {
-    return false;
-  }
-
-  results.Print("SLHDSA-SHA2-128s signing");
-
-  uint8_t signature[SLHDSA_SHA2_128S_SIGNATURE_BYTES];
-  SLHDSA_SHA2_128S_sign(signature, private_key, kMessage, sizeof(kMessage),
-                        nullptr, 0);
-
-  if (!TimeFunctionParallel(&results, [&public_key, &signature]() -> bool {
-        return SLHDSA_SHA2_128S_verify(signature, sizeof(signature), public_key,
-                                       kMessage, sizeof(kMessage), nullptr,
-                                       0) == 1;
-      })) {
-    fprintf(stderr, "SLHDSA-SHA2-128s verify failed.\n");
-    return false;
-  }
-
-  results.Print("SLHDSA-SHA2-128s verify");
-
-  return true;
+  return RunSLHDSA<SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES,
+                   SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES,
+                   SLHDSA_SHA2_128S_SIGNATURE_BYTES,
+                   SLHDSA_SHA2_128S_generate_key, SLHDSA_SHA2_128S_sign,
+                   SLHDSA_SHA2_128S_verify>("SLHDSA-SHA2-128s") &&
+         RunSLHDSA<SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES,
+                   SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES,
+                   SLHDSA_SHAKE_256F_SIGNATURE_BYTES,
+                   SLHDSA_SHAKE_256F_generate_key, SLHDSA_SHAKE_256F_sign,
+                   SLHDSA_SHAKE_256F_verify>("SLHDSA-SHAKE-256f");
 }
 
 static bool SpeedHashToCurve(const std::string &selected) {

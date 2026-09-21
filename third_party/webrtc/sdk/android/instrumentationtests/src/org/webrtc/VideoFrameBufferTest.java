@@ -10,10 +10,9 @@
 
 package org.webrtc;
 
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import android.graphics.Matrix;
 import android.opengl.GLES20;
@@ -325,15 +324,15 @@ public class VideoFrameBufferTest {
   public static void assertAlmostEqualI420Buffers(
       VideoFrame.I420Buffer bufferA, VideoFrame.I420Buffer bufferB) {
     final int diff = maxDiff(bufferA, bufferB);
-    assertThat("Pixel difference too high: " + diff + "."
-            + "\nBuffer A: " + i420BufferToString(bufferA)
-            + "Buffer B: " + i420BufferToString(bufferB),
-        diff, lessThanOrEqualTo(4));
+  assertWithMessage("Pixel difference too high: " + diff + "."
+      + "\nBuffer A: " + i420BufferToString(bufferA)
+      + "Buffer B: " + i420BufferToString(bufferB))
+  .that(diff).isAtMost(4);
     final double psnr = calculatePsnr(bufferA, bufferB);
-    assertThat("PSNR too low: " + psnr + "."
-            + "\nBuffer A: " + i420BufferToString(bufferA)
-            + "Buffer B: " + i420BufferToString(bufferB),
-        psnr, greaterThanOrEqualTo(50.0));
+  assertWithMessage("PSNR too low: " + psnr + "."
+      + "\nBuffer A: " + i420BufferToString(bufferA)
+      + "Buffer B: " + i420BufferToString(bufferB))
+  .that(psnr).isAtLeast(50.0);
   }
 
   /** Returns a flattened list of pixel differences for two ByteBuffer planes. */
@@ -403,8 +402,8 @@ public class VideoFrameBufferTest {
     final byte[] res = new byte[array.length];
     for (int i = 0; i < array.length; ++i) {
       final int value = array[i];
-      assertThat(value, greaterThanOrEqualTo(0));
-      assertThat(value, lessThanOrEqualTo(255));
+      assertThat(value).isAtLeast(0);
+      assertThat(value).isAtMost(255);
       res[i] = (byte) value;
     }
     return res;

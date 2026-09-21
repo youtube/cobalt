@@ -21,6 +21,7 @@ source_set("reload_button") {
   ]
   public_deps = [
     ":mojo_bindings",
+    "//chrome/browser/ui/webui/metrics_reporter",
     "//chrome/browser/ui/webui/top_chrome",
     "//chrome/common:constants",
     "//content/public/browser",
@@ -46,5 +47,28 @@ source_set("impl") {
     "//chrome/common",
     "//content/public/browser",
     "//ui/webui",
+  ]
+}
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "reload_button_page_handler_unittest.cc",
+    "reload_button_test_utils.cc",
+    "reload_button_test_utils.h",
+    "reload_button_ui_unittest.cc",
+  ]
+
+  deps = [
+    ":reload_button",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/metrics_reporter:test_support",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
   ]
 }

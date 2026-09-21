@@ -75,6 +75,10 @@ class SimulatorData;
 }  // namespace v8
 #endif
 
+#ifdef V8_DUMPLING
+#include "src/dumpling/dumpling-manager.h"
+#endif
+
 namespace v8_inspector {
 class V8Inspector;
 }  // namespace v8_inspector
@@ -198,10 +202,6 @@ class WasmExecutionTimer;
 class WasmCodeLookupCache;
 class WasmOrphanedGlobalHandle;
 }
-
-namespace detail {
-class WaiterQueueNode;
-}  // namespace detail
 
 #define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
   do {                                               \
@@ -1888,6 +1888,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return builtins_constants_table_builder_;
   }
 
+#ifdef V8_DUMPLING
+  DumplingManager* dumpling_manager() { return &dumpling_manager_; }
+#endif
+
   // Hashes bits of the Isolate that are relevant for embedded builtins. In
   // particular, the embedded blob requires builtin InstructionStream object
   // layout and the builtins constants table to remain unchanged from
@@ -2385,9 +2389,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     memory_saver_mode_enabled_ = memory_saver_mode_enabled;
   }
 
-  std::list<std::unique_ptr<detail::WaiterQueueNode>>&
-  async_waiter_queue_nodes();
-
   void ReportExceptionFunctionCallback(
       DirectHandle<JSReceiver> receiver,
       DirectHandle<FunctionTemplateInfo> function,
@@ -2880,10 +2881,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   TrustedPointerTable::Space* shared_trusted_pointer_space_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 
-  // List to manage the lifetime of the WaiterQueueNodes used to track async
-  // waiters for JSSynchronizationPrimitives.
-  std::list<std::unique_ptr<detail::WaiterQueueNode>> async_waiter_queue_nodes_;
-
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.
   std::unique_ptr<GlobalSafepoint> global_safepoint_;
@@ -2928,6 +2925,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
   void* operator new(size_t, void* ptr) { return ptr; }
+
+#ifdef V8_DUMPLING
+  DumplingManager dumpling_manager_;
+#endif
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data_ = nullptr;

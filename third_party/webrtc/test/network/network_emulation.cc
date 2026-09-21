@@ -842,7 +842,7 @@ std::vector<std::unique_ptr<Network>> EndpointsContainer::GetEnabledNetworks()
   std::vector<std::unique_ptr<Network>> networks;
   for (auto* endpoint : endpoints_) {
     if (endpoint->Enabled()) {
-      networks.emplace_back(std::make_unique<Network>(endpoint->network()));
+      networks.emplace_back(endpoint->network().Clone());
     }
   }
   return networks;

@@ -81,6 +81,19 @@ namespace blink {
 
 namespace {
 
+// Controls whether the canvas resource in ExportLowLatencyCanvasResource()
+// should be created with the SyncToken returned from back color buffer
+// (when enabled) or with an empty SyncToken (when disabled). Enabling this
+// feature would prevent flickering in some cases where desynchronized canvas
+// are periodically refreshed on Windows.
+BASE_FEATURE(kUseNonEmptySyncTokenForLowLatencyCanvas,
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 const float kResourceAdjustedRatio = 0.5;
 
 bool g_should_fail_drawing_buffer_creation_for_testing = false;
@@ -776,6 +789,7 @@ DrawingBuffer::CreateOrRecycleColorBuffer() {
 
 scoped_refptr<ExternalCanvasResource>
 DrawingBuffer::ExportLowLatencyCanvasResource() {
+  gpu::SyncToken sync_token;
   if (contents_changed_) {
     ScopedStateRestorer scoped_state_restorer(this);
     ResolveIfNeeded(kDiscardAllowed);
@@ -783,12 +797,17 @@ DrawingBuffer::ExportLowLatencyCanvasResource() {
     // Restart SharedImage access on the back buffer to ensure a write fence is
     // generated on it to guarantee display reads this frame completely.
     // Display may still read parts of subsequent frames, which is okay.
-    back_color_buffer_->EndAccess();
+    if (base::FeatureList::IsEnabled(
+            kUseNonEmptySyncTokenForLowLatencyCanvas)) {
+      sync_token = back_color_buffer_->EndAccess();
+    } else {
+      back_color_buffer_->EndAccess();
+    }
     back_color_buffer_->BeginAccess(gpu::SyncToken(), /*readonly=*/false);
   }
 
   return ExternalCanvasResource::Create(
-      back_color_buffer_->shared_image, gpu::SyncToken(),
+      back_color_buffer_->shared_image, sync_token,
       viz::TransferableResource::ResourceSource::kDrawingBuffer, hdr_metadata_,
       viz::ReleaseCallback(), context_provider_->GetWeakPtr());
 }
@@ -1943,7 +1962,6 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
   gpu::SharedImageInterface* sii = ContextProvider()->SharedImageInterface();
 
   scoped_refptr<gpu::ClientSharedImage> back_buffer_shared_image;
-  GLenum texture_target = GL_TEXTURE_2D;
 
   // The SharedImages created here are read to and written from by WebGL. They
   // may also be read via the raster interface for WebGL->video and/or
@@ -2031,12 +2049,6 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
       {color_buffer_format_, size, color_space_, origin, back_buffer_alpha_type,
        usage, "WebGLDrawingBuffer"},
       gpu::kNullSurfaceHandle);
-  if (usage.Has(gpu::SHARED_IMAGE_USAGE_SCANOUT)) {
-    // On Mac the texture target for SharedImages with SCANOUT usage (which
-    // get backed by IOSurfaces) is the "native" texture target for
-    // IOSurfaces, which is not necessarily GL_TEXTURE_2D.
-    texture_target = back_buffer_shared_image->GetTextureTarget();
-  }
 
   staging_texture_needed_ = false;
   if (requested_alpha_type_ == kUnpremul_SkAlphaType &&
@@ -2056,12 +2068,13 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
   // Import the backbuffer of swap chain or allocated SharedImage into GL.
   std::unique_ptr<gpu::SharedImageTexture> si_texture =
       back_buffer_shared_image->CreateGLTexture(gl_);
+  GLenum si_texture_target = back_buffer_shared_image->GetTextureTarget();
   scoped_refptr<DrawingBuffer::ColorBuffer> color_buffer =
       base::MakeRefCounted<ColorBuffer>(weak_factory_.GetWeakPtr(),
                                         std::move(back_buffer_shared_image),
                                         std::move(si_texture));
   color_buffer->BeginAccess(gpu::SyncToken(), /*readonly=*/false);
-  gl_->BindTexture(texture_target, color_buffer->texture_id());
+  gl_->BindTexture(si_texture_target, color_buffer->texture_id());
 
   // Clear the alpha channel if RGB emulation is required.
   if (DefaultBufferRequiresAlphaChannelToBePreserved()) {
@@ -2071,13 +2084,13 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
     gl_->GenFramebuffers(1, &fbo);
     gl_->BindFramebuffer(GL_FRAMEBUFFER, fbo);
     gl_->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                              texture_target, color_buffer->texture_id(), 0);
+                              si_texture_target, color_buffer->texture_id(), 0);
     gl_->ClearColor(0, 0, 0, 1);
     gl_->ColorMask(false, false, false, true);
     gl_->Disable(GL_SCISSOR_TEST);
     gl_->Clear(GL_COLOR_BUFFER_BIT);
     gl_->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                              texture_target, 0, 0);
+                              si_texture_target, 0, 0);
     gl_->DeleteFramebuffers(1, &fbo);
   }
 

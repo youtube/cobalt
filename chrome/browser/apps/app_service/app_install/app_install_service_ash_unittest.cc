@@ -43,12 +43,13 @@ class AppInstallServiceAshTest : public testing::Test {
         url_loader_factory_->GetSafeWeakWrapper());
     profile_ = profile_builder.Build();
 
-    arc_app_test_.SetUp(profile_.get());
+    arc_app_test_.PostProfileSetUp(profile_.get());
   }
 
   void TearDown() override {
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     profile_.reset();
+    arc_app_test_.PostProfileTearDown();
   }
 
   Profile* profile() { return profile_.get(); }

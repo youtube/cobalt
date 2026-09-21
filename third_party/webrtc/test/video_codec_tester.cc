@@ -868,6 +868,7 @@ class Decoder : public DecodedImageCallback {
           VideoCodecAnalyzer* analyzer)
       : env_(env),
         decoder_factory_(decoder_factory),
+        decoder_settings_(decoder_settings),
         analyzer_(analyzer),
         pacer_(&env.clock(), decoder_settings.pacing_settings),
         task_queue_(&env.clock()) {
@@ -896,7 +897,7 @@ class Decoder : public DecodedImageCallback {
 
       VideoDecoder::Settings ds;
       ds.set_codec_type(*codec_type_);
-      ds.set_number_of_cores(1);
+      ds.set_number_of_cores(decoder_settings_.num_cores);
       ds.set_max_render_resolution({1280, 720});
       bool result = decoder_->Configure(ds);
       RTC_CHECK(result) << "Failed to configure decoder";
@@ -971,6 +972,7 @@ class Decoder : public DecodedImageCallback {
 
   const Environment env_;
   VideoDecoderFactory* decoder_factory_;
+  const DecoderSettings decoder_settings_;
   std::unique_ptr<VideoDecoder> decoder_;
   VideoCodecAnalyzer* const analyzer_;
   Pacer pacer_;
@@ -994,6 +996,7 @@ class Encoder : public EncodedImageCallback {
           VideoCodecAnalyzer* analyzer)
       : env_(env),
         encoder_factory_(encoder_factory),
+        encoder_settings_(encoder_settings),
         analyzer_(analyzer),
         pacer_(&env.clock(), encoder_settings.pacing_settings),
         task_queue_(&env.clock()) {
@@ -1243,7 +1246,7 @@ class Encoder : public EncodedImageCallback {
 
     VideoEncoder::Settings ves(
         VideoEncoder::Capabilities(/*loss_notification=*/false),
-        /*number_of_cores=*/1,
+        /*number_of_cores=*/encoder_settings_.num_cores,
         /*max_payload_size=*/1440);
 
     int result = encoder_->InitEncode(&vc, ves);
@@ -1331,6 +1334,7 @@ class Encoder : public EncodedImageCallback {
 
   const Environment env_;
   VideoEncoderFactory* const encoder_factory_;
+  const EncoderSettings encoder_settings_;
   std::unique_ptr<VideoEncoder> encoder_;
   VideoCodecAnalyzer* const analyzer_;
   Pacer pacer_;

@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/feature_list.h"
@@ -305,29 +306,6 @@ TEST_P(AutofillAiMayPerformActionTest, CapabilityCheckOverride) {
   AddEntity();
   client().SetCanUseModelExecutionFeatures(false);
   const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
-  EXPECT_EQ(
-      MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
-      is_allowed);
-}
-
-// Tests that enabling `kAutofillAiIgnoreCapabilityCheck` and setting
-// `kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions` to true only
-// overrides the capability check for actions that do not involve MQLS or MES.
-TEST_P(AutofillAiMayPerformActionTest,
-       CapabilityCheckOverrideForNonModelActions) {
-  using enum EntityTypeName;
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kAutofillAiIgnoreCapabilityCheck,
-      {{"autofill_ai_ignore_capability_check_only_for_non_model_actions",
-        "true"}});
-
-  client().SetCanUseModelExecutionFeatures(false);
-  using enum AutofillAiAction;
-  const bool is_allowed =
-      GetParam() != kIphForOptIn && GetParam() != kServerClassificationModel &&
-      GetParam() != kLogToMqls &&
-      GetParam() != kUseCachedServerClassificationModelResults;
   EXPECT_EQ(
       MayPerformAutofillAiAction(client(), GetParam(), EntityType(kPassport)),
       is_allowed);
@@ -639,6 +617,26 @@ TEST_F(AutofillAiPermissionUtilsTest, SignInAfterOptIn) {
   EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+
+TEST_F(AutofillAiPermissionUtilsTest,
+       UsersCannotOptInIfAutofillForAddressesIsDisabled) {
+  EXPECT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
+                                         std::nullopt));
+  client().GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
+                                          std::nullopt));
+}
+
+TEST_F(AutofillAiPermissionUtilsTest,
+       UsersCanOptInIfAutofillForAddressesIsDisabledWhenFeatureIsEnabled) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoresWhetherAddressPrefIsEnabled};
+  ASSERT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
+                                         std::nullopt));
+  client().GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
+  EXPECT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
+                                         std::nullopt));
+}
 
 // Tests that changes to the opt-in status are recorded in metrics.
 TEST_F(AutofillAiPermissionUtilsTest, OptInStatusMetrics) {

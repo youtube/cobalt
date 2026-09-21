@@ -708,17 +708,6 @@ prefs when the profile is loaded.  -->
   </summary>
 </histogram>
 
-<histogram name="Signin.AndroidAccountInfoFetchTime" units="ms"
-    expires_after="2025-06-22">
-  <owner>samarchehade@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    The time it takes to fetch the account information (user names, avatar) for
-    one account on Android. This is recorded when account information is
-    downloaded in FRE or when there is an accounts change event.
-  </summary>
-</histogram>
-
 <histogram name="Signin.AndroidAccountReauth.Event"
     enum="AccountReauthenticationEvent" expires_after="2026-07-01">
   <owner>twellington@chromium.org</owner>
@@ -1541,7 +1530,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.ExplicitSigninMigration" enum="ExplicitSigninMigration"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>droger@chromium.org</owner>
   <owner>rsult@google.com</owner>
   <summary>
@@ -1726,7 +1715,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.HistoryOptInState.{ConsentLevel}" enum="BooleanOptedIn"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>treib@google.com</owner>
   <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
@@ -1795,7 +1784,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IdentityConfirmationSnackbarDecision"
-    enum="IdentityConfirmationSnackbarDecision" expires_after="2026-03-08">
+    enum="IdentityConfirmationSnackbarDecision" expires_after="2026-05-10">
   <owner>jlebel@chromium.org</owner>
   <owner>jood@google.com</owner>
   <owner>treib@chromium.org</owner>
@@ -3457,7 +3446,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncErrorMessage{SyncErrorReason}"
-    enum="SyncErrorPromptUIAction" expires_after="2026-03-01">
+    enum="SyncErrorPromptUIAction" expires_after="2026-05-10">
   <owner>triploblastic@chromium.org</owner>
   <owner>bsazonov@chromium.org</owner>
   <summary>

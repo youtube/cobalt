@@ -170,13 +170,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSplitCacheByIncludeCredentials);
 // available.
 NET_EXPORT BASE_DECLARE_FEATURE(kSplitCacheByNetworkIsolationKey);
 
-// This flag incorporates a boolean into the cache key that is true for
-// renderer-initiated main frame navigations when the request initiator site is
-// cross-site to the URL being navigated to. This provides protections against
-// certain cross-site leak attacks involving cross-site navigations.
-NET_EXPORT BASE_DECLARE_FEATURE(
-    kSplitCacheByCrossSiteMainFrameNavigationBoolean);
-
 // Splits the generated code cache by the request's NetworkIsolationKey if one
 // is available. Note that this feature is also gated behind
 // `net::HttpCache::IsSplitCacheEnabled()`.
@@ -474,12 +467,6 @@ NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyUseQuicProxies;
 // functionality.
 NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyUseQuicProxiesOnly;
 
-// If true, IP protection will not wait for a CONNECT-UDP response before
-// sending datagrams. This will not do anything if kIpPrivacyUseQuicProxies is
-// false.
-NET_EXPORT extern const base::FeatureParam<bool>
-    kIpPrivacyUseQuicProxiesWithoutWaitingForConnectResponse;
-
 // Fallback to direct when connections to IP protection proxies fail. This
 // defaults to true and is intended for development of the QUIC functionality.
 NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyFallbackToDirect;
@@ -735,6 +722,8 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSynchronousOff);
 // The number of shards for the SQL disk cache.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSqlDiskCacheShardCount);
+// Loads the in-memory index on initialization.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheLoadIndexOnInit);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
@@ -911,6 +900,14 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTryQuicByDefault);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicOptions);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsResponseDiscardPartialQuestions);
+
+// When enabled, users can make Secure DNS in AUTOMATIC mode fallback to a
+// well-known DoH provider before using insecure DNS.
+NET_EXPORT BASE_DECLARE_FEATURE(kAddAutomaticWithDohFallbackMode);
+
+// If true, a CONNECT-UDP response is not needed to start sending datagrams.
+NET_EXPORT BASE_DECLARE_FEATURE(
+    kUseQuicProxiesWithoutWaitingForConnectResponse);
 
 }  // namespace net::features
 

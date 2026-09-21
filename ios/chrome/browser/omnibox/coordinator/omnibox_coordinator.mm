@@ -184,7 +184,8 @@
 
   _omniboxAutocompleteController = [[OmniboxAutocompleteController alloc]
       initWithOmniboxClient:_client.get()
-           omniboxTextModel:_omniboxTextModel.get()];
+           omniboxTextModel:_omniboxTextModel.get()
+        presentationContext:_presentationContext];
 
   _omniboxMetricsRecorder =
       [[OmniboxMetricsRecorder alloc] initWithClient:_client.get()
@@ -264,6 +265,11 @@
 
   self.popupCoordinator = [self createPopupCoordinator:self.presenterDelegate];
   [self.popupCoordinator start];
+  if (IsMultilineBrowserOmniboxEnabled()) {
+    // Pre-render the input accessory view to make sure it shows on first launch
+    // crbug.com/458003863.
+    [self updateInputAccessoryView];
+  }
 }
 
 - (void)stop {
@@ -380,6 +386,12 @@
 #pragma mark - OmniboxMediatorDelegate
 
 - (void)omniboxMediatorDidBeginEditing:(OmniboxMediator*)mediator {
+  [self updateInputAccessoryView];
+}
+
+#pragma mark - Private
+
+- (void)updateInputAccessoryView {
   BOOL showKeyboardAccessory =
       experimental_flags::IsOmniboxDebuggingEnabled() ||
       (!self.searchOnlyUI &&

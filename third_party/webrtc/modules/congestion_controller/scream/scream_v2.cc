@@ -42,15 +42,6 @@ DataSize DataUnitsAckedAndNotMarked(const TransportPacketsFeedback& msg) {
   return acked_not_marked;
 }
 
-bool HasCeMarking(const TransportPacketsFeedback& msg) {
-  for (const auto& packet : msg.PacketsWithFeedback()) {
-    if (packet.ecn == EcnMarking::kCe) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool HasLostPackets(const TransportPacketsFeedback& msg) {
   for (const auto& packet : msg.PacketsWithFeedback()) {
     if (!packet.IsReceived()) {
@@ -102,8 +93,14 @@ void ScreamV2::UpdateL4SAlpha(const TransportPacketsFeedback& msg) {
   }
 
   double fraction_marked = data_units_marked / received_packets.size();
-  l4s_alpha_ = params_.l4s_avg_g.Get() * fraction_marked +
-               (1.0 - params_.l4s_avg_g.Get()) * l4s_alpha_;
+  // Fast attack slow decay EWMA filter.
+  if (fraction_marked > l4s_alpha_) {
+    l4s_alpha_ = std::min(params_.l4s_avg_g_up.Get() * fraction_marked +
+                              (1.0 - params_.l4s_avg_g_up.Get()) * l4s_alpha_,
+                          1.0);
+  } else {
+    l4s_alpha_ = (1.0 - params_.l4s_avg_g_down.Get()) * l4s_alpha_;
+  }
 }
 
 void ScreamV2::UpdateRefWindowAndTargetRate(
@@ -115,7 +112,7 @@ void ScreamV2::UpdateRefWindowAndTargetRate(
   const TimeDelta non_zero_smoothed_rtt =
       std::max(msg.smoothed_rtt, TimeDelta::Millis(1));
 
-  bool is_ce = HasCeMarking(msg);
+  bool is_ce = msg.HasPacketWithEcnCe();
   bool is_loss = HasLostPackets(msg);
   bool is_virtual_ce = false;
   double virtual_alpha_lim =

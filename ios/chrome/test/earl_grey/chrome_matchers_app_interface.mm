@@ -25,6 +25,7 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_views_utils.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
+#import "ios/chrome/browser/omnibox/ui/omnibox_text_view_ios.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
 #import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller.h"
@@ -63,6 +64,7 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/buttons_constants.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/primary_toolbar_view.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_constants.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
 #import "ios/chrome/common/ui/promo_style/constants.h"
@@ -535,8 +537,10 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)omnibox {
-  return grey_allOf(grey_kindOfClass([OmniboxTextFieldIOS class]),
-                    grey_userInteractionEnabled(), nil);
+  return grey_allOf(
+      grey_anyOf(grey_kindOfClass([OmniboxTextFieldIOS class]),
+                 grey_kindOfClass([OmniboxTextViewIOS class]), nil),
+      grey_userInteractionEnabled(), nil);
 }
 
 + (id<GREYMatcher>)omniboxAtBottom {
@@ -569,8 +573,9 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 + (id<GREYMatcher>)omniboxText:(NSString*)text {
   GREYElementMatcherBlock* matcher = [GREYElementMatcherBlock
       matcherWithMatchesBlock:^BOOL(id element) {
-        OmniboxTextFieldIOS* omnibox =
-            base::apple::ObjCCast<OmniboxTextFieldIOS>(element);
+        id<OmniboxTextInput> omnibox =
+            base::apple::ObjCCast<OmniboxTextFieldIOS>(element)
+                ?: base::apple::ObjCCast<OmniboxTextViewIOS>(element);
         return [omnibox.text isEqualToString:text];
       }
       descriptionBlock:^void(id<GREYDescription> description) {
@@ -584,8 +589,9 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 + (id<GREYMatcher>)omniboxContainingText:(NSString*)text {
   GREYElementMatcherBlock* matcher = [GREYElementMatcherBlock
       matcherWithMatchesBlock:^BOOL(id element) {
-        OmniboxTextFieldIOS* omnibox =
-            base::apple::ObjCCast<OmniboxTextFieldIOS>(element);
+        id<OmniboxTextInput> omnibox =
+            base::apple::ObjCCast<OmniboxTextFieldIOS>(element)
+                ?: base::apple::ObjCCast<OmniboxTextViewIOS>(element);
         return [omnibox.text containsString:text];
       }
       descriptionBlock:^void(id<GREYDescription> description) {
@@ -603,8 +609,9 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 
   GREYElementMatcherBlock* matcher = [GREYElementMatcherBlock
       matcherWithMatchesBlock:^BOOL(id element) {
-        OmniboxTextFieldIOS* omnibox =
-            base::apple::ObjCCast<OmniboxTextFieldIOS>(element);
+        id<OmniboxTextInput> omnibox =
+            base::apple::ObjCCast<OmniboxTextFieldIOS>(element)
+                ?: base::apple::ObjCCast<OmniboxTextViewIOS>(element);
 
         NSArray* textComponents =
             [omnibox.accessibilityValue componentsSeparatedByString:@"||||"];
@@ -1368,6 +1375,11 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                     grey_sufficientlyVisible(), nil);
 }
 
++ (id<GREYMatcher>)tabGridOverflowMenuButton {
+  return grey_allOf(grey_accessibilityID(kTabGridOverflowMenuButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
+}
+
 + (id<GREYMatcher>)tabGridUndoCloseAllButton {
   return grey_allOf(grey_accessibilityID(kTabGridUndoCloseAllButtonIdentifier),
                     grey_sufficientlyVisible(), nil);
@@ -1960,6 +1972,27 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 + (id<GREYMatcher>)tabGroupsPanel {
   return grey_allOf(grey_accessibilityID(kTabGroupsPanelIdentifier),
                     grey_sufficientlyVisible(), nil);
+}
+
+#pragma mark - Button Stack
+
++ (id<GREYMatcher>)buttonStackPrimaryButton {
+  return grey_accessibilityID(kButtonStackPrimaryActionAccessibilityIdentifier);
+}
+
++ (id<GREYMatcher>)buttonStackSecondaryButton {
+  return grey_accessibilityID(
+      kButtonStackSecondaryActionAccessibilityIdentifier);
+}
+
++ (id<GREYMatcher>)buttonStackTertiaryButton {
+  return grey_accessibilityID(
+      kButtonStackTertiaryActionAccessibilityIdentifier);
+}
+
++ (id<GREYMatcher>)buttonStackCheckmarkSymbol {
+  return grey_accessibilityID(
+      kButtonStackCheckmarkSymbolAccessibilityIdentifier);
 }
 
 @end

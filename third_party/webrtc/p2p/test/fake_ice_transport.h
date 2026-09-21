@@ -28,6 +28,7 @@
 #include "api/ice_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -47,7 +48,6 @@
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
 #include "test/create_test_field_trials.h"
@@ -63,11 +63,12 @@ class FakeIceTransport : public IceTransportInternal {
  public:
   explicit FakeIceTransport(absl::string_view name,
                             int component,
-                            Thread* network_thread = nullptr,
+                            TaskQueueBase* network_thread = nullptr,
                             absl::string_view field_trials_string = "")
       : name_(name),
         component_(component),
-        network_thread_(network_thread ? network_thread : Thread::Current()),
+        network_thread_(network_thread ? network_thread
+                                       : TaskQueueBase::Current()),
         field_trials_(CreateTestFieldTrials(field_trials_string)) {
     RTC_DCHECK(network_thread_);
   }
@@ -646,7 +647,7 @@ class FakeIceTransport : public IceTransportInternal {
   std::optional<NetworkRoute> network_route_ RTC_GUARDED_BY(network_thread_);
   std::map<Socket::Option, int> socket_options_ RTC_GUARDED_BY(network_thread_);
   CopyOnWriteBuffer last_sent_packet_ RTC_GUARDED_BY(network_thread_);
-  Thread* const network_thread_;
+  TaskQueueBase* const network_thread_;
   ScopedTaskSafetyDetached task_safety_;
   std::optional<int> rtt_estimate_;
   std::optional<int64_t> last_sent_ping_timestamp_;

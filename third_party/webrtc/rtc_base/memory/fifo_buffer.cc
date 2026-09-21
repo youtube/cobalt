@@ -17,9 +17,9 @@
 
 #include "api/array_view.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/stream.h"
-#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -29,11 +29,11 @@ FifoBuffer::FifoBuffer(size_t size)
       buffer_length_(size),
       data_length_(0),
       read_position_(0),
-      owner_(Thread::Current()) {
+      owner_(TaskQueueBase::Current()) {
   // all events are done on the owner_ thread
 }
 
-FifoBuffer::FifoBuffer(size_t size, Thread* owner)
+FifoBuffer::FifoBuffer(size_t size, TaskQueueBase* owner)
     : state_(SS_OPEN),
       buffer_(new char[size]),
       buffer_length_(size),

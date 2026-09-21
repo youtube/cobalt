@@ -171,9 +171,10 @@ class AutofillAgent : public content::RenderFrameObserver,
                         mojom::ActionPersistence action_persistence,
                         FieldRendererId field_id,
                         const std::u16string& value) override;
-  void ExtractForm(FormRendererId form,
-                   base::OnceCallback<void(const std::optional<FormData>&)>
-                       callback) override;
+  void ExtractFormWithField(
+      FieldRendererId field_id,
+      base::OnceCallback<void(const std::optional<FormData>&)> callback)
+      override;
   void ExtractLabeledTextNodeValue(
       const std::u16string& value_regex,
       const std::u16string& label_regex,
@@ -515,7 +516,8 @@ class AutofillAgent : public content::RenderFrameObserver,
   bool was_last_action_fill_ = false;
 
   // Timers for throttling handling of frequent events.
-  base::OneShotTimer select_option_change_batch_timer_;
+  std::map<FieldRendererId, base::OneShotTimer>
+      select_option_change_batch_timer_;
   base::OneShotTimer datalist_option_change_batch_timer_;
   // TODO(crbug.com/40267764): Merge some or all of these timers?
   base::OneShotTimer process_forms_after_dynamic_change_timer_;

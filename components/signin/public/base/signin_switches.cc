@@ -197,12 +197,20 @@ BASE_FEATURE(kEnableErrorBadgeOnIdentityDisc,
 #endif
 
 #if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kEnableIdentityInAuthError, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableIdentityInAuthError, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Enables binding the OAuthMultilogin cookies to a device.
 BASE_FEATURE(kEnableOAuthMultiloginCookiesBinding,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Enables binding the OAuthMultilogin cookies to a device for non-default
+// storage partitions. This flag is a safety net for partitions that might not
+// be ready to have bound cookies (e.g. Glic).
+BASE_FEATURE(kEnableOAuthMultiloginCookiesBindingForNonDefaultPartitions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -220,6 +228,12 @@ BASE_FEATURE_PARAM(bool,
                    &kEnableOAuthMultiloginCookiesBindingServerExperiment,
                    "enforced",
                    true);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Kill switch for the OAuthMultilogin cookies standard binding.
+BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBinding,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 BASE_FEATURE(kEnablePreferencesAccountStorage,
@@ -299,9 +313,6 @@ const base::FeatureParam<int> kHistoryOptInEducationalTipVariation(
     "history_opt_in_educational_tip_param",
     1);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-BASE_FEATURE(kInterceptBubblesDismissibleByAvatarButton,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kMakeAccountsAvailableInIdentityManager,

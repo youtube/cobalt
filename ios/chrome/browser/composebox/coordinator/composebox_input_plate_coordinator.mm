@@ -86,24 +86,28 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   std::unique_ptr<LocationBarModelDelegateIOS> _locationBarModelDelegate;
   std::unique_ptr<LocationBarModel> _locationBarModel;
   ComposeboxTabPickerCoordinator* _tabPickerCoordinator;
+  ComposeboxTheme* _theme;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
                                    browser:(Browser*)browser
                                 entrypoint:(ComposeboxEntrypoint)entrypoint
                                      query:(NSString*)query
-                                 URLLoader:(id<ComposeboxURLLoader>)URLLoader {
+                                 URLLoader:(id<ComposeboxURLLoader>)URLLoader
+                                     theme:(ComposeboxTheme*)theme {
   self = [super initWithBaseViewController:baseViewController browser:browser];
   if (self) {
     _entrypoint = entrypoint;
     _query = query;
     _URLLoader = URLLoader;
+    _theme = theme;
   }
   return self;
 }
 
 - (void)start {
-  _viewController = [[ComposeboxInputPlateViewController alloc] init];
+  _viewController =
+      [[ComposeboxInputPlateViewController alloc] initWithTheme:_theme];
   _viewController.delegate = self;
 
   _tabPickerCoordinator = [[ComposeboxTabPickerCoordinator alloc]
@@ -120,10 +124,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   auto query_contoller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   query_contoller_config_params->send_lns_surface = false;
-  query_contoller_config_params->enable_multi_context_input_flow =
-      base::FeatureList::IsEnabled(kAIMPrototypeTabPicker);
-  query_contoller_config_params->enable_viewport_images =
-      !base::FeatureList::IsEnabled(kAIMPrototypeTabPicker);
+  query_contoller_config_params->enable_multi_context_input_flow = true;
+  query_contoller_config_params->enable_viewport_images = false;
 
   auto composeboxQueryController =
       std::make_unique<ComposeboxQueryControllerIOS>(
@@ -173,6 +175,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   [_viewController
       addChildViewController:_omniboxCoordinator.managedViewController];
   [_viewController setEditView:_omniboxCoordinator.editView];
+  _omniboxCoordinator.editView.heightDelegate = _mediator;
   [_omniboxCoordinator.managedViewController
       didMoveToParentViewController:_viewController];
 
@@ -238,9 +241,13 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
           initWithEntryPoint:LensEntrypoint::Keyboard
            presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
       presentationCompletion:nil];
-  id<LensCommands> handler =
+  __weak id<LensCommands> handler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
-  [handler openLensInputSelection:command];
+  [self.baseViewController
+      dismissViewControllerAnimated:YES
+                         completion:^{
+                           [handler openLensInputSelection:command];
+                         }];
 }
 
 - (void)composeboxViewControllerDidTapGalleryButton:
@@ -310,8 +317,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     return;
   }
 
-  NSItemProvider* provider = results.firstObject.itemProvider;
-  [_mediator processImageItemProvider:provider];
+  PHPickerResult* result = results.firstObject;
+  [_mediator processImageItemProvider:result.itemProvider
+                              assetID:result.assetIdentifier];
 }
 
 #pragma mark - UIDocumentPickerDelegate
@@ -334,7 +342,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     return;
   }
   NSItemProvider* provider = [[NSItemProvider alloc] initWithObject:image];
-  [_mediator processImageItemProvider:provider];
+  [_mediator processImageItemProvider:provider assetID:nil];
 }
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController*)picker {

@@ -174,12 +174,14 @@ class VideoCodecTester {
     PacingSettings pacing_settings;
     std::optional<std::string> decoder_input_base_path;
     std::optional<std::string> decoder_output_base_path;
+    int num_cores = 1;
   };
 
   struct EncoderSettings {
     PacingSettings pacing_settings;
     std::optional<std::string> encoder_input_base_path;
     std::optional<std::string> encoder_output_base_path;
+    int num_cores = 1;
   };
 
   virtual ~VideoCodecTester() = default;

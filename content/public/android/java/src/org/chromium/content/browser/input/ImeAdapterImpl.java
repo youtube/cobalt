@@ -1515,8 +1515,7 @@ public class ImeAdapterImpl
     boolean commitContent(String dataUrl) {
         onImeEvent();
         if (!isValid()) return false;
-        return ImeAdapterImplJni.get()
-                .insertMediaFromURL(mNativeImeAdapterAndroid, ImeAdapterImpl.this, dataUrl);
+        return ImeAdapterImplJni.get().insertMediaFromURL(mNativeImeAdapterAndroid, dataUrl);
     }
 
     /** Lazily creates/returns a StylusWritingImeCallback object. */
@@ -1817,6 +1816,11 @@ public class ImeAdapterImpl
         resetAndHideKeyboard();
     }
 
+    void performSpellCheck() {
+        if (!isValid()) return;
+        ImeAdapterImplJni.get().performSpellCheck(mNativeImeAdapterAndroid);
+    }
+
     @NativeMethods
     interface Natives {
         long init(ImeAdapterImpl caller, WebContents webContents);
@@ -1870,7 +1874,7 @@ public class ImeAdapterImpl
                 String text,
                 int newCursorPosition);
 
-        boolean insertMediaFromURL(long nativeImeAdapterAndroid, ImeAdapterImpl self, String url);
+        boolean insertMediaFromURL(long nativeImeAdapterAndroid, String url);
 
         void finishComposingText(long nativeImeAdapterAndroid);
 
@@ -1894,5 +1898,7 @@ public class ImeAdapterImpl
         // Stylus Writing
         void handleStylusWritingGestureAction(
                 long nativeImeAdapterAndroid, int id, ByteBuffer gestureData);
+
+        void performSpellCheck(long nativeImeAdapterAndroid);
     }
 }

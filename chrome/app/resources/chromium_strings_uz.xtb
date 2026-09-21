@@ -232,6 +232,7 @@
 <translation id="370962675267501463">{COUNT,plural, =0{Administrator yangilishlarni oʻrnatish uchun Chromium brauzerini qayta ishga tushirishni soʻramoqda}=1{Administrator yangilishlarni oʻrnatish uchun Chromium brauzerini qayta ishga tushirishni soʻramoqda Inkognito oynalar qayta ochilmaydi.}other{Administrator yangilishlarni oʻrnatish uchun Chromium brauzerini qayta ishga tushirishni soʻramoqda # ta inkognito oyna qayta ochilmaydi.}}</translation>
 <translation id="3713809861844741608">Havolani yangi Chromium oynasida ochish</translation>
 <translation id="3728124580182886854">Chromium va boshqa Google xizmatlarini moslashtirish kabi maqsadlarda ulang</translation>
+<translation id="3729187154190517324">“Varaq kiritish va hokazo” tugmasi yordamida bir nechta varaq, fayl va vositalar kiritish orqali qidiruvni chuqurlashtiring</translation>
 <translation id="3788675262216168505">Chromium profillarini boshqaring</translation>
 <translation id="3790262771324122253">Chromium ayrim yuklanmalarni nega bloklashi haqida</translation>
 <translation id="379589255253486813">Chromium biror sozlamaga diqqat qilish kerak boʻlganda sizga xabar qiladi.</translation>
@@ -353,6 +354,7 @@
 <translation id="5286907366254680517">Aniqlandi</translation>
 <translation id="5294316920224716406">Inkognito rejimida ishlayotganingizda, xavfsiz ulanishli saytga kirganingizda Chromium sizni ogohlantiradi.</translation>
 <translation id="5313228254328109263">Chromium Updater ichki xizmati</translation>
+<translation id="5346389065299425353">Bir nechta varaq, fayl va vositalar kiritish orqali qidiruvni chuqurlashtiring</translation>
 <translation id="5352264705793813212">Sizda Chromium bilan ishlashda xavfsizlikka oid bir nechta tavsiya bor</translation>
 <translation id="5352361688875342522">Boshqa Chromium profillari</translation>
 <translation id="5358375970380395591">Siz boshqaruvdagi hisobga kiryapsiz va uning administratoriga Chromium profilingizni boshqarishga ruxsat beryapsiz. Ilovalar, xatcho‘plar, brauzer tarixi, parollar va boshqa sozlamalar kabi barcha Chromium ma’lumotlaringiz <ph name="USER_NAME" /> hisobiga biriktiriladi. Siz bu ma’lumotlarni Google hisoblar shaxsiy kabinetidan o‘chirishingiz mumkin, lekin bu ma’lumotlarni boshqa hisob bilan bog‘lay olmaysiz. <ph name="LEARN_MORE" /></translation>
@@ -517,6 +519,7 @@ Ba’zi imkoniyatlar ishlamasligi mumkin. Profilni saqlash uchun boshqa jild tay
 <translation id="705851970750939768">Chromium‘ni yangilash</translation>
 <translation id="7067091210845072982">Agar rasmga foydali tavsif berilmagan boʻlsa, Chromium uni sizga tavsiflaydi. Tavsif yaratish uchun rasmlar Googlega yuboriladi.</translation>
 <translation id="7141270731789036260">Chrome for Testing versiyasini sozlash</translation>
+<translation id="7147227333672430807">Xabarlar, hujjatlar va boshqa ilovalardagi havolalarni har doim Chromium orqali ochishingiz mumkin</translation>
 <translation id="7163519456498498587">Chromiumdan olib tashlash: <ph name="EXTENSION_NAME" /></translation>
 <translation id="7173822816570314652">Tashkilotingiz Chromium <ph name="TIMEOUT_DURATION" /> ishlatilmasa maʼlumotlari oʻchirilishini sozlagan. Jumladan, tarix, avtomatik kiritish va yuklanmalar.</translation>
 <translation id="718435575166326686">Chromium bu saytda kameradan foydalanishiga ruxsat kerak</translation>
@@ -632,6 +635,7 @@ Chromium sozlamalaringizni qaytadan tiklay olmadi.</translation>
 <translation id="8471947159125090285">Chromium maʼlumotlarini Google hisobida saqlash va ulardan foydalanish uchun shaxsingizni tasdiqlang</translation>
 <translation id="8482493977473846331">Chromium orqali kirish oynasi chiqadi</translation>
 <translation id="8493179195440786826">Chromium versiyasi eskirgan</translation>
+<translation id="850264194101621529">Chromiumni birlamchi brauzer etib belgilaganingiz uchun rahmat!</translation>
 <translation id="8522801943730206384">Chromium faqat saqlangan parollaringizni tekshira oladi</translation>
 <translation id="8555465886620020932">Xizmat xatosi: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556420416730706394">Rasm orqali qidiruvga tezkor ruxsat olish uchun yon panelning yuqori qismidagi "Mahkamlash" tugmasini bosing</translation>

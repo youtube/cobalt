@@ -10,67 +10,87 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
+import static org.chromium.build.NullUtil.assertNonNull;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.view.LayoutInflater;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
-import org.chromium.chrome.browser.omnibox.fusebox.AttachmentDetailsFetcher.AttachmentDetails;
-import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsRecyclerViewAdapter.NavigationAttachmentItemType;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.Clipboard;
+import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.modelutil.MVCListAdapter;
-import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
+
+import java.util.List;
+import java.util.function.Function;
 
 /** Unit tests for {@link NavigationAttachmentsMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class NavigationAttachmentsMediatorUnitTest {
-    public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
-    private @Mock NavigationAttachmentsViewHolder mViewHolder;
-    private @Mock NavigationAttachmentsPopup mPopup;
-    private @Mock WindowAndroid mWindowAndroid;
-    private @Mock ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
-    private @Mock Clipboard mClipboard;
-    private @Mock TabModelSelector mTabModelSelector;
-    private @Mock Tab mTab1;
-    private @Mock Tab mTab2;
-    private @Mock WebContents mWebContents;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    private Activity mActivity;
+    @Mock private NavigationAttachmentsViewHolder mViewHolder;
+    @Mock private NavigationAttachmentsPopup mPopup;
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
+    @Mock private Clipboard mClipboard;
+    @Mock private TabModelSelector mTabModelSelector;
+    @Mock private Tab mTab1;
+    @Mock private Tab mTab2;
+    @Mock private WebContents mWebContents;
+    @Mock private Function<Tab, @Nullable Bitmap> mTabFaviconFactory;
+
+    @Captor private ArgumentCaptor<Intent> mIntentCaptor;
+
+    private ActivityController<TestActivity> mActivityController;
     private Context mContext;
-    private ConstraintLayout mViewGroup;
     private PropertyModel mModel;
     private NavigationAttachmentsMediator mMediator;
+    private FuseboxAttachmentModelList mAttachments;
     private ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier;
     private ObservableSupplierImpl<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
@@ -79,30 +99,78 @@ public class NavigationAttachmentsMediatorUnitTest {
     @Before
     public void setUp() {
         mTabModelSelectorSupplier = new ObservableSupplierImpl<>(mTabModelSelector);
-        mAutocompleteRequestTypeSupplier = new ObservableSupplierImpl<>();
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
-        mActivity = Robolectric.buildActivity(TestActivity.class).setup().get();
-        mViewGroup = new ConstraintLayout(mActivity);
-        mActivity.setContentView(mViewGroup);
-        LayoutInflater.from(mActivity).inflate(R.layout.fusebox_layout, mViewGroup, true);
+        mAutocompleteRequestTypeSupplier =
+                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
+        mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
+        Activity activity = mActivityController.get();
+        ConstraintLayout viewGroup = new ConstraintLayout(activity);
+        activity.setContentView(viewGroup);
+        LayoutInflater.from(activity).inflate(R.layout.fusebox_layout, viewGroup, true);
 
         mContext = RuntimeEnvironment.application;
         mModel = new PropertyModel(NavigationAttachmentsProperties.ALL_KEYS);
 
-        mViewHolder = new NavigationAttachmentsViewHolder(mViewGroup, mPopup);
+        mViewHolder = new NavigationAttachmentsViewHolder(viewGroup, mPopup);
+        mAttachments = new FuseboxAttachmentModelList();
+        mAttachments.setComposeBoxQueryControllerBridge(mComposeBoxQueryControllerBridge);
         mMediator =
-                Mockito.spy(
+                spy(
                         new NavigationAttachmentsMediator(
                                 mContext,
                                 mWindowAndroid,
                                 mModel,
                                 mViewHolder,
-                                new ModelList(),
+                                mAttachments,
                                 mAutocompleteRequestTypeSupplier,
                                 mTabModelSelectorSupplier,
                                 mComposeBoxQueryControllerBridge));
         Clipboard.setInstanceForTesting(mClipboard);
-        OmniboxResourceProvider.setTabFaviconFactory((any) -> mBitmap);
+        OmniboxResourceProvider.setTabFaviconFactory(mTabFaviconFactory);
+        doReturn(mBitmap).when(mTabFaviconFactory).apply(any());
+
+        // Start with no init calls.
+        clearInvocations(mComposeBoxQueryControllerBridge);
+    }
+
+    @After
+    public void tearDown() {
+        mActivityController.close();
+    }
+
+    /* Useful for testing logic in the mediator's constructor. */
+    private void recreateMediator() {
+        mMediator =
+                new NavigationAttachmentsMediator(
+                        mContext,
+                        mWindowAndroid,
+                        mModel,
+                        mViewHolder,
+                        new FuseboxAttachmentModelList(),
+                        mAutocompleteRequestTypeSupplier,
+                        mTabModelSelectorSupplier,
+                        mComposeBoxQueryControllerBridge);
+    }
+
+    private void addAttachment(String title) {
+        addAttachment(title, "token-" + title);
+    }
+
+    private void addAttachment(String title, String token) {
+        Tab mockTab = mock(Tab.class);
+        when(mockTab.getTitle()).thenReturn(title);
+        when(mockTab.getId()).thenReturn(0);
+        when(mockTab.getWebContents())
+                .thenReturn(null); // This will trigger addTabContextFromCache path
+        when(mComposeBoxQueryControllerBridge.addTabContext(mockTab)).thenReturn(token);
+        when(mComposeBoxQueryControllerBridge.addTabContextFromCache(0)).thenReturn(token);
+        mAttachments.add(FuseboxAttachment.forTab(mockTab));
+    }
+
+    @Test
+    public void testDestroy() {
+        assertTrue(mAutocompleteRequestTypeSupplier.hasObservers());
+        mMediator.destroy();
+        assertFalse(mAutocompleteRequestTypeSupplier.hasObservers());
     }
 
     @Test
@@ -164,13 +232,15 @@ public class NavigationAttachmentsMediatorUnitTest {
         doReturn(true).when(mTab2).isFrozen();
         doReturn(89L).when(mTab2).getTimestampMillis();
         doReturn(false).when(mPopup).isShowing();
-        mMediator.onToggleAttachmentsPopup();
 
+        mMediator.onToggleAttachmentsPopup();
         assertTrue(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE));
-        assertTrue(
-                mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_THUMBNAIL)
-                        instanceof BitmapDrawable);
-        assertNull(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_TINT));
+        assertNonNull(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON));
+
+        doReturn(null).when(mTabFaviconFactory).apply(any());
+        mMediator.onToggleAttachmentsPopup();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE));
+        assertNull(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON));
 
         doReturn(mWebContents).when(mTab1).getWebContents();
         doReturn("token").when(mComposeBoxQueryControllerBridge).addTabContext(mTab1);
@@ -209,14 +279,8 @@ public class NavigationAttachmentsMediatorUnitTest {
         // Success is captured with a valid unique token.
         doReturn("123").when(mComposeBoxQueryControllerBridge).addFile(any(), any(), any());
         byte[] byteArray = new byte[] {1, 2, 3};
-        AttachmentDetails attachmentDetails =
-                new AttachmentDetails(
-                        NavigationAttachmentItemType.ATTACHMENT_ITEM,
-                        null,
-                        "title",
-                        "image",
-                        byteArray);
-        mMediator.uploadAndAddAttachment(attachmentDetails);
+        FuseboxAttachment attachment = FuseboxAttachment.forFile(null, "title", "image", byteArray);
+        mMediator.uploadAndAddAttachment(attachment);
         assertTrue(mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE));
         verify(mComposeBoxQueryControllerBridge).addFile("title", "image", byteArray);
     }
@@ -226,57 +290,65 @@ public class NavigationAttachmentsMediatorUnitTest {
         // Failure: no token.
         doReturn(null).when(mComposeBoxQueryControllerBridge).addFile(any(), any(), any());
         byte[] byteArray = new byte[] {1, 2, 3};
-        AttachmentDetails attachmentDetails =
-                new AttachmentDetails(
-                        NavigationAttachmentItemType.ATTACHMENT_ITEM,
-                        null,
-                        "title",
-                        "image",
-                        byteArray);
-        mMediator.uploadAndAddAttachment(attachmentDetails);
+        FuseboxAttachment attachment = FuseboxAttachment.forFile(null, "title", "image", byteArray);
+        mMediator.uploadAndAddAttachment(attachment);
         assertFalse(mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE));
     }
 
     @Test
     public void activateSearchMode_clearsAttachmentsAndAbandonsSession() {
-        ModelList modelList = new ModelList();
-        mAutocompleteRequestTypeSupplier =
-                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
-        mMediator =
-                new NavigationAttachmentsMediator(
-                        mContext,
-                        mWindowAndroid,
-                        mModel,
-                        mViewHolder,
-                        modelList,
-                        mAutocompleteRequestTypeSupplier,
-                        mTabModelSelectorSupplier,
-                        mComposeBoxQueryControllerBridge);
-        modelList.add(new MVCListAdapter.ListItem(0, new PropertyModel()));
-        assertEquals(1, modelList.size());
+        addAttachment("title");
 
-        mMediator.activateAiMode();
+        mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, true);
         assertEquals(
                 AutocompleteRequestType.AI_MODE,
                 (int) mModel.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE));
 
         mMediator.activateSearchMode();
-        assertFalse(mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE));
-        assertEquals(0, modelList.size());
-        verify(mComposeBoxQueryControllerBridge).notifySessionAbandoned();
         assertEquals(
                 AutocompleteRequestType.SEARCH,
                 (int) mModel.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE));
+        assertEquals(0, mAttachments.size());
     }
 
     @Test
     public void activateAiMode_startsSession() {
-        mMediator.activateAiMode();
-        verify(mComposeBoxQueryControllerBridge).notifySessionStarted();
+        mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
+        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
         assertEquals(
                 AutocompleteRequestType.AI_MODE,
                 (int) mModel.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE));
+    }
+
+    @Test
+    public void activateImageGeneration_startsSession() {
+        mMediator.activateImageGeneration();
+        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
+        assertEquals(
+                AutocompleteRequestType.IMAGE_GENERATION,
+                (int) mModel.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE));
+    }
+
+    @Test
+    public void activateImageGeneration_disablesCurrentTabInput() {
+        doReturn(mTab1).when(mTabModelSelector).getCurrentTab();
+        doReturn("Title1").when(mTab1).getTitle();
+        doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
+        doReturn(true).when(mTab1).isInitialized();
+        doReturn(100L).when(mTab1).getTimestampMillis();
+
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+        ShadowLooper.idleMainLooper();
+
+        mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE));
+        assertTrue(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED));
+
+        mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_CLICKED).run();
+        mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE));
+        assertFalse(mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED));
     }
 
     @Test
@@ -288,7 +360,7 @@ public class NavigationAttachmentsMediatorUnitTest {
                         mWindowAndroid,
                         mModel,
                         mViewHolder,
-                        new ModelList(),
+                        new FuseboxAttachmentModelList(),
                         new ObservableSupplierImpl<>(),
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge);
@@ -305,34 +377,27 @@ public class NavigationAttachmentsMediatorUnitTest {
     public void setToolbarVisible_stateNotChanged_doesNothing() {
         // Initial state is false. Calling with false should do nothing.
         mMediator.setToolbarVisible(false);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionAbandoned();
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
 
         // Transition to true. Should NOT start a session.
         mMediator.setAutocompleteRequestTypeChangeable(true);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionAbandoned();
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
 
         // Manually start a session to test the hiding part.
-        mMediator.activateAiMode();
-        verify(mComposeBoxQueryControllerBridge).notifySessionStarted();
-        Mockito.clearInvocations(mComposeBoxQueryControllerBridge);
+        mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
 
         // Calling with true again. Should do nothing.
         mMediator.setAutocompleteRequestTypeChangeable(true);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionAbandoned();
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
 
         // Transition to false. Should abandon the session.
         mMediator.setAutocompleteRequestTypeChangeable(false);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-        verify(mComposeBoxQueryControllerBridge).notifySessionAbandoned();
-        Mockito.clearInvocations(mComposeBoxQueryControllerBridge);
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
 
         // Calling with false again. Should do nothing.
         mMediator.setAutocompleteRequestTypeChangeable(false);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionAbandoned();
+        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
     }
 
     @Test
@@ -350,9 +415,151 @@ public class NavigationAttachmentsMediatorUnitTest {
     }
 
     @Test
+    public void onToggleAttachmentsPopup_pdfUploadEligible_showsFileButton() {
+        doReturn(true).when(mComposeBoxQueryControllerBridge).isPdfUploadEligible();
+        recreateMediator();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE));
+    }
+
+    @Test
+    public void onToggleAttachmentsPopup_pdfUploadNotEligible_hidesFileButton() {
+        doReturn(false).when(mComposeBoxQueryControllerBridge).isPdfUploadEligible();
+        recreateMediator();
+        assertFalse(mModel.get(NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE));
+    }
+
+    @Test
+    public void onToggleAttachmentsPopup_createImagesEligible_showsCreateImageButton() {
+        doReturn(true).when(mComposeBoxQueryControllerBridge).isCreateImagesEligible();
+        recreateMediator();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
+    }
+
+    @Test
+    public void onToggleAttachmentsPopup_createImagesNotEligible_hidesCreateImageButton() {
+        doReturn(false).when(mComposeBoxQueryControllerBridge).isCreateImagesEligible();
+        recreateMediator();
+        assertFalse(mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
+    }
+
+    @Test
+    public void onImagePickerClicked_setsMimeType() {
+        mModel.get(NavigationAttachmentsProperties.POPUP_GALLERY_CLICKED).run();
+        verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
+        assertEquals(MimeTypeUtils.IMAGE_ANY_MIME_TYPE, mIntentCaptor.getValue().getType());
+    }
+
+    @Test
+    public void onFilePickerClicked_setsMimeType() {
+        mModel.get(NavigationAttachmentsProperties.POPUP_FILE_CLICKED).run();
+        verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
+        assertEquals(MimeTypeUtils.PDF_MIME_TYPE, mIntentCaptor.getValue().getType());
+    }
+
+    @Test
     public void autocompleteRequestTypeClicked_activatesSearchMode() {
         mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
         mModel.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED).run();
         assertEquals(AutocompleteRequestType.SEARCH, (int) mAutocompleteRequestTypeSupplier.get());
+    }
+
+    @Test
+    public void getAttachmentTokens_returnsEmptyListWhenEmpty() {
+        List<String> tokens = mMediator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
+    }
+
+    @Test
+    public void getAttachmentTokens_returnsTokensAfterAddingAttachment() {
+        addAttachment("test");
+
+        var tokens = mMediator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertEquals(1, tokens.size());
+        assertEquals("token-test", tokens.get(0));
+    }
+
+    @Test
+    public void getAttachmentTokens_returnsEmptyListAfterRemovingAllAttachments() {
+        addAttachment("test");
+
+        // Verify attachment was added
+        assertNotNull(mMediator.getAttachmentTokens());
+        assertEquals(1, mMediator.getAttachmentTokens().size());
+
+        // Remove all attachments
+        mAttachments.clear();
+
+        List<String> tokens = mMediator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
+    }
+
+    @Test
+    public void getAttachmentTokens_returnsMultipleTokensInOrder() {
+        addAttachment("tab1");
+        addAttachment("tab2");
+
+        var tokens = mMediator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertEquals(2, tokens.size());
+        assertEquals("token-tab1", tokens.get(0));
+        assertEquals("token-tab2", tokens.get(1));
+    }
+
+    @Test
+    public void testUploadAndAddAttachment_integrationFlow_noCasting() {
+        // Setup: Mock successful file upload
+        when(mComposeBoxQueryControllerBridge.addFile(anyString(), anyString(), any(byte[].class)))
+                .thenReturn("integration-token");
+
+        // Create attachment without token
+        FuseboxAttachment attachment =
+                FuseboxAttachment.forFile(
+                        null,
+                        "integration-test.txt",
+                        "text/plain",
+                        "integration content".getBytes());
+
+        // Action: Use mediator's uploadAndAddAttachment method
+        mMediator.uploadAndAddAttachment(attachment);
+
+        // Verification: Should work without any casting
+        assertEquals(1, mAttachments.size());
+        verify(mComposeBoxQueryControllerBridge)
+                .addFile(
+                        eq("integration-test.txt"),
+                        eq("text/plain"),
+                        eq("integration content".getBytes()));
+        assertEquals("integration-token", attachment.getToken());
+
+        // Verify AI mode is activated
+        assertEquals(AutocompleteRequestType.AI_MODE, (int) mAutocompleteRequestTypeSupplier.get());
+    }
+
+    @Test
+    public void testAddAttachment_disablesCreateImage() {
+        doReturn("token-tab1")
+                .when(mComposeBoxQueryControllerBridge)
+                .addTabContextFromCache(anyLong());
+        doReturn(mTab1).when(mTabModelSelector).getCurrentTab();
+        doReturn("Title1").when(mTab1).getTitle();
+        doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
+        doReturn(true).when(mTab1).isInitialized();
+        doReturn(100L).when(mTab1).getTimestampMillis();
+
+        mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+
+        mModel.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_CLICKED).run();
+        assertEquals(1, mAttachments.size());
+        mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run();
+        assertFalse(mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+
+        mAttachments.get(0).model.get(FuseboxAttachmentProperties.ON_REMOVE).run();
+        assertEquals(0, mAttachments.size());
+        mModel.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run();
+        assertTrue(mModel.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
     }
 }

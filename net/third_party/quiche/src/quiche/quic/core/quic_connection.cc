@@ -625,11 +625,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   if (perspective_ == Perspective::IS_SERVER && version().HasIetfQuicFrames() &&
-      config.HasClientSentConnectionOption(kCFLS, perspective_) &&
-      GetQuicReloadableFlag(
-          quic_allow_flow_label_blackhole_avoidance_on_server)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_allow_flow_label_blackhole_avoidance_on_server);
+      config.HasClientSentConnectionOption(kCFLS, perspective_)) {
     EnableBlackholeAvoidanceViaFlowLabel();
   }
 
@@ -2834,11 +2830,7 @@ void QuicConnection::OnCanWrite() {
     // Send an ACK now because either 1) we were write blocked when we last
     // tried to send an ACK, or 2) both ack alarm and send alarm were set to
     // go off together.
-    if (SupportsMultiplePacketNumberSpaces()) {
-      SendAllPendingAcks();
-    } else {
-      SendAck();
-    }
+    SendAllPendingAcks();
   }
 
   // Sending queued packets may have caused the socket to become write blocked,
@@ -4177,11 +4169,7 @@ void QuicConnection::OnAckAlarm() {
   QUICHE_DCHECK(ack_frame_updated());
   QUICHE_DCHECK(connected());
   QuicConnection::ScopedPacketFlusher flusher(this);
-  if (SupportsMultiplePacketNumberSpaces()) {
-    SendAllPendingAcks();
-  } else {
-    SendAck();
-  }
+  SendAllPendingAcks();
 }
 
 void QuicConnection::SendAck() {
@@ -4971,10 +4959,8 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
               connection_->clock_->ApproximateNow()) {
         // If send alarm will go off soon, let send alarm send the ACK.
         connection_->ack_alarm().Cancel();
-      } else if (connection_->SupportsMultiplePacketNumberSpaces()) {
-        connection_->SendAllPendingAcks();
       } else {
-        connection_->SendAck();
+        connection_->SendAllPendingAcks();
       }
     }
 
@@ -5220,9 +5206,9 @@ bool QuicConnection::SendConnectivityProbingPacket(
 
   std::unique_ptr<SerializedPacket> probing_packet;
   if (!version().HasIetfQuicFrames()) {
-    // Non-IETF QUIC, generate a padded ping regardless of whether this is a
+    // For gQUIC, generate a padded ping regardless of whether this is a
     // request or a response.
-    probing_packet = packet_creator_.SerializeConnectivityProbingPacket();
+    probing_packet = packet_creator_.SerializeGQuicConnectivityProbingPacket();
   } else {
     // IETF QUIC path challenge.
     // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.
@@ -5758,9 +5744,7 @@ void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
         largest_packet_peer_knows_is_acked);
     if (uber_received_packet_manager_.IsAckFrameEmpty(
             QuicUtils::GetPacketNumberSpace(
-                last_received_packet_info_.decrypted_level)) &&
-        GetQuicReloadableFlag(quic_fail_on_empty_ack)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fail_on_empty_ack);
+                last_received_packet_info_.decrypted_level))) {
       // A packet N arrived from the peer, and was ACKed. Then a packet M < N
       // arrived acknowledging the locally generated ACK. This implies that
       // the packet numbers are not increasing. Or, M was sent with an
@@ -5929,7 +5913,11 @@ void QuicConnection::MaybeBundleCryptoDataWithAcks() {
 }
 
 void QuicConnection::SendAllPendingAcks() {
-  QUICHE_DCHECK(SupportsMultiplePacketNumberSpaces());
+  if (!SupportsMultiplePacketNumberSpaces()) {
+    // gQUIC only has one packet number space.
+    SendAck();
+    return;
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
   ack_alarm().Cancel();
   QuicTime earliest_ack_timeout =

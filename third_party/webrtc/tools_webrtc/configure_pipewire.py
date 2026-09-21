@@ -19,7 +19,7 @@ def _get_pipewire_dir():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     src_dir = os.path.dirname(script_dir)
 
-    pipewire_dir = os.path.join(src_dir, 'third_party', 'pipewire-1.4',
+    pipewire_dir = os.path.join(src_dir, 'third_party', 'pipewire',
                                 'linux-amd64')
 
     return pipewire_dir

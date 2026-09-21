@@ -726,6 +726,8 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
                                                  duration=1,
                                                  test_log='',
                                                  metrics={},
+                                                 prompt=None,
+                                                 response=None,
                                              ),
                                          ])
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
@@ -771,6 +773,8 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
                                                  duration=1,
                                                  test_log='',
                                                  metrics={},
+                                                 prompt=None,
+                                                 response=None,
                                              ),
                                          ])
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
@@ -841,6 +845,8 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
                                                  duration=1,
                                                  test_log='',
                                                  metrics={},
+                                                 prompt=None,
+                                                 response=None,
                                              ),
                                          ])
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
@@ -869,6 +875,8 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
                                                  duration=1,
                                                  test_log='',
                                                  metrics={},
+                                                 prompt=None,
+                                                 response=None,
                                              ),
                                          ])
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
@@ -1223,10 +1231,6 @@ class ParseArgsUnittest(unittest.TestCase):
         }
 
         for key_to_omit in perf_args:
-            # TODO(crbug.com/449818513): Remove this once the default values
-            # for these arguments are removed.
-            if key_to_omit in ('--builder-group', '--build-number'):
-                continue
             with self.subTest(missing_arg=key_to_omit):
                 args_list = base_args[:]
                 for arg, value in perf_args.items():

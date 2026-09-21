@@ -354,14 +354,9 @@ int pkcs8_pbe_decrypt(uint8_t **out, size_t *out_len, CBS *algorithm,
     goto err;
   }
 
-  if (in_len > INT_MAX) {
-    OPENSSL_PUT_ERROR(PKCS8, ERR_R_OVERFLOW);
-    goto err;
-  }
-
-  int n1, n2;
-  if (!EVP_DecryptUpdate(ctx.get(), buf, &n1, in, (int)in_len) ||
-      !EVP_DecryptFinal_ex(ctx.get(), buf + n1, &n2)) {
+  size_t n1, n2;
+  if (!EVP_DecryptUpdate_ex(ctx.get(), buf, &n1, in_len, in, in_len) ||
+      !EVP_DecryptFinal_ex2(ctx.get(), buf + n1, &n2, in_len - n1)) {
     goto err;
   }
 
@@ -455,11 +450,12 @@ int PKCS8_marshal_encrypted_private_key(CBB *out, int pbe_nid,
 
     CBB ciphertext;
     uint8_t *ptr;
-    int n1, n2;
+    size_t n1, n2;
     if (!CBB_add_asn1(&epki, &ciphertext, CBS_ASN1_OCTETSTRING) ||
         !CBB_reserve(&ciphertext, &ptr, max_out) ||
-        !EVP_CipherUpdate(ctx.get(), ptr, &n1, plaintext, plaintext_len) ||
-        !EVP_CipherFinal_ex(ctx.get(), ptr + n1, &n2) ||
+        !EVP_CipherUpdate_ex(ctx.get(), ptr, &n1, max_out, plaintext,
+                             plaintext_len) ||
+        !EVP_CipherFinal_ex2(ctx.get(), ptr + n1, &n2, max_out - n1) ||
         !CBB_did_write(&ciphertext, n1 + n2) || !CBB_flush(out)) {
       goto err;
     }

@@ -42,11 +42,8 @@ namespace blink {
 
 class Font;
 
-class CORE_EXPORT FontFaceSetDocument final : public FontFaceSet,
-                                              public Supplement<Document> {
+class CORE_EXPORT FontFaceSetDocument final : public FontFaceSet {
  public:
-  static const char kSupplementName[];
-
   explicit FontFaceSetDocument(Document&);
   FontFaceSetDocument(const FontFaceSetDocument&) = delete;
   FontFaceSetDocument& operator=(const FontFaceSetDocument&) = delete;
@@ -104,6 +101,7 @@ class CORE_EXPORT FontFaceSetDocument final : public FontFaceSet,
    private:
     Status status_;
   };
+
   FontLoadHistogram font_load_histogram_;
 
   HeapTaskRunnerTimer<FontFaceSetDocument> lcp_limit_timer_;

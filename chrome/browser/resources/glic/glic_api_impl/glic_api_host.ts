@@ -360,7 +360,7 @@ class WebClientImpl implements WebClientInterface {
       void {
     this.sender.sendLatestWhenActive(
         'glicWebClientPageMetadataChanged', {
-          tabId: tabIdToClient(tabId),
+          tabId: idToClient(tabId),
           pageMetadata: pageMetadataToClient(metadata),
         },
         undefined, `${tabId}`);
@@ -419,7 +419,7 @@ class WebClientImpl implements WebClientInterface {
 
     const clientContext: AdditionalContextPrivate = {
       name: optionalToClient(context.name),
-      tabId: tabIdToClient(context.tabId),
+      tabId: idToClient(context.tabId),
       origin: originToClient(context.origin),
       frameUrl: urlToClient(context.frameUrl),
       parts: clientParts,
@@ -647,13 +647,13 @@ class HostMessageHandler implements HostMessageHandlerInterface {
         request.options.openInBackground !== undefined ?
             request.options.openInBackground :
             false,
-        optionalWindowIdFromClient(request.options.windowId));
+        idFromClient(request.options.windowId));
     const tabData = response.tabData;
     if (tabData) {
       return {
         tabData: {
-          tabId: tabIdToClient(tabData.tabId),
-          windowId: windowIdToClient(tabData.windowId),
+          tabId: idToClient(tabData.tabId),
+          windowId: idToClient(tabData.windowId),
           url: urlToClient(tabData.url),
           title: optionalToClient(tabData.title),
         },
@@ -671,6 +671,10 @@ class HostMessageHandler implements HostMessageHandlerInterface {
       optionsMojo.highlightField = request.options?.highlightField as number;
     }
     this.handler.openGlicSettingsPage(optionsMojo);
+  }
+
+  glicBrowserOpenPasswordManagerSettingsPage(): void {
+    this.handler.openPasswordManagerSettingsPage();
   }
 
   glicBrowserClosePanel(): void {
@@ -741,7 +745,7 @@ class HostMessageHandler implements HostMessageHandlerInterface {
       Promise<{tabContextResult: TabContextResultPrivate}> {
     const {result: {errorReason, tabContext}} =
         await this.handler.getContextFromTab(
-            tabIdFromClient(request.tabId),
+            idFromClient(request.tabId),
             tabContextOptionsFromClient(request.options));
     if (!tabContext) {
       throw new Error(`tabContext failed: ${errorReason}`);
@@ -759,7 +763,7 @@ class HostMessageHandler implements HostMessageHandlerInterface {
       Promise<{tabContextResult: TabContextResultPrivate}> {
     const {result: {errorReason, tabContext}} =
         await this.handler.getContextForActorFromTab(
-            tabIdFromClient(request.tabId),
+            idFromClient(request.tabId),
             tabContextOptionsFromClient(request.options));
     if (!tabContext) {
       throw new Error(`tabContext failed: ${errorReason}`);
@@ -831,7 +835,7 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     const actorTaskPauseReason =
         request.pauseReason as number as ActorTaskPauseReasonMojo;
     this.handler.pauseActorTask(
-        request.taskId, actorTaskPauseReason, tabIdFromClient(request.tabId));
+        request.taskId, actorTaskPauseReason, idFromClient(request.tabId));
   }
 
   async glicBrowserResumeActorTask(
@@ -870,8 +874,34 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.uninterruptActorTask(request.taskId);
   }
 
+  async glicBrowserCreateActorTab(request: {
+    taskId: number,
+    options: {
+      initiatorTabId?: string,
+      initiatorWindowId?: string,
+      openInBackground?: boolean,
+    },
+  }) {
+    const response = await this.handler.createActorTab(
+        request.taskId, request.options.openInBackground === true,
+        idFromClient(request.options.initiatorTabId),
+        idFromClient(request.options.initiatorWindowId));
+    const tabData = response.tabData;
+    if (tabData) {
+      return {
+        tabData: {
+          tabId: idToClient(tabData.tabId),
+          windowId: idToClient(tabData.windowId),
+          url: urlToClient(tabData.url),
+          title: optionalToClient(tabData.title),
+        },
+      };
+    }
+    return {};
+  }
+
   glicBrowserActivateTab(request: {tabId: string}): void {
-    this.handler.activateTab(tabIdFromClient(request.tabId));
+    this.handler.activateTab(idFromClient(request.tabId));
   }
 
   async glicBrowserResizeWindow(request: {
@@ -1202,13 +1232,12 @@ class HostMessageHandler implements HostMessageHandlerInterface {
 
   glicBrowserPinTabs(request: {tabIds: string[]}):
       Promise<{pinnedAll: boolean}> {
-    return this.handler.pinTabs(request.tabIds.map((x) => tabIdFromClient(x)));
+    return this.handler.pinTabs(request.tabIds.map((x) => idFromClient(x)));
   }
 
   glicBrowserUnpinTabs(request: {tabIds: string[]}):
       Promise<{unpinnedAll: boolean}> {
-    return this.handler.unpinTabs(
-        request.tabIds.map((x) => tabIdFromClient(x)));
+    return this.handler.unpinTabs(request.tabIds.map((x) => idFromClient(x)));
   }
 
   glicBrowserUnpinAllTabs(): void {
@@ -1248,7 +1277,7 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     } else {
       return {
         suggestions: {
-          tabId: tabIdToClient(zeroStateData.tabId),
+          tabId: idToClient(zeroStateData.tabId),
           url: urlToClient(zeroStateData.tabUrl),
           suggestions: zeroStateData.suggestions,
         },
@@ -1307,7 +1336,7 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     names: string[],
   }): Promise<{success: boolean}> {
     return this.handler.subscribeToPageMetadata(
-        tabIdFromClient(request.tabId), request.names);
+        idFromClient(request.tabId), request.names);
   }
 
   glicBrowserOnModeChange(request: {newMode: WebClientMode}): void {
@@ -1338,6 +1367,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
   private panelOpenState = PanelOpenState.CLOSED;
   private instanceIsActive = true;
   private hasShownDebuggerAttachedWarning = false;
+  private loggingEnabled = loadTimeData.getBoolean('loggingEnabled');
   detailedWebClientState = DetailedWebClientState.BOOTSTRAP_PENDING;
   // Present while the client is monitoring pin candidates.
   pinCandidatesObserver?: PinCandidatesObserverImpl;
@@ -1348,11 +1378,10 @@ export class GlicApiHost implements PostMessageRequestHandler {
       private embeddedOrigin: string, embedder: ApiHostEmbedder) {
     this.postMessageReceiver = new PostMessageRequestReceiver(
         embeddedOrigin, this.senderId, windowProxy, this, 'glic_api_host');
-    this.postMessageReceiver.setLoggingEnabled(
-        loadTimeData.getBoolean('loggingEnabled'));
+    this.postMessageReceiver.setLoggingEnabled(this.loggingEnabled);
     const ungatedSender = new PostMessageRequestSender(
         windowProxy, embeddedOrigin, this.senderId, 'glic_api_host');
-    ungatedSender.setLoggingEnabled(loadTimeData.getBoolean('loggingEnabled'));
+    ungatedSender.setLoggingEnabled(this.loggingEnabled);
     this.sender = new GatedSender(ungatedSender);
     this.handler = new WebClientHandlerRemote();
     this.handler.onConnectionError.addListener(() => {
@@ -1607,6 +1636,11 @@ export class GlicApiHost implements PostMessageRequestHandler {
     });
   }
 
+  openLinkInPopup(url: string, initialWidth: number, initialHeight: number) {
+    this.handler.openLinkInPopup(
+        urlFromClient(url), initialWidth, initialHeight);
+  }
+
   async openLinkInNewTab(url: string) {
     await this.handler.createTab(urlFromClient(url), false, null);
   }
@@ -1646,6 +1680,9 @@ export class GlicApiHost implements PostMessageRequestHandler {
         const friendlyName =
             type.replaceAll(/^glicBrowser|^glicWebClient/g, '');
         throw new Error(`${friendlyName} not allowed while backgrounded`);
+      }
+      if (this.loggingEnabled) {
+        console.warn(`Using background request behavior for ${type}`);
       }
       if (Object.hasOwn(backgroundResponse, 'does')) {
         response = await (backgroundResponse as HostBackgroundResponseDoes<any>)
@@ -1860,43 +1897,33 @@ function sleep(ms: number) {
 //   representation later.
 // * Optional types in Mojo use null, but optional types in the public API use
 //   undefined.
-function windowIdToClient(windowId: number): string {
-  return `${windowId}`;
-}
-
-function windowIdFromClient(windowId: string): number {
-  return parseInt(windowId);
-}
-
-function tabIdToClient(tabId: number): string;
-function tabIdToClient(tabId: number|null): string|undefined;
-function tabIdToClient(tabId: number|null): string|undefined {
-  if (tabId === null) {
-    return undefined;
-  }
-  return `${tabId}`;
-}
-
-function tabIdFromClient(tabId: string): number {
-  const parsed = parseInt(tabId);
-  if (Number.isNaN(parsed)) {
-    return 0;
-  }
-  return parsed;
-}
-
-function optionalWindowIdToClient(windowId: number|null): string|undefined {
+function idToClient(windowId: number): string;
+function idToClient(windowId: number|null): string|undefined;
+function idToClient(windowId: number|null): string|undefined {
   if (windowId === null) {
     return undefined;
   }
-  return windowIdToClient(windowId);
+
+  if (Number.isNaN(windowId)) {
+    return '0';
+  }
+
+  return `${windowId}`;
 }
 
-function optionalWindowIdFromClient(windowId: string|undefined): number|null {
+function idFromClient(windowId: string): number;
+function idFromClient(windowId: string|undefined): number|null;
+function idFromClient(windowId: string|undefined): number|null {
   if (windowId === undefined) {
     return null;
   }
-  return windowIdFromClient(windowId);
+
+  const parsed = parseInt(windowId);
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return parsed;
 }
 
 function screenshotToClient(
@@ -2050,8 +2077,8 @@ function tabDataToClient(tabData: TabDataMojo|null, extras: ResponseExtras):
   const isActiveInWindow = optionalToClient(tabData.isActiveInWindow);
   const isWindowActive = optionalToClient(tabData.isWindowActive);
   return {
-    tabId: tabIdToClient(tabData.tabId),
-    windowId: windowIdToClient(tabData.windowId),
+    tabId: idToClient(tabData.tabId),
+    windowId: idToClient(tabData.windowId),
     url: urlToClient(tabData.url),
     title: optionalToClient(tabData.title),
     favicon,
@@ -2142,7 +2169,7 @@ function conversationInfoToClient(conversationInfo: ConversationInfoMojo):
 function panelStateToClient(panelState: PanelStateMojo): PanelState {
   return {
     kind: panelState.kind as number,
-    windowId: optionalWindowIdToClient(panelState.windowId),
+    windowId: idToClient(panelState.windowId),
   };
 }
 
@@ -2280,6 +2307,11 @@ function selectCredentialDialogRequestToClient(
   }
   return {
     ...request,
+    credentials: request.credentials.map(
+        credential => ({
+          ...credential,
+          requestOrigin: originToClient(credential.requestOrigin),
+        })),
     icons,
   };
 }
@@ -2402,7 +2434,7 @@ function captureRegionResultToClient(result: CaptureRegionResultMojo|null):
   }
   const region = result.region.rect ? {rect: result.region.rect} : undefined;
   return {
-    tabId: tabIdToClient(result.tabId),
+    tabId: idToClient(result.tabId),
     region,
   };
 }

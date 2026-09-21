@@ -245,6 +245,9 @@ void PrintTo(const RequestHandlerResult& request_handler_result,
     case FinalContentAnalysisResult::SUCCESS:
       *os << "SUCCESS";
       break;
+    case FinalContentAnalysisResult::FORCE_SAVE_TO_CLOUD:
+      *os << "FORCE_SAVE_TO_CLOUD";
+      break;
   }
   *os << "), tag: \"" << request_handler_result.tag << "\")";
 }
@@ -363,7 +366,7 @@ class FilesRequestHandlerTest : public BaseTest {
 
   void FakeFileUploadCallback(
       bool is_cloud_analysis,
-      safe_browsing::BinaryUploadService::Result result,
+      ScanRequestUploadResult result,
       const base::FilePath& path,
       std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
       test::FakeFilesRequestHandler::FakeFileRequestCallback callback) {

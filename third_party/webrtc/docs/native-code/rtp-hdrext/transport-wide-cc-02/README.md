@@ -60,3 +60,14 @@ The data is written in the following order,
     generated, which is equivalent of sending the two-byte extension above.
     This is added as an option to allow for a fixed packet header size.
 
+## Usage and compatibility
+
+Since the transport-wide CC extension is designed to cover all RTP data
+on a connection, it should be specified on all media sections in an SDP
+description. However, omitting it for audio has been supported in the past;
+in this case, congestion control will ignore the audio.
+
+The transport-wide CC extension cannot be used at the same time as the
+CCFB feedback format (RFC 8888). It is legal to make an offer that gives
+both transport-wide CC and CCFB, but in an answer, only one of them can
+be specified, and that choice has to be consistent across all media sections.

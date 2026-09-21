@@ -132,8 +132,32 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
     /** Used as the result of {@link #didAccountFetchSucceed()}. */
     private boolean mDidAccountFetchingSucceed = true;
 
-    /** Creates an object of FakeAccountManagerFacade. */
-    public FakeAccountManagerFacade() {}
+    private final boolean mSerializeToPrefs;
+
+    /**
+     * Creates an object of FakeAccountManagerFacade. The account data will be stored in memory and
+     * wiped when this object is closed.
+     */
+    public FakeAccountManagerFacade() {
+        this(false);
+    }
+
+    /**
+     * Creates an object of FakeAccountManagerFacade.
+     *
+     * @param serializeToPrefs Whether to persist account data in SharedPreferences. When true,
+     *     accounts are loaded from SharedPreferences on creation and saved to SharedPreferences on
+     *     modification. When false, account data is only stored in memory.
+     */
+    public FakeAccountManagerFacade(boolean serializeToPrefs) {
+        mSerializeToPrefs = serializeToPrefs;
+        if (mSerializeToPrefs) {
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        setAccounts(SharedPrefsAccountStorage.loadAccounts());
+                    });
+        }
+    }
 
     @MainThread
     @Override
@@ -320,13 +344,7 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
     /** Adds an account represented by {@link AccountInfo}. */
     public void addAccount(AccountInfo accountInfo) {
         if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
-            ThreadUtils.runOnUiThreadBlocking(
-                    () -> {
-                        mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
-                        if (mBlockedGetAccountsPromise == null) {
-                            fireOnAccountsChangedNotification();
-                        }
-                    });
+            ThreadUtils.runOnUiThreadBlocking(() -> addAccountOnUiThread(accountInfo));
             return;
         }
 
@@ -339,37 +357,25 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
                 });
     }
 
+    @MainThread
+    private void addAccountOnUiThread(AccountInfo accountInfo) {
+        ThreadUtils.checkUiThread();
+        mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
+        if (mBlockedGetAccountsPromise == null) {
+            fireOnAccountsChangedNotification();
+        }
+        if (mSerializeToPrefs) {
+            SharedPrefsAccountStorage.saveAccounts(getPlatformAccountInfosInternal());
+        }
+    }
+
     /**
      * Updates that account that is already present. Uses `AccountInfo.getId()` and `CoreAccountId`
      * equality to search for the account to update. Throws if the account can't be found.
      */
     public void updateAccount(AccountInfo accountInfo) {
         if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
-            ThreadUtils.runOnUiThreadBlocking(
-                    () -> {
-                        synchronized (mPlatformAccounts) {
-                            @Nullable FakePlatformAccount platformAccount =
-                                    (FakePlatformAccount)
-                                            mPlatformAccounts.stream()
-                                                    .filter(
-                                                            (account) ->
-                                                                    Objects.equals(
-                                                                            account.getId(),
-                                                                            accountInfo
-                                                                                    .getGaiaId()))
-                                                    .findFirst()
-                                                    .orElse(null);
-                            if (platformAccount == null) {
-                                throw new IllegalArgumentException(
-                                        "Account " + accountInfo.getEmail() + " can't be found!");
-                            }
-                            mPlatformAccounts.remove(platformAccount);
-                            mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
-                        }
-                        if (mBlockedGetAccountsPromise == null) {
-                            fireOnAccountsChangedNotification();
-                        }
-                    });
+            ThreadUtils.runOnUiThreadBlocking(() -> updateAccountOnUiThread(accountInfo));
             return;
         }
         ThreadUtils.runOnUiThreadBlocking(
@@ -397,6 +403,35 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
                 });
     }
 
+    @MainThread
+    private void updateAccountOnUiThread(AccountInfo accountInfo) {
+        ThreadUtils.checkUiThread();
+        synchronized (mPlatformAccounts) {
+            @Nullable FakePlatformAccount platformAccount =
+                    (FakePlatformAccount)
+                            mPlatformAccounts.stream()
+                                    .filter(
+                                            (account) ->
+                                                    Objects.equals(
+                                                            account.getId(),
+                                                            accountInfo.getGaiaId()))
+                                    .findFirst()
+                                    .orElse(null);
+            if (platformAccount == null) {
+                throw new IllegalArgumentException(
+                        "Account " + accountInfo.getEmail() + " can't be found!");
+            }
+            mPlatformAccounts.remove(platformAccount);
+            mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
+        }
+        if (mBlockedGetAccountsPromise == null) {
+            fireOnAccountsChangedNotification();
+        }
+        if (mSerializeToPrefs) {
+            SharedPrefsAccountStorage.saveAccounts(getPlatformAccountInfosInternal());
+        }
+    }
+
     /**
      * Removes an account from the fake AccountManagerFacade.
      *
@@ -407,8 +442,7 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     synchronized (mAccountHolders) {
-                        @Nullable
-                        AccountHolder accountHolder =
+                        @Nullable AccountHolder accountHolder =
                                 mAccountHolders.stream()
                                         .filter((ah) -> ah.getAccount().equals(account))
                                         .findFirst()
@@ -576,7 +610,8 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
     }
 
     @AnyThread
-    private @Nullable AccountHolder getAccountHolder(CoreAccountId accountId) {
+    @Nullable
+    private AccountHolder getAccountHolder(CoreAccountId accountId) {
         synchronized (mAccountHolders) {
             return mAccountHolders.stream()
                     .filter(
@@ -588,7 +623,8 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
     }
 
     @AnyThread
-    private @Nullable FakePlatformAccount getPlatformAccount(GaiaId gaiaId) {
+    @Nullable
+    private FakePlatformAccount getPlatformAccount(GaiaId gaiaId) {
         synchronized (mPlatformAccounts) {
             return (FakePlatformAccount)
                     mPlatformAccounts.stream()
@@ -613,6 +649,7 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
      * AccountsChangeObservers if there has been a change. New capabilities that were not already
      * set are added and existing ones are updated with the new values.
      */
+    @MainThread
     public void updateAccountCapabilities(
             CoreAccountId accountId, AccountCapabilities accountCapabilities) {
         ThreadUtils.checkUiThread();
@@ -629,8 +666,25 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
             capabilitiesChanged =
                     accountHolder.getAccountCapabilities().updateWith(accountCapabilities);
         }
-
         if (capabilitiesChanged) {
+            fireOnAccountsChangedNotification();
+        }
+    }
+
+    private void setAccounts(List<AccountInfo> accounts) {
+        ThreadUtils.checkUiThread();
+        if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
+            mPlatformAccounts.clear();
+            for (AccountInfo accountInfo : accounts) {
+                mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
+            }
+        } else {
+            mAccountHolders.clear();
+            for (AccountInfo accountInfo : accounts) {
+                mAccountHolders.add(new AccountHolder(accountInfo));
+            }
+        }
+        if (mBlockedGetAccountsPromise == null) {
             fireOnAccountsChangedNotification();
         }
     }

@@ -35,6 +35,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "media/base/audio_source.h"
 #include "media/base/codec.h"
@@ -257,7 +258,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   virtual void RemoveTrackFromStats() {}
 
   const Environment env_;
-  Thread* const signaling_thread_;
+  TaskQueueBase* const signaling_thread_;
   Thread* const worker_thread_;
   uint32_t ssrc_ = 0;
   bool stopped_ RTC_GUARDED_BY(signaling_thread_) = false;

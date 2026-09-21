@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">AI режимімен іздеу</translation>
 <translation id="3557336313807607643">Контактілерге қосу</translation>
 <translation id="355765753469272474">Қайтару</translation>
+<translation id="3565012355885596568">Суреттер жүктелмеді</translation>
 <translation id="3565930036634619844">Қойынды. <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">Google аккаунтыңызда</translation>
 <translation id="3575234738189584619">Lens арқылы іздеу</translation>
@@ -1314,6 +1315,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="6045460247888249350">Атауын енгізіңіз</translation>
 <translation id="6052269326659653305">Профильді ауыстыру</translation>
 <translation id="605721222689873409">ЖЖ</translation>
+<translation id="6058415747854995776">Бейне жазу</translation>
 <translation id="6059830886158432458">Жаңалықтар мен әрекеттерді осы жерде басқарыңыз.</translation>
 <translation id="6066301408025741299">Болдырмау үшін түртіңіз.</translation>
 <translation id="6074656473835429958">Хабарландырулар алу</translation>
@@ -1815,6 +1817,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="7866872729285243843">Оқу тізімін барлық құрылғыда пайдалану үшін параметрлерде "Оқу тізімі" опциясын қосыңыз.</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> арқылы үлгіні автотолтыру</translation>
 <translation id="7879275349003161544">Жүктеп алынғандарды көрсету</translation>
+<translation id="7882689957034389473">Суретке түсіру</translation>
 <translation id="7883882164760409935">Бұрын қолданылған құпия сөздеріңіз бар.</translation>
 <translation id="7887174313503389866">Құпиялық пен қауіпсіздікті басқарудың маңызды құралдары туралы қысқаша презентацияны қарап шығыңыз. Басқа опцияларды көру үшін әр параметрге жеке-жеке өтіңіз.</translation>
 <translation id="7887198238286927132">Құпиялығыңызды сақтау мақсатында бұл өріс автоматты түрде толтырылмайды.</translation>
@@ -1998,6 +2001,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8551311254462607218">Мекенжай жолағындағы Google Lens камера белгішесін түртіңіз.</translation>
 <translation id="8556590991644167667">{count,plural, =1{{count} ескертуді жауып тастадыңыз.}other{{count} ескертуді жауып тастадыңыз.}}</translation>
 <translation id="8558046478684552694">Топты жабу.</translation>
+<translation id="8559858985063901027">Кіру кілттері</translation>
 <translation id="8560253818350321773">Алдымен жиі пайдаланылатын элементтерді көрсетіңіз.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Пернетақтаның үстінде құпия сөзге арналған {count} опция қолжетімді.}other{Пернетақтаның үстінде құпия сөзге арналған {count} опция қолжетімді.}}</translation>
 <translation id="8564894539416715395">Жаңа қойынды беті</translation>

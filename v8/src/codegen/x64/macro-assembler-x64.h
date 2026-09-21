@@ -568,9 +568,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode, Condition cc);
 
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized(Register scratch);
+  void AssertNotDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -606,9 +604,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register reg) NOOP_UNLESS_DEBUG_CODE;
 
-  // Abort execution if the signed bit of smi register with pointer compression
-  // is not zero, enabled via --debug-code.
-  void AssertSignedBitOfSmiIsZero(Register smi) NOOP_UNLESS_DEBUG_CODE;
+  // Abort execution if the sign bit of smi register with pointer compression
+  // is not zero, enabled via --slow-debug-code.
+  void AssertSignBitOfSmiIsZero(Register smi) NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason);

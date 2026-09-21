@@ -16,6 +16,7 @@
 
 #include "base/base_export.h"
 #include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/process/process_handle.h"
@@ -335,6 +336,8 @@ struct BASE_EXPORT SystemMemoryInfo {
   SystemMemoryInfo(const SystemMemoryInfo& other);
   SystemMemoryInfo& operator=(const SystemMemoryInfo& other);
 
+  // TODO(crbug.com/458489438): Migrate all generic ByteCount usages in
+  // base/system and base/memory to the new types.
   ByteCount total;
 
 #if !BUILDFLAG(IS_WIN)
@@ -388,6 +391,11 @@ struct BASE_EXPORT SystemMemoryInfo {
   ByteCount file_backed;
   ByteCount purgeable;
 #endif  // BUILDFLAG(IS_APPLE)
+
+  // Returns a cross-platform estimation of available physical memory.
+  // This value is an approximation of the amount of physical memory that
+  // can be used without the system needing to swap.
+  ByteCount GetAvailablePhysicalMemory() const;
 };
 
 // On Linux/Android/Chrome OS, system-wide memory consumption data is parsed

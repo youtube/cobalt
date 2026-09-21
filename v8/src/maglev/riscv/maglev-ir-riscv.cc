@@ -958,24 +958,14 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
   UseRegister(index_input());
-  set_temporaries_needed(1);
+  UseRegister(byte_length_input());
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = ToRegister(receiver_input());
+  USE(element_type_);
   Register index = ToRegister(index_input());
-  if (v8_flags.debug_code) {
-    __ AssertObjectType(object, JS_DATA_VIEW_TYPE,
-                        AbortReason::kUnexpectedValue);
-  }
-
-  // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
-  Register byte_length = temps.Acquire();
-  __ LoadBoundedSizeFromObject(byte_length, object,
-                               JSDataView::kRawByteLengthOffset);
+  Register byte_length = ToRegister(byte_length_input());
 
   int element_size = compiler::ExternalArrayElementSize(element_type_);
   Label ok;
@@ -992,16 +982,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ bind(&ok);
 }
 
-void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  // The hole value is a signalling NaN, so just silence it to get the float64
-  // value.
-  __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
-}
 
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
@@ -1014,6 +994,40 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   // those before changing representation.
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
+
+void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the
+  // float64 value.
+  __ FPUCanonicalizeNaN(ToDoubleRegister(this->result()),
+                        ToDoubleRegister(input()));
+}
+
+void Float64ToSilencedFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the
+  // float64 value.
+  __ FPUCanonicalizeNaN(ToDoubleRegister(this->result()),
+                        ToDoubleRegister(input()));
+}
+
+void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {}
 
 namespace {
 

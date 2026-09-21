@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Pieskarieties vienumam “Lietotnes” un pēc tam — vienumam “Noklusējuma lietotnes”.</translation>
 <translation id="1415402041810619267">URL ir saīsināts</translation>
 <translation id="1415855080660575082">Ļaujiet pārlūkam Chrome kopīgot jūsu nesen atvērtās cilnes ar ierīci, lai tās tiktu rādītas ierīces lietotņu sarakstā un meklēšanas rezultātos. Chrome iestatījumos varat ieslēgt vai izslēgt šo funkciju.</translation>
+<translation id="1420688843103859429">Pārejiet atpakaļ un uz priekšu, skārienpaliktnī velkot ar diviem pirkstiem.</translation>
 <translation id="1432650420699700107">Vietnes var pieprasīt atļauju izveidot savienojumu ar jebkuru ierīci jūsu lokālajā tīklā</translation>
 <translation id="1448064542941920355">Tuvināt</translation>
 <translation id="1464044141348608623">Nerādīt vietnēm, kad jūs aktīvi lietojat savu ierīci</translation>
@@ -218,7 +219,6 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="3285500645985761267">Atļaut saistīto vietņu īpašniekiem skatīt jūsu darbības grupā</translation>
 <translation id="3295019059349372795">11. nodaļa: Oza zemes brīnumainā Smaragda pilsēta</translation>
 <translation id="3295602654194328831">Slēpt informāciju</translation>
-<translation id="3328801116991980348">Vietnes informācija</translation>
 <translation id="3333961966071413176">Visas kontaktpersonas</translation>
 <translation id="3360338140203645771">Vai dzēst saglabātos tālummaiņas līmeņus?</translation>
 <translation id="3362437373201486687">Notiek Bluetooth ierīču meklēšana…</translation>
@@ -243,6 +243,7 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="3611658447322220736">Atļaut nesen aizvērtām vietnēm pabeigt datu nosūtīšanu un saņemšanu</translation>
 <translation id="3619294456800709762">Vietnēs drīkst automātiski aktivizēt režīmu “Attēls attēlā”</translation>
 <translation id="3628308229821498208">Ieteiktie meklēšanas vaicājumi</translation>
+<translation id="363748948745453283">Tiek izmantota aptuvena atrašanās vieta.</translation>
 <translation id="3641456520301071208">Atļaut vietnēm pieprasīt atļauju piekļūt jūsu atrašanās vietas datiem</translation>
 <translation id="3658847490588580244">Noklusējuma pārlūka ekrāna apakšdaļas lapa</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> vietne domēna <ph name="RWS_OWNER" /> vietņu grupā, kurai piederīgo vietņu īpašniekiem ir redzamas jebkurā grupas vietnē veiktās darbības}zero{<ph name="RWS_MEMBERS_COUNT" /> vietņu domēna <ph name="RWS_OWNER" /> vietņu grupā, kurai piederīgo vietņu īpašniekiem ir redzamas jebkurā grupas vietnē veiktās darbības}one{<ph name="RWS_MEMBERS_COUNT" /> vietne domēna <ph name="RWS_OWNER" /> vietņu grupā, kurai piederīgo vietņu īpašniekiem ir redzamas jebkurā grupas vietnē veiktās darbības}other{<ph name="RWS_MEMBERS_COUNT" /> vietnes domēna <ph name="RWS_OWNER" /> vietņu grupā, kurai piederīgo vietņu īpašniekiem ir redzamas jebkurā grupas vietnē veiktās darbības}}</translation>
@@ -433,8 +434,10 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="5750869797196646528">Roku kustību izsekošana</translation>
 <translation id="5753570386948603678">Dzēst no vēstures</translation>
 <translation id="5771720122942595109">Bloķēta: <ph name="PERMISSION_1" /></translation>
+<translation id="5792627621688759634">Vilkšana, lai pārietu starp lapām, izmantojot skārienpaliktni</translation>
 <translation id="5801457289562671820">Ieteica jūsu organizācija</translation>
 <translation id="5804241973901381774">Atļaujas</translation>
+<translation id="5817042798620209981">Vietnes informācija, dialoglodziņš</translation>
 <translation id="5822675474983796325">Jaunas cilnes lapas pielāgošanas ekrāna apakšdaļas lapa ir atvērta pilnā augstumā</translation>
 <translation id="5833899990800318936">Neļaut vietnēm izmantot JavaScript</translation>
 <translation id="583673505367439042">Atļaut vietnēm pieprasīt atļauju rediģēt failus un mapes jūsu ierīcē</translation>

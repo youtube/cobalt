@@ -19,7 +19,9 @@
 
 #include <string_view>
 
+#include <openssl/asn1.h>
 #include <openssl/base64.h>
+#include <openssl/bio.h>
 #include <openssl/buf.h>
 #include <openssl/cipher.h>
 #include <openssl/des.h>
@@ -178,6 +180,7 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
   char *nm = nullptr, *header = nullptr;
   unsigned char *data = nullptr;
   long len;
+  size_t len_sz;
   int ret = 0;
 
   for (;;) {
@@ -197,12 +200,13 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
   if (!PEM_get_EVP_CIPHER_INFO(header, &cipher)) {
     goto err;
   }
-  if (!PEM_do_header(&cipher, data, &len, cb, u)) {
+  len_sz = static_cast<size_t>(len);
+  if (!PEM_do_header(&cipher, data, &len_sz, cb, u)) {
     goto err;
   }
 
   *pdata = data;
-  *plen = len;
+  *plen = static_cast<long>(len_sz);
 
   if (pnm) {
     *pnm = nm;
@@ -239,7 +243,8 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp, void *x,
                        const EVP_CIPHER *enc, const unsigned char *pass,
                        int pass_len, pem_password_cb *callback, void *u) {
   bssl::ScopedEVP_CIPHER_CTX ctx;
-  int dsize = 0, i, j, ret = 0;
+  int dsize = 0, ret = 0;
+  size_t i, j, data_size;
   unsigned char *p, *data = nullptr;
   const char *objstr = nullptr;
   char buf[PEM_BUFSIZE];
@@ -262,7 +267,8 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp, void *x,
   }
   // dzise + 8 bytes are needed
   // actually it needs the cipher block size extra...
-  data = (unsigned char *)OPENSSL_malloc((unsigned int)dsize + 20);
+  data_size = static_cast<size_t>(dsize) + 20;
+  data = (unsigned char *)OPENSSL_malloc(data_size);
   if (data == nullptr) {
     goto err;
   }
@@ -306,8 +312,8 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp, void *x,
 
     ret = 1;
     if (!EVP_EncryptInit_ex(ctx.get(), enc, nullptr, key, iv) ||
-        !EVP_EncryptUpdate(ctx.get(), data, &j, data, i) ||
-        !EVP_EncryptFinal_ex(ctx.get(), &(data[j]), &i)) {
+        !EVP_EncryptUpdate_ex(ctx.get(), data, &j, data_size, data, i) ||
+        !EVP_EncryptFinal_ex2(ctx.get(), &(data[j]), &i, data_size - j)) {
       ret = 0;
     } else {
       i += j;
@@ -332,9 +338,9 @@ err:
 }
 
 int PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
-                  long *plen, pem_password_cb *callback, void *u) {
-  int i = 0, j, o, pass_len;
-  long len;
+                  size_t *plen, pem_password_cb *callback, void *u) {
+  int o, pass_len;
+  size_t i = 0, j, len;
   bssl::ScopedEVP_CIPHER_CTX ctx;
   unsigned char key[EVP_MAX_KEY_LENGTH];
   char buf[PEM_BUFSIZE];
@@ -360,13 +366,13 @@ int PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
     return 0;
   }
 
-  j = (int)len;
+  j = len;
   o = EVP_DecryptInit_ex(ctx.get(), cipher->cipher, nullptr, key, cipher->iv);
   if (o) {
-    o = EVP_DecryptUpdate(ctx.get(), data, &i, data, j);
+    o = EVP_DecryptUpdate_ex(ctx.get(), data, &i, len, data, j);
   }
   if (o) {
-    o = EVP_DecryptFinal_ex(ctx.get(), &(data[i]), &j);
+    o = EVP_DecryptFinal_ex2(ctx.get(), &(data[i]), &j, len - i);
   }
   OPENSSL_cleanse((char *)buf, sizeof(buf));
   OPENSSL_cleanse((char *)key, sizeof(key));

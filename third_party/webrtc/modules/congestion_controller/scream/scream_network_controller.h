@@ -47,6 +47,7 @@ class ScreamNetworkController : public NetworkControllerInterface {
   bool SupportsEcnAdaptation() const override { return true; }
 
  private:
+  NetworkControlUpdate CreateFirstUpdate(Timestamp now);
   NetworkControlUpdate CreateUpdate(Timestamp now,
                                     DataRate target_rate,
                                     TimeDelta rtt);
@@ -55,6 +56,9 @@ class ScreamNetworkController : public NetworkControllerInterface {
   Environment env_;
   const ScreamV2Parameters params_;
   const TimeDelta default_pacing_window_;
+  const bool allow_initial_bwe_before_media_ = false;
+  bool first_update_created_ = false;
+  bool network_available_ = false;
   TimeDelta current_pacing_window_;
   std::optional<ScreamV2> scream_;
   TargetRateConstraints target_rate_constraints_;

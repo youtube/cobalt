@@ -294,9 +294,8 @@ class FillingObserver final : public AutofillManager::Observer {
       : remaining_field_ids_(field_ids.begin(), field_ids.end()),
         callback_(std::move(callback)) {
     autofill_managers_observation_.Observe(
-        &autofill_client,
-        ScopedAutofillManagersObservation::InitializationPolicy::
-            kObservePreexistingManagers);
+        &autofill_client, ScopedAutofillManagersObservation::
+                              InitializationPolicy::kObservePreexistingObjects);
     // If `remaining_field_ids_` is empty, this will stop the observation and
     // execute `callback_`.
     FinalizeIfComplete();
@@ -451,12 +450,19 @@ void ActorFormFillingServiceImpl::FillSuggestions(
     base::span<const ActorFormFillingSelection> chosen_suggestions,
     base::OnceCallback<void(base::expected<void, ActorFormFillingError>)>
         callback) {
+  // Helper to make the early returns less verbose.
+  auto post_error = [&callback](const base::Location& location,
+                                ActorFormFillingError error) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        location, base::BindOnce(std::move(callback), base::unexpected(error)));
+  };
+
   using enum ActorFormFillingError;
   base::expected<std::reference_wrapper<BrowserAutofillManager>,
                  ActorFormFillingError>
       maybe_client = GetAutofillManager(tab);
   if (!maybe_client.has_value()) {
-    std::move(callback).Run(base::unexpected(maybe_client.error()));
+    post_error(FROM_HERE, maybe_client.error());
     return;
   }
   BrowserAutofillManager& autofill_manager = maybe_client.value();
@@ -466,7 +472,7 @@ void ActorFormFillingServiceImpl::FillSuggestions(
           chosen_suggestions,
           [&](ActorSuggestionId id) { return fill_data_.contains(id); },
           &ActorFormFillingSelection::selected_suggestion_id)) {
-    std::move(callback).Run(base::unexpected(kOther));
+    post_error(FROM_HERE, kOther);
     return;
   }
 
@@ -487,7 +493,7 @@ void ActorFormFillingServiceImpl::FillSuggestions(
       } else {
         // TODO(crbug.com/455788947): Consider being more lenient and complying
         // with partial form fills.
-        std::move(callback).Run(base::unexpected(kNoForm));
+        post_error(FROM_HERE, kNoForm);
         return;
       }
     }

@@ -21,8 +21,6 @@
 #import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
 #import "ios/chrome/browser/drag_and_drop/model/table_view_url_drag_drop_handler.h"
 #import "ios/chrome/browser/history/ui_bundled/base_history_view_controller+subclassing.h"
-#import "ios/chrome/browser/history/ui_bundled/history_entries_status_item.h"
-#import "ios/chrome/browser/history/ui_bundled/history_entries_status_item_delegate.h"
 #import "ios/chrome/browser/history/ui_bundled/history_entry_inserter.h"
 #import "ios/chrome/browser/history/ui_bundled/history_entry_item.h"
 #import "ios/chrome/browser/history/ui_bundled/history_menu_provider.h"
@@ -540,7 +538,7 @@ const CGFloat kButtonHorizontalPadding = 30.0;
   id<QuickDeleteCommands> quickDeleteHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), QuickDeleteCommands);
   [quickDeleteHandler
-      showQuickDeleteAndCanPerformTabsClosureAnimation:
+      showQuickDeleteAndCanPerformRadialWipeAnimation:
           ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET];
 }
 

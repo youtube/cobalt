@@ -1084,9 +1084,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
       TNode<FunctionTemplateInfo> object) {
-    return LoadExternalPointerFromObject(
-        object, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-        kFunctionTemplateInfoCallbackTag);
+    return LoadExternalPointerFromObject(object,
+                                         FunctionTemplateInfo::kCallbackOffset,
+                                         kFunctionTemplateInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
@@ -3171,6 +3171,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Same as ToObject but avoids the Builtin call if |input| is already a
   // JSReceiver.
   TNode<JSReceiver> ToObject_Inline(TNode<Context> context,
+                                    TNode<Object> input);
+
+  // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+  TNode<JSReceiver> ConvertReceiver(TNode<Context> context,
                                     TNode<Object> input);
 
   // ES6 7.1.15 ToLength, but with inlined fast path.

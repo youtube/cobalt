@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -53,75 +54,31 @@ namespace internal {
 
 using HeapTest = TestWithHeapInternalsAndContext;
 
-TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
-
-  // Low memory
-  ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
-                                                              128u * hlm * MB));
-  // High memory
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                (v8_flags.minor_ms ? (2 * 4) : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(
-                physical_memory, max_heap_size / 4));
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                (v8_flags.minor_ms ? (2 * 2) : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(
-                physical_memory, max_heap_size / 2));
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                (v8_flags.minor_ms ? 2 : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
-                                                              max_heap_size));
-}
-
 TEST(Heap, GenerationSizesFromHeapSize) {
   if (v8_flags.minor_ms) return;
 
   struct GenerationLimit {
-    uint64_t heap_size;
-    uint64_t expected_young_size;
-    uint64_t expected_old_size;
+    size_t heap_size;
+    size_t expected_young_size;
+    size_t expected_old_size;
   };
 
-  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
   static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
   static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
   // Here we just need to pick a large enough value.
   static constexpr uint64_t kPhysicalMemory = 16 * kGB;
 
-#if defined(V8_TARGET_ARCH_32_BIT)
   std::vector<GenerationLimit> limits = {
-      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
-      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
-      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
-      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
-      {256 * kMB, 22 * kMB + 512 * kKB, 233 * kMB + 512 * kKB},
-      {512 * kMB, 44 * kMB + 256 * kKB, 467 * kMB + 768 * kKB},
-      {1 * kGB, 87 * kMB + 768 * kKB, 936 * kMB + 31},
-      {2 * kGB, 96 * kMB, 1952 * kMB},
+      {16 * kMB, 6 * kMB, 10 * kMB},    {32 * kMB, 6 * kMB, 26 * kMB},
+      {64 * kMB, 6 * kMB, 58 * kMB},    {128 * kMB, 12 * kMB, 116 * kMB},
+      {256 * kMB, 24 * kMB, 232 * kMB}, {512 * kMB, 48 * kMB, 464 * kMB},
+      {1 * kGB, 96 * kMB, 928 * kMB},   {2 * kGB, 96 * kMB, 1952 * kMB},
       {3 * kGB, 96 * kMB, 2976 * kMB},
-      {4 * kGB, 0, 0},
-      {8 * kGB, 0, 0},
-  };
-#else
-  std::vector<GenerationLimit> limits = {
-      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
-      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
-      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
-      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
-      {256 * kMB, 1 * kMB + 512 * kKB, 254 * kMB + 512 * kKB},
-      {512 * kMB, 23 * kMB + 256 * kKB, 488 * kMB + 768 * kKB},
-      {1 * kGB, 46 * kMB + 512 * kKB, 977 * kMB + 512 * kKB},
-      {2 * kGB, 92 * kMB + 256 * kKB, 1955 * kMB + 768 * kKB},
-      {3 * kGB, 96 * kMB, 2976 * kMB},
-      {4 * kGB, 96 * kMB, 4000 * kMB},
-      {8 * kGB, 96 * kMB, 8096 * kMB},
-  };
+#if !defined(V8_TARGET_ARCH_32_BIT)
+      {4 * kGB, 96 * kMB, 4000 * kMB},  {8 * kGB, 96 * kMB, 8096 * kMB},
 #endif
+  };
 
   for (const GenerationLimit& limit : limits) {
     size_t actual_young, actual_old;
@@ -282,14 +239,13 @@ TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
     uint64_t minor_ms;
   };
 
-  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
   static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
   static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
   // Expected young generation limits.
   std::vector<YoungLimit> young_limits = {
-      {512 * kMB, 512 * kKB, 512 * kKB, 1 * kMB},
-      {1 * kGB, 8 * kMB, 2 * kMB, 72 * kMB},
+      {512 * kMB, 4 * kMB, 2 * kMB, 32 * kMB},
+      {1 * kGB, 8 * kMB, 2 * kMB, 64 * kMB},
       {1536 * kMB, 16 * kMB, 4 * kMB, 72 * kMB},
       {2 * kGB, 16 * kMB, 4 * kMB, 72 * kMB},
       {3 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
@@ -776,10 +732,9 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   HandleScope handle_scope(isolate());
   Heap* heap = isolate()->heap();
 
-  // 1. Record gc_count and last scavenger epoch.
+  // 1. Record gc_count and epoch.
   auto gc_count = heap->gc_count();
-  auto last_scavenger_epoch =
-      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER);
+  auto last_epoch = heap->tracer()->CurrentEpoch();
   // 2. Fill the new space with FixedArrays.
   std::vector<Handle<FixedArray>> arrays;
   SimulateFullSpace(heap->new_space(), &arrays);
@@ -804,8 +759,7 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   EXPECT_FALSE(allocation.IsFailure());
   // 5. Allocation should succeed without triggering a GC.
   EXPECT_EQ(gc_count, heap->gc_count());
-  EXPECT_EQ(last_scavenger_epoch,
-            heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER));
+  EXPECT_EQ(last_epoch + 1, heap->tracer()->CurrentEpoch());
 }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -1391,49 +1345,49 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
 
   HeapStats stats;
   auto next_value = [value = size_t{1}]() mutable { return value++; };
-  stats.ro_space_size = next_value();
-  stats.ro_space_capacity = next_value();
-  stats.new_space_size = next_value();
-  stats.new_space_capacity = next_value();
-  stats.old_space_size = next_value();
-  stats.old_space_capacity = next_value();
-  stats.code_space_size = next_value();
-  stats.code_space_capacity = next_value();
-  stats.map_space_size = next_value();
-  stats.map_space_capacity = next_value();
-  stats.lo_space_size = next_value();
-  stats.code_lo_space_size = next_value();
+  stats.ro_space_size = ByteSize(static_cast<size_t>(KB));
+  stats.ro_space_capacity = ByteSize(static_cast<size_t>(MB));
+  stats.new_space_size = ByteSize(static_cast<size_t>(GB));
+  stats.new_space_capacity = ByteSize(next_value());
+  stats.old_space_size = ByteSize(next_value());
+  stats.old_space_capacity = ByteSize(next_value());
+  stats.code_space_size = ByteSize(next_value());
+  stats.code_space_capacity = ByteSize(next_value());
+  stats.map_space_size = ByteSize(next_value());
+  stats.map_space_capacity = ByteSize(next_value());
+  stats.lo_space_size = ByteSize(next_value());
+  stats.code_lo_space_size = ByteSize(next_value());
   stats.global_handle_count = next_value();
   stats.weak_global_handle_count = next_value();
   stats.pending_global_handle_count = next_value();
   stats.near_death_global_handle_count = next_value();
   stats.free_global_handle_count = next_value();
-  stats.memory_allocator_size = next_value();
-  stats.memory_allocator_capacity = next_value();
-  stats.malloced_memory = next_value();
-  stats.malloced_peak_memory = next_value();
+  stats.memory_allocator_size = ByteSize(next_value());
+  stats.memory_allocator_capacity = ByteSize(next_value());
+  stats.malloced_memory = ByteSize(next_value());
+  stats.malloced_peak_memory = ByteSize(next_value());
   stats.isolate_count = next_value();
   stats.is_main_isolate = true;
   stats.last_os_error = next_value();
 
   stats.main_cage.start = HexAddress(0x1000);
-  stats.main_cage.size = next_value();
-  stats.main_cage.free_size = next_value();
-  stats.main_cage.largest_free_region = next_value();
+  stats.main_cage.size = ByteSize(next_value());
+  stats.main_cage.free_size = ByteSize(next_value());
+  stats.main_cage.largest_free_region = ByteSize(next_value());
   stats.main_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kSuccess;
 
   stats.trusted_cage.start = HexAddress(0x2000);
-  stats.trusted_cage.size = next_value();
-  stats.trusted_cage.free_size = next_value();
-  stats.trusted_cage.largest_free_region = next_value();
+  stats.trusted_cage.size = ByteSize(next_value());
+  stats.trusted_cage.free_size = ByteSize(next_value());
+  stats.trusted_cage.largest_free_region = ByteSize(next_value());
   stats.trusted_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kFailedToCommit;
 
   stats.code_cage.start = HexAddress(0x3000);
-  stats.code_cage.size = next_value();
-  stats.code_cage.free_size = next_value();
-  stats.code_cage.largest_free_region = next_value();
+  stats.code_cage.size = ByteSize(next_value());
+  stats.code_cage.free_size = ByteSize(next_value());
+  stats.code_cage.largest_free_region = ByteSize(next_value());
   stats.code_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kRanOutOfReservation;
 
@@ -1445,29 +1399,55 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   heap()->ReportStatsAsCrashKeys(stats);
   auto remaining_keys = crash_key_store.KeyNames();
 
+  auto formatted_size = [](ByteSize size) {
+    const size_t bytes = size.value();
+
+    if (bytes >= MB) {
+      return std::format("{:.2f}MB", static_cast<double>(bytes) / MB);
+    } else if (bytes >= KB) {
+      return std::format("{:.2f}KB", static_cast<double>(bytes) / KB);
+    } else {
+      return std::format("{}B", bytes);
+    }
+  };
+
+  const std::vector<std::pair<std::string, ByteSize>>
+      expected_byte_size_fields = {
+          {"v8-oom-ro-space-size", stats.ro_space_size},
+          {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
+          {"v8-oom-new-space-size", stats.new_space_size},
+          {"v8-oom-new-space-capacity", stats.new_space_capacity},
+          {"v8-oom-old-space-size", stats.old_space_size},
+          {"v8-oom-old-space-capacity", stats.old_space_capacity},
+          {"v8-oom-code-space-size", stats.code_space_size},
+          {"v8-oom-code-space-capacity", stats.code_space_capacity},
+          {"v8-oom-map-space-size", stats.map_space_size},
+          {"v8-oom-map-space-capacity", stats.map_space_capacity},
+          {"v8-oom-lo-space-size", stats.lo_space_size},
+          {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
+          {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
+          {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
+          {"v8-oom-malloced-memory", stats.malloced_memory},
+          {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
+      };
+
+  for (const auto& [key, value] : expected_byte_size_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(formatted_size(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  EXPECT_EQ("1.00KB", crash_key_store.ValueForKey("v8-oom-ro-space-size"));
+  EXPECT_EQ("1.00MB", crash_key_store.ValueForKey("v8-oom-ro-space-capacity"));
+  EXPECT_EQ("1024.00MB", crash_key_store.ValueForKey("v8-oom-new-space-size"));
+
   const std::vector<std::pair<std::string, size_t>> expected_size_fields = {
-      {"v8-oom-ro-space-size", stats.ro_space_size},
-      {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
-      {"v8-oom-new-space-size", stats.new_space_size},
-      {"v8-oom-new-space-capacity", stats.new_space_capacity},
-      {"v8-oom-old-space-size", stats.old_space_size},
-      {"v8-oom-old-space-capacity", stats.old_space_capacity},
-      {"v8-oom-code-space-size", stats.code_space_size},
-      {"v8-oom-code-space-capacity", stats.code_space_capacity},
-      {"v8-oom-map-space-size", stats.map_space_size},
-      {"v8-oom-map-space-capacity", stats.map_space_capacity},
-      {"v8-oom-lo-space-size", stats.lo_space_size},
-      {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
       {"v8-oom-global-handle-count", stats.global_handle_count},
       {"v8-oom-weak-global-handle-count", stats.weak_global_handle_count},
       {"v8-oom-pending-global-handle-count", stats.pending_global_handle_count},
       {"v8-oom-near-death-global-handle-count",
        stats.near_death_global_handle_count},
       {"v8-oom-free-global-handle-count", stats.free_global_handle_count},
-      {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
-      {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
-      {"v8-oom-malloced-memory", stats.malloced_memory},
-      {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
       {"v8-oom-isolate-count", stats.isolate_count},
       {"v8-oom-last-os-error", stats.last_os_error},
   };
@@ -1478,7 +1458,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
     remaining_keys.erase(key);
   }
 
-  const std::vector<std::pair<std::string, size_t>> expected_cage_fields = {
+  const std::vector<std::pair<std::string, ByteSize>> expected_cage_fields = {
       {"v8-oom-main-cage-size", stats.main_cage.size},
       {"v8-oom-main-cage-free-size", stats.main_cage.free_size},
       {"v8-oom-main-cage-largest-free-region",
@@ -1495,7 +1475,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
 
   for (const auto& [key, value] : expected_cage_fields) {
     EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
-    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    EXPECT_EQ(formatted_size(value), crash_key_store.ValueForKey(key)) << key;
     remaining_keys.erase(key);
   }
 

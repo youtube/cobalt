@@ -20,6 +20,10 @@ class LocationBarView;
 class OmniboxPopupWebUIBaseContent;
 class RoundedOmniboxResultsFrame;
 
+namespace omnibox {
+extern const void* kOmniboxWebUIPopupWidgetId;
+}  // namespace omnibox
+
 // A base assistant class for OmniboxPopupViewWebUI, this manages "n" WebViews
 // and a Widget to present the WebUI. This class is an implementation detail and
 // is not expected to grow or change much with omnibox changes.  The concern of
@@ -28,6 +32,7 @@ class RoundedOmniboxResultsFrame;
 // work with OmniboxPopupViewWebUI directly.
 class OmniboxPopupPresenterBase {
  public:
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kRoundedResultsFrame);
   explicit OmniboxPopupPresenterBase(LocationBarView* location_bar_view);
   OmniboxPopupPresenterBase(const OmniboxPopupPresenterBase&) = delete;
   OmniboxPopupPresenterBase& operator=(const OmniboxPopupPresenterBase&) =
@@ -35,28 +40,30 @@ class OmniboxPopupPresenterBase {
   virtual ~OmniboxPopupPresenterBase();
 
   // Show or hide the popup widget with web view.
-  void Show();
-  void Hide();
+  virtual void Show();
+  virtual void Hide();
 
   // Tells whether the popup widget exists.
   bool IsShown() const;
 
   void SetWidgetContentHeight(int content_height);
 
- protected:
-  // The container for the WebUI WebView.
-  views::View* GetUIContainer() const;
-
   // Returns the currently "active" Popup content, whichever one is visible or
   // going to be visible within the popup.
   OmniboxPopupWebUIBaseContent* GetWebUIContent() const;
+
+ protected:
+  // The container for the WebUI WebView.
+  views::View* GetUIContainer() const;
 
   // Sets the webview content reference.
   void SetWebUIContent(
       std::unique_ptr<OmniboxPopupWebUIBaseContent> webui_content);
 
+  void EnsureWidgetCreated();
+
   // Called when the widget has just been destroyed.
-  virtual void WidgetDestroyed();
+  virtual void WidgetDestroyed() = 0;
 
   // Returns whether or not the popup should include the location bar cutout.
   virtual bool ShouldShowLocationBarCutout() const;
@@ -68,8 +75,11 @@ class OmniboxPopupPresenterBase {
     return location_bar_view_.get();
   }
 
+  views::Widget* GetWidget() const { return widget_.get(); }
+
  private:
   friend class OmniboxPopupViewWebUITest;
+  friend class OmniboxWebUiInteractiveTest;
 
   void OnWidgetClosed(views::Widget::ClosedReason closed_reason);
 

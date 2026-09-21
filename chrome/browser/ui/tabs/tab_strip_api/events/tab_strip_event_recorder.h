@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/tab_strip_model_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/events/event.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_collection_observer.h"
 
 namespace tabs_api::events {
@@ -61,9 +62,11 @@ class TabStripEventRecorder : public TabStripModelObserver,
 
   // tabs::TabCollectionObserver
   void OnChildrenAdded(const tabs::TabCollection::Position& position,
-                       const tabs::TabCollectionNodes& handles) override;
+                       const tabs::TabCollectionNodes& handles,
+                       bool insert_from_detached) override;
 
-  void OnChildrenRemoved(const tabs::TabCollectionNodes& handles) override;
+  void OnChildrenRemoved(const tabs::TabCollection::Position& position,
+                         const tabs::TabCollectionNodes& handles) override;
 
   void OnChildMoved(const tabs::TabCollection::Position& to_position,
                     const NodeData& node_data) override;

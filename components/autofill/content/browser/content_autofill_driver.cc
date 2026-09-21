@@ -18,10 +18,12 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver_router.h"
 #include "components/autofill/core/common/aliases.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/form_data_predictions.h"
 #include "components/autofill/core/common/signatures.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -395,6 +397,15 @@ ContentAutofillDriver* ContentAutofillDriver::GetParent() {
   return GetForRenderFrameHost(parent_rfh);
 }
 
+bool ContentAutofillDriver::IsActive() const {
+  return render_frame_host_->IsActive();
+}
+
+bool ContentAutofillDriver::IsEmbedded() const {
+  return render_frame_host_->GetMainFrame() !=
+         render_frame_host_->GetOutermostMainFrameOrEmbedder();
+}
+
 ContentAutofillClient& ContentAutofillDriver::GetAutofillClient() {
   return owner_->client();
 }
@@ -425,10 +436,6 @@ ukm::SourceId ContentAutofillDriver::GetPageUkmSourceId() const {
   CHECK(!render_frame_host_->IsInLifecycleState(
           content::RenderFrameHost::LifecycleState::kPrerendering));
   return render_frame_host_->GetPageUkmSourceId();
-}
-
-bool ContentAutofillDriver::IsActive() const {
-  return render_frame_host_->IsActive();
 }
 
 bool ContentAutofillDriver::HasSharedAutofillPermission() const {
@@ -481,21 +488,22 @@ void ContentAutofillDriver::ApplyFieldAction(
                action_persistence, field_id, value);
 }
 
-void ContentAutofillDriver::ExtractForm(FormGlobalId form_id,
-                                        BrowserFormHandler final_handler) {
+void ContentAutofillDriver::ExtractFormWithField(
+    FieldGlobalId field_id,
+    BrowserFormHandler final_handler) {
   if (!IsActive()) {
     LOG(WARNING) << "Skipped Autofill message for inactive frame";
     std::move(final_handler).Run(nullptr, std::nullopt);
     return;
   }
-  router().ExtractForm(
-      [](autofill::AutofillDriver& request_target, FormRendererId form_id,
+  router().ExtractFormWithField(
+      [](autofill::AutofillDriver& request_target, FieldRendererId field_id,
          AutofillDriverRouter::RendererFormHandler route_response) {
         auto& source = static_cast<ContentAutofillDriver&>(request_target);
-        source.GetAutofillAgent()->ExtractForm(
-            form_id, Lift(source, std::move(route_response)));
+        source.GetAutofillAgent()->ExtractFormWithField(
+            field_id, Lift(source, std::move(route_response)));
       },
-      form_id, WithNewVersion(std::move(final_handler)));
+      field_id, WithNewVersion(std::move(final_handler)));
 }
 
 void ContentAutofillDriver::ExposeDomNodeIdsInAllFrames() {
@@ -506,7 +514,7 @@ void ContentAutofillDriver::ExposeDomNodeIdsInAllFrames() {
 void ContentAutofillDriver::SendTypePredictionsToRenderer(
     const FormStructure& form) {
   CHECK(base::FeatureList::IsEnabled(
-      features::test::kAutofillShowTypePredictions));
+      features::debug::kAutofillShowTypePredictions));
   RouteToAgent(router(), &AutofillDriverRouter::SendTypePredictionsToRenderer,
                &mojom::AutofillAgent::FieldTypePredictionsAvailable,
                form.GetFieldTypePredictions());
@@ -638,10 +646,12 @@ void ContentAutofillDriver::DidEndTextFieldEditing() {
                  &AutofillManager::OnDidEndTextFieldEditing);
 }
 
-void ContentAutofillDriver::SelectFieldOptionsDidChange(const FormData& form) {
-  RouteToManager(*this, router(),
-                 &AutofillDriverRouter::SelectFieldOptionsDidChange,
-                 &AutofillManager::OnSelectFieldOptionsDidChange, form);
+void ContentAutofillDriver::SelectFieldOptionsDidChange(
+    const FormData& form,
+    FieldRendererId field_id) {
+  RouteToManager(
+      *this, router(), &AutofillDriverRouter::SelectFieldOptionsDidChange,
+      &AutofillManager::OnSelectFieldOptionsDidChange, form, field_id);
 }
 
 void ContentAutofillDriver::JavaScriptChangedAutofilledValue(

@@ -8,6 +8,8 @@
 #include <string>
 
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "content/public/browser/browser_main_parts.h"

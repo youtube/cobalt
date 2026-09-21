@@ -237,7 +237,8 @@ void JitterEstimator::UpdateEstimate(TimeDelta frame_delay,
       config_.num_stddev_delay_clamp.value_or(kNumStdDevDelayClamp);
   TimeDelta max_time_deviation =
       TimeDelta::Millis(num_stddev_delay_clamp * sqrt(var_noise_ms2_) + 0.5);
-  frame_delay.Clamp(-max_time_deviation, max_time_deviation);
+  frame_delay =
+      std::clamp(frame_delay, -max_time_deviation, max_time_deviation);
 
   double delay_deviation_ms =
       frame_delay.ms() -

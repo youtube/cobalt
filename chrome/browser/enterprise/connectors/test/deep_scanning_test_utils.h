@@ -44,6 +44,8 @@ namespace enterprise_connectors::test {
 // return different mimetype strings for the same file.
 class EventReportValidator : public EventReportValidatorBase {
  public:
+  using EventReportValidatorBase::ExpectSensitiveDataEvent;
+
   explicit EventReportValidator(policy::MockCloudPolicyClient* client);
   ~EventReportValidator();
 
@@ -81,19 +83,6 @@ class EventReportValidator : public EventReportValidatorBase {
       const std::optional<std::string>& expected_content_transfer_method,
       const std::optional<std::u16string>& expected_user_justification);
 
-  void ExpectDataControlsSensitiveDataEvent(
-      const std::string& expected_url,
-      const std::string& expected_tab_url,
-      const std::string& expected_source,
-      const std::string& expected_destination,
-      const std::set<std::string>* expected_mimetypes,
-      const std::string& expected_trigger,
-      const data_controls::Verdict::TriggeredRules& triggered_rules,
-      const std::string& expected_result,
-      const std::string& expected_profile_username,
-      const std::string& expected_profile_identifier,
-      int64_t expected_content_size);
-
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   void ExpectDataMaskingEvent(
       const std::string& expected_profile_username,
@@ -101,10 +90,6 @@ class EventReportValidator : public EventReportValidatorBase {
       extensions::api::enterprise_reporting_private::DataMaskingEvent
           expected_event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-  void ExpectSensitiveDataEvent(
-      chrome::cros::reporting::proto::DlpSensitiveDataEvent
-          expected_sensitive_data_event);
 
   void ExpectSensitiveDataEvents(
       const std::vector<chrome::cros::reporting::proto::DlpSensitiveDataEvent>
@@ -269,7 +254,6 @@ class EventReportValidator : public EventReportValidatorBase {
       const base::Value::Dict* value,
       const ContentAnalysisResponse::Result::TriggeredRule& expected_rule);
   void ValidateFilenameMappedAttributes(const base::Value::Dict* value);
-  void ValidateDataControlsAttributes(const base::Value::Dict* event);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   void ValidateDataMaskingAttributes(const base::Value::Dict* event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -294,8 +278,6 @@ class EventReportValidator : public EventReportValidatorBase {
   std::optional<std::u16string> login_user_name_ = std::nullopt;
   std::optional<std::vector<std::pair<std::string, std::u16string>>>
       password_breach_identities_ = std::nullopt;
-  std::optional<std::string> data_controls_result_ = std::nullopt;
-  data_controls::Verdict::TriggeredRules data_controls_triggered_rules_;
   std::optional<std::string> active_content_area_user_;
   std::optional<std::string> source_active_content_area_user_;
   std::optional<std::vector<std::string>> frame_urls_;

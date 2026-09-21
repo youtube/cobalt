@@ -1459,7 +1459,7 @@ void LayerContextImpl::BeginFrame(const BeginFrameArgs& args) {
     // Consider using a difference name, so it works for TreeAnimationsInViz
     // mode as well.
     base::TimeTicks start_begin_frame = base::TimeTicks::Now();
-    DoDrawInternal(args, start_begin_frame, /*expects_to_draw=*/false);
+    DoDrawInternal(args, start_begin_frame);
   }
 }
 
@@ -1676,6 +1676,7 @@ void LayerContextImpl::UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) {
 
   const BeginFrameArgs begin_frame_args = update->begin_frame_args;
   auto start_update_display_tree = base::TimeTicks::Now();
+  const bool frame_has_damage = update->frame_has_damage;
   auto result = DoUpdateDisplayTree(std::move(update));
   if (!result.has_value()) {
     HandleBadMojoMessage("UpdateDisplayTree", result.error());
@@ -1683,7 +1684,7 @@ void LayerContextImpl::UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) {
   }
 
   // After a tree update, either Draw or schedule animations.
-  DoDraw(begin_frame_args, start_update_display_tree);
+  DoDraw(begin_frame_args, start_update_display_tree, frame_has_damage);
 
   // We may have resources to return after a tree update and draw.
   DoReturnResources();
@@ -1969,22 +1970,30 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
 }
 
 void LayerContextImpl::DoDraw(const BeginFrameArgs& begin_frame_args,
-                              base::TimeTicks start_update_display_tree) {
+                              base::TimeTicks start_update_display_tree,
+                              bool frame_has_damage) {
   if (base::FeatureList::IsEnabled(features::kTreeAnimationsInViz)) {
     compositor_sink_->SetLayerContextWantsBeginFrames(true);
   } else {
     DoDrawInternal(begin_frame_args, start_update_display_tree,
-                   /*expects_to_draw=*/true);
+                   frame_has_damage);
   }
 }
 
 void LayerContextImpl::DoDrawInternal(const BeginFrameArgs& begin_frame_args,
                                       base::TimeTicks start_update_display_tree,
-                                      bool expects_to_draw) {
+                                      std::optional<bool> frame_has_damage) {
   TRACE_EVENT0("viz", "LayerContextImpl::DoDrawInternal");
-  if (!host_impl_->CanDraw()) {
+
+  // If Renderer marks the frame as NOT damaged, then Viz should skip drawing.
+  if (frame_has_damage && !frame_has_damage.value()) {
     return;
   }
+
+  // Client/Renderer will never call UpdateDisplayTree if CanDraw() is false.
+  // (crbug.com/454680865): Using DUMP_WILL_BE_CHECK allows all non official
+  // builds to fail the check whereas official builds dumps without crashing.
+  DUMP_WILL_BE_CHECK(host_impl_->CanDraw());
 
   host_impl_->WillBeginImplFrame(begin_frame_args);
 
@@ -1996,7 +2005,14 @@ void LayerContextImpl::DoDrawInternal(const BeginFrameArgs& begin_frame_args,
   frame.begin_frame_ack = BeginFrameAck(begin_frame_args, has_damage);
   frame.origin_begin_main_frame_args = begin_frame_args;
   stage_breakdown.start_prepare_to_draw = base::TimeTicks::Now();
-  host_impl_->PrepareToDraw(&frame, /*expects_to_draw=*/expects_to_draw);
+
+  auto expects_to_draw = frame_has_damage.value_or(false);
+  auto draw_result = host_impl_->PrepareToDraw(&frame, expects_to_draw);
+
+  // If a frame is expected to be drawn, then draw should succeed.
+  if (expects_to_draw) {
+    DUMP_WILL_BE_CHECK_EQ(draw_result, cc::DrawResult::kSuccess);
+  }
 
   // Notifies the client which of the tilings it nominated for deletion are
   // actually safe to delete. This is done after PrepareToDraw() so that we have
@@ -2006,7 +2022,12 @@ void LayerContextImpl::DoDrawInternal(const BeginFrameArgs& begin_frame_args,
 
   stage_breakdown.start_draw_layers = base::TimeTicks::Now();
   frame.set_trees_in_viz_timestamps(std::move(stage_breakdown));
-  host_impl_->DrawLayers(&frame);
+
+  // |DrawLayers| is expected to succeed. Adding a check to ensure that
+  // is happening.
+  std::optional<cc::SubmitInfo> submit_info = host_impl_->DrawLayers(&frame);
+  DUMP_WILL_BE_CHECK(submit_info.has_value());
+
   host_impl_->DidDrawAllLayers(frame);
   host_impl_->DidFinishImplFrame(begin_frame_args);
 }

@@ -110,6 +110,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
+#include "third_party/blink/renderer/core/css/css_selector_watch.h"
 #include "third_party/blink/renderer/core/css/css_style_declaration.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/cssom/caret_position.h"
@@ -237,6 +238,7 @@
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/document_all_name_collection.h"
 #include "third_party/blink/renderer/core/html/document_name_collection.h"
+#include "third_party/blink/renderer/core/html/fenced_frame/document_fenced_frames.h"
 #include "third_party/blink/renderer/core/html/forms/email_input_type.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
@@ -328,6 +330,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/timing/first_meaningful_paint_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
+#include "third_party/blink/renderer/core/patching/patch_supplement.h"
 #include "third_party/blink/renderer/core/permissions_policy/dom_feature_policy.h"
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_parser.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -355,6 +358,8 @@
 #include "third_party/blink/renderer/core/view_transition/page_reveal_event.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
+#include "third_party/blink/renderer/core/xml/document_xpath_evaluator.h"
+#include "third_party/blink/renderer/core/xml/document_xslt.h"
 #include "third_party/blink/renderer/core/xml/parser/xml_document_parser.h"
 #include "third_party/blink/renderer/core/xml/parser/xml_document_parser_rs.h"
 #include "third_party/blink/renderer/core/xml_names.h"
@@ -1107,9 +1112,6 @@ Document::Document(const DocumentInit& initializer,
     fetcher_ = FrameFetchContext::CreateFetcherForCommittedDocument(
         *frame->Loader().GetDocumentLoader(), *this);
     cookie_jar_ = MakeGarbageCollected<CookieJar>(this);
-    if (IsInMainFrame() && GetPage()->IsPartitionedPopin()) {
-      CountUse(WebFeature::kPartitionedPopin_Opened);
-    }
     is_vertical_scroll_enforced_ =
         RuntimeEnabledFeatures::ExperimentalPoliciesEnabled() &&
         !frame->IsOutermostMainFrame() &&
@@ -2359,7 +2361,7 @@ void Document::DidChangeVisibilityState() {
                                                        UkmSourceID());
   }
 
-  ViewTransitionSupplement::From(*this)->DidChangeVisibilityState();
+  GetViewTransitions().DidChangeVisibilityState();
 }
 
 String Document::nodeName() const {
@@ -3367,10 +3369,6 @@ void Document::Shutdown() {
   if (num_canvases_ > 0)
     UMA_HISTOGRAM_COUNTS_100("Blink.Canvas.NumCanvasesPerPage", num_canvases_);
 
-  if (font_matching_metrics_) {
-    font_matching_metrics_->PublishAllMetrics();
-  }
-
   GetViewportData().Shutdown();
 
   View()->Dispose();
@@ -3411,6 +3409,7 @@ void Document::Shutdown() {
   http_refresh_scheduler_->Cancel();
 
   GetDocumentAnimations().DetachCompositorTimelines();
+  GetDocumentAnimations().DetachCompositorTriggers();
 
   if (GetFrame()->IsLocalRoot())
     GetPage()->GetChromeClient().AttachRootLayer(nullptr, GetFrame());
@@ -4158,8 +4157,8 @@ void Document::WillInsertBody() {
   if (Loader())
     fetcher_->LoosenLoadThrottlingPolicy();
 
-  if (auto* supplement = ViewTransitionSupplement::FromIfExists(*this)) {
-    supplement->WillInsertBody();
+  if (view_transitions_) {
+    view_transitions_->WillInsertBody();
   }
 
   if (render_blocking_resource_manager_) {
@@ -5283,6 +5282,11 @@ void Document::UnblockScriptExecutionForPrerenderActivation() {
   if (prerender_script_runner_delayer_) {
     prerender_script_runner_delayer_->Deactivate();
   }
+}
+
+ViewTransitionSupplement& Document::CreateViewTransitions() {
+  view_transitions_ = MakeGarbageCollected<ViewTransitionSupplement>(*this);
+  return *view_transitions_;
 }
 
 CSSStyleSheet& Document::ElementSheet() {
@@ -7029,13 +7033,6 @@ scoped_refptr<const SecurityOrigin> Document::TopFrameOrigin() const {
   if (!GetFrame())
     return scoped_refptr<const SecurityOrigin>();
 
-  // If this window was opened as a new partitioned popin we need to use the
-  // origin of the opener's top-frame as our top-frame.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  if (GetPage()->IsPartitionedPopin()) {
-    return GetPage()->GetPartitionedPopinOpenerProperties().top_frame_origin;
-  }
-
   return GetFrame()->Tree().Top().GetSecurityContext()->GetSecurityOrigin();
 }
 
@@ -7067,19 +7064,6 @@ net::SiteForCookies Document::SiteForCookies() const {
   // SecurityOrigin, then this is set to false so that
   // CompareWithFrameTreeOriginAndRevise() is called for all remaining frames.
   bool can_avoid_revise_if_security_origins_match = true;
-
-  // If this window was opened as a new partitioned popin we need to use the
-  // site for cookies of the opener as our initial candidate.
-  // See https://explainers-by-googlers.github.io/partitioned-popins/
-  if (GetPage()->IsPartitionedPopin()) {
-    candidate =
-        GetPage()->GetPartitionedPopinOpenerProperties().site_for_cookies;
-    // We can only skip comparisons when using the SiteForCookies from the
-    // top frame. Because we reset `candidate`, we need to call
-    // CompareWithFrameTreeOriginAndRevise() regardless of whether a frame
-    // has the same SecurityOrigin as the top frame.
-    can_avoid_revise_if_security_origins_match = false;
-  }
 
   if (SchemeRegistry::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
           origin->Protocol())) {
@@ -8455,8 +8439,7 @@ FontMatchingMetrics* Document::GetFontMatchingMetrics() {
   }
   if (font_matching_metrics_)
     return font_matching_metrics_.get();
-  font_matching_metrics_ = std::make_unique<FontMatchingMetrics>(
-      dom_window_, GetTaskRunner(TaskType::kInternalDefault));
+  font_matching_metrics_ = std::make_unique<FontMatchingMetrics>(dom_window_);
   return font_matching_metrics_.get();
 }
 
@@ -9585,7 +9568,34 @@ void Document::Trace(Visitor* visitor) const {
 #if BUILDFLAG(IS_ANDROID)
   visitor->Trace(payment_link_handler_);
 #endif  // BUILDFLAG(IS_ANDROID)
-  Supplementable<Document>::Trace(visitor);
+  visitor->Trace(view_transitions_);
+  visitor->Trace(ai_page_content_agent_);
+  visitor->Trace(anchor_element_metrics_sender_);
+  visitor->Trace(anchor_element_viewport_position_tracker_);
+  visitor->Trace(annotation_agent_container_impl_);
+  visitor->Trace(browsing_topics_document_supplement_);
+  visitor->Trace(css_selector_watch_);
+  visitor->Trace(credential_metrics_);
+  visitor->Trace(disabled_acceleration_counter_supplement_);
+  visitor->Trace(document_fenced_frames_);
+  visitor->Trace(document_metadata_server_);
+  visitor->Trace(document_parser_timing_);
+  visitor->Trace(document_speculation_rules_);
+  visitor->Trace(document_storage_access_);
+  visitor->Trace(document_xpath_evaluator_);
+  visitor->Trace(document_xslt_);
+  visitor->Trace(font_face_set_document_);
+  visitor->Trace(frame_metadata_observer_registry_);
+  visitor->Trace(inner_html_agent_);
+  visitor->Trace(inner_text_agent_);
+  visitor->Trace(interactive_detector_);
+  visitor->Trace(paint_timing_);
+  visitor->Trace(patch_supplement_);
+  visitor->Trace(picture_in_picture_controller_);
+  visitor->Trace(rtc_peer_connection_controller_);
+  visitor->Trace(render_blocking_metrics_reporter_);
+  visitor->Trace(route_map_);
+  visitor->Trace(transfer_to_gpu_texture_invoked_supplement_);
   TreeScope::Trace(visitor);
   ContainerNode::Trace(visitor);
 }

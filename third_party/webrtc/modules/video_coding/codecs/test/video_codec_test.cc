@@ -88,6 +88,7 @@ ABSL_FLAG(bool, dump_decoder_output, false, "Dump decoder output.");
 ABSL_FLAG(bool, dump_encoder_input, false, "Dump encoder input.");
 ABSL_FLAG(bool, dump_encoder_output, false, "Dump encoder output.");
 ABSL_FLAG(bool, write_csv, false, "Write metrics to a CSV file.");
+ABSL_FLAG(int, num_cores, 1, "The maximum number of cores codec can use.");
 
 namespace webrtc {
 namespace test {
@@ -244,6 +245,7 @@ std::unique_ptr<VideoCodecStats> RunEncodeDecodeTest(
   if (absl::GetFlag(FLAGS_dump_encoder_output)) {
     encoder_settings.encoder_output_base_path = output_path + "_enc_output";
   }
+  encoder_settings.num_cores = absl::GetFlag(FLAGS_num_cores);
 
   VideoCodecTester::DecoderSettings decoder_settings;
   decoder_settings.pacing_settings.mode =
@@ -254,6 +256,7 @@ std::unique_ptr<VideoCodecStats> RunEncodeDecodeTest(
   if (absl::GetFlag(FLAGS_dump_decoder_output)) {
     decoder_settings.decoder_output_base_path = output_path + "_dec_output";
   }
+  decoder_settings.num_cores = absl::GetFlag(FLAGS_num_cores);
 
   return VideoCodecTester::RunEncodeDecodeTest(
       env, source_settings, encoder_factory.get(), decoder_factory.get(),

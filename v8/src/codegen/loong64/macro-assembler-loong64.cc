@@ -347,6 +347,71 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 #endif
 }
 
+void MacroAssembler::LoadTrustedUnknownPointerField(
+    Register destination, MemOperand field_operand, Register scratch,
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+  DCHECK(!AreAliased(destination, scratch));
+  Label done;
+
+#ifdef V8_ENABLE_SANDBOX
+  {
+    Register handle = scratch;
+    Ld_wu(handle, field_operand);
+
+    bool handles_code_case = false;
+    constexpr int kCodePointerHandleMarkerBit = 0;
+    static_assert((1 << kCodePointerHandleMarkerBit) ==
+                  kCodePointerHandleMarker);
+    And(destination, handle, kCodePointerHandleMarker);
+    for (auto& [type, label] : cases) {
+      if (type == CODE_TYPE) {
+        handles_code_case = true;
+
+        Label not_code_handle;
+        Branch(&not_code_handle, eq, destination, Operand(zero_reg));
+
+        ResolveCodePointerHandle(destination, handle);
+        Branch(label);
+
+        bind(&not_code_handle);
+        break;
+      }
+    }
+    if (!handles_code_case) {
+      Branch(&done, ne, destination, Operand(zero_reg));
+    }
+
+    ResolveTrustedPointerHandle(destination, handle,
+                                kUnknownIndirectPointerTag);
+  }
+#else
+  LoadTaggedField(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
+
+#if V8_STATIC_ROOTS_BOOL
+  LoadCompressedMap(scratch, destination);
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    BranchInstanceTypeWithUniqueCompressedMap(label, eq, scratch,
+                                              Register::no_reg(), type);
+  }
+#else
+  LoadMap(scratch, destination);
+  Ld_hu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    Branch(label, eq, scratch, Operand(type));
+  }
+#endif
+
+  bind(&done);
+  Move(destination, zero_reg);
+}
+
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
@@ -389,21 +454,12 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
 void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
                                                   Register handle,
                                                   IndirectPointerTag tag) {
+  // This function must not be used to resolve kUnknownIndirectPointerTag. Use
+  // LoadTrustedUnknownPointerField for that instead.
+  CHECK_NE(tag, kUnknownIndirectPointerTag);
+
   // The tag implies which pointer table to use.
-  if (tag == kUnknownIndirectPointerTag) {
-    // In this case we have to rely on the handle marking to determine which
-    // pointer table to use.
-    Label is_trusted_pointer_handle, done;
-    DCHECK(!AreAliased(destination, handle));
-    And(destination, handle, kCodePointerHandleMarker);
-    Branch(&is_trusted_pointer_handle, eq, destination, Operand(zero_reg));
-    ResolveCodePointerHandle(destination, handle);
-    Branch(&done);
-    bind(&is_trusted_pointer_handle);
-    ResolveTrustedPointerHandle(destination, handle,
-                                kUnknownIndirectPointerTag);
-    bind(&done);
-  } else if (tag == kCodeIndirectPointerTag) {
+  if (tag == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
   } else {
     ResolveTrustedPointerHandle(destination, handle, tag);
@@ -756,11 +812,16 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &done);
+  if (slot.contains_indirect_pointer()) {
+    // The indirect pointer write barrier is only enabled during marking.
+    JumpIfNotMarking(&done);
+  } else {
+    CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                  &done);
 
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
-                &done);
+    CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+                  &done);
+  }
 
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
@@ -3278,6 +3339,24 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   }
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld_bu(scratch,
+        MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Branch(is_marking, ne, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfNotMarking(Label* not_marking,
+                                      Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld_bu(scratch,
+        MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Branch(not_marking, eq, scratch, Operand(zero_reg));
+}
+
 void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
                           Register rj, const Operand& rk) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -4927,32 +5006,18 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   pcaddi(dst, -pc_offset() >> 2);
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized() {
+void MacroAssembler::AssertNotDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    int offset =
-        InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-    LoadProtectedPointerField(
-        scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
-  }
-  if (v8_flags.debug_code) {
-    Label not_deoptimized;
-    And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-    Branch(&not_deoptimized, eq, scratch, Operand(zero_reg));
-    Abort(AbortReason::kInvalidDeoptimizedCode);
-    bind(&not_deoptimized);
-  }
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  LoadProtectedPointerField(
+      scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
+  Label not_deoptimized;
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(&not_deoptimized, eq, scratch, Operand(zero_reg));
+  Abort(AbortReason::kInvalidDeoptimizedCode);
+  bind(&not_deoptimized);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
@@ -5114,11 +5179,6 @@ void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
 }
 
 #endif
-
-namespace {
-
-
-}  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {

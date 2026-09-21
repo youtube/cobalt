@@ -16,13 +16,13 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_search_type_converters.h"
-#include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_omnibox_client.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
-#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_search/contextual_search_types.h"
+#include "components/lens/contextual_input.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "content/public/browser/web_contents.h"
@@ -113,6 +113,10 @@ class ContextualSearchboxHandler
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
 
+  std::optional<lens::ContextualInputData> context_input_data() {
+    return context_input_data_;
+  }
+
  protected:
   void ComputeAndOpenQueryUrl(
       const std::string& query_text,
@@ -122,6 +126,12 @@ class ContextualSearchboxHandler
                            CreateTabPreviewEncodingOptions_NotScaled);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTestDSF2,
                            CreateTabPreviewEncodingOptions_Scaled);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           SubmitQuery_DelayUpload);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTestTabsTest,
+                           AddTabContext_DelayUpload);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTestTabsTest,
+                           DeleteContext_DelayUpload);
 
   std::optional<lens::ImageEncodingOptions> CreateTabPreviewEncodingOptions(
       content::WebContents* web_contents);
@@ -134,8 +144,23 @@ class ContextualSearchboxHandler
 
  private:
   void OnGetTabPageContext(
+      bool delay_upload,
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
+
+  // Helper function that handles the caching of the tab context. Once it's
+  // successfully cached, we notify the page that the file is uploaded.
+  void SnapshotTabContext(
+      const base::UnguessableToken& context_token,
+      std::unique_ptr<lens::ContextualInputData> page_content_data);
+
+  // Helper Function that does the actual uploading of the tab context.
+  void UploadTabContext(
+      const base::UnguessableToken& context_token,
+      std::unique_ptr<lens::ContextualInputData> page_content_data);
+
+  // Helper function that uploads the cached tab context if it exists.
+  void UploadSnapshotTabContextIfPresent();
 
   void OpenUrl(GURL url, const WindowOpenDisposition disposition);
 
@@ -146,6 +171,9 @@ class ContextualSearchboxHandler
 
   std::set<base::UnguessableToken> deleted_context_tokens_;
   raw_ptr<content::WebContents> web_contents_;
+  std::optional<std::pair<base::UnguessableToken,
+                          std::unique_ptr<lens::ContextualInputData>>>
+      tab_context_snapshot_;
 #if !BUILDFLAG(IS_ANDROID)
   raw_ptr<contextual_tasks::ContextualTasksContextService>
       contextual_tasks_context_service_;
@@ -155,6 +183,8 @@ class ContextualSearchboxHandler
                           contextual_search::ContextualSearchContextController::
                               FileUploadStatusObserver>
       file_upload_status_observer_{this};
+
+  std::optional<lens::ContextualInputData> context_input_data_;
 
   base::WeakPtrFactory<ContextualSearchboxHandler> weak_ptr_factory_{this};
 };

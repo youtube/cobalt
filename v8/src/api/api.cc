@@ -540,8 +540,8 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
   size_t old_generation =
       i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory);
-  size_t young_generation = i::Heap::YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, old_generation);
+  size_t young_generation =
+      i::Heap::YoungGenerationSizeFromPhysicalMemory(physical_memory);
   set_max_young_generation_size_in_bytes(young_generation);
   set_max_old_generation_size_in_bytes(old_generation);
 
@@ -1119,7 +1119,7 @@ static void EnsureNotPublished(i::DirectHandle<i::FunctionTemplateInfo> info,
 }
 
 i::DirectHandle<i::FunctionTemplateInfo> FunctionTemplateNew(
-    i::Isolate* i_isolate, FunctionCallback callback, v8::Local<Value> data,
+    i::Isolate* i_isolate, FunctionCallback callback, v8::Local<Data> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
@@ -1281,7 +1281,7 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
   } while (false)
 
 void FunctionTemplate::SetCallHandler(
-    FunctionCallback callback, v8::Local<Value> data,
+    FunctionCallback callback, v8::Local<Data> data,
     SideEffectType side_effect_type,
     const MemorySpan<const CFunction>& c_function_overloads) {
   auto info = Utils::OpenDirectHandle(this);
@@ -2119,10 +2119,13 @@ int FixedArray::Length() const {
   return Utils::OpenDirectHandle(this)->length();
 }
 
-Local<Data> FixedArray::Get(Local<Context> context, int i) const {
+Local<Data> FixedArray::Get(int i) const {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
-  CHECK_LT(i, self->length());
+#if V8_ENABLE_CHECKS
+  Utils::ApiCheck(i < self->length(), "v8::FixedArray::Get",
+                  "index out of bounds");
+#endif
   return ToApiHandle<Data>(i::direct_handle(self->get(i), i_isolate));
 }
 
@@ -5347,7 +5350,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
 }
 
 MaybeLocal<Function> Function::New(Local<Context> context,
-                                   FunctionCallback callback, Local<Value> data,
+                                   FunctionCallback callback, Local<Data> data,
                                    int length, ConstructorBehavior behavior,
                                    SideEffectType side_effect_type) {
   i::Isolate* i_isolate = i::Isolate::Current();

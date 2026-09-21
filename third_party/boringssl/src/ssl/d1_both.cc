@@ -723,7 +723,8 @@ static seal_result_t seal_next_record(SSL *ssl, Span<uint8_t> out,
   // Pack as many handshake fragments into one record as we can. We stage the
   // fragments in the output buffer, to be sealed in-place.
   bool should_continue = false;
-  Span<uint8_t> fragments = out.subspan(prefix_len, /* up to */ max_in_len);
+  Span<uint8_t> fragments =
+      out.subspan(prefix_len, std::min(max_in_len, out.size() - prefix_len));
   CBB cbb;
   CBB_init_fixed(&cbb, fragments.data(), fragments.size());
   DTLSSentRecord sent_record;

@@ -20,7 +20,7 @@ import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.sync.TrustedVaultClient;
-import org.chromium.components.sync.TrustedVaultUserActionTriggerForUMA;
+import org.chromium.components.trusted_vault.TrustedVaultUserActionTriggerForUMA;
 
 /**
  * {@link SyncTrustedVaultProxyActivity} has no own UI and just acts as a proxy to launch an
@@ -190,7 +190,7 @@ public class SyncTrustedVaultProxyActivity extends AsyncInitializationActivity {
                 // Upon key retrieval completion, the keys in TrustedVaultClient could have changed.
                 // This is done even if the user cancelled the flow (i.e. resultCode != RESULT_OK)
                 // because it's harmless to issue a redundant notifyKeysChanged().
-                TrustedVaultClient.get().notifyKeysChanged();
+                TrustedVaultClient.get().notifyKeysChanged(mUserActionTrigger);
                 break;
 
             case REQUEST_CODE_TRUSTED_VAULT_RECOVERABILITY_DEGRADED:

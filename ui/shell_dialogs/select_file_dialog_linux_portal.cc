@@ -184,6 +184,11 @@ bool SelectFileDialogLinuxPortal::IsPortalAvailable() {
   return g_service_availability == ServiceAvailability::kAvailable;
 }
 
+void SelectFileDialogLinuxPortal::ListenerDestroyed() {
+  weak_factory_.InvalidateWeakPtrs();
+  SelectFileDialogLinux::ListenerDestroyed();
+}
+
 bool SelectFileDialogLinuxPortal::IsRunning(
     gfx::NativeWindow parent_window) const {
   return parent_window && host_ && host_.get() == parent_window->GetHost();
@@ -222,24 +227,18 @@ void SelectFileDialogLinuxPortal::SelectFileImpl(
   // and returned to listeners later.
   filters_ = filter_set.filters;
 
-  if (host_) {
-    auto* delegate = ui::LinuxUiDelegate::GetInstance();
-    if (delegate &&
-        delegate->ExportWindowHandle(
-            host_->GetAcceleratedWidget(),
-            base::BindOnce(
-                &SelectFileDialogLinuxPortal::SelectFileImplWithParentHandle,
-                this, title, default_path, filter_set, default_extension))) {
-      // Return early to skip the fallback below.
-      return;
-    } else {
-      LOG(WARNING) << "Failed to export window handle for portal select dialog";
-    }
+  auto* delegate = ui::LinuxUiDelegate::GetInstance();
+  if (host_ && delegate) {
+    delegate->ExportWindowHandle(
+        host_->GetAcceleratedWidget(),
+        base::BindOnce(
+            &SelectFileDialogLinuxPortal::SelectFileImplWithParentHandle, this,
+            title, default_path, filter_set, default_extension));
+  } else {
+    // No parent or no delegate, so just use a blank parent handle.
+    SelectFileImplWithParentHandle(title, default_path, filter_set,
+                                   default_extension, "");
   }
-
-  // No parent, so just use a blank parent handle.
-  SelectFileImplWithParentHandle(title, default_path, filter_set,
-                                 default_extension, "");
 }
 
 bool SelectFileDialogLinuxPortal::HasMultipleFileTypeChoicesImpl() {
@@ -474,7 +473,7 @@ void SelectFileDialogLinuxPortal::MakeFileChooserRequest(
   invoker_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SelectFileDialogLinuxPortal::DialogCreatedOnInvoker,
-                     this));
+                     weak_factory_.GetWeakPtr()));
 }
 
 void SelectFileDialogLinuxPortal::OnFileChooserResponse(
@@ -523,15 +522,17 @@ void SelectFileDialogLinuxPortal::CompleteOpen(
   dbus_thread_linux::GetSharedSessionBus()->AssertOnOriginThread();
   invoker_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SelectFileDialogLinuxPortal::CompleteOpenOnInvoker, this,
-                     std::move(paths), std::move(current_filter)));
+      base::BindOnce(&SelectFileDialogLinuxPortal::CompleteOpenOnInvoker,
+                     weak_factory_.GetWeakPtr(), std::move(paths),
+                     std::move(current_filter)));
 }
 
 void SelectFileDialogLinuxPortal::CancelOpen() {
   dbus_thread_linux::GetSharedSessionBus()->AssertOnOriginThread();
   invoker_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SelectFileDialogLinuxPortal::CancelOpenOnInvoker, this));
+      base::BindOnce(&SelectFileDialogLinuxPortal::CancelOpenOnInvoker,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void SelectFileDialogLinuxPortal::DialogCreatedOnInvoker() {

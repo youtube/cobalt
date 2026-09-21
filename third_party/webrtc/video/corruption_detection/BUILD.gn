@@ -49,6 +49,7 @@ rtc_library("generic_mapping_functions") {
     "../../api/video/corruption_detection:filter_settings",
     "../../api/video_codecs:video_codecs_api",
     "../../rtc_base:checks",
+    "../../rtc_base:logging",
   ]
 }
 

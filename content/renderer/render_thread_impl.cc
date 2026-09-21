@@ -131,7 +131,6 @@
 #include "net/base/port_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
-#include "partition_alloc/memory_reclaimer.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
@@ -297,15 +296,6 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
       return false;
   }
 }
-
-#if BUILDFLAG(IS_COBALT)
-bool IsCriticalAllowedInForeground() {
-  static const bool kAllowCriticalInForeground =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
-  return kAllowCriticalInForeground;
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
@@ -1564,9 +1554,9 @@ void RenderThreadImpl::UpdateSystemColorInfo(
   }
 }
 
-void RenderThreadImpl::PurgePluginListCache(bool reload_pages) {
+void RenderThreadImpl::PurgePluginListCache() {
 #if BUILDFLAG(ENABLE_PLUGINS)
-  blink::ResetPluginCache(reload_pages);
+  blink::ResetPluginCache();
 
   for (auto& observer : observers_)
     observer.PluginListChanged();
@@ -1669,6 +1659,8 @@ void RenderThreadImpl::OnRendererHidden() {
         base::Process::Priority::kBestEffort);
   }
 
+  blink_isolates_pressure_listener_.OnRendererHidden();
+
   // TODO(rmcilroy): Remove IdleHandler and replace it with an IdleTask
   // scheduled by the RendererScheduler - http://crbug.com/469210.
   if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
@@ -1682,6 +1674,8 @@ void RenderThreadImpl::OnRendererVisible() {
     blink::WebV8Features::SetIsolatePriority(
         base::Process::Priority::kUserBlocking);
   }
+
+  blink_isolates_pressure_listener_.OnRendererVisible();
 
   if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
     return;
@@ -1721,41 +1715,9 @@ void RenderThreadImpl::OnMemoryPressure(
             memory_pressure_level));
       });
 
-  v8::MemoryPressureLevel v8_memory_pressure_level =
-      static_cast<v8::MemoryPressureLevel>(memory_pressure_level);
-
-#if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
-  // In order to reduce performance impact, translate critical level to
-  // moderate level for foreground renderer.
-#if BUILDFLAG(IS_COBALT)
-  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
-    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-#else
-  if (!RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
-    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-#endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
-
-  if (base::FeatureList::IsEnabled(
-          features::kForwardMemoryPressureToBlinkIsolates)) {
-    blink::MemoryPressureNotificationToAllIsolates(v8_memory_pressure_level);
-  }
-
   if (blink_platform_impl_) {
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
   }
-  if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
-    discardable_memory_allocator_->ReleaseFreeMemory();
-
-    // Do not call into blink if it is not initialized.
-    if (blink_platform_impl_) {
-      // Purge Skia font cache, resource cache, and image filter.
-      SkGraphics::PurgeAllCaches();
-    }
-  }
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 }
 
 void RenderThreadImpl::OnRendererInterfaceReceiver(

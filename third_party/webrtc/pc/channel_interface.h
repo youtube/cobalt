@@ -11,10 +11,10 @@
 #ifndef PC_CHANNEL_INTERFACE_H_
 #define PC_CHANNEL_INTERFACE_H_
 
-#include <functional>
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
@@ -76,8 +76,13 @@ class ChannelInterface {
 
   // Used for latency measurements.
   virtual void SetFirstPacketReceivedCallback(
-      std::function<void()> callback) = 0;
-  virtual void SetFirstPacketSentCallback(std::function<void()> callback) = 0;
+      absl::AnyInvocable<void() &&> callback) = 0;
+  virtual void SetFirstPacketSentCallback(
+      absl::AnyInvocable<void() &&> callback) = 0;
+
+  // Used to unmute.
+  virtual void SetPacketReceivedCallback_n(
+      absl::AnyInvocable<void()> callback) = 0;
 
   // Channel control
   virtual bool SetLocalContent(const MediaContentDescription* content,

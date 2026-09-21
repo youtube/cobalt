@@ -6,6 +6,8 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/config/coverage/buildflags.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -30,6 +32,7 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
@@ -51,12 +54,7 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
  protected:
   SettingsBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {
-#if BUILDFLAG(ENABLE_GLIC)
-            features::kGlic,
-            features::kTabstripComboButton,
-#endif
-        },
+        {},
         /*disabled_features=*/
         {
 #if BUILDFLAG(ENABLE_GLIC)
@@ -68,6 +66,10 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
   }
 
  private:
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicTestEnvironment glic_test_environment_{
+      {.force_signin_and_model_execution_capability = false }};
+#endif
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -552,6 +554,9 @@ class SettingsGlicSubPageWebActuationToggleTest : public SettingsBrowserTest {
     SettingsBrowserTest::SetUpOnMainThread();
     GetProfile()->GetPrefs()->SetBoolean(
         glic::prefs::kGlicUserEnabledActuationOnWeb, false);
+    actor::ActorKeyedService::Get(browser()->profile())
+        ->GetPolicyChecker()
+        .SetActOnWebForTesting(true);
   }
 
  private:
@@ -562,6 +567,12 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageWebActuationToggleTest,
                        SettingsGlicSubPageWebActuationToggleEnabled) {
   RunTest("settings/glic_subpage_test.js",
           "runMochaSuite('GlicSubpage WebActuationSettingFeatureEnabled')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageWebActuationToggleTest,
+                       SettingsGlicSubPageWebActuationEnterprisePolicy) {
+  RunTest("settings/glic_subpage_test.js",
+          "runMochaSuite('GlicSubpage WebActuationEnterprisePolicy')");
 }
 
 class SettingsGlicSubPageWebActuationAllowedTierToggleTest

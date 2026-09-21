@@ -41,6 +41,10 @@ class RtpReceiverObserverInterface {
   // OnFirstPacketReceived when a packet is received specifically for its
   // SSRC/mid.
   virtual void OnFirstPacketReceived(MediaType media_type) = 0;
+  // Similar to the above but done whenever the receptiveness changed.
+  // TODO: crbug.com/40821064 - make virtual after Chromium roll.
+  virtual void OnFirstPacketReceivedAfterReceptiveChange(MediaType media_type) {
+  }
 
  protected:
   virtual ~RtpReceiverObserverInterface() {}

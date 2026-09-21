@@ -249,12 +249,8 @@ void RtpTransport::OnRtpPacketReceived(
 
 void RtpTransport::OnRtcpPacketReceived(
     const ReceivedIpPacket& received_packet) {
-  CopyOnWriteBuffer payload(received_packet.payload());
-  // TODO(bugs.webrtc.org/15368): Propagate timestamp and maybe received packet
-  // further.
-  SendRtcpPacketReceived(&payload, received_packet.arrival_time()
-                                       ? received_packet.arrival_time()->us()
-                                       : -1);
+  SendRtcpPacketReceived(CopyOnWriteBuffer(received_packet.payload()),
+                         received_packet.arrival_time(), received_packet.ecn());
 }
 
 void RtpTransport::OnReadPacket(PacketTransportInternal* transport,

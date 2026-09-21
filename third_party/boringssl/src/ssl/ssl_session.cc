@@ -21,6 +21,7 @@
 
 #include <utility>
 
+#include <openssl/cipher.h>
 #include <openssl/err.h>
 #include <openssl/hmac.h>
 #include <openssl/mem.h>
@@ -367,13 +368,15 @@ static int ssl_encrypt_ticket_with_cipher_ctx(SSL_HANDSHAKE *hs, CBB *out,
     OPENSSL_memcpy(ptr, session_buf, session_len);
     total = session_len;
   } else {
-    int len;
-    if (!EVP_EncryptUpdate(ctx.get(), ptr + total, &len, session_buf,
-                           session_len)) {
+    size_t len;
+    if (!EVP_EncryptUpdate_ex(ctx.get(), ptr + total, &len,
+                              session_len + EVP_MAX_BLOCK_LENGTH - total,
+                              session_buf, session_len)) {
       return 0;
     }
     total += len;
-    if (!EVP_EncryptFinal_ex(ctx.get(), ptr + total, &len)) {
+    if (!EVP_EncryptFinal_ex2(ctx.get(), ptr + total, &len,
+                              session_len + EVP_MAX_BLOCK_LENGTH - total)) {
       return 0;
     }
     total += len;

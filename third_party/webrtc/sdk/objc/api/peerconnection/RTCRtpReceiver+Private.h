@@ -23,6 +23,8 @@ class RtpReceiverDelegateAdapter : public RtpReceiverObserverInterface {
   RtpReceiverDelegateAdapter(RTC_OBJC_TYPE(RTCRtpReceiver) * receiver);
 
   void OnFirstPacketReceived(webrtc::MediaType media_type) override;
+  void OnFirstPacketReceivedAfterReceptiveChange(
+      webrtc::MediaType media_type) override;
 
  private:
   __weak RTC_OBJC_TYPE(RTCRtpReceiver) * receiver_;

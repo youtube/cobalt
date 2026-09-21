@@ -424,11 +424,27 @@ public class PeerConnectionEndToEndTest {
       }
     }
 
+    @Override
+    // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+    @SuppressWarnings("NoSynchronizedMethodCheck")
+    public synchronized void onFirstPacketReceivedAfterReceptiveChange(
+        MediaStreamTrack.MediaType mediaType) {
+      if (mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO) {
+        expectedFirstAudioPacket--;
+      } else {
+        expectedFirstVideoPacket--;
+      }
+      if (expectedFirstAudioPacket < 0 || expectedFirstVideoPacket < 0) {
+        throw new RuntimeException("Unexpected call of onFirstPacketReceived");
+      }
+    }
+
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
     @SuppressWarnings("NoSynchronizedMethodCheck")
     public synchronized void expectFirstPacketReceived() {
-      expectedFirstAudioPacket = 1;
-      expectedFirstVideoPacket = 1;
+      // We expect both onFirstPacketReceived and onFirstPacketReceivedAfterReceptiveChange.
+      expectedFirstAudioPacket = 2;
+      expectedFirstVideoPacket = 2;
     }
 
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.

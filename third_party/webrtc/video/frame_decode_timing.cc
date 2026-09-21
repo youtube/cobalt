@@ -10,6 +10,7 @@
 
 #include "video/frame_decode_timing.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 
@@ -50,7 +51,7 @@ FrameDecodeTiming::OnFrameBufferUpdated(uint32_t next_temporal_unit_rtp,
     return std::nullopt;
   }
 
-  max_wait.Clamp(TimeDelta::Zero(), max_wait_for_frame);
+  max_wait = std::clamp(max_wait, TimeDelta::Zero(), max_wait_for_frame);
   RTC_DLOG(LS_VERBOSE) << "Selected frame with rtp " << next_temporal_unit_rtp
                        << " render time " << render_time
                        << " with a max wait of " << max_wait_for_frame

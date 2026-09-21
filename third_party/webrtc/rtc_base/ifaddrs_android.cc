@@ -28,6 +28,7 @@
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -218,8 +219,18 @@ void freeifaddrs(struct ifaddrs* addrs) {
   struct ifaddrs* cursor = addrs;
   while (cursor) {
     delete[] cursor->ifa_name;
-    delete cursor->ifa_addr;
-    delete cursor->ifa_netmask;
+    // ifa_addr and ifa_netmask are populated from the same ifaddrmsg,
+    // so their sa_family will be the same.
+    if (cursor->ifa_addr == nullptr) {
+      RTC_CHECK(cursor->ifa_netmask == nullptr);
+    } else if (cursor->ifa_addr->sa_family == AF_INET6) {
+      delete reinterpret_cast<sockaddr_in6*>(cursor->ifa_addr);
+      delete reinterpret_cast<sockaddr_in6*>(cursor->ifa_netmask);
+    } else {
+      RTC_CHECK_EQ(cursor->ifa_addr->sa_family, AF_INET);
+      delete reinterpret_cast<sockaddr_in*>(cursor->ifa_addr);
+      delete reinterpret_cast<sockaddr_in*>(cursor->ifa_netmask);
+    }
     last = cursor;
     cursor = cursor->ifa_next;
     delete last;

@@ -140,52 +140,25 @@ webview:not([hidden]) {
 #loadingPanel #sidePanelLoading .p3 {
   height: 56px;
   border-radius: 12px;
-  margin-bottom: 23px;
+  margin-top: 48px;
+  margin-bottom: 18px;
 }
 
 #loadingPanel #sidePanelLoading .p4 {
-  height: 32px;
+  flex: 4;
   border-radius: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 18px;
 }
 
 #loadingPanel #sidePanelLoading .p5 {
-  height: 32px;
+  flex: 4;
   border-radius: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 18px;
 }
 
 #loadingPanel #sidePanelLoading .p6 {
-  height: 32px;
+  height: 172px;
   border-radius: 12px;
-}
-
-#loadingPanel #sidePanelLoading .p7 {
-  height: 132px;
-  border-radius: 12px;
-}
-
-#sidePanelLoading.from-fre .center-group {
-  justify-content: start;
-  margin-top: 20px;
-}
-
-#loadingPanel #sidePanelLoading.from-fre .p3 {
-  margin-bottom: 17px;
-}
-
-#loadingPanel #sidePanelLoading.from-fre .p4 {
-  margin-bottom: 2px;
-  height: 64px;
-}
-
-#loadingPanel #sidePanelLoading.from-fre .p5 {
-  margin-bottom: 2px;
-  height: 64px;
-}
-
-#loadingPanel #sidePanelLoading.from-fre .p6 {
-  height: 64px;
 }
 
 .panel .header {
@@ -433,11 +406,48 @@ cr-progress {
   height: 20px;
 }
 
+#fre-app-container #freLoadingPanel .header {
+  position: static;
+  display: flex;
+  justify-content: space-between;
+}
+
+#fre-app-container #freLoadingPanel .container {
+  padding: 16px;
+}
+
+#fre-app-container #freLoadingPanel .title {
+  display: block;
+  width: 70px;
+  height: 20px;
+  border-radius: 12px;
+}
+
 #fre-app-container .a {
   width: 90px;
   height: 45px;
   border-radius: 48px;
   align-self: flex-start;
+  margin-bottom: 16px;
+}
+
+#fre-app-container .b {
+  height: 56px;
+  margin-bottom: 16px;
+}
+
+#fre-app-container .c {
+  height: 118px;
+}
+
+#fre-app-container .e {
+  height: 94px;
+  margin-bottom: 16px;
+}
+
+#fre-app-container .f {
+  height: 32px;
+  margin-bottom: 12px;
 }
 
 #panelContainer #fre-app-container .g {

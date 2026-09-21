@@ -314,8 +314,8 @@ __attribute__((weak)) void  wgpuComputePassEncoderSetBindGroup(WGPUComputePassEn
     procs.computePassEncoderSetBindGroup(computePassEncoder, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuComputePassEncoderSetImmediateData(WGPUComputePassEncoder computePassEncoder, uint32_t offset, void const * data, size_t size) {
-    procs.computePassEncoderSetImmediateData(computePassEncoder, offset, data, size);
+__attribute__((weak)) void  wgpuComputePassEncoderSetImmediates(WGPUComputePassEncoder computePassEncoder, uint32_t offset, void const * data, size_t size) {
+    procs.computePassEncoderSetImmediates(computePassEncoder, offset, data, size);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuComputePassEncoderSetLabel(WGPUComputePassEncoder computePassEncoder, WGPUStringView label) {
@@ -705,8 +705,8 @@ __attribute__((weak)) void  wgpuRenderBundleEncoderSetBindGroup(WGPURenderBundle
     procs.renderBundleEncoderSetBindGroup(renderBundleEncoder, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuRenderBundleEncoderSetImmediateData(WGPURenderBundleEncoder renderBundleEncoder, uint32_t offset, void const * data, size_t size) {
-    procs.renderBundleEncoderSetImmediateData(renderBundleEncoder, offset, data, size);
+__attribute__((weak)) void  wgpuRenderBundleEncoderSetImmediates(WGPURenderBundleEncoder renderBundleEncoder, uint32_t offset, void const * data, size_t size) {
+    procs.renderBundleEncoderSetImmediates(renderBundleEncoder, offset, data, size);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuRenderBundleEncoderSetIndexBuffer(WGPURenderBundleEncoder renderBundleEncoder, WGPUBuffer buffer, WGPUIndexFormat format, uint64_t offset, uint64_t size) {
@@ -798,8 +798,8 @@ __attribute__((weak)) void  wgpuRenderPassEncoderSetBlendConstant(WGPURenderPass
     procs.renderPassEncoderSetBlendConstant(renderPassEncoder, color);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuRenderPassEncoderSetImmediateData(WGPURenderPassEncoder renderPassEncoder, uint32_t offset, void const * data, size_t size) {
-    procs.renderPassEncoderSetImmediateData(renderPassEncoder, offset, data, size);
+__attribute__((weak)) void  wgpuRenderPassEncoderSetImmediates(WGPURenderPassEncoder renderPassEncoder, uint32_t offset, void const * data, size_t size) {
+    procs.renderPassEncoderSetImmediates(renderPassEncoder, offset, data, size);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuRenderPassEncoderSetIndexBuffer(WGPURenderPassEncoder renderPassEncoder, WGPUBuffer buffer, WGPUIndexFormat format, uint64_t offset, uint64_t size) {

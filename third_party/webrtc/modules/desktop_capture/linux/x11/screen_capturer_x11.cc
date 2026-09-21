@@ -511,13 +511,12 @@ std::unique_ptr<DesktopCapturer> ScreenCapturerX11::CreateRawScreenCapturer(
   if (!options.x_display())
     return nullptr;
 
-  RTC_LOG(LS_INFO)
-      << "video capture: ScreenCapturerX11::CreateRawScreenCapturer creates "
-         "DesktopCapturer of type ScreenCapturerX11";
+  RTC_LOG(LS_INFO) << "ScreenCapturerX11::CreateRawScreenCapturer creates "
+                      "DesktopCapturer of type ScreenCapturerX11";
   std::unique_ptr<ScreenCapturerX11> capturer(new ScreenCapturerX11());
   if (!capturer->Init(options)) {
     RTC_LOG(LS_INFO)
-        << "video capture: ScreenCapturerX11::CreateRawScreenCapturer "
+        << "ScreenCapturerX11::CreateRawScreenCapturer "
            "DesktopCapturer is null because it can not be initiated";
     return nullptr;
   }
