@@ -9,6 +9,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/base_tracing.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#include "base/logging.h"
+#endif
 
 namespace memory_pressure {
 
@@ -52,7 +59,9 @@ MemoryPressureVoteAggregator::MemoryPressureVoteAggregator(Delegate* delegate)
     : delegate_(delegate) {}
 
 MemoryPressureVoteAggregator::~MemoryPressureVoteAggregator() {
+#if !BUILDFLAG(IS_COBALT)
   DCHECK_EQ(std::accumulate(votes_.begin(), votes_.end(), 0), 0);
+#endif
 }
 
 std::unique_ptr<MemoryPressureVoter>
@@ -80,6 +89,11 @@ void MemoryPressureVoteAggregator::OnVote(
     std::optional<MemoryPressureLevel> new_vote) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(old_vote || new_vote);
+#if BUILDFLAG(IS_COBALT)
+  if (!new_vote.has_value()) {
+    return;
+  }
+#else
   if (old_vote) {
     DCHECK_LT(0u, votes_[old_vote.value()]);
     votes_[old_vote.value()]--;
@@ -87,6 +101,7 @@ void MemoryPressureVoteAggregator::OnVote(
   if (new_vote) {
     votes_[new_vote.value()]++;
   }
+#endif
   auto old_pressure_level = current_pressure_level_;
 
   // If the pressure level is not None then an asynchronous event will have been
@@ -103,7 +118,16 @@ void MemoryPressureVoteAggregator::OnVote(
                                     this);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // The incoming vote directly sets the current level (first-arrival wins), 
+  // eliminating sticky zombie votes across evaluators.
+  current_pressure_level_ = new_vote.value();
+  LOG(INFO) << "[CobaltMemoryPressure] VoteAggregator received vote="
+            << current_pressure_level_ << " (previous=" << old_pressure_level
+            << ")";
+#else
   current_pressure_level_ = EvaluateVotes();
+#endif
 
   // Start an asynchronous tracing event to record this pressure session.
   if (current_pressure_level_ ==

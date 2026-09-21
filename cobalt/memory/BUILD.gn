@@ -18,6 +18,17 @@ source_set("memory") {
     "cobalt_memory_attribution_manager.h",
   ]
 
+  if (is_android) {
+    sources += [
+      "android_os_signal_evaluator.cc",
+      "android_os_signal_evaluator.h",
+    ]
+  }
+
+  public_deps = [
+    "//components/memory_pressure",
+  ]
+
   deps = [
     "//base",
     "//cobalt/browser:features",
@@ -32,6 +43,7 @@ source_set("unit_tests") {
     ":memory",
     "//base/test:test_support",
     "//cobalt/browser:features",
+    "//components/memory_pressure",
     "//testing/gtest",
   ]
 }
