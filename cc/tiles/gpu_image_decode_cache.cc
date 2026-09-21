@@ -2058,8 +2058,6 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
 #endif // BUILDFLAG(IS_COBALT)
 }
 
-<<<<<<< HEAD
-=======
 void GpuImageDecodeCache::InsertTransferCacheEntry(
     const ClientImageTransferCacheEntry& image_entry,
     ImageData* image_data) {
@@ -2114,10 +2112,7 @@ void GpuImageDecodeCache::OnInProcessImageTransferCompleted(
   base::AutoLock lock(lock_);
   UnrefImageDecode(image_data.get());
 }
-#endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-bool GpuImageDecodeCache::NeedsDarkModeFilter(const DrawImage& draw_image,
+#endif  // BUILDFLAG(IS_COBALT)bool GpuImageDecodeCache::NeedsDarkModeFilter(const DrawImage& draw_image,
                                               ImageData* image_data) {
   DCHECK(image_data);
 

@@ -587,10 +587,6 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(web_view_android_);
   MojoBindingContext::Trace(visitor);
   ConsoleLogger::Trace(visitor);
-<<<<<<< HEAD
-=======
-  Supplementable<ExecutionContext, 35>::Trace(visitor);
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool ExecutionContext::IsSameAgentCluster(

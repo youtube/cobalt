@@ -48,15 +48,10 @@ HighlightRegistry* HighlightRegistry::GetHighlightRegistry(const Node* node) {
   if (!node) {
     return nullptr;
   }
-<<<<<<< HEAD
-  return node->GetDocument().domWindow()->GetHighlightRegistry();
-=======
-  return node->GetDocument()
+return node->GetDocument()
       .domWindow()
       ->Supplementable<LocalDOMWindow,
-                       51>::RequireSupplement<HighlightRegistry>();
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+                       51>::RequireSupplement<HighlightRegistry>();}
 
 bool HighlightRegistry::IsAbstractRangePaintable(AbstractRange* abstract_range,
                                                  Document* document) const {

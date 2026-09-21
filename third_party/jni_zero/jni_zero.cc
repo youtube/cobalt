@@ -297,10 +297,6 @@ jclass LazyGetClass(JNIEnv* env,
 }
 
 }  // namespace internal
-<<<<<<< HEAD
 }  // namespace jni_zero
 
 DEFINE_JNI(JniInit)
-=======
-}  // namespace jni_zero
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

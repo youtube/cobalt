@@ -54,16 +54,9 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
-<<<<<<< HEAD
-#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
-=======
-#include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
-#include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#endif  // !BUILDFLAG(IS_COBALT)#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"

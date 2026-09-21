@@ -162,16 +162,6 @@ enum PageTransitionEventPersistence {
 
 // Note: if you're thinking of returning something DOM-related by reference,
 // please ping dcheng@chromium.org first. You probably don't want to do that.
-<<<<<<< HEAD
-class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
-                                         public ExecutionContext,
-                                         public WindowOrWorkerGlobalScope,
-                                         public UniversalGlobalScope,
-                                         public WindowEventHandlers {
-  USING_PRE_FINALIZER(LocalDOMWindow, Dispose);
-
- public:
-=======
 class CORE_EXPORT LocalDOMWindow final
     : public DOMWindow,
       public ExecutionContext,
@@ -234,10 +224,7 @@ class CORE_EXPORT LocalDOMWindow final
     kH5vcc = 48,
     kCobaltLifecycleController = 49,
     kOnScreenKeyboard = 50
-  };
-
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  class CORE_EXPORT EventListenerObserver : public GarbageCollectedMixin {
+  };  class CORE_EXPORT EventListenerObserver : public GarbageCollectedMixin {
    public:
     virtual void DidAddEventListener(LocalDOMWindow*, const AtomicString&) = 0;
     virtual void DidRemoveEventListener(LocalDOMWindow*,
