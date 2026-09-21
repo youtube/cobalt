@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/base_switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
@@ -72,6 +73,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      {::switches::kEnableFeatures, "WebAudioRemoveAudioDestinationResampler"},
   });
   return kCobaltSwitchDefaults;
 }

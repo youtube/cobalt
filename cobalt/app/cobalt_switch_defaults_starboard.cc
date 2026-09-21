@@ -16,13 +16,11 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
-#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -96,7 +94,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "DefaultEnableANGLEValidation, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
-       "ReclaimOldPrepaintTiles"},
+       "ReclaimOldPrepaintTiles, "
+       "WebAudioRemoveAudioDestinationResampler"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
@@ -125,15 +124,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Enable memory saving mode with little v8 performance tradeoff.
        "--optimize-for-size "
-       // Set initial old space size to 16MB and max old space size to 512MB.
-       "--initial-old-space-size=16 "
-       "--max-old-space-size=512 "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
-      // Limit GPU memory available to 64MB.
-      {::switches::kForceGpuMemAvailableMb, "64"},
-      // Disable CC image cache items limit.
-      {::switches::kCCImageCacheLimitItems, "0"},
   };
   return kCobaltSwitchDefaults;
 }
