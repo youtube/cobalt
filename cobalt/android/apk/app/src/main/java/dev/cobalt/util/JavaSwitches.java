@@ -61,6 +61,11 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
+  /** Kimono key to opt a device out of low-end device mode. */
+  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+
+  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
+
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
 
@@ -81,9 +86,6 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to enable the GPU shader disk cache. */
-  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -299,6 +301,7 @@ public class JavaSwitches {
   public static List<String> getDefaultCommandLineArgs() {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
+    defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
     }
@@ -334,6 +337,13 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
+    }
+
+    // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices. Use Java
+    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to Finch
+    // if high-end device benefits from removing this low-end-device-mode flag.
+    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+      extraCommandLineArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
@@ -448,10 +458,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
-      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
 
     String maxHttpCacheSize =
