@@ -126,6 +126,14 @@ jobs:
     outputs:
       rerun_triggered: ${{ steps.rerun.outputs.rerun_triggered || 'false' }}
     steps:
+      - name: Checkout Config
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: .github
+
       - name: Rerun Failing Tests
         id: rerun
         env:
@@ -140,8 +148,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${RUN_ATTEMPT}" -ge 3 ]]; then
-            echo "Max attempts reached (${RUN_ATTEMPT}). Skipping rerun."
+          max_attempts=3
+          if [[ -f .github/config/infra/deflake.json ]]; then
+            max_attempts=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
+          fi
+
+          if [[ "${RUN_ATTEMPT}" -ge "${max_attempts}" ]]; then
+            echo "Max attempts reached (${RUN_ATTEMPT}/${max_attempts}). Skipping rerun."
             exit 0
           fi
 
