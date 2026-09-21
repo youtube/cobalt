@@ -109,7 +109,7 @@ class TestSuite {
   bool check_for_thread_and_process_priority_ = true;
   bool is_initialized_ = false;
   int argc_;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_WIN)
   // We need argv_as_pointers_.data() to have type char**, so we can't use
   // raw_ptr here.
   RAW_PTR_EXCLUSION std::vector<char*> argv_as_pointers_;
