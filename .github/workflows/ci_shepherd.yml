@@ -173,7 +173,6 @@ jobs:
           echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
           gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
           echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
-          sleep 5
 
   update-status:
     runs-on: ubuntu-latest
