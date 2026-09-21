@@ -27,8 +27,9 @@
 #include "build/build_config.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/ip_protection/common/masked_domain_list_manager.h"  // nogncheck
-#include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
