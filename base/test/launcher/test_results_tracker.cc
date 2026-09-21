@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "base/base64.h"
-#include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
@@ -27,7 +26,6 @@
 #include "base/json/json_writer.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -356,14 +354,6 @@ bool TestResultsTracker::Init(const CommandLine& command_line) {
   if (path.value().empty()) {
     path = FilePath(kDefaultOutputFile);
   }
-#if BUILDFLAG(IS_IOS_TVOS)
-  if (!path.IsAbsolute()) {
-    FilePath cache_dir;
-    if (PathService::Get(DIR_CACHE, &cache_dir)) {
-      path = cache_dir.Append(path);
-    }
-  }
-#endif  // BUILDFLAG(IS_IOS_TVOS)
   FilePath dir_name = path.DirName();
   if (!DirectoryExists(dir_name)) {
     LOG(WARNING) << "The output directory does not exist. "
