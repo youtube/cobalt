@@ -63,6 +63,11 @@ class CC_EXPORT PictureLayerTilingClient {
   virtual ScrollOffsetMap GetRasterInducingScrollOffsets() const = 0;
   virtual const GlobalStateThatImpactsTilePriority& global_tile_state()
       const = 0;
+#if BUILDFLAG(IS_COBALT)
+  virtual bool IsSingleTileVisibleInterestAreaEnabled() const { return false; }
+  virtual bool IsSingleTileVisibleOnlyEnabled() const { return false; }
+  virtual gfx::Rect GetInitialVisibleLayerRect() const { return gfx::Rect(); }
+#endif
 
  protected:
   virtual ~PictureLayerTilingClient() {}

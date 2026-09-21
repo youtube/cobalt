@@ -69,6 +69,35 @@ PictureLayerTiling::PictureLayerTiling(
       << " Raster transform: " << raster_transform_.ToString();
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+  if (client_->IsSingleTileVisibleInterestAreaEnabled()) {
+    if (const PictureLayerTiling* twin =
+            client_->GetPendingOrActiveTwinTiling(this)) {
+      current_visible_rect_in_layer_space_ =
+          twin->current_visible_rect_in_layer_space_;
+      current_visible_rect_ = twin->current_visible_rect_;
+      current_skewport_rect_in_layer_space_ =
+          twin->current_skewport_rect_in_layer_space_;
+      current_skewport_rect_ = twin->current_skewport_rect_;
+      current_soon_border_rect_in_layer_space_ =
+          twin->current_soon_border_rect_in_layer_space_;
+      current_soon_border_rect_ = twin->current_soon_border_rect_;
+      current_eventually_rect_in_layer_space_ =
+          twin->current_eventually_rect_in_layer_space_;
+      current_eventually_rect_ = twin->current_eventually_rect_;
+    } else {
+      gfx::Rect initial_visible_rect_in_layer_space =
+          client_->GetInitialVisibleLayerRect();
+      if (!initial_visible_rect_in_layer_space.IsEmpty()) {
+        current_visible_rect_in_layer_space_ =
+            initial_visible_rect_in_layer_space;
+        current_visible_rect_ = EnclosingContentsRectFromLayerRect(
+            initial_visible_rect_in_layer_space);
+      }
+    }
+  }
+#endif
+
   gfx::Rect tiling_rect = ComputeTilingRect();
   SetTilingRect(tiling_rect);
   tiling_data_.SetMaxTextureSize(
@@ -139,6 +168,25 @@ void PictureLayerTiling::CreateMissingTilesInLiveTilesRect() {
 void PictureLayerTiling::TakeTilesAndPropertiesFrom(
     PictureLayerTiling* pending_twin,
     const Region& layer_invalidation) {
+#if BUILDFLAG(IS_COBALT)
+  if (client_->IsSingleTileVisibleInterestAreaEnabled()) {
+    current_visible_rect_in_layer_space_ =
+        pending_twin->current_visible_rect_in_layer_space_;
+    current_visible_rect_ = pending_twin->current_visible_rect_;
+    current_skewport_rect_in_layer_space_ =
+        pending_twin->current_skewport_rect_in_layer_space_;
+    current_skewport_rect_ = pending_twin->current_skewport_rect_;
+    current_soon_border_rect_in_layer_space_ =
+        pending_twin->current_soon_border_rect_in_layer_space_;
+    current_soon_border_rect_ = pending_twin->current_soon_border_rect_;
+    current_eventually_rect_in_layer_space_ =
+        pending_twin->current_eventually_rect_in_layer_space_;
+    current_eventually_rect_ = pending_twin->current_eventually_rect_;
+    SetTilingRect(pending_twin->tiling_rect());
+    tiling_data_.SetMaxTextureSize(
+        pending_twin->tiling_data_.max_texture_size());
+  }
+#endif
   SetRasterSourceAndResize(pending_twin->raster_source_);
 
   RemoveTilesInRegion(layer_invalidation, false /* recreate tiles */);
@@ -482,6 +530,26 @@ void PictureLayerTiling::ComputeTilePriorityRects(
   SetPriorityRect(eventually_rect_in_layer_space, EVENTUALLY_RECT,
                   /*evicts_tiles=*/true);
 
+#if BUILDFLAG(IS_COBALT)
+  if (client_->IsSingleTileVisibleInterestAreaEnabled()) {
+    if (current_visible_rect_.IsEmpty()) {
+      if (!tiles_.empty() || !live_tiles_rect_.IsEmpty()) {
+        Reset();
+      }
+    } else {
+      gfx::Rect target_tiling_rect = ComputeTilingRect();
+      gfx::Size target_tile_size =
+          client_->CalculateTileSize(target_tiling_rect.size());
+      if (target_tiling_rect != tiling_data_.tiling_rect() ||
+          target_tile_size != tiling_data_.max_texture_size()) {
+        Reset();
+        tiling_data_.SetMaxTextureSize(target_tile_size);
+        SetTilingRect(target_tiling_rect);
+      }
+    }
+  }
+#endif
+
   // Note that we use the largest skewport extent from the viewport as the
   // "skewport extent". Also note that this math can't produce negative numbers,
   // since skewport.Contains(visible_rect) is always true.
@@ -494,6 +562,17 @@ void PictureLayerTiling::ComputeTilePriorityRects(
            current_skewport_rect_.bottom() - current_visible_rect_.bottom()});
 
   gfx::Rect live_tiles_rect;
+#if BUILDFLAG(IS_COBALT)
+  if (client_->IsSingleTileVisibleInterestAreaEnabled()) {
+    if (!current_visible_rect_.IsEmpty()) {
+      live_tiles_rect = tiling_rect();
+    } else {
+      all_tiles_done_ = true;
+    }
+    SetLiveTilesRect(live_tiles_rect);
+    return;
+  }
+#endif
   if (features::IsCCSlimmingEnabled()) {
     live_tiles_rect = current_visible_rect_;
     bool draws_tiles = has_visible_rect_tiles_;
@@ -904,6 +983,49 @@ gfx::Rect PictureLayerTiling::ComputeTilingRect() const {
             : tiling_rect.bottom());
     DCHECK(layer_contents_rect.Contains(tiling_rect));
   }
+#if BUILDFLAG(IS_COBALT)
+  if (client_->IsSingleTileVisibleInterestAreaEnabled() &&
+      !current_visible_rect_.IsEmpty()) {
+    if (client_->IsSingleTileVisibleOnlyEnabled()) {
+      gfx::Rect visible_rect = current_visible_rect_;
+      visible_rect.Intersect(tiling_rect);
+      if (!visible_rect.IsEmpty()) {
+        return visible_rect;
+      }
+    }
+    gfx::Rect interest_rect =
+        gfx::UnionRects(current_visible_rect_,
+                        gfx::UnionRects(current_skewport_rect_,
+                                        current_soon_border_rect_));
+    interest_rect.Intersect(tiling_rect);
+    if (!interest_rect.IsEmpty()) {
+      constexpr int kSnapTexels = 128;
+      interest_rect.SetByBounds(
+          std::max(tiling_rect.x(),
+                   MathUtil::UncheckedRoundDown(interest_rect.x(),
+                                                kSnapTexels)),
+          std::max(tiling_rect.y(),
+                   MathUtil::UncheckedRoundDown(interest_rect.y(),
+                                                kSnapTexels)),
+          std::min(tiling_rect.right(),
+                   MathUtil::UncheckedRoundUp(interest_rect.right(),
+                                              kSnapTexels)),
+          std::min(tiling_rect.bottom(),
+                   MathUtil::UncheckedRoundUp(interest_rect.bottom(),
+                                              kSnapTexels)));
+      const gfx::Rect& current = tiling_data_.tiling_rect();
+      if (!current.IsEmpty() && tiling_rect.Contains(current) &&
+          current.Contains(current_visible_rect_) &&
+          current.width() <= interest_rect.width() + 256 &&
+          current.height() <= interest_rect.height() + 256 &&
+          tiling_data_.num_tiles_x() <= 1 &&
+          tiling_data_.num_tiles_y() <= 1) {
+        return current;
+      }
+      return interest_rect;
+    }
+  }
+#endif
   return tiling_rect;
 }
 

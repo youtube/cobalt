@@ -407,10 +407,24 @@ const base::FeatureParam<double> kRawDrawTileSizeFactor{&kRawDraw,
 const base::FeatureParam<bool> kIsRawDrawUsingMSAA{&kRawDraw, "IsUsingMSAA",
                                                    false};
 bool IsUsingRawDraw() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::InitializedForCurrentProcess() &&
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          "cobalt-tiling-mode") == "raw-draw") {
+    return true;
+  }
+#endif
   return base::FeatureList::IsEnabled(kRawDraw);
 }
 
 double RawDrawTileSizeFactor() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::InitializedForCurrentProcess() &&
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          "cobalt-tiling-mode") == "raw-draw") {
+    return 4.0;
+  }
+#endif
   return kRawDrawTileSizeFactor.Get();
 }
 

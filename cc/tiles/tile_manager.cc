@@ -1467,6 +1467,16 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
     resource = resource_pool_->TryAcquireResourceForPartialRaster(
         tile->id(), tile->invalidated_content_rect(), tile->invalidated_id(),
         &invalidated_rect, target_color_params.color_space, debug_name);
+#if BUILDFLAG(IS_COBALT)
+    if (resource &&
+        prioritized_tile.source_tiling()
+            ->client()
+            ->IsSingleTileVisibleInterestAreaEnabled() &&
+        resource.size() != tile->desired_texture_size()) {
+      resource = ResourcePool::InUsePoolResource();
+      invalidated_rect = tile->invalidated_content_rect();
+    }
+#endif
 
     constexpr double kLogProbability = 0.001;
     if (metrics_sub_sampler_.ShouldSample(kLogProbability)) {
