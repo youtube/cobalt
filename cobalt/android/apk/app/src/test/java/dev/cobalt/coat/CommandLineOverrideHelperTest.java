@@ -80,7 +80,6 @@ public class CommandLineOverrideHelperTest {
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml"));
 

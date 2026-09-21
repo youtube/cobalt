@@ -54,8 +54,6 @@ public final class CommandLineOverrideHelper {
     // Starboard's stack).
     paramOverrides.add("--disable-accelerated-video-decode");
     paramOverrides.add("--disable-accelerated-video-encode");
-    // Rasterize Tiles directly to GPU memory.
-    paramOverrides.add("--enable-zero-copy");
     // Set default raster threads to 2 for smoother performance.
     paramOverrides.add("--num-raster-threads=2");
     // Enforce ANGLE to use GLES backend by default on Android platforms excluding arm64.
