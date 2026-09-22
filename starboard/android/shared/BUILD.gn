@@ -483,6 +483,10 @@ test("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  deps += [ "//cobalt/android:cobalt_testing_java" ]
+  android_manifest_template =
+      "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
 }
 
 java_cpp_enum("java_enums") {
