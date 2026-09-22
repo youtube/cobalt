@@ -723,91 +723,6 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
 
 // Documents/frames
 void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
-<<<<<<< HEAD
-=======
-  // WebRTC p2p connections are disallowed in fenced frames. Creation of
-  // RTCPeerConnection is already disabled in the renderer, so in theory this
-  // unbound interface should never present an issue.
-  bool should_ban_p2p =
-      base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess) &&
-      host->IsNestedWithinFencedFrame();
-  if (!should_ban_p2p) {
-    map->Add<network::mojom::P2PSocketManager>(
-        base::BindRepeating(&BindSocketManager, base::Unretained(host)));
-  }
-
-  map->Add<blink::mojom::PeerConnectionTrackerHost>(
-      base::BindRepeating(&RenderFrameHostImpl::BindPeerConnectionTrackerHost,
-                          base::Unretained(host)));
-
-  map->Add<blink::mojom::PermissionService>(base::BindRepeating(
-      &RenderFrameHostImpl::CreatePermissionService, base::Unretained(host)));
-
-  map->Add<blink::mojom::PresentationService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetPresentationService, base::Unretained(host)));
-
-  map->Add<blink::mojom::QuotaManagerHost>(
-      base::BindRepeating(&BindQuotaManagerHost, base::Unretained(host)));
-
-  map->Add<blink::mojom::ReportingServiceProxy>(base::BindRepeating(
-      &CreateReportingServiceProxyForFrame, base::Unretained(host)));
-
-  map->Add<blink::mojom::SharedWorkerConnector>(
-      base::BindRepeating(&BindSharedWorkerConnector, base::Unretained(host)));
-
-  map->Add<media::mojom::SpeechRecognizer>(
-      base::BindRepeating(&SpeechRecognitionDispatcherHost::Create,
-                          host->GetProcess()->GetDeprecatedID(),
-                          host->GetRoutingID()),
-      GetIOThreadTaskRunner({}));
-
-  map->Add<blink::mojom::SpeechSynthesis>(base::BindRepeating(
-      &RenderFrameHostImpl::GetSpeechSynthesis, base::Unretained(host)));
-
-#if !BUILDFLAG(IS_ANDROID)
-  map->Add<blink::mojom::DeviceAPIService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetDeviceInfoService, base::Unretained(host)));
-  map->Add<blink::mojom::ManagedConfigurationService>(
-      base::BindRepeating(&RenderFrameHostImpl::GetManagedConfigurationService,
-                          base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-#if !BUILDFLAG(IS_COBALT)
-  map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
-#endif
-
-  map->Add<blink::mojom::WebSocketConnector>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateWebSocketConnector, base::Unretained(host)));
-
-  map->Add<blink::mojom::LockManager>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateLockManager, base::Unretained(host)));
-
-  map->Add<blink::mojom::IDBFactory>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateIDBFactory, base::Unretained(host)));
-
-  map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
-      &RenderFrameHostImpl::CreateBucketManagerHost, base::Unretained(host)));
-
-  map->Add<blink::mojom::FileChooser>(
-      base::BindRepeating(&FileChooserImpl::Create, base::Unretained(host)));
-
-  map->Add<blink::mojom::FileUtilitiesHost>(
-      base::BindRepeating(FileUtilitiesHostImpl::Create,
-                          host->GetProcess()->GetDeprecatedID()),
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
-
-  map->Add<device::mojom::GamepadMonitor>(&device::GamepadMonitor::Create);
-
-  map->Add<blink::mojom::WebSensorProvider>(base::BindRepeating(
-      &RenderFrameHostImpl::GetSensorProvider, base::Unretained(host)));
-
-  map->Add<payments::mojom::PaymentManager>(base::BindRepeating(
-      &RenderFrameHostImpl::CreatePaymentManager, base::Unretained(host)));
-
->>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<handwriting::mojom::HandwritingRecognitionService>(
       &CreateHandwritingRecognitionService);
 
@@ -1209,8 +1124,10 @@ void PopulateBinderMapWithContext(
           &RenderFrameHostImpl::GetManagedConfigurationService>);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebUsbService>);
+#endif
 
   map->Add<blink::mojom::WebSocketConnector>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebSocketConnector>);
