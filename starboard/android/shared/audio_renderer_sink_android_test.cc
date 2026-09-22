@@ -60,6 +60,8 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
   bool flush_called() const { return flush_called_; }
   bool start_time_set() const { return start_time_set_; }
   int64_t last_start_time_us() const { return last_start_time_us_; }
+  double playback_rate() const { return playback_rate_; }
+  double volume() const { return volume_; }
 
  private:
   SbAudioSinkPrivate::Type* type_;
@@ -145,8 +147,7 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
 
   void TearDown() override { fake_sink_type_.reset(); }
 
-  std::unique_ptr<AudioRendererSinkAndroid> CreateSink(
-      bool allow_flush_during_seek) {
+  std::unique_ptr<AudioRendererSink> CreateSink(bool allow_flush_during_seek) {
     return std::make_unique<AudioRendererSinkAndroid>(
         /*tunnel_mode_audio_session_id=*/std::nullopt,
         /*allow_audio_writing_on_pause=*/false,
@@ -192,6 +193,11 @@ TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
   // When flushed, HasStarted() returns false so caller knows it needs Start()
   EXPECT_FALSE(renderer_sink->HasStarted());
 
+  // Updating playback rate and volume while flushed should be applied on next
+  // Start().
+  renderer_sink->SetPlaybackRate(1.5);
+  renderer_sink->SetVolume(0.5);
+
   // 3. Resume after Seek: Start() with same format reuses existing sink
   renderer_sink->Start(kSeekMediaStartTimeUs, kChannels, kSamplingFrequencyHz,
                        kSampleType, frame_buffers_, kFramesPerChannel,
@@ -200,6 +206,8 @@ TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushAllowedFlushesAndReusesSink) {
   EXPECT_EQ(fake_sink_type_->create_count_, 1);  // Reused! No new create.
   EXPECT_TRUE(sink1->start_time_set());
   EXPECT_EQ(sink1->last_start_time_us(), kSeekMediaStartTimeUs);
+  EXPECT_DOUBLE_EQ(sink1->playback_rate(), 1.5);
+  EXPECT_DOUBLE_EQ(sink1->volume(), 0.5);
 }
 
 TEST_F(AudioRendererSinkAndroidTest, SeekWithFlushDisallowedDestroysSink) {

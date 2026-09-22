@@ -169,17 +169,6 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
       frame_buffers, frames_per_channel, render_callback);
 }
 
-bool AudioRendererSinkAndroid::IsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type) const {
-  if (is_tunnel_mode_enabled_) {
-    // Currently the implementation only supports tunnel mode with int16 audio
-    // samples.
-    return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
-  }
-
-  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-}
-
 void AudioRendererSinkAndroid::Reset() {
   bool is_android_sink =
       audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
@@ -199,6 +188,17 @@ void AudioRendererSinkAndroid::Reset() {
 void AudioRendererSinkAndroid::Stop() {
   is_flushed_ = false;
   AudioRendererSinkImpl::Stop();
+}
+
+bool AudioRendererSinkAndroid::IsAudioSampleTypeSupported(
+    SbMediaAudioSampleType audio_sample_type) const {
+  if (is_tunnel_mode_enabled_) {
+    // Currently the implementation only supports tunnel mode with int16 audio
+    // samples.
+    return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
+  }
+
+  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
 }
 
 }  // namespace starboard
