@@ -2771,27 +2771,19 @@ ServiceWorkerGlobalScope::FetchHandlerType() {
 }
 
 bool ServiceWorkerGlobalScope::HasHidEventHandlers() {
-<<<<<<< HEAD
-  HID* hid = Supplement<NavigatorBase>::From<HID>(*navigator());
-=======
 #if BUILDFLAG(IS_COBALT)
   return false;
 #else
-  HID* hid = navigator()->GetHID();
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  HID* hid = Supplement<NavigatorBase>::From<HID>(*navigator());
   return hid ? hid->HasEventListeners() : false;
 #endif
 }
 
 bool ServiceWorkerGlobalScope::HasUsbEventHandlers() {
-<<<<<<< HEAD
-  USB* usb = Supplement<NavigatorBase>::From<USB>(*navigator());
-=======
 #if BUILDFLAG(IS_COBALT)
   return false;
 #else
-  USB* usb = navigator()->GetUSB();
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  USB* usb = Supplement<NavigatorBase>::From<USB>(*navigator());
   return usb ? usb->HasEventListeners() : false;
 #endif
 }

@@ -111,9 +111,6 @@ bool ReadProcMaps(std::string* proc_maps) {
   return true;
 }
 
-<<<<<<< HEAD
-bool ParseProcMaps(std::string_view input,
-=======
 #if BUILDFLAG(IS_COBALT)
 
 bool ParseProcMaps(const std::string& input,
@@ -308,8 +305,7 @@ std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
 
 #else  // !BUILDFLAG(IS_COBALT)
 
-bool ParseProcMaps(const std::string& input,
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+bool ParseProcMaps(std::string_view input,
                    std::vector<MappedMemoryRegion>* regions_out) {
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;

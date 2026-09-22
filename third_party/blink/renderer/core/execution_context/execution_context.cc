@@ -544,9 +544,7 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(origin_trial_context_);
   visitor->Trace(content_security_policy_);
   visitor->Trace(runtime_feature_state_override_context_);
-<<<<<<< HEAD
-=======
-  visitor->Trace(global_indexed_db_);
+visitor->Trace(global_indexed_db_);
   visitor->Trace(abort_signal_registry_);
   visitor->Trace(context_feature_settings_);
   visitor->Trace(dom_scheduler_);
@@ -585,7 +583,6 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(dial_server_manager_);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   MojoBindingContext::Trace(visitor);
   ConsoleLogger::Trace(visitor);
   Supplementable<ExecutionContext, 34>::Trace(visitor);

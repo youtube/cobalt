@@ -564,15 +564,7 @@ std::unique_ptr<WebAudioDevice> RendererBlinkPlatformImpl::CreateAudioDevice(
 std::unique_ptr<blink::WebAudioBus>
 RendererBlinkPlatformImpl::DecodeAudioFileData(
     base::span<const char> audio_file_data) {
-<<<<<<< HEAD
-  return content::DecodeAudioFileData(audio_file_data);
-=======
-#if BUILDFLAG(IS_COBALT)
-  return cobalt::DecodeAudioFileData(destination_bus, audio_file_data);
-#else // BUILDFLAG(IS_COBALT)
-  return content::DecodeAudioFileData(destination_bus, audio_file_data);
-#endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+return content::DecodeAudioFileData(audio_file_data);
 }
 
 //------------------------------------------------------------------------------

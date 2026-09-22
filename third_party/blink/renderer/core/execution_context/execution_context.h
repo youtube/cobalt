@@ -521,9 +521,7 @@ class CORE_EXPORT ExecutionContext
     canvas_noise_token_ = token;
   }
 
-<<<<<<< HEAD
-=======
-  ForwardDeclaredMember<GlobalIndexedDB> GetGlobalIndexedDB() const {
+ForwardDeclaredMember<GlobalIndexedDB> GetGlobalIndexedDB() const {
     return global_indexed_db_;
   }
   void SetGlobalIndexedDB(
@@ -813,8 +811,6 @@ class CORE_EXPORT ExecutionContext
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  protected:
   ExecutionContext(v8::Isolate* isolate, Agent* agent, bool is_window = false);
   ~ExecutionContext() override;
@@ -880,56 +876,6 @@ class CORE_EXPORT ExecutionContext
   bool require_trusted_types_ = false;
 
   std::optional<NoiseToken> canvas_noise_token_;
-<<<<<<< HEAD
-=======
-
-  ForwardDeclaredMember<GlobalIndexedDB> global_indexed_db_;
-
-  Member<AbortSignalRegistry> abort_signal_registry_;
-  Member<ContextFeatureSettings> context_feature_settings_;
-  Member<DOMScheduler> dom_scheduler_;
-  Member<FileBackedBlobFactoryDispatcher> file_backed_blob_factory_dispatcher_;
-  Member<MediaInspectorContextImpl> media_inspector_context_impl_;
-  Member<ReportingContext> reporting_context_;
-  Member<ScriptedIdleTaskController> scripted_idle_task_controller_;
-  ForwardDeclaredMember<AIInterfaceProxy> ai_interface_proxy_;
-  ForwardDeclaredMember<BackgroundReadback> background_readback_;
-  ForwardDeclaredMember<BarcodeDetectorStatics> barcode_detector_statics_;
-  ForwardDeclaredMember<CachedVideoFramePool> cached_video_frame_pool_;
-  ForwardDeclaredMember<CanvasResourceProviderCache>
-      canvas_resource_provider_cache_;
-  ForwardDeclaredMember<CodecPressureManagerProvider>
-      codec_pressure_manager_provider_;
-  ForwardDeclaredMember<CrosKiosk> cros_kiosk_;
-  ForwardDeclaredMember<DOMTimerCoordinator> dom_timer_coordinator_;
-  ForwardDeclaredMember<ExecutionContextClipboardEventState>
-      execution_context_clipboard_event_state_;
-  ForwardDeclaredMember<FileSystemAccessManager> file_system_access_manager_;
-  ForwardDeclaredMember<FileSystemDispatcher> file_system_dispatcher_;
-  ForwardDeclaredMember<FileSystemObservationCollection>
-      file_system_observation_collection_;
-  ForwardDeclaredMember<IdleManager> idle_manager_;
-  ForwardDeclaredMember<ImageBitmapFactories> image_bitmap_factories_;
-  ForwardDeclaredMember<LocalFileSystem> local_file_system_;
-  ForwardDeclaredMember<NavigatorBadge> navigator_badge_;
-  ForwardDeclaredMember<NotificationManager> notification_manager_;
-  ForwardDeclaredMember<ParsedFeaturePolicies> parsed_feature_policies_;
-  ForwardDeclaredMember<PeerConnectionDependencyFactory>
-      peer_connection_dependency_factory_;
-  ForwardDeclaredMember<PressureObserverManager> pressure_observer_manager_;
-  ForwardDeclaredMember<RtcTransportDependencies> rtc_transport_dependencies_;
-  ForwardDeclaredMember<ServiceWorkerContainer> service_worker_container_;
-  ForwardDeclaredMember<ThrottlingController> throttling_controller_;
-  ForwardDeclaredMember<WebCodecsLogger> web_codecs_logger_;
-  ForwardDeclaredMember<WebPrintingManager> web_printing_manager_;
-  ForwardDeclaredMember<WebViewAndroid> web_view_android_;
-
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_IOS_TVOS)
-  ForwardDeclaredMember<DialServerManager> dial_server_manager_;
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink

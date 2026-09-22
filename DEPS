@@ -2061,14 +2061,9 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-<<<<<<< HEAD
-  'src/third_party/cpuinfo/src':
-    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'e8b4def4e6e67bc78d1882b2d709d6f6e13097ee',
-=======
 # Cobalt: imported
 #  'src/third_party/cpuinfo/src':
-#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '161a9ec374884f4b3e85725cb22e05f9458fdc93',
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'e8b4def4e6e67bc78d1882b2d709d6f6e13097ee',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2642,14 +2637,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '15fe37485df9774cd2b6cf74e984a5d473cd1d8b',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'fdb95badca57068440acc569169f602acee51d7a',
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '15fe37485df9774cd2b6cf74e984a5d473cd1d8b',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3028,14 +3018,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + 'a5e9b3bd6fe2f89181fd75b4ce3142c79248606f',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + 'f680c1893f3b166b370439da52ae82d02f54969c',
->>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + 'a5e9b3bd6fe2f89181fd75b4ce3142c79248606f',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
