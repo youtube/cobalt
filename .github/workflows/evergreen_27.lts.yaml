@@ -75,3 +75,13 @@ jobs:
       run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
+  evergreen-arm64-aosp:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm64-aosp
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
