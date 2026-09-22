@@ -147,6 +147,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         }
       };
   private boolean mWasDisplayOn = true;
+  private static boolean sIsMemoryPressureInitialized = false;
 
   @VisibleForTesting
   static void appendMetaDataArgs(@NonNull List<String> args, @Nullable Bundle metaData) {
@@ -496,10 +497,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     setupStartupGuard();
     createContent(savedInstanceState);
     if (!NetworkChangeNotifier.isInitialized()) {
-      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
-      MemoryPressureUma.initializeForBrowser();
       NetworkChangeNotifier.init();
       NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    }
+    if (!sIsMemoryPressureInitialized) {
+      MemoryPressureUma.initializeForBrowser();
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+      sIsMemoryPressureInitialized = true;
     }
 
     if (!mIsCobaltUsingAndroidOverlay) {
