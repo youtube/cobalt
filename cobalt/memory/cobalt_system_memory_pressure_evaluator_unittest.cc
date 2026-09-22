@@ -20,6 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/run_loop.h"
+#include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -59,8 +60,8 @@ class CobaltSystemMemoryPressureEvaluatorTest : public testing::Test {
         kTestBudgetBytes,
         /*moderate_process_memory_fraction=*/0.85f,
         /*critical_process_memory_fraction=*/0.95f,
-        /*poll_interval=*/base::Seconds(5),
-        /*cooldown=*/base::Seconds(15));
+        /*poll_interval=*/base::Seconds(10),
+        /*cooldown=*/base::Seconds(60));
 
     listener_ = std::make_unique<base::MemoryPressureListener>(
         FROM_HERE,
@@ -162,22 +163,35 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessLifecycleRecovery) {
             evaluator_->current_vote());
   EXPECT_EQ(1u, notifications_.size());
 
-  // 2. Critical.
+  // 2. Critical (transitions immediately without cooldown delay).
   SetProcessPrivateMemoryMB(195);
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             evaluator_->current_vote());
   EXPECT_EQ(2u, notifications_.size());
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+            notifications_.back());
 
-  // 3. Recover to 140 MB (70%).
+  // 3. Drop back to Moderate: old_vote != current_vote(), so notifies
+  // immediately.
+  SetProcessPrivateMemoryMB(175);
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+            evaluator_->current_vote());
+  EXPECT_EQ(3u, notifications_.size());
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+            notifications_.back());
+
+  // 4. Recover to 140 MB (70%).
   SetProcessPrivateMemoryMB(140);
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
             evaluator_->current_vote());
   // NONE does not notify listeners.
-  EXPECT_EQ(2u, notifications_.size());
+  EXPECT_EQ(3u, notifications_.size());
 }
 
 // -----------------------------------------------------------------------------
@@ -191,18 +205,62 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, notifications_.size());
 
-  // 5 seconds later: still Moderate, within 15s cooldown -> no new
+  // 10 seconds later: still Moderate, within 60s cooldown -> no new
   // notification.
-  task_environment_.FastForwardBy(base::Seconds(5));
+  task_environment_.FastForwardBy(base::Seconds(10));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1u, notifications_.size());
+
+  // Fast-forward 50s more (60s total cooldown) -> renotify.
+  task_environment_.FastForwardBy(base::Seconds(50));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(2u, notifications_.size());
+}
+
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest, CriticalAlwaysNotifies) {
+  // 1. Initial transition to Critical fires notification immediately.
+  SetProcessPrivateMemoryMB(195);
+  evaluator_->CheckMemoryPressure();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1u, notifications_.size());
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+            evaluator_->current_vote());
+
+  // 2. Next check while still Critical fires notification immediately again
+  // (no cooldown suppression for critical emergency pressure).
+  task_environment_.FastForwardBy(base::Seconds(10));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(2u, notifications_.size());
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
+            evaluator_->current_vote());
+}
+
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
+       TransitionFromCriticalToModerateNotifiesImmediately) {
+  // 1. Start in Critical.
+  SetProcessPrivateMemoryMB(195);
   evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, notifications_.size());
 
-  // Fast-forward 10s more (15s total cooldown) -> renotify.
+  // 2. Step down to Moderate: transition resets cooldown and notifies
+  // immediately.
+  SetProcessPrivateMemoryMB(175);
   task_environment_.FastForwardBy(base::Seconds(10));
-  evaluator_->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(2u, notifications_.size());
+  EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
+            evaluator_->current_vote());
+
+  // 3. Sustained Moderate: suppressed within cooldown.
+  task_environment_.FastForwardBy(base::Seconds(10));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(2u, notifications_.size());
+
+  // 4. Cooldown completes (60s): renotifies Moderate.
+  task_environment_.FastForwardBy(base::Seconds(50));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(3u, notifications_.size());
 }
 
 TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
@@ -289,8 +347,6 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
 }
 
 TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ParameterSanitization) {
-  // Test inverted fractions: moderate = 0.95, critical = 0.85.
-  // Evaluator should sanitize to moderate = 0.85, critical = 0.95.
   // Test non-positive poll interval and cooldown:
   // Evaluator should fall back to kDefaultPollInterval and kDefaultCooldown.
   evaluator_.reset();
@@ -303,18 +359,36 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ParameterSanitization) {
           &CobaltSystemMemoryPressureEvaluatorTest::GetMediaAllowance,
           base::Unretained(this)),
       kTestBudgetBytes,
-      /*moderate_process_memory_fraction=*/0.95f,
-      /*critical_process_memory_fraction=*/0.85f,
+      /*moderate_process_memory_fraction=*/0.85f,
+      /*critical_process_memory_fraction=*/0.95f,
       /*poll_interval=*/base::Seconds(0),
       /*cooldown=*/base::Seconds(-5));
 
-  // With sanitized fractions (moderate=0.85, critical=0.95),
+  // With fractions (moderate=0.85, critical=0.95),
   // private memory 180 MB / 200 MB = 90% -> MODERATE.
   SetProcessPrivateMemoryMB(180);
   evaluator->CheckMemoryPressure();
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             evaluator->current_vote());
+
+#if DCHECK_IS_ON()
+  // Inverted fractions (moderate > critical) violate invariants and trigger a
+  // DCHECK failure.
+  EXPECT_DCHECK_DEATH(std::make_unique<CobaltSystemMemoryPressureEvaluator>(
+      monitor_->CreateVoter(),
+      base::BindRepeating(
+          &CobaltSystemMemoryPressureEvaluatorTest::GetProcessMemoryInfo,
+          base::Unretained(this)),
+      base::BindRepeating(
+          &CobaltSystemMemoryPressureEvaluatorTest::GetMediaAllowance,
+          base::Unretained(this)),
+      kTestBudgetBytes,
+      /*moderate_process_memory_fraction=*/0.95f,
+      /*critical_process_memory_fraction=*/0.85f,
+      /*poll_interval=*/base::Seconds(10),
+      /*cooldown=*/base::Seconds(60)));
+#endif  // DCHECK_IS_ON()
 }
 
 }  // namespace

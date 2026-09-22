@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
 #include "cobalt/browser/features.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace memory {
@@ -45,10 +46,9 @@ constexpr char kSwitchPollIntervalMs[] =
 constexpr char kSwitchCooldownMs[] = "cobalt-memory-pressure-cooldown-ms";
 
 // Resolves a float fraction parameter following the priority order:
-// CLI switch -> Finch feature param -> constexpr default.
+// CLI switch -> Finch feature param (which includes default value).
 float ResolveFractionParam(const char* switch_name,
-                           const base::FeatureParam<double>& finch_param,
-                           float constexpr_default) {
+                           const base::FeatureParam<double>& finch_param) {
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line && command_line->HasSwitch(switch_name)) {
     double value;
@@ -62,15 +62,15 @@ float ResolveFractionParam(const char* switch_name,
   if (finch_val >= 0.0 && finch_val <= 1.0) {
     return static_cast<float>(finch_val);
   }
-  return constexpr_default;
+  return static_cast<float>(finch_param.default_value);
 }
 
 // Resolves a TimeDelta parameter following the priority order:
-// CLI switch (in ms) -> Finch feature param (in seconds) -> constexpr default.
+// CLI switch (in ms) -> Finch feature param (in seconds) -> fallback default.
 base::TimeDelta ResolveTimeDeltaParam(
     const char* switch_name,
     const base::FeatureParam<int>& finch_param_seconds,
-    base::TimeDelta constexpr_default) {
+    base::TimeDelta default_value) {
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line && command_line->HasSwitch(switch_name)) {
     int value;
@@ -84,7 +84,7 @@ base::TimeDelta ResolveTimeDeltaParam(
   if (finch_seconds > 0) {
     return base::Seconds(finch_seconds);
   }
-  return constexpr_default;
+  return default_value;
 }
 
 }  // namespace
@@ -116,14 +116,25 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
   }
 
   if (total_physical_memory_bytes == 0) {
-    total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
+    int64_t total_cpu_memory = SbSystemGetTotalCPUMemory();
+    if (total_cpu_memory > 0) {
+      total_physical_memory_bytes = static_cast<uint64_t>(total_cpu_memory);
+    } else {
+      total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
+    }
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator: Resolved total physical "
+              << "RAM: " << (total_physical_memory_bytes / (1024 * 1024))
+              << " MB via SbSystemGetTotalCPUMemory() ("
+              << total_physical_memory_bytes << " bytes).";
   }
 
+  // TODO(b/570097834): Align the device tiering logics with DICE.
   // Tier-based budget derivation adhering to the Improved Budget Formula Design
   // (cobalt/tools/performance/memory/improved_memory_budget_formula_design.md).
   // Formula: Process Memory Budget = Device Memory Ceiling - Platform Overhead
   // - Safety Margin
 
+  uint64_t budget = 0;
   // Tier 1: Super Low-End Hardware (<= 512 MB physical RAM)
   // Target: 512 MB connected TVs, streaming sticks (e.g. Roku 512 MB boards).
   // Device Memory Ceiling: 271 MB (strict kernel LMK kill threshold combining
@@ -132,36 +143,37 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
   // 271 MB - 125 MB - 26 MB = 120 MB.
   if (total_physical_memory_bytes > 0 &&
       total_physical_memory_bytes <= 512ULL * 1024 * 1024) {
-    return static_cast<uint64_t>(kDefaultBudgetMbSuperLowEnd) * 1024 * 1024;
+    budget = static_cast<uint64_t>(kDefaultBudgetMbSuperLowEnd) * 1024 * 1024;
+  } else if (total_physical_memory_bytes > 0 &&
+             total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
+    // Tier 2: Low-End Hardware (> 512 MB and <= 1024 MB physical RAM)
+    // Target: 1 GB RDK set-top boxes, 1 GB Android TV dongles.
+    // Device Memory Ceiling: 400 MB (Phase 2 Bonsai target; Phase 1 reclaimer
+    // ceiling is 450 MB). Platform Overhead: 210 MB (WPEFramework, kernel slab,
+    // Mali G31 GPU buffers, Secmem TVP). Safety Margin: 30 MB (absorbs
+    // background daemons and OS spikes). Process Budget = 400 MB - 210 MB - 30
+    // MB = 160 MB.
+    budget = static_cast<uint64_t>(kDefaultBudgetMbLowEnd) * 1024 * 1024;
+  } else if (total_physical_memory_bytes > 0 &&
+             total_physical_memory_bytes <= 2048ULL * 1024 * 1024) {
+    // Tier 3: Standard Hardware (> 1024 MB and <= 2048 MB physical RAM)
+    // Target: Mid-tier Smart TVs, Android TV retail boxes (e.g. Chromecast with
+    // Google TV HD/4K). Device Memory Ceiling: 750 MB (AOSP foreground
+    // application allocation envelope). Platform Overhead: 350 MB (Android
+    // system_server, SurfaceFlinger HWC, ART runtime, HALs). Safety Margin: 100
+    // MB. Process Budget = 750 MB - 350 MB - 100 MB = 300 MB.
+    budget = static_cast<uint64_t>(kDefaultBudgetMbStandard) * 1024 * 1024;
+  } else {
+    // Tier 4: High-End Hardware (> 2048 MB physical RAM)
+    // Target: Premium Smart TVs, Game Consoles, 3GB+ STBs.
+    // Process Budget: 500 MB (fixed ceiling to avoid unbounded JS heap bloat
+    // while preventing V8 GC hitches during long browsing sessions).
+    budget = static_cast<uint64_t>(kDefaultBudgetMbHighEnd) * 1024 * 1024;
   }
 
-  // Tier 2: Low-End Hardware (> 512 MB and <= 1024 MB physical RAM)
-  // Target: 1 GB RDK set-top boxes, 1 GB Android TV dongles.
-  // Device Memory Ceiling: 400 MB (Phase 2 Bonsai target; Phase 1 reclaimer
-  // ceiling is 450 MB). Platform Overhead: 210 MB (WPEFramework, kernel slab,
-  // Mali G31 GPU buffers, Secmem TVP). Safety Margin: 30 MB (absorbs background
-  // daemons and OS spikes). Process Budget = 400 MB - 210 MB - 30 MB = 160 MB.
-  if (total_physical_memory_bytes > 0 &&
-      total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
-    return static_cast<uint64_t>(kDefaultBudgetMbLowEnd) * 1024 * 1024;
-  }
-
-  // Tier 3: Standard Hardware (> 1024 MB and <= 2048 MB physical RAM)
-  // Target: Mid-tier Smart TVs, Android TV retail boxes (e.g. Chromecast with
-  // Google TV HD/4K). Device Memory Ceiling: 750 MB (AOSP foreground
-  // application allocation envelope). Platform Overhead: 350 MB (Android
-  // system_server, SurfaceFlinger HWC, ART runtime, HALs). Safety Margin: 100
-  // MB. Process Budget = 750 MB - 350 MB - 100 MB = 300 MB.
-  if (total_physical_memory_bytes > 0 &&
-      total_physical_memory_bytes <= 2048ULL * 1024 * 1024) {
-    return static_cast<uint64_t>(kDefaultBudgetMbStandard) * 1024 * 1024;
-  }
-
-  // Tier 4: High-End Hardware (> 2048 MB physical RAM)
-  // Target: Premium Smart TVs, Game Consoles, 3GB+ STBs.
-  // Process Budget: 500 MB (fixed ceiling to avoid unbounded JS heap bloat
-  // while preventing V8 GC hitches during long browsing sessions).
-  return static_cast<uint64_t>(kDefaultBudgetMbHighEnd) * 1024 * 1024;
+  LOG(INFO) << "CobaltSystemMemoryPressureEvaluator: Derived process memory "
+            << "budget = " << (budget / (1024 * 1024)) << " MB.";
+  return budget;
 }
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
@@ -171,18 +183,13 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
           std::move(voter),
           /*process_memory_info_getter=*/{},
           std::move(media_allowance_getter),
-          /*process_memory_budget_bytes=*/
-          static_cast<uint64_t>(
-              features::kCobaltMemoryPressureBudgetMBParam.Get()) *
-              1024 * 1024,
+          /*process_memory_budget_bytes=*/0,
           ResolveFractionParam(
               kSwitchModerateProcessMemoryFraction,
-              features::kCobaltMemoryPressureModerateFractionParam,
-              kDefaultModerateProcessMemoryFraction),
+              features::kCobaltMemoryPressureModerateFractionParam),
           ResolveFractionParam(
               kSwitchCriticalProcessMemoryFraction,
-              features::kCobaltMemoryPressureCriticalFractionParam,
-              kDefaultCriticalProcessMemoryFraction),
+              features::kCobaltMemoryPressureCriticalFractionParam),
           ResolveTimeDeltaParam(
               kSwitchPollIntervalMs,
               features::kCobaltMemoryPressurePollIntervalSecondsParam,
@@ -224,17 +231,15 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
       process_memory_budget_bytes_(process_memory_budget_bytes > 0
                                        ? process_memory_budget_bytes
                                        : ResolveProcessMemoryBudget()),
-      moderate_process_memory_fraction_(
-          std::min(moderate_process_memory_fraction,
-                   critical_process_memory_fraction)),
-      critical_process_memory_fraction_(
-          std::max(moderate_process_memory_fraction,
-                   critical_process_memory_fraction)),
+      moderate_process_memory_fraction_(moderate_process_memory_fraction),
+      critical_process_memory_fraction_(critical_process_memory_fraction),
       poll_interval_(poll_interval > base::TimeDelta() ? poll_interval
                                                        : kDefaultPollInterval),
       cooldown_(cooldown > base::TimeDelta() ? cooldown : kDefaultCooldown) {
   DCHECK_GE(critical_process_memory_fraction_,
             moderate_process_memory_fraction_);
+  DCHECK_GE(moderate_process_memory_fraction_, 0.0f);
+  DCHECK_LE(critical_process_memory_fraction_, 1.0f);
 
   if (!process_memory_info_getter_) {
     process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
@@ -284,8 +289,8 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
 
   const auto& info = maybe_info.value();
   uint64_t private_bytes = 0;
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
-  private_bytes = info.rss_anon_bytes;
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  private_bytes = info.rss_anon_bytes + info.vm_swap_bytes;
 #endif
   if (private_bytes == 0) {
     private_bytes = info.resident_set_bytes;
@@ -309,30 +314,38 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
 
 void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
     base::MemoryPressureListener::MemoryPressureLevel new_level) {
-  auto old_vote = current_vote();
+  base::MemoryPressureListener::MemoryPressureLevel old_vote = current_vote();
   SetCurrentVote(new_level);
 
+  // |notify| will be set to true if MemoryPressureListeners need to be
+  // notified of a memory pressure level state change.
   bool notify = false;
   switch (current_vote()) {
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
-      repeat_count_ = 0;
       break;
 
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL: {
       if (old_vote != current_vote()) {
-        repeat_count_ = 0;
+        // This is a new transition to moderate pressure so notify.
+        moderate_pressure_repeat_count_ = 0;
         notify = true;
       } else {
-        const int cooldown_cycles =
+        // Already in moderate pressure, only notify if sustained over the
+        // cooldown period.
+        const int moderate_pressure_cooldown_cycles =
             std::max(1, static_cast<int>(cooldown_ / poll_interval_));
-        if (++repeat_count_ >= cooldown_cycles) {
-          repeat_count_ = 0;
+        if (++moderate_pressure_repeat_count_ ==
+            moderate_pressure_cooldown_cycles) {
+          moderate_pressure_repeat_count_ = 0;
           notify = true;
         }
       }
       break;
-    }
+
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      // Always notify of critical pressure levels.
+      notify = true;
+      break;
   }
 
   SendCurrentVote(notify);

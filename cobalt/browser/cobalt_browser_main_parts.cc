@@ -55,7 +55,7 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/memory/memory_pressure_monitor.h"
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
-#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // gn nocheck
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // nogncheck
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -377,8 +377,6 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
-CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
-
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -478,14 +476,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   // when enabled via Finch or command line.
   if (base::FeatureList::IsEnabled(
           features::kCobaltSystemMemoryPressureEvaluator)) {
-    if (!base::MemoryPressureMonitor::Get()) {
-      memory_pressure_monitor_ =
-          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
-    }
-
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
     auto* monitor =
         static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
             base::MemoryPressureMonitor::Get());
+    // |monitor| may be nullptr in browser tests or if memory monitoring is
+    // disabled.
     if (monitor) {
       cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
           media_allowance_getter;
@@ -498,6 +495,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
               monitor->CreateVoter(), std::move(media_allowance_getter)));
       LOG(INFO)
           << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluator.";
     }
   } else {
     LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";

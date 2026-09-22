@@ -171,10 +171,10 @@ const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
     &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
 
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 5};
+    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
 const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 15};
+    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
 
 }  // namespace features
 }  // namespace cobalt
