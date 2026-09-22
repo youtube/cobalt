@@ -160,6 +160,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           receiver);
   uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
+  // Computes the maximum HTTP cache size in bytes based on the platform's
+  // total cache directory budget.
+  static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
+
 #if !BUILDFLAG(IS_ANDROIDTV)
   void SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
