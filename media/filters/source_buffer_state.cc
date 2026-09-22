@@ -213,9 +213,22 @@ void SourceBufferState::SetParseWarningCallback(
   frame_processor_->SetParseWarningCallback(std::move(parse_warning_cb));
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool SourceBufferState::AppendToParseBuffer(
+    base::span<const uint8_t> data,
+    base::ScopedClosureRunner release_runner) {
+  // Parsers that borrow `data` must never be handed a null runner, so route
+  // that case to the copying overload. This is the only place that decides
+  // between the two.
+  return release_runner ? stream_parser_->AppendToParseBuffer(
+                              data, std::move(release_runner))
+                        : stream_parser_->AppendToParseBuffer(data);
+}
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool SourceBufferState::AppendToParseBuffer(base::span<const uint8_t> data) {
   return stream_parser_->AppendToParseBuffer(data);
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
     base::TimeDelta append_window_start,

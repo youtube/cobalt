@@ -72,7 +72,16 @@ class MEDIA_EXPORT SourceBufferState {
   // append failure using a `QuotaExceededErr` exception per the MSE
   // specification. App could use a back-off and retry strategy or otherwise
   // alter their behavior to attempt to buffer media for further playback.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the StreamParser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which is then handed a copy instead.
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser to parse more of the data previously sent to it
   // from this object's AppendToParseBuffer(). `*timestamp_offset` is used and
