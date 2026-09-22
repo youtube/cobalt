@@ -154,11 +154,11 @@ TEST(ServiceTransferCacheTest, PurgeEntryOnTimer) {
 // Control arm of the A/B: with the feature off no timer is ever started, so an
 // unlocked entry stays resident no matter how long the cache idles.
 TEST(ServiceTransferCacheTest, IdleEntryIsKeptWhenPruneFeatureDisabled) {
-  base::test::TaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_features;
   scoped_features.InitAndDisableFeature(
       features::kPruneOldTransferCacheEntries);
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   bool flush_called = false;
   ServiceTransferCache cache{
@@ -180,10 +180,10 @@ TEST(ServiceTransferCacheTest, IdleEntryIsKeptWhenPruneFeatureDisabled) {
 // Treatment arm: the same idle entry is reclaimed, and the cache asks its owner
 // to flush so the GPU-side memory releases.
 TEST(ServiceTransferCacheTest, IdleEntryIsReclaimedWhenPruneFeatureEnabled) {
-  base::test::TaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_features;
   scoped_features.InitAndEnableFeature(features::kPruneOldTransferCacheEntries);
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   bool flush_called = false;
   ServiceTransferCache cache{
