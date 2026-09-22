@@ -25,12 +25,8 @@
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "chrome/browser/permissions/prediction_service/language_detection_observer.h"
 #include "components/content_extraction/content/browser/inner_text.h"
-<<<<<<< HEAD
-#include "components/passage_embeddings/passage_embeddings_types.h"
-#include "third_party/skia/include/core/SkBitmap.h"
-=======
 #include "components/passage_embeddings/passage_embeddings_types.h"  // nogncheck
->>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "third_party/skia/include/core/SkBitmap.h"
 #endif
 
 class PredictionServiceRequest;
