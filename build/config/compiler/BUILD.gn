@@ -518,7 +518,7 @@ config("compiler") {
       # requires at least LLVM 22.1.0 to work correctly.
       defines += [
         "INFINITY=__builtin_inff()",
-        "NAN=__builtin_nan(\"\")",
+        "NAN=__builtin_nanf(\"\")",
       ]
       # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
       # on a local variable, which depends on LLVM 23.1.0.
