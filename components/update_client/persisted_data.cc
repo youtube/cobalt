@@ -26,16 +26,6 @@
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/update_client_errors.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-namespace {
-void FlushPrefs(PrefService* pref_service) {
-  if (pref_service) {
-    pref_service->CommitPendingWrite(base::DoNothing());
-  }
-}
-}  // namespace
-#endif
-
 namespace update_client {
 
 const char kPersistedDataPreference[] = "updateclientdata";
@@ -71,18 +61,6 @@ class PersistedDataImpl : public PersistedData {
   // PersistedData overrides:
   int GetDateLastRollCall(const std::string& id) const override;
   int GetDateLastActive(const std::string& id) const override;
-
-#if BUILDFLAG(IS_STARBOARD)
-  std::string GetLastInstalledSbVersion(const std::string& id) const override;
-  std::string GetLastInstalledVersion(const std::string& id) const override;
-  std::string GetUpdaterChannel(const std::string& id) const override;
-  std::string GetLatestChannel() const override;
-  void SetLastInstalledEgAndSbVersion(const std::string& id,
-                                      const std::string& eg_version,
-                                      const std::string& sb_version) override;
-  void SetUpdaterChannel(const std::string& id, const std::string& channel) override;
-  void SetLatestChannel(const std::string& channel) override;
-#endif
   std::string GetPingFreshness(const std::string& id) const override;
   void SetDateLastData(const std::vector<std::string>& ids,
                        int datenum,
@@ -218,56 +196,6 @@ std::string PersistedDataImpl::GetPingFreshness(const std::string& id) const {
   std::string result = GetString(id, "pf");
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
-
-#if BUILDFLAG(IS_STARBOARD)
-std::string PersistedDataImpl::GetLastInstalledSbVersion(const std::string& id) const {
-  return GetString(id, "sbversion");
-}
-
-std::string PersistedDataImpl::GetLastInstalledVersion(const std::string& id) const {
-  return GetString(id, "version");
-}
-std::string PersistedDataImpl::GetUpdaterChannel(const std::string& id) const {
-  return GetString(id, "updaterchannel");
-}
-std::string PersistedDataImpl::GetLatestChannel() const {
-  PrefService* pref_service = pref_service_provider_.Run();
-  if (!pref_service) {
-    return std::string();
-  }
-  const base::Value& dict = pref_service->GetValue(kPersistedDataPreference);
-  if (!dict.is_dict())
-    return std::string();
-  const std::string* result = dict.GetDict().FindString("latestchannel");
-  return result != nullptr ? *result : std::string();
-}
-void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
-                                                   const std::string& eg_version,
-                                                   const std::string& sb_version) {
-  SetString(id, "version", eg_version);
-  SetString(id, "sbversion", sb_version);
-  PrefService* prefs = pref_service_provider_.Run();
-  FlushPrefs(prefs);
-}
-void PersistedDataImpl::SetUpdaterChannel(const std::string& id,
-                                      const std::string& channel) {
-  SetString(id, "updaterchannel", channel);
-  PrefService* prefs = pref_service_provider_.Run();
-  FlushPrefs(prefs);
-}
-void PersistedDataImpl::SetLatestChannel(const std::string& channel) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  PrefService* pref_service = pref_service_provider_.Run();
-  if (!pref_service) {
-    return;
-  }
-  {
-    ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
-    update->Set("latestchannel", channel);
-  }
-  FlushPrefs(pref_service);
-}
-#endif
 
 int PersistedDataImpl::GetInstallDate(const std::string& id) const {
   return GetInt(id, "installdate", kDateUnknown);

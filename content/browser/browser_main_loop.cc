@@ -416,7 +416,6 @@ class OopDataDecoder : public data_decoder::ServiceProvider {
   }
 };
 
-#if !BUILDFLAG(IS_COBALT)
 void BindHidManager(mojo::PendingReceiver<device::mojom::HidManager> receiver) {
 #if !BUILDFLAG(IS_ANDROID)
   if (!BrowserThread::CurrentlyOn(BrowserThread::UI)) {
@@ -428,7 +427,6 @@ void BindHidManager(mojo::PendingReceiver<device::mojom::HidManager> receiver) {
   GetDeviceService().BindHidManager(std::move(receiver));
 #endif
 }
-#endif // !BUILDFLAG(IS_COBALT)
 
 uint32_t GenerateBrowserSalt() {
   uint32_t salt;
@@ -909,10 +907,7 @@ void BrowserMainLoop::CreateStartupTasks() {
 // is entered and startup tasks are run asynchronously from it.
 // InterceptMainMessageLoopRun() thus needs to be forced instead of happening
 // from MainMessageLoopRun().
-// Make the Starboard same behavior like Android but only in non-release
-// builds for cobalt_browsertests.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || \
-    (!defined(OFFICIAL_BUILD) && BUILDFLAG(IS_STARBOARD))
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   StartupTask intercept_main_message_loop_run = base::BindOnce(
       [](BrowserMainLoop* self) {
         // Lambda to ignore the return value and always keep a clean exit code
@@ -925,12 +920,7 @@ void BrowserMainLoop::CreateStartupTasks() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-starboard-lifecycle")) {
-    startup_task_runner_->StartRunningTasksAsync();
-  } else {
-    startup_task_runner_->RunAllTasksNow(false);
-  }
+  startup_task_runner_->StartRunningTasksAsync();
 #else
   startup_task_runner_->RunAllTasksNow(false);
 #endif
@@ -1333,9 +1323,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
   // so this cannot happen any earlier than now.
   InitializeMojo();
 
-#if !BUILDFLAG(IS_COBALT)
   data_decoder_service_provider_ = std::make_unique<OopDataDecoder>();
-#endif // !BUILDFLAG(IS_COBALT)
 
   HistogramSynchronizer::GetInstance();
 
@@ -1400,7 +1388,6 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
     InitializeAudio();
   }
 
-#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:MidiService");
     midi_service_ = std::make_unique<midi::MidiService>();
@@ -1415,7 +1402,6 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
         base::BindRepeating(&BindHidManager));
 #endif
   }
-#endif // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)
   if (!base::FeatureList::IsEnabled(
@@ -1442,7 +1428,6 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
         std::make_unique<MediaStreamManager>(audio_system_.get());
   }
 
-#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup",
                  "BrowserMainLoop::PostCreateThreads:InitSpeechRecognition");
@@ -1455,7 +1440,6 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
                  "BrowserMainLoop::PostCreateThreads::SaveFileManager");
     save_file_manager_ = new SaveFileManager();
   }
-#endif // !BUILDFLAG(IS_COBALT)
 
   // Alert the clipboard class to which threads are allowed to access the
   // clipboard:

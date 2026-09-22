@@ -237,7 +237,6 @@ class LockManager::LockRequestImpl final
 // static
 LockManager* LockManager::locks(NavigatorBase& navigator,
                                 ExceptionState& exception_state) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   ExecutionContext* context = navigator.GetExecutionContext();
 
   auto* shared_storage_worklet_global_scope =
@@ -250,10 +249,6 @@ LockManager* LockManager::locks(NavigatorBase& navigator,
         "navigator.locks cannot be accessed during addModule().");
     return nullptr;
   }
-#else
-  // Silence unused parameter warning
-  (void)exception_state;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   LockManager* supplement = navigator.GetLockManager();
   if (!supplement) {

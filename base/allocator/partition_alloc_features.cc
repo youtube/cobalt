@@ -388,10 +388,4 @@ BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,
 
 BASE_FEATURE(kPartitionAllocFreeWithSize, FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers,
-             "PartitionAllocReuseMainPartitionForBuffers",
-             FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
-
 }  // namespace base::features

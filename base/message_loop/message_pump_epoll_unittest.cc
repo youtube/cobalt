@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/span.h"
@@ -30,6 +31,7 @@
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gtest_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

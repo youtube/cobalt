@@ -31,9 +31,6 @@ class ChannelAssociatedGroupController;
 namespace media {
 class AlsaPcmOutputStream;
 class AlsaPcmInputStream;
-#if BUILDFLAG(IS_STARBOARD)
-class AudioInputStreamStarboard;
-#endif // BUILDFLAG(IS_STARBOARD)
 class FakeAudioWorker;
 }  // namespace media
 namespace viz {
@@ -82,9 +79,6 @@ class PostDelayedTaskPassKey {
   friend class webrtc::ThreadWrapper;
   friend class media::AlsaPcmOutputStream;
   friend class media::AlsaPcmInputStream;
-#if BUILDFLAG(IS_STARBOARD)
-  friend class media::AudioInputStreamStarboard;
-#endif // BUILDFLAG(IS_STARBOARD)
   friend class media::FakeAudioWorker;
 #if BUILDFLAG(IS_ANDROID)
   friend class base::android::PreFreezeBackgroundMemoryTrimmer;
