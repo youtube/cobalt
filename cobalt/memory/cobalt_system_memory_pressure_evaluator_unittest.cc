@@ -257,26 +257,33 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, HandlesErrorsGracefully) {
 
 TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
        ResolveProcessMemoryBudgetTiers) {
-  // Low-end tier (<= 1 GB total RAM) -> 180 MB
-  uint64_t low_end_ram = 1024ULL * 1024 * 1024;
-  EXPECT_EQ(180ULL * 1024 * 1024,
-            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
-                low_end_ram));
-
+  // Tier 1: Super low-end tier (<= 512 MB physical RAM) -> 120 MB
   uint64_t stick_ram = 512ULL * 1024 * 1024;
-  EXPECT_EQ(180ULL * 1024 * 1024,
+  EXPECT_EQ(120ULL * 1024 * 1024,
             CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
                 stick_ram));
 
-  // Standard tier (> 1 GB total RAM, e.g. 2 GB) -> 200 MB
-  uint64_t standard_ram = 2ULL * 1024 * 1024 * 1024;
-  EXPECT_EQ(200ULL * 1024 * 1024,
+  // Tier 2: Low-end tier (> 512 MB and <= 1024 MB physical RAM) -> 160 MB
+  uint64_t low_end_ram = 1024ULL * 1024 * 1024;
+  EXPECT_EQ(160ULL * 1024 * 1024,
             CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
-                standard_ram));
+                low_end_ram));
 
-  // 4 GB RAM -> 200 MB standard default
+  // Tier 3: Standard tier (> 1024 MB and <= 2048 MB physical RAM, e.g. 1.5 GB,
+  // 2 GB) -> 300 MB
+  uint64_t standard_ram_1_5gb = 1536ULL * 1024 * 1024;
+  EXPECT_EQ(300ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                standard_ram_1_5gb));
+
+  uint64_t standard_ram_2gb = 2ULL * 1024 * 1024 * 1024;
+  EXPECT_EQ(300ULL * 1024 * 1024,
+            CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
+                standard_ram_2gb));
+
+  // Tier 4: High-end tier (> 2048 MB physical RAM, e.g. 3 GB, 4 GB) -> 500 MB
   uint64_t high_end_ram = 4ULL * 1024 * 1024 * 1024;
-  EXPECT_EQ(200ULL * 1024 * 1024,
+  EXPECT_EQ(500ULL * 1024 * 1024,
             CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
                 high_end_ram));
 }
@@ -286,10 +293,9 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ParameterSanitization) {
   // Evaluator should sanitize to moderate = 0.85, critical = 0.95.
   // Test non-positive poll interval and cooldown:
   // Evaluator should fall back to kDefaultPollInterval and kDefaultCooldown.
-  auto monitor =
-      std::make_unique<::memory_pressure::MultiSourceMemoryPressureMonitor>();
+  evaluator_.reset();
   auto evaluator = std::make_unique<CobaltSystemMemoryPressureEvaluator>(
-      monitor->CreateVoter(),
+      monitor_->CreateVoter(),
       base::BindRepeating(
           &CobaltSystemMemoryPressureEvaluatorTest::GetProcessMemoryInfo,
           base::Unretained(this)),

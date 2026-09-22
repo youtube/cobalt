@@ -40,6 +40,16 @@ inline constexpr char kProcessMemoryBudgetMB[] = "process-memory-budget-mb";
 // process memory budget (expanded dynamically by active media buffer
 // allowance). Casts MODERATE at 85% of budget and CRITICAL at 95%.
 //
+// Parameter Resolution Hierarchy:
+// All runtime parameters (moderate/critical fraction, budget, poll interval,
+// cooldown) adhere to a 3-tier priority resolution:
+//   1. Command-Line Switch: Highest priority. Used for local debugging, QA, and
+//      integration tests.
+//   2. Finch Feature Param: Middle priority. Used for fleet-wide A/B studies
+//      and dynamic server-side tuning.
+//   3. Constexpr Defaults / Hardware RAM Tiering: Baseline fallback when no
+//      override is present.
+//
 // Lifetime and Ownership:
 // Owned by memory_pressure::MultiSourceMemoryPressureMonitor via
 // SetSystemEvaluator() (which in turn is owned by CobaltBrowserMainParts).
@@ -55,8 +65,10 @@ class CobaltSystemMemoryPressureEvaluator
  public:
   static constexpr float kDefaultModerateProcessMemoryFraction = 0.85f;
   static constexpr float kDefaultCriticalProcessMemoryFraction = 0.95f;
-  static constexpr int kDefaultBudgetMbLowEnd = 180;
-  static constexpr int kDefaultBudgetMbStandard = 200;
+  static constexpr int kDefaultBudgetMbSuperLowEnd = 120;  // RAM <= 512 MB
+  static constexpr int kDefaultBudgetMbLowEnd = 160;    // 512 MB < RAM <= 1 GB
+  static constexpr int kDefaultBudgetMbStandard = 300;  // 1 GB < RAM <= 2 GB
+  static constexpr int kDefaultBudgetMbHighEnd = 500;   // RAM > 2 GB
   static constexpr base::TimeDelta kDefaultPollInterval = base::Seconds(5);
   static constexpr base::TimeDelta kDefaultCooldown = base::Seconds(15);
 

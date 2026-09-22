@@ -29,6 +29,13 @@ namespace memory {
 
 namespace {
 
+// Parameter Resolution Priority Order:
+// 1. Command-Line Switches (Highest priority: overrides all for local debugging
+// & QA scripts)
+// 2. Finch Feature Parameters (Middle priority: server-driven A/B testing &
+// field studies)
+// 3. Constexpr Defaults / Hardware Tiering (Baseline fallback)
+
 constexpr char kSwitchModerateProcessMemoryFraction[] =
     "cobalt-memory-pressure-moderate-process-memory-fraction";
 constexpr char kSwitchCriticalProcessMemoryFraction[] =
@@ -37,9 +44,13 @@ constexpr char kSwitchPollIntervalMs[] =
     "cobalt-memory-pressure-poll-interval-ms";
 constexpr char kSwitchCooldownMs[] = "cobalt-memory-pressure-cooldown-ms";
 
-float GetSwitchValueFloat(const char* switch_name, float default_value) {
+// Resolves a float fraction parameter following the priority order:
+// CLI switch -> Finch feature param -> constexpr default.
+float ResolveFractionParam(const char* switch_name,
+                           const base::FeatureParam<double>& finch_param,
+                           float constexpr_default) {
   const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switch_name)) {
+  if (command_line && command_line->HasSwitch(switch_name)) {
     double value;
     if (base::StringToDouble(command_line->GetSwitchValueASCII(switch_name),
                              &value) &&
@@ -47,13 +58,21 @@ float GetSwitchValueFloat(const char* switch_name, float default_value) {
       return static_cast<float>(value);
     }
   }
-  return default_value;
+  double finch_val = finch_param.Get();
+  if (finch_val >= 0.0 && finch_val <= 1.0) {
+    return static_cast<float>(finch_val);
+  }
+  return constexpr_default;
 }
 
-base::TimeDelta GetSwitchValueTimeDeltaMs(const char* switch_name,
-                                          base::TimeDelta default_value) {
+// Resolves a TimeDelta parameter following the priority order:
+// CLI switch (in ms) -> Finch feature param (in seconds) -> constexpr default.
+base::TimeDelta ResolveTimeDeltaParam(
+    const char* switch_name,
+    const base::FeatureParam<int>& finch_param_seconds,
+    base::TimeDelta constexpr_default) {
   const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switch_name)) {
+  if (command_line && command_line->HasSwitch(switch_name)) {
     int value;
     if (base::StringToInt(command_line->GetSwitchValueASCII(switch_name),
                           &value) &&
@@ -61,7 +80,11 @@ base::TimeDelta GetSwitchValueTimeDeltaMs(const char* switch_name,
       return base::Milliseconds(value);
     }
   }
-  return default_value;
+  int finch_seconds = finch_param_seconds.Get();
+  if (finch_seconds > 0) {
+    return base::Seconds(finch_seconds);
+  }
+  return constexpr_default;
 }
 
 }  // namespace
@@ -69,6 +92,12 @@ base::TimeDelta GetSwitchValueTimeDeltaMs(const char* switch_name,
 // static
 uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
     uint64_t total_physical_memory_bytes) {
+  // Budget Resolution Priority Order:
+  // 1. Command-Line Switch: --process-memory-budget-mb (Highest priority)
+  // 2. Finch Feature Param: kCobaltMemoryPressureBudgetMBParam (Middle
+  // priority)
+  // 3. Hardware RAM Tiering: Derived from Improved Budget Formula (Baseline
+  // fallback)
   const base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   if (cmd && cmd->HasSwitch(switches::kProcessMemoryBudgetMB)) {
     int budget_mb = 0;
@@ -90,13 +119,49 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
     total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
   }
 
-  // Devices with <= 1 GB total RAM belong to the low-end hardware tier.
+  // Tier-based budget derivation adhering to the Improved Budget Formula Design
+  // (cobalt/tools/performance/memory/improved_memory_budget_formula_design.md).
+  // Formula: Process Memory Budget = Device Memory Ceiling - Platform Overhead
+  // - Safety Margin
+
+  // Tier 1: Super Low-End Hardware (<= 512 MB physical RAM)
+  // Target: 512 MB connected TVs, streaming sticks (e.g. Roku 512 MB boards).
+  // Device Memory Ceiling: 271 MB (strict kernel LMK kill threshold combining
+  // CPU+GPU). Platform Overhead: 125 MB (kernel base, display compositor
+  // planes, OEM daemons). Safety Margin: 26 MB (10% cushion). Process Budget =
+  // 271 MB - 125 MB - 26 MB = 120 MB.
+  if (total_physical_memory_bytes > 0 &&
+      total_physical_memory_bytes <= 512ULL * 1024 * 1024) {
+    return static_cast<uint64_t>(kDefaultBudgetMbSuperLowEnd) * 1024 * 1024;
+  }
+
+  // Tier 2: Low-End Hardware (> 512 MB and <= 1024 MB physical RAM)
+  // Target: 1 GB RDK set-top boxes, 1 GB Android TV dongles.
+  // Device Memory Ceiling: 400 MB (Phase 2 Bonsai target; Phase 1 reclaimer
+  // ceiling is 450 MB). Platform Overhead: 210 MB (WPEFramework, kernel slab,
+  // Mali G31 GPU buffers, Secmem TVP). Safety Margin: 30 MB (absorbs background
+  // daemons and OS spikes). Process Budget = 400 MB - 210 MB - 30 MB = 160 MB.
   if (total_physical_memory_bytes > 0 &&
       total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
     return static_cast<uint64_t>(kDefaultBudgetMbLowEnd) * 1024 * 1024;
   }
 
-  return static_cast<uint64_t>(kDefaultBudgetMbStandard) * 1024 * 1024;
+  // Tier 3: Standard Hardware (> 1024 MB and <= 2048 MB physical RAM)
+  // Target: Mid-tier Smart TVs, Android TV retail boxes (e.g. Chromecast with
+  // Google TV HD/4K). Device Memory Ceiling: 750 MB (AOSP foreground
+  // application allocation envelope). Platform Overhead: 350 MB (Android
+  // system_server, SurfaceFlinger HWC, ART runtime, HALs). Safety Margin: 100
+  // MB. Process Budget = 750 MB - 350 MB - 100 MB = 300 MB.
+  if (total_physical_memory_bytes > 0 &&
+      total_physical_memory_bytes <= 2048ULL * 1024 * 1024) {
+    return static_cast<uint64_t>(kDefaultBudgetMbStandard) * 1024 * 1024;
+  }
+
+  // Tier 4: High-End Hardware (> 2048 MB physical RAM)
+  // Target: Premium Smart TVs, Game Consoles, 3GB+ STBs.
+  // Process Budget: 500 MB (fixed ceiling to avoid unbounded JS heap bloat
+  // while preventing V8 GC hitches during long browsing sessions).
+  return static_cast<uint64_t>(kDefaultBudgetMbHighEnd) * 1024 * 1024;
 }
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
@@ -110,24 +175,22 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
           static_cast<uint64_t>(
               features::kCobaltMemoryPressureBudgetMBParam.Get()) *
               1024 * 1024,
-          GetSwitchValueFloat(
+          ResolveFractionParam(
               kSwitchModerateProcessMemoryFraction,
-              static_cast<float>(
-                  features::kCobaltMemoryPressureModerateFractionParam.Get())),
-          GetSwitchValueFloat(
+              features::kCobaltMemoryPressureModerateFractionParam,
+              kDefaultModerateProcessMemoryFraction),
+          ResolveFractionParam(
               kSwitchCriticalProcessMemoryFraction,
-              static_cast<float>(
-                  features::kCobaltMemoryPressureCriticalFractionParam.Get())),
-          GetSwitchValueTimeDeltaMs(
+              features::kCobaltMemoryPressureCriticalFractionParam,
+              kDefaultCriticalProcessMemoryFraction),
+          ResolveTimeDeltaParam(
               kSwitchPollIntervalMs,
-              base::Seconds(
-                  features::kCobaltMemoryPressurePollIntervalSecondsParam
-                      .Get())),
-          GetSwitchValueTimeDeltaMs(
+              features::kCobaltMemoryPressurePollIntervalSecondsParam,
+              kDefaultPollInterval),
+          ResolveTimeDeltaParam(
               kSwitchCooldownMs,
-              base::Seconds(
-                  features::kCobaltMemoryPressureCooldownSecondsParam.Get()))) {
-}
+              features::kCobaltMemoryPressureCooldownSecondsParam,
+              kDefaultCooldown)) {}
 
 CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
