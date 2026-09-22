@@ -18,22 +18,6 @@
 
 namespace blink {
 
-#if BUILDFLAG(IS_COBALT)
-namespace {
-const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
-  switch (level) {
-    case base::MEMORY_PRESSURE_LEVEL_NONE:
-      return "NONE";
-    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
-      return "MODERATE";
-    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
-      return "CRITICAL";
-  }
-  return "UNKNOWN";
-}
-}  // namespace
-#endif  // BUILDFLAG(IS_COBALT)
-
 MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
     base::Location location,
     base::MemoryPressureListenerTag tag,
@@ -85,48 +69,4 @@ void MemoryPressureListenerRegistry::SetIsLowEndDeviceForTesting(
   is_low_end_device_ = is_low_end_device;
 }
 
-<<<<<<< HEAD
-=======
-// static
-MemoryPressureListenerRegistry& MemoryPressureListenerRegistry::Instance() {
-  DEFINE_THREAD_SAFE_STATIC_LOCAL(
-      CrossThreadPersistent<MemoryPressureListenerRegistry>, external,
-      (MakeGarbageCollected<MemoryPressureListenerRegistry>()));
-  return *external.Get();
-}
-
-MemoryPressureListenerRegistry::MemoryPressureListenerRegistry() = default;
-
-void MemoryPressureListenerRegistry::RegisterClient(
-    MemoryPressureListener* client) {
-  DCHECK(IsMainThread());
-  DCHECK(client);
-  DCHECK(!clients_.Contains(client));
-  clients_.insert(client);
-}
-
-void MemoryPressureListenerRegistry::UnregisterClient(
-    MemoryPressureListener* client) {
-  DCHECK(IsMainThread());
-  clients_.erase(client);
-}
-
-void MemoryPressureListenerRegistry::OnMemoryPressure(
-    base::MemoryPressureLevel level) {
-  TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
-               "level", level);
-#if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Blink handling OnMemoryPressure, level: " << level
-            << " (" << MemoryPressureLevelToString(level) << ")";
-#endif  // BUILDFLAG(IS_COBALT)
-  CHECK(IsMainThread());
-  for (auto& client : clients_)
-    client->OnMemoryPressure(level);
-}
-
-void MemoryPressureListenerRegistry::Trace(Visitor* visitor) const {
-  visitor->Trace(clients_);
-}
-
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace blink

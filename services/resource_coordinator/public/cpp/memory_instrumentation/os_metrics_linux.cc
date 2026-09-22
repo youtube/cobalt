@@ -31,12 +31,11 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
-<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/library_loader/anchor_functions.h"
 #include "base/android/library_loader/anchor_functions_buildflags.h"
 #endif  // BUILDFLAG(IS_ANDROID)
-=======
+
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #include <atomic>
 
@@ -51,7 +50,6 @@
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
 #include "third_party/abseil-cpp/absl/strings/string_view.h"
 #endif
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Symbol with virtual address of the start of ELF header of the current binary.
 extern char __ehdr_start;

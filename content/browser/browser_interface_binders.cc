@@ -1627,15 +1627,12 @@ void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
   // |SharedStorageWorkletHost::broker_|.
   map->Add<blink::mojom::LockManager>(base::BindRepeating(
       &SharedStorageWorkletHost::GetLockManager, base::Unretained(host)));
-<<<<<<< HEAD
   map->Add<blink::mojom::ReportingServiceProxy>(
       base::BindRepeating(&CreateReportingServiceProxyForSharedStorageWorklet,
                           base::Unretained(host)));
-=======
 #else
   (void)host;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateBinderMapWithContext(

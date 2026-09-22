@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/core/inspector/inspector_media_context_impl.h"
+#ifndef BASE_LOGGING_LOGGING_SETTINGS_H_
+#define BASE_LOGGING_LOGGING_SETTINGS_H_
 
-namespace blink {
+// This file is intentionally empty and exists only for compatibility with
+// //base/logging/logging_settings.h.
+//
+// Callers including "base/logging/logging_settings.h" need this file instead
+// of the real one that lives in //base, otherwise the LoggingSettings
+// definition will be found in copied_base's logging.h as well as base's
+// logging_settings.h.
+//
+// See https://chromium-review.googlesource.com/c/chromium/src/+/7173024 for
+// the culprit CL upstream.
 
-MediaInspectorContextImpl* MediaInspectorContextImpl::From(ExecutionContext&) {
-  return nullptr;
-}
-
-void MediaInspectorContextImpl::Trace(Visitor*) const {}
-
-}  // namespace blink
+#endif  // BASE_LOGGING_LOGGING_SETTINGS_H_

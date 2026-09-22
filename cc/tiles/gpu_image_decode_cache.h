@@ -572,16 +572,10 @@ class CC_EXPORT GpuImageDecodeCache
   bool ExceedsCacheLimits() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void ReduceCacheUsageLocked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-<<<<<<< HEAD
-=======
-  void InsertTransferCacheEntry(
-      const ClientImageTransferCacheEntry& image_entry,
-      ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 #if BUILDFLAG(IS_COBALT)
   void OnInProcessImageTransferCompleted(
       scoped_refptr<ImageData> image_data);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
   void DecodeImageAndGenerateDarkModeFilterIfNecessary(
       const DrawImage& draw_image,

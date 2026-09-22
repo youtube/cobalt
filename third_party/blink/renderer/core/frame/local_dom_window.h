@@ -142,6 +142,16 @@ class WebLaunchServiceImpl;
 class WindowScreenDetails;
 class WindowSharedStorageImpl;
 
+#if BUILDFLAG(IS_COBALT)
+class CobaltLifecycleController;
+class ExecutionContextLifecycleStateObserver;
+class H5vcc;
+
+#if BUILDFLAG(IS_IOS_TVOS)
+class OnScreenKeyboard;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
+
 template <typename T>
 class GlobalFetchImpl;
 template <typename T>
@@ -162,7 +172,6 @@ enum PageTransitionEventPersistence {
 
 // Note: if you're thinking of returning something DOM-related by reference,
 // please ping dcheng@chromium.org first. You probably don't want to do that.
-<<<<<<< HEAD
 class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
                                          public ExecutionContext,
                                          public WindowOrWorkerGlobalScope,
@@ -171,72 +180,6 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   USING_PRE_FINALIZER(LocalDOMWindow, Dispose);
 
  public:
-=======
-class CORE_EXPORT LocalDOMWindow final
-    : public DOMWindow,
-      public ExecutionContext,
-      public WindowOrWorkerGlobalScope,
-      public UniversalGlobalScope,
-      public WindowEventHandlers,
-      public Supplementable<LocalDOMWindow, 51> {
-  USING_PRE_FINALIZER(LocalDOMWindow, Dispose);
-
- public:
-  enum class Supplements {
-    kCachedPermissionStatus = 0,
-    kFullscreen = 2,
-    kHighlightRegistry = 3,
-    kLayoutWorklet = 4,
-    kContainerTiming = 5,
-    kImageElementTiming = 6,
-    kTextElementTiming = 7,
-    kResizeObserverController = 8,
-    kThirdPartyScriptDetector = 9,
-    kSharedWorkerClientHolder = 10,
-    kCSSAnimationWorklet = 11,
-    kAppBannerController = 12,
-    kCredentialManagerProxy = 13,
-    kDOMWindowCrypto = 14,
-    kPaintWorklet = 15,
-    kDeviceMotionController = 16,
-    kDeviceOrientationController = 17,
-    kDeviceOrientationAbsoluteController = 18,
-    kDocumentPictureInPicture = 19,
-    kFontAccess = 20,
-    kInstallationServiceImpl = 21,
-    kInstalledAppController = 22,
-    kDOMWindowLaunchQueue = 23,
-    kWebLaunchServiceImpl = 24,
-    kManifestManager = 25,
-    kUserMediaClient = 26,
-    kNFCProxy = 27,
-    kDOMWindowDigitalGoods = 28,
-    kPeerConnectionTracker = 29,
-    kPresentationController = 30,
-    kPushMessagingClient = 31,
-    kWindowScreenDetails = 32,
-    kScreenOrientationController = 33,
-    kSensorProviderProxy = 34,
-    kSharedStorageWindowSupplement = 35,
-    kSpeechRecognitionController = 36,
-    kSpeechSynthesis = 37,
-    kGlobalStorageAccessHandle = 38,
-    kGlobalFetchImpl = 39,
-    kDOMWindowStorageController = 40,
-    kDOMWindowStorage = 41,
-    kWindowSharedStorageImpl = 42,
-    kGlobalIndexedDBImpl = 43,
-    kGlobalCacheStorageImpl = 44,
-    kGlobalPerformanceImpl = 45,
-    kGlobalCookieStoreImpl = 46,
-    kAudioRendererSinkCache = 47,
-
-    kH5vcc = 48,
-    kCobaltLifecycleController = 49,
-    kOnScreenKeyboard = 50
-  };
-
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   class CORE_EXPORT EventListenerObserver : public GarbageCollectedMixin {
    public:
     virtual void DidAddEventListener(LocalDOMWindow*, const AtomicString&) = 0;
@@ -1065,6 +1008,35 @@ class CORE_EXPORT LocalDOMWindow final
     window_shared_storage_impl_ = window_shared_storage_impl;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  ForwardDeclaredMember<CobaltLifecycleController,
+                        ExecutionContextLifecycleStateObserver>
+  GetCobaltLifecycleController() const {
+    return cobalt_lifecycle_controller_;
+  }
+  void SetCobaltLifecycleController(
+      ForwardDeclaredMember<CobaltLifecycleController,
+                            ExecutionContextLifecycleStateObserver>
+          cobalt_lifecycle_controller) {
+    cobalt_lifecycle_controller_ = cobalt_lifecycle_controller;
+  }
+
+  ForwardDeclaredMember<H5vcc> GetH5vcc() const { return h5vcc_; }
+  void SetH5vcc(ForwardDeclaredMember<H5vcc> h5vcc) {
+    h5vcc_ = h5vcc;
+  }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  ForwardDeclaredMember<OnScreenKeyboard> GetOnScreenKeyboard() const {
+    return on_screen_keyboard_;
+  }
+  void SetOnScreenKeyboard(
+      ForwardDeclaredMember<OnScreenKeyboard> on_screen_keyboard) {
+    on_screen_keyboard_ = on_screen_keyboard;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
+
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -1255,6 +1227,17 @@ class CORE_EXPORT LocalDOMWindow final
   ForwardDeclaredMember<WebLaunchServiceImpl> web_launch_service_impl_;
   ForwardDeclaredMember<WindowScreenDetails> window_screen_details_;
   ForwardDeclaredMember<WindowSharedStorageImpl> window_shared_storage_impl_;
+
+#if BUILDFLAG(IS_COBALT)
+  ForwardDeclaredMember<CobaltLifecycleController,
+                        ExecutionContextLifecycleStateObserver>
+      cobalt_lifecycle_controller_;
+  ForwardDeclaredMember<H5vcc> h5vcc_;
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  ForwardDeclaredMember<OnScreenKeyboard> on_screen_keyboard_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
 
   // If set, this window is a Document Picture in Picture window.
   // https://wicg.github.io/document-picture-in-picture/

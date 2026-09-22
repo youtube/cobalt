@@ -3037,8 +3037,8 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
   if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster) &&
       raster_shm_size == sizeof(InProcessRasterPayload*)) {
     InProcessRasterPayload* in_process_payload = nullptr;
-    std::memcpy(&in_process_payload, paint_buffer_memory,
-                sizeof(in_process_payload));
+    UNSAFE_TODO(std::memcpy(&in_process_payload, paint_buffer_memory,
+                            sizeof(in_process_payload)));
     if (in_process_payload &&
         InProcessRasterPayloadRegistry::GetInstance().Take(
             in_process_payload)) {

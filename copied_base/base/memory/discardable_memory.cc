@@ -77,7 +77,7 @@ DiscardableMemoryBacking GetBackingForFieldTrial() {
 // in the discardable memory backing trial.
 bool DiscardableMemoryBackingFieldTrialIsEnabled() {
 #if BUILDFLAG(IS_ANDROID)
-  if (!ashmem_device_is_supported())
+  if (!AshmemDeviceIsSupported())
     return false;
 #endif  // BUILDFLAG(IS_ANDROID)
   if (base::GetMadvFreeSupport() != base::MadvFreeSupport::kSupported)
@@ -109,7 +109,7 @@ DiscardableMemoryBacking GetDiscardableMemoryBacking() {
         // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
-  if (ashmem_device_is_supported())
+  if (AshmemDeviceIsSupported())
     return DiscardableMemoryBacking::kSharedMemory;
 #endif  // BUILDFLAG(IS_ANDROID)
 

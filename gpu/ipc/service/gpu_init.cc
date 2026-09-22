@@ -55,12 +55,9 @@
 #endif
 
 #if BUILDFLAG(IS_OZONE)
-<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_VULKAN)
 #include "gpu/command_buffer/service/drm_modifiers_filter_vulkan.h"
 #endif
-=======
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "ui/ozone/public/drm_modifiers_filter.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
@@ -78,7 +75,6 @@
 #endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
-#include "gpu/command_buffer/service/drm_modifiers_filter_vulkan.h"
 #include "gpu/vulkan/init/vulkan_factory.h"
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_instance.h"

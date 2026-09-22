@@ -2592,13 +2592,16 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(web_launch_service_impl_);
   visitor->Trace(window_screen_details_);
   visitor->Trace(window_shared_storage_impl_);
+#if BUILDFLAG(IS_COBALT)
+  visitor->Trace(cobalt_lifecycle_controller_);
+  visitor->Trace(h5vcc_);
+#if BUILDFLAG(IS_IOS_TVOS)
+  visitor->Trace(on_screen_keyboard_);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-<<<<<<< HEAD
   WindowOrWorkerGlobalScope::Trace(visitor);
-=======
-  Supplementable<LocalDOMWindow, 51>::Trace(visitor);
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {

@@ -247,10 +247,6 @@ blink::UserAgentMetadata GetShellUserAgentMetadata() {
   return metadata;
 }
 
-// static
-bool ShellContentBrowserClient::allow_any_cors_exempt_header_for_browser_ =
-    false;
-
 ShellContentBrowserClient* ShellContentBrowserClient::Get() {
   auto& instances = GetShellContentBrowserClientInstancesImpl();
   return instances.empty() ? nullptr : instances.back();
@@ -638,8 +634,6 @@ void ShellContentBrowserClient::ConfigureNetworkContextParamsForShell(
     network::mojom::NetworkContextParams* context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  context_params->allow_any_cors_exempt_header_for_browser =
-      allow_any_cors_exempt_header_for_browser_;
   context_params->user_agent = GetUserAgent();
   context_params->accept_language = GetAcceptLangs(context);
   auto exempt_header =

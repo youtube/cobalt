@@ -2058,56 +2058,6 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
 #endif // BUILDFLAG(IS_COBALT)
 }
 
-<<<<<<< HEAD
-=======
-void GpuImageDecodeCache::InsertTransferCacheEntry(
-    const ClientImageTransferCacheEntry& image_entry,
-    ImageData* image_data) {
-  DCHECK(image_data);
-  uint32_t size = image_entry.SerializedSize();
-
-#if BUILDFLAG(IS_COBALT)
-  bool use_in_process_transfer = false;
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache) &&
-      task_runner_) {
-    use_in_process_transfer = true;
-    size = image_entry.SerializedSizeInProcess();
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-
-  base::span<uint8_t> data =
-      context_->ContextSupport()->MapTransferCacheEntry(size);
-  if (!data.empty()) {
-    bool succeeded = false;
-#if BUILDFLAG(IS_COBALT)
-    if (use_in_process_transfer) {
-      RefImageDecode(image_data);
-      succeeded = image_entry.SerializeInProcess(
-          data,
-          base::ScopedClosureRunner(base::BindPostTask(
-              task_runner_,
-              base::BindOnce(
-                  &GpuImageDecodeCache::OnInProcessImageTransferCompleted,
-                  weak_ptr_, base::WrapRefCounted(image_data)))));
-    } else
-#endif  // BUILDFLAG(IS_COBALT)
-    {
-      succeeded = image_entry.Serialize(data);
-    }
-    DCHECK(succeeded);
-    context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
-        image_entry.UnsafeType(), image_entry.Id());
-    image_data->upload.SetTransferCacheId(image_entry.Id());
-  } else {
-    // Transfer cache entry can fail due to a lost gpu context or failure
-    // to allocate shared memory.  Handle this gracefully.  Mark this
-    // image as "decode failed" so that we do not try to handle it again.
-    // If this was a lost context, we'll recreate this image decode cache.
-    image_data->decode.decode_failure = true;
-  }
-}
-
 #if BUILDFLAG(IS_COBALT)
 void GpuImageDecodeCache::OnInProcessImageTransferCompleted(
     scoped_refptr<ImageData> image_data) {
@@ -2116,7 +2066,6 @@ void GpuImageDecodeCache::OnInProcessImageTransferCompleted(
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool GpuImageDecodeCache::NeedsDarkModeFilter(const DrawImage& draw_image,
                                               ImageData* image_data) {
   DCHECK(image_data);
@@ -2442,12 +2391,43 @@ void GpuImageDecodeCache::UploadImageIfNecessary(const DrawImage& draw_image,
 
   scoped_refptr<ImageData> image_data_holder(image_data);
   bool uploaded = false;
+#if BUILDFLAG(IS_COBALT)
+  auto upload_image_entry_func = [&image_entry, &uploaded, &image_data,
+                                  this]() EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+#else
   auto upload_image_entry_func = [&image_entry, &uploaded, this]() {
+#endif  // BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
+    const bool use_in_process_transfer =
+        base::FeatureList::IsEnabled(
+            base::features::kCobaltInProcessImageTransferCache) &&
+        task_runner_;
+    uint32_t size = use_in_process_transfer
+                        ? image_entry.SerializedSizeInProcess()
+                        : image_entry.SerializedSize();
+#else
     uint32_t size = image_entry.SerializedSize();
+#endif  // BUILDFLAG(IS_COBALT)
     base::span<uint8_t> data =
         context_->ContextSupport()->MapTransferCacheEntry(size);
     if (!data.empty()) {
-      bool succeeded = image_entry.Serialize(data);
+      bool succeeded = false;
+#if BUILDFLAG(IS_COBALT)
+      if (use_in_process_transfer) {
+        RefImageDecode(image_data);
+        succeeded = image_entry.SerializeInProcess(
+            data,
+            base::ScopedClosureRunner(base::BindPostTask(
+                task_runner_,
+                base::BindOnce(
+                    &GpuImageDecodeCache::OnInProcessImageTransferCompleted,
+                    weak_ptr_, base::WrapRefCounted(image_data)))));
+
+      } else
+#endif  // BUILDFLAG(IS_COBALT)
+      {
+        succeeded = image_entry.Serialize(data);
+      }
       DCHECK(succeeded);
       context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
           image_entry.UnsafeType(), image_entry.Id());
@@ -2455,12 +2435,16 @@ void GpuImageDecodeCache::UploadImageIfNecessary(const DrawImage& draw_image,
     }
   };
 
+#if BUILDFLAG(IS_COBALT)
+  upload_image_entry_func();
+#else
   if (base::FeatureList::IsEnabled(features::kUnlockDuringGpuImageOperations)) {
     base::AutoUnlock unlock(lock_);
     upload_image_entry_func();
   } else {
     upload_image_entry_func();
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (uploaded) {
     // If we unlocked during the upload, another thread may have uploaded the

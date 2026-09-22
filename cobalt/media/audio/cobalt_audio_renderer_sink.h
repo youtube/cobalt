@@ -18,6 +18,7 @@
 #include <atomic>
 #include <memory>
 
+#include "media/base/audio_bus.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
 #include "media/base/multi_channel_resampler.h"

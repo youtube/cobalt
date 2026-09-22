@@ -29,22 +29,17 @@ namespace blink {
 // const char DialServerManager::kSupplementName[] = "DialServerManager";
 
 // static
-const unsigned DialServerManager::kSupplementIndex =
-    static_cast<unsigned>(ExecutionContext::Supplements::kDialServerManager);
-
-// static
 DialServerManager* DialServerManager::From(ExecutionContext* context) {
-  DialServerManager* manager =
-      Supplement<ExecutionContext>::From<DialServerManager>(context);
+  DialServerManager* manager = context->GetDialServerManager();
   if (!manager) {
     manager = MakeGarbageCollected<DialServerManager>(context);
-    Supplement<ExecutionContext>::ProvideTo(*context, manager);
+    context->SetDialServerManager(manager);
   }
   return manager;
 }
 
 DialServerManager::DialServerManager(ExecutionContext* context)
-    : Supplement<ExecutionContext>(*context),
+    : execution_context_(context),
       dial_server_(context),
       receiver_(this, context) {
   auto task_runner = context->GetTaskRunner(TaskType::kMiscPlatformAPI);
@@ -87,10 +82,10 @@ void DialServerManager::HandleRequest(
 }
 
 void DialServerManager::Trace(Visitor* visitor) const {
+  visitor->Trace(execution_context_);
   visitor->Trace(dial_server_);
   visitor->Trace(receiver_);
   visitor->Trace(handler_registry_);
-  Supplement<ExecutionContext>::Trace(visitor);
 }
 
 void DialServerManager::OnConnectionError() {
