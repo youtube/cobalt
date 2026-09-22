@@ -615,6 +615,27 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
            settings.skewport_extrapolation_limit_in_screen_pixels) =
       GetTilingInterestAreaSizes();
 
+#if BUILDFLAG(IS_COBALT)
+  // When enabled, overrides the compositor skewport target times, which control
+  // speculative pre-rastering of offscreen tiles. Both params default to 0,
+  // which disables pre-rastering to reduce GPU texture memory usage. When the
+  // feature is disabled the upstream Chromium defaults are left untouched
+  // (1.0 for software raster, 0.2 for GPU raster).
+  if (base::FeatureList::IsEnabled(base::features::kCobaltSkewportTargetTime)) {
+    double value = base::features::kCobaltSkewportTargetTimeInSeconds.Get();
+    if (value >= 0.0) {
+      settings.skewport_target_time_in_seconds = static_cast<float>(value);
+    }
+    double gpu_value =
+        base::features::kCobaltGpuRasterizationSkewportTargetTimeInSeconds
+            .Get();
+    if (gpu_value >= 0.0) {
+      settings.gpu_rasterization_skewport_target_time_in_seconds =
+          static_cast<float>(gpu_value);
+    }
+  }
+#endif
+
   return settings;
 }
 
