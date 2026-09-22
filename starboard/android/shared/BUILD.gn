@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/abi.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
@@ -289,6 +290,13 @@ static_library("starboard_platform") {
     ":starboard_platform_libs",
   ]
 
+  defines = [
+    # system_get_property.cc stringizes this to build the platform name
+    # (e.g. for the User-Agent string). Without it, the ABI ends up as the
+    # literal text "ANDROID_ABI" instead of e.g. "armeabi-v7a".
+    "ANDROID_ABI=$android_app_abi",
+  ]
+
   public_deps = [
     ":starboard_base_symbolize",
     "//cobalt/android:app_event_bridge",
@@ -475,6 +483,10 @@ test("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  deps += [ "//cobalt/android:cobalt_testing_java" ]
+  android_manifest_template =
+      "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
 }
 
 java_cpp_enum("java_enums") {

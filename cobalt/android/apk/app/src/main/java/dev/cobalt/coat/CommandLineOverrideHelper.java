@@ -44,8 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Enable low end device mode.
-    paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
     // causes rendering artifacts when
     // low-end-device-mode is enabled.
@@ -54,8 +52,6 @@ public final class CommandLineOverrideHelper {
     // Starboard's stack).
     paramOverrides.add("--disable-accelerated-video-decode");
     paramOverrides.add("--disable-accelerated-video-encode");
-    // Rasterize Tiles directly to GPU memory.
-    paramOverrides.add("--enable-zero-copy");
     // Set default raster threads to 2 for smoother performance.
     paramOverrides.add("--num-raster-threads=2");
     // Enforce ANGLE to use GLES backend by default on Android platforms excluding arm64.
@@ -99,6 +95,7 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
+    paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
 
     return paramOverrides;
   }
