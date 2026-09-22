@@ -1872,6 +1872,14 @@ class TileManagerTest : public TestLayerTreeHostBase {
 // Test to ensure that we call NotifyAllTileTasksCompleted when PrepareTiles is
 // called.
 TEST_F(TileManagerTest, AllWorkFinished) {
+  // Pin the feature off so this stays a test of the task-graph path;
+  // `FastPathWhenNoRasterWork` below covers the inline path. Without this the
+  // two tests would be identical wherever kFastPathNoRaster defaults to
+  // enabled, leaving the task-graph path -- which is what runs if the kill
+  // switch is flipped -- with no coverage at all.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kFastPathNoRaster);
+
   // Check with no tile work enqueued.
   {
     base::RunLoop run_loop;
