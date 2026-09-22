@@ -27,6 +27,8 @@
 #include "components/update_client/update_client_errors.h"
 
 #if BUILDFLAG(IS_STARBOARD)
+#include "base/functional/callback_helpers.h"
+
 namespace {
 void FlushPrefs(PrefService* pref_service) {
   if (pref_service) {
