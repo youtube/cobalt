@@ -90,6 +90,11 @@ void MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
   GetForwarderCallback() = std::move(callback);
 }
 
+const MemoryPressureListenerAndroid::MemoryPressureForwarderCallback&
+MemoryPressureListenerAndroid::GetForwarderCallbackForTesting() {
+  return GetForwarderCallback();
+}
+
 void MemoryPressureListenerAndroid::Initialize(JNIEnv* env) {
   Java_MemoryPressureListener_addNativeCallback(env);
 }

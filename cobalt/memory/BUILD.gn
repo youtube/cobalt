@@ -39,6 +39,10 @@ source_set("unit_tests") {
   testonly = true
   sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
 
+  if (is_android) {
+    sources += [ "android_os_signal_evaluator_unittest.cc" ]
+  }
+
   deps = [
     ":memory",
     "//base/test:test_support",

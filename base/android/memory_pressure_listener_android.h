@@ -26,8 +26,8 @@ class BASE_EXPORT MemoryPressureListenerAndroid {
   static void SetMemoryPressureForwarderCallback(
       MemoryPressureForwarderCallback callback);
 
-  // Called by JNI.
-  static void OnMemoryPressure(int memory_pressure_type);
+  static const MemoryPressureForwarderCallback&
+  GetForwarderCallbackForTesting();
 };
 
 }  // namespace android
