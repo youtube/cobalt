@@ -13,20 +13,20 @@
 // limitations under the License.
 
 #include <iterator>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/files/scoped_temp_dir.h"
-#include "build/build_config.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
-#include "content/public/common/content_switches.h"
+#include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gl/gl_switches.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -73,30 +73,12 @@ class I18nBrowserTest : public content::ContentBrowserTest {
   ~I18nBrowserTest() override = default;
 
  protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    content::ContentBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitch(switches::kSingleProcess);
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX)
-    // Physical Starboard devices (such as RDK) use hardware EGL drivers that
-    // do not support ANGLE's software GL context attributes.
-    command_line->AppendSwitch(switches::kUseGpuInTests);
-#endif
-    if (!command_line->HasSwitch(switches::kContentShellUserDataDir)) {
-      CHECK(temp_user_data_dir_.CreateUniqueTempDir());
-      command_line->AppendSwitchPath(switches::kContentShellUserDataDir,
-                                     temp_user_data_dir_.GetPath());
-    }
-  }
-
   void SetUpPage() {
     ASSERT_TRUE(NavigateToURL(
         shell()->web_contents(),
         GURL("data:text/html,<html><head><title>i18n</title></head><body></"
              "body></html>")));
   }
-
- private:
-  base::ScopedTempDir temp_user_data_dir_;
 };
 
 // 1. Verify Blink native UTF-8 TextDecoder/TextEncoder handles multilingual
@@ -454,6 +436,23 @@ IN_PROC_BROWSER_TEST_F(I18nBrowserTest, RegionalSubLocalesGracefulFallback) {
             content::EvalJs(shell()->web_contents(), script).ExtractString());
 }
 
+class LocaleContentBrowserClient
+    : public content::ContentBrowserTestContentBrowserClient {
+ public:
+  explicit LocaleContentBrowserClient(std::string locale)
+      : locale_(std::move(locale)) {}
+  ~LocaleContentBrowserClient() override = default;
+
+  std::string GetApplicationLocale() override { return locale_; }
+
+  std::string GetAcceptLangs(content::BrowserContext* context) override {
+    return locale_;
+  }
+
+ private:
+  std::string locale_;
+};
+
 // Parameterized test fixture for validating browser-level locale configuration
 // via the --lang command-line switch. This class is instantiated and owned
 // by the gtest framework on the main test thread.
@@ -466,9 +465,30 @@ class I18nBrowserLanguageParamTest
 
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    I18nBrowserTest::SetUpCommandLine(command_line);
+    content::ContentBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII("lang", GetParam());
   }
+
+  void CreatedBrowserMainParts(
+      content::BrowserMainParts* browser_main_parts) override {
+    content::ContentBrowserTest::CreatedBrowserMainParts(browser_main_parts);
+    browser_client_ = std::make_unique<LocaleContentBrowserClient>(GetParam());
+  }
+
+  void SetUpOnMainThread() override {
+    content::ContentBrowserTest::SetUpOnMainThread();
+    shell()->web_contents()->GetMutableRendererPrefs()->accept_languages =
+        GetParam();
+    shell()->web_contents()->SyncRendererPrefs();
+  }
+
+  void TearDownOnMainThread() override {
+    browser_client_.reset();
+    content::ContentBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  std::unique_ptr<LocaleContentBrowserClient> browser_client_;
 };
 
 IN_PROC_BROWSER_TEST_P(I18nBrowserLanguageParamTest, VerifyBrowserLanguage) {
