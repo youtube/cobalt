@@ -51,12 +51,6 @@ bool FileAtomicReplaceWriteFile(const char* path,
     return false;
   }
 
-  if (ftruncate(temp_file, 0) != 0) {
-    close(temp_file);
-    unlink(path);
-    return false;
-  }
-
   const char* source = data;
   int64_t to_write = data_size;
 
