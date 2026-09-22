@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/android_audio_sink.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/audio_sink.h"
@@ -102,7 +103,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
-class AudioTrackAudioSink : public SbAudioSinkImpl {
+class AudioTrackAudioSink : public AndroidAudioSink {
  public:
   static std::unique_ptr<AudioTrackAudioSink> Create(
       Type* type,
@@ -156,10 +157,12 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
-  int GetUnderrunCount();
-  int GetStartThresholdInFrames();
-  bool Flush();
-  void SetStartTime(int64_t start_time) { start_time_.store(start_time); }
+  int GetUnderrunCount() override;
+  int GetStartThresholdInFrames() override;
+  bool Flush() override;
+  void SetStartTime(int64_t start_time) override {
+    start_time_.store(start_time);
+  }
 
  private:
   class AudioTrackOutThread;
