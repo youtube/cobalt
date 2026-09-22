@@ -55,6 +55,10 @@ bool LoadSymbols() {
                  StreamBuilder_SetSampleRate);
   RESOLVE_SYMBOL(AAudioStreamBuilder_setDataCallback,
                  StreamBuilder_SetDataCallback);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setErrorCallback,
+                 StreamBuilder_SetErrorCallback);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setFramesPerDataCallback,
+                 StreamBuilder_SetFramesPerDataCallback);
   RESOLVE_SYMBOL(AAudioStreamBuilder_setBufferCapacityInFrames,
                  StreamBuilder_SetBufferCapacityInFrames);
   RESOLVE_SYMBOL(AAudioStreamBuilder_setUsage, StreamBuilder_SetUsage);
@@ -105,6 +109,11 @@ void (*AAudio::StreamBuilder_SetSampleRate)(AAudioStreamBuilder*,
 void (*AAudio::StreamBuilder_SetDataCallback)(AAudioStreamBuilder*,
                                               AAudioStream_dataCallback,
                                               void*) = nullptr;
+void (*AAudio::StreamBuilder_SetErrorCallback)(AAudioStreamBuilder*,
+                                               AAudioStream_errorCallback,
+                                               void*) = nullptr;
+void (*AAudio::StreamBuilder_SetFramesPerDataCallback)(AAudioStreamBuilder*,
+                                                       int32_t) = nullptr;
 void (*AAudio::StreamBuilder_SetBufferCapacityInFrames)(AAudioStreamBuilder*,
                                                         int32_t) = nullptr;
 void (*AAudio::StreamBuilder_SetUsage)(AAudioStreamBuilder*,
