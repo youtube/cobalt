@@ -218,7 +218,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   ip_protection::IpProtectionCore* ip_protection_core() {
     return ip_protection_core_.get();
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150  const base::flat_set<std::string>* cors_exempt_header_list() const {
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+  const base::flat_set<std::string>* cors_exempt_header_list() const {
     return &cors_exempt_header_list_;
   }
 

@@ -18,21 +18,7 @@
 
 namespace blink {
 
-#if BUILDFLAG(IS_COBALT)
-namespace {
-const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
-  switch (level) {
-    case base::MEMORY_PRESSURE_LEVEL_NONE:
-      return "NONE";
-    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
-      return "MODERATE";
-    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
-      return "CRITICAL";
-  }
-  return "UNKNOWN";
-}
-}  // namespace
-#endif  // BUILDFLAG(IS_COBALT)
+
 
 MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
     base::Location location,

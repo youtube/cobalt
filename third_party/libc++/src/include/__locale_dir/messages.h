@@ -22,7 +22,8 @@
 
 #  if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 // Most unix variants have catopen.  These are the specific ones that don't.
-#    if !defined(__BIONIC__) && !_LIBCPP_LIBC_NEWLIB && !defined(__EMSCRIPTEN__) && !defined(STARBOARD)#      define _LIBCPP_HAS_CATOPEN 1
+#    if !defined(__BIONIC__) && !_LIBCPP_LIBC_NEWLIB && !defined(__EMSCRIPTEN__) && !defined(STARBOARD)
+#      define _LIBCPP_HAS_CATOPEN 1
 #      include <nl_types.h>
 #    else
 #      define _LIBCPP_HAS_CATOPEN 0

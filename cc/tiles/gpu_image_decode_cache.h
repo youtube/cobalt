@@ -578,7 +578,8 @@ void InsertTransferCacheEntry(
 #if BUILDFLAG(IS_COBALT)
   void OnInProcessImageTransferCompleted(
       scoped_refptr<ImageData> image_data);
-#endif  // BUILDFLAG(IS_COBALT)  bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
+#endif  // BUILDFLAG(IS_COBALT)
+  bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
   void DecodeImageAndGenerateDarkModeFilterIfNecessary(
       const DrawImage& draw_image,
       ImageData* image_data,
