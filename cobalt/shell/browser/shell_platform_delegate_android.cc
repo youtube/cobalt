@@ -28,7 +28,7 @@
 #include "content/public/common/content_switches.h"
 
 using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
+using jni_zero::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace content {

@@ -151,15 +151,6 @@ class OnScreenKeyboard;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
 
-template <typename T>
-class GlobalFetchImpl;
-template <typename T>
-class GlobalCacheStorageImpl;
-template <typename T>
-class GlobalCookieStoreImpl;
-template <typename T, typename P>
-class GlobalPerformanceImpl;
-
 namespace scheduler {
 class TaskAttributionInfo;
 }
@@ -676,6 +667,19 @@ class CORE_EXPORT LocalDOMWindow final
 
   void requestResize(ExceptionState&);
 
+#if BUILDFLAG(IS_COBALT)
+  CobaltLifecycleController* GetCobaltLifecycleController() const {
+    return cobalt_lifecycle_controller_.Get();
+  }
+  void SetCobaltLifecycleController(
+      CobaltLifecycleController* cobalt_lifecycle_controller) {
+    cobalt_lifecycle_controller_ = cobalt_lifecycle_controller;
+  }
+
+  H5vcc* GetH5vcc() const { return h5vcc_.Get(); }
+  void SetH5vcc(H5vcc* h5vcc) { h5vcc_ = h5vcc; }
+#endif  // BUILDFLAG(IS_COBALT)
+
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -825,6 +829,14 @@ class CORE_EXPORT LocalDOMWindow final
 
   // Used to indicate if the DOM window is reused or not.
   bool is_dom_window_reused_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  Member<CobaltLifecycleController> cobalt_lifecycle_controller_;
+  Member<H5vcc> h5vcc_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  Member<OnScreenKeyboard> on_screen_keyboard_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 template <>

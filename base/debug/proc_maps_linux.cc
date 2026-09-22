@@ -113,7 +113,7 @@ bool ReadProcMaps(std::string* proc_maps) {
 
 #if BUILDFLAG(IS_COBALT)
 
-bool ParseProcMaps(const std::string& input,
+bool ParseProcMaps(std::string_view input,
                    std::vector<MappedMemoryRegion>* regions_out) {
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;

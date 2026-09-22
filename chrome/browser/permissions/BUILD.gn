@@ -101,6 +101,7 @@ source_set("permissions") {
     "//components/language_detection/core",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/passage_embeddings:passage_embeddings_types",
     "//components/permissions",
     "//components/permissions/prediction_service",
     "//components/pref_registry",

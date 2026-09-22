@@ -62,6 +62,7 @@ chromium-metrics-reviews@google.com.
   <variant name="cc__GpuImageDecodeCache" summary="cc::GpuImageDecodeCache"/>
   <variant name="cc__ResourcePool" summary="cc::ResourcePool"/>
   <variant name="cc__ResourceProvider" summary="cc::ResourceProvider"/>
+  <variant name="CobaltMemoryAttributionManager"/>
   <variant name="cc__SoftwareImageDecodeCache"
       summary="cc::SoftwareImageDecodeCache"/>
   <variant name="cc__StagingBufferPool" summary="cc::StagingBufferPool"/>

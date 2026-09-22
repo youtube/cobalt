@@ -93,12 +93,12 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
 
   // JNI callbacks from CobaltPictureInPictureActivity.java
   void SetJavaActivity(JNIEnv* env,
-                       const base::android::JavaParamRef<jobject>& activity);
+                       const jni_zero::JavaParamRef<jobject>& activity);
   void OnActivityDestroyed(JNIEnv* env);
   void OnViewSizeChanged(JNIEnv* env, int width, int height);
   void CompositorViewCreated(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& compositor_view);
+      const jni_zero::JavaParamRef<jobject>& compositor_view);
 
  private:
   // Pointer to the controller that owns this window.

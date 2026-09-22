@@ -58,8 +58,8 @@ DEFINE_JNI_LIFECYCLE_HANDLER(HandleStopEvent, kSbEventTypeStop)
 
 void JNI_AppEventBridge_HandleStartEvent(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobjectArray>& j_args,
-    const base::android::JavaParamRef<jstring>& jlink,
+    const jni_zero::JavaParamRef<jobjectArray>& j_args,
+    const jni_zero::JavaParamRef<jstring>& jlink,
     jlong timestamp) {
   SbEvent event;
   event.type = kSbEventTypeStart;

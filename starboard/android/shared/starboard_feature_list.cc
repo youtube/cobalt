@@ -22,12 +22,11 @@
 using base::android::ConvertJavaStringToUTF8;
 using jni_zero::JavaParamRef;
 
-namespace starboard::features {
-
 static jboolean JNI_StarboardFeatureList_IsEnabled(
     JNIEnv* env,
     const JavaParamRef<jstring>& jfeature_name) {
   std::string feature_name = ConvertJavaStringToUTF8(env, jfeature_name);
-  return FeatureList::IsEnabledByName(feature_name);
+  return starboard::features::FeatureList::IsEnabledByName(feature_name);
 }
-}  // namespace starboard::features
+
+DEFINE_JNI(StarboardFeatureList)

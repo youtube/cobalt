@@ -177,7 +177,7 @@ void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
+void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
@@ -186,7 +186,7 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
   client->FlushCookiesAndLocalStorage(base::DoNothing());
 }
 
-static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
+void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;
@@ -194,7 +194,7 @@ static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
   client->DispatchBlur();
 }
 
-static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
+void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;

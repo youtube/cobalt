@@ -212,7 +212,7 @@ void CobaltVideoOverlayWindow::SetSurfaceId(const viz::SurfaceId& surface_id) {
 
 void CobaltVideoOverlayWindow::SetJavaActivity(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& activity) {
+    const jni_zero::JavaParamRef<jobject>& activity) {
   LOG(INFO)
       << "CobaltVideoOverlayWindow::SetJavaActivity called, storing reference";
   java_activity_ref_ = base::android::ScopedJavaGlobalRef<jobject>(activity);
@@ -250,7 +250,7 @@ void CobaltVideoOverlayWindow::OnViewSizeChanged(JNIEnv* env,
 
 void CobaltVideoOverlayWindow::CompositorViewCreated(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& compositor_view) {
+    const jni_zero::JavaParamRef<jobject>& compositor_view) {
   LOG(INFO) << "CobaltVideoOverlayWindow::CompositorViewCreated called";
 
   if (java_activity_ref_.is_null()) {

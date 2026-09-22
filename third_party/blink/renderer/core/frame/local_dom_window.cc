@@ -26,6 +26,14 @@
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"  // nogncheck
+#include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"  // nogncheck
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "third_party/blink/renderer/modules/cobalt/on_screen_keyboard.h"  // nogncheck
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
+
 #include <memory>
 #include <optional>
 #include <utility>
