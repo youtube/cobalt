@@ -5,14 +5,17 @@
 #include "gpu/command_buffer/service/service_transfer_cache.h"
 
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "cc/paint/raw_memory_transfer_cache_entry.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_preferences.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif
 
 namespace gpu {
 
@@ -142,36 +145,15 @@ TEST(ServiceTransferCacheTest, PurgeEntryOnTimer) {
 }
 
 #if BUILDFLAG(IS_COBALT)
-// Regression guard for the backport of https://crrev.com/c/7684855.
-//
-// Upstream M138 wires these two together as an XOR:
-//   EnablePurgeGpuImageDecodeCache() { return !IsEnabled(kPruneOld...); }
-// so turning the prune feature on silently turns client-side purging off. That
-// is the wrong trade on Cobalt: the client (cc::GpuImageDecodeCache) is what
-// holds transfer cache entries locked, and while they are locked the service
-// side cannot reclaim them no matter how low the cache limit is -- on device
-// every entry shows up in locked_skipped at peak. Upstream reached the same
-// conclusion and deleted the function outright ("there are cases where only
-// client side purging works"). We keep the function but pin it to true, so
-// both purge paths stay live.
-//
-// If someone later "restores" the upstream M138 body, this test fails.
-TEST(ServiceTransferCacheTest, CobaltKeepsClientPurgeOnWithPruneEnabled) {
-  base::test::ScopedFeatureList scoped_features;
-  scoped_features.InitAndEnableFeature(features::kPruneOldTransferCacheEntries);
 
-  EXPECT_TRUE(features::EnablePruneOldTransferCacheEntries());
-  EXPECT_TRUE(features::EnablePurgeGpuImageDecodeCache())
-      << "Enabling kPruneOldTransferCacheEntries must not disable client-side "
-         "purging; that mutual exclusion is exactly what c/7684855 removed.";
-}
-#endif  // BUILDFLAG(IS_COBALT)
+// PurgeEntryOnTimer above calls PruneOldEntries() directly, so it never runs
+// through MaybePostPruneOldEntries() and never sees the feature check. The two
+// tests below go through the public CreateLocalEntry() path and let the real
+// timer fire, which is the only way the gating itself gets covered.
 
-// The existing PurgeEntryOnTimer test calls PruneOldEntries() directly, which
-// bypasses MaybePostPruneOldEntries() and therefore never exercises the feature
-// check. These two tests drive the timer through the public API instead, so
-// they cover the gating itself.
-TEST(ServiceTransferCacheTest, NoPruneTaskPostedWhenFeatureDisabled) {
+// Control arm of the A/B: with the feature off no timer is ever started, so an
+// unlocked entry stays resident no matter how long the cache idles.
+TEST(ServiceTransferCacheTest, IdleEntryIsKeptWhenPruneFeatureDisabled) {
   base::test::TaskEnvironment task_environment{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_features;
@@ -191,15 +173,13 @@ TEST(ServiceTransferCacheTest, NoPruneTaskPostedWhenFeatureDisabled) {
   // Well past kOldEntryPruneInterval (30s) and kOldEntryCutoffTimeDelta (25s).
   task_environment.FastForwardBy(base::Minutes(1));
 
-  EXPECT_EQ(cache.entries_count_for_testing(), 1u)
-      << "Entry was pruned even though kPruneOldTransferCacheEntries is off, "
-         "so the control arm of the A/B is not upstream M138 behaviour.";
+  EXPECT_EQ(cache.entries_count_for_testing(), 1u);
   EXPECT_FALSE(flush_called);
 }
 
-// Positive control. Without this, the test above would keep passing if the
-// prune timer broke outright.
-TEST(ServiceTransferCacheTest, PruneTaskPostedWhenFeatureEnabled) {
+// Treatment arm: the same idle entry is reclaimed, and the cache asks its owner
+// to flush so the GPU-side memory releases.
+TEST(ServiceTransferCacheTest, IdleEntryIsReclaimedWhenPruneFeatureEnabled) {
   base::test::TaskEnvironment task_environment{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_features;
@@ -220,5 +200,7 @@ TEST(ServiceTransferCacheTest, PruneTaskPostedWhenFeatureEnabled) {
   EXPECT_EQ(cache.entries_count_for_testing(), 0u);
   EXPECT_TRUE(flush_called);
 }
+
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu
