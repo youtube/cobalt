@@ -4,6 +4,7 @@
 
 import("//build/config/c++/c++.gni")
 import("//build/config/cast.gni")
+import("//build/config/unwind.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/features.gni")
@@ -299,6 +300,12 @@ group("common_deps") {
 
   if (use_custom_libcxx) {
     public_deps += [ "//buildtools/third_party/libc++" ]
+  }
+
+  # Provide an unwinder for the native toolchain. The starboard toolchain gets
+  # its own evergreen-aware copy through unwind_starboard.
+  if (use_custom_libunwind && is_cobalt && is_native_toolchain) {
+    public_deps += [ "//buildtools/third_party/libunwind" ]
   }
 
   if (use_llvm_libatomic) {
