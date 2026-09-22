@@ -154,7 +154,12 @@ BASE_FEATURE(kTreeAnimationsInViz,
 
 BASE_FEATURE(kSendExplicitDecodeRequestsImmediately,
              "SendExplicitDecodeRequestsImmediately",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_COBALT)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kNewContentForCheckerboardedScrolls,
              "NewContentForCheckerboardedScrolls",
