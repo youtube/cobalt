@@ -26,7 +26,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
@@ -60,10 +59,10 @@ class MockCertVerifier : public SSLCertificateVerifier {
 
 // TODO(benwright) - Move to using INSTANTIATE_TEST_SUITE_P instead of using
 // duplicate test cases for simple parameter changes.
-class SSLAdapterTestDummy : public sigslot::has_slots<> {
+class SSLAdapterTestDummy {
  public:
   explicit SSLAdapterTestDummy() : socket_(CreateSocket()) {}
-  ~SSLAdapterTestDummy() override = default;
+  ~SSLAdapterTestDummy() = default;
 
   void CreateSSLAdapter(Socket* socket, SSLRole role) {
     ssl_adapter_.reset(SSLAdapter::Create(socket));
@@ -198,7 +197,7 @@ class SSLAdapterTestDummyServer : public SSLAdapterTestDummy {
   std::unique_ptr<SSLIdentity> ssl_identity_;
 };
 
-class SSLAdapterTestBase : public ::testing::Test, public sigslot::has_slots<> {
+class SSLAdapterTestBase : public ::testing::Test {
  public:
   explicit SSLAdapterTestBase(const KeyParams& key_params)
       : vss_(new VirtualSocketServer()),

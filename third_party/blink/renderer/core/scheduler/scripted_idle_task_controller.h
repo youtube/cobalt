@@ -18,7 +18,6 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -64,7 +63,6 @@ class CORE_EXPORT IdleTask : public GarbageCollected<IdleTask>,
 class CORE_EXPORT ScriptedIdleTaskController
     : public GarbageCollected<ScriptedIdleTaskController>,
       public ExecutionContextLifecycleStateObserver,
-      public Supplement<ExecutionContext>,
       public NameClient {
   USING_PRE_FINALIZER(ScriptedIdleTaskController, Dispose);
 
@@ -88,9 +86,6 @@ class CORE_EXPORT ScriptedIdleTaskController
    private:
     RefCountedCounter counter_;
   };
-
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kScriptedIdleTaskController;
 
   static ScriptedIdleTaskController& From(ExecutionContext& context);
 

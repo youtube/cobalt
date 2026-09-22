@@ -637,9 +637,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
 
-  TNode<BoolT> LogicalOr(TNode<BoolT> lhs,
-                         base::FunctionRef<TNode<BoolT>()> rhs);
-
   // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
   // defined.
   TNode<IntPtrT> AlignToAllocationAlignment(TNode<IntPtrT> value);
@@ -2314,11 +2311,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calls the next method of an iterator and returns the pair of
   // {value, done} properties of the result.
   std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
-      TNode<Object> iterator, TNode<Object> next_method,
-      TNode<Context> context);
+      TNode<Context> context, TNode<Object> iterator, TNode<Object> next,
+      TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+      TNode<UintPtrT> call_slot);
   using ForOfNextResult = TorqueStructForOfNextResult_0;
-  ForOfNextResult ForOfNextHelper(TNode<Context> context, TNode<Object> object,
-                                  TNode<Object> next);
+  ForOfNextResult ForOfNextHelper(
+      TNode<Context> context, TNode<Object> object, TNode<Object> next,
+      TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+      TNode<UintPtrT> call_slot);
 
   TNode<JSObject> AllocatePromiseWithResolversResult(TNode<Context> context,
                                                      TNode<Object> promise,
@@ -3845,6 +3845,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TNode<HeapObject> maybe_feedback_vector,
                            TNode<UintPtrT> slot_id);
 
+  void UpdateEmbeddedFeedback(TNode<Int32T> feedback,
+                              TNode<BytecodeArray> bytecode_array,
+                              TNode<IntPtrT> feedback_offset);
+
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
   void ReportFeedbackUpdate(TNode<FeedbackVector> feedback_vector,
@@ -4460,6 +4464,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void Abort(AbortReason reason) {
     CallRuntime(Runtime::kAbort, NoContextConstant(), SmiConstant(reason));
+    Unreachable();
+  }
+
+  void AbortWithSandboxViolation() {
+    TNode<ExternalReference> abort_with_sandbox_violation =
+        ExternalConstant(ExternalReference::abort_with_sandbox_violation());
+    CallCFunction(abort_with_sandbox_violation, std::nullopt);
     Unreachable();
   }
 

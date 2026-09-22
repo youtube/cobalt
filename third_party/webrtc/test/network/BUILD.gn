@@ -102,6 +102,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../api:libjingle_peerconnection_api",
       "../../api:media_stream_interface",
       "../../api:network_emulation_manager_api",
+      "../../api:peer_connection_interface",
       "../../api:rtc_error_matchers",
       "../../api:scoped_refptr",
       "../../api:simulated_network_api",
@@ -172,7 +173,6 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base/synchronization:mutex",
-      "../../rtc_base/third_party/sigslot",
       "//third_party/abseil-cpp/absl/functional:any_invocable",
     ]
   }

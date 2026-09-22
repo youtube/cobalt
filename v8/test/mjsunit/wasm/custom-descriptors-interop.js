@@ -28,6 +28,7 @@ let proto_config = new WasmPrototypeSetupBuilder(builder);
 
 let $g_SuperProto = builder.addImportedGlobal("p", "pSuper", kWasmExternRef);
 let $g_SubProto = builder.addImportedGlobal("p", "pSub", kWasmExternRef);
+let $g_OtherProto = builder.addImportedGlobal("p", "pOther", kWasmExternRef);
 
 let $g_SuperDesc = builder.addGlobal(
     wasmRefType($SuperDesc).exact(), false, false, [
@@ -48,7 +49,7 @@ let $makeSuper = builder.addFunction(
   .addBody([
     kExprLocalGet, 0,
     kExprGlobalGet, $g_SuperDesc.index,
-    kGCPrefix, kExprStructNew, $Super,
+    kGCPrefix, kExprStructNewDesc, $Super,
   ]);
 
 let $makeSub = builder.addFunction(
@@ -57,8 +58,11 @@ let $makeSub = builder.addFunction(
     kExprLocalGet, 0,
     kExprLocalGet, 1,
     kExprGlobalGet, $g_SubDesc.index,
-    kGCPrefix, kExprStructNew, $Sub,
+    kGCPrefix, kExprStructNewDesc, $Sub,
   ]);
+
+let $makeOther = builder.addFunction("MakeOther", makeSig([], [kWasmAnyRef]))
+  .addBody([kExprRefNull, kAnyRefCode]);
 
 let $super_method = builder.addFunction("superMethod", kSig_i_r).addBody([
   kExprLocalGet, 0,
@@ -105,6 +109,9 @@ let $sub_config = proto_config.addConfig($g_SubProto, $super_config)
   .addStatic("property", kWasmGetter, $static_get)
   .addStatic("property", kWasmSetter, $static_set);
 
+let $other_config = proto_config.addConfig($g_OtherProto)
+  .addConstructor("Other", $makeOther);
+
 proto_config.build();
 
 let constructors = {};
@@ -112,14 +119,16 @@ let imports = {
   p: {
     pSuper: {__proto__: {rootProp: "root"}},
     pSub: {},
+    pOther: {},
   },
   c: {constructors},
-}
-
+};
 let instance = builder.instantiate(imports, { builtins: ['js-prototypes'] });
-
 let Super = constructors.Super;
 let Sub = constructors.Sub;
+
+let o = {};
+%DebugPrint(o);  // Before bug fix, this crashed.
 
 function Test() {
   // Static methods.
@@ -202,7 +211,7 @@ for (let i = 0; i < 3; i++) {
   } catch (e) {
     testStackTrace(e, [
       /RuntimeError: illegal cast/,
-      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[4\]:0x136/,
+      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[5\]:0x150/,
       /at Traps \(.*\)/,
     ]);
   }
@@ -233,7 +242,7 @@ for (let i = 0; i < 3; i++) {
     .addBody([
       kExprLocalGet, 0,
       kExprGlobalGet, $g_desc.index,
-      kGCPrefix, kExprStructNew, $struct,
+      kGCPrefix, kExprStructNewDesc, $struct,
     ]);
 
   let $method = builder.addFunction("method", kSig_i_r).addBody([

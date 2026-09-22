@@ -187,9 +187,9 @@ struct runtime : CallDescriptorBuilder {
     };
     using returns_t = V<String>;
 
-    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
+        Operator::kFoldable | Operator::kIdempotent;
   };
 #endif  // V8_INTL_SUPPORT
 
@@ -403,6 +403,29 @@ struct runtime : CallDescriptorBuilder {
 
     static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ToString : public Descriptor<ToString> {
+    static constexpr auto kFunction = Runtime::kToString;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, input)
+    };
+    using returns_t = V<String>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct MajorGCForCompilerTesting
+      : public Descriptor<MajorGCForCompilerTesting> {
+    static constexpr auto kFunction = Runtime::kMajorGCForCompilerTesting;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
+
+    // A GC never triggers a lazy deoptimization for the topmost optimized
+    // frame.
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr Operator::Properties kProperties = Operator::kFoldable;
   };
 };
 

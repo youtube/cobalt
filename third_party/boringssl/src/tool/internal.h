@@ -20,6 +20,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -112,6 +113,14 @@ void PrintUsage(const struct argument *templates);
 bool GetUnsigned(unsigned *out, const std::string &arg_name,
                  unsigned default_value,
                  const std::map<std::string, std::string> &args);
+
+// SplitString returns |s| split on copies of |sep|. If |sep| does not appear in
+// |s|, it returns a single-element array containing |s|, even if |s| is empty.
+std::vector<std::string_view> SplitString(std::string_view s,
+                                          std::string_view sep);
+
+// TrimSpace returns |s| with leading and trailing spaces removed.
+std::string_view TrimSpace(std::string_view s);
 
 bool ReadAll(std::vector<uint8_t> *out, FILE *in);
 bool WriteToFile(const std::string &path, bssl::Span<const uint8_t> in);

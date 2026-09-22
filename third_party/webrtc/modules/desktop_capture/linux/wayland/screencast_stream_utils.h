@@ -32,9 +32,12 @@ struct PipeWireVersion {
   // Returns whether current version is older or same as required version
   bool operator<=(const PipeWireVersion& other);
 
+  absl::string_view ToStringView() const;
+
   int major = 0;
   int minor = 0;
   int micro = 0;
+  std::string full_version;
 };
 
 // Returns a spa_pod used to build PipeWire stream format using given

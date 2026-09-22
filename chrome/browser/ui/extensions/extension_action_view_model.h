@@ -5,11 +5,11 @@
 #ifndef CHROME_BROWSER_UI_EXTENSIONS_EXTENSION_ACTION_VIEW_MODEL_H_
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSION_ACTION_VIEW_MODEL_H_
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_list_interface_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_hover_card_types.h"
@@ -19,6 +19,7 @@
 #include "extensions/browser/extension_action_icon_factory.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_observer.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
 
@@ -48,8 +49,6 @@ class ImageModel;
 // This class doesn't own the extension or extension action in question. It is
 // safe to call methods after the extension is uninstalled, but they will return
 // undefined values, except GetId().
-//
-// TODO(crbug.com/437774758): Enable this class on Desktop Android.
 class ExtensionActionViewModel
     : public ToolbarActionViewModel,
       public content::WebContentsObserver,
@@ -76,7 +75,8 @@ class ExtensionActionViewModel
 
   // ToolbarActionViewModel:
   std::string GetId() const override;
-  void SetUpdateObserver(base::RepeatingClosure observer) override;
+  base::CallbackListSubscription RegisterUpdateObserver(
+      base::RepeatingClosure observer) override;
   ui::ImageModel GetIcon(content::WebContents* web_contents,
                          const gfx::Size& size) override;
   std::u16string GetActionName() const override;
@@ -138,12 +138,6 @@ class ExtensionActionViewModel
   // this class.
   bool CanHandleAccelerators() const;
 
-  const extensions::Extension* extension() const { return extension_.get(); }
-  BrowserWindowInterface* browser() { return browser_; }
-  extensions::ExtensionAction* extension_action() { return extension_action_; }
-  const extensions::ExtensionAction* extension_action() const {
-    return extension_action_;
-  }
   ExtensionActionPlatformDelegate* platform_delegate() {
     return platform_delegate_.get();
   }
@@ -164,8 +158,8 @@ class ExtensionActionViewModel
   // Returns the current web contents.
   content::WebContents* GetCurrentWebContents() const;
 
-  // Notifies the observer that the underlying data has been updated.
-  void NotifyObserver();
+  // Notifies observers that the underlying data has been updated.
+  void NotifyObservers();
 
   // extensions::ExtensionActionIconFactory::Observer:
   void OnIconUpdated() override;
@@ -210,8 +204,8 @@ class ExtensionActionViewModel
   // The context menu model for the extension.
   std::unique_ptr<extensions::ExtensionContextMenuModel> context_menu_model_;
 
-  // Our observer.
-  base::RepeatingClosure observer_;
+  // Our observers.
+  base::RepeatingClosureList observers_;
 
   // The delegate to handle platform-specific implementations.
   std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate_;

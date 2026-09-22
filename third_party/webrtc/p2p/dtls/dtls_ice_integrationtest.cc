@@ -23,6 +23,8 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
+#include "api/ice_transport_interface.h"
+#include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/test/create_network_emulation_manager.h"
 #include "api/test/network_emulation_manager.h"
@@ -38,6 +40,7 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "p2p/dtls/dtls_transport.h"
+#include "p2p/test/fake_ice_transport.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
@@ -50,7 +53,6 @@
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_field_trials.h"
@@ -65,11 +67,9 @@ ABSL_FLAG(int32_t,
 ABSL_FLAG(int32_t, long_running_run_time_minutes, 7, "");
 ABSL_FLAG(bool, long_running_send_data, false, "");
 
+namespace webrtc {
 namespace {
 constexpr int kDefaultTimeout = 30000;
-}  // namespace
-
-namespace webrtc {
 
 using ::testing::Eq;
 using ::testing::IsTrue;
@@ -81,16 +81,15 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
                                    SSLProtocolVersion,
                                    /* 3 client_dtls_is_ice_controlling= */ bool,
                                    /* 4 client_pqc= */ bool,
-                                   /* 5 server_pqc= */ bool>>,
-                               public sigslot::has_slots<> {
+                                   /* 5 server_pqc= */ bool>> {
  public:
   void CandidateC2S(IceTransportInternal*, const Candidate& c) {
     server_thread()->PostTask(
-        [this, c = c]() { server_.ice->AddRemoteCandidate(c); });
+        [this, c = c]() { server_.ice()->AddRemoteCandidate(c); });
   }
   void CandidateS2C(IceTransportInternal*, const Candidate& c) {
     client_thread()->PostTask(
-        [this, c = c]() { client_.ice->AddRemoteCandidate(c); });
+        [this, c = c]() { client_.ice()->AddRemoteCandidate(c); });
   }
 
  private:
@@ -105,8 +104,11 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
     std::unique_ptr<NetworkManager> network_manager;
     std::unique_ptr<BasicPacketSocketFactory> packet_socket_factory;
     std::unique_ptr<PortAllocator> allocator;
-    std::unique_ptr<IceTransportInternal> ice;
+    scoped_refptr<IceTransportInterface> ice_transport;
     std::unique_ptr<DtlsTransportInternalImpl> dtls;
+
+    // Convenience getter for the internal transport.
+    IceTransportInternal* ice() { return ice_transport->internal(); }
 
     // SetRemoteFingerprintFromCert does not actually set the fingerprint,
     // but only store it for setting later.
@@ -174,9 +176,10 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
       }
       ep.allocator->set_flags(ep.allocator->flags() |
                               PORTALLOCATOR_DISABLE_TCP);
-      ep.ice = std::make_unique<P2PTransportChannel>(
-          ep.env, client ? "client_transport" : "server_transport", 0,
-          ep.allocator.get());
+      ep.ice_transport = make_ref_counted<FakeIceTransport>(
+          std::make_unique<P2PTransportChannel>(
+              ep.env, client ? "client_transport" : "server_transport", 0,
+              ep.allocator.get()));
       CryptoOptions crypto_options;
       if (ep.pqc) {
         FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
@@ -184,35 +187,35 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
             &field_trials);
       }
       ep.dtls = std::make_unique<DtlsTransportInternalImpl>(
-          ep.env, ep.ice.get(), crypto_options, std::get<2>(GetParam()));
+          ep.env, ep.ice_transport, crypto_options, std::get<2>(GetParam()));
 
       // Enable(or disable) the dtls_in_stun parameter before
       // DTLS is negotiated.
       IceConfig config;
       config.continual_gathering_policy = GATHER_CONTINUALLY;
       config.dtls_handshake_in_stun = ep.dtls_stun_piggyback;
-      ep.ice->SetIceConfig(config);
+      ep.ice()->SetIceConfig(config);
 
       // Setup ICE.
-      ep.ice->SetIceParameters(client ? client_ice_parameters_
-                                      : server_ice_parameters_);
-      ep.ice->SetRemoteIceParameters(client ? server_ice_parameters_
-                                            : client_ice_parameters_);
+      ep.ice()->SetIceParameters(client ? client_ice_parameters_
+                                        : server_ice_parameters_);
+      ep.ice()->SetRemoteIceParameters(client ? server_ice_parameters_
+                                              : client_ice_parameters_);
       if (client) {
-        ep.ice->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLED
-                                                   : ICEROLE_CONTROLLING);
+        ep.ice()->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLED
+                                                     : ICEROLE_CONTROLLING);
       } else {
-        ep.ice->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLING
-                                                   : ICEROLE_CONTROLLED);
+        ep.ice()->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLING
+                                                     : ICEROLE_CONTROLLED);
       }
       if (client) {
-        ep.ice->SubscribeCandidateGathered(
+        ep.ice()->SubscribeCandidateGathered(
             [this](IceTransportInternal* transport,
                    const Candidate& candidate) {
               CandidateC2S(transport, candidate);
             });
       } else {
-        ep.ice->SubscribeCandidateGathered(
+        ep.ice()->SubscribeCandidateGathered(
             [this](IceTransportInternal* transport,
                    const Candidate& candidate) {
               CandidateS2C(transport, candidate);
@@ -259,13 +262,13 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
   void TearDown() override {
     client_thread()->BlockingCall([&]() {
       client_.dtls.reset();
-      client_.ice.reset();
+      client_.ice_transport = nullptr;
       client_.allocator.reset();
     });
 
     server_thread()->BlockingCall([&]() {
       server_.dtls.reset();
-      server_.ice.reset();
+      server_.ice_transport = nullptr;
       server_.allocator.reset();
     });
   }
@@ -364,8 +367,8 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
 
 TEST_P(DtlsIceIntegrationTest, SmokeTest) {
   Prepare();
-  client_.ice->MaybeStartGathering();
-  server_.ice->MaybeStartGathering();
+  client_.ice()->MaybeStartGathering();
+  server_.ice()->MaybeStartGathering();
 
   // Note: this only reaches the pending piggybacking state.
   EXPECT_THAT(
@@ -403,8 +406,8 @@ TEST_P(DtlsIceIntegrationTest, SmokeTest) {
   network_manager_->AddInterface(SocketAddress("192.168.2.1", 0));
   EXPECT_THAT(WaitUntil(
                   [&] {
-                    return CountWritableConnections(client_.ice.get()) > 1 &&
-                           CountWritableConnections(server_.ice.get()) > 1;
+                    return CountWritableConnections(client_.ice()) > 1 &&
+                           CountWritableConnections(server_.ice()) > 1;
                   },
                   IsTrue(), wait_until_settings()),
               IsRtcOk());
@@ -416,11 +419,11 @@ TEST_P(DtlsIceIntegrationTest, SmokeTest) {
 TEST_P(DtlsIceIntegrationTest, ClientLateCertificate) {
   client_.store_but_dont_set_remote_fingerprint = true;
   Prepare();
-  client_.ice->MaybeStartGathering();
-  server_.ice->MaybeStartGathering();
+  client_.ice()->MaybeStartGathering();
+  server_.ice()->MaybeStartGathering();
 
   ASSERT_THAT(
-      WaitUntil([&] { return CountWritableConnections(client_.ice.get()) > 0; },
+      WaitUntil([&] { return CountWritableConnections(client_.ice()) > 0; },
                 IsTrue(), wait_until_settings()),
       IsRtcOk());
   SetRemoteFingerprint(client_);
@@ -456,9 +459,9 @@ TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
   ConfigureEmulatedNetwork();
   Prepare();
 
-  client_thread()->PostTask([&]() { client_.ice->MaybeStartGathering(); });
+  client_thread()->PostTask([&]() { client_.ice()->MaybeStartGathering(); });
 
-  server_thread()->PostTask([&]() { server_.ice->MaybeStartGathering(); });
+  server_thread()->PostTask([&]() { server_.ice()->MaybeStartGathering(); });
 
   EXPECT_THAT(WaitUntil(
                   [&] {
@@ -490,13 +493,13 @@ TEST_P(DtlsIceIntegrationTest, LongRunningTestWithPacketLoss) {
     seed = 1 + time(0);
   }
   RTC_LOG(LS_INFO) << "seed: " << seed;
-  webrtc::Random rand(seed);
+  Random rand(seed);
   ConfigureEmulatedNetwork();
   Prepare();
 
-  client_thread()->PostTask([&]() { client_.ice->MaybeStartGathering(); });
+  client_thread()->PostTask([&]() { client_.ice()->MaybeStartGathering(); });
 
-  server_thread()->PostTask([&]() { server_.ice->MaybeStartGathering(); });
+  server_thread()->PostTask([&]() { server_.ice()->MaybeStartGathering(); });
 
   ASSERT_THAT(WaitUntil(
                   [&] {
@@ -592,13 +595,13 @@ TEST_P(DtlsIceIntegrationTest, AlmostFullSTUN_BINDING) {
   Prepare();
 
   std::string a_long_string(500, 'a');
-  client_.ice->GetDictionaryWriter()->get().SetByteString(77)->CopyBytes(
+  client_.ice()->GetDictionaryWriter()->get().SetByteString(77)->CopyBytes(
       a_long_string);
-  server_.ice->GetDictionaryWriter()->get().SetByteString(78)->CopyBytes(
+  server_.ice()->GetDictionaryWriter()->get().SetByteString(78)->CopyBytes(
       a_long_string);
 
-  client_.ice->MaybeStartGathering();
-  server_.ice->MaybeStartGathering();
+  client_.ice()->MaybeStartGathering();
+  server_.ice()->MaybeStartGathering();
 
   // Note: this only reaches the pending piggybacking state.
   EXPECT_THAT(
@@ -648,4 +651,5 @@ INSTANTIATE_TEST_SUITE_P(
                        testing::Bool(),
                        testing::Bool()));
 
+}  // namespace
 }  // namespace webrtc

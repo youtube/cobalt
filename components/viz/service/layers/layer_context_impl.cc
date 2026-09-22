@@ -255,6 +255,7 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
   }
 
   if (!wire.anchor_position_scroll_data_id) {
+    node.anchor_position_scroll_data_id = -1;
   } else if (*wire.anchor_position_scroll_data_id >=
              tree.anchor_position_scroll_data().size()) {
     return base::unexpected("Invalid anchor_position_scroll_data_id");
@@ -286,7 +287,14 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
       wire.node_or_ancestors_will_change_transform;
 
   node.visible_frame_element_id = wire.visible_frame_element_id;
-  node.SetTransformChanged(cc::DamageReason::kUntracked);
+
+  // Note that we only set |transform_changed| to true and never to false since
+  // Viz might not have got a change to run and use it via
+  // CalculateRenderProperties(). It should only be cleared in
+  // ResetAllChangeTracking() which happens at the end of every frame.
+  if (wire.transform_changed) {
+    node.SetTransformChanged(cc::DamageReason::kUntracked);
+  }
   if (!node.SetDamageReasonsForDeserialization(
           cc::DamageReasonSet::FromEnumBitmask(wire.damage_reasons_bit_mask))) {
     // This error case shouldn't be reachable, since
@@ -355,7 +363,14 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
     trees.effect_tree_mutable().SetElementIdForNodeId(node.id, node.element_id);
   }
   node.opacity = wire.opacity;
-  node.effect_changed = true;
+
+  // Note that we only set |effect_changed| to true and never to false since Viz
+  // might not have got a change to run and use it via
+  // CalculateRenderProperties(). It should only be cleared in
+  // ResetAllChangeTracking() which happens at the end of every frame.
+  if (wire.effect_changed) {
+    node.effect_changed = true;
+  }
   node.render_surface_reason = wire.render_surface_reason;
   node.surface_contents_scale = wire.surface_contents_scale;
   node.subtree_capture_id = wire.subtree_capture_id;
@@ -380,6 +395,11 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
   node.filters = wire.filters;
   node.backdrop_filters = wire.backdrop_filters;
   node.backdrop_filter_bounds = wire.backdrop_filter_bounds;
+  if (wire.backdrop_filter_quality <= 0.0f ||
+      wire.backdrop_filter_quality > 1.0f ||
+      !std::isfinite(wire.backdrop_filter_quality)) {
+    return base::unexpected("Invalid backdrop_filter_quality");
+  }
   node.backdrop_filter_quality = wire.backdrop_filter_quality;
   node.backdrop_mask_element_id = wire.backdrop_mask_element_id;
   node.mask_filter_info = wire.mask_filter_info;
@@ -535,6 +555,18 @@ base::expected<void, std::string> UpdateTransformTreeProperties(
     cc::PropertyTrees& trees,
     cc::TransformTree& tree,
     mojom::TransformTreeUpdate& update) {
+  if (update.page_scale_factor <= 0 ||
+      !std::isfinite(update.page_scale_factor)) {
+    return base::unexpected("Invalid page_scale_factor");
+  }
+  if (update.device_scale_factor <= 0 ||
+      !std::isfinite(update.device_scale_factor)) {
+    return base::unexpected("Invalid device_scale_factor");
+  }
+  if (update.device_transform_scale_factor <= 0 ||
+      !std::isfinite(update.device_transform_scale_factor)) {
+    return base::unexpected("Invalid device_transform_scale_factor");
+  }
   tree.set_page_scale_factor(update.page_scale_factor);
   tree.set_device_scale_factor(update.device_scale_factor);
   tree.set_device_transform_scale_factor(update.device_transform_scale_factor);
@@ -555,6 +587,11 @@ base::expected<bool, std::string> UpdateScrollTreeProperties(
     cc::PropertyTrees& trees,
     cc::ScrollTree& tree,
     const mojom::ScrollTreeUpdate& update) {
+  for (auto const& [element_id, overscroll] : update.elastic_overscroll) {
+    if (!std::isfinite(overscroll.x()) || !std::isfinite(overscroll.y())) {
+      return base::unexpected("Invalid elastic_overscroll");
+    }
+  }
   tree.synced_scroll_offset_map() = update.synced_scroll_offsets;
   tree.scrolling_contents_cull_rects() = update.scrolling_contents_cull_rects;
   bool elastic_overscroll_changed =
@@ -1532,6 +1569,7 @@ void LayerContextImpl::SetNeedsCommitOnImplThread(bool urgent) {
 }
 
 void LayerContextImpl::SetVideoNeedsBeginFrames(bool needs_begin_frames) {}
+void LayerContextImpl::DidChangeBeginFrameSourcePaused(bool paused) {}
 
 void LayerContextImpl::SetDeferBeginMainFrameFromImpl(
     bool defer_begin_main_frame) {}
@@ -1722,8 +1760,9 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
         *update->transform_tree_update));
   }
 
+  bool scroll_properties_changed = false;
   if (update->scroll_tree_update) {
-    ASSIGN_OR_RETURN(const bool scroll_properties_changed,
+    ASSIGN_OR_RETURN(scroll_properties_changed,
                      UpdateScrollTreeProperties(
                          property_trees, property_trees.scroll_tree_mutable(),
                          *update->scroll_tree_update));
@@ -1866,6 +1905,21 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       !std::isfinite(update->max_safe_area_inset_bottom)) {
     return base::unexpected("Invalid max safe area inset bottom");
   }
+  if (update->browser_controls_params.top_controls_height < 0 ||
+      !std::isfinite(update->browser_controls_params.top_controls_height) ||
+      update->browser_controls_params.top_controls_min_height < 0 ||
+      !std::isfinite(update->browser_controls_params.top_controls_min_height) ||
+      update->browser_controls_params.bottom_controls_height < 0 ||
+      !std::isfinite(update->browser_controls_params.bottom_controls_height) ||
+      update->browser_controls_params.bottom_controls_min_height < 0 ||
+      !std::isfinite(
+          update->browser_controls_params.bottom_controls_min_height) ||
+      update->browser_controls_params.top_controls_min_height >
+          update->browser_controls_params.top_controls_height ||
+      update->browser_controls_params.bottom_controls_min_height >
+          update->browser_controls_params.bottom_controls_height) {
+    return base::unexpected("Invalid browser controls params");
+  }
   layers.SetBrowserControlsParams(update->browser_controls_params);
   host_impl_->browser_controls_manager()->SetOffsetTagModifications(
       update->browser_controls_offset_tag_modifications);
@@ -1875,12 +1929,6 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   layers.set_painted_device_scale_factor(update->painted_device_scale_factor);
   layers.SetDisplayColorSpaces(update->display_color_spaces);
 
-  if (!(update->top_controls_shown_ratio >= 0 &&
-        update->top_controls_shown_ratio <= 1 &&
-        update->bottom_controls_shown_ratio >= 0 &&
-        update->bottom_controls_shown_ratio <= 1)) {
-    return base::unexpected("Invalid top/bottom controls shown ratios");
-  }
   host_impl_->SetCurrentBrowserControlsShownRatio(
       update->top_controls_shown_ratio, update->bottom_controls_shown_ratio);
 
@@ -1965,6 +2013,14 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   auto* animation_host = static_cast<cc::AnimationHost*>(layers.mutator_host());
   RETURN_IF_ERROR(DeserializeAnimationUpdates(*update, *animation_host));
   host_impl_->ActivateAnimations();
+
+  // Only propagate property tree changes to layers if the property trees
+  // actually changed. This avoids redundant work and prevents incorrectly
+  // flagging draw properties as needing an update when no relevant properties
+  // have changed.
+  if (any_tree_changed || scroll_properties_changed) {
+    layers.MoveChangeTrackingToLayers();
+  }
 
   return base::ok();
 }

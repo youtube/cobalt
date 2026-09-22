@@ -153,8 +153,6 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   MultiStep RoundTrip(actor::TaskId& task_id);
 
   // Stops a running task by calling the glic StopActorTask API.
-  // TODO(crbug.com/431760051): This needs to use the correct task_id but the
-  // implementation of stopActorTask currently ignores the argument.
   MultiStep StopActorTask();
 
   // Pauses a running task by calling the glic PauseActorTask API.
@@ -163,6 +161,9 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   // Resumes a paused task by calling the glic ResumeActorTask API.
   MultiStep ResumeActorTask(base::Value::Dict context_options,
                             ExpectedResumeResult expected_result);
+
+  // Interrupts a task by calling the glic InterruptActorTask API.
+  MultiStep InterruptActorTask();
 
   MultiStep WaitForActorTaskState(mojom::ActorTaskState expected_state);
 

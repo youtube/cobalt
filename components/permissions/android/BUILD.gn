@@ -13,6 +13,7 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/components/permissions/BluetoothScanningPermissionDialog.java",
     "java/src/org/chromium/components/permissions/PermissionDialogController.java",
     "java/src/org/chromium/components/permissions/PermissionDialogDelegate.java",
+    "java/src/org/chromium/components/permissions/PermissionUtil.java",
     "java/src/org/chromium/components/permissions/nfc/NfcSystemLevelSetting.java",
   ]
 }
@@ -148,6 +149,16 @@ android_library("embedded_permission_prompt_enums_java") {
   deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
 }
 
+java_cpp_enum("prompt_options_enums_javagen") {
+  visibility = [ ":*" ]
+  sources = [ "../resolvers/permission_prompt_options.h" ]
+}
+
+android_library("prompt_options_enums_java") {
+  srcjar_deps = [ ":prompt_options_enums_javagen" ]
+  deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
+}
+
 java_cpp_enum("embedded_permission_prompt_enums_javagen") {
   visibility = [ ":*" ]
   sources = [ "../embedded_permission_prompt_flow_model.h" ]
@@ -176,6 +187,7 @@ android_library("java") {
     "java/src/org/chromium/components/permissions/PermissionDialogDelegate.java",
     "java/src/org/chromium/components/permissions/PermissionDialogMediator.java",
     "java/src/org/chromium/components/permissions/PermissionDialogModelFactory.java",
+    "java/src/org/chromium/components/permissions/PermissionUtil.java",
     "java/src/org/chromium/components/permissions/PermissionVerticalButtonsDialogCustomViewBinder.java",
     "java/src/org/chromium/components/permissions/nfc/NfcSystemLevelPrompt.java",
     "java/src/org/chromium/components/permissions/nfc/NfcSystemLevelSetting.java",
@@ -185,6 +197,7 @@ android_library("java") {
     ":core_java",
     ":embedded_permission_prompt_enums_java",
     ":java_resources",
+    ":prompt_options_enums_java",
     "//base:base_java",
     "//base:service_loader_java",
     "//build/android:build_java",
@@ -196,7 +209,9 @@ android_library("java") {
     "//components/content_settings/android:content_settings_enums_java",
     "//components/location/android:location_java",
     "//components/omnibox/browser:scheme_classifier_java",
+    "//components/webxr/android:features_java",
     "//content/public/android:content_java",
+    "//device/vr/public:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
     "//third_party/androidx:androidx_core_core_java",
@@ -208,10 +223,7 @@ android_library("java") {
 }
 
 generate_jni("core_jni") {
-  sources = [
-    "java/src/org/chromium/components/permissions/PermissionUtil.java",
-    "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureMap.java",
-  ]
+  sources = [ "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureMap.java" ]
 }
 
 # Contains sources that do no depend on //content.
@@ -219,7 +231,6 @@ android_library("core_java") {
   srcjar_deps = [ ":core_jni" ]
   sources = [
     "java/src/org/chromium/components/permissions/ApproximateGeolocationPromptArm.java",
-    "java/src/org/chromium/components/permissions/PermissionUtil.java",
     "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureList.java",
     "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureMap.java",
   ]

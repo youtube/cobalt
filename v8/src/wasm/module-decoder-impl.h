@@ -27,24 +27,6 @@ namespace v8::internal::wasm {
     if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
-constexpr char kNameString[] = "name";
-constexpr char kSourceMappingURLString[] = "sourceMappingURL";
-constexpr char kInstTraceString[] = "metadata.code.trace_inst";
-constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
-#if V8_CC_GNU
-// TODO(miladfarca): remove once switched to using Clang.
-__attribute__((used))
-#endif
-constexpr char kCompilationPriorityString[] =
-    "metadata.code.compilation_priority";
-constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
-constexpr char kCallTargetsString[] = "metadata.code.call_targets";
-constexpr char kDebugInfoString[] = ".debug_info";
-constexpr char kExternalDebugInfoString[] = "external_debug_info";
-constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
-
 inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
     case kExternalFunction:
@@ -1894,9 +1876,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->compilation_priorities = std::move(compilation_priorities);
-      } else {
-        TRACE("DecodeCompilationPriority error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCompilationPriority error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole compilation priority section in the outer decoder.
@@ -1968,9 +1951,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->instruction_frequencies = std::move(frequencies);
-      } else {
-        TRACE("DecodeInstructionFrequencies error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeInstructionFrequencies error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole instruction frequencies section in the outer decoder.
@@ -2073,8 +2057,10 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the call-target hints for the module.
       if (inner.ok()) {
         module_->call_targets = std::move(call_targets);
-      } else {
-        TRACE("DecodeCallTargets error: %s", inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCallTargets error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole call-targets section in the outer decoder.

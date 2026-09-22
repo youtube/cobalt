@@ -343,6 +343,14 @@ const double kScrollBoundaryTolerance = 0.5;
 
 }  // namespace
 
+// static
+bool Animation::CompareAnimations(const Member<Animation>& left,
+                                  const Member<Animation>& right) {
+  return HasLowerCompositeOrdering(
+      left.Get(), right.Get(),
+      Animation::CompareAnimationsOrdering::kTreeOrder);
+}
+
 Animation* Animation::Create(AnimationEffect* effect,
                              AnimationTimeline* timeline,
                              ExceptionState& exception_state) {
@@ -3810,6 +3818,11 @@ void Animation::AddTrigger(AnimationTrigger* trigger) {
 
 void Animation::RemoveTrigger(AnimationTrigger* trigger) {
   triggers_.erase(trigger);
+}
+
+const HeapHashSet<WeakMember<AnimationTrigger>>&
+Animation::GetTriggersForTest() {
+  return triggers_;
 }
 
 void Animation::DisassociateTriggers() {

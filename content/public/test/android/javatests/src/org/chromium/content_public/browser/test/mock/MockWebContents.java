@@ -429,4 +429,9 @@ public class MockWebContents implements WebContents, WebContentsObserver.Observa
 
     @Override
     public <T extends UserData> void removeUserData(Class<T> key) {}
+
+    @Override
+    public @Nullable WebContents getDocumentPictureInPictureOpener() {
+        return null;
+    }
 }

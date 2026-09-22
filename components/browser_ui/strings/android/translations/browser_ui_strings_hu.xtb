@@ -171,6 +171,7 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="2787357173144933081">Gyorsindítás a cím- és keresősávval</translation>
 <translation id="2789132527330338807">A webhelyek kérhetik az Ön környezetéről készített 3D-s térkép létrehozását, valamint a kamera pozíciójának nyomon követését</translation>
 <translation id="2790501146643349491">Ha be van kapcsolva, a nemrégiben bezárt webhelyek befejezhetik az adatok küldését és fogadását. Ha ki van kapcsolva, a nemrégiben bezárt webhelyek nem tudják befejezni az adatok küldését és fogadását.</translation>
+<translation id="2794551654724114396">Kapcsolja be az értesítéseket, hogy hasznos tippeket kapjon, amelyek segítségével a legtöbbet hozhatja ki a Chrome-ból</translation>
 <translation id="2795716239552913152">A webhelyek általában arra használják az Ön helyadatait, hogy releváns szolgáltatásokat vagy információkat biztosítsanak (például helyi hírekről vagy közeli üzletekről)</translation>
 <translation id="2800760947029405028">Kép feltöltése</translation>
 <translation id="2802908157808345702">A webhelyek nem jeleníthetnek meg előugró ablakokat és nem használhatnak átirányításokat</translation>
@@ -338,10 +339,12 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="4635969503923889910">A webhelyek nem használhatnak NFC-eszközöket</translation>
 <translation id="4644713492825682049">Törlés és alaphelyzetbe állítás</translation>
 <translation id="4645575059429386691">A szülő kezeli</translation>
+<translation id="4652266463001779298">Nem engedélyezett</translation>
 <translation id="4663373278480897665">Kamera engedélyezve</translation>
 <translation id="4670064810192446073">Virtuális valóság</translation>
 <translation id="4672315773691449562">Koppintson a Böngésző alkalmazás, majd a Chrome lehetőségre</translation>
 <translation id="4676059169848868271">Ahhoz, hogy a <ph name="APP_NAME" /> használhassa a kézkövetést, kapcsolja be a kézkövetést a <ph name="BEGIN_LINK" />rendszerbeállításokban<ph name="END_LINK" /> is.</translation>
+<translation id="4688045258817337666">Kártyák kezelése</translation>
 <translation id="4751476147751820511">Mozgás- és fényérzékelők</translation>
 <translation id="4755971844837804407">Ha be van kapcsolva, a webhelyek bármilyen hirdetést megjeleníthetnek Önnek. Ha ki van kapcsolva, a webhelyek nem jeleníthetnek meg tolakodó vagy félrevezető hirdetéseket.</translation>
 <translation id="4779083564647765204">Nagyítás</translation>
@@ -678,6 +681,7 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="8487700953926739672">Offline elérhető</translation>
 <translation id="848952951823693243">Mindig a mobilwebhely kérése</translation>
 <translation id="8492822722330266509">A webhelyek megjeleníthetnek előugró ablakokat, és használhatnak átirányításokat</translation>
+<translation id="8493548450030356203">Előugró ablak nagyításhoz és kicsinyítéshez</translation>
 <translation id="8499083585497694743">Mikrofon némításának feloldása</translation>
 <translation id="8514955299594277296">A webhelyek nem menthetnek adatokat az eszközre (nem ajánlott)</translation>
 <translation id="851751545965956758">Az eszközökhöz való csatlakozás megtiltása a webhelyeknek</translation>

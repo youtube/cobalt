@@ -8,6 +8,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 namespace wallet {
 
@@ -41,8 +42,8 @@ void ContentWalletablePassIngestionController::GetAnnotatedPageContent(
       web_contents(), std::move(ai_page_content_options),
       base::BindOnce(
           [](AnnotatedPageContentCallback callback,
-             std::optional<optimization_guide::AIPageContentResult> result) {
-            if (!result) {
+             optimization_guide::AIPageContentResultOrError result) {
+            if (!result.has_value()) {
               std::move(callback).Run(std::nullopt);
               return;
             }

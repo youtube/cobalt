@@ -130,15 +130,10 @@ void FilterURLsForDropability(
 
     // Check whether the mime types, if given, are known to be supported or
     // whether there is a plugin that supports the mime type (e.g. PDF).
-    // TODO(bauerb): This possibly uses stale information, but it's guaranteed
-    // not to do disk access.
     bool supported = mime_type.empty() || blink::IsSupportedMimeType(mime_type);
 #if BUILDFLAG(ENABLE_PLUGINS)
-    content::WebPluginInfo plugin;
-    supported =
-        supported || content::PluginService::GetInstance()->GetPluginInfo(
-                         browser_context, url, mime_type, /*is_stale=*/nullptr,
-                         &plugin, /*actual_mime_type=*/nullptr);
+    supported = supported || content::PluginService::GetInstance()->HasPlugin(
+                                 browser_context, url, mime_type);
 #endif
 
     if (supported) {
@@ -331,8 +326,7 @@ bool BrowserRootView::OnMouseWheel(const ui::MouseWheelEvent& event) {
 
   // Scroll-event-changes-tab is incompatible with scrolling tabstrip, so
   // disable it if the latter feature is enabled.
-  if (browser_defaults::kScrollEventChangesTab &&
-      !base::FeatureList::IsEnabled(tabs::kScrollableTabStrip)) {
+  if (browser_defaults::kScrollEventChangesTab) {
     // Switch to the left/right tab if the wheel-scroll happens over the
     // tabstrip, or the empty space beside the tabstrip.
     views::View* hit_view = GetEventHandlerForPoint(event.location());

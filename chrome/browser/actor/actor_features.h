@@ -20,7 +20,7 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kAllowlistExact);
 BASE_DECLARE_FEATURE_PARAM(bool, kAllowlistOnly);
 
 BASE_DECLARE_FEATURE(kGlicActionUseOptimizationGuide);
-BASE_DECLARE_FEATURE(kActorDoNotStoreCompletedTasks);
+BASE_DECLARE_FEATURE(kActorBypassTOUValidationForGuestView);
 
 BASE_DECLARE_FEATURE(kGlicExternalProtocolActionResultCode);
 
@@ -71,6 +71,8 @@ BASE_DECLARE_FEATURE(kGlicTabScreenshotPaintPreviewBackend);
 BASE_DECLARE_FEATURE(kGlicNavigateUsingLoadURL);
 
 BASE_DECLARE_FEATURE(kGlicNavigateWithoutUserGesture);
+
+BASE_DECLARE_FEATURE(kGlicPerformActionsReturnsBeforeStateChange);
 
 // Enables a full page screenshot to be taken rather than only the viewport.
 extern const base::FeatureParam<bool> kFullPageScreenshot;

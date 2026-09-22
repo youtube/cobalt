@@ -27,7 +27,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"           // IWYU pragma: keep
-#include "rtc_base/third_party/sigslot/sigslot.h"  // IWYU pragma: keep
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"

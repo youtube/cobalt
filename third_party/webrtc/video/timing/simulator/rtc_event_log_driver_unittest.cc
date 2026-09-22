@@ -94,8 +94,8 @@ class RtcEventLogDriverTest : public ::testing::Test {
 TEST_F(RtcEventLogDriverTest, EmptyLogDoesNotCreateStreams) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   driver.Simulate();
 
   EXPECT_EQ(stream_factory_.NumStreamsCreated(), 0);
@@ -105,8 +105,8 @@ TEST_F(RtcEventLogDriverTest, LoggedVideoRecvConfigCreatesStream) {
   parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   EXPECT_CALL(*stream_factory_.stream1_ptr_, Close());
   driver.Simulate();
 
@@ -118,8 +118,8 @@ TEST_F(RtcEventLogDriverTest, LoggedVideoRecvConfigsCreateStreams) {
   parsed_log_builder_.LogVideoRecvConfig(kSsrc2);
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   EXPECT_CALL(*stream_factory_.stream1_ptr_, Close());
   EXPECT_CALL(*stream_factory_.stream2_ptr_, Close());
   driver.Simulate();
@@ -127,12 +127,55 @@ TEST_F(RtcEventLogDriverTest, LoggedVideoRecvConfigsCreateStreams) {
   EXPECT_EQ(stream_factory_.NumStreamsCreated(), 2);
 }
 
+class CountingRtcEventLogDriverStreamFactoryFactory {
+ public:
+  auto BuildStreamFactory() {
+    return [this](Environment env, uint32_t ssrc) {
+      ++num_streams_created_;
+      return std::make_unique<MockRtcEventLogDriverStream>();
+    };
+  }
+
+  int NumStreamsCreated() const { return num_streams_created_; }
+
+ private:
+  int num_streams_created_ = 0;
+};
+
+TEST_F(RtcEventLogDriverTest, ReusesStreamIfConfigured) {
+  parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
+  parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
+  std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
+
+  CountingRtcEventLogDriverStreamFactoryFactory counter;
+  RtcEventLogDriver driver(RtcEventLogDriver::Config{.reuse_streams = true},
+                           parsed_log.get(), kEmptyFieldTrialsString,
+                           counter.BuildStreamFactory());
+  driver.Simulate();
+
+  EXPECT_EQ(counter.NumStreamsCreated(), 1);
+}
+
+TEST_F(RtcEventLogDriverTest, DoesNotReuseStreamIfConfigured) {
+  parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
+  parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
+  std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
+
+  CountingRtcEventLogDriverStreamFactoryFactory counter;
+  RtcEventLogDriver driver(RtcEventLogDriver::Config{.reuse_streams = false},
+                           parsed_log.get(), kEmptyFieldTrialsString,
+                           counter.BuildStreamFactory());
+  driver.Simulate();
+
+  EXPECT_EQ(counter.NumStreamsCreated(), 2);
+}
+
 TEST_F(RtcEventLogDriverTest, FirstLoggedEventSetsSimulationClock) {
   parsed_log_builder_.LogVideoRecvConfig(kSsrc1);
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   driver.Simulate();
 
   EXPECT_EQ(driver.GetCurrentTimeForTesting(),
@@ -146,8 +189,8 @@ TEST_F(RtcEventLogDriverTest, LoggedEventAdvancesSimulationClock) {
   parsed_log_builder_.LogVideoRecvConfig(kSsrc2);
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   driver.Simulate();
 
   EXPECT_EQ(driver.GetCurrentTimeForTesting(),
@@ -161,8 +204,8 @@ TEST_F(RtcEventLogDriverTest, LoggedRtpPacketIncomingInsertsPacketIntoStream) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log = parsed_log_builder_.Build();
 
   EXPECT_CALL(*stream_factory_.stream1_ptr_, InsertPacket(_));
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   driver.Simulate();
 }
 
@@ -176,8 +219,8 @@ TEST_F(RtcEventLogDriverTest,
 
   EXPECT_CALL(*stream_factory_.stream1_ptr_, InsertPacket(_));
   EXPECT_CALL(*stream_factory_.stream2_ptr_, InsertPacket(_));
-  RtcEventLogDriver driver(parsed_log.get(), kEmptyFieldTrialsString,
-                           BuildStreamFactory());
+  RtcEventLogDriver driver(RtcEventLogDriver::Config(), parsed_log.get(),
+                           kEmptyFieldTrialsString, BuildStreamFactory());
   driver.Simulate();
 }
 

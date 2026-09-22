@@ -67,8 +67,6 @@ inline constexpr const char kCountActiveSourcesFromSourceOriginSql[] =
     "AND(event_level_active=1 OR aggregatable_active=1)"
     "AND expiry_time>?";
 
-inline constexpr const char kCountSourcesSql[] = "SELECT COUNT(*)FROM sources";
-
 inline constexpr const char kDedupKeySql[] =
     "SELECT dedup_key,report_type FROM dedup_keys WHERE source_id=?";
 
@@ -285,14 +283,6 @@ inline constexpr const char
         " AND destination_site=?"
         " AND reporting_site=?"
         " AND time>?";
-
-inline constexpr const char
-    kRateLimitCountUniqueReportingOriginsPerSiteForAttributionSql[] =
-        "SELECT COUNT(DISTINCT reporting_origin)FROM rate_limits "
-        "WHERE " RATE_LIMIT_ATTRIBUTION_CONDITION
-        " AND destination_site=?"
-        " AND reporting_site=?"
-        " AND source_expiry_or_attribution_time>?";
 
 static_assert(RateLimitTable::kUnsetRecordId == -1,
               "update `report_id!=-1` query below");

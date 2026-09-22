@@ -107,6 +107,7 @@
 <translation id="2236949375853147973">Min aktivitet</translation>
 <translation id="2238130810669087193">For at kunne se dine adresser m.m. på alle dine enheder skal du logge ind i Chromium. Denne adresse gemmes på din Google-konto, når du er logget ind.</translation>
 <translation id="2241627712206172106">Hvis du deler en computer, kan venner og familie browse individuelt og konfigurere Chromium, som de ønsker hver især.</translation>
+<translation id="2283803047247799269">Søg på denne fane med Billedsøgning</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium anbefaler, at du sætter den fane, der gør din browser langsom, på pause}one{Chromium anbefaler, at du sætter den fane, der gør din browser langsom, på pause}other{Chromium anbefaler, at du sætter de faner, der gør din browser langsom, på pause}}</translation>
 <translation id="2307973900865360088">Behold på applinje</translation>
 <translation id="2313870531055795960">Tjekker webadresser ift. en liste over usikre websites, der er gemt i Chromium. Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser og bl.a. mindre mængder sideindhold til Beskyttet browsing.</translation>
@@ -153,7 +154,6 @@
 <translation id="2718390899429598676">Som et ekstra sikkerhedsniveau krypterer Chromium dine data.</translation>
 <translation id="2721354645805494590">Log ud for at fjerne din Google-konto fra Chromium</translation>
 <translation id="2722636413143664436">For at kunne se dine adgangskoder m.m. på alle dine enheder skal du logge ind i Chromium</translation>
-<translation id="2723860029395667894">Vis altid genvejen til Google AI-tilstand</translation>
 <translation id="2738871930057338499">Der kan ikke oprettes forbindelse til internettet. HTTP 403 (forbudt). Tjek din proxykonfiguration.</translation>
 <translation id="2753623023919742414">Klik for at søge</translation>
 <translation id="2768103863314748511">Angiv Chromium som din standard PDF-fremviser</translation>
@@ -178,6 +178,7 @@
 <translation id="2977506796191543575">Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser, bl.a. mindre mængder sideindhold, til Beskyttet browsing</translation>
 <translation id="2981563588585023386">Log ind i Chromium for at blive beskyttet på nettet med dine forældres valg</translation>
 <translation id="3003694935412297923">Alle opgaver</translation>
+<translation id="3012615494352020668">{count,plural, =1{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data (1 element).}one{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data ({count} element).}other{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data ({count} elementer).}}</translation>
 <translation id="3013473503895162900">Åbn <ph name="URL" /> på en ny fane i Chromium.</translation>
 <translation id="3032706164202344641">Chromium kan ikke tjekke dine adgangskoder. Prøv igen senere.</translation>
 <translation id="3032787606318309379">Føjer til Chromium...</translation>
@@ -231,6 +232,7 @@
 <translation id="364817392622123556">{COUNT,plural, =0{Der er en ny Chromium-opdatering, som anvendes, så snart du genstarter.}=1{Der er en ny Chromium-opdatering, som anvendes, så snart du genstarter. Dit inkognitovindue åbnes ikke igen.}one{Der er en ny Chromium-opdatering, som anvendes, så snart du genstarter. # inkognitovindue åbnes ikke igen.}other{Der er en ny Chromium-opdatering, som anvendes, så snart du genstarter. Dine # inkognitovinduer åbnes ikke igen.}}</translation>
 <translation id="3651803019964686660">Hvis du vil sende et nummer fra <ph name="ORIGIN" /> til din Android-telefon, skal du logge ind på Chromium på begge enheder.</translation>
 <translation id="3667616615096815454">Appen kan ikke installeres. Serveren kender ikke appen.</translation>
+<translation id="3675854891107786059">Brug din <ph name="BEGIN_LINK" />egen adgangssætning<ph name="END_LINK" /> til at kryptere alle Chromium-data på din Google-konto. Betalingsmetoder og adresser fra Google Pay krypteres ikke. Browserhistorik fra Chromium synkroniseres ikke.</translation>
 <translation id="3685209450716071127">Chromium kan ikke tjekke dine adgangskoder. Prøv at tjekke din internetforbindelse.</translation>
 <translation id="370962675267501463">{COUNT,plural, =0{Din administrator anmoder om, at du genstarter Chromium for at anvende denne opdatering}=1{Din administrator anmoder om, at du genstarter Chromium for at anvende denne opdatering. Dit inkognitovindue åbnes ikke igen.}one{Din administrator anmoder om, at du genstarter Chromium for at anvende denne opdatering. # inkognitovindue åbnes ikke igen.}other{Din administrator anmoder om, at du genstarter Chromium for at anvende denne opdatering. Dine # inkognitovinduer åbnes ikke igen.}}</translation>
 <translation id="3713809861844741608">Åbn linket på en ny Chromium-&amp;fane</translation>
@@ -495,6 +497,7 @@ Visse funktioner kan være utilgængelige. Angiv en anden profilmappe, eller bru
 <translation id="6729124504294600478">For at få personlig tilpasning og andre funktioner skal du medtage Chromium i Web- og appaktivitet og tilknyttede Google-tjenester</translation>
 <translation id="6734291798041940871">Chromium er allerede installeret for alle brugere på computeren.</translation>
 <translation id="6751374565094704799">Gør websites hurtigere ved hjælp af Chromiums V8-maskine, men gør Chromium en smule mindre modstandsdygtig over for angreb. Denne indstilling er aktiveret.</translation>
+<translation id="6754665438209053659">{count,plural, =1{Nogle af dine Chromium-data er endnu ikke gemt på din Google-konto. Prøv at vente et par minutter, før du logger ud. Hvis du logger ud nu, slettes disse data (1 element).}one{Nogle af dine Chromium-data er endnu ikke gemt på din Google-konto. Prøv at vente et par minutter, før du logger ud. Hvis du logger ud nu, slettes disse data ({count} element).}other{Nogle af dine Chromium-data er endnu ikke gemt på din Google-konto. Prøv at vente et par minutter, før du logger ud. Hvis du logger ud nu, slettes disse data ({count} elementer).}}</translation>
 <translation id="67706546131546258">Chromium anbefaler, at du scanner denne fil, da den kan være skadelig.</translation>
 <translation id="6779406956731413166">Chromium OS leveres ved hjælp af <ph name="BEGIN_LINK_CROS_OSS" />open source-software<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6831043979455480757">Oversæt</translation>
@@ -522,6 +525,7 @@ Visse funktioner kan være utilgængelige. Angiv en anden profilmappe, eller bru
 <translation id="705851970750939768">Opdater Chromium</translation>
 <translation id="7067091210845072982">Hvis et billede ikke har en brugbar beskrivelse, forsøger Chromium at angive en for dig. Billederne sendes til Google, så der kan oprettes beskrivelser.</translation>
 <translation id="7141270731789036260">Tilpas Chrome for Testing</translation>
+<translation id="7147227333672430807">Du kan bruge Chromium, hver gang du klikker på links i beskeder, dokumenter og andre apps</translation>
 <translation id="7163519456498498587">Fjern <ph name="EXTENSION_NAME" /> fra Chromium</translation>
 <translation id="7173822816570314652">Din organisation sletter Chromium-data, når de ikke har været i brug i <ph name="TIMEOUT_DURATION" />. Disse data kan omfatte historik, Autofyld og downloads.</translation>
 <translation id="718435575166326686">Chromium skal have kameratilladelse for at bruge dette website</translation>
@@ -623,6 +627,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8359544530202147897">Opdater Chromium for at fortsætte med at bruge Chromium-dataene på din Google-konto, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Hvis du vil have fremtidige Chromium-opdateringer, skal du have Windows 10 eller nyere. Denne computer har Windows 8.</translation>
 <translation id="8362914115861174987">Oversæt til</translation>
+<translation id="8367705492654390392">Stil et spørgsmål</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Alle rettigheder forbeholdes.</translation>
 <translation id="8372327902843331129">For at kunne se dine adgangskoder m.m. på alle dine enheder skal du logge ind på Chromium. Denne adgangskode gemmes på din Google-konto, når du er logget ind.</translation>
 <translation id="837460953767177950">Du skal derefter genstarte Chromium.</translation>
@@ -637,6 +642,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8471947159125090285">Verificer din identitet for at bruge og gemme Chromium-data på din Google-konto</translation>
 <translation id="8482493977473846331">Viser meddelelser om at logge ind i Chromium</translation>
 <translation id="8493179195440786826">Chromium er forældet</translation>
+<translation id="850264194101621529">Tak, fordi du har valgt Chromium som din standardbrowser.</translation>
 <translation id="8522801943730206384">Chromium kan tjekke dine adgangskoder, når du gemmer dem</translation>
 <translation id="8555465886620020932">Tjenestefejl: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556420416730706394">Du kan fastgøre billedsøgning for at få nem adgang. Klik på knappen Fastgør øverst i sidepanelet</translation>
@@ -646,8 +652,8 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> Forfatterne bag Chromium. Alle rettigheder forbeholdes.</translation>
 <translation id="8601359445272098721">Nyhed! Du kan oversætte både tekst og billeder på din skærm ved at vælge knappen "Oversæt skærmen"</translation>
 <translation id="8619360774459241877">Starter Chromium...</translation>
+<translation id="8624541899164515475">Indstillinger (åbnes på en ny fane).</translation>
 <translation id="8648201657708811153">Google Chrome for Testing kan ikke angives som din standardbrowser.</translation>
-<translation id="8677922833187616101">Vis altid genvejen til Google AI-tilstand</translation>
 <translation id="8697124171261953979">Den styrer også, hvilken side der vises, når du åbner Chromium eller søger via omnifeltet.</translation>
 <translation id="8704119203788522458">Dette er din Chromium-browser</translation>
 <translation id="8712637175834984815">Forstået</translation>

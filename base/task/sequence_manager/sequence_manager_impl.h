@@ -21,7 +21,6 @@
 #include "base/compiler_specific.h"
 #include "base/containers/circular_deque.h"
 #include "base/debug/crash_logging.h"
-#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -202,6 +201,11 @@ class BASE_EXPORT SequenceManagerImpl
 
   // How frequently to perform housekeeping tasks (sweeping canceled tasks etc).
   static constexpr TimeDelta kReclaimMemoryInterval = Seconds(30);
+
+  // Allows SingleThreadTaskRunner to find the best-effort task queue for the
+  // current thread. Returns nullptr if there isn't one.
+  static scoped_refptr<SingleThreadTaskRunner> GetCurrentBestEffortTaskRunner(
+      PassKey<SingleThreadTaskRunner>);
 
  protected:
   static std::unique_ptr<ThreadControllerImpl>

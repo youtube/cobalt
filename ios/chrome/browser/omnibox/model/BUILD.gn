@@ -67,6 +67,7 @@ source_set("model") {
     "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/url_loading/model:url_loading_params_header",
     "//ios/chrome/common:string_conversions",
     "//ios/chrome/common/ui/favicon",
     "//ios/web/public",
@@ -99,7 +100,6 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [
-    "chrome_omnibox_client_ios_unittest.mm",
     "omnibox_autocomplete_controller_unittest.mm",
     "omnibox_text_controller_unittest.mm",
     "omnibox_text_model_unittest.mm",

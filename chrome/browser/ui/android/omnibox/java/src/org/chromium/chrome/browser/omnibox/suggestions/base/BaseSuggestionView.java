@@ -12,16 +12,15 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.ImageView;
 
 import androidx.annotation.LayoutRes;
 import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.build.annotations.CheckDiscard;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.suggestions.SimpleSelectionController;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.ui.base.KeyNavigationUtil;
@@ -125,13 +124,11 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
      * @param isSelected whether to apply hairline
      */
     private void highlightActionButton(int buttonIndex, boolean isHighlighted) {
-        mActionButtons
-                .get(buttonIndex)
-                .setForeground(
-                        isHighlighted
-                                ? AppCompatResources.getDrawable(
-                                        getContext(), R.drawable.hairline_circle)
-                                : null);
+        ActionButtonView actionButtonView = mActionButtons.get(buttonIndex);
+        actionButtonView.setSelected(isHighlighted);
+        if (isHighlighted) {
+            actionButtonView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_SELECTED);
+        }
     }
 
     /**

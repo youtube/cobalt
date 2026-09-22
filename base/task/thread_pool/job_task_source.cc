@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
@@ -27,6 +28,10 @@
 namespace base::internal {
 
 namespace {
+
+bool g_job_priority_boosting = false;
+
+BASE_FEATURE(kJobPriorityBoosting, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Capped to allow assigning task_ids from a bitfield.
 constexpr size_t kMaxWorkersPerJob = 32;
@@ -88,6 +93,11 @@ bool JobTaskSource::JoinFlag::ShouldWorkerSignal() {
   return value_.exchange(kNotWaiting, std::memory_order_relaxed) != kNotWaiting;
 }
 
+// static
+void JobTaskSource::InitializeFeatures() {
+  g_job_priority_boosting = FeatureList::IsEnabled(kJobPriorityBoosting);
+}
+
 JobTaskSource::JobTaskSource(const Location& from_here,
                              const TaskTraits& traits,
                              RepeatingCallback<void(JobDelegate*)> worker_task,
@@ -139,7 +149,7 @@ void JobTaskSource::WillEnqueue(int sequence_num, TaskAnnotator& annotator) {
 }
 
 bool JobTaskSource::WillJoin() {
-  TRACE_EVENT0("base", "Job.WaitForParticipationOpportunity");
+  TRACE_EVENT("base", "Job.WaitForParticipationOpportunity");
   CheckedAutoLock auto_lock(worker_lock_);
   DCHECK(!worker_released_condition_);  // This may only be called once.
   worker_lock_.CreateConditionVariableAndEmplace(worker_released_condition_);
@@ -152,6 +162,9 @@ bool JobTaskSource::WillJoin() {
       state_before_add.worker_count() <
           GetMaxConcurrency(state_before_add.worker_count())) {
     return true;
+  }
+  for (auto& [_, worker_priority] : workers_priority_) {
+    worker_priority.BoostPriority(PlatformThread::GetCurrentThreadType());
   }
   return WaitForParticipationOpportunity();
 }
@@ -175,7 +188,7 @@ bool JobTaskSource::RunJoinTask() {
     return true;
   }
 
-  TRACE_EVENT0("base", "Job.WaitForParticipationOpportunity");
+  TRACE_EVENT("base", "Job.WaitForParticipationOpportunity");
   CheckedAutoLock auto_lock(worker_lock_);
   return WaitForParticipationOpportunity();
 }
@@ -236,6 +249,7 @@ bool JobTaskSource::WaitForParticipationOpportunity() {
 
 TaskSource::RunStatus JobTaskSource::WillRunTask() {
   CheckedAutoLock auto_lock(worker_lock_);
+  is_queued_ = false;
   auto state_before_add = state_.Load();
 
   // Don't allow this worker to run the task if either:
@@ -258,10 +272,22 @@ TaskSource::RunStatus JobTaskSource::WillRunTask() {
     return RunStatus::kDisallowed;
   }
 
+  if (g_job_priority_boosting) {
+    auto [_, inserted] = workers_priority_.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(PlatformThread::CurrentId()),
+        std::forward_as_tuple());
+    CHECK(inserted);
+  }
+
   DCHECK_LT(worker_count_before_add, max_concurrency);
-  return max_concurrency == worker_count_before_add + 1
-             ? RunStatus::kAllowedSaturated
-             : RunStatus::kAllowedNotSaturated;
+  TaskSource::RunStatus status =
+      (max_concurrency == worker_count_before_add + 1)
+          ? RunStatus::kAllowedSaturated
+          : RunStatus::kAllowedNotSaturated;
+
+  is_queued_ = (status == RunStatus::kAllowedNotSaturated);
+  return status;
 }
 
 size_t JobTaskSource::GetRemainingConcurrency() const {
@@ -297,6 +323,7 @@ void JobTaskSource::NotifyConcurrencyIncrease() {
     return;
   }
 
+  bool should_queue;
   {
     // Lock is taken to access |join_flag_| below and signal
     // |worker_released_condition_|.
@@ -304,6 +331,7 @@ void JobTaskSource::NotifyConcurrencyIncrease() {
     if (join_flag_.ShouldWorkerSignal()) {
       worker_released_condition_->Signal();
     }
+    should_queue = !std::exchange(is_queued_, true);
   }
 
   // Make sure the task source is in the queue if not already.
@@ -312,7 +340,9 @@ void JobTaskSource::NotifyConcurrencyIncrease() {
   // previously were too many worker. For simplicity, the task source is always
   // enqueued and will get discarded if already saturated when it is popped from
   // the priority queue.
-  delegate_->EnqueueJobTaskSource(this);
+  if (should_queue) {
+    delegate_->EnqueueJobTaskSource(this);
+  }
 }
 
 size_t JobTaskSource::GetMaxConcurrency() const {
@@ -374,6 +404,10 @@ bool JobTaskSource::DidProcessTask(TaskSource::Transaction* /*transaction*/) {
   CheckedAutoLock auto_lock(worker_lock_);
   const auto state_before_sub = state_.DecrementWorkerCount();
 
+  if (g_job_priority_boosting) {
+    workers_priority_.erase(PlatformThread::CurrentId());
+  }
+
   if (join_flag_.ShouldWorkerSignal()) {
     worker_released_condition_->Signal();
   }
@@ -388,8 +422,10 @@ bool JobTaskSource::DidProcessTask(TaskSource::Transaction* /*transaction*/) {
   // Re-enqueue the TaskSource if the task ran and the worker count is below the
   // max concurrency.
   // |worker_count - 1| to exclude the returning thread.
-  return state_before_sub.worker_count() <=
-         GetMaxConcurrency(state_before_sub.worker_count() - 1);
+  bool reenqueue = state_before_sub.worker_count() <=
+                   GetMaxConcurrency(state_before_sub.worker_count() - 1);
+  is_queued_ |= reenqueue;
+  return reenqueue;
 }
 
 // This is a no-op and should always return true.

@@ -413,9 +413,8 @@ bool DoReplaceComponents(std::string_view spec,
     // the existing spec.
     STACK_UNINITIALIZED RawCanonOutput<128> scheme_replaced;
     Component scheme_replaced_parsed;
-    CanonicalizeScheme(replacements.components().scheme.as_string_view_on(
-                           replacements.sources().scheme),
-                       &scheme_replaced, &scheme_replaced_parsed);
+    CanonicalizeScheme(*replacements.MaybeScheme(), &scheme_replaced,
+                       &scheme_replaced_parsed);
 
     // We can assume that the input is canonicalized, which means it always has
     // a colon after the scheme (or where the scheme would be).
@@ -448,7 +447,7 @@ bool DoReplaceComponents(std::string_view spec,
     // much much less common than other types of replacements, like clearing the
     // ref).
     Replacements<CHAR> replacements_no_scheme = replacements;
-    replacements_no_scheme.SetScheme(NULL, Component());
+    replacements_no_scheme.SetSchemeUnchanged();
     // If the input URL has potentially dangling markup, set the flag on the
     // output too. Note that in some cases the replacement gets rid of the
     // potentially dangling markup, but this ok since the check will fail
@@ -693,7 +692,7 @@ void LockSchemeRegistries() {
 // transition is complete.
 bool IsStandard(const char* spec, const Component& scheme) {
   SchemeType unused_scheme_type;
-  return DoIsStandard(scheme.maybe_as_string_view_on(spec),
+  return DoIsStandard(UNSAFE_TODO(scheme.maybe_as_string_view_on(spec)),
                       &unused_scheme_type);
 }
 

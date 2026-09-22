@@ -56,7 +56,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -166,11 +165,11 @@ class TurnChannelBindRequest : public StunRequest {
 
 // Manages a "connection" to a remote destination. We will attempt to bring up
 // a channel for this remote destination to reduce the overhead of sending data.
-class TurnEntry : public sigslot::has_slots<> {
+class TurnEntry {
  public:
   enum BindState { STATE_UNBOUND, STATE_BINDING, STATE_BOUND };
   TurnEntry(TurnPort* port, Connection* conn, int channel_id);
-  ~TurnEntry() override;
+  ~TurnEntry();
 
   TurnPort* port() { return port_; }
 
@@ -798,7 +797,7 @@ void TurnPort::OnReadPacket(AsyncPacketSocket* socket,
 
 void TurnPort::OnSentPacket(AsyncPacketSocket* socket,
                             const SentPacketInfo& sent_packet) {
-  PortInterface::SignalSentPacket(sent_packet);
+  NotifySentPacket(sent_packet);
 }
 
 void TurnPort::OnReadyToSend(AsyncPacketSocket* socket) {

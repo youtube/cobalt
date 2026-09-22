@@ -171,6 +171,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="2787357173144933081">Spouštět v omniboxu</translation>
 <translation id="2789132527330338807">Weby můžou žádat o vytvoření 3D mapy okolí nebo sledování polohy kamery</translation>
 <translation id="2790501146643349491">Když je tato možnost zapnutá, nedávno zavřené weby mohou dokončit odesílání a přijímání dat. Když je vypnutá, nedávno zavřené weby nemohou dokončit odesílání nebo přijímání dat.</translation>
+<translation id="2794551654724114396">Zapněte si oznámení s užitečnými tipy, které vám pomůžou využít Chrome na maximum</translation>
 <translation id="2795716239552913152">Weby obvykle používají polohu pro související funkce nebo informace, jako jsou místní zprávy nebo obchody v okolí</translation>
 <translation id="2800760947029405028">Nahrát obrázek</translation>
 <translation id="2802908157808345702">Nepovolovat webům zobrazovat vyskakovací okna ani používat přesměrování</translation>
@@ -338,10 +339,12 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="4635969503923889910">Nepovolovat webům používat zařízení NFC</translation>
 <translation id="4644713492825682049">Vymazat a resetovat</translation>
 <translation id="4645575059429386691">Spravováno vaším rodičem</translation>
+<translation id="4652266463001779298">Není povoleno</translation>
 <translation id="4663373278480897665">Kamera je povolena</translation>
 <translation id="4670064810192446073">Virtuální realita</translation>
 <translation id="4672315773691449562">Klepněte na aplikaci Prohlížeč a potom na Chrome</translation>
 <translation id="4676059169848868271">Pokud aplikaci <ph name="APP_NAME" /> chcete umožnit používat sledování rukou, zapněte sledování rukou také v <ph name="BEGIN_LINK" />nastavení systému<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Správa karet</translation>
 <translation id="4751476147751820511">Senzory pohybu nebo světla</translation>
 <translation id="4755971844837804407">Když je tato možnost zapnutá, weby vám mohou zobrazovat jakékoliv reklamy. Když je vypnutá, weby nemohou zobrazovat rušivé ani zavádějící reklamy.</translation>
 <translation id="4779083564647765204">Lupa</translation>
@@ -678,6 +681,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="8487700953926739672">Dostupné offline</translation>
 <translation id="848952951823693243">Vždy požadovat zobrazení na mobilu</translation>
 <translation id="8492822722330266509">Weby mohou zobrazovat vyskakovací okna a používat přesměrování</translation>
+<translation id="8493548450030356203">Vyskakovací okno přiblížení</translation>
 <translation id="8499083585497694743">Zapnout mikrofon</translation>
 <translation id="8514955299594277296">Nepovolovat webům ukládat data do zařízení (nedoporučeno)</translation>
 <translation id="851751545965956758">Bránit webům v připojení k zařízením</translation>

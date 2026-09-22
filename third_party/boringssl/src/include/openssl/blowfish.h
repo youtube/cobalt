@@ -44,8 +44,8 @@ OPENSSL_EXPORT void BF_cbc_encrypt(const uint8_t *in, uint8_t *out,
                                    uint8_t *ivec, int enc);
 
 
-#ifdef  __cplusplus
-}
+#ifdef __cplusplus
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_BLOWFISH_H

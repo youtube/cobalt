@@ -11,6 +11,7 @@
 #include "pc/rtp_transport.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -106,15 +107,38 @@ void RtpTransport::ChangePacketTransport(
   transport_to_change = new_packet_transport;
 }
 
+void RtpTransport::SetRtcpPacketTransportOwned(
+    std::unique_ptr<PacketTransportInternal> new_packet_transport) {
+  SetRtcpPacketTransport(new_packet_transport.get());
+  owned_rtcp_packet_transport_ = std::move(new_packet_transport);
+}
+
+void RtpTransport::SetRtpPacketTransportOwned(
+    std::unique_ptr<PacketTransportInternal> new_packet_transport) {
+  SetRtpPacketTransport(new_packet_transport.get());
+  owned_rtp_packet_transport_ = std::move(new_packet_transport);
+}
+
 void RtpTransport::SetRtpPacketTransport(
     PacketTransportInternal* new_packet_transport) {
+  std::unique_ptr<PacketTransportInternal> delete_on_exit;
+  if (new_packet_transport != owned_rtp_packet_transport_.get()) {
+    delete_on_exit = std::move(owned_rtp_packet_transport_);
+  }
   ChangePacketTransport(new_packet_transport, rtp_packet_transport_);
+  // Assumes the transport is ready to send if it is writable.
   SetReadyToSend(/* rtcp= */ false,
                  rtp_packet_transport_ && rtp_packet_transport_->writable());
 }
 
 void RtpTransport::SetRtcpPacketTransport(
     PacketTransportInternal* new_packet_transport) {
+  std::unique_ptr<PacketTransportInternal> delete_on_exit;
+  if (new_packet_transport != owned_rtcp_packet_transport_.get()) {
+    // rtcp_packet_transport_ might still point to owned_rtcp_packet_transport_,
+    // so move the owned object to delete_on_exit while we change the transport.
+    delete_on_exit = std::move(owned_rtcp_packet_transport_);
+  }
   ChangePacketTransport(new_packet_transport, rtcp_packet_transport_);
   // Assumes the transport is ready to send if it is writable.
   SetReadyToSend(/* rtcp= */ true,

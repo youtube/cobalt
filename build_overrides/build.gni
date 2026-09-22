@@ -47,10 +47,6 @@ declare_args() {
 
   # Allows googletest to pretty-print various absl types.
   gtest_enable_absl_printers = true
-
-  # Allow projects that wish to stay on C++17 to override Chromium's default.
-  # TODO(anglebug.com/330910097): evaluate removing this 2026-04-01
-  use_cxx17 = false
 }
 
 # Features used by //base/trace_event.
@@ -58,6 +54,15 @@ declare_args() {
   # Use Perfetto's trace processor for converting protobuf-encoded traces to
   # the legacy JSON format in base::TraceLog.
   use_perfetto_trace_processor = !is_cronet_build
+}
+
+# Needed by Evergreen, which builds copied_base and Starboard with some
+# toolchains that only support C++17.
+if (is_cobalt) {
+  declare_args() {
+    # Whether to build in C++17 mode and override Chromium's default.
+    use_cxx17 = false
+  }
 }
 
 # Allows different projects to specify their own suppression/ignore lists for
@@ -72,7 +77,6 @@ declare_args() {
 # ubsan_vptr_ignorelist_path = "path/to/ubsan/vptr_ignorelist.txt"
 # ubsan_security_ignorelist_path = "path/to/ubsan/security_ignorelist.txt"
 # cfi_ignorelist_path = "path/to/cfi/ignores.txt"
-ubsan_array_bounds_ignorelist_path = "//tools/ubsan/array_bounds_ignorelist.txt"
 
 if (host_os == "mac" || is_apple) {
   # Needed for is_apple when targeting macOS or iOS, independent of host.

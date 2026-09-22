@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
 
 #include <algorithm>
@@ -15,6 +10,7 @@
 #include <tuple>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -38,7 +34,6 @@
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_sink.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -47,6 +42,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/strings/grit/ui_strings.h"  // Accessibility names
 #include "ui/views/background.h"
@@ -853,7 +849,7 @@ FrameCaptionButtonContainerView::GetButtonClosestTo(
   int min_squared_distance = INT_MAX;
   views::FrameCaptionButton* closest_button = nullptr;
   for (size_t i = 0; i < std::size(buttons); ++i) {
-    views::FrameCaptionButton* button = buttons[i];
+    views::FrameCaptionButton* button = UNSAFE_TODO(buttons[i]);
     if (!button || !button->GetVisible()) {
       continue;
     }

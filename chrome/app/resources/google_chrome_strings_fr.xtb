@@ -78,6 +78,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles, et les modifica
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome recommande de suspendre l'onglet qui ralentit votre navigateur}one{Chrome recommande de suspendre l'onglet qui ralentit votre navigateur}other{Chrome recommande de suspendre les onglets qui ralentissent votre navigateur}}</translation>
 <translation id="1832046143430087831">Accélère les sites avec le moteur V8 de Chrome, mais rend Chrome légèrement moins résistant aux attaques. Ce paramètre est désactivé.</translation>
 <translation id="1838374766361614909">Effacer la recherche</translation>
+<translation id="1843347690926158494">Rechercher dans cet onglet avec Google Lens</translation>
 <translation id="1849248141818021764">Seule une personne connaissant votre phrase secrète peut lire vos données chiffrées. Google ne reçoit pas ni n'enregistre votre phrase secrète. Si vous l'avez oubliée ou si vous souhaitez modifier ce paramètre, vous devrez <ph name="BEGIN_LINK" />supprimez les données Chrome de votre compte<ph name="END_LINK" />.</translation>
 <translation id="1860536484129686729">Chrome a besoin de votre autorisation pour accéder à votre appareil photo pour ce site</translation>
 <translation id="1873233029667955273">Google Chrome n'est pas votre navigateur par défaut</translation>
@@ -151,9 +152,9 @@ Certaines fonctionnalités ne seront peut-être pas disponibles, et les modifica
 <translation id="2681444469812712297">Ouvrir <ph name="URL" /> dans un nouvel onglet dans Google Chrome.</translation>
 <translation id="2699790011615497488">Ouvrir Gemini dans Chrome Beta</translation>
 <translation id="2712141162840347885">Sélectionnez quelque chose à rechercher avec Google Lens ou appuyez sur Échap pour quitter Google Lens</translation>
-<translation id="2723860029395667894">Toujours afficher le raccourci vers le Mode IA de Google</translation>
 <translation id="2738871930057338499">Impossible de se connecter à Internet : erreur HTTP 403 (accès interdit). Veuillez vérifier la configuration de votre proxy.</translation>
 <translation id="2742320827292110288">Avertissement : Google Chrome ne peut pas empêcher les extensions d'enregistrer l'historique de votre navigation. Pour désactiver cette extension en mode navigation privée, désélectionnez cette option.</translation>
+<translation id="2747021967398957654">{count,plural, =1{Certaines de vos données Chrome n'ont pas encore été enregistrées dans votre compte Google. Patientez quelques minutes avant de vous déconnecter. Si vous vous déconnectez maintenant, ces données (1 élément) seront supprimées.}one{Certaines de vos données Chrome n'ont pas encore été enregistrées dans votre compte Google. Patientez quelques minutes avant de vous déconnecter. Si vous vous déconnectez maintenant, ces données ({count} élément) seront supprimées.}other{Certaines de vos données Chrome n'ont pas encore été enregistrées dans votre compte Google. Patientez quelques minutes avant de vous déconnecter. Si vous vous déconnectez maintenant, ces données ({count} éléments) seront supprimées.}}</translation>
 <translation id="2753623023919742414">Cliquer pour rechercher</translation>
 <translation id="2757826245013442432">{COUNT,plural, =0{La Protection Avancée nécessite que vous relanciez Chrome pour appliquer une mise à jour}=1{La Protection Avancée nécessite que vous relanciez Chrome pour appliquer une mise à jour. La fenêtre de navigation privée ne se rouvrira pas.}one{La Protection Avancée nécessite que vous relanciez Chrome pour appliquer une mise à jour. # fenêtre de navigation privée ne se rouvrira pas.}other{La Protection Avancée nécessite que vous relanciez Chrome pour appliquer une mise à jour. Les # fenêtres de navigation privée ne se rouvriront pas.}}</translation>
 <translation id="2765403129283291972">Chrome a besoin de votre autorisation pour accéder à votre micro pour ce site</translation>
@@ -491,6 +492,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="6417690341895039567">{COUNT,plural, =1{Votre organisation ferme automatiquement Chrome lorsqu'il n'est pas utilisé pendant 1 minute. Les données de navigation sont supprimées. Il peut s'agir de l'historique, de la saisie automatique et des téléchargements.}one{Votre organisation ferme automatiquement Chrome lorsqu'il n'est pas utilisé pendant # minute. Les données de navigation sont supprimées. Il peut s'agir de l'historique, de la saisie automatique et des téléchargements.}other{Votre organisation ferme automatiquement Chrome lorsqu'il n'est pas utilisé pendant # minutes. Les données de navigation sont supprimées. Il peut s'agir de l'historique, de la saisie automatique et des téléchargements.}}</translation>
 <translation id="6418662306461808273">Passer au profil Chrome existant ?</translation>
 <translation id="6426623519983252346">La prochaine fois que vous ouvrirez Chrome iOS, une invite vous proposera d'essayer <ph name="FEATURE_NAME" />.</translation>
+<translation id="6434035853014503219">Merci d'avoir choisi Chrome comme navigateur par défaut.</translation>
 <translation id="6473905796280459355">Accéder à la page "À propos de Chrome"</translation>
 <translation id="6481963882741794338">Associez Chrome et d'autres services Google à des fins de personnalisation et autres</translation>
 <translation id="648319183876919572">La navigation sécurisée avec protection renforcée vous protège davantage contre les sites Web et les téléchargements malveillants</translation>
@@ -512,6 +514,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="6676384891291319759">Accéder à Internet</translation>
 <translation id="6679975945624592337">Laisser Google Chrome s'exécuter en arrière-plan</translation>
 <translation id="6696915334902295848">Chrome a besoin de l'autorisation d'accéder au micro pour ce site</translation>
+<translation id="6706525880530967390">{count,plural, =1{Chrome doit valider votre identité avant que certaines données puissent être enregistrées dans votre compte Google et utilisées sur tous vos appareils. Si vous vous déconnectez maintenant, ces données (1 élément) seront supprimées.}one{Chrome doit valider votre identité avant que certaines données puissent être enregistrées dans votre compte Google et utilisées sur tous vos appareils. Si vous vous déconnectez maintenant, ces données ({count} élément) seront supprimées.}other{Chrome doit valider votre identité avant que certaines données puissent être enregistrées dans votre compte Google et utilisées sur tous vos appareils. Si vous vous déconnectez maintenant, ces données ({count} éléments) seront supprimées.}}</translation>
 <translation id="6712881677154121168">Erreur de téléchargement : <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6718739135284199302">Rendre Chrome plus rapide</translation>
 <translation id="6734827584173583205">Vous n'avez pas consulté le site récemment. Chrome a supprimé "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" et <ph name="COUNT" /> autre(s).</translation>
@@ -588,6 +591,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="756809126120519699">Données de Chrome effacées</translation>
 <translation id="7572537927358445944">Désactivée • Chrome ne peut pas vérifier d'où vient cette extension</translation>
 <translation id="7583399374488819119">Programme d'installation de <ph name="COMPANY_NAME" /></translation>
+<translation id="7596160425942761210">Vous pouvez utiliser Chrome chaque fois que vous cliquez sur des liens dans des messages, des documents et d'autres applis</translation>
 <translation id="7602868996817972616">Poser des questions à Google à propos de cette page</translation>
 <translation id="760353356052806707">Une application qui risque de modifier le fonctionnement de Chrome a été ajoutée via un autre programme sur votre ordinateur
 
@@ -664,6 +668,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="835927394551949760">Poser des questions à Google</translation>
 <translation id="8362914115861174987">Langue cible</translation>
 <translation id="8366770919198174997">Réduit les performances, mais rend Chrome plus résistant aux attaques</translation>
+<translation id="8367705492654390392">Posez une question</translation>
 <translation id="8370517070665726704">© <ph name="YEAR" /> Google LLC. Tous droits réservés.</translation>
 <translation id="8377158135256176353">Activer/Désactiver Gemini dans Chrome Canary</translation>
 <translation id="8387459386171870978">Continuer à utiliser Chrome</translation>
@@ -681,16 +686,17 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="8533056045953418157">Définir Google Chrome comme visionneuse de PDF par défaut</translation>
 <translation id="8555465886620020932">Erreur du service : <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">Rechercher dans la liste des langues</translation>
+<translation id="8575047640889685742">Utiliser votre <ph name="BEGIN_LINK" />propre phrase secrète<ph name="END_LINK" /> pour chiffrer toutes les données Chrome de votre compte Google. Les adresses et les modes de paiement Google Pay ne seront pas chiffrés. L'historique de navigation de Chrome ne sera pas synchronisé.</translation>
 <translation id="8601359445272098721">Nouveau ! Vous pouvez traduire du texte et des images sur votre écran en sélectionnant le bouton "Traduire l'écran".</translation>
 <translation id="8614913330719544658">Google Chrome ne répond pas. Voulez-vous le relancer maintenant ?</translation>
 <translation id="861702415419836452">Chrome a besoin de votre autorisation pour accéder à votre appareil photo afin de créer un plan 3D de votre environnement</translation>
+<translation id="8624541899164515475">Paramètres, s'ouvre dans un nouvel onglet.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome va être relancé dans 1 minute}one{Chrome va être relancé dans # minute}other{Chrome va être relancé dans # minutes}}</translation>
 <translation id="8637932705841171563">Pour partager votre fenêtre, autorisez l'enregistrement d'écran pour Chrome dans les réglages système</translation>
 <translation id="8641606876632989680">Chrome vous avertira si vous vous connectez avec un mot de passe compromis</translation>
 <translation id="8647930742055103497">Conservez tout dans Chrome</translation>
 <translation id="8656634243791296665">Ouvrir Gemini dans Chrome Dev</translation>
 <translation id="8669527147644353129">Application d'aide de Google Chrome</translation>
-<translation id="8677922833187616101">Toujours afficher le raccourci vers le Mode IA de Google</translation>
 <translation id="8679801911857917785">Elle contrôle également la page qui s'affiche au démarrage de Chrome.</translation>
 <translation id="8712637175834984815">OK</translation>
 <translation id="8712767363896337380">Presque à jour ! Relancez Chrome pour terminer la mise à jour.</translation>

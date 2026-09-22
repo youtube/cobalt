@@ -163,7 +163,7 @@ OPENSSL_EXPORT void KYBER_encap_external_entropy(
     const uint8_t entropy[KYBER_ENCAP_ENTROPY]);
 
 #if defined(__cplusplus)
-}
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_KYBER_INTERNAL_H

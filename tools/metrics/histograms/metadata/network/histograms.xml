@@ -568,7 +568,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScan.{SmdsScanMethod}.ProfileCount"
-    units="units" expires_after="2026-03-15">
+    units="units" expires_after="2026-05-17">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -585,7 +585,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScan.{SmdsType}.{UserErrorHandling}"
-    enum="ESimOperationResult" expires_after="2026-03-15">
+    enum="ESimOperationResult" expires_after="2026-05-17">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -606,7 +606,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScanDuration2.{SmdsType}.{DurationType}"
-    units="ms" expires_after="2026-03-15">
+    units="ms" expires_after="2026-05-17">
   <owner>chadduffin@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -626,7 +626,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.Cellular.ESim.UserInstall.Method"
-    enum="ESimUserInstallMethod" expires_after="2026-03-15">
+    enum="ESimUserInstallMethod" expires_after="2026-05-17">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -638,7 +638,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.UserInstall.{UserErrorHandling}.{Method}"
-    enum="ESimOperationResult" expires_after="2026-03-15">
+    enum="ESimOperationResult" expires_after="2026-05-17">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -810,7 +810,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Hotspot.Upstream.Cellular.Usage.Config.CompatibilityMode"
-    enum="BooleanEnabled" expires_after="2025-11-20">
+    enum="BooleanEnabled" expires_after="2026-11-20">
   <owner>jiajunz@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1011,7 +1011,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.NonUserInitiated"
-    enum="ShillConnectResult" expires_after="2026-03-15">
+    enum="ShillConnectResult" expires_after="2026-05-17">
   <owner>jiajunz@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1023,7 +1023,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.UserInitiated"
-    enum="UserInitiatedNetworkConnectResult" expires_after="2026-03-15">
+    enum="UserInitiatedNetworkConnectResult" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1034,7 +1034,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.{Filtering}"
-    enum="ShillConnectResult" expires_after="2026-03-15">
+    enum="ShillConnectResult" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1278,7 +1278,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.EnableProfile.Result"
-    enum="HermesResponseStatus" expires_after="2026-03-15">
+    enum="HermesResponseStatus" expires_after="2026-05-17">
   <owner>khorimoto@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1290,7 +1290,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.Installation.NonUserErrorSuccessRate"
-    enum="HermesResponseStatus" expires_after="2026-03-15">
+    enum="HermesResponseStatus" expires_after="2026-05-17">
   <owner>nikhilcn@chromium.org</owner>
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
@@ -1531,7 +1531,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.SetupFlowResult"
-    enum="ESimSetupFlowResult" expires_after="2026-03-15">
+    enum="ESimSetupFlowResult" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1691,7 +1691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.CellularSetup.{Result}.Duration"
-    units="ms" expires_after="2026-03-15">
+    units="ms" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1709,7 +1709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.ConnectionResult.All"
-    enum="ShillCellularConnectResult" expires_after="2026-03-15">
+    enum="ShillCellularConnectResult" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1728,7 +1728,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.ConnectionResult.UserInitiated"
-    enum="UserInitiatedCellularConnectResult" expires_after="2026-03-15">
+    enum="UserInitiatedCellularConnectResult" expires_after="2026-05-17">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -4257,7 +4257,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.WiFi.Passpoint.Domains" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>hugobenichi@google.com</owner>
   <owner>cros-networking@google.com</owner>
   <owner>cros-network-metrics@google.com</owner>
@@ -4279,7 +4279,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.WiFi.Passpoint.InterworkingDurationMillis"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-05-24">
   <owner>hugobenichi@google.com</owner>
   <owner>cros-networking@google.com</owner>
   <owner>cros-network-metrics@google.com</owner>
@@ -4323,7 +4323,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.WiFi.Passpoint.Origin" enum="PasspointOrigin"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>hugobenichi@google.com</owner>
   <owner>cros-networking@google.com</owner>
   <owner>cros-network-metrics@google.com</owner>
@@ -4333,7 +4333,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.WiFi.Passpoint.ProvisioningResult"
-    enum="PasspointProvisioningResult" expires_after="2026-03-22">
+    enum="PasspointProvisioningResult" expires_after="2026-05-24">
   <owner>hugobenichi@google.com</owner>
   <owner>cros-networking@google.com</owner>
   <owner>cros-network-metrics@google.com</owner>
@@ -4431,7 +4431,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.Wifi.PortalResult" enum="NetworkPortalResult"
-    expires_after="2026-03-01">
+    expires_after="2026-05-17">
   <owner>hugobenichi@chromium.org</owner>
   <owner>cros-network-metrics@google.com</owner>
   <summary>
@@ -5091,7 +5091,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.CorsURLLoaderFactory.CreateLoaderAndStart2.Duration"
-    units="microseconds" expires_after="2026-03-15">
+    units="microseconds" expires_after="2026-05-17">
   <owner>olivier@chromium.org</owner>
   <owner>cduvall@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -5188,7 +5188,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.NetworkLoaderCompletionTime2.{Source}.{Priority}"
-    units="ms" expires_after="2026-03-15">
+    units="ms" expires_after="2026-05-17">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

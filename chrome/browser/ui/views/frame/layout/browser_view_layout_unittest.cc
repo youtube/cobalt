@@ -63,8 +63,10 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
 
   // BrowserViewLayout::Delegate overrides:
   bool ShouldDrawTabStrip() const override { return should_draw_tab_strip_; }
+  bool ShouldUseTouchableTabstrip() const override { return false; }
   bool ShouldDrawVerticalTabStrip() const override { return false; }
   bool GetBorderlessModeEnabled() const override { return false; }
+  bool ShouldDrawWebAppFrameToolbar() const override { return false; }
   gfx::Rect GetBoundsForTabStripRegionInBrowserView() const override {
     return gfx::Rect();
   }
@@ -74,7 +76,8 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   gfx::Rect GetBoundsForWebAppFrameToolbarInBrowserView() const override {
     return gfx::Rect();
   }
-  BrowserLayoutParams GetBrowserLayoutParams() const override {
+  BrowserLayoutParams GetBrowserLayoutParams(
+      bool use_browser_bounds) const override {
     return BrowserLayoutParams();
   }
   void LayoutWebAppWindowTitle(

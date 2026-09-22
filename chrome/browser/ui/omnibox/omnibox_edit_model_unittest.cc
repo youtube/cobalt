@@ -513,6 +513,17 @@ TEST_F(OmniboxEditModelTest,
 
 class OmniboxEditModelPopupTest : public ::testing::Test {
  public:
+  class TestObserver : public OmniboxEditModel::Observer {
+   public:
+    MOCK_METHOD(void,
+                OnSelectionChanged,
+                (OmniboxPopupSelection, OmniboxPopupSelection),
+                (override));
+    MOCK_METHOD(void, OnMatchIconUpdated, (size_t), (override));
+    MOCK_METHOD(void, OnContentsChanged, (), (override));
+    MOCK_METHOD(void, OnKeywordStateChanged, (bool), (override));
+  };
+
   OmniboxEditModelPopupTest() {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     // `kExperimentalOmniboxLabs` feature flag has to be enabled
@@ -1646,4 +1657,80 @@ TEST_F(OmniboxEditModelPopupTest,
   ASSERT_TRUE(match_with_bitmap_bitmap);
   gfx::test::CheckColors(expected_bitmap.getColor(0, 0),
                          match_with_bitmap_bitmap->getColor(0, 0));
+}
+
+TEST_F(OmniboxEditModelPopupTest, KeywordStateObserver) {
+  TestObserver observer;
+  model()->AddObserver(&observer);
+
+  // Entering keyword mode should notify observers.
+  EXPECT_CALL(observer, OnKeywordStateChanged(true));
+  model()->SetKeyword(u"keyword");
+  model()->SetIsKeywordHint(false);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Leaving keyword mode should notify observers.
+  EXPECT_CALL(observer, OnKeywordStateChanged(false));
+  model()->SetKeyword(u"");
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Setting hint state should notify if it changes keyword selected state.
+  model()->SetKeyword(u"keyword");
+  EXPECT_CALL(observer, OnKeywordStateChanged(false));
+  model()->SetIsKeywordHint(true);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Setting hint state should not notify if it doesn't change selected state.
+  EXPECT_CALL(observer, OnKeywordStateChanged(testing::_)).Times(0);
+  model()->SetIsKeywordHint(true);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  model()->RemoveObserver(&observer);
+}
+
+TEST_F(OmniboxEditModelPopupTest, AimPopupDisabled) {
+  base::HistogramTester histogram_tester;
+
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(1);
+
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/false);
+
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.ViaKeyboard", true, 1);
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.UserTextPresent", false, 1);
+}
+
+TEST_F(OmniboxEditModelPopupTest, AimPopupEnabledNavigationFallback) {
+  base::HistogramTester histogram_tester;
+
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(1);
+
+  model()->SetUserText(u"query");  // User input in progress.
+
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/false);
+
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.ViaKeyboard", true, 1);
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.UserTextPresent", true, 1);
+}
+
+TEST_F(OmniboxEditModelPopupTest, AimPopupEnabledPopupOpened) {
+  base::HistogramTester histogram_tester;
+
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(0);
+
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/true);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            controller()->popup_state_manager()->popup_state());
+
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.ViaKeyboard", true, 1);
+  histogram_tester.ExpectBucketCount(
+      "Omnibox.AimEntrypoint.Activated.UserTextPresent", false, 1);
 }

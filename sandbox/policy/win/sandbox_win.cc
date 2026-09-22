@@ -351,7 +351,7 @@ std::wstring GetAppContainerProfileName(const std::string& appcontainer_id,
     case Sandbox::kPrintCompositor:
       sandbox_base_name = std::string("cr.sb.prnc");
       break;
-    case Sandbox::kWindowsSystemProxyResolver:
+    case Sandbox::kProxyResolver:
       sandbox_base_name = std::string("cr.sb.pxy");
       break;
     default:
@@ -387,7 +387,7 @@ ResultCode SetupAppContainerProfile(AppContainer* container,
       !(sandbox_type == Sandbox::kPrintCompositor &&
         base::FeatureList::IsEnabled(
             sandbox::policy::features::kPrintCompositorLPAC)) &&
-      sandbox_type != Sandbox::kWindowsSystemProxyResolver) {
+      sandbox_type != Sandbox::kProxyResolver) {
     return SBOX_ERROR_UNSUPPORTED;
   }
 
@@ -447,7 +447,7 @@ ResultCode SetupAppContainerProfile(AppContainer* container,
     container->SetEnableLowPrivilegeAppContainer(true);
   }
 
-  if (sandbox_type == Sandbox::kWindowsSystemProxyResolver) {
+  if (sandbox_type == Sandbox::kProxyResolver) {
     container->AddCapability(base::win::WellKnownCapability::kInternetClient);
     container->AddCapability(kLpacServicesManagement);
     container->AddCapability(kLpacEnterprisePolicyChangeNotifications);
@@ -808,8 +808,9 @@ bool SandboxWin::IsAppContainerEnabledForSandbox(
         sandbox::policy::features::kPrintCompositorLPAC);
   }
 
-  if (sandbox_type == Sandbox::kWindowsSystemProxyResolver)
+  if (sandbox_type == Sandbox::kProxyResolver) {
     return true;
+  }
 
   return false;
 }
@@ -829,17 +830,12 @@ class BrokerServicesDelegateImpl : public BrokerServicesDelegate {
 
   void BeforeTargetProcessCreateOnCreationThread(
       const void* trace_id) override {
-    int active_threads = ++creation_threads_in_use_;
-    base::UmaHistogramCounts100("MPArch.ChildProcessLaunchActivelyInParallel",
-                                active_threads);
-
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("startup", "TargetProcess::Create",
                                       trace_id);
   }
 
   void AfterTargetProcessCreateOnCreationThread(const void* trace_id,
                                                 DWORD process_id) override {
-    creation_threads_in_use_--;
     TRACE_EVENT_NESTABLE_ASYNC_END1("startup", "TargetProcess::Create",
                                     trace_id, "pid", process_id);
   }
@@ -853,12 +849,6 @@ class BrokerServicesDelegateImpl : public BrokerServicesDelegate {
     UMA_HISTOGRAM_SPARSE("Process.Sandbox.IPC.ThreadDuplicateHandleErrorCode",
                          last_error);
   }
-
- private:
-  // When parallel launching is enabled, target creation will happen on the
-  // thread pool. This is atomic to keep track of the number of threads that are
-  // currently creating processes.
-  std::atomic<int> creation_threads_in_use_ = 0;
 };
 
 // static
@@ -1087,8 +1077,8 @@ std::string SandboxWin::GetSandboxTypeInEnglish(
       return "Service With Jit";
     case Sandbox::kIconReader:
       return "Icon Reader";
-    case Sandbox::kWindowsSystemProxyResolver:
-      return "Windows System Proxy Resolver";
+    case Sandbox::kProxyResolver:
+      return "Proxy Resolver";
   }
   NOTREACHED();
 }

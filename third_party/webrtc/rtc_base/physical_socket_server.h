@@ -16,10 +16,10 @@
 #include "api/async_dns_resolver.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 #if defined(WEBRTC_POSIX)
 #if defined(WEBRTC_LINUX)
@@ -161,7 +161,7 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
   bool waiting_ = false;
 };
 
-class PhysicalSocket : public Socket, public sigslot::has_slots<> {
+class PhysicalSocket : public Socket {
  public:
   PhysicalSocket(PhysicalSocketServer* ss, SOCKET s = INVALID_SOCKET);
   ~PhysicalSocket() override;
@@ -251,7 +251,7 @@ class PhysicalSocket : public Socket, public sigslot::has_slots<> {
   uint8_t dscp_ = 0;  // 6bit.
   uint8_t ecn_ = 0;   // 2bits.
 
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
   std::string dbg_addr_;
 #endif
 

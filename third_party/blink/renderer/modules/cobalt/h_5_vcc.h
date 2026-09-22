@@ -20,7 +20,6 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -39,13 +38,12 @@ class H5vccNativeStability;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
-                                   public Supplement<LocalDOMWindow> {
+                                   public GarbageCollectedMixin {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
 
   // For window.h5vcc
   static H5vcc* h5vcc(LocalDOMWindow&);
@@ -75,6 +73,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   void Trace(Visitor*) const override;
 
  private:
+  Member<LocalDOMWindow> local_dom_window_;
+
   Member<CrashLog> crash_log_;
   Member<H5vccAccessibility> accessibility_;
   Member<H5vccExperiments> experiments_;

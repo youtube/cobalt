@@ -31,7 +31,6 @@
 #include "chrome/browser/extensions/forced_extensions/install_stage_tracker.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
@@ -59,6 +58,7 @@
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_stage.h"
 #include "extensions/browser/install_tracker.h"
+#include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/policy_check.h"
 #include "extensions/browser/preload_check_group.h"
 #include "extensions/browser/requirements_checker.h"
@@ -948,10 +948,8 @@ void CrxInstaller::ReloadExtensionAfterInstall(
   // just moved the extension.
   // TODO(aa): All paths to resources inside extensions should be created
   // lazily and based on the Extension's root path at that moment.
-  // TODO(rdevlin.cronin): Continue removing std::string errors and replacing
-  // with std::u16string
   ExtensionId extension_id = extension()->id();
-  std::string error;
+  std::u16string error;
   extension_ = file_util::LoadExtension(
       version_dir, install_source_,
       // Note: modified by UpdateCreationFlagsAndCompleteInstall.
@@ -961,9 +959,9 @@ void CrxInstaller::ReloadExtensionAfterInstall(
     ReportSuccessFromSharedFileThread();
   } else {
     LOG(ERROR) << error << " " << extension_id << " " << download_url_;
-    ReportFailureFromSharedFileThread(CrxInstallError(
-        CrxInstallErrorType::OTHER, CrxInstallErrorDetail::CANT_LOAD_EXTENSION,
-        base::UTF8ToUTF16(error)));
+    ReportFailureFromSharedFileThread(
+        CrxInstallError(CrxInstallErrorType::OTHER,
+                        CrxInstallErrorDetail::CANT_LOAD_EXTENSION, error));
   }
 }
 

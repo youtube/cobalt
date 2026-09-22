@@ -26,17 +26,20 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/tagged-field.h"
+#include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
 #include "src/runtime/runtime.h"
 #include "third_party/v8/codegen/fp16-inl.h"
@@ -2271,8 +2274,6 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
-  // TODO(leszeks): Enable
-  // CSA_DCHECK(this, IsNotAnyHole(object), object);
   TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
 #ifdef V8_MAP_PACKING
   // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
@@ -7795,10 +7796,9 @@ TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
 }
 void CodeStubAssembler::SetPendingMessage(
     TNode<Union<TheHole, JSMessageObject>> message) {
-  CSA_DCHECK(this, LogicalOr(IsTheHole(message), [&] {
-               return InstanceTypeEqual(LoadInstanceType(message),
-                                        JS_MESSAGE_OBJECT_TYPE);
-             }));
+  CSA_DCHECK(this, Word32Or(IsTheHole(message),
+                            InstanceTypeEqual(LoadInstanceType(message),
+                                              JS_MESSAGE_OBJECT_TYPE)));
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
   StoreFullTaggedNoWriteBarrier(pending_message, message);
@@ -10810,15 +10810,10 @@ TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
                                   right);
 }
 
-TNode<BoolT> CodeStubAssembler::LogicalOr(
-    TNode<BoolT> lhs, base::FunctionRef<TNode<BoolT>()> rhs) {
-  return Select<BoolT>(lhs, [&] { return Int32TrueConstant(); }, rhs);
-}
-
 template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<NameDictionary>(
     TNode<HeapObject> key) {
-  CSA_DCHECK(this, LogicalOr(IsTheHole(key), [&] { return IsName(key); }));
+  CSA_DCHECK(this, Word32Or(IsTheHole(key), IsName(key)));
   return key;
 }
 
@@ -12496,13 +12491,13 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     flags = SmiOr(flags.value(),
                   SmiConstant(PropertyDescriptorObject::HasGetBit::kMask |
                               PropertyDescriptorObject::HasSetBit::kMask));
-    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, flags_),
                      flags.value());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, value_),
                      NullConstant());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, get_),
                      BailoutIfTemplateInfo(getter));
-    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, set_),
                      BailoutIfTemplateInfo(setter));
     Goto(&done);
   }
@@ -12521,12 +12516,13 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     Goto(&store_fields);
 
     BIND(&store_fields);
-    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, flags_),
                      flags.value());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset, value);
-    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, value_),
+                     value);
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, get_),
                      NullConstant());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, set_),
                      NullConstant());
     Goto(&done);
   }
@@ -12536,19 +12532,19 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
 
 TNode<PropertyDescriptorObject>
 CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
-  TNode<HeapObject> result = Allocate(PropertyDescriptorObject::kSize);
+  TNode<HeapObject> result = Allocate(sizeof(PropertyDescriptorObject));
   TNode<Map> map = GetInstanceTypeMap(PROPERTY_DESCRIPTOR_OBJECT_TYPE);
   StoreMapNoWriteBarrier(result, map);
   TNode<Smi> zero = SmiConstant(0);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
-                                 zero);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, flags_), zero);
   TNode<TheHole> the_hole = TheHoleConstant();
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
-                                 the_hole);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
-                                 the_hole);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kSetOffset,
-                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, value_), the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, get_), the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, set_), the_hole);
   return CAST(result);
 }
 
@@ -13312,6 +13308,34 @@ void CodeStubAssembler::ReportFeedbackUpdate(
   CallRuntime(Runtime::kTraceUpdateFeedback, NoContextConstant(),
               feedback_vector, SmiTag(Signed(slot_id)), StringConstant(reason));
 #endif  // V8_TRACE_FEEDBACK_UPDATES
+}
+
+void CodeStubAssembler::UpdateEmbeddedFeedback(
+    TNode<Int32T> feedback, TNode<BytecodeArray> bytecode_array,
+    TNode<IntPtrT> feedback_offset) {
+  Label end(this);
+
+  TNode<Int32T> previous_feedback =
+      Load<Uint16T>(bytecode_array, feedback_offset);
+  TNode<Int32T> combined_feedback = Word32Or(previous_feedback, feedback);
+
+  GotoIf(Word32Equal(previous_feedback, combined_feedback), &end);
+  {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    // manually ExitSandbox() to modify BytecodeArray
+    ExitSandbox();
+#endif
+
+    StoreNoWriteBarrier(MachineRepresentation::kWord16, bytecode_array,
+                        feedback_offset, combined_feedback);
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    EnterSandbox();
+#endif
+    Goto(&end);
+  }
+
+  BIND(&end);
 }
 
 void CodeStubAssembler::OverwriteFeedback(TVariable<Smi>* existing_feedback,
@@ -16774,11 +16798,11 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
     TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
         descriptors, DescriptorArray::kEnumCacheOffset);
     TNode<FixedArray> enum_keys =
-        LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
+        LoadObjectField<FixedArray>(enum_cache, offsetof(EnumCache, keys_));
 
     // Check if we have enum indices available.
     TNode<FixedArray> enum_indices =
-        LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
+        LoadObjectField<FixedArray>(enum_cache, offsetof(EnumCache, indices_));
     TNode<Uint32T> enum_indices_length =
         LoadAndUntagFixedArrayBaseLengthAsUint32(enum_indices);
     TNode<Smi> feedback = SelectSmiConstant(
@@ -17416,7 +17440,9 @@ TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
 }
 
 std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
-    TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
+    TNode<Context> context, TNode<Object> iterator, TNode<Object> next_method,
+    TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+    TNode<UintPtrT> call_slot) {
   Label callable(this), not_callable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(next_method), &not_callable);
   Branch(IsCallable(UncheckedCast<HeapObject>(next_method)), &callable,
@@ -17428,6 +17454,25 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
   }
 
   BIND(&callable);
+  Label collect_feedback(this), after_collect_feedback(this);
+  int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
+  int load_slot_size =
+      FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
+  TNode<UintPtrT> value_slot =
+      UintPtrAdd(call_slot, UintPtrConstant(call_slot_size));
+  TNode<UintPtrT> done_slot =
+      UintPtrAdd(value_slot, UintPtrConstant(load_slot_size));
+  Branch(IsUndefined(feedback_vector), &after_collect_feedback,
+         &collect_feedback);
+
+  BIND(&collect_feedback);
+
+  CollectCallFeedback(
+      CAST(next_method), [=, this] { return CAST(iterator); }, context,
+      feedback_vector, call_slot);
+  Goto(&after_collect_feedback);
+
+  BIND(&after_collect_feedback);
   TNode<JSAny> result =
       Call(context, next_method, ConvertReceiverMode::kAny, CAST(iterator));
 
@@ -17443,18 +17488,44 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
   BIND(&if_js_receiver);
   // TODO(rezvan): Add the fast path for JSIteratorResult.
   TNode<JSReceiver> result_receiver = CAST(result);
-  TNode<Object> done =
-      GetProperty(context, result_receiver, factory()->done_string());
-  TNode<Object> value =
-      GetProperty(context, result_receiver, factory()->value_string());
-  return {value, done};
+
+  TVARIABLE(Object, var_done);
+  TVARIABLE(Object, var_value);
+
+  Label use_load_ic(this), use_get_property(this), return_properties(this);
+  Branch(IsUndefined(feedback_vector), &use_get_property, &use_load_ic);
+
+  BIND(&use_load_ic);
+  {
+    var_done =
+        CallBuiltin(Builtin::kLoadIC, context, result_receiver,
+                    HeapConstantNoHole(factory()->done_string()),
+                    IntPtrToTaggedIndex(Signed(done_slot)), feedback_vector);
+    var_value =
+        CallBuiltin(Builtin::kLoadIC, context, result_receiver,
+                    HeapConstantNoHole(factory()->value_string()),
+                    IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector);
+    Goto(&return_properties);
+  }
+
+  BIND(&use_get_property);
+  {
+    var_done = GetProperty(context, result_receiver, factory()->done_string());
+    var_value =
+        GetProperty(context, result_receiver, factory()->value_string());
+    Goto(&return_properties);
+  }
+
+  BIND(&return_properties);
+  return {var_value.value(), var_done.value()};
 }
 
 using ForOfNextResult = TorqueStructForOfNextResult_0;
 
-ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
-                                                   TNode<Object> object,
-                                                   TNode<Object> next) {
+ForOfNextResult CodeStubAssembler::ForOfNextHelper(
+    TNode<Context> context, TNode<Object> object, TNode<Object> next,
+    TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+    TNode<UintPtrT> call_slot) {
   TVARIABLE(Object, var_value);
   TVARIABLE(Object, var_done);
 
@@ -17550,7 +17621,8 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
 
   BIND(&slow_path);
   {
-    auto [value, done] = CallIteratorNext(object, next, context);
+    auto [value, done] =
+        CallIteratorNext(context, object, next, feedback_vector, call_slot);
     var_value = value;
     var_done = done;
     Goto(&return_result);

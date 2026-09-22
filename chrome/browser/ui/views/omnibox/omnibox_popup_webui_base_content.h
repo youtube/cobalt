@@ -62,8 +62,13 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
                              const gfx::Size& new_size) override;
   bool HandleKeyboardEvent(content::WebContents* source,
                            const input::NativeWebKeyboardEvent& event) override;
+  bool PreHandleGestureEvent(content::WebContents* source,
+                             const blink::WebGestureEvent& event) override;
 
  protected:
+  // Callback for cleaning up the `context_menu_` field.
+  void OnMenuClosed();
+
   // Set up the WebUI content page and hook up the Omnibox handlers.
   void SetContentURL(std::string_view url);
 
@@ -74,6 +79,11 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
   bool top_rounded_corners() const { return top_rounded_corners_; }
 
  private:
+  // Loads the WebUI content using the cached `content_url`. Creates a new
+  // content wrapper (also destroying previous one if it exists) and initializes
+  // the renderer.
+  void LoadContent();
+
   raw_ptr<OmniboxPopupPresenterBase> popup_presenter_ = nullptr;
   raw_ptr<LocationBarView> location_bar_view_ = nullptr;
   raw_ptr<OmniboxPopupPresenterBase> omnibox_popup_presenter_ = nullptr;
@@ -85,6 +95,14 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
 
   std::unique_ptr<WebUIContentsWrapperT<OmniboxPopupUI>> contents_wrapper_;
   std::unique_ptr<OmniboxContextMenu> context_menu_;
+
+  // The URL used to load the WebUI. Cached here so the content can be reloaded
+  // if the renderer crashes.
+  GURL content_url_;
+
+  // Tracks the visible state of the WebUI. This is distinct from the
+  // View's visibility (GetVisible()) to handle lifecycle timing differences.
+  bool is_shown_ = false;
 
   // A handler to handle unhandled keyboard messages coming back from the
   // renderer process.

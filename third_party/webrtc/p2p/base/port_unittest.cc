@@ -69,7 +69,6 @@
 #include "rtc_base/network_constants.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
@@ -278,7 +277,7 @@ static void SendPingAndReceiveResponse(Connection* lconn,
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
 }
 
-class TestChannel : public sigslot::has_slots<> {
+class TestChannel {
  public:
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
@@ -293,7 +292,7 @@ class TestChannel : public sigslot::has_slots<> {
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
 
-  ~TestChannel() override { Stop(); }
+  ~TestChannel() { Stop(); }
 
   int complete_count() { return complete_count_; }
   Connection* conn() { return conn_; }
@@ -422,7 +421,7 @@ class TestChannel : public sigslot::has_slots<> {
   bool connection_ready_to_send_ = false;
 };
 
-class PortTest : public ::testing::Test, public sigslot::has_slots<> {
+class PortTest : public ::testing::Test {
  public:
   PortTest()
       : ss_(new VirtualSocketServer()),

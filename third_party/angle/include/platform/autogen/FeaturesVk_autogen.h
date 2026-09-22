@@ -1286,6 +1286,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo isVertexSyncDeferred = {
+        "isVertexSyncDeferred",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
     FeatureInfo recycleVkEvent = {
         "recycleVkEvent",
         FeatureCategory::VulkanFeatures,
@@ -1607,6 +1613,18 @@ struct FeaturesVk : FeatureSetBase
     FeatureInfo forceSizePointerForBoundVertexBuffers = {
         "forceSizePointerForBoundVertexBuffers",
         FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportFragmentShadingRateExtExtensions = {
+        "supportFragmentShadingRateExtExtensions",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo dropDepthStencilClearOnInvalidate = {
+        "dropDepthStencilClearOnInvalidate",
+        FeatureCategory::VulkanWorkarounds,
         &members,
     };
 

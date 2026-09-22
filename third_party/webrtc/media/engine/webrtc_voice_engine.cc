@@ -2258,16 +2258,6 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
   RTC_DCHECK_RUN_ON(worker_thread_);
 
   auto codecs = codecs_in;
-  // Record the payload types used in the payload type suggester.
-  RTC_LOG(LS_INFO) << "Setting receive voice codecs. Mid is " << mid_;
-  for (auto& codec : codecs) {
-    auto error = call_->GetPayloadTypeSuggester()->AddLocalMapping(
-        mid_, codec.id, codec);
-    if (!error.ok()) {
-      RTC_LOG(LS_ERROR) << "Failed to register PT for " << codec.ToString();
-      return false;
-    }
-  }
 
   if (!VerifyUniquePayloadTypes(codecs)) {
     RTC_LOG(LS_ERROR) << "Codec payload types overlap.";

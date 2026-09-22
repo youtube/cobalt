@@ -401,6 +401,7 @@ component("base") {
     "location.h",
     "logging.cc",
     "logging.h",
+    "logging/logging_settings.h",
     "memory/aligned_memory.cc",
     "memory/aligned_memory.h",
     "memory/free_deleter.h",

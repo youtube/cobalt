@@ -113,8 +113,7 @@ VirtualSocket::VirtualSocket(VirtualSocketServer* server, int family, int type)
       bound_(false),
       was_any_(false) {
   RTC_DCHECK((type_ == SOCK_DGRAM) || (type_ == SOCK_STREAM));
-  server->SignalReadyToSend.connect(this,
-                                    &VirtualSocket::OnSocketServerReadyToSend);
+  server->SubscribeReadyToSend([this] { OnSocketServerReadyToSend(); });
 }
 
 VirtualSocket::~VirtualSocket() {
@@ -703,8 +702,7 @@ VirtualSocketServer::VirtualSocketServer(ThreadProcessingFakeClock* fake_clock)
       delay_mean_(0),
       delay_stddev_(0),
       delay_samples_(NUM_SAMPLES),
-      drop_prob_(0.0),
-      ready_to_send_trampoline_(this) {
+      drop_prob_(0.0) {
   UpdateDelayDistribution();
 }
 
@@ -749,7 +747,7 @@ void VirtualSocketServer::SetSendingBlocked(bool blocked) {
   if (!blocked) {
     // Sending was blocked, but is now unblocked. This signal gives sockets a
     // chance to fire SignalWriteEvent, and for TCP, send buffered data.
-    SignalReadyToSend();
+    NotifyReadyToSend();
   }
 }
 

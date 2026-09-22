@@ -38,7 +38,6 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -47,10 +46,8 @@ class SpeechGrammarList;
 
 class MODULES_EXPORT SpeechRecognitionController final
     : public GarbageCollected<SpeechRecognitionController>,
-      public Supplement<LocalDOMWindow> {
+      public GarbageCollectedMixin {
  public:
-  static const unsigned kSupplementIndex;
-
   explicit SpeechRecognitionController(LocalDOMWindow&);
   ~SpeechRecognitionController();
 
@@ -99,6 +96,7 @@ class MODULES_EXPORT SpeechRecognitionController final
   media::mojom::blink::OnDeviceSpeechRecognition*
   GetOnDeviceSpeechRecognition();
 
+  Member<LocalDOMWindow> local_dom_window_;
   HeapMojoRemote<media::mojom::blink::SpeechRecognizer> speech_recognizer_;
   HeapMojoRemote<media::mojom::blink::OnDeviceSpeechRecognition>
       on_device_speech_recognition_;

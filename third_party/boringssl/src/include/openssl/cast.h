@@ -47,8 +47,8 @@ OPENSSL_EXPORT void CAST_cfb64_encrypt(const uint8_t *in, uint8_t *out,
                                        size_t length, const CAST_KEY *schedule,
                                        uint8_t *ivec, int *num, int enc);
 
-#ifdef  __cplusplus
-}
+#ifdef __cplusplus
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CAST_H

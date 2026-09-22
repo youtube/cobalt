@@ -292,10 +292,16 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
   void ExchangeIceCandidates(
       scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper,
       scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper) {
-    local_pc_wrapper->SignalOnIceCandidateReady.connect(
-        remote_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
-    remote_pc_wrapper->SignalOnIceCandidateReady.connect(
-        local_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
+    local_pc_wrapper->SubscribeOnIceCandidateReady(
+        [remote_pc = remote_pc_wrapper.get()](const std::string& mid, int index,
+                                              const std::string& candidate) {
+          remote_pc->AddIceCandidate(mid, index, candidate);
+        });
+    remote_pc_wrapper->SubscribeOnIceCandidateReady(
+        [local_pc = local_pc_wrapper.get()](const std::string& mid, int index,
+                                            const std::string& candidate) {
+          local_pc->AddIceCandidate(mid, index, candidate);
+        });
   }
 
   // Negotiate without any tweaks (does not work for simulcast loopback).

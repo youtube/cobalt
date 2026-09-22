@@ -18,11 +18,10 @@
 
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
-class AsyncSocketAdapter : public Socket, public sigslot::has_slots<> {
+class AsyncSocketAdapter : public Socket {
  public:
   // Takes ownership of the passed in socket.
   // TODO(bugs.webrtc.org/6424): Change to unique_ptr here and in callers.

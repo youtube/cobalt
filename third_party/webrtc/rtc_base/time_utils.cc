@@ -11,18 +11,21 @@
 #include <cstdint>
 #include <ctime>
 
-#if defined(WEBRTC_POSIX)
-#include <sys/time.h>
-#endif
-
 #include "rtc_base/checks.h"
 #include "rtc_base/system_time.h"
 #include "rtc_base/time_utils.h"
-#if defined(WEBRTC_WIN)
-#include "rtc_base/win32.h"
+
+#if defined(WEBRTC_POSIX)
+#include <sys/time.h>
 #endif
 #if defined(WEBRTC_WIN)
-#include <minwinbase.h>
+// clang-format off
+#include "rtc_base/win32.h"
+#include <minwinbase.h> // must come after win32.h
+// clang-format on
+#endif
+#if defined(WINUWP)
+#include "rtc_base/numerics/safe_conversions.h"
 #endif
 
 namespace webrtc {

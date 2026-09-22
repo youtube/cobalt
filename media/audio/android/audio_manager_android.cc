@@ -366,7 +366,8 @@ bool UseAAudioPerStreamDeviceSelection() {
 // reports a change to the list of available audio devices. `added` is `true` if
 // the invocation is caused by devices being added, and `false` if it is caused
 // by devices being removed.
-void JNI_AudioManagerAndroid_OnDevicesChanged(JNIEnv* env, jboolean added) {
+static void JNI_AudioManagerAndroid_OnDevicesChanged(JNIEnv* env,
+                                                     jboolean added) {
   auto* system_monitor = base::SystemMonitor::Get();
   if (system_monitor) {
     // Asynchronous call
@@ -1429,3 +1430,5 @@ void AudioManagerAndroid::SetJniDelegateForTesting(
 }
 
 }  // namespace media
+
+DEFINE_JNI(AudioManagerAndroid)

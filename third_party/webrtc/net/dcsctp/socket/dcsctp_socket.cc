@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -236,8 +237,10 @@ bool DcSctpSocket::IsConsistent() const {
       return (tcb_ == nullptr && !t1_init_->is_running() &&
               !t1_cookie_->is_running() && !t2_shutdown_->is_running());
     case State::kCookieWait:
-      return (tcb_ == nullptr && t1_init_->is_running() &&
-              !t1_cookie_->is_running() && !t2_shutdown_->is_running());
+      return (
+          tcb_ == nullptr &&
+          (t1_init_->is_running() || connect_params_.is_out_of_bands_connect) &&
+          !t1_cookie_->is_running() && !t2_shutdown_->is_running());
     case State::kCookieEchoed:
       return (tcb_ != nullptr && !t1_init_->is_running() &&
               t1_cookie_->is_running() && !t2_shutdown_->is_running() &&
@@ -331,6 +334,60 @@ void DcSctpSocket::Connect() {
                          << "Called Connect on a socket that is not closed";
   }
   RTC_DCHECK(IsConsistent());
+}
+
+std::vector<uint8_t> DcSctpSocket::GenerateConnectionToken(
+    const DcSctpOptions& options,
+    std::function<uint32_t(uint32_t low, uint32_t high)> get_random_uint32) {
+  std::vector<uint8_t> data;
+
+  VerificationTag verification_tag = VerificationTag(
+      get_random_uint32(kMinVerificationTag, kMaxVerificationTag));
+  TSN initial_tsn = TSN(get_random_uint32(kMinInitialTsn, kMaxInitialTsn));
+
+  RTC_DLOG(LS_INFO) << webrtc::StringFormat(
+      "Generating sctp-init. my_verification_tag=%08x, my_initial_tsn=%u",
+      *verification_tag, *initial_tsn);
+
+  Parameters::Builder params_builder;
+  AddCapabilityParameters(
+      options, /*support_zero_checksum=*/
+      options.zero_checksum_alternate_error_detection_method !=
+          ZeroChecksumAlternateErrorDetectionMethod::None(),
+      params_builder);
+  InitChunk init(verification_tag, options.max_receiver_window_buffer_size,
+                 options.announced_maximum_outgoing_streams,
+                 options.announced_maximum_incoming_streams, initial_tsn,
+                 params_builder.Build());
+  init.SerializeTo(data);
+
+  return data;
+}
+
+bool DcSctpSocket::ConnectWithConnectionToken(
+    webrtc::ArrayView<const uint8_t> my_data,
+    webrtc::ArrayView<const uint8_t> peer_data) {
+  CallbackDeferrer::ScopedDeferrer deferrer(callbacks_);
+
+  std::optional<InitChunk> my_init = InitChunk::Parse(my_data);
+  std::optional<InitChunk> peer_init = InitChunk::Parse(peer_data);
+  if (!my_init.has_value() || !peer_init.has_value()) {
+    return false;
+  }
+
+  Capabilities capabilities = ComputeCapabilities(
+      options_, peer_init->nbr_outbound_streams(),
+      peer_init->nbr_inbound_streams(), peer_init->parameters());
+
+  CreateTransmissionControlBlock(
+      capabilities, my_init->initiate_tag(), my_init->initial_tsn(),
+      peer_init->initiate_tag(), peer_init->initial_tsn(), peer_init->a_rwnd(),
+      MakeTieTag(callbacks_));
+
+  SetState(State::kEstablished, "Finished out of bands connect");
+  callbacks_.OnConnected();
+
+  return true;
 }
 
 void DcSctpSocket::CreateTransmissionControlBlock(

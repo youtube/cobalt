@@ -45,9 +45,8 @@ struct CONTENT_EXPORT PrefetchContainerMetrics final {
   PrefetchContainerMetrics(PrefetchContainerMetrics&& other) = delete;
   PrefetchContainerMetrics& operator=(PrefetchContainerMetrics&& other) =
       delete;
-  PrefetchContainerMetrics(const PrefetchContainerMetrics&) = default;
-  PrefetchContainerMetrics& operator=(const PrefetchContainerMetrics&) =
-      default;
+  PrefetchContainerMetrics(const PrefetchContainerMetrics&);
+  PrefetchContainerMetrics& operator=(const PrefetchContainerMetrics&);
 
   // Timing information for metrics
   //
@@ -58,8 +57,14 @@ struct CONTENT_EXPORT PrefetchContainerMetrics final {
   std::optional<base::TimeTicks> time_initial_eligibility_got;
   std::optional<base::TimeTicks> time_prefetch_started;
   std::optional<base::TimeTicks> time_url_request_started;
+  std::optional<base::TimeTicks> time_domain_lookup_started;
   std::optional<base::TimeTicks> time_header_determined_successfully;
   std::optional<base::TimeTicks> time_prefetch_completed_successfully;
+
+  // TimeDelta information for metrics.
+  std::optional<base::TimeDelta> create_stream_delay;
+  std::optional<base::TimeDelta> connected_callback_delay;
+  std::optional<base::TimeDelta> initialize_stream_delay;
 };
 
 // Debug information of prefetch ahead of prerender at prefetch matching.

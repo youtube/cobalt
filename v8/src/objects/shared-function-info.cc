@@ -344,8 +344,8 @@ Handle<String> SharedFunctionInfo::DebugName(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   FunctionKind function_kind = shared->kind();
-  if (IsClassMembersInitializerFunction(function_kind)) {
-    return function_kind == FunctionKind::kClassMembersInitializerFunction
+  if (IsClassInitializerFunction(function_kind)) {
+    return IsClassInstanceInitializerFunction(function_kind)
                ? isolate->factory()->instance_members_initializer_string()
                : isolate->factory()->static_initializer_string();
   }
@@ -894,7 +894,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   std::unordered_set<uint32_t> ids({isolate->next_unique_sfi_id()});
   CombinedHeapObjectIterator it(isolate->heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (IsAnyHole(o) || !IsSharedFunctionInfo(o)) continue;
+    if (!IsSharedFunctionInfo(o)) continue;
     auto result = ids.emplace(Cast<SharedFunctionInfo>(o)->unique_id());
     // If previously inserted...
     if (!result.second) return false;

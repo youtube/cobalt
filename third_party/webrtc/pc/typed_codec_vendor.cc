@@ -22,7 +22,7 @@
 #include "media/base/codec_list.h"
 #include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -91,64 +91,51 @@ std::vector<Codec> CollectAudioCodecs(
   return out;
 }
 
+Codecs AudioCodecsFromFactory(const VoiceEngineInterface& voice,
+                              bool is_sender) {
+  RTC_DCHECK(!is_sender || voice.encoder_factory()) << "No encoder factory";
+  RTC_DCHECK(is_sender || voice.decoder_factory()) << "No decoder factory";
+  return CollectAudioCodecs(
+      is_sender ? voice.encoder_factory()->GetSupportedEncoders()
+                : voice.decoder_factory()->GetSupportedDecoders());
+}
+
+Codecs GetLegacyVideoCodecs(const VideoEngineInterface& video,
+                            bool is_sender,
+                            bool rtx_enabled) {
+  return is_sender ? video.LegacySendCodecs(rtx_enabled)
+                   : video.LegacyRecvCodecs(rtx_enabled);
+}
+
+Codecs GetCodecs(const MediaEngineInterface* media_engine,
+                 MediaType type,
+                 bool is_sender,
+                 bool rtx_enabled,
+                 const FieldTrialsView& trials) {
+  const VoiceEngineInterface& voice = media_engine->voice();
+  const VideoEngineInterface& video = media_engine->video();
+  if (trials.IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    // Use legacy mechanisms for getting codecs from video engine.
+    // TODO: https://issues.webrtc.org/360058654 - apply late assign to video.
+    return (type == MediaType::AUDIO)
+               ? AudioCodecsFromFactory(voice, is_sender)
+               : GetLegacyVideoCodecs(video, is_sender, rtx_enabled);
+  }
+
+  // Use current mechanisms for getting codecs from media engine.
+  return (type == MediaType::AUDIO)
+             ? (is_sender ? voice.LegacySendCodecs() : voice.LegacyRecvCodecs())
+             : GetLegacyVideoCodecs(video, is_sender, rtx_enabled);
+}
+
 }  // namespace
 
 TypedCodecVendor::TypedCodecVendor(const MediaEngineInterface* media_engine,
                                    MediaType type,
                                    bool is_sender,
                                    bool rtx_enabled,
-                                   const FieldTrialsView& trials) {
-  if (trials.IsEnabled("WebRTC-PayloadTypesInTransport")) {
-    // Get the capabilities from the factory and compute the codecs.
-    if (type == MediaType::AUDIO) {
-      if (is_sender) {
-        if (media_engine->voice().encoder_factory()) {
-          codecs_ = CodecList::CreateFromTrustedData(CollectAudioCodecs(
-              media_engine->voice().encoder_factory()->GetSupportedEncoders()));
-        } else {
-          RTC_LOG(LS_WARNING)
-              << "No voice encoder factory. Should only happen in test.";
-        }
-      } else {
-        if (media_engine->voice().decoder_factory()) {
-          codecs_ = CodecList::CreateFromTrustedData(CollectAudioCodecs(
-              media_engine->voice().decoder_factory()->GetSupportedDecoders()));
-        } else {
-          RTC_LOG(LS_WARNING)
-              << "No voice decoder factory. Should only happen in test.";
-        }
-      }
-    } else {
-      // Use legacy mechanisms for getting codecs from video engine.
-      // TODO: https://issues.webrtc.org/360058654 - apply late assign to video.
-      if (is_sender) {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->video().LegacySendCodecs(rtx_enabled));
-      } else {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->video().LegacyRecvCodecs(rtx_enabled));
-      }
-    }
-  } else {
-    // Use current mechanisms for getting codecs from media engine.
-    if (type == MediaType::AUDIO) {
-      if (is_sender) {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->voice().LegacySendCodecs());
-      } else {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->voice().LegacyRecvCodecs());
-      }
-    } else {
-      if (is_sender) {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->video().LegacySendCodecs(rtx_enabled));
-      } else {
-        codecs_ = CodecList::CreateFromTrustedData(
-            media_engine->video().LegacyRecvCodecs(rtx_enabled));
-      }
-    }
-  }
-}
+                                   const FieldTrialsView& trials)
+    : codecs_(CodecList::CreateFromTrustedData(
+          GetCodecs(media_engine, type, is_sender, rtx_enabled, trials))) {}
 
 }  // namespace webrtc

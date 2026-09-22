@@ -171,6 +171,7 @@
 <translation id="2787357173144933081">Nis me shpejti omnibox-in</translation>
 <translation id="2789132527330338807">Sajtet mund të kërkojnë të krijojnë një hartë 3D të ambientit tënd rrethues ose të monitorojnë pozicionin e kamerës</translation>
 <translation id="2790501146643349491">Kur cilësimi është aktiv, sajtet e mbyllura së fundi mund të përfundojnë dërgimin dhe marrjen e të dhënave. Kur cilësimi është joaktiv, sajtet e mbyllura së fundi nuk mund të përfundojnë dërgimin ose marrjen e të dhënave.</translation>
+<translation id="2794551654724114396">Aktivizo njoftimet për këshilla të dobishme për të të ndihmuar të përfitosh sa më shumë nga Chrome</translation>
 <translation id="2795716239552913152">Sajtet përdorin zakonisht vendndodhjen tënde për veçori ose informacione përkatëse, si p.sh. lajmet lokale ose dyqanet në afërsi</translation>
 <translation id="2800760947029405028">Ngarko imazh</translation>
 <translation id="2802908157808345702">Mos lejo që sajtet të dërgojnë dritare kërcyese apo të përdorin ridrejtimet</translation>
@@ -338,10 +339,12 @@
 <translation id="4635969503923889910">Mos lejo që sajtet të përdorin pajisjet me NFC</translation>
 <translation id="4644713492825682049">Fshi dhe rivendos</translation>
 <translation id="4645575059429386691">Menaxhohet nga prindi yt</translation>
+<translation id="4652266463001779298">Nuk lejohet</translation>
 <translation id="4663373278480897665">Kamera lejohet</translation>
 <translation id="4670064810192446073">Realiteti virtual</translation>
 <translation id="4672315773691449562">Trokit tek "Aplikacioni i shfletuesit" dhe më pas trokit te Chrome</translation>
 <translation id="4676059169848868271">Për të lejuar që <ph name="APP_NAME" /> të përdorë gjurmimin e duarve, aktivizo gjithashtu gjurmimin e duarve te <ph name="BEGIN_LINK" />cilësimet e sistemit<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Menaxho kartat e tua</translation>
 <translation id="4751476147751820511">Sensorët e lëvizjes ose të dritës</translation>
 <translation id="4755971844837804407">Kur cilësimi është aktiv, sajtet mund të të shfaqin çdo reklamë. Kur cilësimi është joaktiv, sajtet nuk mund të shfaqin reklama ndërhyrëse ose mashtruese.</translation>
 <translation id="4779083564647765204">Zmadho</translation>
@@ -678,6 +681,7 @@
 <translation id="8487700953926739672">Mundësohet offline</translation>
 <translation id="848952951823693243">Kërko gjithmonë sajtin për celular</translation>
 <translation id="8492822722330266509">Sajtet mund të dërgojnë dritare kërcyese dhe të përdorin ridrejtimet</translation>
+<translation id="8493548450030356203">Dritarja kërcyese e zmadhimit</translation>
 <translation id="8499083585497694743">Aktivizo mikrofonin</translation>
 <translation id="8514955299594277296">Mos lejo që sajtet të ruajnë të dhëna në pajisjen tënde (nuk rekomandohet)</translation>
 <translation id="851751545965956758">Blloko lidhjen e sajteve me pajisjet</translation>

@@ -81,7 +81,7 @@ int GetWindowOwnerPid(CFDictionaryRef window);
 
 // Returns the pid of the process owning the window `id`. Return 0 if `id`
 // cannot be found or no valid owner can be retrieved.
-int GetWindowOwnerPid(CGWindowID id);
+int RTC_EXPORT GetWindowOwnerPid(CGWindowID id);
 
 // Returns the DIP to physical pixel scale at `position`. `position` is in
 // *unscaled* system coordinate, i.e. it's device-independent and the primary

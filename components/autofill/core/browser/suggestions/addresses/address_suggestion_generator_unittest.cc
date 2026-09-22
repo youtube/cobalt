@@ -46,11 +46,12 @@
 namespace autofill {
 namespace {
 
-using testing::Field;
-using testing::IsEmpty;
-using testing::Matcher;
-using testing::Optional;
-using testing::Property;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::Matcher;
+using ::testing::Optional;
+using ::testing::Property;
+using ::testing::SizeIs;
 
 constexpr char kAddressesSuppressedHistogramName[] =
     "Autofill.AddressesSuppressedForDisuse";
@@ -870,6 +871,16 @@ TEST_F(AddressSuggestionGeneratorTest,
   EXPECT_EQ(u"+1 234-567-8910", suggestions[0].main_text.value);
 }
 
+// Tests that suggestions are not offered on non address fields.
+TEST_F(AddressSuggestionGeneratorTest,
+       GetSuggestionsForProfiles_NotAddressField) {
+  AutofillProfile profile1 = test::GetFullProfile();
+  address_data().AddProfile(profile1);
+
+  FormFieldData triggering_field;
+  EXPECT_THAT(GetSuggestionsForProfiles(triggering_field, PASSWORD), IsEmpty());
+}
+
 // Tests that suggestions are filtered by the triggering field's value.
 TEST_F(AddressSuggestionGeneratorTest,
        GetSuggestionsForProfiles_PrefixMatching) {
@@ -889,6 +900,31 @@ TEST_F(AddressSuggestionGeneratorTest,
   std::vector<Suggestion> address_suggestions =
       GetSuggestionsForProfiles(triggering_field, NAME_FIRST);
   EXPECT_EQ(address_suggestions.size(), 3ul);
+  EXPECT_THAT(address_suggestions, ContainsAddressFooterSuggestions());
+}
+
+// Tests that perform no prefix matching for select fields.
+TEST_F(AddressSuggestionGeneratorTest,
+       GetSuggestionsForProfiles_SelectField_NoPrefixMatching) {
+  AutofillProfile profile1 = test::GetFullProfile();
+  AutofillProfile profile2 = test::GetFullCanadianProfile();
+  address_data().AddProfile(profile1);
+  address_data().AddProfile(profile2);
+
+  // Create a triggering field that does not prefix-match either `profile1` or
+  // `profile2`.
+  FormFieldData triggering_field;
+  triggering_field.set_form_control_type(FormControlType::kSelectOne);
+  triggering_field.set_value(u"random text");
+  ASSERT_NE(profile1.GetRawInfo(ADDRESS_HOME_COUNTRY),
+            triggering_field.value());
+  ASSERT_NE(profile2.GetRawInfo(ADDRESS_HOME_COUNTRY),
+            triggering_field.value());
+
+  // Expect that suggestions are not prefix matched.
+  std::vector<Suggestion> address_suggestions =
+      GetSuggestionsForProfiles(triggering_field, ADDRESS_HOME_COUNTRY);
+  EXPECT_THAT(address_suggestions, SizeIs(4));
   EXPECT_THAT(address_suggestions, ContainsAddressFooterSuggestions());
 }
 
@@ -1379,6 +1415,75 @@ TEST_F(AddressSuggestionGeneratorTest, GeneratesSuggestions) {
   generator.GenerateSuggestions(form_data, field, form_structure.get(),
                                 form_structure->field(0), *autofill_client(),
                                 {savedCallbackArgument},
+                                suggestions_generated_callback.Get());
+}
+
+// Tests that if the `AutofillProfile`s email address is equal to the gaia email
+// and there exists a plus address, it is suggested instead of the
+// `AutofillProfile`s email value.
+TEST_F(AddressSuggestionGeneratorTest,
+       GeneratesSuggestions_UsingFetchedPlusAddressEmailOverride) {
+  base::MockCallback<base::OnceCallback<void(
+      std::pair<SuggestionGenerator::SuggestionDataSource,
+                std::vector<SuggestionGenerator::SuggestionData>>)>>
+      suggestion_data_callback;
+  base::MockCallback<
+      base::OnceCallback<void(SuggestionGenerator::ReturnedSuggestions)>>
+      suggestions_generated_callback;
+
+  AutofillProfile profile1 = test::GetFullProfile();
+  address_data().AddProfile(profile1);
+
+  autofill_client()->identity_test_environment().MakePrimaryAccountAvailable(
+      base::UTF16ToUTF8(profile1.GetRawInfo(EMAIL_ADDRESS)),
+      signin::ConsentLevel::kSignin);
+
+  // Create a form with one field, that expects a full name.
+  FormFieldData field;
+  FormData form_data;
+  test_api(form_data).Append(field);
+  std::unique_ptr<FormStructure> form_structure =
+      std::make_unique<FormStructure>(form_data);
+  test_api(*form_structure).SetFieldTypes({EMAIL_ADDRESS});
+
+  AddressSuggestionGenerator generator(
+      /*plus_address_email_override=*/std::nullopt,
+      /*log_manager=*/nullptr);
+  std::pair<SuggestionGenerator::SuggestionDataSource,
+            std::vector<SuggestionGenerator::SuggestionData>>
+      savedCallbackArgument;
+
+  EXPECT_CALL(
+      suggestion_data_callback,
+      Run(testing::Pair(SuggestionGenerator::SuggestionDataSource::kAddress,
+                        testing::ElementsAre(profile1))))
+      .WillOnce(testing::SaveArg<0>(&savedCallbackArgument));
+  generator.FetchSuggestionData(form_data, field, form_structure.get(),
+                                form_structure->field(0), *autofill_client(),
+                                suggestion_data_callback.Get());
+
+  // Simulate that `PlusAddressSuggestionGenerator` fetched a plus address.
+  std::vector<SuggestionGenerator::SuggestionData> plus_address_data;
+  plus_address_data.emplace_back(PlusAddress("email_override@gmail.com"));
+  base::flat_map<SuggestionGenerator::SuggestionDataSource,
+                 std::vector<SuggestionGenerator::SuggestionData>>
+      all_suggestion_data;
+  all_suggestion_data.insert(savedCallbackArgument);
+  all_suggestion_data.insert(
+      {SuggestionGenerator::SuggestionDataSource::kPlusAddress,
+       std::move(plus_address_data)});
+
+  EXPECT_CALL(suggestions_generated_callback,
+              Run(testing::Pair(
+                  FillingProduct::kAddress,
+                  testing::ElementsAre(
+                      EqualsSuggestion(SuggestionType::kAddressEntry,
+                                       u"email_override@gmail.com"),
+                      EqualsSuggestion(SuggestionType::kSeparator),
+                      EqualsSuggestion(SuggestionType::kManageAddress)))));
+  generator.GenerateSuggestions(form_data, field, form_structure.get(),
+                                form_structure->field(0), *autofill_client(),
+                                all_suggestion_data,
                                 suggestions_generated_callback.Get());
 }
 

@@ -70,9 +70,11 @@ import java.io.IOException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
 public final class FledgeFragmentTest {
     private static final String SITE_NAME_1 = "first.com";
     private static final String SITE_NAME_2 = "second.com";
+    private static final int RENDER_TEST_REVISION = 2;
     private String mSeeAllSitesLabel;
 
     @Rule public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
@@ -81,7 +83,7 @@ public final class FledgeFragmentTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(RenderTestRule.Component.UI_BROWSER_PRIVACY_SANDBOX)
-                    .setRevision(1)
+                    .setRevision(RENDER_TEST_REVISION)
                     .build();
 
     @Rule
@@ -357,6 +359,8 @@ public final class FledgeFragmentTest {
 
     @Test
     @SmallTest
+    // TODO(crbug.com/433576895): Re-enable containment feature once the test is fixed.
+    @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
     public void testMaxDisplayedSites() {
         setFledgePrefEnabled(true);
         for (int i = 0; i < FledgeFragment.MAX_DISPLAYED_SITES + 1; i++) {
@@ -389,6 +393,8 @@ public final class FledgeFragmentTest {
 
     @Test
     @SmallTest
+    // TODO(crbug.com/433576895): Re-enable containment feature once the test is fixed.
+    @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
     public void testBlockSites() {
         setFledgePrefEnabled(true);
         mFakePrivacySandboxBridge.setCurrentFledgeSites(SITE_NAME_1, SITE_NAME_2);

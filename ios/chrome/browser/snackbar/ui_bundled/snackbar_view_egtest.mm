@@ -21,20 +21,6 @@ NSString* const kTestSubtitle = @"Test Subtitle";
 NSString* const kTestSecondarySubtitle = @"Test Secondary Subtitle";
 NSString* const kButtonTitle = @"Button Title";
 
-// Dismisses the currently visible snackbar by tapping it and waiting for it
-// to disappear. Does nothing if no snackbar is visible.
-void DismissSnackbar() {
-  NSError* error = nil;
-  // Check if the snackbar is visible before trying to interact with it.
-  [[EarlGrey selectElementWithMatcher:SnackbarViewMatcher()]
-      assertWithMatcher:grey_sufficientlyVisible()
-                  error:&error];
-  if (error == nil) {
-    [[EarlGrey selectElementWithMatcher:SnackbarViewMatcher()]
-        performAction:grey_tap()];
-  }
-}
-
 // Returns a matcher for a snackbar element with the given `accessibility_id`.
 id<GREYMatcher> SnackBarViewMatcherForAccessibilityId(
     NSString* accessibility_id) {
@@ -102,13 +88,17 @@ void VerifySnackbarUI(NSString* title,
 
 @implementation SnackbarViewTestCase
 
++ (BOOL)loadMinimalAppUI {
+  return YES;
+}
+
 - (void)setUp {
   [super setUp];
   [ChromeCoordinatorAppInterface startSnackbarCoordinator];
 }
 
 - (void)tearDownHelper {
-  DismissSnackbar();
+  [SnackbarViewTestAppInterface removeDummyTextField];
   [super tearDownHelper];
   [ChromeCoordinatorAppInterface reset];
 }
@@ -169,6 +159,37 @@ void VerifySnackbarUI(NSString* title,
                                               kSnackbarTitleAccessibilityId),
                                           grey_text(kTestTitle), nil)]
       assertWithMatcher:grey_nil()];
+}
+
+// Tests that `showSnackbarMessageAfterDismissingKeyboard` displays the snackbar
+// correctly after dismissing the keyboard.
+- (void)testShowSnackbarMessageAfterDismissingKeyboard {
+  // Ensure the dummy text field is in the view hierarchy.
+  [SnackbarViewTestAppInterface makeTextFieldFirstResponder];
+  [ChromeEarlGreyUI waitForAppToIdle];
+
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"dummyTextField")]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"dummyTextField")]
+      performAction:grey_tap()];
+
+  // Verify keyboard is present.
+  [ChromeEarlGrey waitForKeyboardToAppear];
+
+  [SnackbarViewTestAppInterface
+      showSnackbarMessageAfterDismissingKeyboardWithTitle:kTestTitle];
+  [ChromeEarlGreyUI waitForAppToIdle];
+
+  // Verify keyboard is dismissed.
+  [ChromeEarlGrey waitForKeyboardToDisappear];
+
+  // Verify the snackbar is displayed correctly.
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:SnackbarViewMatcher()];
+  [[EarlGrey selectElementWithMatcher:SnackBarViewMatcherForAccessibilityId(
+                                          kSnackbarTitleAccessibilityId)]
+      assertWithMatcher:grey_allOf(grey_text(kTestTitle),
+                                   grey_sufficientlyVisible(), nil)];
 }
 
 @end

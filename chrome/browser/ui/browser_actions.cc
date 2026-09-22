@@ -15,6 +15,8 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
@@ -59,12 +61,16 @@
 #include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_util.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/js_optimization/js_optimizations_page_action_controller.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_page_action_controller.h"
+#include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_controller.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
+#include "chrome/browser/ui/views/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
@@ -88,6 +94,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/collaboration/public/messaging/activity_log.h"
 #include "components/commerce/core/metrics/discounts_metric_collector.h"
+#include "components/content_settings/core/common/features.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"
@@ -390,6 +397,37 @@ void BrowserActions::InitializeBrowserActions() {
           .SetEnabled(true)
           .Build());
 
+  if (base::FeatureList::IsEnabled(
+          content_settings::features::
+              kBlockV8OptimizerOnUnfamiliarSitesSetting)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  views::View* anchor_view =
+                      bwi->GetBrowserForMigrationOnly()
+                          ->GetBrowserView()
+                          .toolbar_button_provider()
+                          ->GetAnchorView(kActionShowJsOptimizationsIcon);
+
+                  bwi->GetActiveTabInterface()
+                      ->GetTabFeatures()
+                      ->js_optimizations_page_action_controller()
+                      ->ShowBubble(anchor_view, item);
+                },
+                bwi))
+            .SetActionId(kActionShowJsOptimizationsIcon)
+            .SetTooltipText(l10n_util::GetStringUTF16(
+                IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP))
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                // TODO(crbug.com/457422266): Use v8 icon.
+                vector_icons::kCodeIcon, ui::kColorIcon,
+                ui::SimpleMenuModel::kDefaultIconSize))
+            .SetEnabled(true)
+            .Build());
+  }
+
   root_action_item_->AddChild(
       actions::ActionItem::Builder(
           base::BindRepeating(
@@ -509,9 +547,11 @@ void BrowserActions::InitializeBrowserActions() {
                 auto* tab_features =
                     bwi->GetActiveTabInterface()->GetTabFeatures();
                 CHECK(tab_features);
-
-                tab_features->commerce_discounts_page_action_view_controller()
-                    ->MaybeShowBubble(/*from_user=*/true);
+                auto* page_action_controller =
+                    commerce::DiscountsPageActionViewController::From(
+                        *bwi->GetActiveTabInterface());
+                CHECK(page_action_controller);
+                page_action_controller->MaybeShowBubble(/*from_user=*/true);
 
                 auto* commerce_ui_tab_helper =
                     tab_features->commerce_ui_tab_helper();
@@ -754,6 +794,27 @@ void BrowserActions::InitializeBrowserActions() {
               },
               bwi))
           .SetActionId(kActionShowCookieControls)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                std::underlying_type_t<page_actions::PageActionTrigger>
+                    page_action_trigger = context.GetProperty(
+                        page_actions::kPageActionTriggerKey);
+                if (page_action_trigger !=
+                    page_actions::kInvalidPageActionTrigger) {
+                  BookmarkPageActionController::RecordPageActionExecution(
+                      static_cast<page_actions::PageActionTrigger>(
+                          page_action_trigger));
+                }
+
+                chrome::ExecuteCommand(bwi, IDC_BOOKMARK_THIS_TAB);
+              },
+              bwi))
+          .SetActionId(kActionBookmarkThisTab)
           .Build());
 
   root_action_item_->AddChild(
@@ -1098,12 +1159,45 @@ void BrowserActions::InitializeBrowserActions() {
                 bwi))
             .SetActionId(kActionAiMode)
             .SetText(l10n_util::GetStringUTF16(IDS_AI_MODE_ENTRYPOINT_LABEL))
-            .SetTooltipText(
-                l10n_util::GetStringUTF16(IDS_AI_MODE_ENTRYPOINT_LABEL))
+            .SetTooltipText(l10n_util::GetStringUTF16(
+                IDS_STARTER_PACK_AI_MODE_ACTION_SUGGESTION_CONTENTS))
             .SetImage(ui::ImageModel::FromVectorIcon(omnibox::kSearchSparkIcon))
             .SetProperty(actions::kActionItemPinnableKey, false)
             .Build());
   }
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                tabs::TabInterface* active_tab = bwi->GetActiveTabInterface();
+                CHECK(active_tab);
+
+                std::underlying_type_t<page_actions::PageActionTrigger>
+                    page_action_trigger = context.GetProperty(
+                        page_actions::kPageActionTriggerKey);
+                CHECK_NE(page_action_trigger,
+                         page_actions::kInvalidPageActionTrigger);
+
+                LensOverlayHomeworkPageActionController::From(*active_tab)
+                    ->HandlePageActionEvent(
+                        static_cast<page_actions::PageActionTrigger>(
+                            page_action_trigger) ==
+                        page_actions::PageActionTrigger::kKeyboard);
+              },
+              bwi))
+          .SetActionId(kActionLensOverlayHomework)
+          .SetImage(ui::ImageModel::FromVectorIcon(
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+              vector_icons::kGoogleLensMonochromeLogoIcon
+#else
+              vector_icons::kSearchChromeRefreshIcon
+#endif
+              ))
+          .SetText(l10n_util::GetStringUTF16(
+              IDS_CONTENT_LENS_OVERLAY_ASK_GOOGLE_ENTRYPOINT_LABEL))
+          .Build());
 
   root_action_item_->AddChild(
       actions::ActionItem::Builder(
@@ -1239,19 +1333,37 @@ void BrowserActions::InitializeBrowserActions() {
   }
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    actions::ActionItem::InvokeActionCallback contextual_task_callback =
+        base::BindRepeating(
+            [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+               actions::ActionInvocationContext context) {
+              if (!bwi) {
+                return;
+              }
+              chrome::ToggleContextualTasksSidePanel(bwi);
+            },
+            bwi);
     root_action_item_->AddChild(
-        SidePanelAction(SidePanelEntryId::kContextualTasks,
-                        IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE,
-                        IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE,
-                        vector_icons::kChatIcon,
-                        kActionSidePanelShowContextualTasks, bwi, false)
+        actions::ActionItem::Builder(contextual_task_callback)
+            .SetActionId(kActionSidePanelShowContextualTasks)
+            .SetText(l10n_util::GetStringUTF16(
+                IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE))
+            .SetTooltipText(l10n_util::GetStringUTF16(
+                IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE))
+            .SetImage(ui::ImageModel::FromVectorIcon(kDockToRightSparkIcon,
+                                                     ui::kColorIcon))
+            .SetProperty(
+                actions::kActionItemPinnableKey,
+                static_cast<
+                    std::underlying_type_t<actions::ActionPinnableState>>(
+                    actions::ActionPinnableState::kNotPinnable))
             .Build());
   }
 // TODO(crbug.com/454112198): Delete this after Multi Instance launches. This
 // is currently only used in the experimental single instance side panel.
 #if BUILDFLAG(ENABLE_GLIC)
   auto* glic_service = glic::GlicKeyedService::Get(bwi->GetProfile());
-  if (glic_service && !glic::GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (glic_service && !glic::GlicEnabling::IsMultiInstanceEnabled()) {
     actions::ActionItem::InvokeActionCallback toggle_glic_callback =
         base::BindRepeating(
             [](base::WeakPtr<BrowserWindowInterface> bwi,

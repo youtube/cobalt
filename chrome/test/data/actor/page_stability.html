@@ -63,9 +63,31 @@
           doBusyWork(10000);
         };
 
+        let paint_count = 0;
         paint_button.onclick = () => {
-          output.innerText = 'PAINT';
+          paint_count++;
+          output.innerText = 'PAINT ' + paint_count;
         };
+
+        // Add a handler for new same-document navigations. This will cause a
+        // fetch.
+        window.navigation.addEventListener('navigate', (e) => {
+          if (!e.hashChange) {
+            return;
+          }
+
+          const hash = e.destination.url.split('#').slice(-1);
+          if (hash.length == 0) {
+            console.log("Unexpected URL: ", e.destination.url);
+            return;
+          }
+
+          if (hash[0] === 'fetch') {
+            doFetch(() => {})
+          } else {
+            console.log("Unexpected fragment: ", hash[0]);
+          }
+        });
       }
     </script>
   </head>

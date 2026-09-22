@@ -758,6 +758,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method popDebugGroup
 [Worker]     method pushDebugGroup
 [Worker]     method setBindGroup
+[Worker]     method setImmediates
 [Worker]     method setPipeline
 [Worker]     method writeTimestamp
 [Worker]     setter label
@@ -863,6 +864,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method popDebugGroup
 [Worker]     method pushDebugGroup
 [Worker]     method setBindGroup
+[Worker]     method setImmediates
 [Worker]     method setIndexBuffer
 [Worker]     method setPipeline
 [Worker]     method setVertexBuffer
@@ -886,6 +888,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method pushDebugGroup
 [Worker]     method setBindGroup
 [Worker]     method setBlendConstant
+[Worker]     method setImmediates
 [Worker]     method setIndexBuffer
 [Worker]     method setPipeline
 [Worker]     method setScissorRect
@@ -945,6 +948,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter maxComputeWorkgroupsPerDimension
 [Worker]     getter maxDynamicStorageBuffersPerPipelineLayout
 [Worker]     getter maxDynamicUniformBuffersPerPipelineLayout
+[Worker]     getter maxImmediateSize
 [Worker]     getter maxInterStageShaderVariables
 [Worker]     getter maxSampledTexturesPerShaderStage
 [Worker]     getter maxSamplersPerShaderStage
@@ -1580,8 +1584,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter wordSpacing
 [Worker] interface Origin
 [Worker]     static method from
-[Worker]     static method fromURL
-[Worker]     static method parse
 [Worker]     attribute @@toStringTag
 [Worker]     getter opaque
 [Worker]     method constructor
@@ -1954,6 +1956,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter fingerprint
 [Worker]     getter fingerprintDigestAlgorithm
 [Worker]     getter onicecandidate
+[Worker]     getter onwritablechange
 [Worker]     method addRemoteCandidate
 [Worker]     method constructor
 [Worker]     method getReceivedPackets
@@ -1961,6 +1964,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method setRemoteDtlsParameters
 [Worker]     method writable
 [Worker]     setter onicecandidate
+[Worker]     setter onwritablechange
 [Worker] interface RtcTransportIceCandidate
 [Worker]     attribute @@toStringTag
 [Worker]     getter address

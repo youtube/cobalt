@@ -36,6 +36,10 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#include "src/sandbox/code-sandboxing-mode.h"
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 namespace v8::internal::compiler {
 
 #define __ masm()->
@@ -1683,21 +1687,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (Handle<JSFunction> function; TryCast(constant, &function)) {
           if (function->shared()->HasBuiltinId()) {
             Builtin builtin = function->shared()->builtin_id();
-            size_t expected = Builtins::GetFormalParameterCount(builtin);
-            if (num_arguments == expected) {
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
+            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
               __ CallBuiltin(builtin);
             } else {
-              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+              __ Abort(AbortReason::kJSSignatureMismatch);
             }
           } else {
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
             size_t expected =
                 IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
                     dispatch_handle);
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
             if (num_arguments >= expected) {
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
-              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+              __ Abort(AbortReason::kJSSignatureMismatch);
             }
           }
         } else {
@@ -1841,6 +1848,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ int3();
       unwinding_info_writer_.MarkBlockWillExit();
       break;
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    case kArchSwitchSandboxMode: {
+      CodeSandboxingMode const sandbox_mode =
+          static_cast<CodeSandboxingMode>(MiscField::decode(opcode));
+      switch (sandbox_mode) {
+        case CodeSandboxingMode::kUnsandboxed:
+          __ ExitSandbox();
+          break;
+        case CodeSandboxingMode::kSandboxed:
+          __ EnterSandbox();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     case kArchDebugBreak:
       __ DebugBreak();
       break;

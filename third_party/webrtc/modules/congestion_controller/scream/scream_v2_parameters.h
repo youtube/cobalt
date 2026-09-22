@@ -62,13 +62,15 @@ struct ScreamV2Parameters {
   FieldTrialParameter<int>
       number_of_rtts_between_reset_ref_window_i_on_congestion;
 
-  // Excessive data in flight correction
-  FieldTrialParameter<double> data_in_flight_limit;
-  FieldTrialParameter<double> max_data_in_flight_limit_compensation;
+  // Max/Min used for calculating how much larger the send window is allowed to
+  // be than the ref window.
+  FieldTrialParameter<double> ref_window_overhead_min;
+  FieldTrialParameter<double> ref_window_overhead_max;
 
   // Exponentially Weighted Moving Average (EWMA) factor for updating queue
   // delay.
   FieldTrialParameter<double> queue_delay_avg_g;
+  FieldTrialParameter<double> queue_delay_dev_avg_g;
 
   // Determines the length of the base delay history when estimating one way
   // delay (owd)
@@ -89,12 +91,15 @@ struct ScreamV2Parameters {
   // `queue_delay_target`* `queue_delay_threshold`
   FieldTrialParameter<double> queue_delay_threshold;
 
-  // Use all packets when calculating `queue_delay_average`. This is per default
-  // true. This is in contrast with
-  // https://datatracker.ietf.org/doc/draft-johansson-ccwg-rfc8298bis-screamv2/
-  // that specifies that only the last packet reported in a feedback packet
-  // received every min(virtual_rtt, smoothed rtt) is used.
-  FieldTrialParameter<bool> use_all_packets_when_calculating_queue_delay;
+  // If the minimum queue delay is below this threshold, queues are deamed to be
+  // drained.
+  FieldTrialParameter<TimeDelta> queue_delay_drain_threshold;
+  // If the minimum queue delay has been above `queue_delay_drain_threshold` for
+  // longer than `queue_delay_drain_period`, an attempt it made to drain the
+  // queues, and if that fails, resets the estimates.
+  FieldTrialParameter<TimeDelta> queue_delay_drain_period;
+  // Number of RTTs where the target rate is reduced to attempt to drain.
+  FieldTrialParameter<int> queue_delay_drain_rtts;
 
   // Padding is periodically used in order to increase target rate even if a
   // stream does not produce a high enough rate.

@@ -102,7 +102,7 @@ void abi_test_clobber_xmm12(void);
 void abi_test_clobber_xmm13(void);
 void abi_test_clobber_xmm14(void);
 void abi_test_clobber_xmm15(void);
-}  // extern "C"
+}  // extern C
 
 TEST(ABITest, X86_64) {
   // abi_test_trampoline hides unsaved registers from the caller, so we can
@@ -206,7 +206,7 @@ void abi_test_clobber_xmm4(void);
 void abi_test_clobber_xmm5(void);
 void abi_test_clobber_xmm6(void);
 void abi_test_clobber_xmm7(void);
-}  // extern "C"
+}  // extern C
 
 TEST(ABITest, X86) {
   // abi_test_trampoline hides unsaved registers from the caller, so we can
@@ -278,7 +278,7 @@ void abi_test_clobber_d12(void);
 void abi_test_clobber_d13(void);
 void abi_test_clobber_d14(void);
 void abi_test_clobber_d15(void);
-}  // extern "C"
+}  // extern C
 
 TEST(ABITest, ARM) {
   // abi_test_trampoline hides unsaved registers from the caller, so we can
@@ -416,7 +416,7 @@ void abi_test_clobber_v12_upper(void);
 void abi_test_clobber_v13_upper(void);
 void abi_test_clobber_v14_upper(void);
 void abi_test_clobber_v15_upper(void);
-}  // extern "C"
+}  // extern C
 
 TEST(ABITest, AArch64) {
   // abi_test_trampoline hides unsaved registers from the caller, so we can

@@ -52,7 +52,7 @@ void AccountCapabilitiesFetcherAndroid::StartImpl() {
 }
 
 namespace signin {
-void JNI_AccountCapabilitiesFetcher_OnCapabilitiesFetchComplete(
+static void JNI_AccountCapabilitiesFetcher_OnCapabilitiesFetchComplete(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& account_capabilities,
     jlong native_callback) {
@@ -63,3 +63,5 @@ void JNI_AccountCapabilitiesFetcher_OnCapabilitiesFetchComplete(
           env, account_capabilities));
 }
 }  // namespace signin
+
+DEFINE_JNI(AccountCapabilitiesFetcher)

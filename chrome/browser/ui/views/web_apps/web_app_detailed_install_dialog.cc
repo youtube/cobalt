@@ -9,7 +9,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/user_metrics.h"
@@ -114,7 +113,7 @@ class ImageCarouselLayoutManager : public views::LayoutManagerBase {
   }
 };
 
-enum class ButtonType { LEADING, TRAILING };
+enum class ButtonType { kLeading, kTrailing };
 class ScrollButton : public views::ImageButton {
   METADATA_HEADER(ScrollButton, views::ImageButton)
 
@@ -131,13 +130,13 @@ class ScrollButton : public views::ImageButton {
         std::make_unique<views::CircleHighlightPathGenerator>(gfx::Insets()));
 
     GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
-        button_type == ButtonType::LEADING
+        button_type == ButtonType::kLeading
             ? IDS_ACCNAME_WEB_APP_DETAILED_INSTALL_DIALOG_LEADING_SCROLL_BUTTON
             : IDS_ACCNAME_WEB_APP_DETAILED_INSTALL_DIALOG_TRAILING_SCROLL_BUTTON));
 
     SetImageModel(
         views::Button::ButtonState::STATE_NORMAL,
-        button_type == ButtonType::LEADING
+        button_type == ButtonType::kLeading
             ? ui::ImageModel::FromVectorIcon(kLeadingScrollIcon, ui::kColorIcon)
             : ui::ImageModel::FromVectorIcon(kTrailingScrollIcon,
                                              ui::kColorIcon));
@@ -234,10 +233,10 @@ class ImageCarouselView : public views::View {
 
     leading_button_ =
         leading_button_container->AddChildView(std::make_unique<ScrollButton>(
-            ButtonType::LEADING,
+            ButtonType::kLeading,
             base::BindRepeating(&ImageCarouselView::OnScrollButtonClicked,
                                 weak_ptr_factory_.GetWeakPtr(),
-                                ButtonType::LEADING)));
+                                ButtonType::kLeading)));
     leading_button_container_ =
         AddChildView(std::move(leading_button_container));
     leading_button_->SetVisible(false);
@@ -248,10 +247,10 @@ class ImageCarouselView : public views::View {
 
     trailing_button_ =
         trailing_button_container->AddChildView(std::make_unique<ScrollButton>(
-            ButtonType::TRAILING,
+            ButtonType::kTrailing,
             base::BindRepeating(&ImageCarouselView::OnScrollButtonClicked,
                                 weak_ptr_factory_.GetWeakPtr(),
-                                ButtonType::TRAILING)));
+                                ButtonType::kTrailing)));
     trailing_button_container_ =
         AddChildView(std::move(trailing_button_container));
   }
@@ -335,7 +334,7 @@ class ImageCarouselView : public views::View {
     // Scroll past all the fully visible images
     int delta = image_width * (container_width / image_width);
 
-    if (button_type == ButtonType::TRAILING) {
+    if (button_type == ButtonType::kTrailing) {
       delta = -delta;
     }
 

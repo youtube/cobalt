@@ -219,7 +219,7 @@ void AppWebMessagePort::GiveDisentangledHandleIfNeeded() {
   connector_.reset();
 }
 
-base::android::ScopedJavaLocalRef<jobjectArray>
+static base::android::ScopedJavaLocalRef<jobjectArray>
 JNI_AppWebMessagePort_CreatePair(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   blink::MessagePortDescriptorPair port_pair;
@@ -230,3 +230,5 @@ JNI_AppWebMessagePort_CreatePair(JNIEnv* env) {
 }
 
 }  // namespace content::android
+
+DEFINE_JNI(AppWebMessagePort)

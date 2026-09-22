@@ -235,7 +235,8 @@ RenderingSimulator::Results RenderingSimulator::Simulate(
                                                       &results);
   };
   RtcEventLogDriver rtc_event_log_simulator(
-      &parsed_log, config_.field_trials_string, std::move(stream_factory));
+      {.reuse_streams = config_.reuse_streams}, &parsed_log,
+      config_.field_trials_string, std::move(stream_factory));
   rtc_event_log_simulator.Simulate();
 
   // Return.

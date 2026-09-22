@@ -493,6 +493,9 @@ declare_args() {
 
   # add instrumentation for Dumpling differential fuzzing
   v8_dumpling = false
+
+  # Enable compilation of riscv32.
+  v8_riscv_enable_deprecated_riscv32 = false
 }
 
 # Derived defaults.
@@ -1188,8 +1191,7 @@ config("features") {
   if (v8_enable_pointer_compression) {
     if (v8_enable_pointer_compression_shared_cage) {
       defines += [
-        # TODO(442942399): Re-enable after bug has been addressed.
-        # "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
+        "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
         "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
       ]
     } else {
@@ -1340,6 +1342,9 @@ config("features") {
   }
   if (v8_dumpling) {
     defines += [ "V8_DUMPLING" ]
+  }
+  if (v8_riscv_enable_deprecated_riscv32) {
+    defines += [ "V8_RISCV_ENABLE_DEPRECATED_RISCV32" ]
   }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
@@ -1603,10 +1608,9 @@ config("toolchain") {
     }
   }
 
-  # Under simulator build, compiler will not provide __riscv_xlen. Define here
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
     if (v8_target_is_simulator) {
-      defines += [ "_RISCV_TARGET_SIMULATOR" ]
+      defines += [ "RISCV_TARGET_SIMULATOR" ]
     }
     if (riscv_use_rvv || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
@@ -1621,10 +1625,19 @@ config("toolchain") {
     if (riscv_use_zbs) {
       defines += [ "__riscv_zbs" ]
     }
+    defines += [ "RISCV_CODE_ALIGNMENT=${riscv_code_alignment}" ]
+    defines +=
+        [ "RISCV_CONSTANT_POOL_ALIGNMENT=${riscv_constant_pool_alignment}" ]
   }
+
   if (v8_current_cpu == "riscv64") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
-    defines += [ "__riscv_xlen=64" ]
+
+    # When building the simulator, the compiler does not provide __riscv_xlen,
+    # so we explicitly define it here.
+    if (v8_target_is_simulator) {
+      defines += [ "__riscv_xlen=64" ]
+    }
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
     }
@@ -1635,7 +1648,12 @@ config("toolchain") {
 
   if (v8_current_cpu == "riscv32") {
     defines += [ "V8_TARGET_ARCH_RISCV32" ]
-    defines += [ "__riscv_xlen=32" ]
+
+    # When building the simulator, the compiler does not provide __riscv_xlen,
+    # so we explicitly define it here.
+    if (v8_target_is_simulator) {
+      defines += [ "__riscv_xlen=32" ]
+    }
   }
 
   if (v8_current_cpu == "x86") {
@@ -3713,6 +3731,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/late-load-elimination-reducer.h",
     "src/compiler/turboshaft/layered-hash-map.h",
     "src/compiler/turboshaft/load-store-simplification-reducer.h",
+    "src/compiler/turboshaft/load-store-verification-reducer.h",
     "src/compiler/turboshaft/loop-finder.h",
     "src/compiler/turboshaft/loop-peeling-phase.h",
     "src/compiler/turboshaft/loop-peeling-reducer.h",
@@ -4264,6 +4283,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/transitions.h",
     "src/objects/trusted-object-inl.h",
     "src/objects/trusted-object.h",
+    "src/objects/trusted-pointer-inl.h",
+    "src/objects/trusted-pointer.h",
     "src/objects/turbofan-types-inl.h",
     "src/objects/turbofan-types.h",
     "src/objects/turboshaft-types-inl.h",
@@ -4352,6 +4373,7 @@ v8_header_set("v8_internal_headers") {
     "src/runtime/runtime.h",
     "src/sandbox/bounded-size-inl.h",
     "src/sandbox/bounded-size.h",
+    "src/sandbox/bytecode-verifier.h",
     "src/sandbox/check.h",
     "src/sandbox/code-entrypoint-tag.h",
     "src/sandbox/code-pointer-inl.h",
@@ -4534,6 +4556,9 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
       "src/maglev/maglev-pre-regalloc-codegen-processors.h",
+      "src/maglev/maglev-range-analysis.h",
+      "src/maglev/maglev-range-verification.h",
+      "src/maglev/maglev-range.h",
       "src/maglev/maglev-reducer-inl.h",
       "src/maglev/maglev-reducer.h",
       "src/maglev/maglev-regalloc-data.h",
@@ -4610,10 +4635,10 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/code-space-access.h",
       "src/wasm/compilation-environment-inl.h",
       "src/wasm/compilation-environment.h",
+      "src/wasm/compilation-hints-generation.h",
       "src/wasm/constant-expression-interface.h",
       "src/wasm/constant-expression.h",
       "src/wasm/decoder.h",
-      "src/wasm/float16.h",
       "src/wasm/function-body-decoder-impl.h",
       "src/wasm/function-body-decoder.h",
       "src/wasm/function-compiler.h",
@@ -5310,6 +5335,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-known-node-aspects.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
+    "src/maglev/maglev-range-verification.cc",
     "src/maglev/maglev-truncation.cc",
   ]
 }
@@ -5954,6 +5980,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
+    "src/sandbox/bytecode-verifier.cc",
     "src/sandbox/code-pointer-table.cc",
     "src/sandbox/cppheap-pointer-table.cc",
     "src/sandbox/external-pointer-table.cc",
@@ -6003,7 +6030,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/detachable-vector.cc",
     "src/utils/hex-format.cc",
     "src/utils/identity-map.cc",
-    "src/utils/memcopy.cc",
     "src/utils/ostreams.cc",
     "src/utils/output-stream.cc",
     "src/utils/sha-256.cc",
@@ -6054,6 +6080,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-known-node-aspects.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
+      "src/maglev/maglev-range-verification.cc",
       "src/maglev/maglev-regalloc.cc",
       "src/maglev/maglev-truncation.cc",
       "src/maglev/maglev.cc",
@@ -6119,6 +6146,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/basic-block-calculator.cc",
       "src/wasm/canonical-types.cc",
       "src/wasm/code-space-access.cc",
+      "src/wasm/compilation-hints-generation.cc",
       "src/wasm/constant-expression-interface.cc",
       "src/wasm/constant-expression.cc",
       "src/wasm/function-body-decoder.cc",
@@ -6718,6 +6746,7 @@ v8_component("v8_libbase") {
     "src/base/abort-mode.cc",
     "src/base/abort-mode.h",
     "src/base/address-region.h",
+    "src/base/algorithm.h",
     "src/base/atomic-utils.h",
     "src/base/atomicops.h",
     "src/base/base-export.h",
@@ -6747,6 +6776,7 @@ v8_component("v8_libbase") {
     "src/base/file-utils.cc",
     "src/base/file-utils.h",
     "src/base/flags.h",
+    "src/base/float16.h",
     "src/base/fpu.cc",
     "src/base/fpu.h",
     "src/base/free_deleter.h",
@@ -6764,6 +6794,7 @@ v8_component("v8_libbase") {
     "src/base/logging.cc",
     "src/base/logging.h",
     "src/base/macros.h",
+    "src/base/memcopy.h",
     "src/base/memory.h",
     "src/base/numbers/bignum-dtoa.cc",
     "src/base/numbers/bignum-dtoa.h",

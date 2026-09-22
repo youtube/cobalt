@@ -31,6 +31,7 @@ if (rtc_enable_protobuf) {
     ]
     deps = [
       ":neural_residual_echo_estimator_proto",
+      "..:aec3_block",
       "..:aec3_common",
       "../..:apm_logging",
       "../../../../api:array_view",
@@ -67,6 +68,7 @@ if (rtc_include_tests) {
       deps = [
         ":neural_residual_echo_estimator_impl",
         ":neural_residual_echo_estimator_proto",
+        "..:aec3_block",
         "..:aec3_common",
         "../../../../api:array_view",
         "../../../../rtc_base:checks",

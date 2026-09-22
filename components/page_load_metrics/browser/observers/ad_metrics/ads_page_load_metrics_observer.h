@@ -13,7 +13,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/metrics/field_trial_params.h"
 #include "base/scoped_observation.h"
 #include "base/time/tick_clock.h"
 #include "build/build_config.h"
@@ -148,8 +147,6 @@ class AdsPageLoadMetricsObserver
   void OnMainFrameAdRectsChanged(
       const base::flat_map<int, gfx::Rect>& main_frame_ad_rects) override;
   void OnSubFrameDeleted(content::FrameTreeNodeId frame_tree_node_id) override;
-  void OnV8MemoryChanged(
-      const std::vector<MemoryUpdate>& memory_updates) override;
   void OnAdAuctionComplete(bool is_server_auction,
                            bool is_on_device_auction,
                            content::AuctionResult result) override;
@@ -158,9 +155,6 @@ class AdsPageLoadMetricsObserver
       std::unique_ptr<HeavyAdThresholdNoiseProvider> noise_provider) {
     heavy_ad_threshold_noise_provider_ = std::move(noise_provider);
   }
-
-  void UpdateAggregateMemoryUsage(base::ByteCount bytes,
-                                  FrameVisibility visibility);
 
   void CleanupDeletedFrame(content::FrameTreeNodeId id,
                            FrameTreeData* frame_data,

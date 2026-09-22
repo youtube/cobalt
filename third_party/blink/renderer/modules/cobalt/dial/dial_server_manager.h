@@ -21,7 +21,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -34,12 +33,11 @@ class ExecutionContext;
 // if one exists.
 class MODULES_EXPORT DialServerManager final
     : public GarbageCollected<DialServerManager>,
-      public Supplement<ExecutionContext>,
-      public in_app_dial::mojom::blink::DialRequestHandler {
+      public in_app_dial::mojom::blink::DialRequestHandler,
+      public GarbageCollectedMixin {
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
 
   static DialServerManager* From(ExecutionContext*);
 
@@ -68,6 +66,8 @@ class MODULES_EXPORT DialServerManager final
  private:
   // Called when either `dial_server_` or `receiver_` is disconnected.
   void OnConnectionError();
+
+  Member<ExecutionContext> execution_context_;
 
   HeapMojoRemote<in_app_dial::mojom::blink::DialServer> dial_server_;
   HeapMojoReceiver<in_app_dial::mojom::blink::DialRequestHandler,

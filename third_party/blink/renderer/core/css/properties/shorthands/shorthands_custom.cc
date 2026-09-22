@@ -329,6 +329,29 @@ bool ConsumeAnimationRangeItemInto(CSSParserTokenStream& stream,
   return true;
 }
 
+const CSSValueList* SingleAnimationRangeCSSValueFromComputedStyle(
+    const ComputedStyle& style,
+    const std::optional<TimelineOffset>& start,
+    const std::optional<TimelineOffset>& end,
+    const TimelineOffset& default_start,
+    const TimelineOffset& default_end) {
+  auto* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+      start, style, Length::Percent(0.0)));
+
+  // The form "name X name 100%" must contract to "name X".
+  //
+  // https://github.com/w3c/csswg-drafts/issues/8438
+  TimelineOffset omittable_end(start.value_or(default_start).name,
+                               Length::Percent(100));
+  if (end.value_or(default_end) != omittable_end) {
+    list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+        end, style, Length::Percent(100.0)));
+  }
+
+  return list;
+}
+
 const CSSValue* AnimationRangeCSSValueFromComputedStyle(
     const ComputedStyle& style,
     const Vector<std::optional<TimelineOffset>>& range_start_list,
@@ -346,21 +369,58 @@ const CSSValue* AnimationRangeCSSValueFromComputedStyle(
   for (wtf_size_t i = 0; i < range_start_list.size(); ++i) {
     const std::optional<TimelineOffset>& start = range_start_list[i];
     const std::optional<TimelineOffset>& end = range_end_list[i];
+    outer_list->Append(*SingleAnimationRangeCSSValueFromComputedStyle(
+        style, start, end, default_start, default_end));
+  }
 
-    auto* inner_list = CSSValueList::CreateSpaceSeparated();
-    inner_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+  return outer_list;
+}
+
+const CSSValueList* SingleTimelineTriggerExitRangeCSSValueFromComputedStyle(
+    const ComputedStyle& style,
+    const TimelineOffsetOrAuto& start,
+    const TimelineOffsetOrAuto& end,
+    const TimelineOffset& default_start,
+    const TimelineOffset& default_end) {
+  if (end.IsAuto() || !end.GetTimelineOffset()) {
+    // end is 'auto' or 'normal' (nullopt TimelineOffset implies 'normal').
+    // 'auto' is the default value and is contracted away.
+    // 'normal normal' does not contract as that would make 'normal' ambiguous.
+    // So, we always add normal.
+    auto* list = CSSValueList::CreateSpaceSeparated();
+    list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
         start, style, Length::Percent(0.0)));
-
-    // The form "name X name 100%" must contract to "name X".
-    //
-    // https://github.com/w3c/csswg-drafts/issues/8438
-    TimelineOffset omittable_end(start.value_or(default_start).name,
-                                 Length::Percent(100));
-    if (end.value_or(default_end) != omittable_end) {
-      inner_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
-          end, style, Length::Percent(100.0)));
+    if (!end.IsAuto()) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kNormal));
     }
-    outer_list->Append(*inner_list);
+
+    return list;
+  }
+
+  return SingleAnimationRangeCSSValueFromComputedStyle(
+      style, start.GetTimelineOffset(), end.GetTimelineOffset(), default_start,
+      default_end);
+}
+
+const CSSValue* TimelineTriggerExitRangeCSSValueFromComputedStyle(
+    const ComputedStyle& style,
+    const Vector<TimelineOffsetOrAuto>& range_start_list,
+    const Vector<TimelineOffsetOrAuto>& range_end_list) {
+  if (range_start_list.size() != range_end_list.size()) {
+    return nullptr;
+  }
+
+  TimelineOffset default_start(TimelineOffset::NamedRange::kNone,
+                               Length::Percent(0));
+  TimelineOffset default_end(TimelineOffset::NamedRange::kNone,
+                             Length::Percent(100));
+  auto* outer_list = CSSValueList::CreateCommaSeparated();
+
+  for (wtf_size_t i = 0; i < range_start_list.size(); ++i) {
+    const TimelineOffsetOrAuto& start = range_start_list[i];
+    const TimelineOffsetOrAuto& end = range_end_list[i];
+    outer_list->Append(*SingleTimelineTriggerExitRangeCSSValueFromComputedStyle(
+        style, start, end, default_start, default_end));
   }
 
   return outer_list;
@@ -2734,7 +2794,7 @@ bool Grid::ParseShorthand(bool important,
 
 bool Grid::IsLayoutDependent(const ComputedStyle* style,
                              LayoutObject* layout_object) const {
-  return layout_object && layout_object->IsLayoutGridOrMasonry();
+  return layout_object && layout_object->IsLayoutGridOrGridLanes();
 }
 
 const CSSValue* Grid::CSSValueFromComputedStyleInternal(
@@ -2744,6 +2804,175 @@ const CSSValue* Grid::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForGridShorthand(
       gridShorthand(), style, layout_object, allow_visited_style, value_phase);
+}
+
+bool GridLanes::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  String grid_lanes_template_areas;
+  bool is_template_columns = true;
+  const CSSValue* template_areas =
+      GetCSSPropertyGridTemplateAreas().InitialValue();
+  const CSSValue* grid_lanes_direction =
+      CSSIdentifierValue::Create(CSSValueID::kColumn);
+  const CSSValue* grid_lanes_fill =
+      CSSIdentifierValue::Create(CSSValueID::kNormal);
+
+  // Retrieve the string of `grid_lanes_template_areas`. We'll parse it into
+  // appropriate `grid-template-areas` based on the `grid-lanes-direction`.
+  if (stream.Peek().GetType() == kStringToken) {
+    grid_lanes_template_areas =
+        stream.ConsumeIncludingWhitespace().Value().ToString();
+  }
+
+  // Retrieve the `grid_lanes_template_tracks`, which can be either
+  // `grid-template-columns` or `grid-template-rows`
+  const CSSValue* grid_lanes_template_tracks =
+      css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(
+          stream, context,
+          /*is_grid_lanes_shorthand=*/true);
+  if (!grid_lanes_template_tracks) {
+    return false;
+  }
+  stream.ConsumeWhitespace();
+
+  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kRowReverse,
+                                      CSSValueID::kColumn,
+                                      CSSValueID::kColumnReverse>(
+          stream.Peek().Id())) {
+    if (css_parsing_utils::IdentMatches<CSSValueID::kRow,
+                                        CSSValueID::kRowReverse>(
+            stream.Peek().Id())) {
+      is_template_columns = false;
+    }
+    grid_lanes_direction = css_parsing_utils::ConsumeIdent(stream);
+  }
+
+  if (css_parsing_utils::IdentMatches<CSSValueID::kNormal,
+                                      CSSValueID::kReverse>(
+          stream.Peek().Id())) {
+    grid_lanes_fill = css_parsing_utils::ConsumeIdent(stream);
+  }
+
+  // At this point, we should be at the end of the stream or at an !important
+  // token. If not, we should return false.
+  if (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
+                           stream.Peek().Delimiter() == '!')) {
+    return false;
+  }
+
+  // Parse `grid_lanes_template_areas` into the appropriate
+  // `grid-template-areas` value.
+  // - `grid_lanes_template_areas` is a single space-separated string.
+  // - If `grid-lanes-direction` is column, use the string as a single row
+  // (e.g., "a b c d" -> "a b c d").
+  // - If `grid-lanes-direction` is row, split the string into multiple rows,
+  // one per area name (e.g., "a b c d" -> "a" "b" "c" "d"). This ensures the
+  // correct mapping to the CSS `grid-template-areas` syntax based on the
+  // `grid-lanes-direction`.
+  if (!grid_lanes_template_areas.ContainsOnlyWhitespaceOrEmpty()) {
+    template_areas = css_parsing_utils::ParseGridLanesTemplateAreasValue(
+        grid_lanes_template_areas, is_template_columns);
+    if (!template_areas) {
+      return false;
+    }
+  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridTemplateAreas, CSSPropertyID::kGridLanes,
+      *template_areas, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (is_template_columns) {
+    css_parsing_utils::AddProperty(
+        CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kGridLanes,
+        *grid_lanes_template_tracks, important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  } else {
+    // For `grid_template_rows`, since it is not included in the grid-lanes
+    // shorthand's property list, we need to add it manually here rather than
+    // using the AddProperty helper.
+    properties.push_back(
+        CSSPropertyValue(CSSPropertyName(CSSPropertyID::kGridTemplateRows),
+                         *grid_lanes_template_tracks, important));
+  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridLanesDirection, CSSPropertyID::kGridLanes,
+      *grid_lanes_direction, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridLanesFill, CSSPropertyID::kGridLanes,
+      *grid_lanes_fill, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* GridLanes::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridLanesShorthand(
+      gridLanesShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool GridLanes::IsLayoutDependent(const ComputedStyle* style,
+                                  LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsLayoutGridLanes();
+}
+
+bool GridLanesFlow::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand::Properties& longhands =
+      gridLanesFlowShorthand().properties();
+  DCHECK_EQ(longhands.size(), 2u);
+
+  if (longhands[0]->PropertyID() != CSSPropertyID::kGridLanesDirection ||
+      longhands[1]->PropertyID() != CSSPropertyID::kGridLanesFill) {
+    return false;
+  }
+
+  const CSSValue* grid_lanes_direction = css_parsing_utils::ParseLonghand(
+      longhands[0]->PropertyID(), gridLanesFlowShorthand().id(), context,
+      stream);
+
+  if (!grid_lanes_direction) {
+    return false;
+  }
+
+  const CSSValue* grid_lanes_fill = css_parsing_utils::ParseLonghand(
+      longhands[1]->PropertyID(), gridLanesFlowShorthand().id(), context,
+      stream);
+
+  if (!grid_lanes_fill) {
+    return false;
+  }
+
+  AddProperty(longhands[0]->PropertyID(), gridLanesFlowShorthand().id(),
+              *grid_lanes_direction, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  AddProperty(longhands[1]->PropertyID(), gridLanesFlowShorthand().id(),
+              *grid_lanes_fill, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* GridLanesFlow::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForShorthandProperty(
+      gridLanesFlowShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool GridRow::ParseShorthand(
@@ -2822,7 +3051,7 @@ bool GridTemplate::ParseShorthand(
 
 bool GridTemplate::IsLayoutDependent(const ComputedStyle* style,
                                      LayoutObject* layout_object) const {
-  return layout_object && layout_object->IsLayoutGridOrMasonry();
+  return layout_object && layout_object->IsLayoutGridOrGridLanes();
 }
 
 const CSSValue* GridTemplate::CSSValueFromComputedStyleInternal(
@@ -3148,173 +3377,6 @@ const CSSValue* Marker::CSSValueFromComputedStyleInternal(
     return marker_start;
   }
   return nullptr;
-}
-
-bool Masonry::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  String masonry_template_areas;
-  bool is_template_columns = true;
-  const CSSValue* template_areas =
-      GetCSSPropertyGridTemplateAreas().InitialValue();
-  const CSSValue* masonry_direction =
-      CSSIdentifierValue::Create(CSSValueID::kColumn);
-  const CSSValue* masonry_fill =
-      CSSIdentifierValue::Create(CSSValueID::kNormal);
-
-  // Retrieve the string of `masonry_template_areas`. We'll parse it into
-  // appropriate `grid-template-areas` based on the `masonry-direction`.
-  if (stream.Peek().GetType() == kStringToken) {
-    masonry_template_areas =
-        stream.ConsumeIncludingWhitespace().Value().ToString();
-  }
-
-  // Retrieve the `masonry_template_tracks`, which can be either
-  // `grid-template-columns` or `grid-template-rows`
-  const CSSValue* masonry_template_tracks =
-      css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(
-          stream, context,
-          /*is_masonry_shorthand=*/true);
-  if (!masonry_template_tracks) {
-    return false;
-  }
-  stream.ConsumeWhitespace();
-
-  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kRowReverse,
-                                      CSSValueID::kColumn,
-                                      CSSValueID::kColumnReverse>(
-          stream.Peek().Id())) {
-    if (css_parsing_utils::IdentMatches<CSSValueID::kRow,
-                                        CSSValueID::kRowReverse>(
-            stream.Peek().Id())) {
-      is_template_columns = false;
-    }
-    masonry_direction = css_parsing_utils::ConsumeIdent(stream);
-  }
-
-  if (css_parsing_utils::IdentMatches<CSSValueID::kNormal,
-                                      CSSValueID::kReverse>(
-          stream.Peek().Id())) {
-    masonry_fill = css_parsing_utils::ConsumeIdent(stream);
-  }
-
-  // At this point, we should be at the end of the stream or at an !important
-  // token. If not, we should return false.
-  if (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
-                           stream.Peek().Delimiter() == '!')) {
-    return false;
-  }
-
-  // Parse `masonry_template_areas` into the appropriate `grid-template-areas`
-  // value.
-  // - `masonry_template_areas` is a single space-separated string.
-  // - If `masonry-direction` is column, use the string as a single row (e.g.,
-  // "a b c d" -> "a b c d").
-  // - If `masonry-direction` is row, split the string into multiple rows, one
-  // per area name (e.g., "a b c d" -> "a" "b" "c" "d"). This ensures the
-  // correct mapping to the CSS `grid-template-areas` syntax based on the
-  // `masonry-direction`.
-  if (!masonry_template_areas.ContainsOnlyWhitespaceOrEmpty()) {
-    template_areas = css_parsing_utils::ParseMasonryTemplateAreasValue(
-        masonry_template_areas, is_template_columns);
-    if (!template_areas) {
-      return false;
-    }
-  }
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kGridTemplateAreas, CSSPropertyID::kMasonry,
-      *template_areas, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  if (is_template_columns) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kMasonry,
-        *masonry_template_tracks, important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  } else {
-    // For `grid_template_rows`, since it is not included in the masonry
-    // shorthand's property list, we need to add it manually here rather than
-    // using the AddProperty helper.
-    properties.push_back(
-        CSSPropertyValue(CSSPropertyName(CSSPropertyID::kGridTemplateRows),
-                         *masonry_template_tracks, important));
-  }
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kMasonryDirection, CSSPropertyID::kMasonry,
-      *masonry_direction, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kMasonryFill, CSSPropertyID::kMasonry, *masonry_fill,
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-
-  return true;
-}
-
-const CSSValue* Masonry::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForMasonryShorthand(
-      masonryShorthand(), style, layout_object, allow_visited_style,
-      value_phase);
-}
-
-bool Masonry::IsLayoutDependent(const ComputedStyle* style,
-                                LayoutObject* layout_object) const {
-  return layout_object && layout_object->IsLayoutMasonry();
-}
-
-bool MasonryFlow::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  const StylePropertyShorthand::Properties& longhands =
-      masonryFlowShorthand().properties();
-  DCHECK_EQ(longhands.size(), 2u);
-
-  if (longhands[0]->PropertyID() != CSSPropertyID::kMasonryDirection ||
-      longhands[1]->PropertyID() != CSSPropertyID::kMasonryFill) {
-    return false;
-  }
-
-  const CSSValue* masonry_direction = css_parsing_utils::ParseLonghand(
-      longhands[0]->PropertyID(), masonryFlowShorthand().id(), context, stream);
-
-  if (!masonry_direction) {
-    return false;
-  }
-
-  const CSSValue* masonry_fill = css_parsing_utils::ParseLonghand(
-      longhands[1]->PropertyID(), masonryFlowShorthand().id(), context, stream);
-
-  if (!masonry_fill) {
-    return false;
-  }
-
-  AddProperty(longhands[0]->PropertyID(), masonryFlowShorthand().id(),
-              *masonry_direction, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(longhands[1]->PropertyID(), masonryFlowShorthand().id(),
-              *masonry_fill, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-
-  return true;
-}
-
-const CSSValue* MasonryFlow::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      masonryFlowShorthand(), style, layout_object, allow_visited_style,
-      value_phase);
 }
 
 bool Offset::ParseShorthand(
@@ -4128,50 +4190,6 @@ static CSSValue* CSSValueForTimelineShorthand(
 
 }  // namespace
 
-bool ScrollStart::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* block_value =
-      css_parsing_utils::ConsumeScrollStart(stream, context);
-  if (!block_value) {
-    return false;
-  }
-  CSSValue* inline_value =
-      css_parsing_utils::ConsumeScrollStart(stream, context);
-  if (!inline_value) {
-    inline_value = CSSIdentifierValue::Create(CSSValueID::kStart);
-  }
-  AddProperty(scrollStartShorthand().properties()[0]->PropertyID(),
-              scrollStartShorthand().id(), *block_value, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(scrollStartShorthand().properties()[1]->PropertyID(),
-              scrollStartShorthand().id(), *inline_value, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  return true;
-}
-
-const CSSValue* ScrollStart::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  const CSSValue* block_value =
-      scrollStartShorthand().properties()[0]->CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style, value_phase);
-  const CSSValue* inline_value =
-      scrollStartShorthand().properties()[1]->CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style, value_phase);
-  if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(inline_value);
-      !ident_value || ident_value->GetValueID() != CSSValueID::kStart) {
-    return MakeGarbageCollected<CSSValuePair>(
-        block_value, inline_value, CSSValuePair::kDropIdenticalValues);
-  }
-  return block_value;
-}
-
 bool ScrollTimeline::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
@@ -4298,57 +4316,87 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  TimelineOffset default_start(TimelineOffset::NamedRange::kNone,
+                               Length::Percent(0));
+  TimelineOffset default_end(TimelineOffset::NamedRange::kNone,
+                             Length::Percent(100));
+
   if (const CSSAnimationData* animation_data = style.Animations()) {
     CSSValueList* triggers_list = CSSValueList::CreateCommaSeparated();
     for (wtf_size_t i = 0; i < animation_data->TimelineTriggerNameList().size();
          ++i) {
-      CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+      CSSValueList* list = CSSValueList::CreateSlashSeparated();
+      CSSValueList* before_slash = CSSValueList::CreateSpaceSeparated();
 
-      std::optional<Persistent<const ScopedCSSName>> name =
-          animation_data->TimelineTriggerNameList().at(i);
-      list->Append(
-          name ? *ComputedStyleUtils::ValueForCustomIdentOrNone(name->Get())
-               : *CSSIdentifierValue::Create(CSSValueID::kNone));
+      if (std::optional<Member<const ScopedCSSName>> name =
+              animation_data->TimelineTriggerNameList().at(i)) {
+        if (name->Get()) {
+          before_slash->Append(*MakeGarbageCollected<CSSCustomIdentValue>(
+              name->Get()->GetName()));
+        }
+      }
 
-      list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
-          animation_data->TimelineTriggerSourceList().at(i), style));
+      const CSSValue* timeline_value =
+          ComputedStyleUtils::ValueForAnimationTimeline(
+              animation_data->TimelineTriggerSourceList().at(i), style);
+      if (timeline_value &&
+          (!timeline_value->IsIdentifierValue() ||
+           To<CSSIdentifierValue>(timeline_value)->GetValueID() !=
+               CSSValueID::kAuto)) {
+        before_slash->Append(*timeline_value);
+      }
 
-      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
-          animation_data->TimelineTriggerRangeStartList().at(i), style,
-          Length::Percent(0.0)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
-          animation_data->TimelineTriggerRangeEndList().at(i), style,
-          Length::Percent(100)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
-          animation_data->TimelineTriggerExitRangeStartList().at(i), style,
-          Length::Percent(0.0)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
-          animation_data->TimelineTriggerExitRangeEndList().at(i), style,
-          Length::Percent(100)));
+      const CSSValueList* enter_range =
+          SingleAnimationRangeCSSValueFromComputedStyle(
+              style, animation_data->TimelineTriggerRangeStartList().at(i),
+              animation_data->TimelineTriggerRangeEndList().at(i),
+              default_start, default_end);
+      DCHECK(enter_range->length());
+      // Skip a value of 'normal' as that is the default for the enter range.
+      bool skip_enter_range = false;
+      if (enter_range->length() == 1) {
+        const CSSIdentifierValue* enter_identifier =
+            DynamicTo<CSSIdentifierValue>(enter_range->Item(0));
+        if (enter_identifier &&
+            enter_identifier->GetValueID() == CSSValueID::kNormal) {
+          skip_enter_range = true;
+        }
+      }
+      if (!skip_enter_range) {
+        before_slash->Append(*enter_range);
+      }
+      list->Append(*before_slash);
+
+      const CSSValueList* exit_range =
+          SingleTimelineTriggerExitRangeCSSValueFromComputedStyle(
+              style, animation_data->TimelineTriggerExitRangeStartList().at(i),
+              animation_data->TimelineTriggerExitRangeEndList().at(i),
+              default_start, default_end);
+      DCHECK(exit_range->length());
+      // Skip a value of 'auto' as that is the default for the exit range.
+      bool skip_exit_range = false;
+      if (exit_range->length() == 1) {
+        const CSSIdentifierValue* exit_identifier =
+            DynamicTo<CSSIdentifierValue>(exit_range->Item(0));
+        if (exit_identifier &&
+            exit_identifier->GetValueID() == CSSValueID::kAuto) {
+          skip_exit_range = true;
+        }
+      }
+      if (!skip_exit_range) {
+        list->Append(*exit_range);
+      }
+
+      if (list->length() == 0) {
+        list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+      }
 
       triggers_list->Append(*list);
     }
     return triggers_list;
   }
 
-  CSSValueList* default_list = CSSValueList::CreateSpaceSeparated();
-  default_list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
-  default_list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
-      CSSAnimationData::InitialTimelineTriggerSource(), style));
-  default_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
-      CSSAnimationData::InitialTimelineTriggerRangeStart(), style,
-      Length::Percent(0.0)));
-  default_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
-      CSSAnimationData::InitialTimelineTriggerRangeEnd(), style,
-      Length::Percent(100)));
-  default_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
-      CSSAnimationData::InitialTimelineTriggerExitRangeStart(), style,
-      Length::Percent(0.0)));
-  default_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
-      CSSAnimationData::InitialTimelineTriggerExitRangeEnd(), style,
-      Length::Percent(100)));
-
-  return default_list;
+  return CSSIdentifierValue::Create(CSSValueID::kNone);
 }
 
 bool TimelineTrigger::ParseShorthand(
@@ -4378,6 +4426,85 @@ bool TimelineTrigger::ParseShorthand(
   return true;
 }
 
+const CSSValue* TimelineTriggerRange::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Vector<std::optional<TimelineOffset>>& trigger_range_start_list =
+      style.Animations()
+          ? style.Animations()->TimelineTriggerRangeStartList()
+          : Vector<std::optional<TimelineOffset>>{
+                CSSAnimationData::InitialTimelineTriggerRangeStart()};
+  const Vector<std::optional<TimelineOffset>>& trigger_range_end_list =
+      style.Animations()
+          ? style.Animations()->TimelineTriggerRangeEndList()
+          : Vector<std::optional<TimelineOffset>>{
+                CSSAnimationData::InitialTimelineTriggerRangeEnd()};
+
+  return AnimationRangeCSSValueFromComputedStyle(
+      style, trigger_range_start_list, trigger_range_end_list);
+}
+
+bool TimelineTriggerRange::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand shorthand = timelineTriggerRangeShorthand();
+  DCHECK_EQ(2u, shorthand.length());
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerRangeStart(),
+            shorthand.properties()[0]);
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerRangeEnd(),
+            shorthand.properties()[1]);
+  return ParseAnimationRangeShorthand(shorthand,
+                                      CSSPropertyID::kTimelineTriggerRangeStart,
+                                      CSSPropertyID::kTimelineTriggerRangeEnd,
+                                      important, stream, context, properties,
+                                      /*allow_auto=*/false);
+}
+
+const CSSValue* TimelineTriggerExitRange::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Vector<TimelineOffsetOrAuto>& trigger_exit_range_start_list =
+      style.Animations()
+          ? style.Animations()->TimelineTriggerExitRangeStartList()
+          : Vector<TimelineOffsetOrAuto>{
+                CSSAnimationData::InitialTimelineTriggerExitRangeStart()};
+  const Vector<TimelineOffsetOrAuto>& trigger_exit_range_end_list =
+      style.Animations()
+          ? style.Animations()->TimelineTriggerExitRangeEndList()
+          : Vector<TimelineOffsetOrAuto>{
+                CSSAnimationData::InitialTimelineTriggerExitRangeEnd()};
+
+  return TimelineTriggerExitRangeCSSValueFromComputedStyle(
+      style, trigger_exit_range_start_list, trigger_exit_range_end_list);
+}
+
+bool TimelineTriggerExitRange::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand shorthand = timelineTriggerExitRangeShorthand();
+  DCHECK_EQ(2u, shorthand.length());
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerExitRangeStart(),
+            shorthand.properties()[0]);
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerExitRangeEnd(),
+            shorthand.properties()[1]);
+
+  return ParseAnimationRangeShorthand(
+      shorthand, CSSPropertyID::kTimelineTriggerExitRangeStart,
+      CSSPropertyID::kTimelineTriggerExitRangeEnd, important, stream, context,
+      properties,
+      /*allow_auto=*/true);
+}
+
 namespace {
 
 CSSValue* ConsumeTransitionValue(CSSPropertyID property,
@@ -4395,11 +4522,7 @@ CSSValue* ConsumeTransitionValue(CSSPropertyID property,
     case CSSPropertyID::kTransitionTimingFunction:
       return css_parsing_utils::ConsumeAnimationTimingFunction(stream, context);
     case CSSPropertyID::kTransitionBehavior:
-      if (css_parsing_utils::IsValidTransitionBehavior(stream.Peek().Id())) {
-        return CSSIdentifierValue::Create(
-            stream.ConsumeIncludingWhitespace().Id());
-      }
-      return nullptr;
+      return css_parsing_utils::ConsumeTransitionBehavior(stream);
     default:
       NOTREACHED();
   }

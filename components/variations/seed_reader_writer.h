@@ -236,6 +236,10 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
     return stored_seed_info_.data();
   }
 
+  // Calls `done_callback` with the stored seed info for debugging.
+  void GetStoredSeedInfoForDebugging(
+      base::OnceCallback<void(StoredSeedInfo)> done_callback);
+
   // Compresses the contents using the same function as SeedReaderWriter for
   // writing to the seed file. This is needed because the compression function
   // is different on Android.
@@ -249,6 +253,9 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
       std::string* uncompressed_contents);
 
   static std::size_t MaxUncompressedSeedSizeForTesting();
+
+  // Converts a time from StoredSeedInfo proto format (int64_t) to a base::Time.
+  static base::Time ProtoTimeToTime(int64_t proto_time);
 
  private:
   // The storage format of the seed data.

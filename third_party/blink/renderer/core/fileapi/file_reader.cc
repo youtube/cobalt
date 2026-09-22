@@ -48,7 +48,6 @@
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
@@ -73,22 +72,18 @@ static const size_t kMaxOutstandingRequestsPerThread = 100;
 static const base::TimeDelta kProgressNotificationInterval =
     base::Milliseconds(50);
 
-class FileReader::ThrottlingController final
-    : public GarbageCollected<FileReader::ThrottlingController>,
-      public Supplement<ExecutionContext> {
+class ThrottlingController final
+    : public GarbageCollected<ThrottlingController>,
+      public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kThrottlingController;
-
   static ThrottlingController* From(ExecutionContext* context) {
     if (!context)
       return nullptr;
 
-    ThrottlingController* controller =
-        Supplement<ExecutionContext>::From<ThrottlingController>(*context);
+    ThrottlingController* controller = context->GetThrottlingController();
     if (!controller) {
       controller = MakeGarbageCollected<ThrottlingController>(*context);
-      ProvideTo(*context, controller);
+      context->SetThrottlingController(controller);
     }
     return controller;
   }
@@ -125,13 +120,13 @@ class FileReader::ThrottlingController final
   }
 
   explicit ThrottlingController(ExecutionContext& context)
-      : Supplement<ExecutionContext>(context),
+      : execution_context_(context),
         max_running_readers_(kMaxOutstandingRequestsPerThread) {}
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(pending_readers_);
     visitor->Trace(running_readers_);
-    Supplement<ExecutionContext>::Trace(visitor);
+    visitor->Trace(execution_context_);
   }
 
  private:
@@ -172,8 +167,9 @@ class FileReader::ThrottlingController final
   void ExecuteReaders() {
     // Dont execute more readers if the context is already destroyed (or in the
     // process of being destroyed).
-    if (GetSupplementable()->IsContextDestroyed())
+    if (execution_context_->IsContextDestroyed()) {
       return;
+    }
     while (running_readers_.size() < max_running_readers_) {
       if (pending_readers_.empty())
         return;
@@ -183,6 +179,7 @@ class FileReader::ThrottlingController final
     }
   }
 
+  Member<ExecutionContext> execution_context_;
   const size_t max_running_readers_;
 
   using FileReaderDeque = HeapDeque<Member<FileReader>>;

@@ -46,10 +46,10 @@
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/devtools_socket_factory.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_constants.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "net/base/io_buffer.h"
-#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
@@ -71,9 +71,6 @@ extern const int kCcompressedProtocolJSON;
 namespace content {
 
 namespace {
-
-const base::FilePath::CharType kDevToolsActivePortFileName[] =
-    FILE_PATH_LITERAL("DevToolsActivePort");
 
 const char kDevToolsHandlerThreadName[] = "Chrome_DevToolsHandlerThread";
 
@@ -392,7 +389,19 @@ static bool TimeComparator(scoped_refptr<DevToolsAgentHost> host1,
 
 // DevToolsHttpHandler -------------------------------------------------------
 
+net::IPEndPoint DevToolsHttpHandler::GetServerIpAddress() const {
+  if (server_ip_address_) {
+    return *server_ip_address_;
+  }
+  return net::IPEndPoint();
+}
+
 DevToolsHttpHandler::~DevToolsHttpHandler() {
+  if (delegate_ &&
+      mode_ ==
+          DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    delegate_->SetActiveWebSocketConnections(0);
+  }
   // Disconnecting sessions might lead to the last minute messages generated
   // by the targets. It is essential that this happens before we issue delete
   // soon for the server wrapper.
@@ -563,6 +572,11 @@ static bool ParseJsonPath(
 void DevToolsHttpHandler::OnJsonRequest(
     int connection_id,
     const net::HttpServerRequestInfo& info) {
+  if (mode_ ==
+      DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    Send404(connection_id);
+    return;
+  }
   // Trim /json
   std::string path = info.path.substr(5);
 
@@ -730,6 +744,11 @@ void DevToolsHttpHandler::RespondToJsonList(int connection_id,
 }
 
 void DevToolsHttpHandler::OnDiscoveryPageRequest(int connection_id) {
+  if (mode_ ==
+      DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    Send404(connection_id);
+    return;
+  }
   net::HttpServerResponseInfo response(net::HTTP_OK);
   response.AddHeader("X-Frame-Options", "DENY");
   response.SetBody(delegate_->GetDiscoveryPageHTML(),
@@ -743,6 +762,11 @@ void DevToolsHttpHandler::OnDiscoveryPageRequest(int connection_id) {
 
 void DevToolsHttpHandler::OnFrontendResourceRequest(
     int connection_id, const std::string& path) {
+  if (mode_ ==
+      DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    Send404(connection_id);
+    return;
+  }
 #if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   Send200(connection_id,
           content::DevToolsFrontendHost::GetFrontendResource(path),
@@ -750,6 +774,26 @@ void DevToolsHttpHandler::OnFrontendResourceRequest(
 #else
   Send404(connection_id);
 #endif
+}
+
+void DevToolsHttpHandler::HandleDebuggingApproval(
+    int connection_id,
+    const net::HttpServerRequestInfo& request,
+    DevToolsManagerDelegate::AcceptConnectionResult result) {
+  if (result == DevToolsManagerDelegate::AcceptConnectionResult::kAllow) {
+    scoped_refptr<DevToolsAgentHost> browser_agent =
+        DevToolsAgentHost::CreateForBrowser(
+            thread_->task_runner(),
+            base::BindRepeating(&DevToolsSocketFactory::CreateForTethering,
+                                base::Unretained(socket_factory_.get())));
+    connection_to_client_[connection_id] =
+        std::make_unique<DevToolsAgentHostClientImpl>(
+            thread_->task_runner(), server_wrapper_.get(), connection_id,
+            browser_agent);
+    AcceptWebSocket(connection_id, request);
+  } else {
+    Send403(connection_id, "Connection rejected");
+  }
 }
 
 void DevToolsHttpHandler::OnWebSocketRequest(
@@ -770,6 +814,21 @@ void DevToolsHttpHandler::OnWebSocketRequest(
         origin.c_str(), origin.c_str());
     Send403(connection_id, message);
     LOG(ERROR) << message;
+    return;
+  }
+
+  // If we require user approval, we do not require guid.
+  if (mode_ ==
+      DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    if (base::StartsWith(request.path, kBrowserUrlPrefix,
+                         base::CompareCase::SENSITIVE)) {
+      delegate_->AcceptDebugging(
+          base::BindOnce(&DevToolsHttpHandler::HandleDebuggingApproval,
+                         weak_factory_.GetWeakPtr(), connection_id, request));
+
+      return;
+    }
+    Send403(connection_id, "Connection rejected");
     return;
   }
 
@@ -818,15 +877,21 @@ void DevToolsHttpHandler::OnWebSocketMessage(int connection_id,
 }
 
 void DevToolsHttpHandler::OnClose(int connection_id) {
-  connection_to_client_.erase(connection_id);
+  auto removed_count = connection_to_client_.erase(connection_id);
+  if (delegate_ && removed_count > 0 &&
+      mode_ ==
+          DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    delegate_->SetActiveWebSocketConnections(connection_to_client_.size());
+  }
 }
 
 DevToolsHttpHandler::DevToolsHttpHandler(
     DevToolsManagerDelegate* delegate,
     std::unique_ptr<DevToolsSocketFactory> socket_factory,
     const base::FilePath& output_directory,
-    const base::FilePath& debug_frontend_dir)
-    : delegate_(delegate) {
+    const base::FilePath& debug_frontend_dir,
+    DevToolsAgentHost::RemoteDebuggingServerMode mode)
+    : mode_(mode), delegate_(delegate) {
   browser_guid_ =
       delegate_->IsBrowserTargetDiscoverable()
           ? kBrowserUrlPrefix
@@ -940,6 +1005,10 @@ void DevToolsHttpHandler::AcceptWebSocket(
     const net::HttpServerRequestInfo& request) {
   if (!thread_)
     return;
+  if (mode_ ==
+      DevToolsAgentHost::RemoteDebuggingServerMode::kWithApprovalOnly) {
+    delegate_->SetActiveWebSocketConnections(connection_to_client_.size());
+  }
   thread_->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServerWrapper::AcceptWebSocket,
                                 base::Unretained(server_wrapper_.get()),

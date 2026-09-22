@@ -33,10 +33,25 @@ namespace webrtc {
 DtlsTransport::DtlsTransport(std::unique_ptr<DtlsTransportInternal> internal)
     : owner_thread_(Thread::Current()),
       info_(DtlsTransportState::kNew),
-      internal_dtls_transport_(std::move(internal)),
+      owned_internal_dtls_transport_(std::move(internal)),
+      internal_dtls_transport_(owned_internal_dtls_transport_.get()),
       ice_transport_(make_ref_counted<IceTransportWithPointer>(
           internal_dtls_transport_->ice_transport())) {
-  RTC_DCHECK(internal_dtls_transport_.get());
+  RTC_DCHECK(internal_dtls_transport_);
+  internal_dtls_transport_->SubscribeDtlsTransportState(
+      [this](DtlsTransportInternal* transport, DtlsTransportState state) {
+        OnInternalDtlsState(transport, state);
+      });
+  UpdateInformation();
+}
+
+DtlsTransport::DtlsTransport(DtlsTransportInternal* internal)
+    : owner_thread_(Thread::Current()),
+      info_(DtlsTransportState::kNew),
+      internal_dtls_transport_(internal),
+      ice_transport_(make_ref_counted<IceTransportWithPointer>(
+          internal_dtls_transport_->ice_transport())) {
+  RTC_DCHECK(internal_dtls_transport_);
   internal_dtls_transport_->SubscribeDtlsTransportState(
       [this](DtlsTransportInternal* transport, DtlsTransportState state) {
         OnInternalDtlsState(transport, state);
@@ -86,7 +101,8 @@ void DtlsTransport::Clear() {
   RTC_DCHECK(internal());
   bool must_send_event =
       (internal()->dtls_state() != DtlsTransportState::kClosed);
-  internal_dtls_transport_.reset();
+  owned_internal_dtls_transport_.reset();
+  internal_dtls_transport_ = nullptr;
   ice_transport_->Clear();
   UpdateInformation();
   if (observer_ && must_send_event) {

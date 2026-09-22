@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/task/thread_pool.h"
 #include "chromeos/ash/components/kcer/attributes.pb.h"
@@ -155,7 +156,7 @@ Pkcs11Id GetPkcs11IdFromSpki(const PublicKeySpki& public_key_spki) {
 
   if (key->IsEc()) {
     // Backwards compatible with how NSS generated CKA_ID for EC keys.
-    return MakePkcs11Id(key->ToUncompressedForm());
+    return MakePkcs11Id(key->ToUncompressedX962Point());
   }
 
   return {};

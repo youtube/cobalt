@@ -128,7 +128,6 @@ rtc_library("rtc_media_base") {
     "../rtc_base/system:file_wrapper",
     "../rtc_base/system:no_unique_address",
     "../rtc_base/system:rtc_export",
-    "../rtc_base/third_party/sigslot",
     "../video/config:encoder_config",
     "//third_party/abseil-cpp/absl/base:core_headers",
   ]
@@ -742,6 +741,7 @@ if (rtc_build_dcsctp) {
       ":media_channel",
       ":rtc_data_sctp_transport_internal",
       "../api:array_view",
+      "../api:data_channel_interface",
       "../api:dtls_transport_interface",
       "../api:field_trials_view",
       "../api:libjingle_peerconnection_api",
@@ -902,7 +902,6 @@ if (rtc_include_tests) {
       "../rtc_base/network:sent_packet",
       "../rtc_base/synchronization:mutex",
       "../rtc_base/system:file_wrapper",
-      "../rtc_base/third_party/sigslot",
       "../test:create_test_field_trials",
       "../test:test_support",
       "../video/config:encoder_config",

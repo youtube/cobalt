@@ -16,6 +16,7 @@ schema_sources_ = [
   "cookies.json",
   "context_menus.json",
   "debugger.json",
+  "desktop_capture.json",
   "developer_private.idl",
   "downloads.idl",
   "downloads_internal.idl",
@@ -33,6 +34,7 @@ schema_sources_ = [
   "reading_list.webidl",
   "search.idl",
   "scripting.idl",
+  "tab_capture.idl",
   "tabs.json",
   "web_authentication_proxy.webidl",
   "web_navigation.json",
@@ -74,7 +76,6 @@ if (enable_extensions) {
     "chrome_web_view_internal.json",
     "command_line_private.json",
     "content_settings.json",
-    "desktop_capture.json",
     "crash_report_private.idl",
     "enterprise_reporting_private.idl",
     "image_writer_private.idl",
@@ -86,7 +87,6 @@ if (enable_extensions) {
     "settings_private.idl",
     "side_panel.idl",
     "system_private.json",
-    "tab_capture.idl",
     "tab_groups.json",
 
     # Despite the name, these APIs do not rely on any WebRTC-specific bits and

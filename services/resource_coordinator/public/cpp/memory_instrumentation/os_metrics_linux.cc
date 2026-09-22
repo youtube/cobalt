@@ -11,8 +11,6 @@
 
 #include <memory>
 
-#include "base/android/library_loader/anchor_functions.h"
-#include "base/android/library_loader/anchor_functions_buildflags.h"
 #include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/elf_reader.h"
@@ -32,6 +30,11 @@
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/library_loader/anchor_functions.h"
+#include "base/android/library_loader/anchor_functions_buildflags.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #include <atomic>

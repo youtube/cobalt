@@ -113,12 +113,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // - If Foo is not lowered before reaching the instruction selector, handle
 //   Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
 
-#ifdef V8_INTL_SUPPORT
-#define TURBOSHAFT_INTL_OPERATION_LIST(V) V(StringToCaseIntl)
-#else
-#define TURBOSHAFT_INTL_OPERATION_LIST(V)
-#endif  // V8_INTL_SUPPORT
-
 #ifdef V8_ENABLE_WEBASSEMBLY
 // These operations should be lowered to Machine operations during
 // WasmLoweringPhase.
@@ -231,7 +225,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These operations should be lowered to Machine operations during
 // MachineLoweringPhase.
 #define TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V) \
-  TURBOSHAFT_INTL_OPERATION_LIST(V)             \
   TURBOSHAFT_CPED_OPERATION_LIST(V)             \
   V(ArgumentsLength)                            \
   V(BigIntBinop)                                \
@@ -253,7 +246,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ConvertJSPrimitiveToUntagged)               \
   V(ConvertJSPrimitiveToUntaggedOrDeopt)        \
   V(ConvertUntaggedToJSPrimitive)               \
-  V(ConvertUntaggedToJSPrimitiveOrDeopt)        \
+  V(ConvertWordToSmiOrDeopt)                    \
   V(TruncateJSPrimitiveToUntagged)              \
   V(TruncateJSPrimitiveToUntaggedOrDeopt)       \
   V(DoubleArrayMinMax)                          \
@@ -261,13 +254,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(FastApiCall)                                \
   V(FindOrderedHashEntry)                       \
   V(LoadDataViewElement)                        \
-  V(LoadDataViewElementFromDataPointer)         \
   V(LoadFieldByIndex)                           \
   V(LoadMessage)                                \
   V(LoadStackArgument)                          \
   V(LoadTypedElement)                           \
   V(StoreDataViewElement)                       \
-  V(StoreDataViewElementToDataPointer)          \
   V(StoreMessage)                               \
   V(StoreTypedElement)                          \
   V(MaybeGrowFastElements)                      \
@@ -284,6 +275,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringOrOddballStrictEqual)                 \
   V(TypedArrayLength)                           \
   V(StringSubstring)                            \
+  V(StringSlice)                                \
   V(NewConsString)                              \
   V(TransitionAndStoreArrayElement)             \
   V(TransitionElementsKind)                     \
@@ -326,6 +318,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   IF_WASM(V, SetStackPointer)                \
   IF_WASM(V, MemoryCopy)                     \
   IF_WASM(V, MemoryFill)                     \
+  IF_WASM(V, WasmFXArgBuffer)                \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -341,11 +334,16 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Comment)                                 \
   V(Dead)                                    \
   V(AbortCSADcheck)                          \
-  V(Pause)
+  V(Pause)                                   \
+  IF_HARDWARE_SANDBOX(V, SwitchSandboxMode)
 
+// TODO(dmercadier): StringToCaseIntl is not a JS but rather a Simplified
+// operation. Consider creating a SIMPLIFIED_THROWING_OP_LIST for it, or
+// lowering it already during graph building.
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
   V(GenericUnop)                                 \
+  IF_INTL(V, StringToCaseIntl)                   \
   V(ToNumberOrNumeric)
 
 #define TURBOSHAFT_JS_OPERATION_LIST(V)        \
@@ -356,6 +354,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // MachineLoweringPhase.
 #define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
   V(Allocate)                              \
+  V(MajorGCForCompilerTesting)             \
   V(DecodeExternalPointer)                 \
   V(JSStackCheck)
 
@@ -2600,10 +2599,17 @@ struct PhiOp : OperationT<PhiOp> {
     return base::VectorOf(storage);
   }
 
-  static constexpr size_t kLoopPhiBackEdgeIndex = 1;
-
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(inputs), rep(rep) {}
+
+  // Helpers to access loop phis forward/backedge. These should only be used for
+  // loop phis (which isn't trivial to DCHECK since PhiOp doesn't know if it's a
+  // loop phi or not).
+  static constexpr size_t kLoopPhiForwardEdgeIndex = 0;
+  static constexpr size_t kLoopPhiBackEdgeIndex = 1;
+  static constexpr size_t kLoopPhiInputCount = 2;
+  V<Any> forward_edge() const { return input<Any>(kLoopPhiForwardEdgeIndex); }
+  V<Any> back_edge() const { return input<Any>(kLoopPhiBackEdgeIndex); }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
@@ -3001,19 +3007,19 @@ struct LoadOp : OperationT<LoadOp> {
                  : LoadOp::Kind::RawUnaligned();
     }
 
-    constexpr Kind NotLoadEliminable() {
+    [[nodiscard]] constexpr Kind NotLoadEliminable() {
       Kind new_kind = *this;
       new_kind.load_eliminable = false;
       return new_kind;
     }
 
-    constexpr Kind Immutable() const {
+    [[nodiscard]] constexpr Kind Immutable() const {
       Kind new_kind(*this);
       new_kind.is_immutable = true;
       return new_kind;
     }
 
-    constexpr Kind Atomic() const {
+    [[nodiscard]] constexpr Kind Atomic() const {
       Kind new_kind(*this);
       new_kind.is_atomic = true;
       return new_kind;
@@ -3400,6 +3406,28 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            AtomicWord32PairOp::Kind kind);
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+struct SwitchSandboxModeOp : FixedArityOperationT<0, SwitchSandboxModeOp> {
+  CodeSandboxingMode sandbox_mode;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanReadHeapMemory().CanWriteMemory();
+
+  explicit SwitchSandboxModeOp(CodeSandboxingMode sandbox_mode)
+      : Base(), sandbox_mode(sandbox_mode) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  auto options() const { return std::tuple{sandbox_mode}; }
+  void PrintOptions(std::ostream& os) const;
+};
+#endif
 
 struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
   AtomicMemoryOrder memory_order;
@@ -4052,7 +4080,46 @@ struct MemoryFillOp : FixedArityOperationT<3, MemoryFillOp> {
   V<Word32> value() const { return input<Word32>(1); }
   V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
 };
+
+// Materialize the arg buffer passed from the suspend instruction to the
+// target effect handler, similar to how we materialize the exception or
+// continuation object in CatchBlockBeginOp.
+struct WasmFXArgBufferOp : FixedArityOperationT<0, WasmFXArgBufferOp> {
+  // This op should always appear at the start of a wasm effect handler block,
+  // when the fixed register has not been clobbered yet.
+  // Conservatively assume arbitrary side effects to prevent reordering.
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::WordPtr()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  WasmFXArgBufferOp() : Base() {}
+  auto options() const { return std::tuple{}; }
+};
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+struct MajorGCForCompilerTestingOp
+    : FixedArityOperationT<0, MajorGCForCompilerTestingOp> {
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().RequiredWhenUnused().CanAllocate();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<>();
+  }
+
+  explicit MajorGCForCompilerTestingOp() : Base() {}
+
+  auto options() const { return std::tuple{}; }
+};
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
   const char* source;
@@ -5008,16 +5075,12 @@ struct ConvertUntaggedToJSPrimitiveOp
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind);
 
-struct ConvertUntaggedToJSPrimitiveOrDeoptOp
-    : FixedArityOperationT<2, ConvertUntaggedToJSPrimitiveOrDeoptOp> {
-  enum class JSPrimitiveKind : uint8_t {
-    kSmi,
-  };
+struct ConvertWordToSmiOrDeoptOp
+    : FixedArityOperationT<2, ConvertWordToSmiOrDeoptOp> {
   enum class InputInterpretation : uint8_t {
     kSigned,
     kUnsigned,
   };
-  JSPrimitiveKind kind;
   RegisterRepresentation input_rep;
   InputInterpretation input_interpretation;
   FeedbackSource feedback;
@@ -5034,15 +5097,14 @@ struct ConvertUntaggedToJSPrimitiveOrDeoptOp
     return InputsRepFactory::SingleRep(input_rep);
   }
 
-  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  V<Word> input() const { return Base::input<Word>(0); }
   V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  ConvertUntaggedToJSPrimitiveOrDeoptOp(
-      V<Untagged> input, V<FrameState> frame_state, JSPrimitiveKind kind,
-      RegisterRepresentation input_rep,
-      InputInterpretation input_interpretation, const FeedbackSource& feedback)
+  ConvertWordToSmiOrDeoptOp(V<Word> input, V<FrameState> frame_state,
+                            RegisterRepresentation input_rep,
+                            InputInterpretation input_interpretation,
+                            const FeedbackSource& feedback)
       : Base(input, frame_state),
-        kind(kind),
         input_rep(input_rep),
         input_interpretation(input_interpretation),
         feedback(feedback) {}
@@ -5052,15 +5114,12 @@ struct ConvertUntaggedToJSPrimitiveOrDeoptOp
   }
 
   auto options() const {
-    return std::tuple{kind, input_rep, input_interpretation, feedback};
+    return std::tuple{input_rep, input_interpretation, feedback};
   }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
-    ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind);
-V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
-                          input_interpretation);
+    ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation);
 
 struct ConvertJSPrimitiveToUntaggedOp
     : FixedArityOperationT<1, ConvertJSPrimitiveToUntaggedOp> {
@@ -5693,7 +5752,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            StringAtOp::Kind kind);
 
 #ifdef V8_INTL_SUPPORT
-struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
+struct StringToCaseIntlOp : FixedArityOperationT<3, StringToCaseIntlOp> {
   enum class Kind : uint8_t {
     kLower,
     kUpper,
@@ -5702,14 +5761,15 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
 
   static constexpr OpEffects effects =
       OpEffects()
+          // Can thrown an exception.
+          .CanThrowOrTrap()
           // String content is immutable, the allocated result does not have
           // identity.
           .CanAllocateWithoutIdentity()
           // We rely on the input being a string.
           .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -5717,11 +5777,17 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
   }
 
   V<String> string() const { return Base::input<String>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<Context> context() const { return Base::input<Context>(2); }
 
-  StringToCaseIntlOp(V<String> string, Kind kind) : Base(string), kind(kind) {}
+  StringToCaseIntlOp(V<String> string, V<FrameState> frame_state,
+                     V<Context> context, Kind kind,
+                     LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(string, frame_state, context),
+        kind(kind),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            StringToCaseIntlOp::Kind kind);
@@ -5864,6 +5930,33 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
   StringSubstringOp(V<String> string, V<Word32> start, V<Word32> end)
       : Base(string, start, end) {}
 
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringSliceOp : FixedArityOperationT<3, StringSliceOp> {
+  static constexpr OpEffects effects =
+      OpEffects()
+          // String content is immutable, the allocated result does not have
+          // identity.
+          .CanAllocateWithoutIdentity()
+          // We rely on the input being a string.
+          .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Word32(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  V<String> string() const { return Base::input<String>(0); }
+
+  StringSliceOp(V<String> string, V<Word32> start, V<Word32> end)
+      : Base(string, start, end) {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -6123,38 +6216,6 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
   auto options() const { return std::tuple{element_type}; }
 };
 
-struct LoadDataViewElementFromDataPointerOp
-    : FixedArityOperationT<3, LoadDataViewElementFromDataPointerOp> {
-  ExternalArrayType element_type;
-
-  static constexpr OpEffects effects = OpEffects()
-                                           // We read mutable memory.
-                                           .CanReadMemory()
-                                           // We rely on the input type.
-                                           .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return VectorForRep(RegisterRepresentationForArrayType(element_type));
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
-                          MaybeRegisterRepresentation::WordPtr(),
-                          MaybeRegisterRepresentation::Word32()>();
-  }
-
-  OpIndex storage() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
-  OpIndex is_little_endian() const { return Base::input(2); }
-
-  LoadDataViewElementFromDataPointerOp(OpIndex storage, OpIndex index,
-                                       OpIndex is_little_endian,
-                                       ExternalArrayType element_type)
-      : Base(storage, index, is_little_endian), element_type(element_type) {}
-
-  auto options() const { return std::tuple{element_type}; }
-};
-
 struct LoadStackArgumentOp : FixedArityOperationT<2, LoadStackArgumentOp> {
   // Stack arguments are immutable, so reading them is pure.
   static constexpr OpEffects effects =
@@ -6251,42 +6312,6 @@ struct StoreDataViewElementOp
       : Base(object, storage, index, value, is_little_endian),
         element_type(element_type) {}
 
-
-  auto options() const { return std::tuple{element_type}; }
-};
-
-struct StoreDataViewElementToDataPointerOp
-    : FixedArityOperationT<4, StoreDataViewElementToDataPointerOp> {
-  ExternalArrayType element_type;
-
-  static constexpr OpEffects effects =
-      OpEffects()
-          // We are reading the backing store pointer and writing into it.
-          .CanReadMemory()
-          .CanWriteMemory()
-          // We rely on the input type and a valid index.
-          .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InitVectorOf(
-        storage,
-        {RegisterRepresentation::WordPtr(), RegisterRepresentation::WordPtr(),
-         RegisterRepresentationForArrayType(element_type),
-         RegisterRepresentation::Word32()});
-  }
-
-  OpIndex storage() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
-  OpIndex value() const { return Base::input(2); }
-  OpIndex is_little_endian() const { return Base::input(3); }
-
-  StoreDataViewElementToDataPointerOp(OpIndex storage, OpIndex index,
-                                      OpIndex value, OpIndex is_little_endian,
-                                      ExternalArrayType element_type)
-      : Base(storage, index, value, is_little_endian),
-        element_type(element_type) {}
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -9918,6 +9943,13 @@ struct ThrowingOpHasProperMembers<FastApiCallOp, void> : std::true_type {};
   static_assert(details::ThrowingOpHasLazyDeoptOption<Name##Op>());
 TURBOSHAFT_THROWING_OPERATIONS_LIST(THROWING_OP_LOOKS_VALID)
 #undef THROWING_OP_LOOKS_VALID
+
+// DecideObjectIsSmi tries to figure out if an OpIndex can be a Smi or not. For
+// instance, a SmiConstant is always a Smi, and a HeapObject constant is never a
+// Smi.
+enum class IsSmiDecision : uint8_t { kUnknown, kTrue, kFalse };
+IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx,
+                                int depth = 0);
 
 }  // namespace v8::internal::compiler::turboshaft
 

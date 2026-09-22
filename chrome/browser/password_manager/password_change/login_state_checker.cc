@@ -7,6 +7,7 @@
 #include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
@@ -83,7 +84,7 @@ LoginStateChecker::LoginStateChecker(
       logs_uploader_(CHECK_DEREF(logs_uploader)),
       client_(client),
       result_check_callback_(std::move(callback)) {
-  CheckLoginState();
+  CheckLoginState(/*ignore_attempts_limit=*/false);
 }
 
 LoginStateChecker::~LoginStateChecker() {
@@ -95,32 +96,33 @@ bool LoginStateChecker::ReachedAttemptsLimit() const {
   return state_checks_count_ >= kMaxLoginChecks;
 }
 
+void LoginStateChecker::RetryLoginCheck() {
+  capturer_.reset();
+  CheckLoginState(/*ignore_attempts_limit=*/true);
+}
+
 void LoginStateChecker::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   capturer_.reset();
-  CheckLoginState();
+  CheckLoginState(/*ignore_attempts_limit=*/false);
 }
 
 void LoginStateChecker::TerminateLoginChecks() {
-  std::unique_ptr<ModelQualityLogsUploader::LoggingData> logging_data =
-      std::make_unique<ModelQualityLogsUploader::LoggingData>();
-  logging_data->mutable_response()
-      ->mutable_is_logged_in_data()
-      ->set_is_logged_in(false);
-  logs_uploader_->SetLoggedInCheckQuality(state_checks_count_,
-                                          std::move(logging_data));
-  state_checks_count_ = kMaxLoginChecks;
-  result_check_callback_.Run(false);
+  // Reset content::WebContentsObserver.
+  Observe(nullptr);
+  capturer_.reset();
+  cached_page_content_ = std::nullopt;
+
+  result_check_callback_.Run(LoginCheckResult::kError);
 }
 
-void LoginStateChecker::CheckLoginState() {
+void LoginStateChecker::CheckLoginState(bool ignore_attempts_limit) {
   LogMessage(client_,
              SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_STARTED);
-  // Checks if the maximum number of attempts has been reached.
-  if (ReachedAttemptsLimit()) {
+  // Avoid checking further if maximum number of attempts has been reached.
+  if (!ignore_attempts_limit && ReachedAttemptsLimit()) {
     LogMessage(client_, SavePasswordProgressLogger::
                             STRING_LOGIN_STATE_CHECK_MAX_ATTEMPTS_REACHED);
-    TerminateLoginChecks();
     return;
   }
 
@@ -140,10 +142,11 @@ OptimizationGuideKeyedService* LoginStateChecker::GetOptimizationService() {
 }
 
 void LoginStateChecker::OnPageContentReceived(
-    std::optional<optimization_guide::AIPageContentResult> content) {
-  CHECK(content);
+    optimization_guide::AIPageContentResultOrError content) {
+  // TODO(bokan): Surely this shouldn't crash on failure?
+  CHECK(content.has_value());
   if (is_request_in_flight_) {
-    cached_page_content_ = std::move(content);
+    cached_page_content_.emplace(std::move(content.value()));
     return;
   }
 
@@ -216,11 +219,15 @@ void LoginStateChecker::OnExecutionResponseCallback(
 
   if (cached_page_content_.has_value() && !is_logged_in &&
       !ReachedAttemptsLimit()) {
-    OnPageContentReceived(std::move(cached_page_content_));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&LoginStateChecker::OnPageContentReceived,
+                                  weak_ptr_factory_.GetWeakPtr(),
+                                  std::move(cached_page_content_.value())));
     // Clear the page content to ensure that this check doesn't pass next time,
     // which would lead to a request with empty page content.
     cached_page_content_ = std::nullopt;
   }
 
-  result_check_callback_.Run(is_logged_in);
+  result_check_callback_.Run(is_logged_in ? LoginCheckResult::kLoggedIn
+                                          : LoginCheckResult::kLoggedOut);
 }

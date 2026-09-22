@@ -660,6 +660,16 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         (),
     ),
     BanRule(
+        '\brand\b',
+        (
+            'Use base/rand_util.h instead of rand(). The result of rand() is',
+            'based on a global random seed, which can be fully deterministic,',
+            'instead of random, if called at a specific time during startup.',
+        ),
+        True,
+        (),
+    ),
+    BanRule(
         '\bstd::aligned_(storage|union)\b',
         ('std::aligned_storage and std::aligned_union are deprecated in',
          'C++23. Use an aligned char array instead.'),
@@ -937,7 +947,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
 
             # Needed to use QUICHE API.
             r'android_webview/browser/ip_protection/.*',
-            r'chrome/browser/ip_protection/.*',
             r'components/ip_protection/.*',
             r'net/third_party/quiche/overrides/quiche_platform_impl/quiche_stack_trace_impl\.*',
             r'services/network/web_transport\.cc',
@@ -959,7 +968,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
 
             # Needed to use QUICHE API.
             r'android_webview/browser/ip_protection/.*',
-            r'chrome/browser/ip_protection/.*',
             r'components/ip_protection/.*',
             r'net/quic/dedicated_web_transport_http3_client\.cc',
 
@@ -991,7 +999,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         [
             # Needed to use QUICHE API.
             r'android_webview/browser/ip_protection/.*',
-            r'chrome/browser/ip_protection/.*',
             r'components/ip_protection/.*',
 
             # Needed to integrate with //third_party/nearby
@@ -2165,65 +2172,13 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             _THIRD_PARTY_EXCEPT_BLINK,
             r'^(?!.*test\.cc$).*$',  # Only apply the ban in C++ test files.
 
-            # Existing test usages allowlisted when this rule was added.
-            # TODO(crbug.com/40147519): Go through and either fix if incorrect,
-            # or permanently allowlist the few valid uses of this switch.
-            r'^chrome/browser/android/customtabs/tab_interaction_recorder_browsertest\.cc',
-            r'^chrome/browser/ash/login/saml/saml_browsertest\.cc',
-            r'^chrome/browser/ash/login/saml/saml_lockscreen_browsertest\.cc',
-            r'^chrome/browser/autofill/autofill_annotations_provider_browsertest\.cc',
-            r'^chrome/browser/autofill/autofill_metrics_browsertest\.cc',
-            r'^chrome/browser/banners/app_banner_manager_browsertest\.cc',
-            r'^chrome/browser/browsing_data/browsing_data_model_browsertest\.cc',
-            r'^chrome/browser/chrome_back_forward_cache_browsertest\.cc',
-            r'^chrome/browser/chrome_content_browser_client_browsertest\.cc',
+            # Allowlisted tests that use kIgnoreCertificateErrors correctly, to
+            # test behavior where the user has explicitly ignored cert errors.
             r'^chrome/browser/chrome_content_browser_client_unittest\.cc',
-            r'^chrome/browser/chrome_navigation_browsertest\.cc',
-            r'^chrome/browser/chrome_shared_array_buffer_browsertest\.cc',
-            r'^chrome/browser/chrome_web_platform_security_metrics_browsertest\.cc',
-            r'^chrome/browser/content_settings/mixed_content_settings_tab_helper_browsertest\.cc',
-            r'^chrome/browser/extensions/api/webrtc_audio_private/webrtc_audio_private_browsertest\.cc',
-            r'^chrome/browser/extensions/background_header_browsertest\.cc',
-            r'^chrome/browser/extensions/extension_cookies_browsertest\.cc',
-            r'^chrome/browser/extensions/extension_modules_apitest\.cc',
-            r'^chrome/browser/favicon/content_favicon_driver_browsertest\.cc',
-            r'^chrome/browser/geolocation/geolocation_browsertest\.cc',
-            r'^chrome/browser/idle/idle_browsertest\.cc',
-            r'^chrome/browser/lookalikes/lookalike_url_navigation_throttle_browsertest\.cc',
-            r'^chrome/browser/metrics/variations/variations_http_headers_browsertest\.cc',
-            r'^chrome/browser/page_load_metrics/observers/signed_exchange_page_load_metrics_browsertest\.cc',
-            r'^chrome/browser/page_load_metrics/observers/third_party_cookie_deprecation_metrics_observer_browsertest\.cc',
-            r'^chrome/browser/page_load_metrics/observers/third_party_metrics_observer_browsertest\.cc',
-            r'^chrome/browser/payments/service_worker_payment_app_finder_browsertest\.cc',
-            r'^chrome/browser/payments/site_per_process_payments_browsertest\.cc',
-            r'^chrome/browser/permissions/permission_delegation_browsertest\.cc',
-            r'^chrome/browser/policy/test/policy_test_google_browsertest\.cc',
-            r'^chrome/browser/prefetch/prefetch_browsertest\.cc',
-            r'^chrome/browser/push_messaging/push_messaging_browsertest\.cc',
-            r'^chrome/browser/signin/chromeos_mirror_account_consistency_browsertest\.cc',
-            r'^chrome/browser/signin/mirror_browsertest\.cc',
-            r'^chrome/browser/site_isolation/origin_agent_cluster_browsertest\.cc',
+            r'^chrome/browser/extensions/api/web_request/web_request_apitest\.cc',
             r'^chrome/browser/ssl/ssl_browsertest\.cc',
-            r'^chrome/browser/subresource_filter/ad_heuristic_tpcd_browsertest\.cc',
-            r'^chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper_browsertest\.cc',
-            r'^chrome/browser/ui/search/third_party_ntp_browsertest\.cc',
-            r'^chrome/browser/ui/search/third_party_ntp_uitest\.cc',
-            r'^chrome/browser/ui/test/popup_multiscreen_interactive_uitest\.cc',
-            r'^chrome/browser/ui/views/file_system_access/file_system_access_browsertest\.cc',
-            r'^chrome/browser/ui/webauthn/authenticator_dialog_browsertest\.cc',
-            r'^chrome/browser/webauthn/chrome_webauthn_autofill_interactive_uitest\.cc',
-            r'^chrome/browser/webauthn/chrome_webauthn_browsertest\.cc',
-            r'^chrome/browser/webauthn/webauthn_focus_interactive_uitest\.cc',
-            r'^chrome/common/request_header_integrity/request_header_integrity_url_loader_throttle_browsertest\.cc',
-            r'^chrome/renderer/chrome_content_renderer_client_browsertest\.cc',
-            r'^components/guest_contents/browser/guest_contents_security_browsertest\.cc',
             r'^components/network_session_configurator/browser/network_session_configurator_unittest\.cc',
-            r'^components/optimization_guide/content/browser/page_content_metadata_observer_browsertest\.cc',
-            r'^components/optimization_guide/content/browser/page_content_proto_provider_browsertest\.cc',
-            r'^content/browser/btm/btm_bounce_detector_browsertest\.cc',
-            r'^content/browser/btm/btm_navigation_flow_detector_browsertest\.cc',
             r'^content/browser/fenced_frame/fenced_frame_browsertest\.cc',
-            r'^content/browser/webid/webid_browsertest\.cc',
         ],
     ),
 )
@@ -2415,11 +2370,10 @@ _GENERIC_PYDEPS_FILES = [
     'build/android/test_wrapper/logdog_wrapper.pydeps',
     'build/fuchsia/test/component_storage_test.pydeps',
     'build/protoc_java.pydeps',
-    'chrome/android/monochrome/scripts/monochrome_python_tests.pydeps',
     'chrome/test/chromedriver/log_replay/client_replay_unittest.pydeps',
     'chrome/test/chromedriver/test/run_py_tests.pydeps',
+    'chrome/test/media/performance/openscreen_cast_performance_test.pydeps',
     'chrome/test/media/performance/videostack_performance_test.pydeps',
-    'chrome/test/media_router/performance/openscreen_cast_performance_test.pydeps',
     'chromecast/resource_sizes/chromecast_resource_sizes.pydeps',
     'components/cronet/tools/check_combined_proguard_file.pydeps',
     'components/cronet/tools/generate_proguard_file.pydeps',
@@ -3931,45 +3885,6 @@ def CheckSpamLogging(input_api, output_api):
             output_api.PresubmitError(
                 'These files spam the console log with printf/fprintf:',
                 items=printf)
-        ]
-    return []
-
-
-def CheckForAnonymousVariables(input_api, output_api):
-    """These types are all expected to hold locks while in scope and
-    so should never be anonymous (which causes them to be immediately
-    destroyed)."""
-    they_who_must_be_named = [
-        'base::AutoLock',
-        'base::AutoUnlock',
-        'SkAutoBlitterChoose',
-        'SkAutoCanvasRestore',
-        'SkAutoDescriptor',
-        'SkAutoHDC',
-        'SkAutoMalloc',
-        'SkAutoMaskFreeImage',
-        'SkAutoRasterClipValidate',
-    ]
-    anonymous = r'(%s)\s*[({]' % '|'.join(they_who_must_be_named)
-    # bad: base::AutoLock(lock.get());
-    # not bad: base::AutoLock lock(lock.get());
-    bad_pattern = input_api.re.compile(anonymous)
-    # good: new base::AutoLock(lock.get())
-    good_pattern = input_api.re.compile(r'\bnew\s*' + anonymous)
-    errors = []
-
-    for f in input_api.AffectedFiles():
-        if not f.LocalPath().endswith(('.cc', '.h', '.inl', '.m', '.mm')):
-            continue
-        for linenum, line in f.ChangedContents():
-            if bad_pattern.search(line) and not good_pattern.search(line):
-                errors.append('%s:%d' % (f.LocalPath(), linenum))
-
-    if errors:
-        return [
-            output_api.PresubmitError(
-                'These lines create anonymous variables that need to be named:',
-                items=errors)
         ]
     return []
 

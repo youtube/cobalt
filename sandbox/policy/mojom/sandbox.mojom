@@ -92,9 +92,8 @@ enum Sandbox {
   // |kXrCompositing| hosts XR Device Service on Windows.
   [EnableIf=is_win] kXrCompositing,
 
-  // Allows LPAC capabilities for WinHttp. This only needs internet access,
-  // policy access, and service access.
-  [EnableIf=is_win] kWindowsSystemProxyResolver,
+  // Allows access to OS system proxy resolver APIs.
+  [EnableIf=is_win] kProxyResolver,
 
   // Used to protect processes that perform hardware video decode acceleration.
   // Currently uses the same policy as the GPU process sandbox. Warm-up does
@@ -136,10 +135,9 @@ enum Sandbox {
 
   // Hosts On Device Translation service.
   // Currently the sandboxing of the On Device Translation service needs
-  // a dedicated sandbox type on macOS and Linux.
+  // a dedicated sandbox type on macOS, Linux and ChromeOS.
   // On Windows the kService sandbox type is used.
-  // TODO(crbug.com/340778819): Implement sandboxing on other platforms.
-  [EnableIf=is_linux|is_mac] kOnDeviceTranslation,
+  [EnableIf=is_linux|is_mac|is_chromeos] kOnDeviceTranslation,
 
   // Like kUtility but allows loading of the shape detection internal library.
   [EnableIf=is_chromeos|is_linux] kShapeDetection,

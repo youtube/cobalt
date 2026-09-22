@@ -171,6 +171,7 @@
 <translation id="2787357173144933081">Forræsing veffangastiku</translation>
 <translation id="2789132527330338807">Vefsvæði geta beðið um að búa til þrívíddarkort af umhverfi þínu eða rekja stöðu myndavélar</translation>
 <translation id="2790501146643349491">Þegar kveikt er á þessu geta vefsvæði sem nýlega var lokað lokið við að senda og taka á móti gögnum. Þegar slökkt er á þessu geta vefsvæði sem nýlega var lokað ekki lokið við að senda og taka á móti gögnum.</translation>
+<translation id="2794551654724114396">Kveiktu á tilkynningum til að fá gagnleg ráð sem hjálpa þér að fá sem mest út úr Chrome</translation>
 <translation id="2795716239552913152">Vefsvæði nota yfirleitt staðsetningu þína fyrir viðeigandi eiginleika eða upplýsingar eins og staðbundnar fréttir eða verslanir í nágrenninu</translation>
 <translation id="2800760947029405028">Hlaða inn mynd</translation>
 <translation id="2802908157808345702">Ekki leyfa vefsvæðum að senda sprettiglugga og nota framsendingu</translation>
@@ -338,10 +339,12 @@
 <translation id="4635969503923889910">Ekki leyfa vefsvæðum að nota NFC-tæki</translation>
 <translation id="4644713492825682049">Eyða og endurstilla</translation>
 <translation id="4645575059429386691">Stjórnað af foreldri þínu</translation>
+<translation id="4652266463001779298">Ekki heimilað</translation>
 <translation id="4663373278480897665">Myndavél er leyfð</translation>
 <translation id="4670064810192446073">Sýndarveruleiki</translation>
 <translation id="4672315773691449562">Ýttu á „Vafraforrit“ og síðan á „Chrome“</translation>
 <translation id="4676059169848868271">Til að leyfa <ph name="APP_NAME" /> að nota rakningu handahreyfinga skaltu líka kveikja á rakningu handahreyfinga í <ph name="BEGIN_LINK" />kerfisstillingum<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Stjórnaðu kortunum þínum</translation>
 <translation id="4751476147751820511">Hreyfi- eða birtuskynjarar</translation>
 <translation id="4755971844837804407">Þegar kveikt er á þessu geta vefsvæði birt þér hvaða auglýsingar sem er. Þegar slökkt er á þessu geta vefsvæði ekki sýnt ágengar eða villandi auglýsingar.</translation>
 <translation id="4779083564647765204">Aðdráttur</translation>
@@ -678,6 +681,7 @@
 <translation id="8487700953926739672">Í boði án nettengingar</translation>
 <translation id="848952951823693243">Biðja alltaf um símaútgáfu vefsvæða</translation>
 <translation id="8492822722330266509">Vefsvæði geta sent sprettiglugga og notað framsendingu</translation>
+<translation id="8493548450030356203">Sprettigluggi til að stækka/minnka</translation>
 <translation id="8499083585497694743">Kveikja á hljóðnema</translation>
 <translation id="8514955299594277296">Ekki leyfa vefsvæðum að vista gögn í tækinu (ekki er mælt með þessu)</translation>
 <translation id="851751545965956758">Ekki leyfa vefsvæðum að tengjast tækjum</translation>

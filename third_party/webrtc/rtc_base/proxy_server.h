@@ -16,13 +16,12 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/memory/fifo_buffer.h"
 #include "rtc_base/server_socket_adapters.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -41,12 +40,13 @@ class ProxyBinding {
   ProxyBinding(const ProxyBinding&) = delete;
   ProxyBinding& operator=(const ProxyBinding&) = delete;
 
-  sigslot::signal1<ProxyBinding*> SignalDestroyed;
   void SubscribeDestroyed(
       absl::AnyInvocable<void(ProxyBinding* proxy)> callback) {
-    destroyed_trampoline_.Subscribe(std::move(callback));
+    destroyed_callbacks_.AddReceiver(std::move(callback));
   }
-  void NotifyDestroyed(ProxyBinding* proxy) { SignalDestroyed(proxy); }
+  void NotifyDestroyed(ProxyBinding* proxy) {
+    destroyed_callbacks_.Send(proxy);
+  }
 
  private:
   void OnConnectRequest(AsyncProxyServerSocket* socket,
@@ -70,8 +70,7 @@ class ProxyBinding {
   FifoBuffer out_buffer_;
   FifoBuffer in_buffer_;
 
-  SignalTrampoline<ProxyBinding, &ProxyBinding::SignalDestroyed>
-      destroyed_trampoline_;
+  CallbackList<ProxyBinding*> destroyed_callbacks_;
 };
 
 class ProxyServer {

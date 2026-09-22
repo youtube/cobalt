@@ -31,7 +31,7 @@ on a monolithic Abseil build target that will generate a shared library.
 * `absl::InlinedVector`
 * `absl_nonnull` and `absl_nullable`
 * `absl::WrapUnique`
-* `absl::string_view`
+* `absl::string_view` (preferred over std::string_view, see [issue 42225436](https://issues.webrtc.org/42225436) for details)
 * The functions in `absl/strings/ascii.h`, `absl/strings/match.h`,
   and `absl/strings/str_replace.h`.
 * The functions in `absl/strings/escaping.h`.

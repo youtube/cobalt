@@ -6,8 +6,10 @@
 #define CHROME_BROWSER_UI_TABS_GLIC_ACTOR_TASK_ICON_MANAGER_H_
 
 #include <string>
+#include <string_view>
 
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/ui/states/actor_task_nudge_state.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/actor/task_id.h"
@@ -38,24 +40,6 @@ struct ActorTaskIconState {
 
   bool operator==(const ActorTaskIconState& other) const {
     return is_visible == other.is_visible && text == other.text;
-  }
-};
-
-struct ActorTaskNudgeState {
-  enum class Text {
-    // Default/no text.
-    kDefault,
-    // `Needs attention` text.
-    kNeedsAttention,
-    // `Multiple tasks need attention` text.
-    kMultipleTasksNeedAttention,
-    // `Complete Tasks` text.
-    kCompleteTasks,
-  };
-  Text text = Text::kDefault;
-
-  bool operator==(const ActorTaskNudgeState& other) const {
-    return text == other.text;
   }
 };
 
@@ -104,19 +88,19 @@ class GlicActorTaskIconManager : public KeyedService {
 
   // Register for this callback to get task nudge state change notifications.
   using TaskNudgeChangeCallback = base::RepeatingCallback<void(
-      const ActorTaskNudgeState& actor_task_nudge_state)>;
+      actor::ui::ActorTaskNudgeState actor_task_nudge_state)>;
   base::CallbackListSubscription RegisterTaskNudgeStateChange(
       TaskNudgeChangeCallback callback);
 
   // Register for this callback to get task state change notifications for the
   // bubble.
   using TaskListBubbleChangeCallback =
-      base::RepeatingCallback<void(const actor::TaskId& task_id)>;
+      base::RepeatingCallback<void(actor::TaskId task_id)>;
   base::CallbackListSubscription RegisterTaskListBubbleStateChange(
       TaskListBubbleChangeCallback callback);
 
   ActorTaskIconState GetCurrentActorTaskIconState() const;
-  ActorTaskNudgeState GetCurrentActorTaskNudgeState() const;
+  actor::ui::ActorTaskNudgeState GetCurrentActorTaskNudgeState() const;
 
   raw_ptr<tabs::TabInterface> GetLastUpdatedTab();
   raw_ptr<tabs::TabInterface> GetLastUpdatedTabForTaskId(actor::TaskId task_id);
@@ -150,15 +134,15 @@ class GlicActorTaskIconManager : public KeyedService {
   TaskIconStateChangeCallbackList task_icon_state_change_callback_list_;
 
   using TaskNudgeChangeCallbackList = base::RepeatingCallbackList<void(
-      const ActorTaskNudgeState& actor_task_nudge_text)>;
+      actor::ui::ActorTaskNudgeState actor_task_nudge_text)>;
   TaskNudgeChangeCallbackList task_nudge_state_change_callback_list_;
 
   using TaskListBubbleChangeCallbackList =
-      base::RepeatingCallbackList<void(const actor::TaskId& task_id)>;
+      base::RepeatingCallbackList<void(actor::TaskId task_id)>;
   TaskListBubbleChangeCallbackList task_list_bubble_change_callback_list_;
 
   ActorTaskIconState current_actor_task_icon_state_;
-  ActorTaskNudgeState current_actor_task_nudge_state_;
+  actor::ui::ActorTaskNudgeState current_actor_task_nudge_state_;
 
   raw_ptr<Profile> profile_;
   raw_ptr<actor::ActorKeyedService> actor_service_;

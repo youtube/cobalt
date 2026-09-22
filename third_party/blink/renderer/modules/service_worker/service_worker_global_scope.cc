@@ -897,8 +897,8 @@ void ServiceWorkerGlobalScope::CountCacheStorageInstalledScript(
 
   base::UmaHistogramCustomCounts(
       "ServiceWorker.CacheStorageInstalledScript.ScriptSize",
-      base::saturated_cast<base::Histogram::Sample32>(script_size), 1000, 5000000,
-      50);
+      base::saturated_cast<base::Histogram::Sample32>(script_size), 1000,
+      5000000, 50);
 
   if (script_metadata_size) {
     base::UmaHistogramCustomCounts(
@@ -1430,9 +1430,7 @@ void ServiceWorkerGlobalScope::DispatchExtendableMessageEventInternal(
   BlinkTransferableMessage msg = std::move(event->message);
   GCedMessagePortArray* ports =
       MessagePort::EntanglePorts(*this, std::move(msg.ports));
-  String origin;
-  if (!event->source_origin->IsOpaque())
-    origin = event->source_origin->ToString();
+  scoped_refptr<const SecurityOrigin> origin = std::move(event->source_origin);
   WaitUntilObserver* observer = nullptr;
   Event* event_to_dispatch = nullptr;
 
@@ -2776,7 +2774,7 @@ bool ServiceWorkerGlobalScope::HasHidEventHandlers() {
 #if BUILDFLAG(IS_COBALT)
   return false;
 #else
-  HID* hid = Supplement<NavigatorBase>::From<HID>(*navigator());
+  HID* hid = navigator()->GetHID();
   return hid ? hid->HasEventListeners() : false;
 #endif
 }
@@ -2785,7 +2783,7 @@ bool ServiceWorkerGlobalScope::HasUsbEventHandlers() {
 #if BUILDFLAG(IS_COBALT)
   return false;
 #else
-  USB* usb = Supplement<NavigatorBase>::From<USB>(*navigator());
+  USB* usb = navigator()->GetUSB();
   return usb ? usb->HasEventListeners() : false;
 #endif
 }

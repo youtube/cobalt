@@ -33,6 +33,7 @@
 #include "base/debug/task_trace.h"
 #include "base/functional/callback.h"
 #include "base/immediate_crash.h"
+#include "base/logging/logging_settings.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/pending_task.h"

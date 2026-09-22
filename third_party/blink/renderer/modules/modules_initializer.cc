@@ -80,7 +80,6 @@
 #include "third_party/blink/renderer/modules/launch/web_launch_service_impl.h"
 #include "third_party/blink/renderer/modules/manifest/manifest_manager.h"
 #include "third_party/blink/renderer/modules/media/audio/audio_renderer_sink_cache.h"
-#include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/modules/mediasource/media_source_registry_impl.h"
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
@@ -128,19 +127,13 @@
 #endif
 
 namespace blink {
-namespace {
 
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
 
 class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
-                               public Supplement<Page>,
                                public PageVisibilityObserver {
  public:
-  static constexpr auto kSupplementIndex =
-      Page::Supplements::kSuspendCaptureObserver;
-
-  explicit SuspendCaptureObserver(Page& page)
-      : Supplement<Page>(page), PageVisibilityObserver(&page) {}
+  explicit SuspendCaptureObserver(Page& page) : PageVisibilityObserver(&page) {}
 
   // PageVisibilityObserver overrides:
   void PageVisibilityChanged() override {
@@ -166,14 +159,11 @@ class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
   }
 
   void Trace(Visitor* visitor) const override {
-    Supplement<Page>::Trace(visitor);
     PageVisibilityObserver::Trace(visitor);
   }
 };
 
 #endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
-
-}  // namespace
 
 void ModulesInitializer::Initialize() {
   // Strings must be initialized before calling CoreInitializer::init().
@@ -188,7 +178,6 @@ void ModulesInitializer::Initialize() {
   Document::RegisterEventFactory(EventModulesFactory::Create());
   ModuleBindingsInitializer::Init();
   indexed_db_names::Init();
-  media_capabilities_names::Init();
   AXObjectCache::Init(AXObjectCacheImpl::Create);
   DraggedIsolatedFileSystem::Init(
       DraggedIsolatedFileSystemImpl::PrepareForDataObject);
@@ -290,6 +279,13 @@ void ModulesInitializer::InstallSupplements(LocalFrame& frame) const {
   InspectorAccessibilityAgent::ProvideTo(&frame);
   ImageDownloaderImpl::ProvideTo(frame);
   AudioRendererSinkCache::InstallWindowObserver(*frame.DomWindow());
+#if DCHECK_IS_ON()
+  if (frame.IsLocalRoot() &&
+      RuntimeEnabledFeatures::AIPageContentBuildOnLoadForTestingEnabled()) {
+    AIPageContentAgent::EnableAutomaticActionableExtractionOnPageLoadForTesting(
+        frame);
+  }
+#endif
 }
 
 MediaControls* ModulesInitializer::CreateMediaControls(
@@ -393,7 +389,8 @@ void ModulesInitializer::ProvideModulesToPage(
   StorageNamespace::ProvideSessionStorageNamespaceTo(page, namespace_id);
   AudioGraphTracer::ProvideAudioGraphTracerTo(page);
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
-  page.ProvideSupplement(MakeGarbageCollected<SuspendCaptureObserver>(page));
+  page.SetSuspendCaptureObserver(
+      MakeGarbageCollected<SuspendCaptureObserver>(page));
 #endif  // BUILDFLAG(IS_ANDROID)  && !BUILDFLAG(IS_DESKTOP_ANDROID)
 }
 
@@ -433,8 +430,7 @@ void ModulesInitializer::DidUpdateScreens(
     LocalFrame& frame,
     const display::ScreenInfos& screen_infos) {
   auto* window = frame.DomWindow();
-  if (auto* supplement =
-          Supplement<LocalDOMWindow>::From<WindowScreenDetails>(window)) {
+  if (WindowScreenDetails* supplement = window->GetWindowScreenDetails()) {
     // screen_details() may be null if permission has not been granted.
     if (auto* screen_details = supplement->screen_details()) {
       screen_details->UpdateScreenInfos(window, screen_infos);

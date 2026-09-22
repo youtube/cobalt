@@ -10,62 +10,45 @@
 
 #include "rtc_base/async_dns_resolver.h"
 
-#include <memory>
-
-#include "api/test/rtc_error_matchers.h"
-#include "api/units/time_delta.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/thread.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
-#include "test/wait_until.h"
 
 namespace webrtc {
 namespace {
-
-using ::testing::IsTrue;
-
-constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(1000);
-constexpr int kPortNumber = 3027;
-
-TEST(AsyncDnsResolver, ConstructorWorks) {
-  AsyncDnsResolver resolver;
-}
+constexpr int kSomePortNumber = 3027;
 
 TEST(AsyncDnsResolver, ResolvingLocalhostWorks) {
   test::RunLoop loop;  // Ensure that posting back to main thread works
   AsyncDnsResolver resolver;
-  SocketAddress address("localhost",
-                        kPortNumber);  // Port number does not matter
-  SocketAddress resolved_address;
   bool done = false;
-  resolver.Start(address, [&done] { done = true; });
-  ASSERT_THAT(
-      WaitUntil([&] { return done; }, IsTrue(), {.timeout = kDefaultTimeout}),
-      IsRtcOk());
+  resolver.Start(SocketAddress("localhost", kSomePortNumber), [&]() {
+    done = true;
+    loop.Quit();
+  });
+  EXPECT_FALSE(done);  // The target TQ hasn't gotten a chance to run yet.
+  loop.Run();          // Wait for the callback to arrive.
+  EXPECT_TRUE(done);   // Now `done` must be true.
   EXPECT_EQ(resolver.result().GetError(), 0);
+  SocketAddress resolved_address;
   if (resolver.result().GetResolvedAddress(AF_INET, &resolved_address)) {
-    EXPECT_EQ(resolved_address, SocketAddress("127.0.0.1", kPortNumber));
+    EXPECT_EQ(resolved_address, SocketAddress("127.0.0.1", kSomePortNumber));
   } else {
     RTC_LOG(LS_INFO) << "Resolution gave no address, skipping test";
   }
 }
 
 TEST(AsyncDnsResolver, ResolveAfterDeleteDoesNotReturn) {
-  test::RunLoop loop;
-  std::unique_ptr<AsyncDnsResolver> resolver =
-      std::make_unique<AsyncDnsResolver>();
-  SocketAddress address("localhost",
-                        kPortNumber);  // Port number does not matter
-  SocketAddress resolved_address;
   bool done = false;
-  resolver->Start(address, [&done] { done = true; });
-  resolver.reset();                    // Deletes resolver.
-  Thread::Current()->SleepMs(1);       // Allows callback to execute
-  EXPECT_FALSE(done);                  // Expect no result.
+  test::RunLoop loop;
+  {
+    AsyncDnsResolver resolver;
+    SocketAddress address("localhost", kSomePortNumber);
+    resolver.Start(address, [&] { done = true; });
+  }
+  EXPECT_FALSE(done);  // Expect no result.
 }
 
 }  // namespace

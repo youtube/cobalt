@@ -22,11 +22,48 @@ public final class SearchIndexProviderRegistry {
      */
     public static final List<SearchIndexProvider> ALL_PROVIDERS =
             List.of(
+                    // MainSettings always comes at the top. This fixes the order of the header
+                    // groups in which they will be shown in the search results since the index
+                    // uses LinkedHashMap internally.
+                    org.chromium.chrome.browser.settings.MainSettings.SEARCH_INDEX_DATA_PROVIDER,
                     org.chromium.chrome.browser.about_settings.AboutChromeSettings
                             .SEARCH_INDEX_DATA_PROVIDER,
-                    org.chromium.chrome.browser.settings.MainSettings.SEARCH_INDEX_DATA_PROVIDER,
                     org.chromium.chrome.browser.toolbar.adaptive.settings
                             .AdaptiveToolbarSettingsFragment.SEARCH_INDEX_DATA_PROVIDER,
                     org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.contextualsearch.ContextualSearchSettingsFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy.settings.DoNotTrackSettings
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.homepage.settings.HomepageSettings
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.about_settings.LegalInformationSettings
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.sync.settings.PersonalizeGoogleServicesSettings
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.tasks.tab_management.TabArchiveSettingsFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.AdMeasurementFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.FledgeAllSitesFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.FledgeFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.FledgeLearnMoreFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.FledgeBlockedSitesFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.TopicsFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.TopicsBlockedFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.TopicsManageFragment
+                            .SEARCH_INDEX_DATA_PROVIDER,
+                    org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxSettingsFragment
                             .SEARCH_INDEX_DATA_PROVIDER);
 }

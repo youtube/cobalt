@@ -381,6 +381,18 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/signin/chrome_signout_confirmation_prompt.h:ChromeSignoutConfirmationChoice) -->
 
+<!-- LINT.IfChange(DeviceBoundSessionCreateSessionsResult) -->
+
+<enum name="DeviceBoundSessionCreateSessionsResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failure"/>
+  <int value="2"
+      label="No bound sessions, fallback to legacy set cookies flow"/>
+  <int value="3" label="No binding key, fallback to legacy set cookies flow"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/internal/identity_manager/oauth_multilogin_helper.h:DeviceBoundSessionCreateSessionsResult) -->
+
 <!-- LINT.IfChange(DiceMigrationDialogCloseReason) -->
 
 <enum name="DiceMigrationDialogCloseReason">
@@ -492,6 +504,13 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/ios/browser/account_consistency_service.mm:GaiaPage) -->
+
+<enum name="GetAccountsAndroidResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="UserRecoverableAuthError"/>
+  <int value="2" label="GoogleAuthError"/>
+  <int value="3" label="OtherError"/>
+</enum>
 
 <!-- LINT.IfChange(GetAuthTokenResult) -->
 
@@ -771,6 +790,7 @@ chromium-metrics-reviews@google.com.
   <int value="75" label="Auth Service (Glanceables Classroom)"/>
   <int value="76" label="Auth Service (Tasks Client)"/>
   <int value="77" label="YouTube Music"/>
+  <int value="78" label="Contextual Tasks"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -963,6 +983,7 @@ chromium-metrics-reviews@google.com.
   <int value="88" label="Enterprise management disclaimer after signin"/>
   <int value="89" label="New Tab Page sign-in feature promo"/>
   <int value="90" label="Enterprise dialog after signin interception"/>
+  <int value="91" label="Your saved info page in settings"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

@@ -11,6 +11,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
@@ -348,7 +349,7 @@ GaiaCookieManagerService::ExternalCcResultFetcher::CreateAndStartLoader(
 
 void GaiaCookieManagerService::ExternalCcResultFetcher::OnURLLoadComplete(
     const network::SimpleURLLoader* source,
-    std::unique_ptr<std::string> body) {
+    std::optional<std::string> body) {
   if (source->NetError() != net::OK || !source->ResponseInfo() ||
       !source->ResponseInfo()->headers ||
       source->ResponseInfo()->headers->response_code() != net::HTTP_OK) {
@@ -360,10 +361,7 @@ void GaiaCookieManagerService::ExternalCcResultFetcher::OnURLLoadComplete(
     return;
   }
 
-  std::string data;
-  if (body) {
-    data = std::move(*body);
-  }
+  std::string data = std::move(body).value_or("");
 
   // Only up to the first 16 characters of the response are important to GAIA.
   // Truncate if needed to keep amount data sent back to GAIA down.
@@ -794,18 +792,18 @@ GaiaCookieManagerService::GetCookieManagerForPartition() {
   return signin_client_->GetCookieManager();
 }
 
-bool GaiaCookieManagerService::CanBindCookiesForPartition() {
-  // `GaiaCookieManagerService` manages the cookies for the default storage
-  // partition, the default storage partition should always allow cookie
-  // binding.
-  return true;
-}
-
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
 GaiaCookieManagerService::
     CreateBoundSessionOAuthMultiLoginDelegateForPartition() {
   return signin_client_->CreateBoundSessionOAuthMultiloginDelegate();
 }
+
+network::mojom::DeviceBoundSessionManager*
+GaiaCookieManagerService::GetDeviceBoundSessionManagerForPartition() {
+  return signin_client_->GetDeviceBoundSessionManager();
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void GaiaCookieManagerService::InitializeListedAccountsIds() {
   for (gaia::ListedAccount& account : accounts_) {

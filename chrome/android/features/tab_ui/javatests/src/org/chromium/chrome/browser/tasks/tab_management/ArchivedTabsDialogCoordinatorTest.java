@@ -100,6 +100,7 @@ import org.chromium.components.tab_group_sync.VersioningMessageController;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.url.GURL;
 
 import java.io.IOException;
@@ -111,7 +112,7 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @DoNotBatch(reason = "TODO(crbug.com/348068134): Batch this test suite.")
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@DisableFeatures("IPH_AndroidTabDeclutter")
+@DisableFeatures({"IPH_AndroidTabDeclutter", ChromeFeatureList.SETTINGS_MULTI_COLUMN})
 public class ArchivedTabsDialogCoordinatorTest {
     private static final String SYNC_GROUP_ID1 = "test_sync_group_id1";
     private static final String SYNC_GROUP_ID2 = "test_sync_group_id2";
@@ -834,7 +835,8 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    // Flaky in automotive, https://crbug.com/462785937
     @Feature({"RenderTest"})
     public void testIphMessageResizedOnTablet() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();

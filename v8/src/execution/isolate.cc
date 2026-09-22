@@ -3025,7 +3025,6 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
 
 bool Isolate::ComputeLocationFromException(MessageLocation* target,
                                            DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSObject(*exception)) return false;
 
   DirectHandle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
@@ -3052,7 +3051,6 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromSimpleStackTrace(
     MessageLocation* target, DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSReceiver(*exception)) {
     return false;
   }
@@ -3070,7 +3068,6 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(
 
 bool Isolate::ComputeLocationFromDetailedStackTrace(
     MessageLocation* target, DirectHandle<Object> exception) {
-  if (IsAnyHole(*exception)) return false;
   if (!IsJSReceiver(*exception)) return false;
 
   DirectHandle<StackTraceInfo> stack_trace =
@@ -3089,7 +3086,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(DirectHandle<Object> exception,
                                                MessageLocation* location) {
   DirectHandle<StackTraceInfo> stack_trace;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (!IsAnyHole(*exception) && IsJSObject(*exception)) {
+    if (IsJSObject(*exception)) {
       // First, check whether a stack trace is already present on this object.
       // It maybe an Error, or the embedder may have stored a stack trace using
       // Exception::CaptureStackTrace().
@@ -3120,7 +3117,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(DirectHandle<Object> exception,
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
     DirectHandle<Object> exception) {
   DirectHandle<StackTraceInfo> stack_trace;
-  if (!IsAnyHole(*exception) && IsJSError(*exception)) {
+  if (IsJSError(*exception)) {
     stack_trace = GetDetailedStackTrace(Cast<JSObject>(exception));
   }
 
@@ -3372,7 +3369,7 @@ enum PromiseMethod { kThen, kCatch, kFinally, kInvalid };
 // Requires the iterator to be on a GetNamedProperty instruction
 PromiseMethod GetPromiseMethod(
     Isolate* isolate, const interpreter::BytecodeArrayIterator& iterator) {
-  DirectHandle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
+  DirectHandle<Object> object = iterator.GetConstantForOperand(1, isolate);
   if (!IsString(*object)) {
     return kInvalid;
   }
@@ -3443,7 +3440,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       // Step over patterns like:
       //     StaCurrentContextSlot[NoCell] [x]
       //     LdaImmutableCurrentContextSlot/LdaCurrentContext[NoCell] [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
+      unsigned int slot = iterator.GetContextSlotOperand(0);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() ==
@@ -3451,7 +3448,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
            iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot ||
            iterator.current_bytecode() ==
                Bytecode::kLdaCurrentContextSlotNoCell)) {
-        if (iterator.GetIndexOperand(0) != slot) {
+        if (iterator.GetContextSlotOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
@@ -3462,7 +3459,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       //     StaContextSlot[NoCell] r_x [y] [z]
       //     LdaContextSlot[NoCell] r_x [y] [z]
       int context = iterator.GetRegisterOperand(0).index();
-      unsigned int slot = iterator.GetIndexOperand(1);
+      unsigned int slot = iterator.GetContextSlotOperand(1);
       unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
@@ -3470,7 +3467,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
            iterator.current_bytecode() == Bytecode::kLdaContextSlot ||
            iterator.current_bytecode() == Bytecode::kLdaContextSlotNoCell)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
-            iterator.GetIndexOperand(1) != slot ||
+            iterator.GetContextSlotOperand(1) != slot ||
             iterator.GetUnsignedImmediateOperand(2) != depth) {
           return false;
         }
@@ -3480,13 +3477,13 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       // Step over patterns like:
       //     StaLookupSlot [x] [_]
       //     LdaLookupSlot [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
+      unsigned int slot = iterator.GetConstantPoolIndexOperand(0);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaLookupSlot ||
            iterator.current_bytecode() ==
                Bytecode::kLdaLookupSlotInsideTypeof)) {
-        if (iterator.GetIndexOperand(0) != slot) {
+        if (iterator.GetConstantPoolIndexOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
@@ -4936,8 +4933,8 @@ bool Isolate::PropagateExceptionToExternalTryCatch(
     SetTerminationOnExternalTryCatch();
   } else {
     v8::TryCatch* handler = try_catch_handler();
-    DCHECK(IsAnyHole(pending_message()) ||
-           IsJSMessageObject(pending_message()));
+    DCHECK(IsJSMessageObject(pending_message()) ||
+           IsTheHole(pending_message(), this));
     handler->can_continue_ = true;
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
@@ -5111,10 +5108,8 @@ void Isolate::ReportExceptionFunctionCallback(
   DCHECK_NOT_NULL(exception_propagation_callback_);
 
   // Ignore exceptions that we can't extend.
-  if (IsAnyHole(this->exception())) return;
-  Tagged<JSReceiver> raw_exception;
-  if (!TryCast<JSReceiver>(this->exception(), &raw_exception)) return;
-  DirectHandle<JSReceiver> exception(raw_exception, this);
+  if (!IsJSReceiver(this->exception())) return;
+  DirectHandle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
   DirectHandle<Object> maybe_message(pending_message(), this);
 
@@ -5511,7 +5506,6 @@ void Isolate::VerifyStaticRoots() {
   // sorted list of addresses) or remove the offending entry from the list.
   for (idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = roots_table().slot(idx).load(this);
-    if (RootsTable::IsReadOnly(idx) && IsAnyHole(obj)) continue;
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
 
@@ -5919,10 +5913,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     setup_delegate_->SetupBuiltins(this, false);
   }
 
-  // Initialize custom memcopy and memmove functions (must happen after
-  // embedded blob setup).
-  init_memcopy_functions();
-
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
        v8_flags.turbo_profiling) &&
       !v8_flags.concurrent_turbo_tracing) {
@@ -6034,18 +6024,21 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->first_payload()),
-          WasmNull::kFirstPayloadSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
+          WasmNull::kPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
   }
   if (v8_flags.unmap_holes) {
-    // Protect the second payload of wasm null, containing the holes.
-    if (!page_allocator()->DecommitPages(
-            reinterpret_cast<void*>(factory()->wasm_null()->second_payload()),
-            WasmNull::kSecondPayloadSize)) {
-      V8::FatalProcessOutOfMemory(
-          this, "decommitting second WasmNull payload (holes)");
-    }
+// Protect the payload of each hole.
+#define UNMAP_HOLE(CamelName, snake_name, _)                                  \
+  if (!page_allocator()->DecommitPages(                                       \
+          reinterpret_cast<void*>(&factory()->snake_name()->payload_),        \
+          Hole::kPayloadSize)) {                                              \
+    V8::FatalProcessOutOfMemory(this, "decommitting " #CamelName " payload"); \
+  }
+
+    HOLE_LIST(UNMAP_HOLE)
+#undef UNMAP_HOLE
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -6054,7 +6047,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // pretenured to old space.
   DCHECK_IMPLIES(heap()->new_space(), heap()->new_space()->Size() == 0);
   DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
-  DCHECK_EQ(heap()->gc_count(), 0);
+  DCHECK_EQ(heap()->gc_count(), kInitialGCEpoch);
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
   if (v8_flags.enable_etw_stack_walking ||
@@ -7069,6 +7062,13 @@ bool Isolate::HasCrashKeyStringCallbacks() {
 CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
                                     std::string_view value) {
   CHECK(HasCrashKeyStringCallbacks());
+#if DEBUG
+  // Keys are limited in their length, see
+  // crash_reporter::internal::kCrashKeyStorageKeySize in
+  // components/crash/core/common/crash_key.h.
+  static constexpr size_t kCrashKeyStorageKeySize = 40;
+  DCHECK_LT(strlen(key), kCrashKeyStorageKeySize);
+#endif  // DEBUG
   CrashKey crash_key = allocate_crash_key_string_callback_(key, size);
   set_crash_key_string_callback_(crash_key, value);
   return crash_key;

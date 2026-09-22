@@ -148,6 +148,7 @@ class MediaSessionDescriptionFactory {
       const RtpHeaderExtensions& header_extensions,
       StreamParamsVec* current_streams,
       SessionDescription* answer,
+      bool include_ccfb_in_answer,
       IceCredentialsIterator* ice_credentials) const;
 
   RTCError AddDataContentForAnswer(

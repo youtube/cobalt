@@ -30,7 +30,6 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -70,14 +69,12 @@ class XRSessionInit;
 // The XRSystem keeps weak references to XRSession objects after they were
 // returned through a successful requestSession promise, but does not own them.
 class XRSystem final : public EventTarget,
-                       public Supplement<Navigator>,
                        public ExecutionContextLifecycleObserver,
                        public device::mojom::blink::VRServiceClient,
                        public FocusChangedObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const unsigned kSupplementIndex;
   static XRSystem* From(Document&);
   static XRSystem* FromIfExists(Document&);
 

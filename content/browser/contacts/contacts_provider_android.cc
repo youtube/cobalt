@@ -25,7 +25,7 @@
 namespace content {
 
 ContactsProviderAndroid::ContactsProviderAndroid(
-    RenderFrameHostImpl* render_frame_host) {
+    RenderFrameHost* render_frame_host) {
   JNIEnv* env = base::android::AttachCurrentThread();
 
   WebContents* web_contents =
@@ -164,3 +164,5 @@ void ContactsProviderAndroid::EndWithPermissionDenied(JNIEnv* env) {
 }
 
 }  // namespace content
+
+DEFINE_JNI(ContactsDialogHost)

@@ -5,6 +5,7 @@
 #include "base/android/callback_android.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/optimization_guide/content/browser/android/jni_headers/PageContentProtoProviderBridge_jni.h"
@@ -14,7 +15,7 @@ using ::jni_zero::JavaRef;
 
 namespace optimization_guide::android {
 
-void JNI_PageContentProtoProviderBridge_GetAiPageContent(
+static void JNI_PageContentProtoProviderBridge_GetAiPageContent(
     JNIEnv* env,
     content::WebContents* web_contents,
     const jni_zero::JavaParamRef<jobject>& j_callback) {
@@ -25,9 +26,8 @@ void JNI_PageContentProtoProviderBridge_GetAiPageContent(
       web_contents, std::move(extraction_options),
       base::BindOnce(
           [](const JavaRef<jobject>& j_callback,
-             std::optional<optimization_guide::AIPageContentResult> result)
-              -> void {
-            if (!result) {
+             optimization_guide::AIPageContentResultOrError result) -> void {
+            if (!result.has_value()) {
               base::android::RunByteArrayCallbackAndroid(
                   j_callback, std::vector<uint8_t>());
               return;
@@ -46,3 +46,5 @@ void JNI_PageContentProtoProviderBridge_GetAiPageContent(
 }
 
 }  // namespace optimization_guide::android
+
+DEFINE_JNI(PageContentProtoProviderBridge)

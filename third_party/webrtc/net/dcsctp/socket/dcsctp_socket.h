@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -70,6 +71,13 @@ class DcSctpSocket : public DcSctpSocketInterface {
   std::optional<DcSctpMessage> GetNextMessage() override;
   void HandleTimeout(TimeoutID timeout_id) override;
   void Connect() override;
+  static std::vector<uint8_t> GenerateConnectionToken(
+      const DcSctpOptions& options,
+      std::function<uint32_t(uint32_t low, uint32_t high)> get_random_uint32);
+  bool ConnectWithConnectionToken(
+      webrtc::ArrayView<const uint8_t> my_data,
+      webrtc::ArrayView<const uint8_t> peer_data) override;
+
   void RestoreFromState(const DcSctpSocketHandoverState& state) override;
   void Shutdown() override;
   void Close() override;
@@ -103,6 +111,7 @@ class DcSctpSocket : public DcSctpSocketInterface {
   struct ConnectParameters {
     TSN initial_tsn = TSN(0);
     VerificationTag verification_tag = VerificationTag(0);
+    bool is_out_of_bands_connect = false;
   };
 
   // Detailed state (separate from SocketState, which is the public state).

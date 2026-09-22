@@ -14,7 +14,6 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <map>
 #include <memory>
 #include <queue>
@@ -68,9 +67,15 @@
     blocked_call_count_printer.set_minimum_call_count_for_callback(x + 1);   \
     RTC_DCHECK_LE(blocked_call_count_printer.GetTotalBlockedCallCount(), x); \
   } while (0)
+
+// Use to disallow calls to Thread::BlockingCall() within a scope/function.
+#define RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS() \
+  webrtc::Thread::ScopedDisallowBlockingCalls no_blocking_thread_calls
+
 #else
 #define RTC_LOG_THREAD_BLOCK_COUNT()
 #define RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(x)
+#define RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS()
 #endif
 
 namespace webrtc {
@@ -208,16 +213,19 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     ~ScopedDisallowBlockingCalls();
 
    private:
+#if RTC_DCHECK_IS_ON
     Thread* const thread_;
     const bool previous_state_;
+#endif
   };
 
 #if RTC_DCHECK_IS_ON
   class ScopedCountBlockingCalls {
    public:
-    ScopedCountBlockingCalls(std::function<void(uint32_t, uint32_t)> callback);
-    ScopedCountBlockingCalls(const ScopedDisallowBlockingCalls&) = delete;
-    ScopedCountBlockingCalls& operator=(const ScopedDisallowBlockingCalls&) =
+    ScopedCountBlockingCalls(
+        absl::AnyInvocable<void(uint32_t, uint32_t) &&> callback);
+    ScopedCountBlockingCalls(const ScopedCountBlockingCalls&) = delete;
+    ScopedCountBlockingCalls& operator=(const ScopedCountBlockingCalls&) =
         delete;
     ~ScopedCountBlockingCalls();
 
@@ -238,7 +246,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     // tame log spam.
     // By default we always issue the callback, regardless of callback count.
     uint32_t min_blocking_calls_for_callback_ = 0;
-    std::function<void(uint32_t, uint32_t)> result_callback_;
+    absl::AnyInvocable<void(uint32_t, uint32_t) &&> result_callback_;
   };
 
   uint32_t GetBlockingCallCount() const;

@@ -242,6 +242,8 @@ class StyleBuilderConverter {
   static TimelineInset ConvertSingleTimelineInset(StyleResolverState&,
                                                   const CSSValue&);
   static Length ConvertLengthOrAuto(const StyleResolverState&, const CSSValue&);
+  static std::optional<Length> ConvertLengthOrNone(const StyleResolverState&,
+                                                   const CSSValue&);
   static Length ConvertLengthSizing(StyleResolverState&, const CSSValue&);
   static Length ConvertLengthMaxSizing(StyleResolverState&, const CSSValue&);
   static TabSize ConvertLengthOrTabSpaces(StyleResolverState&, const CSSValue&);
@@ -250,8 +252,6 @@ class StyleBuilderConverter {
   static int ConvertInteger(StyleResolverState&, const CSSValue&);
   template <int NoneValue = 0>
   static int ConvertIntegerOrNone(StyleResolverState&, const CSSValue&);
-  static ScrollStartData ConvertScrollStart(const StyleResolverState&,
-                                            const CSSValue&);
   static float ConvertAlpha(StyleResolverState&,
                             const CSSValue&);  // clamps to [0,1]
   static ScopedCSSName* ConvertNoneOrCustomIdent(StyleResolverState&,
@@ -260,8 +260,8 @@ class StyleBuilderConverter {
                                                    const CSSValue&);
   static ScopedCSSName* ConvertCustomIdent(StyleResolverState&,
                                            const CSSValue&);
-  static ScopedCSSName* ConvertPositionAnchor(StyleResolverState&,
-                                              const CSSValue&);
+  static StylePositionAnchor ConvertPositionAnchor(StyleResolverState&,
+                                                   const CSSValue&);
   static PositionVisibility ConvertPositionVisibility(StyleResolverState& state,
                                                       const CSSValue& value);
   static ScopedCSSNameList* ConvertAnchorName(StyleResolverState&,

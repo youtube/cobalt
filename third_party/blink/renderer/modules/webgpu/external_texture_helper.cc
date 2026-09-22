@@ -7,6 +7,7 @@
 #include "base/debug/crash_logging.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_transformation.h"
+#include "media/base/video_util.h"
 #include "media/renderers/paint_canvas_video_renderer.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
@@ -19,13 +20,48 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"
-#include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/skia/include/effects/SkColorMatrix.h"
 #include "third_party/skia/modules/skcms/skcms.h"
 
 namespace blink {
 namespace {
+
+bool DrawVideoFrameIntoResourceProvider(
+    scoped_refptr<media::VideoFrame> frame,
+    CanvasResourceProviderSharedImage* resource_provider,
+    viz::RasterContextProvider* raster_context_provider,
+    media::PaintCanvasVideoRenderer* video_renderer) {
+  DCHECK(frame);
+  DCHECK(resource_provider);
+
+  // This method should only be called with context providers supporting OOP-R.
+  CHECK(!raster_context_provider ||
+        raster_context_provider->ContextCapabilities().gpu_rasterization);
+
+  if (frame->HasSharedImage()) {
+    if (!raster_context_provider) {
+      DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o a "
+                     "RasterContextProvider.";
+      return false;  // Unable to get/create a shared main thread context.
+    }
+  }
+
+  cc::PaintFlags media_flags;
+  media_flags.setAlphaf(1.0f);
+  media_flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
+  media_flags.setBlendMode(SkBlendMode::kSrc);
+
+  media::PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = gfx::RectF(resource_provider->Size());
+  resource_provider->ExternalCanvasDrawHelper(
+      [&](MemoryManagedPaintCanvas& canvas) {
+        video_renderer->Paint(frame.get(), &canvas, media_flags, params,
+                              raster_context_provider);
+      });
+  return true;
+}
+
 wgpu::ExternalTextureRotation FromVideoRotation(media::VideoRotation rotation) {
   switch (rotation) {
     case media::VIDEO_ROTATION_0:
@@ -431,8 +467,7 @@ ExternalTexture CreateExternalTexture(
     // Delegate video transformation to Dawn.
     if (!DrawVideoFrameIntoResourceProvider(
             std::move(media_video_frame), resource_provider,
-            raster_context_provider, video_renderer,
-            /* ignore_video_transformation */ true)) {
+            raster_context_provider, video_renderer)) {
       return {};
     }
   }

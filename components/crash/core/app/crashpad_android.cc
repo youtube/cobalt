@@ -836,3 +836,5 @@ bool PlatformCrashpadInitialization(
 }  // namespace internal
 
 }  // namespace crash_reporter
+
+DEFINE_JNI(PackagePaths)

@@ -415,9 +415,9 @@ typedef void *OPENSSL_BLOCK;
 
 #if !defined(BORINGSSL_NO_CXX)
 
-extern "C++" {
-
 #include <memory>
+
+extern "C++" {
 
 // STLPort, used by some Android consumers, not have std::unique_ptr.
 #if defined(_STLPORT_VERSION)

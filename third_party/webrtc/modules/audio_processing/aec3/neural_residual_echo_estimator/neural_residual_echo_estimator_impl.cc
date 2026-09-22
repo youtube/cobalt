@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
-#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,6 +25,7 @@
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_feature_extractor.h"
 #include "third_party/tflite/src/tensorflow/lite/c/c_api_types.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
@@ -278,12 +278,10 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
     absl_nonnull std::unique_ptr<ModelRunner> model_runner)
     : model_runner_(std::move(model_runner)),
       data_dumper_(new ApmDataDumper(++instance_count_)) {
-  input_mic_buffer_.reserve(model_runner_->StepSize());
-  input_linear_aec_output_buffer_.reserve(model_runner_->StepSize());
-  input_aec_ref_buffer_.reserve(model_runner_->StepSize());
   output_mask_.fill(0.0f);
   if (model_runner_->GetMetadata().version() == 1) {
-    feature_extractor_ = std::make_unique<TimeDomainFeatureExtractor>();
+    feature_extractor_ = std::make_unique<TimeDomainFeatureExtractor>(
+        /*step_size=*/model_runner_->StepSize());
   } else {
     feature_extractor_ = std::make_unique<FrequencyDomainFeatureExtractor>(
         /*step_size=*/model_runner_->StepSize());
@@ -291,7 +289,7 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
 }
 
 void NeuralResidualEchoEstimatorImpl::Estimate(
-    ArrayView<const float> x,
+    const Block& render,
     ArrayView<const std::array<float, kBlockSize>> y,
     ArrayView<const std::array<float, kBlockSize>> e,
     ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
@@ -299,33 +297,32 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
     ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
     ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
     ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
-  // The input is buffered for model inference; multi-channel data is handled by
-  // summing the content of all channels.
-  input_mic_buffer_.insert(input_mic_buffer_.end(), y[0].begin(), y[0].end());
-  input_linear_aec_output_buffer_.insert(input_linear_aec_output_buffer_.end(),
-                                         e[0].begin(), e[0].end());
-  for (size_t ch = 1; ch < y.size(); ++ch) {
-    std::transform(y[ch].begin(), y[ch].end(),
-                   input_mic_buffer_.end() - kBlockSize,
-                   input_mic_buffer_.end() - kBlockSize, std::plus<float>());
-    std::transform(e[ch].begin(), e[ch].end(),
-                   input_linear_aec_output_buffer_.end() - kBlockSize,
-                   input_linear_aec_output_buffer_.end() - kBlockSize,
-                   std::plus<float>());
+  DumpInputs(render, y, e);
+  render_channels_.clear();
+  for (int i = 0; i < render.NumChannels(); ++i) {
+    render_channels_.emplace_back(render.View(/*band=*/0, i));
   }
-  input_aec_ref_buffer_.insert(input_aec_ref_buffer_.end(), x.begin(), x.end());
+  y_channels_.clear();
+  for (size_t i = 0; i < y.size(); ++i) {
+    y_channels_.emplace_back(y[i]);
+  }
+  e_channels_.clear();
+  for (size_t i = 0; i < e.size(); ++i) {
+    e_channels_.emplace_back(e[i]);
+  }
+  feature_extractor_->UpdateBuffers(y_channels_, ModelInputEnum::kMic);
+  feature_extractor_->UpdateBuffers(e_channels_,
+                                    ModelInputEnum::kLinearAecOutput);
+  feature_extractor_->UpdateBuffers(render_channels_, ModelInputEnum::kAecRef);
 
-  if (static_cast<int>(input_mic_buffer_.size()) == model_runner_->StepSize()) {
-    DumpInputs();
-    feature_extractor_->PushFeaturesToModelInput(
-        input_mic_buffer_, model_runner_->GetInput(ModelInputEnum::kMic),
-        ModelInputEnum::kMic);
-    feature_extractor_->PushFeaturesToModelInput(
-        input_linear_aec_output_buffer_,
+  if (feature_extractor_->ReadyForInference()) {
+    feature_extractor_->PrepareModelInput(
+        model_runner_->GetInput(ModelInputEnum::kMic), ModelInputEnum::kMic);
+    feature_extractor_->PrepareModelInput(
         model_runner_->GetInput(ModelInputEnum::kLinearAecOutput),
         ModelInputEnum::kLinearAecOutput);
-    feature_extractor_->PushFeaturesToModelInput(
-        input_aec_ref_buffer_, model_runner_->GetInput(ModelInputEnum::kAecRef),
+    feature_extractor_->PrepareModelInput(
+        model_runner_->GetInput(ModelInputEnum::kAecRef),
         ModelInputEnum::kAecRef);
     if (model_runner_->Invoke()) {
       // Downsample output mask to match the AEC3 frequency resolution.
@@ -381,11 +378,13 @@ EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
   return config;
 }
 
-void NeuralResidualEchoEstimatorImpl::DumpInputs() {
-  data_dumper_->DumpWav("ml_ree_mic_input", input_mic_buffer_, 16000, 1);
-  data_dumper_->DumpWav("ml_ree_linear_aec_output",
-                        input_linear_aec_output_buffer_, 16000, 1);
-  data_dumper_->DumpWav("ml_ree_aec_ref", input_aec_ref_buffer_, 16000, 1);
+void NeuralResidualEchoEstimatorImpl::DumpInputs(
+    const Block& render,
+    ArrayView<const std::array<float, kBlockSize>> y,
+    ArrayView<const std::array<float, kBlockSize>> e) {
+  data_dumper_->DumpWav("ml_ree_mic_input", y[0], 16000, 1);
+  data_dumper_->DumpWav("ml_ree_linear_aec_output", e[0], 16000, 1);
+  data_dumper_->DumpWav("ml_ree_aec_ref", render.View(0, 0), 16000, 1);
 }
 
 }  // namespace webrtc

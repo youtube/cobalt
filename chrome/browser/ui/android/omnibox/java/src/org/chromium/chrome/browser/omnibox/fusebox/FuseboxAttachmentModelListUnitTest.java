@@ -24,6 +24,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.components.contextual_search.FileUploadStatus;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(BaseRobolectricTestRunner.class)
 public class FuseboxAttachmentModelListUnitTest {
@@ -47,6 +50,7 @@ public class FuseboxAttachmentModelListUnitTest {
         mFuseboxAttachmentModelList = new FuseboxAttachmentModelList();
         mFuseboxAttachmentModelList.setComposeBoxQueryControllerBridge(
                 mComposeBoxQueryControllerBridge);
+        verify(mComposeBoxQueryControllerBridge).setFileUploadObserver(mFuseboxAttachmentModelList);
     }
 
     @Test
@@ -64,6 +68,8 @@ public class FuseboxAttachmentModelListUnitTest {
         assertEquals(1, mFuseboxAttachmentModelList.size());
         assertTrue(mFuseboxAttachmentModelList.isSessionStarted());
         assertEquals("valid-token", attachment.getToken());
+        assertFalse(attachment.isUploadComplete());
+
         verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
     }
 
@@ -106,6 +112,7 @@ public class FuseboxAttachmentModelListUnitTest {
         FuseboxAttachment attachment = createTestAttachment("test");
 
         mFuseboxAttachmentModelList.setComposeBoxQueryControllerBridge(null);
+        verify(mComposeBoxQueryControllerBridge).setFileUploadObserver(null);
 
         assertFalse(mFuseboxAttachmentModelList.isSessionStarted());
         mFuseboxAttachmentModelList.add(attachment);
@@ -220,6 +227,7 @@ public class FuseboxAttachmentModelListUnitTest {
         assertEquals(1, mFuseboxAttachmentModelList.size());
 
         mFuseboxAttachmentModelList.setComposeBoxQueryControllerBridge(null);
+        verify(mComposeBoxQueryControllerBridge).setFileUploadObserver(null);
 
         assertEquals(0, mFuseboxAttachmentModelList.size());
         verify(mComposeBoxQueryControllerBridge).notifySessionStarted();
@@ -239,6 +247,7 @@ public class FuseboxAttachmentModelListUnitTest {
         assertEquals(1, mFuseboxAttachmentModelList.size());
 
         mFuseboxAttachmentModelList.destroy();
+        verify(mComposeBoxQueryControllerBridge).setFileUploadObserver(null);
 
         assertEquals(0, mFuseboxAttachmentModelList.size());
         verify(mComposeBoxQueryControllerBridge).notifySessionStarted();
@@ -290,6 +299,11 @@ public class FuseboxAttachmentModelListUnitTest {
         assertEquals(1, mFuseboxAttachmentModelList.size());
         assertTrue(mFuseboxAttachmentModelList.isSessionStarted());
         assertEquals("uploaded-token", attachment.getToken());
+        assertFalse(attachment.isUploadComplete());
+
+        mFuseboxAttachmentModelList.onFileUploadStatusChanged(
+                "uploaded-token", FileUploadStatus.UPLOAD_SUCCESSFUL);
+        assertTrue(attachment.isUploadComplete());
         verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
     }
 
@@ -317,7 +331,9 @@ public class FuseboxAttachmentModelListUnitTest {
 
         FuseboxAttachment preTokenizedAttachment = createTestAttachment("pretokenized");
         FuseboxAttachment uploadedAttachment = createTestAttachment("uploaded");
-
+        AtomicBoolean uploadFailedNotified = new AtomicBoolean(false);
+        mFuseboxAttachmentModelList.setAttachmentUploadFailedListener(
+                () -> uploadFailedNotified.set(true));
         mFuseboxAttachmentModelList.add(preTokenizedAttachment);
         mFuseboxAttachmentModelList.add(uploadedAttachment);
         assertEquals(2, mFuseboxAttachmentModelList.size());
@@ -332,6 +348,33 @@ public class FuseboxAttachmentModelListUnitTest {
                 .addFile(eq("uploaded.txt"), eq("mime/uploaded"), eq("uploaded".getBytes()));
         assertEquals("pretokenized-token", preTokenizedAttachment.getToken());
         assertEquals("uploaded-token", uploadedAttachment.getToken());
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
+
+        assertFalse(preTokenizedAttachment.isUploadComplete());
+        assertFalse(uploadedAttachment.isUploadComplete());
+
+        mFuseboxAttachmentModelList.onFileUploadStatusChanged(
+                "pretokenized-token", FileUploadStatus.UPLOAD_SUCCESSFUL);
+        mFuseboxAttachmentModelList.onFileUploadStatusChanged(
+                "uploaded-token", FileUploadStatus.UPLOAD_FAILED);
+        assertTrue(uploadFailedNotified.get());
+
+        assertTrue(preTokenizedAttachment.isUploadComplete());
+        assertTrue(uploadedAttachment.isUploadComplete());
+
+        assertEquals(0, mFuseboxAttachmentModelList.indexOf(preTokenizedAttachment));
+        assertEquals(-1, mFuseboxAttachmentModelList.indexOf(uploadedAttachment));
+    }
+
+    @Test
+    public void testMaxAttachments() {
+        when(mComposeBoxQueryControllerBridge.addFile(anyString(), anyString(), any()))
+                .thenReturn("pretokenized-token", "uploaded-token");
+        for (int i = 0; i < FuseboxAttachmentModelList.MAX_ATTACHMENTS; i++) {
+            FuseboxAttachment attachment = createTestAttachment("pretokenized");
+            assertTrue(mFuseboxAttachmentModelList.add(attachment));
+        }
+
+        FuseboxAttachment attachment = createTestAttachment("pretokenized");
+        assertFalse(mFuseboxAttachmentModelList.add(attachment));
     }
 }

@@ -1,6 +1,7 @@
 // Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
@@ -71,7 +72,7 @@ function doNothing() {}
 export class SettingsSafetyHubUnusedSitePermissionsModuleElement extends
     SettingsSafetyHubUnusedSitePermissionsModuleElementBase {
   static get is() {
-    return 'settings-safety-hub-unused-site-permissions';
+    return 'settings-safety-hub-unused-site-permissions-module';
   }
 
   static get template() {
@@ -485,7 +486,7 @@ export class SettingsSafetyHubUnusedSitePermissionsModuleElement extends
 
 declare global {
   interface HTMLElementTagNameMap {
-    'settings-safety-hub-unused-site-permissions':
+    'settings-safety-hub-unused-site-permissions-module':
         SettingsSafetyHubUnusedSitePermissionsModuleElement;
   }
 }

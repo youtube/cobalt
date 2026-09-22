@@ -108,46 +108,46 @@ public class TouchToFillControllerTest {
             UrlFormatter.formatUrlForSecurityDisplay(TEST_URL, SchemeDisplay.OMIT_HTTP_AND_HTTPS);
     private static final String TEST_SUBDOMAIN_URL = "https://subdomain.example.xyz";
     private static final Credential ANA =
-            new Credential(
-                    "Ana",
-                    "S3cr3t",
-                    "Ana",
-                    "https://m.a.xyz/",
-                    "m.a.xyz",
-                    GetLoginMatchType.PSL,
-                    0);
+            new Credential.Builder()
+                    .setUsername("Ana")
+                    .setPassword("S3cr3t")
+                    .setFormattedUsername("Ana")
+                    .setOriginUrl("https://m.a.xyz/")
+                    .setDisplayName("m.a.xyz")
+                    .setMatchType(GetLoginMatchType.PSL)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential BOB =
-            new Credential(
-                    "Bob",
-                    "*****",
-                    "Bob",
-                    TEST_SUBDOMAIN_URL,
-                    "subdomain.example.xyz",
-                    GetLoginMatchType.PSL,
-                    0);
+            new Credential.Builder()
+                    .setUsername("Bob")
+                    .setPassword("*****")
+                    .setFormattedUsername("Bob")
+                    .setOriginUrl(TEST_SUBDOMAIN_URL)
+                    .setDisplayName("subdomain.example.xyz")
+                    .setMatchType(GetLoginMatchType.PSL)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential CARL =
-            new Credential(
-                    "Carl",
-                    "G3h3!m",
-                    "Carl",
-                    TEST_URL.getSpec(),
-                    "example.xyz",
-                    GetLoginMatchType.EXACT,
-                    0);
+            new Credential.Builder()
+                    .setUsername("Carl")
+                    .setPassword("G3h3!m")
+                    .setFormattedUsername("Carl")
+                    .setOriginUrl(TEST_URL.getSpec())
+                    .setDisplayName("example.xyz")
+                    .setMatchType(GetLoginMatchType.EXACT)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential CARL_BACKUP =
-            new Credential(
-                    "Carl",
-                    "G3h3!m",
-                    "Carl",
-                    TEST_URL.getSpec(),
-                    "example.xyz",
-                    GetLoginMatchType.EXACT,
-                    0,
-                    false,
-                    /* senderName= */ null,
-                    null,
-                    /* sharingNotificationDisplayed= */ false,
-                    /* isBackupCredential= */ true);
+            new Credential.Builder()
+                    .setUsername("Carl")
+                    .setPassword("G3h3!m")
+                    .setFormattedUsername("Carl")
+                    .setOriginUrl(TEST_URL.getSpec())
+                    .setDisplayName("example.xyz")
+                    .setMatchType(GetLoginMatchType.EXACT)
+                    .setLastUsedMsSinceEpoch(0)
+                    .setIsBackupCredential(true)
+                    .build();
     private static final WebauthnCredential DINO =
             new WebauthnCredential("dinos.com", new byte[] {1}, new byte[] {2}, "dino@example.com");
     private static final @Px int DESIRED_FAVICON_SIZE = 64;
@@ -197,7 +197,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ true,
@@ -233,7 +232,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -263,7 +261,6 @@ public class TouchToFillControllerTest {
                 TEST_URL,
                 true,
                 Arrays.asList(DINO),
-                Collections.emptyList(),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
                 /* showHybridPasskeyOption= */ false);
@@ -291,8 +288,7 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Arrays.asList(DINO),
-                Arrays.asList(ANA),
+                Arrays.asList(DINO, ANA),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
                 /* showHybridPasskeyOption= */ false);
@@ -322,7 +318,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ true,
@@ -353,7 +348,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -389,23 +383,21 @@ public class TouchToFillControllerTest {
                     task.run();
                 });
         Credential sharedCredentials =
-                new Credential(
-                        "Ana",
-                        "S3cr3t",
-                        "Ana",
-                        "https://m.a.xyz/",
-                        "m.a.xyz",
-                        GetLoginMatchType.PSL,
-                        0,
-                        /* isShared */ true,
-                        "Sender Name",
-                        new GURL("https://sender-profile-image.xyz/"),
-                        /* sharingNotificationDisplayed */ false,
-                        /* isBackupCredential */ false);
+                new Credential.Builder()
+                        .setUsername("Ana")
+                        .setPassword("S3cr3t")
+                        .setFormattedUsername("Ana")
+                        .setOriginUrl("https://m.a.xyz/")
+                        .setDisplayName("m.a.xyz")
+                        .setMatchType(GetLoginMatchType.PSL)
+                        .setLastUsedMsSinceEpoch(0)
+                        .setIsShared(true)
+                        .setSenderName("Sender Name")
+                        .setSenderProfileImageUrl(new GURL("https://sender-profile-image.xyz/"))
+                        .build();
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(sharedCredentials),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ true,
@@ -451,37 +443,34 @@ public class TouchToFillControllerTest {
     @Test
     public void testShowSheetForMultipleSharedCredentials() {
         Credential sharedCredential1 =
-                new Credential(
-                        "Ana",
-                        "S3cr3t",
-                        "Ana",
-                        "https://m.a.xyz/",
-                        "m.a.xyz",
-                        GetLoginMatchType.PSL,
-                        0,
-                        /* isShared */ true,
-                        "Sender Name",
-                        new GURL("https://sender-profile-image.xyz/"),
-                        /* sharingNotificationDisplayed */ false,
-                        /* isBackupCredential */ false);
+                new Credential.Builder()
+                        .setUsername("Ana")
+                        .setPassword("S3cr3t")
+                        .setFormattedUsername("Ana")
+                        .setOriginUrl("https://m.a.xyz/")
+                        .setDisplayName("m.a.xyz")
+                        .setMatchType(GetLoginMatchType.PSL)
+                        .setLastUsedMsSinceEpoch(0)
+                        .setIsShared(true)
+                        .setSenderName("Sender Name")
+                        .setSenderProfileImageUrl(new GURL("https://sender-profile-image.xyz/"))
+                        .build();
         Credential sharedCredential2 =
-                new Credential(
-                        "Bob",
-                        "S3cr3t",
-                        "Ana",
-                        "https://m.a.xyz/",
-                        "m.a.xyz",
-                        GetLoginMatchType.PSL,
-                        0,
-                        /* isShared */ true,
-                        "Sender Name",
-                        new GURL("https://sender-profile-image.xyz/"),
-                        /* sharingNotificationDisplayed */ false,
-                        /* isBackupCredential */ false);
+                new Credential.Builder()
+                        .setUsername("Bob")
+                        .setPassword("S3cr3t")
+                        .setFormattedUsername("Ana")
+                        .setOriginUrl("https://m.a.xyz/")
+                        .setDisplayName("m.a.xyz")
+                        .setMatchType(GetLoginMatchType.PSL)
+                        .setLastUsedMsSinceEpoch(0)
+                        .setIsShared(true)
+                        .setSenderName("Sender Name")
+                        .setSenderProfileImageUrl(new GURL("https://sender-profile-image.xyz/"))
+                        .build();
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(sharedCredential1, sharedCredential2),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ true,
@@ -510,7 +499,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Collections.singletonList(CARL),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -546,7 +534,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(CARL, CARL_BACKUP),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -585,7 +572,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -600,7 +586,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Collections.singletonList(ANA),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -615,7 +600,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Collections.singletonList(BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -632,7 +616,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -645,7 +628,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -667,7 +649,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -689,7 +670,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -709,7 +689,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -728,7 +707,6 @@ public class TouchToFillControllerTest {
                 TEST_URL,
                 true,
                 Arrays.asList(DINO),
-                Collections.emptyList(),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
                 /* showHybridPasskeyOption= */ false);
@@ -744,8 +722,7 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Arrays.asList(DINO),
-                Arrays.asList(ANA),
+                Arrays.asList(ANA, DINO),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
                 /* showHybridPasskeyOption= */ false);
@@ -758,7 +735,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -772,7 +748,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA, CARL, BOB),
                 /* showMorePasskeys= */ false,
                 /* triggerSubmission= */ false,
@@ -790,7 +765,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA),
                 /* showMorePasskeys= */ true,
                 /* triggerSubmission= */ false,
@@ -814,8 +788,7 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Arrays.asList(DINO),
-                Arrays.asList(ANA),
+                Arrays.asList(ANA, DINO),
                 /* showMorePasskeys= */ true,
                 /* triggerSubmission= */ false,
                 /* showHybridPasskeyOption= */ true);
@@ -839,7 +812,6 @@ public class TouchToFillControllerTest {
         mMediator.showCredentials(
                 TEST_URL,
                 true,
-                Collections.emptyList(),
                 Arrays.asList(ANA),
                 /* showMorePasskeys= */ true,
                 /* triggerSubmission= */ false,

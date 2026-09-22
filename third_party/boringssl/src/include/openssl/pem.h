@@ -438,7 +438,7 @@ OPENSSL_EXPORT int PEM_write_PKCS8PrivateKey(FILE *fp, const EVP_PKEY *x,
 
 
 #ifdef __cplusplus
-}  // extern "C"
+}  // extern C
 #endif
 
 #define PEM_R_BAD_BASE64_DECODE 100

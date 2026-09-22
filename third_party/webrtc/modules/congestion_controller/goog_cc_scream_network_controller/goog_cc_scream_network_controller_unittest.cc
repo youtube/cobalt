@@ -63,6 +63,8 @@ TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAfterCe) {
   feedback.smoothed_rtt = TimeDelta::Millis(10);
   PacketResult packet_result;
   packet_result.sent_packet.send_time = env.clock().CurrentTime();
+  packet_result.sent_packet.sequence_number = 1;
+  packet_result.sent_packet.size = DataSize::Bytes(100);
   packet_result.receive_time = env.clock().CurrentTime();
   packet_result.ecn = EcnMarking::kCe;
   feedback.packet_feedbacks.push_back(packet_result);

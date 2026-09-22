@@ -123,8 +123,9 @@ int64_t TaskTabHelper::GetParentRootTaskId() {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-jlong JNI_TaskTabHelper_GetTaskId(JNIEnv* env,
-                                  const JavaParamRef<jobject>& jweb_contents) {
+static jlong JNI_TaskTabHelper_GetTaskId(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& jweb_contents) {
   sessions::NavigationTaskId* navigation_task_id =
       TaskTabHelper::GetCurrentTaskId(
           content::WebContents::FromJavaWebContents(jweb_contents));
@@ -134,7 +135,7 @@ jlong JNI_TaskTabHelper_GetTaskId(JNIEnv* env,
   return -1;
 }
 
-jlong JNI_TaskTabHelper_GetRootTaskId(
+static jlong JNI_TaskTabHelper_GetRootTaskId(
     JNIEnv* env,
     const JavaParamRef<jobject>& jweb_contents) {
   sessions::NavigationTaskId* navigation_task_id =
@@ -150,3 +151,7 @@ jlong JNI_TaskTabHelper_GetRootTaskId(
 WEB_CONTENTS_USER_DATA_KEY_IMPL(TaskTabHelper);
 
 }  // namespace tasks
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(TaskTabHelper)
+#endif

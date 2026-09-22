@@ -72,7 +72,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.Cold.FirstPaintOccurredPreForeground"
-    enum="Boolean" expires_after="2026-03-22">
+    enum="Boolean" expires_after="2026-05-24">
   <owner>blundell@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -173,6 +173,24 @@ chromium-metrics-reviews@google.com.
     NOTE: This metric is broken before October 2024 on Pixel 6+ on Android 14+
     due to an issue with the recording of BrowserProcessCreationReason affecting
     ColdStartTracker downstream. {StartActivityType}
+  </summary>
+</histogram>
+
+<histogram name="Startup.Android.Cold.TimeToFirstFrame" units="ms"
+    expires_after="2026-05-05">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The time from activity creation to the moment the first frame is drawn for
+    the app, as determined by Android. Recorded regardless of the what is loaded
+    (i.e. NTP, web, etc.). The intent is to provide a general overview of
+    user-perceived cold start time.
+
+    Recorded once per application launch, only when the start is determined to
+    be cold. Utilizes ApplicationStartInfo which is only available starting with
+    Android 15. The metric isn't recorded if Chrome is backgrounded in between
+    activity creation and recording of the metric.
   </summary>
 </histogram>
 
@@ -359,7 +377,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.Cold.TimeToVisibleContent" units="ms"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>ckitagawa@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>
@@ -378,7 +396,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.Cold.{FirstDrawSurface}.TimeToFirstDraw"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-05-24">
   <owner>nafisabedin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -425,7 +443,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.DurationSinceLastBackgroundTime" units="ms"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -493,7 +511,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.IsLastBackgroundTimeLogged" enum="Boolean"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -514,7 +532,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.MainIconLaunchTotalWaitTime" units="ms"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>nafisabedin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -593,7 +611,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.BringToForegroundReason"
-    enum="BooleanBringToForegroundReason" expires_after="2026-03-22">
+    enum="BooleanBringToForegroundReason" expires_after="2026-05-24">
   <owner>peter@chromium.org</owner>
   <summary>
     Records the cause, each time Chrome is brought to the foreground. Currently
@@ -1105,7 +1123,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.MobileSessionStartAction"
-    enum="MobileSessionStartAction" expires_after="2026-03-22">
+    enum="MobileSessionStartAction" expires_after="2026-05-24">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -1115,7 +1133,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.MobileSessionStartFromApps"
-    enum="MobileSessionCallerApp" expires_after="2026-03-22">
+    enum="MobileSessionCallerApp" expires_after="2026-05-24">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>The calling application (if any).</summary>
@@ -1148,7 +1166,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Startup.Renderer.LoadTime.ApplicationStartToRendererStartRunLoop"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-05-24">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1166,7 +1184,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Renderer.LoadTime.ChromeMainToRendererStartRunLoop"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-05-24">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1182,7 +1200,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Startup.Renderer.LoadTime.ProcessCreationToRendererStartRunLoop"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-05-24">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1220,7 +1238,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.StartupTabs.IsWelcomePageSkipped"
-    enum="BooleanSkipped" expires_after="2025-11-20">
+    enum="BooleanSkipped" expires_after="2026-05-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1272,7 +1290,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.{Process}.LoadTime.PreReadFile" units="ms"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>spvm@chromium.org</owner>
   <owner>fdoray@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>

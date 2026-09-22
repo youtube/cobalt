@@ -23,7 +23,6 @@
 #include "media/capture/mojom/video_capture_types.mojom-forward.h"
 #include "media/capture/video/video_frame_receiver.h"
 #include "media/capture/video_capture_types.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 
 namespace content {
@@ -220,14 +219,12 @@ class CONTENT_EXPORT VideoCaptureController
 
   ~VideoCaptureController() override;
 
-  // Find a client of |id| and |handler| in |clients|.
+  // Find a client of |id| and |handler| in |controller_clients_|.
   ControllerClient* FindClient(const VideoCaptureControllerID& id,
-                               VideoCaptureControllerEventHandler* handler,
-                               const ControllerClients& clients);
+                               VideoCaptureControllerEventHandler* handler);
 
-  // Find a client of |session_id| in |clients|.
-  ControllerClient* FindClient(const base::UnguessableToken& session_id,
-                               const ControllerClients& clients);
+  // Find a client of |session_id| in |controller_clients_|.
+  ControllerClient* FindClient(const base::UnguessableToken& session_id);
 
   std::vector<BufferContext>::iterator FindBufferContextFromBufferContextId(
       int buffer_context_id);

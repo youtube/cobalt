@@ -7,7 +7,6 @@
 
 #include <vector>
 
-#include "base/feature_list.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 
 class BackForwardCachePageLoadMetricsObserverTest;
@@ -42,9 +41,6 @@ extern const char
 extern const char
     kHistogramThirdRequestAnimationFrameAfterBackForwardCacheRestore[];
 extern const char kHistogramFirstInputDelayAfterBackForwardCacheRestore[];
-extern const char kHistogramCumulativeShiftScoreAfterBackForwardCacheRestore[];
-extern const char
-    kHistogramCumulativeShiftScoreMainFrameAfterBackForwardCacheRestore[];
 extern const char kHistogramCumulativeShiftScoreAfterBackForwardCacheRestore[];
 
 }  // namespace internal

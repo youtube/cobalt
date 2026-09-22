@@ -9,7 +9,6 @@
 #include "third_party/blink/public/web/web_media_inspector.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 
@@ -37,11 +36,8 @@ struct MediaPlayer final : public GarbageCollected<MediaPlayer> {
 
 class CORE_EXPORT MediaInspectorContextImpl final
     : public GarbageCollected<MediaInspectorContextImpl>,
-      public Supplement<ExecutionContext>,
       public MediaInspectorContext {
  public:
-  static const unsigned kSupplementIndex;
-
   static MediaInspectorContextImpl* From(ExecutionContext&);
 
   explicit MediaInspectorContextImpl(ExecutionContext&);
@@ -62,7 +58,7 @@ class CORE_EXPORT MediaInspectorContextImpl final
                            const InspectorPlayerProperties&) override;
 
   // GarbageCollected methods.
-  void Trace(Visitor*) const override;
+  void Trace(Visitor*) const;
 
   Vector<WebString> AllPlayerIdsAndMarkSent();
   const MediaPlayer& MediaPlayerFromId(const WebString&);
@@ -89,6 +85,7 @@ class CORE_EXPORT MediaInspectorContextImpl final
   void TrimPlayer(const WebString& playerId);
   void RemovePlayer(const WebString& playerId);
 
+  Member<ExecutionContext> execution_context_;
   HeapHashMap<String, Member<MediaPlayer>> players_;
   Vector<String> unsent_players_;
   Vector<String> dead_players_;

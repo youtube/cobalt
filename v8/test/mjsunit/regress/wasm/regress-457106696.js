@@ -14,6 +14,6 @@ let $struct = builder.addStruct({descriptor: $desc});
 builder.endRecGroup();
 builder.addGlobal(wasmRefType($struct), false, false, [
   kGCPrefix, kExprStructNewDefault, $desc,
-  kGCPrefix, kExprStructNewDefault, $struct]);
+  kGCPrefix, kExprStructNewDefaultDesc, $struct]);
 let instance = builder.instantiate();
 gc();

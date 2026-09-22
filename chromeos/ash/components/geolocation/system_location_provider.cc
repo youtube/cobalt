@@ -17,9 +17,8 @@
 #include "base/time/time.h"
 #include "chromeos/ash/components/geolocation/geoposition.h"
 #include "chromeos/ash/components/geolocation/simple_geolocation_request.h"
-#include "chromeos/ash/components/network/geolocation_handler.h"
+#include "chromeos/ash/components/network/geolocation_handler_impl.h"
 #include "chromeos/ash/components/network/network_handler.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace ash {
 
@@ -52,8 +51,8 @@ std::string_view GetClientIdUmaName(
 }  // namespace
 
 SystemLocationProvider::SystemLocationProvider(
-    scoped_refptr<network::SharedURLLoaderFactory> factory)
-    : shared_url_loader_factory_(factory) {}
+    std::unique_ptr<LocationProvider> location_provider)
+    : location_provider_(std::move(location_provider)) {}
 
 SystemLocationProvider::~SystemLocationProvider() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -61,10 +60,11 @@ SystemLocationProvider::~SystemLocationProvider() {
 
 // static
 void SystemLocationProvider::Initialize(
-    scoped_refptr<network::SharedURLLoaderFactory> factory) {
+    std::unique_ptr<LocationProvider> location_provider) {
   CHECK_EQ(g_geolocation_provider, nullptr);
 
-  g_geolocation_provider = new SystemLocationProvider(factory);
+  g_geolocation_provider =
+      new SystemLocationProvider(std::move(location_provider));
 }
 
 // static
@@ -104,7 +104,7 @@ void SystemLocationProvider::RequestGeolocation(
     base::TimeDelta timeout,
     bool use_wifi_scan,
     bool use_cellular_scan,
-    SimpleGeolocationRequest::ResponseCallback callback,
+    LocationProvider::ResponseCallback callback,
     ClientId client_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   RecordClientIdUma(client_id);
@@ -115,41 +115,8 @@ void SystemLocationProvider::RequestGeolocation(
     return;
   }
 
-  // System permission is granted:
-  auto cell_vector = std::make_unique<CellTowerVector>();
-  auto wifi_vector = std::make_unique<WifiAccessPointVector>();
-
-  if (use_wifi_scan || use_cellular_scan) {
-    // Mostly necessary for testing and rare cases where NetworkHandler is not
-    // initialized: in that case, calls to Get() will fail.
-    GeolocationHandler* geolocation_handler = geolocation_handler_;
-    if (!geolocation_handler) {
-      geolocation_handler = NetworkHandler::Get()->geolocation_handler();
-    }
-    geolocation_handler->GetNetworkInformation(wifi_vector.get(),
-                                               cell_vector.get());
-  }
-
-  if (!use_wifi_scan || (wifi_vector->size() == 0)) {
-    wifi_vector = nullptr;
-  }
-
-  if (!use_cellular_scan || (cell_vector->size() == 0)) {
-    cell_vector = nullptr;
-  }
-
-  SimpleGeolocationRequest* request(new SimpleGeolocationRequest(
-      shared_url_loader_factory_, GURL(GetGeolocationProviderUrl()), timeout,
-      std::move(wifi_vector), std::move(cell_vector)));
-  requests_.push_back(base::WrapUnique(request));
-
-  // SystemLocationProvider owns all requests. It is safe to pass unretained
-  // "this" because destruction of SystemLocationProvider cancels all
-  // requests.
-  SimpleGeolocationRequest::ResponseCallback callback_tmp(
-      base::BindOnce(&SystemLocationProvider::OnGeolocationResponse,
-                     base::Unretained(this), request, std::move(callback)));
-  request->MakeRequest(std::move(callback_tmp));
+  location_provider_->RequestLocation(timeout, use_wifi_scan, use_cellular_scan,
+                                      std::move(callback));
 }
 
 // static
@@ -158,18 +125,6 @@ void SystemLocationProvider::DestroyForTesting() {
   CHECK_NE(g_geolocation_provider, nullptr);
   delete g_geolocation_provider;
   g_geolocation_provider = nullptr;
-}
-
-void SystemLocationProvider::SetSharedUrlLoaderFactoryForTesting(
-    scoped_refptr<network::SharedURLLoaderFactory> factory) {
-  CHECK_IS_TEST();
-  shared_url_loader_factory_ = factory;
-}
-
-void SystemLocationProvider::SetGeolocationProviderUrlForTesting(
-    const char* url) {
-  CHECK_IS_TEST();
-  url_for_testing_ = url;
 }
 
 bool SystemLocationProvider::IsGeolocationUsageAllowedForSystem() {
@@ -184,31 +139,13 @@ bool SystemLocationProvider::IsGeolocationUsageAllowedForSystem() {
 
 void SystemLocationProvider::OnGeolocationResponse(
     SimpleGeolocationRequest* request,
-    SimpleGeolocationRequest::ResponseCallback callback,
+    LocationProvider::ResponseCallback callback,
     const Geoposition& geoposition,
     bool server_error,
     const base::TimeDelta elapsed) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   std::move(callback).Run(geoposition, server_error, elapsed);
-
-  std::vector<std::unique_ptr<SimpleGeolocationRequest>>::iterator position =
-      std::ranges::find(requests_, request,
-                        &std::unique_ptr<SimpleGeolocationRequest>::get);
-  DCHECK(position != requests_.end());
-  if (position != requests_.end()) {
-    std::swap(*position, *requests_.rbegin());
-    requests_.resize(requests_.size() - 1);
-  }
-}
-
-std::string SystemLocationProvider::GetGeolocationProviderUrl() const {
-  // URL provider is overridden in tests.
-  if (!url_for_testing_.empty()) {
-    CHECK_IS_TEST();
-    return url_for_testing_;
-  }
-  return kGeolocationProviderUrl;
 }
 
 void SystemLocationProvider::NotifyObservers() {

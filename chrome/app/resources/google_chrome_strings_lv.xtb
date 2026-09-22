@@ -77,6 +77,7 @@
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome iesaka pārtraukt tās cilnes darbību, kas palēnina pārlūka darbību}zero{Chrome iesaka pārtraukt to ciļņu darbību, kas palēnina pārlūka darbību}one{Chrome iesaka pārtraukt to ciļņu darbību, kas palēnina pārlūka darbību}other{Chrome iesaka pārtraukt to ciļņu darbību, kas palēnina pārlūka darbību}}</translation>
 <translation id="1832046143430087831">Paātrina vietņu darbību, izmantojot Chrome programmu V8, bet nedaudz samazina Chrome izturību pret uzbrukumiem. Šis iestatījums ir izslēgts.</translation>
 <translation id="1838374766361614909">Notīrīt meklēšanas vaicājumu</translation>
+<translation id="1843347690926158494">Meklēt šajā cilnē, izmantojot Google Lens</translation>
 <translation id="1849248141818021764">Jūsu šifrētos datus var lasīt tikai personas, kurām ir jūsu ieejas frāze. Ieejas frāze netiek sūtīta uzņēmumam Google, un uzņēmums Google to neuzglabā. Ja aizmirsīsiet ieejas frāzi vai vēlēsieties mainīt šo iestatījumu, jums būs <ph name="BEGIN_LINK" />jāizdzēš Chrome dati savā kontā<ph name="END_LINK" />.</translation>
 <translation id="1860536484129686729">Pārlūkam Chrome ir nepieciešama atļauja piekļūt jūsu kamerai šajā vietnē.</translation>
 <translation id="1873233029667955273">Google Chrome nav jūsu noklusējuma pārlūks.</translation>
@@ -150,9 +151,9 @@
 <translation id="2681444469812712297">Atveriet vietrādi <ph name="URL" /> jaunā cilnē pārlūkā Google Chrome.</translation>
 <translation id="2699790011615497488">Atvērt Gemini pārlūka Chrome beta versijā</translation>
 <translation id="2712141162840347885">Atlasiet jebko, lai meklētu ar Google Lens, vai nospiediet atsoļa taustiņu, lai izietu no Google Lens</translation>
-<translation id="2723860029395667894">Vienmēr rādīt Google MI režīma saīsni</translation>
 <translation id="2738871930057338499">Nevar izveidot savienojumu ar internetu. HTTP 403 — aizliegts. Lūdzu, pārbaudiet starpniekservera konfigurāciju.</translation>
 <translation id="2742320827292110288">Brīdinājums! Google Chrome nevar novērst to, ka paplašinājumi ieraksta jūsu pārlūkošanas vēsturi. Lai atspējotu šo paplašinājumu inkognito režīmā, noņemiet šīs opcijas atlasi.</translation>
+<translation id="2747021967398957654">{count,plural, =1{Noteikti jūsu Chrome dati vēl nav saglabāti jūsu Google kontā. Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, šie dati (1 vienums) tiks dzēsti.}zero{Noteikti jūsu Chrome dati vēl nav saglabāti jūsu Google kontā. Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, šie dati ({count} vienumu) tiks dzēsti.}one{Noteikti jūsu Chrome dati vēl nav saglabāti jūsu Google kontā. Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, šie dati ({count} vienums) tiks dzēsti.}other{Noteikti jūsu Chrome dati vēl nav saglabāti jūsu Google kontā. Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, šie dati ({count} vienumi) tiks dzēsti.}}</translation>
 <translation id="2753623023919742414">Noklikšķiniet, lai meklētu</translation>
 <translation id="2757826245013442432">{COUNT,plural, =0{Ja tiek izmantota papildu aizsardzība, pārlūkprogramma Chrome ir jāpalaiž atkārtoti, lai atjauninājums tiktu lietots.}=1{Ja tiek izmantota papildu aizsardzība, pārlūkprogramma Chrome ir jāpalaiž atkārtoti, lai atjauninājums tiktu lietots. Inkognito režīma logs netiks atkārtoti atvērts.}zero{Ja tiek izmantota papildu aizsardzība, pārlūkprogramma Chrome ir jāpalaiž atkārtoti, lai atjauninājums tiktu lietots. # inkognito režīma logi netiks atkārtoti atvērti.}one{Ja tiek izmantota papildu aizsardzība, pārlūkprogramma Chrome ir jāpalaiž atkārtoti, lai atjauninājums tiktu lietots. # inkognito režīma logi netiks atkārtoti atvērti.}other{Ja tiek izmantota papildu aizsardzība, pārlūkprogramma Chrome ir jāpalaiž atkārtoti, lai atjauninājums tiktu lietots. # inkognito režīma logi netiks atkārtoti atvērti.}}</translation>
 <translation id="2765403129283291972">Pārlūkam Chrome ir nepieciešama atļauja piekļūt jūsu mikrofonam šajā vietnē.</translation>
@@ -487,6 +488,7 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai li
 <translation id="6417690341895039567">{COUNT,plural, =1{Jūsu organizācija automātiski aizver pārlūku Chrome, ja tas nav izmantots vienu minūti. Pārlūkošanas dati tiek izdzēsti. Tie var ietvert vēsturi, automātiskās aizpildes datus un lejupielādes.}zero{Jūsu organizācija automātiski aizver pārlūku Chrome, ja tas nav izmantots # minūtes. Pārlūkošanas dati tiek izdzēsti. Tie var ietvert vēsturi, automātiskās aizpildes datus un lejupielādes.}one{Jūsu organizācija automātiski aizver pārlūku Chrome, ja tas nav izmantots # minūti. Pārlūkošanas dati tiek izdzēsti. Tie var ietvert vēsturi, automātiskās aizpildes datus un lejupielādes.}other{Jūsu organizācija automātiski aizver pārlūku Chrome, ja tas nav izmantots # minūtes. Pārlūkošanas dati tiek izdzēsti. Tie var ietvert vēsturi, automātiskās aizpildes datus un lejupielādes.}}</translation>
 <translation id="6418662306461808273">Vai pāriet uz esošo Chrome profilu?</translation>
 <translation id="6426623519983252346">Kad nākamreiz iOS ierīcē atvērsiet pārlūku Chrome, tiks parādīts aicinājums izmēģināt funkciju <ph name="FEATURE_NAME" />.</translation>
+<translation id="6434035853014503219">Paldies, ka izvēlējāties Chrome kā noklusējuma pārlūku!</translation>
 <translation id="6473905796280459355">Pāriet uz lapu “Par Chrome”</translation>
 <translation id="6481963882741794338">Saistiet pārlūku Chrome un citus Google pakalpojumus personalizēšanai un citiem mērķiem</translation>
 <translation id="648319183876919572">Droša pārlūkošana ar papildu aizsardzību nodrošina efektīvāku aizsardzību pret bīstamām vietnēm un lejupielādēm</translation>
@@ -508,6 +510,7 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai li
 <translation id="6676384891291319759">Piekļūt internetam</translation>
 <translation id="6679975945624592337">Ļaut pārlūkam Google Chrome darboties fonā</translation>
 <translation id="6696915334902295848">Pārlūkam Chrome ir nepieciešama atļauja izmantot mikrofonu šajā vietnē.</translation>
+<translation id="6706525880530967390">{count,plural, =1{Pārlūkā Chrome ir jāverificē jūsu identitāte, lai noteiktus datus varētu saglabāt jūsu Google kontā un izmantot visās jūsu ierīcēs. Ja izrakstīsieties tūlīt, šie dati (1 vienums) tiks dzēsti.}zero{Pārlūkā Chrome ir jāverificē jūsu identitāte, lai noteiktus datus varētu saglabāt jūsu Google kontā un izmantot visās jūsu ierīcēs. Ja izrakstīsieties tūlīt, šie dati ({count} vienumu) tiks dzēsti.}one{Pārlūkā Chrome ir jāverificē jūsu identitāte, lai noteiktus datus varētu saglabāt jūsu Google kontā un izmantot visās jūsu ierīcēs. Ja izrakstīsieties tūlīt, šie dati ({count} vienums) tiks dzēsti.}other{Pārlūkā Chrome ir jāverificē jūsu identitāte, lai noteiktus datus varētu saglabāt jūsu Google kontā un izmantot visās jūsu ierīcēs. Ja izrakstīsieties tūlīt, šie dati ({count} vienumi) tiks dzēsti.}}</translation>
 <translation id="6712881677154121168">Lejupielādes kļūda: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6718739135284199302">Pārlūka Chrome darbības paātrināšana</translation>
 <translation id="6734827584173583205">Pēdējā laikā šī vietne nav apmeklēta. Pārlūkā Chrome tika noņemtas šādas atļaujas: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> un vēl <ph name="COUNT" />.</translation>
@@ -584,6 +587,7 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai li
 <translation id="756809126120519699">Chrome dati tika notīrīti</translation>
 <translation id="7572537927358445944">Izslēgts • Chrome nevar pārbaudīt šī paplašinājuma izcelsmi</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> instalēšanas programma</translation>
+<translation id="7596160425942761210">Varat izmantot pārlūku Chrome ikreiz, kad noklikšķināt uz saitēm ziņojumos, dokumentos un citās lietotnēs.</translation>
 <translation id="7602868996817972616">Jautāt Google par šo lapu</translation>
 <translation id="760353356052806707">Citā datorā instalētā programmā ir pievienota tāda lietotne, kuras dēļ var tikt izmainīta pārlūkprogrammas Chrome darbība.
 
@@ -660,6 +664,7 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai li
 <translation id="835927394551949760">Jautāt Google</translation>
 <translation id="8362914115861174987">Tulkot šādā valodā:</translation>
 <translation id="8366770919198174997">Samazina veiktspēju, taču uzlabo Chrome izturību pret uzbrukumiem.</translation>
+<translation id="8367705492654390392">Uzdodiet jebkādu jautājumu</translation>
 <translation id="8370517070665726704">Autortiesības: <ph name="YEAR" /> Google LLC. Visas tiesības paturētas.</translation>
 <translation id="8377158135256176353">Pārslēgt Gemini pārlūkā Chrome Canary</translation>
 <translation id="8387459386171870978">Turpināt lietot Chrome</translation>
@@ -677,16 +682,17 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai li
 <translation id="8533056045953418157">Iestatiet Google Chrome kā noklusējuma PDF failu skatītāju.</translation>
 <translation id="8555465886620020932">Pakalpojuma kļūda: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">Meklēt valodu sarakstā</translation>
+<translation id="8575047640889685742">Izmantot jūsu <ph name="BEGIN_LINK" />ieejas frāzi<ph name="END_LINK" /> visu Chrome datu šifrēšanai jūsu Google kontā. Maksājumu veidi un adreses no pakalpojuma Google Pay netiks šifrētas. Pārlūkā Chrome saglabātā pārlūkošanas vēsture netiks sinhronizēta.</translation>
 <translation id="8601359445272098721">Jaunums! Atlasot pogu “Tulkot ekrānu”, varat tulkot gan ekrānā redzamo tekstu, gan attēlus.</translation>
 <translation id="8614913330719544658">Google Chrome nereaģē. Vai restartēt to tūlīt?</translation>
 <translation id="861702415419836452">Pārlūkam Chrome ir nepieciešama atļauja piekļūt jūsu kamerai, lai varētu izveidot jūsu apkārtnes 3D karti</translation>
+<translation id="8624541899164515475">Iestatījumi; tiks atvērta jauna cilne.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Pārlūks Chrome pēc 1 minūtes tiks restartēts}zero{Pārlūks Chrome pēc # minūtēm tiks restartēts}one{Pārlūks Chrome pēc # minūtes tiks restartēts}other{Pārlūks Chrome pēc # minūtēm tiks restartēts}}</translation>
 <translation id="8637932705841171563">Lai kopīgotu logu, sistēmas iestatījumos atļaujiet ekrāna ierakstīšanu pārlūkā Chrome.</translation>
 <translation id="8641606876632989680">Ja pierakstīsieties ar uzlauztu paroli, pārlūkā Chrome tiks parādīts paziņojums.</translation>
 <translation id="8647930742055103497">Glabājiet visu pārlūkā Chrome</translation>
 <translation id="8656634243791296665">Atvērt Gemini pārlūka Chrome izstrādātāju versijā</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
-<translation id="8677922833187616101">Vienmēr rādīt Google MI režīma saīsni</translation>
 <translation id="8679801911857917785">Tas nosaka arī to, kāda lapa tiks rādīta, kad atvērsiet pārlūku Chrome.</translation>
 <translation id="8712637175834984815">Sapratu!</translation>
 <translation id="8712767363896337380">Gandrīz atjaunināts! Lai pabeigtu atjaunināšanu, atkārtoti palaidiet pārlūkprogrammu Chrome.</translation>

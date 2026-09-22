@@ -32,7 +32,6 @@
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/test_client.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
@@ -333,7 +332,7 @@ TEST(NatTest, TestVirtualIPv6) {
   }
 }
 
-class NatTcpTest : public ::testing::Test, public sigslot::has_slots<> {
+class NatTcpTest : public ::testing::Test {
  public:
   NatTcpTest()
       : env_(CreateTestEnvironment()),

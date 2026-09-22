@@ -27,6 +27,7 @@
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
 #include "printing/buildflags/buildflags.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/upgrade_detector/build_state.h"
@@ -54,7 +55,7 @@ class MetricsService;
 namespace network {
 class TestNetworkConnectionTracker;
 class TestNetworkQualityTracker;
-}
+}  // namespace network
 
 namespace os_crypt_async {
 class OSCryptAsync;
@@ -93,6 +94,8 @@ class TestingBrowserProcess
   TestingBrowserProcess& operator=(const TestingBrowserProcess&) = delete;
 
   // BrowserProcess overrides:
+  ui::UnownedUserDataHost& GetUnownedUserDataHost() override;
+  const ui::UnownedUserDataHost& GetUnownedUserDataHost() const override;
   void EndSession() override;
   void FlushLocalStateAndReply(base::OnceClosure reply) override;
   metrics_services_manager::MetricsServicesManager* GetMetricsServicesManager()
@@ -122,8 +125,6 @@ class TestingBrowserProcess
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
-  subresource_filter::RulesetService*
-  fingerprinting_protection_ruleset_service() override;
   BrowserProcessPlatformPart* platform_part() override;
 
   NotificationUIManager* notification_ui_manager() override;
@@ -185,8 +186,6 @@ class TestingBrowserProcess
   void SetWebRtcLogUploader(std::unique_ptr<WebRtcLogUploader> uploader);
   void SetRulesetService(
       std::unique_ptr<subresource_filter::RulesetService> ruleset_service);
-  void SetFingerprintingProtectionRulesetService(
-      std::unique_ptr<subresource_filter::RulesetService> ruleset_service);
   void SetSharedURLLoaderFactory(
       scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory);
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
@@ -222,6 +221,14 @@ class TestingBrowserProcess
   void MaybeStartTearDown();
 
   void ShutdownBrowserPolicyConnector();
+
+  ui::UnownedUserDataHost unowned_user_data_host_;
+
+  // This member needs to stay at or near the top of the list so it gets
+  // destroyed late in the shutdown process. Several other members rely on
+  // |features_|, so having it lower in this file could cause use-after-free
+  // issues.
+  std::unique_ptr<GlobalFeatures> features_;
 
   // The value returned by `IsShuttingDown()`.
   bool is_shutting_down_ = false;
@@ -264,8 +271,6 @@ class TestingBrowserProcess
   scoped_refptr<safe_browsing::SafeBrowsingService> sb_service_;
   std::unique_ptr<subresource_filter::RulesetService>
       subresource_filter_ruleset_service_;
-  std::unique_ptr<subresource_filter::RulesetService>
-      fingerprinting_protection_ruleset_service_;
   std::unique_ptr<WebRtcLogUploader> webrtc_log_uploader_;
 
   std::unique_ptr<network_time::NetworkTimeTracker> network_time_tracker_;
@@ -299,7 +304,6 @@ class TestingBrowserProcess
 
   std::unique_ptr<StatusTray> status_tray_;
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
-  std::unique_ptr<GlobalFeatures> features_;
 };
 
 // RAII (resource acquisition is initialization) for TestingBrowserProcess.

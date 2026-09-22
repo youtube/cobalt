@@ -41,7 +41,7 @@ OPENSSL_EXPORT int CRYPTO_tls13_hkdf_expand_label(
 
 
 #if defined(__cplusplus)
-}
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_TLS_INTERNAL_H

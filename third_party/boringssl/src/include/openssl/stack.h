@@ -521,9 +521,10 @@ DEFINE_NAMED_STACK_OF(OPENSSL_STRING, char)
 #endif
 
 #if !defined(BORINGSSL_NO_CXX)
-extern "C++" {
 
 #include <type_traits>
+
+extern "C++" {
 
 BSSL_NAMESPACE_BEGIN
 

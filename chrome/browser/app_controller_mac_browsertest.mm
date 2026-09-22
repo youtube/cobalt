@@ -250,16 +250,12 @@ class AppControllerKeepAliveBrowserTest : public InProcessBrowserTest {
 class AppControllerPlatformAppBrowserTest
     : public extensions::PlatformAppBrowserTest {
  protected:
-  AppControllerPlatformAppBrowserTest()
-      : active_browser_list_(BrowserList::GetInstance()) {}
-
+  // extensions::PlatformAppBrowserTest:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     PlatformAppBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII(switches::kAppId,
                                     "1234");
   }
-
-  raw_ptr<const BrowserList> active_browser_list_;
 };
 
 // Test that if only a platform app window is open and no browser windows are
@@ -267,7 +263,7 @@ class AppControllerPlatformAppBrowserTest
 IN_PROC_BROWSER_TEST_F(AppControllerPlatformAppBrowserTest,
                        DISABLED_PlatformAppReopenWithWindows) {
   NSUInteger old_window_count = NSApp.windows.count;
-  EXPECT_EQ(1u, active_browser_list_->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   [AppController.sharedController applicationShouldHandleReopen:NSApp
                                               hasVisibleWindows:YES];
   // We do not EXPECT_TRUE the result here because the method
@@ -275,7 +271,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerPlatformAppBrowserTest,
   // AppKit do it.
 
   EXPECT_EQ(old_window_count, NSApp.windows.count);
-  EXPECT_EQ(1u, active_browser_list_->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
 }
 
 IN_PROC_BROWSER_TEST_F(AppControllerPlatformAppBrowserTest,
@@ -305,9 +301,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerPlatformAppBrowserTest,
 
 class AppControllerWebAppBrowserTest : public InProcessBrowserTest {
  protected:
-  AppControllerWebAppBrowserTest()
-      : active_browser_list_(BrowserList::GetInstance()) {}
-
+  // InProcessBrowserTest:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitchASCII(switches::kApp, GetAppURL());
   }
@@ -315,20 +309,18 @@ class AppControllerWebAppBrowserTest : public InProcessBrowserTest {
   std::string GetAppURL() const {
     return "https://example.com/";
   }
-
-  raw_ptr<const BrowserList> active_browser_list_;
 };
 
 // Test that in web app mode a reopen event opens the app URL.
 IN_PROC_BROWSER_TEST_F(AppControllerWebAppBrowserTest,
                        WebAppReopenWithNoWindows) {
-  EXPECT_EQ(1u, active_browser_list_->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   BOOL result =
       [AppController.sharedController applicationShouldHandleReopen:NSApp
                                                   hasVisibleWindows:NO];
 
   EXPECT_FALSE(result);
-  EXPECT_EQ(2u, active_browser_list_->size());
+  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 
   GURL current_url =
       browser()->GetTabStripModel()->GetActiveWebContents()->GetURL();
@@ -337,10 +329,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerWebAppBrowserTest,
 
 class AppControllerProfilePickerBrowserTest : public InProcessBrowserTest {
  public:
-  AppControllerProfilePickerBrowserTest()
-      : active_browser_list_(BrowserList::GetInstance()) {}
-  ~AppControllerProfilePickerBrowserTest() override = default;
-
+  // InProcessBrowserTest:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
@@ -348,10 +337,6 @@ class AppControllerProfilePickerBrowserTest : public InProcessBrowserTest {
     // feature onboarding logic.
     g_browser_process->local_state()->SetBoolean(
         prefs::kBrowserProfilePickerShown, true);
-  }
-
-  const BrowserList* active_browser_list() const {
-    return active_browser_list_;
   }
 
   // Brings the ProfilerPicker onscreen and returns its NSWindow.
@@ -384,9 +369,6 @@ class AppControllerProfilePickerBrowserTest : public InProcessBrowserTest {
 
     return nil;
   }
-
- private:
-  raw_ptr<const BrowserList> active_browser_list_;
 };
 
 // Test that for a guest last profile, commandDispatch should open UserManager
@@ -404,20 +386,20 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
   ASSERT_TRUE(menu);
   NSMenuItem* item = [menu itemWithTag:IDC_NEW_WINDOW];
   ASSERT_TRUE(item);
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
 
   [app_controller commandDispatch:item];
 
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_TRUE(ProfilePicker::IsOpen());
   ProfilePicker::Hide();
 
   local_state->SetBoolean(prefs::kBrowserGuestModeEnabled, true);
   [app_controller commandDispatch:item];
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(2u, active_browser_list()->size());
+  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
   EXPECT_FALSE(ProfilePicker::IsOpen());
 }
 
@@ -438,13 +420,13 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
 // Test that for a regular last profile, a reopen event opens a browser.
 IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
                        RegularProfileReopenWithNoWindows) {
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   BOOL result =
       [AppController.sharedController applicationShouldHandleReopen:NSApp
                                                   hasVisibleWindows:NO];
 
   EXPECT_FALSE(result);
-  EXPECT_EQ(2u, active_browser_list()->size());
+  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
   EXPECT_FALSE(ProfilePicker::IsOpen());
 }
 
@@ -468,13 +450,13 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
   entry->LockForceSigninProfile(true);
   EXPECT_TRUE(entry->IsSigninRequired());
 
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   BOOL result = [app_controller applicationShouldHandleReopen:NSApp
                                             hasVisibleWindows:NO];
   EXPECT_FALSE(result);
 
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_TRUE(ProfilePicker::IsOpen());
   ProfilePicker::Hide();
 }
@@ -498,7 +480,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
   ASSERT_NE(entry, nullptr);
   entry->LockForceSigninProfile(true);
   EXPECT_TRUE(entry->IsSigninRequired());
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_FALSE(browser()->GetProfile()->IsGuestSession());
   // "About Chrome" is not available in the menu.
   NSMenu* chrome_submenu =
@@ -514,7 +496,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
                        GuestProfileReopenWithNoWindows) {
   SetGuestProfileAsLastProfile();
 
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   BOOL result =
       [AppController.sharedController applicationShouldHandleReopen:NSApp
                                                   hasVisibleWindows:NO];
@@ -522,7 +504,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
 
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_TRUE(ProfilePicker::IsOpen());
   ProfilePicker::Hide();
 }
@@ -543,14 +525,14 @@ IN_PROC_BROWSER_TEST_F(AppControllerProfilePickerBrowserTest,
   params.profile_name = u"name_1";
   profile_storage->AddProfile(std::move(params));
 
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   BOOL result =
       [AppController.sharedController applicationShouldHandleReopen:NSApp
                                                   hasVisibleWindows:NO];
   EXPECT_FALSE(result);
 
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(1u, active_browser_list()->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_TRUE(ProfilePicker::IsOpen());
   ProfilePicker::Hide();
 }
@@ -605,7 +587,7 @@ class AppControllerFirstRunBrowserTest : public AppControllerBrowserTest {
 IN_PROC_BROWSER_TEST_F(AppControllerFirstRunBrowserTest,
                        OpenNewWindowWhileFreIsRunning) {
   EXPECT_TRUE(ProfilePicker::IsFirstRunOpen());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 0u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0u);
   AppController* app_controller = AppController.sharedController;
   NSMenu* menu = [app_controller applicationDockMenu:NSApp];
   ASSERT_TRUE(menu);
@@ -616,17 +598,17 @@ IN_PROC_BROWSER_TEST_F(AppControllerFirstRunBrowserTest,
 
   profiles::testing::WaitForPickerClosed();
   EXPECT_FALSE(ProfilePicker::IsFirstRunOpen());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
 }
 
 IN_PROC_BROWSER_TEST_F(AppControllerFirstRunBrowserTest,
                        ClickingChromeDockIconDoesNotOpenBrowser) {
   EXPECT_TRUE(ProfilePicker::IsFirstRunOpen());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 0u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0u);
   [AppController.sharedController applicationShouldHandleReopen:NSApp
                                               hasVisibleWindows:NO];
 
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 0u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0u);
   ProfilePicker::Hide();
 }
 
@@ -787,7 +769,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   AppController* ac =
       base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
   ASSERT_TRUE(ac);
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   // Close the current browser.
   Profile* profile = browser()->profile();
   chrome::CloseAllBrowsers();
@@ -796,7 +778,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   // Create an incognito browser and check that it is the last active browser.
   Browser* incognito_browser = CreateIncognitoBrowser(profile);
   EXPECT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_EQ(incognito_browser, chrome::FindLastActive());
   // Assure that `windowDidBecomeMain` is called even if this browser process
   // lost focus because of other browser processes in other shards taking
@@ -816,7 +798,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   // Check that a new regular browser is opened
   // and the url is opened in the regular browser.
   Browser* new_browser = chrome::FindLastActive();
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 2u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 2u);
   EXPECT_TRUE(new_browser->profile()->IsRegularProfile());
   EXPECT_EQ(profile, new_browser->profile());
   EXPECT_EQ(simple, new_browser->tab_strip_model()
@@ -866,7 +848,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlInGuestBrowser) {
 // Test for https://crbug.com/1444747#c8
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlWhenForcedIncognito) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   // Close the current non-incognito browser.
   Profile* profile = browser()->profile();
   chrome::CloseAllBrowsers();
@@ -884,7 +866,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlWhenForcedIncognito) {
   // Check that a new incognito browser is opened
   // and the url is opened in the incognito browser.
   Browser* new_browser = chrome::FindLastActive();
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_TRUE(new_browser->profile()->IsIncognitoProfile());
   EXPECT_TRUE(new_browser->profile()->IsPrimaryOTRProfile());
   EXPECT_EQ(profile, new_browser->profile()->GetOriginalProfile());
@@ -899,7 +881,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlWhenForcedIncognito) {
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
                        OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   // Close the current non-incognito browser.
   Profile* profile = browser()->profile();
   chrome::CloseAllBrowsers();
@@ -911,7 +893,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   // Create an incognito browser.
   Browser* incognito_browser = CreateIncognitoBrowser(profile);
   EXPECT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_EQ(1, incognito_browser->tab_strip_model()->count());
   EXPECT_EQ(incognito_browser, chrome::FindLastActive());
   // Assure that `windowDidBecomeMain` is called even if this browser process
@@ -930,7 +912,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   SendOpenUrlToAppController(simple);
   event_navigation_observer.Wait();
   // Check the url is opened in the already opened incognito browser.
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_EQ(2, incognito_browser->tab_strip_model()->count());
   EXPECT_EQ(simple, incognito_browser->tab_strip_model()
                         ->GetActiveWebContents()
@@ -1061,9 +1043,8 @@ IN_PROC_BROWSER_TEST_F(AppControllerShortcutsNotAppsBrowserTest,
                     .SaveToFile(crwebloc_file));
   }
   SendOpenUrlToAppController(net::FilePathToFileURL(crwebloc_file));
-  auto* active_browser_list = BrowserList::GetInstance();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(1u, active_browser_list->size());
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   EXPECT_TRUE(ProfilePicker::IsOpen());
   ProfilePicker::Hide();
   {
@@ -1244,7 +1225,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
 // Regression test for https://crbug.com/1206726
 IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
                        ForcedIncognito_NewWindow) {
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   // Close the current non-incognito browser.
   Profile* profile = browser()->profile();
   chrome::CloseAllBrowsers();
@@ -1263,7 +1244,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
   [app_controller commandDispatch:item];
   // Check that a new incognito browser is opened.
   Browser* new_browser = browser_created_observer.Wait();
-  EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_TRUE(new_browser->profile()->IsPrimaryOTRProfile());
   EXPECT_EQ(profile, new_browser->profile()->GetOriginalProfile());
 }
@@ -1360,8 +1341,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerHandoffBrowserTest, TestHandoffURLs) {
   EXPECT_EQ(g_handoff_title, u"Title Of More Awesomeness");
 
   // Check that there are exactly 2 browsers.
-  BrowserList* active_browser_list = BrowserList::GetInstance();
-  EXPECT_EQ(2u, active_browser_list->size());
+  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 
   // Close the second browser window (which only has 1 tab left).
   CloseBrowserSynchronously(browser2);
@@ -1379,7 +1359,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerHandoffBrowserTest, TestHandoffURLs) {
   EXPECT_EQ(g_handoff_title, u"");
 
   // Open a new tab in the incognito window.
-  EXPECT_EQ(2u, active_browser_list->size());
+  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
   ui_test_utils::NavigateToURLWithDisposition(
       browser3, test_url4, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_TAB);

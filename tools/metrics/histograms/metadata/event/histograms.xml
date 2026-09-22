@@ -92,7 +92,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="Event.DownEventCount.PerInputFormFactorDestinationCombination2"
     enum="DownEventInputFormFactorDestinationCombination2"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>tbuckley@chromium.org</owner>
   <summary>
     The number of down events received per destination, input and form factor
@@ -146,7 +146,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.GestureScrollEnd.BrowserCompositorFrame.Count"
-    units="counts" expires_after="2026-03-15">
+    units="counts" expires_after="2026-05-17">
   <owner>peilinwang@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -553,7 +553,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.DelayedFramesPercentage.PerScroll" units="%"
-    expires_after="2026-05-03">
+    expires_after="2026-05-24">
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -574,7 +574,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.DelayedFramesPercentage4.FixedWindow{Reason}"
-    units="%" expires_after="2026-03-17">
+    units="%" expires_after="2026-05-17">
   <owner>petrcermak@chromium.org</owner>
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
@@ -629,7 +629,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.DelayedFramesPercentage4.PerScroll" units="%"
-    expires_after="2026-03-17">
+    expires_after="2026-05-17">
   <owner>petrcermak@chromium.org</owner>
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
@@ -674,6 +674,16 @@ chromium-metrics-reviews@google.com.
     [1] An inertial scroll (aka a fling) is a finger boosted scroll, meaning the
     screen is moving after the user has accelerated their finger on the screen
     and removed it.
+  </summary>
+</histogram>
+
+<histogram name="Event.ScrollJank.EmptyGestureScrollUpdateFrame" enum="Boolean"
+    expires_after="M145">
+  <owner>oksamyt@google.com</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    Whether an empty gesture scroll update caused a frame to be produced when it
+    is the only input (as a result of resampling).
   </summary>
 </histogram>
 
@@ -767,7 +777,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.MissedVsyncs{Operator}4.FixedWindow"
-    units="counts" expires_after="2026-03-17">
+    units="counts" expires_after="2026-05-17">
   <owner>petrcermak@chromium.org</owner>
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
@@ -1050,7 +1060,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EventLatency.{ScrollEventType}.GenerationToBrowserMain"
-    units="microseconds" expires_after="2026-03-15">
+    units="microseconds" expires_after="2026-05-17">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1079,30 +1089,8 @@ chromium-metrics-reviews@google.com.
   <token key="ScrollEventType" variants="ScrollEventType"/>
 </histogram>
 
-<histogram name="EventLatency.{ScrollEventType}.{DispatchStage}.{RatioType}"
-    units="%" expires_after="2026-05-03">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Tracks the latency of {ScrollEventType}, as a ratio from {DispatchStage} to
-    the VSync time. This is normalized by the frame interval. This is reported
-    when the stage occurs {RatioType}.
-  </summary>
-  <token key="ScrollEventType" variants="ScrollEventType"/>
-  <token key="DispatchStage">
-    <variant name="ArrivedInRendererVsVSyncRatio"
-        summary="when the event arrived in the Renderer"/>
-    <variant name="GenerationVsVsyncRatio"
-        summary="when the event was generated"/>
-  </token>
-  <token key="RatioType">
-    <variant name="AfterVSync" summary="after the VSync timestamp"/>
-    <variant name="BeforeVSync" summary="before the VSync timestamp"/>
-  </token>
-</histogram>
-
 <histogram name="EventLatency.{ScrollEventType}.{TopControls}"
-    units="microseconds" expires_after="2026-03-15">
+    units="microseconds" expires_after="2026-05-17">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

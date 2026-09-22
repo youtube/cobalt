@@ -745,6 +745,7 @@ rtc_library("weak_ptr") {
     "../api:scoped_refptr",
     "../api:sequence_checker",
     "system:no_unique_address",
+    "system:rtc_export",
   ]
 }
 
@@ -901,16 +902,12 @@ rtc_library("async_dns_resolver_unittests") {
   sources = [ "async_dns_resolver_unittest.cc" ]
   deps = [
     ":async_dns_resolver",
-    ":gunit_helpers",
     ":logging",
     ":net_helpers",
     ":socket_address",
     ":threading",
-    "../api:rtc_error_matchers",
-    "../api/units:time_delta",
     "../test:run_loop",
     "../test:test_support",
-    "../test:wait_until",
   ]
 }
 
@@ -1028,7 +1025,6 @@ rtc_library("threading") {
     "synchronization:mutex",
     "system:no_unique_address",
     "system:rtc_export",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/cleanup",
@@ -1065,7 +1061,6 @@ rtc_library("async_socket") {
     ":checks",
     ":socket",
     ":socket_address",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/memory",
   ]
 }
@@ -1082,12 +1077,10 @@ rtc_library("socket") {
     ":checks",
     ":ip_address",
     ":net_helpers",
-    ":sigslot_trampoline",
     ":socket_address",
     "../api/transport:ecn_marking",
     "../api/units:timestamp",
     "system:rtc_export",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
   if (is_win) {
@@ -1228,7 +1221,6 @@ rtc_library("network") {
     ":mdns_responder_interface",
     ":net_helpers",
     ":network_constants",
-    ":sigslot_trampoline",
     ":socket",
     ":socket_address",
     ":socket_factory",
@@ -1243,7 +1235,6 @@ rtc_library("network") {
     "../api/units:time_delta",
     "experiments:field_trial_parser",
     "system:rtc_export",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
@@ -1256,26 +1247,6 @@ rtc_library("network") {
   if (is_win) {
     deps += [ ":win32" ]
   }
-}
-
-rtc_source_set("sigslot_trampoline") {
-  sources = [ "sigslot_trampoline.h" ]
-  deps = [
-    ":callback_list",
-    "third_party/sigslot",
-    "//third_party/abseil-cpp/absl/functional:any_invocable",
-  ]
-}
-
-rtc_library("sigslot_trampoline_unittest") {
-  testonly = true
-  sources = [ "sigslot_trampoline_unittest.cc" ]
-  deps = [
-    ":sigslot_trampoline",
-    "../test:test_support",
-    "third_party/sigslot",
-    "//third_party/abseil-cpp/absl/functional:any_invocable",
-  ]
 }
 
 rtc_library("socket_address_pair") {
@@ -1395,7 +1366,6 @@ rtc_library("async_packet_socket") {
     ":checks",
     ":dscp",
     ":macromagic",
-    ":sigslot_trampoline",
     ":socket",
     ":socket_address",
     ":timeutils",
@@ -1404,7 +1374,6 @@ rtc_library("async_packet_socket") {
     "network:sent_packet",
     "system:no_unique_address",
     "system:rtc_export",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
@@ -1420,7 +1389,6 @@ if (rtc_include_tests) {
       ":socket_address",
       "../test:test_support",
       "network:received_packet",
-      "third_party/sigslot",
     ]
   }
 
@@ -1442,7 +1410,6 @@ if (rtc_include_tests) {
       "../test:create_test_environment",
       "../test:test_support",
       "network:received_packet",
-      "third_party/sigslot",
       "//third_party/abseil-cpp/absl/memory",
     ]
   }
@@ -1458,7 +1425,6 @@ if (rtc_include_tests) {
       ":socket",
       "../test:create_test_environment",
       "../test:test_support",
-      "third_party/sigslot",
     ]
   }
 }
@@ -1542,7 +1508,6 @@ rtc_library("stream") {
     "../api:sequence_checker",
     "system:no_unique_address",
     "system:rtc_export",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
@@ -1782,7 +1747,6 @@ rtc_library("testclient") {
     "../test:wait_until",
     "network:received_packet",
     "synchronization:mutex",
-    "third_party/sigslot",
   ]
 }
 
@@ -1836,6 +1800,7 @@ rtc_library("rtc_base_tests_utils") {
     ":buffer",
     ":byte_buffer",
     ":byte_order",
+    ":callback_list",
     ":checks",
     ":digest",
     ":ip_address",
@@ -1846,7 +1811,6 @@ rtc_library("rtc_base_tests_utils") {
     ":network",
     ":network_constants",
     ":rtc_event",
-    ":sigslot_trampoline",
     ":socket",
     ":socket_adapters",
     ":socket_address",
@@ -1874,7 +1838,6 @@ rtc_library("rtc_base_tests_utils") {
     "memory:less_unique_ptr",
     "network:received_packet",
     "synchronization:mutex",
-    "third_party/sigslot",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
@@ -2080,7 +2043,6 @@ if (rtc_include_tests) {
         "../test:test_support",
         "../test:wait_until",
         "system:file_wrapper",
-        "third_party/sigslot",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/strings:string_view",
@@ -2212,7 +2174,6 @@ if (rtc_include_tests) {
         "network:received_packet",
         "synchronization:mutex",
         "task_utils:repeating_task",
-        "third_party/sigslot",
         "//third_party/abseil-cpp/absl/base:core_headers",
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/numeric:bits",
@@ -2394,7 +2355,6 @@ if (rtc_include_tests) {
         "memory:fifo_buffer",
         "network:received_packet",
         "synchronization:mutex",
-        "third_party/sigslot",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/algorithm:container",
         "//third_party/abseil-cpp/absl/functional:any_invocable",

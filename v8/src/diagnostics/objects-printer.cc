@@ -127,8 +127,7 @@ void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
      << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
-     << "\n - holderV2: " << AS_OBJ(args[PCA::kHolderV2Index])
-     << "\n - data: " << AS_OBJ(args[PCA::kDataIndex])  //
+     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex])
      << "\n - property_key: " << AS_OBJ(args[PCA::kPropertyKeyIndex])
      << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
 
@@ -236,10 +235,6 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (SafeIsAnyHole(Tagged(*this))) {
-    Cast<Hole>(*this)->HolePrint(os);
-    return;
-  }
 
   InstanceType instance_type = map(cage_base)->instance_type();
 
@@ -757,28 +752,22 @@ void JSObject::PrintElements(std::ostream& os) {
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
   os << " - elements: " << Brief(elements()) << " {";
-  switch (map()->elements_kind()) {
-    case HOLEY_SMI_ELEMENTS:
-    case PACKED_SMI_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case HOLEY_FROZEN_ELEMENTS:
-    case HOLEY_SEALED_ELEMENTS:
-    case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case PACKED_ELEMENTS:
-    case PACKED_FROZEN_ELEMENTS:
-    case PACKED_SEALED_ELEMENTS:
-    case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
-      PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
-      break;
-    }
-    case HOLEY_DOUBLE_ELEMENTS:
-    case PACKED_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
-      break;
-    }
 
+  // We sometimes print out objects in an inconsistent state e.g., when first
+  // changing the map and then updating the elements. The code below tries to
+  // look at what elements() is, as opposed to what it should be according to
+  // the map(), as much as possible.
+
+  if (IsFixedArray(elements())) {
+    PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
+  } else if (IsFixedDoubleArray(elements())) {
+    DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
+  } else if (IsTypedArrayOrRabGsabTypedArrayElementsKind(
+                 map()->elements_kind())) {
+    // elements() is a ByteArray, and we need to look at the map to figure out
+    // the ElementsKind. These kind of objects shouldn't be involved in
+    // transitions where we might print inconsistent objects.
+    switch (map()->elements_kind()) {
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                          \
   case TYPE##_ELEMENTS: {                                                      \
     size_t length = Cast<JSTypedArray>(*this)->GetLength();                    \
@@ -791,21 +780,14 @@ void JSObject::PrintElements(std::ostream& os) {
       TYPED_ARRAYS(PRINT_ELEMENTS)
       RAB_GSAB_TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
-
-    case DICTIONARY_ELEMENTS:
-    case SLOW_STRING_WRAPPER_ELEMENTS:
-      PrintDictionaryElements(os, elements());
-      break;
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-      PrintSloppyArgumentElements(os, map()->elements_kind(),
-                                  Cast<SloppyArgumentsElements>(elements()));
-      break;
-    case WASM_ARRAY_ELEMENTS:
-      // WasmArrayPrint() should be called instead.
-      UNREACHABLE();
-    case NO_ELEMENTS:
-      break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (IsNumberDictionary(elements())) {
+    PrintDictionaryElements(os, elements());
+  } else if (IsSloppyArgumentsElements(elements())) {
+    PrintSloppyArgumentElements(os, map()->elements_kind(),
+                                Cast<SloppyArgumentsElements>(elements()));
   }
   os << "\n }\n";
 }
@@ -1071,6 +1053,13 @@ void Symbol::SymbolPrint(std::ostream& os) {
   os << "\n";
 }
 
+void EnumCache::EnumCachePrint(std::ostream& os) {
+  PrintHeader(os, "EnumCache");
+  os << "\n - keys: " << Brief(keys());
+  os << "\n - indices: " << Brief(indices());
+  os << "\n";
+}
+
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintHeader(os, "DescriptorArray");
   os << "\n - enum_cache: ";
@@ -1138,6 +1127,23 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 }
 
 }  // namespace
+
+void PropertyDescriptorObject::PropertyDescriptorObjectPrint(std::ostream& os) {
+  PrintHeader(os, "PropertyDescriptorObject");
+  os << "\n - flags: " << flags();
+  os << "\n - value: " << Brief(value());
+  os << "\n - get: " << Brief(get());
+  os << "\n - set: " << Brief(set());
+  os << "\n";
+}
+
+void TemplateObjectDescription::TemplateObjectDescriptionPrint(
+    std::ostream& os) {
+  PrintHeader(os, "TemplateObjectDescription");
+  os << "\n - raw_strings: " << Brief(raw_strings());
+  os << "\n - cooked_strings: " << Brief(cooked_strings());
+  os << "\n";
+}
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
@@ -1290,6 +1296,15 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
     os << "\n - setter: " << kUnavailableString;
   }
   os << '\n';
+}
+
+void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {
+  PrintHeader(os, "AccessCheckInfo");
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - named_interceptor: " << Brief(named_interceptor());
+  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
+  os << "\n - data: " << Brief(data());
+  os << "\n";
 }
 
 void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
@@ -3281,6 +3296,95 @@ void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {
   os << "\n - resource_name: " << Brief(resource_name());
 }
 
+void CallSiteInfo::CallSiteInfoPrint(std::ostream& os) {
+  PrintHeader(os, "CallSiteInfo");
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  os << "\n - code_object: " << Brief(code_object(isolate));
+  os << "\n - receiver_or_instance: " << Brief(receiver_or_instance());
+  os << "\n - function: " << Brief(function());
+  os << "\n - code_offset_or_source_position: "
+     << code_offset_or_source_position();
+  os << "\n - flags: " << flags();
+  os << "\n - parameters: " << Brief(parameters());
+  os << "\n";
+}
+
+void Microtask::MicrotaskPrint(std::ostream& os) {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  os << "\n - continuation_preserved_embedder_data: "
+     << Brief(continuation_preserved_embedder_data());
+#endif
+}
+
+void CallbackTask::CallbackTaskPrint(std::ostream& os) {
+  PrintHeader(os, "CallbackTask");
+  MicrotaskPrint(os);
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - data: " << Brief(data());
+  os << "\n";
+}
+
+void CallableTask::CallableTaskPrint(std::ostream& os) {
+  PrintHeader(os, "CallableTask");
+  MicrotaskPrint(os);
+  os << "\n - callable: " << Brief(callable());
+  os << "\n - context: " << Brief(context());
+  os << "\n";
+}
+
+void PromiseReactionJobTask::PromiseReactionJobTaskPrint(std::ostream& os) {
+  MicrotaskPrint(os);
+  os << "\n - argument: " << Brief(argument());
+  os << "\n - context: " << Brief(context());
+  os << "\n - handler: " << Brief(handler());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
+  os << "\n";
+}
+
+void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseFulfillReactionJobTask");
+  PromiseReactionJobTaskPrint(os);
+}
+
+void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseRejectReactionJobTask");
+  PromiseReactionJobTaskPrint(os);
+}
+
+void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PromiseResolveThenableJobTask");
+  MicrotaskPrint(os);
+  os << "\n - context: " << Brief(context());
+  os << "\n - promise_to_resolve: " << Brief(promise_to_resolve());
+  os << "\n - thenable: " << Brief(thenable());
+  os << "\n - then: " << Brief(then());
+  os << "\n";
+}
+
+void PromiseCapability::PromiseCapabilityPrint(std::ostream& os) {
+  PrintHeader(os, "PromiseCapability");
+  os << "\n - promise: " << Brief(promise());
+  os << "\n - resolve: " << Brief(resolve());
+  os << "\n - reject: " << Brief(reject());
+  os << "\n";
+}
+
+void PromiseReaction::PromiseReactionPrint(std::ostream& os) {
+  PrintHeader(os, "PromiseReaction");
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  os << "\n - continuation_preserved_embedder_data: "
+     << Brief(continuation_preserved_embedder_data());
+#endif
+  os << "\n - next: " << Brief(next());
+  os << "\n - reject_handler: " << Brief(reject_handler());
+  os << "\n - fulfill_handler: " << Brief(fulfill_handler());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
+  os << "\n";
+}
+
 void Script::ScriptPrint(std::ostream& os) {
   PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
@@ -3638,17 +3742,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (SafeIsAnyHole(Tagged(*this))) {
-#define PRINT_HOLE(Type, Value, _) \
-  if (Is##Type(*this)) {           \
-    os << "<" #Value ">";          \
-    return;                        \
-  }
-    HOLE_LIST(PRINT_HOLE)
-#undef PRINT_HOLE
-    UNREACHABLE();
-  }
-
   if (IsString(*this, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
@@ -3927,6 +4020,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case HOLE_TYPE: {
+#define PRINT_HOLE(Type, Value, _) \
+  if (Is##Type(*this)) {           \
+    os << "<" #Value ">";          \
+    break;                         \
+  }
+      HOLE_LIST(PRINT_HOLE)
+#undef PRINT_HOLE
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
@@ -4438,6 +4538,7 @@ void JSObject::PrintTransitions(std::ostream& os) {
 }
 
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
+
 }  // namespace v8::internal
 
 namespace {

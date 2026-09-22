@@ -31,7 +31,7 @@ extern void md5_block_asm_data_order(uint32_t *state, const uint8_t *data,
 
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_MD5_INTERNAL_H

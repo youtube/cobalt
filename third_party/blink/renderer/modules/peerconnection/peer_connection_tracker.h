@@ -11,7 +11,6 @@
 #include "base/types/pass_key.h"
 #include "base/values.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/peerconnection/peer_connection_tracker.mojom-blink.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
@@ -21,7 +20,6 @@
 #include "third_party/blink/renderer/platform/peerconnection/rtc_peer_connection_handler_client.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_transceiver_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_platform.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
@@ -46,12 +44,9 @@ class WebLocalFrame;
 // from the browser process.
 class MODULES_EXPORT PeerConnectionTracker
     : public GarbageCollected<PeerConnectionTracker>,
-      public Supplement<LocalDOMWindow>,
-      public blink::mojom::blink::PeerConnectionManager {
+      public blink::mojom::blink::PeerConnectionManager,
+      public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex =
-      LocalDOMWindow::Supplements::kPeerConnectionTracker;
-
   static PeerConnectionTracker& From(LocalDOMWindow& window);
   static PeerConnectionTracker* From(LocalFrame& frame);
   static PeerConnectionTracker* From(WebLocalFrame& frame);
@@ -245,7 +240,7 @@ class MODULES_EXPORT PeerConnectionTracker
   void Trace(Visitor* visitor) const override {
     visitor->Trace(peer_connection_tracker_host_);
     visitor->Trace(receiver_);
-    Supplement<LocalDOMWindow>::Trace(visitor);
+    visitor->Trace(local_dom_window_);
   }
 
  private:
@@ -323,6 +318,8 @@ class MODULES_EXPORT PeerConnectionTracker
                                 const String& value);
 
   void AddStandardStats(int lid, base::Value::List value);
+
+  Member<LocalDOMWindow> local_dom_window_;
 
   // This map stores the local ID assigned to each RTCPeerConnectionHandler.
   typedef HashMap<RTCPeerConnectionHandler*, int> PeerConnectionLocalIdMap;

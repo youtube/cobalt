@@ -50,6 +50,7 @@ if (is_android) {
       "../../api:enable_media_with_defaults",
       "../../api:make_ref_counted",
       "../../api:media_stream_interface",
+      "../../api:peer_connection_interface",
       "../../api:rtc_error",
       "../../api:scoped_refptr",
       "../../api:sequence_checker",

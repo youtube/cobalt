@@ -116,7 +116,8 @@ bool MaybeNullAspectIncludes(const As& as, const Bs& bs,
 }
 
 bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
-  if (!NodeTypeIs(after.type(), before.type())) {
+  // TODO(428667907): Ideally we should bail out early for the kNone type.
+  if (!NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone)) {
     return false;
   }
   if (before.possible_maps_are_known() && before.any_map_is_unstable()) {
@@ -135,7 +136,8 @@ bool NodeInfoIsEmpty(const NodeInfo& info) {
 }
 
 bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
-  return NodeTypeIs(after.type(), before.type());
+  // TODO(428667907): Ideally we should bail out early for the kNone type.
+  return NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone);
 }
 
 bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
@@ -260,7 +262,7 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     case StoreMap::Kind::kInlinedAllocation:
       return;
     case StoreMap::Kind::kTransitioning: {
-      if (NodeInfo* node_info = TryGetInfoFor(node->object_input().node())) {
+      if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
         if (node_info->possible_maps_are_known() &&
             node_info->possible_maps().size() == 1) {
           compiler::MapRef old_map = node_info->possible_maps().at(0);

@@ -9,8 +9,6 @@ import type {SearchboxElement} from './searchbox.js';
 export function getHtml(this: SearchboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-<search-animated-glow animation-state="${this.animationState}">
-</search-animated-glow>
 ${this.ntpRealboxNextEnabled ? html`
 <ntp-error-scrim id="errorScrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
@@ -57,6 +55,8 @@ ${this.ntpRealboxNextEnabled ? html`
 
   ${this.ntpRealboxNextEnabled ? html`
     <div class="dropdownContainer">
+      <search-animated-glow animation-state="${this.animationState}" part="animated-glow">
+      </search-animated-glow>
       <contextual-entrypoint-and-carousel id="context"
           part="contextual-entrypoint-and-carousel"
           exportparts="composebox-entrypoint, context-menu-entrypoint-icon, voice-icon"
@@ -71,7 +71,8 @@ ${this.ntpRealboxNextEnabled ? html`
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.dropdownIsVisible}"
           ?show-voice-search="${this.shouldShowVoiceSearch_}"
-          searchbox-layout-mode="${this.searchboxLayoutMode}">
+          searchbox-layout-mode="${this.searchboxLayoutMode}"
+          context-menu-glif-animation-state="${this.contextMenuGlifAnimationState}">
         <cr-searchbox-dropdown id="matches" part="searchbox-dropdown"
             exportparts="dropdown-content"
             role="listbox" .result="${this.result_}"

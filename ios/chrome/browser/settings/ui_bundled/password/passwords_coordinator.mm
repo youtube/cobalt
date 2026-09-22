@@ -14,6 +14,7 @@
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator_delegate.h"
+#import "ios/chrome/browser/credential_exchange/coordinator/credential_import_coordinator.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
@@ -53,6 +54,7 @@
 
 @interface PasswordsCoordinator () <
     AddPasswordCoordinatorDelegate,
+    CredentialImportCoordinatorDelegate,
     PasswordDetailsCoordinatorDelegate,
     PasswordCheckupCoordinatorDelegate,
     PasswordSettingsCoordinatorDelegate,
@@ -112,6 +114,9 @@
   // Displays the Trusted Vault reauthentication dialog.
   TrustedVaultReauthenticationCoordinator*
       _trustedVaultReauthenticationCoordinator;
+
+  // The coordinator for the Credential Exchange feature handling the import.
+  CredentialImportCoordinator* _credentialImportCoordinator;
 }
 
 @synthesize baseNavigationController = _baseNavigationController;
@@ -222,6 +227,8 @@
       stopWithUIDismissal:!_authDidFailForChildCoordinator];
   self.addPasswordCoordinator.delegate = nil;
   self.addPasswordCoordinator = nil;
+
+  [self dismissCredentialImportCoordinator];
 
   [self.reauthCoordinator stop];
   self.reauthCoordinator.delegate = nil;
@@ -487,6 +494,11 @@
 
   [_visitsRecorder maybeRecordVisitMetric];
 
+  if (self.credentialImportUUID) {
+    [self startCredentialImport];
+    return;
+  }
+
   [self.mediator askFETToShowPasswordManagerWidgetPromo];
 
   // Make sure that the Password Manager's toolbar is in the correct state once
@@ -529,6 +541,14 @@
   CHECK_EQ(coordinator, _trustedVaultReauthenticationCoordinator);
   [self.mediator displayOrHideTrustedVaultPasswordManagerWidgetPromo];
   [self dismissTrustedVaultReauthenticationCoordinator];
+}
+
+#pragma mark - CredentialImportCoordinatorDelegate
+
+- (void)credentialImportCoordinatorDidFinish:
+    (CredentialImportCoordinator*)coordinator {
+  CHECK_EQ(coordinator, _credentialImportCoordinator);
+  [self dismissCredentialImportCoordinator];
 }
 
 #pragma mark - Private
@@ -614,6 +634,28 @@
   [_trustedVaultReauthenticationCoordinator stop];
   _trustedVaultReauthenticationCoordinator.delegate = nil;
   _trustedVaultReauthenticationCoordinator = nil;
+}
+
+// Starts the credential import coordinator.
+- (void)startCredentialImport {
+  CHECK(self.credentialImportUUID);
+
+  // TODO(crbug.com/464469872): Display sign-in sheet when no user signed-in.
+  // TODO(crbug.com/450982128): Dismiss reauth coordinator before starting.
+  _credentialImportCoordinator = [[CredentialImportCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser
+                            UUID:self.credentialImportUUID];
+  self.credentialImportUUID = nil;
+  _credentialImportCoordinator.delegate = self;
+  [_credentialImportCoordinator start];
+}
+
+// Stops the credential import coordinator.
+- (void)dismissCredentialImportCoordinator {
+  [_credentialImportCoordinator stop];
+  _credentialImportCoordinator.delegate = nil;
+  _credentialImportCoordinator = nil;
 }
 
 @end

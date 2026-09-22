@@ -41,6 +41,7 @@ void InspectorDOMAgent::DidModifyDOMAttr(Element*,
                                          const QualifiedName&,
                                          const AtomicString&) {}
 void InspectorDOMAgent::DidRemoveDOMAttr(Element*, const QualifiedName&) {}
+void InspectorDOMAgent::DidModifyAdoptedStyleSheets(Node*) {}
 void InspectorDOMAgent::CharacterDataModified(CharacterData*) {}
 void InspectorDOMAgent::DidInvalidateStyleAttr(Node*) {}
 void InspectorDOMAgent::DidPerformSlotDistribution(HTMLSlotElement*) {}

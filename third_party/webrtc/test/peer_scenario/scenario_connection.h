@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -36,7 +37,7 @@ class ScenarioIceConnection {
     // Called on network thread.
     virtual void OnPacketReceived(CopyOnWriteBuffer packet) = 0;
     // Called on signaling thread.
-    virtual void OnIceCandidates(const std::string& mid,
+    virtual void OnIceCandidates(absl::string_view mid,
                                  const std::vector<Candidate>& candidates) = 0;
 
    protected:

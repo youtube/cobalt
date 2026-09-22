@@ -166,7 +166,7 @@ void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
   if (V8_LIKELY(!builder->is_tracing_enabled())) return;
   std::cout << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
             << "<";
-  if (kna) {
+  if (kna && current_value) {
     if (auto cur_info = kna->TryGetInfoFor(current_value)) {
       std::cout << cur_info->type();
       if (cur_info->possible_maps_are_known()) {
@@ -175,7 +175,7 @@ void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
     }
   }
   std::cout << "> <- " << PrintNodeLabel(unmerged_value) << "<";
-  if (kna) {
+  if (kna && current_value) {
     if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
       std::cout << in_info->type();
       if (in_info->possible_maps_are_known()) {
@@ -470,7 +470,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     if (old_type != NodeType::kUnknown) {
       NodeType new_type = loop_end_state.known_node_aspects()->GetType(
           builder->broker(), loop_end_state.get(reg));
-      if (!NodeTypeIs(new_type, old_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
         if (v8_flags.trace_maglev_loop_speeling) {
           std::cout << "Cannot merge " << new_type << " into " << old_type
                     << " for r" << reg.index() << "\n";

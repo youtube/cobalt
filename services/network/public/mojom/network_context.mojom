@@ -5,8 +5,7 @@
 module network.mojom;
 
 import "components/content_settings/core/common/content_settings.mojom";
-import "components/ip_protection/mojom/core.mojom";
-import "components/ip_protection/mojom/data_types.mojom";
+import "components/unexportable_keys/mojom/unexportable_key_service.mojom";
 import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
@@ -87,7 +86,6 @@ import "services/network/public/mojom/p2p.mojom";
 
 [EnableIf=is_p2p_enabled]
 import "services/network/public/mojom/p2p_trusted.mojom";
-
 
 const uint32 kWebSocketOptionNone = 0;
 
@@ -436,32 +434,6 @@ struct NetworkContextParams {
   [EnableIf=is_win]
   SocketBrokerRemotes? socket_brokers;
 
-  // A service to fetch blind-signed auth tokens and proxy configuration info
-  // for IP protection. If this is not set, then either this NetworkContext
-  // doesn't have its traffic proxied by IP Protection or the feature has been
-  // disabled (and can't be re-enabled until the browser is restarted).
-  pending_remote<ip_protection.mojom.CoreHost>? ip_protection_core_host;
-
-  // A receiver for sending notifications from the browser process to the IP
-  // Protection business logic in the network service. This is set in the same
-  // cases as `ip_protection_core_host`.
-  pending_receiver<ip_protection.mojom.CoreControl>? ip_protection_control;
-
-  // Whether the IP Protection feature is enabled at the time the NetworkContext
-  // is created. This setting can change via the
-  // `SetIpProtectionEnabled` method of the `IpProtectionControl` interface.
-  bool enable_ip_protection = false;
-
-  // Signals to IP Protection if this is an incognito network context.
-  bool ip_protection_incognito = false;
-
-  // Contains unused IP Protection auth tokens recycled from a previous
-  // Incognito session, used to "pre-warm" the token cache for this
-  // NetworkContext.
-  map<ip_protection.mojom.ProxyLayer,
-      array<ip_protection.mojom.BlindSignedAuthToken>>
-          initial_ip_protection_tokens;
-
   // When PAC quick checking is enabled, DNS lookups for PAC script's host are
   // timed out aggressively. This prevents hanging all network request on DNS
   // lookups that are slow or are blockholed, at the cost of making it more
@@ -529,11 +501,6 @@ struct NetworkContextParams {
   // network::url_request.cors_exempt_headers.
   array<string> cors_exempt_header_list;
 
-  // If true, no checking of cors exempt headers (from the browser) are done.
-  // If false, cors_exempt_headers are checked against
-  // |cors_exempt_header_list|.
-  bool allow_any_cors_exempt_header_for_browser = false;
-
   // List of single-label hostnames that are exempted from the HSTS upgrade
   // policy.
   array<string> hsts_policy_bypass_list;
@@ -592,20 +559,6 @@ struct NetworkContextParams {
   // removed (always enabled) in the future.
   bool acam_preflight_spec_conformant = true;
 
-  // To support 3PCD experimentation, a per-partition `cookie_deprecation_label`
-  // will be sent to developers who opt-in to receiving it. This enables server
-  // side opt-in to testing without cookies. See:
-  // https://developer.chrome.com/en/docs/privacy-sandbox/chrome-testing/#mode-a
-  // A non defined value indicates that the 3PCD experimentation feature is
-  // disabled for this client or that the profile is guest or incognito.
-  // A defined and non-empty value indicates that the 3PCD experiment feature is
-  // enabled, the client is eligible to it and the profile is not guest or
-  // incognito.
-  // A defined but empty value indicates that the 3PCD experimentation feature
-  // is enabled for the client but the client is not eligible for it or the
-  // label value defined by the experiment is empty.
-  string? cookie_deprecation_label;
-
   // Sets the cookie encryption provider to be used by this network context if
   // `enable_encrypted_cookies` is enabled.
   // The `GetEncryptor` method on the supplied `cookie_encryption_provider` is
@@ -638,15 +591,16 @@ struct NetworkContextParams {
   // gets applied while constructing NetworkContext by updating the quic_params.
   int64? quic_idle_connection_timeout_seconds;
 
-  // Defines the current state of Tracking Protection content settings. This is
-  // used by IP Protection, and only set when IP Protection is enabled
-  // for the profile.
-  array<content_settings.mojom.ContentSettingPatternSource>
-      tracking_protection_content_settings;
-
   // If true, the HTTP cache will be encrypted on disk. For now, this only
   // switches the backend on Windows.
   bool enable_encrypted_http_cache = false;
+
+  // If set, the network process will use the remote to reach the unexportable
+  // key service in the browser process, and delegate all unexportable keys
+  // operations to it. This remote should only be used for Device Bound
+  // Sessions and nothing else.
+  pending_remote<unexportable_keys.mojom.UnexportableKeyService>?
+      bound_sessions_unexportable_key_service;
 };
 
 struct NetworkConditions {
@@ -963,6 +917,12 @@ struct URLLoaderFactoryParams {
 
   // If this is true, the request's main frame origin is recently accessed.
   bool is_main_frame_origin_recently_accessed = false;
+
+  // An unguessable token used to apply network restrictions to outgoing
+  // requests using this factory. The token is matched against the tokens in
+  // `NetworkContext::network_revocation_nonces_`.
+  // If no value is present, network restrictions will not be checked.
+  mojo_base.mojom.UnguessableToken? network_restrictions_id;
 };
 
 // Represents a Durable Message Collector instance tied to a throttling profile.
@@ -974,6 +934,17 @@ interface DurableMessageCollector {
   // if one is available.
   Retrieve(string devtools_request_id)
       => (mojo_base.mojom.BigBuffer? message);
+};
+
+// If allowlisted_patterns is empty then it falls back to the earlier use case
+// of all network revoked (only applicable to fenced frames).
+struct NonceAndAllowlistedPatterns {
+  mojo_base.mojom.UnguessableToken nonce;
+  // TODO(crbug.com/447954811): It would be ideal for us to have a URLPattern
+  // representation in mojo rather than using a string here. Moving
+  // `blink::SafeUrlPattern` somewhere usable by both the network service
+  // and Blink might be a reasonable approach in the future.
+  array<string> allowlisted_patterns;
 };
 
 // Represents a distinct context for making network requests, with its own
@@ -1090,11 +1061,6 @@ interface NetworkContext {
 
   // Set Trust Token blocking to |block|.
   SetBlockTrustTokens(bool block);
-
-  // Sets the list of TRACKING_PROTECTION content setting exceptions in
-  // IpProtectionCore.
-  SetTrackingProtectionContentSetting(
-      array<content_settings.mojom.ContentSettingPatternSource> settings);
 
   // Clears network objects with implicit URL history information. Data related
   // to events that happened prior to |start_time| and after |end_time| may be
@@ -1520,7 +1486,8 @@ interface NetworkContext {
       array<WebTransportCertificateFingerprint> fingerprints,
       array<string> application_protocols,
       pending_remote<WebTransportHandshakeClient> handshake_client,
-      pending_remote<URLLoaderNetworkServiceObserver>? url_loader_network_observer,
+      pending_remote<URLLoaderNetworkServiceObserver>?
+          url_loader_network_observer,
       ClientSecurityState client_security_state);
 
   // Create a NetLogExporter, which helps export NetLog to an existing file.
@@ -1770,23 +1737,32 @@ interface NetworkContext {
   // the cached certificate.
   FlushMatchingCachedClientCert(X509Certificate certificate);
 
-  // Sets cookie deprecation label.
-  SetCookieDeprecationLabel(string? label);
-
   // Clients should revoke network access for nonces using
   // `StoragePartitionImpl::RevokeNetworkForNoncesInNetworkContext` instead of
   // this function. This is because `RevokeNetworkForNoncesInNetworkContext`
   // replicates the nonces so that they can be restored in case of a
   // `NetworkService` crash.
-  // Register that all network requests with nonces in `nonces` as their
-  // partition nonce should be blocked. Used for fenced frames network
+  // TODO(crbug.com/447954811): Rename this function when connection-allowlist
+  // feature is beyond the prototype phase. Initially this name made sense
+  // since it was intended to revoke network access for fenced frames. But with
+  // the connection-allowlist feature it is extended to also add allowlisted
+  // URLs for iframes and top-level frames. Also rename the corresponding
+  // NetworkContext::network_revocation_nonces_ to network_restriction_nonces_.
+  // Used for the following scenarios:
+  // 1. Used for fenced frames network
   // revocation:
   // https://github.com/WICG/fenced-frame/blob/master/explainer/fenced_frames_with_local_unpartitioned_data_access.md#revoking-network-access
   // Each fenced frame tree primarily uses one "fenced frame nonce" for
   // requests that originate from it, but requests from credentialless iframes
   // within the fenced frame tree use a different "credentialless iframes
   // nonce". Currently these are the two nonces passed in `nonces`.
-  RevokeNetworkForNonces(array<mojo_base.mojom.UnguessableToken> nonces) => ();
+  //
+  // 2. Used for connection-allowlist (see
+  // https://github.com/WICG/connection-allowlists). Network from the
+  // URLLoaderfactory whose `network_restriction_id` matches `nonces` will only
+  // be allowed to `allowlisted_patterns` and blocked otherwise.
+  RevokeNetworkForNonces(
+      array<NonceAndAllowlistedPatterns> nonces_to_patterns) => ();
 
   // Clients should clear nonces tagged for network revocation using
   // `StoragePartitionImpl::ClearNoncesInNetworkContextAfterDelay` instead of
@@ -1833,5 +1809,5 @@ interface NetworkContext {
   // Request that the network service prioritizes QUIC connections to the given
   // origins.
   AddQuicHints(array<url.mojom.SchemeHostPort> origins,
-              NetworkAnonymizationKey network_anonymization_key);
+               NetworkAnonymizationKey network_anonymization_key);
 };

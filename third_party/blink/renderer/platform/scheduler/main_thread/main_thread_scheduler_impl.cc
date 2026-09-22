@@ -32,6 +32,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
+#include "components/performance_manager/scenario_api/performance_scenario_observer.h"
 #include "components/performance_manager/scenario_api/performance_scenarios.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "third_party/blink/public/common/features.h"
@@ -927,6 +928,10 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
   end_renderer_hidden_idle_period_closure_.Cancel();
 
   if (hidden) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                 "MainThreadSchedulerImpl::OnRendererVisible");
+    main_thread_only().renderer_hidden_metadata.reset();
+
     idle_helper_.EnableLongIdlePeriod();
 
     // Ensure that we stop running idle tasks after a few seconds of being
@@ -938,28 +943,18 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
         end_idle_when_hidden_delay);
     main_thread_only().renderer_hidden = true;
   } else {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                 "MainThreadSchedulerImpl::OnRendererHidden");
+    main_thread_only().renderer_hidden_metadata.emplace(
+        "MainThreadSchedulerImpl.RendererHidden", /* is_hidden */ 1,
+        base::SampleMetadataScope::kProcess);
+
     main_thread_only().renderer_hidden = false;
     EndIdlePeriod();
   }
 
   // TODO(alexclarke): Should we update policy here?
   CreateTraceEventObjectSnapshot();
-}
-
-void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
-  if (hidden) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
-                 "MainThreadSchedulerImpl::OnRendererHidden");
-    main_thread_only().renderer_hidden_metadata.emplace(
-        "MainThreadSchedulerImpl.RendererHidden", /* is_hidden */ 1,
-        base::SampleMetadataScope::kProcess);
-  } else {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
-                 "MainThreadSchedulerImpl::OnRendererVisible");
-    main_thread_only().renderer_hidden_metadata.reset();
-  }
-  helper_.CheckOnValidThread();
-  main_thread_only().renderer_hidden = hidden;
 }
 
 void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
@@ -2360,6 +2355,13 @@ void MainThreadSchedulerImpl::OnTaskStarted(
       queue ? std::optional<TaskPriority>(queue->GetQueuePriority())
             : std::nullopt;
 
+  // Check if the performance scenario has changed. NotifyAllScopes only posts
+  // tasks to notify observers if there's been a change.
+  performance_scenarios::PerformanceScenarioObserverList::NotifyAllScopes(
+      FROM_HERE);
+
+  // TODO(crbug.com/406587000): Convert this to a PerformanceScenario observer
+  // instead of hard-coding it.
   if (scheduling_settings().input_scenario_priority_boost_enabled) {
     // Check if the input scenario has changed and update the main thread
     // priority boost accordingly.

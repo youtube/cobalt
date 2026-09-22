@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_NETWORK_REPORTING_SERVICE_PROXY_H_
 #define CONTENT_BROWSER_NETWORK_REPORTING_SERVICE_PROXY_H_
 
+#include "build/build_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "third_party/blink/public/mojom/reporting/reporting.mojom.h"
 
@@ -14,6 +15,7 @@ class DedicatedWorkerHost;
 class RenderFrameHost;
 class ServiceWorkerHost;
 class SharedWorkerHost;
+class SharedStorageWorkletHost;
 
 // These methods method bind a mojom::ReportingServiceProxy for the specified
 // object type. They must be called on the UI thread.
@@ -29,6 +31,11 @@ void CreateReportingServiceProxyForSharedWorker(
 void CreateReportingServiceProxyForDedicatedWorker(
     DedicatedWorkerHost* dedicated_worker_host,
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+void CreateReportingServiceProxyForSharedStorageWorklet(
+    SharedStorageWorkletHost* shared_storage_worklet_host,
+    mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 }  // namespace content
 

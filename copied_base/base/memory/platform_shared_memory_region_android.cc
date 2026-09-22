@@ -17,18 +17,17 @@
 namespace base {
 namespace subtle {
 
-// For Android, we use ashmem to implement SharedMemory. ashmem_create_region
-// will automatically pin the region. We never explicitly call pin/unpin. When
-// all the file descriptors from different processes associated with the region
-// are closed, the memory buffer will go away.
+// Note: When all the file descriptors from different processes associated with
+// the region are closed and the mappings are removed (unmapped), the memory
+// buffer will go away.
 
 namespace {
 
 int GetAshmemRegionProtectionMask(int fd) {
-  int prot = ashmem_get_prot_region(fd);
+  int prot = SharedMemoryRegionGetProtectionFlags(fd);
   if (prot < 0) {
     // TODO(crbug.com/838365): convert to DLOG when bug fixed.
-    PLOG(ERROR) << "ashmem_get_prot_region failed";
+    PLOG(ERROR) << "SharedMemoryRegionGetProtectionFlags failed";
     return -1;
   }
   return prot;
@@ -94,9 +93,9 @@ bool PlatformSharedMemoryRegion::ConvertToReadOnly() {
     return false;
 
   prot &= ~PROT_WRITE;
-  int ret = ashmem_set_prot_region(handle_copy.get(), prot);
+  int ret = SharedMemoryRegionSetProtectionFlags(handle_copy.get(), prot);
   if (ret != 0) {
-    DPLOG(ERROR) << "ashmem_set_prot_region failed";
+    DPLOG(ERROR) << "SharedMemoryRegionSetProtectionFlags failed";
     return false;
   }
 
@@ -123,8 +122,8 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
     return {};
   }
 
-  // Align size as required by ashmem_create_region() API documentation. This
-  // operation may overflow so check that the result doesn't decrease.
+  // Align size as required by SharedMemoryRegionCreate(). This operation may
+  // overflow so check that the result doesn't decrease.
   size_t rounded_size = bits::AlignUp(size, GetPageSize());
   if (rounded_size < size ||
       rounded_size > static_cast<size_t>(std::numeric_limits<int>::max())) {
@@ -136,17 +135,18 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
 
   UnguessableToken guid = UnguessableToken::Create();
 
-  int fd = ashmem_create_region(
+  int fd = SharedMemoryRegionCreate(
       SharedMemoryTracker::GetDumpNameForTracing(guid).c_str(), rounded_size);
   if (fd < 0) {
-    DPLOG(ERROR) << "ashmem_create_region failed";
+    DPLOG(ERROR) << "SharedMemoryRegionCreate failed";
     return {};
   }
 
   ScopedFD scoped_fd(fd);
-  int err = ashmem_set_prot_region(scoped_fd.get(), PROT_READ | PROT_WRITE);
+  int err = SharedMemoryRegionSetProtectionFlags(scoped_fd.get(),
+                                                 PROT_READ | PROT_WRITE);
   if (err < 0) {
-    DPLOG(ERROR) << "ashmem_set_prot_region failed";
+    DPLOG(ERROR) << "SharedMemoryRegionSetProtectionFlags failed";
     return {};
   }
 

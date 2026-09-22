@@ -402,8 +402,6 @@ const char* DocumentReadyStateToString(
 
 }  // namespace
 
-template class CORE_TEMPLATE_EXPORT Supplement<LocalFrame>;
-
 // static
 LocalFrame* LocalFrame::FromFrameToken(const LocalFrameToken& frame_token) {
   LocalFramesByTokenMap& local_frames_map = GetLocalFramesMap();
@@ -2780,8 +2778,12 @@ std::optional<AdScriptIdentifier> LocalFrame::CreationAdScript() const {
 }
 
 void LocalFrame::UpdateAdHighlight() {
-  if (IsMainFrame() && !IsInFencedFrameTree())
+  // Ad highlighting is now primarily handled by `BoxFragmentPainter` on the
+  // owner element. We retain this legacy path solely for fenced frame trees, as
+  // a <fencedframe> owner element does not know its ad status.
+  if (!IsInFencedFrameTree()) {
     return;
+  }
 
   // TODO(bokan): Fenced frames may need some work to propagate the ad
   // highlighting setting to the inner tree.
@@ -2951,38 +2953,37 @@ namespace {
 
 class FrameColorOverlay final : public FrameOverlay::Delegate {
  public:
-  explicit FrameColorOverlay(LocalFrame* frame, SkColor color)
-      : color_(color), frame_(frame) {}
+  explicit FrameColorOverlay(SkColor color) : color_(color) {}
   SkColor GetColor() const { return color_; }
 
  private:
   void PaintFrameOverlay(const FrameOverlay& frame_overlay,
                          GraphicsContext& graphics_context,
-                         const gfx::Size&) const override {
-    const auto* view = frame_->View();
+                         const gfx::Size& view_size) const override {
+    const LocalFrameView* view = frame_overlay.Frame().View();
     DCHECK(view);
-    if (view->Width() == 0 || view->Height() == 0)
+    const gfx::Rect view_rect(view->Size());
+    if (view_rect.IsEmpty()) {
       return;
+    }
+    const LayoutView* layout_view = view->GetLayoutView();
     ScopedPaintChunkProperties properties(
         graphics_context.GetPaintController(),
-        view->GetLayoutView()->FirstFragment().LocalBorderBoxProperties(),
-        frame_overlay, DisplayItem::kFrameOverlay);
+        layout_view->FirstFragment().LocalBorderBoxProperties(), frame_overlay,
+        DisplayItem::kFrameOverlay);
     if (DrawingRecorder::UseCachedDrawingIfPossible(
             graphics_context, frame_overlay, DisplayItem::kFrameOverlay))
       return;
     DrawingRecorder recorder(graphics_context, frame_overlay,
-                             DisplayItem::kFrameOverlay,
-                             gfx::Rect(view->Size()));
-    gfx::RectF rect(0, 0, view->Width(), view->Height());
+                             DisplayItem::kFrameOverlay, view_rect);
     graphics_context.FillRect(
-        rect, Color::FromSkColor(color_),
-        PaintAutoDarkMode(view->GetLayoutView()->StyleRef(),
+        view_rect, Color::FromSkColor(color_),
+        PaintAutoDarkMode(layout_view->StyleRef(),
                           DarkModeFilter::ElementRole::kBackground));
   }
 
   // TODO(https://crbug.com/1351544): This should be an SkColor4f or a Color.
-  SkColor color_;
-  Persistent<LocalFrame> frame_;
+  const SkColor color_;
 };
 
 }  // namespace
@@ -3002,8 +3003,7 @@ struct DowncastTraits<FrameColorOverlay> {
 std::optional<SkColor> LocalFrame::GetFrameOverlayColor() const {
   if (!frame_color_overlay_)
     return std::nullopt;
-  return DynamicTo<FrameColorOverlay>(frame_color_overlay_->GetDelegate())
-      ->GetColor();
+  return To<FrameColorOverlay>(*frame_color_overlay_->GetDelegate()).GetColor();
 }
 
 void LocalFrame::SetFrameColorOverlay(SkColor color) {
@@ -3014,7 +3014,7 @@ void LocalFrame::SetFrameColorOverlay(SkColor color) {
     return;
 
   frame_color_overlay_ = MakeGarbageCollected<FrameOverlay>(
-      this, std::make_unique<FrameColorOverlay>(this, color));
+      this, std::make_unique<FrameColorOverlay>(color));
 }
 
 void LocalFrame::UpdateFrameColorOverlayPrePaint() {
@@ -3738,9 +3738,7 @@ void LocalFrame::RequestVideoFrameAtWithBoundsHint(
     int max_area,
     base::OnceCallback<void(const SkBitmap&, const gfx::Rect&)> callback) {
   HitTestResult result = HitTestResultForVisualViewportPos(viewport_position);
-  Node* node = result.InnerNode();
-  auto* video = DynamicTo<HTMLVideoElement>(node);
-
+  auto* video = DynamicTo<HTMLVideoElement>(result.InnerNode());
   if (!video) {
     std::move(callback).Run(SkBitmap(), gfx::Rect());
     return;
@@ -3784,9 +3782,7 @@ void LocalFrame::RequestVideoFrameAtWithBoundsHint(
   }
 
   // Get the bounds of the video element.
-  WebNode web_node(node);
-  WebElement web_element = web_node.To<WebElement>();
-  auto bounds = web_element.BoundsInWidget();
+  gfx::Rect bounds = video->BoundsInWidget();
 
   std::move(callback).Run(converted_bitmap, bounds);
 }

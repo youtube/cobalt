@@ -11,12 +11,14 @@
 #include "chrome/browser/preloading/prerender/prerender_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "components/google/core/common/google_util.h"
 #include "components/page_load_metrics/browser/navigation_handle_user_data.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/preloading_data.h"
 #include "content/public/browser/preloading_trigger_type.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/loader/referrer.mojom.h"
 
 namespace {
 
@@ -37,9 +39,10 @@ bool IsSearchUrl(content::WebContents& web_contents, const GURL& url) {
   auto* profile = Profile::FromBrowserContext(web_contents.GetBrowserContext());
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
-  return template_url_service &&
-         template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
-             url);
+  return (template_url_service &&
+          template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
+              url)) ||
+         google_util::IsGoogleSearchUrl(url);
 }
 
 }  // namespace
@@ -123,6 +126,21 @@ void BookmarkBarPreloadPipeline::StartPrerender(
         ChromePreloadingEligibility::KDisallowSearchUrl));
     return;
   }
+
+  // Currently, this method has a precondition: It should be called after
+  // `StartPrefetch()` if the feature is enabled. The precondition was checked
+  // at the head of the method, but we found that `StartPrefetch()` might not
+  // trigger prefetch as prefetch could fail due to some eligibility checks
+  // which prerender hadn't executed yet before the CHECK. For more detalis, see
+  // https://crbug.com/449105853
+  //
+  // So, we place the check here, after the same eligibility check as in the
+  // `StartPrefetch()`.
+  //
+  // TODO(crbug.com/413259638): Remove this CHECK when a refactor to
+  // `BookmarkBarPreloadPipelineManager` is done to guarantee the order of
+  // prefetch ahead prerender. For more details of the refactor goal, please see
+  // the comments in `BookmarkBarPreloadPipelineManager`.
   CHECK(!base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
         prefetch_handle_);
 

@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Vahelehegruppide loend on suletud.</translation>
 <translation id="3194464645767632461">hinnang</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> vahelehe lisamine gruppi}other{<ph name="TABS_COUNT_MANY" /> vahelehe lisamine gruppi}}</translation>
+<translation id="3293080634164207409">Lisage vahelehti</translation>
 <translation id="3328308545011660196">Soovitus: <ph name="NUMBER_OF_TABS" /> vahelehte näivad olevat seotud. Kas soovite need grupeerida?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{Pärast 1 päeva mitteaktiivses olekus}other{Pärast <ph name="DAY_COUNT_MANY" /> päeva mitteaktiivses olekus}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> uus vaheleht}other{<ph name="MANY_ADDED" /> uut vahelehte}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Sule üksus}other{Sule üksused}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Jagatud lehe eelvaate pisipilt.</translation>
+<translation id="3776329373944672717">Vahelehegrupi pealkiri <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">Halda</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Vabasta vaheleht}other{Vabasta vahelehed}}</translation>
 <translation id="3940195383040445971">Jälgige vahelehtedel hindu</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">Tegevus</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> hinnang, <ph name="REVIEWS_COUNT_ONE" /> arvustus}other{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> hinnang, <ph name="REVIEWS_COUNT_MANY" /> arvustust}}</translation>
 <translation id="7885132941432959125">Teisalda vaheleht paremale</translation>
+<translation id="7887334752153342268">Tee koopia</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> pole valitud</translation>
 <translation id="7961015016161918242">Mitte kunagi</translation>
 <translation id="7966321538264951561">Loobuge soovitustest.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">Seaded</translation>
 <translation id="855081842937141170">Kinnita vaheleht</translation>
 <translation id="8633025649649592204">Hiljutised toimingud</translation>
+<translation id="8635822281281406185">Lisage kuni kümme faili, vahelehte või pilti.</translation>
 <translation id="8712637175834984815">Selge</translation>
 <translation id="8714939927607906138">Soodsam hind</translation>
 <translation id="8730621377337864115">Valmis</translation>

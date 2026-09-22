@@ -6,6 +6,7 @@
 
 #include "base/callback_list.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
+#include "chrome/browser/glic/host/context/glic_sharing_utils.h"
 
 namespace glic {
 
@@ -24,6 +25,12 @@ GlicDelegatingSharingManagerBase::AddTabPinningStatusChangedCallback(
   return tab_pinning_status_changed_callback_list_.Add(std::move(callback));
 }
 
+base::CallbackListSubscription
+GlicDelegatingSharingManagerBase::AddTabPinningStatusEventCallback(
+    TabPinningStatusEventCallback callback) {
+  return tab_pinning_status_event_callback_list_.Add(std::move(callback));
+}
+
 FocusedTabData GlicDelegatingSharingManagerBase::GetFocusedTabData() {
   return sharing_manager_delegate_
              ? sharing_manager_delegate_->GetFocusedTabData()
@@ -31,23 +38,33 @@ FocusedTabData GlicDelegatingSharingManagerBase::GetFocusedTabData() {
 }
 
 bool GlicDelegatingSharingManagerBase::PinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
+    base::span<const tabs::TabHandle> tab_handles,
+    GlicPinTrigger trigger) {
   return sharing_manager_delegate_
-             ? sharing_manager_delegate_->PinTabs(tab_handles)
+             ? sharing_manager_delegate_->PinTabs(tab_handles, trigger)
              : false;
 }
 
 bool GlicDelegatingSharingManagerBase::UnpinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
+    base::span<const tabs::TabHandle> tab_handles,
+    GlicUnpinTrigger trigger) {
   return sharing_manager_delegate_
-             ? sharing_manager_delegate_->UnpinTabs(tab_handles)
+             ? sharing_manager_delegate_->UnpinTabs(tab_handles, trigger)
              : false;
 }
 
-void GlicDelegatingSharingManagerBase::UnpinAllTabs() {
+void GlicDelegatingSharingManagerBase::UnpinAllTabs(GlicUnpinTrigger trigger) {
   if (sharing_manager_delegate_) {
-    sharing_manager_delegate_->UnpinAllTabs();
+    sharing_manager_delegate_->UnpinAllTabs(trigger);
   }
+}
+
+std::optional<GlicPinnedTabUsage>
+GlicDelegatingSharingManagerBase::GetPinnedTabUsage(
+    tabs::TabHandle tab_handle) {
+  return sharing_manager_delegate_
+             ? sharing_manager_delegate_->GetPinnedTabUsage(tab_handle)
+             : std::nullopt;
 }
 
 int32_t GlicDelegatingSharingManagerBase::GetMaxPinnedTabs() const {
@@ -158,6 +175,12 @@ void GlicDelegatingSharingManagerBase::SubscribeToPinCandidates(
   NOTREACHED();
 }
 
+void GlicDelegatingSharingManagerBase::OnConversationTurnSubmitted() {
+  if (sharing_manager_delegate_) {
+    sharing_manager_delegate_->OnConversationTurnSubmitted();
+  }
+}
+
 base::WeakPtr<GlicSharingManager>
 GlicDelegatingSharingManagerBase::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
@@ -200,6 +223,12 @@ void GlicDelegatingSharingManagerBase::OnTabPinningStatusChangedCallback(
     tabs::TabInterface* tab,
     bool pinned) {
   tab_pinning_status_changed_callback_list_.Notify(tab, pinned);
+}
+
+void GlicDelegatingSharingManagerBase::OnTabPinningStatusEventCallback(
+    tabs::TabInterface* tab,
+    GlicPinningStatusEvent event) {
+  tab_pinning_status_event_callback_list_.Notify(tab, event);
 }
 
 void GlicDelegatingSharingManagerBase::OnPinnedTabsChangedCallback(
@@ -247,6 +276,11 @@ void GlicDelegatingSharingManagerBase::RefreshDelegateSubscriptions() {
           base::BindRepeating(&GlicDelegatingSharingManagerBase::
                                   OnTabPinningStatusChangedCallback,
                               base::Unretained(this)));
+  tab_pinning_status_event_callback_ =
+      sharing_manager_delegate_->AddTabPinningStatusEventCallback(
+          base::BindRepeating(&GlicDelegatingSharingManagerBase::
+                                  OnTabPinningStatusEventCallback,
+                              base::Unretained(this)));
   pinned_tabs_changed_callback_ =
       sharing_manager_delegate_->AddPinnedTabsChangedCallback(
           base::BindRepeating(
@@ -264,11 +298,19 @@ void GlicDelegatingSharingManagerBase::ForceNotify(
   for (auto* tab : old_pinned_tabs) {
     tab_pinning_status_changed_callback_list_.Notify(
         tabs::TabInterface::GetFromContents(tab), false);
+    // TODO(crbug.com/461849870): once metadata getters are implemented,
+    // consider caching and returning a meaningful event here.
+    tab_pinning_status_event_callback_list_.Notify(
+        tabs::TabInterface::GetFromContents(tab), GetEmptyUnpinEvent());
   }
 
   for (auto* tab : GetPinnedTabs()) {
     tab_pinning_status_changed_callback_list_.Notify(
         tabs::TabInterface::GetFromContents(tab), true);
+    // TODO(crbug.com/461849870): once metadata getters are implemented,
+    // consider returning a meaningful event here.
+    tab_pinning_status_event_callback_list_.Notify(
+        tabs::TabInterface::GetFromContents(tab), GetEmptyPinEvent());
   }
 
   // Note: in the case where delegate is now null, we still want to fire these

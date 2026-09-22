@@ -139,10 +139,16 @@ HistoryEventRouter::HistoryEventRouter(Profile* profile,
 
 HistoryEventRouter::~HistoryEventRouter() = default;
 
-void HistoryEventRouter::OnURLVisited(history::HistoryService* history_service,
-                                      const history::URLRow& url_row,
-                                      const history::VisitRow& new_visit) {
-  auto args = OnVisited::Create(GetHistoryItem(url_row));
+void HistoryEventRouter::OnURLVisited(
+    history::HistoryService* history_service,
+    const history::VisitedURLInfo& visited_url_info) {
+  // Filter out 404 visits to prevent them from appearing in the UI and
+  // impacting user journeys.
+  if (visited_url_info.response_code_category ==
+      history::VisitResponseCodeCategory::k404) {
+    return;
+  }
+  auto args = OnVisited::Create(GetHistoryItem(visited_url_info.url_row));
   DispatchEvent(profile_, events::HISTORY_ON_VISITED,
                 api::history::OnVisited::kEventName, std::move(args));
 }
@@ -288,6 +294,7 @@ ExtensionFunction::ResponseAction HistorySearchFunction::Run() {
   // TODO: crbug.com/443117133 - Change to `kInclude404s` after
   //   `history::kVisitedLinksOn404` is enabled everywhere.
   options.policy_for_404_visits = history::VisitQuery404sPolicy::kExclude404s;
+  options.include_actor_visits = true;
 
   if (params->query.start_time)
     options.begin_time = GetTime(*params->query.start_time);

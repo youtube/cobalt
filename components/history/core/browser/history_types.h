@@ -190,6 +190,8 @@ class VisitRow {
   // by an app. This is set only on Android if the Custom Tab knows which app
   // launched it; otherwise remains null.
   std::optional<std::string> app_id;
+  // The source of the visit
+  history::VisitSource source = history::SOURCE_BROWSED;
   // We allow the implicit copy constructor and operator=.
 };
 
@@ -1296,6 +1298,30 @@ enum class VisitContextEphemerality {
   // The page visit occurred in an ephemeral context (i.e., a credentialless
   // iframe).
   kEphemeral,
+};
+
+// Information associated with a new visit that is added to History.
+// VisitedURLInfo
+// ----------------------------------------------------------------
+struct VisitedURLInfo {
+  VisitedURLInfo();
+  VisitedURLInfo(URLRow url_row,
+                 VisitRow visit_row,
+                 VisitResponseCodeCategory response_code_category =
+                     VisitResponseCodeCategory::kNot404,
+                 std::optional<int64_t> local_navigation_id = std::nullopt);
+  VisitedURLInfo(const VisitedURLInfo& other);
+  ~VisitedURLInfo();
+
+  // The URLRow for which there was a new visit.
+  URLRow url_row;
+  // The VisitRow of the new visit.
+  VisitRow visit_row;
+  // Indicates whether or not this new visit had a 404 response.
+  VisitResponseCodeCategory response_code_category;
+  // Contains the unique navigation id from `content::NavigationHandle` and is
+  // populated only during local visits.
+  std::optional<int64_t> local_navigation_id;
 };
 
 // Marshalling structure for AddPage.

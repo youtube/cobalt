@@ -24,6 +24,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
+#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
@@ -165,6 +166,11 @@ class LocationBarCoordinatorTest : public PlatformTest {
     [dispatcher startDispatchingToTarget:mock_bwg_handler
                              forProtocol:@protocol(BWGCommands)];
 
+    id mock_browser_coordinator_handler =
+        OCMProtocolMock(@protocol(BrowserCoordinatorCommands));
+    [dispatcher startDispatchingToTarget:mock_browser_coordinator_handler
+                             forProtocol:@protocol(BrowserCoordinatorCommands)];
+
     delegate_ = [[TestOmniboxFocusDelegate alloc] init];
 
     coordinator_ = [[LocationBarCoordinator alloc]
@@ -231,7 +237,8 @@ TEST_F(LocationBarCoordinatorTest, LoadGoogleUrl) {
   EXPECT_EQ(web::ReferrerPolicyDefault,
             url_loader->last_params.web_params.referrer.policy);
   EXPECT_TRUE(ui::PageTransitionCoreTypeIs(
-      transition, url_loader->last_params.web_params.transition_type));
+      transition, PageTransitionStripQualifier(
+                      url_loader->last_params.web_params.transition_type)));
   EXPECT_FALSE(url_loader->last_params.web_params.is_renderer_initiated);
   ASSERT_EQ(1U, url_loader->last_params.web_params.extra_headers.count);
   EXPECT_GT([url_loader->last_params.web_params.extra_headers[@"X-Client-Data"]
@@ -267,7 +274,8 @@ TEST_F(LocationBarCoordinatorTest, LoadNonGoogleUrl) {
   EXPECT_EQ(web::ReferrerPolicyDefault,
             url_loader->last_params.web_params.referrer.policy);
   EXPECT_TRUE(ui::PageTransitionCoreTypeIs(
-      transition, url_loader->last_params.web_params.transition_type));
+      transition, PageTransitionStripQualifier(
+                      url_loader->last_params.web_params.transition_type)));
   EXPECT_FALSE(url_loader->last_params.web_params.is_renderer_initiated);
   ASSERT_EQ(0U, url_loader->last_params.web_params.extra_headers.count);
   EXPECT_EQ(disposition, url_loader->last_params.disposition);

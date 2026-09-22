@@ -13,9 +13,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
@@ -34,6 +36,7 @@
 #include "rtc_base/network.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
 
@@ -253,15 +256,32 @@ class FakePortAllocator : public PortAllocator {
   bool MdnsObfuscationEnabled() const override {
     return mdns_obfuscation_enabled_;
   }
+
   void SetMdnsObfuscationEnabledForTesting(bool enabled) {
     mdns_obfuscation_enabled_ = enabled;
   }
+
+  void DiscardCandidatePool() override {
+    PortAllocator::DiscardCandidatePool();
+    if (on_candidate_pool_discarded_) {
+      on_candidate_pool_discarded_();
+    }
+  }
+
+  void SetOnDiscardCandidatePool(
+      absl::AnyInvocable<void()> on_candidate_pool_discarded) {
+    on_candidate_pool_discarded_ = std::move(on_candidate_pool_discarded);
+  }
+
+  WeakPtr<FakePortAllocator> NewWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
  private:
   const Environment env_;
   TaskQueueBase* absl_nonnull network_thread_;
   BasicPacketSocketFactory factory_;
   bool mdns_obfuscation_enabled_ = false;
+  absl::AnyInvocable<void()> on_candidate_pool_discarded_;
+  WeakPtrFactory<FakePortAllocator> weak_factory_{this};
 };
 
 }  //  namespace webrtc

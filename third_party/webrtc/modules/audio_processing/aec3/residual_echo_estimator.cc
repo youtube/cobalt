@@ -13,14 +13,18 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/delay_estimate.h"
 #include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/aec3/reverb_model.h"
 #include "modules/audio_processing/aec3/spectrum_buffer.h"
@@ -224,8 +228,8 @@ void ResidualEchoEstimator::Estimate(
       headroom_blocks =
           std::min(headroom_render_buffer - 1, kNeuralDelayHeadroomBlocks);
     }
-    ArrayView<const float> render =
-        render_buffer.GetBlock(headroom_blocks).View(/*band=*/0, /*ch=*/0);
+
+    const Block& render = render_buffer.GetBlock(headroom_blocks);
     neural_residual_echo_estimator_->Estimate(render, capture,
                                               linear_aec_output, S2_linear, Y2,
                                               E2, R2, R2_unbounded);

@@ -38,6 +38,8 @@ OmniboxAimPopupWebUIContent::OmniboxAimPopupWebUIContent(
 OmniboxAimPopupWebUIContent::~OmniboxAimPopupWebUIContent() = default;
 
 void OmniboxAimPopupWebUIContent::ShowUI() {
+  OmniboxPopupWebUIBaseContent::ShowUI();
+
   auto* web_contents = contents_wrapper()->web_contents();
   auto* browser_window = webui::GetBrowserWindowInterface(web_contents);
   auto* context_data = browser_window->GetFeatures().searchbox_context_data();
@@ -50,17 +52,17 @@ void OmniboxAimPopupWebUIContent::ShowUI() {
       if (!context) {
         context = std::make_unique<SearchboxContextData::Context>();
       }
-      context->text =
+      if (!controller()->edit_model()->CurrentTextIsURL()) {
+        context->text =
           base::UTF16ToUTF8(location_bar_view()->GetOmniboxView()->GetText());
+      }
       omnibox_popup_ui->popup_aim_handler()->OnShow(std::move(context));
     }
   }
 }
 
 void OmniboxAimPopupWebUIContent::CloseUI() {
-  // Update the popup state manager that the aim popup is closing.
-  // LocationBarView is subscribed to state changes and will close the widget.
-  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+  OmniboxPopupWebUIBaseContent::CloseUI();
 
   auto* webui_controller = contents_wrapper()->GetWebUIController();
   if (webui_controller) {
@@ -72,7 +74,9 @@ void OmniboxAimPopupWebUIContent::CloseUI() {
 }
 
 void OmniboxAimPopupWebUIContent::OnClosedWithInput(const std::string& input) {
-  location_bar_view()->GetOmniboxView()->SetUserText(base::UTF8ToUTF16(input));
+  location_bar_view()->GetOmniboxView()->RevertAll();
+  location_bar_view()->GetOmniboxView()->SetUserText(base::UTF8ToUTF16(input),
+                                                     /*update_popup=*/false);
 }
 
 BEGIN_METADATA(OmniboxAimPopupWebUIContent)

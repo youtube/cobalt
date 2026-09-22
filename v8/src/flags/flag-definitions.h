@@ -678,6 +678,10 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
 DEFINE_BOOL(trace_maglev_range_analysis, false,
             "Trace Maglev range value analysis pass")
 DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
+DEFINE_BOOL(maglev_range_verification, false,
+            "Run integer range verifiction pass in Turbolev frontend pipeline")
+DEFINE_WEAK_IMPLICATION(maglev_range_verification, maglev_range_analysis)
+DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -989,18 +993,11 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
-#if defined(V8_ENABLE_WEBASSEMBLY) && V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL
 DEFINE_BOOL(unmap_holes, false, "unmap the page containing the holes.")
 DEFINE_IMPLICATION(fuzzing, unmap_holes)
-DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
-                            "assert that we always check for holes by value, "
-                            "never dereferencing their map.")
-DEFINE_IMPLICATION(experimental_fuzzing, assert_hole_checked_by_value)
 #else
 DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
-DEFINE_BOOL_READONLY(assert_hole_checked_by_value, false,
-                     "assert that we always check for holes by value, never "
-                     "dereferencing their map.")
 #endif
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
@@ -1047,6 +1044,8 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
+DEFINE_BOOL(new_old_generation_heap_size, false,
+            "Enables new old generation max heap size.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
 DEFINE_UINT(high_end_android_physical_memory_threshold, 8,
@@ -1741,6 +1740,9 @@ DEFINE_BOOL(
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_verify_load_store_taggedness,
+                            "insert runtime checks to verify the "
+                            "representation of loaded/stored values")
 DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
                    deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
@@ -1785,6 +1787,9 @@ DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
 DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
                      "trace Turboshaft's if-else to switch reducer")
+DEFINE_BOOL_READONLY(turboshaft_verify_load_store_taggedness, false,
+                     "insert runtime checks to verify the representation of "
+                     "loaded/stored values")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
@@ -2277,6 +2282,25 @@ DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_jitless)
 // it introduces.
 DEFINE_IMPLICATION(wasm_code_coverage, wasm_opt)
 
+DEFINE_BOOL(trace_wasm_compilation_hints, false,
+            "trace compilation hints parsing and usage errors")
+DEFINE_BOOL(wasm_generate_compilation_hints, false,
+            "enable emitting compilation-hints sections for Wasm to a file")
+// Feedback collection is guarded by the --wasm-inlining flag.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
+// Despite functions not being tiered up in this mode, we need this to track
+// which functions were marked for tierup to generate the compilation-priority
+// section.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
+DEFINE_BOOL(trace_wasm_generate_compilation_hints, false,
+            "enable tracing wasm compilation hints generation")
+// Feedback collection is guarded by the --wasm-inlining flag.
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
+// Despite functions not being tiered up in this mode, we need this to track
+// which functions were marked for tierup to generate the compilation-priority
+// section.
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
@@ -2506,6 +2530,8 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
             "use memory reducer for small heaps")
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
+DEFINE_BOOL(disable_eager_allocation_failures, false,
+            "Avoid eager allocations failures due to memory optimizations")
 DEFINE_BOOL(
     external_memory_accounted_in_global_limit, false,
     "External memory limits are computed as part of global limits in v8 Heap.")
@@ -2597,10 +2623,6 @@ DEFINE_BOOL(
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
 
-// These flags will be removed after experiments. Do not rely on them.
-DEFINE_BOOL(gc_experiment_less_compaction, false,
-            "less compaction in non-memory reducing mode")
-
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 8000,
            "Delay before memory reducer start")
 
@@ -2648,12 +2670,6 @@ DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 DEFINE_BOOL(late_heap_limit_check, true,
             "skips heap limit check for early GCs on allocation failure.")
-
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-DEFINE_BOOL(reserve_contiguous_compressed_read_only_space, true,
-            "reserves a contiguous compressed read-only space in all pointer "
-            "compression cages")
-#endif
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2973,7 +2989,8 @@ DEFINE_STRING(heap_snapshot_path, nullptr,
 DEFINE_VALUE_IMPLICATION(fuzzing, heap_snapshot_path,
                          static_cast<const char*>(nullptr))
 DEFINE_INT(heap_snapshot_on_gc, -1,
-           "Write a heap snapshot to disk on a certain GC invocation")
+           "Write a heap snapshot to disk on a certain GC invocation. 0 "
+           "results in taking a snapshot on every invocation.")
 DEFINE_UINT(heap_snapshot_string_limit, 1024,
             "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
@@ -3196,6 +3213,7 @@ DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
 DEFINE_BOOL(regexp_assemble_from_bytecode, false,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
+DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
@@ -3334,6 +3352,25 @@ DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
 // Only one of these can be enabled.
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
 DEFINE_NEG_IMPLICATION(sandbox_testing, sandbox_fuzzing)
+
+DEFINE_BOOL(verify_bytecode_light, false,
+            "Perform lightweight bytecode verification to ensure basic safety "
+            "properties of generated bytecode, mostly around control-flow.")
+DEFINE_BOOL(verify_bytecode_full, DEBUG_BOOL,
+            "Perform full bytecode verification to ensure generated bytecode "
+            "is safe to execute when the sandbox is enabled (i.e. does not "
+            "lead to out-of-sandbox memory corruption). Full verification is a "
+            "strict superset of the lightweight verification.")
+
+// Only one of the two flags should be active (but full verification includes
+// light verification).
+DEFINE_NEG_IMPLICATION(verify_bytecode_full, verify_bytecode_light)
+DEFINE_NEG_IMPLICATION(verify_bytecode_light, verify_bytecode_full)
+
+// Fuzzing and sandbox testing modes enable full bytecode verification.
+DEFINE_IMPLICATION(fuzzing, verify_bytecode_full)
+DEFINE_IMPLICATION(sandbox_fuzzing, verify_bytecode_full)
+DEFINE_IMPLICATION(sandbox_testing, verify_bytecode_full)
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 DEFINE_BOOL(expose_memory_corruption_api, false,
@@ -3851,11 +3888,16 @@ DEFINE_BOOL_READONLY(shared_heap, false,
                      "Enables a shared heap between isolates.")
 #endif
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    proto_assign_seq_opt,
-    "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
-    "by replacing it by a runtime code somewhat equivalent to "
-    "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
+DEFINE_BOOL(proto_assign_seq_opt, false,
+            "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
+            "by replacing it by a runtime code somewhat equivalent to "
+            "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
+DEFINE_WEAK_IMPLICATION(future, proto_assign_seq_opt)
+
+DEFINE_UINT(proto_assign_seq_opt_count, 2,
+            "The minimum number of consecutive property assignments on the "
+            "prototype object for replacing it with a single byte code")
+DEFINE_NEG_IMPLICATION(proto_assign_seq_opt_count == 0, proto_assign_seq_opt)
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

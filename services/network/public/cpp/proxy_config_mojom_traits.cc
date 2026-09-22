@@ -95,8 +95,8 @@ EnumTraits<network::mojom::ProxyOverrideRuleResult,
   switch (result) {
     case net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kNotFound:
       return network::mojom::ProxyOverrideRuleResult::kNotFound;
-    case net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolves:
-      return network::mojom::ProxyOverrideRuleResult::kResolves;
+    case net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved:
+      return network::mojom::ProxyOverrideRuleResult::kResolved;
   }
 }
 
@@ -111,9 +111,9 @@ bool EnumTraits<
       *out = net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::Result::
           kNotFound;
       return true;
-    case network::mojom::ProxyOverrideRuleResult::kResolves:
+    case network::mojom::ProxyOverrideRuleResult::kResolved:
       *out = net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::Result::
-          kResolves;
+          kResolved;
       return true;
   }
   return false;
@@ -145,6 +145,8 @@ bool StructTraits<network::mojom::ProxyOverrideRuleDataView,
     Read(network::mojom::ProxyOverrideRuleDataView data,
          net::ProxyConfig::ProxyOverrideRule* out) {
   return data.ReadDestinationMatchers(&out->destination_matchers) &&
+         data.ReadExcludeDestinationMatchers(
+             &out->exclude_destination_matchers) &&
          data.ReadProxyList(&out->proxy_list) &&
          data.ReadDnsConditions(&out->dns_conditions) &&
          !out->destination_matchers.rules().empty() &&

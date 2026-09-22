@@ -29,7 +29,8 @@ BASE_FEATURE_PARAM(bool,
                    "allowlist_only",
                    true);
 
-BASE_FEATURE(kActorDoNotStoreCompletedTasks, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kActorBypassTOUValidationForGuestView,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActionUseOptimizationGuide, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -91,6 +92,11 @@ BASE_FEATURE(kGlicNavigateUsingLoadURL, base::FEATURE_ENABLED_BY_DEFAULT);
 // NavigateTool path but with user gesture disabled. Also a fix for b/460113906
 // but with different risk profile.  No-op if above flag is on.
 BASE_FEATURE(kGlicNavigateWithoutUserGesture, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Killswitch for updating the Glic Actor API to ensure that calls to
+// performAction return first when a task is stopped or paused.
+BASE_FEATURE(kGlicPerformActionsReturnsBeforeStateChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicSkipBeforeUnloadDialogAndNavigate,
              base::FEATURE_DISABLED_BY_DEFAULT);

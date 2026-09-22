@@ -323,11 +323,26 @@ MdnsResponderInterface* NetworkManager::GetMdnsResponder() const {
 
 void NetworkManager::SubscribeNetworksChanged(
     absl::AnyInvocable<void()> callback) {
-  networks_changed_trampoline_.Subscribe(std::move(callback));
+  networks_changed_callbacks_.AddReceiver(std::move(callback));
 }
 
-void NetworkManager::SubscribeError(absl::AnyInvocable<void()> callback) {
-  error_trampoline_.Subscribe(std::move(callback));
+void NetworkManager::SubscribeNetworksChanged(
+    void* tag,
+    absl::AnyInvocable<void()> callback) {
+  networks_changed_callbacks_.AddReceiver(tag, std::move(callback));
+}
+
+void NetworkManager::UnsubscribeNetworksChanged(void* tag) {
+  networks_changed_callbacks_.RemoveReceivers(tag);
+}
+
+void NetworkManager::SubscribeError(void* tag,
+                                    absl::AnyInvocable<void()> callback) {
+  error_callbacks_.AddReceiver(tag, std::move(callback));
+}
+
+void NetworkManager::UnsubscribeError(void* tag) {
+  error_callbacks_.RemoveReceivers(tag);
 }
 
 NetworkManagerBase::NetworkManagerBase()
@@ -966,7 +981,7 @@ void BasicNetworkManager::StartUpdating() {
     if (sent_first_update_)
       thread_->PostTask(SafeTask(task_safety_flag_, [this] {
         RTC_DCHECK_RUN_ON(thread_);
-        SignalNetworksChanged();
+        NotifyNetworksChanged();
       }));
   } else {
     RTC_DCHECK(task_safety_flag_ == nullptr);
@@ -1063,7 +1078,7 @@ void BasicNetworkManager::UpdateNetworksOnce() {
 
   std::vector<std::unique_ptr<Network>> list;
   if (!CreateNetworks(false, &list)) {
-    SignalError();
+    NotifyError();
   } else {
     bool changed;
     NetworkManager::Stats stats;
@@ -1071,7 +1086,7 @@ void BasicNetworkManager::UpdateNetworksOnce() {
     set_default_local_addresses(QueryDefaultLocalAddress(AF_INET),
                                 QueryDefaultLocalAddress(AF_INET6));
     if (changed || !sent_first_update_) {
-      SignalNetworksChanged();
+      NotifyNetworksChanged();
       sent_first_update_ = true;
     }
   }
@@ -1126,29 +1141,6 @@ Network::Network(absl::string_view name,
       ignored_(false),
       type_(type),
       preference_(0) {}
-
-Network::Network(const Network& o)
-    : default_local_address_provider_(o.default_local_address_provider_),
-      mdns_responder_provider_(o.mdns_responder_provider_),
-      name_(o.name_),
-      description_(o.description_),
-      prefix_(o.prefix_),
-      prefix_length_(o.prefix_length_),
-      key_(o.key_),
-      ips_(o.ips_),
-      scope_id_(o.scope_id_),
-      ignored_(o.ignored_),
-      type_(o.type_),
-      underlying_type_for_vpn_(o.underlying_type_for_vpn_),
-      preference_(o.preference_),
-      active_(o.active_),
-      id_(o.id_),
-      network_preference_(o.network_preference_) {
-  // Copying a Network with signals set is hard to reason about.
-  // So don't allow it.
-  RTC_CHECK(SignalTypeChanged.is_empty());
-  RTC_CHECK(SignalNetworkPreferenceChanged.is_empty());
-}
 
 Network::~Network() = default;
 

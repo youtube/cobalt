@@ -496,7 +496,7 @@ void DesktopCaptureAccessHandler::ProcessChangeSourceRequest(
     if (!pending_request->picker) {
       std::move(pending_request->callback)
           .Run(blink::mojom::StreamDevicesSet(),
-               MediaStreamRequestResult::INVALID_STATE,
+               MediaStreamRequestResult::NOT_SUPPORTED,
                /*ui=*/nullptr);
       return;
     }
@@ -603,6 +603,7 @@ void DesktopCaptureAccessHandler::ProcessQueuedAccessRequest(
       pending_request.request.exclude_self_browser_surface;
   picker_params.exclude_monitor_type_surfaces =
       pending_request.request.exclude_monitor_type_surfaces;
+  picker_params.includable_web_contents_filter = includable_web_contents_filter;
 #endif
 
   pending_request.picker->Show(picker_params, std::move(source_lists),
@@ -768,7 +769,7 @@ void DesktopCaptureAccessHandler::OnDlpRestrictionChecked(
   if (!is_dlp_allowed) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::PERMISSION_DENIED,
+             MediaStreamRequestResult::DLP_PERMISSION_DENIED,
              /*ui=*/nullptr);
     return;
   }

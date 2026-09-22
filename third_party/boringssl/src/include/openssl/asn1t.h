@@ -578,7 +578,7 @@ DEFINE_STACK_OF(ASN1_VALUE)
 
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_ASN1T_H

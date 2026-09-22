@@ -26,22 +26,17 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(location, kLocation)
 
-  bool precise() const { return precise_; }
-  void setPrecise(bool value) { precise_ = value; }
-
-  bool autolocate() const { return autolocate_; }
-  void setAutolocate(bool value) { autolocate_ = value; }
-
-  bool watch() const { return watch_; }
-  void setWatch(bool value) { watch_ = value; }
+  bool autolocate() const {
+    return FastHasAttribute(html_names::kAutolocateAttr);
+  }
 
   Geoposition* position() const;
   GeolocationPositionError* error() const;
 
   void Trace(Visitor*) const override;
 
-  HeapTaskRunnerTimer<HTMLGeolocationElement>& SpinningIconTimerForTesting() {
-    return spinning_icon_timer_;
+  const base::TimeTicks& InProgressApearanceStartedTimeForTesting() {
+    return in_progress_appearance_started_time_;
   }
 
  private:
@@ -62,6 +57,8 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
                            GeolocationTranslateInnerText);
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
                            RequestLocationAfterClickAndPermissionChanged);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationRequestInProgress);
 
   // HTMLPermissionElement:
   void UpdateAppearance() override;
@@ -82,27 +79,21 @@ class CORE_EXPORT HTMLGeolocationElement final : public HTMLPermissionElement {
   void CurrentPositionCallback(
       base::expected<Geoposition*, GeolocationPositionError*>);
   Geolocation* GetGeolocation();
-  void SpinningIconTimerFired(TimerBase*);
-  void MaybeStopSpinning();
-  enum class RequestInProgress { kNo, kYes };
-  void StartSpinning(RequestInProgress request_in_progress);
-  bool ShouldShowSpinningIcon();
+  void MaybeHideInProgressAppearance();
+  void ShowInProgressAppearance();
+  bool ShouldShowInProgressAppearance();
   void RequestGeolocation();
   void ClearWatch();
   enum class ForceAutolocate { kNo, kYes };
   void MaybeTriggerAutolocate(ForceAutolocate);
   void UpdateText();
 
-  bool precise_ = false;
-  bool autolocate_ = false;
-  bool watch_ = false;
   // The watch_id_ is used to identify the watcher in the Geolocation object.
   // The ids always start from 1. 0 means that the watch is not set.
   int watch_id_ = 0;
   bool did_autolocate_trigger_request = false;
   bool is_geolocation_request_in_progress_ = false;
-  base::TimeTicks spinning_started_time_;
-  HeapTaskRunnerTimer<HTMLGeolocationElement> spinning_icon_timer_;
+  base::TimeTicks in_progress_appearance_started_time_;
 
   Member<Geoposition> position_;
   Member<GeolocationPositionError> error_;

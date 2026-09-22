@@ -1300,6 +1300,12 @@ public class WebContentsImpl
                 .setSupportsDraggableRegions(mNativeWebContentsAndroid, supportsDraggableRegions);
     }
 
+    @Override
+    public @Nullable WebContents getDocumentPictureInPictureOpener() {
+        return WebContentsImplJni.get()
+                .getDocumentPictureInPictureOpener(mNativeWebContentsAndroid);
+    }
+
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
@@ -1530,6 +1536,8 @@ public class WebContentsImpl
         void setSupportsForwardTransitionAnimation(long nativeWebContentsAndroid, boolean enabled);
 
         boolean hasOpener(long nativeWebContentsAndroid);
+
+        WebContents getDocumentPictureInPictureOpener(long nativeWebContentsAndroid);
 
         int getOriginalWindowOpenDisposition(long nativeWebContentsAndroid);
 

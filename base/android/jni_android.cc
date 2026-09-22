@@ -269,4 +269,4 @@ std::string GetJavaStackTraceIfPresent() {
 }  // namespace android
 }  // namespace base
 
-DEFINE_JNI_FOR_JniAndroid()
+DEFINE_JNI(JniAndroid)

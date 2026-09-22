@@ -394,3 +394,7 @@ service_manager::InterfaceProvider* DeviceService::GetJavaInterfaceProvider() {
 #endif
 
 }  // namespace device
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(InterfaceRegistrar)
+#endif

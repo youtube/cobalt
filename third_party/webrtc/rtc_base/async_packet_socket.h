@@ -20,16 +20,13 @@
 #include "absl/functional/any_invocable.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/callback_list.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -89,11 +86,7 @@ class RTC_EXPORT AsyncPacketSocket {
     STATE_CONNECTED
   };
 
-  AsyncPacketSocket()
-      : connect_trampoline_(this),
-        sent_packet_trampoline_(this),
-        ready_to_send_trampoline_(this),
-        address_ready_trampoline_(this) {}
+  AsyncPacketSocket() = default;
   virtual ~AsyncPacketSocket();
 
   AsyncPacketSocket(const AsyncPacketSocket&) = delete;
@@ -142,74 +135,66 @@ class RTC_EXPORT AsyncPacketSocket {
   void DeregisterReceivedPacketCallback();
 
   // Emitted each time a packet is sent.
-  sigslot::signal2<AsyncPacketSocket*, const SentPacketInfo&> SignalSentPacket;
   void SubscribeSentPacket(
       void* tag,
       absl::AnyInvocable<void(AsyncPacketSocket*, const SentPacketInfo&)>
-          callback) {
-    sent_packet_trampoline_.Subscribe(tag, std::move(callback));
-  }
+          callback);
   void UnsubscribeSentPacket(void* tag) {
-    sent_packet_trampoline_.Unsubscribe(tag);
+    sent_packet_callbacks_.RemoveReceivers(tag);
   }
   void NotifySentPacket(AsyncPacketSocket* socket, const SentPacketInfo& info) {
-    SignalSentPacket(socket, info);
+    sent_packet_callbacks_.Send(socket, info);
   }
 
   // Emitted when the socket is currently able to send.
-  sigslot::signal1<AsyncPacketSocket*> SignalReadyToSend;
   void SubscribeReadyToSend(
       void* tag,
       absl::AnyInvocable<void(AsyncPacketSocket*)> callback) {
-    ready_to_send_trampoline_.Subscribe(tag, std::move(callback));
+    ready_to_send_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void UnsubscribeReadyToSend(void* tag) {
-    ready_to_send_trampoline_.Unsubscribe(tag);
+    ready_to_send_callbacks_.RemoveReceivers(tag);
   }
   void NotifyReadyToSend(AsyncPacketSocket* socket) {
-    SignalReadyToSend(socket);
+    ready_to_send_callbacks_.Send(socket);
   }
 
   // Emitted after address for the socket is allocated, i.e. binding
   // is finished. State of the socket is changed from BINDING to BOUND
   // (for UDP sockets).
-  sigslot::signal2<AsyncPacketSocket*, const SocketAddress&> SignalAddressReady;
   void SubscribeAddressReady(
       void* tag,
       absl::AnyInvocable<void(AsyncPacketSocket*, const SocketAddress&)>
           callback) {
-    address_ready_trampoline_.Subscribe(tag, std::move(callback));
+    address_ready_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void UnsubscribeAddressReady(void* tag) {
-    address_ready_trampoline_.Unsubscribe(tag);
+    address_ready_callbacks_.RemoveReceivers(tag);
   }
   void NotifyAddressReady(AsyncPacketSocket* socket,
                           const SocketAddress& address) {
-    SignalAddressReady(socket, address);
+    address_ready_callbacks_.Send(socket, address);
   }
 
   // Emitted for client TCP sockets when state is changed from
   // CONNECTING to CONNECTED.
-  sigslot::signal1<AsyncPacketSocket*> SignalConnect;
-  void NotifyConnect(AsyncPacketSocket* socket) { SignalConnect(socket); }
+  void NotifyConnect(AsyncPacketSocket* socket) {
+    connect_callbacks_.Send(socket);
+  }
   void SubscribeConnect(absl::AnyInvocable<void(AsyncPacketSocket*)> callback) {
-    connect_trampoline_.Subscribe(std::move(callback));
+    connect_callbacks_.AddReceiver(std::move(callback));
   }
   void SubscribeConnect(void* tag,
                         absl::AnyInvocable<void(AsyncPacketSocket*)> callback) {
-    connect_trampoline_.Subscribe(tag, std::move(callback));
+    connect_callbacks_.AddReceiver(tag, std::move(callback));
   }
-  void UnsubscribeConnect(void* tag) { connect_trampoline_.Unsubscribe(tag); }
+  void UnsubscribeConnect(void* tag) {
+    connect_callbacks_.RemoveReceivers(tag);
+  }
 
   void NotifyClosedForTest(int err) { NotifyClosed(err); }
 
  protected:
-  // TODO(bugs.webrtc.org/11943): Remove after updating downstream code.
-  void SignalClose(AsyncPacketSocket* s, int err) {
-    RTC_DCHECK_EQ(s, this);
-    NotifyClosed(err);
-  }
-
   void NotifyClosed(int err) {
     RTC_DCHECK_RUN_ON(&network_checker_);
     on_close_.Send(this, err);
@@ -225,14 +210,12 @@ class RTC_EXPORT AsyncPacketSocket {
       RTC_GUARDED_BY(&network_checker_);
   absl::AnyInvocable<void(AsyncPacketSocket*, const ReceivedIpPacket&)>
       received_packet_callback_ RTC_GUARDED_BY(&network_checker_);
-  SignalTrampoline<AsyncPacketSocket, &AsyncPacketSocket::SignalConnect>
-      connect_trampoline_;
-  SignalTrampoline<AsyncPacketSocket, &AsyncPacketSocket::SignalSentPacket>
-      sent_packet_trampoline_;
-  SignalTrampoline<AsyncPacketSocket, &AsyncPacketSocket::SignalReadyToSend>
-      ready_to_send_trampoline_;
-  SignalTrampoline<AsyncPacketSocket, &AsyncPacketSocket::SignalAddressReady>
-      address_ready_trampoline_;
+  CallbackList<AsyncPacketSocket*> connect_callbacks_;
+  CallbackList<AsyncPacketSocket*, const SentPacketInfo&>
+      sent_packet_callbacks_;
+  CallbackList<AsyncPacketSocket*> ready_to_send_callbacks_;
+  CallbackList<AsyncPacketSocket*, const SocketAddress&>
+      address_ready_callbacks_;
 };
 
 // Listen socket, producing an AsyncPacketSocket when a peer connects.
@@ -243,7 +226,7 @@ class RTC_EXPORT AsyncListenSocket {
     kBound,
   };
 
-  AsyncListenSocket() : new_connection_trampoline_(this) {}
+  AsyncListenSocket() = default;
   virtual ~AsyncListenSocket() = default;
 
   // Returns current state of the socket.
@@ -253,24 +236,23 @@ class RTC_EXPORT AsyncListenSocket {
   // socket is not bound yet (GetState() returns kBinding).
   virtual SocketAddress GetLocalAddress() const = 0;
 
-  sigslot::signal2<AsyncListenSocket*, AsyncPacketSocket*> SignalNewConnection;
   void SubscribeNewConnection(
       void* tag,
       absl::AnyInvocable<void(AsyncListenSocket*, AsyncPacketSocket*)>
           callback) {
-    new_connection_trampoline_.Subscribe(tag, std::move(callback));
+    new_connection_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void UnsubscribeNewConnection(void* tag) {
-    new_connection_trampoline_.Unsubscribe(tag);
+    new_connection_callbacks_.RemoveReceivers(tag);
   }
   void NotifyNewConnection(AsyncListenSocket* listen_socket,
                            AsyncPacketSocket* packet_socket) {
-    SignalNewConnection(listen_socket, packet_socket);
+    new_connection_callbacks_.Send(listen_socket, packet_socket);
   }
 
  private:
-  SignalTrampoline<AsyncListenSocket, &AsyncListenSocket::SignalNewConnection>
-      new_connection_trampoline_;
+  CallbackList<AsyncListenSocket*, AsyncPacketSocket*>
+      new_connection_callbacks_;
 };
 
 void CopySocketInformationToPacketInfo(size_t packet_size_bytes,

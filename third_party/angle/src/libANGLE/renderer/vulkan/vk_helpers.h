@@ -71,6 +71,7 @@ using StagingBufferOffsetArray = std::array<VkDeviceSize, 2>;
 VkImageCreateFlags GetImageCreateFlags(gl::TextureType textureType);
 
 class ImageHelper;
+class CommandsState;
 
 // Abstracts contexts where command recording is done in response to API calls, and includes
 // data structures that are Vulkan-related, need to be accessed by the internals of |namespace vk|
@@ -1035,12 +1036,22 @@ class BufferHelper : public ReadWriteResource
 
     void releaseImpl(Renderer *renderer);
 
-    void updatePipelineStageWriteHistory(PipelineStage writeStage)
+    void updatePipelineStageWriteHistory(Context *context, PipelineStage writeStage)
     {
-        mTransformFeedbackWriteHeuristicBits <<= 1;
+        mXFBOrComputeWriteHeuristicBits <<= 1;
+
         if (writeStage == PipelineStage::TransformFeedback)
         {
-            mTransformFeedbackWriteHeuristicBits |= 1;
+            mXFBOrComputeWriteHeuristicBits |= 1;
+        }
+        else if ((writeStage == PipelineStage::ComputeShader) &&
+                 (mCurrentReadStages & VK_PIPELINE_STAGE_VERTEX_INPUT_BIT) != 0 &&
+                 context->getFeatures().isVertexSyncDeferred.enabled)
+        {
+            // When a buffer is written in compute after read in vertex stage, using vkEvent
+            // for synchronization is generally more performance-friendly than a pipeline barrier,
+            // especially on deferred rendering GPUs.
+            mXFBOrComputeWriteHeuristicBits |= 1;
         }
     }
 
@@ -1071,9 +1082,8 @@ class BufferHelper : public ReadWriteResource
 
     // Track history of pipeline stages being used. This information provides
     // heuristic for making decisions if a VkEvent should be used to track the operation.
-    static constexpr uint32_t kTransformFeedbackWriteHeuristicWindowSize = 16;
-    angle::BitSet16<kTransformFeedbackWriteHeuristicWindowSize>
-        mTransformFeedbackWriteHeuristicBits;
+    static constexpr uint32_t kXFBOrComputeWriteHeuristicWindowSize = 16;
+    angle::BitSet16<kXFBOrComputeWriteHeuristicWindowSize> mXFBOrComputeWriteHeuristicBits;
 
     BufferSerial mSerial;
     // Manages the descriptorSet cache that created with this BufferHelper object.
@@ -1096,7 +1106,6 @@ class BufferPool : angle::NonCopyable
     void initWithFlags(Renderer *renderer,
                        vma::VirtualBlockCreateFlags flags,
                        VkBufferUsageFlags usage,
-                       VkDeviceSize initialSize,
                        uint32_t memoryTypeIndex,
                        VkMemoryPropertyFlags memoryProperty);
 
@@ -1124,8 +1133,15 @@ class BufferPool : angle::NonCopyable
     vma::VirtualBlockCreateFlags mVirtualBlockCreateFlags;
     VkBufferUsageFlags mUsage;
     bool mHostVisible;
+    // Size used to create the last allocated buffer block from the pool to suballocate from.
     VkDeviceSize mSize;
+    // Size used to allocate a new buffer block from an empty pool.
+    VkDeviceSize mInitialSize;
+    // Size used to allocate a new buffer block from a non-empty pool.
+    VkDeviceSize mPreferredSize;
+    // Intended memory type index used for the buffer allocation.
     uint32_t mMemoryTypeIndex;
+    // Total allocated buffer block size from the pool.
     VkDeviceSize mTotalMemorySize;
     BufferBlockPointerVector mBufferBlocks;
     std::deque<BufferBlockPointer> mEmptyBufferBlocks;
@@ -1271,14 +1287,6 @@ class SecondaryCommandBufferCollector final
     std::vector<VulkanSecondaryCommandBuffer> mCollectedCommandBuffers;
 };
 
-struct CommandsState
-{
-    std::vector<VkSemaphore> waitSemaphores;
-    std::vector<VkPipelineStageFlags> waitSemaphoreStageMasks;
-    PrimaryCommandBuffer primaryCommands;
-    SecondaryCommandBufferCollector secondaryCommands;
-};
-
 // How the ImageHelper object is being used by the renderpass
 enum class RenderPassUsage
 {
@@ -1357,7 +1365,9 @@ class CommandBufferHelperCommon : angle::NonCopyable
         return hostBufferWrite;
     }
 
-    void executeBarriers(Renderer *renderer, CommandsState *commandsState);
+    void executeBarriers(Renderer *renderer,
+                         CommandsState *commandsState,
+                         PrimaryCommandBuffer *primaryCommands);
 
     // The markOpen and markClosed functions are to aid in proper use of the *CommandBufferHelper.
     // saw invalid use due to threading issues that can be easily caught by marking when it's safe
@@ -1552,7 +1562,9 @@ class OutsideRenderPassCommandBufferHelper final : public CommandBufferHelperCom
 
     RefCountedEventCollector *getRefCountedEventCollector() { return &mRefCountedEventCollector; }
 
-    angle::Result flushToPrimary(Context *context, CommandsState *commandsState);
+    angle::Result flushToPrimary(Context *context,
+                                 CommandsState *commandsState,
+                                 PrimaryCommandBuffer *primaryCommands);
 
     void setGLMemoryBarrierIssued()
     {
@@ -1804,6 +1816,7 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
 
     angle::Result flushToPrimary(Context *context,
                                  CommandsState *commandsState,
+                                 PrimaryCommandBuffer *primaryCommands,
                                  const RenderPass &renderPass,
                                  VkFramebuffer framebufferOverride);
 
@@ -2123,9 +2136,7 @@ class ImageHelper final : public Resource, public angle::Subject
                        uint32_t layerCount,
                        bool isRobustResourceInitEnabled,
                        bool hasProtectedContent);
-    angle::Result initFromCreateInfo(ErrorContext *context,
-                                     const VkImageCreateInfo &requestedCreateInfo,
-                                     VkMemoryPropertyFlags memoryPropertyFlags);
+
     angle::Result copyToBufferOneOff(ErrorContext *context,
                                      BufferHelper *stagingBuffer,
                                      VkBufferImageCopy copyRegion);

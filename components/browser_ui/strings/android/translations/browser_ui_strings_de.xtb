@@ -171,6 +171,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2787357173144933081">Direkt mit Omnibox starten</translation>
 <translation id="2789132527330338807">Websites dürfen nachfragen, ob sie eine 3D-Karte meiner Umgebung erstellen oder die Kameraposition erfassen können</translation>
 <translation id="2790501146643349491">Wenn dieser Schalter aktiviert ist, können vor Kurzem geschlossene Websites das Senden und Empfangen von Daten abschließen. Wenn er deaktiviert ist, können vor Kurzem geschlossene Websites das Senden oder Empfangen von Daten nicht abschließen.</translation>
+<translation id="2794551654724114396">Wenn du Benachrichtigungen aktivierst, erhältst du hilfreiche Tipps zur optimalen Nutzung von Chrome</translation>
 <translation id="2795716239552913152">Websites verwenden deinen Standort normalerweise für relevante Funktionen oder Informationen, wie etwa Lokalnachrichten oder Geschäfte in deiner Nähe</translation>
 <translation id="2800760947029405028">Bild hochladen</translation>
 <translation id="2802908157808345702">Websites dürfen weder Pop-up-Fenster senden noch Weiterleitungen verwenden</translation>
@@ -338,10 +339,12 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="4635969503923889910">Websites dürfen keine NFC-Geräte verwenden</translation>
 <translation id="4644713492825682049">Löschen und zurücksetzen</translation>
 <translation id="4645575059429386691">Von deinen Eltern verwaltet</translation>
+<translation id="4652266463001779298">Nicht zugelassen</translation>
 <translation id="4663373278480897665">Kameranutzung zulässig</translation>
 <translation id="4670064810192446073">Virtual Reality</translation>
 <translation id="4672315773691449562">Tippe auf „Browser-App“ und dann auf „Chrome“</translation>
 <translation id="4676059169848868271">Damit <ph name="APP_NAME" /> Handtracking verwenden kann, musst du die Einstellung auch in den <ph name="BEGIN_LINK" />Systemeinstellungen<ph name="END_LINK" /> aktivieren.</translation>
+<translation id="4688045258817337666">Karten verwalten</translation>
 <translation id="4751476147751820511">Bewegungs- oder Lichtsensoren</translation>
 <translation id="4755971844837804407">Wenn dieser Schalter aktiviert ist, können dir Websites beliebige Werbung anzeigen. Wenn er deaktiviert ist, können dir Websites keine aufdringliche oder irreführende Werbung anzeigen.</translation>
 <translation id="4779083564647765204">Zoomen</translation>
@@ -678,6 +681,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="8487700953926739672">Offline verfügbar</translation>
 <translation id="848952951823693243">Mobile Website immer anfordern</translation>
 <translation id="8492822722330266509">Websites dürfen Pop-ups senden und Weiterleitungen verwenden</translation>
+<translation id="8493548450030356203">Pop-up-Fenster zum Zoomen</translation>
 <translation id="8499083585497694743">Mikrofon einschalten</translation>
 <translation id="8514955299594277296">Websites nicht erlauben, Daten auf deinem Gerät zu speichern (nicht empfohlen)</translation>
 <translation id="851751545965956758">Verhindern, dass Websites eine Verbindung zu Geräten herstellen</translation>

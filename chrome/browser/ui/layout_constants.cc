@@ -106,11 +106,6 @@ int GetLayoutConstant(LayoutConstant constant) {
     case TAB_STACK_DISTANCE:
       return touch_ui ? 4 : 6;
     case TABSTRIP_TOOLBAR_OVERLAP:
-      // Because tab scrolling puts the tabstrip on a separate layer,
-      // changing paint order, this overlap isn't compatible with scrolling.
-      if (base::FeatureList::IsEnabled(tabs::kScrollableTabStrip)) {
-        return 0;
-      }
       return 1;
     case TOOLBAR_BUTTON_HEIGHT:
       return touch_ui ? 48 : 34;
@@ -137,6 +132,8 @@ int GetLayoutConstant(LayoutConstant constant) {
     case MAIN_BACKGROUND_REGION_CORNER_RADIUS:
     case TOOLBAR_CORNER_RADIUS:
       return 8;
+    case VERTICAL_TAB_HEIGHT:
+      return 30;
     case VERTICAL_TAB_STRIP_HORIZONTAL_PADDING:
       return 12;
     case VERTICAL_TAB_STRIP_BOTTOM_BUTTON_PADDING:

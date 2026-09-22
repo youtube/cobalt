@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chromecast/media/audio/cast_audio_output_stream.h"
 
 #include <stdint.h>
@@ -14,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
@@ -31,6 +27,7 @@
 #include "chromecast/public/volume_control.h"
 #include "media/audio/mock_audio_source_callback.h"
 #include "media/audio/test_audio_thread.h"
+#include "media/base/audio_bus.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -495,7 +492,7 @@ TEST_F(CastAudioOutputStreamTest, Format) {
       ::media::AudioParameters::AUDIO_PCM_LINEAR,
       ::media::AudioParameters::AUDIO_PCM_LOW_LATENCY};
   for (size_t i = 0; i < std::size(format); ++i) {
-    format_ = format[i];
+    format_ = UNSAFE_TODO(format[i]);
     ::media::AudioOutputStream* stream = CreateStream();
     ASSERT_TRUE(stream);
     EXPECT_TRUE(stream->Open());
@@ -517,7 +514,7 @@ TEST_F(CastAudioOutputStreamTest, ChannelLayout) {
       ::media::ChannelLayoutConfig::Mono(),
       ::media::ChannelLayoutConfig::Stereo()};
   for (size_t i = 0; i < std::size(layout); ++i) {
-    channel_layout_config_ = layout[i];
+    channel_layout_config_ = UNSAFE_TODO(layout[i]);
     ::media::AudioOutputStream* stream = CreateStream();
     ASSERT_TRUE(stream);
     EXPECT_TRUE(stream->Open());

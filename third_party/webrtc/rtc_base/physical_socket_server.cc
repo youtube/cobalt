@@ -281,7 +281,7 @@ int PhysicalSocket::Bind(const SocketAddress& bind_addr) {
   sockaddr* addr = reinterpret_cast<sockaddr*>(&addr_storage);
   int err = ::bind(s_, addr, static_cast<int>(len));
   UpdateLastError();
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
   if (0 == err) {
     dbg_addr_ = "Bound @ ";
     dbg_addr_.append(GetLocalAddress().ToString());
@@ -611,7 +611,7 @@ int PhysicalSocket::Listen(int backlog) {
   if (err == 0) {
     state_ = CS_CONNECTING;
     EnableEvents(DE_ACCEPT);
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
     dbg_addr_ = "Listening @ ";
     dbg_addr_.append(GetLocalAddress().ToString());
 #endif
@@ -1011,7 +1011,7 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
     if (ff != DE_CONNECT)
       RTC_LOG(LS_VERBOSE) << "Signalled with DE_CONNECT: " << ff;
     DisableEvents(DE_CONNECT);
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
     dbg_addr_ = "Connected @ ";
     dbg_addr_.append(GetRemoteAddress().ToString());
 #endif

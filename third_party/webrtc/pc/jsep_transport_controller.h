@@ -13,12 +13,10 @@
 
 #include <stdint.h>
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -34,6 +32,7 @@
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "api/transport/ecn_marking.h"
 #include "api/transport/sctp_transport_factory_interface.h"
@@ -59,7 +58,6 @@
 #include "pc/sctp_transport.h"
 #include "pc/session_description.h"
 #include "pc/transport_stats.h"
-#include "rtc_base/callback_list.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
@@ -69,7 +67,7 @@
 
 namespace webrtc {
 
-class JsepTransportController : public PayloadTypeSuggester {
+class JsepTransportController final : public PayloadTypeSuggester {
  public:
   // Used when the RtpTransport/DtlsTransport of the m= section is changed
   // because the section is rejected or BUNDLE is enabled.
@@ -92,7 +90,7 @@ class JsepTransportController : public PayloadTypeSuggester {
     // `data_channel_transport` or any fallback transport until
     // `negotiation_state` is final.
     virtual bool OnTransportChanged(
-        const std::string& mid,
+        absl::string_view mid,
         RtpTransportInternal* rtp_transport,
         scoped_refptr<DtlsTransport> dtls_transport,
         DataChannelTransportInterface* data_channel_transport) = 0;
@@ -124,13 +122,35 @@ class JsepTransportController : public PayloadTypeSuggester {
         rtcp_handler;
     absl::AnyInvocable<void(const RtpPacketReceived& parsed_packet) const>
         un_demuxable_packet_handler;
-    // Initial value for whether DtlsTransport reset causes a reset
-    // of SRTP parameters.
-    bool active_reset_srtp_params = false;
 
     // Factory for SCTP transports.
     SctpTransportFactoryInterface* sctp_factory = nullptr;
-    std::function<void(SSLHandshakeError)> on_dtls_handshake_error_;
+    absl::AnyInvocable<void(SSLHandshakeError) const> on_dtls_handshake_error =
+        [](SSLHandshakeError s) {};
+    absl::AnyInvocable<void(absl::string_view, const std::vector<Candidate>&)
+                           const>
+        signal_ice_candidates_gathered =
+            [](absl::string_view, const std::vector<Candidate>&) {};
+    absl::AnyInvocable<void(IceConnectionState) const>
+        signal_ice_connection_state = [](IceConnectionState) {};
+    absl::AnyInvocable<void(PeerConnectionInterface::PeerConnectionState) const>
+        signal_connection_state =
+            [](PeerConnectionInterface::PeerConnectionState) {};
+    absl::AnyInvocable<void(PeerConnectionInterface::IceConnectionState) const>
+        signal_standardized_ice_connection_state =
+            [](PeerConnectionInterface::IceConnectionState) {};
+    absl::AnyInvocable<void(webrtc::IceGatheringState) const>
+        signal_ice_gathering_state = [](webrtc::IceGatheringState) {};
+    absl::AnyInvocable<void(const webrtc::IceCandidateErrorEvent&) const>
+        signal_ice_candidate_error =
+            [](const webrtc::IceCandidateErrorEvent&) {};
+    absl::AnyInvocable<void(IceTransportInternal*,
+                            const std::vector<webrtc::Candidate>&) const>
+        signal_ice_candidates_removed =
+            [](IceTransportInternal*, const std::vector<webrtc::Candidate>&) {};
+    absl::AnyInvocable<void(const webrtc::CandidatePairChangeEvent&) const>
+        signal_ice_candidate_pair_changed =
+            [](const webrtc::CandidatePairChangeEvent&) {};
   };
 
   // The ICE related events are fired on the `network_thread`.
@@ -139,13 +159,14 @@ class JsepTransportController : public PayloadTypeSuggester {
   // `network_thread`.
   JsepTransportController(
       const Environment& env,
+      TaskQueueBase* signaling_thread,
       Thread* network_thread,
       PortAllocator* port_allocator,
       AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
       LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
       PayloadTypePicker& payload_type_picker,
       Config config);
-  virtual ~JsepTransportController();
+  ~JsepTransportController() override;
 
   JsepTransportController(const JsepTransportController&) = delete;
   JsepTransportController& operator=(const JsepTransportController&) = delete;
@@ -159,6 +180,8 @@ class JsepTransportController : public PayloadTypeSuggester {
   // been set via a call to `SetRemoteDescription()` then `remote_desc` should
   // point to that description object in order to keep the current local and
   // remote session descriptions in sync.
+  //
+  // Must be called on the signaling thread.
   RTCError SetLocalDescription(SdpType type,
                                const SessionDescription* local_desc,
                                const SessionDescription* remote_desc);
@@ -169,6 +192,8 @@ class JsepTransportController : public PayloadTypeSuggester {
   // been set via a call to `SetLocalDescription()` then `local_desc` should
   // point to that description object in order to keep the current local and
   // remote session descriptions in sync.
+  //
+  // Must be called on the signaling thread.
   RTCError SetRemoteDescription(SdpType type,
                                 const SessionDescription* local_desc,
                                 const SessionDescription* remote_desc);
@@ -177,8 +202,6 @@ class JsepTransportController : public PayloadTypeSuggester {
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(absl::string_view mid) const;
   DtlsTransportInternal* GetDtlsTransport(const std::string& mid);
-  const DtlsTransportInternal* GetRtcpDtlsTransport(
-      const std::string& mid) const;
   // Gets the externally sharable version of the DtlsTransport.
   scoped_refptr<DtlsTransport> LookupDtlsTransportByMid(const std::string& mid);
   scoped_refptr<SctpTransport> GetSctpTransport(const std::string& mid) const;
@@ -200,12 +223,17 @@ class JsepTransportController : public PayloadTypeSuggester {
   // occurred yet for this transport (by applying a local description with
   // changed ufrag/password). If the transport has been deleted as a result of
   // bundling, returns false.
+  //
+  // Must be called on the signaling thread.
   bool NeedsIceRestart(const std::string& mid) const;
   // Start gathering candidates for any new transports, or transports doing an
   // ICE restart.
+  //
+  // Must be called on the signaling thread.
   void MaybeStartGathering();
   RTCError AddRemoteCandidates(const std::string& mid,
                                const std::vector<Candidate>& candidates);
+  // Must be called on the signaling thread.
   bool RemoveRemoteCandidate(const IceCandidate* candidate);
 
   /**********************
@@ -213,6 +241,8 @@ class JsepTransportController : public PayloadTypeSuggester {
    *********************/
   // Specifies the identity to use in this session.
   // Can only be called once.
+  //
+  // Must be called on the signaling thread.
   bool SetLocalCertificate(const scoped_refptr<RTCCertificate>& certificate);
   scoped_refptr<RTCCertificate> GetLocalCertificate(
       const std::string& mid) const;
@@ -221,120 +251,65 @@ class JsepTransportController : public PayloadTypeSuggester {
   std::unique_ptr<SSLCertChain> GetRemoteSSLCertChain(
       const std::string& mid) const;
   // Get negotiated role, if one has been negotiated.
+  //
+  // Must be called on the signaling thread.
   std::optional<SSLRole> GetDtlsRole(const std::string& mid) const;
 
   // Suggest a payload type for a given codec on a given media section.
   // Media section is indicated by MID.
   // The function will either return a PT already in use on the connection
   // or a newly suggested one.
-  RTCErrorOr<PayloadType> SuggestPayloadType(const std::string& mid,
-                                             Codec codec) override;
-  RTCError AddLocalMapping(const std::string& mid,
+  //
+  // Must be called on the signaling thread.
+  RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view mid,
+                                             const Codec& codec) override;
+  RTCError AddLocalMapping(absl::string_view mid,
                            PayloadType payload_type,
                            const Codec& codec) override;
   const PayloadTypePicker& PayloadTypePickerForTesting() const {
     return payload_type_picker_;
   }
 
-  bool GetStats(const std::string& mid, TransportStats* stats) const;
+  bool GetStats(absl::string_view transport_name, TransportStats* stats) const;
 
-  bool initial_offerer() const { return initial_offerer_ && *initial_offerer_; }
-
-  void SetActiveResetSrtpParams(bool active_reset_srtp_params);
-
+  // Must be called on the signaling thread.
   RTCError RollbackTransports();
 
-  // F: void(const std::string&, const std::vector<webrtc::Candidate>&)
-  template <typename F>
-  void SubscribeIceCandidateGathered(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_candidates_gathered_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(webrtc::IceConnectionState)
-  template <typename F>
-  void SubscribeIceConnectionState(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_connection_state_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(PeerConnectionInterface::PeerConnectionState)
-  template <typename F>
-  void SubscribeConnectionState(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_connection_state_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(PeerConnectionInterface::IceConnectionState)
-  template <typename F>
-  void SubscribeStandardizedIceConnectionState(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_standardized_ice_connection_state_.AddReceiver(
-        std::forward<F>(callback));
-  }
-
-  // F: void(webrtc::IceGatheringState)
-  template <typename F>
-  void SubscribeIceGatheringState(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_gathering_state_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(const webrtc::IceCandidateErrorEvent&)
-  template <typename F>
-  void SubscribeIceCandidateError(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_candidate_error_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(const std::vector<webrtc::Candidate>&)
-  template <typename F>
-  void SubscribeIceCandidatesRemoved(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_candidates_removed_.AddReceiver(std::forward<F>(callback));
-  }
-
-  // F: void(const webrtc::CandidatePairChangeEvent&)
-  template <typename F>
-  void SubscribeIceCandidatePairChanged(F&& callback) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    signal_ice_candidate_pair_changed_.AddReceiver(std::forward<F>(callback));
-  }
-
  private:
-  // All of these callbacks are fired on the network thread.
+  // Always called via a blocking call from the signaling thread.
+  RTCError SetLocalDescription_n(SdpType type,
+                                 const SessionDescription* local_desc,
+                                 const SessionDescription* remote_desc)
+      RTC_RUN_ON(network_thread_);
 
-  // If any transport failed => failed,
-  // Else if all completed => completed,
-  // Else if all connected => connected,
-  // Else => connecting
-  CallbackList<IceConnectionState> signal_ice_connection_state_
-      RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  RTCError SetRemoteDescription_n(SdpType type,
+                                  const SessionDescription* local_desc,
+                                  const SessionDescription* remote_desc)
+      RTC_RUN_ON(network_thread_);
 
-  CallbackList<PeerConnectionInterface::PeerConnectionState>
-      signal_connection_state_ RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  bool NeedsIceRestart_n(const std::string& mid) const
+      RTC_RUN_ON(network_thread_);
 
-  CallbackList<PeerConnectionInterface::IceConnectionState>
-      signal_standardized_ice_connection_state_ RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  bool RemoveRemoteCandidate_n(const IceCandidate* candidate)
+      RTC_RUN_ON(network_thread_);
 
-  // If all transports done gathering => complete,
-  // Else if any are gathering => gathering,
-  // Else => new
-  CallbackList<IceGatheringState> signal_ice_gathering_state_
-      RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  RTCError RollbackTransports_n() RTC_RUN_ON(network_thread_);
 
-  // [mid, candidates]
-  CallbackList<const std::string&, const std::vector<Candidate>&>
-      signal_ice_candidates_gathered_ RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  void MaybeStartGathering_n() RTC_RUN_ON(network_thread_);
 
-  CallbackList<const IceCandidateErrorEvent&> signal_ice_candidate_error_
-      RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  bool SetLocalCertificate_n(const scoped_refptr<RTCCertificate>& certificate)
+      RTC_RUN_ON(network_thread_);
 
-  CallbackList<IceTransportInternal*, const std::vector<Candidate>&>
-      signal_ice_candidates_removed_ RTC_GUARDED_BY(network_thread_);
-
-  CallbackList<const CandidatePairChangeEvent&>
-      signal_ice_candidate_pair_changed_ RTC_GUARDED_BY(network_thread_);
+  // Always called via a blocking call from the signaling thread.
+  RTCErrorOr<PayloadType> SuggestPayloadType_n(absl::string_view mid,
+                                               const Codec& codec)
+      RTC_RUN_ON(network_thread_);
 
   // Called from SetLocalDescription and SetRemoteDescription.
   // When `local` is true, local_desc must be valid. Similarly when
@@ -390,8 +365,8 @@ class JsepTransportController : public PayloadTypeSuggester {
   // Get the JsepTransport without considering the BUNDLE group. Return nullptr
   // if the JsepTransport is destroyed.
   const JsepTransport* GetJsepTransportByName(
-      const std::string& transport_name) const RTC_RUN_ON(network_thread_);
-  JsepTransport* GetJsepTransportByName(const std::string& transport_name)
+      absl::string_view transport_name) const RTC_RUN_ON(network_thread_);
+  JsepTransport* GetJsepTransportByName(absl::string_view transport_name)
       RTC_RUN_ON(network_thread_);
 
   // Creates jsep transport. Noop if transport is already created.
@@ -414,19 +389,25 @@ class JsepTransportController : public PayloadTypeSuggester {
 
   std::unique_ptr<DtlsTransportInternal> CreateDtlsTransport(
       const ContentInfo& content_info,
-      IceTransportInternal* ice);
+      bool rtcp);
   scoped_refptr<IceTransportInterface> CreateIceTransport(
       const std::string& transport_name,
       bool rtcp);
-
   std::unique_ptr<RtpTransport> CreateUnencryptedRtpTransport(
       const std::string& transport_name,
-      PacketTransportInternal* rtp_packet_transport,
-      PacketTransportInternal* rtcp_packet_transport);
+      std::unique_ptr<PacketTransportInternal> rtp_packet_transport,
+      std::unique_ptr<PacketTransportInternal> rtcp_packet_transport);
+
+  // Creates a DTLS SRTP transport.
   std::unique_ptr<DtlsSrtpTransport> CreateDtlsSrtpTransport(
       const std::string& transport_name,
-      DtlsTransportInternal* rtp_dtls_transport,
-      DtlsTransportInternal* rtcp_dtls_transport);
+      std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
+      std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport);
+
+  std::unique_ptr<RtpTransport> CreateRtpTransport(
+      const std::string& transport_name,
+      std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
+      std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport);
 
   // Collect all the DtlsTransports, including RTP and RTCP, from the
   // JsepTransports, including those not mapped to a MID because they are being
@@ -469,10 +450,11 @@ class JsepTransportController : public PayloadTypeSuggester {
 
   void OnDtlsHandshakeError(SSLHandshakeError error);
 
-  bool OnTransportChanged(const std::string& mid, JsepTransport* transport);
+  bool OnTransportChanged(absl::string_view mid, JsepTransport* transport);
 
   const Environment env_;
-  Thread* const network_thread_ = nullptr;
+  TaskQueueBase* const signaling_thread_;
+  Thread* const network_thread_;
   PortAllocator* const port_allocator_ = nullptr;
   AsyncDnsResolverFactoryInterface* const async_dns_resolver_factory_ = nullptr;
   LocalNetworkAccessPermissionFactoryInterface* const lna_permission_factory_ =
@@ -491,9 +473,6 @@ class JsepTransportController : public PayloadTypeSuggester {
   IceGatheringState ice_gathering_state_ = kIceGatheringNew;
 
   const Config config_;
-  bool active_reset_srtp_params_ RTC_GUARDED_BY(network_thread_);
-
-  std::optional<bool> initial_offerer_;
 
   IceConfig ice_config_;
   IceRole ice_role_ = ICEROLE_CONTROLLING;

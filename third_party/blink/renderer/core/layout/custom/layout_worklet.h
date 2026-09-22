@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/core/workers/worklet.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -25,8 +24,7 @@ extern DocumentLayoutDefinition* const kInvalidDocumentLayoutDefinition;
 //
 // Provides access to web developer defined layout classes within multiple
 // global scopes.
-class CORE_EXPORT LayoutWorklet : public Worklet,
-                                  public Supplement<LocalDOMWindow> {
+class CORE_EXPORT LayoutWorklet : public Worklet {
  public:
   static const unsigned kSupplementIndex;
 

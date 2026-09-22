@@ -51,6 +51,8 @@ class MockDatagramConnection : public DatagramConnection {
               Terminate,
               (absl::AnyInvocable<void()> terminate_complete_callback),
               (override));
+  MOCK_METHOD(std::string_view, IceUsernameFragment, (), (override));
+  MOCK_METHOD(std::string_view, IcePassword, (), (override));
 };
 
 static_assert(!std::is_abstract_v<RefCountedObject<MockDatagramConnection>>,

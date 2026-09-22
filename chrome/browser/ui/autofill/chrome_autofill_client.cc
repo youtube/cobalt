@@ -175,6 +175,7 @@
 #include "components/messages/android/messages_feature.h"
 #include "components/strings/grit/components_strings.h"
 #else  // !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/ui/autofill/autofill_ai/autofill_ai_import_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller_impl.h"
 #include "chrome/browser/ui/autofill/delete_address_profile_dialog_controller_impl.h"
@@ -560,11 +561,10 @@ void ChromeAutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
           /*on_critical_path =*/false);
   optimization_guide::GetAIPageContent(
       web_contents(), std::move(extraction_options),
-      base::BindOnce([](std::optional<optimization_guide::AIPageContentResult>
-                            result)
+      base::BindOnce([](optimization_guide::AIPageContentResultOrError result)
                          -> std::optional<
                              optimization_guide::proto::AnnotatedPageContent> {
-        if (!result) {
+        if (!result.has_value()) {
           return std::nullopt;
         }
         // For now, discard all other metadata about the request.
@@ -573,11 +573,7 @@ void ChromeAutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
 }
 
 AutofillAiManager* ChromeAutofillClient::GetAutofillAiManager() {
-#if !BUILDFLAG(IS_ANDROID)
-  return &autofill_ai_manager_;
-#else
-  return nullptr;
-#endif
+  return autofill_ai_manager_.get();
 }
 
 AutofillAiModelCache* ChromeAutofillClient::GetAutofillAiModelCache() {
@@ -788,15 +784,17 @@ void ChromeAutofillClient::ShowAutofillSettings(
             autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
         chrome::ShowSettingsSubPage(browser, chrome::kAddressesSubPage);
         return;
-      case SuggestionType::kManageAutofillAi: {
-        std::string_view sub_page =
-            base::FeatureList::IsEnabled(
-                autofill::features::kYourSavedInfoSettingsPage)
-                ? chrome::kYourSavedInfoSubPage
-                : chrome::kAutofillAiSubPage;
-        chrome::ShowSettingsSubPage(browser, sub_page);
+      case SuggestionType::kManageAutofillAi:
+        if (base::FeatureList::IsEnabled(
+                autofill::features::kYourSavedInfoSettingsPage)) {
+          base::UmaHistogramEnumeration(
+              "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
+              autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
+          chrome::ShowSettingsSubPage(browser, chrome::kYourSavedInfoSubPage);
+        } else {
+          chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
+        }
         return;
-      }
       case SuggestionType::kManagePlusAddress:
         CHECK(base::FeatureList::IsEnabled(
             plus_addresses::features::kPlusAddressesEnabled));
@@ -1053,16 +1051,30 @@ void ChromeAutofillClient::TriggerAutofillAiSavePromptSurvey(
 #endif
 }
 
+bool ChromeAutofillClient::IsActorTaskActive() const {
+#if !BUILDFLAG(IS_ANDROID)
+  actor::ActorKeyedService* actor_service =
+      actor::ActorKeyedService::Get(GetProfile());
+  if (!actor_service) {
+    return false;
+  }
+
+  const tabs::TabInterface* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  return tab_interface && actor_service->IsActiveOnTab(*tab_interface);
+#else
+  return false;
+#endif
+}
+
 bool ChromeAutofillClient::IsAutofillEnabled() const {
-  return IsAutofillProfileEnabled() || IsAutofillPaymentMethodsEnabled();
+  return IsAutofillProfileEnabled() ||
+         AutofillClient::GetPaymentsAutofillClient()
+             ->IsAutofillPaymentMethodsEnabled();
 }
 
 bool ChromeAutofillClient::IsAutofillProfileEnabled() const {
   return prefs::IsAutofillProfileEnabled(GetPrefs());
-}
-
-bool ChromeAutofillClient::IsAutofillPaymentMethodsEnabled() const {
-  return prefs::IsAutofillPaymentMethodsEnabled(GetPrefs());
 }
 
 bool ChromeAutofillClient::IsAutocompleteEnabled() const {
@@ -1226,12 +1238,6 @@ void ChromeAutofillClient::NotifyIphFeatureUsed(
 ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
     : ContentAutofillClient(web_contents),
       content::WebContentsObserver(web_contents),
-#if !BUILDFLAG(IS_ANDROID)
-      autofill_ai_manager_(
-          this,
-          StrikeDatabaseFactory::GetForProfile(
-              Profile::FromBrowserContext(web_contents->GetBrowserContext()))),
-#endif
       ablation_study_(g_browser_process->local_state()),
       identity_credential_delegate_(web_contents),
       otp_field_detector_(std::make_unique<OtpFieldDetector>(this)),
@@ -1241,7 +1247,11 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
   // Initialize StrikeDatabase so its cache will be loaded and ready to use
   // when requested by other Autofill classes.
   GetStrikeDatabase();
-
+  if (base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema)) {
+    autofill_ai_manager_ = std::make_unique<AutofillAiManager>(
+        this, StrikeDatabaseFactory::GetForProfile(Profile::FromBrowserContext(
+                  web_contents->GetBrowserContext())));
+  }
 #if BUILDFLAG(IS_ANDROID)
   save_update_address_profile_flow_manager_ =
       std::make_unique<SaveUpdateAddressProfileFlowManager>();

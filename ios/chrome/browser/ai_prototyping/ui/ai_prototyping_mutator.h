@@ -24,14 +24,20 @@ enum TabOrganizationRequest_TabOrganizationModelStrategy : int;
 - (void)executeFreeformServerQuery:(NSString*)query
                 systemInstructions:(NSString*)systemInstructions
                 includePageContext:(BOOL)includePageContext
+                      uploadToMQLS:(BOOL)uploadToMQLS
+                  storePageContext:(BOOL)storePageContext
                        temperature:(float)temperature
                              model:(optimization_guide::proto::
                                         BlingPrototypingRequest_ModelEnum)model;
 
+// TODO(crbug.com/460813653): Remove deprecated TabOrganization functions.
 // Executes a tab organization request with a given organization `strategy`.
 - (void)executeGroupTabsWithStrategy:
     (optimization_guide::proto::
          TabOrganizationRequest_TabOrganizationModelStrategy)strategy;
+
+// Executes a tab organization request.
+- (void)executeSmartTabGrouping;
 
 // Executes an enhanced calendar request with a given (optional) prompt and
 // selected text.

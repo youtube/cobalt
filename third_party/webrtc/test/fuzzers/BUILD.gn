@@ -504,8 +504,8 @@ if (!build_with_chromium) {
     deps = [
       "..:wait_until",
       "../../api:jsep",
-      "../../api:libjingle_peerconnection_api",
       "../../api:make_ref_counted",
+      "../../api:peer_connection_interface",
       "../../api:rtc_error_matchers",
       "../../pc:integration_test_helpers",
       "../../pc:libjingle_peerconnection",
@@ -732,8 +732,7 @@ webrtc_fuzzer_test("string_to_number_fuzzer") {
 webrtc_fuzzer_test("sctp_utils_fuzzer") {
   sources = [ "sctp_utils_fuzzer.cc" ]
   deps = [
-    "../../api:libjingle_peerconnection_api",
-    "../../pc:libjingle_peerconnection",
+    "../../api:data_channel_interface",
     "../../pc:sctp_utils",
     "../../rtc_base:copy_on_write_buffer",
   ]

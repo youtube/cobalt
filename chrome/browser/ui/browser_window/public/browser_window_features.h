@@ -48,6 +48,7 @@ class ColorProviderBrowserHelper;
 class LocationBar;
 class CommentsSidePanelCoordinator;
 class ContentsBorderController;
+class ContextualTasksEphemeralButtonController;
 class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
@@ -86,6 +87,7 @@ class ToastController;
 class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
+class WebUIBrowserExclusiveAccessContext;
 class WebUIBrowserSidePanelUI;
 class ZoomBubbleCoordinator;
 
@@ -140,6 +142,7 @@ class ProductSpecificationsEntryPointController;
 }  // namespace commerce
 
 namespace contextual_tasks {
+class ActiveTaskContextProvider;
 class ContextualTasksSidePanelCoordinator;
 }  // namespace contextual_tasks
 
@@ -242,6 +245,11 @@ class BrowserWindowFeatures {
 
   ChromeLabsCoordinator* chrome_labs_coordinator() {
     return chrome_labs_coordinator_.get();
+  }
+
+  contextual_tasks::ActiveTaskContextProvider*
+  contextual_tasks_active_task_context_provider() {
+    return contextual_tasks_active_task_context_provider_.get();
   }
 
   media_router::CastBrowserController* cast_browser_controller() {
@@ -456,6 +464,10 @@ class BrowserWindowFeatures {
   // Returns true if a FindBarController exists for this browser window.
   bool HasFindBarController() const;
 
+  WebUIBrowserExclusiveAccessContext* webui_browser_exclusive_access_context() {
+    return webui_browser_exclusive_access_context_.get();
+  }
+
   ExclusiveAccessManager* exclusive_access_manager() {
     return exclusive_access_manager_.get();
   }
@@ -530,6 +542,9 @@ class BrowserWindowFeatures {
       product_specifications_entry_point_controller_;
 
   std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
+
+  std::unique_ptr<WebUIBrowserExclusiveAccessContext>
+      webui_browser_exclusive_access_context_;
 
   std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_;
 
@@ -621,6 +636,9 @@ class BrowserWindowFeatures {
       session_restore_infobar_controller_;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+  std::unique_ptr<ContextualTasksEphemeralButtonController>
+      contextual_tasks_ephemeral_button_controller_;
+
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -637,6 +655,9 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<contextual_tasks::ContextualTasksSidePanelCoordinator>
       contextual_tasks_side_panel_coordinator_;
+
+  std::unique_ptr<contextual_tasks::ActiveTaskContextProvider>
+      contextual_tasks_active_task_context_provider_;
 
   std::unique_ptr<tab_groups::MostRecentSharedTabUpdateStore>
       most_recent_shared_tab_update_store_;

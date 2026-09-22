@@ -1170,7 +1170,7 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
    public:
     NeuralResidualEchoEstimatorImpl() {}
 
-    void Estimate(ArrayView<const float> render,
+    void Estimate(const Block& render,
                   ArrayView<const std::array<float, 64>> capture,
                   ArrayView<const std::array<float, 64>> linear_aec_output,
                   ArrayView<const std::array<float, 65>> S2_linear,

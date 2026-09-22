@@ -55,7 +55,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
@@ -139,7 +138,7 @@ class FakeMdnsResponderProvider : public webrtc::MdnsResponderProvider {
 
 // Base class for tests connecting a StunPort to a fake STUN server
 // (webrtc::StunServer).
-class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
+class StunPortTestBase : public ::testing::Test {
  public:
   StunPortTestBase()
       : StunPortTestBase(kPrivateIP.ipaddr(),

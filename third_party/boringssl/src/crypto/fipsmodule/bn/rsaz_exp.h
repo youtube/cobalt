@@ -105,7 +105,7 @@ void rsaz_1024_red2norm_avx2(BN_ULONG norm[16], const BN_ULONG red[40]);
 #endif  // !OPENSSL_NO_ASM && OPENSSL_X86_64
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_BN_RSAZ_EXP_H

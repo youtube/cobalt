@@ -13,6 +13,8 @@
 #include <mach/mach_time.h>
 #include "rtc_base/checks.h"
 
+namespace webrtc {
+
 std::optional<int64_t> AudioTimeStampGetNanoseconds(
     const AudioTimeStamp* timeStamp) {
   if (!timeStamp || ((timeStamp->mFlags & kAudioTimeStampHostTimeValid) == 0) ||
@@ -49,3 +51,5 @@ std::optional<int64_t> AudioTimeStampGetNanoseconds(
 
   return static_cast<int64_t>(nanoseconds);
 }
+
+}  // namespace webrtc

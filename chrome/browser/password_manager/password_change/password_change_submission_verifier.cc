@@ -39,11 +39,10 @@ constexpr optimization_guide::proto::PasswordChangeRequest::FlowStep
     kSubmitVerification = optimization_guide::proto::PasswordChangeRequest::
         FlowStep::PasswordChangeRequest_FlowStep_VERIFY_SUBMISSION_STEP;
 
-constexpr char kSubmissionOutcomeHistogramName[] =
-    "PasswordManager.PasswordChangeSubmissionOutcome";
-
 void LogSubmissionOutcome(SubmissionOutcome outcome, ukm::SourceId ukm_id) {
-  base::UmaHistogramEnumeration(kSubmissionOutcomeHistogramName, outcome);
+  base::UmaHistogramEnumeration(
+      PasswordChangeSubmissionVerifier::kSubmissionOutcomeHistogramName,
+      outcome);
   ukm::builders::PasswordManager_PasswordChangeSubmissionOutcome(ukm_id)
       .SetPasswordChangeSubmissionOutcome(static_cast<int>(outcome))
       .Record(ukm::UkmRecorder::Get());
@@ -118,6 +117,11 @@ OptimizationGuideKeyedService* GetOptimizationService(
 
 }  // namespace
 
+char PasswordChangeSubmissionVerifier::kPasswordChangeVerificationTimeHistogram
+    [] = "PasswordManager.PasswordChangeVerificationTime";
+char PasswordChangeSubmissionVerifier::kSubmissionOutcomeHistogramName[] =
+    "PasswordManager.PasswordChangeSubmissionOutcome";
+
 PasswordChangeSubmissionVerifier::PasswordChangeSubmissionVerifier(
     content::WebContents* web_contents,
     ModelQualityLogsUploader* logs_uploader)
@@ -143,11 +147,11 @@ void PasswordChangeSubmissionVerifier::CheckSubmissionOutcome(
 }
 
 void PasswordChangeSubmissionVerifier::CheckSubmissionSuccessful(
-    std::optional<optimization_guide::AIPageContentResult> page_content) {
+    optimization_guide::AIPageContentResultOrError page_content) {
   CHECK(callback_);
   CHECK(web_contents_);
 
-  if (!page_content) {
+  if (!page_content.has_value()) {
     LogPageContentCaptureFailure(
         password_manager::metrics_util::PasswordChangeFlowStep::
             kVerifySubmissionStep);

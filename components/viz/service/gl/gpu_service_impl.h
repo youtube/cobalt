@@ -41,7 +41,6 @@
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/viz/privileged/mojom/gl/gpu_host.mojom.h"
 #include "services/viz/privileged/mojom/gl/gpu_service.mojom.h"
@@ -170,10 +169,10 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void SetChannelDiskCacheHandle(
       int32_t client_id,
       const gpu::GpuDiskCacheHandle& handle) override;
-  void SetChannelPersistentCacheParams(
+  void SetChannelPersistentCachePendingBackend(
       int32_t client_id,
       const gpu::GpuDiskCacheHandle& handle,
-      persistent_cache::BackendParams backend_params) override;
+      persistent_cache::PendingBackend pending_backend) override;
   void OnDiskCacheHandleDestoyed(
       const gpu::GpuDiskCacheHandle& handle) override;
   void CloseChannel(int32_t client_id) override;

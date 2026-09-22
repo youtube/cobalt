@@ -159,10 +159,7 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
-  if (SafeIsAnyHole(*obj)) {
-    CHECK(SerializeRoot(*obj));
-    return;
-  } else if (IsThinString(*obj, isolate())) {
+  if (IsThinString(*obj, isolate())) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());
@@ -866,16 +863,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
         ReadOnlyRoots(isolate()).undefined_value());
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  // The padding for wasm null is a free space filler. We put it into the roots
-  // table to be able to skip its payload when serializing the read only heap
-  // in the ReadOnlyHeapImageSerializer.
-  DCHECK_IMPLIES(
-      !object_->SafeEquals(ReadOnlyRoots(isolate()).wasm_null_padding()),
-      !IsFreeSpaceOrFiller(*object_, cage_base));
-#else
   DCHECK(!IsFreeSpaceOrFiller(*object_, cage_base));
-#endif
 
   SerializeObject();
 }

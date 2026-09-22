@@ -144,6 +144,7 @@ class CompositorFrameReportingControllerTest : public testing::Test {
   // occur for each phase of the reporting controller.
   void SimulateBeginImplFrame() {
     IncrementCurrentId();
+    args_.frame_time = test_tick_clock_.NowTicks();
     begin_impl_time_ = AdvanceNowByMs(10);
     reporting_controller_.WillBeginImplFrame(args_,
                                              /*will_throttle_main=*/false);
@@ -2838,14 +2839,13 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
   std::unique_ptr<EventMetrics> metrics_3 = CreateScrollUpdateEventMetrics(
       ui::ScrollInputType::kWheel, /*is_inertial=*/true,
       ScrollUpdateEventMetrics::ScrollUpdateType::kContinued, std::nullopt);
-  base::TimeTicks event3_generation_ts = metrics_3->GetDispatchStageTimestamp(
-      EventMetrics::DispatchStage::kGenerated);
 
   std::unique_ptr<EventMetrics> non_scroll_event =
       CreateEventMetrics(ui::EventType::kTouchPressed, std::nullopt);
 
   base::TimeDelta vsync_interval = event2_generation_ts - event1_generation_ts;
   args_.interval = vsync_interval;
+  base::TimeTicks first_begin_frame_ts = test_tick_clock_.NowTicks();
 
   SimulateBeginImplFrame();  // BF1
   reporting_controller_.OnFinishImplFrame(current_id_,
@@ -2855,7 +2855,8 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
   SimulateSubmitCompositorFrame({{}, std::move(metrics_list_1), {}});
 
   viz::FrameTimingDetails details_1 = {};
-  details_1.presentation_feedback.timestamp = event3_generation_ts;
+  details_1.presentation_feedback.timestamp =
+      first_begin_frame_ts + 2 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_1);  // PF1
 
@@ -2868,7 +2869,7 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
 
   viz::FrameTimingDetails details_2 = {};
   details_2.presentation_feedback.timestamp =
-      details_1.presentation_feedback.timestamp + 2 * vsync_interval;
+      first_begin_frame_ts + 4 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_2);  // PF2
 
@@ -2881,7 +2882,7 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
 
   viz::FrameTimingDetails details_3 = {};
   details_3.presentation_feedback.timestamp =
-      details_2.presentation_feedback.timestamp + vsync_interval;
+      first_begin_frame_ts + 5 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_3);  // PF3
 
@@ -2894,7 +2895,7 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
 
   viz::FrameTimingDetails details_4 = {};
   details_4.presentation_feedback.timestamp =
-      details_3.presentation_feedback.timestamp + vsync_interval;
+      first_begin_frame_ts + 6 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_4);  // PF4
 
@@ -2913,14 +2914,14 @@ TEST_F(CompositorFrameReportingControllerTest, ScrollJankMetricArgs) {
               "adjusted_delivery_cutoff_us", "current_delivery_cutoff_us",
               "is_damaging_frame"},
           std::vector<std::string>{"0", "0", "[NULL]", "10", "0", "[NULL]",
-                                   "[NULL]", "[NULL]", "86000", "1"},
+                                   "[NULL]", "[NULL]", "248000", "1"},
           std::vector<std::string>{
               "1", "1",
               "MISSED_VSYNC_DUE_TO_DECELERATING_INPUT_FRAME_DELIVERY(1),MISSED_"
               "VSYNC_DURING_FAST_SCROLL(1)",
-              "10", "0", "2", "86000", "84000", "129000", "1"},
+              "10", "0", "2", "248000", "246000", "291000", "1"},
           std::vector<std::string>{"0", "0", "[NULL]", "10", "10", "1",
-                                   "129000", "[NULL]", "129000", "1"},
+                                   "291000", "[NULL]", "291000", "1"},
           std::vector<std::string>{"[NULL]", "[NULL]", "[NULL]", "[NULL]",
                                    "[NULL]", "[NULL]", "[NULL]", "[NULL]",
                                    "[NULL]", "[NULL]"}));
@@ -2957,11 +2958,10 @@ TEST_F(CompositorFrameReportingControllerTest, JankyThrottledScrolledFrame) {
   std::unique_ptr<EventMetrics> metrics_3 = CreateScrollUpdateEventMetrics(
       ui::ScrollInputType::kWheel, /*is_inertial=*/false,
       ScrollUpdateEventMetrics::ScrollUpdateType::kContinued, std::nullopt);
-  base::TimeTicks event3_generation_ts = metrics_3->GetDispatchStageTimestamp(
-      EventMetrics::DispatchStage::kGenerated);
 
   base::TimeDelta vsync_interval = event2_generation_ts - event1_generation_ts;
   args_.interval = vsync_interval;
+  base::TimeTicks first_begin_frame_ts = test_tick_clock_.NowTicks();
 
   SimulateBeginImplFrame();  // BF1
   reporting_controller_.OnFinishImplFrame(current_id_,
@@ -2971,7 +2971,8 @@ TEST_F(CompositorFrameReportingControllerTest, JankyThrottledScrolledFrame) {
   SimulateSubmitCompositorFrame({{}, std::move(metrics_list_1), {}});
 
   viz::FrameTimingDetails details_1 = {};
-  details_1.presentation_feedback.timestamp = event3_generation_ts;
+  details_1.presentation_feedback.timestamp =
+      first_begin_frame_ts + 2 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_1);  // PF1
 
@@ -2992,7 +2993,7 @@ TEST_F(CompositorFrameReportingControllerTest, JankyThrottledScrolledFrame) {
 
   viz::FrameTimingDetails details_3 = {};
   details_3.presentation_feedback.timestamp =
-      details_1.presentation_feedback.timestamp + 2 * vsync_interval;
+      first_begin_frame_ts + 4 * vsync_interval;
   reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                   details_3);  // PF3
 
@@ -3010,12 +3011,12 @@ TEST_F(CompositorFrameReportingControllerTest, JankyThrottledScrolledFrame) {
               "adjusted_delivery_cutoff_us", "current_delivery_cutoff_us",
               "is_damaging_frame"},
           std::vector<std::string>{"0", "0", "[NULL]", "10", "0", "[NULL]",
-                                   "[NULL]", "[NULL]", "86000", "1"},
+                                   "[NULL]", "[NULL]", "205000", "1"},
           std::vector<std::string>{
               "[NULL]", "1",
               "MISSED_VSYNC_DUE_TO_DECELERATING_INPUT_FRAME_DELIVERY(1),MISSED_"
               "VSYNC_DURING_FAST_SCROLL(1)",
-              "20", "0", "2", "86000", "84000", "86000", "1"},
+              "20", "0", "2", "205000", "203000", "205000", "1"},
           std::vector<std::string>{"0", "[NULL]", "[NULL]", "[NULL]", "[NULL]",
                                    "[NULL]", "[NULL]", "[NULL]", "[NULL]",
                                    "[NULL]"}));
@@ -3059,21 +3060,16 @@ TEST_F(CompositorFrameReportingControllerTest, EmitsPerScrollJankMetrics) {
   std::unique_ptr<EventMetrics> scroll_end_metrics =
       CreateScrollEndEventMetrics(ui::ScrollInputType::kWheel,
                                   /*is_inertial=*/false);
-  base::TimeTicks scroll_end_generation_ts =
-      scroll_end_metrics->GetDispatchStageTimestamp(
-          EventMetrics::DispatchStage::kGenerated);
 
   std::unique_ptr<EventMetrics> scroll_update3_metrics =
       CreateScrollUpdateEventMetrics(
           ui::ScrollInputType::kWheel, /*is_inertial=*/false,
           ScrollUpdateEventMetrics::ScrollUpdateType::kStarted, std::nullopt);
-  base::TimeTicks scroll_update3_generation_ts =
-      scroll_update3_metrics->GetDispatchStageTimestamp(
-          EventMetrics::DispatchStage::kGenerated);
 
   base::TimeDelta vsync_interval =
       scroll_update2_generation_ts - scroll_update1_generation_ts;
   args_.interval = vsync_interval;
+  base::TimeTicks first_begin_frame_ts = test_tick_clock_.NowTicks();
 
   {
     base::HistogramTester histogram_tester;
@@ -3087,7 +3083,7 @@ TEST_F(CompositorFrameReportingControllerTest, EmitsPerScrollJankMetrics) {
 
     viz::FrameTimingDetails details_1 = {};
     details_1.presentation_feedback.timestamp =
-        scroll_update1_generation_ts + 2 * vsync_interval;
+        first_begin_frame_ts + 2 * vsync_interval;
     reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                     details_1);  // PF1
 
@@ -3100,7 +3096,7 @@ TEST_F(CompositorFrameReportingControllerTest, EmitsPerScrollJankMetrics) {
 
     viz::FrameTimingDetails details_2 = {};
     details_2.presentation_feedback.timestamp =
-        scroll_update2_generation_ts + 2 * vsync_interval;
+        first_begin_frame_ts + 3 * vsync_interval;
     reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                     details_2);  // PF2
 
@@ -3120,7 +3116,7 @@ TEST_F(CompositorFrameReportingControllerTest, EmitsPerScrollJankMetrics) {
 
     viz::FrameTimingDetails details_4 = {};
     details_4.presentation_feedback.timestamp =
-        scroll_end_generation_ts + 3 * vsync_interval;
+        first_begin_frame_ts + 5 * vsync_interval;
     reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                     details_4);  // PF4
 
@@ -3144,7 +3140,7 @@ TEST_F(CompositorFrameReportingControllerTest, EmitsPerScrollJankMetrics) {
 
     viz::FrameTimingDetails details_5 = {};
     details_5.presentation_feedback.timestamp =
-        scroll_update3_generation_ts + 3 * vsync_interval;
+        first_begin_frame_ts + 6 * vsync_interval;
     reporting_controller_.DidPresentCompositorFrame(*current_token_,
                                                     details_5);  // PF5
 

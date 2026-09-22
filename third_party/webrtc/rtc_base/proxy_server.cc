@@ -72,8 +72,7 @@ ProxyBinding::ProxyBinding(AsyncProxyServerSocket* int_socket,
       ext_socket_(ext_socket),
       connected_(false),
       out_buffer_(kBufferSize),
-      in_buffer_(kBufferSize),
-      destroyed_trampoline_(this) {
+      in_buffer_(kBufferSize) {
   int_socket_->SubscribeConnectRequest(
       [this](AsyncProxyServerSocket* socket, const SocketAddress& addr) {
         OnConnectRequest(socket, addr);

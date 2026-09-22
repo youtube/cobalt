@@ -61,7 +61,8 @@ chromium-metrics-reviews@google.com.
   <variant name="Under100KB" summary="DB size under 100KB."/>
 </variants>
 
-<histogram name="API.EffectiveStorageAccess.AllowedByStorageAccessType"
+<histogram
+    name="API.EffectiveStorageAccess.AllowedByStorageAccessType.Subsampled"
     enum="AllowedByStorageAccessType" expires_after="2026-05-10">
   <owner>selya@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
@@ -69,11 +70,13 @@ chromium-metrics-reviews@google.com.
     Records whether storage-access or top-level-storage-access allow access to
     cookies in a given context. This will be recorded every time cookies are
     read or set.
+
+    Subsampled to 1% of all cases.
   </summary>
 </histogram>
 
-<histogram name="API.StorageAccess.AllowedRequests4" enum="StorageAccessResult"
-    expires_after="2026-06-28">
+<histogram name="API.StorageAccess.AllowedRequests4.Subsampled"
+    enum="StorageAccessResult" expires_after="2026-06-28">
   <owner>mkwst@chromium.org</owner>
   <owner>brandm@microsoft.com</owner>
   <owner>cfredric@chromium.org</owner>
@@ -82,6 +85,8 @@ chromium-metrics-reviews@google.com.
     Storage Access API unblocked the request or not. Recorded whenever a
     decision to access storage like getting/setting cookies or opening an
     indexeddb connection is made in CookieSettings.
+
+    Subsampled to 1% of all cases.
   </summary>
 </histogram>
 
@@ -136,7 +141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccess.RequestOutcome"
-    enum="StorageAccessAPIRequestOutcome" expires_after="2026-03-22">
+    enum="StorageAccessAPIRequestOutcome" expires_after="2026-05-24">
   <owner>cfredric@chromium.org</owner>
   <owner>brandm@microsoft.com</owner>
   <summary>
@@ -206,7 +211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccessHeader.StorageAccessStatusOutcome"
-    enum="StorageAccessStatusOutcome" expires_after="2026-03-22">
+    enum="StorageAccessStatusOutcome" expires_after="2026-05-24">
   <owner>sledoux@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -244,7 +249,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Read" enum="ClipboardFormatRead"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -271,7 +276,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Write" enum="ClipboardFormatWrite"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -293,43 +298,65 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="IndexedDB.BackingStore.CreateIfMissing.{IndexedDBBackingStoreType}"
-    enum="IndexedDbStatusType" expires_after="2026-10-01">
+<histogram name="IndexedDB.BackingStore.ReadBlob.{IndexedDBBackingStoreType}"
+    enum="NetErrorCodes" expires_after="2026-10-01">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>abhishek.shanthkumar@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    Logs the result of each attempt to initialize the backing store with
-    create_if_missing=true, i.e., when serving an IDBFactory::Open() request.
+    Logs the result of each attempt to read the bytes corresponding to a
+    blink.mojom.Blob or storage.mojom.BlobDataItem from an
+    {IndexedDBBackingStoreType} backing store only (i.e., not from pending blobs
+    which are yet to be written to the store). Logged when streaming completes,
+    successfully or otherwise. The source of the bytes may be a file as in the
+    case of LevelDB, or a blob streaming handle as in the case of SQLite. This
+    histogram gates rollout of the SQLite backing store.
   </summary>
 </histogram>
 
 <histogram
-    name="IndexedDB.BackingStore.CreateOrOpenDatabase.{IndexedDBBackingStoreType}"
+    name="IndexedDB.BackingStore.{Operation}.{IndexedDBBackingStoreType}"
     enum="IndexedDbStatusType" expires_after="2026-10-01">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>abhishek.shanthkumar@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    Logs the result of the call to BackingStore::CreateOrOpenDatabase() when
-    serving an IDBFactory::Open() or ::DeleteDatabase() request.
+    Logs the result of the operation {Operation} on an
+    {IndexedDBBackingStoreType} backing store. An operation is a group of one or
+    more calls into the backing store performed together (i.e., synchronously).
+    Collectively, these histograms gate rollout of the SQLite backing store.
   </summary>
-</histogram>
-
-<histogram
-    name="IndexedDB.BackingStore.GetDatabaseNamesAndVersions.{IndexedDBBackingStoreType}"
-    enum="IndexedDbStatusType" expires_after="2026-10-01">
-  <owner>leimy@chromium.org</owner>
-  <owner>evanstade@microsoft.com</owner>
-  <owner>abhishek.shanthkumar@microsoft.com</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Logs the result of the call to BackingStore::GetDatabaseNamesAndVersions()
-    when serving an IDBFactory::GetDatabaseInfo() request.
-  </summary>
+  <token key="Operation">
+    <variant name="AdvanceCursor"/>
+    <variant name="BeginTransaction"/>
+    <variant name="ChangeDatabaseVersion"/>
+    <variant name="ClearObjectStore"/>
+    <variant name="CommitPhaseOne"/>
+    <variant name="CommitPhaseTwo"/>
+    <variant name="ContinueCursor"/>
+    <variant name="CountRecords"/>
+    <variant name="CreateIfMissing"/>
+    <variant name="CreateIndex"/>
+    <variant name="CreateObjectStore"/>
+    <variant name="CreateOrOpenDatabase"/>
+    <variant name="DeleteDatabase"/>
+    <variant name="DeleteIndex"/>
+    <variant name="DeleteObjectStore"/>
+    <variant name="DeleteRecordRange"/>
+    <variant name="GetAllRecords"/>
+    <variant name="GetDatabaseNamesAndVersions"/>
+    <variant name="GetKeyGeneratorCurrentNumber"/>
+    <variant name="GetRecord"/>
+    <variant name="OpenCursor"/>
+    <variant name="PrefetchCursor"/>
+    <variant name="PutRecord"/>
+    <variant name="RenameIndex"/>
+    <variant name="RenameObjectStore"/>
+    <variant name="SetIndexKeys"/>
+    <variant name="WriteBlobs"/>
+  </token>
 </histogram>
 
 <histogram name="IndexedDB.BackingStoreCloseDuration" units="ms"
@@ -345,7 +372,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.CalculateBlockingStatusLongTimes" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -356,7 +383,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.CalculateBlockingStatusRequestQueueSize"
-    units="count" expires_after="2026-03-15">
+    units="count" expires_after="2026-05-17">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -486,7 +513,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.LargeValueReadResult" enum="FileErrorCode"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -668,7 +695,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.RemoveTransactionConnectionTxnCount" units="count"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -679,7 +706,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.RemoveTransactionLongTimes" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -690,7 +717,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.RemoveTransactionRequestQueueSize" units="count"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -817,18 +844,6 @@ chromium-metrics-reviews@google.com.
     used to diagnose crbug.com/381086791. {TransactionCount}
   </summary>
   <token key="TransactionCount" variants="IndexedDBTransactionCount"/>
-</histogram>
-
-<histogram name="IndexedDB.ValueDecompressionCount" units="count"
-    expires_after="2025-09-24">
-  <owner>leimy@chromium.org</owner>
-  <owner>evanstade@microsoft.com</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Logs the number of times a single compressed `IDBValue` is decompressed when
-    converting into a script value. Zeroes are not logged. This is logged once
-    in each IDBValue instance's lifetime (on destruction).
-  </summary>
 </histogram>
 
 <histogram name="IndexedDB.WrappedBlobLoadTime" units="ms"
@@ -1227,7 +1242,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.DomStorage.IterationsToReach{Size}MB2" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>annasato@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1601,7 +1616,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.DBSize" units="KB"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1687,7 +1702,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.PerInterestGroup.NumAds" units="ads"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>caraitto@chromium.org</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1698,7 +1713,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.PerSiteCount" units="groups"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -2404,7 +2419,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Storage.SharedStorage.PrivateAggregationConfig.HasMaxContributions"
-    enum="Boolean" expires_after="2026-03-19">
+    enum="Boolean" expires_after="2026-05-24">
   <owner>alexmt@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>

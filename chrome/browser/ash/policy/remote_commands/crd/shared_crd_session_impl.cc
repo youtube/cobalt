@@ -10,7 +10,6 @@
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_logging.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_remote_command_utils.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_uma_logger.h"
@@ -69,7 +68,9 @@ void SharedCrdSessionImpl::StartCrdHost(
   session_parameters.request_origin =
       ConvertToStartCrdSessionJobDelegateRequestOrigin(
           parameters.request_origin);
-  // TODO: crbug.com/453708070 - Add support for `audio_playback` param
+  session_parameters.audio_playback =
+      ConvertToStartCrdSessionJobDelegateAudioPlayback(
+          parameters.audio_playback);
 
   CRD_VLOG(1) << "Starting CRD host and retrieving CRD access code";
   delegate_->StartCrdHostAndGetCode(

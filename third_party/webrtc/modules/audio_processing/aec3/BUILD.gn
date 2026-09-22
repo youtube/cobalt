@@ -25,7 +25,6 @@ rtc_library("aec3") {
     "alignment_mixer.h",
     "api_call_jitter_metrics.cc",
     "api_call_jitter_metrics.h",
-    "block.h",
     "block_buffer.cc",
     "block_delay_buffer.cc",
     "block_delay_buffer.h",
@@ -134,6 +133,7 @@ rtc_library("aec3") {
   deps = [
     ":adaptive_fir_filter",
     ":adaptive_fir_filter_erl",
+    ":aec3_block",
     ":aec3_common",
     ":aec3_fft",
     ":fft_data",
@@ -174,6 +174,14 @@ rtc_source_set("aec3_common") {
   sources = [ "aec3_common.h" ]
 }
 
+rtc_source_set("aec3_block") {
+  sources = [ "block.h" ]
+  deps = [
+    ":aec3_common",
+    "../../../api:array_view",
+  ]
+}
+
 rtc_source_set("aec3_fft") {
   sources = [ "aec3_fft.h" ]
   deps = [
@@ -188,13 +196,13 @@ rtc_source_set("aec3_fft") {
 
 rtc_source_set("render_buffer") {
   sources = [
-    "block.h",
     "block_buffer.h",
     "fft_buffer.h",
     "render_buffer.h",
     "spectrum_buffer.h",
   ]
   deps = [
+    ":aec3_block",
     ":aec3_common",
     ":fft_data",
     "../../../api:array_view",
@@ -310,6 +318,7 @@ if (rtc_include_tests) {
       ":adaptive_fir_filter",
       ":adaptive_fir_filter_erl",
       ":aec3",
+      ":aec3_block",
       ":aec3_common",
       ":aec3_fft",
       ":fft_data",

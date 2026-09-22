@@ -14,9 +14,10 @@
 
 #include <openssl/pem.h>
 
-#include <assert.h>
-#include <stdio.h>
+#include <limits.h>
 #include <string.h>
+
+#include <string_view>
 
 #include <openssl/dsa.h>
 #include <openssl/err.h>
@@ -120,9 +121,9 @@ static enum parse_result_t parse_key(X509_INFO *info, const uint8_t *data,
 STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
                                             pem_password_cb *cb, void *u) {
   X509_INFO *info = nullptr;
-  char *name = nullptr, *header = nullptr;
-  unsigned char *data = nullptr;
-  long len;
+  bssl::UniquePtr<char> name;
+  bssl::UniquePtr<char> header;
+  bssl::Array<uint8_t> data;
   int ok = 0;
   STACK_OF(X509_INFO) *ret = nullptr;
 
@@ -142,7 +143,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
   }
 
   for (;;) {
-    if (!PEM_read_bio(bp, &name, &header, &data, &len)) {
+    if (!PEM_read_bio_inner(bp, &name, &header, &data)) {
       if (ERR_equals(ERR_peek_last_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE)) {
         ERR_clear_error();
         break;
@@ -153,27 +154,32 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
     enum parse_result_t (*parse_function)(X509_INFO *, const uint8_t *, size_t,
                                           int) = nullptr;
     int key_type = EVP_PKEY_NONE;
-    if (strcmp(name, PEM_STRING_X509) == 0 ||
-        strcmp(name, PEM_STRING_X509_OLD) == 0) {
+    std::string_view name_view = name.get();
+    if (name_view == PEM_STRING_X509 || name_view == PEM_STRING_X509_OLD) {
       parse_function = parse_x509;
-    } else if (strcmp(name, PEM_STRING_X509_TRUSTED) == 0) {
+    } else if (name_view == PEM_STRING_X509_TRUSTED) {
       parse_function = parse_x509_aux;
-    } else if (strcmp(name, PEM_STRING_X509_CRL) == 0) {
+    } else if (name_view == PEM_STRING_X509_CRL) {
       parse_function = parse_crl;
-    } else if (strcmp(name, PEM_STRING_RSA) == 0) {
+    } else if (name_view == PEM_STRING_RSA) {
       parse_function = parse_key;
       key_type = EVP_PKEY_RSA;
-    } else if (strcmp(name, PEM_STRING_DSA) == 0) {
+    } else if (name_view == PEM_STRING_DSA) {
       parse_function = parse_key;
       key_type = EVP_PKEY_DSA;
-    } else if (strcmp(name, PEM_STRING_ECPRIVATEKEY) == 0) {
+    } else if (name_view == PEM_STRING_ECPRIVATEKEY) {
       parse_function = parse_key;
       key_type = EVP_PKEY_EC;
     }
 
     // If a private key has a header, assume it is encrypted. This function does
     // not decrypt private keys.
-    if (key_type != EVP_PKEY_NONE && strlen(header) > 10) {
+    if (key_type != EVP_PKEY_NONE && strlen(header.get()) > 10) {
+      if (data.size() > INT_MAX) {
+        // We need the data to fit in |info| which forces the size to
+        // fit in one int type.
+        goto err;
+      }
       if (info->x_pkey != nullptr) {
         if (!sk_X509_INFO_push(ret, info)) {
           goto err;
@@ -186,21 +192,22 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
       // Use an empty key as a placeholder.
       info->x_pkey = X509_PKEY_new();
       if (info->x_pkey == nullptr ||
-          !PEM_get_EVP_CIPHER_INFO(header, &info->enc_cipher)) {
+          !PEM_get_EVP_CIPHER_INFO(header.get(), &info->enc_cipher)) {
         goto err;
       }
-      info->enc_data = (char *)data;
-      info->enc_len = (int)len;
-      data = nullptr;
+      size_t size;
+      data.Release(reinterpret_cast<uint8_t **>(&info->enc_data), &size);
+      // Safety: we checked that |size| <= |INT_MAX|.
+      info->enc_len = static_cast<int>(size);
     } else if (parse_function != nullptr) {
       EVP_CIPHER_INFO cipher;
-      size_t len_sz = static_cast<size_t>(len);
-      if (!PEM_get_EVP_CIPHER_INFO(header, &cipher) ||
-          !PEM_do_header(&cipher, data, &len_sz, cb, u)) {
+      size_t len = data.size();
+      if (!PEM_get_EVP_CIPHER_INFO(header.get(), &cipher) ||
+          !PEM_do_header(&cipher, data.data(), &len, cb, u)) {
         goto err;
       }
-      len = static_cast<long>(len_sz);
-      enum parse_result_t result = parse_function(info, data, len, key_type);
+      enum parse_result_t result =
+          parse_function(info, data.data(), len, key_type);
       if (result == parse_new_entry) {
         if (!sk_X509_INFO_push(ret, info)) {
           goto err;
@@ -209,19 +216,13 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
         if (info == nullptr) {
           goto err;
         }
-        result = parse_function(info, data, len, key_type);
+        result = parse_function(info, data.data(), len, key_type);
       }
       if (result != parse_ok) {
         OPENSSL_PUT_ERROR(PEM, ERR_R_ASN1_LIB);
         goto err;
       }
     }
-    OPENSSL_free(name);
-    OPENSSL_free(header);
-    OPENSSL_free(data);
-    name = nullptr;
-    header = nullptr;
-    data = nullptr;
   }
 
   // Push the last entry on the stack if not empty.
@@ -246,9 +247,5 @@ err:
     }
     ret = nullptr;
   }
-
-  OPENSSL_free(name);
-  OPENSSL_free(header);
-  OPENSSL_free(data);
   return ret;
 }

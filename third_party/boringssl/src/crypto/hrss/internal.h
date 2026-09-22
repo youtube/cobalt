@@ -63,7 +63,7 @@ extern void poly_Rq_mul(
 
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // !OPENSSL_HEADER_CRYPTO_HRSS_INTERNAL_H

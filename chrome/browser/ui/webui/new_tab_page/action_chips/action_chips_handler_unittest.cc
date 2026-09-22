@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -25,6 +26,7 @@
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-data-view.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-forward.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_mojo_test_utils.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/fake_tab_id_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
@@ -34,6 +36,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "components/variations/scoped_variations_ids_provider.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_web_ui.h"
@@ -54,8 +57,11 @@ using ::base::BucketsAreArray;
 using ::testing::_;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
+using ::testing::Invoke;
 using ::testing::Matcher;
 using ::testing::Pointee;
+using ::testing::Return;
+using ::testing::ReturnRef;
 
 class MockPage : public action_chips::mojom::Page {
  public:
@@ -74,6 +80,18 @@ class MockPage : public action_chips::mojom::Page {
   mojo::Receiver<action_chips::mojom::Page> receiver_{this};
 };
 
+class MockActionChipsGenerator : public ActionChipsGenerator {
+ public:
+  MockActionChipsGenerator() = default;
+  ~MockActionChipsGenerator() override = default;
+
+  MOCK_METHOD(void,
+              GenerateActionChips,
+              (base::optional_ref<const tabs::TabInterface> tab,
+               base::OnceCallback<void(std::vector<ActionChipPtr>)> callback),
+              (override));
+};
+
 class FakeActionChipsHandler : public ActionChipsHandler {
  public:
   FakeActionChipsHandler(
@@ -82,19 +100,19 @@ class FakeActionChipsHandler : public ActionChipsHandler {
       mojo::PendingRemote<action_chips::mojom::Page> pending_page,
       Profile* profile,
       content::WebUI* web_ui,
-      TabIdGenerator* tab_id_generator)
+      std::unique_ptr<ActionChipsGenerator> action_chips_generator)
       : ActionChipsHandler(std::move(pending_receiver),
                            std::move(pending_page),
                            profile,
                            web_ui,
-                           tab_id_generator) {}
+                           std::move(action_chips_generator)) {}
 };
 
 struct TabInfoFields {
   int32_t tab_id = 0;
   std::string title;
   GURL url;
-  base::Time last_active_time;
+  base::Time last_active_time = base::Time::FromSecondsSinceUnixEpoch(0);
 };
 
 struct ActionChipFields {
@@ -103,6 +121,11 @@ struct ActionChipFields {
   ChipType type = ChipType::kRecentTab;
   std::optional<TabInfoFields> tab;
 };
+
+base::Time GetTimeAt(const size_t index) {
+  return base::Time::FromMillisecondsSinceUnixEpoch(0) +
+         base::Seconds(index + 1);
+}
 
 ActionChipPtr MakeActionChip(const ActionChipFields& fields) {
   TabInfoPtr tab;
@@ -134,17 +157,21 @@ ActionChipFields CreateStaticImageGenerationChip() {
           .type = ChipType::kImage};
 }
 
-// Get the value used for tab_id.
-SessionID::id_type GetSessionID(std::string_view title) {
-  return static_cast<int32_t>(base::PersistentHash(title));
-}
-
-// Returns the value of Time at `index`-th element.
-// In the current test logic, the clock proceeds by 1 second every time
-// a tab is added.
-base::Time GetTimeAt(const size_t index) {
-  return base::Time::FromMillisecondsSinceUnixEpoch(0) +
-         base::Seconds(index + 1);
+void CallWithStaticChips(
+    base::optional_ref<const tabs::TabInterface> tab,
+    base::OnceCallback<void(std::vector<action_chips::mojom::ActionChipPtr>)>
+        callback) {
+  std::vector<ActionChipPtr> chips;
+  if (tab.has_value()) {
+    content::WebContents& contents = *tab->GetContents();
+    chips.push_back(MakeActionChip(CreateStaticRecentTabChip(
+        {.title = base::UTF16ToUTF8(contents.GetTitle()),
+         .url = contents.GetLastCommittedURL(),
+         .last_active_time = contents.GetLastActiveTime()})));
+  }
+  chips.push_back(MakeActionChip(CreateStaticDeepSearchChip()));
+  chips.push_back(MakeActionChip(CreateStaticImageGenerationChip()));
+  std::move(callback).Run(std::move(chips));
 }
 
 class TabStripModelFixture {
@@ -153,11 +180,11 @@ class TabStripModelFixture {
     tab_strip_model_ =
         std::make_unique<TabStripModel>(&delegate_, profile_.get());
     ON_CALL(browser_window_interface_, GetTabStripModel())
-        .WillByDefault(::testing::Return(tab_strip_model_.get()));
+        .WillByDefault(Return(tab_strip_model_.get()));
     ON_CALL(browser_window_interface_, GetUnownedUserDataHost)
-        .WillByDefault(::testing::ReturnRef(user_data_host_));
+        .WillByDefault(ReturnRef(user_data_host_));
     ON_CALL(browser_window_interface_, GetProfile())
-        .WillByDefault(::testing::Return(profile_.get()));
+        .WillByDefault(Return(profile_.get()));
     delegate_.SetBrowserWindowInterface(&browser_window_interface_);
   }
 
@@ -168,49 +195,82 @@ class TabStripModelFixture {
         content::WebContentsTester::For(contents.get());
     tester->NavigateAndCommit(url);
     tester->SetTitle(title);
-    tester->SetLastActiveTime(base::Time::FromMillisecondsSinceUnixEpoch(0) +
-                              IncrementTimeAndGet());
+    tester->SetLastActiveTime(IncrementTimeAndGet());
     content::WebContents* raw_ptr = contents.get();
     tab_strip_model_->AppendWebContents(std::move(contents), true);
     return raw_ptr;
   }
+  content::WebContents* AddNtp(Profile* profile) {
+    std::unique_ptr<content::WebContents> ntp =
+        content::WebContentsTester::CreateTestWebContents(profile, nullptr);
+    content::WebContents* ptr = ntp.get();
+    tab_strip_model_->AppendWebContents(std::move(ntp),
+                                        /*foreground=*/true);
+    return ptr;
+  }
+
+  std::unique_ptr<content::WebContents> DiscardWebContentsAt(
+      int index,
+      std::unique_ptr<content::WebContents> new_contents) {
+    return tab_strip_model_->DiscardWebContentsAt(index,
+                                                  std::move(new_contents));
+  }
+
+  void Activate(int index) { tab_strip_model_->ActivateTabAt(index); }
 
   testing::NiceMock<MockBrowserWindowInterface>* browser_window_interface() {
     return &browser_window_interface_;
   }
 
  private:
-  base::TimeDelta IncrementTimeAndGet() {
-    time_delta_ += base::Seconds(1);
-    return time_delta_;
+  base::Time IncrementTimeAndGet() {
+    time_ += base::Seconds(1);
+    return time_;
   }
 
-  base::TimeDelta time_delta_;
+  base::Time time_ = base::Time::FromMillisecondsSinceUnixEpoch(0);
   raw_ptr<Profile> profile_;
   testing::NiceMock<MockBrowserWindowInterface> browser_window_interface_;
   TestTabStripModelDelegate delegate_;
   std::unique_ptr<TabStripModel> tab_strip_model_;
   ui::UnownedUserDataHost user_data_host_;
 };
-}  // namespace
 
 class ActionChipsHandlerTest : public testing::Test {
  public:
   ActionChipsHandlerTest() = default;
   void SetUp() override {
     testing::Test::SetUp();
-    CreateProfileAndWebContents();
+    TestingProfile::Builder profile_builder;
+    profile_builder.AddTestingFactory(
+        TemplateURLServiceFactory::GetInstance(),
+        base::BindRepeating(&TemplateURLServiceFactory::BuildInstanceFor));
+    profile_ = profile_builder.Build();
     tab_strip_model_fixture_ =
         std::make_unique<TabStripModelFixture>(profile_.get());
+    content::WebContents* ntp =
+        tab_strip_model_fixture_->AddNtp(profile_.get());
+
     webui::SetBrowserWindowInterface(
-        web_contents(), tab_strip_model_fixture_->browser_window_interface());
-    CreateHandler();
+        ntp, tab_strip_model_fixture_->browser_window_interface());
+    web_ui_ = std::make_unique<content::TestWebUI>();
+    web_ui_->set_web_contents(ntp);
+
+    auto mock_action_chips_generator =
+        std::make_unique<MockActionChipsGenerator>();
+    mock_action_chips_generator_ = mock_action_chips_generator.get();
+    handler_ = std::make_unique<FakeActionChipsHandler>(
+        mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler>(),
+        page_.BindAndGetRemote(), profile_.get(), web_ui_.get(),
+        std::move(mock_action_chips_generator));
+    ON_CALL(*mock_action_chips_generator_, GenerateActionChips(_, _))
+        .WillByDefault(&CallWithStaticChips);
   }
 
   FakeActionChipsHandler& handler() { return *handler_; }
 
  protected:
-  content::WebContents* web_contents() { return web_contents_.get(); }
+  content::WebContents* web_contents() { return web_ui_->GetWebContents(); }
   void AddTab(const GURL& url, const std::u16string& title) {
     tab_strip_model_fixture_->AddTab(url, title);
   }
@@ -218,26 +278,7 @@ class ActionChipsHandlerTest : public testing::Test {
 
   base::HistogramTester histogram_tester_;
 
- private:
-  void CreateProfileAndWebContents() {
-    TestingProfile::Builder profile_builder;
-    profile_builder.AddTestingFactory(
-        TemplateURLServiceFactory::GetInstance(),
-        base::BindRepeating(&TemplateURLServiceFactory::BuildInstanceFor));
-    profile_ = profile_builder.Build();
-    web_contents_ = content::WebContentsTester::CreateTestWebContents(
-        profile_.get(), nullptr);
-  }
-
-  void CreateHandler() {
-    web_ui_ = std::make_unique<content::TestWebUI>();
-    web_ui_->set_web_contents(web_contents());
-    handler_ = std::make_unique<FakeActionChipsHandler>(
-        mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler>(),
-        page_.BindAndGetRemote(), profile_.get(), web_ui_.get(),
-        &tab_id_generator_);
-  }
-
+ protected:
   content::BrowserTaskEnvironment task_environment_;
   content::RenderViewHostTestEnabler rvh_test_enabler_;
   std::unique_ptr<TestingProfile> profile_;
@@ -246,7 +287,7 @@ class ActionChipsHandlerTest : public testing::Test {
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<content::TestWebUI> web_ui_;
   std::unique_ptr<FakeActionChipsHandler> handler_;
-  FakeTabIdGenerator tab_id_generator_;
+  raw_ptr<MockActionChipsGenerator> mock_action_chips_generator_ = nullptr;
 
   const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
   variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
@@ -284,11 +325,11 @@ INSTANTIATE_TEST_SUITE_P(
             .test_name = "ThreeChipsWhenAnOpenTabExists",
             .tabs = {{.url = "https://www.example.com",
                       .title = "Example Tab"}},
-            .expected_chips = {CreateStaticRecentTabChip(
-                                   {.tab_id = GetSessionID("Example Tab"),
-                                    .title = "Example Tab",
-                                    .url = GURL("https://www.example.com"),
-                                    .last_active_time = GetTimeAt(0)}),
+            .expected_chips = {CreateStaticRecentTabChip({
+                                   .title = "Example Tab",
+                                   .url = GURL("https://www.example.com"),
+                                   .last_active_time = GetTimeAt(0),
+                               }),
                                CreateStaticDeepSearchChip(),
                                CreateStaticImageGenerationChip()},
         },
@@ -296,71 +337,85 @@ INSTANTIATE_TEST_SUITE_P(
             .test_name = "ThreeChipsUsingMostRecentTab",
             .tabs = {{.url = "https://www.example.com", .title = "Example Tab"},
                      {.url = "https://www.foo.com", .title = "Foo Tab"}},
-            .expected_chips = {CreateStaticRecentTabChip(
-                                   {.tab_id = GetSessionID("Foo Tab"),
-                                    .title = "Foo Tab",
-                                    .url = GURL("https://www.foo.com"),
-                                    .last_active_time = GetTimeAt(1)}),
+            .expected_chips = {CreateStaticRecentTabChip({
+                                   .title = "Foo Tab",
+                                   .url = GURL("https://www.foo.com"),
+                                   .last_active_time = GetTimeAt(1),
+                               }),
                                CreateStaticDeepSearchChip(),
                                CreateStaticImageGenerationChip()},
         },
         StaticChipsTestCase{
-            .test_name = "IgnoresChromeUrls",
-            .tabs = {{.url = "chrome://version", .title = "Version"},
-                     {.url = "chrome://blank", .title = "Blank"}},
-            .expected_chips = {CreateStaticDeepSearchChip(),
-                               CreateStaticImageGenerationChip()}},
-        StaticChipsTestCase{
             .test_name = "MostRecentTabIgnoringChromeUrls",
             .tabs = {{.url = "chrome://version", .title = "Version"},
+                     // Note: Google homepage is not a SRP, so it's not ignored.
                      {.url = "https://www.google.com", .title = "Google"},
                      {.url = "chrome://blank", .title = "Blank"}},
-            .expected_chips = {CreateStaticRecentTabChip(
-                                   {.tab_id = GetSessionID("Google"),
-                                    .title = "Google",
-                                    .url = GURL("https://www.google.com"),
-                                    .last_active_time = GetTimeAt(1)}),
+            .expected_chips = {CreateStaticRecentTabChip({
+                                   .title = "Google",
+                                   .url = GURL("https://www.google.com"),
+                                   .last_active_time = GetTimeAt(1),
+                               }),
                                CreateStaticDeepSearchChip(),
+                               CreateStaticImageGenerationChip()}},
+        StaticChipsTestCase{
+            .test_name = "IgnoresAllInvalidTabs",
+            .tabs =
+                {
+                    {.url = "https://www.google.com/search?q=test",
+                     .title = "Google SRP"},
+                    {.url = "invalidUrl", .title = "Invalid URL"},
+                    {.url = "about:blank", .title = "About Blank"},
+                    {.url = "chrome://version",
+                     .title = "Chrome Internal Page"},
+                    {.url = "chrome-untrusted://terminal",
+                     .title = "Untrusted Internal Page"},
+                },
+            .expected_chips = {CreateStaticDeepSearchChip(),
                                CreateStaticImageGenerationChip()}},
     }),
     [](const testing::TestParamInfo<StaticChipsTestCase>& param_info) {
       return param_info.param.test_name;
     });
 
-// The current implementation triggers a new set of chips is generated upon
-// addition of a new tab.
-// In this test, we care only about the most recent tab after all the actions to
-// tabs are complete.
 TEST_P(ActionChipsHandlerStaticChipsTest,
        StartActionChipsRetrievalNotifiesUiWithStaticChipsBasedOnMostRecentTab) {
   // Arrange
   std::vector<ActionChipPtr> actual_chips;
   base::RunLoop run_loop;
-  // The observer's method is called every time we add a tab, and, in addition,
-  // we call StartActionChipsRetrieval once.
-  const size_t total_calls = GetParam().tabs.size() + 1;
   std::unordered_map<ChipType, int32_t> expected_chip_counts;
-  size_t call_count = 0;
+  const size_t expected_call_count =
+      // When no tab is added,, only the StartActionChipsRetrieval calls back to
+      // the UI. OTOH, one or more tabs are added, another call is made when the
+      // NTP becomes active.
+      GetParam().tabs.empty() ? 1 : 2;
+  size_t total_call_count = 0;
   EXPECT_CALL(page_, OnActionChipsChanged(_))
-      .Times(total_calls)
-      .WillRepeatedly([total_calls, &actual_chips, &run_loop,
-                       &expected_chip_counts,
-                       &call_count](std::vector<ActionChipPtr> action_chips) {
-        call_count++;
-        for (const ActionChipPtr& chip : action_chips) {
-          expected_chip_counts[chip->type]++;
-        }
-        if (call_count == total_calls) {
-          actual_chips = std::move(action_chips);
-          run_loop.Quit();
-        }
-      });
+      .Times(expected_call_count)
+      .WillRepeatedly(
+          [expected_call_count, &total_call_count, &actual_chips, &run_loop,
+           &expected_chip_counts](std::vector<ActionChipPtr> action_chips) {
+            for (const ActionChipPtr& chip : action_chips) {
+              expected_chip_counts[chip->type]++;
+            }
+            total_call_count += 1;
+            if (total_call_count == expected_call_count) {
+              actual_chips = std::move(action_chips);
+              run_loop.Quit();
+            }
+          });
+
+  // Simulate the first request from the UI.
+  handler().StartActionChipsRetrieval();
 
   // Act
   for (const auto& [url, title] : GetParam().tabs) {
     AddTab(GURL(url), base::UTF8ToUTF16(title));
   }
-  handler().StartActionChipsRetrieval();
+  // Put the tab into the foreground so the retrieval is triggered when one or
+  // more tabs are added.
+  tab_strip_model_fixture_->Activate(/*index=*/0);
+
   run_loop.Run();
 
   // Assert
@@ -381,4 +436,21 @@ TEST_P(ActionChipsHandlerStaticChipsTest,
   EXPECT_THAT(actual_chips, ElementsAreArray(matchers));
   EXPECT_THAT(histogram_tester_.GetAllSamples("NewTabPage.ActionChips.Shown"),
               BucketsAreArray(expected_buckets));
+  histogram_tester_.ExpectTotalCount(
+      "NewTabPage.ActionChips.Handler.ActionChipsRetrievalLatency",
+      expected_call_count);
 }
+
+TEST_F(ActionChipsHandlerTest, DiscardWebContentsDoesNotCrash) {
+  // Discard the NTP. This would trigger a crash in
+  // ActionChipsHandler::OnTabStripModelChanged if the kReplaced event is not
+  // handled correctly, because the old_contents (which is the one handler is
+  // watching) loses its UserData during discard.
+  EXPECT_THAT(tab_strip_model_fixture_
+                  ->DiscardWebContentsAt(
+                      0, content::WebContentsTester::CreateTestWebContents(
+                             profile_.get(), nullptr))
+                  .get(),
+              Eq(web_ui_->GetWebContents()));
+}
+}  // namespace

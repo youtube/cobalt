@@ -13,7 +13,10 @@
 #include "base/check_deref.h"
 #include "base/containers/contains.h"
 #include "base/containers/extend.h"
+#include "base/containers/map_util.h"
 #include "base/containers/to_vector.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/i18n/case_conversion.h"
 #include "base/memory/raw_ptr.h"
@@ -499,7 +502,11 @@ std::vector<AutofillProfile> GetProfilesToSuggest(
   // disabled because we want to offer the user suggestions to swap the
   // current value of the field with something else, making the prefix
   // matching not useful.
-  if (!trigger_field.is_autofilled()) {
+  // Similarly, prefix matching is disabled for <select> fields. Select fields
+  // are only used as trigger fields during actor flows, in which the initial
+  // value is likely irrelevant.
+  if (!trigger_field.is_autofilled() &&
+      trigger_field.form_control_type() != FormControlType::kSelectOne) {
     profiles_to_suggest = GetPrefixMatchedProfiles(
         profiles_to_suggest, trigger_field_type, normalized_field_contents);
   }
@@ -537,6 +544,34 @@ std::vector<AutofillProfile> GetProfilesToSuggest(
       return trigger_field.value() == profile.text;
     });
     CHECK(!profiles_to_suggest.empty());
+  }
+  if (trigger_field.is_autofilled() && profiles_to_suggest.size() > 1) {
+    // This is just a simulation of the logic behind the feature flag in order
+    // to understand the reason behind the CHECK failure. Profiles are copied so
+    // that the ones used for suggestions are not modified and the branch
+    // effectively remains a functional no-op.
+    std::vector<ProfileWithText> profiles_to_suggest_copy = profiles_to_suggest;
+    const size_t size_before_filter = profiles_to_suggest.size();
+    std::erase_if(profiles_to_suggest_copy,
+                  [&](const ProfileWithText& profile) {
+                    return trigger_field.value() == profile.text;
+                  });
+    if (profiles_to_suggest_copy.empty()) {
+      SCOPED_CRASH_KEY_NUMBER("Autofill", "field_types_size",
+                              field_types.size());
+      SCOPED_CRASH_KEY_NUMBER("Autofill", "field_types_contains",
+                              field_types.contains(trigger_field_type));
+      SCOPED_CRASH_KEY_NUMBER("Autofill", "trigger_field_type",
+                              base::to_underlying(trigger_field_type));
+      SCOPED_CRASH_KEY_NUMBER("Autofill", "size_before_filter",
+                              size_before_filter);
+      SCOPED_CRASH_KEY_NUMBER("Autofill", "trigger_field_value_size",
+                              trigger_field.value().size());
+      SCOPED_CRASH_KEY_NUMBER(
+          "Autofill", "trigger_field_form_ctrl_type",
+          base::to_underlying(trigger_field.form_control_type()));
+      base::debug::DumpWithoutCrashing();
+    }
   }
 
   // Do not show more than `kMaxDisplayedAddressSuggestions` suggestions since
@@ -818,6 +853,39 @@ std::vector<Suggestion> GenerateAddressOnTypingSuggestions(
   return suggestions;
 }
 
+// If `plus_address_email_override` exits it is returned. Otherwise tries to
+// find plus addresses in the `all_suggestion_data` and returns the first of
+// them. If `all_suggestion_data` doesn't contain any plus addresses, a
+// `std::nullopt` is returned.
+std::optional<std::string> GetPlusAddressEmailOverride(
+    const std::optional<std::string>& plus_address_email_override,
+    const base::flat_map<SuggestionGenerator::SuggestionDataSource,
+                         std::vector<SuggestionGenerator::SuggestionData>>&
+        all_suggestion_data) {
+  // TODO(crbug.com/409962888): Remove this early return once the new suggestion
+  // generation logic is launched.
+  if (plus_address_email_override) {
+    return *plus_address_email_override;
+  }
+
+  const std::vector<SuggestionGenerator::SuggestionData>* plus_address_data =
+      base::FindOrNull(all_suggestion_data,
+                       SuggestionGenerator::SuggestionDataSource::kPlusAddress);
+  if (!plus_address_data || plus_address_data->empty()) {
+    plus_address_data = base::FindOrNull(
+        all_suggestion_data,
+        SuggestionGenerator::SuggestionDataSource::kPlusAddressForAddress);
+  }
+  if (!plus_address_data || plus_address_data->empty()) {
+    return std::nullopt;
+  }
+
+  const std::string& plus_address =
+      std::get<PlusAddress>(plus_address_data->front()).value();
+  return !plus_address.empty() ? std::make_optional(plus_address)
+                               : std::nullopt;
+}
+
 }  // namespace
 
 std::vector<Suggestion> GetSuggestionsOnTypingForProfile(
@@ -1004,10 +1072,13 @@ void AddressSuggestionGenerator::GenerateSuggestions(
         [](SuggestionData& suggestion_data) {
           return std::get<AutofillProfile>(std::move(suggestion_data));
         });
+
     callback({FillingProduct::kAddress,
-              GenerateAddressSuggestions(form, trigger_field, form_structure,
-                                         trigger_autofill_field, client,
-                                         profiles_to_suggest)});
+              GenerateAddressSuggestions(
+                  form, trigger_field, form_structure, trigger_autofill_field,
+                  client, profiles_to_suggest,
+                  GetPlusAddressEmailOverride(plus_address_email_override_,
+                                              all_suggestion_data))});
     return;
   }
 
@@ -1038,6 +1109,9 @@ AddressSuggestionGenerator::MaybeFetchRegularAddressSuggestionData(
     const AutofillField* trigger_autofill_field,
     const AutofillClient& client) {
   if (!form_structure || !trigger_autofill_field) {
+    return {};
+  }
+  if (trigger_autofill_field->Type().GetAddressType() == UNKNOWN_TYPE) {
     return {};
   }
   if (SuppressSuggestionsForAutocompleteUnrecognizedField(
@@ -1108,7 +1182,8 @@ std::vector<Suggestion> AddressSuggestionGenerator::GenerateAddressSuggestions(
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
     const AutofillClient& client,
-    std::vector<AutofillProfile>& profiles_to_suggest) {
+    std::vector<AutofillProfile>& profiles_to_suggest,
+    const std::optional<std::string>& plus_address_email_override) {
   if (!form_structure || !trigger_autofill_field ||
       !client.GetIdentityManager()) {
     return {};
@@ -1126,7 +1201,7 @@ std::vector<Suggestion> AddressSuggestionGenerator::GenerateAddressSuggestions(
           .email,
       field_types_, GetSuggestionType(trigger_field),
       trigger_autofill_field->Type().GetAddressType(), trigger_field,
-      plus_address_email_override_, client.GetAppLocale());
+      plus_address_email_override, client.GetAppLocale());
 
   // Add devtools test addresses suggestion if it exists.
   if (std::optional<Suggestion> test_addresses_suggestion =

@@ -72,6 +72,7 @@
 #include "device/fido/fido_test_data.h"
 #include "device/fido/fido_transport_protocol.h"
 #include "device/fido/fido_types.h"
+#include "device/fido/fido_user_verification_requirement.h"
 #include "device/fido/large_blob.h"
 #include "device/fido/public_key_credential_params.h"
 #include "device/fido/public_key_credential_user_entity.h"
@@ -241,7 +242,7 @@ constexpr char kShortTimeout[] = "100";
 struct CreateParameters {
   std::string rp_id = "acme.com";
   bool require_resident_key = false;
-  std::string user_verification = "preferred";
+  std::string user_verification = device::kUserVerificationPreferred;
   std::string authenticator_attachment = "cross-platform";
   std::string algorithm_identifier = "-7";
   std::string attestation = "none";
@@ -304,7 +305,7 @@ constexpr char kGetPublicKeyWithAbortSignalTemplate[] =
 
 // Default values for kGetPublicKeyTemplate.
 struct GetParameters {
-  std::string user_verification = "preferred";
+  std::string user_verification = device::kUserVerificationPreferred;
   std::string allow_credentials =
       "[{type: 'public-key',"
       "  id: new TextEncoder().encode('allowedCredential'),"
@@ -934,7 +935,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthJavascriptClientBrowserTest,
     virtual_device_factory->SetSupportedProtocol(protocol);
 
     CreateParameters parameters;
-    parameters.user_verification = "required";
+    parameters.user_verification = device::kUserVerificationRequired;
     parameters.timeout = kShortTimeout;
     std::string result = EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
                                 BuildCreateCallWithParameters(parameters))
@@ -1137,7 +1138,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthJavascriptClientBrowserTest,
     virtual_device_factory->SetSupportedProtocol(protocol);
 
     GetParameters parameters;
-    parameters.user_verification = "required";
+    parameters.user_verification = device::kUserVerificationRequired;
     std::string result = EvalJs(shell()->web_contents()->GetPrimaryMainFrame(),
                                 BuildGetCallWithParameters(parameters))
                              .ExtractString();
@@ -1501,7 +1502,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthJavascriptClientBrowserTest,
     CreateParameters create_parameters;
     create_parameters.rp_id = test.cross_origin ? "notacme.com" : "acme.com";
     create_parameters.require_resident_key = true;
-    create_parameters.user_verification = "required";
+    create_parameters.user_verification = device::kUserVerificationRequired;
     create_parameters.authenticator_attachment = "platform";
     create_parameters.is_payment = true;
     std::string result =
@@ -1875,7 +1876,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthCrossDomainTest, Get) {
       base::ToVector(kCredentialId), "foo.com"));
 
   GetParameters parameters;
-  parameters.user_verification = "discouraged";
+  parameters.user_verification = device::kUserVerificationDiscouraged;
   parameters.rp_id = "foo.com";
   test_client()->set_webauthn_origins_response(
       "application/json", GetHttpsURL("www.acme.com", "/").spec());

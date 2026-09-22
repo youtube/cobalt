@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_tile_view.h"
 
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_tile_layout_util.h"
 #import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -57,7 +56,7 @@ const CGFloat kCornerRadius = 8.0;
     }
 
     // Use original rounded-square background image for Shorcuts
-    if (type == ContentSuggestionsTileType::kShortcuts) {
+    if (type == ContentSuggestionsTileType::kAction) {
       [self addSubview:_titleLabel];
 
       // The squircle background view.

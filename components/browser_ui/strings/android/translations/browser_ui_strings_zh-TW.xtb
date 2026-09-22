@@ -171,6 +171,7 @@
 <translation id="2787357173144933081">啟動時將焦點置於網址列</translation>
 <translation id="2789132527330338807">網站可以要求建立你周遭環境的 3D 地圖或追蹤攝影機位置</translation>
 <translation id="2790501146643349491">如果啟用，最近關閉的網站就可以完成資料收發作業。如果停用，最近關閉的網站將無法完成資料收發作業。</translation>
+<translation id="2794551654724114396">開啟通知功能，取得有助充分運用 Chrome 的實用提示</translation>
 <translation id="2795716239552913152">網站通常會使用你的位置資訊，以提供地方新聞或附近商家等相關功能或資訊</translation>
 <translation id="2800760947029405028">上傳圖片</translation>
 <translation id="2802908157808345702">不允許網站傳送彈出式視窗和使用重新導向</translation>
@@ -338,10 +339,12 @@
 <translation id="4635969503923889910">不允許網站使用 NFC 裝置</translation>
 <translation id="4644713492825682049">刪除並重設</translation>
 <translation id="4645575059429386691">這個瀏覽器是由家長管理</translation>
+<translation id="4652266463001779298">不允許</translation>
 <translation id="4663373278480897665">可使用攝影機</translation>
 <translation id="4670064810192446073">虛擬實境</translation>
 <translation id="4672315773691449562">依序輕觸「瀏覽器應用程式」和「Chrome」</translation>
 <translation id="4676059169848868271">如要讓 <ph name="APP_NAME" /> 使用手勢追蹤功能，請一併在<ph name="BEGIN_LINK" />系統設定<ph name="END_LINK" />中開啟手勢追蹤。</translation>
+<translation id="4688045258817337666">管理資訊卡</translation>
 <translation id="4751476147751820511">動作或光源感應器</translation>
 <translation id="4755971844837804407">如果啟用，網站就可以向你顯示任何廣告。如果停用，網站將無法顯示誤導性或侵入式廣告。</translation>
 <translation id="4779083564647765204">縮放</translation>
@@ -678,6 +681,7 @@
 <translation id="8487700953926739672">可離線使用</translation>
 <translation id="848952951823693243">一律要求行動版網站</translation>
 <translation id="8492822722330266509">網頁可以傳送彈出式視窗和使用重新導向</translation>
+<translation id="8493548450030356203">彈出式縮放視窗</translation>
 <translation id="8499083585497694743">開啟麥克風</translation>
 <translation id="8514955299594277296">不允許網站在裝置上儲存資料 (不建議)</translation>
 <translation id="851751545965956758">禁止網站連線至裝置</translation>

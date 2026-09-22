@@ -74,20 +74,13 @@ enum YoungGenerationSpeedMode {
       GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
       flow_flags)
 
-#define TRACE_GC_EPOCH(tracer, scope_id, thread_kind)                     \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
-  TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               "epoch", tracer->CurrentEpoch())
-
-#define TRACE_GC_EPOCH_ARG1(tracer, scope_id, thread_kind, arg_name,      \
-                            arg_value)                                    \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
-  TRACE_EVENT2(TRACE_GC_CATEGORIES,                                       \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               "epoch", tracer->CurrentEpoch(), arg_name, arg_value)
+#define TRACE_GC_EPOCH(tracer, scope_id, thread_kind, ...)                    \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);               \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              "epoch", tracer->CurrentEpoch(), ##__VA_ARGS__)
 
 #define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,  \
                                  flow_flags)                              \
@@ -312,6 +305,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer(Heap* heap, base::TimeTicks startup_time,
            GarbageCollectionReason initial_gc_reason =
                GarbageCollectionReason::kUnknown);
+  ~GCTracer();
 
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
@@ -634,6 +628,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   perfetto::NamedTrack parent_track_;
   perfetto::NamedTrack phase_track_;
   perfetto::NamedTrack state_track_;
+  perfetto::NamedTrack priority_track_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);

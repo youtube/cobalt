@@ -190,6 +190,11 @@ struct ExtraInfoSpec {
     ASYNC_BLOCKING = 1 << 3,
     REQUEST_BODY = 1 << 4,
     EXTRA_HEADERS = 1 << 5,
+    // Includes SecurityInfo object.
+    SECURITY_INFO = 1 << 6,
+    // Includes SecurityInfo object with raw bytes of certificates in DER
+    // format.
+    SECURITY_INFO_RAW_DER = 1 << 7
   };
 
   static bool InitFromValue(const base::Value& value, int* extra_info_spec);

@@ -146,6 +146,7 @@
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/deopt-pretenure': [PASS, SLOW],
+  'compiler/regress-461531853': [PASS, SLOW],
   'compiler/regress-9017': [PASS, SLOW],
   'compiler/regress-crbug-11564': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
@@ -326,6 +327,17 @@
   'asm/embenchen/memops': [SKIP],
   'asm/embenchen/lua_binarytrees': [SKIP],
 }],  # novfp3
+
+################################################################################
+['memory_corruption_api', {
+  # Slow tests.
+  'apply': [PASS, SLOW],
+  'regress/regress-41433527': [PASS, SLOW],
+  'regress/regress-425583995': [PASS, SLOW],
+  'regress/regress-437956096': [PASS, SLOW],
+  'regress/regress-524': [PASS, SLOW],
+  'sandbox/regress-430960844': [PASS, SLOW],
+}],
 
 ################################################################################
 ['not memory_corruption_api', {
@@ -733,18 +745,13 @@
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
 
-  # Wasm imported strings
-  'wasm/imported-strings*': [SKIP],
-  'regress/wasm/regress-324747822': [SKIP],
-  'regress/wasm/regress-326091470': [SKIP],
-  'regress/wasm/regress-326260438': [SKIP],
+  # Wasm imported strings (just text-decoder or text-encoder)
+  'wasm/imported-strings-utf8': [SKIP],
+  'wasm/imported-strings-invalid': [SKIP],
   'regress/wasm/regress-326156493': [SKIP],
-  'regress/wasm/regress-326273468': [SKIP],
+  'regress/wasm/regress-326260438': [SKIP],
   'regress/wasm/regress-326894018': [SKIP],
-  'regress/wasm/regress-327517308': [SKIP],
   'regress/wasm/regress-327643791': [SKIP],
-  'regress/wasm/regress-329464129': [SKIP],
-  'regress/wasm/regress-40258436': [SKIP],
 
   # --experimental-wasm-shared
   'wasm/shared-everything/*': [SKIP],
@@ -841,6 +848,7 @@
   'regress/wasm/regress-1403398': [SKIP],
   'regress/wasm/regress-1511849': [SKIP],
   'regress/wasm/regress-325372946': [SKIP],
+  'regress/wasm/regress-326091470': [SKIP],
   'regress/wasm/regress-326904344': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],
   'regress/wasm/regress-353913485': [SKIP],
@@ -1486,12 +1494,6 @@
   'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
-['arch == riscv64 and pointer_compression', {
-  # Maglev code bails out due to incorrect overflow check when pointer
-  # compression is enabled, but the test checks that the function remains
-  # optimized and thus fails.
-  'es6/for-of-array-iterator-optimization-maglev': [FAIL],
-}],  # 'arch == riscv64 and pointer_compression'
 
 ['(arch == riscv64 or arch == riscv32) and variant == stress', {
   'wasm/multi-value-simd': [SKIP]
@@ -2351,6 +2353,7 @@
   'wasm/multi-value-simd': [SKIP],
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
+  'wasm/stack-switching-params': [SKIP],
   'wasm/half-shuffles': [SKIP],
   'wasm/half-dup-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
@@ -2503,6 +2506,8 @@
   'wasm/subtyping-invalid': [SKIP],
   'wasm/generate-random-module': [SKIP],
   'wasm/generate-random-module-no-staging': [SKIP],
+  'regress/regress-461464257': [SKIP],
+  'regress/regress-461969023': [SKIP],
   'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-382816108': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],

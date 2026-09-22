@@ -73,7 +73,7 @@ OPENSSL_EXPORT void BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx,
                                              uint8_t *out, size_t out_len);
 
 #if defined(__cplusplus)
-}
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_KECCAK_INTERNAL_H

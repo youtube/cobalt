@@ -1087,10 +1087,13 @@ set(
   third_party/wycheproof_testvectors/hmac_sha384_test.txt
   third_party/wycheproof_testvectors/hmac_sha512_test.txt
   third_party/wycheproof_testvectors/mldsa_44_sign_noseed_test.txt
+  third_party/wycheproof_testvectors/mldsa_44_sign_seed_test.txt
   third_party/wycheproof_testvectors/mldsa_44_verify_test.txt
   third_party/wycheproof_testvectors/mldsa_65_sign_noseed_test.txt
+  third_party/wycheproof_testvectors/mldsa_65_sign_seed_test.txt
   third_party/wycheproof_testvectors/mldsa_65_verify_test.txt
   third_party/wycheproof_testvectors/mldsa_87_sign_noseed_test.txt
+  third_party/wycheproof_testvectors/mldsa_87_sign_seed_test.txt
   third_party/wycheproof_testvectors/mldsa_87_verify_test.txt
   third_party/wycheproof_testvectors/primality_test.txt
   third_party/wycheproof_testvectors/rsa_oaep_2048_sha1_mgf1sha1_test.txt

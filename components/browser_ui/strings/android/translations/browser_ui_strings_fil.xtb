@@ -171,6 +171,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="2787357173144933081">Simulan ang Omnibox</translation>
 <translation id="2789132527330338807">Puwedeng hilingin ng mga site na gumawa ng 3D na map ng iyong kapaligiran o subaybayan ang posisyon ng camera</translation>
 <translation id="2790501146643349491">Kapag naka-on, matatapos ng mga kamakailang isinarang site ang pagpapadala at pagtanggap ng data. Kapag naka-off, hindi matatapos ng mga kamakailang isinarang site ang pagpapadala at pagtanggap ng data.</translation>
+<translation id="2794551654724114396">I-on ang mga notification para sa mga kapaki-pakinabang na tip para matulungan kang masulit ang Chrome</translation>
 <translation id="2795716239552913152">Karaniwang ginagamit ng mga site ang iyong lokasyon para sa mga nauugnay na feature o impormasyon, gaya ng lokal na balita o mga kalapit na tindahan</translation>
 <translation id="2800760947029405028">Mag-upload ng larawan</translation>
 <translation id="2802908157808345702">Huwag payagan ang mga site na magpadala ng mga pop-up at gumamit ng mga redirect</translation>
@@ -338,10 +339,12 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="4635969503923889910">Huwag payagan ang mga site na gumamit ng mga NFC device</translation>
 <translation id="4644713492825682049">I-delete at i-reset</translation>
 <translation id="4645575059429386691">Pinamamahalaan ng iyong magulang</translation>
+<translation id="4652266463001779298">Hindi pinapayagan</translation>
 <translation id="4663373278480897665">Pinapayagan ang camera</translation>
 <translation id="4670064810192446073">Virtual reality</translation>
 <translation id="4672315773691449562">I-tap ang Browser app at pagkatapos ay i-tap ang Chrome</translation>
 <translation id="4676059169848868271">Para payagan ang <ph name="APP_NAME" /> na gamitin ang pag-track sa kamay, i-on din ang pag-track sa kamay sa <ph name="BEGIN_LINK" />mga setting ng system<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Pamahalaan ang iyong mga card</translation>
 <translation id="4751476147751820511">Mga motion o light sensor</translation>
 <translation id="4755971844837804407">Kapag naka-on, puwedeng magpakita sa iyo ng anumang ad ang mga site. Kapag naka-off, hindi makakapagpakita ang mga site ng mga nakakasagabal o mapanlinlang na ad.</translation>
 <translation id="4779083564647765204">Zoom</translation>
@@ -678,6 +681,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8487700953926739672">Available sa offline</translation>
 <translation id="848952951823693243">Palaging hilingin ang pang-mobile na site</translation>
 <translation id="8492822722330266509">Puwedeng magpadala ng mga pop-up at gumamit ng mga pag-redirect ang mga site</translation>
+<translation id="8493548450030356203">Popup na window ng pag-zoom</translation>
 <translation id="8499083585497694743">I-unmute ang mikropono</translation>
 <translation id="8514955299594277296">Huwag payagan ang mga site na mag-save ng data sa iyong device (hindi inirerekomenda)</translation>
 <translation id="851751545965956758">I-block ang mga site sa pagkonekta sa mga device</translation>

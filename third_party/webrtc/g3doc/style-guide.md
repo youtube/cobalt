@@ -153,6 +153,12 @@ has to be verified whenever accepting external input.
 For concatenation of strings, use `webrtc::StrJoin` or
 `webrtc::SimpleStringBuilder` directly.
 
+For string views, use `absl::string_view`, not `std::string_view`. The former
+is heavily used in webrtc, and there are platforms we export to where the
+two are different. Eventual conversion will be easiest if usage is consistent.
+See [issue 42225436](https://issues.webrtc.org/42225436) for details and
+current status.
+
 The following string building tools are NOT recommended:
 
 * The + operator. See [String Concatenation and operator+][totw-3] for why not.

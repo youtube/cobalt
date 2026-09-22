@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/layout/flex/layout_flexible_box.h"
 #include "third_party/blink/renderer/core/layout/flex/line_flexer.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
+#include "third_party/blink/renderer/core/layout/geometry/layout_unit_diffuser.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_input_node.h"
@@ -334,21 +335,36 @@ ItemPosition FlexLayoutAlgorithm::ResolvedAlignSelf(
 LayoutUnit FlexLayoutAlgorithm::MainAxisContentExtent(
     LayoutUnit sum_hypothetical_main_size) const {
   if (is_column_) {
-    // Even though we only pass border_padding in the third parameter, the
-    // return value includes scrollbar, so subtract scrollbar to get content
-    // size.
-    // We add |border_scrollbar_padding| to the fourth parameter because
-    // |content_size| needs to be the size of the border box. We've overloaded
-    // the term "content".
     const LayoutUnit border_scrollbar_padding =
         BorderScrollbarPadding().BlockSum();
-    return ComputeBlockSizeForFragment(
-               GetConstraintSpace(), Node(), BorderPadding(),
-               sum_hypothetical_main_size.ClampNegativeToZero() +
-                   border_scrollbar_padding,
-               container_builder_.InlineSize()) -
-           border_scrollbar_padding;
+
+    // Ensure the intrinsic-size include the border/scrollbar/padding.
+    const LayoutUnit intrinsic_size =
+        sum_hypothetical_main_size == kIndefiniteSize
+            ? kIndefiniteSize
+            : sum_hypothetical_main_size + border_scrollbar_padding;
+
+    // First attempt to resolve the block-size using the (potentially
+    // indefinite) intrinsic-size.
+    const LayoutUnit block_size = ComputeBlockSizeForFragment(
+        GetConstraintSpace(), Node(), BorderPadding(), intrinsic_size,
+        container_builder_.InlineSize());
+    if (block_size != kIndefiniteSize) {
+      return (block_size - border_scrollbar_padding).ClampNegativeToZero();
+    }
+
+    // The block-size was indefinite, use the max block-size instead.
+    const LayoutUnit max_block_size =
+        ComputeInitialMinMaxBlockSizes(GetConstraintSpace(), Node(),
+                                       BorderPadding())
+            .max_size;
+    if (max_block_size != LayoutUnit::Max()) {
+      return (max_block_size - border_scrollbar_padding).ClampNegativeToZero();
+    }
+
+    return LayoutUnit::Max();
   }
+
   return ChildAvailableSize().inline_size;
 }
 
@@ -531,49 +547,47 @@ void FlexLayoutAlgorithm::HandleOutOfFlowPositionedItems(
     AxisEdge inline_axis_edge = is_column_ ? cross_axis_edge : main_axis_edge;
     AxisEdge block_axis_edge = is_column_ ? main_axis_edge : cross_axis_edge;
 
-    InlineEdge inline_edge;
-    BlockEdge block_edge;
-    LogicalOffset offset = border_scrollbar_padding.StartOffset();
+    LogicalStaticPosition static_pos;
+    static_pos.offset = border_scrollbar_padding.StartOffset();
 
     // Determine the static-position based off the axis-edge.
     if (block_axis_edge == AxisEdge::kStart) {
       DCHECK(!IsBreakInside(GetBreakToken()));
-      block_edge = BlockEdge::kBlockStart;
+      static_pos.block_edge = BlockEdge::kBlockStart;
     } else if (block_axis_edge == AxisEdge::kCenter) {
       if (!should_process_block_center) {
         oof_children.emplace_back(oof_child);
         continue;
       }
-      block_edge = BlockEdge::kBlockCenter;
-      offset.block_offset += total_fragment_size.block_size / 2;
+      static_pos.block_edge = BlockEdge::kBlockCenter;
+      static_pos.offset.block_offset += total_fragment_size.block_size / 2;
     } else {
       if (!should_process_block_end) {
         oof_children.emplace_back(oof_child);
         continue;
       }
-      block_edge = BlockEdge::kBlockEnd;
-      offset.block_offset += total_fragment_size.block_size;
+      static_pos.block_edge = BlockEdge::kBlockEnd;
+      static_pos.offset.block_offset += total_fragment_size.block_size;
     }
 
     if (inline_axis_edge == AxisEdge::kStart) {
-      inline_edge = InlineEdge::kInlineStart;
+      static_pos.inline_edge = InlineEdge::kInlineStart;
     } else if (inline_axis_edge == AxisEdge::kCenter) {
-      inline_edge = InlineEdge::kInlineCenter;
-      offset.inline_offset += total_fragment_size.inline_size / 2;
+      static_pos.inline_edge = InlineEdge::kInlineCenter;
+      static_pos.offset.inline_offset += total_fragment_size.inline_size / 2;
     } else {
-      inline_edge = InlineEdge::kInlineEnd;
-      offset.inline_offset += total_fragment_size.inline_size;
+      static_pos.inline_edge = InlineEdge::kInlineEnd;
+      static_pos.offset.inline_offset += total_fragment_size.inline_size;
     }
 
     // Make the child offset relative to our fragment.
-    offset.block_offset -= previous_consumed_block_size;
+    static_pos.offset.block_offset -= previous_consumed_block_size;
 
-    LogicalAlignmentDirection align_self_direction =
-        is_column_ ? LogicalAlignmentDirection::kInline
-                   : LogicalAlignmentDirection::kBlock;
+    static_pos.align_self_direction = is_column_
+                                          ? LogicalAlignmentDirection::kInline
+                                          : LogicalAlignmentDirection::kBlock;
 
-    container_builder_.AddOutOfFlowChildCandidate(
-        child, offset, inline_edge, block_edge, align_self_direction);
+    container_builder_.AddOutOfFlowChildCandidate(child, static_pos);
   }
 }
 
@@ -1293,9 +1307,8 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
   if (GetConstraintSpace().HasBlockFragmentation()) {
     container_builder_.SetBreakTokenData(
         MakeGarbageCollected<FlexBreakTokenData>(
-            container_builder_.GetBreakTokenData(), flex_lines,
-            row_break_between_outputs, oof_children, total_intrinsic_block_size,
-            break_before_row));
+            flex_lines, row_break_between_outputs, oof_children,
+            total_intrinsic_block_size, break_before_row));
   }
 
   // Un-freeze descendant scrollbars before we run the OOF layout part.
@@ -1319,7 +1332,7 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
   DCHECK(oof_children || phase != Phase::kLayout);
   ConstructAndAppendFlexItems(phase, oof_children);
 
-  const LayoutUnit line_break_size = MainAxisContentExtent(LayoutUnit::Max());
+  const LayoutUnit line_break_size = MainAxisContentExtent();
   const FlexLineBreakerResult result = BreakFlexItemsIntoLines(
       base::span(flex_items_), line_break_size, gap_between_items_,
       is_multi_line_, balance_min_line_count_);
@@ -1370,8 +1383,7 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
   flex_lines->reserve(result.flex_lines.size());
   for (auto& line : result.flex_lines) {
     // Flex the items.
-    auto [line_items, remaining_items] = items.split_at(line.count);
-    items = remaining_items;
+    auto line_items = items.take_first(line.count);
     LineFlexer(line_items, main_axis_inner_size,
                line.sum_hypothetical_main_size, gap_between_items_)
         .Run();
@@ -1579,22 +1591,23 @@ LayoutUnit InitialContentPositionOffset(const StyleContentAlignmentData& data,
   }
 }
 
-LayoutUnit ContentDistributionSpace(const StyleContentAlignmentData& data,
-                                    LayoutUnit free_space,
-                                    unsigned number_of_items) {
+LayoutUnitDiffuser ContentDistributionSpace(
+    const StyleContentAlignmentData& data,
+    LayoutUnit free_space,
+    unsigned number_of_items) {
   if (free_space <= LayoutUnit() || number_of_items <= 1) {
-    return LayoutUnit();
+    return LayoutUnitDiffuser();
   }
   switch (data.Distribution()) {
     case ContentDistributionType::kDefault:
     case ContentDistributionType::kStretch:
-      return LayoutUnit();
+      return LayoutUnitDiffuser();
     case ContentDistributionType::kSpaceBetween:
-      return free_space / (number_of_items - 1);
+      return LayoutUnitDiffuser(free_space, number_of_items - 1);
     case ContentDistributionType::kSpaceEvenly:
-      return free_space / (number_of_items + 1);
+      return LayoutUnitDiffuser(free_space, number_of_items + 1);
     case ContentDistributionType::kSpaceAround:
-      return free_space / number_of_items;
+      return LayoutUnitDiffuser(free_space, number_of_items);
   }
 }
 
@@ -1667,7 +1680,7 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
     cross_axis_free_space = LayoutUnit();
   }
 
-  const LayoutUnit space_between_lines =
+  LayoutUnitDiffuser space_between_lines =
       ContentDistributionSpace(align_content, cross_axis_free_space, num_lines);
   LayoutUnit line_cross_axis_offset =
       (is_column_ ? BorderScrollbarPadding().inline_start
@@ -1701,14 +1714,14 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
     const LayoutUnit main_axis_free_space =
         should_apply_main_axis_auto_margin ? LayoutUnit()
                                            : flex_line.main_axis_free_space;
-    const LayoutUnit main_axis_auto_margin =
+    LayoutUnitDiffuser main_axis_auto_margin =
         should_apply_main_axis_auto_margin
-            ? flex_line.main_axis_free_space /
-                  flex_line.main_axis_auto_margin_count
-            : LayoutUnit();
+            ? LayoutUnitDiffuser(flex_line.main_axis_free_space,
+                                 flex_line.main_axis_auto_margin_count)
+            : LayoutUnitDiffuser();
 
     const wtf_size_t line_items_size = flex_line.item_indices.size();
-    const LayoutUnit space_between_items = ContentDistributionSpace(
+    LayoutUnitDiffuser space_between_items = ContentDistributionSpace(
         justify_content, main_axis_free_space, line_items_size);
     LayoutUnit main_axis_offset =
         (is_column_ ? BorderScrollbarPadding().block_start
@@ -1810,10 +1823,10 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
 
         // Main-axis margins are distributed to evenly across the whole line.
         if (is_margin_auto.MainStart()) {
-          margin.MainStart() = main_axis_auto_margin;
+          margin.MainStart() = main_axis_auto_margin.Next();
         }
         if (is_margin_auto.MainEnd()) {
-          margin.MainEnd() = main_axis_auto_margin;
+          margin.MainEnd() = main_axis_auto_margin.Next();
         }
       }
 
@@ -1866,7 +1879,7 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
                      : LogicalOffset(main_axis_offset, cross_axis_offset);
 
       main_axis_offset += item.FlexedBorderBoxSize() + margin.MainEnd() +
-                          space_between_items + gap_between_items_;
+                          space_between_items.Next() + gap_between_items_;
 
       const BoxStrut logical_margins =
           physical_margins.ConvertToLogical(writing_direction);
@@ -1907,8 +1920,8 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
       item_index_in_line++;
     }
 
-    line_cross_axis_offset +=
-        flex_line.line_cross_size + space_between_lines + gap_between_lines_;
+    line_cross_axis_offset += flex_line.line_cross_size +
+                              space_between_lines.Next() + gap_between_lines_;
   }
 
   if (auto first_baseline = baseline_accumulator.FirstBaseline())

@@ -35,9 +35,7 @@
 #include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network_constants.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -353,14 +351,14 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   // Invoked when there is conflict in the ICE role between local and remote
   // agents.
   void NotifyRoleConflict(IceTransportInternal* transport) {
-    SignalRoleConflict(transport);
+    role_conflict_callbacks_.Send(transport);
   }
   void SubscribeRoleConflict(
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Emitted whenever the new standards-compliant transport state changed.
   void NotifyIceTransportStateChanged(IceTransportInternal* transport) {
-    SignalIceTransportStateChanged(transport);
+    ice_transport_state_changed_callbacks_.Send(transport);
   }
   void SubscribeIceTransportStateChanged(
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
@@ -414,18 +412,10 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       candidate_pair_change_callback_;
 
  private:
-  // Slated for replacement with CallbackList.
-  sigslot::signal1<IceTransportInternal*> SignalRoleConflict;
-  sigslot::signal1<IceTransportInternal*> SignalIceTransportStateChanged;
-
   CallbackList<IceTransportInternal*, const Candidate&>
       candidate_gathered_callbacks_;
-  SignalTrampoline<IceTransportInternal,
-                   &IceTransportInternal::SignalRoleConflict>
-      role_conflict_trampoline_;
-  SignalTrampoline<IceTransportInternal,
-                   &IceTransportInternal::SignalIceTransportStateChanged>
-      ice_transport_state_changed_trampoline_;
+  CallbackList<IceTransportInternal*> role_conflict_callbacks_;
+  CallbackList<IceTransportInternal*> ice_transport_state_changed_callbacks_;
 };
 
 }  //  namespace webrtc

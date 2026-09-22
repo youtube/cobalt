@@ -273,6 +273,11 @@ void Builder::updateFunctionParamNames(FunctionId id,
                                        const angle::Span<ImmutableString> &paramNames,
                                        const angle::Span<VariableId> &paramIdsOut)
 {
+    if (mHasError)
+    {
+        return;
+    }
+
     std::vector<rust::Str> paramNameStrs;
     paramNameStrs.reserve(paramNames.size());
 
@@ -281,7 +286,7 @@ void Builder::updateFunctionParamNames(FunctionId id,
         paramNameStrs.push_back(Str(param));
     }
 
-    return mBuilder->update_function_param_names(id, Slice(paramNameStrs), SliceMut(paramIdsOut));
+    mBuilder->update_function_param_names(id, Slice(paramNameStrs), SliceMut(paramIdsOut));
 }
 VariableId Builder::declareFunctionParam(const ImmutableString &name,
                                          TypeId typeId,
@@ -359,11 +364,11 @@ void Builder::beginTernaryTrueExpression()
     }
 }
 
-void Builder::endTernaryTrueExpression()
+void Builder::endTernaryTrueExpression(TBasicType basicType)
 {
     if (!mHasError)
     {
-        mBuilder->end_ternary_true_expression();
+        mBuilder->end_ternary_true_expression(basicType == EbtVoid);
     }
 }
 
@@ -375,19 +380,19 @@ void Builder::beginTernaryFalseExpression()
     }
 }
 
-void Builder::endTernaryFalseExpression()
+void Builder::endTernaryFalseExpression(TBasicType basicType)
 {
     if (!mHasError)
     {
-        mBuilder->end_ternary_false_expression();
+        mBuilder->end_ternary_false_expression(basicType == EbtVoid);
     }
 }
 
-void Builder::endTernary()
+void Builder::endTernary(TBasicType basicType)
 {
     if (!mHasError)
     {
-        mBuilder->end_ternary();
+        mBuilder->end_ternary(basicType == EbtVoid);
     }
 }
 

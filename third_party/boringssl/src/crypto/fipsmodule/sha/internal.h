@@ -208,7 +208,7 @@ void sha512_block_data_order_nohw(uint64_t state[8], const uint8_t *data,
 #endif
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SHA_INTERNAL_H

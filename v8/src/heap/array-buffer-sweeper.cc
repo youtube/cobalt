@@ -36,7 +36,9 @@ size_t ArrayBufferList::Append(ArrayBufferExtension* extension) {
       return extension->SetYoung().accounting_length();
     }
   }();
-  DCHECK_GE(bytes_ + accounting_length, bytes_);
+  // On 32-bit this addition can overflow. This is okay because it changes at
+  // most GC scheduling and the counter will be re-computed from scratch in the
+  // next GC cycle.
   bytes_ += accounting_length;
   extension->set_next(nullptr);
   return accounting_length;
@@ -266,7 +268,7 @@ void ArrayBufferSweeper::Finish() {
   state_->FinishSweeping();
 
   Finalize();
-  DCHECK_LE(heap_->backing_store_bytes(), SIZE_MAX);
+  DCHECK_LE(total_bytes_, SIZE_MAX);
   DCHECK(!sweeping_in_progress());
 }
 
@@ -421,16 +423,14 @@ void ArrayBufferSweeper::UpdateApproximateBytes(int64_t delta,
 
 void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->IncrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
+  total_bytes_ += bytes;
   external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
 
 void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
+  total_bytes_ -= bytes;
   external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
@@ -564,6 +564,12 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
 
 uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent() const {
   return reinterpret_cast<uint64_t>(this) ^ heap_->tracer()->CurrentEpoch();
+}
+
+uint64_t ArrayBufferSweeper::GetBytes() const { return total_bytes_; }
+
+size_t ArrayBufferSweeper::BytesForTesting() const {
+  return young().BytesSlow() + old().BytesSlow();
 }
 
 }  // namespace internal

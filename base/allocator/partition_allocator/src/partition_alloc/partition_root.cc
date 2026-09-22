@@ -1168,6 +1168,9 @@ void PartitionRoot::Init(PartitionOptions opts) {
         internal::PartitionAddressSpace::MetadataOffset(settings.pool_handle);
 #endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 
+    settings.enable_free_with_size =
+        (opts.free_with_size == PartitionOptions::kEnabled);
+
     initialized = true;
   }
 

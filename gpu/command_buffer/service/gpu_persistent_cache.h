@@ -11,25 +11,32 @@
 #include <memory>
 #include <string_view>
 
+#include "base/memory/memory_pressure_listener.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/persistent_cache/backend_params.h"
+#include "base/trace_event/memory_dump_provider.h"
+#include "components/persistent_cache/buffer_provider.h"
+#include "components/persistent_cache/pending_backend.h"
 #include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/gpu_gles2_export.h"
 #include "third_party/skia/include/gpu/ganesh/GrContextOptions.h"
 
 namespace persistent_cache {
 class PersistentCache;
-class Entry;
 }  // namespace persistent_cache
 
 namespace gpu {
 
+class MemoryCache;
+
 // Wraps a persistent_cache::PersistentCache to be used as a Dawn, Skia or ANGLE
-// cache.
+// cache. Entries are always stored in a MemoryCache and PersistentCache as well
+// once it is initialized. Entries loaded before the PersistentCache is
+// initialized are copied into it on initialization.
 class GPU_GLES2_EXPORT GpuPersistentCache
     : public dawn::platform::CachingInterface,
-      public GrContextOptions::PersistentCache {
+      public GrContextOptions::PersistentCache,
+      public base::RefCountedThreadSafe<GpuPersistentCache> {
  public:
   struct GPU_GLES2_EXPORT AsyncDiskWriteOpts {
     AsyncDiskWriteOpts();
@@ -51,14 +58,14 @@ class GPU_GLES2_EXPORT GpuPersistentCache
 
   // If `async_write_options.task_runner` is null, then writes are synchronous.
   explicit GpuPersistentCache(std::string_view cache_prefix,
+                              scoped_refptr<MemoryCache> memory_cache,
                               AsyncDiskWriteOpts async_write_options = {});
-  ~GpuPersistentCache() override;
 
   GpuPersistentCache(const GpuPersistentCache&) = delete;
   GpuPersistentCache& operator=(const GpuPersistentCache&) = delete;
 
   // This can only be called once but is thread safe w.r.t loads and stores.
-  void InitializeCache(persistent_cache::BackendParams backend_params,
+  void InitializeCache(persistent_cache::PendingBackend pending_backend,
                        scoped_refptr<RefCountedGpuProcessShmCount>
                            use_shader_cache_shm_count = nullptr);
 
@@ -86,13 +93,38 @@ class GPU_GLES2_EXPORT GpuPersistentCache
                       const void* value,
                       int64_t value_size);
 
-  std::unique_ptr<persistent_cache::Entry> LoadEntry(std::string_view key);
+  void PurgeMemory(base::MemoryPressureLevel memory_pressure_level);
+
+  void OnMemoryDump(const std::string& dump_name,
+                    base::trace_event::ProcessMemoryDump* pmd);
+
+  const persistent_cache::PersistentCache& GetPersistentCacheForTesting() const;
 
  private:
+  friend class base::RefCountedThreadSafe<GpuPersistentCache>;
+
+  ~GpuPersistentCache() override;
+
   struct DiskCache;
 
-  std::unique_ptr<persistent_cache::Entry> LoadImpl(std::string_view key);
+  // Values are mirrored in tools/metrics/histograms/metadata/gpu/enums.xml
+  enum class CacheLoadResult {
+    kMiss = 0,
+    kMissNoDiskCache = 1,
+    kMaxMissValue = kMissNoDiskCache,
+    // Extra enum space for future miss results
+    kHitMemory = 10,
+    kHitDisk = 11,
+    kMaxValue = kHitDisk,
+  };
+
+  static bool IsCacheHitResult(CacheLoadResult result);
+
+  CacheLoadResult LoadImpl(std::string_view key,
+                           persistent_cache::BufferProvider buffer_provider);
   void StoreImpl(std::string_view key, base::span<const uint8_t> value);
+
+  void RecordCacheLoadResultHistogram(CacheLoadResult result);
 
   // Prefix to prepend to UMA histogram's name. e.g GraphiteDawn, WebGPU
   const std::string cache_prefix_;
@@ -100,7 +132,12 @@ class GPU_GLES2_EXPORT GpuPersistentCache
   std::atomic<size_t> load_count_ = 0;
   std::atomic<size_t> store_count_ = 0;
 
-  base::AtomicFlag initialized_;
+  // A MemoryCache is used for fast access to the most recently used elements of
+  // the cache and allows data to be stored before the persistent_cache is
+  // initialized
+  scoped_refptr<MemoryCache> memory_cache_;
+
+  base::AtomicFlag disk_cache_initialized_;
   scoped_refptr<DiskCache> disk_cache_;
   const AsyncDiskWriteOpts async_write_options_;
 };

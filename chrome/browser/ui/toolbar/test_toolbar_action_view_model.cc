@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/native_ui_types.h"
 
@@ -22,9 +22,10 @@ std::string TestToolbarActionViewModel::GetId() const {
   return id_;
 }
 
-void TestToolbarActionViewModel::SetUpdateObserver(
+base::CallbackListSubscription
+TestToolbarActionViewModel::RegisterUpdateObserver(
     base::RepeatingClosure observer) {
-  observer_ = observer;
+  return observers_.Add(observer);
 }
 
 ui::ImageModel TestToolbarActionViewModel::GetIcon(
@@ -104,31 +105,29 @@ void TestToolbarActionViewModel::ShowPopup(bool by_user) {
 
 void TestToolbarActionViewModel::SetActionName(const std::u16string& name) {
   action_name_ = name;
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void TestToolbarActionViewModel::SetActionTitle(const std::u16string& title) {
   action_title_ = title;
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void TestToolbarActionViewModel::SetAccessibleName(const std::u16string& name) {
   accessible_name_ = name;
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void TestToolbarActionViewModel::SetTooltip(const std::u16string& tooltip) {
   tooltip_ = tooltip;
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void TestToolbarActionViewModel::SetEnabled(bool is_enabled) {
   is_enabled_ = is_enabled;
-  NotifyObserver();
+  NotifyObservers();
 }
 
-void TestToolbarActionViewModel::NotifyObserver() {
-  if (observer_) {
-    observer_.Run();
-  }
+void TestToolbarActionViewModel::NotifyObservers() {
+  observers_.Notify();
 }

@@ -28,15 +28,17 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &blink::features::kSecurePaymentConfirmationUxRefresh,
     &blink::features::kViewportSegments,
     &input::features::kInputOnViz,
-    &features::kAccessibilityMagnificationFollowsTextCursor,
     &features::kAndroidCaptureKeyEvents,
     &features::kAndroidCaretBrowsing,
     &features::kAndroidDevToolsFrontend,
     &features::kAccessibilityDeprecateJavaNodeCache,
     &features::kAccessibilityDeprecateTypeAnnounce,
     &features::kAccessibilityImproveLiveRegionAnnounce,
+    &features::kAccessibilityMagnificationFollowsFocus,
+    &features::kAccessibilityRequestLayoutBasedActions,
     &features::kAccessibilityPageZoomV2,
     &features::kAccessibilityPopulateSupplementalDescriptionApi,
+    &features::kAccessibilitySequentialFocus,
     &features::kAccessibilitySetSelectableOnAllNodesWithText,
     &features::kAccessibilityUnifiedSnapshots,
     &features::kAccessibilityManageBroadcastReceiverOnBackground,
@@ -73,3 +75,5 @@ static jlong JNI_ContentFeatureMap_GetNativeMap(JNIEnv* env) {
 }
 
 }  // namespace content::android
+
+DEFINE_JNI(ContentFeatureMap)

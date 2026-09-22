@@ -164,6 +164,7 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-blink.h"
 #include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
 #include "ui/base/mojom/window_show_state.mojom-blink.h"
+#include "ui/gfx/geometry/mojom/geometry.mojom-forward.h"
 #include "ui/gfx/geometry/point_conversions.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -178,13 +179,6 @@
 #endif
 
 namespace blink {
-
-template <>
-struct CrossThreadCopier<WebFrameWidgetImpl::PromiseCallbacks>
-    : public CrossThreadCopierByValuePassThrough<
-          WebFrameWidgetImpl::PromiseCallbacks> {
-  STATIC_ONLY(CrossThreadCopier);
-};
 
 namespace {
 
@@ -930,6 +924,10 @@ gfx::Point WebFrameWidgetImpl::DIPsToRoundedBlinkSpace(
 
 float WebFrameWidgetImpl::DIPsToBlinkSpace(float scalar) {
   return widget_base_->DIPsToBlinkSpace(scalar);
+}
+
+gfx::RectF WebFrameWidgetImpl::DIPsToBlinkSpace(const gfx::RectF& rect) {
+  return widget_base_->DIPsToBlinkSpace(rect);
 }
 
 gfx::Size WebFrameWidgetImpl::DIPsToCeiledBlinkSpace(const gfx::Size& size) {
@@ -3827,7 +3825,7 @@ bool WebFrameWidgetImpl::GetSelectionBoundsInWindow(
   gfx::Rect focus_root_frame;
   gfx::Rect anchor_root_frame;
   gfx::Rect bounding_box_root_frame;
-  CalculateSelectionBounds(focus_root_frame, anchor_root_frame,
+  CalculateSelectionBounds(anchor_root_frame, focus_root_frame,
                            &bounding_box_root_frame);
   gfx::Rect focus_rect_in_dips =
       widget_base_->BlinkSpaceToEnclosedDIPs(gfx::Rect(focus_root_frame));
@@ -4219,10 +4217,20 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
               .VisitedDependentColor(GetCSSPropertyColor())
               .Rgb());
 
+  // Calculate the caret location.
+  std::optional<gfx::Rect> insertion_marker_info = std::nullopt;
+  gfx::Rect focus_caret = {};
+  gfx::Rect anchor_caret = {};
+  CalculateSelectionBounds(anchor_caret, focus_caret);
+  if (focus_caret != gfx::Rect{}) {
+    insertion_marker_info = widget_base_->BlinkSpaceToEnclosedDIPs(focus_caret);
+  }
+
   mojom::blink::InputCursorAnchorInfoPtr cursor_anchor_info =
       mojom::blink::InputCursorAnchorInfo::New(
           character_bounds, std::move(editor_bounds_info),
-          std::move(text_appearance_info), line_bounds, update_requested);
+          std::move(text_appearance_info), line_bounds,
+          std::move(insertion_marker_info), update_requested);
 
   if (!update_requested && last_cursor_anchor_info_ == cursor_anchor_info) {
     return;

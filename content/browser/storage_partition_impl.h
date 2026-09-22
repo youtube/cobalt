@@ -100,7 +100,6 @@ class CacheStorageControlWrapper;
 class CdmStorageDataModel;
 class CdmStorageManager;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
-class CookieDeprecationLabelManagerImpl;
 class CookieStoreManager;
 class DevToolsBackgroundServicesContextImpl;
 class FileSystemAccessEntryFactory;
@@ -227,7 +226,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // Use outside content.
   AttributionDataModel* GetAttributionDataModel() override;
   PrivateAggregationDataModel* GetPrivateAggregationDataModel() override;
-  CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() override;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   CdmStorageDataModel* GetCdmStorageDataModel() override;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -542,7 +540,8 @@ class CONTENT_EXPORT StoragePartitionImpl
   // function saves the nonces so that they can be restored in case of a
   // `NetworkService` crash.
   void RevokeNetworkForNoncesInNetworkContext(
-      const std::vector<base::UnguessableToken>& nonces,
+      const std::map<base::UnguessableToken, std::set<std::string>>&
+          nonces_to_patterns,
       base::OnceClosure callback);
 
   // Forward the call to `NetworkContext::ClearNonces` and remove the stored
@@ -864,9 +863,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<PrivateAggregationManagerImpl> private_aggregation_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
-  std::unique_ptr<CookieDeprecationLabelManagerImpl>
-      cookie_deprecation_label_manager_;
-
   // ReceiverSet for DomStorage, using the
   // ChildProcessSecurityPolicyImpl::Handle as the binding context type. The
   // handle can subsequently be used during interface method calls to
@@ -978,10 +974,12 @@ class CONTENT_EXPORT StoragePartitionImpl
   bool on_browser_context_will_be_destroyed_called_ = false;
 #endif
 
-  // A copy of the network revocation nonces in `NetworkContext`. It is used for
-  // restoring the network revocation states of fenced frames when there is a
-  // `NetworkService` crash.
-  absl::flat_hash_set<base::UnguessableToken> network_revocation_nonces_;
+  // A copy of the network restriction nonces and their corresponding URL
+  // allowlists in `NetworkContext`. It is used for restoring the
+  // `NetworkContext` nonces when there is a `NetworkService`
+  // crash.
+  std::map<base::UnguessableToken, std::set<std::string>>
+      network_revocation_nonces_;
 
   // We need to delay deleting stale session cookies until after the cookie db
   // has initialized, otherwise we will bypass lazy loading and block.

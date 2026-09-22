@@ -140,7 +140,7 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="4099085513035183040">Chromium Beta'da desteklenmiyor</translation>
 <translation id="4106512142782407609"><ph name="EMAIL" /> olarak oturum açtınız.
 
-Verileriniz parolanızla şifrelenir. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için bu kodu girin.</translation>
+Verileriniz parolanızla şifrelenir. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
 <translation id="4118287192800900567">Chromium İpucu: Chromium'da Oturum Açın</translation>
 <translation id="4195557071150719219">Chromium'daki Son Sekmeleri Göster</translation>
 <translation id="420541179527342563">Chromium'da Tam Gizlilik Modu'nu devre dışı bırakmak için bu ayarı iPad'inizde kapatın.</translation>
@@ -291,6 +291,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="7554983317097061001">Chromium ipucu: Chromium'u yuvaya taşıyın</translation>
 <translation id="7576863740961052505">Chromium ayarlarını yönet</translation>
 <translation id="7674213385180944843">Ayarlar &gt; Gizlilik &gt; Kamera &gt; Chromium'a gidin ve kamerayı açın.</translation>
+<translation id="7685160423563372998">Chromium'da Gemini ile görüntü oluşturun</translation>
 <translation id="7733418656985455268">Chromium İpucu: Lens ile Arama Yapın</translation>
 <translation id="7747820849741499258">Chromium'da ara</translation>
 <translation id="7753923083404296545">Chromium Gizli modda açıldı</translation>
@@ -349,7 +350,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="8975812008711371178">Chromium'da sesle arama yapın</translation>
 <translation id="900560297598578021"><ph name="EMAIL" /> olarak oturum açtınız.
 
-Verileriniz <ph name="TIME" /> tarihinde parolanızla şifrelendi. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için bu kodu girin.</translation>
+Verileriniz <ph name="TIME" /> tarihinde parolanızla şifrelendi. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
 <translation id="9022552996538154597">Chromium'da oturum aç</translation>
 <translation id="9031260906956926157">Chromium verilerinizden bazıları henüz Google Hesabınıza kaydedilmedi.
 Oturumunuzu kapatmadan önce birkaç dakika bekleyin. Oturumu şimdi kapatırsanız bu veriler silinir.</translation>

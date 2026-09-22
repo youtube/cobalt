@@ -74,6 +74,7 @@
 <translation id="1274654146705270731">ส้ม</translation>
 <translation id="1275718070701477396">เลือกแล้ว</translation>
 <translation id="1290331692326790741">สัญญาณไม่ดี</translation>
+<translation id="1292474106138697109">จอแสดงผลเครื่องมือสำหรับชั้นเรียน</translation>
 <translation id="1300115153046603471">APN เป็นแบบ Default และ <ph name="ATTACH" /></translation>
 <translation id="1301069673413256657">GSM</translation>
 <translation id="1301340234286078471">แปลง</translation>
@@ -142,7 +143,7 @@
           เลือก "ขอแรงบันดาลใจหน่อย" เพื่อรับตัวเลือกรูปภาพ AI ที่เป็นเอกลักษณ์และหลากหลายยิ่งขึ้น
           <ph name="LINE_BREAK" />
           <ph name="LINE_BREAK" />
-          เมื่อสร้างด้วย AI ระบบจะส่งพรอมต์ไปยังเซิร์ฟเวอร์ AI ของ Google เพื่อสร้างรูปภาพและปรับปรุงผลิตภัณฑ์โดยเป็นไปตาม<ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY" />นโยบายความเป็นส่วนตัวของ Google<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" />
+          เมื่อสร้างด้วย AI ระบบจะส่งพรอมต์ไปยังเซิร์ฟเวอร์ Google AI เพื่อสร้างรูปภาพและปรับปรุงผลิตภัณฑ์โดยเป็นไปตาม<ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY" />นโยบายความเป็นส่วนตัวของ Google<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" />
           <ph name="LINE_BREAK" />
           <ph name="LINE_BREAK" />
           Generative AI เป็นเวอร์ชันทดลองที่อยู่ในช่วงการพัฒนาขั้นต้น และมีให้บริการจํากัดในขณะนี้</translation>
@@ -1046,6 +1047,7 @@
 <translation id="5596627076506792578">ตัวเลือกเพิ่มเติม</translation>
 <translation id="5600027863942488546">ทดสอบปุ่ม <ph name="KEY_NAME" /> อยู่</translation>
 <translation id="5606865426897221650">Tab</translation>
+<translation id="5612205513582918357">เครื่องมือสำหรับชั้นเรียนกำลังแชร์หน้าจอของคุณกับ <ph name="RECEIVER_NAME" /></translation>
 <translation id="5613201299517339763">คุณออกจากระบบแล้ว</translation>
 <translation id="5620281292257375798">ภายในเท่านั้น</translation>
 <translation id="5628106863521633649">ภาษาที่พร้อมให้บริการ</translation>
@@ -1421,7 +1423,7 @@
 <translation id="7221869452894271364">โหลดหน้านี้ใหม่</translation>
 <translation id="7223952304612664117">การตั้งค่านี้จะช่วยให้บริการของระบบใช้ความแม่นยำของตำแหน่งเพื่อระบุตำแหน่งของคุณได้ ความแม่นยำของตำแหน่งจะใช้ข้อมูลเกี่ยวกับสัญญาณไร้สายและเซ็นเซอร์เพื่อประมาณตำแหน่งของอุปกรณ์</translation>
 <translation id="7233782086689993269">คืนค่าแป้นพิมพ์ลัดแล้ว</translation>
-<translation id="723419678599947502">สร้างชื่อโดยใช้ AI ของ Google</translation>
+<translation id="723419678599947502">สร้างชื่อโดยใช้ Google AI</translation>
 <translation id="725133483556299729">เลือกอีเมล</translation>
 <translation id="7255187042098209569">ชมพูและม่วง</translation>
 <translation id="7267918995585557751">รีเซ็ตเพื่อให้หน้าเริ่มต้นใช้งานเริ่มต้นไม่ใช่เว็บไซต์ฟิชชิง โปรดใช้เฉพาะเว็บไซต์ที่คุณเชื่อถือเท่านั้น</translation>
@@ -1867,7 +1869,7 @@
 <translation id="921080052717160800">ตั้งรูปภาพเป็นพื้นหลังของกล้องแล้ว</translation>
 <translation id="9211490828691860325">เดสก์ทั้งหมด</translation>
 <translation id="9218016617214286986">แสดง APN ที่รู้จัก</translation>
-<translation id="932327136139879170">หน้าแรก</translation>
+<translation id="932327136139879170">บ้าน</translation>
 <translation id="939519157834106403">SSID</translation>
 <translation id="945522503751344254">ส่งความคิดเห็น</translation>
 <translation id="950520315903467048">ไม่มีคีย์สำหรับ <ph name="DIRECTION" /> <ph name="ASSIGN_INSTRUCTION" /></translation>

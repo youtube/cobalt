@@ -201,7 +201,7 @@ void ecp_nistz256_point_add_affine(P256_POINT *r, const P256_POINT *a,
 
 
 #if defined(__cplusplus)
-}  // extern C++
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_EC_P256_NISTZ_H

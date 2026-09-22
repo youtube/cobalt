@@ -18,8 +18,6 @@
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/extension_util.h"
-#include "chrome/browser/extensions/permissions/active_tab_permission_granter.h"
-#include "chrome/browser/extensions/permissions/permissions_test_util.h"
 #include "chrome/browser/extensions/user_scripts_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -42,6 +40,8 @@
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/permissions/active_tab_permission_granter.h"
+#include "extensions/browser/permissions/permissions_test_util.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/script_executor.h"
 #include "extensions/browser/user_script_manager.h"
@@ -360,9 +360,8 @@ IN_PROC_BROWSER_TEST_F(ScriptInjectionTrackerBrowserTest,
 // document here:
 // https://docs.google.com/document/d/1MFprp2ss2r9RNamJ7Jxva1bvRZvec3rzGceDGoJ6vW0/edit#heading=h.n2ppjzx4jpzt
 // TODO(crbug.com/40615943): Remove the test after RenderDocument is shipped.
-// TODO(crbug.com/460180756): Re-enable this test once the bug is fixed.
 IN_PROC_BROWSER_TEST_F(ScriptInjectionTrackerBrowserTest,
-                       DISABLED_ProgrammaticInjectionRacingWithDidCommit) {
+                       ProgrammaticInjectionRacingWithDidCommit) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // The test assumes the RenderFrame stays the same after navigation. Disable

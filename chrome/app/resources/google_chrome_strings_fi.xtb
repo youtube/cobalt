@@ -75,6 +75,7 @@
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome suosittelee selainta hidastavan välilehden keskeyttämistä}other{Chrome suosittelee selainta hidastavien välilehtien keskeyttämistä}}</translation>
 <translation id="1832046143430087831">Nopeuttaa sivustoja Chromen V8-moottorilla, mutta heikentää Chromen suojaa hyökkäyksiä vastaan. Tämä asetus on poissa päältä.</translation>
 <translation id="1838374766361614909">Tyhjennä haku</translation>
+<translation id="1843347690926158494">Hae tältä välilehdeltä Google Lensilla</translation>
 <translation id="1849248141818021764">Salattua dataa voi lukea vain tunnuslauseen avulla. Tunnuslausetta ei lähetetä Googlelle eikä Google tallenna sitä. Jos unohdat tunnuslauseen tai haluat muuttaa asetusta, sinun on <ph name="BEGIN_LINK" />poistettava tilin Chrome-data<ph name="END_LINK" />.</translation>
 <translation id="1860536484129686729">Chrome tarvitsee oikeuden käyttää kameraasi tällä sivustolla.</translation>
 <translation id="1873233029667955273">Google Chrome ei ole oletusselain.</translation>
@@ -148,9 +149,9 @@
 <translation id="2681444469812712297">Avaa <ph name="URL" /> Google Chromessa uudella välilehdellä.</translation>
 <translation id="2699790011615497488">Avaa Gemini in Chrome Beta</translation>
 <translation id="2712141162840347885">Valitse, mitä haluat hakea Google Lensilla, tai poistu Google Lensista painamalla Escape</translation>
-<translation id="2723860029395667894">Näytä aina Googlen tekoälytilan pikakuvake</translation>
 <translation id="2738871930057338499">Internetyhteyden muodostaminen ei onnistu. HTTP 403 (kielletty). Tarkista välityspalvelimen asetukset.</translation>
 <translation id="2742320827292110288">Varoitus: Google Chrome ei voi estää laajennuksia tallentamasta selaushistoriaasi. Voit poistaa tämän laajennuksen käytöstä incognito-tilassa poistamalla tämän valinnan.</translation>
+<translation id="2747021967398957654">{count,plural, =1{Osaa Chrome-datastasi ei ole vielä tallennettu Google-tilillesi. Odota muutama minuutti ennen uloskirjautumista. Jos kirjaudut ulos nyt, tämä data (1 kohde) poistetaan.}other{Osaa Chrome-datastasi ei ole vielä tallennettu Google-tilillesi. Odota muutama minuutti ennen uloskirjautumista. Jos kirjaudut ulos nyt, tämä data ({count} kohde) poistetaan.}}</translation>
 <translation id="2753623023919742414">Hae klikkaamalla</translation>
 <translation id="2757826245013442432">{COUNT,plural, =0{Lisäsuojaus edellyttää Chromen uudelleenkäynnistystä, jotta päivitys voidaan ottaa käyttöön}=1{Lisäsuojaus edellyttää Chromen uudelleenkäynnistystä, jotta päivitys voidaan ottaa käyttöön. Incognito-ikkunaa ei avata uudelleen.}other{Lisäsuojaus edellyttää Chromen uudelleenkäynnistystä, jotta päivitys voidaan ottaa käyttöön. # incognito-ikkunaa ei avata uudelleen.}}</translation>
 <translation id="2765403129283291972">Chrome tarvitsee oikeuden käyttää mikrofoniasi tällä sivustolla.</translation>
@@ -484,6 +485,7 @@
 <translation id="6417690341895039567">{COUNT,plural, =1{Organisaatiosi sulkee Chromen automaattisesti, kun sitä ei ole käytetty 1 minuuttiin. Selausdata poistetaan. Tämä voi sisältää historian, automaattisen täytön ja lataukset.}other{Organisaatiosi sulkee Chromen automaattisesti, kun sitä ei ole käytetty # minuuttiin. Selausdata poistetaan. Tämä voi sisältää historian, automaattisen täytön ja lataukset.}}</translation>
 <translation id="6418662306461808273">Vaihdetaanko nykyiseen Chrome-profiiliin?</translation>
 <translation id="6426623519983252346">Näet kehotteen kokeilla <ph name="FEATURE_NAME" /> seuraavan kerran, kun avaat Chrome iOS:llä.</translation>
+<translation id="6434035853014503219">Kiitos, että valitsit Chromen oletusselaimeksi!</translation>
 <translation id="6473905796280459355">Siirry Tietoja Chromesta ‐sivulle</translation>
 <translation id="6481963882741794338">Linkitä Chrome ja muita Googlen palveluja esimerkiksi personointia varten</translation>
 <translation id="648319183876919572">Parannettu selaussuoja suojaa sinua entistä paremmin vaarallisilta sivustoilta ja latauksilta</translation>
@@ -505,6 +507,7 @@
 <translation id="6676384891291319759">Käytä internetiä</translation>
 <translation id="6679975945624592337">Jätä Google Chrome käyntiin taustalle</translation>
 <translation id="6696915334902295848">Chrome tarvitsee mikrofonin luvan tällä sivustolla</translation>
+<translation id="6706525880530967390">{count,plural, =1{Chromen on vahvistettava henkilöllisyytesi, ennen kuin tiettyä dataa voidaan tallentaa Google-tilillesi ja käyttää kaikilla laitteillasi. Jos kirjaudut ulos nyt, tämä data (1 kohde) poistetaan.}other{Chromen on vahvistettava henkilöllisyytesi, ennen kuin tiettyä dataa voidaan tallentaa Google-tilillesi ja käyttää kaikilla laitteillasi. Jos kirjaudut ulos nyt, tämä data ({count} kohde) poistetaan.}}</translation>
 <translation id="6712881677154121168">Latausvirhe: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6718739135284199302">Chromen nopeuttaminen</translation>
 <translation id="6734827584173583205">Sivustot, joilla et ole käynyt viime aikoina. Chrome poisti nämä luvat: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja <ph name="COUNT" /> muuta.</translation>
@@ -581,6 +584,7 @@
 <translation id="756809126120519699">Chrome-tiedot tyhjennetty</translation>
 <translation id="7572537927358445944">Pois päältä • Chrome ei voi vahvistaa, mistä tämä laajennus on peräisin</translation>
 <translation id="7583399374488819119">Asennusohjelma: <ph name="COMPANY_NAME" /></translation>
+<translation id="7596160425942761210">Voit käyttää Chromea aina, kun klikkaat linkkejä viesteissä, dokumenteissa tai muissa sovelluksissa</translation>
 <translation id="7602868996817972616">Kysy Googlelta tästä sivusta</translation>
 <translation id="760353356052806707">Toinen tietokoneellasi oleva ohjelma on lisännyt sovelluksen, joka voi muuttaa Chromen toimintaa.
 
@@ -657,6 +661,7 @@
 <translation id="835927394551949760">Googlelta kysyminen</translation>
 <translation id="8362914115861174987">Käännä kielelle</translation>
 <translation id="8366770919198174997">Rajoittaa suorituskykyä, mutta tekee Chromesta suojatumman hyökkäyksiä vastaan</translation>
+<translation id="8367705492654390392">Kysy mitä tahansa</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Kaikki oikeudet pidätetään.</translation>
 <translation id="8377158135256176353">Gemini in Chrome Canary päälle/pois</translation>
 <translation id="8387459386171870978">Jatka Chromen käyttöä</translation>
@@ -674,16 +679,17 @@
 <translation id="8533056045953418157">Valitse Google Chrome PDF:ien oletuskatseluohjelmaksi</translation>
 <translation id="8555465886620020932">Palveluvirhe: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">Hakukielilista</translation>
+<translation id="8575047640889685742">Salaa kaikki Google-tilisi Chrome-data <ph name="BEGIN_LINK" />omalla tunnuslauseella<ph name="END_LINK" />. Google Payn maksutapoja ja osoitteita ei salata. Chromen selaushistoriaa ei synkronoida.</translation>
 <translation id="8601359445272098721">Uutta! Voit kääntää näytöllä näkyvän tekstin ja kuvat valitsemalla "Käännä näyttö" ‑painikkeen</translation>
 <translation id="8614913330719544658">Google Chrome ei vastaa. Käynnistetäänkö uudelleen?</translation>
 <translation id="861702415419836452">Chrome tarvitsee luvan käyttää kameraasi ympäristön 3D-kartoittamiseen</translation>
+<translation id="8624541899164515475">Asetukset, avautuu uudelle välilehdelle.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome käynnistetään uudelleen 1 minuutin kuluttua}other{Chrome käynnistetään uudelleen # minuutin kuluttua.}}</translation>
 <translation id="8637932705841171563">Jos haluat jakaa ikkunan, salli Chromen näytön tallennus järjestelmäasetuksista.</translation>
 <translation id="8641606876632989680">Chrome ilmoittaa, kun kirjaudut sisään vaarantuneella salasanalla</translation>
 <translation id="8647930742055103497">Pidä kaikki Chromessa</translation>
 <translation id="8656634243791296665">Avaa Gemini in Chrome Dev</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
-<translation id="8677922833187616101">Näytä aina Googlen tekoälytilan pikakuvake</translation>
 <translation id="8679801911857917785">Määrittää myös Chromen aloitussivun.</translation>
 <translation id="8712637175834984815">Ymmärretty</translation>
 <translation id="8712767363896337380">Melkein ajan tasalla. Viimeistele päivitys käynnistämällä Chrome uudelleen.</translation>

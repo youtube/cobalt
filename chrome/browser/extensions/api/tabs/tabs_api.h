@@ -16,6 +16,7 @@
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/common/extensions/api/tabs.h"
+#include "chrome/common/extensions/api/windows.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/translate/core/browser/translate_driver.h"
 #include "components/zoom/zoom_controller.h"
@@ -198,6 +199,21 @@ class WindowsCreateFunction : public ExtensionFunction {
   DECLARE_EXTENSION_FUNCTION("windows.create", WINDOWS_CREATE)
 
  private:
+  // Ensures the tab for the window is valid. Returns an error string, or the
+  // empty string if the tab is valid.
+  static std::string ValidateTab(WindowController* source_window,
+                                 Profile* window_profile,
+                                 Profile* calling_profile,
+                                 content::WebContents* web_contents,
+                                 bool is_locked_fullscreen,
+                                 const std::vector<GURL>& urls);
+
+  // Uses `create_data` to set the window position and size in `window_bounds`.
+  // Returns an error string, or the empty string if the bounds are valid.
+  static std::string SetWindowBounds(
+      const api::windows::Create::Params::CreateData& create_data,
+      gfx::Rect& window_bounds);
+
 #if BUILDFLAG(IS_CHROMEOS)
   void OnWindowCreatedAsynchronously(const SessionID& session_id);
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -206,6 +222,15 @@ class WindowsUpdateFunction : public ExtensionFunction {
   ~WindowsUpdateFunction() override = default;
   ResponseAction Run() override;
   DECLARE_EXTENSION_FUNCTION("windows.update", WINDOWS_UPDATE)
+
+ private:
+  // Applies the updates from `params` to the `browser` window.
+  void UpdateWindowState(const api::windows::Update::Params& params,
+                         BrowserWindowInterface* browser,
+                         WindowController* window_controller,
+                         ui::mojom::WindowShowState show_state,
+                         bool set_window_bounds,
+                         const gfx::Rect& window_bounds);
 };
 class WindowsRemoveFunction : public ExtensionFunction {
   ~WindowsRemoveFunction() override = default;
@@ -241,6 +266,14 @@ class TabsQueryFunction : public ExtensionFunction {
 
  private:
   ~TabsQueryFunction() override = default;
+
+  // Builds the list of tab objects to return.
+  base::Value::List BuildTabList(BrowserWindowInterface* current_browser,
+                                 BrowserWindowInterface* last_active_browser,
+                                 const URLPatternSet& url_patterns,
+                                 const std::string& window_type,
+                                 int window_id,
+                                 int tab_index);
 
   // Returns true if the given `candidate_profile` matches the calling
   // extension's profile (taking into account incognito access).
@@ -284,15 +317,35 @@ class TabsUpdateFunction : public ExtensionFunction {
 
  protected:
   ~TabsUpdateFunction() override = default;
-  bool UpdateURL(const std::string& url,
+  bool UpdateURL(content::WebContents* web_contents,
+                 const std::string& url,
                  int tab_id,
                  std::string* error);
-  ResponseValue GetResult();
-
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
+  ResponseValue GetResult(content::WebContents* web_contents);
 
  private:
   ResponseAction Run() override;
+
+  // Returns true on success. Out parameters are the ID of the default tab to
+  // update and its web contents, or an error string.
+  bool ComputeDefaultTabId(int& tab_id,
+                           content::WebContents*& contents,
+                           std::string& error);
+
+  // Updates the active or selected tab. Returns true on success or if there was
+  // nothing to do. Returns false on failure with an error message.
+  bool UpdateActiveTab(const api::tabs::Update::Params& params,
+                       TabStripModel* tab_strip,
+                       int tab_index,
+                       const content::WebContents* contents,
+                       std::string& error);
+
+  // Updates the highlight state of the given tab. Returns true on success or if
+  // there was nothing to do. Returns false on failure with an error.
+  bool UpdateHighlightedTab(const api::tabs::Update::Params& params,
+                            TabStripModel* tab_strip,
+                            int tab_index,
+                            std::string& error);
 
   DECLARE_EXTENSION_FUNCTION("tabs.update", TABS_UPDATE)
 };
@@ -348,6 +401,9 @@ class TabsDetectLanguageFunction
  private:
   ~TabsDetectLanguageFunction() override = default;
   ResponseAction Run() override;
+
+  // Starts the language detection process, which is asynchronous.
+  ResponseAction StartLanguageDetection(content::WebContents* contents);
 
   // content::WebContentsObserver:
   void NavigationEntryCommitted(

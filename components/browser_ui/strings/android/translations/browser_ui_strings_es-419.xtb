@@ -171,6 +171,7 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="2787357173144933081">Inicia el cuadro multifunción</translation>
 <translation id="2789132527330338807">Los sitios pueden solicitar permiso para crear un mapa 3D de tu entorno o hacer un seguimiento de la posición de la cámara</translation>
 <translation id="2790501146643349491">Cuando esta opción está activada, los sitios cerrados recientemente pueden terminar de enviar y recibir datos. Cuando está desactivada, los sitios cerrados recientemente no pueden terminar de enviar ni recibir datos.</translation>
+<translation id="2794551654724114396">Activa las notificaciones para recibir sugerencias útiles que te ayudarán a aprovechar Chrome al máximo</translation>
 <translation id="2795716239552913152">Por lo general, los sitios utilizan tu ubicación para mostrar información o habilitar funciones relevantes, como noticias locales o tiendas cercanas.</translation>
 <translation id="2800760947029405028">Cargar una imagen</translation>
 <translation id="2802908157808345702">No permitir que los sitios envíen ventanas emergentes ni utilicen redireccionamientos</translation>
@@ -338,10 +339,12 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="4635969503923889910">No permitir que los sitios usen dispositivos NFC</translation>
 <translation id="4644713492825682049">Borrar y restablecer</translation>
 <translation id="4645575059429386691">Administrado por tus padres</translation>
+<translation id="4652266463001779298">No se permite</translation>
 <translation id="4663373278480897665">Cámara permitida</translation>
 <translation id="4670064810192446073">Realidad virtual</translation>
 <translation id="4672315773691449562">Presiona App de navegador y, luego, Chrome</translation>
 <translation id="4676059169848868271">Para permitir que <ph name="APP_NAME" /> use el seguimiento de manos, también debes activar esta función en la <ph name="BEGIN_LINK" />configuración del sistema<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Administra tus tarjetas</translation>
 <translation id="4751476147751820511">Sensores de luz o movimiento</translation>
 <translation id="4755971844837804407">Cuando esta opción está activada, los sitios pueden mostrarte cualquier anuncio. Cuando está desactivada, los sitios no pueden mostrar anuncios intrusivos o engañosos.</translation>
 <translation id="4779083564647765204">Zoom</translation>
@@ -678,6 +681,7 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="8487700953926739672">Disponible sin conexión</translation>
 <translation id="848952951823693243">Solicitar siempre el sitio móvil</translation>
 <translation id="8492822722330266509">Permitir que los sitios abran ventanas emergentes y usen redireccionamientos</translation>
+<translation id="8493548450030356203">Ventana emergente del zoom</translation>
 <translation id="8499083585497694743">Activar el micrófono</translation>
 <translation id="8514955299594277296">No permitir que los sitios guarden datos en tu dispositivo (no recomendado)</translation>
 <translation id="851751545965956758">Impedir que los sitios se conecten a los dispositivos</translation>

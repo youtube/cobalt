@@ -27,6 +27,7 @@
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -37,6 +38,7 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/navigation_handle.h"
@@ -139,6 +141,26 @@ void ActorKeyedService::CreateActorTab(TaskId task_id,
   BrowserWindowInterface* window_for_new_tab = nullptr;
   tabs::TabInterface* initiator_tab = initiator_tab_handle.Get();
 
+  // Special case: if the initiator tab is the NTP, no need to create a new
+  // tab, reuse it.
+  if (initiator_tab && search::IsNTPURL(initiator_tab->GetContents()
+                                            ->GetPrimaryMainFrame()
+                                            ->GetLastCommittedURL())) {
+    GetJournal().Log(
+        GURL(), task_id, "CreateActorTab",
+        JournalDetailsBuilder().Add("Return", "Initiator is NTP").Build());
+
+    if (!open_in_background) {
+      TabStripModel* tab_strip_model =
+          initiator_tab->GetBrowserWindowInterface()->GetTabStripModel();
+      tab_strip_model->ActivateTabAt(
+          tab_strip_model->GetIndexOfTab(initiator_tab));
+    }
+
+    std::move(callback).Run(initiator_tab);
+    return;
+  }
+
   // If the initiating tab is still live, create the new tab in the same window.
   if (initiator_tab) {
     if (initiator_tab->IsInNormalWindow()) {
@@ -200,6 +222,10 @@ void ActorKeyedService::CreateActorTab(TaskId task_id,
 
   content::WebContents* contents = handle->GetWebContents();
   if (!contents) {
+    GetJournal().Log(GURL(), task_id, "CreateActorTab",
+                     JournalDetailsBuilder()
+                         .AddError("Navigation missing WebContents")
+                         .Build());
     std::move(callback).Run(nullptr);
     return;
   }
@@ -219,7 +245,7 @@ TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
   task->SetId(base::PassKey<ActorKeyedService>(), task_id);
   task->GetExecutionEngine()->SetOwner(task.get());
   // Notify of task creation now that the task id is set.
-  NotifyTaskStateChanged(*task);
+  NotifyTaskStateChanged(task->id(), task->GetState());
   active_tasks_[task_id] = std::move(task);
   return task_id;
 }
@@ -234,21 +260,11 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
   return active_tasks;
 }
 
-const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks()
-    const {
-  std::map<TaskId, const ActorTask*> inactive_tasks;
-  for (const auto& [id, task] : inactive_tasks_) {
-    inactive_tasks[id] = task.get();
-  }
-  return inactive_tasks;
-}
-
 void ActorKeyedService::ResetForTesting() {
   for (auto it = active_tasks_.begin(); it != active_tasks_.end();) {
     StopTask((it++)->first, ActorTask::StoppedReason::kTaskComplete);
   }
   active_tasks_.clear();
-  inactive_tasks_.clear();
 }
 
 TaskId ActorKeyedService::CreateTask() {
@@ -281,8 +297,9 @@ base::CallbackListSubscription ActorKeyedService::AddTaskStateChangedCallback(
   return tab_state_change_callback_list_.Add(std::move(callback));
 }
 
-void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
-  tab_state_change_callback_list_.Notify(task);
+void ActorKeyedService::NotifyTaskStateChanged(TaskId task_id,
+                                               ActorTask::State state) {
+  tab_state_change_callback_list_.Notify(task_id, state);
 }
 
 void ActorKeyedService::OnActOnWebCapabilityChanged(bool can_act_on_web) {
@@ -354,10 +371,11 @@ void ActorKeyedService::RequestTabObservation(
             bool has_screenshot = fetch_result.screenshot_result.has_value();
             if (!has_apc || !has_screenshot) {
               std::move(callback).Run(base::unexpected(absl::StrFormat(
-                  "Failed Observation: APC[%g] screenshot[%s]", has_apc,
-                  fetch_result.screenshot_result.has_value()
-                      ? std::string("OK")
-                      : fetch_result.screenshot_result.error())));
+                  "Failed Observation: APC[%s] screenshot[%s]",
+                  has_apc ? std::string("OK")
+                          : fetch_result.annotated_page_content_result.error(),
+                  has_screenshot ? std::string("OK")
+                                 : fetch_result.screenshot_result.error())));
               return;
             }
 
@@ -454,22 +472,13 @@ void ActorKeyedService::StopTask(TaskId task_id,
 
   auto task = active_tasks_.extract(task_id);
   if (!task.empty()) {
-    if (base::FeatureList::IsEnabled(kActorDoNotStoreCompletedTasks)) {
-      task.mapped()->Stop(stop_reason);
-    } else {
-      auto ret = inactive_tasks_.insert(std::move(task));
-      ret.position->second->Stop(stop_reason);
-    }
+    task.mapped()->Stop(stop_reason);
   }
 }
 
 ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
   auto task = active_tasks_.find(task_id);
   if (task != active_tasks_.end()) {
-    return task->second.get();
-  }
-  task = inactive_tasks_.find(task_id);
-  if (task != inactive_tasks_.end()) {
     return task->second.get();
   }
   return nullptr;
@@ -513,17 +522,6 @@ std::vector<TaskId> ActorKeyedService::FindTaskIdsInActive(
     base::FunctionRef<bool(const ActorTask&)> predicate) const {
   std::vector<TaskId> result;
   for (const auto& [id, task] : active_tasks_) {
-    if (predicate(*task)) {
-      result.push_back(id);
-    }
-  }
-  return result;
-}
-
-std::vector<TaskId> ActorKeyedService::FindTaskIdsInInactive(
-    base::FunctionRef<bool(const ActorTask&)> predicate) const {
-  std::vector<TaskId> result;
-  for (const auto& [id, task] : inactive_tasks_) {
     if (predicate(*task)) {
       result.push_back(id);
     }

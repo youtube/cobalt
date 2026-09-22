@@ -12,6 +12,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
+import android.app.Activity;
 import android.view.KeyEvent;
 
 import androidx.fragment.app.Fragment;
@@ -28,14 +29,22 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.ImportantFormFactors;
+import org.chromium.base.test.util.Restriction;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.autofill.settings.AutofillPaymentMethodsFragment;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.SupportedProfileType;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxPedal;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionView;
 import org.chromium.chrome.browser.safety_hub.SafetyHubFragment;
@@ -60,7 +69,9 @@ import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.action.OmniboxPedalId;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
+import org.chromium.ui.test.util.DeviceRestriction;
 
 import java.util.Arrays;
 import java.util.List;
@@ -69,6 +80,7 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
+@DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
 public class OmniboxPedalsTest {
     @Rule
     public ReusedCtaTransitTestRule<WebPageStation> mActivityTestRule =
@@ -165,6 +177,7 @@ public class OmniboxPedalsTest {
 
     @Test
     @MediumTest
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testManagePaymentMethods() throws InterruptedException {
         setSuggestions(createPedalSuggestion(OmniboxPedalId.UPDATE_CREDIT_CARD));
         clickOnPedalToSettings(
@@ -173,7 +186,9 @@ public class OmniboxPedalsTest {
 
     @Test
     @MediumTest
-    public void testOpenIncognitoTab() throws InterruptedException {
+    @Restriction(DeviceFormFactor.PHONE)
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testOpenIncognitoTab_Phone() throws InterruptedException {
         setSuggestions(createPedalSuggestion(OmniboxPedalId.LAUNCH_INCOGNITO));
 
         mOmniboxUtils.clickOnAction(0, 0);
@@ -187,6 +202,38 @@ public class OmniboxPedalsTest {
 
     @Test
     @MediumTest
+    @ImportantFormFactors(DeviceFormFactor.ONLY_TABLET)
+    @Restriction({DeviceFormFactor.ONLY_TABLET, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testOpenIncognitoTab_Tablet() throws InterruptedException {
+        setSuggestions(createPedalSuggestion(OmniboxPedalId.LAUNCH_INCOGNITO));
+
+        mOmniboxUtils.clickOnAction(0, 0);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    List<Activity> activities = ApplicationStatus.getRunningActivities();
+                    ChromeTabbedActivity cta = null;
+                    int regularCta = 0;
+                    int incognitoCta = 0;
+                    for (Activity activity : activities) {
+                        if (activity instanceof ChromeTabbedActivity) {
+                            cta = (ChromeTabbedActivity) activity;
+                            if (cta.getSupportedProfileType() == SupportedProfileType.REGULAR) {
+                                regularCta++;
+                            }
+                            if (cta.getSupportedProfileType()
+                                    == SupportedProfileType.OFF_THE_RECORD) {
+                                incognitoCta++;
+                            }
+                        }
+                    }
+                    return regularCta == 1 && incognitoCta == 1;
+                });
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testOpenChromeSafetyHub() throws InterruptedException {
         setSuggestions(createPedalSuggestion(OmniboxPedalId.RUN_CHROME_SAFETY_CHECK));
 
@@ -202,6 +249,7 @@ public class OmniboxPedalsTest {
 
     @Test
     @MediumTest
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testManageChromeSettings() throws InterruptedException {
         setSuggestions(createPedalSuggestion(OmniboxPedalId.MANAGE_CHROME_SETTINGS));
 

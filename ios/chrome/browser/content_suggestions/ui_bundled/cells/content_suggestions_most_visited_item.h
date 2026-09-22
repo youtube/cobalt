@@ -16,7 +16,7 @@ class GURL;
 @protocol MostVisitedTilesCommands;
 
 // Item containing a Most Visited suggestion.
-@interface ContentSuggestionsMostVisitedItem : NSObject
+@interface ContentSuggestionsMostVisitedItem : NSObject <UIContentConfiguration>
 
 // Text for the title and the accessibility label of the cell.
 @property(nonatomic, copy) NSString* title;
@@ -27,6 +27,9 @@ class GURL;
 @property(nonatomic, assign) ntp_tiles::TileTitleSource titleSource;
 // Source of the Most Visited tile.
 @property(nonatomic, assign) ntp_tiles::TileSource source;
+// Whether the most visited site is pinned to the most visited tile. Inferred
+// from `source`.
+@property(nonatomic, readonly) BOOL isPinned;
 // Attributes for favicon.
 @property(nonatomic, strong) FaviconAttributes* attributes;
 // Command handler for actions.

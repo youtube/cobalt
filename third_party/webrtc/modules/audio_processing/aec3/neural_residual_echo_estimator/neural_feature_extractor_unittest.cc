@@ -51,8 +51,12 @@ print(format_as_cpp_array(expected_output2, "expected_output2"))
 
 #include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_feature_extractor.h"
 
+#include <array>
+#include <cstddef>
 #include <vector>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -217,59 +221,112 @@ constexpr float expected_output2[] = {
     1.8804304, 2.0154081, 2.0223212, 1.8945941, 1.4271733, 2.0051481, 1.7717120,
     1.6581700, 1.2560840, 1.4274090};
 
-TEST(NeuralFeatureExtractorTest, FrequencyDomainFeatureExtractor) {
-  // Initialize the feature extractor.
-  constexpr int kStepSize = 128;
+const std::array<FeatureExtractor::ModelInputEnum, 2> kExpectedInputs = {
+    FeatureExtractor::ModelInputEnum::kLinearAecOutput,
+    FeatureExtractor::ModelInputEnum::kAecRef};
+constexpr int kStepSize = 128;
+class FrequencyDomainFeatureExtractorTest
+    : public ::testing::TestWithParam<int> {
+ protected:
+  void UpdateBlock(FrequencyDomainFeatureExtractor& extractor,
+                   ArrayView<const float, kBlockSize> block,
+                   int num_channels) {
+    std::vector<ArrayView<const float, kBlockSize>> all_blocks;
+    all_blocks.reserve(num_channels);
+    for (int i = 0; i < num_channels; ++i) {
+      all_blocks.push_back(block);
+    }
+    for (auto input_type : kExpectedInputs) {
+      extractor.UpdateBuffers(all_blocks, input_type);
+    }
+  }
+};
+
+TEST_P(FrequencyDomainFeatureExtractorTest, BasicTest) {
+  const int num_channels = this->GetParam();
   FrequencyDomainFeatureExtractor extractor(kStepSize);
-
-  // Input and output buffers.
-  std::vector<float> input(kStepSize);
   std::vector<float> output(kStepSize + 1);
-
   // First frame.
-  for (int i = 0; i < kStepSize; ++i) {
-    input[i] = noise1_scaled[i];
+  for (int i = 0; i < kStepSize; i += kBlockSize) {
+    ArrayView<const float, kBlockSize> block(&noise1_scaled[i], kBlockSize);
+    this->UpdateBlock(extractor, block, num_channels);
   }
-  extractor.PushFeaturesToModelInput(
-      input, output, FeatureExtractor::ModelInputEnum::kLinearAecOutput);
-  EXPECT_THAT(input.size(), 0);
-  input.resize(kStepSize);
-  for (int i = 0; i < kStepSize; ++i) {
-    input[i] = noise1_scaled[i + kStepSize];
+  EXPECT_TRUE(extractor.ReadyForInference());
+  for (auto input_type : kExpectedInputs) {
+    extractor.PrepareModelInput(output, input_type);
   }
-  extractor.PushFeaturesToModelInput(
-      input, output, FeatureExtractor::ModelInputEnum::kLinearAecOutput);
-  // Compare the output with the expected output.
-  EXPECT_THAT(output, Pointwise(FloatNear(kTolerance), expected_output1));
-  EXPECT_THAT(input.size(), 0);
-  input.resize(kStepSize);
+  EXPECT_FALSE(extractor.ReadyForInference());
+
+  for (int i = kStepSize; i < 2 * kStepSize; i += kBlockSize) {
+    ArrayView<const float, kBlockSize> block(&noise1_scaled[i], kBlockSize);
+    this->UpdateBlock(extractor, block, num_channels);
+  }
+  EXPECT_TRUE(extractor.ReadyForInference());
+  for (auto input_type : kExpectedInputs) {
+    extractor.PrepareModelInput(output, input_type);
+    // Compare the output with the expected output.
+    EXPECT_THAT(output, Pointwise(FloatNear(kTolerance), expected_output1));
+  }
+  EXPECT_FALSE(extractor.ReadyForInference());
   // Second frame.
-  for (int i = 0; i < kStepSize; ++i) {
-    input[i] = noise2_scaled[i];
+  for (int i = 0; i < kStepSize; i += kBlockSize) {
+    ArrayView<const float, kBlockSize> block(&noise2_scaled[i], kBlockSize);
+    this->UpdateBlock(extractor, block, num_channels);
   }
-  extractor.PushFeaturesToModelInput(
-      input, output, FeatureExtractor::ModelInputEnum::kLinearAecOutput);
-  EXPECT_THAT(input.size(), 0);
-  input.resize(kStepSize);
-  for (int i = 0; i < kStepSize; ++i) {
-    input[i] = noise2_scaled[i + kStepSize];
+  EXPECT_TRUE(extractor.ReadyForInference());
+  for (auto input_type : kExpectedInputs) {
+    extractor.PrepareModelInput(output, input_type);
   }
-  extractor.PushFeaturesToModelInput(
-      input, output, FeatureExtractor::ModelInputEnum::kLinearAecOutput);
-  EXPECT_THAT(input.size(), 0);
-  // Compare the output with the expected output.
-  EXPECT_THAT(output, Pointwise(FloatNear(kTolerance), expected_output2));
+
+  for (int i = kStepSize; i < 2 * kStepSize; i += kBlockSize) {
+    ArrayView<const float, kBlockSize> block(&noise2_scaled[i], kBlockSize);
+    this->UpdateBlock(extractor, block, num_channels);
+  }
+  EXPECT_TRUE(extractor.ReadyForInference());
+  for (auto input_type : kExpectedInputs) {
+    extractor.PrepareModelInput(output, input_type);
+    // Compare the output with the expected output.
+    EXPECT_THAT(output, Pointwise(FloatNear(kTolerance), expected_output2));
+  }
 }
 
-TEST(NeuralFeatureExtractorTest, InputVectorCleared) {
-  // Initialize the feature extractors.
-  constexpr int kStepSize = 128;
-  FrequencyDomainFeatureExtractor feature_extractor(kStepSize);
-  std::vector<float> input(kStepSize, 33.0f);
-  std::vector<float> output(kStepSize + 1);
-  feature_extractor.PushFeaturesToModelInput(
-      input, output, FeatureExtractor::ModelInputEnum::kLinearAecOutput);
-  EXPECT_THAT(input.size(), 0);
+INSTANTIATE_TEST_SUITE_P(NumChannels,
+                         FrequencyDomainFeatureExtractorTest,
+                         ::testing::Values(1, 2));
+
+TEST(TimeDomainFeatureExtractorTest, BasicTest) {
+  TimeDomainFeatureExtractor extractor(kStepSize);
+  std::vector<float> model_input(kStepSize, 0.f);
+
+  // Create two distinct blocks of data.
+  std::array<float, kBlockSize> block1;
+  std::array<float, kBlockSize> block2;
+  for (size_t i = 0; i < kBlockSize; ++i) {
+    block1[i] = i;
+    block2[i] = i + kBlockSize;
+  }
+  ArrayView<const float, kBlockSize> block1_view(block1);
+  ArrayView<const ArrayView<const float, kBlockSize>> all_blocks1(&block1_view,
+                                                                  1);
+  ArrayView<const float, kBlockSize> block2_view(block2);
+  ArrayView<const ArrayView<const float, kBlockSize>> all_blocks2(&block2_view,
+                                                                  1);
+
+  for (auto input_type : kExpectedInputs) {
+    extractor.UpdateBuffers(all_blocks1, input_type);
+    extractor.UpdateBuffers(all_blocks2, input_type);
+  }
+
+  EXPECT_TRUE(extractor.ReadyForInference());
+  for (auto input_type : kExpectedInputs) {
+    extractor.PrepareModelInput(model_input, input_type);
+
+    // Verify that the model input contains the scaled data from both blocks.
+    constexpr float kScaling = 1.0f / 32768;
+    for (int i = 0; i < kStepSize; ++i) {
+      EXPECT_FLOAT_EQ(model_input[i], i * kScaling);
+    }
+  }
 }
 
 }  // namespace

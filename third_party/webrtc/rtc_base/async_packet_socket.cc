@@ -72,6 +72,13 @@ void AsyncPacketSocket::NotifyPacketReceived(const ReceivedIpPacket& packet) {
   }
 }
 
+void AsyncPacketSocket::SubscribeSentPacket(
+    void* tag,
+    absl::AnyInvocable<void(AsyncPacketSocket*, const SentPacketInfo&)>
+        callback) {
+  sent_packet_callbacks_.AddReceiver(tag, std::move(callback));
+}
+
 void CopySocketInformationToPacketInfo(size_t packet_size_bytes,
                                        const AsyncPacketSocket& socket_from,
                                        PacketInfo* info) {

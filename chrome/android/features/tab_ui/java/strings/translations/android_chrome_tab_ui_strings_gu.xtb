@@ -73,6 +73,7 @@
 <translation id="311432875115153175">ટૅબના ગ્રૂપની સૂચિ બંધ કરવામાં આવી</translation>
 <translation id="3194464645767632461">રેટિંગ</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> ટૅબ ગ્રૂપમાં ઉમેરો}one{<ph name="TABS_COUNT_MANY" /> ટૅબ ગ્રૂપમાં ઉમેરો}other{<ph name="TABS_COUNT_MANY" /> ટૅબ ગ્રૂપમાં ઉમેરો}}</translation>
+<translation id="3293080634164207409">ટૅબ ઉમેરો</translation>
 <translation id="3328308545011660196">સૂચન: <ph name="NUMBER_OF_TABS" /> ટૅબ સંબંધિત હોય તેમ જણાય છે. તેમનું ગ્રૂપ બનાવીએ?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{1 દિવસ પછી નિષ્ક્રિય}one{<ph name="DAY_COUNT_MANY" /> દિવસ પછી નિષ્ક્રિય}other{<ph name="DAY_COUNT_MANY" /> દિવસ પછી નિષ્ક્રિય}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> નવું ટૅબ}one{<ph name="MANY_ADDED" /> નવું ટૅબ}other{<ph name="MANY_ADDED" /> નવા ટૅબ}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{આઇટમ બંધ કરો}one{આઇટમ બંધ કરો}other{આઇટમ બંધ કરો}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">શેર શીટ પ્રીવ્યૂનો થંબનેલ.</translation>
+<translation id="3776329373944672717">ટૅબ ગ્રૂપનું શીર્ષક <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">મેનેજ કરો</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{ટૅબને અનપિન કરો}one{ટૅબને અનપિન કરો}other{ટૅબને અનપિન કરો}}</translation>
 <translation id="3940195383040445971">ટૅબ પર કિંમત ટ્રૅક કરો</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">પ્રવૃત્તિ</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> રેટિંગ, <ph name="REVIEWS_COUNT_ONE" /> રિવ્યૂ}one{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> રેટિંગ, <ph name="REVIEWS_COUNT_MANY" /> રિવ્યૂ}other{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> રેટિંગ, <ph name="REVIEWS_COUNT_MANY" /> રિવ્યૂ}}</translation>
 <translation id="7885132941432959125">ટૅબને જમણે ખસેડો</translation>
+<translation id="7887334752153342268">ડુપ્લિકેટ</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> પસંદ કરેલો નથી</translation>
 <translation id="7961015016161918242">ક્યારેય નહીં</translation>
 <translation id="7966321538264951561">સૂચનોને છોડી દો.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">સેટિંગ</translation>
 <translation id="855081842937141170">ટૅબ પિન કરો</translation>
 <translation id="8633025649649592204">તાજેતરની પ્રવૃત્તિ</translation>
+<translation id="8635822281281406185">વધુમાં વધુ 10 ફાઇલ, ટૅબ અથવા છબી ઉમેરો</translation>
 <translation id="8712637175834984815">સમજાઈ ગયું</translation>
 <translation id="8714939927607906138">ઓછી કિંમત</translation>
 <translation id="8730621377337864115">થઈ ગયું</translation>

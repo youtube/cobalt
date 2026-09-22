@@ -208,8 +208,7 @@ class FakeImageSource : public CanvasImageSource {
  public:
   FakeImageSource(gfx::Size, BitmapOpacity);
 
-  scoped_refptr<Image> GetSourceImageForCanvas(FlushReason,
-                                               SourceImageStatus*,
+  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
                                                const gfx::SizeF&) override;
 
   bool WouldTaintOrigin() const override { return false; }
@@ -238,7 +237,6 @@ FakeImageSource::FakeImageSource(gfx::Size size, BitmapOpacity opacity)
 }
 
 scoped_refptr<Image> FakeImageSource::GetSourceImageForCanvas(
-    FlushReason,
     SourceImageStatus* status,
     const gfx::SizeF&) {
   if (status)
@@ -320,10 +318,10 @@ class CanvasRenderingContext2DTestBase : public ::testing::Test,
   void DrawSomething() {
     CanvasElement().DidDraw();
     Context2D()->PreFinalizeFrame();
-    Context2D()->FinalizeFrame(FlushReason::kTesting);
-    CanvasElement().PostFinalizeFrame(FlushReason::kTesting);
+    Context2D()->FinalizeFrame(FlushReason::kOther);
+    CanvasElement().PostFinalizeFrame(FlushReason::kOther);
     // Grabbing an image forces a flush
-    CanvasElement().Snapshot(FlushReason::kTesting, kBackBuffer);
+    CanvasElement().Snapshot(kBackBuffer);
   }
 
   enum LatencyMode { kNormalLatency, kLowLatency };
@@ -594,10 +592,9 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
         supports_direct_compositing_(
             compositing_mode == CompositingMode::kSupportsDirectCompositing) {
     ON_CALL(*this, Snapshot)
-        .WillByDefault(
-            [this](FlushReason reason, ImageOrientation orientation) {
-              return UnacceleratedSnapshot(orientation, reason);
-            });
+        .WillByDefault([this](ImageOrientation orientation) {
+          return UnacceleratedSnapshot(orientation);
+        });
   }
   ~FakeCanvasResourceProvider() override = default;
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
@@ -618,7 +615,7 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
 
   MOCK_METHOD((scoped_refptr<StaticBitmapImage>),
               Snapshot,
-              (FlushReason reason, ImageOrientation orientation));
+              (ImageOrientation orientation));
 
   MOCK_METHOD(bool,
               WritePixels,
@@ -814,10 +811,8 @@ TEST_P(CanvasRenderingContext2DTest, GetImageWithAccelerationDisabled) {
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
   ASSERT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kCPU);
 
-  EXPECT_FALSE(Context2D()
-                   ->GetImage(FlushReason::kTesting)
-                   ->PaintImageForCurrentFrame()
-                   .IsTextureBacked());
+  EXPECT_FALSE(
+      Context2D()->GetImage()->PaintImageForCurrentFrame().IsTextureBacked());
 
   // The GetImage() call should have preserved the rasterization mode as well as
   // the validity of the resource.
@@ -836,7 +831,7 @@ TEST_P(CanvasRenderingContext2DTest, FillRect_FullCoverage) {
   Context2D()->fillRect(-1, -1, 12, 12);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(3, 3, 1, 1), FillFlags()),
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(-1, -1, 12, 12),
@@ -852,7 +847,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_ExactCoverage) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(0, 0, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpEq<DrawRectOp>(
                   SkRect::MakeXYWH(0, 0, 10, 10), ClearRectFlags()))));
   EXPECT_THAT(histogram_tester,
@@ -869,7 +864,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_PartialCoverage) {
   Context2D()->clearRect(0, 0, 9, 9);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(3, 3, 1, 1), FillFlags()),
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(0, 0, 9, 9),
@@ -894,7 +889,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_InsideLayer) {
   Context2D()->endLayer(no_exception);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(1, 1, 1, 1), FillFlags()),
           DrawRecordOpEq(
@@ -928,7 +923,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_InsideNestedLayer) {
   Context2D()->endLayer(no_exception);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(1, 1, 1, 1), FillFlags()),
           DrawRecordOpEq(
@@ -952,7 +947,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_GlobalAlpha) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(0, 0, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpEq<DrawRectOp>(
                   SkRect::MakeXYWH(0, 0, 10, 10), ClearRectFlags()))));
   EXPECT_THAT(histogram_tester,
@@ -971,7 +966,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_TransparentGradient) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(0, 0, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpEq<DrawRectOp>(
                   SkRect::MakeXYWH(0, 0, 10, 10), ClearRectFlags()))));
   EXPECT_THAT(histogram_tester,
@@ -991,7 +986,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_Filter) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(0, 0, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpEq<DrawRectOp>(
                   SkRect::MakeXYWH(0, 0, 10, 10), ClearRectFlags()))));
   EXPECT_THAT(histogram_tester,
@@ -1009,7 +1004,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_TransformPartialCoverage) {
   Context2D()->clearRect(0, 0, 10, 10);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpIs<TranslateOp>(),
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(3, 3, 1, 1), FillFlags()),
@@ -1027,7 +1022,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_TransformCompleteCoverage) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(-1, -1, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(
                   PaintOpEq<SetMatrixOp>(SkM44(1, 0, 0, 1,  //
                                                0, 1, 0, 1,  //
@@ -1050,7 +1045,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_IgnoreCompositeOp) {
   Context2D()->fillRect(3, 3, 1, 1);
   Context2D()->clearRect(0, 0, 10, 10);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpEq<DrawRectOp>(
                   SkRect::MakeXYWH(0, 0, 10, 10), ClearRectFlags()))));
   EXPECT_THAT(histogram_tester,
@@ -1069,7 +1064,7 @@ TEST_P(CanvasRenderingContext2DTest, ClearRect_Clipped) {
   Context2D()->clearRect(0, 0, 10, 10);
 
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpIs<ClipRectOp>(),
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(3, 3, 1, 1), FillFlags()),
@@ -1088,7 +1083,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_ExactCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester,
               OverdrawOpAre(BaseRenderingContext2D::OverdrawOp::kTotal,
@@ -1105,7 +1100,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_Magnified) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 1, 1, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester,
               OverdrawOpAre(BaseRenderingContext2D::OverdrawOp::kTotal,
@@ -1123,7 +1118,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_GlobalAlpha) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester, OverdrawOpAre());
@@ -1139,7 +1134,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_TransparentBitmap) {
   Context2D()->drawImage(&alpha_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester, OverdrawOpAre());
@@ -1159,7 +1154,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_Filter) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(
                   // Composited DrawRectOp:
                   PaintOpIs<SetMatrixOp>(), PaintOpIs<SaveLayerOp>(),
@@ -1182,7 +1177,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_PartialCoverage1) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 1, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_FALSE(exception_state.HadException());
@@ -1198,7 +1193,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_PartialCoverage2) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 9, 9,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester, OverdrawOpAre());
@@ -1214,7 +1209,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_FullCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 11, 11,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester,
               OverdrawOpAre(BaseRenderingContext2D::OverdrawOp::kTotal,
@@ -1232,7 +1227,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_TransformFullCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 1, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<SetMatrixOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester,
@@ -1252,7 +1247,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_TransformPartialCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<TranslateOp>(),  //
                                       PaintOpIs<DrawRectOp>(),   //
                                       PaintOpIs<DrawImageRectOp>())));
@@ -1272,7 +1267,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_TransparenBitmapOpaqueGradient) {
   Context2D()->drawImage(&alpha_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester, OverdrawOpAre());
@@ -1292,7 +1287,7 @@ TEST_P(CanvasRenderingContext2DTest,
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawImageRectOp>())));
   EXPECT_THAT(histogram_tester,
               OverdrawOpAre(BaseRenderingContext2D::OverdrawOp::kTotal,
@@ -1312,7 +1307,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_CopyPartialCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 1, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(
                   // Copy composite op clears the frame before each draw ops.
                   PaintOpIs<DrawColorOp>(), PaintOpIs<DrawRectOp>(),
@@ -1334,7 +1329,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_CopyTransformPartialCoverage) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 1, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(
                   PaintOpIs<TranslateOp>(),
                   // Copy composite op clears the frame before each draw ops.
@@ -1355,7 +1350,7 @@ TEST_P(CanvasRenderingContext2DTest, DrawImage_Clipped) {
   Context2D()->drawImage(&opaque_bitmap_, 0, 0, 10, 10, 0, 0, 10, 10,
                          exception_state);
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<ClipRectOp>(),  //
                                       PaintOpIs<DrawRectOp>(),  //
                                       PaintOpIs<DrawImageRectOp>())));
@@ -1385,8 +1380,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, PutImageData_FullCoverage) {
   Context2D()->putImageData(full_image_data_.Get(), 0, 0, exception_state);
 
   // `putImageData` isn't included in the recording, keeping it empty.
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
-              Eq(std::nullopt));
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther), Eq(std::nullopt));
 
   // `putImageData` overdraw isn't handled by
   // `BaseRenderingContext2D::CheckOverdraw` like other draw operations, so the
@@ -1419,8 +1413,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, PutImageData_PartialCoverage) {
   Context2D()->putImageData(partial_image_data_.Get(), 0, 0, exception_state);
 
   // `putImageData` isn't included in the recording, keeping it empty.
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
-              Eq(std::nullopt));
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther), Eq(std::nullopt));
 
   // `putImageData` overdraw isn't handled by
   // `BaseRenderingContext2D::CheckOverdraw` like other draw operations, so the
@@ -1439,7 +1432,7 @@ TEST_P(CanvasRenderingContext2DTest, Path_FullCoverage) {
   Context2D()->rect(-1, -1, 12, 12);
   Context2D()->fill();
 
-  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kTesting),
+  EXPECT_THAT(Context2D()->FlushCanvas(FlushReason::kOther),
               Optional(RecordedOpsAre(PaintOpIs<DrawRectOp>(),
                                       PaintOpIs<DrawPathOp>())));
   EXPECT_THAT(histogram_tester, OverdrawOpAre());
@@ -1804,10 +1797,8 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, GetImage) {
 
   // Verify that CanvasRenderingContext2D::GetImage() creates an accelerated
   // image given that the underlying CanvasResourceProvider does so.
-  EXPECT_TRUE(Context2D()
-                  ->GetImage(FlushReason::kTesting)
-                  ->PaintImageForCurrentFrame()
-                  .IsTextureBacked());
+  EXPECT_TRUE(
+      Context2D()->GetImage()->PaintImageForCurrentFrame().IsTextureBacked());
 
   // The GetImage() call should have preserved the rasterization mode as well as
   // the validity of the resource.
@@ -2007,11 +1998,11 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, GetImageAfterContextLoss) {
   ASSERT_TRUE(SetUpFullAccelerationAndCcLayer(CanvasElement(), Context2D()));
 
   EXPECT_TRUE(Context2D()->IsResourceProviderValid());
-  EXPECT_TRUE(Context2D()->GetImage(FlushReason::kTesting));
+  EXPECT_TRUE(Context2D()->GetImage());
 
   test_context_provider_->GetTestRasterInterface()->set_context_lost(true);
 
-  EXPECT_FALSE(Context2D()->GetImage(FlushReason::kTesting));
+  EXPECT_FALSE(Context2D()->GetImage());
 }
 
 TEST_P(CanvasRenderingContext2DTestAccelerated,
@@ -3169,7 +3160,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
 
   // Taking a snapshot of the canvas while hibernating should produce an
   // unaccelerated image.
-  EXPECT_FALSE(Context2D()->GetImage(FlushReason::kTesting)->IsTextureBacked());
+  EXPECT_FALSE(Context2D()->GetImage()->IsTextureBacked());
 
   // The action of taking the snapshot should not have impacted the state of
   // hibernation.
@@ -3221,7 +3212,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, HibernationWithUnclosedLayer) {
   // when getting out of hibernation, so this mock will not see the later calls
   // to `RasterRecord`.
   cc::PaintRecord hibernation_raster;
-  EXPECT_CALL(*provider, Snapshot(FlushReason::kOther, _)).Times(1);
+  EXPECT_CALL(*provider, Snapshot(_)).Times(1);
   EXPECT_CALL(*provider, RasterRecord)
       .Times(1)
       .WillOnce(SaveArg<0>(&hibernation_raster));
@@ -3272,7 +3263,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, HibernationWithUnclosedLayer) {
 
   // Post hibernation recording now holds the layer content.
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(DrawRecordOpEq(
           PaintOpEq<SaveLayerAlphaOp>(1.0f),
           PaintOpEq<DrawRectOp>(SkRect::MakeXYWH(1, 1, 1, 1), FillFlags()),
@@ -3372,7 +3363,7 @@ TEST_P(CanvasRenderingContext2DTest, FlushRestoresClipStack) {
 
   // Flush the canvas and verify that a new drawing canvas is created that has
   // the transform restored.
-  EXPECT_TRUE(Context2D()->FlushCanvas(FlushReason::kTesting));
+  EXPECT_TRUE(Context2D()->FlushCanvas(FlushReason::kOther));
   EXPECT_EQ(Canvas().getLocalToDevice().rc(0, 3), 5);
 }
 
@@ -3442,7 +3433,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   // resulting raster is drawn into the the new CPU surface. We are only left
   // with the paint ops that could not be rasterized.
   EXPECT_THAT(
-      Context2D()->FlushCanvas(FlushReason::kTesting),
+      Context2D()->FlushCanvas(FlushReason::kOther),
       Optional(RecordedOpsAre(
           PaintOpEq<SaveOp>(),
           DrawRecordOpEq(PaintOpEq<SaveLayerAlphaOp>(1.0f),
@@ -3550,12 +3541,12 @@ TEST_P(CanvasRenderingContext2DTestImageChromium, LowLatencyIsSingleBuffered) {
   EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
   auto frame1_resource =
       Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kTesting);
+          FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource =
       Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kTesting);
+          FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }
@@ -3594,12 +3585,12 @@ TEST_P(CanvasRenderingContext2DTestSwapChain, LowLatencyIsSingleBuffered) {
   EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider()->IsSingleBuffered());
   auto frame1_resource =
       Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kTesting);
+          FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource =
       Context2D()->GetOrCreateResourceProvider()->ProduceCanvasResource(
-          FlushReason::kTesting);
+          FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }

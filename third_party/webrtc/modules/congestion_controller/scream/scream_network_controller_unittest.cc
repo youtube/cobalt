@@ -272,29 +272,33 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   Environment env = CreateTestEnvironment({.time = &clock});
   CcFeedbackGenerator feedback_generator(
       {.network_config = {.queue_delay_ms = 10,
-                          .link_capacity = DataRate::KilobitsPerSec(5000)},
+                          .link_capacity = DataRate::KilobitsPerSec(15000)},
        .send_as_ect1 = true});
 
   NetworkControllerConfig config(env);
   ScreamNetworkController scream_controller(config);
 
   StreamsConfig streams_config;
-  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(5000);
   scream_controller.OnStreamsConfig(streams_config);
 
   Timestamp padding_start_1 = Timestamp::Zero();
   Timestamp padding_start_2 = Timestamp::Zero();
   Timestamp padding_stop = Timestamp::Zero();
   Timestamp start_time = clock.CurrentTime();
+
+  DataRate send_rate = DataRate::KilobitsPerSec(50);
+  DataRate padding_rate = DataRate::Zero();
   while (clock.CurrentTime() < start_time + TimeDelta::Seconds(20)) {
-    // Use a fixed send rate. This should mean that Scream cant increase target
-    // rate to 1Mbit/S.
+    // Use a send rate much lower than the target rate just to ramp up very slow
+    // to be able to test that padding stops and resumes.
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
-            /*send_rate=*/DataRate::KilobitsPerSec(50), clock);
+            send_rate + padding_rate / 4, clock);
     NetworkControlUpdate update =
         scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.pacer_config.has_value()) {
+      padding_rate = update.pacer_config->pad_rate();
       if (update.pacer_config->pad_rate() != DataRate::Zero()) {
         if (padding_start_1.IsZero()) {
           padding_start_1 = clock.CurrentTime();

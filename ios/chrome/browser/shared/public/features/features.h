@@ -142,9 +142,6 @@ enum class TipsSafeBrowsingExperimentType {
 // Feature flag to enable Shared Highlighting (Link to Text).
 BASE_DECLARE_FEATURE(kSharedHighlightingIOS);
 
-// Feature flag to enable Share button in web context menu in iOS.
-BASE_DECLARE_FEATURE(kShareInWebContextMenuIOS);
-
 // Feature flag to log metrics for the edit menu.
 BASE_DECLARE_FEATURE(kIOSBrowserEditMenuMetrics);
 
@@ -763,10 +760,6 @@ BASE_DECLARE_FEATURE(kChromeStartupParametersAsync);
 // incognito.
 BASE_DECLARE_FEATURE(kYoutubeIncognito);
 
-// Feature flag to have share extension item shared per profile.
-// DO NOT CHECK DIRECTLY, use IsShareExtensionForMultiprofileEnabled().
-BASE_DECLARE_FEATURE(kShareExtensionForMultiprofile);
-
 // Feature param to specify whether the youtube incognito handling is done
 // without the incognito interstitial.
 extern const char
@@ -1167,16 +1160,41 @@ BASE_DECLARE_FEATURE(kLocationBarBadgeMigration);
 // Returns true if the LocationBarBadgeMigration feature is enabled.
 bool IsLocationBarBadgeMigrationEnabled();
 
-// Enables the IOSFusebox feature.
-BASE_DECLARE_FEATURE(kIOSFusebox);
-
-// Returns true if the IOSFusebox feature is enabled.
-bool IsIOSFuseboxEnabled();
-
 // Enables the Composebox feature.
 BASE_DECLARE_FEATURE(kComposeboxIOS);
 
 // Returns true if the Composebox feature is enabled.
 bool IsComposeboxIOSEnabled();
+
+// The feature to enable or disable the group color on the tab group and tab
+// grid surfaces.
+BASE_DECLARE_FEATURE(kTabGroupColorOnSurface);
+
+// Returns true if the TabGroupColorOnSurface feature is enabled.
+bool IsTabGroupColorOnSurfaceEnabled();
+
+// Enables the AIMEligibilityServiceStartWithProfile feature.
+BASE_DECLARE_FEATURE(kAIMEligibilityServiceStartWithProfile);
+
+// Returns true if the AIMEligibilityServiceStartWithProfile feature is enabled.
+bool IsAIMEligibilityServiceStartWithProfileEnabled();
+
+// Enables the AIMNTPEntrypointTablet feature.
+BASE_DECLARE_FEATURE(kAIMNTPEntrypointTablet);
+
+// Returns true if the AIMNTPEntrypointTablet feature is enabled.
+bool IsAIMNTPEntrypointTabletEnabled();
+
+// Enables the AIMEligibilityRefreshNTPModules feature.
+BASE_DECLARE_FEATURE(kAIMEligibilityRefreshNTPModules);
+
+// Returns true if the AIMEligibilityRefreshNTPModules feature is enabled.
+bool IsAIMEligibilityRefreshNTPModulesEnabled();
+
+// Enables the IOSWebContextMenuNewTitle feature.
+BASE_DECLARE_FEATURE(kIOSWebContextMenuNewTitle);
+
+// Returns true if the IOSWebContextMenuNewTitle feature is enabled.
+bool IsIOSWebContextMenuNewTitleEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

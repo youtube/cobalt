@@ -56,7 +56,7 @@ const char kChromeOpened[] = "chrome_opened";
 const char kIncognitoTabOpened[] = "incognito_tab_opened";
 const char kClearedBrowsingData[] = "cleared_browsing_data";
 const char kViewedReadingList[] = "viewed_reading_list";
-const char kViewedWhatsNew[] = "viewed_whats_new_m139";
+const char kViewedWhatsNew[] = "viewed_whats_new_m143";
 const char kTriggeredTranslateInfobar[] = "triggered_translate_infobar";
 const char kBottomToolbarOpened[] = "bottom_toolbar_opened";
 const char kDiscoverFeedLoaded[] = "discover_feed_loaded";
@@ -146,8 +146,6 @@ const char kMadeForIOSPromoTrigger[] = "made_for_ios_promo_trigger";
 const char kStaySafePromoTrigger[] = "stay_safe_promo_trigger";
 const char kTailoredDefaultBrowserPromosGroupTrigger[] =
     "tailored_default_browser_promos_group_trigger";
-const char kDefaultBrowserPromoTriggerCriteriaConditionsMet[] =
-    "default_browser_promo_trigger_criteria_conditions_met";
 const char kIOSContextualPanelSampleModelEntrypointUsed[] =
     "ios_contextual_panel_sample_model_entrypoint_used";
 const char kIOSContextualPanelPriceInsightsEntrypointUsed[] =
@@ -184,6 +182,8 @@ const char kIOSIPHBadgedReaderModeTriggered[] =
     "ios_iph_badged_reader_mode_triggered";
 const char kIOSAIHubNewBadgeTriggered[] = "ios_new_ai_hub_badge_triggered";
 const char kIOSAIHubNewBadgeUsed[] = "ios_new_ai_hub_badge_used";
+const char kIOSFullscreenPromosGroupTrigger[] =
+    "fullscreen_promos_group_trigger";
 const char kIOSGeminiContextualCueChipTriggered[] =
     "ios_gemini_contextual_cue_chip_triggered";
 const char kIOSGeminiContextualCueChipUsed[] =
@@ -194,6 +194,11 @@ const char kIOSGeminiEligiblity[] = "ios_gemini_eligiblity";
 const char kIOSIPHReaderModeOptionsUsed[] = "ios_iph_reader_mode_options_used";
 const char kIOSIPHReaderModeOptionsTriggered[] =
     "ios_iph_reader_mode_options_triggered";
+const char kIOSGeminiFullscreenPromoTriggered[] =
+    "ios_gemini_fullscreen_promo_triggered";
+const char kIOSGeminiFlowStartedNonPromo[] =
+    "ios_gemini_flow_started_non_promo";
+const char kIOSGeminiConsentGiven[] = "ios_gemini_consent_given";
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)

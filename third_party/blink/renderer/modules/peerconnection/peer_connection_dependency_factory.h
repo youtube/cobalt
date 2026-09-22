@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_PEER_CONNECTION_DEPENDENCY_FACTORY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_PEER_CONNECTION_DEPENDENCY_FACTORY_H_
 
-#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -21,7 +20,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/api/async_dns_resolver.h"
@@ -78,15 +76,11 @@ enum class LocalNetworkAccessRequestType {
 // Object factory for RTC PeerConnections.
 class MODULES_EXPORT PeerConnectionDependencyFactory
     : public GarbageCollected<PeerConnectionDependencyFactory>,
-      public Supplement<ExecutionContext>,
       public ExecutionContextLifecycleObserver {
   USING_PRE_FINALIZER(PeerConnectionDependencyFactory,
                       CleanupPeerConnectionFactory);
 
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kPeerConnectionDependencyFactory;
-
   static PeerConnectionDependencyFactory& From(ExecutionContext& context);
   PeerConnectionDependencyFactory(
       ExecutionContext& context,
@@ -218,6 +212,8 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
       std::unique_ptr<IpcNetworkManager> network_manager,
       base::WaitableEvent* event);
   void CleanupPeerConnectionFactory();
+
+  Member<ExecutionContext> execution_context_;
 
   void DoGetDevtoolsToken(
       base::OnceCallback<void(std::optional<base::UnguessableToken>)> then);

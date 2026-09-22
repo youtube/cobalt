@@ -28,6 +28,10 @@
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 using base::test::FeatureRef;
 
 namespace glic {
@@ -48,8 +52,14 @@ class GlicEnablingTest : public InProcessBrowserTest {
  protected:
   virtual void InitializeFeatureList() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kGlic, features::kTabstripComboButton,
-         features::kGlicRollout},
+        {
+            features::kGlic,
+            features::kTabstripComboButton,
+            features::kGlicRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
         {});
   }
 
@@ -77,7 +87,8 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingTest, AttributeEntryUpdatesOnChange) {
   ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
 
   ProfileAttributesEntry* entry =
-      attributes_storage().GetAllProfilesAttributes().front();
+      attributes_storage().GetProfileAttributesWithPath(profile()->GetPath());
+  ASSERT_TRUE(entry);
   EXPECT_FALSE(entry->IsGlicEligible());
 
   // Setting the model execution capability updates the glic AttributeEntry.
@@ -92,8 +103,14 @@ class GlicEnablingTieredRolloutTest : public GlicEnablingTest {
  public:
   void InitializeFeatureList() override {
     scoped_feature_list_.InitWithFeatures(
-        {features::kGlic, features::kTabstripComboButton,
-         features::kGlicTieredRollout},
+        {
+            features::kGlic,
+            features::kTabstripComboButton,
+            features::kGlicTieredRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
         {features::kGlicRollout});
   }
   ~GlicEnablingTieredRolloutTest() override = default;
@@ -153,8 +170,16 @@ class GlicEnablingSimultaneousRolloutTest
  public:
   void InitializeFeatureList() override {
     scoped_feature_list_.InitWithFeatures(
-        {features::kGlic, features::kTabstripComboButton,
-         features::kGlicTieredRollout, features::kGlicRollout},
+        {
+            features::kGlic,
+            features::kTabstripComboButton,
+            features::kGlicTieredRollout,
+            features::kGlicRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+        },
         {});
   }
   ~GlicEnablingSimultaneousRolloutTest() override = default;
@@ -176,6 +201,8 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
         GlicTieredRolloutEnablementStatus::kAllProfilesEnabled, 1);
   }
 
+  // ChromeOS does not support multiple profiles.
+#if !BUILDFLAG(IS_CHROMEOS)
   // Add another profile and have it signed in. The default value for
   // tiered rollout is false but this profile is enabled via the general
   // GlicRollout flag and canUseModelExecutionFeatures check.
@@ -193,6 +220,7 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
         "Glic.TieredRolloutEnablementStatus",
         GlicTieredRolloutEnablementStatus::kSomeProfilesEnabled, 1);
   }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   // Primary profile no longer eligible for tiered rollout. Should not have
   // effect on overall enablement, but will have an effect on the histogram

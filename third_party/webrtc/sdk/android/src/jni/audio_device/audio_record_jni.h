@@ -17,6 +17,7 @@
 #include <cstdint>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
@@ -52,6 +53,7 @@ class AudioRecordJni : public AudioInput {
       const jni_zero::JavaRef<jobject>& j_audio_manager);
 
   AudioRecordJni(JNIEnv* env,
+                 const Environment& webrtc_env,
                  const AudioParameters& audio_parameters,
                  int total_delay_ms,
                  const jni_zero::JavaRef<jobject>& j_webrtc_audio_record);
@@ -97,6 +99,7 @@ class AudioRecordJni : public AudioInput {
                       int64_t capture_timestamp_ns);
 
  private:
+  const Environment webrtc_env_;
   // Stores thread ID in constructor.
   SequenceChecker thread_checker_;
 

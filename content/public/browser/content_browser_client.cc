@@ -420,7 +420,7 @@ bool ContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-bool ContentBrowserClient::IsInitialWebUIScheme(const GURL& url) {
+bool ContentBrowserClient::IsInitialWebUIURL(const GURL& url) {
   return false;
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -1886,11 +1886,6 @@ void ContentBrowserClient::PreferenceRankVideoDeviceInfos(
     BrowserContext* browser_context,
     blink::WebMediaDeviceInfoArray& infos) {}
 
-network::mojom::IpProtectionProxyBypassPolicy
-ContentBrowserClient::GetIpProtectionProxyBypassPolicy() {
-  return network::mojom::IpProtectionProxyBypassPolicy::kNone;
-}
-
 void ContentBrowserClient::MaybePrewarmHttpDiskCache(
     BrowserContext& browser_context,
     const std::optional<url::Origin>& initiator_origin,
@@ -2066,5 +2061,10 @@ blink::mojom::PerformanceTier ContentBrowserClient::GetCpuPerformanceTier() {
 }
 
 void ContentBrowserClient::RecordAssistedLogin(AssistedLoginType login_type) {}
+
+std::optional<bool> ContentBrowserClient::GetOverrideValueForStaticStorageQuota(
+    BrowserContext* browser_context) {
+  return std::nullopt;
+}
 
 }  // namespace content

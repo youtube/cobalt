@@ -10,8 +10,11 @@
 
 #include "net/dcsctp/public/dcsctp_socket_factory.h"
 
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "net/dcsctp/public/dcsctp_options.h"
@@ -31,4 +34,11 @@ std::unique_ptr<DcSctpSocketInterface> DcSctpSocketFactory::Create(
   return std::make_unique<DcSctpSocket>(log_prefix, callbacks,
                                         std::move(packet_observer), options);
 }
+
+std::vector<uint8_t> DcSctpSocketFactory::GenerateConnectionToken(
+    const DcSctpOptions& options,
+    std::function<uint32_t(uint32_t low, uint32_t high)> get_random_uint32) {
+  return DcSctpSocket::GenerateConnectionToken(options, get_random_uint32);
+}
+
 }  // namespace dcsctp

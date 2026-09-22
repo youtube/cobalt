@@ -134,21 +134,10 @@ void StreamResetHandler::HandleReConfig(ReConfigChunk chunk) {
   }
 }
 
-bool StreamResetHandler::ValidateReqSeqNbr(
-    UnwrappedReconfigRequestSn req_seq_nbr,
-    std::vector<ReconfigurationResponseParameter>& responses) {
+StreamResetHandler::ReqSeqNbrValidationResult
+StreamResetHandler::ValidateReqSeqNbr(UnwrappedReconfigRequestSn req_seq_nbr) {
   if (req_seq_nbr == last_processed_req_seq_nbr_) {
-    // https://www.rfc-editor.org/rfc/rfc6525.html#section-5.2.1 "If the
-    // received RE-CONFIG chunk contains at least one request and based on the
-    // analysis of the Re-configuration Request Sequence Numbers this is the
-    // last received RE-CONFIG chunk (i.e., a retransmission), the same
-    // RE-CONFIG chunk MUST to be sent back in response, as it was earlier."
-    RTC_DLOG(LS_VERBOSE) << log_prefix_ << "req=" << *req_seq_nbr
-                         << " already processed, returning result="
-                         << ToString(last_processed_req_result_);
-    responses.push_back(ReconfigurationResponseParameter(
-        req_seq_nbr.Wrap(), last_processed_req_result_));
-    return false;
+    return ReqSeqNbrValidationResult::kRetransmission;
   }
 
   if (req_seq_nbr != last_processed_req_seq_nbr_.next_value()) {
@@ -159,12 +148,10 @@ bool StreamResetHandler::ValidateReqSeqNbr(
     // during a handover.
     RTC_DLOG(LS_VERBOSE) << log_prefix_ << "req=" << *req_seq_nbr
                          << " bad seq_nbr";
-    responses.push_back(ReconfigurationResponseParameter(
-        req_seq_nbr.Wrap(), ResponseResult::kErrorBadSequenceNumber));
-    return false;
+    return ReqSeqNbrValidationResult::kBadSequenceNumber;
   }
 
-  return true;
+  return ReqSeqNbrValidationResult::kValid;
 }
 
 void StreamResetHandler::HandleResetOutgoing(
@@ -182,43 +169,63 @@ void StreamResetHandler::HandleResetOutgoing(
       incoming_reconfig_request_sn_unwrapper_.Unwrap(
           req->request_sequence_number());
 
-  if (ValidateReqSeqNbr(request_sn, responses)) {
-    last_processed_req_seq_nbr_ = request_sn;
-    if (data_tracker_->IsLaterThanCumulativeAckedTsn(
-            req->sender_last_assigned_tsn())) {
-      // https://datatracker.ietf.org/doc/html/rfc6525#section-5.2.2
-      // E2) "If the Sender's Last Assigned TSN is greater than the cumulative
-      // acknowledgment point, then the endpoint MUST enter 'deferred reset
-      // processing'."
-      reassembly_queue_->EnterDeferredReset(req->sender_last_assigned_tsn(),
-                                            req->stream_ids());
-      // "If the endpoint enters 'deferred reset processing', it MUST put a
-      // Re-configuration Response Parameter into a RE-CONFIG chunk indicating
-      // 'In progress' and MUST send the RE-CONFIG chunk.
-      last_processed_req_result_ = ResponseResult::kInProgress;
-      RTC_DLOG(LS_VERBOSE) << log_prefix_
-                           << "Reset outgoing; Sender last_assigned="
-                           << *req->sender_last_assigned_tsn()
-                           << " - not yet reached -> InProgress";
-    } else {
-      // https://datatracker.ietf.org/doc/html/rfc6525#section-5.2.2
-      // E3) If no stream numbers are listed in the parameter, then all incoming
-      // streams MUST be reset to 0 as the next expected SSN. If specific stream
-      // numbers are listed, then only these specific streams MUST be reset to
-      // 0, and all other non-listed SSNs remain unchanged. E4: Any queued TSNs
-      // (queued at step E2) MUST now be released and processed normally.
-      reassembly_queue_->ResetStreamsAndLeaveDeferredReset(req->stream_ids());
-      ctx_->callbacks().OnIncomingStreamsReset(req->stream_ids());
-      last_processed_req_result_ = ResponseResult::kSuccessPerformed;
+  ReqSeqNbrValidationResult validation_result = ValidateReqSeqNbr(request_sn);
 
-      RTC_DLOG(LS_VERBOSE) << log_prefix_
-                           << "Reset outgoing; Sender last_assigned="
-                           << *req->sender_last_assigned_tsn()
-                           << " - reached -> SuccessPerformed";
-    }
+  if (validation_result == ReqSeqNbrValidationResult::kBadSequenceNumber) {
+    responses.push_back(ReconfigurationResponseParameter(
+        req->request_sequence_number(),
+        ResponseResult::kErrorBadSequenceNumber));
+    return;
+  }
+
+  // If this is a retransmission of a request that has already been finalized
+  // (i.e., not "In Progress"), just send the previous final response.
+  if (validation_result == ReqSeqNbrValidationResult::kRetransmission &&
+      last_processed_req_result_ != ResponseResult::kInProgress) {
     responses.push_back(ReconfigurationResponseParameter(
         req->request_sequence_number(), last_processed_req_result_));
+    return;
   }
+
+  // At this point, the request is either brand new, a buggy client sending
+  // a new SN after "In Progress", or a compliant client retransmitting an
+  // "In Progress" request. In all cases, re-evaluate the state.
+  last_processed_req_seq_nbr_ = request_sn;
+  if (data_tracker_->IsLaterThanCumulativeAckedTsn(
+          req->sender_last_assigned_tsn())) {
+    // https://datatracker.ietf.org/doc/html/rfc6525#section-5.2.2
+    // E2) "If the Sender's Last Assigned TSN is greater than the cumulative
+    // acknowledgment point, then the endpoint MUST enter 'deferred reset
+    // processing'."
+    reassembly_queue_->EnterDeferredReset(req->sender_last_assigned_tsn(),
+                                          req->stream_ids());
+    // "If the endpoint enters 'deferred reset processing', it MUST put a
+    // Re-configuration Response Parameter into a RE-CONFIG chunk indicating
+    // 'In progress' and MUST send the RE-CONFIG chunk.
+    last_processed_req_result_ = ResponseResult::kInProgress;
+    RTC_DLOG(LS_VERBOSE) << log_prefix_
+                         << "Reset outgoing; Sender last_assigned="
+                         << *req->sender_last_assigned_tsn()
+                         << " - not yet reached -> InProgress";
+  } else {
+    // https://datatracker.ietf.org/doc/html/rfc6525#section-5.2.2
+    // E3) If no stream numbers are listed in the parameter, then all incoming
+    // streams MUST be reset to 0 as the next expected SSN. If specific stream
+    // numbers are listed, then only these specific streams MUST be reset to
+    // 0, and all other non-listed SSNs remain unchanged. E4: Any queued TSNs
+    // (queued at step E2) MUST now be released and processed normally.
+    reassembly_queue_->ResetStreamsAndLeaveDeferredReset(req->stream_ids());
+    ctx_->callbacks().OnIncomingStreamsReset(req->stream_ids());
+    last_processed_req_result_ = ResponseResult::kSuccessPerformed;
+
+    RTC_DLOG(LS_VERBOSE) << log_prefix_
+                         << "Reset outgoing; Sender last_assigned="
+                         << *req->sender_last_assigned_tsn()
+                         << " - reached -> SuccessPerformed";
+  }
+
+  responses.push_back(ReconfigurationResponseParameter(
+      req->request_sequence_number(), last_processed_req_result_));
 }
 
 void StreamResetHandler::HandleResetIncoming(
@@ -235,11 +242,17 @@ void StreamResetHandler::HandleResetIncoming(
   UnwrappedReconfigRequestSn request_sn =
       incoming_reconfig_request_sn_unwrapper_.Unwrap(
           req->request_sequence_number());
-
-  if (ValidateReqSeqNbr(request_sn, responses)) {
+  ReqSeqNbrValidationResult validation_result = ValidateReqSeqNbr(request_sn);
+  if (validation_result == ReqSeqNbrValidationResult::kValid ||
+      validation_result == ReqSeqNbrValidationResult::kRetransmission) {
     responses.push_back(ReconfigurationResponseParameter(
         req->request_sequence_number(), ResponseResult::kSuccessNothingToDo));
     last_processed_req_seq_nbr_ = request_sn;
+    last_processed_req_result_ = ResponseResult::kSuccessNothingToDo;
+  } else {
+    responses.push_back(ReconfigurationResponseParameter(
+        req->request_sequence_number(),
+        ResponseResult::kErrorBadSequenceNumber));
   }
 }
 

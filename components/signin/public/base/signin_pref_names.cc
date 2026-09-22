@@ -123,6 +123,11 @@ const char kHistorySyncLastDeclinedTimestamp[] =
 const char kHistorySyncSuccessiveDeclineCount[] =
     "signin.history_sync.successive_decline_count";
 
+// An integer preference to store the number of times the history sync promo
+// has been shown on the history page.
+const char kHistoryPageHistorySyncPromoShownCount[] =
+    "history.sync_promo_shown_count";
+
 #if BUILDFLAG(IS_IOS)
 // List of patterns to determine the account visibility, according to the
 // "RestrictAccountsToPatterns" policy. Note that the policy also exists on
@@ -152,6 +157,18 @@ const char kSigninAllowedOnNextStartup[] = "signin.allowed_on_next_startup";
 // newly created profile via signin interception.
 const char kSigninInterceptionIDPCookiesUrl[] =
     "signin.interception.idp_cookies.url";
+
+// Integer pref to store the number of times the address bubble signin promo
+// has been shown per profile while the user is signed out used for
+// SigninPromoLimitsExperiment.
+const char kAddressSignInPromoShownCountPerProfileForLimitsExperiment[] =
+    "signin.AddressSignInPromoShownCountForLimitsExperiment";
+
+// Integer pref to store the number of times the password bubble signin promo
+// has been shown per profile while the user is signed out used for
+// SigninPromoLimitsExperiment.
+const char kPasswordSignInPromoShownCountPerProfileForLimitsExperiment[] =
+    "signin.PasswordSignInPromoShownCountForLimitsExperiment";
 
 // Integer which indicates whether enterprise profile separation is enforced or
 // disabled.

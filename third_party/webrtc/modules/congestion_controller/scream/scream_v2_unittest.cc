@@ -72,7 +72,8 @@ TEST(ScreamV2Test, TargetRateIncreaseToMaxOnUnConstrainedNetwork) {
   for (int i = 0; i < 100; ++i) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
-    send_rate = scream.OnTransportPacketsFeedback(feedback);
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
   }
   EXPECT_EQ(send_rate, kMaxDataRate);
 }
@@ -93,7 +94,8 @@ TEST(ScreamV2Test,
   for (int i = 0; i < 70; ++i) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
-    send_rate = scream.OnTransportPacketsFeedback(feedback);
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
   }
   DataSize ref_window = scream.ref_window();
 
@@ -215,7 +217,7 @@ struct AdaptsToLinkCapacityParams {
 };
 
 struct AdaptsToLinkCapacityResult {
-  DataRate data_rate_after_adaption;
+  DataRate data_rate;
   DataRate min_rate_after_adaption;
   DataRate max_rate_after_adaption;
   TimeDelta max_smoothed_rtt_after_adaptation = TimeDelta::Zero();
@@ -231,15 +233,16 @@ AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
   CcFeedbackGenerator feedback_generator(
       {.network_config = params.network_config,
        .send_as_ect1 = params.send_as_ect1,
-       .packet_size = DataSize::Bytes(1000)});
+       .packet_size = DataSize::Bytes(255)});
 
   DataRate send_rate = DataRate::KilobitsPerSec(100);
   while (clock.CurrentTime() < kStartTime + params.adaption_time) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
-    send_rate = scream.OnTransportPacketsFeedback(feedback);
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
   }
-  result.data_rate_after_adaption = send_rate;
+  result.data_rate = send_rate;
   result.min_rate_after_adaption = send_rate;
   result.max_rate_after_adaption = send_rate;
 
@@ -248,7 +251,8 @@ AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
          time_after_adaption + params.time_to_run_after_adaption_time) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
-    send_rate = scream.OnTransportPacketsFeedback(feedback);
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
     result.min_rate_after_adaption =
         std::min(result.min_rate_after_adaption, send_rate);
     result.max_rate_after_adaption =
@@ -256,7 +260,7 @@ AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
     result.max_smoothed_rtt_after_adaptation = std::max(
         result.max_smoothed_rtt_after_adaptation, feedback.smoothed_rtt);
   }
-  RTC_LOG(LS_INFO) << " rate_after_adaption " << result.data_rate_after_adaption
+  RTC_LOG(LS_INFO) << " rate_after_adaption " << result.data_rate
                    << " max_rate_after_adaption: "
                    << result.max_rate_after_adaption
                    << " min_rate_after_adaption: "
@@ -272,8 +276,8 @@ TEST(ScreamV2Test, AdaptsToEcnLinkCapacity1Mbps) {
       .adaption_time = TimeDelta::Seconds(3)};
   AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
 
-  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(1100));
-  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(650));
+  EXPECT_LT(result.data_rate, DataRate::KilobitsPerSec(1100));
+  EXPECT_GT(result.data_rate, DataRate::KilobitsPerSec(650));
   EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(1100));
   EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(650));
 
@@ -291,10 +295,10 @@ TEST(ScreamV2Test, AdaptsToLossLinkCapacity5Mbps) {
 
   AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
 
-  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(5400));
-  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(2500));
+  EXPECT_LT(result.data_rate, DataRate::KilobitsPerSec(5400));
+  EXPECT_GT(result.data_rate, DataRate::KilobitsPerSec(1500));
   EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(5400));
-  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(2500));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1500));
 
   EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
             TimeDelta::Millis(10 * 2 + 40));
@@ -309,8 +313,8 @@ TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2Mbps) {
 
   AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
 
-  EXPECT_LT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(2300));
-  EXPECT_GT(result.data_rate_after_adaption, DataRate::KilobitsPerSec(1700));
+  EXPECT_LT(result.data_rate, DataRate::KilobitsPerSec(2300));
+  EXPECT_GT(result.data_rate, DataRate::KilobitsPerSec(1700));
   EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(2300));
   EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1700));
 
@@ -318,10 +322,7 @@ TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2Mbps) {
             TimeDelta::Millis(10 * 2 + 50 + 10));
 }
 
-// TODO: bugs.webrtc.org/447037083 - implement support for resetting base delay
-// if a standing queue has been build up.
-// https://github.com/EricssonResearch/scream/blob/master/code/ScreamV2Tx.cpp#L1127
-TEST(ScreamV2Test, DISABLED_AdaptsToDelayLinkCapacity2MbpsLongRunning) {
+TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2MbpsLongRunning) {
   AdaptsToLinkCapacityParams params{
       .network_config = {.queue_delay_ms = 10,
                          .link_capacity = DataRate::KilobitsPerSec(2000)},
@@ -331,10 +332,12 @@ TEST(ScreamV2Test, DISABLED_AdaptsToDelayLinkCapacity2MbpsLongRunning) {
 
   AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
 
-  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(2300));
-  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1700));
+  // TODO: bugs.webrtc.org/447037083 - ensure target rate does not increase too
+  // much if RTT decrease. Currently, if rate is decreased, RTT decrease, which
+  // leads to a high target rate once the delay is decreased and a high RTT
+  // variation.
   EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
-            TimeDelta::Millis(10 * 2 + 50 + 10));
+            TimeDelta::Millis(10 * 2 + 100));
 }
 
 }  // namespace

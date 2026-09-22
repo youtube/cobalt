@@ -387,6 +387,7 @@ rtc_source_set("payload_type") {
     "../api:rtc_error",
     "../media:codec",
     "../rtc_base:strong_alias",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 

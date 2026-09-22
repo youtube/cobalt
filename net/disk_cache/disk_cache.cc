@@ -469,9 +469,9 @@ uint8_t Backend::GetEntryInMemoryData(const std::string& key) {
   return 0;
 }
 
-void Backend::SetEntryInMemoryData(const std::string& key, uint8_t data) {}
-
 void Backend::OnBrowserIdle() {}
+
+void Entry::SetEntryInMemoryData(uint8_t data) {}
 
 EntryResult::EntryResult() = default;
 EntryResult::~EntryResult() = default;
@@ -682,6 +682,10 @@ std::unique_ptr<UnboundBackendFileOperations> TrivialFileOperations::Unbind() {
   bound_ = false;
 #endif
   return std::make_unique<UnboundTrivialFileOperations>();
+}
+
+bool TrivialFileOperations::IsEncrypted() const {
+  return false;
 }
 
 TrivialFileOperationsFactory::TrivialFileOperationsFactory() = default;

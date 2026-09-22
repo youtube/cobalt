@@ -3944,9 +3944,10 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&suspend);
@@ -3959,7 +3960,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
+  __ Push(arg_buffer);
   __ Push(cont);
   __ Push(kContextRegister);
   {
@@ -3984,6 +3987,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(kContextRegister);
   cont = kReturnRegister0;
   __ Pop(cont);
+  __ Pop(arg_buffer);
 
   Label ok;
   __ JumpIf(not_equal, target_stack, 0, &ok);
@@ -3995,6 +3999,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Trap();
   __ bind(&resume);
   __ endbr64();
+  __ movq(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(0);
 }
@@ -4639,9 +4644,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
-  Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r15 : no_reg;
 
-  DCHECK(!AreAliased(receiver, holder, callback, scratch, decompr_scratch1));
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
@@ -4653,9 +4657,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4669,15 +4673,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   rsp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   rsp[3 * kSystemPointerSize]: kHolderIndex
   //   rsp[4 * kSystemPointerSize]: kIsolateIndex
-  //   rsp[5 * kSystemPointerSize]: kHolderV2Index
+  //   rsp[5 * kSystemPointerSize]: kUnusedIndex
   //   rsp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   rsp[7 * kSystemPointerSize]: kDataIndex
+  //   rsp[7 * kSystemPointerSize]: kCallbackInfoIndex
   //   rsp[8 * kSystemPointerSize]: kThisIndex / receiver
 
   __ PopReturnAddressTo(scratch);
   __ Push(receiver);
-  __ PushTaggedField(FieldOperand(callback, AccessorInfo::kDataOffset),
-                     decompr_scratch1);
+  __ Push(callback);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // return value
   __ Push(Smi::zero());       // holderV2 value

@@ -24,6 +24,9 @@ ci.defaults.set(
     gardener_rotations = gardener_rotations.CHROMIUM_GPU,
     contact_team_email = "chrome-gpu-infra@google.com",
     execution_timeout = 6 * time.hour,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     health_spec = health_spec.default(),
     properties = {
         "perf_dashboard_machine_group": "ChromiumGPUFYI",
@@ -643,35 +646,8 @@ ci.thin_tester(
             "has_native_resultdb_integration",
             "gpu_samsung_s23_stable",
             "limited_capacity_bot",
+            "no_tombstones",
         ],
-        per_test_modifications = {
-            # Work around failure to clear tombstones on non-rooted devices.
-            "angle_unittests": targets.mixin(
-                args = [
-                    "--do-not-store-tombstones",
-                ],
-            ),
-            "gl_tests_passthrough": targets.mixin(
-                args = [
-                    "--do-not-store-tombstones",
-                ],
-            ),
-            "gl_tests_validating": targets.mixin(
-                args = [
-                    "--do-not-store-tombstones",
-                ],
-            ),
-            "gl_unittests": targets.mixin(
-                args = [
-                    "--do-not-store-tombstones",
-                ],
-            ),
-            "gpu_unittests": targets.mixin(
-                args = [
-                    "--do-not-store-tombstones",
-                ],
-            ),
-        },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.ANDROID_CHROMIUM,
@@ -1982,8 +1958,7 @@ ci.thin_tester(
         # should have the combination of test_suites as 'Mac FYI Retina Release (AMD)'
         # and 'Mac Retina Release (AMD)'.
         targets = [
-            "gpu_fyi_mac_release_gtests",
-            "gpu_fyi_only_mac_release_telemetry_tests",
+            "gpu_noop_sleep_telemetry_test",
         ],
         mixins = [
             "limited_capacity_bot",
@@ -1995,10 +1970,10 @@ ci.thin_tester(
         os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    console_view_entry = consoles.console_view_entry(
-        category = "Mac|AMD|Retina",
-        short_name = "exp",
-    ),
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "Mac|AMD|Retina",
+    #     short_name = "exp",
+    # ),
     list_view = "chromium.gpu.experimental",
 )
 
@@ -2085,6 +2060,48 @@ ci.thin_tester(
     console_view_entry = consoles.console_view_entry(
         category = "Mac|Apple",
         short_name = "m1",
+    ),
+)
+
+ci.thin_tester(
+    name = "Mac FYI Retina Release (AMD Radeon Pro 555X)",
+    description_html = "Runs release GPU tests on 15\" 2019 Macbook Pros w/ AMD Radeon Pro 555X GPUs",
+    parent = "GPU FYI Mac Builder",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+        run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        # Different targets than 'Mac FYI Retina Release (AMD)' since there is
+        # no tester on chromium.gpu running a subset of tests.
+        targets = [
+            "gpu_fyi_mac_release_gtests",
+            "gpu_fyi_only_mac_release_telemetry_tests",
+        ],
+        mixins = [
+            "limited_capacity_bot",
+            "mac_retina_amd_555x_gpu_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "Mac|AMD|Retina",
+        short_name = "555x",
     ),
 )
 

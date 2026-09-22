@@ -68,7 +68,7 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
       absl_nonnull std::unique_ptr<ModelRunner> model_runner);
 
   void Estimate(
-      ArrayView<const float> x,
+      const Block& render,
       ArrayView<const std::array<float, kBlockSize>> y,
       ArrayView<const std::array<float, kBlockSize>> e,
       ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
@@ -80,21 +80,21 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
   EchoCanceller3Config GetConfiguration(bool multi_channel) const override;
 
  private:
-  void DumpInputs();
+  void DumpInputs(const Block& render,
+                  ArrayView<const std::array<float, kBlockSize>> y,
+                  ArrayView<const std::array<float, kBlockSize>> e);
 
   // Encapsulates all ML model invocation work.
   const std::unique_ptr<ModelRunner> model_runner_;
   std::unique_ptr<FeatureExtractor> feature_extractor_;
 
-  // Input buffers for translating from the 4 ms FloatS16 block format of AEC3
-  // to the model scale and frame size.
-  std::vector<float> input_mic_buffer_;
-  std::vector<float> input_linear_aec_output_buffer_;
-  std::vector<float> input_aec_ref_buffer_;
-
   // Downsampled model output for what fraction of the power content in the
   // linear AEC output is echo for each bin.
   std::array<float, kFftLengthBy2Plus1> output_mask_;
+
+  std::vector<ArrayView<const float, kBlockSize>> render_channels_;
+  std::vector<ArrayView<const float, kBlockSize>> y_channels_;
+  std::vector<ArrayView<const float, kBlockSize>> e_channels_;
 
   static int instance_count_;
   // Pointer to a data dumper that is used for debugging purposes.

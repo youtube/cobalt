@@ -15,11 +15,10 @@
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
-#include "rtc_base/sigslot_trampoline.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_adapters.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -28,25 +27,22 @@ class AsyncProxyServerSocket : public BufferedReadAdapter {
  public:
   AsyncProxyServerSocket(Socket* socket, size_t buffer_size);
   ~AsyncProxyServerSocket() override;
-  sigslot::signal2<AsyncProxyServerSocket*, const SocketAddress&>
-      SignalConnectRequest;
 
   void SubscribeConnectRequest(
       absl::AnyInvocable<void(AsyncProxyServerSocket*, const SocketAddress&)>
           callback) {
-    connect_request_trampoline_.Subscribe(std::move(callback));
+    connect_request_callbacks_.AddReceiver(std::move(callback));
   }
   void NotifyConnectRequest(AsyncProxyServerSocket* socket,
                             const SocketAddress& socket_address) {
-    SignalConnectRequest(socket, socket_address);
+    connect_request_callbacks_.Send(socket, socket_address);
   }
 
   virtual void SendConnectResult(int err, const SocketAddress& addr) = 0;
 
  private:
-  SignalTrampoline<AsyncProxyServerSocket,
-                   &AsyncProxyServerSocket::SignalConnectRequest>
-      connect_request_trampoline_;
+  CallbackList<AsyncProxyServerSocket*, const SocketAddress&>
+      connect_request_callbacks_;
 };
 
 // Implements a socket adapter that performs the server side of a

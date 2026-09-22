@@ -13,7 +13,6 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
@@ -236,3 +235,5 @@ void BluetoothSocketAndroid::Accept(AcceptCompletionCallback success_callback,
 }
 
 }  // namespace device
+
+DEFINE_JNI(ChromeBluetoothSocket)

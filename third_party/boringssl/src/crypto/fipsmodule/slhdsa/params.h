@@ -175,7 +175,7 @@ static const slh_dsa_config kSLHDSAConfigSHAKE_256f = {
 };
 
 #if defined(__cplusplus)
-}  // extern "C"
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SLHDSA_PARAMS_H

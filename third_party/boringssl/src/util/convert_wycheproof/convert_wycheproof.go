@@ -289,10 +289,13 @@ var defaultInputs = []string{
 	"x25519_test.json",
 	"xchacha20_poly1305_test.json",
 	"mldsa_44_sign_noseed_test.json",
+	"mldsa_44_sign_seed_test.json",
 	"mldsa_44_verify_test.json",
 	"mldsa_65_sign_noseed_test.json",
+	"mldsa_65_sign_seed_test.json",
 	"mldsa_65_verify_test.json",
 	"mldsa_87_sign_noseed_test.json",
+	"mldsa_87_sign_seed_test.json",
 	"mldsa_87_verify_test.json",
 	// TODO(crbug.com/42290453): Enable ML-KEM-768 and ML-KEM-1024 tests
 	// "mlkem_768_test.json",

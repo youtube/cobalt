@@ -57,9 +57,20 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
       base::RepeatingCallback<void(const TabDataChange&)>;
   base::CallbackListSubscription AddPinnedTabDataChangedCallback(
       PinnedTabDataChangedCallback callback) override;
-  bool PinTabs(base::span<const tabs::TabHandle> tab_handles) override;
-  bool UnpinTabs(base::span<const tabs::TabHandle> tab_handles) override;
-  void UnpinAllTabs() override;
+  using TabPinningStatusEventCallback =
+      base::RepeatingCallback<void(tabs::TabInterface*,
+                                   GlicPinningStatusEvent)>;
+  base::CallbackListSubscription AddTabPinningStatusEventCallback(
+      TabPinningStatusEventCallback callback) override;
+  bool PinTabs(base::span<const tabs::TabHandle> tab_handles,
+               GlicPinTrigger trigger) override;
+  bool UnpinTabs(base::span<const tabs::TabHandle> tab_handles,
+                 GlicUnpinTrigger trigger) override;
+  void UnpinAllTabs(GlicUnpinTrigger trigger) override;
+
+  std::optional<GlicPinnedTabUsage> GetPinnedTabUsage(
+      tabs::TabHandle tab_handle) override;
+
   int32_t GetMaxPinnedTabs() const override;
   int32_t GetNumPinnedTabs() const override;
   bool IsTabPinned(tabs::TabHandle tab_handle) const override;
@@ -76,6 +87,7 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
   void SubscribeToPinCandidates(
       mojom::GetPinCandidatesOptionsPtr options,
       mojo::PendingRemote<mojom::PinCandidatesObserver> observer) override;
+  void OnConversationTurnSubmitted() override;
   GlicFocusedBrowserManagerInterface& focused_browser_manager() override;
   base::WeakPtr<GlicSharingManager> GetWeakPtr() override;
 
@@ -91,6 +103,8 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
   void OnFocusedTabDataChangedCallback(const mojom::TabData* focused_tab_data);
   void OnFocusedBrowserChangedCallback(BrowserWindowInterface* browser_window);
   void OnTabPinningStatusChangedCallback(tabs::TabInterface* tab, bool pinned);
+  void OnTabPinningStatusEventCallback(tabs::TabInterface* tab,
+                                       GlicPinningStatusEvent event);
   void OnPinnedTabsChangedCallback(
       const std::vector<content::WebContents*>& pinnned_tabs);
   void OnPinnedTabDataChangedCallback(const TabDataChange& tab_data_change);
@@ -118,6 +132,8 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
       focused_browser_changed_callback_list_;
   base::RepeatingCallbackList<void(tabs::TabInterface*, bool)>
       tab_pinning_status_changed_callback_list_;
+  base::RepeatingCallbackList<void(tabs::TabInterface*, GlicPinningStatusEvent)>
+      tab_pinning_status_event_callback_list_;
   base::RepeatingCallbackList<void(const std::vector<content::WebContents*>&)>
       pinned_tabs_changed_callback_list_;
   base::RepeatingCallbackList<void(const TabDataChange&)>
@@ -128,6 +144,7 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
   base::CallbackListSubscription focused_tab_data_changed_callback_;
   base::CallbackListSubscription focused_browser_changed_callback_;
   base::CallbackListSubscription tab_pinning_status_changed_callback_;
+  base::CallbackListSubscription tab_pinning_status_event_callback_;
   base::CallbackListSubscription pinned_tabs_changed_callback_;
   base::CallbackListSubscription pinned_tab_data_changed_callback_;
 

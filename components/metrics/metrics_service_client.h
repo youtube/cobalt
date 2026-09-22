@@ -13,7 +13,6 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
-#include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "components/metrics/metrics_log_store.h"
 #include "components/metrics/metrics_log_uploader.h"
@@ -29,6 +28,10 @@ namespace metrics::dwa {
 class DwaService;
 }
 
+namespace metrics::private_metrics {
+class PumaService;
+}
+
 namespace network_time {
 class NetworkTimeTracker;
 }
@@ -36,8 +39,6 @@ class NetworkTimeTracker;
 namespace variations {
 class SyntheticTrialRegistry;
 }
-
-class IdentifiabilityStudyState;
 
 namespace metrics {
 
@@ -75,9 +76,8 @@ class MetricsServiceClient {
   // Returns the DwaService instance that this client is associated with.
   virtual metrics::dwa::DwaService* GetDwaService();
 
-  // Returns the IdentifiabilityStudyState instance that this client is
-  // associated with. Might be nullptr.
-  virtual IdentifiabilityStudyState* GetIdentifiabilityStudyState();
+  // Returns the PumaService instance that this client is associated with.
+  virtual metrics::private_metrics::PumaService* GetPumaService();
 
   // Returns the StructuredMetricsService instance that this client is
   // associated with.

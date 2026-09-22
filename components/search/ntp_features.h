@@ -253,6 +253,14 @@ extern const base::FeatureParam<int> kNtpNextMaxMVTilesBeforeShowMoreParam;
 // text instead of real suggestions.
 extern const base::FeatureParam<bool> kNtpNextShowStaticTextParam;
 
+// Parameter determining if the Action Chips on the NTP should display deep
+// dive suggestions.
+extern const base::FeatureParam<bool> kNtpNextShowDeepDiveSuggestionsParam;
+
+// Parameter determining if the Action Chips on the NTP should display the
+// NTP Simplification UI.
+extern const base::FeatureParam<bool> kNtpNextShowSimplificationUIParam;
+
 // Parameter determining if the tab upload should be delayed when tab context is
 // added from an action chip.
 extern const base::FeatureParam<bool> kAddTabUploadDelayOnActionChipClick;

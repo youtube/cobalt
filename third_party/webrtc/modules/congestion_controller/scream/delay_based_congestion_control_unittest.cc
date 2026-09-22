@@ -108,10 +108,9 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowNotChangedOnLowDelay) {
   delay_controller.OnTransportPacketsFeedback(feedback);
 
   ASSERT_EQ(delay_controller.queue_delay(), TimeDelta::Millis(0));
-  EXPECT_EQ(
-      delay_controller.UpdateReferenceWindow(
-          ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0),
-      ref_window);
+  EXPECT_EQ(delay_controller.UpdateReferenceWindow(
+                ref_window, /*ref_window_mss_ratio=*/1.0),
+            ref_window);
 }
 
 TEST(DelayBasedCongestionControlTest, ReferenceWindowDecreasedOnHighDelay) {
@@ -138,7 +137,7 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowDecreasedOnHighDelay) {
   }
   DataSize ref_window = send_rate * smoothed_rtt;
   DataSize updated_ref_window = delay_controller.UpdateReferenceWindow(
-      ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0);
+      ref_window, /*ref_window_mss_ratio=*/1.0);
   EXPECT_LT(updated_ref_window, 0.98 * ref_window);
   EXPECT_GE(updated_ref_window, 0.5 * ref_window);
 }
@@ -168,8 +167,71 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowNotLowerThanSetMin) {
   // Despite the queue delay, the reference window will not be decreased to a
   // value that would cause the target rate to be below the minimum.
   DataSize updated_ref_window = delay_controller.UpdateReferenceWindow(
-      ref_window, /*ref_window_mss_ratio=*/1.0, /*virtual_alpha_lim=*/1.0);
+      ref_window, /*ref_window_mss_ratio=*/1.0);
   EXPECT_EQ(updated_ref_window, ref_window);
+}
+
+TEST(DelayBasedCongestionControlTest, ResetQueueDelay) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  DelayBasedCongestionControl delay_controller(
+      ScreamV2Parameters(env.field_trials()));
+  CcFeedbackGenerator feedback_generator({
+      .network_config = {.queue_delay_ms = 25,
+                         .link_capacity = DataRate::KilobitsPerSec(100)},
+  });
+
+  Timestamp start_time = clock.CurrentTime();
+  ASSERT_EQ(delay_controller.queue_delay(), TimeDelta::PlusInfinity());
+
+  // Overuse the link during 1s.
+  TimeDelta last_smoothed_rtt;
+  while (clock.CurrentTime() < start_time + TimeDelta::Seconds(1)) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(150), clock);
+    last_smoothed_rtt = feedback.smoothed_rtt;
+    delay_controller.OnTransportPacketsFeedback(feedback);
+  }
+  TimeDelta queue_delay_before_reset = delay_controller.queue_delay();
+  ASSERT_GT(queue_delay_before_reset, TimeDelta::Zero());
+  ASSERT_LT(queue_delay_before_reset, TimeDelta::PlusInfinity());
+
+  delay_controller.ResetQueueDelay();
+  ASSERT_EQ(delay_controller.queue_delay(), TimeDelta::PlusInfinity());
+
+  TransportPacketsFeedback feedback =
+      feedback_generator.ProcessUntilNextFeedback(DataRate::KilobitsPerSec(150),
+                                                  clock);
+  delay_controller.OnTransportPacketsFeedback(feedback);
+  // RTT is still increasing or equal to the last feedback.
+  EXPECT_GE(feedback.smoothed_rtt, last_smoothed_rtt);
+  // But queue delay should be lower.
+  EXPECT_LT(delay_controller.queue_delay(), queue_delay_before_reset);
+}
+
+TEST(DelayBasedCongestionControlTest,
+     IsQueueDrainedInTimeReturnFalseIfLongOverUse) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  DelayBasedCongestionControl delay_controller(
+      ScreamV2Parameters(env.field_trials()));
+  CcFeedbackGenerator feedback_generator({
+      .network_config = {.queue_delay_ms = 25,
+                         .link_capacity = DataRate::KilobitsPerSec(100)},
+  });
+
+  Timestamp start_time = clock.CurrentTime();
+  while (clock.CurrentTime() < start_time + TimeDelta::Seconds(30) &&
+         delay_controller.IsQueueDrainedInTime(clock.CurrentTime())) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(150), clock);
+    delay_controller.OnTransportPacketsFeedback(feedback);
+  }
+  EXPECT_LT(clock.CurrentTime(), start_time + TimeDelta::Seconds(30));
+  EXPECT_GT(clock.CurrentTime(), start_time + TimeDelta::Seconds(10));
+  EXPECT_FALSE(delay_controller.IsQueueDrainedInTime(clock.CurrentTime()));
 }
 
 // TODO: bugs.webrtc.org/447037083 - add tests for clock drift in feedback NTP

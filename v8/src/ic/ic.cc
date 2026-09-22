@@ -985,9 +985,11 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
+      DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
+                                            isolate());
       Tagged<Smi> smi_handler = LoadHandler::LoadInterceptor();
       Handle<LoadHandler> handler = LoadHandler::LoadFromPrototype(
-          isolate(), map, holder, smi_handler,
+          isolate(), map, holder_for_api, smi_handler,
           {},  // no data1 (make it use holder instead).
           MaybeObjectDirectHandle(interceptor_info));
       return MaybeObjectHandle(handler);
@@ -2129,28 +2131,50 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::INTERCEPTOR: {
       DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-      Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
+      DirectHandle<InterceptorInfo> info(holder->GetNamedInterceptor(),
+                                         isolate());
 
-      // If the interceptor is on the receiver...
-      if (lookup->HolderIsReceiverOrHiddenPrototype() && !info->non_masking()) {
-        // ...return a store interceptor Smi handler if there is a setter
-        // interceptor and it's not DefineNamedOwnIC or DefineKeyedOwnIC
-        // (which should call the definer)...
+      if (lookup->HolderIsReceiverOrHiddenPrototype()) {
         if (info->has_setter() && !IsAnyDefineOwn()) {
-          return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorDH);
+          if (info->non_masking()) {
+            TRACE_HANDLER_STATS(isolate(),
+                                StoreIC_StoreInterceptorNonMaskingDH);
+          }
+          // We use complex data handler in order to cache the holder and
+          // interceptor info while also being able to use validity cell
+          // guarding against prototype chain modifications necessary for
+          // non-masking interceptors.
+          Handle<StoreHandler> handler =
+              StoreHandler::StoreInterceptorHolderIsReceiver(
+                  isolate(), lookup_start_object_map(), info);
+          return MaybeObjectHandle(handler);
         }
-        // ...otherwise return a slow-case Smi handler, which invokes the
-        // definer for DefineNamedOwnIC.
-        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+        // If the interceptor does not have setter of if the IC is a
+        // DefineNamedOwnIC or DefineKeyedOwnIC we should call definer
+        // callback. This is not supported yet, so we use slow handler.
+        // TODO(ishell): support calling definer callbacks.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorSlowDH);
+        Handle<Smi> smi_handler = StoreHandler::StoreSlow(isolate());
+        return MaybeObjectHandle(smi_handler);
       }
 
       // If the interceptor is a getter/query interceptor on the prototype
-      // chain, return an invalidatable slow handler so it can turn fast if the
-      // interceptor is masked by a regular property later.
+      // chain, return an invalidatable slow handler so it can turn fast
+      // if the interceptor is masked by a regular property later.
+      // Note, that in this case we don't need to call the setter callback
+      // at all, we just need to query the interceptor to ensure that the
+      // property does not exist or it's writable.
+      // TODO(ishell): consider creating an appropriate simple store handler
+      // instead of kSlow when possible.
       DCHECK(info->has_getter() || info->has_query());
+      TRACE_HANDLER_STATS(isolate(),
+                          StoreIC_StoreInterceptorThroughPrototypeDH);
+      DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
+                                            isolate());
+      Tagged<Smi> smi_handler = StoreHandler::StoreSlow();
       Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-          isolate(), lookup_start_object_map(), holder,
-          *StoreHandler::StoreSlow(isolate()));
+          isolate(), lookup_start_object_map(), holder_for_api, smi_handler);
       return MaybeObjectHandle(handler);
     }
 
@@ -2170,9 +2194,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       if (!holder->HasFastProperties()) {
         set_slow_stub_reason("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-        MaybeObjectHandle handler =
-            MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
-        return handler;
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
       DirectHandle<Object> accessors = lookup->GetAccessors();
       if (IsAccessorInfo(*accessors)) {
@@ -3992,10 +4014,18 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   }
 #endif
 
-  PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
-                                      Nothing<ShouldThrow>());
-  std::ignore = arguments.CallAccessorSetter(info, name, value);
+  Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>();
+  PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+                                      should_throw);
+  bool result = arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
+  if (!result && GetShouldThrow(isolate, should_throw) == kThrowOnError) {
+    // Throw TypeError if necessary in case the callback failed
+    // to set the property.
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictCannotSetProperty, name,
+                              receiver));
+  }
   return *value;
 }
 
@@ -4148,8 +4178,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
   DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(1);
-  Handle<JSObject> holder = args.at<JSObject>(2);
-  Handle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
+  DirectHandle<JSObject> holder = args.at<JSObject>(2);
+  DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 #ifdef DEBUG
   if (IsJSGlobalProxy(*holder)) {
     DCHECK_EQ(Cast<JSObject>(holder->map()->prototype())->GetNamedInterceptor(),
@@ -4160,8 +4190,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                        *holder, Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+                                        Just(kDontThrow));
 
     DirectHandle<Object> result = arguments.CallNamedGetter(interceptor, name);
     // An exception was thrown in the interceptor. Propagate.
@@ -4213,34 +4243,29 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
 RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
   DirectHandle<Object> value = args.at(0);
   DirectHandle<JSObject> receiver = args.at<JSObject>(1);
   DirectHandle<Name> name = args.at<Name>(2);
+  DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 
-  // TODO(ishell): Cache interceptor_holder in the store handler like we do
-  // for LoadHandler::kInterceptor case.
-  DirectHandle<JSObject> interceptor_holder = receiver;
-  if (IsJSGlobalProxy(*receiver) &&
-      (!receiver->HasNamedInterceptor() ||
-       receiver->GetNamedInterceptor()->non_masking())) {
-    interceptor_holder =
-        direct_handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
+  DirectHandle<JSObject> holder = receiver;
+#ifdef DEBUG
+  if (IsJSGlobalProxy(*holder)) {
+    DCHECK_EQ(Cast<JSObject>(holder->map()->prototype())->GetNamedInterceptor(),
+              *interceptor);
+  } else {
+    DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
   }
-  DCHECK(interceptor_holder->HasNamedInterceptor());
-  {
-    DirectHandle<InterceptorInfo> interceptor(
-        interceptor_holder->GetNamedInterceptor(), isolate);
+#endif
 
-    DCHECK(!interceptor->non_masking());
-    // TODO(ishell, 348688196): why is it known that it shouldn't throw?
-    Maybe<ShouldThrow> should_throw = Just(kDontThrow);
-    PropertyCallbackArguments callback_args(isolate, interceptor->data(),
-                                            *receiver, *receiver, should_throw);
+  {
+    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+                                        Nothing<ShouldThrow>());
 
     v8::Intercepted intercepted =
-        callback_args.CallNamedSetter(interceptor, name, value);
+        arguments.CallNamedSetter(interceptor, name, value);
     // Stores initiated by StoreICs don't care about the exact result of
     // the store operation returned by the callback as long as it doesn't
     // throw an exception.
@@ -4248,8 +4273,8 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     InterceptorResult result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        callback_args.GetBooleanReturnValue(intercepted, "Setter",
-                                            ignore_return_value));
+        arguments.GetBooleanReturnValue(intercepted, "Setter",
+                                        ignore_return_value));
 
     switch (result) {
       case InterceptorResult::kFalse:
@@ -4257,21 +4282,31 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
         return *value;
 
       case InterceptorResult::kNotIntercepted:
-        // Proceed storing past the interceptor.
         break;
     }
   }
 
-  LookupIterator it(isolate, receiver, name, receiver);
-  // Skip past any access check on the receiver.
+  bool non_masking = interceptor->non_masking();
+  // If the interceptor hasn't handled the store request then
+  //  - for non-masking interceptor the lookup is over and we should proceed
+  //    adding property to the receiver,
+  //  - for masking interceptor the store lookup needs to be proceed past the
+  //    interceptor.
+  LookupIterator::Configuration config =
+      non_masking ? LookupIterator::OWN_SKIP_INTERCEPTOR
+                  : LookupIterator::DEFAULT;
+  LookupIterator it(isolate, receiver, name, holder, config);
+  // Skip past any access check on the receiver - they were already done
+  // by the IC dispatcher.
   while (it.state() == LookupIterator::ACCESS_CHECK) {
     DCHECK(it.HasAccess());
     it.Next();
   }
-  // Skip past the interceptor on the receiver.
-  DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
-  it.Next();
-
+  if (!non_masking) {
+    // Skip past the interceptor on the interceptor_holder.
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+    it.Next();
+  }
   MAYBE_RETURN(Object::SetProperty(&it, value, StoreOrigin::kNamed),
                ReadOnlyRoots(isolate).exception());
   return *value;
@@ -4286,8 +4321,8 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                             isolate);
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, Just(kDontThrow));
+  PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
+                                      Just(kDontThrow));
   DirectHandle<Object> result = arguments.CallIndexedGetter(interceptor, index);
   // An exception was thrown in the interceptor. Propagate.
   RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
@@ -4332,8 +4367,8 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   {
     DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                               isolate);
-    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                        *receiver, Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
+                                        Just(kDontThrow));
 
     if (interceptor->has_query()) {
       DirectHandle<Object> result =

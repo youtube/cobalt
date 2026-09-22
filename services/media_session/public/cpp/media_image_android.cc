@@ -67,3 +67,5 @@ ScopedJavaLocalRef<jobject> MediaImage::CreateJavaObject(JNIEnv* env) const {
 }
 
 }  // namespace media_session
+
+DEFINE_JNI(MediaImage)

@@ -430,7 +430,7 @@ TEST_F(SearchEngineChoiceEligibilityTest,
       switches::kSearchEngineChoiceCountry, "JP");
   static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
       regional_capabilities_service().GetClientForTesting())
-      .SetCountryId(CountryId("JP"));
+      .SetVariationsLatestCountryId(CountryId("JP"));
 
   // First, check the state with Google as the default search engine
   ASSERT_TRUE(
@@ -487,7 +487,7 @@ TEST_F(SearchEngineChoiceEligibilityTest,
       switches::kSearchEngineChoiceCountry, "JP");
   static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
       regional_capabilities_service().GetClientForTesting())
-      .SetCountryId(CountryId("JP"));
+      .SetVariationsLatestCountryId(CountryId("JP"));
 
   // A custom search engine will have a `prepopulate_id` of 0.
   const int kCustomSearchEnginePrepopulateId = 0;
@@ -505,7 +505,140 @@ TEST_F(SearchEngineChoiceEligibilityTest,
 }
 
 TEST_F(SearchEngineChoiceEligibilityTest,
-       ChoiceScreenConditions_DontPromptForCustom_OutsideTaiyakiGeoLocation) {
+       ChoiceScreenConditions_UnknownCountryIneligible_Taiyaki) {
+  if (!kPhoneFormFactors.Has(ui::GetDeviceFormFactor())) {
+    GTEST_SKIP();
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list{switches::kTaiyaki};
+
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kSearchEngineChoiceCountry, "JP");
+  // Variations country is not available
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId());
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
+#endif  // BUILDFLAG(IS_IOS)
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_UnknownCountryIneligible_LocalWaffleEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      switches::kWaffleRestrictToAssociatedCountries};
+
+  // Note: The country is set to "BE" by command line override.
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId());
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_UnknownCountryEligible_LocalWaffleDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kWaffleRestrictToAssociatedCountries);
+
+  // Note: The country is set to "BE" by command line override.
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("BE"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_SameCountryEligible_LocalWaffleDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kWaffleRestrictToAssociatedCountries);
+
+  // Note: The country is set to "BE" by command line override.
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("BE"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_SameCountryEligible_LocalWaffleByCountry) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries,
+                               switches::kStrictAssociatedCountriesCheck},
+      /* disabled_features= */ {});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("BE"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_SameCountryEligible_LocalWaffleByRegion) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries},
+      /* disabled_features= */ {switches::kStrictAssociatedCountriesCheck});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("BE"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideRegionEligible_LocalWaffleDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kWaffleRestrictToAssociatedCountries);
+
+  // Note: The country is set to "BE" by command line override.
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("US"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+#if BUILDFLAG(IS_IOS)
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideRegionIneligible_Taiyaki) {
   if (!kPhoneFormFactors.Has(ui::GetDeviceFormFactor())) {
     GTEST_SKIP();
   }
@@ -519,7 +652,7 @@ TEST_F(SearchEngineChoiceEligibilityTest,
   // location.
   static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
       regional_capabilities_service().GetClientForTesting())
-      .SetCountryId(CountryId("PL"));
+      .SetVariationsLatestCountryId(CountryId("PL"));
 
   EXPECT_EQ(
       GetStaticConditions(),
@@ -529,6 +662,82 @@ TEST_F(SearchEngineChoiceEligibilityTest,
   // suppressed before evaluating the dynamic conditions.
 }
 #endif  // BUILDFLAG(IS_IOS)
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideRegionIneligible_LocalWaffleByRegion) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries},
+      /* disabled_features= */ {switches::kStrictAssociatedCountriesCheck});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("US"));
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideRegionIneligible_LocalWaffleByCountry) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries,
+                               switches::kStrictAssociatedCountriesCheck},
+      /* disabled_features= */ {});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("US"));
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideCountryEligible_LocalWaffleByRegion) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries},
+      /* disabled_features= */ {switches::kStrictAssociatedCountriesCheck});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("DE"));
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_OutsideCountryIneligible_LocalWaffleByCountry) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /* enabled_features= */ {switches::kWaffleRestrictToAssociatedCountries,
+                               switches::kStrictAssociatedCountriesCheck},
+      /* disabled_features= */ {});
+
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetVariationsLatestCountryId(CountryId("DE"));
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
 
 #if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 class SearchEngineChoiceEligibilityOverriddenProgramSettingsTest

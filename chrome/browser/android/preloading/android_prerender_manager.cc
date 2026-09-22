@@ -28,7 +28,7 @@ AndroidPrerenderManager::AndroidPrerenderManager(JNIEnv* env) {}
 AndroidPrerenderManager::~AndroidPrerenderManager() = default;
 
 // static
-jlong JNI_AndroidPrerenderManager_Init(JNIEnv* env) {
+static jlong JNI_AndroidPrerenderManager_Init(JNIEnv* env) {
   return reinterpret_cast<intptr_t>(new AndroidPrerenderManager(env));
 }
 
@@ -56,3 +56,5 @@ AndroidPrerenderManager::GetNewTabPagePreloadPipelineManager(TabAndroid* tab) {
   return tab ? tab->GetTabFeatures()->new_tab_page_preload_pipeline_manager()
              : nullptr;
 }
+
+DEFINE_JNI(AndroidPrerenderManager)

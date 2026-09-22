@@ -12,6 +12,7 @@
 #import "components/feature_engagement/public/tracker.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator_delegate.h"
@@ -28,9 +29,10 @@
 
 namespace {
 
-// Time to transition in seconds.
-const int kTransitionTimeInSeconds = 2;
-
+// Time to start transition in seconds.
+const int kStartExpandTransitionTimeInSeconds = 2;
+// Time to start the collapse transition in seconds.
+const int kStartCollapseTransitionTimeInSeconds = 5;
 }  // anonymous namespace
 
 @interface LocationBarBadgeMediator () <CRWWebStateObserver,
@@ -159,12 +161,19 @@ const int kTransitionTimeInSeconds = 2;
   [self.consumer highlightBadge:NO];
 }
 
-- (void)badgeTapped:(LocationBarBadgeType)badgeType {
+- (void)badgeTapped:(LocationBarBadgeConfiguration*)badgeConfig {
   // Cancel any pending transition timers since user interacted with the badge.
   [self resetTimersAndUIStateAnimated:YES];
 
-  switch (badgeType) {
+  switch (badgeConfig.badgeType) {
     case LocationBarBadgeType::kGeminiContextualCueChip:
+      if (IsAskGeminiChipPrepopulateFloatyEnabled()) {
+        BwgTabHelper* BWGTabHelper =
+            BwgTabHelper::FromWebState(_activeWebState);
+        if (BWGTabHelper) {
+          BWGTabHelper->SetContextualCueLabel(badgeConfig.badgeText);
+        }
+      }
       [self.BWGCommandHandler
           startBWGFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
       _tracker->NotifyEvent(
@@ -196,7 +205,8 @@ const int kTransitionTimeInSeconds = 2;
 - (void)startPromoTimer {
   __weak LocationBarBadgeMediator* weakSelf = self;
   _promoStartTimer = std::make_unique<base::OneShotTimer>();
-  _promoStartTimer->Start(FROM_HERE, base::Seconds(kTransitionTimeInSeconds),
+  _promoStartTimer->Start(FROM_HERE,
+                          base::Seconds(kStartExpandTransitionTimeInSeconds),
                           base::BindOnce(^{
                             [weakSelf setupAndExpandChip];
                           }));
@@ -219,7 +229,8 @@ const int kTransitionTimeInSeconds = 2;
   __weak LocationBarBadgeMediator* weakSelf = self;
 
   _promoEndTimer = std::make_unique<base::OneShotTimer>();
-  _promoEndTimer->Start(FROM_HERE, base::Seconds(kTransitionTimeInSeconds),
+  _promoEndTimer->Start(FROM_HERE,
+                        base::Seconds(kStartCollapseTransitionTimeInSeconds),
                         base::BindOnce(^{
                           [weakSelf cleanupAndTransitionToDefaultBadgeState];
                         }));

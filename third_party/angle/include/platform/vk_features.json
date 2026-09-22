@@ -1690,6 +1690,14 @@
             "issue": "https://issues.angleproject.org/360274928"
         },
         {
+            "name": "is_vertex_sync_deferred",
+            "category": "Features",
+            "description": [
+                "Prefer VkEvent instead of VkCmdPipelineBarrier if vertex synchronization is deferred"
+            ],
+            "issue": "https://issues.angleproject.org/issues/414630743"
+        },
+        {
             "name": "recycle_vkEvent",
             "category": "Features",
             "description": [
@@ -2116,6 +2124,26 @@
                 "Make sure the pSizes pointer to BindVertexBuffers2 is provided"
             ],
             "issue": "https://anglebug.com/448047351"
+        },
+        {
+            "name": "support_fragment_shading_rate_ext_extensions",
+            "category": "Features",
+            "description": [
+                "Advertize support for these fragment shading rate extensions:",
+                "- GL_EXT_fragment_shading_rate",
+                "- GL_EXT_fragment_shading_rate_primitive",
+                "- GL_EXT_fragment_shading_rate_attachment"
+            ],
+            "issue": "https://anglebug.com/397255625"
+        },
+        {
+            "name": "drop_depth_stencil_clear_on_invalidate",
+            "category": "Workarounds",
+            "description": [
+                "There are old Unity titles that expect depth/stencil to be cleared for later re-use, ",
+                "so this we have to disable our optimization that drops the clears on invalidate."
+            ],
+            "issue": "https://issuetracker.google.com/462484277"
         }
     ]
 }

@@ -43,11 +43,12 @@ namespace {
 
 // Return the number of windows that hosts OS Settings.
 size_t GetNumberOfSettingsWindows() {
-  auto* browser_list = BrowserList::GetInstance();
-  return std::ranges::count_if(*browser_list, [](Browser* browser) {
-    return ash::IsBrowserForSystemWebApp(browser,
-                                         ash::SystemWebAppType::SETTINGS);
-  });
+  auto settings_browsers =
+      ui_test_utils::FindMatchingBrowsers([](BrowserWindowInterface* browser) {
+        return ash::IsBrowserForSystemWebApp(browser,
+                                             ash::SystemWebAppType::SETTINGS);
+      });
+  return settings_browsers.size();
 }
 
 }  // namespace
@@ -232,6 +233,6 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerLoginTest, OpenBeforeLogin) {
       ash::ProfileHelper::GetSigninProfile());
 
   // We didn't crash, and nothing opened.
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
+  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
   EXPECT_EQ(0u, GetNumberOfSettingsWindows());
 }

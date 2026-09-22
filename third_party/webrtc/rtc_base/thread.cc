@@ -16,7 +16,6 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -286,42 +285,51 @@ void ThreadManager::UnwrapCurrentThread() {
   }
 }
 
+#if RTC_DCHECK_IS_ON
 Thread::ScopedDisallowBlockingCalls::ScopedDisallowBlockingCalls()
     : thread_(Thread::Current()),
-      previous_state_(thread_->SetAllowBlockingCalls(false)) {}
-
-Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
-  RTC_DCHECK(thread_->IsCurrent());
-  thread_->SetAllowBlockingCalls(previous_state_);
+      previous_state_(thread_ ? thread_->SetAllowBlockingCalls(false) : false) {
 }
 
-#if RTC_DCHECK_IS_ON
+Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
+  if (thread_) {
+    RTC_DCHECK(thread_->IsCurrent());
+    thread_->SetAllowBlockingCalls(previous_state_);
+  }
+}
+
 Thread::ScopedCountBlockingCalls::ScopedCountBlockingCalls(
-    std::function<void(uint32_t, uint32_t)> callback)
+    absl::AnyInvocable<void(uint32_t, uint32_t) &&> callback)
     : thread_(Thread::Current()),
-      base_blocking_call_count_(thread_->GetBlockingCallCount()),
+      base_blocking_call_count_(thread_ ? thread_->GetBlockingCallCount() : 0u),
       base_could_be_blocking_call_count_(
-          thread_->GetCouldBeBlockingCallCount()),
+          thread_ ? thread_->GetCouldBeBlockingCallCount() : 0u),
       result_callback_(std::move(callback)) {}
 
 Thread::ScopedCountBlockingCalls::~ScopedCountBlockingCalls() {
   if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_) {
-    result_callback_(GetBlockingCallCount(), GetCouldBeBlockingCallCount());
+    std::move(result_callback_)(GetBlockingCallCount(),
+                                GetCouldBeBlockingCallCount());
   }
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetBlockingCallCount() const {
-  return thread_->GetBlockingCallCount() - base_blocking_call_count_;
+  return thread_ ? thread_->GetBlockingCallCount() - base_blocking_call_count_
+                 : 0u;
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetCouldBeBlockingCallCount() const {
-  return thread_->GetCouldBeBlockingCallCount() -
-         base_could_be_blocking_call_count_;
+  return thread_ ? thread_->GetCouldBeBlockingCallCount() -
+                       base_could_be_blocking_call_count_
+                 : 0u;
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetTotalBlockedCallCount() const {
   return GetBlockingCallCount() + GetCouldBeBlockingCallCount();
 }
+#else
+Thread::ScopedDisallowBlockingCalls::ScopedDisallowBlockingCalls() = default;
+Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() = default;
 #endif
 
 Thread::Thread(SocketServer* ss) : Thread(ss, /*do_init=*/true) {}

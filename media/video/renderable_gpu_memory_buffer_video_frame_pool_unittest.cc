@@ -45,7 +45,7 @@ gfx::ColorSpace GetColorSpaceForPixelFormat(media::VideoPixelFormat format) {
 class FakeContext : public RenderableGpuMemoryBufferVideoFramePool::Context {
  public:
   FakeContext()
-      : context_provider_(viz::TestContextProvider::Create()),
+      : context_provider_(viz::TestContextProvider::CreateGLES()),
         weak_factory_(this) {}
   ~FakeContext() override = default;
 
@@ -58,8 +58,6 @@ class FakeContext : public RenderableGpuMemoryBufferVideoFramePool::Context {
       gpu::SyncToken& sync_token) override {
     DoCreateMappableSharedImage(size, buffer_usage, si_format, color_space,
                                 usage, sync_token);
-    context_provider_->SharedImageInterface()
-        ->UseTestGMBInSharedImageCreationWithBufferUsage();
     return context_provider_->SharedImageInterface()->CreateSharedImage(
         {si_format, size, color_space, usage,
          "RenderableGpuMemoryBufferVideoFramePoolTest"},

@@ -201,9 +201,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12209
-  'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
@@ -250,9 +247,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # intl402
-  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
-
   # Begin Temporal test expectations
   # Temporal work is tracked in b/42201538
 
@@ -260,18 +254,45 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # "Completely contained within geographic area" rules (https://github.com/boa-dev/temporal/issues/627)
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-timezone': [FAIL],
+  # Spec issue: https://github.com/tc39/proposal-intl-era-monthcode/issues/96
+  # We follow the spec, the tests follow an older consensus on the spec.
+  # We need to wait for upstream to make a decision here.
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [FAIL],
 
-  # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+  # Rounding window
+  # Fix: https://github.com/boa-dev/temporal/pull/636
+  # This is a recent spec change, and we might let it slip for the initial release.
+  'built-ins/Temporal/Duration/prototype/round/rounding-window': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/rounding-window': [FAIL],
 
-  # Intl.getSupportedValuesOf("timeZone") returns non-canonical timezones.
-  # This is a bug in Intl, not Temporal.
-  # https://g-issues.chromium.org/issues/457835186
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
+  # toLocaleString with just an era setting should format as default
+  # b/463427743
+  'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [FAIL],
 
   # End Temporal test expectations
 
@@ -577,10 +598,12 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/chinese-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/dangi-calendar-dates': [SKIP],
 
   # Somehow passes on Android (b/433933898):
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
 }], # 'system == android'
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
@@ -1064,20 +1087,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-}],
-# End roll-watcher patch
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],
@@ -1171,14 +1180,6 @@
 ####
 
 ####
-# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
-[ALWAYS, {
-  'language/module-code/top-level-await/rejection-order': [FAIL],
-}],
-# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
-####
-
-####
 # Roll-watcher patch
 [ALWAYS, {
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-optional-properties': [SKIP],
@@ -1211,5 +1212,128 @@
   'language/statements/using/syntax/using-for-using-of-of': [SKIP],
 }],
 # End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/era': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+####
+# import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
+[ALWAYS, {
+  # New tests for Iterator.zip and .zipKeyed
+  'built-ins/Iterator/zip/*': [SKIP],
+  'built-ins/Iterator/zipKeyed/*': [SKIP],
+
+  # Tests that need Unicode 17.0 data
+  # b/464064844
+  'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Assigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Cased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Case_Ignorable': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casemapped': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Lowercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Titlecased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Uppercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Diacritic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji_Presentation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extended_Pictographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extender': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Cased_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Currency_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Decimal_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Lowercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Math_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Modifier_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Nonspacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Spacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Uppercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Extend': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Ideographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Start': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Lowercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Math': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Beria_Erfe': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Beria_Erfe': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kannada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Nandinagari': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Newa': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sidetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Syriac': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tai_Yo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Telugu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tifinagh': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tirhuta': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tolong_Siki': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Unknown': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Kannada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sidetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tai_Yo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Telugu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tolong_Siki': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Unknown': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Unified_Ideograph': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Uppercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Start': [FAIL],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-17.0': [FAIL],
+
+  'language/identifiers/part-unicode-17.0.0-class-escaped': [FAIL],
+  'language/identifiers/part-unicode-17.0.0-class': [FAIL],
+  'language/identifiers/part-unicode-17.0.0-escaped': [FAIL],
+  'language/identifiers/part-unicode-17.0.0': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-class-escaped': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-class': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-escaped': [FAIL],
+  'language/identifiers/start-unicode-17.0.0': [FAIL],
+
+  # Times out
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [SKIP],
+
+  # Unknown issue
+  # b/464065358
+  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-export-star-as-from-and-import-star-as-and-export': [FAIL],
+  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-star-as-and-export': [FAIL],
+  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-export-star-as-from': [FAIL],
+}],
+# end import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
 ####
 ]

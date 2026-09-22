@@ -79,16 +79,14 @@ class OutputGraphAssembler : public Base {
 
  private:
   Derived* derived_this() { return static_cast<Derived*>(this); }
-  Assembler<typename Base::ReducerList>* assembler() {
-    return &derived_this()->Asm();
-  }
+  typename Base::assembler_t* assembler() { return &derived_this()->Asm(); }
 };
 
 template <class AfterNext>
 class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                                                  VariableReducer<AfterNext>> {
   template <typename N>
-  friend class ReducerBaseForwarder;
+  friend class GraphEmitter;
   template <typename N>
   friend class WasmRevecReducer;
 
@@ -285,9 +283,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
     OpIndex ig_index = Asm().input_graph().Index(op);
     if (Asm().current_block()->IsLoop()) {
-      DCHECK_EQ(op.input_count, 2);
-      OpIndex og_index = map(op.input(0), -1);
-      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+      DCHECK_EQ(op.input_count, PhiOp::kLoopPhiInputCount);
+      OpIndex og_index = map(op.forward_edge(), -1);
+      if (ig_index == op.back_edge()) {
         // Avoid emitting a Loop Phi which points to itself, instead
         // emit it's 0'th input.
         return og_index;
@@ -698,7 +696,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
           for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
             DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
                 op.outputs_rep()[i],
-                Asm().output_graph().IsCreatedFromTurbofan()));
+                Asm().output_graph().IsCreatedFromTurbofan(),
+                Asm().output_graph().IsTurbolev()));
           }
         }
         Asm().Verify(index, new_index);
@@ -1086,14 +1085,11 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 };
 
 template <template <class> class... Reducers>
-class TSAssembler;
-
-template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
   static void Run(PipelineData* data, Graph& input_graph, Zone* phase_zone,
                   bool trace_reductions = false) {
-    TSAssembler<GraphVisitor, Reducers...> phase(
+    Assembler<GraphVisitor, Reducers...> phase(
         data, input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {

@@ -17,7 +17,6 @@
 #include <optional>
 #include <utility>
 
-#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "api/dtls_transport_interface.h"
 #include "api/rtc_error.h"
@@ -81,9 +80,6 @@ class DtlsTransportInternal : public PacketTransportInternal {
   // If not applicable, it returns zero.
   virtual uint16_t GetSslPeerSignatureAlgorithm() const = 0;
 
-  // Gets the local RTCCertificate used for DTLS.
-  virtual scoped_refptr<RTCCertificate> GetLocalCertificate() const = 0;
-
   virtual bool SetLocalCertificate(
       const scoped_refptr<RTCCertificate>& certificate) = 0;
 
@@ -94,22 +90,11 @@ class DtlsTransportInternal : public PacketTransportInternal {
   virtual bool ExportSrtpKeyingMaterial(
       ZeroOnFreeBuffer<uint8_t>& keying_material) = 0;
 
-  // Set DTLS remote fingerprint. Must be after local identity set.
-  ABSL_DEPRECATED("Use SetRemoteParameters instead.")
-  virtual bool SetRemoteFingerprint(absl::string_view digest_alg,
-                                    const uint8_t* digest,
-                                    size_t digest_len) = 0;
-
   // Set DTLS remote fingerprint and role. Must be after local identity set.
   virtual RTCError SetRemoteParameters(absl::string_view digest_alg,
                                        const uint8_t* digest,
                                        size_t digest_len,
                                        std::optional<SSLRole> role) = 0;
-
-  ABSL_DEPRECATED("Set the max version via construction.")
-  bool SetSslMaxProtocolVersion(SSLProtocolVersion /* version */) {
-    return true;
-  }
 
   // Expose the underneath IceTransport.
   virtual IceTransportInternal* ice_transport() = 0;

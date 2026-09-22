@@ -114,6 +114,13 @@ class StreamResetHandler {
 
  private:
   using UnwrappedReconfigRequestSn = UnwrappedSequenceNumber<ReconfigRequestSN>;
+
+  enum class ReqSeqNbrValidationResult {
+    kValid,
+    kRetransmission,
+    kBadSequenceNumber,
+  };
+
   // Represents a stream request operation. There can only be one ongoing at
   // any time, and a sent request may either succeed, fail or result in the
   // receiver signaling that it can't process it right now, and then it will be
@@ -182,12 +189,9 @@ class StreamResetHandler {
   // must have been created prior.
   ReConfigChunk MakeReconfigChunk();
 
-  // Called to validate the `req_seq_nbr`, that it's the next in sequence. If it
-  // fails to validate, and returns false, it will also add a response to
-  // `responses`.
-  bool ValidateReqSeqNbr(
-      UnwrappedReconfigRequestSn req_seq_nbr,
-      std::vector<ReconfigurationResponseParameter>& responses);
+  // Called to validate the `req_seq_nbr`, that it's the next in sequence.
+  ReqSeqNbrValidationResult ValidateReqSeqNbr(
+      UnwrappedReconfigRequestSn req_seq_nbr);
 
   // Called when this socket receives an outgoing stream reset request. It might
   // either be performed straight away, or have to be deferred, and the result

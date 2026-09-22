@@ -126,27 +126,6 @@ ReduceResult MaglevReducer<BaseT>::AddNewNode(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNodeNoAbort(
-    std::initializer_list<ValueNode*> inputs, Args&&... args) {
-  static_assert(IsFixedInputNode<NodeT>());
-  if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
-                ReducerBaseWithKNA<BaseT>) {
-    if (v8_flags.maglev_cse) {
-      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
-          true, inputs, std::forward<Args>(args)...);
-      CHECK(result.IsDoneWithPayload());
-      return result.node()->Cast<NodeT>();
-    }
-  }
-  NodeT* node =
-      NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
-  ReduceResult result = SetNodeInputs(node, inputs);
-  CHECK(result.IsDoneWithoutPayload());
-  return AttachExtraInfoAndAddToGraph(node);
-}
-
-template <typename BaseT>
-template <typename NodeT, typename... Args>
 NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   static_assert(IsFixedInputNode<NodeT>());
@@ -463,26 +442,24 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
   static_assert(NodeT::kProperties.value_representation() ==
                 ValueRepresentation::kFloat64);
-  if constexpr (HasRangeType(Node::opcode_of<NodeT>)) {
-    RangeType r1 = node->input(0).node()->GetRange();
-    RangeType r2 = node->input(1).node()->GetRange();
-    if (!r1.is_valid() || !r2.is_valid()) return;
-    RangeType result;
+  if constexpr (HasRangeField(Node::opcode_of<NodeT>)) {
+    Range r1 = node->input_node(0)->GetStaticRange();
+    Range r2 = node->input_node(1)->GetStaticRange();
+    DCHECK(!r1.is_empty());
+    DCHECK(!r2.is_empty());
+    if (r1.is_all() || r2.is_all()) return;
+    Range result = Range::All();
     switch (Node::opcode_of<NodeT>) {
       case Opcode::kFloat64Add:
-        result =
-            RangeType::Join([](double x, double y) { return x + y; }, r1, r2);
+        result = Range::Add(r1, r2);
         break;
       case Opcode::kFloat64Subtract:
-        result =
-            RangeType::Join([](double x, double y) { return x - y; }, r1, r2);
+        result = Range::Sub(r1, r2);
         break;
       case Opcode::kFloat64Multiply:
-        result =
-            RangeType::Join([](double x, double y) { return x * y; }, r1, r2);
+        result = Range::Mul(r1, r2);
         break;
       case Opcode::kFloat64Divide:
-        result = {};
         break;
       default:
         UNREACHABLE();
@@ -491,7 +468,8 @@ void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
     // fixpoint.
     static_assert(!std::is_same_v<NodeT, Phi>);
     node->set_range(result);
-    if (node->range().IsSafeIntegerRange()) {
+    if (node->range().IsSafeInt()) {
+      // The node can be considered for truncation in the truncation pass.
       node->set_can_truncate_to_int32(true);
     }
   }
@@ -512,7 +490,7 @@ std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
+ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
     value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
@@ -593,7 +571,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
     case ValueRepresentation::kHoleyFloat64: {
       if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {
         return alternative.set_tagged(
-            AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
+            AddNewNodeNoInputConversion<CheckedSmiTagHoleyFloat64>({value}));
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
@@ -749,14 +727,14 @@ ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
 }
 
 template <typename BaseT>
-compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetConstant(
+compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetHeapObjectConstant(
     ValueNode* node, ValueNode** constant_node) {
   if (auto result = node->TryGetConstant(broker())) {
     if (constant_node) *constant_node = node;
     return result;
   }
   if (auto c = TryGetConstantAlternative(node)) {
-    return TryGetConstant(*c, constant_node);
+    return TryGetHeapObjectConstant(*c, constant_node);
   }
   return {};
 }
@@ -940,7 +918,8 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case ValueRepresentation::kTagged: {
       NodeType old_type;
       EnsureType(value, allowed_input_type, &old_type);
-      if (NodeTypeIsSmi(old_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (NodeTypeIsSmi(old_type, NodeTypeIsVariant::kAllowNone)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
         return alternative.set_int32(BuildSmiUntag(value));
@@ -949,7 +928,9 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
         return alternative.set_int32(
             AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
       }
-      if (NodeTypeIs(old_type, allowed_input_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (NodeTypeIs(old_type, allowed_input_type,
+                     NodeTypeIsVariant::kAllowNone)) {
         return alternative.set_truncated_int32_to_number(
             AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
                 {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
@@ -991,14 +972,8 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
+ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     ValueNode* value, UseRepresentation use_rep, NodeType allowed_input_type) {
-#ifdef DEBUG
-  auto ReachingTypeAllows = [allowed_input_type](NodeType t) {
-    return NodeTypeIsNone(allowed_input_type) ||
-           NodeTypeIs(t, allowed_input_type);
-  };
-#endif
   DCHECK(use_rep == UseRepresentation::kFloat64 ||
          use_rep == UseRepresentation::kHoleyFloat64);
   ValueRepresentation representation =
@@ -1060,16 +1035,18 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kTagged: {
       auto combined_type = IntersectType(allowed_input_type, node_info->type());
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
         return GetFloat64OrHoleyFloat64Impl(GetInt32(value), use_rep,
                                             combined_type);
       }
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kNumber)) {
-        ValueNode* float64_value = BuildNumberOrOddballToFloat64OrHoleyFloat64(
-            value, use_rep, NodeType::kNumber);
+        ValueNode* float64_value;
+        GET_VALUE_OR_ABORT(float64_value,
+                           BuildNumberOrOddballToFloat64OrHoleyFloat64(
+                               value, use_rep, NodeType::kNumber));
         if (use_rep == UseRepresentation::kFloat64) {
           // Number->Float64 conversions are exact alternatives, so they can
           // also become the canonical float64_alternative.
@@ -1077,7 +1054,7 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
         }
         return float64_value;
       }
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
         // NumberOrOddball->Float64 conversions are not exact alternatives,
         // since they lose the information that this is an oddball, so they
@@ -1098,7 +1075,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1111,7 +1087,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1122,7 +1097,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       DCHECK_EQ(use_rep, UseRepresentation::kHoleyFloat64);
       // We only set the holey_float64 alternative if all feasible values are
       // allowed according to `allowed_input_type`.
-      DCHECK(ReachingTypeAllows(NodeType::kNumber));
       return alternative.set_holey_float64(
           AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
@@ -1158,7 +1132,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1200,13 +1173,13 @@ ValueNode* MaglevReducer<BaseT>::TryGetFloat64(ValueNode* value) {
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
+ReduceResult MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64ForToNumber(value, NodeType::kNumber);
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
+ReduceResult MaglevReducer<BaseT>::GetFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kFloat64,
@@ -1214,14 +1187,14 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
+ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kHoleyFloat64,
                                       NodeType::kNumberOrUndefined);
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
+ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kHoleyFloat64,
@@ -1405,7 +1378,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
   // don't need to emit a map check, and can use the dependency -- we
   // can't do this for unstable maps because the constant could migrate
   // during compilation.
-  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
+  if (compiler::OptionalHeapObjectRef constant =
+          TryGetConstant<HeapObject>(object)) {
     return TryFoldCheckConstantMaps(constant->map(broker()), maps);
   }
 
@@ -1428,7 +1402,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
     KnownMapsMerger<MapContainer>& merger) {
   RETURN_IF_DONE(TryFoldCheckConstantMaps(object, maps));
   if (object_map) {
-    if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object_map)) {
+    if (compiler::OptionalHeapObjectRef constant =
+            TryGetConstant<HeapObject>(object_map)) {
       CHECK(constant->IsMap());
       RETURN_IF_DONE(TryFoldCheckConstantMaps(constant->AsMap(), maps));
     }
@@ -1484,14 +1459,14 @@ ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
         phi->SetUseRequires31BitValue();
       }
     }
-    return AddNewNodeNoAbort<UnsafeSmiUntag>({node});
+    return AddNewNodeNoInputConversion<UnsafeSmiUntag>({node});
   } else {
-    return AddNewNodeNoAbort<CheckedSmiUntag>({node});
+    return AddNewNodeNoInputConversion<CheckedSmiUntag>({node});
   }
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
+ReduceResult MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
     ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type) {
   DCHECK(use_rep == UseRepresentation::kFloat64 ||
          use_rep == UseRepresentation::kHoleyFloat64);
@@ -1501,35 +1476,38 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
-      ValueNode* float64 =
-          AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
+      ValueNode* float64;
+      GET_VALUE_OR_ABORT(float64,
+                         AddNewNode<ChangeInt32ToFloat64>({untagged_smi}));
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoAbort<UnsafeFloat64ToHoleyFloat64>({float64});
+      return AddNewNode<UnsafeFloat64ToHoleyFloat64>({float64});
     }
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      ValueNode* float64 = AddNewNodeNoAbort<UnsafeNumberToFloat64>({node});
+      ValueNode* float64;
+      GET_VALUE_OR_ABORT(float64, AddNewNode<UnsafeNumberToFloat64>({node}));
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoAbort<ChangeFloat64ToHoleyFloat64>({float64});
+      return AddNewNode<ChangeFloat64ToHoleyFloat64>({float64});
     } else {
       if (use_rep == UseRepresentation::kHoleyFloat64) {
-        return AddNewNodeNoAbort<UnsafeNumberOrOddballToHoleyFloat64>(
-            {node}, conversion_type);
-      }
-      return AddNewNodeNoAbort<UnsafeNumberOrOddballToFloat64>({node},
+        return AddNewNode<UnsafeNumberOrOddballToHoleyFloat64>({node},
                                                                conversion_type);
+      }
+      return AddNewNode<UnsafeNumberOrOddballToFloat64>({node},
+                                                        conversion_type);
     }
   } else {
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      ValueNode* float64 = AddNewNodeNoAbort<CheckedNumberToFloat64>({node});
+      ValueNode* float64;
+      GET_VALUE_OR_ABORT(float64, AddNewNode<CheckedNumberToFloat64>({node}));
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoAbort<ChangeFloat64ToHoleyFloat64>({node});
+      return AddNewNode<ChangeFloat64ToHoleyFloat64>({node});
     } else {
       if (use_rep == UseRepresentation::kHoleyFloat64) {
-        return AddNewNodeNoAbort<CheckedNumberOrOddballToHoleyFloat64>(
+        return AddNewNode<CheckedNumberOrOddballToHoleyFloat64>(
             {node}, conversion_type);
       }
-      return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>(
-          {node}, conversion_type);
+      return AddNewNode<CheckedNumberOrOddballToFloat64>({node},
+                                                         conversion_type);
     }
   }
 }
@@ -1894,7 +1872,7 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
         // However we can treat Undefineds (Holes) as NaNs.
         left = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({left});
       } else {
-        left = GetFloat64(left);
+        GET_VALUE_OR_ABORT(left, GetFloat64(left));
       }
       return left->Unwrap();
     }
@@ -2005,6 +1983,27 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
     return GetFloat64Constant(lhs_scalar);
   }
   return GetFloat64Constant(rhs_scalar);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
+  switch (input->opcode()) {
+#define CASE(Name)                                         \
+  case Opcode::k##Name: {                                  \
+    return GetBooleanConstant(                             \
+        !input->Cast<Name>()->ToBoolean(local_isolate())); \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      break;
+  }
+
+  if (auto c = TryGetConstantAlternative(input)) {
+    return TryFoldLogicalNot(*c);
+  }
+
+  return {};
 }
 
 }  // namespace maglev

@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <string.h>
 
+#include <algorithm>
 #include <tuple>
 
 #include <openssl/buf.h>

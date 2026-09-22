@@ -5,9 +5,10 @@
 import './icons.html.js';
 import './composebox_tab_favicon.js';
 import '//resources/cr_elements/icons.html.js';
-import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
+import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
@@ -31,6 +32,13 @@ export interface ContextMenuEntrypointElement {
   $: {
     menu: CrActionMenuElement,
   };
+}
+
+export enum GlifAnimationState {
+  INELIGIBLE = 'ineligible',
+  SPINNER_ONLY = 'spinner-only',
+  STARTED = 'started',
+  FINISHED = 'finished',
 }
 
 const ContextMenuEntrypointElementBase = I18nMixinLit(CrLitElement);
@@ -69,6 +77,7 @@ export class ContextMenuEntrypointElement extends
       tabSuggestions: {type: Array},
       entrypointName: {type: String},
       searchboxLayoutMode: {type: String},
+      glifAnimationState: {type: String, reflect: true},
 
       // =========================================================================
       // Protected properties
@@ -99,6 +108,8 @@ export class ContextMenuEntrypointElement extends
   accessor tabSuggestions: TabInfo[] = [];
   accessor entrypointName: string = '';
   accessor searchboxLayoutMode: string = '';
+  accessor glifAnimationState: GlifAnimationState =
+      GlifAnimationState.INELIGIBLE;
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
@@ -111,6 +122,7 @@ export class ContextMenuEntrypointElement extends
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
   protected maxFileCount_: number =
       loadTimeData.getInteger('composeboxFileMaxCount');
+  private metricsSource_: string = loadTimeData.getString('composeboxSource');
 
   constructor() {
     super();
@@ -161,6 +173,10 @@ export class ContextMenuEntrypointElement extends
   }
 
   protected onEntrypointClick_() {
+    const metricName =
+        'ContextualSearch.ContextMenuEntry.Clicked.' + this.metricsSource_;
+    chrome.metricsPrivate.recordBoolean(metricName, true);
+
     if (this.entrypointName === 'Omnibox') {
       const entrypoint =
           this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
@@ -172,9 +188,6 @@ export class ContextMenuEntrypointElement extends
       return;
     }
 
-    const metricName =
-        'NewTabPage.' + this.entrypointName + '.ContextMenuEntry.Clicked';
-    chrome.metricsPrivate.recordBoolean(metricName, true);
     this.showMenuAtEntrypoint_();
   }
 
@@ -259,10 +272,24 @@ export class ContextMenuEntrypointElement extends
     this.$.menu.close();
   }
 
+  protected onAnimationEnd_(e: AnimationEvent, animationName: string) {
+    if (e.animationName === animationName) {
+      this.glifAnimationState = GlifAnimationState.FINISHED;
+    }
+  }
+
+  protected onMenuClose_() {
+    const entrypoint =
+        this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
+    assert(entrypoint);
+    entrypoint.classList.remove('menu-open');
+  }
+
   private showMenuAtEntrypoint_() {
     const entrypoint =
         this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
     assert(entrypoint);
+    entrypoint?.classList.add('menu-open');
     this.$.menu.showAt(entrypoint, {
       top: entrypoint.getBoundingClientRect().bottom,
       width: MENU_WIDTH_PX,

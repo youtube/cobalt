@@ -62,10 +62,7 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 
 @end
 
-@implementation AdaptiveToolbarViewController {
-  // Whether the location bar is currently focused.
-  BOOL _locationBarFocused;
-}
+@implementation AdaptiveToolbarViewController
 
 @dynamic view;
 @synthesize buttonFactory = _buttonFactory;
@@ -249,13 +246,6 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   [self.view setLocationBarHeight:height];
 }
 
-- (void)setLocationBarFocused:(BOOL)focused {
-  // This is used to prevent updating the location bar container height when
-  // the multiline omnibox is enabled, as it's already handled by the toolbar
-  // height delegate.
-  _locationBarFocused = focused;
-}
-
 #pragma mark - ToolbarConsumer
 
 - (void)setCanGoForward:(BOOL)canGoForward {
@@ -292,8 +282,10 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 }
 
 - (void)setLoadingProgressFraction:(double)progress {
-  [self.view.progressBar setProgress:progress
-                            animated:!self.view.progressBar.hidden];
+  BOOL isGoingBackward = self.view.progressBar.progress > progress;
+  [self.view.progressBar
+      setProgress:progress
+         animated:!self.view.progressBar.hidden && !isGoingBackward];
 }
 
 - (void)setTabCount:(int)tabCount addedInBackground:(BOOL)inBackground {
@@ -615,6 +607,10 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
     [self updateLocationBarHeightForFullscreenProgress:
               self.previousFullscreenProgress];
   }
+}
+
+- (UIView*)locationBarContainer {
+  return self.view.locationBarContainer;
 }
 
 @end

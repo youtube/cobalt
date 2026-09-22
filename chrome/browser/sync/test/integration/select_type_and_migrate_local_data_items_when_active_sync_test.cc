@@ -68,7 +68,9 @@ class MockAddressDataManagerObserver
 class SelectTypeAndMigrateLocalDataItemsWhenActiveTest : public SyncTest {
  public:
   SelectTypeAndMigrateLocalDataItemsWhenActiveTest()
-      : SyncTest(SINGLE_CLIENT), password_(CreateTestPasswordForm(0)) {
+      : SyncTest(SINGLE_CLIENT),
+        password_(
+            CreateTestPasswordForm(0, PasswordForm::Store::kProfileStore)) {
     feature_list_.InitWithFeatures(
         /*enabled_features=*/
         {switches::kSyncEnableBookmarksInTransportMode,
@@ -83,6 +85,11 @@ class SelectTypeAndMigrateLocalDataItemsWhenActiveTest : public SyncTest {
     // their effectiveness within the profile's constructor.
     address_ =
         std::make_unique<AutofillProfile>(autofill::test::GetFullProfile());
+  }
+
+  // This feature is specific to sync transport mode.
+  SyncTest::SetupSyncMode GetSetupSyncMode() const override {
+    return SetupSyncMode::kSyncTransportOnly;
   }
 
   // In SINGLE_CLIENT tests, there's only a single PersonalDataManager.
@@ -272,7 +279,8 @@ IN_PROC_BROWSER_TEST_F(SelectTypeAndMigrateLocalDataItemsWhenActiveTest,
   ASSERT_TRUE(SetupClients());
 
   // Set up two locally saved passwords.
-  PasswordForm second_password = CreateTestPasswordForm(1);
+  PasswordForm second_password =
+      CreateTestPasswordForm(1, PasswordForm::Store::kProfileStore);
   passwords_helper::GetProfilePasswordStoreInterface(0)->AddLogin(password());
   passwords_helper::GetProfilePasswordStoreInterface(0)->AddLogin(
       second_password);

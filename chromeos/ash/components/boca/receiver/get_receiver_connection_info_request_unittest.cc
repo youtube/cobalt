@@ -10,6 +10,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
@@ -59,6 +60,14 @@ TEST(GetReceiverConnectionInfoRequestTest, RelativeUrl) {
   GetReceiverConnectionInfoRequest request(kReceiverId, base::DoNothing());
   EXPECT_EQ(request.GetRelativeUrl(),
             "/v1/receivers/receiver-id/kioskReceiver:getConnectionInfo");
+}
+
+TEST(GetReceiverConnectionInfoRequestTest, RelativeUrlWithConnectionId) {
+  GetReceiverConnectionInfoRequest request(kReceiverId, "connection-id",
+                                           base::DoNothing());
+  EXPECT_EQ(request.GetRelativeUrl(),
+            "/v1/receivers/receiver-id/"
+            "kioskReceiver:getConnectionInfo?connectionId=connection-id");
 }
 
 TEST(GetReceiverConnectionInfoRequestTest, RequestBody) {

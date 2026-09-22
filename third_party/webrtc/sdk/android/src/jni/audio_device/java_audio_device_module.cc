@@ -46,8 +46,8 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
                      j_use_stereo_output, &input_parameters,
                      &output_parameters);
   auto audio_input = std::make_unique<AudioRecordJni>(
-      env, input_parameters, kHighLatencyModeDelayEstimateInMilliseconds,
-      j_webrtc_audio_record);
+      env, webrtc_env, input_parameters,
+      kHighLatencyModeDelayEstimateInMilliseconds, j_webrtc_audio_record);
   auto audio_output = std::make_unique<AudioTrackJni>(
       env, webrtc_env, output_parameters, j_webrtc_audio_track);
   return NativeToJavaPointer(

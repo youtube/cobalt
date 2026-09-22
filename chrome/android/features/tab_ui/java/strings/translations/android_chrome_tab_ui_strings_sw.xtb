@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Orodha ya kikundi cha vichupo imefungwa</translation>
 <translation id="3194464645767632461">ukadiriaji</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{Weka kichupo <ph name="TABS_COUNT_ONE" /> kwenye kikundi}other{Weka vichupo <ph name="TABS_COUNT_MANY" /> kwenye kikundi}}</translation>
+<translation id="3293080634164207409">Weka vichupo</translation>
 <translation id="3328308545011660196">Pendekezo: Vichupo <ph name="NUMBER_OF_TABS" /> vinaonekana kuwa vinahusiana. Ungependa kuvipanga pamoja?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{Baada ya kutotumiwa kwa siku 1}other{Baada ya kutotumiwa kwa siku <ph name="DAY_COUNT_MANY" />}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{Kichupo <ph name="ONE_ADDED" /> kipya}other{Vichupo <ph name="MANY_ADDED" /> vipya}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Funga kipengee}other{Funga vipengee}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Kijipicha cha kushiriki onyesho la kukagua laha</translation>
+<translation id="3776329373944672717">Jina la kikundi cha vichupo <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">Dhibiti</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Bandua kichupo}other{Bandua vichupo}}</translation>
 <translation id="3940195383040445971">Fuatilia bei kwenye vichupo</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">Shughuli</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ Imekadiriwa alama <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, maoni <ph name="REVIEWS_COUNT_ONE" />}other{Imekadiriwa alama <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, maoni <ph name="REVIEWS_COUNT_MANY" />}}</translation>
 <translation id="7885132941432959125">Sogeza kichupo kulia</translation>
+<translation id="7887334752153342268">Maradufu</translation>
 <translation id="7939917283308035850">Hujachagua <ph name="COLOR_NAME" /></translation>
 <translation id="7961015016161918242">Katu</translation>
 <translation id="7966321538264951561">Ondoa mapendekezo.</translation>

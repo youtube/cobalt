@@ -79,7 +79,18 @@ final class SigninPromoMediator
 
         mModel =
                 SigninPromoProperties.createModel(
-                        profileData, () -> {}, () -> {}, () -> {}, "", "", "", "", false, false);
+                        /* profileData= */ profileData,
+                        /* onPrimaryButtonClicked= */ () -> {},
+                        /* onSecondaryButtonClicked= */ () -> {},
+                        /* onDismissButtonClicked= */ () -> {},
+                        /* titleString= */ "",
+                        /* descriptionString= */ "",
+                        /* primaryButtonString= */ "",
+                        /* secondaryButtonString= */ "",
+                        /* shouldSuppressSecondaryButton= */ false,
+                        /* shouldHideDismissButton= */ false,
+                        /* shouldShowAccountPicker= */ true,
+                        /* shouldShowHeaderWithAvatar= */ false);
         mMaxImpressionReached = mDelegate.isMaxImpressionsReached();
         mDelegate.refreshPromoState(visibleAccount);
         mShouldShowPromo = canShowPromo();
@@ -165,9 +176,9 @@ final class SigninPromoMediator
         return mModel;
     }
 
-    private void onPrimaryButtonClicked() {
+    private void onPrimaryButtonClicked(@Nullable CoreAccountInfo visibleAccount) {
         recordEventHistogram(Event.CONTINUED);
-        mDelegate.onPrimaryButtonClicked();
+        mDelegate.onPrimaryButtonClicked(visibleAccount);
     }
 
     private void onSecondaryButtonClicked() {
@@ -203,14 +214,14 @@ final class SigninPromoMediator
                 profileData == null || mDelegate.shouldHideSecondaryButton());
         mModel.set(
                 SigninPromoProperties.ON_PRIMARY_BUTTON_CLICKED,
-                (unusedView) -> onPrimaryButtonClicked());
+                (unusedView) -> onPrimaryButtonClicked(visibleAccount));
         mModel.set(
                 SigninPromoProperties.ON_SECONDARY_BUTTON_CLICKED,
                 (unusedView) -> onSecondaryButtonClicked());
         mModel.set(
                 SigninPromoProperties.ON_DISMISS_BUTTON_CLICKED,
                 (unusedView) -> onDismissButtonClicked());
-        mModel.set(SigninPromoProperties.TITLE_TEXT, mDelegate.getTitle(profileData != null));
+        mModel.set(SigninPromoProperties.TITLE_TEXT, mDelegate.getTitle());
         mModel.set(
                 SigninPromoProperties.DESCRIPTION_TEXT,
                 mDelegate.getDescription(
@@ -223,6 +234,12 @@ final class SigninPromoMediator
         mModel.set(
                 SigninPromoProperties.SHOULD_HIDE_DISMISS_BUTTON,
                 mDelegate.shouldHideDismissButton());
+        mModel.set(
+                SigninPromoProperties.SHOULD_SHOW_ACCOUNT_PICKER,
+                profileData != null && !mDelegate.shouldDisplaySignedInLayout());
+        mModel.set(
+                SigninPromoProperties.SHOULD_SHOW_HEADER_WITH_AVATAR,
+                mDelegate.shouldDisplaySignedInLayout());
     }
 
     private void updateVisibility() {
@@ -234,9 +251,14 @@ final class SigninPromoMediator
         mDelegate.onPromoVisibilityChange();
     }
 
+    /**
+     * Return the account that is intended to be displayed to the user within the sign-in promo. If
+     * the user is not signed into Chrome (no primary account), checks for the default Google
+     * account configured on the Android device. Returns null if there are no accounts on the
+     * device.
+     */
     private @Nullable CoreAccountInfo getVisibleAccount() {
-        @Nullable
-        CoreAccountInfo visibleAccount =
+        @Nullable CoreAccountInfo visibleAccount =
                 mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
         if (visibleAccount == null) {
             visibleAccount =

@@ -10,7 +10,6 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/public/crd_session_result_codes.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/public/shared_crd_session.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/public/shared_crd_session_provider.h"
@@ -47,6 +46,9 @@ void SharedCrdSessionWrapperImpl::StartCrdHost(
   parameters.allow_clipboard_sync = false;
   parameters.request_origin =
       policy::SharedCrdSession::RequestOrigin::kClassManagement;
+  // When remoting to a kiosk receiver, audio should play on the kiosk only.
+  parameters.audio_playback =
+      policy::SharedCrdSession::AudioPlayback::kRemoteOnly;
   crd_session_->StartCrdHost(
       parameters, std::move(success_callback),
       base::BindOnce(&OnError, std::move(error_callback)),

@@ -27,39 +27,48 @@
 
 static const struct argument kArguments[] = {
     {
-        "-accept", kRequiredArgument,
+        "-accept",
+        kRequiredArgument,
         "The port of the server to bind on; eg 45102",
     },
     {
-        "-cipher", kOptionalArgument,
+        "-cipher",
+        kOptionalArgument,
         "An OpenSSL-style cipher suite string that configures the offered "
         "ciphers",
     },
     {
-        "-curves", kOptionalArgument,
+        "-curves",
+        kOptionalArgument,
         "An OpenSSL-style ECDH curves list that configures the offered curves",
     },
     {
-        "-max-version", kOptionalArgument,
+        "-max-version",
+        kOptionalArgument,
         "The maximum acceptable protocol version",
     },
     {
-        "-min-version", kOptionalArgument,
+        "-min-version",
+        kOptionalArgument,
         "The minimum acceptable protocol version",
     },
     {
-        "-key", kOptionalArgument,
+        "-key",
+        kOptionalArgument,
         "PEM-encoded file containing the private key. A self-signed "
         "certificate is generated at runtime if this argument is not provided.",
     },
     {
-        "-cert", kOptionalArgument,
+        "-cert",
+        kOptionalArgument,
         "PEM-encoded file containing the leaf certificate and optional "
         "certificate chain. This is taken from the -key argument if this "
         "argument is not provided.",
     },
     {
-        "-ocsp-response", kOptionalArgument, "OCSP response file to send",
+        "-ocsp-response",
+        kOptionalArgument,
+        "OCSP response file to send",
     },
     {
         "-ech-key",
@@ -72,31 +81,40 @@ static const struct argument kArguments[] = {
         "File containing one ECHConfig.",
     },
     {
-        "-loop", kBooleanArgument,
+        "-loop",
+        kBooleanArgument,
         "The server will continue accepting new sequential connections.",
     },
     {
-        "-early-data", kBooleanArgument, "Allow early data",
+        "-early-data",
+        kBooleanArgument,
+        "Allow early data",
     },
     {
-        "-www", kBooleanArgument,
+        "-www",
+        kBooleanArgument,
         "The server will print connection information in response to a "
         "HTTP GET request.",
     },
     {
-        "-debug", kBooleanArgument,
+        "-debug",
+        kBooleanArgument,
         "Print debug information about the handshake",
     },
     {
-        "-require-any-client-cert", kBooleanArgument,
+        "-require-any-client-cert",
+        kBooleanArgument,
         "The server will require a client certificate.",
     },
     {
-        "-jdk11-workaround", kBooleanArgument,
+        "-jdk11-workaround",
+        kBooleanArgument,
         "Enable the JDK 11 workaround",
     },
     {
-        "", kOptionalArgument, "",
+        "",
+        kOptionalArgument,
+        "",
     },
 };
 

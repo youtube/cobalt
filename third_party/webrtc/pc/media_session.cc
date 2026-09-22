@@ -49,10 +49,8 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
-
-#ifdef RTC_ENABLE_H265
-#endif
 
 namespace {
 
@@ -864,17 +862,24 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   // Decide what congestion control feedback format we're using.
   bool has_ack_ccfb = false;
   if (accept_offer_with_rfc_8888_) {
+    bool all_rtp_have_ccfb = true;
+    bool any_rtp_has_ccfb = false;
     for (const auto& content : offer->contents()) {
       if (content.type != MediaProtocolType::kRtp) {
         continue;
       }
       if (content.media_description()->rtcp_fb_ack_ccfb()) {
+        any_rtp_has_ccfb = true;
+      } else {
+        all_rtp_have_ccfb = false;
+      }
+    }
+    if (any_rtp_has_ccfb) {
+      if (all_rtp_have_ccfb) {
         has_ack_ccfb = true;
-      } else if (has_ack_ccfb) {
+      } else {
         RTC_LOG(LS_ERROR)
             << "Inconsistent rtcp_fb_ack_ccfb marking, ignoring all";
-        has_ack_ccfb = false;
-        break;
       }
     }
   }
@@ -945,7 +950,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
         error = AddRtpContentForAnswer(
             media_description_options, session_options, offer_content, offer,
             current_content, current_description, bundle_transport,
-            header_extensions, &current_streams, answer.get(),
+            header_extensions, &current_streams, answer.get(), has_ack_ccfb,
             &ice_credentials);
         break;
       case MediaType::DATA:
@@ -1185,6 +1190,9 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
   if (!error_or_filtered_codecs.ok()) {
     return error_or_filtered_codecs.MoveError();
   }
+
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+
   codecs_to_include = error_or_filtered_codecs.MoveValue();
   std::unique_ptr<MediaContentDescription> content_description;
   if (media_description_options.type == MediaType::AUDIO) {
@@ -1313,6 +1321,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
     const RtpHeaderExtensions& header_extensions,
     StreamParamsVec* current_streams,
     SessionDescription* answer,
+    bool include_ccfb_in_answer,
     IceCredentialsIterator* ice_credentials) const {
   RTC_DCHECK(media_description_options.type == MediaType::AUDIO ||
              media_description_options.type == MediaType::VIDEO);
@@ -1354,6 +1363,9 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
   if (!error_or_filtered_codecs.ok()) {
     return error_or_filtered_codecs.MoveError();
   }
+
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+
   codecs_to_include = error_or_filtered_codecs.MoveValue();
   // Determine if we have media codecs in common.
   bool has_usable_media_codecs =
@@ -1373,7 +1385,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
   // RFC 8888 support. Only answer with "ack ccfb" if offer has it and
   // experiment is enabled.
   if (offer_content_description->rtcp_fb_ack_ccfb()) {
-    if (accept_offer_with_rfc_8888_) {
+    if (accept_offer_with_rfc_8888_ && include_ccfb_in_answer) {
       answer_content->set_rtcp_fb_ack_ccfb(true);
       for (auto& codec : codecs_to_include) {
         codec.feedback_params.Remove(FeedbackParam(kRtcpFbParamTransportCc));

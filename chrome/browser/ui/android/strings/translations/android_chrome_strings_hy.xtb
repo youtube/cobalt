@@ -223,7 +223,6 @@
 <translation id="1959679933317802873">Բովանդակության սպասում</translation>
 <translation id="1960290143419248813">Chrome-ն այլևս չի թարմացվում Android-ի այս տարբերակում</translation>
 <translation id="1962061488333185936"><ph name="TAB_TITLE" />, ընտրված մի քանի ներդիրներից մեկը, որում ձայն է նվագարկվում</translation>
-<translation id="1963056249988316027">Ինքնության ստուգումը միացված է, սակայն ձեր ինքնությունը չհաջողվեց հաստատել</translation>
 <translation id="1963976881984600709">Սովորական պաշտպանություն</translation>
 <translation id="1966710179511230534">Թարմացրեք ձեր մուտքի տվյալները:</translation>
 <translation id="1969037871259811890">Ձեր այցելությունների պատմությունը ջնջելով՝ դուք դուրս չեք գա ձեր Google հաշվից։ Հաշվից դուրս գալու համար անհրաժեշտ է <ph name="BEGIN_LINK1" />դուրս գալ Chrome-ից<ph name="END_LINK1" />։</translation>
@@ -248,7 +247,6 @@
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{Չհաջողվեց ներբեռնել 1 ֆայլ}one{Չհաջողվեց ներբեռնել # ֆայլ}other{Չհաջողվեց ներբեռնել # ֆայլ}}</translation>
 <translation id="2067805253194386918">տեքստ</translation>
 <translation id="2072027001582274150">Չօգտագործված կամ կրկնօրինակ ներդիրներ</translation>
-<translation id="2074527029802029717">Ապամրացնել ներդիրը</translation>
 <translation id="2079545284768500474">Հետարկել</translation>
 <translation id="2082238445998314030"><ph name="RESULT_NUMBER" />-ից <ph name="TOTAL_RESULTS" /> արդյունք</translation>
 <translation id="2088833076121753253">Ինքնալրացման կարգավորումն ավարտելու համար վերագործարկեք Chrome-ը հիմա։ Ձեր ներդիրներն ավտոմատ նորից կբացվեն։</translation>
@@ -336,6 +334,7 @@
 <translation id="2461822463642141190">Ընթացիկ</translation>
 <translation id="2466378451804467735"><ph name="TAB_TITLE" />, ընտրված մի քանի ներդիրներից մեկը, որի ձայնն անջատված է</translation>
 <translation id="2468444275314013497">Ձեր դիտարկիչն ապահով է</translation>
+<translation id="2471632347767899461">Որոնեք օգնության կենտրոնում</translation>
 <translation id="2472163211318554013">Մտեք հաշիվ՝ Chromе-ի բոլոր գործառույթներից օգտվելու համար</translation>
 <translation id="247737702124049222">Պատկերների նկարագրությունները միացված են</translation>
 <translation id="2479148705183875116">Անցնել կարգավորումներ</translation>
@@ -363,6 +362,7 @@
 <translation id="2546283357679194313">Cookie ֆայլեր և կայքի տվյալներ</translation>
 <translation id="2547843573592965873">Պրոֆիլի կողպումը մեքենայում ապահով պահում է ձեր տեղեկությունները, այդ թվում՝ գաղտնաբառերը, վճարումների մասին տվյալները և ձեր Google հաշվում պահվող այլ տվյալներ։</translation>
 <translation id="254973855621628293">Այս սարքում պահված գաղտնաբառեր</translation>
+<translation id="2553962148913791095">Որոշ էջանիշներ պահված չեն</translation>
 <translation id="2566471851103108967">{FILE_COUNT,plural, =1{Արգելափակվել է վտանգավոր ներբեռնում}one{Արգելափակվել է # վտանգավոր ներբեռնում}other{Արգելափակվել է # վտանգավոր ներբեռնում}}</translation>
 <translation id="2569733278091928697">Դուք կկարողանաք հեշտությամբ կառավարել մեդիա բովանդակությունը, ինկոգնիտո աշխատաշրջանները, ներբեռնված ֆայլերը և այլն։</translation>
 <translation id="2571711316400087311">Առաջարկել այլ լեզուներով էջերն ուղարկել Google Translate ծառայությանը</translation>
@@ -600,7 +600,6 @@
 <translation id="3623240789707551553">{DOMAIN_COUNT,plural, =1{+ 1 կայք}one{+ # կայք}other{+ # կայք}}</translation>
 <translation id="3625870480639975468">Վերակայել խոշորացումը</translation>
 <translation id="3631987586758005671">Ուղարկվում է <ph name="DEVICE_NAME" /> սարքին</translation>
-<translation id="363484704507524488">Դուք կարող եք փոխել ինքնության ստուգման կարգավորումները գողությունից պաշտպանության կարգավորումներում։ <ph name="BEGIN_LINK" />Անցնել կարգավորումներ<ph name="END_LINK" /></translation>
 <translation id="3635073343384702370">Chrome-ը կարող է ստուգել ձեր գաղտնաբառերը, երբ պահում եք դրանք</translation>
 <translation id="3636940436873918441">Նախընտրելի լեզուներ</translation>
 <translation id="3637744895182738742">Եթե մոռացել եք ձեր անցաբառը կամ ուզում եք փոխել այս կարգավորումը, <ph name="BEGIN_LINK" />ջնջեք Chrome-ի տվյալները ձեր հաշվում<ph name="END_LINK" />։</translation>
@@ -622,6 +621,7 @@
 <translation id="3710560693796335511">Համագործակցություն</translation>
 <translation id="3718765429352682176">Դուք կարող եք տեսնել պատմությունն այլ հավելվածներից, որոնք հղումներ են բացում Chrome-ում։</translation>
 <translation id="3721119614952978349">Դուք և Google-ը</translation>
+<translation id="3727000368239390918">Մուտք գործեք՝ ներդիրները և մյուս տվյալները ձեր բոլոր սարքերում օգտագործելու համար</translation>
 <translation id="3737319253362202215">Թարգմանության կարգավորումներ</translation>
 <translation id="3738139272394829648">Հպեք` որոնելու համար</translation>
 <translation id="3739455665973395693">Ձեր Google հաշվում կոտրված գաղտնաբառեր չկան</translation>
@@ -656,6 +656,7 @@
 <translation id="3870908470613821006">Բոլորին անմիջապես անհասանելի կդառնա ներդիրների «<ph name="GROUP_NAME" />» խումբը, և այն կջնջվի բոլոր սարքերից</translation>
 <translation id="3873174561423636563">Շարունակելու համար <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ընկերությունն այս կայքին կփոխանցի հետևյալ տվյալները՝ <ph name="FIELDS_STRING" />։ Ծանոթացեք այս կայքի <ph name="BEGIN_LINK1" />օգտագործման պայմաններին<ph name="END_LINK1" />։</translation>
 <translation id="3892148308691398805">Պատճենել տեքստը</translation>
+<translation id="3893858854379998374">Ձեր հաշվում էջանիշներ պահելու համար ջնջեք չօգտագործվող էջանիշները</translation>
 <translation id="3898498281932368596">Արգելափակել և լքել</translation>
 <translation id="3899682235662194879">Փակել բոլոր ինկոգնիտո ներդիրները</translation>
 <translation id="3900966090527141178">Գաղտնաբառերի արտահանում</translation>
@@ -719,6 +720,7 @@
 <translation id="4170011742729630528">Ծառայությունը մատչելի չէ: Կրկին փորձեք ավելի ուշ:</translation>
 <translation id="4177222230309051052">Ձեր բոլոր էջանիշները՝ միշտ ձեռքի տակ</translation>
 <translation id="4177501066905053472">Գովազդի թեմաներ</translation>
+<translation id="417865198503699526">Որոնեք որևէ կարգավորում</translation>
 <translation id="4180726336228139707">Միայն այս սարքում</translation>
 <translation id="4181841719683918333">Լեզուներ</translation>
 <translation id="4188221736490993796">Դասավորել Ֆ-ից Ա</translation>
@@ -1127,7 +1129,6 @@
 <translation id="5869522115854928033">Պահված գաղտնաբառեր</translation>
 <translation id="5870416898561279542">Կրկնօրինակ կամ <ph name="DAYS_INACTIVE" /> օր չօգտագործված ներդիրներն ու խմբերը տեղափոխվում են այստեղ<ph name="AUTODELETE_SECTION" />։ Սա ցանկացած ժամանակ կարող եք փոխել <ph name="DECLUTTER_SETTINGS_TITLE" />ում։</translation>
 <translation id="587735546353481577">Կայքին հետևելու համար անցեք այդ կայք, բացեք Chrome-ի ընտրացանկն ու հպեք «Հետևել»։</translation>
-<translation id="5883855034004058011">Կենսաչափական տվյալները հաստատելու չափազանց շատ անհաջող փորձեր են արվել։ Նորից փորձելու համար կողպեք և ապակողպեք ձեր սարքը։</translation>
 <translation id="5885378508678660271">Ծանուցումներ <ph name="SEPARATOR" /> Chrome-ը հեռացրել է այս թույլտվությունները, քանի որ այս կայքը վտանգավոր է</translation>
 <translation id="5899667542927581604">«Հասանելի մուտքի բանալիներ չկան» թերթը փակվեց</translation>
 <translation id="5907542076239273525">Էջանիշը պահվեց «<ph name="FOLDER_NAME" />» պանակում</translation>
@@ -1266,6 +1267,7 @@
 <translation id="641643625718530986">Տպել…</translation>
 <translation id="6433501201775827830">Ընտրեք որոնիչը</translation>
 <translation id="6434309073475700221">Հրաժարվել</translation>
+<translation id="6435307030888827407">Չմտնել հաշիվ</translation>
 <translation id="6437162790453527153">Մուտք գործեք՝ ձեր էջանիշները և մյուս տվյալները ձեր բոլոր սարքերում օգտագործելու համար</translation>
 <translation id="6437478888915024427">Տեղեկություններ էջի մասին</translation>
 <translation id="6440291723980579689">Էջերը բեռնվում են միայն, եթե բացում եք դրանք</translation>
@@ -1336,7 +1338,6 @@
 <translation id="670498945988402717">Ստուգվել է երեկ</translation>
 <translation id="6710213216561001401">Նախորդը</translation>
 <translation id="671481426037969117"><ph name="FQDN" />-ի համար նախատեսված ժամանակը լրացել է։ Վաղը այն նորից կաշխատի:</translation>
-<translation id="671928215901716392">Կողպել էկրանը</translation>
 <translation id="6723740634201835758">Ձեր Google հաշվում</translation>
 <translation id="6734310707649923383">Դուք կարող եք դիտել ձեր այցելած էջերը կամ ջնջել դրանք պատմությունից</translation>
 <translation id="6737429434215739253"><ph name="TAB_TITLE" />, ամրացված ինկոգնիտո ներդիր, որում տեսագրում է արվում</translation>
@@ -1501,6 +1502,7 @@
 <translation id="7293429513719260019">Ընտրել լեզուն</translation>
 <translation id="7298319215489933099"><ph name="TAB_TITLE" />, ընտրված և ամրացված ներդիր, որը հասանելի է այլ օգտատերերի</translation>
 <translation id="7304072650267745798">Ձեր Android սարքում կարող է նմանատիպ կարգավորում լինել։ Եթե այս կարգավորումը Chrome-ում և ձեր Android սարքում միացված է, ընկերությունները կարող են գնահատել գովազդի արդյունավետությունը ձեր այցելած կայքերում և ձեր կողմից օգտագործվող հավելվածներում։</translation>
+<translation id="7311244614769792472">Ոչինչ չի գտնվել</translation>
 <translation id="7313188324932846546">Հպեք՝ համաժամացումը կարգավորելու համար</translation>
 <translation id="7314734791127433392">Հնարավոր չէ ստուգել գաղտնաբառերը</translation>
 <translation id="7324354302972299151">Ուղարկել «Do Not Track» հարցում</translation>
@@ -1604,6 +1606,7 @@
 <translation id="7708994397325774423">Ստացեք ձեր բոլոր գաղտնաբառերը</translation>
 <translation id="7714077993070342304">Բացել Chrome-ի ընտրացանկը</translation>
 <translation id="7733878270780732638">Սարքում բավականաչափ տարածք չկա։</translation>
+<translation id="7740287852186792672">Որոնման արդյունքներ</translation>
 <translation id="774403695779169686"><ph name="TAB_TITLE" />, ընտրված ինկոգնիտո ներդիր, որը հասանելի է այլ օգտատերերի</translation>
 <translation id="774876555279732384">Ինքնալրացման ծառայությունները նաև կարելի է կառավարել <ph name="BEGIN_LINK" />Android-ի կարգավորումներում<ph name="END_LINK" />։</translation>
 <translation id="7759809451544302770">Կամընտիր</translation>
@@ -1641,7 +1644,6 @@
 <translation id="7876243839304621966">Հեռացնել բոլորը</translation>
 <translation id="7886917304091689118">Այս էջն արդեն բացված է Chrome-ում</translation>
 <translation id="7887174313503389866">Դիտեք գաղտնիության և անվտանգության հիմնական կառավարման տարրերը։ Լրացուցիչ պարամետրերի համար բացեք առանձին կարգավորումները։</translation>
-<translation id="7907478394153853634">Lorem Ipsum</translation>
 <translation id="7913993612870913335">{FILE_COUNT,plural, =1{1 ներբեռնում արգելափակվել է ձեր կազմակերպության կողմից}one{# ներբեռնում արգելափակվել է ձեր կազմակերպության կողմից}other{# ներբեռնում արգելափակվել է ձեր կազմակերպության կողմից}}</translation>
 <translation id="7914399737746719723">Հավելվածը տեղադրվեց</translation>
 <translation id="7917574899775263813">Անցնել վերջին ներդիրին</translation>
@@ -1805,7 +1807,6 @@
 <translation id="8540136935098276800">Մուտքագրեք ճիշտ ձևաչափի URL</translation>
 <translation id="854522910157234410">Բացել այս էջը</translation>
 <translation id="8547466829003330976">Ստուգեք PDF ֆայլը ԱԲ-ի միջոցով</translation>
-<translation id="855081842937141170">Ամրացնել ներդիրը</translation>
 <translation id="8551513938758868521">Կողպել ինկոգնիտո ներդիրները Chrome-ը փակելուց հետո</translation>
 <translation id="8559961053328923750">Գովազդի արդյունավետությունը գնահատելու համար Chrome-ը սահմանափակում է այն տվյալների ընդհանուր ծավալը, որոնք կայքերն ուղարկում են դիտարկիչի միջոցով</translation>
 <translation id="8559990750235505898">Առաջարկել թարգմանել էջերը այլ լեզուներով</translation>
@@ -1868,6 +1869,7 @@
 <translation id="8840953339110955557">Այս էջը կարող է տարբերվել առցանց տարբերակից։</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8849001918648564819">Ոչ ոք</translation>
+<translation id="8849164661359544855"><ph name="URL" /> կայքն ուզում է ավտոմատ բացել «Նկար նկարի մեջ» պատուհանները</translation>
 <translation id="8854223127042600341">Դիտեք անցանց ֆայլերը</translation>
 <translation id="885480114717186641">Դուք կարող եք <ph name="HOST_NAME" /> կայքի համակարգչային տարբերակը խնդրել</translation>
 <translation id="8856607253650333758">Ստանալ նկարագրություններ</translation>
@@ -1925,6 +1927,7 @@
 <translation id="9081543426177426948">Ինկոգնիտո ռեժիմում այցելած կայքերի մասին տեղեկությունները չեն պահվում</translation>
 <translation id="9086302186042011942">Համաժամացում</translation>
 <translation id="9086455579313502267">Հնարավոր չէ մուտք գործել ցանց</translation>
+<translation id="9093915805850895575">Բացել Chrome-ի պատուհանում</translation>
 <translation id="909756639352028172">Դիտարկիչի աշխատանքն անհատականացնելու համար ներառեք Chrome-ը Վեբ որոնման և հավելվածների պատմության և Google-ի կապված ծառայությունների մեջ</translation>
 <translation id="9099220545925418560">Ձեր այցելությունների պատմության հիման վրա։ Այս կարգավորումն անջատված է։</translation>
 <translation id="9100610230175265781">Անհրաժեշտ է անցաբառ</translation>

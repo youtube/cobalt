@@ -103,7 +103,7 @@ class OptimizationGuideService
   void ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey feature,
       const google::protobuf::MessageLite& request_metadata,
-      const std::optional<base::TimeDelta>& execution_timeout,
+      const optimization_guide::ModelExecutionOptions& options,
       optimization_guide::OptimizationGuideModelExecutionResultCallback
           callback) override;
 
@@ -132,6 +132,12 @@ class OptimizationGuideService
   // Getter for the optimization guide logger.
   OptimizationGuideLogger* GetOptimizationGuideLogger() {
     return optimization_guide_logger_.get();
+  }
+
+  // Getter for model quality logs uploader service.
+  optimization_guide::ModelQualityLogsUploaderService*
+  GetModelQualityLogsUploaderService() {
+    return model_quality_logs_uploader_service_.get();
   }
 
   // Adds hints for a URL with provided metadata to the optimization guide. For
@@ -195,6 +201,16 @@ class OptimizationGuideService
   // Manages the model execution. Not created for off the record profiles.
   std::unique_ptr<optimization_guide::ModelExecutionManager>
       model_execution_manager_;
+
+  // Manage user opt-in settings and states. Not created for off the record
+  // profiles.
+  std::unique_ptr<optimization_guide::ModelExecutionFeaturesController>
+      model_execution_features_controller_;
+
+  // Manages the model quality logs uploader service. Not created for off the
+  // record profiles.
+  std::unique_ptr<optimization_guide::ModelQualityLogsUploaderService>
+      model_quality_logs_uploader_service_;
 
   // The PrefService of the profile this service is linked to.
   const raw_ptr<PrefService> pref_service_ = nullptr;

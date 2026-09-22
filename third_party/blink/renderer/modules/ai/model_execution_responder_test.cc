@@ -7,7 +7,6 @@
 #include <optional>
 #include <tuple>
 
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -83,9 +82,10 @@ TEST(CreateModelExecutionResponder, Simple) {
           kTestTokenNumber, blink::Unretained(&complete_runloop),
           WrapPersistent(resolver)),
       /*overflow_callback=*/overflow_runloop.QuitClosure(),
-      blink::BindOnce(&RejectPromiseOnError, WrapPersistent(resolver)),
-      blink::BindOnce(&RejectPromiseOnAbort, WrapPersistent(resolver), nullptr,
-                      WrapPersistent(script_state)));
+      base::BindOnce(&RejectPromiseOnError<IDLString>,
+                     WrapPersistent(resolver)),
+      base::BindOnce(&RejectPromiseOnAbort<IDLString>, WrapPersistent(resolver),
+                     nullptr, WrapPersistent(script_state)));
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));
@@ -121,11 +121,13 @@ TEST(CreateModelExecutionResponder, ErrorPermissionDenied) {
       script_state, /*signal=*/nullptr,
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
-      blink::BindOnce(&ResolvePromiseOnCompletion, WrapPersistent(resolver)),
+      base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
+                     WrapPersistent(resolver)),
       /*overflow_callback=*/base::DoNothing(),
-      blink::BindOnce(&RejectPromiseOnError, WrapPersistent(resolver)),
-      blink::BindOnce(&RejectPromiseOnAbort, WrapPersistent(resolver), nullptr,
-                      WrapPersistent(script_state)));
+      base::BindOnce(&RejectPromiseOnError<IDLString>,
+                     WrapPersistent(resolver)),
+      base::BindOnce(&RejectPromiseOnAbort<IDLString>, WrapPersistent(resolver),
+                     nullptr, WrapPersistent(script_state)));
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));
@@ -161,12 +163,14 @@ TEST(CreateModelExecutionResponder, AbortWithoutResponse) {
       script_state, controller->signal(),
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
-      blink::BindOnce(&ResolvePromiseOnCompletion, WrapPersistent(resolver)),
+      base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
+                     WrapPersistent(resolver)),
       /*overflow_callback=*/base::DoNothing(),
-      blink::BindOnce(&RejectPromiseOnError, WrapPersistent(resolver)),
-      blink::BindOnce(&RejectPromiseOnAbort, WrapPersistent(resolver),
-                      WrapPersistent(controller->signal()),
-                      WrapPersistent(script_state)));
+      base::BindOnce(&RejectPromiseOnError<IDLString>,
+                     WrapPersistent(resolver)),
+      base::BindOnce(&RejectPromiseOnAbort<IDLString>, WrapPersistent(resolver),
+                     WrapPersistent(controller->signal()),
+                     WrapPersistent(script_state)));
 
   controller->abort(scope.GetScriptState());
 
@@ -201,12 +205,14 @@ TEST(CreateModelExecutionResponder, AbortAfterResponse) {
       script_state, controller->signal(),
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
-      blink::BindOnce(&ResolvePromiseOnCompletion, WrapPersistent(resolver)),
+      base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
+                     WrapPersistent(resolver)),
       /*overflow_callback=*/base::DoNothing(),
-      blink::BindOnce(&RejectPromiseOnError, WrapPersistent(resolver)),
-      blink::BindOnce(&RejectPromiseOnAbort, WrapPersistent(resolver),
-                      WrapPersistent(controller->signal()),
-                      WrapPersistent(script_state)));
+      base::BindOnce(&RejectPromiseOnError<IDLString>,
+                     WrapPersistent(resolver)),
+      base::BindOnce(&RejectPromiseOnAbort<IDLString>, WrapPersistent(resolver),
+                     WrapPersistent(controller->signal()),
+                     WrapPersistent(script_state)));
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));

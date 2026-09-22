@@ -62,8 +62,13 @@ class TouchToFillPaymentMethodControllerImpl
                         base::span<const LoyaltyCard> affiliated_loyalty_cards,
                         base::span<const LoyaltyCard> all_loyalty_cards,
                         bool first_time_usage) override;
-  bool UpdateBnplPaymentMethod(std::optional<int64_t> extracted_amount,
-                               bool is_amount_supported_by_any_issuer) override;
+  bool OnPurchaseAmountExtracted(
+      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+      std::optional<int64_t> extracted_amount,
+      bool is_amount_supported_by_any_issuer,
+      const std::optional<std::string>& app_locale,
+      base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+      base::OnceClosure cancel_callback) override;
   bool ShowProgressScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
                           base::OnceClosure cancel_callback) override;
   bool ShowBnplIssuers(
@@ -92,7 +97,9 @@ class TouchToFillPaymentMethodControllerImpl
                                       ContentAutofillDriver& driver) override;
 
   // TouchToFillPaymentMethodViewController:
-  void OnDismissed(JNIEnv* env, bool dismissed_by_user) override;
+  void OnDismissed(JNIEnv* env,
+                   bool dismissed_by_user,
+                   bool should_reshow) override;
   void ScanCreditCard(JNIEnv* env) override;
   void ShowPaymentMethodSettings(JNIEnv* env) override;
   void CreditCardSuggestionSelected(JNIEnv* env,
@@ -105,7 +112,6 @@ class TouchToFillPaymentMethodControllerImpl
   void ServerIbanSuggestionSelected(JNIEnv* env, long instrument_id) override;
   void LoyaltyCardSuggestionSelected(JNIEnv* env,
                                      const LoyaltyCard& loyalty_card) override;
-  void OnErrorOkPressed(JNIEnv* env) override;
   void OnBnplIssuerSuggestionSelected(JNIEnv* env,
                                       const std::string& issuer_id) override;
   void OnBnplTosAccepted(JNIEnv* env) override;

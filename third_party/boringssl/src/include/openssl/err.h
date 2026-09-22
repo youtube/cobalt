@@ -45,26 +45,6 @@ extern "C" {
 // backtrace of sorts.
 
 
-// Startup and shutdown.
-
-// ERR_load_BIO_strings does nothing.
-//
-// TODO(fork): remove. libjingle calls this.
-OPENSSL_EXPORT void ERR_load_BIO_strings(void);
-
-// ERR_load_ERR_strings does nothing.
-OPENSSL_EXPORT void ERR_load_ERR_strings(void);
-
-// ERR_load_crypto_strings does nothing.
-OPENSSL_EXPORT void ERR_load_crypto_strings(void);
-
-// ERR_load_RAND_strings does nothing.
-OPENSSL_EXPORT void ERR_load_RAND_strings(void);
-
-// ERR_free_strings does nothing.
-OPENSSL_EXPORT void ERR_free_strings(void);
-
-
 // Reading and formatting errors.
 
 // ERR_GET_LIB returns the library code for the error. This is one of
@@ -316,6 +296,21 @@ enum {
 
 
 // Deprecated functions.
+
+// ERR_load_BIO_strings does nothing.
+OPENSSL_EXPORT void ERR_load_BIO_strings(void);
+
+// ERR_load_ERR_strings does nothing.
+OPENSSL_EXPORT void ERR_load_ERR_strings(void);
+
+// ERR_load_crypto_strings does nothing.
+OPENSSL_EXPORT void ERR_load_crypto_strings(void);
+
+// ERR_load_RAND_strings does nothing.
+OPENSSL_EXPORT void ERR_load_RAND_strings(void);
+
+// ERR_free_strings does nothing.
+OPENSSL_EXPORT void ERR_free_strings(void);
 
 // ERR_remove_state calls |ERR_clear_error|.
 OPENSSL_EXPORT void ERR_remove_state(unsigned long pid);

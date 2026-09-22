@@ -286,7 +286,7 @@ class FormAutocompleteTest : public ChromeRenderViewTest {
     return focus_test_utils_->GetFocusLog(GetMainFrame()->GetDocument());
   }
 
-  test::AutofillUnitTestEnvironment autofill_test_environment_;
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
   FakeContentAutofillDriver fake_driver_;
   std::unique_ptr<test::FocusTestUtils> focus_test_utils_;
 };
@@ -514,10 +514,8 @@ class FormAutocompleteSubmissionTest : public FormAutocompleteTest,
                                        public testing::WithParamInterface<int> {
  public:
   FormAutocompleteSubmissionTest() {
-    EXPECT_LE(GetParam(), 5);
+    EXPECT_LE(GetParam(), 3);
     std::vector<base::test::FeatureRef> features = {
-        features::kAutofillUseSubmittedFormInHtmlSubmission,
-        features::kAutofillPreferSavedFormAsSubmittedForm,
         features::kAutofillFixFormTracking,
         features::kAutofillReplaceCachedWebElementsByRendererIds,
         features::kAutofillReplaceFormElementObserver};
@@ -535,7 +533,7 @@ class FormAutocompleteSubmissionTest : public FormAutocompleteTest,
 
 INSTANTIATE_TEST_SUITE_P(AutofillSubmissionTest,
                          FormAutocompleteSubmissionTest,
-                         ::testing::Values(0, 1, 2, 3, 4, 5));
+                         ::testing::Values(0, 1, 2, 3));
 
 // Tests that submitting a form generates FormSubmitted message with the form
 // fields.

@@ -251,6 +251,9 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
   }
 }
 
+static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
+    v8::base::TimeDelta::FromMilliseconds(5);
+
 class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
@@ -444,8 +447,14 @@ class Heap final {
   [[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
       const char* location);
 
-  // Checks whether the space is valid.
-  static bool IsValidAllocationSpace(AllocationSpace space);
+  static constexpr std::optional<AllocationSpace>
+  TryGetAllocationSpaceFromIndex(size_t index) {
+    if (index > AllocationSpace::LAST_SPACE) {
+      return std::nullopt;
+    }
+    static_assert(AllocationSpace::FIRST_SPACE == 0);
+    return {static_cast<AllocationSpace>(index)};
+  }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
@@ -756,12 +765,7 @@ class Heap final {
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
   uint64_t UpdateExternalMemory(int64_t delta);
 
-  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
-  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
-
-  uint64_t backing_store_bytes() const {
-    return backing_store_bytes_.load(std::memory_order_relaxed);
-  }
+  uint64_t backing_store_bytes() const;
 
   void CompactWeakArrayLists();
 
@@ -895,8 +899,9 @@ class Heap final {
     return shared_trusted_lo_allocation_space_;
   }
 
-  inline PagedSpace* paged_space(int idx) const;
-  inline Space* space(int idx) const;
+  inline PagedSpace* paged_space(int index) const;
+  inline Space* space(int index) const;
+  inline Space* space(AllocationSpace allocation_space) const;
 
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable::Space* young_external_pointer_space() {
@@ -953,7 +958,7 @@ class Heap final {
 
   Sweeper* sweeper() { return sweeper_.get(); }
 
-  ArrayBufferSweeper* array_buffer_sweeper() {
+  ArrayBufferSweeper* array_buffer_sweeper() const {
     return array_buffer_sweeper_.get();
   }
 
@@ -1298,9 +1303,6 @@ class Heap final {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(Tagged<String> string);
 
-  static Tagged<String> UpdateYoungReferenceInExternalStringTableEntry(
-      Heap* heap, FullObjectSlot pointer);
-
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
   // ===========================================================================
@@ -1513,7 +1515,7 @@ class Heap final {
     old_generation_allocation_counter_at_last_gc_ = new_value;
   }
 
-  int gc_count() const { return gc_count_; }
+  GCEpoch gc_count() const { return gc_count_; }
 
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
@@ -1571,6 +1573,8 @@ class Heap final {
 
   V8_EXPORT_PRIVATE size_t OldGenerationAllocationLimitForTesting() const;
   V8_EXPORT_PRIVATE size_t GlobalAllocationLimitForTesting() const;
+
+  V8_EXPORT_PRIVATE size_t GetExternalStrinBytesForTesting() const;
 
   // We allow incremental marking to overshoot the V8 and global allocation
   // limit for performance reasons. If the overshoot is too large then we are
@@ -1796,6 +1800,8 @@ class Heap final {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
+  size_t YoungExternalMemoryBytes() const;
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       TaskPriority priority = TaskPriority::kUserBlocking) const;
 
@@ -1838,34 +1844,27 @@ class Heap final {
     inline void AddString(Tagged<String> string);
     bool Contains(Tagged<String> string);
 
-    void IterateAll(RootVisitor* v);
-    void IterateYoung(RootVisitor* v);
-    void PromoteYoung();
+    void Iterate(RootVisitor* visitor);
+    void Update(base::FunctionRef<void(Tagged<HeapObject>)> callback);
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
-    void CleanUpAll();
-    void CleanUpYoung();
+    void CleanUp();
 
     // Finalize all registered external strings and clear tables.
     void TearDown();
 
-    void UpdateYoungReferences(
-        Heap::ExternalStringTableUpdaterCallback updater_func);
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
-    bool HasYoung() const { return !young_strings_.empty(); }
+    size_t GetBytes() const { return bytes_; }
 
    private:
     void Verify();
-    void VerifyYoung();
 
     Heap* const heap_;
 
-    // To speed up scavenge collections young string are kept separate from old
-    // strings.
-    std::vector<TaggedBase> young_strings_;
+    size_t bytes_{0};
     std::vector<TaggedBase> old_strings_;
     // Used to protect access with --shared-string-table.
     base::Mutex mutex_;
@@ -2037,12 +2036,6 @@ class Heap final {
   // Performs a minor collection in new generation.
   void Scavenge();
 
-  void UpdateYoungReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
-  void UpdateReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
   void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
@@ -2077,12 +2070,6 @@ class Heap final {
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
                                    size_t global_size,
                                    double mutator_utilization);
-
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
 
   // ===========================================================================
   // Growing strategy. =========================================================
@@ -2309,11 +2296,6 @@ class Heap final {
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
 
-  // Backing store bytes (array buffers and external strings).
-  // Use uint64_t counter since the counter could overflow the 32-bit range
-  // temporarily on 32-bit.
-  std::atomic<uint64_t> backing_store_bytes_{0};
-
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
   size_t survived_since_last_expansion_ = 0;
@@ -2396,10 +2378,10 @@ class Heap final {
   std::atomic<double> max_marking_limit_reached_ = 0.0;
 
   // How many mark-sweep collections happened.
-  unsigned int ms_count_ = 0;
+  uint32_t ms_count_ = 0;
 
   // How many gc happened.
-  unsigned int gc_count_ = 0;
+  GCEpoch gc_count_ = kInitialGCEpoch;
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
@@ -2615,6 +2597,7 @@ class Heap final {
   perfetto::NamedTrack loading_track_;
 
   const uint8_t* gc_tracing_category_enabled_ = nullptr;
+  size_t notify_context_disposed_counter_ = 1;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

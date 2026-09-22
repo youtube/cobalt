@@ -89,7 +89,7 @@ void CaptioningController::SetTextTrackSettings(
   web_contents()->SetWebPreferences(web_prefs);
 }
 
-jlong JNI_CaptioningController_Init(
+static jlong JNI_CaptioningController_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents) {
@@ -101,3 +101,5 @@ jlong JNI_CaptioningController_Init(
 }
 
 }  // namespace content
+
+DEFINE_JNI(CaptioningController)

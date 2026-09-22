@@ -40,6 +40,7 @@
 #include <openssl/err.h>
 #include <openssl/hkdf.h>
 #include <openssl/hmac.h>
+#include <openssl/mldsa.h>
 #include <openssl/obj.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>

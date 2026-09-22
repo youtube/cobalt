@@ -571,6 +571,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(EnsureFeedbackVectorForFunction, 1, 1)                               \
   F(FinalizeOptimization, 0, 1)                                          \
   F(ForceFlush, 1, 1)                                                    \
+  F(MajorGCForCompilerTesting, 0, 1)                                     \
   F(GetAbstractModuleSource, 0, 1)                                       \
   F(GetCallable, 1, 1)                                                   \
   F(GetFeedback, 1, 1)                                                   \
@@ -765,10 +766,10 @@ constexpr bool CanTriggerGC(T... properties) {
   F(CheckIsOnCentralStack, 0, 1)                                \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
   F(DisallowWasmCodegen, 1, 1)                                  \
-  F(FlushLiftoffCode, 0, 1)                                     \
-  F(WasmTriggerCodeGC, 0, 1)                                    \
   F(EstimateCurrentMemoryConsumption, 0, 1)                     \
+  F(FlushLiftoffCode, 0, 1)                                     \
   F(FreezeWasmLazyCompilation, 1, 1)                            \
+  F(GenerateWasmCompilationHints, 1, 1)                         \
   F(GetWasmExceptionTagId, 2, 1)                                \
   F(GetWasmExceptionValues, 1, 1)                               \
   F(GetWasmRecoveredTrapCount, 0, 1)                            \
@@ -799,6 +800,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTraceEnter, 0, 1)                                       \
   F(WasmTraceExit, 1, 1)                                        \
   F(WasmTraceMemory, 1, 1)                                      \
+  F(WasmTriggerCodeGC, 0, 1)                                    \
   F(WasmTraceGlobal, 1, 1)                                      \
   F(WasmTriggerTierUpForTesting, 1, 1)
 
@@ -842,7 +844,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StoreIC_Miss, 5, 1)                      \
   F(DefineNamedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
-  F(StorePropertyWithInterceptor, 5, 1)      \
+  F(StorePropertyWithInterceptor, 4, 1)      \
   F(CloneObjectIC_Slow, 2, 1)                \
   F(CloneObjectIC_Miss, 4, 1)                \
   F(KeyedHasIC_Miss, 4, 1)                   \

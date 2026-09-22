@@ -234,9 +234,7 @@ RTCError IceConfig::IsValid() const {
   return RTCError::OK();
 }
 
-IceTransportInternal::IceTransportInternal()
-    : role_conflict_trampoline_(this),
-      ice_transport_state_changed_trampoline_(this) {}
+IceTransportInternal::IceTransportInternal() = default;
 
 IceTransportInternal::~IceTransportInternal() = default;
 
@@ -258,12 +256,12 @@ void IceTransportInternal::SubscribeCandidateGathered(
 
 void IceTransportInternal::SubscribeRoleConflict(
     absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-  role_conflict_trampoline_.Subscribe(std::move(callback));
+  role_conflict_callbacks_.AddReceiver(std::move(callback));
 }
 
 void IceTransportInternal::SubscribeIceTransportStateChanged(
     absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-  ice_transport_state_changed_trampoline_.Subscribe(std::move(callback));
+  ice_transport_state_changed_callbacks_.AddReceiver(std::move(callback));
 }
 
 }  // namespace webrtc

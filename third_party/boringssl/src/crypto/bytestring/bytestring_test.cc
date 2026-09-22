@@ -1483,6 +1483,126 @@ TEST(CBBTest, AddOIDFromText) {
   }
 }
 
+TEST(CBBTest, AddRelativeOIDFromText) {
+  const struct {
+    const char *text;
+    std::vector<uint8_t> der;
+  } kValidOIDs[] = {
+      // Some valid values.
+      {"0", {0x00}},
+      {"128", {0x81, 0x00}},
+      {"128.129", {0x81, 0x00, 0x81, 0x01}},
+      {"0.2.3.4", {0x0, 0x2, 0x3, 0x4}},
+      {"1.2.3.4", {0x1, 0x2, 0x3, 0x4}},
+      {"127.2.3.4", {0x7f, 0x2, 0x3, 0x4}},
+      {"1.2.840.113554.4.1.72585",
+       {0x1, 0x2, 0x86, 0x48, 0x86, 0xf7, 0x12, 0x04, 0x01, 0x84, 0xb7, 0x09}},
+      // Edge cases near an overflow.
+      {"1.2.18446744073709551615",
+       {0x1, 0x2, 0x81, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f}},
+  };
+
+  const char *kInvalidTexts[] = {
+      // The empty string is not a relative OID.
+      "",
+      // No empty components.
+      ".",
+      ".1.2.3.4.5",
+      "1..2.3.4.5",
+      "1.2.3.4.5.",
+      // No extra leading zeros.
+      "00.1.2.3.4",
+      "01.1.2.3.4",
+      // Overflow
+      "1.2.18446744073709551616",
+  };
+
+  const struct {
+    std::vector<uint8_t> der;
+    // If true, |der| is valid but has a component that exceeds 2^64-1.
+    bool overflow;
+  } kInvalidDER[] = {
+      // The empty string is not a relative OID.
+      {{}, false},
+      // Non-minimal representation.
+      {{0x80, 0x01}, false},
+      // Unterminated integer.
+      {{0x83}, false},
+      // Overflow. This is the DER representation of
+      // 840.113554.4.1.72585.18446744073709551616. (The final value is
+      // 2^64.)
+      {{0x86, 0x48, 0x86, 0xf7, 0x12, 0x04, 0x01, 0x84, 0xb7, 0x09,
+        0x82, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00},
+       true},
+  };
+
+  for (const auto &t : kValidOIDs) {
+    SCOPED_TRACE(t.text);
+
+    bssl::ScopedCBB cbb;
+    ASSERT_TRUE(CBB_init(cbb.get(), 0));
+    ASSERT_TRUE(CBB_add_asn1_relative_oid_from_text(
+          cbb.get(), t.text, strlen(t.text)));
+    uint8_t *out;
+    size_t len;
+    ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+    bssl::UniquePtr<uint8_t> free_out(out);
+    EXPECT_EQ(Bytes(t.der), Bytes(out, len));
+
+    CBS cbs;
+    CBS_init(&cbs, t.der.data(), t.der.size());
+    bssl::UniquePtr<char> text(CBS_asn1_relative_oid_to_text(&cbs));
+    ASSERT_TRUE(text.get());
+    EXPECT_STREQ(t.text, text.get());
+
+    EXPECT_TRUE(CBS_is_valid_asn1_relative_oid(&cbs));
+  }
+
+  for (const char *t : kInvalidTexts) {
+    SCOPED_TRACE(t);
+    bssl::ScopedCBB cbb;
+    ASSERT_TRUE(CBB_init(cbb.get(), 0));
+    EXPECT_FALSE(CBB_add_asn1_relative_oid_from_text(cbb.get(), t, strlen(t)));
+  }
+
+  for (const auto &t : kInvalidDER) {
+    SCOPED_TRACE(Bytes(t.der));
+    CBS cbs;
+    CBS_init(&cbs, t.der.data(), t.der.size());
+    bssl::UniquePtr<char> text(CBS_asn1_relative_oid_to_text(&cbs));
+    EXPECT_FALSE(text);
+    EXPECT_EQ(t.overflow ? 1 : 0, CBS_is_valid_asn1_relative_oid(&cbs));
+  }
+}
+
+TEST(CBBTest, AddOIDComponent) {
+  const struct {
+    uint64_t component;
+    std::vector<uint8_t> der;
+  } kValidOIDs[] = {
+      // Some valid values.
+      {0, {0x00}},
+      {127, {0x7f}},
+      {128, {0x81, 0x00}},
+      {129, {0x81, 0x01}},
+      {113554, {0x86, 0xf7, 0x12}},
+      // Edge cases near an overflow.
+      {18446744073709551615u,
+       {0x81, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f}},
+  };
+  for (const auto &t : kValidOIDs) {
+    SCOPED_TRACE(t.component);
+    bssl::ScopedCBB cbb;
+    ASSERT_TRUE(CBB_init(cbb.get(), 0));
+    ASSERT_TRUE(CBB_add_asn1_oid_component(cbb.get(), t.component));
+    uint8_t *out;
+    size_t len;
+    ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+    bssl::UniquePtr<uint8_t> free_out(out);
+    EXPECT_EQ(Bytes(t.der), Bytes(out, len));
+  }
+}
+
 TEST(CBBTest, FlushASN1SetOf) {
   const struct {
     std::vector<uint8_t> in, out;

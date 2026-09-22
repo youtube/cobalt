@@ -18,6 +18,7 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/actor.mojom-data-view.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
@@ -77,6 +78,17 @@ void GlicActorTaskManager::PerformActionsFinished(
     optimization_guide::proto::ActionsResult response =
         actor::BuildErrorActionsResult(
             actor::mojom::ActionResultCode::kTaskWentAway, std::nullopt);
+    std::move(callback).Run(mojo_base::ProtoWrapper(response));
+    return;
+  }
+
+  // If the task went away it must have been handled in the !task branch above.
+  DCHECK_NE(result_code, actor::mojom::ActionResultCode::kTaskWentAway);
+
+  if (result_code == actor::mojom::ActionResultCode::kTaskPaused) {
+    optimization_guide::proto::ActionsResult response =
+        actor::BuildErrorActionsResult(
+            actor::mojom::ActionResultCode::kTaskPaused, std::nullopt);
     std::move(callback).Run(mojo_base::ProtoWrapper(response));
     return;
   }
@@ -379,7 +391,13 @@ void GlicActorTaskManager::UninterruptActorTask(actor::TaskId task_id) {
                                                .Build());
     return;
   }
-  task->Uninterrupt();
+  actor::ActorTask::State next_state = actor::ActorTask::State::kReflecting;
+  if (task->GetExecutionEngine() &&
+      task->GetExecutionEngine()->HasActionSequence()) {
+    // TODO(mcnee): Explicitly stash the old state instead of inferring it.
+    next_state = actor::ActorTask::State::kActing;
+  }
+  task->Uninterrupt(next_state);
 }
 
 void GlicActorTaskManager::CreateActorTab(

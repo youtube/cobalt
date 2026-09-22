@@ -10,7 +10,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -25,10 +24,8 @@ class PushSubscriptionOptions;
 class ServiceWorkerRegistration;
 
 class PushMessagingClient final : public GarbageCollected<PushMessagingClient>,
-                                  public Supplement<LocalDOMWindow> {
+                                  public GarbageCollectedMixin {
  public:
-  static const unsigned kSupplementIndex;
-
   explicit PushMessagingClient(LocalDOMWindow&);
 
   PushMessagingClient(const PushMessagingClient&) = delete;
@@ -67,6 +64,7 @@ class PushMessagingClient final : public GarbageCollected<PushMessagingClient>,
                     mojom::blink::PushRegistrationStatus status,
                     mojom::blink::PushSubscriptionPtr subscription);
 
+  Member<LocalDOMWindow> local_dom_window_;
   HeapMojoRemote<mojom::blink::PushMessaging> push_messaging_manager_;
 };
 

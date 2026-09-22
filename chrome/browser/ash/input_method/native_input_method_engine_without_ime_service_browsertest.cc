@@ -51,8 +51,6 @@ namespace input_method {
 
 namespace {
 
-constexpr char kEmojiData[] = "happy,😀;😃;😄";
-
 class TestObserver : public StubInputMethodEngineObserver {
  public:
   TestObserver() = default;
@@ -129,9 +127,6 @@ class NativeInputMethodEngineWithoutImeServiceTest
     prefs_->Set(::prefs::kLanguageInputMethodSpecificSettings,
                 base::Value(base::Value::Type::DICT));
     engine_->Initialize(std::move(observer), /*extension_id=*/"", profile_);
-    engine_->get_assistive_suggester_for_testing()
-        ->get_emoji_suggester_for_testing()
-        ->LoadEmojiMapForTesting(kEmojiData);
 
     // Ensure predictive writing is off to stop tests from attempting to
     // load the shared library.
@@ -218,81 +213,6 @@ class NativeInputMethodEngineWithoutImeServiceTest
 constexpr char kEngineIdUs[] = "xkb:us::eng";
 
 }  // namespace
-
-IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       DismissEmojiSuggestionWhenUsersContinueTyping) {
-  base::HistogramTester histogram_tester;
-  engine_->Enable(kEngineIdUs);
-  TextInputTestHelper helper(GetBrowserInputMethod());
-  SetUpTextInput(helper);
-  const std::u16string prefix_text = u"happy ";
-  const std::u16string expected_result_text = u"happy a";
-
-  helper.GetTextInputClient()->InsertText(
-      prefix_text,
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  helper.WaitForSurroundingTextChanged(prefix_text);
-  // Types something random to dismiss emoji
-  helper.GetTextInputClient()->InsertText(
-      u"a",
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  helper.WaitForSurroundingTextChanged(expected_result_text);
-
-  SetFocus(nullptr);
-}
-
-IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       EmojiSuggestionDisabledReasonkEnterpriseSettingsOff) {
-  base::HistogramTester histogram_tester;
-  prefs_->SetBoolean(prefs::kEmojiSuggestionEnterpriseAllowed, false);
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
-  ui_test_utils::SendToOmniboxAndSubmit(browser(), "happy ");
-
-  histogram_tester.ExpectUniqueSample("InputMethod.Assistive.Disabled.Emoji",
-                                      DisabledReason::kEnterpriseSettingsOff,
-                                      1);
-}
-
-IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       EmojiSuggestionDisabledReasonkUserSettingsOff) {
-  base::HistogramTester histogram_tester;
-  prefs_->SetBoolean(prefs::kEmojiSuggestionEnabled, false);
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
-  ui_test_utils::SendToOmniboxAndSubmit(browser(), "happy ");
-
-  histogram_tester.ExpectUniqueSample("InputMethod.Assistive.Disabled.Emoji",
-                                      DisabledReason::kUserSettingsOff, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       EmojiSuggestionDisabledReasonkUrlOrAppNotAllowed) {
-  base::HistogramTester histogram_tester;
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
-  ui_test_utils::SendToOmniboxAndSubmit(browser(), "happy ");
-
-  histogram_tester.ExpectUniqueSample("InputMethod.Assistive.Disabled.Emoji",
-                                      DisabledReason::kUrlOrAppNotAllowed, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    NativeInputMethodEngineWithoutImeServiceTest,
-    OnLearnMoreButtonClickedOpensEmojiSuggestionSettingsPage) {
-  base::UserActionTester user_action_tester;
-  ui::ime::AssistiveWindowButton button;
-  button.id = ui::ime::ButtonId::kLearnMore;
-  button.window_type = ash::ime::AssistiveWindowType::kEmojiSuggestion;
-
-  engine_->AssistiveWindowButtonClicked(button);
-
-  EXPECT_EQ(1, user_action_tester.GetActionCount(
-                   "ChromeOS.Settings.SmartInputs.EmojiSuggestions.Open"));
-}
 
 IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
                        FiresOnInputMethodOptionsChangedEvent) {

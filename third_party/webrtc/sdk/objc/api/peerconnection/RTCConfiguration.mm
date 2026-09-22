@@ -130,7 +130,6 @@
     _sdpSemantics =
         [[self class] sdpSemanticsForNativeSdpSemantics:config.sdp_semantics];
     _turnCustomizer = config.turn_customizer;
-    _activeResetSrtpParams = config.active_reset_srtp_params;
 
     _cryptoOptions = [[RTC_OBJC_TYPE(RTCCryptoOptions) alloc]
              initWithSrtpEnableGcmCryptoSuites:config.crypto_options.srtp
@@ -286,8 +285,6 @@
   if (_turnCustomizer) {
     nativeConfig->turn_customizer = _turnCustomizer;
   }
-  nativeConfig->active_reset_srtp_params =
-      _activeResetSrtpParams ? true : false;
   if (_cryptoOptions) {
     webrtc::CryptoOptions nativeCryptoOptions;
     nativeCryptoOptions.srtp.enable_gcm_crypto_suites =

@@ -5,13 +5,21 @@
 #ifndef COMPONENTS_UNEXPORTABLE_KEYS_MOCK_UNEXPORTABLE_KEY_PROVIDER_H_
 #define COMPONENTS_UNEXPORTABLE_KEYS_MOCK_UNEXPORTABLE_KEY_PROVIDER_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include "base/containers/span.h"
 #include "crypto/signature_verifier.h"
 #include "crypto/unexportable_key.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace unexportable_keys {
 
-class MockUnexportableKeyProvider : public crypto::UnexportableKeyProvider {
+class MockUnexportableKeyProvider
+    : public crypto::StatefulUnexportableKeyProvider {
  public:
   MockUnexportableKeyProvider();
   ~MockUnexportableKeyProvider() override;
@@ -31,9 +39,24 @@ class MockUnexportableKeyProvider : public crypto::UnexportableKeyProvider {
               FromWrappedSigningKeySlowly,
               (base::span<const uint8_t> wrapped_key),
               (override));
+  MOCK_METHOD(crypto::StatefulUnexportableKeyProvider*,
+              AsStatefulUnexportableKeyProvider,
+              (),
+              (override));
+
+  // crypto::StatefulUnexportableKeyProvider:
+  MOCK_METHOD(std::optional<
+                  std::vector<std::unique_ptr<crypto::UnexportableSigningKey>>>,
+              GetAllSigningKeysSlowly,
+              (),
+              (override));
   MOCK_METHOD(bool,
               DeleteSigningKeySlowly,
               (base::span<const uint8_t> wrapped_key),
+              (override));
+  MOCK_METHOD(std::optional<size_t>,
+              DeleteAllSigningKeysSlowly,
+              (),
               (override));
 };
 

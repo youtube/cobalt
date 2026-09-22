@@ -1770,8 +1770,10 @@ static void test_convexity(skiatest::Reporter* reporter) {
             case 12: builder.moveTo(nonFinitePts[i]); break;
         }
         path = builder.detach();
+#ifdef SK_PATH_LEGACY_NONFINITE_IMPL
         REPORTER_ASSERT(reporter,
                     SkPathPriv::GetConvexityOrUnknown(path) == SkPathConvexity::kUnknown);
+#endif
     }
 
     for (int index = 0; index < (int) (11 * axisAlignedPtsCount); ++index) {
@@ -2272,7 +2274,7 @@ static void test_isRect(skiatest::Reporter* reporter) {
             SkRect computed, expected;
             bool isClosed;
             SkPathDirection direction;
-            int pointCount = tests[testIndex].fPointCount - (d2 == tests[testIndex].fPoints);
+            size_t pointCount = tests[testIndex].fPointCount - (d2 == tests[testIndex].fPoints);
             expected.setBounds({tests[testIndex].fPoints, pointCount});
             SkPathFirstDirection cheapDirection = SkPathPriv::ComputeFirstDirection(path);
             REPORTER_ASSERT(reporter, cheapDirection != SkPathFirstDirection::kUnknown);
@@ -2543,7 +2545,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
 
     struct IsNestedRectTest {
         SkPoint *fPoints;
-        int fPointCount;
+        size_t fPointCount;
         SkPathFirstDirection fDirection;
         bool fClose;
         bool fIsNestedRect; // nests with path.addRect(-1, -1, 2, 2);
@@ -2577,7 +2579,6 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
     };
 
     const size_t testCount = std::size(tests);
-    int index;
     for (int rectFirst = 0; rectFirst <= 1; ++rectFirst) {
         for (size_t testIndex = 0; testIndex < testCount; ++testIndex) {
             SkPathBuilder builder;
@@ -2585,7 +2586,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
                 builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
             }
             builder.moveTo(tests[testIndex].fPoints[0].fX, tests[testIndex].fPoints[0].fY);
-            for (index = 1; index < tests[testIndex].fPointCount; ++index) {
+            for (size_t index = 1; index < tests[testIndex].fPointCount; ++index) {
                 builder.lineTo(tests[testIndex].fPoints[index].fX, tests[testIndex].fPoints[index].fY);
             }
             if (tests[testIndex].fClose) {
@@ -2625,7 +2626,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
             builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
         }
         builder.moveTo(r1[0].fX, r1[0].fY);
-        for (index = 1; index < SkToInt(std::size(r1)); ++index) {
+        for (size_t index = 1; index < std::size(r1); ++index) {
             builder.lineTo(r1[index].fX, r1[index].fY);
         }
         builder.close();
@@ -2641,7 +2642,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
             builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
         }
         builder.moveTo(r1[0].fX, r1[0].fY);
-        for (index = 1; index < SkToInt(std::size(r1)); ++index) {
+        for (size_t index = 1; index < std::size(r1); ++index) {
             if (index == 2) {
                 builder.moveTo(1, .5f);
             }
@@ -2658,7 +2659,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
         if (rectFirst) {
             builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
         }
-        for (index = 1; index < SkToInt(std::size(r1)); ++index) {
+        for (size_t index = 1; index < std::size(r1); ++index) {
             builder.moveTo(r1[index - 1].fX, r1[index - 1].fY);
             builder.lineTo(r1[index].fX, r1[index].fY);
         }
@@ -2674,7 +2675,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
             builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
         }
         builder.moveTo(r1[0].fX, r1[0].fY);
-        for (index = 1; index < SkToInt(std::size(r1)); ++index) {
+        for (size_t index = 1; index < std::size(r1); ++index) {
             if (index == 2) {
                 builder.quadTo(1, .5f, 1, .5f);
             }
@@ -2692,7 +2693,7 @@ static void test_isNestedFillRects(skiatest::Reporter* reporter) {
             builder.addRect({-1, -1, 2, 2}, SkPathDirection::kCW);
         }
         builder.moveTo(r1[0].fX, r1[0].fY);
-        for (index = 1; index < SkToInt(std::size(r1)); ++index) {
+        for (size_t index = 1; index < std::size(r1); ++index) {
             if (index == 2) {
                 builder.cubicTo(1, .5f, 1, .5f, 1, .5f);
             }
@@ -2748,8 +2749,8 @@ static void write_and_read_back(skiatest::Reporter* reporter,
     auto readBack = reader.readPath();
     REPORTER_ASSERT(reporter, readBack.has_value() && *readBack == p);
 
-    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexityOrUnknown(*readBack) ==
-                              SkPathPriv::GetConvexityOrUnknown(p));
+    REPORTER_ASSERT(reporter, SkPathPriv::GetConvexity(*readBack) ==
+                              SkPathPriv::GetConvexity(p));
 
     REPORTER_ASSERT(reporter, readBack->isOval(nullptr) == p.isOval(nullptr));
     std::optional<SkPathOvalInfo> oval0 = SkPathPriv::IsOval(p),
@@ -3136,6 +3137,7 @@ static void test_iter(skiatest::Reporter* reporter) {
     iter.setPath(p, false);
     REPORTER_ASSERT(reporter, !iter.isClosedContour());
 
+#ifdef SK_PATH_LEGACY_NONFINITE_IMPL
     // this checks to see if the NaN logic is executed in SkPath::autoClose(), but does not
     // check to see if the result is correct.
     for (int setNaN = 0; setNaN < 4; ++setNaN) {
@@ -3148,6 +3150,7 @@ static void test_iter(skiatest::Reporter* reporter) {
         iter.next(pts);
         REPORTER_ASSERT(reporter, SkPath::kClose_Verb == iter.next(pts));
     }
+#endif
 
     p = SkPathBuilder().quadTo(0, 0, 0, 0).detach();
     iter.setPath(p, false);
@@ -6189,4 +6192,14 @@ DEF_TEST(path_infinite_transform, reporter) {
             check_infinite(newpath);
         }
     }
+}
+
+DEF_TEST(path_factory_inverted_bounds, reporter) {
+    constexpr SkRect bounds = {-10, -10, 10, 10};
+    constexpr SkRect inverted_bounds = {10, 10, -10, -10};
+
+    REPORTER_ASSERT(reporter, SkPath::Oval(inverted_bounds).getBounds() == bounds);
+    REPORTER_ASSERT(reporter, SkPath::Rect(inverted_bounds).getBounds() == bounds);
+    REPORTER_ASSERT(reporter,
+                    SkPath::RRect(SkRRect::MakeRect(inverted_bounds)).getBounds() == bounds);
 }

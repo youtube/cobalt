@@ -21,10 +21,10 @@
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/policy/model/management_state.h"
 #import "ios/chrome/browser/settings/model/sync/utils/account_error_ui_info.h"
-#import "ios/chrome/browser/settings/ui_bundled/cells/settings_image_detail_text_cell.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/content_configuration/image_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/signin/model/constants.h"
@@ -43,17 +43,11 @@ const CGFloat kButtonImageSize = 18;
 // Size of the symbols.
 constexpr CGFloat kErrorSymbolSize = 22.;
 
-// Height and width of the buttons.
-constexpr CGFloat kButtonSize = 30.;
-
 // The height of the footer of sections, except for last section.
 constexpr CGFloat kFooterHeight = 16.;
 
-// The left separator inset between two secondary accounts.
-constexpr CGFloat kSecondaryAccountsLeftSeparatorInset = 16.;
-
-// The left separator inset between the last secondary account and Add Account.
-constexpr CGFloat kLastSecondaryAccountLeftSeparatorInset = 60.;
+// The left inset for the separators.
+constexpr CGFloat kSeparatorInset = 60.;
 
 // Per Apple guidelines, touch targets should be at least 44x44.
 constexpr CGFloat kMinimumTouchTargetSize = 44.0;
@@ -133,6 +127,9 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
       [[UITableView alloc] initWithFrame:CGRectZero
                                    style:UITableViewStyleInsetGrouped];
   UITableView* tableView = self.tableView;
+  tableView.separatorInset = UIEdgeInsetsMake(0., /*left=*/
+                                              kSeparatorInset, 0., 0.);
+
   tableView.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:tableView];
   [NSLayoutConstraint activateConstraints:@[
@@ -146,7 +143,6 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
   tableView.backgroundColor =
       [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   RegisterTableViewCell<TableViewAccountCell>(tableView);
-  RegisterTableViewCell<SettingsImageDetailTextCell>(tableView);
   [TableViewCellContentConfiguration registerCellForTableView:tableView];
   [self setUpTopButtons];
   [self setUpTableContent];
@@ -263,7 +259,7 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
     return;
   }
   UIImageSymbolConfiguration* symbolConfiguration = [UIImageSymbolConfiguration
-      configurationWithPointSize:kButtonSize
+      configurationWithPointSize:kSymbolActionPointSize
                           weight:UIImageSymbolWeightRegular
                            scale:UIImageSymbolScaleMedium];
   UIAction* manageYourAccountAction = [UIAction
@@ -443,32 +439,33 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
     // user scrolls a lot, and scroll back.
     [self setActivityIndicator:cell];
   }
-  BOOL lastSecondaryIdentity =
-      (indexPath.row == [_accountMenuDataSource tableView:self.tableView
-                                    numberOfRowsInSection:indexPath.section] -
-                            2);
-  cell.separatorInset = UIEdgeInsetsMake(
-      0., /*left=*/
-      (lastSecondaryIdentity) ? kSecondaryAccountsLeftSeparatorInset
-                              : kLastSecondaryAccountLeftSeparatorInset,
-      0., 0.);
   return cell;
 }
 
 // Returns a cell for the error explanation.
 - (UITableViewCell*)cellForErrorExplanationForTableView:
     (UITableView*)tableView {
-  SettingsImageDetailTextCell* cell =
-      DequeueTableViewCell<SettingsImageDetailTextCell>(tableView);
+  TableViewCellContentConfiguration* configuration =
+      [[TableViewCellContentConfiguration alloc] init];
+  configuration.subtitle =
+      l10n_util::GetNSString(self.dataSource.accountErrorUIInfo.messageID);
+
+  ImageContentConfiguration* imageConfiguration =
+      [[ImageContentConfiguration alloc] init];
+  imageConfiguration.image =
+      DefaultSymbolWithPointSize(kErrorCircleFillSymbol, kErrorSymbolSize);
+  imageConfiguration.imageTintColor = [UIColor colorNamed:kRed500Color];
+
+  configuration.leadingConfiguration = imageConfiguration;
+
+  UITableViewCell* cell =
+      [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
+
+  cell.contentConfiguration = configuration;
+
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   cell.accessibilityIdentifier = kAccountMenuErrorMessageId;
   cell.accessibilityElementsHidden = YES;
-  cell.detailTextLabel.text =
-      l10n_util::GetNSString(self.dataSource.accountErrorUIInfo.messageID);
-  cell.image =
-      DefaultSymbolWithPointSize(kErrorCircleFillSymbol, kErrorSymbolSize);
-  cell.detailTextLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
-  [cell setImageViewTintColor:[UIColor colorNamed:kRed500Color]];
   return cell;
 }
 

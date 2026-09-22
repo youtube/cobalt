@@ -23,8 +23,7 @@ namespace webrtc {
 
 AsyncProxyServerSocket::AsyncProxyServerSocket(Socket* socket,
                                                size_t buffer_size)
-    : BufferedReadAdapter(socket, buffer_size),
-      connect_request_trampoline_(this) {}
+    : BufferedReadAdapter(socket, buffer_size) {}
 
 AsyncProxyServerSocket::~AsyncProxyServerSocket() = default;
 

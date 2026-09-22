@@ -14,8 +14,10 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
@@ -38,15 +40,14 @@
 #include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/fake_periodic_video_track_source.h"
 #include "pc/test/fake_video_track_renderer.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
 
 class PeerConnectionTestWrapper : public PeerConnectionObserver,
-                                  public CreateSessionDescriptionObserver,
-                                  public sigslot::has_slots<> {
+                                  public CreateSessionDescriptionObserver {
  public:
   // Asynchronously negotiates and exchanges ICE candidates between `caller` and
   // `callee`. See also WaitForNegotiation() and other "WaitFor..." methods.
@@ -136,11 +137,31 @@ class PeerConnectionTestWrapper : public PeerConnectionObserver,
                           const AudioOptions& audio_options,
                           bool video);
 
-  // sigslots
-  sigslot::signal3<const std::string&, int, const std::string&>
-      SignalOnIceCandidateReady;
-  sigslot::signal1<const std::string&> SignalOnSdpReady;
-  sigslot::signal1<DataChannelInterface*> SignalOnDataChannel;
+  // signal callbacks
+  void SubscribeOnIceCandidateReady(
+      absl::AnyInvocable<void(const std::string&, int, const std::string&)>
+          callback) {
+    on_ice_candidate_ready_callbacks_.AddReceiver(std::move(callback));
+  }
+  void NotifyOnIceCandidateReady(const std::string& mid,
+                                 int index,
+                                 const std::string& candidate) {
+    on_ice_candidate_ready_callbacks_.Send(mid, index, candidate);
+  }
+  void SubscribeOnSdpReady(
+      absl::AnyInvocable<void(const std::string&)> callback) {
+    on_sdp_ready_callbacks_.AddReceiver(std::move(callback));
+  }
+  void NotifyOnSdpReady(const std::string& sdp) {
+    on_sdp_ready_callbacks_.Send(sdp);
+  }
+  void SubscribeOnDataChannel(
+      absl::AnyInvocable<void(DataChannelInterface*)> callback) {
+    on_data_channel_callbacks_.AddReceiver(std::move(callback));
+  }
+  void NotifyOnDataChannel(DataChannelInterface* channel) {
+    on_data_channel_callbacks_.Send(channel);
+  }
 
   scoped_refptr<MediaStreamInterface> GetUserMedia(
       bool audio,
@@ -176,6 +197,11 @@ class PeerConnectionTestWrapper : public PeerConnectionObserver,
   std::vector<scoped_refptr<FakePeriodicVideoTrackSource>> fake_video_sources_;
   scoped_refptr<PeerConnectionTestWrapper> remote_wrapper_;
   std::vector<std::unique_ptr<IceCandidate>> remote_ice_candidates_;
+
+  CallbackList<const std::string&, int, const std::string&>
+      on_ice_candidate_ready_callbacks_;
+  CallbackList<const std::string&> on_sdp_ready_callbacks_;
+  CallbackList<DataChannelInterface*> on_data_channel_callbacks_;
 };
 
 }  // namespace webrtc

@@ -37,7 +37,6 @@
 #include "rtc_base/network_monitor_factory.h"
 #include "rtc_base/physical_socket_server.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -166,7 +165,7 @@ std::vector<const Network*> CopyNetworkPointers(
 
 }  // namespace
 
-class NetworkTest : public ::testing::Test, public sigslot::has_slots<> {
+class NetworkTest : public ::testing::Test {
  public:
   void OnNetworksChanged() { callback_called_ = true; }
 

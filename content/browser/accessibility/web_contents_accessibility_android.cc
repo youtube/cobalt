@@ -925,6 +925,18 @@ void WebContentsAccessibilityAndroid::HandleLiveRegionNodeChanged(
                                                                 unique_id);
 }
 
+void WebContentsAccessibilityAndroid::HandleDefaultActionVerbChanged(
+    int32_t unique_id) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
+  if (obj.is_null()) {
+    return;
+  }
+
+  Java_WebContentsAccessibilityImpl_handleDefaultActionVerbChanged(env, obj,
+                                                                    unique_id);
+}
+
 void WebContentsAccessibilityAndroid::AnnounceLiveRegionText(
     const std::u16string& text) {
   CHECK(!base::FeatureList::IsEnabled(
@@ -1330,7 +1342,8 @@ void WebContentsAccessibilityAndroid::
       node->IsFocusable(), node->IsFocused(), node->HasImage(),
       node->IsPasswordField(), node->IsScrollable(), node->IsSelected(),
       node->IsVisibleToUser(), node->HasCharacterLocations(),
-      node->IsRequired(), node->IsHeading() || node->IsTableHeader());
+      node->IsRequired(), node->IsHeading() || node->IsTableHeader(),
+      node->HasLayoutBasedActions());
 }
 
 void WebContentsAccessibilityAndroid::
@@ -2396,6 +2409,21 @@ jint WebContentsAccessibilityAndroid::GetPaintOrder(JNIEnv* env,
   return static_cast<jint>(node->GetPaintOrder());
 }
 
+void WebContentsAccessibilityAndroid::RequestLayoutBasedActions(
+    JNIEnv* env,
+    jint unique_id,
+    const JavaParamRef<jobject>& info) {
+  ui::BrowserAccessibility* node = GetAXFromUniqueID(unique_id);
+  if (!node) {
+    return;
+  }
+
+  ui::AXActionData action_data;
+  action_data.action = ax::mojom::Action::kRequestLayoutBasedAction;
+  action_data.target_node_id = node->GetId();
+  node->AccessibilityPerformAction(action_data);
+}
+
 BrowserAccessibilityManagerAndroid*
 WebContentsAccessibilityAndroid::GetRootBrowserAccessibilityManager() const {
   if (snapshot_root_manager_) {
@@ -2649,7 +2677,7 @@ WebContentsAccessibilityAndroid::GetLabeledByNodeIdsForTesting(JNIEnv* env,
   return base::android::ToJavaIntArray(env, node->GetLabelledByAndroidIds());
 }
 
-jlong JNI_WebContentsAccessibilityImpl_InitWithAXTree(
+static jlong JNI_WebContentsAccessibilityImpl_InitWithAXTree(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     jlong ax_tree_update_ptr,
@@ -2658,7 +2686,7 @@ jlong JNI_WebContentsAccessibilityImpl_InitWithAXTree(
       env, obj, ax_tree_update_ptr, jaccessibility_node_info_builder));
 }
 
-jlong JNI_WebContentsAccessibilityImpl_Init(
+static jlong JNI_WebContentsAccessibilityImpl_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents,
@@ -2670,7 +2698,7 @@ jlong JNI_WebContentsAccessibilityImpl_Init(
       env, obj, web_contents, jaccessibility_node_info_builder));
 }
 
-jlong JNI_WebContentsAccessibilityImpl_InitForAssistData(
+static jlong JNI_WebContentsAccessibilityImpl_InitForAssistData(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents,
@@ -2683,3 +2711,8 @@ jlong JNI_WebContentsAccessibilityImpl_InitForAssistData(
 }
 
 }  // namespace content
+
+DEFINE_JNI(AccessibilityNodeInfoBuilder)
+DEFINE_JNI(AccessibilityNodeInfoUtils)
+DEFINE_JNI(AssistDataBuilder)
+DEFINE_JNI(WebContentsAccessibilityImpl)

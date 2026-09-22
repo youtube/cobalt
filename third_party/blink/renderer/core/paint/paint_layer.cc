@@ -1266,10 +1266,11 @@ PaintLayer* PaintLayer::HitTestLayer(
   // there is an ongoing transition, since this may be too heavy of a check for
   // each hit test.
   if (auto* transition =
-          ViewTransitionUtils::GetTransition(layout_object.GetDocument())) {
+          ViewTransitionUtils::TransitionForTaggedElement(layout_object)) {
     // This means that the contents of the object are drawn elsewhere.
-    if (transition->IsRepresentedViaPseudoElements(layout_object))
+    if (transition->IsRepresentedViaPseudoElements(layout_object)) {
       return nullptr;
+    }
   }
 
   ShouldRespectOverflowClipType clip_behavior = kRespectOverflowClip;
@@ -1405,6 +1406,28 @@ PaintLayer* PaintLayer::HitTestLayer(
     z_offset_for_contents_ptr = z_offset;
   }
 
+  // This variable tracks which layer the mouse ends up being inside.
+  PaintLayer* candidate_layer = nullptr;
+
+  PaintLayer* hit_layer = nullptr;
+  if (auto* element = DynamicTo<Element>(layout_object.GetNode())) {
+    if (element->GetPseudoElement(kPseudoIdViewTransition)) {
+      hit_layer = HitTestChildren(
+          kAllChildren, transform_container, container_fragment, result,
+          recursion_data, container_transform_state,
+          z_offset_for_descendants_ptr, z_offset, local_transform_state,
+          depth_sort_descendants, true /* transition_pseudo_pass */);
+      if (hit_layer) {
+        if (!depth_sort_descendants) {
+          return hit_layer;
+        }
+        // Depth-sorting may override z-index, so we need to check below for
+        // other hit_layer candidates.
+        candidate_layer = hit_layer;
+      }
+    }
+  }
+
   // Collect the fragments. This will compute the clip rectangles for each
   // layer fragment.
   PaintLayerFragments layer_fragments;
@@ -1437,12 +1460,9 @@ PaintLayer* PaintLayer::HitTestLayer(
   if (overflow_controls_only)
     return nullptr;
 
-  // This variable tracks which layer the mouse ends up being inside.
-  PaintLayer* candidate_layer = nullptr;
-
   // Begin by walking our list of positive layers from highest z-index down to
   // the lowest z-index.
-  PaintLayer* hit_layer = HitTestChildren(
+  hit_layer = HitTestChildren(
       kPositiveZOrderChildren, transform_container, container_fragment, result,
       recursion_data, container_transform_state, z_offset_for_descendants_ptr,
       z_offset, local_transform_state, depth_sort_descendants);
@@ -1775,7 +1795,8 @@ PaintLayer* PaintLayer::HitTestChildren(
     double* z_offset_for_descendants,
     double* z_offset,
     HitTestingTransformState* local_transform_state,
-    bool depth_sort_descendants) {
+    bool depth_sort_descendants,
+    bool transition_pseudo_pass) {
   if (!HasSelfPaintingLayerDescendant()) {
     return nullptr;
   }
@@ -1805,6 +1826,16 @@ PaintLayer* PaintLayer::HitTestChildren(
           const HitTestRecursionData& recursion_data) -> bool {
     if (child_layer->IsReplacedNormalFlowStacking())
       return false;
+
+    bool is_scoped_transition_pseudo =
+        !GetLayoutObject().IsViewTransitionRoot() &&
+        ViewTransitionUtils::IsViewTransitionRoot(
+            child_layer->GetLayoutObject());
+    if (is_scoped_transition_pseudo != transition_pseudo_pass) {
+      // A scoped ::view-transition pseudo is handled separately since it paints
+      // on top of all other children of the scope regardless of their z-index.
+      return false;
+    }
 
     // Avoid the call to child_layer.HitTestLayer() if possible.
     if (stop_layer == this &&

@@ -133,8 +133,8 @@ enum class Result {
   kRemoveEntityInstance_Failure = 301,
   kRemoveEntityInstancesModifiedBetween_Success = 310,
   kRemoveEntityInstancesModifiedBetween_Failure = 311,
-  kCleanupForCrbug411681430_Success = 312,
-  kCleanupForCrbug411681430_Failure = 313,
+  kClearLocalCvcsUpToMay2025_Success = 312,
+  kClearLocalCvcsUpToMay2025_Failure = 313,
   kCleanupForCrbug445879524_Success = 314,
   kCleanupForCrbug445879524_Failure = 315,
   kMaxValue = kCleanupForCrbug445879524_Failure,
@@ -157,15 +157,23 @@ AutofillWebDataBackendImpl::AutofillWebDataBackendImpl(
     scoped_refptr<base::SequencedTaskRunner> db_task_runner)
     : base::RefCountedDeleteOnSequence<AutofillWebDataBackendImpl>(
           std::move(db_task_runner)),
-      ui_task_runner_(ui_task_runner),
-      web_database_backend_(web_database_backend) {}
+      ui_task_runner_(std::move(ui_task_runner)),
+      web_database_backend_(std::move(web_database_backend)) {
+  DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+  this_during_ui_lifecycle_ = weak_ptr_factory_for_ui_lifecycle_.GetWeakPtr();
+}
+
+AutofillWebDataBackendImpl::~AutofillWebDataBackendImpl() {
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  // Explicitly destroy user-data ownees (i.e., the sync bridges) first as their
+  // destructors may call into this AutofillWebDataBackendImpl.
+  user_data_.ClearAllUserData();
+}
 
 void AutofillWebDataBackendImpl::ShutdownOnUISequence() {
   DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
-  weak_ptr_factory_.InvalidateWeakPtrs();
-  owning_task_runner()->PostTask(
-      FROM_HERE, BindOnce(&AutofillWebDataBackendImpl::ResetUserData,
-                          scoped_refptr(this)));
+  weak_ptr_factory_for_ui_lifecycle_.InvalidateWeakPtrsAndDoom();
+  DCHECK(!this_during_ui_lifecycle_);
 }
 
 void AutofillWebDataBackendImpl::AddObserver(
@@ -190,10 +198,6 @@ void AutofillWebDataBackendImpl::RemoveObserver(
     AutofillWebDataServiceObserverOnUISequence* observer) {
   DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
   ui_observer_list_.RemoveObserver(observer);
-}
-
-AutofillWebDataBackendImpl::~AutofillWebDataBackendImpl() {
-  DCHECK(!user_data_);  // Forgot to call ResetUserData?
 }
 
 WebDatabase* AutofillWebDataBackendImpl::GetDatabase() {
@@ -273,12 +277,12 @@ void AutofillWebDataBackendImpl::NotifyOnAutofillChangedBySync(
                          ui_observer.OnAutofillChangedBySync(data_type);
                        }
                      },
-                     weak_ptr_factory_.GetWeakPtr(), data_type));
+                     this_during_ui_lifecycle_, data_type));
 }
 
 void AutofillWebDataBackendImpl::NotifyOnServerCvcChanged(
     const ServerCvcChange& change) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
 
   // DB sequence notification.
   for (AutofillWebDataServiceObserverOnDBSequence& db_observer :
@@ -289,7 +293,7 @@ void AutofillWebDataBackendImpl::NotifyOnServerCvcChanged(
 
 void AutofillWebDataBackendImpl::NotifyOnEntityInstanceChanged(
     const EntityInstanceChange& change) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
 
   // DB sequence notification.
   for (AutofillWebDataServiceObserverOnDBSequence& db_observer :
@@ -320,7 +324,7 @@ void AutofillWebDataBackendImpl::NotifyOnEntityInstanceChanged(
 
 void AutofillWebDataBackendImpl::NotifyOnServerEntityMetadataChanged(
     const EntityInstanceMetadataChange& change) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
 
   // DB sequence notification.
   for (AutofillWebDataServiceObserverOnDBSequence& db_observer :
@@ -329,15 +333,9 @@ void AutofillWebDataBackendImpl::NotifyOnServerEntityMetadataChanged(
   }
 }
 
-base::SupportsUserData* AutofillWebDataBackendImpl::GetDBUserData() {
+base::SupportsUserData& AutofillWebDataBackendImpl::GetDBUserData() {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
-  if (!user_data_)
-    user_data_ = std::make_unique<SupportsUserDataAggregatable>();
-  return user_data_.get();
-}
-
-void AutofillWebDataBackendImpl::ResetUserData() {
-  user_data_.reset();
+  return user_data_;
 }
 
 WebDatabase::State AutofillWebDataBackendImpl::AddFormElements(
@@ -563,6 +561,25 @@ WebDatabase::State AutofillWebDataBackendImpl::AddOrUpdateEntityInstance(
   return WebDatabase::COMMIT_NEEDED;
 }
 
+WebDatabase::State AutofillWebDataBackendImpl::UpdateEntityMetadata(
+    const EntityInstance& entity,
+    WebDatabase* db) {
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  EntityTable* table = EntityTable::FromWebDatabase(db);
+  if (!table->AddOrUpdateEntityMetadata(entity.metadata())) {
+    ReportResult(Result::kAddOrUpdateEntityInstance_Failure);
+    return WebDatabase::COMMIT_NOT_NEEDED;
+  }
+
+  if (entity.IsServerInstance()) {
+    EntityInstanceMetadataChange change(EntityInstanceMetadataChange::UPDATE,
+                                        entity.guid(), entity.metadata());
+    NotifyOnServerEntityMetadataChanged(change);
+  }
+
+  return WebDatabase::COMMIT_NEEDED;
+}
+
 WebDatabase::State AutofillWebDataBackendImpl::RemoveEntityInstance(
     EntityInstance entity,
     base::OnceCallback<void(EntityInstanceChange)> on_success,
@@ -689,7 +706,7 @@ WebDatabase::State AutofillWebDataBackendImpl::UpdateLocalCvc(
     const std::string& guid,
     const std::u16string& cvc,
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   if (PaymentsAutofillTable::FromWebDatabase(db)->UpdateLocalCvc(guid, cvc)) {
     ReportResult(Result::kUpdateCreditCardCvc_Success);
     return WebDatabase::COMMIT_NEEDED;
@@ -846,7 +863,7 @@ WebDatabase::State AutofillWebDataBackendImpl::RemoveLocalIban(
 WebDatabase::State AutofillWebDataBackendImpl::UpdateServerIbanMetadata(
     const Iban& iban,
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   CHECK_EQ(Iban::RecordType::kServerIban, iban.record_type());
   if (!PaymentsAutofillTable::FromWebDatabase(db)
            ->AddOrUpdateServerIbanMetadata(iban.GetMetadata())) {
@@ -867,7 +884,7 @@ WebDatabase::State AutofillWebDataBackendImpl::AddServerCvc(
     int64_t instrument_id,
     const std::u16string& cvc,
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   const ServerCvc server_cvc{instrument_id, cvc,
                              /*last_updated_timestamp=*/AutofillClock::Now()};
   if (PaymentsAutofillTable::FromWebDatabase(db)->AddServerCvc(server_cvc)) {
@@ -889,7 +906,7 @@ WebDatabase::State AutofillWebDataBackendImpl::UpdateServerCvc(
     int64_t instrument_id,
     const std::u16string& cvc,
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   const ServerCvc server_cvc{instrument_id, cvc,
                              /*last_updated_timestamp=*/AutofillClock::Now()};
   if (PaymentsAutofillTable::FromWebDatabase(db)->UpdateServerCvc(server_cvc)) {
@@ -908,7 +925,7 @@ WebDatabase::State AutofillWebDataBackendImpl::UpdateServerCvc(
 WebDatabase::State AutofillWebDataBackendImpl::RemoveServerCvc(
     int64_t instrument_id,
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   if (PaymentsAutofillTable::FromWebDatabase(db)->RemoveServerCvc(
           instrument_id)) {
     // Remove doesn't require `ServerCvc` struct data, so an empty data is
@@ -927,7 +944,7 @@ WebDatabase::State AutofillWebDataBackendImpl::RemoveServerCvc(
 
 WebDatabase::State AutofillWebDataBackendImpl::ClearServerCvcs(
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   std::vector<std::unique_ptr<ServerCvc>> server_cvc_list =
       PaymentsAutofillTable::FromWebDatabase(db)->GetAllServerCvcs();
   if (PaymentsAutofillTable::FromWebDatabase(db)->ClearServerCvcs()) {
@@ -950,7 +967,7 @@ WebDatabase::State AutofillWebDataBackendImpl::ClearServerCvcs(
 }
 
 WebDatabase::State AutofillWebDataBackendImpl::ClearLocalCvcs(WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   if (PaymentsAutofillTable::FromWebDatabase(db)->ClearLocalCvcs()) {
     ReportResult(Result::kClearLocalCvcs_Success);
     return WebDatabase::COMMIT_NEEDED;
@@ -959,21 +976,21 @@ WebDatabase::State AutofillWebDataBackendImpl::ClearLocalCvcs(WebDatabase* db) {
   return WebDatabase::COMMIT_NOT_NEEDED;
 }
 
-WebDatabase::State AutofillWebDataBackendImpl::CleanupForCrbug411681430(
+WebDatabase::State AutofillWebDataBackendImpl::ClearLocalCvcsUpToMay2025(
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
-  if (PaymentsAutofillTable::FromWebDatabase(db)->CleanupForCrbug411681430()) {
-    ReportResult(Result::kCleanupForCrbug411681430_Success);
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  if (PaymentsAutofillTable::FromWebDatabase(db)->ClearLocalCvcsUpToMay2025()) {
+    ReportResult(Result::kClearLocalCvcsUpToMay2025_Success);
     return WebDatabase::COMMIT_NEEDED;
   }
-  ReportResult(Result::kCleanupForCrbug411681430_Failure);
+  ReportResult(Result::kClearLocalCvcsUpToMay2025_Failure);
   return WebDatabase::COMMIT_NOT_NEEDED;
 }
 
 #if BUILDFLAG(IS_IOS)
 WebDatabase::State AutofillWebDataBackendImpl::CleanupForCrbug445879524(
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   if (PaymentsAutofillTable::FromWebDatabase(db)->CleanupForCrbug445879524()) {
     ReportResult(Result::kCleanupForCrbug445879524_Success);
     return WebDatabase::COMMIT_NEEDED;
@@ -1036,7 +1053,7 @@ AutofillWebDataBackendImpl::GetCreditCardBenefits(WebDatabase* db) {
 
 std::unique_ptr<WDTypedResult>
 AutofillWebDataBackendImpl::GetMaskedBankAccounts(WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   std::vector<BankAccount> masked_bank_accounts;
   PaymentsAutofillTable::FromWebDatabase(db)->GetMaskedBankAccounts(
       masked_bank_accounts);
@@ -1046,7 +1063,7 @@ AutofillWebDataBackendImpl::GetMaskedBankAccounts(WebDatabase* db) {
 
 std::unique_ptr<WDTypedResult>
 AutofillWebDataBackendImpl::GetPaymentInstruments(WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   std::vector<sync_pb::PaymentInstrument> payment_instruments;
   PaymentsAutofillTable::FromWebDatabase(db)->GetPaymentInstruments(
       payment_instruments);
@@ -1057,7 +1074,7 @@ AutofillWebDataBackendImpl::GetPaymentInstruments(WebDatabase* db) {
 std::unique_ptr<WDTypedResult>
 AutofillWebDataBackendImpl::GetPaymentInstrumentCreationOptions(
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   std::vector<sync_pb::PaymentInstrumentCreationOption>
       payment_instrument_creation_options;
   PaymentsAutofillTable::FromWebDatabase(db)
@@ -1082,7 +1099,7 @@ WebDatabase::State AutofillWebDataBackendImpl::ClearAllServerData(
 
 WebDatabase::State AutofillWebDataBackendImpl::ClearAllCreditCardBenefits(
     WebDatabase* db) {
-  CHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   if (PaymentsAutofillTable::FromWebDatabase(db)
           ->ClearAllCreditCardBenefits()) {
     ReportResult(Result::kClearAllCreditCardBenefits_Success);

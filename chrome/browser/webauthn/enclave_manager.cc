@@ -2984,10 +2984,7 @@ EnclaveManager::EnclaveManager(
   // Automatically load the enclave state shortly after startup so that any
   // renewals will be considered without the user having to do something to
   // trigger a WebAuthn operation.
-  load_timer_.Start(
-      FROM_HERE, base::Minutes(4),
-      base::BindOnce(&EnclaveManager::Load, weak_ptr_factory_.GetWeakPtr(),
-                     base::DoNothing()));
+  LoadAfterDelay(base::Minutes(4), base::DoNothing());
   // Also consider renewing the PIN every day, for users who keep Chrome open
   // for long periods.
   renewal_timer_.Start(FROM_HERE, base::Hours(24),
@@ -3030,6 +3027,14 @@ unsigned EnclaveManager::store_keys_count() const {
   return store_keys_count_;
 }
 
+void EnclaveManager::LoadAfterDelay(base::TimeDelta delay,
+                                    base::OnceClosure closure) {
+  load_timer_.Start(
+      FROM_HERE, delay,
+      base::BindOnce(&EnclaveManager::Load, weak_ptr_factory_.GetWeakPtr(),
+                     std::move(closure)));
+}
+
 void EnclaveManager::Load(base::OnceClosure closure) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -3042,6 +3047,9 @@ void EnclaveManager::Load(base::OnceClosure closure) {
   load_duration_timer_ = std::make_unique<base::ElapsedTimer>();
 
   load_callbacks_.emplace_back(std::move(closure));
+  load_callbacks_.emplace_back(
+      base::BindOnce(&EnclaveManager::NotifyObserversThatStateUpdated,
+                     weak_ptr_factory_.GetWeakPtr()));
   Act();
 }
 
@@ -3731,7 +3739,7 @@ EnclaveManager::UvKeyState EnclaveManager::uv_key_state(
 }
 
 void EnclaveManager::CheckGpmPinAvailability(
-    base::OnceCallback<void(GpmPinAvailability)> callback) {
+    GpmPinAvailabilityCallback callback) {
   CoreAccountInfo account_info =
       identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   download_account_state_request_ =
@@ -4190,6 +4198,10 @@ void EnclaveManager::HandleIdentityChange(bool is_post_load) {
 void EnclaveManager::Stopped() {
   state_machine_.reset();
   Act();
+  NotifyObserversThatStateUpdated();
+}
+
+void EnclaveManager::NotifyObserversThatStateUpdated() {
   for (Observer& observer : observer_list_) {
     observer.OnStateUpdated();
   }
@@ -4296,8 +4308,13 @@ void EnclaveManager::ClearRegistration() {
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(
           [](std::vector<uint8_t> wrapped_identity_private_key) {
-            if (auto provider = GetWebAuthnUnexportableKeyProvider()) {
-              provider->DeleteSigningKeySlowly(wrapped_identity_private_key);
+            std::unique_ptr<crypto::UnexportableKeyProvider> provider =
+                GetWebAuthnUnexportableKeyProvider();
+            if (crypto::StatefulUnexportableKeyProvider* stateful_provider =
+                    provider ? provider->AsStatefulUnexportableKeyProvider()
+                             : nullptr) {
+              stateful_provider->DeleteSigningKeySlowly(
+                  wrapped_identity_private_key);
             }
           },
           ToVector(user_->wrapped_identity_private_key())));

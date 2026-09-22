@@ -105,6 +105,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
+#include "third_party/blink/renderer/core/page/focusgroup_controller_utils.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/scrolling/top_document_root_scroller_controller.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
@@ -2877,6 +2878,55 @@ bool AXObject::IsValidationMessage() const {
 }
 
 ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
+  // Focusgroup child implied role inference:
+  // Applies only when:
+  //  * Parent is a focusgroup owner whose role was implied (parent has no
+  //    explicit role attribute and was generic before inference).
+  //  * Current element has no explicit ARIA role (aria_role_ still kUnknown).
+  //  * Current element's native role is generic container (to avoid overriding
+  //    richer native semantics like <button>, <a>, <input>, etc.).
+  //  * The focusgroup owner's behavior maps to a child role (e.g. tablist->tab,
+  //    radiogroup->radio, etc.).
+  // TODO(crbug.com/40074157): Investigate why we need to check
+  // NeedsStyleRecalc. and fix if possible. At this point, all nodes that are
+  // not display:none or content-visibility:hidden should have updated style,
+  // which means it is safe to call Element::SupportsFocus(),
+  // Element::IsKeyboardFocusable(), and Element::IsFocusableStyle() without
+  // causing an update.
+  Element* element = GetElement();
+  if (element && cached_can_set_focus_attribute_ &&
+      !element->NeedsStyleRecalc() &&
+      RuntimeEnabledFeatures::FocusgroupEnabled(
+          element->GetExecutionContext()) &&
+      (role_ == ax::mojom::blink::Role::kGenericContainer ||
+       role_ == ax::mojom::blink::Role::kUnknown)) {
+    // GetFocusgroupOwnerOfItem both checks if the input is a focusgroup item
+    // and returns the focusgroup owner if so.
+    Element* focusgroup_owner =
+        FocusgroupControllerUtils::GetFocusgroupOwnerOfItem(element);
+    if (focusgroup_owner) {
+      AXObject* focusgroup_owner_axobj = AXObjectCache().Get(focusgroup_owner);
+      if (focusgroup_owner_axobj) {
+        // Check to see if the focusgroup owner's role matches the behavior's
+        // minimum ARIA role. We don't want to infer roles for focusgroup items
+        // within a focusgroup owner that has an explicit role set to something
+        // other than thek behavior's minimum.
+        if (focusgroup_owner_axobj->RoleValue() ==
+            focusgroup::FocusgroupMinimumAriaRole(
+                focusgroup_owner->GetFocusgroupData())) {
+          ax::mojom::blink::Role implied_role =
+              focusgroup::FocusgroupItemMinimumAriaRole(
+                  focusgroup_owner->GetFocusgroupData());
+          // Not all focusgroup behaviors will have their items map to an ARIA
+          // role.
+          if (implied_role != ax::mojom::blink::Role::kUnknown) {
+            return implied_role;
+          }
+        }
+      }
+    }
+  }
+
   // An SVG with no accessible children should be exposed as an image rather
   // than a document. See https://github.com/w3c/svg-aam/issues/12.
   // We do this check here for performance purposes: When
@@ -5400,8 +5450,33 @@ ax::mojom::blink::DefaultActionVerb AXObject::Action() const {
     case ax::mojom::blink::Role::kPopUpButton:
       return ax::mojom::blink::DefaultActionVerb::kOpen;
     default:
-      if (action_element == GetNode())
-        return ax::mojom::blink::DefaultActionVerb::kClick;
+      if (action_element == GetNode()) {
+        if (use_layout_based_action_) {
+          ui::AXRelativeBounds bounds;
+          bool clips_children;
+          PopulateAXRelativeBounds(bounds, &clips_children);
+
+          HitTestRequest request(
+              HitTestRequest::kReadOnly | HitTestRequest::kActive |
+              HitTestRequest::kListBased | HitTestRequest::kPenetratingList);
+          HitTestLocation location(PhysicalRect::EnclosingRect(bounds.bounds));
+          HitTestResult result(request, location);
+          GetDocument()->GetLayoutView()->HitTestNoLifecycleUpdate(location,
+                                                                  result);
+          const HitTestResult::NodeSet& hits = result.ListBasedTestResult();
+          for (Node* hit : hits) {
+            while (hit) {
+              if (hit == GetNode()) {
+                return ax::mojom::DefaultActionVerb::kClickInHitTest;
+              }
+              hit = hit->parentNode();
+            }
+          }
+          return ax::mojom::DefaultActionVerb::kClickNotInHitTest;
+        } else {
+          return ax::mojom::DefaultActionVerb::kClick;
+        }
+      }
       return ax::mojom::blink::DefaultActionVerb::kClickAncestor;
   }
 }
@@ -7345,6 +7420,10 @@ bool AXObject::PerformAction(const ui::AXActionData& action_data) {
     case ax::mojom::blink::Action::kLongClick:
     case ax::mojom::blink::Action::kScrollToPositionAtRowColumn:
       return false;  // Handled in `RenderAccessibilityImpl`.
+    case ax::mojom::blink::Action::kRequestLayoutBasedAction:
+      use_layout_based_action_ = true;
+      AXObjectCache().MarkAXObjectDirtyWithCleanLayout(this);
+      return true;
   }
 }
 

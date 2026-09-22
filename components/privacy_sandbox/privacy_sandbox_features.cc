@@ -74,7 +74,7 @@ const base::FeatureParam<bool>
 BASE_FEATURE(kOverridePrivacySandboxSettingsLocalTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDisablePrivacySandboxPrompts, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDisablePrivacySandboxPrompts, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnforcePrivacySandboxAttestations,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -120,8 +120,6 @@ BASE_FEATURE(kPsDualWritePrefsToNoticeStorage,
 
 BASE_FEATURE(kPrivateStateTokensDevUI, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPrivacySandboxGetPromptFromNoticeService,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPrivacySandboxActivityTypeStorage,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -159,12 +157,6 @@ const base::FeatureParam<std::string> kPrivacySandboxSentimentSurveyTriggerId{
     &kPrivacySandboxSentimentSurvey, "sentiment-survey-trigger-id", ""};
 
 BASE_FEATURE(kPrivacySandboxAdsApiUxEnhancements,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrivacySandboxAllowPromptForBlocked3PCookies,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrivacySandboxMigratePrefsToSchemaV2,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPrivacySandboxNoticeFramework, base::FEATURE_DISABLED_BY_DEFAULT);

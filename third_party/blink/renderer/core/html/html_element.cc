@@ -325,13 +325,14 @@ void HTMLElement::ApplyBorderAttributeToStyle(
 }
 
 bool HTMLElement::IsPresentationAttribute(const QualifiedName& name) const {
-  if (name == html_names::kAlignAttr ||
+  if (name == html_names::kAlignAttr || name == html_names::kAnchorAttr ||
       name == html_names::kContenteditableAttr ||
       name == html_names::kHiddenAttr || name == html_names::kLangAttr ||
       name.Matches(xml_names::kLangAttr) ||
       name == html_names::kDraggableAttr || name == html_names::kDirAttr ||
-      name == html_names::kInertAttr)
+      name == html_names::kInertAttr) {
     return true;
+  }
   return Element::IsPresentationAttribute(name);
 }
 
@@ -339,14 +340,6 @@ bool HTMLElement::IsValidDirAttribute(const AtomicString& value) {
   return EqualIgnoringASCIICase(value, "auto") ||
          EqualIgnoringASCIICase(value, "ltr") ||
          EqualIgnoringASCIICase(value, "rtl");
-}
-
-bool HTMLElement::IsValidContainerTimingNestingAttribute(
-    const AtomicString& value) {
-  return EqualIgnoringASCIICase(value, "auto") ||
-         EqualIgnoringASCIICase(value, "ignore") ||
-         EqualIgnoringASCIICase(value, "transparent") ||
-         EqualIgnoringASCIICase(value, "shadowed");
 }
 
 void HTMLElement::CollectStyleForPresentationAttribute(
@@ -360,6 +353,11 @@ void HTMLElement::CollectStyleForPresentationAttribute(
     } else {
       AddPropertyToPresentationAttributeStyle(style, CSSPropertyID::kTextAlign,
                                               value);
+    }
+  } else if (name == html_names::kAnchorAttr) {
+    if (RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
+      AddPropertyToPresentationAttributeStyle(
+          style, CSSPropertyID::kPositionAnchor, CSSValueID::kAuto);
     }
   } else if (name == html_names::kContenteditableAttr) {
     AtomicString lower_value = value.LowerASCII();
@@ -462,8 +460,6 @@ const AttributeTriggers* HTMLElement::TriggersForAttributeName(
        &HTMLElement::OnContainerTimingAttrChanged},
       {html_names::kContainertimingIgnoreAttr, kNoWebFeature, kNoEvent,
        &HTMLElement::OnContainerTimingIgnoreAttrChanged},
-      {html_names::kContainertimingNestingAttr, kNoWebFeature, kNoEvent,
-       &HTMLElement::OnContainerTimingNestingAttrChanged},
 
       {html_names::kOnabortAttr, kNoWebFeature, event_type_names::kAbort,
        nullptr},
@@ -515,8 +511,6 @@ const AttributeTriggers* HTMLElement::TriggersForAttributeName(
        event_type_names::kCuechange, nullptr},
       {html_names::kOncutAttr, kNoWebFeature, event_type_names::kCut, nullptr},
       {html_names::kOndblclickAttr, kNoWebFeature, event_type_names::kDblclick,
-       nullptr},
-      {html_names::kOndismissAttr, kNoWebFeature, event_type_names::kDismiss,
        nullptr},
       {html_names::kOndragAttr, kNoWebFeature, event_type_names::kDrag,
        nullptr},
@@ -625,8 +619,6 @@ const AttributeTriggers* HTMLElement::TriggersForAttributeName(
       {html_names::kOnresetAttr, kNoWebFeature, event_type_names::kReset,
        nullptr},
       {html_names::kOnresizeAttr, kNoWebFeature, event_type_names::kResize,
-       nullptr},
-      {html_names::kOnresolveAttr, kNoWebFeature, event_type_names::kResolve,
        nullptr},
       {html_names::kOnscrollAttr, kNoWebFeature, event_type_names::kScroll,
        nullptr},
@@ -3612,28 +3604,6 @@ void HTMLElement::OnContainerTimingIgnoreAttrChanged(
     // the tree if the node has ignore only
     ClearSelfOrAncestorHasContainerTiming();
     UpdateDescendantHasContainerTiming(false /* has_container_timing */);
-  }
-}
-
-void HTMLElement::OnContainerTimingNestingAttrChanged(
-    const AttributeModificationParams& params) {
-  if (!RuntimeEnabledFeatures::ContainerTimingEnabled()) {
-    return;
-  }
-
-  if (!FastHasAttribute(html_names::kContainertimingAttr)) {
-    return;
-  }
-
-  bool is_old_valid = IsValidContainerTimingNestingAttribute(params.old_value);
-  bool is_new_valid = IsValidContainerTimingNestingAttribute(params.new_value);
-  if (!is_old_valid && !is_new_valid) {
-    return;
-  }
-
-  if (auto* window = GetDocument().domWindow()) {
-    ContainerTiming::From(*window).MaybeUpdateContainerRootNestingPolicy(
-        this, params.new_value);
   }
 }
 

@@ -7,7 +7,6 @@
 #include <memory>
 #include <optional>
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/check.h"
 #include "base/debug/dump_without_crashing.h"
@@ -78,15 +77,7 @@ void RecordUserAction(const std::string& action_id) {
 // is only available between the Show/Hide calls. During `MaybeSkip`
 // WizardController provides a reference to it.
 bool IsInSetupMode(PinSetupMode mode, WizardContext& context) {
-  const bool mode_matches =
-      context.knowledge_factor_setup.pin_setup_mode == mode;
-  if (mode == PinSetupMode::kSetupAsPrimaryFactor ||
-      mode == PinSetupMode::kAlreadyPerformed) {
-    // These modes are only available when PasswordlessSetup is enabled.
-    return mode_matches && ash::features::IsAllowPasswordlessSetupEnabled();
-  } else {
-    return mode_matches;
-  }
+  return context.knowledge_factor_setup.pin_setup_mode == mode;
 }
 
 // Returns `true` if the active Profile is enterprise managed.
@@ -272,8 +263,7 @@ void PinSetupScreen::OnUserAction(const base::Value::List& args) {
     token_lifetime_timeout_.Stop();
     if (IsInSetupMode(PinSetupMode::kSetupAsPrimaryFactor, *context())) {
       exit_callback_.Run(Result::kDoneAsMainFactor);
-    } else if (IsInSetupMode(PinSetupMode::kRecovery, *context()) &&
-               features::IsAllowPasswordlessRecoveryEnabled()) {
+    } else if (IsInSetupMode(PinSetupMode::kRecovery, *context())) {
       exit_callback_.Run(Result::kDoneRecoveryReset);
     } else {
       CHECK(IsInSetupMode(PinSetupMode::kSetupAsSecondaryFactor, *context()));

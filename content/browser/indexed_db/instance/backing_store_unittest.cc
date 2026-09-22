@@ -87,7 +87,7 @@ TEST_P(BackingStoreTest, PutGetConsistency) {
     auto result = transaction2->GetRecord(1, key);
     EXPECT_TRUE(result.has_value());
     CommitTransactionAndVerify(*transaction2);
-    EXPECT_EQ(value.bits, result->bits);
+    EXPECT_EQ(base::span(value.bits), base::span(result->bits));
   }
 }
 
@@ -139,14 +139,12 @@ TEST_P(BackingStoreTest, RollbackDuringBlobWrite) {
       transaction
           ->CommitPhaseOne(
               /*blob_write_callback=*/
-              base::IgnoreArgs<BlobWriteResult,
-                               storage::mojom::WriteBlobToFileResult>(
-                  base::BindOnce(
-                      [](base::AutoReset<bool> auto_reset) {
-                        ADD_FAILURE();
-                        return Status::OK();
-                      },
-                      base::AutoReset(&blob_write_callback_lives, true))),
+              base::IgnoreArgs<StatusOr<BlobWriteResult>>(base::BindOnce(
+                  [](base::AutoReset<bool> auto_reset) {
+                    ADD_FAILURE();
+                    return Status::OK();
+                  },
+                  base::AutoReset(&blob_write_callback_lives, true))),
               /*serialize_fsa_handle=*/base::DoNothing())
           .ok());
   EXPECT_TRUE(blob_write_callback_lives);
@@ -541,7 +539,7 @@ TEST_P(BackingStoreTestWithExternalObjects, PutGetConsistency) {
     IndexedDBValue result_value = std::move(result.value());
 
     CommitTransactionAndVerify(*transaction2);
-    EXPECT_EQ(value3_.bits, result_value.bits);
+    EXPECT_EQ(base::span(value3_.bits), base::span(result_value.bits));
 
     EXPECT_TRUE(CheckBlobInfoMatches(result_value.external_objects));
   }
@@ -669,7 +667,7 @@ TEST_P(BackingStoreTestWithExternalObjects, DeleteRange) {
           EXPECT_TRUE(result_value.empty());
         } else {
           EXPECT_FALSE(result_value.empty());
-          EXPECT_EQ(values[j].bits, result_value.bits);
+          EXPECT_EQ(base::span(values[j].bits), base::span(result_value.bits));
         }
       }
     }
@@ -763,7 +761,7 @@ TEST_P(BackingStoreTestWithExternalObjects, DeleteRangeEmptyRange) {
 
         // No records should have been deleted.
         EXPECT_FALSE(result_value.empty());
-        EXPECT_EQ(values[j].bits, result_value.bits);
+        EXPECT_EQ(base::span(values[j].bits), base::span(result_value.bits));
       }
     }
   }

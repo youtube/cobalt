@@ -63,12 +63,12 @@ class WasmStreaming::WasmStreamingImpl {
       CompileTimeImports compile_imports,
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
       : i_isolate_(isolate),
-        enabled_features_(WasmEnabledFeatures::FromIsolate(i_isolate_)),
         streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
-            i_isolate_, enabled_features_, std::move(compile_imports),
-            direct_handle(i_isolate_->context(), i_isolate_), api_method_name,
-            resolver)),
-        resolver_(std::move(resolver)) {}
+            WasmEnabledFeatures::FromIsolate(i_isolate_),
+            std::move(compile_imports), api_method_name, resolver)),
+        resolver_(std::move(resolver)) {
+    streaming_decoder_->InitializeIsolateSpecificInfo(isolate);
+  }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
@@ -95,7 +95,7 @@ class WasmStreaming::WasmStreamingImpl {
         [callback = std::move(callback),
          url = streaming_decoder_->shared_url()](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          callback(CompiledWasmModule{native_module, url->data(), url->size()});
+          callback(CompiledWasmModule{native_module, *url});
         });
   }
 
@@ -107,9 +107,8 @@ class WasmStreaming::WasmStreamingImpl {
 
  private:
   i::Isolate* const i_isolate_;
-  const WasmEnabledFeatures enabled_features_;
-  const std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
-  const std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
+  const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
+  const std::shared_ptr<i::wasm::CompilationResultResolver> resolver_;
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
@@ -165,6 +164,114 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   auto managed =
       i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
   return managed->get();
+}
+
+class WasmModuleCompilation::Impl {
+ public:
+  Impl(WasmEnabledFeatures enabled_features, CompileTimeImports compile_imports)
+      : streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
+            enabled_features, std::move(compile_imports),
+            "WasmModuleCompilation", resolver_)) {}
+
+  void OnBytesReceived(const uint8_t* bytes, size_t size) {
+    streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
+  }
+
+  void Finish(
+      Isolate* isolate, const ModuleCachingCallback& caching_callback,
+      const std::function<void(
+          std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error)>&
+          resolution_callback) {
+    DCHECK_NULL(resolver_->callback_);
+    resolver_->callback_ = resolution_callback;
+
+    streaming_decoder_->InitializeIsolateSpecificInfo(
+        reinterpret_cast<i::Isolate*>(isolate));
+    streaming_decoder_->Finish(caching_callback);
+  }
+
+  void Abort() { streaming_decoder_->Abort(); }
+
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)> callback) {
+    streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
+        [callback = std::move(callback),
+         url = streaming_decoder_->shared_url()](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          callback(CompiledWasmModule{native_module, *url});
+        });
+  }
+
+  void SetHasCompiledModuleBytes() {
+    streaming_decoder_->SetHasCompiledModuleBytes();
+  }
+
+  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+
+ private:
+  class Resolver final : public i::wasm::CompilationResultResolver {
+   public:
+    void OnCompilationSucceeded(
+        i::DirectHandle<i::WasmModuleObject> result) override {
+      DCHECK_NOT_NULL(callback_);
+      callback_(Utils::ToLocal(result));
+    }
+    void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
+      DCHECK_NOT_NULL(callback_);
+      callback_(Utils::ToLocal(error_reason));
+    }
+
+   private:
+    friend class WasmModuleCompilation::Impl;
+    std::function<void(
+        std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error)>
+        callback_;
+  };
+
+  const std::shared_ptr<Resolver> resolver_ = std::make_shared<Resolver>();
+  const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
+};
+
+// TODO(clemensb): Pass enabled features and compile time imports.
+WasmModuleCompilation::WasmModuleCompilation()
+    : impl_(std::make_unique<Impl>(WasmEnabledFeatures::FromFlags(),
+                                   CompileTimeImports{})) {
+  TRACE_EVENT0("v8.wasm", "wasm.ModuleCompilation");
+}
+
+WasmModuleCompilation::~WasmModuleCompilation() = default;
+
+void WasmModuleCompilation::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
+  impl_->OnBytesReceived(bytes, size);
+}
+
+void WasmModuleCompilation::Finish(
+    Isolate* isolate, const ModuleCachingCallback& caching_callback,
+    const std::function<void(std::variant<Local<WasmModuleObject>, Local<Value>>
+                                 module_or_error)>& resolution_callback) {
+  TRACE_EVENT0("v8.wasm", "wasm.FinishModuleCompilation");
+  impl_->Finish(isolate, caching_callback, resolution_callback);
+}
+
+void WasmModuleCompilation::Abort() {
+  TRACE_EVENT0("v8.wasm", "wasm.AbortModuleCompilation");
+  impl_->Abort();
+}
+
+void WasmModuleCompilation::SetHasCompiledModuleBytes() {
+  impl_->SetHasCompiledModuleBytes();
+}
+
+void WasmModuleCompilation::SetMoreFunctionsCanBeSerializedCallback(
+    std::function<void(CompiledWasmModule)> callback) {
+  impl_->SetMoreFunctionsCanBeSerializedCallback(std::move(callback));
+}
+
+void WasmModuleCompilation::SetUrl(const char* url, size_t length) {
+  DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
+  TRACE_EVENT1("v8.wasm", "wasm.SetUrl", "url", url);
+  impl_->SetUrl(base::VectorOf(url, length));
 }
 
 namespace {
@@ -316,7 +423,7 @@ class InstantiateModuleResultResolver
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
+    CHECK_NOT_NULL(callback);
     callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
              Utils::ToLocal(i::Cast<i::Object>(instance)),
              WasmAsyncSuccess::kSuccess);
@@ -324,11 +431,19 @@ class InstantiateModuleResultResolver
 
   void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
+    FailInstantiation(isolate_, context_.Get(isolate_),
+                      promise_resolver_.Get(isolate_),
+                      Utils::ToLocal(error_reason));
+  }
+
+  static void FailInstantiation(Isolate* isolate, Local<Context> context,
+                                Local<Promise::Resolver> promise_resolver,
+                                Local<Value> error) {
+    auto callback = reinterpret_cast<i::Isolate*>(isolate)
                         ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    CHECK_NOT_NULL(callback);
+    callback(isolate, context, promise_resolver, error,
+             WasmAsyncSuccess::kFail);
   }
 
  private:
@@ -829,9 +944,9 @@ bool TransferPrototype(i::Isolate* isolate,
       i::JSObject::GetPrototype(isolate, source);
   i::DirectHandle<i::HeapObject> prototype;
   if (maybe_prototype.ToHandle(&prototype)) {
-    Maybe<bool> result = i::JSObject::SetPrototype(
-        isolate, destination, prototype,
-        /*from_javascript=*/false, internal::kThrowOnError);
+    Maybe<bool> result =
+        i::JSObject::SetPrototype(isolate, destination, prototype,
+                                  /*from_javascript=*/false, i::kThrowOnError);
     if (!result.FromJust()) {
       DCHECK(isolate->has_exception());
       return false;
@@ -1034,8 +1149,8 @@ void WebAssemblyInstantiateStreaming(
 
   if (!ffi->IsUndefined() && !ffi->IsObject()) {
     thrower.TypeError("Argument 1 must be an object");
-    InstantiateModuleResultResolver resolver(isolate, context, result_resolver);
-    resolver.OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, result_resolver, Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1044,6 +1159,19 @@ void WebAssemblyInstantiateStreaming(
           isolate, context, result_resolver, ffi);
   StartAsyncCompilationWithResolver(js_api_scope, info[0], info[2],
                                     std::move(compilation_resolver));
+}
+
+template <typename... Args>
+Local<FixedArray> MakeInternalFixedArray(i::Isolate* i_isolate, Args... args) {
+  i::DirectHandle<i::FixedArray> fixed_array =
+      i_isolate->factory()->NewFixedArray(sizeof...(args));
+  int index = 0;
+  auto add = [&](Local<Data> obj) {
+    fixed_array->set(index++, *Utils::OpenHandle(*obj));
+  };
+  (add(args), ...);
+  DCHECK_EQ(fixed_array->length(), index);
+  return Utils::FixedArrayToLocal(fixed_array);
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
@@ -1058,15 +1186,14 @@ void WebAssemblyInstantiateImpl(
 
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Promise::Resolver> promise_resolver;
-  if (!Promise::Resolver::New(context).ToLocal(&promise_resolver)) {
+  Local<Promise::Resolver> instantiation_promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(
+          &instantiation_promise_resolver)) {
     return js_api_scope.AssertException();
   }
-  Local<Promise> promise = promise_resolver->GetPromise();
-  info.GetReturnValue().Set(promise);
-
-  std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
-      new InstantiateModuleResultResolver(isolate, context, promise_resolver));
+  Local<Promise> instantiation_promise =
+      instantiation_promise_resolver->GetPromise();
+  info.GetReturnValue().Set(instantiation_promise);
 
   Local<Value> first_arg_value = info[0];
   i::DirectHandle<i::Object> first_arg =
@@ -1074,7 +1201,9 @@ void WebAssemblyInstantiateImpl(
   if (!IsJSObject(*first_arg)) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1083,7 +1212,9 @@ void WebAssemblyInstantiateImpl(
 
   if (!ffi->IsUndefined() && !ffi->IsObject()) {
     thrower.TypeError("Argument 1 must be an object");
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1091,6 +1222,9 @@ void WebAssemblyInstantiateImpl(
     i::DirectHandle<i::WasmModuleObject> module_obj =
         i::Cast<i::WasmModuleObject>(first_arg);
 
+    std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
+        new InstantiateModuleResultResolver(isolate, context,
+                                            instantiation_promise_resolver));
     i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
                                                module_obj,
                                                ImportsAsMaybeReceiver(ffi));
@@ -1100,17 +1234,89 @@ void WebAssemblyInstantiateImpl(
   base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
-  // We start compilation now, we have no use for the
-  // {InstantiationResultResolver}.
-  resolver.reset();
+  // The first parameter is a buffer source. We start a compilation, and then
+  // chain the instantiation to that.
+  Local<Promise::Resolver> compilation_promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&compilation_promise_resolver)) {
+    return js_api_scope.AssertException();
+  }
+  Local<Promise> compilation_promise =
+      compilation_promise_resolver->GetPromise();
+
+  auto InstantiateThenCallback =
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        DCHECK_EQ(info.Length(), 1);
+        Isolate* isolate2 = info.GetIsolate();
+        HandleScope scope(isolate2);
+        Local<FixedArray> data = info.Data().As<FixedArray>();
+        DCHECK_EQ(3, data->Length());
+        Local<Context> context = data->Get(0).As<Context>();
+        Local<Promise::Resolver> promise_resolver =
+            data->Get(1).As<Value>().As<Promise::Resolver>();
+        Local<Value> imports = data->Get(2).As<Value>();
+
+        i::DirectHandle<i::WasmModuleObject> module_obj;
+        if (!TryCast(Utils::OpenDirectHandle(*info[0]), &module_obj)) {
+          auto callback = reinterpret_cast<i::Isolate*>(isolate2)
+                              ->wasm_async_resolve_promise_callback();
+          CHECK(callback);
+          Local<Value> error = Exception::TypeError(String::NewFromUtf8Literal(
+              isolate2,
+              "Illegal call to WebAssembly.instantiate callback: Argument is "
+              "not a WasmModuleObject"));
+          callback(isolate2, context, promise_resolver, error,
+                   WasmAsyncSuccess::kFail);
+          return;
+        }
+
+        i::wasm::GetWasmEngine()->AsyncInstantiate(
+            reinterpret_cast<i::Isolate*>(isolate2),
+            std::make_unique<InstantiateBytesResultResolver>(
+                isolate2, context, promise_resolver, info[0]),
+            module_obj, ImportsAsMaybeReceiver(imports));
+      };
+
+  Local<FixedArray> then_data = MakeInternalFixedArray(
+      i_isolate, context, instantiation_promise_resolver, ffi);
+  Local<Function> then_callback;
+  if (!Function::New(context, InstantiateThenCallback, then_data, 1)
+           .ToLocal(&then_callback)) {
+    return js_api_scope.AssertException();
+  }
+
+  auto RejectInstantiation =
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        DCHECK_EQ(1, info.Length());
+        HandleScope scope(info.GetIsolate());
+        Local<Promise::Resolver> instantiation_promise_resolver =
+            info.Data().As<Promise::Resolver>();
+
+        instantiation_promise_resolver
+            ->Reject(info.GetIsolate()->GetCurrentContext(), info[0])
+            .ToChecked();
+      };
+
+  Local<Function> reject_callback;
+  if (!Function::New(context, RejectInstantiation,
+                     instantiation_promise_resolver, 1)
+           .ToLocal(&reject_callback)) {
+    return js_api_scope.AssertException();
+  }
+
+  if (compilation_promise->Then(context, then_callback, reject_callback)
+          .IsEmpty()) {
+    return js_api_scope.AssertException();
+  }
 
   std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
-      new AsyncInstantiateCompileResultResolver(isolate, context,
-                                                promise_resolver, ffi));
+      new AsyncCompilationResolver(isolate, context,
+                                   compilation_promise_resolver));
 
   // The first parameter is a buffer source, we have to check if we are allowed
   // to compile it.
@@ -2127,7 +2333,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
   const i::wasm::CanonicalSig* sig = data->internal()->sig();
   i::DirectHandle<i::Code> wrapper;
-  if (!internal::wasm::IsJSCompatibleSignature(sig)) {
+  if (!i::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have
     // compiled an incompatible signature wrapper, so just reuse that.
     wrapper =
@@ -3062,8 +3268,7 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 }  // namespace
 
-namespace internal {
-namespace wasm {
+namespace internal::wasm {
 
 // Define the callbacks in v8::internal::wasm namespace. The implementation is
 // in v8::internal directly.
@@ -3074,8 +3279,7 @@ namespace wasm {
 WASM_JS_EXTERNAL_REFERENCE_LIST(DEF_WASM_JS_EXTERNAL_REFERENCE)
 #undef DEF_WASM_JS_EXTERNAL_REFERENCE
 
-}  // namespace wasm
-}  // namespace internal
+}  // namespace internal::wasm
 
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.

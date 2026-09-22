@@ -5,12 +5,14 @@
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_view_controller.h"
 
 #import "base/check.h"
+#import "base/metrics/histogram_functions.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_action_delegate.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
+#import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_constants.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
-#import "ios/chrome/common/ui/promo_style/utils.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
@@ -51,9 +53,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
 
 // References to the UI properties that need to be updated when the trait
 // collection changes.
-@property(nonatomic, strong) UILayoutGuide* widthLayoutGuide;
 @property(nonatomic, strong) UIStackView* stackView;
-@property(nonatomic, strong) UINavigationBar* navigationBar;
 @property(nonatomic, strong) UIImageView* imageView;
 @property(nonatomic, strong) UIView* imageContainerView;
 @property(nonatomic, strong) NSLayoutConstraint* imageViewAspectRatioConstraint;
@@ -67,8 +67,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
     self.actionDelegate = self;
     _customSpacingAfterImage = kStackViewSpacingAfterIllustration;
     _customSpacing = kStackViewSpacing;
-    _showDismissBarButton = YES;
-    _dismissBarButtonSystemItem = UIBarButtonSystemItemDone;
     _shouldFillInformationStack = NO;
     _imageBackgroundColor = [UIColor colorNamed:kBackgroundColor];
     _mainBackgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
@@ -84,14 +82,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [super viewDidLoad];
 
   self.view.backgroundColor = self.mainBackgroundColor;
-
-  if (self.hasNavigationBar) {
-    self.navigationBar = [self createNavigationBar];
-    [self.view addSubview:self.navigationBar];
-    AddSameConstraintsToSides(
-        self.navigationBar, self.view.safeAreaLayoutGuide,
-        LayoutSides::kTop | LayoutSides::kLeading | LayoutSides::kTrailing);
-  }
 
   NSMutableArray* stackSubviews = [[NSMutableArray alloc] init];
 
@@ -141,18 +131,16 @@ const CGFloat kFaviconBadgeSideLength = 24;
 
   self.view.preservesSuperviewLayoutMargins = YES;
 
-  // Constraint top/bottom of the stack view to the content view. This defines
-  // the content area. No need to contraint horizontally as we don't want
-  // horizontal scroll.
+  // Constraint the stack view to the content view.
   [NSLayoutConstraint activateConstraints:@[
     [self.stackView.bottomAnchor
-        constraintEqualToAnchor:self.contentView.bottomAnchor]
+        constraintEqualToAnchor:self.contentView.bottomAnchor],
+    [self.stackView.leadingAnchor
+        constraintEqualToAnchor:self.contentView.leadingAnchor],
+    [self.stackView.trailingAnchor
+        constraintEqualToAnchor:self.contentView.trailingAnchor],
   ]];
-
-  CGFloat stackViewTopConstant = 0;
-  if (!self.hasNavigationBar) {
-    stackViewTopConstant = self.customSpacingBeforeImageIfNoNavigationBar;
-  }
+  CGFloat stackViewTopConstant = self.customSpacingBeforeImageIfNoNavigationBar;
   if (self.topAlignedLayout) {
     [self.stackView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor
                                              constant:stackViewTopConstant]
@@ -191,8 +179,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
     self.imageViewAspectRatioConstraint.active = YES;
   }
 
-  [self updatePromoStyleWidth];
-
   NSArray<UITrait>* traits = @[
     UITraitPreferredContentSizeCategory.class, UITraitHorizontalSizeClass.class,
     UITraitVerticalSizeClass.class
@@ -203,19 +189,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
     [weakSelf updateRegisteredTraits:previousCollection];
   };
   [self.view registerForTraitChanges:traits withHandler:handler];
-}
-
-- (void)viewDidLayoutSubviews {
-  [super viewDidLayoutSubviews];
-  if (self.hasNavigationBar) {
-    UIScrollView* scrollView = (UIScrollView*)self.contentView.superview;
-    CGFloat navBarHeight = self.navigationBar.frame.size.height;
-    if (scrollView.contentInset.top != navBarHeight) {
-      scrollView.contentInset = UIEdgeInsetsMake(navBarHeight, 0, 0, 0);
-      scrollView.scrollIndicatorInsets =
-          UIEdgeInsetsMake(navBarHeight, 0, 0, 0);
-    }
-  }
 }
 
 - (void)viewSafeAreaInsetsDidChange {
@@ -241,9 +214,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [self.imageContainerView setHidden:!showImageView];
   self.imageViewAspectRatioConstraint.active = showImageView;
 
-  // Allow the navigation bar to update its height based on new layout.
-  [self.navigationBar invalidateIntrinsicContentSize];
-
   [super updateViewConstraints];
 }
 
@@ -255,72 +225,30 @@ const CGFloat kFaviconBadgeSideLength = 24;
   // Do nothing by default. Subclasses can override this.
 }
 
-- (UISheetPresentationControllerDetent*)preferredHeightDetent {
-  __typeof(self) __weak weakSelf = self;
-  auto resolver = ^CGFloat(
-      id<UISheetPresentationControllerDetentResolutionContext> context) {
-    return [weakSelf detentForPreferredHeightInContext:context];
-  };
-  return [UISheetPresentationControllerDetent
-      customDetentWithIdentifier:@"preferred_height"
-                        resolver:resolver];
-}
-
 - (CGFloat)preferredHeightForContent {
-  // Calculate the available width for the content from the layout guide.
-  // This is more reliable than self.stackView.bounds.size.width before a layout
-  // pass.
-  CGFloat availableWidth = self.widthLayoutGuide.layoutFrame.size.width;
-  CGSize fittingSize =
-      CGSizeMake(availableWidth, UILayoutFittingCompressedSize.height);
+  CGFloat height = [super preferredHeightForContent];
 
-  // Calculate the height of the content view constrained by the available
-  // width.
-  CGFloat height =
-      [self.contentView
-            systemLayoutSizeFittingSize:fittingSize
-          withHorizontalFittingPriority:UILayoutPriorityRequired
-                verticalFittingPriority:UILayoutPriorityFittingSizeLevel]
-          .height;
-
-  // Add the height of the button stack.
-  height += [super buttonStackHeight];
-
-  // Add the height of the navigation bar if present.
-  if (self.navigationBar) {
-    // Ask the navigation bar for its intrinsic height instead of relying on its
-    // frame.
-    height += [self.navigationBar
-                  systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
-                  .height;
-  } else {
-    // If no navigation bar, account for the top safe area and custom spacing.
-    height += CGRectGetMaxY(self.navigationController.navigationBar.frame);
     height += self.customSpacingBeforeImageIfNoNavigationBar;
-  }
 
   return height;
-}
-
-- (void)viewIsAppearing:(BOOL)animated {
-  [super viewIsAppearing:animated];
-  if (self.navigationController.navigationBar) {
-    // On iOS 26, the navigation bar is positioned differently in viewDidLoad
-    // and after. Make sure that the right position is taken into account.
-    [self.sheetPresentationController invalidateDetents];
-  }
 }
 
 #pragma mark - ButtonStackActionDelegate
 
 - (void)didTapPrimaryActionButton {
   [self.actionHandler confirmationAlertPrimaryAction];
+  base::UmaHistogramEnumeration(
+      "IOS.ConfirmationAlertSheet.Outcome",
+      ConfirmationAlertSheetAction::kPrimaryButtonTapped);
 }
 
 - (void)didTapSecondaryActionButton {
   if ([self.actionHandler
           respondsToSelector:@selector(confirmationAlertSecondaryAction)]) {
     [self.actionHandler confirmationAlertSecondaryAction];
+    base::UmaHistogramEnumeration(
+        "IOS.ConfirmationAlertSheet.Outcome",
+        ConfirmationAlertSheetAction::kSecondaryButtonTapped);
   }
 }
 
@@ -328,78 +256,13 @@ const CGFloat kFaviconBadgeSideLength = 24;
   if ([self.actionHandler
           respondsToSelector:@selector(confirmationAlertTertiaryAction)]) {
     [self.actionHandler confirmationAlertTertiaryAction];
+    base::UmaHistogramEnumeration(
+        "IOS.ConfirmationAlertSheet.Outcome",
+        ConfirmationAlertSheetAction::kTertiaryButtonTapped);
   }
 }
 
 #pragma mark - Private
-
-- (CGFloat)detentForPreferredHeightInContext:
-    (id<UISheetPresentationControllerDetentResolutionContext>)context
-    API_AVAILABLE(ios(16)) {
-  // Only activate this detent in portrait orientation on iPhone.
-  UITraitCollection* traitCollection = context.containerTraitCollection;
-  if (traitCollection.horizontalSizeClass != UIUserInterfaceSizeClassCompact ||
-      traitCollection.verticalSizeClass != UIUserInterfaceSizeClassRegular) {
-    return UISheetPresentationControllerDetentInactive;
-  }
-
-  CGFloat height = [self preferredHeightForContent];
-
-  // Make sure detent is not larger than 75% of the maximum detent value but at
-  // least as large as a standard medium detent.
-  height = MIN(height, 0.75 * context.maximumDetentValue);
-  CGFloat mediumDetentHeight =
-      [[UISheetPresentationControllerDetent mediumDetent]
-          resolvedValueInContext:context];
-  height = MAX(height, mediumDetentHeight);
-  return height;
-}
-
-// Handle taps on the dismiss button.
-- (void)didTapDismissBarButton {
-  CHECK(self.showDismissBarButton);
-  if ([self.actionHandler
-          respondsToSelector:@selector(confirmationAlertDismissAction)]) {
-    [self.actionHandler confirmationAlertDismissAction];
-  }
-}
-
-// Helper to create the navigation bar.
-- (UINavigationBar*)createNavigationBar {
-  UINavigationBar* navigationBar = [[UINavigationBar alloc] init];
-  navigationBar.translucent =
-      CGColorGetAlpha(self.mainBackgroundColor.CGColor) < 1.0;
-  [navigationBar setShadowImage:[[UIImage alloc] init]];
-  [navigationBar setBarTintColor:self.mainBackgroundColor];
-
-  UINavigationItem* navigationItem = [[UINavigationItem alloc] init];
-
-  if (self.titleView) {
-    navigationItem.titleView = self.titleView;
-  }
-
-  if (self.showDismissBarButton) {
-    UIBarButtonItem* dismissButton;
-    if (self.customDismissBarButtonImage) {
-      dismissButton = [[UIBarButtonItem alloc]
-          initWithImage:self.customDismissBarButtonImage
-                  style:UIBarButtonItemStylePlain
-                 target:self
-                 action:@selector(didTapDismissBarButton)];
-    } else {
-      dismissButton = [[UIBarButtonItem alloc]
-          initWithBarButtonSystemItem:self.dismissBarButtonSystemItem
-                               target:self
-                               action:@selector(didTapDismissBarButton)];
-    }
-    navigationItem.rightBarButtonItem = dismissButton;
-  }
-
-  navigationBar.translatesAutoresizingMaskIntoConstraints = NO;
-  [navigationBar setItems:@[ navigationItem ]];
-
-  return navigationBar;
-}
 
 - (void)setImage:(UIImage*)image {
   _image = image;
@@ -563,10 +426,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
   return subtitle;
 }
 
-- (BOOL)hasNavigationBar {
-  return self.showDismissBarButton || self.titleView;
-}
-
 // Helper to create the stack view.
 - (UIStackView*)createStackViewWithArrangedSubviews:
     (NSArray<UIView*>*)subviews {
@@ -587,25 +446,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
   return stackView;
 }
 
-
-
-// Update the width of the content area and action buttons to match
-// `PromoStyleViewController`. Should be invoked on `-viewDidLoad` to setup the
-// initial width, and also when the horizontal size class changes.
-- (void)updatePromoStyleWidth {
-  if (self.widthLayoutGuide) {
-    [self.view removeLayoutGuide:self.widthLayoutGuide];
-  }
-  self.widthLayoutGuide = AddPromoStyleWidthLayoutGuide(self.view);
-  [NSLayoutConstraint activateConstraints:@[
-    [self.stackView.leadingAnchor
-        constraintEqualToAnchor:self.widthLayoutGuide.leadingAnchor],
-    // Width Scroll View constraint for regular mode.
-    [self.stackView.trailingAnchor
-        constraintEqualToAnchor:self.widthLayoutGuide.trailingAnchor],
-  ]];
-}
-
 // Checks which trait has been changed and adapts the UI to reflect this new
 // environment.
 - (void)updateRegisteredTraits:(UITraitCollection*)previousTraitCollection {
@@ -618,7 +458,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
 
   if (hasNewHorizontalSizeClass || hasNewVerticalSizeClass) {
     [self.view setNeedsUpdateConstraints];
-    [self updatePromoStyleWidth];
   }
 }
 

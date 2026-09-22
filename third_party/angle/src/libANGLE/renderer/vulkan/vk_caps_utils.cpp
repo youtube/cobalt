@@ -737,12 +737,9 @@ void Renderer::ensureCapsInitialized() const
         rx::LimitToInt(limitsVk.maxComputeWorkGroupInvocations);
     mNativeCaps.maxComputeSharedMemorySize = rx::LimitToInt(limitsVk.maxComputeSharedMemorySize);
 
-    GLuint maxUniformBlockSize =
-        rx::LimitToIntAnd(limitsVk.maxUniformBufferRange, mMaxBufferMemorySizeLimit);
-
-    // Clamp the maxUniformBlockSize to 64KB (majority of devices support up to this size
-    // currently), on AMD the maxUniformBufferRange is near uint32_t max.
-    maxUniformBlockSize = std::min(0x10000u, maxUniformBlockSize);
+    const GLuint maxUniformBlockSize = std::min<GLuint>(
+        rx::LimitToIntAnd(limitsVk.maxUniformBufferRange, mMaxBufferMemorySizeLimit),
+        gl::IMPLEMENTATION_MAX_UNIFORM_BLOCK_SIZE);
 
     const GLuint maxUniformVectors = maxUniformBlockSize / (sizeof(GLfloat) * kComponentsPerVector);
     const GLuint maxUniformComponents = maxUniformVectors * kComponentsPerVector;
@@ -1375,9 +1372,12 @@ void Renderer::ensureCapsInitialized() const
     mNativeExtensions.shadingRateQCOM = mFeatures.supportsFragmentShadingRate.enabled;
 
     // GL_EXT_fragment_shading_rate
-    mNativeExtensions.fragmentShadingRateEXT = mFeatures.supportsFragmentShadingRate.enabled;
-    mNativeExtensions.fragmentShadingRatePrimitiveEXT =
-        mFeatures.supportsPrimitiveFragmentShadingRate.enabled;
+    if (mFeatures.supportFragmentShadingRateExtExtensions.enabled)
+    {
+        mNativeExtensions.fragmentShadingRateEXT = mFeatures.supportsFragmentShadingRate.enabled;
+        mNativeExtensions.fragmentShadingRatePrimitiveEXT =
+            mFeatures.supportsPrimitiveFragmentShadingRate.enabled;
+    }
 
     // GL_QCOM_framebuffer_foveated
     mNativeExtensions.framebufferFoveatedQCOM = mFeatures.supportsFoveatedRendering.enabled;
@@ -1509,6 +1509,9 @@ void Renderer::ensureCapsInitialized() const
             .fragmentShadingRateWithShaderDepthStencilWritesSupport = static_cast<bool>(
             mFragmentShadingRateProperties.fragmentShadingRateNonTrivialCombinerOps);
     }
+
+    // GL_OES_compressed_paletted_texture
+    mNativeExtensions.compressedPalettedTextureOES = true;
 
     // Log any missing extensions required for GLES 3.2.
     LogMissingExtensionsForGLES32(mNativeExtensions);
@@ -1678,7 +1681,6 @@ egl::ConfigSet GenerateConfigs(const GLenum *colorFormats,
 
     gl::SupportedSampleSet colorSampleCounts;
     gl::SupportedSampleSet depthStencilSampleCounts;
-    gl::SupportedSampleSet sampleCounts;
 
     const VkPhysicalDeviceLimits &limits =
         display->getRenderer()->getPhysicalDeviceProperties().limits;
@@ -1694,9 +1696,7 @@ egl::ConfigSet GenerateConfigs(const GLenum *colorFormats,
     colorSampleCounts.insert(0);
     depthStencilSampleCounts.insert(0);
 
-    std::set_intersection(colorSampleCounts.begin(), colorSampleCounts.end(),
-                          depthStencilSampleCounts.begin(), depthStencilSampleCounts.end(),
-                          std::inserter(sampleCounts, sampleCounts.begin()));
+    gl::SupportedSampleSet sampleCounts = colorSampleCounts & depthStencilSampleCounts;
 
     egl::ConfigSet configSet;
 
@@ -1726,7 +1726,7 @@ egl::ConfigSet GenerateConfigs(const GLenum *colorFormats,
                 configSampleCounts = &depthStencilSampleCounts;
             }
 
-            for (EGLint sampleCount : *configSampleCounts)
+            for (EGLint sampleCount : configSampleCounts->sampleCounts())
             {
                 egl::Config config = GenerateDefaultConfig(display, colorFormatInfo,
                                                            depthStencilFormatInfo, sampleCount);

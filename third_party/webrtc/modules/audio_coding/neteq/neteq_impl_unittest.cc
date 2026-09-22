@@ -1526,7 +1526,7 @@ TEST_F(NetEqImplTest, NotifyControllerOfReorderedPacket) {
 #if RTC_DCHECK_IS_ON
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST(NetEqImplDeathTest, CrashWith1000Channels) {
-  EXPECT_DEATH(std::make_unique<AudioDecoderPcmU>(1000), "");
+  EXPECT_DEATH((void)std::make_unique<AudioDecoderPcmU>(1000), "");
 }
 #endif  // GTEST_HAS_DEATH_TEST
 #endif

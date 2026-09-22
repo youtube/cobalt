@@ -29,6 +29,21 @@ namespace webrtc {
 // Whether our side of the call is driving the negotiation, or the other side.
 enum IceRole { ICEROLE_CONTROLLING = 0, ICEROLE_CONTROLLED, ICEROLE_UNKNOWN };
 
+template <typename Sink>
+void AbslStringify(Sink& sink, IceRole role) {
+  switch (role) {
+    case ICEROLE_CONTROLLING:
+      sink.Append("ICEROLE_CONTROLLING");
+      break;
+    case ICEROLE_CONTROLLED:
+      sink.Append("ICEROLE_CONTROLLED");
+      break;
+    case ICEROLE_UNKNOWN:
+      sink.Append("ICEROLE_UNKNOWN");
+      break;
+  }
+}
+
 // ICE RFC 5245 implementation type.
 enum IceMode {
   ICEMODE_FULL,  // As defined in http://tools.ietf.org/html/rfc5245#section-4.1

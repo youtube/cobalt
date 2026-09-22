@@ -195,7 +195,7 @@ bool SkWebpCodec::ensureAllData() {
     if (fOnlyHeaderParsed) {
         SkDynamicMemoryWStream newData;
         newData.write(fData->data(), fData->size());
-        SkStreamCopy(&newData, this->stream());
+        SkStreamPriv::Copy(&newData, this->stream());
         fData = newData.detachAsData();
         fOnlyHeaderParsed = false;
 
@@ -795,7 +795,7 @@ std::unique_ptr<SkCodec> Decode(std::unique_ptr<SkStream> stream,
     return SkWebpCodec::MakeFromStream(std::move(stream), outResult);
 }
 
-std::unique_ptr<SkCodec> Decode(sk_sp<SkData> data,
+std::unique_ptr<SkCodec> Decode(sk_sp<const SkData> data,
                                 SkCodec::Result* outResult,
                                 SkCodecs::DecodeContext) {
     if (!data) {

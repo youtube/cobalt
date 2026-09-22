@@ -77,7 +77,8 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
     net::CookieSettingOverrides cookie_setting_overrides,
     std::string_view debug_tag,
     bool require_cross_site_request_for_cookies,
-    bool is_for_service_worker) {
+    bool is_for_service_worker,
+    const std::optional<base::UnguessableToken>& network_restrictions_id) {
   DCHECK(process);
 
   network::mojom::URLLoaderFactoryParamsPtr params =
@@ -89,6 +90,8 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
   params->is_trusted = is_trusted;
   if (top_frame_token)
     params->top_frame_id = top_frame_token.value().value();
+
+  params->network_restrictions_id = network_restrictions_id;
   params->isolation_info = isolation_info;
 
   params->disable_web_security =
@@ -167,6 +170,7 @@ URLLoaderFactoryParamsHelper::CreateForFrame(
     network::mojom::TrustTokenOperationPolicyVerdict
         trust_token_redemption_policy,
     net::CookieSettingOverrides cookie_setting_overrides,
+    const std::optional<base::UnguessableToken>& network_restrictions_id,
     std::string_view debug_tag) {
   return CreateParams(
       process,
@@ -187,7 +191,7 @@ URLLoaderFactoryParamsHelper::CreateForFrame(
       frame->CreateDeviceBoundSessionObserver(), trust_token_issuance_policy,
       trust_token_redemption_policy, cookie_setting_overrides, debug_tag,
       /*require_cross_site_request_for_cookies=*/false,
-      /*is_for_service_worker=*/false);
+      /*is_for_service_worker=*/false, network_restrictions_id);
 }
 
 // static
@@ -224,7 +228,8 @@ URLLoaderFactoryParamsHelper::CreateForIsolatedWorld(
       trust_token_redemption_policy, cookie_setting_overrides,
       "ParamHelper::CreateForIsolatedWorld",
       /*require_cross_site_request_for_cookies=*/false,
-      /*is_for_service_worker=*/false);
+      /*is_for_service_worker=*/false,
+      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt);
 }
 
 network::mojom::URLLoaderFactoryParamsPtr
@@ -259,7 +264,8 @@ URLLoaderFactoryParamsHelper::CreateForPrefetch(
       network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
       cookie_setting_overrides, "ParamHelper::CreateForPrefetch",
       /*require_cross_site_request_for_cookies=*/false,
-      /*is_for_service_worker=*/false);
+      /*is_for_service_worker=*/false,
+      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt);
 }
 
 // static
@@ -309,7 +315,8 @@ URLLoaderFactoryParamsHelper::CreateForWorker(
       network::mojom::TrustTokenOperationPolicyVerdict::kPotentiallyPermit,
       network::mojom::TrustTokenOperationPolicyVerdict::kPotentiallyPermit,
       net::CookieSettingOverrides(), debug_tag,
-      require_cross_site_request_for_cookies, is_for_service_worker);
+      require_cross_site_request_for_cookies, is_for_service_worker,
+      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt);
 }
 
 // static
@@ -373,7 +380,8 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
       network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
       net::CookieSettingOverrides(), "ParamHelper::CreateForEarlyHintsPreload",
       /*require_cross_site_request_for_cookies=*/false,
-      /*is_for_service_worker=*/false);
+      /*is_for_service_worker=*/false,
+      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt);
 }
 
 // static

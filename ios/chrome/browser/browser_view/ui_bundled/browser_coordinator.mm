@@ -54,8 +54,8 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo/coordinator/non_modal_signin_promo_coordinator.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
+#import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_edit_profile_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/authentication/card_unmask_authentication_coordinator.h"
-#import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/autofill_edit_profile_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/infobar_autofill_edit_profile_bottom_sheet_handler.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/payments_suggestion_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/save_card_bottom_sheet_coordinator.h"
@@ -90,7 +90,6 @@
 #import "ios/chrome/browser/contextual_panel/coordinator/contextual_sheet_coordinator.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper.h"
 #import "ios/chrome/browser/contextual_panel/utils/contextual_panel_metrics.h"
-#import "ios/chrome/browser/credential_exchange/coordinator/credential_import_coordinator.h"
 #import "ios/chrome/browser/credential_provider_promo/ui_bundled/credential_provider_promo_coordinator.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/default_promo/ui_bundled/default_browser_promo_non_modal_commands.h"
@@ -228,7 +227,6 @@
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/country_code_picker_commands.h"
-#import "ios/chrome/browser/shared/public/commands/credential_exchange_commands.h"
 #import "ios/chrome/browser/shared/public/commands/data_controls_commands.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/commands/drive_file_picker_commands.h"
@@ -371,7 +369,6 @@ const char kChromeAppStoreUrl[] =
     ContextualPanelEntrypointIPHCommands,
     ContextualSheetCommands,
     CountryCodePickerCommands,
-    CredentialExchangeCommands,
     DataControlsCommands,
     DefaultBrowserGenericPromoCommands,
     DefaultPromoNonModalPresentationDelegate,
@@ -497,8 +494,8 @@ const char kChromeAppStoreUrl[] =
 @property(nonatomic, strong)
     PlusAddressBottomSheetCoordinator* plusAddressBottomSheetCoordinator;
 
-@property(nonatomic, strong) AutofillEditProfileBottomSheetCoordinator*
-    autofillEditProfileBottomSheetCoordinator;
+@property(nonatomic, strong)
+    AutofillEditProfileCoordinator* autofillEditProfileCoordinator;
 
 @property(nonatomic, strong)
     SaveCardBottomSheetCoordinator* saveCardBottomSheetCoordinator;
@@ -745,9 +742,6 @@ const char kChromeAppStoreUrl[] =
 
   // The coordinator for the Welcome Back promo.
   WelcomeBackCoordinator* _welcomeBackCoordinator;
-
-  // The coordinator for the Credential Exchange feature handling the import.
-  CredentialImportCoordinator* _credentialImportCoordinator;
 
   // The coordinator for displaying Enterprise Data Controls dialogs.
   DataControlsDialogCoordinator* _dataControlsDialogCoordinator;
@@ -1054,6 +1048,13 @@ const char kChromeAppStoreUrl[] =
   }
 }
 
+- (void)signinCoordinatorCompletionWithCoordinator:
+    (SigninCoordinator*)coordinator {
+  CHECK(!coordinator || _signinCoordinator == coordinator,
+        base::NotFatalUntil::M151);
+  [self stopSigninCoordinator];
+}
+
 - (void)stopSigninCoordinator {
   [_signinCoordinator stop];
   _signinCoordinator = nil;
@@ -1272,7 +1273,6 @@ const char kChromeAppStoreUrl[] =
     @protocol(WhatsNewCommands),
     @protocol(GoogleOneCommands),
     @protocol(WelcomeBackPromoCommands),
-    @protocol(CredentialExchangeCommands),
     @protocol(DataControlsCommands),
   ];
 
@@ -1823,9 +1823,6 @@ const char kChromeAppStoreUrl[] =
   [_BWGCoordinator stop];
   _BWGCoordinator = nil;
 
-  [_credentialImportCoordinator stop];
-  _credentialImportCoordinator = nil;
-
   [_dataControlsDialogCoordinator stop];
   _dataControlsDialogCoordinator = nil;
 
@@ -2232,20 +2229,19 @@ const char kChromeAppStoreUrl[] =
       [[InfobarAutofillEditProfileBottomSheetHandler alloc]
           initWithWebState:self.activeWebState];
 
-  self.autofillEditProfileBottomSheetCoordinator =
-      [[AutofillEditProfileBottomSheetCoordinator alloc]
-          initWithBaseViewController:self.viewController
-                             browser:self.browser
-                             handler:self.editProfileBottomSheetHandler];
-  [self.autofillEditProfileBottomSheetCoordinator start];
+  self.autofillEditProfileCoordinator = [[AutofillEditProfileCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser
+                         handler:self.editProfileBottomSheetHandler];
+  [self.autofillEditProfileCoordinator start];
 }
 
 - (void)dismissEditAddressBottomSheet {
-  if (self.autofillEditProfileBottomSheetCoordinator) {
-    [self.autofillEditProfileBottomSheetCoordinator stop];
+  if (self.autofillEditProfileCoordinator) {
+    [self.autofillEditProfileCoordinator stop];
   }
 
-  self.autofillEditProfileBottomSheetCoordinator = nil;
+  self.autofillEditProfileCoordinator = nil;
   self.editProfileBottomSheetHandler = nil;
 }
 
@@ -2645,8 +2641,9 @@ const char kChromeAppStoreUrl[] =
                                  DoNothingContinuationProvider()];
   __weak __typeof(self) weakSelf = self;
   _signinCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
-        [weakSelf stopSigninCoordinator];
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
+        [weakSelf signinCoordinatorCompletionWithCoordinator:coordinator];
       };
   [_signinCoordinator start];
 }
@@ -2666,7 +2663,8 @@ const char kChromeAppStoreUrl[] =
       initWithBaseViewController:self.viewController
                          browser:self.browser
                       entrypoint:entrypoint
-                           query:query];
+                           query:query
+         composeboxAnimationBase:_toolbarCoordinator];
   [_composeboxCoordinator start];
 }
 
@@ -2674,14 +2672,17 @@ const char kChromeAppStoreUrl[] =
   if (!_composeboxCoordinator) {
     return;
   }
-  __weak __typeof__(self) weakSelf = self;
-  base::OnceClosure completion = base::BindOnce(^{
-    [weakSelf.composeboxCoordinator stop];
-    weakSelf.composeboxCoordinator = nil;
-  });
+
   if (immediately) {
-    std::move(completion).Run();
+    [self.composeboxCoordinator stop];
+    self.composeboxCoordinator = nil;
   } else {
+    __weak __typeof(self) weakSelf = self;
+    base::OnceClosure completion = base::BindOnce(^{
+      [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
+        weakSelf.composeboxCoordinator = nil;
+      }];
+    });
     // Stop the prototoype on the next run loop as this might be called while
     // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
     // Remove this workaround once the omnibox can be safely dismissed while
@@ -3115,16 +3116,6 @@ const char kChromeAppStoreUrl[] =
   _countryCodePickerCoordinator = nil;
 }
 
-#pragma mark - CredentialExchangeCommands
-
-- (void)showCredentialExchangeImport:(NSUUID*)UUID {
-  _credentialImportCoordinator = [[CredentialImportCoordinator alloc]
-      initWithBaseViewController:self.viewController
-                         browser:self.browser
-                            UUID:UUID];
-  [_credentialImportCoordinator start];
-}
-
 #pragma mark - BWGCommands
 
 - (void)startBWGFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
@@ -3247,7 +3238,8 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showFullscreenSigninPromo {
   [HandlerForProtocol(self.dispatcher, ApplicationCommands)
-      showFullscreenSigninPromoWithCompletion:^(SigninCoordinatorResult result,
+      showFullscreenSigninPromoWithCompletion:^(SigninCoordinator* coordinator,
+                                                SigninCoordinatorResult result,
                                                 id<SystemIdentity>) {
         [self.promosManagerCoordinator promoWasDismissed];
       }];
@@ -3465,7 +3457,6 @@ const char kChromeAppStoreUrl[] =
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetDelegate(self);
-    readerModeBrowserAgent->SetWebStateDelegate(self.tabLifecycleMediator);
   }
 }
 
@@ -3981,8 +3972,9 @@ const char kChromeAppStoreUrl[] =
 
   __weak __typeof(self) weakSelf = self;
   _signinCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
-        [weakSelf stopSigninCoordinator];
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
+        [weakSelf signinCoordinatorCompletionWithCoordinator:coordinator];
       };
   [_signinCoordinator start];
 }
@@ -4063,8 +4055,9 @@ const char kChromeAppStoreUrl[] =
                                           DoNothingContinuationProvider()];
   __weak __typeof(self) weakSelf = self;
   _signinCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
-        [weakSelf stopSigninCoordinator];
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
+        [weakSelf signinCoordinatorCompletionWithCoordinator:coordinator];
       };
   [_signinCoordinator start];
 }
@@ -4082,12 +4075,13 @@ const char kChromeAppStoreUrl[] =
                 baseViewController:self.viewController];
   __weak __typeof(self) weakSelf = self;
   _signinCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
         SigninCoordinatorCompletionCallback completion = command.completion;
         if (completion) {
-          completion(result, identity);
+          completion(coordinator, result, identity);
         }
-        [weakSelf stopSigninCoordinator];
+        [weakSelf signinCoordinatorCompletionWithCoordinator:coordinator];
       };
   [_signinCoordinator start];
 }

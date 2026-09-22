@@ -56,7 +56,7 @@ int ecdsa_verify_fixed_no_self_test(const uint8_t *digest, size_t digest_len,
 
 
 #if defined(__cplusplus)
-}
+}  // extern C
 #endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_ECDSA_INTERNAL_H

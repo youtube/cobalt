@@ -72,7 +72,7 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLaterForKlarna,
 // When enabled, buy now pay later (BNPL) data will be synced to Chrome clients.
 BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncing,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -178,10 +178,6 @@ BASE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// When enabled, Buy now pay later issuer allow lists will be loaded after
-// payment data syncing instead of credit card form parsing.
-BASE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, virtual card downstream enrollment will support multiple
 // requests at a time.
@@ -192,6 +188,12 @@ BASE_FEATURE(kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment,
 BASE_FEATURE(kAutofillEnableNewCardBenefitsToggleText,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, card and IBAN autofill will be shown in new FOP style.
+BASE_FEATURE(kAutofillEnableNewFopDisplayAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // When enabled, card and IBAN autofill will be shown in new FOP style.
 BASE_FEATURE(kAutofillEnableNewFopDisplayDesktop,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -200,6 +202,14 @@ BASE_FEATURE(kAutofillEnableNewFopDisplayDesktop,
 // downstream.
 BASE_FEATURE(kAutofillEnableOffersInClankKeyboardAccessory,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_CHROMEOS)
+// When enabled, in use-cases where we would not have triggered any interactive
+// authentication to autofill payment methods, we will trigger a device
+// authentication on ChromeOS.
+BASE_FEATURE(kAutofillEnablePaymentsMandatoryReauthChromeOs,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, risk data is prefetched during payments autofill flows to
 // reduce user-perceived latency.
@@ -214,6 +224,13 @@ BASE_FEATURE(kAutofillEnableSaveAndFill, base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, show Pix settings as a separate preference menu item instead of
 // bundling them together with the non-card payment preference menu item.
 BASE_FEATURE(kAutofillEnableSeparatePixPreferenceItem,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, the Touch To Fill bottom sheet on Android can be reshown after
+// a BNPL flow is dismissed by a user.
+BASE_FEATURE(kAutofillEnableTouchToFillReshowForBnpl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 

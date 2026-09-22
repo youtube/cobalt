@@ -26,6 +26,18 @@ namespace unexportable_keys {
 
 class RefCountedUnexportableSigningKey;
 
+// A `BackgroundTask` to retrieve all `crypto::UnexportableSigningKey`s from the
+// key provider.
+class GetAllKeysTask
+    : public internal::BackgroundTaskImpl<ServiceErrorOr<
+          std::vector<scoped_refptr<RefCountedUnexportableSigningKey>>>> {
+ public:
+  GetAllKeysTask(
+      std::unique_ptr<crypto::UnexportableKeyProvider> key_provider,
+      BackgroundTaskPriority priority,
+      base::OnceCallback<void(GetAllKeysTask::ReturnType, size_t)> callback);
+};
+
 // A `BackgroundTask` to generate a new `crypto::UnexportableSigningKey`.
 class GenerateKeyTask
     : public internal::BackgroundTaskImpl<
@@ -77,6 +89,17 @@ class DeleteKeyTask
       std::vector<uint8_t> wrapped_key,
       BackgroundTaskPriority priority,
       base::OnceCallback<void(DeleteKeyTask::ReturnType, size_t)> callback);
+};
+
+// A `BackgroundTask` to delete all `crypto::UnexportableSigningKey`s matching
+// the key provider config.
+class DeleteAllKeysTask
+    : public internal::BackgroundTaskImpl<ServiceErrorOr<size_t>> {
+ public:
+  DeleteAllKeysTask(
+      std::unique_ptr<crypto::UnexportableKeyProvider> key_provider,
+      BackgroundTaskPriority priority,
+      base::OnceCallback<void(DeleteAllKeysTask::ReturnType, size_t)> callback);
 };
 
 }  // namespace unexportable_keys

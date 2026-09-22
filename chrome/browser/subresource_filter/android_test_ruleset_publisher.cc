@@ -36,7 +36,8 @@ void OnRulesetPublished(
 
 }  // namespace
 
-void JNI_TestRulesetPublisher_CreateAndPublishRulesetDisallowingSuffixForTesting(
+static void
+JNI_TestRulesetPublisher_CreateAndPublishRulesetDisallowingSuffixForTesting(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& publisher_param,
     std::string& suffix) {
@@ -65,3 +66,5 @@ void JNI_TestRulesetPublisher_CreateAndPublishRulesetDisallowingSuffixForTesting
   // the ruleset to 2-8 seconds on average.
   AfterStartupTaskUtils::SetBrowserStartupIsCompleteForTesting();
 }
+
+DEFINE_JNI(TestRulesetPublisher)

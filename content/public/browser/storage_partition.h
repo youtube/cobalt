@@ -72,7 +72,6 @@ class BrowsingDataFilterBuilder;
 class BrowsingTopicsSiteDataManager;
 class CdmStorageDataModel;
 class ContentIndexContext;
-class CookieDeprecationLabelManager;
 class DedicatedWorkerService;
 class DevToolsBackgroundServicesContext;
 class DOMStorageContext;
@@ -173,7 +172,6 @@ class CONTENT_EXPORT StoragePartition {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   virtual AttributionDataModel* GetAttributionDataModel() = 0;
   virtual PrivateAggregationDataModel* GetPrivateAggregationDataModel() = 0;
-  virtual CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() = 0;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   virtual CdmStorageDataModel* GetCdmStorageDataModel() = 0;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)

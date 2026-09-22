@@ -15,9 +15,9 @@
 // Sets the current list of items to be displayed.
 - (void)setItems:(NSArray<ComposeboxInputItem*>*)items;
 
-// Updates the state for the item with the given token.
+// Updates the state for the item with the given identifier.
 - (void)updateState:(ComposeboxInputItemState)state
-    forItemWithToken:(const base::UnguessableToken&)token;
+    forItemWithIdentifier:(const base::UnguessableToken&)identifier;
 
 // Updates the mic and lens button visibility.
 - (void)hideLensAndMicButton:(BOOL)hidden;
@@ -25,14 +25,38 @@
 // Updates the send button visibility.
 - (void)hideSendButton:(BOOL)hidden;
 
-// Sets whether the "Attach current tab" action is enabled.
-- (void)setCanAttachCurrentTab:(BOOL)canAttachCurrentTab;
-
 // Sets whether AI mode is enabled.
-- (void)setAIModeEnabled:(BOOL)AIModeEnabled;
+- (void)setAIModeEnabled:(BOOL)enabled;
+
+// Sets whether Image Generation mode is enabled.
+- (void)setImageGenerationEnabled:(BOOL)enabled;
 
 // Whether to present in compact (single line) mode.
-- (void)setIsCompactMode:(BOOL)isCompactMode;
+- (void)setCompact:(BOOL)compact;
+
+// Sets the favicon for the current tab.
+- (void)setCurrentTabFavicon:(UIImage*)favicon;
+
+// Sets whether the "Attach current tab" action is hidden.
+- (void)hideAttachCurrentTabAction:(BOOL)hidden;
+
+// Sets whether the attach tab actions are hidden.
+- (void)hideAttachTabActions:(BOOL)hidden;
+
+// Sets whether the attach tab actions are disabled.
+- (void)disableAttachTabActions:(BOOL)disabled;
+
+// Sets whether the attach file actions are hidden.
+- (void)hideAttachFileActions:(BOOL)hidden;
+
+// Sets whether the attach file actions are disabled.
+- (void)disableAttachFileActions:(BOOL)disabled;
+
+// Sets whether the create image actions are hidden.
+- (void)hideCreateImageActions:(BOOL)hidden;
+
+// Sets whether the create image actions are disabled.
+- (void)disableCreateImageActions:(BOOL)disabled;
 
 @end
 

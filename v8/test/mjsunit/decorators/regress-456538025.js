@@ -4,7 +4,6 @@
 //
 // Flags: --js-decorators
 
-// Flags: --js-decorators
 ((arg = (function wrapper() {
     class C {
       accessor[Symbol.for('computed')] = function f() {};

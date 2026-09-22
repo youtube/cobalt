@@ -8,6 +8,7 @@
 
 #include "base/check_deref.h"
 #include "base/containers/contains.h"
+#include "base/debug/alias.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/break_iterator.h"
@@ -291,7 +292,12 @@ bool BrowserAccessibilityAndroid::IsClickable() const {
   // a click listener is present in its ancestry chain.
   if (HasIntAttribute(ax::mojom::IntAttribute::kDefaultActionVerb) &&
       (GetData().GetDefaultActionVerb() !=
-       ax::mojom::DefaultActionVerb::kClickAncestor)) {
+       ax::mojom::DefaultActionVerb::kClickAncestor) &&
+      (!base::FeatureList::IsEnabled(
+          features::kAccessibilityRequestLayoutBasedActions) ||
+      GetData().GetDefaultActionVerb() !=
+       ax::mojom::DefaultActionVerb::kClickNotInHitTest)
+      ) {
     return true;
   }
 
@@ -1512,6 +1518,7 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
     case ax::mojom::Role::kListBox:
     case ax::mojom::Role::kProgressIndicator:
     case ax::mojom::Role::kRadioButton:
+    case ax::mojom::Role::kRowGroup:
     case ax::mojom::Role::kRowHeader:
     case ax::mojom::Role::kSectionFooter:
     case ax::mojom::Role::kSectionHeader:
@@ -1531,16 +1538,22 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
       break;
 
     // Roles not used on Android.
+    case ax::mojom::Role::kCaret:
     case ax::mojom::Role::kColumn:
     case ax::mojom::Role::kListGrid:
     case ax::mojom::Role::kMenuItemSeparator:
     case ax::mojom::Role::kPdfActionableHighlight:
     case ax::mojom::Role::kPdfRoot:
-    case ax::mojom::Role::kRowGroup:
     case ax::mojom::Role::kTableHeaderContainer:
-    case ax::mojom::Role::kWebView:
-      NOTREACHED();
+    case ax::mojom::Role::kWebView: {
+      ax::mojom::Role role = GetRole();
+      base::debug::Alias(&role);
+      NOTREACHED() << "Role: " << static_cast<int>(role);
+    }
 
+    case ax::mojom::Role::kCaption:
+      // Default is empty.
+      return GetLocalizedString(IDS_AX_ROLE_CAPTION);
     case ax::mojom::Role::kFigure:
       // Default is IDS_AX_ROLE_FIGURE.
       return GetLocalizedString(IDS_AX_ROLE_GRAPHIC);
@@ -2300,6 +2313,15 @@ bool BrowserAccessibilityAndroid::HasCharacterLocations() const {
   }
   return false;
 }
+
+bool BrowserAccessibilityAndroid::HasLayoutBasedActions() const {
+  const auto default_action_verb = GetData().GetDefaultActionVerb();
+  return default_action_verb ==
+    ax::mojom::DefaultActionVerb::kClickInHitTest ||
+          default_action_verb ==
+            ax::mojom::DefaultActionVerb::kClickNotInHitTest;
+}
+
 
 bool BrowserAccessibilityAndroid::HasImage() const {
   if (ui::IsImageOrVideo(GetRole())) {

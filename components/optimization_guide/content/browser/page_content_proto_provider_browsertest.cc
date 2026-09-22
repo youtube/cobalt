@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "base/android/device_info.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -192,7 +193,7 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
   }
 
   void SetPageContent(base::OnceClosure quit_closure,
-                      std::optional<AIPageContentResult> page_content) {
+                      AIPageContentResultOrError page_content) {
     page_content_ = std::move(page_content->proto);
     metadata_ = std::move(page_content->metadata);
     document_identifiers_ = std::move(page_content->document_identifiers);
@@ -1280,6 +1281,11 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
             select_node_geometry.visible_bounding_box().x());
   EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
             select_node_geometry.visible_bounding_box().y() + 10);
+
+  EXPECT_EQ(popup_window.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(popup_window.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) &&
         // !BUILDFLAG(IS_FUCHSIA)
@@ -1303,6 +1309,14 @@ class ScaledPageContentProtoProviderBrowserTest
 };
 
 IN_PROC_BROWSER_TEST_F(ScaledPageContentProtoProviderBrowserTest, ScaleSizes) {
+  // TODO(crbug.com/456812241): Re-enable this test on automotive once the test
+  // is fixed.
+#if BUILDFLAG(IS_ANDROID)
+  if (base::android::device_info::is_automotive()) {
+    GTEST_SKIP() << "This test is disabled on automotive due to flakiness.";
+  }
+#endif
+
   const gfx::Size window_bounds(web_contents()->GetSize());
   LoadPage(https_server()->GetURL("/simple.html"));
 
@@ -1362,6 +1376,11 @@ IN_PROC_BROWSER_TEST_F(ScaledPageContentProtoProviderBrowserTest,
             select_node_geometry.visible_bounding_box().x());
   EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
             select_node_geometry.visible_bounding_box().y() + 10 * 2);
+
+  EXPECT_EQ(page_content().popup_window().visible_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(page_content().popup_window().visible_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10 * 2);
 }
 #endif  //  !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) &&
         //  !BUILDFLAG(IS_FUCHSIA)
@@ -2022,6 +2041,11 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
             select_node_geometry.visible_bounding_box().x());
   EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
             select_node_geometry.visible_bounding_box().y() + 10);
+
+  EXPECT_EQ(popup_window.visible_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(popup_window.visible_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
@@ -2089,6 +2113,11 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
             select_node_geometry.visible_bounding_box().x());
   EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
             select_node_geometry.visible_bounding_box().y() + 10);
+
+  EXPECT_EQ(popup_window.visible_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(popup_window.visible_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
@@ -2150,6 +2179,11 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
             select_node_geometry.visible_bounding_box().x());
   EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
             select_node_geometry.visible_bounding_box().y() + 10);
+
+  EXPECT_EQ(popup_window.visible_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(popup_window.visible_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
 }
 #endif  // !BUILDFLAG(IS_FUCHSIA)
 

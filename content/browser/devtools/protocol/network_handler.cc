@@ -65,7 +65,6 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/browser/resource_context.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
@@ -1355,14 +1354,23 @@ bool NetworkHandler::AddInterceptedResourceType(
     intercepted_resource_types->insert(blink::mojom::ResourceType::kScript);
     return true;
   }
-  if (resource_type == protocol::Network::ResourceTypeEnum::XHR) {
+
+  // Map several fetch-like CDP resource types to the underlying `kXhr` Blink
+  // resource type. This is necessary because Blink's loader subsystem, where
+  // interception occurs, does not differentiate between these types at a
+  // protocol level. This mapping provides a functional interception mechanism
+  // and resolves the issue where filtering for 'Fetch' or 'EventSource' would
+  // silently fail. See https://crbug.com/40256663#comment10 for context.
+  if (resource_type == protocol::Network::ResourceTypeEnum::XHR ||
+      resource_type == protocol::Network::ResourceTypeEnum::Fetch ||
+      resource_type == protocol::Network::ResourceTypeEnum::EventSource) {
     intercepted_resource_types->insert(blink::mojom::ResourceType::kXhr);
+    if (resource_type == protocol::Network::ResourceTypeEnum::Fetch) {
+      intercepted_resource_types->insert(blink::mojom::ResourceType::kPrefetch);
+    }
     return true;
   }
-  if (resource_type == protocol::Network::ResourceTypeEnum::Fetch) {
-    intercepted_resource_types->insert(blink::mojom::ResourceType::kPrefetch);
-    return true;
-  }
+
   if (resource_type ==
       protocol::Network::ResourceTypeEnum::CSPViolationReport) {
     intercepted_resource_types->insert(blink::mojom::ResourceType::kCspReport);
@@ -3804,6 +3812,7 @@ void NetworkHandler::LoadNetworkResource(
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
         frame->GetCookieSettingOverrides(),
+        /*network_restrictions_id=*/std::nullopt,
         "NetworkHandler::LoadNetworkResource");
 
     auto factory = CreateNetworkFactoryForDevTools(

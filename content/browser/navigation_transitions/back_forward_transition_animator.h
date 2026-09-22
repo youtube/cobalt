@@ -24,7 +24,7 @@ class Layer;
 class SolidColorLayer;
 class SurfaceLayer;
 class UIResourceLayer;
-}
+}  // namespace cc::slim
 
 namespace ui {
 class InputFilter;
@@ -131,8 +131,7 @@ class CONTENT_EXPORT BackForwardTransitionAnimator
 
   // Indicates the animation abort reason for UMA metrics.
   // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused. Upon adding a new value, add it
-  // to `tools/metrics/histograms/metadata/navigation/enums.xml` as well.
+  // numeric values should never be reused.
   enum class AnimationAbortReason {
     // The subscribed `RenderWidgetHost` was destroyed.
     kRenderWidgetHostDestroyed = 0,
@@ -489,7 +488,6 @@ class CONTENT_EXPORT BackForwardTransitionAnimator
 
   // New layer for `screenshot_`.
   scoped_refptr<cc::slim::Layer> screenshot_layer_;
-  base::ScopedClosureRunner screenshot_layer_closure_;
 
   // A copy of old surface, covering the entire old page from when the
   // navigation commits to the end of the invoke animation (where the old page

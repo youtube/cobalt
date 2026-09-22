@@ -19,6 +19,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -66,6 +67,7 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerT
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
@@ -140,6 +142,7 @@ import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabstrip.TabStripTopControlLayer;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupUi;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupUiOneshotSupplier;
 import org.chromium.chrome.browser.theme.AdjustedTopUiThemeColorProvider;
@@ -160,6 +163,7 @@ import org.chromium.chrome.browser.toolbar.home_page_button.HomePageButtonsCoord
 import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator.VisibilityDelegate;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonState;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.top.ActionModeController;
@@ -186,6 +190,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.MenuButtonDelegate;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -263,6 +268,8 @@ public class ToolbarManager
             new ObservableSupplierImpl<>();
     private final ObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
     private final ObservableSupplierImpl<Boolean> mIsNtpWithFakeboxShowingSupplier =
+            new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<Boolean> mIsIncognitoNtpShowingSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mFindInPageShowingSupplier =
             new ObservableSupplierImpl<>(false);
@@ -822,11 +829,12 @@ public class ToolbarManager
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             @Nullable MultiInstanceManager multiInstanceManager,
             ObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
-            MenuButtonCoordinator.@Nullable VisibilityDelegate menuButtonVisibilityDelegate,
+            @Nullable VisibilityDelegate menuButtonVisibilityDelegate,
             TopControlsStacker topControlsStacker,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
             @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
-            PageZoomManager pageZoomManager) {
+            PageZoomManager pageZoomManager,
+            SnackbarManager snackbarManager) {
         TraceEvent.begin("ToolbarManager.ToolbarManager");
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -1121,17 +1129,14 @@ public class ToolbarManager
         ViewStub extensionToolbarStub =
                 controlContainer.findViewById(R.id.extension_toolbar_container_stub);
         if (extensionToolbarStub != null) {
-            // TODO(crbug.com/448691376): Change ExtensionToolbarCoordinator profileSupplier and
-            // tabProvider arguments to Supplier<@Nullable Profile> and Supplier<@Nullable Tab> and
-            // updated the rest of the code.
             mExtensionToolbarCoordinator =
                     ExtensionToolbarCoordinator.maybeCreate(
                             mActivity,
                             extensionToolbarStub,
                             windowAndroid,
                             chromeAndroidTaskSupplier,
-                            (ObservableSupplier<Profile>) profileSupplier,
-                            (ObservableSupplier<Tab>) tabProvider,
+                            profileSupplier,
+                            tabProvider,
                             mTabCreatorManager.getTabCreator(false),
                             browsingModeThemeColorProvider);
         }
@@ -1159,6 +1164,13 @@ public class ToolbarManager
             progressBarStub.setLayoutParams(progressBarParams);
         }
 
+        if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
+            CoordinatorLayout.LayoutParams progressBarParams =
+                    (CoordinatorLayout.LayoutParams) progressBarStub.getLayoutParams();
+            progressBarParams.gravity = Gravity.BOTTOM;
+            progressBarStub.setLayoutParams(progressBarParams);
+        }
+
         mProgressBarContainer = progressBarStub.inflate();
         ToolbarProgressBar progressBar =
                 mProgressBarContainer.findViewById(R.id.toolbar_progress_bar);
@@ -1177,7 +1189,7 @@ public class ToolbarManager
                 createTopToolbarCoordinator(
                         controlContainer,
                         buttonDataProviders,
-                        browsingModeThemeColorProvider,
+                        browsingModeThemeColorProviderWithAdjustableTint,
                         mIncognitoStateProvider,
                         initializeWithIncognitoColors,
                         mConstraintsProxy,
@@ -1186,10 +1198,12 @@ public class ToolbarManager
                         historyDelegate,
                         topControlsStacker,
                         homeButtonDisplay);
-        mTabStripTopControlLayer = new TabStripTopControlLayer(mToolbar.getTabStripHeight());
-        if (ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
-            mTopControlsStacker.addControl(mTabStripTopControlLayer);
-        }
+        mTabStripTopControlLayer =
+                new TabStripTopControlLayer(
+                        mToolbar.getTabStripHeight(),
+                        mTopControlsStacker,
+                        mBrowserControlsSizer,
+                        mControlContainer);
         mActionModeController =
                 new ActionModeController(
                         mActivity,
@@ -1233,6 +1247,7 @@ public class ToolbarManager
                                 : 0;
                     };
 
+            View bottomContainerView = mActivity.findViewById(R.id.bottom_container);
             // TODO(crbug.com/448691376): Change LocationBarCoordinator profileSupplier argument to
             // Supplier<@Nullable Profile> and updated the rest of the code.
             // TODO(crbug.com/448691376): Change LocationBarCoordinator modalDialogManagerSupplier
@@ -1268,6 +1283,7 @@ public class ToolbarManager
                             backPressManager,
                             scrollListener,
                             tabModelSelectorSupplier,
+                            mToolbarLayout,
                             new LocationBarEmbedderUiOverrides(),
                             mActivity.findViewById(R.id.coordinator),
                             bottomWindowPaddingSupplier,
@@ -1277,7 +1293,9 @@ public class ToolbarManager
                                     mActivity, mIsCustomTab),
                             pageZoomManager,
                             TabFavicon::getBitmap,
-                            multiInstanceManager);
+                            multiInstanceManager,
+                            snackbarManager,
+                            bottomContainerView);
             mToolbarLayout.setLocationBarCoordinator(locationBarCoordinator);
             mToolbarLayout.setBrowserControlsVisibilityDelegate(mControlsVisibilityDelegate);
             mToolbarLayout.setBrowserControlsStateProvider(mBrowserControlsSizer);
@@ -1843,6 +1861,7 @@ public class ToolbarManager
         mIsNtpWithFakeboxShowingSupplier.set(
                 getNewTabPageForCurrentTab() != null
                         && getNewTabPageForCurrentTab().isLocationBarShownInNtp());
+        mIsIncognitoNtpShowingSupplier.set(getIncognitoNewTabPageForCurrentTab() != null);
         mIsTabSwitcherFinishedShowingSupplier.set(
                 mLayoutStateProvider != null
                         ? mLayoutStateProvider.getActiveLayoutType() == LayoutType.TAB_SWITCHER
@@ -1867,6 +1886,7 @@ public class ToolbarManager
                         mBrowserControlsSizer,
                         ContextUtils.getAppSharedPreferences(),
                         mIsNtpWithFakeboxShowingSupplier,
+                        mIsIncognitoNtpShowingSupplier,
                         mIsTabSwitcherFinishedShowingSupplier,
                         mOmniboxFocusStateSupplier,
                         mFormFieldFocusedSupplier,
@@ -1989,9 +2009,7 @@ public class ToolbarManager
                         mExtensionToolbarCoordinator,
                         topControlsStacker,
                         mBrowserControlsSizer,
-                        () ->
-                                MultiWindowUtils.getInstanceCountWithFallback(
-                                        MultiInstanceManager.PersistedInstanceType.OFF_THE_RECORD));
+                        () -> MultiWindowUtils.getIncognitoInstanceCount(/* activeOnly= */ true));
 
         mHomepageStateListener =
                 () -> {
@@ -2390,14 +2408,18 @@ public class ToolbarManager
                     if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
                         // TODO(peilinwang) update these calculations and move them to the stackers
                         // when the progress bar gets decoupled from the toolbar and when top
-                        // stacker is complete.
+                        // stacker is complete. Note: the hairline is a TopControlsLayer, but is not
+                        // integrated with the TopControlsStacker yet, which is why we have to
+                        // explicitly account for its height after calling getHeightFromLayerToX.
                         int toolbarPosition = mToolbarPositionSupplier.get();
+                        int hairlineHeight = mToolbarHairline.getHeight();
                         if (toolbarPosition == ControlsPosition.TOP) {
                             yOffset =
                                     mTopControlsStacker.getHeightFromLayerToTop(
                                                     TopControlType.PROGRESS_BAR)
                                             - mTopControlsStacker.getHeightFromLayerToTop(
-                                                    TopControlType.TOOLBAR);
+                                                    TopControlType.TOOLBAR)
+                                            + hairlineHeight;
                         } else if (toolbarPosition == ControlsPosition.BOTTOM) {
                             yOffset =
                                     -(mBottomControlsStacker.getHeightFromLayerToBottom(
@@ -2405,13 +2427,18 @@ public class ToolbarManager
                                                     - mBottomControlsStacker
                                                             .getHeightFromLayerToBottom(
                                                                     LayerType.BOTTOM_TOOLBAR))
-                                            - mProgressBarContainer.getHeight();
+                                            - mProgressBarContainer.getHeight()
+                                            - hairlineHeight;
                         }
                     }
                     drawingInfo.progressBarRect.offset(0, yOffset);
                     drawingInfo.progressBarBackgroundRect.offset(0, yOffset);
                 };
 
+        if (BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                && stripLayoutHelperManager != null) {
+            mTabStripTopControlLayer.initializeWithNative(stripLayoutHelperManager);
+        }
         mToolbar.initializeWithNative(
                 profile,
                 layoutManager::requestUpdate,
@@ -2632,7 +2659,7 @@ public class ToolbarManager
             mToolbar.removeOnAttachStateChangeListener(mAttachStateChangeListener);
             mAttachStateChangeListener = null;
         }
-        mTopControlsStacker.removeControl(mTabStripTopControlLayer);
+        mTabStripTopControlLayer.destroy();
         mToolbar.destroy();
         mToolbarLongPressMenuHandler.destroy();
 
@@ -3231,6 +3258,10 @@ public class ToolbarManager
         }
 
         checkIfNtpShowingWithNoPendingLoad();
+
+        if (mToolbarPositionController != null) {
+            mIsIncognitoNtpShowingSupplier.set(getIncognitoNewTabPageForCurrentTab() != null);
+        }
     }
 
     private void setBookmarkModel(

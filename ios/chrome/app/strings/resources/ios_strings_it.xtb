@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="it">
+<translation id="1004825134262590729">{count,plural, =1{{count} passkey}other{{count} passkey}}</translation>
 <translation id="1005023885865154304">Apri le impostazioni di Compila automaticamente le password</translation>
 <translation id="1005230401424685968">AAAA</translation>
 <translation id="1013952917065545813">Puoi tornare più tardi per riaprire le schede che hai chiuso di recente</translation>
@@ -41,6 +42,7 @@
 <translation id="1122068467107743258">Lavoro</translation>
 <translation id="1126696498560056882">Gestisci gli account su questo dispositivo</translation>
 <translation id="1126809382673880764">Non ti protegge da estensioni, download e siti web pericolosi. La protezione di Navigazione sicura, se disponibile, sarà ancora attiva in altri servizi Google, come Gmail e Ricerca.</translation>
+<translation id="1133418583142946603">Aggiungi scheda corrente</translation>
 <translation id="1136104150802877429">Mostra recensioni prodotto</translation>
 <translation id="1142371195993008685">Disattiva notifiche per <ph name="FEATURE_NAME" /></translation>
 <translation id="1147031633655575115">Accesso eseguito come <ph name="USER" /></translation>
@@ -77,6 +79,7 @@
 <translation id="1285320974508926690">Non tradurre mai questo sito</translation>
 <translation id="1287229685519872919">Dati di Google Workspace</translation>
 <translation id="1291506870746876680">Le autorizzazioni del sito <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> verranno disattivate quando uscirai dal sito.</translation>
+<translation id="1293556467332435079">File</translation>
 <translation id="129553762522093515">Chiuse di recente</translation>
 <translation id="1296581780163690620">Vuoi scaricare il file? (<ph name="FILE_SIZE" />)</translation>
 <translation id="1305822519689023679">Verifica la tua identità per assicurarti di poter usare sempre le password nel tuo Account Google.</translation>
@@ -172,6 +175,7 @@
 <translation id="1622717322707146952">Seleziona l'opzione "Aggiungi a Google Calendar" o "Aggiungi a Calendario Apple".</translation>
 <translation id="1629162218487290695">Verifica la tua identità…</translation>
 <translation id="1636234353664774105">Usa la funzionalità di navigazione per ricevere indicazioni stradali passo passo per raggiungere la tua destinazione</translation>
+<translation id="1637811476055996098">Scegli file</translation>
 <translation id="1641113438599504367">Navigazione sicura</translation>
 <translation id="1644574205037202324">Cronologia</translation>
 <translation id="164673457281113247">{count,plural, =1{Preferito salvato}other{Preferiti salvati}}</translation>
@@ -258,6 +262,7 @@
 <translation id="1962969542251276847">Blocco schermo</translation>
 <translation id="1963976881984600709">Protezione standard</translation>
 <translation id="1964507856799750384">Tocca <ph name="BEGIN_BOLD" />App browser<ph name="END_BOLD" /></translation>
+<translation id="1965633132497641148">Codice di sicurezza non valido</translation>
 <translation id="1966313166384086081">dati dei siti</translation>
 <translation id="1967461193809857427">{count,plural, =1{Vuoi riprendere la scheda che avevi lasciato su Android?}other{Vuoi riprendere le schede che avevi lasciato su Android?}}</translation>
 <translation id="1972325230031091483">Navigherai più velocemente perché i contenuti vengono caricati in modo proattivo in base alla pagina web che stai visitando</translation>
@@ -339,6 +344,7 @@
 <translation id="2245007488813216650">Traduzione in corso…</translation>
 <translation id="2249119578464404734">Tocca l'icona Cerca nella parte superiore dello schermo</translation>
 <translation id="2251686759395008410">Menu → Cronologia</translation>
+<translation id="2252378061043785266">Non mostrare mai questo sito</translation>
 <translation id="2252749852083403809">Salvataggio in Drive per <ph name="USER_EMAIL" /> in corso…</translation>
 <translation id="2256933947031277845">La tua organizzazione ti consente di accedere solo con determinati account.</translation>
 <translation id="2257567812274161158">La sincronizzazione non funziona.</translation>
@@ -509,7 +515,6 @@
 <translation id="2918688092312652908">Segna come da leggere</translation>
 <translation id="2922210239002704889">Vai alla home page o alla tastiera</translation>
 <translation id="2924940770243654951">Apri in nuova scheda di navigazione in incognito</translation>
-<translation id="2931440415625410757">Mostra istruzioni</translation>
 <translation id="2952278131021475699">Ricerca con la fotocamera di Lens</translation>
 <translation id="2962516096219646456">Visualizza tutti i dati di compilazione automatica</translation>
 <translation id="2965594942405840553">Questa operazione non può essere annullata</translation>
@@ -572,6 +577,7 @@
 <translation id="3186796054637504691">Cancella dati siti web e cronologia</translation>
 <translation id="3190736958609431397">Annulla monitoraggio</translation>
 <translation id="3208260410153224535">La tua organizzazione ha disattivato l'accesso. I nuovi preferiti, le nuove password e altri dati verranno salvati solo su questo dispositivo.</translation>
+<translation id="3211969308836412674">Stacca sito</translation>
 <translation id="3213807041830307252">Acquista, traduci e identifica ciò che vedi usando la fotocamera e la galleria fotografica.</translation>
 <translation id="3214379938835224220">Il tuo account è stato disconnesso durante il ripristino dell'iPad. Tocca Continua sotto per accedere.</translation>
 <translation id="3218296450292600703">L'accesso con l'account gestito ti aiuta a mantenere separata la navigazione relativa alla tua organizzazione (tra cui schede, cronologia e password) dall'altra navigazione</translation>
@@ -601,6 +607,7 @@
 <translation id="3324193307694657476">Indirizzo 2</translation>
 <translation id="3328801116991980348">Informazioni sito</translation>
 <translation id="333229797575847124">Come attivare questa funzionalità</translation>
+<translation id="3344233834747405775">Nome del titolare della carta non valido</translation>
 <translation id="3344485292736684439">{count,plural, =1{Preferito salvato nella cartella "{title}" nel tuo account {email}}other{Preferiti salvati nella cartella "{title}" nel tuo account {email}}}</translation>
 <translation id="334690320928261823">Schede recenti</translation>
 <translation id="3349031117032695619">Blocca popup</translation>
@@ -794,7 +801,6 @@
 <translation id="4113957097611235433">Cambia le password</translation>
 <translation id="4120936477286528673">Questo sito sta cercando ripetutamente di aprire un'altra applicazione.</translation>
 <translation id="4121993058175073134">Per inviare dati net-export, configura il tuo account email nell'app Impostazioni.</translation>
-<translation id="4132991308423633339">Esporta password e passkey…</translation>
 <translation id="4133139945030148655">Hai già completato la configurazione</translation>
 <translation id="4133265950310064865">Protezione avanzata</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -1043,6 +1049,7 @@
 <translation id="5055015094595227120">Posizione esatta</translation>
 <translation id="5055551113846164633">Questa azione elimina gli indirizzi salvati su questo dispositivo. Vengono eliminati anche gli indirizzi salvati nel tuo Account Google <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Sono stati riscontrati problemi <ph name="TIME" />.</translation>
+<translation id="5056587122125565772">Crea immagine</translation>
 <translation id="5059136629401106827">OK</translation>
 <translation id="5062321486222145940">Installa Google Drive</translation>
 <translation id="5067540696062462445">Download</translation>
@@ -1095,6 +1102,7 @@
 <translation id="5220945116117011963">Crea eventi nel calendario dalle date</translation>
 <translation id="5222676887888702881">Esci</translation>
 <translation id="5225388483876575107">A</translation>
+<translation id="5229315183665181733">Modifica sito</translation>
 <translation id="5233638681132016545">Nuova scheda</translation>
 <translation id="5234094073825090254">{count,plural, =1{Preferito salvato nel tuo Account Google {email}.}other{Preferiti salvati nel tuo Account Google {email}.}}</translation>
 <translation id="5234764350956374838">Ignora</translation>
@@ -1280,6 +1288,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5902752768726620872">{count,plural, =1{{count} nuova scheda}other{{count} nuove schede}}</translation>
 <translation id="5911030830365207728">Google Traduttore</translation>
 <translation id="5922999516621365983">Trascina qui la scheda per bloccarla.</translation>
+<translation id="5930982343430790032">{COUNT,plural, =1{Aggiungi fino a 1 file, scheda o immagine}other{Aggiungi fino a {COUNT} file, schede o immagini}}</translation>
 <translation id="5936006948844852401">Gestisci spazio di archiviazione</translation>
 <translation id="5936065461722368675">Traduci pagina intera</translation>
 <translation id="5937560539988385583">Pagina tradotta</translation>
@@ -1320,6 +1329,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6066301408025741299">Tocca per annullare.</translation>
 <translation id="6074656473835429958">Ricevi notifiche</translation>
 <translation id="607620096698446287">Impossibile caricare <ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
+<translation id="6076618233738284461">Fissa sito</translation>
 <translation id="6077126322656614846">Accesso alla fotocamera consentito</translation>
 <translation id="607730456154980869">Ottieni risposte più velocemente con Gemini in Chrome</translation>
 <translation id="6078236141387574983">Modifica l'altezza del foglio</translation>
@@ -1504,6 +1514,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6659660757330712663">Puoi far scorrere la barra degli strumenti per passare da una scheda all'altra.</translation>
 <translation id="6663529247339810546">Impossibile salvare l'immagine</translation>
 <translation id="6668619169535738264">Modifica preferito</translation>
+<translation id="6670729408462528018">Galleria</translation>
 <translation id="6671294218820966278">Segna come letta</translation>
 <translation id="6672697278890207089">Inserisci la passphrase</translation>
 <translation id="6674917187596384849">Puoi passare facilmente da un account all'altro</translation>
@@ -1603,6 +1614,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7039345315346323556">Recenti</translation>
 <translation id="704692552158601232">App browser predefinita</translation>
 <translation id="7055240621761583113">Compila automaticamente la password</translation>
+<translation id="7057567173736333354">Descrivi la tua immagine</translation>
 <translation id="7063811929043357292">Il tuo account è gestito da un genitore.
 <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="7067780033517902110">Tutti i file</translation>
@@ -1660,6 +1672,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7334364820047587268">Hai già le password per questi account nel Gestore delle password di Google. Se scegli di importare una delle password seguenti, quella esistente sostituirà quella esistente.</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" />% scaricato</translation>
+<translation id="7345061034321640811">Importazione non consentita</translation>
 <translation id="7352651011704765696">Si è verificato un problema</translation>
 <translation id="7363349185727752629">Una guida alle scelte relative alla tua privacy</translation>
 <translation id="7364796246159120393">Scegli file</translation>
@@ -1866,6 +1879,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8032569120109842252">Stai seguendo</translation>
 <translation id="8035133914807600019">Nuova cartella…</translation>
 <translation id="8035412398498507358">Foto</translation>
+<translation id="8037713009824540257">Aggiungi sito</translation>
 <translation id="8040407350301524547">Per conoscere le opzioni per il percorso, tocca "Ricevi indicazioni stradali".</translation>
 <translation id="804427445359061970">Qui troverai le tue schede aperte su altri dispositivi</translation>
 <translation id="8058655154417507695">Anno di scadenza</translation>
@@ -2201,6 +2215,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="952704832371081537">Annulla</translation>
 <translation id="95332591904104970">App connesse</translation>
 <translation id="954667170699278022">Elenco di lettura</translation>
+<translation id="956066588046842680">L'importazione di questi dati non è consentita dalla policy della tua organizzazione.</translation>
 <translation id="956218893102219091">Per ottenere i risultati più precisi di Gemini, invece di una posizione stimata in base al tuo indirizzo IP, usa la tua posizione esatta. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Elimina dati navigazione</translation>
 <translation id="963102227019621224">Attività web e app</translation>
@@ -2212,5 +2227,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="984275831282074731">Metodi di pagamento</translation>
 <translation id="985379595344853742">Chiudi tutte le schede di navigazione in incognito</translation>
 <translation id="988141524645182168">Altri dispositivi</translation>
+<translation id="995174784802614337">{count,plural, =1{{count} passkey importata}other{{count} passkey importate}}</translation>
 <translation id="999768147936949692">Al momento puoi condividere le password solo con i membri del gruppo Famiglia. <ph name="BEGIN_LINK" />Invita membri del gruppo Famiglia<ph name="END_LINK" /> a unirsi al tuo gruppo e usa al meglio i tuoi prodotti e abbonamenti su Google.</translation>
 </translationbundle>

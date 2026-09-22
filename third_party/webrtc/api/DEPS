@@ -147,6 +147,7 @@ specific_include_rules = {
     "+media/base/media_engine.h",
     "+p2p/base/port.h",
     "+p2p/base/port_allocator.h",
+    "+p2p/dtls/dtls_transport_factory.h",
     "+rtc_base/network.h",
     "+rtc_base/network_constants.h",
     "+rtc_base/network_monitor_factory.h",

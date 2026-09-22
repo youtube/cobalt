@@ -2159,6 +2159,47 @@ TEST_F(AdTrackerSimTest, AdScriptAncestry_TransitiveInlineScript) {
   ad_document2.Complete("<body></body>");
 }
 
+// Tests that an inlined module script created by an ad script is correctly
+// identified as ad related.
+TEST_F(AdTrackerSimTest, AsyncInlineScript) {
+  String ad_script_url = "https://example.com/ad_script.js?ad=true";
+  String ad_document_url = "https://example.com/ad_document.html";
+
+  // Scenario:
+  // 1. An ad script (ad_script_url) is loaded directly in the main frame.
+  // 2. This ad script creates a inline module script.
+  // 3. The inline module script loads asynchronously, but should still
+  //    be detected as an ad.
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+  SimRequest ad_document(ad_document_url, "text/html");
+
+  main_resource_->Complete(R"HTML(
+    <body>
+      <script src="ad_script.js?ad=true"></script>
+    </body>
+  )HTML");
+
+  ad_script.Complete(R"SCRIPT(
+    const script = document.createElement('script');
+    script.type = "module";
+    script.innerText =  `
+          const iframe = document.createElement('iframe');
+          iframe.src = 'ad_document.html';
+          document.body.appendChild(iframe);
+    `;
+    document.body.appendChild(script);
+  )SCRIPT");
+
+  // Wait for the document load.
+  ad_document.Complete("<html>Hello world!</html>");
+
+  // The frame should be ad-tagged.
+  auto* child_frame =
+      To<LocalFrame>(GetDocument().GetFrame()->Tree().FirstChild());
+  EXPECT_TRUE(ad_tracker_->RequestWithUrlTaggedAsAd(ad_script_url));
+  EXPECT_TRUE(child_frame->IsFrameCreatedByAdScript());
+}
+
 // Tests that `IsAdScriptInStack` returns the correct ad script ancestry when
 // the final ad frame is created through multiple levels of asynchronous script
 // execution originating from an initial subresource-filter-flagged ad script.
@@ -3093,6 +3134,44 @@ TEST_F(AdTrackerSimTest, IgnoreMonkeyPatchHeuristic_FirstProxiedCall_IsNotAd) {
   ad_script.Complete(R"SCRIPT(
     const originalPushState = window.history.pushState;
     window.history.pushState = function(...args) {
+      originalPushState.apply(window.history, args);
+    };
+  )SCRIPT");
+
+  // The vanilla script calls the now-monkeypatched API. The call stack will
+  // have the ad script's wrapper at the top.
+  vanilla_script.Complete(R"SCRIPT(
+    window.history.pushState({}, '', '/new-url');
+  )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // The IsAdScriptInStack check is triggered by the pushState implementation.
+  // The heuristic identifies the monkeypatch and, for this first call, assumes
+  // the ad script is a proxy and returns false.
+  EXPECT_FALSE(ad_tracker_->last_is_ad_script_in_stack_result());
+}
+
+// Tests that the heuristic correctly ignores the first call to a monkeypatched
+// API from a non-ad script. This prevents misattributing the call to the ad
+// script, which is likely acting only as a proxy. The only difference from
+// the test above is that the monkeypatch function has a name.
+TEST_F(AdTrackerSimTest,
+       IgnoreMonkeyPatchHeuristic_FirstNamedProxiedCall_IsNotAd) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  String vanilla_script_url = "https://example.com/script.js";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+  SimSubresourceRequest vanilla_script(vanilla_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script>
+          <script src="script.js"></script></body>
+  )HTML");
+
+  // The ad script monkeypatches history.pushState.
+  ad_script.Complete(R"SCRIPT(
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function Foo(...args) {
       originalPushState.apply(window.history, args);
     };
   )SCRIPT");

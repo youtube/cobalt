@@ -4,11 +4,12 @@
 
 component("persistent_cache") {
   public = [
-    "backend.h",
-    "backend_params.h",
     "backend_storage.h",
-    "entry.h",
+    "backend_type.h",
+    "buffer_provider.h",
     "entry_metadata.h",
+    "lock_state.h",
+    "pending_backend.h",
     "persistent_cache.h",
     "persistent_cache_collection.h",
     "transaction_error.h",
@@ -16,12 +17,10 @@ component("persistent_cache") {
 
   sources = [
     "backend.cc",
-    "backend_params.cc",
+    "backend.h",
     "backend_storage.cc",
-    "entry.cc",
+    "pending_backend.cc",
     "persistent_cache_collection.cc",
-    "sqlite/sqlite_entry_impl.cc",
-    "sqlite/sqlite_entry_impl.h",
   ]
 
   if (is_fuchsia) {
@@ -72,10 +71,7 @@ static_library("test_support") {
     "mock/mock_backend.h",
     "mock/mock_backend_storage_delegate.cc",
     "mock/mock_backend_storage_delegate.h",
-    "mock/mock_entry_impl.cc",
-    "mock/mock_entry_impl.h",
-    "sqlite/test_helper.cc",
-    "sqlite/test_helper.h",
+    "test_utils.cc",
     "test_utils.h",
   ]
 
@@ -93,11 +89,7 @@ static_library("test_support") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [
-    "backend_storage_unittest.cc",
-    "entry_unittest.cc",
-    "sqlite/sqlite_entry_unittest.cc",
-  ]
+  sources = [ "backend_storage_unittest.cc" ]
 
   # Cross-process file locks are not available on Fuchsia.
   if (!is_fuchsia) {
@@ -116,6 +108,7 @@ source_set("unit_tests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
+    "//build:blink_buildflags",
     "//components/persistent_cache/mojom:unit_tests",
     "//sql",
     "//testing/gmock",

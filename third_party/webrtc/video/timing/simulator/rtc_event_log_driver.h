@@ -55,6 +55,14 @@ namespace webrtc::video_timing_simulator {
 //    later for driving the single-threaded time in this class.
 class RtcEventLogDriver {
  public:
+  // Configuration for the `RtcEventLogDriver` itself.
+  struct Config {
+    // If true, existing streams are reused, even if a new
+    // `LoggedVideoRecvConfig` was logged for the same stream. (This might
+    // happen around `SetRemoteDescription`s.)
+    bool reuse_streams = false;
+  };
+
   // A stream that is driven by simulated RTP packets coming from the log.
   class StreamInterface {
    public:
@@ -73,7 +81,8 @@ class RtcEventLogDriver {
   // Slack added after final event, in order to catch any straggling frames.
   static constexpr TimeDelta kShutdownAdvanceTimeSlack = TimeDelta::Millis(100);
 
-  RtcEventLogDriver(const ParsedRtcEventLog* absl_nonnull parsed_log,
+  RtcEventLogDriver(const Config& config,
+                    const ParsedRtcEventLog* absl_nonnull parsed_log,
                     absl::string_view field_trials_string,
                     StreamInterfaceFactory stream_factory);
   ~RtcEventLogDriver();
@@ -104,6 +113,7 @@ class RtcEventLogDriver {
   void OnLoggedRtpPacketIncoming(const LoggedRtpPacketIncoming& packet);
 
   // Environment.
+  const Config config_;
   std::unique_ptr<TimeController> absl_nonnull time_controller_;
   const Environment env_;
 

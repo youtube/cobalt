@@ -32,7 +32,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 
@@ -88,7 +87,7 @@ size_t UnpackAddressFromNAT(ArrayView<const uint8_t> buf,
 }
 
 // NATSocket
-class NATSocket : public Socket, public sigslot::has_slots<> {
+class NATSocket : public Socket {
  public:
   explicit NATSocket(NATInternalSocketFactory* sf, int family, int type)
       : sf_(sf),

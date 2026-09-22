@@ -14,7 +14,6 @@
 #include "base/containers/flat_set.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
 #include "base/run_loop.h"
@@ -64,7 +63,6 @@
 #include "components/component_updater/component_updater_paths.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/component_updater/mock_component_updater_service.h"
-#include "components/data_sharing/public/features.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_manager/user.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
@@ -948,11 +946,7 @@ class IsolatedWebAppRetryTest : public IsolatedWebAppPolicyManagerTestBase {
             /*is_mgs_session_install_enabled=*/false,
             /*is_user_session=*/true,
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-    // TODO(b/459534539) : Remove the DataSharingJoinOnly flag from the disable list.
-    features_.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{kIwaPolicyManagerOnDemandComponentUpdate,
-                               data_sharing::features::kDataSharingJoinOnly});
+    features_.InitAndDisableFeature(kIwaPolicyManagerOnDemandComponentUpdate);
   }
 
  protected:
@@ -1066,6 +1060,10 @@ TEST_F(IsolatedWebAppRetryTest, RetryTimeStepsCorrect) {
         /*execution_mode=*/
         MockIwaInstallCommandWrapper::ExecutionMode::kSimulateFailure,
         /*execute_immediately=*/true);
+
+    // Make sure all the scheduled policy process calls related to startup have
+    // already been executed
+    task_environment().RunUntilIdle();
 
     test::AddForceInstalledIwaToPolicy(
         profile()->GetPrefs(),

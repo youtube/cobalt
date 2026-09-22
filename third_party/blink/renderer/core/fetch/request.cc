@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/core/fetch/trust_token_to_mojom.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/core/fileapi/public_url_manager.h"
+#include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
 #include "third_party/blink/renderer/core/loader/threadable_loader.h"
@@ -719,8 +720,8 @@ Request* Request::CreateRequestWithRequestOrString(
     if (init->browsingTopics()) {
       UseCounter::Count(execution_context,
                         mojom::blink::WebFeature::kTopicsAPIFetch);
-      UseCounter::Count(execution_context,
-                        mojom::blink::WebFeature::kTopicsAPIAll);
+      Deprecation::CountDeprecation(execution_context,
+                                    mojom::blink::WebFeature::kTopicsAPIAll);
     }
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
@@ -755,6 +756,8 @@ Request* Request::CreateRequestWithRequestOrString(
       UseCounter::Count(
           execution_context,
           mojom::blink::WebFeature::kSharedStorageAPI_Fetch_Attribute);
+      Deprecation::CountDeprecation(
+          execution_context, mojom::blink::WebFeature::kSharedStorageAPIAll);
     }
   }
 

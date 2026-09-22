@@ -3313,9 +3313,11 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+  DCHECK(!AreAliased(r1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, r1);
   __ Trap();
   __ bind(&suspend);
@@ -3327,7 +3329,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
+  __ Push(arg_buffer);
   __ Push(cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -3344,6 +3348,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
   __ Pop(cont, kContextRegister);
+  __ Pop(arg_buffer);
 
   Label ok;
   __ cmp(target_stack, Operand(0));
@@ -3353,9 +3358,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
+  DCHECK(!AreAliased(r3, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, r3);
   __ Trap();
   __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4316,9 +4323,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4328,9 +4335,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
   Register name_arg = kCArgRegs[0];
@@ -4345,11 +4352,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(receiver, holder, callback, scratch, smi_zero));
 
-  __ ldr(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ Push(receiver, scratch);  // kThisIndex, kDataIndex
+  __ Push(receiver, callback);  // kThisIndex, kCallbackInfoIndex
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Move(smi_zero, Smi::zero());
-  __ Push(scratch, smi_zero);  // kReturnValueIndex, kHolderV2Index
+  __ Push(scratch, smi_zero);  // kReturnValueIndex, kUnusedIndex
   __ Move(scratch, ER::isolate_address());
   __ Push(scratch, holder);  // kIsolateIndex, kHolderIndex
 

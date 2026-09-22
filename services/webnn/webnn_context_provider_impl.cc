@@ -218,8 +218,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
   }
 
-  WebNNContextImplPtr context_impl(
-      nullptr, WebNNContextImpl::TaskRunnerDeleter(owning_task_runner));
+  WebNNContextImplPtr context_impl(nullptr,
+                                   OnTaskRunnerDeleter(owning_task_runner));
   mojo::PendingRemote<mojom::WebNNContext> remote;
   auto receiver = remote.InitWithNewPipeAndPassReceiver();
 
@@ -417,7 +417,7 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
     CreateWebNNContextCallback callback,
     base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info) {
   WebNNContextImplPtr context_impl(
-      nullptr, WebNNContextImpl::TaskRunnerDeleter(main_thread_task_runner_));
+      nullptr, OnTaskRunnerDeleter(main_thread_task_runner_));
 
   scoped_trace.AddStep("ort::Environment::GetInstance");
 
@@ -437,6 +437,9 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
                       "ONNX Runtime context. Falling back to GPU.";
     }
 
+    const EpWorkarounds ep_workarounds =
+        env_creation_results.value()->GetEpWorkarounds(device_type);
+
     if (!task_runner->BelongsToCurrentThread()) {
       // Re-create sequence for the new task runner. Destroying the old
       // sequence is safe since it has no scheduled tasks yet.
@@ -453,9 +456,8 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
           FROM_HERE,
           base::BindOnce(
               &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
-              env_creation_results.value()->GetEpWorkarounds(device_type),
-              std::move(options), device_type, std::move(write_tensor_consumer),
-              std::move(read_tensor_producer),
+              ep_workarounds, std::move(options), device_type,
+              std::move(write_tensor_consumer), std::move(read_tensor_producer),
               std::move(env_creation_results.value()), command_buffer_id,
               std::move(sequence), std::move(memory_tracker_), task_runner,
               base::Unretained(shared_image_manager_.get()),
@@ -467,9 +469,8 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
       return;
     }
     context_impl = ort::ContextImplOrt::Create(
-        std::move(receiver), AsWeakPtr(),
-        env_creation_results.value()->GetEpWorkarounds(device_type),
-        std::move(options), device_type, std::move(write_tensor_consumer),
+        std::move(receiver), AsWeakPtr(), ep_workarounds, std::move(options),
+        device_type, std::move(write_tensor_consumer),
         std::move(read_tensor_producer),
         std::move(env_creation_results.value()), command_buffer_id,
         std::move(sequence), memory_tracker_, std::move(task_runner),

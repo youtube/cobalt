@@ -25,6 +25,7 @@ The following validations are active:
 | 2024-08-05 | Review Pending at NIST    | [A6134](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=9831) |
 | 2025-01-07 | Review Pending at NIST    | [A6838](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=19570) |
 | 2025-07-28 | Review Pending at NIST    | [A7303](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?validation=39913) |
+| 2025-10-31 | Review Pending at NIST    | [A7770](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?validation=40310) |
 
 ## Update stream
 

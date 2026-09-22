@@ -47,6 +47,7 @@ views::Widget* ActorTaskListBubble::ShowBubble(
   bubble->set_margins(gfx::Insets::VH(kVerticalMargin, 0));
 
   auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(bubble));
+  // Bubble can always show activated as it will only show in the active window.
   widget->Show();
 
   return widget;

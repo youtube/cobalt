@@ -255,7 +255,8 @@ constexpr std::initializer_list<std::pair<std::string_view, std::string_view>>
 constexpr std::string_view kPaymentInstrumentCreationOptionsTable =
     "payment_instrument_creation_options";
 
-constexpr std::string_view kCleanupForCrbug411681430Timestamp = "1747828800";
+constexpr std::string_view kClearTimestampForLocalCvcs =
+    "1747828800";  // May 21, 2025.
 
 void BindEncryptedStringToColumn(sql::Statement* s,
                                  int column_index,
@@ -1106,10 +1107,10 @@ bool PaymentsAutofillTable::ClearLocalCvcs() {
   return db()->GetLastChangeCount() > 0;
 }
 
-bool PaymentsAutofillTable::CleanupForCrbug411681430() {
-  Delete(db(), kLocalStoredCvcTable,
-         base::StrCat(
-             {kLastUpdatedTimestamp, "<", kCleanupForCrbug411681430Timestamp}));
+bool PaymentsAutofillTable::ClearLocalCvcsUpToMay2025() {
+  Delete(
+      db(), kLocalStoredCvcTable,
+      base::StrCat({kLastUpdatedTimestamp, "<", kClearTimestampForLocalCvcs}));
   return db()->GetLastChangeCount() > 0;
 }
 
@@ -2427,49 +2428,6 @@ bool PaymentsAutofillTable::InitPaymentInstrumentCreationOptionsTable() {
       db(), kPaymentInstrumentCreationOptionsTable,
       {{kId, "VARCHAR PRIMARY KEY NOT NULL"},
        {kSerializedValueEncrypted, "VARCHAR NOT NULL"}});
-}
-
-PaymentsAutofillTable::Dropper::Dropper() = default;
-PaymentsAutofillTable::Dropper::~Dropper() = default;
-
-WebDatabaseTable::TypeKey PaymentsAutofillTable::Dropper::GetTypeKey() const {
-  static int table_key = 0;
-  return reinterpret_cast<void*>(&table_key);
-}
-
-bool PaymentsAutofillTable::Dropper::CreateTablesIfNecessary() {
-  return true;
-}
-
-bool PaymentsAutofillTable::Dropper::MigrateToVersion(
-    int version,
-    bool* update_compatible_version) {
-  static constexpr auto kTables =
-      std::to_array<std::string_view>({kBenefitMerchantDomainsTable,
-                                       kCreditCardsTable,
-                                       kGenericPaymentInstrumentsTable,
-                                       kIbansTable,
-                                       kLocalIbansTable,
-                                       kLocalStoredCvcTable,
-                                       kMaskedBankAccountsMetadataTable,
-                                       kMaskedBankAccountsTable,
-                                       kMaskedCreditCardBenefitsTable,
-                                       kMaskedCreditCardsTable,
-                                       kMaskedIbansMetadataTable,
-                                       kMaskedIbansTable,
-                                       kOfferDataTable,
-                                       kOfferEligibleInstrumentTable,
-                                       kOfferMerchantDomainTable,
-                                       kPaymentInstrumentCreationOptionsTable,
-                                       kPaymentsCustomerDataTable,
-                                       kPaymentsUpiVpaTable,
-                                       kServerCardCloudTokenDataTable,
-                                       kServerCardMetadataTable,
-                                       kServerStoredCvcTable,
-                                       kVirtualCardUsageDataTable});
-  return std::ranges::all_of(kTables, [this](std::string_view table_name) {
-    return DropTableIfExists(db(), table_name);
-  });
 }
 
 }  // namespace autofill

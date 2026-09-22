@@ -110,10 +110,13 @@ struct ClusterExpectation {
 using SimulateNotificationCallback =
     base::RepeatingCallback<void(const URLRow*, const URLRow*, const URLRow*)>;
 
-void SimulateNotificationURLVisited(HistoryServiceObserver* observer,
-                                    const URLRow* row1,
-                                    const URLRow* row2,
-                                    const URLRow* row3) {
+void SimulateNotificationURLVisited(
+    HistoryServiceObserver* observer,
+    const URLRow* row1,
+    const URLRow* row2,
+    const URLRow* row3,
+    VisitResponseCodeCategory response_code_category =
+        VisitResponseCodeCategory::kNot404) {
   std::vector<URLRow> rows;
   rows.push_back(*row1);
   if (row2)
@@ -122,9 +125,12 @@ void SimulateNotificationURLVisited(HistoryServiceObserver* observer,
     rows.push_back(*row3);
 
   for (const URLRow& row : rows) {
-    observer->OnURLVisited(nullptr, row, VisitRow());
-    observer->OnURLVisitedWithNavigationId(nullptr, row, VisitRow(),
-                                           std::nullopt);
+    observer->OnURLVisited(
+        nullptr,
+        std::move(VisitedURLInfo(row, VisitRow(), response_code_category)));
+    observer->OnURLVisitedWithNavigationId(
+        nullptr, std::move(VisitedURLInfo(
+                     row, VisitRow(), response_code_category, std::nullopt)));
   }
 }
 
@@ -204,9 +210,7 @@ class HistoryBackendTestDelegate : public HistoryBackend::Delegate {
       std::unique_ptr<InMemoryHistoryBackend> backend) override;
   void NotifyFaviconsChanged(const std::set<GURL>& page_urls,
                              const GURL& icon_url) override;
-  void NotifyURLVisited(const URLRow& url_row,
-                        const VisitRow& visit_row,
-                        std::optional<int64_t> local_navigation_id) override;
+  void NotifyURLVisited(const VisitedURLInfo visited_url_info) override;
   void NotifyURLsModified(const URLRows& changed_urls) override;
   void NotifyDeletions(DeletionInfo deletion_info) override;
   void NotifyVisitedLinksAdded(const HistoryAddPageArgs& args) override;
@@ -321,10 +325,11 @@ class HistoryBackendTestBase : public testing::Test {
       favicon_changed_notifications_icon_urls_.push_back(icon_url);
   }
 
-  void NotifyURLVisited(const URLRow& url_row, const VisitRow& new_visit) {
+  void NotifyURLVisited(VisitedURLInfo visited_url_info) {
     // Send the notifications directly to the in-memory database.
-    mem_backend_->OnURLVisited(nullptr, url_row, new_visit);
-    url_visited_notifications_.push_back(std::make_pair(url_row, new_visit));
+    mem_backend_->OnURLVisited(nullptr, visited_url_info);
+    url_visited_notifications_.push_back(
+        std::make_pair(visited_url_info.url_row, visited_url_info.visit_row));
   }
 
   void NotifyURLsModified(const URLRows& changed_urls) {
@@ -438,10 +443,8 @@ void HistoryBackendTestDelegate::NotifyFaviconsChanged(
 }
 
 void HistoryBackendTestDelegate::NotifyURLVisited(
-    const URLRow& url_row,
-    const VisitRow& new_visit,
-    std::optional<int64_t> local_navigation_id) {
-  test_->NotifyURLVisited(url_row, new_visit);
+    VisitedURLInfo visited_url_info) {
+  test_->NotifyURLVisited(visited_url_info);
 }
 
 void HistoryBackendTestDelegate::NotifyURLsModified(
@@ -3732,9 +3735,35 @@ TEST_F(InMemoryHistoryBackendTest, OnURLsModified) {
       &SimulateNotificationURLsModified, base::Unretained(mem_backend_.get())));
 }
 
-TEST_F(InMemoryHistoryBackendTest, OnURLsVisisted) {
+TEST_F(InMemoryHistoryBackendTest, OnURLVisited) {
   TestAddingAndChangingURLRows(base::BindRepeating(
-      &SimulateNotificationURLVisited, base::Unretained(mem_backend_.get())));
+      [](HistoryServiceObserver* observer, const URLRow* row1,
+         const URLRow* row2, const URLRow* row3) {
+        SimulateNotificationURLVisited(observer, row1, row2, row3);
+      },
+      base::Unretained(mem_backend_.get())));
+}
+
+TEST_F(InMemoryHistoryBackendTest, OnURLVisitedWith404DoesNotUpdateExisting) {
+  // Add a typed URL.
+  URLRow row1 = CreateTestTypedURL();
+  SimulateNotificationURLVisited(mem_backend_.get(), &row1, nullptr, nullptr,
+                                 VisitResponseCodeCategory::kNot404);
+
+  URLDatabase* url_db = mem_backend_->db();
+  URLRow db_row;
+  EXPECT_TRUE(url_db->GetRowForURL(row1.url(), &db_row));
+  EXPECT_EQ(row1.title(), db_row.title());
+
+  // Simulate a 404 visit to the same URL with a different title.
+  URLRow row2 = row1;
+  row2.set_title(u"Google Search Again");
+  SimulateNotificationURLVisited(mem_backend_.get(), &row2, nullptr, nullptr,
+                                 VisitResponseCodeCategory::k404);
+
+  // Expect that the URL was not updated.
+  EXPECT_TRUE(url_db->GetRowForURL(row1.url(), &db_row));
+  EXPECT_EQ(row1.title(), db_row.title());
 }
 
 TEST_F(InMemoryHistoryBackendTest, OnURLsDeletedPiecewise) {

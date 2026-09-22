@@ -22,7 +22,6 @@
 #include "base/containers/flat_set.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -234,8 +233,10 @@ StatusOr<int64_t> Database::DeleteDatabase(std::vector<PartitionedLock> locks,
   }
 
   const int64_t old_version = version();
-  Status s = backing_store_db_->DeleteDatabase(std::move(locks),
-                                               std::move(on_complete));
+  Status s = LogStatus(backing_store_db_->DeleteDatabase(
+                           std::move(locks), std::move(on_complete)),
+                       "IndexedDB.BackingStore.DeleteDatabase",
+                       bucket_context_->in_memory());
   backing_store_db_.reset();
   if (!s.ok()) {
     return base::unexpected(s);
@@ -384,15 +385,8 @@ size_t Database::GetNumTransactionsAcrossAllConnections() const {
   return num_transactions;
 }
 
-Status Database::ForceCloseAndRunTasks(const std::string& message) {
-  if (!bucket_context_->ShouldUseSqlite()) {
-    CHECK(!force_closing_);
-  } else if (force_closing_) {
-    // Re-entrancy can validly occur if there's an error in the code below,
-    // e.g. in `CloseAndReportForceClose`.
-    return Status::OK();
-  }
-
+Status Database::ForceClose(const std::string& message) && {
+  CHECK(!force_closing_);
   force_closing_ = true;
   for (Connection* connection : connections_) {
     connection->CloseAndReportForceClose(message);
@@ -413,14 +407,12 @@ Status Database::ForceCloseAndRunTasks(const std::string& message) {
   } while (task_state != ConnectionCoordinator::ExecuteTaskResult::kDone &&
            task_state != ConnectionCoordinator::ExecuteTaskResult::kError);
   CHECK(connections_.empty());
-  bucket_context_->QueueRunTasks();
   return status;
 }
 
 void Database::ScheduleOpenConnection(
     std::unique_ptr<PendingConnection> connection) {
-  CHECK(IsAcceptingConnections());
-
+  CHECK(!force_closing_);
   connection_coordinator_.ScheduleOpenConnection(std::move(connection));
 }
 
@@ -614,7 +606,7 @@ Transaction::Operation Database::CreateGetAllOperation(
     int64_t index_id,
     blink::IndexedDBKeyRange key_range,
     blink::mojom::IDBGetAllResultType result_type,
-    int64_t max_count,
+    uint32_t max_count,
     blink::mojom::IDBCursorDirection direction,
     blink::mojom::IDBDatabase::GetAllCallback callback,
     Transaction* transaction) {
@@ -681,14 +673,14 @@ Status Database::GetAllOperation(
     int64_t index_id,
     IndexedDBKeyRange key_range,
     blink::mojom::IDBGetAllResultType result_type,
-    int64_t max_count,
+    uint32_t max_count,
     blink::mojom::IDBCursorDirection direction,
     std::unique_ptr<GetAllResultSinkWrapper> result_sink,
     Transaction* transaction) {
   TRACE_EVENT1("IndexedDB", "Database::GetAllOperation", "txn.id",
                transaction->id());
 
-  DCHECK_GT(max_count, 0);
+  CHECK_GT(max_count, 0U);
 
   const IndexedDBObjectStoreMetadata& object_store_metadata =
       GetObjectStoreMetadata(object_store_id);
@@ -741,37 +733,40 @@ Status Database::GetAllOperation(
     return Status::OK();
   }
 
-  bool did_first_seek = false;
+  // Values get passed over mojo with BigBuffer, which caps inline byte usage
+  // before falling back to shared memory. This cap is 64kiB; assume that max
+  // key/value size is 128kiB tops, to fit under 128MiB mojo limit. This value
+  // is just a heuristic and is an attempt to make sure that GetAll fits under
+  // the message limit size.
+  static_assert(blink::mojom::kIDBMaxMessageSize >
+                    blink::mojom::kIDBGetAllChunkSize *
+                        mojo_base::BigBuffer::kMaxInlineBytes * 2,
+                "Chunk heuristic too large");
 
-  // Max idbvalue size before blob wrapping is 64k, so make an assumption
-  // that max key/value size is 128kb tops, to fit under 128mb mojo limit.
-  // This value is just a heuristic and is an attempt to make sure that
-  // GetAll fits under the message limit size.
+  // LevelDB code assumes that BigBuffer always inlines its bytes. It's probably
+  // OK if that assumption doesn't hold, but alert loudly to spur someone to
+  // investigate if this ever changes.
   static_assert(
-      blink::mojom::kIDBMaxMessageSize >
-          blink::mojom::kIDBGetAllChunkSize * blink::mojom::kIDBWrapThreshold,
-      "Chunk heuristic too large");
+      mojo_base::BigBuffer::kMaxInlineBytes >= blink::mojom::kIDBWrapThreshold,
+      "Value wrapping threshold is higher than BigBuffer inline size; "
+      "BigBuffer may use shared memory with LevelDB backing store");
 
   const size_t max_values_before_sending = blink::mojom::kIDBGetAllChunkSize;
-  int64_t num_found_items = 0;
-  while (num_found_items++ < max_count) {
-    StatusOr<bool> cursor_valid = true;
-    if (did_first_seek) {
-      cursor_valid = (*cursor)->Continue();
-    } else {
-      // Cursor creation performs the first seek, returning a nullptr cursor
-      // when invalid.
-      did_first_seek = true;
-    }
-    if (!cursor_valid.has_value()) {
-      result_sink->Get()->OnError(
-          CreateIDBErrorPtr(blink::mojom::IDBException::kUnknownError,
-                            "Seek failure, unable to continue", transaction));
-      return cursor_valid.error();
-    }
+  for (uint32_t i = 0; i < max_count; ++i) {
+    // Cursor creation performs the first seek, returning a nullptr cursor when
+    // invalid.
+    if (i != 0) {
+      StatusOr<bool> cursor_valid = (*cursor)->Continue();
+      if (!cursor_valid.has_value()) {
+        result_sink->Get()->OnError(
+            CreateIDBErrorPtr(blink::mojom::IDBException::kUnknownError,
+                              "Seek failure, unable to continue", transaction));
+        return cursor_valid.error();
+      }
 
-    if (!cursor_valid.value()) {
-      break;
+      if (!cursor_valid.value()) {
+        break;
+      }
     }
 
     blink::mojom::IDBRecordPtr return_record;

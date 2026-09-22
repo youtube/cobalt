@@ -81,7 +81,6 @@ class FakeCameraBufferFactory : public CameraBufferFactory {
  public:
   FakeCameraBufferFactory() {
     test_sii_ = base::MakeRefCounted<gpu::TestSharedImageInterface>();
-    test_sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
   }
 
   scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(

@@ -776,7 +776,9 @@ bool IsAnyAidaPoweredFeatureEnabled() {
              ::features::kDevToolsAiAssistanceNetworkAgent) ||
          base::FeatureList::IsEnabled(
              ::features::kDevToolsAiAssistancePerformanceAgent) ||
-         base::FeatureList::IsEnabled(::features::kDevToolsAiCodeCompletion);
+         base::FeatureList::IsEnabled(
+             ::features::kDevToolsAiCodeCompletion) ||
+         base::FeatureList::IsEnabled(::features::kDevToolsAiCodeGeneration);
 }
 }  // namespace
 
@@ -1841,6 +1843,23 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                       std::move(ai_code_completion_dict));
   }
 
+  if (base::FeatureList::IsEnabled(::features::kDevToolsAiCodeGeneration)) {
+    base::Value::Dict ai_code_generation_dict;
+    ai_code_generation_dict.Set(
+        "enabled",
+        base::FeatureList::IsEnabled(::features::kDevToolsAiCodeGeneration));
+    ai_code_generation_dict.Set(
+        "modelId", features::kDevToolsAiCodeGenerationModelId.Get());
+    ai_code_generation_dict.Set(
+        "temperature", features::kDevToolsAiCodeGenerationTemperature.Get());
+    ai_code_generation_dict.Set(
+        "userTier",
+        features::kDevToolsAiCodeGenerationUserTier.GetName(
+            features::kDevToolsAiCodeGenerationUserTier.Get()));
+    response_dict.Set("devToolsAiCodeGeneration",
+                      std::move(ai_code_generation_dict));
+  }
+
   if (base::FeatureList::IsEnabled(
           ::features::kDevToolsEnableDurableMessages)) {
     base::Value::Dict devtools_durable_message_dict;
@@ -1926,16 +1945,6 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                        ::features::kDevToolsAnimationStylesInStylesTab));
     response_dict.Set("devToolsAnimationStylesInStylesTab",
                       std::move(devtools_animation_styles_in_styles_tab_dict));
-  }
-
-  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
-    response_dict.Set("devToolsIpProtectionInDevTools",
-                      base::Value::Dict().Set("enabled", true));
-  }
-
-  if (net::features::kIpPrivacyEnableIppPanelInDevTools.Get()) {
-    response_dict.Set("devToolsIpProtectionPanelInDevTools",
-                      base::Value::Dict().Set("enabled", true));
   }
 
   base::Value::Dict deep_links_via_extensibility_api_dict;

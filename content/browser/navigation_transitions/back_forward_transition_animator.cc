@@ -58,8 +58,6 @@ using IgnoringInputReason = BackForwardTransitionAnimator::IgnoringInputReason;
 using AnimationAbortReason =
     BackForwardTransitionAnimator::AnimationAbortReason;
 
-static constexpr char kAnimationAbortedReason[] =
-    "Navigation.GestureTransition.AnimationAbortReason";
 static constexpr char kNewCommitInPrimaryMainFrame[] =
     "Navigation.GestureTransition.NewCommitInPrimaryMainFrame";
 static constexpr char kNewCommitWhileDisplayingCanceledAnimation[] =
@@ -116,16 +114,19 @@ bool ShouldUseFallbackScreenshot(
     gfx::Size screen_size = animation_manager->web_contents_view_android()
                                 ->GetNativeView()
                                 ->GetPhysicalBackingSize();
-    use_fallback_screenshot = screenshot_size != screen_size;
     if (screenshot_size != screen_size) {
       cache_hit_or_miss_reason = NavigationTransitionData::
           CacheHitOrMissReason::kCacheMissScreenshotOrientation;
+    } else if (!screenshot->IsValid()) {
+      cache_hit_or_miss_reason = NavigationTransitionData::
+          CacheHitOrMissReason::kCacheMissFailedReadBack;
     } else {
       // TODO(crbug.com/377566662): Identify why the cache hit or miss reason is
       // not set correctly at this point. This is to avoid the crashes addressed
       // in crbug.com/377338996.
       cache_hit_or_miss_reason =
           NavigationTransitionData::CacheHitOrMissReason::kCacheHit;
+      use_fallback_screenshot = false;
     }
   }
 
@@ -415,11 +416,6 @@ BackForwardTransitionAnimator::~BackForwardTransitionAnimator() {
 
   CHECK(IsTerminalState()) << StateToString(state_);
 
-  if (state_ == State::kAnimationFinished) {
-    base::UmaHistogramEnumeration(kAnimationAbortedReason,
-                                  AnimationAbortReason::kAnimationFinished);
-  }
-
   switch (ignoring_input_reason_) {
     case IgnoringInputReason::kAnimationInvokedOccurred: {
       base::UmaHistogramCounts100(
@@ -458,7 +454,6 @@ BackForwardTransitionAnimator::~BackForwardTransitionAnimator() {
 
     screenshot_layer_->RemoveFromParent();
     screenshot_layer_.reset();
-    screenshot_layer_closure_.RunAndReset();
   }
 
   ResetLiveOverlayLayer();
@@ -1256,10 +1251,6 @@ void BackForwardTransitionAnimator::OnBeforeUnloadDialogShown(
 
 void BackForwardTransitionAnimator::AbortAnimation(
     AnimationAbortReason abort_reason) {
-  TRACE_EVENT("browser,navigation",
-              "BackForwardTransitionAnimator::AbortAnimation", "abort_reason",
-              AnimationAbortReasonToString(abort_reason));
-  base::UmaHistogramEnumeration(kAnimationAbortedReason, abort_reason);
   abort_reason_ = abort_reason;
   AdvanceAndProcessState(State::kAnimationAborted);
 }
@@ -1712,8 +1703,7 @@ void BackForwardTransitionAnimator::SetupForScreenshotPreview(
       screenshot_layer->SetUIResourceId(ui_resource_id_);
       screenshot_layer_ = std::move(screenshot_layer);
     } else {
-      std::tie(screenshot_layer_, screenshot_layer_closure_) =
-          screenshot_->CreateTextureLayer();
+      screenshot_layer_ = screenshot_->CreateTextureLayer();
     }
   }
   screenshot_layer_->SetIsDrawable(true);

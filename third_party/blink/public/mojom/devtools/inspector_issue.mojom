@@ -322,12 +322,13 @@ enum GenericIssueErrorType {
   kFormInputWithNoLabelError,
   kFormAutocompleteAttributeEmptyError,
   kFormEmptyIdAndNameAttributesForInputError,
-  kFormAriaLabelledByToNonExistingId,
+  kFormAriaLabelledByToNonExistingIdError,
   kFormInputAssignedAutocompleteValueToIdOrNameAttributeError,
-  kFormLabelHasNeitherForNorNestedInput,
+  kFormLabelHasNeitherForNorNestedInputError,
   kFormLabelForMatchesNonExistingIdError,
   kFormInputHasWrongButWellIntendedAutocompleteValueError,
   kResponseWasBlockedByORB,
+  kNavigationEntryMarkedSkippable,
 };
 
 struct GenericIssueDetails {
@@ -339,7 +340,8 @@ struct GenericIssueDetails {
 };
 
 enum DeprecationIssueType {
-  kPrivacySandboxExtensionsAPI,
+  kExampleBrowserProcessDeprecation,
+  kRelatedWebsiteSets,
 };
 
 struct DeprecationIssueDetails {

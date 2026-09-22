@@ -171,6 +171,7 @@
 <translation id="2787357173144933081">快速開啟網址列</translation>
 <translation id="2789132527330338807">網站可以要求建立你周遭環境的 3D 地圖或追蹤攝錄機位置</translation>
 <translation id="2790501146643349491">開咗之後，最近閂咗嘅網站可以完成傳送同接收資料。閂咗之後，最近閂咗嘅網站唔可以完成傳送同接收資料。</translation>
+<translation id="2794551654724114396">開啟通知，接收有助你充分善用 Chrome 的實用貼士</translation>
 <translation id="2795716239552913152">網站通常會使用您的位置以提供相關功能或資料，例如本地新聞或附近商店</translation>
 <translation id="2800760947029405028">上載圖片</translation>
 <translation id="2802908157808345702">不允許網站傳送彈出式視窗和使用重新導向</translation>
@@ -243,6 +244,7 @@
 <translation id="3611658447322220736">最近關閉的網站可完成傳送和接受資料</translation>
 <translation id="3619294456800709762">網站可自動進入畫中畫</translation>
 <translation id="3628308229821498208">建議搜尋</translation>
+<translation id="3632460243282703117">訂閱</translation>
 <translation id="363748948745453283">使用概略位置</translation>
 <translation id="3641456520301071208">網站可要求取得您的位置</translation>
 <translation id="3658847490588580244">預設瀏覽器頁底面板</translation>
@@ -338,10 +340,12 @@
 <translation id="4635969503923889910">不允許網站使用 NFC 裝置</translation>
 <translation id="4644713492825682049">刪除並重設</translation>
 <translation id="4645575059429386691">由您的家長管理</translation>
+<translation id="4652266463001779298">不允許</translation>
 <translation id="4663373278480897665">已允許使用相機</translation>
 <translation id="4670064810192446073">虛擬實境</translation>
 <translation id="4672315773691449562">㩒一下 [瀏覽器應用程式] 同 [Chrome]</translation>
 <translation id="4676059169848868271">如要允許「<ph name="APP_NAME" />」追蹤手勢，請同時在<ph name="BEGIN_LINK" />系統設定<ph name="END_LINK" />中開啟手勢追蹤功能。</translation>
+<translation id="4688045258817337666">管理資訊卡</translation>
 <translation id="4751476147751820511">動態或光線感應器</translation>
 <translation id="4755971844837804407">開咗之後，網站可以向你顯示任何廣告。閂咗之後，網站唔可以顯示滋擾性或者誤導廣告。</translation>
 <translation id="4779083564647765204">縮放</translation>
@@ -628,6 +632,7 @@
 <translation id="7990211076305263060">開咗之後，網站可以要求使用麥克風。閂咗之後，網站唔可以使用麥克風。</translation>
 <translation id="8007176423574883786">已為這部裝置關閉</translation>
 <translation id="802154636333426148">下載失敗</translation>
+<translation id="8033047164036749181">訂閱呢個網站嘅通知</translation>
 <translation id="8042586301629853791">排序方式：</translation>
 <translation id="8051193500142930381">需要攝錄機的功能將無法運作</translation>
 <translation id="8056330801132235235">Chrome 預設值</translation>
@@ -678,6 +683,7 @@
 <translation id="8487700953926739672">可離線使用</translation>
 <translation id="848952951823693243">一律要求流動網站</translation>
 <translation id="8492822722330266509">網頁可傳送彈出式視窗和使用重新導向</translation>
+<translation id="8493548450030356203">彈出式縮放視窗</translation>
 <translation id="8499083585497694743">將麥克風取消靜音</translation>
 <translation id="8514955299594277296">不允許網站在裝置上儲存資料 (不建議)</translation>
 <translation id="851751545965956758">禁止網站連接裝置</translation>

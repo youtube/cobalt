@@ -25,8 +25,6 @@ class AutofillClient;
 enum class AutofillAiAction {
   // Add new locally stored AutofillAI data in settings.
   kAddLocalEntityInstanceInSettings,
-  // Add new server stored AutofillAI data in settings.
-  kAddServerEntityInstanceInSettings,
   // Emit AutofillAI-related crowdsourcing votes.
   kCrowdsourcingVote,
   // Edit and delete existing AutofillAI data in settings.
@@ -87,6 +85,13 @@ bool MayPerformAutofillAiAction(
 // account.
 [[nodiscard]] bool GetAutofillAiOptInStatus(const AutofillClient& client);
 [[nodiscard]] bool GetAutofillAiOptInStatus(
+    const PrefService* prefs,
+    const signin::IdentityManager* identity_manager);
+// Similar to `GetAutofillAiOptInStatus()` but always uses the pref that is
+// currently being deprecated (`prefs::kAutofillAiOptInStatus`). This method
+// should only be used at start-up time to migrate the old pref value to the new
+// one.
+[[nodiscard]] bool GetAutofillAiOptInStatusFromNonSyncingPref(
     const PrefService* prefs,
     const signin::IdentityManager* identity_manager);
 

@@ -13,6 +13,7 @@
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_result.h"
 #include "fuchsia_web/webengine/browser/frame_impl.h"
+#include "fuchsia_web/webengine/browser/web_engine_config.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "url/origin.h"
 
@@ -82,6 +83,15 @@ WebEnginePermissionDelegate::GetPermissionResultForCurrentDocument(
     const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
     content::RenderFrameHost* render_frame_host,
     bool should_include_device_status) {
+  // See the comment in GetPermissionResultForWorker.
+  if (blink::PermissionDescriptorToPermissionType(permission_descriptor) ==
+      blink::PermissionType::NOTIFICATIONS) {
+    return content::PermissionResult(
+        AllowNotifications(render_frame_host->GetLastCommittedURL())
+            ? blink::mojom::PermissionStatus::GRANTED
+            : blink::mojom::PermissionStatus::DENIED);
+  }
+
   FrameImpl* frame = FrameImpl::FromRenderFrameHost(render_frame_host);
   DCHECK(frame);
   return content::PermissionResult(
@@ -95,6 +105,18 @@ WebEnginePermissionDelegate::GetPermissionResultForWorker(
     const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
     content::RenderProcessHost* render_process_host,
     const GURL& worker_origin) {
+  // Most of the push messaging API users would expect the permission of
+  // notifications, or the service worker has no way to notify users. Though
+  // WebEngine does not support platform notifications, to make the behavior as
+  // close as a full Chrome browser, the notification permissions should be
+  // granted to the same set of origins allowing using PushMessagingServiceImpl.
+  if (blink::PermissionDescriptorToPermissionType(permission_descriptor) ==
+      blink::PermissionType::NOTIFICATIONS) {
+    return content::PermissionResult(
+        AllowNotifications(worker_origin)
+            ? blink::mojom::PermissionStatus::GRANTED
+            : blink::mojom::PermissionStatus::DENIED);
+  }
   // Use |worker_origin| for requesting_origin and embedding_origin because
   // workers don't have embedders.
   return content::PermissionResult(

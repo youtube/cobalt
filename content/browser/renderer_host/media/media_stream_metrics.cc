@@ -37,7 +37,8 @@ enum class MediaStreamRequestResult2 {
   kStartTimeout = 18,
   kPermissionDeniedByUser = 19,
   kAudioDeviceSocketError = 20,
-  kMaxValue = kAudioDeviceSocketError
+  kMultiCaptureNotSupported = 21,
+  kMaxValue = kMultiCaptureNotSupported
 };
 
 MediaStreamRequestResult2 MapResultToResult2(
@@ -68,6 +69,8 @@ MediaStreamRequestResult2 MapResultToResult2(
       return MediaStreamRequestResult2::kTrackStartFailureAudio;
     case MediaStreamRequestResult::TRACK_START_FAILURE_VIDEO:
       return MediaStreamRequestResult2::kTrackStartFailureVideo;
+    case MediaStreamRequestResult::MULTI_CAPTURE_NOT_SUPPORTED:
+      return MediaStreamRequestResult2::kMultiCaptureNotSupported;
     case MediaStreamRequestResult::NOT_SUPPORTED:
       return MediaStreamRequestResult2::kNotSupported;
     case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN:
@@ -94,6 +97,42 @@ MediaStreamRequestResult2 MapResultToResult2(
       // TODO(crbug.com/453600255): Add a new value once all new enum values are
       // added.
       return MediaStreamRequestResult2::kPermissionDenied;
+    case MediaStreamRequestResult::INVALID_DISPLAY_CAPTURE_CONSTRAINTS:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kScreenCaptureFailure;
+    case MediaStreamRequestResult::INVALID_GUM_TAB_CAPTURE_CONSTRAINTS:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kTabCaptureFailure;
+    case MediaStreamRequestResult::INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kScreenCaptureFailure;
+    case MediaStreamRequestResult::INVALID_VIDEO_DEVICE_ID:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added. │
+      return MediaStreamRequestResult2::kInvalidState;
+    case MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kTabCaptureFailure;
+    case MediaStreamRequestResult::ANDROID_CANT_REQUEST_PERMISSION:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kPermissionDenied;
+    case MediaStreamRequestResult::PERMISSION_DENIED_BY_EMBEDDER_CONTEXT:
+      // TODO(crbug.com/324479991): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kPermissionDenied;
+    case MediaStreamRequestResult::DLP_PERMISSION_DENIED:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kPermissionDenied;
+    case MediaStreamRequestResult::REGISTRY_REQUEST_UNVERIFIED:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kInvalidState;
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }

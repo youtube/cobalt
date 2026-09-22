@@ -20,6 +20,7 @@ rtc_library("delay_based_congestion_control") {
     "../../../api/units:data_size",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
+    "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base:windowed_min_filter",
   ]

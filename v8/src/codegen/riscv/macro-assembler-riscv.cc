@@ -750,8 +750,11 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
                                                    Label* dest) {
 #if V8_STATIC_ROOTS_BOOL
   // Quick check for Read-only and small Smi values.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+  constexpr int kLastStaticRootPage =
+      RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
+  static_assert(kLastStaticRootPage <=
+                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
+  JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 
@@ -3630,7 +3633,7 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  int32_t sew = VU.sew();
+  int32_t sew = VU.sew_bits();
   DCHECK((sew == 32) || (sew == 64));
   const int kFloatMantissaBits =
       sew == 32 ? kFloat32MantissaBits : kFloat64MantissaBits;
@@ -6145,6 +6148,31 @@ void MacroAssembler::StoreLane(VSew sew, VRegister src, uint8_t laneidx,
     UNREACHABLE();
   }
 }
+
+void MacroAssembler::StoreSimd128(VRegister reg_src, MemOperand dst,
+                                  Trapper&& trapper) {
+  DCHECK(VU.IsConfiguredForSimd128());
+  trapper(pc_offset());
+  if (dst.offset() != 0) {
+    AddWord(kScratchReg, dst.rm(), Operand(dst.offset()));
+    vs(reg_src, kScratchReg, 0, VU.sew());
+  } else {
+    vs(reg_src, dst.rm(), 0, VU.sew());
+  }
+}
+
+void MacroAssembler::LoadSimd128(VRegister vd, MemOperand src,
+                                 Trapper&& trapper) {
+  DCHECK(VU.IsConfiguredForSimd128());
+  trapper(pc_offset());
+  if (src.offset() != 0) {
+    AddWord(kScratchReg, src.rm(), Operand(src.offset()));
+    vl(vd, kScratchReg, 0, VU.sew());
+  } else {
+    vl(vd, src.rm(), 0, VU.sew());
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Runtime calls.
 void MacroAssembler::AddOverflowWord(Register dst, Register left,
@@ -7992,6 +8020,18 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ RecordComment("Call the api function directly.");
   __ StoreReturnAddressAndCall(function_address);
   __ bind(&done_api_call);
+
+  // Reset the rounding mode to RNE if it was changed by the API function.
+  Label rounding_mode_done;
+  static_assert(RNE == 0);
+  // We just return from C code which could have changed a2. This register
+  // doesn't contain any return value from the API function, so we can use it
+  // as scratch.
+  auto rounding_scratch = a2;
+  __ frrm(rounding_scratch);
+  __ beqz(rounding_scratch, &rounding_mode_done);  // Equal to RNE.
+  __ fsrm(zero_reg);                               // Set rounding mode to RNE.
+  __ bind(&rounding_mode_done);
 
   Label propagate_exception;
   Label delete_allocated_handles;

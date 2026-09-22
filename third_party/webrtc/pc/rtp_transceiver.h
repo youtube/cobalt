@@ -14,7 +14,6 @@
 #include <stddef.h>
 
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -315,7 +314,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
     return *codec_lookup_helper_->GetCodecVendor();
   }
   void OnFirstPacketReceived();
-  void OnPacketReceived() RTC_RUN_ON(context()->network_thread());
+  void OnPacketReceived(scoped_refptr<PendingTaskSafetyFlag> safety)
+      RTC_RUN_ON(context()->network_thread());
   void OnFirstPacketSent();
   void StopSendingAndReceiving();
   // Tell the senders and receivers about possibly-new media channels
@@ -334,10 +334,12 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   const Environment env_;
   // Enforce that this object is created, used and destroyed on one thread.
+  // This TQ typically represents the signaling thread.
   TaskQueueBase* const thread_;
   const bool unified_plan_;
   const MediaType media_type_;
-  scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_;
+  scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_
+      RTC_GUARDED_BY(thread_);
   std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
       senders_;
   std::vector<scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>>

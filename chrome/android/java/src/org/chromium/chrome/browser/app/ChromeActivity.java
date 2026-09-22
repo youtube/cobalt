@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.app;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
@@ -100,6 +102,7 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.layouts.SceneChangeObserver;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManagerHandler;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchManager;
+import org.chromium.chrome.browser.desktop_site.DesktopSiteUtils;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.devtools.DevToolsWindowAndroid;
 import org.chromium.chrome.browser.dom_distiller.DomDistillerUiUtils;
@@ -243,7 +246,9 @@ import org.chromium.components.webapps.pwa_universal_install.PwaUniversalInstall
 import org.chromium.components.webxr.XrDelegateProvider;
 import org.chromium.content_public.browser.ChildProcessImportance;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
+import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.DeviceUtils;
+import org.chromium.content_public.browser.HostZoomMap;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.WebContents;
@@ -468,6 +473,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         mLegacyTabStartupMetricsTracker =
                 new LegacyTabStartupMetricsTracker(mActivityId, mTabModelSelectorSupplier);
         mStartupMetricsTracker = new StartupMetricsTracker(mTabModelSelectorSupplier);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            mStartupMetricsTracker.registerApplicationStartInfoListener();
+        }
         CachedFlagsSafeMode.getInstance().onStartOrResumeCheckpoint();
         super.onPreCreate();
         initializeBackPressHandling();
@@ -1156,7 +1164,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         // which to save state and on slower devices we can fail to save tab state/flush UMA
         // records to disk/etc. In order to give ourselves more time to save state in case the
         // user swipes our task away, save state immediately upon entering the app switcher.
-        if (mNativeInitialized
+        //
+        // In Android U this behaviour was fixed to give applications 1 second to run
+        // onPause/onStop/onDestroy before killing the process and so this mitigation is no longer
+        // needed.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                && mNativeInitialized
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)
                 && !hasFocus
                 && mIsTopResumedActivity) {
@@ -1164,11 +1177,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 for (View view : WindowInspector.getGlobalWindowViews()) {
                     ViewGroup.LayoutParams params = view.getLayoutParams();
-                    // Activities will be of type BASE_APPLICATION, other windows are of type
-                    // APPLICATION.
+                    // Activities will be of type BASE_APPLICATION, so check if we have any
+                    // non-Activity windows.
                     if (params instanceof WindowManager.LayoutParams
                             && ((WindowManager.LayoutParams) params).type
-                                    == WindowManager.LayoutParams.TYPE_APPLICATION) {
+                                    != WindowManager.LayoutParams.TYPE_BASE_APPLICATION) {
                         isShowingDialogWindow = true;
                         break;
                     }
@@ -2018,6 +2031,24 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                     }
                 };
         display.addObserver(mDisplayAndroidObserver);
+
+        // Set a scaling factor in HostZoomMap to account for pixel density of display.
+        // TODO(crbug.com/450281745): Move feature flag and params to //chrome layer.
+        if (ContentFeatureList.sAndroidDesktopZoomScaling.isEnabled()) {
+            // When an external monitor is attached, use a specific scaling, regardless of
+            // platform/device (e.g. Desktop, tablet, mobile, etc). On Desktop, we adjust
+            // regardless of whether or not there is an external monitor. We use an int for
+            // the scaling factor FeatureParam, e.g. 109 = 109% scaling, but the underlying
+            // code expects a float of 1.09f in that case.
+            if (!DisplayUtil.isContextInDefaultDisplay(this)
+                    && DeviceFormFactor.isNonMultiDisplayContextOnTablet(this)) {
+                HostZoomMap.setTransparentZoomAdjustment(
+                        ContentFeatureList.sAndroidMonitorZoomScalingFactor.getValue() / 100.0f);
+            } else if (DeviceInfo.isDesktop()) {
+                HostZoomMap.setTransparentZoomAdjustment(
+                        ContentFeatureList.sAndroidDesktopZoomScalingFactor.getValue() / 100.0f);
+            }
+        }
     }
 
     private void initializeManualFillingComponent(ProfileProvider profileProvider) {
@@ -2109,7 +2140,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             throw new IllegalStateException(
                     "Attempting to access TabModelSelector before initialization");
         }
-        return mTabModelOrchestrator.getTabModelSelector();
+        return assertNonNull(mTabModelOrchestrator.getTabModelSelector());
     }
 
     /** Returns an {@link ObservableSupplier} for {@link TabModelOrchestrator}. */
@@ -2638,10 +2669,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             RecordUserAction.record("MobileMenuHistory");
             HistoryManagerUtils.showHistoryManager(
                     this, currentTab, getTabModelSelector().getCurrentModel().getProfile());
-            RecordHistogram.recordEnumeratedHistogram(
-                    "Android.OpenHistoryFromMenu.PerProfileType",
-                    type,
-                    BrowserProfileType.MAX_VALUE);
             return true;
         }
 
@@ -2774,7 +2801,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                     currentTab.getWebContents().getNavigationController().getUseDesktopUserAgent();
             usingDesktopUserAgent = !usingDesktopUserAgent;
             Profile profile = getCurrentTabModel().getProfile();
-            RequestDesktopUtils.setRequestDesktopSiteContentSettingsForUrl(
+            DesktopSiteUtils.setRequestDesktopSiteContentSettingsForUrl(
                     profile, currentTab.getUrl(), usingDesktopUserAgent);
             // Use TabUtils.switchUserAgent() instead of Tab.reload(). Because we need to reload
             // with LoadOriginalRequestURL. See http://crbug/1418587 for details.

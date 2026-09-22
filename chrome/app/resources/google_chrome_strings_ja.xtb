@@ -75,6 +75,7 @@
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{ブラウザの動作を遅くしているタブを一時停止することをおすすめします}other{ブラウザの動作を遅くしているタブを一時停止することをおすすめします}}</translation>
 <translation id="1832046143430087831">Chrome の V8 エンジンでサイトを高速化する（攻撃に対する Chrome の耐性は若干低下します）。この設定はオフになっています。</translation>
 <translation id="1838374766361614909">検索をクリア</translation>
+<translation id="1843347690926158494">Google レンズでこのタブを検索</translation>
 <translation id="1849248141818021764">パスフレーズを知っているユーザーだけが暗号化されたデータを見ることができます。パスフレーズは Google には送信されず、保存されることもありません。パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />する必要があります。</translation>
 <translation id="1860536484129686729">このサイトを利用するには、Chrome でカメラの使用を許可する必要があります</translation>
 <translation id="1873233029667955273">Google Chrome はデフォルトのブラウザとして設定されていません</translation>
@@ -95,7 +96,7 @@
 <translation id="2091012649849228750">今後、Google Chrome のアップデートを受信するには、Windows 10 以降が必要となります。このパソコンでは Windows 8 が実行されています。</translation>
 <translation id="2094648590148273905">ChromeOS Flex 利用規約</translation>
 <translation id="2094919256425865063">今すぐ Chrome を終了しますか？</translation>
-<translation id="2096213354152647998">最近アクセスしていないため、Chrome で <ph name="PERMISSION" /> の権限を削除しました。</translation>
+<translation id="2096213354152647998">最近アクセスしていないため、Chrome で<ph name="PERMISSION" />の権限を削除しました。</translation>
 <translation id="2106831557840787829">ChromeOS Flex も <ph name="BEGIN_LINK_LINUX_OSS" />Linux 開発環境<ph name="END_LINK_LINUX_OSS" />も追加の<ph name="BEGIN_LINK_CROS_OSS" />オープンソース ソフトウェア<ph name="END_LINK_CROS_OSS" />によって実現しました。</translation>
 <translation id="2108778574543343055">Chrome のアプリ向けのバックグラウンドでの実行を無効にする</translation>
 <translation id="2120620239521071941">このデバイスから <ph name="ITEMS_COUNT" /> 件の項目を削除します。後でデータを取得するには、<ph name="USER_EMAIL" /> として Chrome にログインしてください。</translation>
@@ -148,9 +149,9 @@
 <translation id="2681444469812712297">Google Chrome の新しいタブで <ph name="URL" /> を開きます。</translation>
 <translation id="2699790011615497488">Gemini in Chrome Beta を開く</translation>
 <translation id="2712141162840347885">Google レンズで検索する範囲を選択してください。Esc キーを押すと Google レンズを終了します</translation>
-<translation id="2723860029395667894">Google AI モードのショートカットを常に表示する</translation>
 <translation id="2738871930057338499">インターネットに接続できません。HTTP 403 アクセス不可エラーが発生しました。プロキシ設定をご確認ください。</translation>
 <translation id="2742320827292110288">警告: 拡張機能による閲覧履歴の記録を Google Chrome で停止することはできません。シークレット モードでこの拡張機能を無効にするには、このオプションの選択を解除してください。</translation>
+<translation id="2747021967398957654">{count,plural, =1{Chrome データの一部が Google アカウントにまだ保存されていません。数分待ってからログアウトしてください。今すぐログアウトすると、このデータ（1 個のアイテム）は削除されます。}other{Chrome データの一部が Google アカウントにまだ保存されていません。数分待ってからログアウトしてください。今すぐログアウトすると、このデータ（{count} 個のアイテム）は削除されます。}}</translation>
 <translation id="2753623023919742414">クリックして検索</translation>
 <translation id="2757826245013442432">{COUNT,plural, =0{高度な保護機能を使用している場合は、アップデートを適用するために Chrome を再起動する必要があります}=1{高度な保護機能を使用している場合は、アップデートを適用するために Chrome を再起動する必要があります。シークレット ウィンドウは、再起動後は自動的には開きません。}other{高度な保護機能を使用している場合は、アップデートを適用するために Chrome を再起動する必要があります。現在開いている # 個のシークレット ウィンドウは、再起動後は自動的には開きません。}}</translation>
 <translation id="2765403129283291972">このサイトを利用するには、Chrome でマイクの使用を許可する必要があります</translation>
@@ -483,6 +484,7 @@
 <translation id="6417690341895039567">{COUNT,plural, =1{1 分間使用しなかった場合、組織は Chrome を自動的に終了します。閲覧データは削除されます。これには、履歴、自動入力、ダウンロードが含まれます。}other{# 分間使用しなかった場合、組織は Chrome を自動的に終了します。閲覧データは削除されます。これには、履歴、自動入力、ダウンロードが含まれます。}}</translation>
 <translation id="6418662306461808273">既存の Chrome プロファイルに切り替えますか？</translation>
 <translation id="6426623519983252346">次回 Chrome iOS を開いたときに、<ph name="FEATURE_NAME" /> を試すよう求めるメッセージが表示されます。</translation>
+<translation id="6434035853014503219">Chrome を既定のブラウザとしてお選びいただきありがとうございます。</translation>
 <translation id="6473905796280459355">Chrome についてのページに移動</translation>
 <translation id="6481963882741794338">パーソナライズなどの目的で、Chrome と他の Google サービスをリンクします</translation>
 <translation id="648319183876919572">セーフ ブラウジング保護強化機能では、危険なウェブサイトやダウンロードから高いセキュリティ強度で保護されます</translation>
@@ -504,6 +506,7 @@
 <translation id="6676384891291319759">インターネットにアクセス</translation>
 <translation id="6679975945624592337">Google Chrome をバックグラウンドで実行する</translation>
 <translation id="6696915334902295848">このサイトを利用するには、Chrome でマイクの使用を許可する必要があります</translation>
+<translation id="6706525880530967390">{count,plural, =1{Google アカウントに一部のデータを保存して、すべてのデバイスで使用できるようにするには、Chrome で本人確認を行う必要があります。今すぐログアウトすると、このデータ（1 個のアイテム）は削除されます。}other{Google アカウントに一部のデータを保存して、すべてのデバイスで使用できるようにするには、Chrome で本人確認を行う必要があります。今すぐログアウトすると、このデータ（{count} 個のアイテム）は削除されます。}}</translation>
 <translation id="6712881677154121168">ダウンロード エラー: <ph name="DOWNLOAD_ERROR" />。</translation>
 <translation id="6718739135284199302">Chrome を高速化する</translation>
 <translation id="6734827584173583205">最近アクセスしていないため、Chrome で <ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />、他 <ph name="COUNT" /> 件の権限を削除しました。</translation>
@@ -580,6 +583,7 @@
 <translation id="756809126120519699">Chrome データの消去完了</translation>
 <translation id="7572537927358445944">オフ • Chrome では、この拡張機能の提供元を確認できません</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> インストーラ</translation>
+<translation id="7596160425942761210">メッセージ、ドキュメント、他のアプリのリンクをクリックしたときに、常に Chrome で開くことができます</translation>
 <translation id="7602868996817972616">このページについて Google に質問する</translation>
 <translation id="760353356052806707">パソコン上の別のプログラムにより、Chrome の動作に影響を及ぼす可能性のあるアプリが追加されました。
 
@@ -656,6 +660,7 @@
 <translation id="835927394551949760">Google で調べる</translation>
 <translation id="8362914115861174987">訳文の言語</translation>
 <translation id="8366770919198174997">パフォーマンスは低下しますが、攻撃に対する Chrome の耐性が強化されます</translation>
+<translation id="8367705492654390392">質問する</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. All rights reserved.</translation>
 <translation id="8377158135256176353">Gemini in Chrome Canary を切り替える</translation>
 <translation id="8387459386171870978">Chrome を引き続き使用</translation>
@@ -673,16 +678,17 @@
 <translation id="8533056045953418157">Google Chrome を既定の PDF ビューアとして設定する</translation>
 <translation id="8555465886620020932">サービスエラー: <ph name="SERVICE_ERROR" />。</translation>
 <translation id="856656450041460113">言語リストを検索</translation>
+<translation id="8575047640889685742"><ph name="BEGIN_LINK" />独自のパスフレーズ<ph name="END_LINK" />を使用して Google アカウントの Chrome データをすべて暗号化する。暗号化の対象に Google Pay のお支払い方法と住所は含まれません。また、Chrome の閲覧履歴は同期されません。</translation>
 <translation id="8601359445272098721">New! [画面を翻訳] ボタンを選択して、画面上のテキストや画像を翻訳できるようになりました</translation>
 <translation id="8614913330719544658">Google Chrome が応答しません。今すぐ再起動しますか？</translation>
 <translation id="861702415419836452">周囲の 3D マップを作成するには、Chrome にカメラの使用を許可する必要があります</translation>
+<translation id="8624541899164515475">設定、新しいタブで開きます。</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome は 1 分後に再起動されます}other{Chrome は # 分後に再起動されます}}</translation>
 <translation id="8637932705841171563">ウィンドウを共有するには、[システム設定] で Chrome に画面の録画を許可してください。</translation>
 <translation id="8641606876632989680">不正使用されたパスワードでログインした場合、Chrome で通知します</translation>
 <translation id="8647930742055103497">Chrome ですべて管理</translation>
 <translation id="8656634243791296665">Gemini in Chrome Dev を開く</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
-<translation id="8677922833187616101">Google AI モードのショートカットを常に表示する</translation>
 <translation id="8679801911857917785">この拡張機能では、Chrome の起動時に表示されるページも制御されます。</translation>
 <translation id="8712637175834984815">理解しました</translation>
 <translation id="8712767363896337380">アップデートが適用されました。更新を完了するには Chrome を再起動してください。</translation>

@@ -8,8 +8,12 @@ assert(!is_android)
 
 source_set("action_chips") {
   sources = [
+    "action_chips_generator.cc",
+    "action_chips_generator.h",
     "action_chips_handler.cc",
     "action_chips_handler.h",
+    "remote_suggestions_service_simple.cc",
+    "remote_suggestions_service_simple.h",
     "tab_id_generator.cc",
     "tab_id_generator.h",
   ]
@@ -17,6 +21,7 @@ source_set("action_chips") {
   deps = [
     "//base",
     "//chrome/browser/profiles",
+    "//chrome/browser/search_engines",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/webui:webui_util",
@@ -40,11 +45,13 @@ mojom("mojo_bindings") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "action_chips_generator_unittest.cc",
     "action_chips_handler_unittest.cc",
     "action_chips_mojo_test_utils.cc",
     "action_chips_mojo_test_utils.h",
     "fake_tab_id_generator.cc",
     "fake_tab_id_generator.h",
+    "remote_suggestions_service_simple_unittest.cc",
   ]
   deps = [
     ":action_chips",
@@ -54,6 +61,7 @@ source_set("unit_tests") {
     "//chrome/browser/ui:test_support",
     "//chrome/browser/ui/tabs:test_support",
     "//chrome/test:test_support",
+    "//components/tabs:test_support",
     "//components/variations",
     "//content/test:test_support",
     "//testing/gmock",

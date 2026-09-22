@@ -81,8 +81,11 @@ class PeerConnectionDataChannelOpenTest
   void SignalIceCandidates(
       scoped_refptr<PeerConnectionTestWrapper> from_pc_wrapper,
       scoped_refptr<PeerConnectionTestWrapper> to_pc_wrapper) {
-    from_pc_wrapper->SignalOnIceCandidateReady.connect(
-        to_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
+    from_pc_wrapper->SubscribeOnIceCandidateReady(
+        [to_pc = to_pc_wrapper.get()](const std::string& arg1, int arg2,
+                                      const std::string& arg3) {
+          to_pc->AddIceCandidate(arg1, arg2, arg3);
+        });
   }
 
   void Negotiate(scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper,
@@ -224,7 +227,10 @@ INSTANTIATE_TEST_SUITE_P(
             "Enabled/",
             // SPED + DTLS 1.3
             "WebRTC-IceHandshakeDtls/Enabled/WebRTC-ForceDtls13/"
-            "Enabled/"),
+            "Enabled/",
+            // SPED + DTLS 1.3 + SNAP
+            "WebRTC-IceHandshakeDtls/Enabled/WebRTC-ForceDtls13/"
+            "Enabled/WebRTC-Sctp-Snap/Enabled/"),
         testing::Bool(),  // Whether to skip signaling candidates from
                           // first connection.
         testing::Values(

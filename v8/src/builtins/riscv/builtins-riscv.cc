@@ -4034,11 +4034,14 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   DEFINE_PINNED(target_stack, WasmFXResumeDescriptor::GetRegisterParameter(0));
+  DEFINE_PINNED(arg_buffer, WasmFXResumeDescriptor::GetRegisterParameter(1))
   Label suspend;
   DEFINE_REG(scratch);
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, scratch, {target_stack});
+               target_stack, &suspend, no_reg, scratch,
+               {target_stack, arg_buffer});
   // kSimulatorBreakArgument is t6
+  DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
   __ bind(&suspend);
@@ -4052,8 +4055,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   DEFINE_REG(scratch);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
-  __ Push(cont, kContextRegister);
+  __ Push(arg_buffer, cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(6, scratch);
@@ -4068,7 +4072,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register target_stack = kReturnRegister1;
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
-  __ Pop(cont, kContextRegister);
+  __ Pop(arg_buffer, cont, kContextRegister);
 
   Label ok;
   __ Branch(&ok, ne, target_stack, Operand(zero_reg));
@@ -4077,9 +4081,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
+  DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
   __ bind(&resume);
+  __ mv(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4681,9 +4687,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
   // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
@@ -4692,20 +4698,19 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
   __ SubWord(sp, sp, (PCA::kArgsLength)*kSystemPointerSize);
   __ StoreWord(receiver, MemOperand(sp, (PCA::kThisIndex)*kSystemPointerSize));
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ StoreWord(scratch, MemOperand(sp, (PCA::kDataIndex)*kSystemPointerSize));
+  __ StoreWord(callback,
+               MemOperand(sp, (PCA::kCallbackInfoIndex)*kSystemPointerSize));
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kReturnValueIndex)*kSystemPointerSize));
   __ StoreWord(zero_reg,
-               MemOperand(sp, (PCA::kHolderV2Index)*kSystemPointerSize));
+               MemOperand(sp, (PCA::kUnusedIndex)*kSystemPointerSize));
   __ li(scratch, ER::isolate_address());
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kIsolateIndex)*kSystemPointerSize));
@@ -4799,16 +4804,44 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
-  const int kNumberOfRegisters = Register::kNumRegisters;
+  // That is, we allocate space for all possible registers, but don't actually
+  // save all of them.
+  // We start by saving all registers to the stack. Later we will copy them
+  // to the frame description.
 
-  RegList restored_regs = kJSCallerSaved | kCalleeSaved;
-  RegList saved_regs = restored_regs | sp | ra;
-
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
-
-  // Save all double FPU registers before messing with them.
-  __ SubWord(sp, sp, Operand(kDoubleRegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
+
+  // Save all simd128 registers.
+  // For simplicity, we allocate the space, even if the CPU doesn't have
+  // the vector extension.
+  const int kSimd128RegsSize = kSimd128Size * Simd128Register::kNumRegisters;
+  __ AllocateStackSpace(kSimd128RegsSize);
+
+  Label done_push_simd128;
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
+  // If != 0, then simd is available.
+  __ Branch(&done_push_simd128, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
+
+  // Since the builtins are compiled into a snapshot, we can't query the
+  // actual hardware vector length. This means that we are not allowed to use
+  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+  // of 8 bits each.
+  __ VU.set(16, E8, m1);
+  DCHECK_GE(Simd128Register::kNumRegisters,
+            config->num_allocatable_simd128_registers());
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    const Simd128Register simd128_reg = Simd128Register::from_code(code);
+    int offset = code * kSimd128Size;
+    __ StoreSimd128(simd128_reg, MemOperand(sp, offset));
+  }
+  __ bind(&done_push_simd128);
+
+  // Save all double FPU registers.
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  __ AllocateStackSpace(kDoubleRegsSize);
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
@@ -4816,9 +4849,15 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ StoreDouble(fpu_reg, MemOperand(sp, offset));
   }
 
+  RegList restored_regs = kJSCallerSaved | kCalleeSaved;
+  RegList saved_regs = restored_regs | sp | ra;
+
+  const int kNumberOfRegisters = Register::kNumRegisters;
+
   // Push saved_regs (needed to populate FrameDescription::registers_).
   // Leave gaps for other registers.
-  __ SubWord(sp, sp, kNumberOfRegisters * kSystemPointerSize);
+  const int kGPRegsSize = kNumberOfRegisters * kSystemPointerSize;
+  __ AllocateStackSpace(kGPRegsSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
     if ((saved_regs.bits() & (1 << i)) != 0) {
       __ StoreWord(Register::from_code(i),
@@ -4831,7 +4870,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ StoreWord(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
+      kGPRegsSize + kDoubleRegsSize + kSimd128RegsSize;
 
   // Get the address of the location in the code object (a2) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
@@ -4881,19 +4920,25 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  // int simd128_regs_offset = FrameDescription::simd128_registers_offset();
-  //  Copy FPU registers to
-  //  double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  //  Don't support simd128.
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset =
-        code * kDoubleSize + kNumberOfRegisters * kSystemPointerSize;
+    int src_offset = code * kDoubleSize + kGPRegsSize;
     __ LoadDouble(ft0, MemOperand(sp, src_offset));
     __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
-  // TODO(riscv): Add Simd128 copy
+
+  __ VU.set(16, E8, m1);
+  int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    int dst_offset = code * kSimd128Size + simd128_regs_offset;
+    int src_offset = code * kSimd128Size + kGPRegsSize + kDoubleRegsSize;
+    __ addi(kScratchReg, sp, src_offset);
+    __ vl(kSimd128ScratchReg, kScratchReg, 0, E8);
+    __ addi(kScratchReg, a1, dst_offset);
+    __ vs(kSimd128ScratchReg, kScratchReg, 0, E8);
+  }
 
   // Remove the saved registers from the stack.
   __ AddWord(sp, sp, Operand(kSavedRegistersAreaSize));
@@ -4956,6 +5001,23 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ bind(&outer_loop_header);
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
+  // In case of a failed STUB, we have to restore the double and simd128.
+  // registers.
+  Label done_restore_simd128;
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
+  // If != 0, then simd is available.
+  __ Branch(&done_restore_simd128, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
+  __ VU.set(16, E8, m1);
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    const Simd128Register simd128_reg = Simd128Register::from_code(code);
+    int src_offset = code * kSimd128Size + simd128_regs_offset;
+    __ LoadSimd128(simd128_reg, MemOperand(current_frame, src_offset));
+  }
+  __ bind(&done_restore_simd128);
+
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
@@ -4970,16 +5032,17 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
       a6, MemOperand(current_frame, FrameDescription::continuation_offset()));
   __ push(a6);
 
-  // Technically restoring 't3' should work unless zero_reg is also restored
-  // but it's safer to check for this.
-  DCHECK(!(restored_regs.has(t3)));
-  // Restore the registers from the last output frame.
-  __ Move(t3, current_frame);
-  for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
-    int offset =
-        (i * kSystemPointerSize) + FrameDescription::registers_offset();
-    if ((restored_regs.bits() & (1 << i)) != 0) {
-      __ LoadWord(Register::from_code(i), MemOperand(t3, offset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    // Restore the registers from the last output frame.
+    __ Move(scratch, current_frame);
+    for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
+      int offset =
+          (i * kSystemPointerSize) + FrameDescription::registers_offset();
+      if ((restored_regs.bits() & (1 << i)) != 0) {
+        __ LoadWord(Register::from_code(i), MemOperand(scratch, offset));
+      }
     }
   }
 

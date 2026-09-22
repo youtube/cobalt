@@ -8,7 +8,9 @@
 #include <optional>
 
 #include "base/functional/callback.h"
+#include "base/types/expected.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
+#include "components/one_time_tokens/core/browser/one_time_token_retrieval_error.h"
 #include "components/one_time_tokens/core/browser/util/expiring_subscription.h"
 
 namespace one_time_tokens {
@@ -22,16 +24,12 @@ enum class OneTimeTokenSource {
   kOnDeviceSms = 1,
 };
 
-enum class OneTimeTokenRetrievalError {
-  kUnknown = 0,
-};
-
 // Service to subscribe to `OneTimeToken`s. One instance per profile.
 class OneTimeTokenService {
  public:
   using CallbackSignature =
       void(OneTimeTokenSource,
-           std::variant<OneTimeToken, OneTimeTokenRetrievalError>);
+           base::expected<OneTimeToken, OneTimeTokenRetrievalError>);
   using Callback = base::RepeatingCallback<CallbackSignature>;
 
   virtual ~OneTimeTokenService() = default;
@@ -45,6 +43,9 @@ class OneTimeTokenService {
   // or expired subscriptions). No callback happens if no (unexpired) tokens are
   // cached.
   virtual void GetRecentOneTimeTokens(Callback callback) = 0;
+
+  // Returns the cached one-time tokens.
+  virtual std::vector<OneTimeToken> GetCachedOneTimeTokens() const = 0;
 
   // Creates a subscription for new incoming one time tokens. It's possible that
   // the same one time token is reported many times while a subscription is

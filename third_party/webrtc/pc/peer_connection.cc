@@ -106,6 +106,7 @@
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/ip_address.h"
@@ -302,8 +303,6 @@ RTCErrorOr<PeerConnectionInterface::RTCConfiguration> ApplyConfiguration(
   modified_config.crypto_options = configuration.crypto_options;
   modified_config.always_negotiate_data_channels =
       configuration.always_negotiate_data_channels;
-  modified_config.active_reset_srtp_params =
-      configuration.active_reset_srtp_params;
 
   // ICE configuration.
   modified_config.servers = configuration.servers;
@@ -468,7 +467,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     TurnCustomizer* turn_customizer;
     SdpSemantics sdp_semantics;
     std::optional<AdapterType> network_preference;
-    bool active_reset_srtp_params;
     CryptoOptions crypto_options;
     bool offer_extmap_allow_mixed;
     std::string turn_logging_id;
@@ -529,7 +527,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
          turn_customizer == o.turn_customizer &&
          sdp_semantics == o.sdp_semantics &&
          network_preference == o.network_preference &&
-         active_reset_srtp_params == o.active_reset_srtp_params &&
          crypto_options == o.crypto_options &&
          offer_extmap_allow_mixed == o.offer_extmap_allow_mixed &&
          turn_logging_id == o.turn_logging_id &&
@@ -597,6 +594,7 @@ PeerConnection::PeerConnection(
       port_allocator_(std::move(dependencies.allocator)),
       lna_permission_factory_(std::move(dependencies.lna_permission_factory)),
       ice_transport_factory_(std::move(dependencies.ice_transport_factory)),
+      dtls_transport_factory_(std::move(dependencies.dtls_transport_factory)),
       tls_cert_verifier_(std::move(dependencies.tls_cert_verifier)),
       call_(std::move(call)),
       network_thread_safety_(
@@ -705,19 +703,7 @@ PeerConnection::~PeerConnection() {
     sdp_handler_->ResetSessionDescFactory();
   }
 
-  // port_allocator_ and transport_controller_ live on the network thread and
-  // should be destroyed there.
-  transport_controller_copy_ = nullptr;
-  network_thread()->BlockingCall([this] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    TeardownDataChannelTransport_n(RTCError::OK());
-    transport_controller_.reset();
-    port_allocator_.reset();
-    if (network_thread_safety_)
-      network_thread_safety_->SetNotAlive();
-  });
-  sctp_mid_s_.reset();
-  SetSctpTransportName("");
+  CloseOnNetworkThread();
 
   // call_ must be destroyed on the worker thread.
   worker_thread()->BlockingCall([this] {
@@ -736,30 +722,15 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   NoteServerUsage(usage_pattern_, stun_servers, turn_servers);
-  return network_thread()->BlockingCall([&, config = &configuration_] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    RTC_DCHECK(network_thread_safety_->alive());
-    InitializePortAllocatorResult pa_result =
-        InitializePortAllocator_n(stun_servers, turn_servers, *config);
-    // Send information about IPv4/IPv6 status.
-    PeerConnectionAddressFamilyCounter address_family =
-        pa_result.enable_ipv6 ? kPeerConnection_IPv6 : kPeerConnection_IPv4;
-    RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.IPMetrics", address_family,
-                              kPeerConnectionAddressFamilyCounter_Max);
-    return InitializeTransportController_n(*config);
-  });
-}
 
-JsepTransportController* PeerConnection::InitializeTransportController_n(
-    const RTCConfiguration& configuration) {
   JsepTransportController::Config config;
   config.redetermine_role_on_ice_restart =
-      configuration.redetermine_role_on_ice_restart;
+      configuration_.redetermine_role_on_ice_restart;
   config.ssl_max_version = options_.ssl_max_version;
   config.disable_encryption = options_.disable_encryption;
-  config.bundle_policy = configuration.bundle_policy;
-  config.rtcp_mux_policy = configuration.rtcp_mux_policy;
-  config.crypto_options = configuration.crypto_options;
+  config.bundle_policy = configuration_.bundle_policy;
+  config.rtcp_mux_policy = configuration_.rtcp_mux_policy;
+  config.crypto_options = configuration_.crypto_options;
 
   // Maybe enable or disable PQC from FieldTrials
   config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(&trials());
@@ -769,7 +740,6 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
 #if defined(ENABLE_EXTERNAL_AUTH)
   config.enable_external_auth = true;
 #endif
-  config.active_reset_srtp_params = configuration.active_reset_srtp_params;
 
   // DTLS has to be enabled to use SCTP.
   if (dtls_enabled_) {
@@ -777,28 +747,33 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   }
 
   config.ice_transport_factory = ice_transport_factory_.get();
-  config.on_dtls_handshake_error_ =
+  config.dtls_transport_factory = dtls_transport_factory_.get();
+  config.on_dtls_handshake_error =
       [weak_ptr = weak_factory_.GetWeakPtr()](SSLHandshakeError s) {
         if (weak_ptr) {
           weak_ptr->OnTransportControllerDtlsHandshakeError(s);
         }
       };
-
-  transport_controller_.reset(new JsepTransportController(
-      env_, network_thread(), port_allocator_.get(),
-      async_dns_resolver_factory_.get(), lna_permission_factory_.get(),
-      payload_type_picker_, std::move(config)));
-
-  transport_controller_->SubscribeIceConnectionState(
-      [this](::webrtc::IceConnectionState s) {
+  config.signal_ice_candidates_gathered =
+      [this](absl::string_view transport,
+             const std::vector<Candidate>& candidates) {
         RTC_DCHECK_RUN_ON(network_thread());
         signaling_thread()->PostTask(
-            SafeTask(signaling_thread_safety_.flag(), [this, s]() {
-              RTC_DCHECK_RUN_ON(signaling_thread());
-              OnTransportControllerConnectionState(s);
-            }));
-      });
-  transport_controller_->SubscribeConnectionState(
+            SafeTask(signaling_thread_safety_.flag(),
+                     [this, t = std::string(transport), c = candidates]() {
+                       RTC_DCHECK_RUN_ON(signaling_thread());
+                       OnTransportControllerCandidatesGathered(t, c);
+                     }));
+      };
+  config.signal_ice_connection_state = [this](webrtc::IceConnectionState s) {
+    RTC_DCHECK_RUN_ON(network_thread());
+    signaling_thread()->PostTask(
+        SafeTask(signaling_thread_safety_.flag(), [this, s]() {
+          RTC_DCHECK_RUN_ON(signaling_thread());
+          OnTransportControllerConnectionState(s);
+        }));
+  };
+  config.signal_connection_state =
       [this](PeerConnectionInterface::PeerConnectionState s) {
         RTC_DCHECK_RUN_ON(network_thread());
         signaling_thread()->PostTask(
@@ -806,8 +781,8 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
               RTC_DCHECK_RUN_ON(signaling_thread());
               SetConnectionState(s);
             }));
-      });
-  transport_controller_->SubscribeStandardizedIceConnectionState(
+      };
+  config.signal_standardized_ice_connection_state =
       [this](PeerConnectionInterface::IceConnectionState s) {
         RTC_DCHECK_RUN_ON(network_thread());
         signaling_thread()->PostTask(
@@ -815,28 +790,16 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
               RTC_DCHECK_RUN_ON(signaling_thread());
               SetStandardizedIceConnectionState(s);
             }));
-      });
-  transport_controller_->SubscribeIceGatheringState(
-      [this](::webrtc::IceGatheringState s) {
-        RTC_DCHECK_RUN_ON(network_thread());
-        signaling_thread()->PostTask(
-            SafeTask(signaling_thread_safety_.flag(), [this, s]() {
-              RTC_DCHECK_RUN_ON(signaling_thread());
-              OnTransportControllerGatheringState(s);
-            }));
-      });
-  transport_controller_->SubscribeIceCandidateGathered(
-      [this](const std::string& transport,
-             const std::vector<Candidate>& candidates) {
-        RTC_DCHECK_RUN_ON(network_thread());
-        signaling_thread()->PostTask(
-            SafeTask(signaling_thread_safety_.flag(),
-                     [this, t = transport, c = candidates]() {
-                       RTC_DCHECK_RUN_ON(signaling_thread());
-                       OnTransportControllerCandidatesGathered(t, c);
-                     }));
-      });
-  transport_controller_->SubscribeIceCandidateError(
+      };
+  config.signal_ice_gathering_state = [this](::webrtc::IceGatheringState s) {
+    RTC_DCHECK_RUN_ON(network_thread());
+    signaling_thread()->PostTask(
+        SafeTask(signaling_thread_safety_.flag(), [this, s]() {
+          RTC_DCHECK_RUN_ON(signaling_thread());
+          OnTransportControllerGatheringState(s);
+        }));
+  };
+  config.signal_ice_candidate_error =
       [this](const IceCandidateErrorEvent& event) {
         RTC_DCHECK_RUN_ON(network_thread());
         signaling_thread()->PostTask(
@@ -844,8 +807,8 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
               RTC_DCHECK_RUN_ON(signaling_thread());
               OnTransportControllerCandidateError(event);
             }));
-      });
-  transport_controller_->SubscribeIceCandidatesRemoved(
+      };
+  config.signal_ice_candidates_removed =
       [this](IceTransportInternal* transport, const std::vector<Candidate>& c) {
         RTC_DCHECK_RUN_ON(network_thread());
         std::string mid = transport->transport_name();
@@ -854,8 +817,8 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
               RTC_DCHECK_RUN_ON(signaling_thread());
               OnTransportControllerCandidatesRemoved(mid, c);
             }));
-      });
-  transport_controller_->SubscribeIceCandidatePairChanged(
+      };
+  config.signal_ice_candidate_pair_changed =
       [this](const CandidatePairChangeEvent& event) {
         RTC_DCHECK_RUN_ON(network_thread());
         signaling_thread()->PostTask(
@@ -863,7 +826,55 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
               RTC_DCHECK_RUN_ON(signaling_thread());
               OnTransportControllerCandidateChanged(event);
             }));
-      });
+      };
+
+  auto transport_controller = std::make_unique<JsepTransportController>(
+      env_, signaling_thread(), network_thread(), port_allocator_.get(),
+      async_dns_resolver_factory_.get(), lna_permission_factory_.get(),
+      payload_type_picker_, std::move(config));
+
+  return network_thread()->BlockingCall([&, config = &configuration_,
+                                         controller = std::move(
+                                             transport_controller)]() mutable {
+    RTC_DCHECK_RUN_ON(network_thread());
+    RTC_DCHECK(network_thread_safety_->alive());
+    InitializePortAllocatorResult pa_result =
+        InitializePortAllocator_n(stun_servers, turn_servers, *config);
+    // Send information about IPv4/IPv6 status.
+    PeerConnectionAddressFamilyCounter address_family =
+        pa_result.enable_ipv6 ? kPeerConnection_IPv6 : kPeerConnection_IPv4;
+    RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.IPMetrics", address_family,
+                              kPeerConnectionAddressFamilyCounter_Max);
+    return InitializeTransportController_n(std::move(controller), *config);
+  });
+}
+
+void PeerConnection::CloseOnNetworkThread() {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  if (!transport_controller_copy_) {
+    RTC_DCHECK(!sctp_mid_s_.has_value()) << "Should already be reset.";
+    return;
+  }
+  // port_allocator_ and transport_controller_ live on the network thread and
+  // should be destroyed there.
+  transport_controller_copy_ = nullptr;
+  network_thread()->BlockingCall([this] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    RTC_DCHECK(network_thread_safety_->alive());
+    TeardownDataChannelTransport_n(RTCError::OK());
+    port_allocator_->DiscardCandidatePool();
+    transport_controller_.reset();
+    port_allocator_.reset();
+    network_thread_safety_->SetNotAlive();
+  });
+  sctp_mid_s_.reset();
+  SetSctpTransportName("");
+}
+
+JsepTransportController* PeerConnection::InitializeTransportController_n(
+    std::unique_ptr<JsepTransportController> controller,
+    const RTCConfiguration& configuration) {
+  transport_controller_ = std::move(controller);
 
   IceConfig ice_config(configuration);
   ice_config.dtls_handshake_in_stun = CanAttemptDtlsStunPiggybacking();
@@ -1634,8 +1645,6 @@ RTCError PeerConnection::SetConfiguration(
               transport_controller_->SetNeedsIceRestartFlag();
 
             transport_controller_->SetIceConfig(ice_config);
-            transport_controller_->SetActiveResetSrtpParams(
-                modified_config.active_reset_srtp_params);
             return ReconfigurePortAllocator_n(
                 stun_servers, turn_servers, modified_config.type,
                 modified_config.ice_candidate_pool_size,
@@ -1924,18 +1933,7 @@ void PeerConnection::Close() {
     rtp_manager_->Close();
   }
 
-  network_thread()->BlockingCall([this] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    TeardownDataChannelTransport_n({});
-    transport_controller_.reset();
-    port_allocator_->DiscardCandidatePool();
-    if (network_thread_safety_) {
-      network_thread_safety_->SetNotAlive();
-    }
-  });
-
-  sctp_mid_s_.reset();
-  SetSctpTransportName("");
+  CloseOnNetworkThread();
 
   worker_thread()->BlockingCall([this] {
     RTC_DCHECK_RUN_ON(worker_thread());
@@ -2241,6 +2239,13 @@ bool PeerConnection::CreateDataChannelTransport(absl::string_view mid) {
 
 void PeerConnection::DestroyDataChannelTransport(RTCError error) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+
+  if (!sctp_mid_s_.has_value()) {
+    RTC_LOG(LS_INFO) << "Data channel not configured.";
+    RTC_DCHECK(sctp_transport_name_s_.empty());
+    return;
+  }
+
   network_thread()->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(network_thread());
     TeardownDataChannelTransport_n(error);
@@ -2375,10 +2380,7 @@ bool PeerConnection::GetSslRole(const std::string& content_name,
     return false;
   }
 
-  auto dtls_role = network_thread()->BlockingCall([this, content_name]() {
-    RTC_DCHECK_RUN_ON(network_thread());
-    return transport_controller_->GetDtlsRole(content_name);
-  });
+  auto dtls_role = transport_controller_s()->GetDtlsRole(content_name);
   if (dtls_role) {
     *role = *dtls_role;
     return true;
@@ -2486,16 +2488,14 @@ bool PeerConnection::IceRestartPending(const std::string& content_name) const {
 }
 
 bool PeerConnection::NeedsIceRestart(const std::string& content_name) const {
-  return network_thread()->BlockingCall([this, &content_name] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    return transport_controller_->NeedsIceRestart(content_name);
-  });
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  return transport_controller_s()->NeedsIceRestart(content_name);
 }
 
 void PeerConnection::OnTransportControllerConnectionState(
-    ::webrtc::IceConnectionState state) {
+    webrtc::IceConnectionState state) {
   switch (state) {
-    case ::webrtc::kIceConnectionConnecting:
+    case webrtc::kIceConnectionConnecting:
       // If the current state is Connected or Completed, then there were
       // writable channels but now there are not, so the next state must
       // be Disconnected.
@@ -2510,10 +2510,10 @@ void PeerConnection::OnTransportControllerConnectionState(
             PeerConnectionInterface::kIceConnectionDisconnected);
       }
       break;
-    case ::webrtc::kIceConnectionFailed:
+    case webrtc::kIceConnectionFailed:
       SetIceConnectionState(PeerConnectionInterface::kIceConnectionFailed);
       break;
-    case ::webrtc::kIceConnectionConnected:
+    case webrtc::kIceConnectionConnected:
       RTC_LOG(LS_INFO) << "Changing to ICE connected state because "
                           "all transports are writable.";
       {
@@ -2533,7 +2533,7 @@ void PeerConnection::OnTransportControllerConnectionState(
       SetIceConnectionState(PeerConnectionInterface::kIceConnectionConnected);
       NoteUsageEvent(UsageEvent::ICE_STATE_CONNECTED);
       break;
-    case ::webrtc::kIceConnectionCompleted:
+    case webrtc::kIceConnectionCompleted:
       RTC_LOG(LS_INFO) << "Changing to ICE completed state because "
                           "all transports are complete.";
       if (ice_connection_state_ !=
@@ -2552,7 +2552,7 @@ void PeerConnection::OnTransportControllerConnectionState(
 }
 
 void PeerConnection::OnTransportControllerCandidatesGathered(
-    const std::string& transport_name,
+    absl::string_view transport_name,
     const Candidates& candidates) {
   // TODO(bugs.webrtc.org/12427): Expect this to come in on the network thread
   // (not signaling as it currently does), handle appropriately.
@@ -2601,9 +2601,8 @@ void PeerConnection::OnTransportControllerDtlsHandshakeError(
 }
 
 // Returns the media index for a local ice candidate given the content name.
-bool PeerConnection::GetLocalCandidateMediaIndex(
-    const std::string& content_name,
-    int* sdp_mline_index) {
+bool PeerConnection::GetLocalCandidateMediaIndex(absl::string_view content_name,
+                                                 int* sdp_mline_index) {
   if (!local_description() || !sdp_mline_index) {
     return false;
   }
@@ -2858,13 +2857,13 @@ bool PeerConnection::SrtpRequired() const {
 }
 
 void PeerConnection::OnTransportControllerGatheringState(
-    ::webrtc::IceGatheringState state) {
+    webrtc::IceGatheringState state) {
   RTC_DCHECK(signaling_thread()->IsCurrent());
-  if (state == ::webrtc::kIceGatheringGathering) {
+  if (state == webrtc::kIceGatheringGathering) {
     OnIceGatheringChange(PeerConnectionInterface::kIceGatheringGathering);
-  } else if (state == ::webrtc::kIceGatheringComplete) {
+  } else if (state == webrtc::kIceGatheringComplete) {
     OnIceGatheringChange(PeerConnectionInterface::kIceGatheringComplete);
-  } else if (state == ::webrtc::kIceGatheringNew) {
+  } else if (state == webrtc::kIceGatheringNew) {
     OnIceGatheringChange(PeerConnectionInterface::kIceGatheringNew);
   } else {
     RTC_LOG(LS_ERROR) << "Unknown state received: " << state;
@@ -2877,12 +2876,12 @@ void PeerConnection::ReportTransportStats(
     std::vector<RtpTransceiverProxyRefPtr> transceivers) {
   TRACE_EVENT0("webrtc", "PeerConnection::ReportTransportStats");
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
-  std::map<std::string, std::set<webrtc::MediaType>>
+  flat_map<absl::string_view, std::set<webrtc::MediaType>>
       media_types_by_transport_name;
   for (const auto& transceiver : transceivers) {
     if (transceiver->internal()->channel()) {
-      std::string transport_name(
-          transceiver->internal()->channel()->transport_name());
+      const absl::string_view transport_name =
+          transceiver->internal()->channel()->transport_name();
       media_types_by_transport_name[transport_name].insert(
           transceiver->media_type());
     }
@@ -2898,7 +2897,7 @@ void PeerConnection::ReportTransportStats(
   }
 
   for (const auto& entry : media_types_by_transport_name) {
-    const std::string& transport_name = entry.first;
+    const absl::string_view transport_name = entry.first;
     const std::set<webrtc::MediaType> media_types = entry.second;
     TransportStats stats;
     if (transport_controller_->GetStats(transport_name, &stats)) {
@@ -3026,7 +3025,7 @@ void PeerConnection::ReportNegotiatedCiphers(
 }
 
 bool PeerConnection::OnTransportChanged(
-    const std::string& mid,
+    absl::string_view mid,
     RtpTransportInternal* rtp_transport,
     scoped_refptr<DtlsTransport> dtls_transport,
     DataChannelTransportInterface* data_channel_transport) {
@@ -3129,10 +3128,9 @@ int PeerConnection::FeedbackAccordingToTransportCcCountForTesting() const {
   });
 }
 
-std::function<void(const webrtc::CopyOnWriteBuffer& packet,
-                   int64_t packet_time_us)>
+absl::AnyInvocable<void(const CopyOnWriteBuffer& packet, int64_t packet_time_us)
+                       const>
 PeerConnection::InitializeRtcpCallback() {
-  RTC_DCHECK_RUN_ON(network_thread());
   return [this](const CopyOnWriteBuffer& packet, int64_t /*packet_time_us*/) {
     worker_thread()->PostTask(SafeTask(worker_thread_safety_, [this, packet]() {
       call_ptr_->Receiver()->DeliverRtcpPacket(packet);
@@ -3140,9 +3138,8 @@ PeerConnection::InitializeRtcpCallback() {
   };
 }
 
-std::function<void(const RtpPacketReceived& parsed_packet)>
+absl::AnyInvocable<void(const RtpPacketReceived& parsed_packet) const>
 PeerConnection::InitializeUnDemuxablePacketHandler() {
-  RTC_DCHECK_RUN_ON(network_thread());
   return [this](const RtpPacketReceived& parsed_packet) {
     worker_thread()->PostTask(
         SafeTask(worker_thread_safety_, [this, parsed_packet]() {

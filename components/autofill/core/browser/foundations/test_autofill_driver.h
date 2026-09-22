@@ -64,7 +64,12 @@ class TestAutofillDriverTemplate : public T {
   TestAutofillDriverTemplate* GetParent() override { return parent_; }
   bool IsActive() const override { return is_active_; }
   bool IsEmbedded() const override { return is_embedded_; }
-  bool HasSharedAutofillPermission() const override { return shared_autofill_; }
+  bool IsPolicyControlledFeatureAutofillEnabled() const override {
+    return policy_controlled_feature_autofill_enabled_;
+  }
+  bool IsPolicyControlledFeatureManualTextEnabled() const override {
+    return policy_controlled_feature_manual_text_enabled_;
+  }
   bool CanShowAutofillUi() const override { return true; }
   void ApplyFieldAction(mojom::FieldActionType action_type,
                         mojom::ActionPersistence action_persistence,
@@ -156,8 +161,12 @@ class TestAutofillDriverTemplate : public T {
 
   void SetIsEmbedded(bool is_embedded) { is_embedded_ = is_embedded; }
 
-  void SetSharedAutofill(bool shared_autofill) {
-    shared_autofill_ = shared_autofill;
+  void SetPolicyControlledFeatureAutofillEnabled(bool enabled) {
+    policy_controlled_feature_autofill_enabled_ = enabled;
+  }
+
+  void SetPolicyControlledFeatureManualTextEnabled(bool enabled) {
+    policy_controlled_feature_manual_text_enabled_ = enabled;
   }
 
   void SetIsolationInfo(const net::IsolationInfo& isolation_info) {
@@ -186,7 +195,8 @@ class TestAutofillDriverTemplate : public T {
   raw_ptr<TestAutofillDriverTemplate> parent_ = nullptr;
   bool is_active_ = true;
   bool is_embedded_ = false;
-  bool shared_autofill_ = false;
+  bool policy_controlled_feature_autofill_enabled_ = false;
+  bool policy_controlled_feature_manual_text_enabled_ = false;
   net::IsolationInfo isolation_info_;
   base::RepeatingCallback<bool(const url::Origin&, FieldGlobalId, FieldType)>
       field_type_map_filter_;

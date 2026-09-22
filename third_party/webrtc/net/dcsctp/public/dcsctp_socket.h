@@ -555,6 +555,15 @@ class DcSctpSocketInterface {
   // `DcSctpSocketCallbacks::OnConnected` will be called on success.
   virtual void Connect() = 0;
 
+  // Finishes the out-of-bands connection sequence and returns `true` if this
+  // was successful. This will also trigger
+  // `DcSctpSocketCallbacks::OnConnected`.
+  virtual bool ConnectWithConnectionToken(
+      webrtc::ArrayView<const uint8_t> my_data,
+      webrtc::ArrayView<const uint8_t> peer_data) {
+    return false;
+  }
+
   // Puts this socket to the state in which the original socket was when its
   // `DcSctpSocketHandoverState` was captured by `GetHandoverStateAndClose`.
   // `RestoreFromState` is allowed only on the closed socket.

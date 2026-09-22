@@ -7,43 +7,47 @@
 #import "base/notreached.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/ui/app_bundle_promo_config.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/ui/app_bundle_promo_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_shortcut_tile_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_tile_layout_util.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_collection_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_stack_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/multi_row_container_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/shortcuts_commands.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/shortcuts_config.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/shortcuts_consumer_source.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/ui/default_browser_config.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/ui/default_browser_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_content_view_delegate.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_favicon_consumer_source.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_item.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_consumer_source.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_state.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/send_tab_to_self/send_tab_promo_item.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/constants.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/set_up_list_config.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/set_up_list_consumer_source.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/set_up_list_item_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/set_up_list_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/utils.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_data.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_favicon_consumer_source.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_item.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_price_tracking_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/ui/price_tracking_promo_favicon_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/ui/price_tracking_promo_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/ui/price_tracking_promo_module_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/ui/safety_check_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/ui/safety_check_state.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/ui/safety_check_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/send_tab_to_self/ui/send_tab_promo_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/coordinator/set_up_list_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/public/set_up_list_constants.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/public/set_up_list_utils.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/ui/set_up_list_config.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/ui/set_up_list_consumer.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/ui/set_up_list_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/ui/set_up_list_item_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_data.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_favicon_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_price_tracking_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shortcuts/ui/shortcuts_action_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shortcuts/ui/shortcuts_commands.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shortcuts/ui/shortcuts_config.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shortcuts/ui/shortcuts_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shortcuts/ui/shortcuts_tile_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/standalone_module_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_consumer_source.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_item.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/ui/tab_resumption_consumer_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/ui/tab_resumption_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/ui/tab_resumption_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_audience.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_consumer_source.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_state.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_view.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 
 @implementation MagicStackModuleContentsFactory
@@ -56,10 +60,14 @@
     case ContentSuggestionsModuleType::kMostVisited: {
       MostVisitedTilesConfig* mvtConfig =
           static_cast<MostVisitedTilesConfig*>(config);
+      if (IsContentSuggestionsCustomizable()) {
+        return
+            [[MostVisitedTilesCollectionView alloc] initWithConfig:mvtConfig];
+      }
       return [[MostVisitedTilesStackView alloc]
-               initWithConfig:mvtConfig
-                      spacing:ContentSuggestionsTilesHorizontalSpacing(
-                                  traitCollection)];
+          initWithConfig:mvtConfig
+                 spacing:ContentSuggestionsTilesHorizontalSpacing(
+                             traitCollection)];
     }
     case ContentSuggestionsModuleType::kShortcuts: {
       ShortcutsConfig* shortcutsConfig = static_cast<ShortcutsConfig*>(config);
@@ -126,8 +134,7 @@
 - (UIView*)shortcutsStackViewForConfig:(ShortcutsConfig*)shortcutsConfig
                            tileSpacing:(CGFloat)spacing {
   NSMutableArray* shortcutsViews = [NSMutableArray array];
-  for (ContentSuggestionsMostVisitedActionItem* item in shortcutsConfig
-           .shortcutItems) {
+  for (ShortcutsActionItem* item in shortcutsConfig.shortcutItems) {
     ContentSuggestionsShortcutTileView* view =
         [[ContentSuggestionsShortcutTileView alloc] initWithConfiguration:item];
     [shortcutsConfig.consumerSource addConsumer:view];

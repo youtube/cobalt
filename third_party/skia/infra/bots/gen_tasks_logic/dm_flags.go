@@ -591,6 +591,12 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 						// VK_PIPELINE_COMPILE_REQUIRED from CreateGraphicsPipelines)
 						skip(ALL, "test", ALL, "PersistentPipelineStorageTest")
 					}
+
+					if b.MatchOs("Win11") &&
+						(b.GPU("RTX3060") || b.GPU("GTX1660") || b.GPU("IntelIrisXe")) {
+						// These 3 GPUs are failing this test on Win11 (b/462240488)
+						skip(ALL, "test", ALL, "PersistentPipelineStorageTest")
+					}
 				}
 			}
 		} else {
@@ -606,19 +612,13 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 
 		}
 
-		// ANGLE bot *only* runs the angle configs
+		// ANGLE bot *only* runs the angle ES3 configs
 		if b.ExtraConfig("ANGLE") {
 			if b.MatchOs("Win") {
-				configs = []string{"angle_d3d11_es2", "angle_d3d11_es3"}
+				configs = []string{"angle_d3d11_es3"}
 				if sampleCount > 0 {
-					configs = append(configs, fmt.Sprintf("angle_d3d11_es2_msaa%d", sampleCount))
-					configs = append(configs, fmt.Sprintf("angle_d3d11_es2_dmsaa"))
 					configs = append(configs, fmt.Sprintf("angle_d3d11_es3_msaa%d", sampleCount))
 					configs = append(configs, fmt.Sprintf("angle_d3d11_es3_dmsaa"))
-				}
-				if !b.MatchGpu("GTX", "Quadro", "GT610") {
-					// See skbug.com/40041499
-					configs = append(configs, "angle_d3d9_es2")
 				}
 				if b.Model("NUC5i7RYH") {
 					// skbug.com/40038570
@@ -633,7 +633,7 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 					skip(ALL, "test", ALL, "FilterResult")
 				}
 			} else if b.MatchOs("Mac") {
-				configs = []string{"angle_mtl_es2", "angle_mtl_es3"}
+				configs = []string{"angle_mtl_es3"}
 
 				// anglebug.com/7245
 				skip("angle_mtl_es3", "gm", ALL, "runtime_intrinsics_common_es3")

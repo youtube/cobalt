@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <iterator>
 #include <memory>
@@ -317,7 +319,7 @@ void OmniboxEditModel::RestoreState(const State* state) {
     }
     SetKeyword(state->keyword);
     SetKeywordPlaceholder(state->keyword_placeholder);
-    is_keyword_hint_ = state->is_keyword_hint;
+    SetIsKeywordHint(state->is_keyword_hint);
     keyword_mode_entry_method_ = state->keyword_mode_entry_method;
     if (view_) {
       view_->OnKeywordPlaceholderTextChange();
@@ -376,9 +378,9 @@ std::u16string OmniboxEditModel::GetPermanentDisplayText() const {
 
 void OmniboxEditModel::SetUserText(const std::u16string& text) {
   SetInputInProgress(true);
-  keyword_.clear();
+  SetKeyword(std::u16string());
   keyword_placeholder_.clear();
-  is_keyword_hint_ = false;
+  SetIsKeywordHint(false);
   keyword_mode_entry_method_ = OmniboxEventProto::INVALID;
   if (view_) {
     view_->OnKeywordPlaceholderTextChange();
@@ -500,7 +502,7 @@ ui::ImageModel OmniboxEditModel::GetSuperGIcon(int image_size,
 }
 
 bool OmniboxEditModel::ShouldShowAddContextButton() const {
-  return base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup) &&
+  return controller_->client()->IsAimPopupEnabled() &&
          omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get() ==
              omnibox::AddContextButtonVariant::kInline &&
          controller_->IsPopupOpen();
@@ -584,9 +586,9 @@ void OmniboxEditModel::Revert() {
   input_.Clear();
   paste_state_ = PasteState::kNone;
   InternalSetUserText(std::u16string());
-  keyword_.clear();
+  SetKeyword(std::u16string());
   keyword_placeholder_.clear();
-  is_keyword_hint_ = false;
+  SetIsKeywordHint(false);
   keyword_mode_entry_method_ = OmniboxEventProto::INVALID;
   if (view_) {
     view_->OnKeywordPlaceholderTextChange();
@@ -716,7 +718,7 @@ void OmniboxEditModel::EnterKeywordMode(
   }
   SetKeyword(template_url->keyword());
   SetKeywordPlaceholder(placeholder_text);
-  is_keyword_hint_ = false;
+  SetIsKeywordHint(false);
   keyword_mode_entry_method_ = entry_method;
   if (view_) {
     view_->OnKeywordPlaceholderTextChange();
@@ -755,7 +757,13 @@ void OmniboxEditModel::EnterKeywordModeForDefaultSearchProvider(
 }
 
 void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup)) {
+  std::u16string query_text =
+      AutocompleteMatch::IsSearchType(current_match_.type)
+          ? current_match_.contents
+          : u"";
+  RecordAiModeMetrics(query_text, /*activated=*/true, via_keyboard);
+
+  if (controller_->client()->IsAimPopupEnabled()) {
     // In general, adding a context will always open the AIM popup, while the
     // AIM button will prefer to navigate to the AI page with a query
     // prepopulated.
@@ -787,12 +795,6 @@ void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
       return;
     }
   }
-
-  std::u16string query_text =
-      AutocompleteMatch::IsSearchType(current_match_.type)
-          ? current_match_.contents
-          : u"";
-  RecordAiModeMetrics(query_text, /*activated=*/true, via_keyboard);
 
   GURL ai_mode_url =
       GetUrlForAim(controller_->client()->GetTemplateURLService(),
@@ -862,7 +864,7 @@ void OmniboxEditModel::OpenSelectionForTesting(
   OpenSelection(popup_selection_, timestamp, disposition, via_keyboard);
 }
 
-bool OmniboxEditModel::AcceptKeyword(
+void OmniboxEditModel::AcceptKeyword(
     OmniboxEventProto::KeywordModeEntryMethod entry_method) {
   TRACE_EVENT0("omnibox", "OmniboxEditModel::AcceptKeyword");
 
@@ -870,7 +872,7 @@ bool OmniboxEditModel::AcceptKeyword(
 
   controller_->StopAutocomplete(/*clear_result=*/false);
 
-  is_keyword_hint_ = false;
+  SetIsKeywordHint(false);
   keyword_mode_entry_method_ = entry_method;
   if (original_user_text_with_keyword_.empty()) {
     original_user_text_with_keyword_ = user_text_;
@@ -916,7 +918,6 @@ bool OmniboxEditModel::AcceptKeyword(
       controller_->client()->GetTemplateURLService()->GetTemplateURLForKeyword(
           keyword_);
   EmitEnteredKeywordModeHistogram(entry_method, turl, !user_text_.empty());
-  return true;
 }
 
 void OmniboxEditModel::AcceptTemporaryTextAsUserText() {
@@ -989,7 +990,7 @@ void OmniboxEditModel::ClearKeyword() {
   // search, which feels bizarre.
   if (was_toggled_into_keyword_mode && entry_by_tab) {
     // State 4 above.
-    is_keyword_hint_ = true;
+    SetIsKeywordHint(true);
     keyword_mode_entry_method_ = OmniboxEventProto::INVALID;
     const std::u16string window_text = keyword_ + view_->GetText();
     view_->SetWindowTextAndCaretPos(window_text, keyword_.length(), false,
@@ -1026,9 +1027,9 @@ void OmniboxEditModel::ClearKeyword() {
       prefix = keyword_ + u" ";
     }
 
-    keyword_.clear();
+    SetKeyword(std::u16string());
     keyword_placeholder_.clear();
-    is_keyword_hint_ = false;
+    SetIsKeywordHint(false);
     keyword_mode_entry_method_ = OmniboxEventProto::INVALID;
     if (view_) {
       view_->OnKeywordPlaceholderTextChange();
@@ -1244,7 +1245,7 @@ void OmniboxEditModel::OnTabPressed(bool shift) {
 }
 
 bool OmniboxEditModel::OnSpacePressed() {
-  if (!GetPrefService()->GetBoolean(omnibox::kKeywordSpaceTriggeringEnabled)) {
+  if (!AllowKeywordSpaceTriggering()) {
     return false;
   }
   if (!is_keyword_hint_ && keyword_.empty() &&
@@ -1310,7 +1311,7 @@ void OmniboxEditModel::OnPopupDataChanged(
     bool keyword_was_selected = is_keyword_selected();
     SetKeyword(keyword);
     SetKeywordPlaceholder(keyword_placeholder);
-    is_keyword_hint_ = is_keyword_hint;
+    SetIsKeywordHint(is_keyword_hint);
     if (!keyword_was_selected && is_keyword_selected()) {
       // Since we entered keyword mode, record the reason. Note that we
       // don't do this simply because the keyword changes, since the user
@@ -1369,17 +1370,17 @@ void OmniboxEditModel::OnPopupDataChanged(
     // If we reach here, the user most likely entered keyword mode by inserting
     // a space between a keyword name and a search string (as pressing space or
     // tab after the keyword name alone would have been be handled in
-    // MaybeAcceptKeywordBySpace() by calling AcceptKeyword(), which won't reach
-    // here).  In this case, we don't want to call
-    // OnInlineAutocompleteTextMaybeChanged() as normal, because that will
-    // correctly change the text (to the search string alone) but move the caret
-    // to the end of the string; instead we want the caret at the start of the
-    // search string since that's where it was in the original input.  So we set
-    // the text and caret position directly.
+    // `ShouldAcceptKeywordAfterInsertingSpaceAtEnd()` by calling
+    // `AcceptKeyword()`, which won't reach here).  In this case, we don't want
+    // to call `OnInlineAutocompleteTextMaybeChanged()` as normal, because that
+    // will correctly change the text (to the search string alone) but move the
+    // caret to the end of the string; instead we want the caret at the start of
+    // the search string since that's where it was in the original input.  So we
+    // set the text and caret position directly.
     //
     // It may also be possible to reach here if we're reverting from having
     // temporary text back to a default match that's a keyword search, but in
-    // that case the RevertTemporaryTextAndPopup() call below will reset the
+    // that case the `RevertTemporaryTextAndPopup()` call below will reset the
     // caret or selection correctly so the caret positioning we do here won't
     // matter.
     if (view_) {
@@ -1405,8 +1406,7 @@ bool OmniboxEditModel::OnAfterPossibleChange(
   // made some other edit, clear paste tracking.
   if (paste_state_ == PasteState::kPasting) {
     paste_state_ = PasteState::kPasted;
-
-    GURL url = GURL(*(state_changes.new_text));
+    GURL url = GURL(*state_changes.new_text);
     if (url.is_valid()) {
       controller_->client()->OnUserPastedInOmniboxResultingInValidURL();
     }
@@ -1427,8 +1427,8 @@ bool OmniboxEditModel::OnAfterPossibleChange(
 
   // If the user text does not need to be changed, return now, so we don't
   // change any other state, lest arrowing around the omnibox do something like
-  // reset |just_deleted_text_|.  Note that modifying the selection accepts any
-  // inline autocompletion, which results in a user text change.
+  // reset `just_deleted_text_`. Modifying the selection accepts any inline
+  // autocompletion, which results in a user text change.
   if (!state_changes.text_differs &&
       (!state_changes.selection_differs || inline_autocompletion_.empty())) {
     if (state_changes.keyword_differs && view_) {
@@ -1451,16 +1451,13 @@ bool OmniboxEditModel::OnAfterPossibleChange(
 
   // Update the popup for the change, in the process changing to keyword mode
   // if the user hit space in mid-string after a keyword.
-  // |allow_exact_keyword_match_| will be used by StartAutocomplete() method,
-  // which will be called by |view_->UpdatePopup()|; so after that returns we
-  // can safely reset this flag.
-  // If entering keyword mode by space is disabled, do not set
-  // |allow_exact_keyword_match_|.
+  // `allow_exact_keyword_match_` will be used by `StartAutocomplete()`, which
+  // will be called by `view_->UpdatePopup()`; so after that returns we can
+  // safely reset this flag.
   allow_exact_keyword_match_ =
-      AllowKeywordSpaceTriggering() && state_changes.text_differs &&
-      allow_keyword_ui_change && !state_changes.just_deleted_text &&
-      no_selection &&
-      CreatedKeywordSearchByInsertingSpaceInMiddle(
+      state_changes.text_differs && allow_keyword_ui_change &&
+      !state_changes.just_deleted_text && no_selection &&
+      ShouldAcceptKeywordAfterInsertingSpaceInMiddle(
           *state_changes.old_text, user_text_,
           state_changes.new_selection.start());
   if (view_) {
@@ -1478,30 +1475,37 @@ bool OmniboxEditModel::OnAfterPossibleChange(
 
   if (!state_changes.text_differs || !allow_keyword_ui_change ||
       (state_changes.just_deleted_text && no_selection) ||
-      is_keyword_selected() || (paste_state_ != PasteState::kNone)) {
+      is_keyword_selected() || paste_state_ != PasteState::kNone) {
     return true;
   }
 
   // If the user input a "?" at the beginning of the text, put them into
   // keyword mode for their default search provider.
-  if ((state_changes.new_selection.start() == 1) && (user_text_[0] == '?')) {
+  if (state_changes.new_selection.start() == 1 && user_text_[0] == '?') {
     EnterKeywordModeForDefaultSearchProvider(OmniboxEventProto::QUESTION_MARK);
     return false;
   }
 
+  if (state_changes.new_selection.start() != user_text_.size()) {
+    return true;
+  }
+
   // Change to keyword mode if the user is now pressing space after a keyword
-  // name.  Note that if this is the case, then even if there was no keyword
-  // hint when we entered this function (e.g. if the user has used space to
-  // replace some selected text that was adjoined to this keyword), there will
-  // be one now because of the call to UpdatePopup() above; so it's safe for
-  // MaybeAcceptKeywordBySpace() to look at |keyword_| and |is_keyword_hint_|
-  // to determine what keyword, if any, is applicable.
+  // name. If this is the case, then even if there was no keyword hint when we
+  // entered this function (e.g. if the user has used space to replace some
+  // selected text that was adjoined to this keyword), there will be one now
+  // because of the call to `UpdatePopup()` above; so it's safe for
+  // `ShouldAcceptKeywordAfterInsertingSpaceAtEnd()` to look at `keyword_` and
+  // `is_keyword_hint_` to determine what keyword, if any, is applicable.
   //
-  // If MaybeAcceptKeywordBySpace() accepts the keyword and returns true, that
-  // will have updated our state already, so in that case we don't also return
-  // true from this function.
-  return (state_changes.new_selection.start() != user_text_.size()) ||
-         !MaybeAcceptKeywordBySpace(user_text_);
+  // If `ShouldAcceptKeywordAfterInsertingSpaceAtEnd()` accepts the keyword and
+  // returns true, that will have updated our state already, so in that case we
+  // don't also return true from this function.
+  if (ShouldAcceptKeywordAfterInsertingSpaceAtEnd(user_text_)) {
+    AcceptKeyword(OmniboxEventProto::SPACE_AT_END);
+    return true;
+  }
+  return false;
 }
 
 // TODO(beaudoin): Merge OnPopupDataChanged with this method once the popup
@@ -2744,51 +2748,99 @@ bool OmniboxEditModel::AllowKeywordSpaceTriggering() const {
   return GetPrefService()->GetBoolean(omnibox::kKeywordSpaceTriggeringEnabled);
 }
 
-bool OmniboxEditModel::MaybeAcceptKeywordBySpace(
+bool OmniboxEditModel::ShouldAcceptKeywordAfterInsertingSpaceAtEnd(
     const std::u16string& new_text) {
+  // Check if the user has disabled space triggering.
   if (!AllowKeywordSpaceTriggering()) {
     return false;
   }
 
-  size_t keyword_length = new_text.length() - 1;
-  return is_keyword_hint_ && (keyword_.length() == keyword_length) &&
-         IsSpaceCharForAcceptingKeyword(new_text[keyword_length]) &&
-         !new_text.compare(0, keyword_length, keyword_, 0, keyword_length) &&
-         AcceptKeyword(OmniboxEventProto::SPACE_AT_END);
+  // Check a keyword hint was being shown. If the text matches a keyword, a hint
+  // would have been shown. Even if this weren't the case, and the input matched
+  // a keyword without showing a hint, entering keyword mode in this case would
+  // be surprising.
+  if (!is_keyword_hint_) {
+    return false;
+  }
+
+  // Pasting a space shouldn't enter keyword mode. This isn't strictly necessary
+  // because `OnAfterPossibleChange()`, the only caller of
+  // `ShouldAcceptKeywordAfterInsertingSpaceAtEnd()`, doesn't make the call if
+  // there was a paste. But it'd be fragile to rely on that logic.
+  if (paste_state_ != PasteState::kNone) {
+    return false;
+  }
+
+  // `input` must end with space. Typing 'youtube' shouldn't enter
+  // keyword mode until the user types a final space.
+  if (!IsSpaceCharForAcceptingKeyword(new_text[new_text.length() - 1])) {
+    return false;
+  }
+
+  // Check the rest of the input matches `keyword`. This isn't necessary,
+  // `AutocompleteController` shouldn't show keyword hints on the default match
+  // for inputs like 'yout '. But that's not a guarantee.
+  if (new_text.substr(0, new_text.length() - 1) != keyword_) {
+    return false;
+  }
+
+  return true;
 }
 
-bool OmniboxEditModel::CreatedKeywordSearchByInsertingSpaceInMiddle(
-    const std::u16string& old_text,
-    const std::u16string& new_text,
+bool OmniboxEditModel::ShouldAcceptKeywordAfterInsertingSpaceInMiddle(
+    std::u16string_view old_text,
+    std::u16string_view new_text,
     size_t caret_position) const {
   DCHECK_GE(new_text.length(), caret_position);
-
-  // Check simple conditions first.
-  if ((paste_state_ != PasteState::kNone) || (caret_position < 2) ||
-      (old_text.length() < caret_position) ||
-      (new_text.length() == caret_position)) {
+  // Check if the user has disabled space triggering.
+  if (!AllowKeywordSpaceTriggering()) {
     return false;
   }
+
+  // Unlike `ShouldAcceptKeywordAfterInsertingSpaceAtEnd()`, don't check a
+  // keyword hint was being shown. The input may have been 'youtube|query',
+  // which won't show a keyword hint, but space should still enter keyword mode.
+
+  // Pasting a space shouldn't enter keyword mode.
+  if (paste_state_ != PasteState::kNone) {
+    return false;
+  }
+
+  // Check a space was inserted in the middle of the input text. E.g.
+  // - 'youtube |query'  -> valid
+  // - ' |youtube'       -> invalid
+  // - 'youtube |'       -> invalid
+  // - 'youtube  |query' -> invalid
+  // Some of these are redundant with other checks below.
   size_t space_position = caret_position - 1;
-  if (!IsSpaceCharForAcceptingKeyword(new_text[space_position]) ||
-      base::IsUnicodeWhitespace(new_text[space_position - 1]) ||
-      new_text.compare(0, space_position, old_text, 0, space_position) ||
-      !new_text.compare(space_position, new_text.length() - space_position,
-                        old_text, space_position,
-                        old_text.length() - space_position)) {
+  if (caret_position < 2 || old_text.length() < caret_position ||
+      new_text.length() == caret_position ||
+      !IsSpaceCharForAcceptingKeyword(new_text[space_position]) ||
+      base::IsUnicodeWhitespace(new_text[space_position - 1])) {
     return false;
   }
 
-  // Then check if the text before the inserted space matches a keyword.
-  std::u16string keyword;
-  base::TrimWhitespace(new_text.substr(0, space_position), base::TRIM_LEADING,
-                       &keyword);
-  return !keyword.empty() &&
-         !autocomplete_controller()
-              ->keyword_provider()
-              ->GetKeywordForText(
-                  keyword, controller_->client()->GetTemplateURLService())
-              .empty();
+  // If the text preceding the space changed, then it's not a simple space
+  // insertion.
+  if (old_text.substr(0, space_position) !=
+      new_text.substr(0, space_position)) {
+    return false;
+  }
+
+  // Check if  the text was unchanged. E.g. old text was 'youtube[ ]query' and
+  // the user replaced the selected space with another space.
+  if (old_text == new_text) {
+    return false;
+  }
+
+  // Check there aren't multiple words preceding the space. E.g.
+  // 'youtube google |query' shouldn't accept the 'youtube' keyword.
+  if (new_text.substr(0, space_position)
+          .find_first_of(base::kWhitespaceUTF16) != std::u16string_view::npos) {
+    return false;
+  }
+
+  return true;
 }
 
 //  static
@@ -2874,12 +2926,26 @@ std::u16string OmniboxEditModel::GetText() const {
 }
 
 void OmniboxEditModel::SetKeyword(const std::u16string& keyword) {
+  const bool old_keyword_selected = is_keyword_selected();
   keyword_ = keyword;
+  const bool new_keyword_selected = is_keyword_selected();
+  if (old_keyword_selected != new_keyword_selected) {
+    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
+  }
 }
 
 void OmniboxEditModel::SetKeywordPlaceholder(
     const std::u16string& keyword_placeholder) {
   keyword_placeholder_ = keyword_placeholder;
+}
+
+void OmniboxEditModel::SetIsKeywordHint(bool is_keyword_hint) {
+  const bool old_keyword_selected = is_keyword_selected();
+  is_keyword_hint_ = is_keyword_hint;
+  const bool new_keyword_selected = is_keyword_selected();
+  if (old_keyword_selected != new_keyword_selected) {
+    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
+  }
 }
 
 void OmniboxEditModel::RecordAiModeMetrics(const std::u16string& query_text,

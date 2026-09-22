@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "api/field_trials_view.h"
+#include "api/units/time_delta.h"
 #include "modules/include/module_common_types_public.h"
 #include "rtc_base/gtest_prod_util.h"
 
@@ -111,6 +112,10 @@ class NackTracker {
     int default_rtt_ms = 100;
     // Do not nack if the loss rate is above this value.
     double max_loss_rate = 1.0;
+    // If set, the maximum nack delay will be fixed and compared to the latest
+    // received packet instead of using the time to play estimate and the loss
+    // rate.
+    std::optional<TimeDelta> fixed_delay;
   };
 
   struct NackElement {
@@ -171,6 +176,8 @@ class NackTracker {
   // Updates the estimated packet lost rate.
   void UpdatePacketLossRate(int packets_lost);
 
+  bool Nack(const NackElement& packet, int64_t round_trip_time_ms);
+
   const Config config_;
 
   // Valid if a packet is received.
@@ -178,7 +185,7 @@ class NackTracker {
   uint32_t timestamp_last_received_rtp_;
   bool any_rtp_received_;  // If any packet received.
 
-  // Valid if a packet is decoded.
+  // Valid if a packet is decoded. These are not used in fixed delay mode.
   uint32_t timestamp_last_decoded_rtp_;
   bool any_rtp_decoded_;  // If any packet decoded.
 
@@ -195,6 +202,8 @@ class NackTracker {
 
   // Current estimate of the packet loss rate in Q30.
   uint32_t packet_loss_rate_ = 0;
+
+  int max_wait_ms_ = 0;
 };
 
 }  // namespace webrtc

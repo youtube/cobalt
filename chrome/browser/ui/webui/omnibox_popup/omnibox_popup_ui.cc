@@ -20,19 +20,20 @@
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
-#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_aim_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
+#include "chrome/browser/ui/webui/searchbox/omnibox_composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/omnibox_popup_resources.h"
 #include "chrome/grit/omnibox_popup_resources_map.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/favicon_base/favicon_url_parser.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/browser/web_ui_data_source.h"
-#include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/webui_util.h"
 
 namespace {
@@ -59,7 +60,7 @@ std::string AddContextButtonVariantToSearchboxLayoutMode(
 
 bool OmniboxPopupUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup) ||
+  return omnibox::IsAimPopupFeatureEnabled() ||
          base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
          base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup);
 }
@@ -85,10 +86,6 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
       "resultChangedToPaintMetricName",
       "Omnibox.Popup.WebUI.ResultChangedToRepaintLatency.ToPaint");
 
-  source->AddBoolean(
-      "showContextEntrypoint",
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup));
-
   // Add composebox data.
   auto composebox_config = omnibox::FeatureConfig::Get().config.composebox();
   const std::string attachment_mime_types =
@@ -108,6 +105,10 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                          composebox_config.is_pdf_upload_enabled();
   source->AddBoolean("composeboxShowPdfUpload", show_pdf_upload);
 
+  source->AddBoolean(
+      "showContextMenuEntrypoint",
+      aim_eligibility_service && aim_eligibility_service->IsAimEligible());
+
   source->AddBoolean("composeboxCloseByClickOutside",
                      omnibox::kCloseComposeboxByClickOutside.Get());
   source->AddBoolean("composeboxCloseByEscape",
@@ -115,6 +116,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection",
                      omnibox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("composeboxContextDragAndDropEnabled", false);
+  source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   source->AddBoolean("composeboxShowContextMenu",
                      omnibox::kShowContextMenu.Get());
   source->AddBoolean("composeboxShowContextMenuDescription",
@@ -142,6 +144,11 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
           omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get());
   source->AddString("searchboxLayoutMode", searchbox_layout_mode);
   source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
+  source->AddString(
+      "composeboxSource",
+      contextual_search::ContextualSearchMetricsRecorder::
+          ContextualSearchSourceToString(
+              contextual_search::ContextualSearchSource::kOmnibox));
 
   webui::SetupWebUIDataSource(
       source, kOmniboxPopupResources,
@@ -172,18 +179,11 @@ void OmniboxPopupUI::BindInterface(
 
   MetricsReporterService* metrics_reporter_service =
       MetricsReporterService::GetFromWebContents(web_ui()->GetWebContents());
-  handler_ = std::make_unique<WebuiOmniboxHandler>(
+  omnibox_handler_ = std::make_unique<WebuiOmniboxHandler>(
       std::move(pending_page_handler),
       metrics_reporter_service->metrics_reporter(), omnibox_controller,
       web_ui());
-  handler_->SetEmbedder(embedder());
-}
-
-void OmniboxPopupUI::BindInterface(
-    mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
-        pending_receiver) {
-  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
-      web_ui()->GetWebContents(), std::move(pending_receiver));
+  omnibox_handler_->SetEmbedder(embedder());
 }
 
 void OmniboxPopupUI::BindInterface(
@@ -222,7 +222,7 @@ void OmniboxPopupUI::CreatePageHandler(
     contextual_search_web_contents_helper->set_session_handle(
         std::move(contextual_session_handle));
 
-    composebox_handler_ = std::make_unique<ComposeboxHandler>(
+    composebox_handler_ = std::make_unique<OmniboxComposeboxHandler>(
         std::move(pending_page_handler), std::move(pending_page),
         std::move(pending_searchbox_handler), profile_,
         web_ui()->GetWebContents());

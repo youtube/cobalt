@@ -129,13 +129,14 @@ public class PreferenceParser {
         for (Bundle bundle : metadata) {
             String key = bundle.getString(METADATA_KEY);
             String title = bundle.getString(METADATA_TITLE);
-            if (TextUtils.isEmpty(key) || TextUtils.isEmpty(title)) continue;
+            if (TextUtils.isEmpty(key)) continue;
 
             String uniqueId = createUniqueId(prefFragment, key);
 
             indexData.addEntry(
                     uniqueId,
                     new SettingsIndexData.Entry.Builder(uniqueId, key, title, prefFragment)
+                            .setHeader(bundle.getString(METADATA_HEADER))
                             .setSummary(bundle.getString(METADATA_SUMMARY))
                             .setFragment(bundle.getString(METADATA_FRAGMENT))
                             .build());

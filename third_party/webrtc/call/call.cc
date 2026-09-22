@@ -110,11 +110,11 @@ namespace {
 class PayloadTypeSuggesterForTests : public PayloadTypeSuggester {
  public:
   PayloadTypeSuggesterForTests() = default;
-  RTCErrorOr<PayloadType> SuggestPayloadType(const std::string& /* mid */,
-                                             Codec codec) override {
+  RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view /*mid*/,
+                                             const Codec& codec) override {
     return payload_type_picker_.SuggestMapping(codec, nullptr);
   }
-  RTCError AddLocalMapping(const std::string& /* mid */,
+  RTCError AddLocalMapping(absl::string_view mid,
                            PayloadType /* payload_type */,
                            const Codec& /* codec */) override {
     return RTCError::OK();

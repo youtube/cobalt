@@ -335,7 +335,7 @@ private:
             }
 
             // TODO: optimize for the special case when the input is SkMemoryStream.
-            return SkStreamCopy(&fStreamBuffer, fStream.get());
+            return SkStreamPriv::Copy(&fStreamBuffer, fStream.get());
         }
 
         if (newSize <= fStreamBuffer.bytesWritten()) {  // already buffered to newSize
@@ -866,7 +866,7 @@ std::unique_ptr<SkCodec> Decode(std::unique_ptr<SkStream> stream,
     return SkRawCodec::MakeFromStream(std::move(stream), outResult);
 }
 
-std::unique_ptr<SkCodec> Decode(sk_sp<SkData> data,
+std::unique_ptr<SkCodec> Decode(sk_sp<const SkData> data,
                                 SkCodec::Result* outResult,
                                 SkCodecs::DecodeContext) {
     if (!data) {

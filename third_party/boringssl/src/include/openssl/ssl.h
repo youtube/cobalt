@@ -2264,6 +2264,10 @@ OPENSSL_EXPORT int SSL_CTX_remove_session(SSL_CTX *ctx, SSL_SESSION *session);
 // of time |time|. If |time| is zero, all sessions are removed.
 OPENSSL_EXPORT void SSL_CTX_flush_sessions(SSL_CTX *ctx, uint64_t time);
 
+// SSL_new_session_cb is the type of the callback that is called when a new
+// session is established and ready to be cached.
+typedef int (*SSL_new_session_cb)(SSL *ssl, SSL_SESSION *session);
+
 // SSL_CTX_sess_set_new_cb sets the callback to be called when a new session is
 // established and ready to be cached. If the session cache is disabled (the
 // appropriate one of |SSL_SESS_CACHE_CLIENT| or |SSL_SESS_CACHE_SERVER| is
@@ -2282,13 +2286,16 @@ OPENSSL_EXPORT void SSL_CTX_flush_sessions(SSL_CTX *ctx, uint64_t time);
 // |SSL_do_handshake| or |SSL_connect| completes if False Start is enabled. Thus
 // it's recommended to use this callback over calling |SSL_get_session| on
 // handshake completion.
-OPENSSL_EXPORT void SSL_CTX_sess_set_new_cb(
-    SSL_CTX *ctx, int (*new_session_cb)(SSL *ssl, SSL_SESSION *session));
+OPENSSL_EXPORT void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx,
+                                            SSL_new_session_cb new_session_cb);
 
 // SSL_CTX_sess_get_new_cb returns the callback set by
 // |SSL_CTX_sess_set_new_cb|.
-OPENSSL_EXPORT int (*SSL_CTX_sess_get_new_cb(SSL_CTX *ctx))(
-    SSL *ssl, SSL_SESSION *session);
+OPENSSL_EXPORT SSL_new_session_cb SSL_CTX_sess_get_new_cb(SSL_CTX *ctx);
+
+// SSL_remove_session_cb is the type of the callback that is called when a
+// session is removed from the internal session cache.
+typedef void (*SSL_remove_session_cb)(SSL_CTX *ctx, SSL_SESSION *session);
 
 // SSL_CTX_sess_set_remove_cb sets a callback which is called when a session is
 // removed from the internal session cache.
@@ -2296,13 +2303,16 @@ OPENSSL_EXPORT int (*SSL_CTX_sess_get_new_cb(SSL_CTX *ctx))(
 // TODO(davidben): What is the point of this callback? It seems useless since it
 // only fires on sessions in the internal cache.
 OPENSSL_EXPORT void SSL_CTX_sess_set_remove_cb(
-    SSL_CTX *ctx,
-    void (*remove_session_cb)(SSL_CTX *ctx, SSL_SESSION *session));
+    SSL_CTX *ctx, SSL_remove_session_cb remove_session_cb);
 
 // SSL_CTX_sess_get_remove_cb returns the callback set by
 // |SSL_CTX_sess_set_remove_cb|.
-OPENSSL_EXPORT void (*SSL_CTX_sess_get_remove_cb(SSL_CTX *ctx))(
-    SSL_CTX *ctx, SSL_SESSION *session);
+OPENSSL_EXPORT SSL_remove_session_cb SSL_CTX_sess_get_remove_cb(SSL_CTX *ctx);
+
+// SSL_get_session_cb is the type of the callback that is called to look up a
+// session by ID for a server.
+typedef SSL_SESSION *(*SSL_get_session_cb)(SSL *ssl, const uint8_t *id,
+                                           int id_len, int *out_copy);
 
 // SSL_CTX_sess_set_get_cb sets a callback to look up a session by ID for a
 // server. The callback is passed the session ID and should return a matching
@@ -2323,14 +2333,12 @@ OPENSSL_EXPORT void (*SSL_CTX_sess_get_remove_cb(SSL_CTX *ctx))(
 //
 // If the internal session cache is enabled, the callback is only consulted if
 // the internal cache does not return a match.
-OPENSSL_EXPORT void SSL_CTX_sess_set_get_cb(
-    SSL_CTX *ctx, SSL_SESSION *(*get_session_cb)(SSL *ssl, const uint8_t *id,
-                                                 int id_len, int *out_copy));
+OPENSSL_EXPORT void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx,
+                                            SSL_get_session_cb get_session_cb);
 
 // SSL_CTX_sess_get_get_cb returns the callback set by
 // |SSL_CTX_sess_set_get_cb|.
-OPENSSL_EXPORT SSL_SESSION *(*SSL_CTX_sess_get_get_cb(SSL_CTX *ctx))(
-    SSL *ssl, const uint8_t *id, int id_len, int *out_copy);
+OPENSSL_EXPORT SSL_get_session_cb SSL_CTX_sess_get_get_cb(SSL_CTX *ctx);
 
 // SSL_magic_pending_session_ptr returns a magic |SSL_SESSION|* which indicates
 // that the session isn't currently unavailable. |SSL_get_error| will then

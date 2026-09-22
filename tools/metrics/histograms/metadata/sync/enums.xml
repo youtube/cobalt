@@ -81,7 +81,8 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Profile menu primary button action"/>
   <int value="5" label="Profile menu primary button with bookmarks action"/>
   <int value="6"
-      label="Profile menu priamry button with Windows10 depreciation action"/>
+      label="Profile menu primary button with Windows10 depreciation action"/>
+  <int value="7" label="Account settings"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/profiles/batch_upload/batch_upload_service.h:EntryPoint) -->
@@ -387,6 +388,7 @@ chromium-metrics-reviews@google.com.
   <int value="108" label="CrossDeviceMagicStackHomeModuleEnabled"/>
   <int value="109" label="ShowAiModeOmniboxButton"/>
   <int value="110" label="AutofillAiSyncedOptInStatus"/>
+  <int value="111" label="iOSPromoReminder"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -791,6 +793,10 @@ chromium-metrics-reviews@google.com.
   <int value="100363" label="DockedMagnifierAcceleratorDialogHasBeenAccepted"/>
   <int value="100364" label="SelectToSpeakAcceleratorDialogHasBeenAccepted"/>
   <int value="100365" label="AccessibilityScreenMagnifierScale"/>
+  <int value="100366" label="(obsolete) iOSPromoReminder"/>
+  <int value="100367" label="ClassManagementToolsOOBEAccessCountSetting"/>
+  <int value="100368" label="ClassManagementToolsKioskReceiverCodes"/>
+  <int value="100369" label="PinContextualTaskButton"/>
 <!-- LINT.ThenChange(/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc:ChromeSyncablePref)-->
 
 <!-- LINT.IfChange(IosSyncablePref) -->
@@ -1061,6 +1067,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Sync settings not confirmed"/>
   <int value="6" label="Sync needs trusted vault key"/>
   <int value="7" label="Sync trusted vault recoverability degraded"/>
+  <int value="8" label="Bookmarks limit exceeded"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/settings/model/sync/utils/sync_util.mm:SyncErrorInfobarTypes) -->
@@ -1621,6 +1628,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Unrecoverable error"/>
   <int value="9" label="Needs UPM backend upgrade"/>
   <int value="10" label="Needs client upgrade"/>
+  <int value="11" label="Bookmarks limit exceeded"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/service/sync_service.h:UserActionableError) -->

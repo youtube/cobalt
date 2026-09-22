@@ -73,7 +73,6 @@ const Codec kAudioCodecsAnswer[] = {
 
 TEST(CodecVendorTest, TestSetAudioCodecs) {
   FieldTrials trials = CreateTestFieldTrials();
-  CodecVendor codec_vendor(nullptr, false, trials);
   std::vector<Codec> send_codecs = MAKE_VECTOR(kAudioCodecs1);
   std::vector<Codec> recv_codecs = MAKE_VECTOR(kAudioCodecs2);
 
@@ -83,8 +82,6 @@ TEST(CodecVendorTest, TestSetAudioCodecs) {
   // (set to 1). This equals what happens when the send codecs are used in an
   // offer and the receive codecs are used in the following answer.
   const std::vector<Codec> sendrecv_codecs = MAKE_VECTOR(kAudioCodecsAnswer);
-  CodecList no_codecs;
-
   RTC_CHECK_EQ(send_codecs[2].name, "G722")
       << "Please don't change shared test data!";
   RTC_CHECK_EQ(recv_codecs[2].name, "G722")
@@ -98,31 +95,48 @@ TEST(CodecVendorTest, TestSetAudioCodecs) {
   recv_codecs[1].name = "pcmu";
 
   // Test proper merge
-  codec_vendor.set_audio_codecs(CodecList::CreateFromTrustedData(send_codecs),
-                                CodecList::CreateFromTrustedData(recv_codecs));
-  EXPECT_EQ(send_codecs, codec_vendor.audio_send_codecs().codecs());
-  EXPECT_EQ(recv_codecs, codec_vendor.audio_recv_codecs().codecs());
-  EXPECT_EQ(sendrecv_codecs, codec_vendor.audio_sendrecv_codecs().codecs());
+  FakeMediaEngine media_engine;
+  media_engine.SetAudioSendCodecs(send_codecs);
+  media_engine.SetAudioRecvCodecs(recv_codecs);
+  {
+    CodecVendor codec_vendor(&media_engine, false, trials);
+    EXPECT_EQ(send_codecs, codec_vendor.audio_send_codecs().codecs());
+    EXPECT_EQ(recv_codecs, codec_vendor.audio_recv_codecs().codecs());
+    EXPECT_EQ(sendrecv_codecs, codec_vendor.audio_sendrecv_codecs().codecs());
+  }
 
   // Test empty send codecs list
-  codec_vendor.set_audio_codecs(no_codecs,
-                                CodecList::CreateFromTrustedData(recv_codecs));
-  EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_send_codecs().codecs());
-  EXPECT_EQ(recv_codecs, codec_vendor.audio_recv_codecs().codecs());
-  EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_sendrecv_codecs().codecs());
+  CodecList no_codecs;
+  media_engine.SetAudioSendCodecs(no_codecs.codecs());
+  media_engine.SetAudioRecvCodecs(recv_codecs);
+  {
+    CodecVendor codec_vendor(&media_engine, false, trials);
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_send_codecs().codecs());
+    EXPECT_EQ(recv_codecs, codec_vendor.audio_recv_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(),
+              codec_vendor.audio_sendrecv_codecs().codecs());
+  }
 
   // Test empty recv codecs list
-  codec_vendor.set_audio_codecs(CodecList::CreateFromTrustedData(send_codecs),
-                                no_codecs);
-  EXPECT_EQ(send_codecs, codec_vendor.audio_send_codecs().codecs());
-  EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_recv_codecs().codecs());
-  EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_sendrecv_codecs().codecs());
+  media_engine.SetAudioSendCodecs(send_codecs);
+  media_engine.SetAudioRecvCodecs(no_codecs.codecs());
+  {
+    CodecVendor codec_vendor(&media_engine, false, trials);
+    EXPECT_EQ(send_codecs, codec_vendor.audio_send_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_recv_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(),
+              codec_vendor.audio_sendrecv_codecs().codecs());
+  }
 
   // Test all empty codec lists
-  codec_vendor.set_audio_codecs(no_codecs, no_codecs);
-  EXPECT_EQ(no_codecs, codec_vendor.audio_send_codecs());
-  EXPECT_EQ(no_codecs, codec_vendor.audio_recv_codecs());
-  EXPECT_EQ(no_codecs, codec_vendor.audio_sendrecv_codecs());
+  media_engine.SetAudioSendCodecs(no_codecs.codecs());
+  media_engine.SetAudioRecvCodecs(no_codecs.codecs());
+  {
+    CodecVendor codec_vendor(&media_engine, false, trials);
+    EXPECT_EQ(no_codecs, codec_vendor.audio_send_codecs());
+    EXPECT_EQ(no_codecs, codec_vendor.audio_recv_codecs());
+    EXPECT_EQ(no_codecs, codec_vendor.audio_sendrecv_codecs());
+  }
 }
 
 TEST(CodecVendorTest, VideoRtxIsIncludedWhenAskedFor) {
@@ -132,10 +146,10 @@ TEST(CodecVendorTest, VideoRtxIsIncludedWhenAskedFor) {
       CreateVideoCodec(97, "vp8"),
       CreateVideoRtxCodec(98, 97),
   });
-  FakePayloadTypeSuggester pt_suggester;
   media_engine.SetVideoSendCodecs(video_codecs);
   CodecVendor codec_vendor(&media_engine, /* rtx_enabled= */ true,
                            env.field_trials());
+  FakePayloadTypeSuggester pt_suggester;
   RTCErrorOr<std::vector<Codec>> offered_codecs =
       codec_vendor.GetNegotiatedCodecsForOffer(
           MediaDescriptionOptions(MediaType::VIDEO, "mid",
@@ -152,10 +166,10 @@ TEST(CodecVendorTest, VideoRtxIsExcludedWhenNotAskedFor) {
       CreateVideoCodec(97, "vp8"),
       CreateVideoRtxCodec(98, 97),
   });
-  FakePayloadTypeSuggester pt_suggester;
   media_engine.SetVideoSendCodecs(video_codecs);
   CodecVendor codec_vendor(&media_engine, /* rtx_enabled= */ false,
                            env.field_trials());
+  FakePayloadTypeSuggester pt_suggester;
   RTCErrorOr<std::vector<Codec>> offered_codecs =
       codec_vendor.GetNegotiatedCodecsForOffer(
           MediaDescriptionOptions(MediaType::VIDEO, "mid",

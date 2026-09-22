@@ -258,6 +258,12 @@ class WebRequestProxyingURLLoaderFactory
     // is only set to true if there is a listener that needs to view or modify
     // headers set in the network process.
     const bool has_any_extra_headers_listeners_ = false;
+
+    // Similar to the |has_any_extra_headers_listeners_|, setting
+    // |has_any_security_info_listeners_| also will make the request to use
+    // network::mojom::kURLLoadOptionUseHeaderClient option.
+    const bool has_any_security_info_listeners_ = false;
+
     bool current_request_uses_header_client_ = false;
     OnBeforeSendHeadersCallback on_before_send_headers_callback_;
     OnHeadersReceivedCallback on_headers_received_callback_;
@@ -281,6 +287,10 @@ class WebRequestProxyingURLLoaderFactory
     };
     std::unique_ptr<FollowRedirectParams> pending_follow_redirect_params_;
     State state_ = State::kInProgress;
+
+    // Whether URLLoaderClient's OnReceiveResponse() has been called. It must be
+    // called at most once. It is added to debug crbug.com/463388771.
+    bool has_forwarded_response_ = false;
 
     // A task runner that should be used for the request when non-null. Non-null
     // when this was created for a navigation request.

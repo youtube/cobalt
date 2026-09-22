@@ -23,7 +23,6 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/json/values_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
@@ -1282,8 +1281,5 @@ INSTANTIATE_TEST_SUITE_P(KioskBrowserSessionTroubleshootingShortcuts,
                          ::testing::Values(KioskType::kChromeApp,
                                            KioskType::kWebApp,
                                            KioskType::kIwa));
-
-// TODO(b/325648738): add KioskBrowserSessionDeathTest to check kiosk session
-// crash when unexpected browser is not closed.
 
 }  // namespace chromeos

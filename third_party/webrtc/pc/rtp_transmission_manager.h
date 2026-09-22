@@ -79,7 +79,7 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
                          UsagePattern* usage_pattern,
                          PeerConnectionObserver* observer,
                          LegacyStatsCollectorInterface* legacy_stats,
-                         std::function<void()> on_negotiation_needed);
+                         absl::AnyInvocable<void()> on_negotiation_needed);
 
   // No move or copy permitted.
   RtpTransmissionManager(const RtpTransmissionManager&) = delete;
@@ -271,7 +271,7 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
   UsagePattern* usage_pattern_;
   PeerConnectionObserver* observer_;
   LegacyStatsCollectorInterface* const legacy_stats_;
-  std::function<void()> on_negotiation_needed_;
+  absl::AnyInvocable<void()> on_negotiation_needed_;
   WeakPtrFactory<RtpTransmissionManager> weak_ptr_factory_
       RTC_GUARDED_BY(signaling_thread());
 };

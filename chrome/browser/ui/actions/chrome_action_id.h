@@ -91,6 +91,7 @@
   E(kActionProfileMenuInAppMenu, IDC_PROFILE_MENU_IN_APP_MENU) \
   E(kActionPasswordsAndAutofillMenu, IDC_PASSWORDS_AND_AUTOFILL_MENU) \
   E(kActionShowMemorySaverChip) \
+  E(kActionShowJsOptimizationsIcon) \
   E(kActionShowCookieControls) \
   /* Page-manipulation commands that target a specified tab, which may not */ \
   /* be the active one. */ \
@@ -341,6 +342,7 @@
   E(kActionContentContextLensRegionSearch, \
     IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH) \
   E(kActionAiMode) \
+  E(kActionLensOverlayHomework) \
   E(kActionContentContextWebRegionSearch, \
     IDC_CONTENT_CONTEXT_WEB_REGION_SEARCH) \
   E(kActionContentContextGeneratePassword, \

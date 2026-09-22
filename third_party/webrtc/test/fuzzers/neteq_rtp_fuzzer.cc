@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -144,8 +145,8 @@ class FuzzRtpInput : public NetEqInput {
     size_t bytes_to_fuzz = data_[data_ix_++];
 
     // Restrict number of bytes to fuzz to 16; a reasonably low number enough to
-    // cover a few RED headers.
-    bytes_to_fuzz = bytes_to_fuzz % 16;
+    // cover a few RED headers. Also don't write outside the payload length.
+    bytes_to_fuzz = std::min(bytes_to_fuzz % 16, packet_->payload_size());
 
     if (bytes_to_fuzz == 0)
       return;
@@ -155,7 +156,10 @@ class FuzzRtpInput : public NetEqInput {
       return;
     }
 
-    packet_->SetPayload(MakeArrayView(&data_[data_ix_], bytes_to_fuzz));
+    // Call `SetPayloadSize` to get access to the writable RTP payload without
+    // changing its size.
+    uint8_t* payload = packet_->SetPayloadSize(packet_->payload_size());
+    std::memcpy(payload, &data_[data_ix_], bytes_to_fuzz);
     data_ix_ += bytes_to_fuzz;
   }
 

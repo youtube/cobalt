@@ -804,6 +804,7 @@ if (rtc_include_tests) {
         "pc/e2e:e2e_unittests",
         "pc/e2e/analyzer/video:video_analyzer_unittests",
         "pc/e2e/analyzer/video/dvqa:dvqa_unittests",
+        "peer_scenario/bwe_integration_tests",
         "peer_scenario/tests",
         "scenario:scenario_unittests",
         "time_controller",

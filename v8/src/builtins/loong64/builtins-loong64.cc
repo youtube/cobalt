@@ -3444,9 +3444,11 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+  DCHECK(!AreAliased(a1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, a1);
   __ Trap();
   __ bind(&suspend);
@@ -3458,8 +3460,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
-  __ Push(cont, kContextRegister);
+  __ Push(arg_buffer, cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK_NE(kCArgRegs[4], cont);
@@ -3479,7 +3482,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register target_stack = a1;
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
-  __ Pop(cont, kContextRegister);
+  __ Pop(arg_buffer, cont, kContextRegister);
 
   Label ok;
   __ Branch(&ok, ne, target_stack, Operand(zero_reg));
@@ -3488,9 +3491,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
-  LoadJumpBuffer(masm, target_stack, true, a3);
+  DCHECK(!AreAliased(a4, arg_buffer, target_stack));
+  LoadJumpBuffer(masm, target_stack, true, a4);
   __ Trap();
   __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4424,9 +4429,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4436,18 +4441,16 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ li(scratch2, ER::isolate_address());
   Register holderV2 = zero_reg;
-  __ Push(receiver, scratch,  // kThisIndex, kDataIndex
-          undef, holderV2);   // kReturnValueIndex, kHolderV2Index
+  __ Push(receiver, callback,  // kThisIndex, kCallbackInfoIndex
+          undef, holderV2);    // kReturnValueIndex, kUnusedIndex
   __ Push(scratch2, holder);  // kIsolateIndex, kHolderIndex
 
   // |name_arg| clashes with |holder|, so we need to push holder first.

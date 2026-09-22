@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -22,8 +23,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chromeos/ash/components/geolocation/location_fetcher.h"
 #include "chromeos/ash/components/geolocation/simple_geolocation_request_test_monitor.h"
-#include "chromeos/ash/components/geolocation/system_location_provider.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_response_headers.h"
@@ -152,7 +153,7 @@ void RecordUmaNetworkLocationRequestSource() {
 
 // Creates the request url to send to the server.
 GURL GeolocationRequestURL(const GURL& url) {
-  if (url != SystemLocationProvider::DefaultGeolocationProviderURL()) {
+  if (url != GURL(LocationFetcher::kDefaultGeolocationProviderUrl)) {
     return url;
   }
 
@@ -467,7 +468,8 @@ void SimpleGeolocationRequest::StartRequest() {
   RecordUmaNetworkLocationRequestSource();
 }
 
-void SimpleGeolocationRequest::MakeRequest(ResponseCallback callback) {
+void SimpleGeolocationRequest::MakeRequest(
+    LocationProvider::ResponseCallback callback) {
   callback_ = std::move(callback);
   request_url_ = GeolocationRequestURL(service_url_);
   timeout_timer_.Start(FROM_HERE, timeout_, this,
@@ -498,8 +500,8 @@ void SimpleGeolocationRequest::Retry(bool server_error) {
 }
 
 void SimpleGeolocationRequest::OnSimpleURLLoaderComplete(
-    std::unique_ptr<std::string> response_body) {
-  bool is_success = !!response_body;
+    std::optional<std::string> response_body) {
+  bool is_success = response_body.has_value();
   int response_code = -1;
   if (simple_url_loader_->ResponseInfo() &&
       simple_url_loader_->ResponseInfo()->headers) {
@@ -509,7 +511,8 @@ void SimpleGeolocationRequest::OnSimpleURLLoaderComplete(
   RecordUmaResponseCode(response_code);
 
   const bool parse_success = GetGeolocationFromResponse(
-      is_success, response_code, response_body ? *response_body : std::string(),
+      is_success, response_code,
+      std::move(response_body).value_or(std::string()),
       simple_url_loader_->GetFinalURL(), &position_);
   // Note that SimpleURLLoader doesn't return a body for non-2xx
   // responses by default.
@@ -546,7 +549,7 @@ void SimpleGeolocationRequest::ReplyAndDestroySelf(
   timeout_timer_.Stop();
   request_scheduled_.Stop();
 
-  ResponseCallback callback = std::move(callback_);
+  LocationProvider::ResponseCallback callback = std::move(callback_);
 
   // Empty callback is used to identify "completed or not yet started request".
   callback_.Reset();

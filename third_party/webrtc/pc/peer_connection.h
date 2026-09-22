@@ -65,6 +65,7 @@
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/transport_description.h"
+#include "p2p/dtls/dtls_transport_factory.h"
 #include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
@@ -483,7 +484,9 @@ class PeerConnection : public PeerConnectionInternal,
   JsepTransportController* InitializeNetworkThread(
       const ServerAddresses& stun_servers,
       const std::vector<RelayServerConfig>& turn_servers);
+  void CloseOnNetworkThread();
   JsepTransportController* InitializeTransportController_n(
+      std::unique_ptr<JsepTransportController> controller,
       const RTCConfiguration& configuration) RTC_RUN_ON(network_thread());
 
   scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
@@ -519,6 +522,11 @@ class PeerConnection : public PeerConnectionInternal,
       RTC_RUN_ON(signaling_thread());
 
   void OnNegotiationNeeded();
+
+  const JsepTransportController* transport_controller_s() const
+      RTC_RUN_ON(signaling_thread()) {
+    return transport_controller_copy_;
+  }
 
   // Called when first configuring the port allocator.
   struct InitializePortAllocatorResult {
@@ -558,7 +566,7 @@ class PeerConnection : public PeerConnectionInternal,
   // Returns the media index for a local ice candidate given the content name.
   // Returns false if the local session description does not have a media
   // content called  `content_name`.
-  bool GetLocalCandidateMediaIndex(const std::string& content_name,
+  bool GetLocalCandidateMediaIndex(absl::string_view content_name,
                                    int* sdp_mline_index)
       RTC_RUN_ON(signaling_thread());
 
@@ -568,7 +576,7 @@ class PeerConnection : public PeerConnectionInternal,
   void OnTransportControllerGatheringState(::webrtc::IceGatheringState state)
       RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidatesGathered(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       const std::vector<Candidate>& candidates) RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidateError(const IceCandidateErrorEvent& event)
       RTC_RUN_ON(signaling_thread());
@@ -605,7 +613,7 @@ class PeerConnection : public PeerConnectionInternal,
   // changed (as a result of BUNDLE negotiation, or m= sections being
   // rejected).
   bool OnTransportChanged(
-      const std::string& mid,
+      absl::string_view mid,
       RtpTransportInternal* rtp_transport,
       scoped_refptr<DtlsTransport> dtls_transport,
       DataChannelTransportInterface* data_channel_transport) override;
@@ -614,11 +622,11 @@ class PeerConnection : public PeerConnectionInternal,
 
   MediaEngineInterface* media_engine() const RTC_RUN_ON(worker_thread());
 
-  std::function<void(const webrtc::CopyOnWriteBuffer& packet,
-                     int64_t packet_time_us)>
+  absl::AnyInvocable<void(const CopyOnWriteBuffer& packet,
+                          int64_t packet_time_us) const>
   InitializeRtcpCallback();
 
-  std::function<void(const RtpPacketReceived& parsed_packet)>
+  absl::AnyInvocable<void(const RtpPacketReceived& parsed_packet) const>
   InitializeUnDemuxablePacketHandler();
 
   bool CanAttemptDtlsStunPiggybacking();
@@ -669,6 +677,7 @@ class PeerConnection : public PeerConnectionInternal,
                                // pointer is given to
                                // `jsep_transport_controller_` and used on the
                                // network thread.
+  const std::unique_ptr<DtlsTransportFactory> dtls_transport_factory_;
   const std::unique_ptr<SSLCertificateVerifier> tls_cert_verifier_
       RTC_GUARDED_BY(network_thread());
 

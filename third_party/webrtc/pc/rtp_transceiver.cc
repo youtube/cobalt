@@ -314,23 +314,24 @@ void RtpTransceiver::SetChannel(
   // Similarly, if the channel() accessor is limited to the network thread, that
   // helps with keeping the channel implementation requirements being met and
   // avoids synchronization for accessing the pointer or network related state.
-  context()->network_thread()->BlockingCall([&]() {
-    channel_->SetRtpTransport(std::move(transport_lookup)(channel_->mid()));
-    channel_->SetFirstPacketReceivedCallback(
-        [thread = thread_, flag = signaling_thread_safety_, this]() mutable {
+  context()->network_thread()->BlockingCall(
+      [&, flag = signaling_thread_safety_]() {
+        channel_->SetRtpTransport(std::move(transport_lookup)(channel_->mid()));
+        channel_->SetFirstPacketReceivedCallback([thread = thread_, flag = flag,
+                                                  this]() mutable {
           thread->PostTask(
               SafeTask(std::move(flag), [this]() { OnFirstPacketReceived(); }));
         });
-    channel_->SetFirstPacketSentCallback(
-        [thread = thread_, flag = signaling_thread_safety_, this]() mutable {
+        channel_->SetFirstPacketSentCallback([thread = thread_, flag = flag,
+                                              this]() mutable {
           thread->PostTask(
               SafeTask(std::move(flag), [this]() { OnFirstPacketSent(); }));
         });
-    channel_->SetPacketReceivedCallback_n([this]() {
-      RTC_DCHECK_RUN_ON(context()->network_thread());
-      OnPacketReceived();
-    });
-  });
+        channel_->SetPacketReceivedCallback_n([this, flag = flag]() {
+          RTC_DCHECK_RUN_ON(context()->network_thread());
+          OnPacketReceived(flag);
+        });
+      });
   PushNewMediaChannel();
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
@@ -502,7 +503,8 @@ void RtpTransceiver::OnFirstPacketReceived() {
 }
 
 // RTC_RUN_ON(context()->network_thread())
-void RtpTransceiver::OnPacketReceived() {
+void RtpTransceiver::OnPacketReceived(
+    scoped_refptr<PendingTaskSafetyFlag> safety) {
   if (!receptive_) {
     return;
   }
@@ -510,14 +512,14 @@ void RtpTransceiver::OnPacketReceived() {
     return;
   }
   packet_notified_after_receptive_ = true;
-  thread_->PostTask([this]() {
+  thread_->PostTask(SafeTask(safety, [this]() {
     if (stopping() || stopped()) {
       return;
     }
     for (const auto& receiver : receivers_) {
       receiver->internal()->NotifyFirstPacketReceivedAfterReceptiveChange();
     }
-  });
+  }));
 }
 
 void RtpTransceiver::OnFirstPacketSent() {

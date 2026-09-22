@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "third_party/pffft/src/pffft.h"
 
 namespace webrtc {
@@ -36,24 +37,53 @@ class FeatureExtractor {
   };
 
   virtual ~FeatureExtractor() = default;
-  virtual void PushFeaturesToModelInput(std::vector<float>& frame,
-                                        ArrayView<float> model_input,
-                                        ModelInputEnum input_enum) = 0;
+
+  // Returns true if the feature extractor has enough data to produce a full
+  // set of features for the model input.
+  virtual bool ReadyForInference() const = 0;
+
+  // Buffers the frames for matching the expecting inference step size.
+  virtual void UpdateBuffers(
+      ArrayView<const ArrayView<const float, kBlockSize>> all_channels,
+      ModelInputEnum input_type) = 0;
+
+  // Uses the internal buffer data for producing the model input tensors.
+  virtual void PrepareModelInput(ArrayView<float> model_input,
+                                 ModelInputEnum input_type) = 0;
 };
 
 class TimeDomainFeatureExtractor : public FeatureExtractor {
-  void PushFeaturesToModelInput(std::vector<float>& frame,
-                                ArrayView<float> model_input,
-                                ModelInputEnum input_enum) override;
+ public:
+  explicit TimeDomainFeatureExtractor(int step_size);
+  ~TimeDomainFeatureExtractor() override;
+
+  bool ReadyForInference() const override;
+
+  void UpdateBuffers(
+      ArrayView<const ArrayView<const float, kBlockSize>> all_channels,
+      ModelInputEnum input_type) override;
+
+  void PrepareModelInput(ArrayView<float> model_input,
+                         ModelInputEnum input_type) override;
+
+ private:
+  const size_t step_size_;
+  std::vector<std::vector<float>> input_buffer_;
 };
 
 class FrequencyDomainFeatureExtractor : public FeatureExtractor {
  public:
   explicit FrequencyDomainFeatureExtractor(int step_size);
   ~FrequencyDomainFeatureExtractor();
-  void PushFeaturesToModelInput(std::vector<float>& frame,
-                                ArrayView<float> model_input,
-                                ModelInputEnum input_enum) override;
+
+  bool ReadyForInference() const override;
+
+  void UpdateBuffers(
+      ArrayView<const ArrayView<const float, kBlockSize>> all_channels,
+      ModelInputEnum input_type) override;
+
+  void PrepareModelInput(ArrayView<float> model_input,
+                         ModelInputEnum input_type) override;
 
  private:
   class PffftState {
@@ -69,13 +99,22 @@ class FrequencyDomainFeatureExtractor : public FeatureExtractor {
    private:
     float* const data_;
   };
-  const int step_size_;
+
+  void ComputeAndAddPowerSpectra(ArrayView<const float> frame,
+                                 std::unique_ptr<PffftState>& pffft_state,
+                                 int number_channels,
+                                 ArrayView<float> power_spectra);
+
+  const size_t step_size_;
   const int frame_size_;
   const std::vector<float> sqrt_hanning_;
   float* const spectrum_;
   float* const work_;
   PFFFT_Setup* pffft_setup_;
-  std::vector<std::unique_ptr<PffftState>> pffft_states_;
+  // Indexed by [ModelInputEnum][channel].
+  std::vector<std::vector<std::unique_ptr<PffftState>>> pffft_states_;
+  // Indexed by [ModelInputEnum][channel][sample].
+  std::vector<std::vector<std::vector<float>>> input_buffer_;
 };
 
 }  // namespace webrtc

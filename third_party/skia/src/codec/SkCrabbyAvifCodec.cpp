@@ -160,7 +160,7 @@ std::unique_ptr<SkCodec> SkCrabbyAvifCodec::MakeFromStream(std::unique_ptr<SkStr
         // It is safe to make without copy because we'll hold onto the stream.
         data = SkData::MakeWithoutCopy(stream->getMemoryBase(), stream->getLength());
     } else {
-        data = SkCopyStreamToData(stream.get());
+        data = SkStreamPriv::CopyStreamToData(stream.get());
         // If we are forced to copy the stream to a data, we can go ahead and
         // delete the stream.
         stream.reset(nullptr);
@@ -169,7 +169,7 @@ std::unique_ptr<SkCodec> SkCrabbyAvifCodec::MakeFromStream(std::unique_ptr<SkStr
 }
 
 std::unique_ptr<SkCodec> SkCrabbyAvifCodec::MakeFromData(std::unique_ptr<SkStream> stream,
-                                                         sk_sp<SkData> data,
+                                                         sk_sp<const SkData> data,
                                                          Result* result,
                                                          bool gainmapOnly /*=false*/) {
     SkASSERT(result);
@@ -284,7 +284,7 @@ std::unique_ptr<SkCodec> SkCrabbyAvifCodec::MakeFromData(std::unique_ptr<SkStrea
 
 SkCrabbyAvifCodec::SkCrabbyAvifCodec(SkEncodedInfo&& info,
                                      std::unique_ptr<SkStream> stream,
-                                     sk_sp<SkData> data,
+                                     sk_sp<const SkData> data,
                                      AvifDecoder avifDecoder,
                                      SkEncodedOrigin origin,
                                      bool useAnimation,
@@ -543,7 +543,7 @@ std::unique_ptr<SkCodec> Decode(std::unique_ptr<SkStream> stream,
     return SkCrabbyAvifCodec::MakeFromStream(std::move(stream), outResult);
 }
 
-std::unique_ptr<SkCodec> Decode(sk_sp<SkData> data,
+std::unique_ptr<SkCodec> Decode(sk_sp<const SkData> data,
                                 SkCodec::Result* outResult,
                                 SkCodecs::DecodeContext) {
     if (!data) {

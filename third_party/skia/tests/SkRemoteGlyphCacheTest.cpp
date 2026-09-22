@@ -717,7 +717,7 @@ sk_sp<SkTextBlob> make_blob_causing_fallback(
             !SkStrikeSpec::ShouldDrawAsPath(SkPaint(), font, SkMatrix::I()));
 
     char s[] = "Skia";
-    int runSize = strlen(s);
+    size_t runSize = strlen(s);
 
     SkTextBlobBuilder builder;
     SkRect bounds = SkRect::MakeIWH(100, 100);
@@ -732,7 +732,7 @@ sk_sp<SkTextBlob> make_blob_causing_fallback(
 
     REPORTER_ASSERT(reporter, glyphBounds.width() > SkGlyphDigest::kSkSideTooBigForAtlas);
 
-    for (int i = 0; i < runSize; i++) {
+    for (size_t i = 0; i < runSize; i++) {
         runBuffer.pos[i] = i * 10;
     }
 
@@ -933,7 +933,7 @@ sk_sp<SkTextBlob> MakeEmojiBlob(sk_sp<SkTypeface> serverTf, SkScalar textSize,
     if (clientTf == nullptr) return blob;
 
     SkSerialProcs s_procs;
-    s_procs.fTypefaceProc = [](SkTypeface*, void* ctx) -> sk_sp<SkData> {
+    s_procs.fTypefaceProc = [](SkTypeface*, void* ctx) -> sk_sp<const SkData> {
         return SkData::MakeUninitialized(1u);
     };
     auto serialized = blob->serialize(s_procs);
@@ -1008,7 +1008,7 @@ class SkRemoteGlyphCacheTest {
         if (clientTf == nullptr) return blob;
 
         SkSerialProcs s_procs;
-        s_procs.fTypefaceProc = [](SkTypeface*, void* ctx) -> sk_sp<SkData> {
+        s_procs.fTypefaceProc = [](SkTypeface*, void* ctx) -> sk_sp<const SkData> {
             return SkData::MakeUninitialized(1u);
         };
         auto serialized = blob->serialize(s_procs);

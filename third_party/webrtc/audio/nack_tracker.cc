@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "api/field_trials_view.h"
+#include "api/units/time_delta.h"
 #include "modules/include/module_common_types_public.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/struct_parameters_parser.h"
@@ -37,7 +38,7 @@ NackTracker::Config::Config(const FieldTrialsView& field_trials) {
       "packet_loss_forget_factor", &packet_loss_forget_factor,
       "ms_per_loss_percent", &ms_per_loss_percent, "never_nack_multiple_times",
       &never_nack_multiple_times, "require_valid_rtt", &require_valid_rtt,
-      "max_loss_rate", &max_loss_rate);
+      "max_loss_rate", &max_loss_rate, "fixed_delay", &fixed_delay);
   parser->Parse(field_trials.Lookup(kNackTrackerConfigFieldTrial));
   RTC_LOG(LS_INFO) << "Nack tracker config:"
                       " packet_loss_forget_factor="
@@ -45,7 +46,8 @@ NackTracker::Config::Config(const FieldTrialsView& field_trials) {
                    << " ms_per_loss_percent=" << ms_per_loss_percent
                    << " never_nack_multiple_times=" << never_nack_multiple_times
                    << " require_valid_rtt=" << require_valid_rtt
-                   << " max_loss_rate=" << max_loss_rate;
+                   << " max_loss_rate=" << max_loss_rate << " fixed_delay(ms)="
+                   << fixed_delay.value_or(TimeDelta::Zero()).ms();
 }
 
 NackTracker::NackTracker(const FieldTrialsView& field_trials)
@@ -149,6 +151,10 @@ uint32_t NackTracker::EstimateTimestamp(uint16_t sequence_num,
 }
 
 void NackTracker::UpdateLastDecodedPacket(uint32_t timestamp) {
+  if (config_.fixed_delay) {
+    // Fixed delay mode does not NACK based on the decoded timestamp.
+    return;
+  }
   any_rtp_decoded_ = true;
   timestamp_last_decoded_rtp_ = timestamp;
   // Packets in the list with timestamp less than the timestamp of the decoded
@@ -212,22 +218,11 @@ std::vector<uint16_t> NackTracker::GetNackList(int64_t round_trip_time_ms) {
       round_trip_time_ms = config_.default_rtt_ms;
     }
   }
-  if (packet_loss_rate_ >
-      static_cast<uint32_t>(config_.max_loss_rate * (1 << 30))) {
-    return sequence_numbers;
-  }
-  // The estimated packet loss is between 0 and 1, so we need to multiply by 100
-  // here.
-  int max_wait_ms =
-      100.0 * config_.ms_per_loss_percent * packet_loss_rate_ / (1 << 30);
   for (NackList::const_iterator it = nack_list_.begin(); it != nack_list_.end();
        ++it) {
-    int64_t time_since_packet_ms =
-        (timestamp_last_received_rtp_ - it->second.estimated_timestamp) /
-        sample_rate_khz_;
-    if (it->second.time_to_play_ms > round_trip_time_ms ||
-        time_since_packet_ms + round_trip_time_ms < max_wait_ms)
+    if (Nack(it->second, round_trip_time_ms)) {
       sequence_numbers.push_back(it->first);
+    }
   }
   if (config_.never_nack_multiple_times) {
     nack_list_.clear();
@@ -243,5 +238,30 @@ void NackTracker::UpdatePacketLossRate(int packets_lost) {
     packet_loss_rate_ =
         ((alpha_q30 * packet_loss_rate_) >> 30) + ((1 << 30) - alpha_q30);
   }
+  // The estimated packet loss is between 0 and 1, so we need to multiply by 100
+  // here.
+  max_wait_ms_ =
+      100.0 * config_.ms_per_loss_percent * packet_loss_rate_ / (1 << 30);
 }
+
+bool NackTracker::Nack(const NackElement& packet, int64_t round_trip_time_ms) {
+  int64_t time_since_packet_ms =
+      (timestamp_last_received_rtp_ - packet.estimated_timestamp) /
+      sample_rate_khz_;
+
+  if (config_.fixed_delay) {
+    // In fixed delay mode, we only NACK based on the delay compared to the
+    // latest received packet.
+    return time_since_packet_ms + round_trip_time_ms <
+           config_.fixed_delay->ms();
+  }
+
+  if (packet_loss_rate_ >
+      static_cast<uint32_t>(config_.max_loss_rate * (1 << 30))) {
+    return false;
+  }
+  return packet.time_to_play_ms > round_trip_time_ms ||
+         time_since_packet_ms + round_trip_time_ms < max_wait_ms_;
+}
+
 }  // namespace webrtc

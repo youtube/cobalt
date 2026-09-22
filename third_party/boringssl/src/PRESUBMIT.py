@@ -22,6 +22,7 @@ USE_PYTHON3 = True
 
 
 def _PassResult(stdout, stderr, retcode):
+  del stdout, stderr, retcode  # Function does nothing.
   return []  # Check passed.
 
 
@@ -32,8 +33,20 @@ def _RunTool(input_api,
              explain_error=None):
   """
   Runs a command and processes its result.
+
   handle_result(stdout, stderr, retcode) and explain_error(error) should each
   return a list of output_api.PresubmitResult.
+
+  Args:
+    input_api: API to read CL contents.
+    output_api: API to generate presubmit errors/warning to return.
+    handle_result: function receiving (stdout, stderr, retcode) parsing the
+      command result and turning it into a list of output_api.PresubmitResult.
+    explain_error: function receiving error turning it into a list of
+      output_api.PresubmitResult.
+
+  Returns:
+    List of presubmit errors.
   """
   try:
     out, retcode = input_api.subprocess.communicate(
@@ -62,11 +75,12 @@ def CheckPregeneratedFiles(input_api, output_api):
     return error
 
   def HandlePregenerateResult(stdout, stderr, retcode):
+    del stdout  # All output we care for is in stderr.
     if retcode:
       return [
           output_api.PresubmitError(
-              ("Found out-of-date generated files. "
-               "Run `go run ./util/pregenerate` to update them."),
+              ('Found out-of-date generated files. '
+               'Run `go run ./util/pregenerate` to update them.'),
               stderr.splitlines())
       ]
     return []  # Check passed.
@@ -83,19 +97,27 @@ def CheckBuildifier(input_api, output_api):
   """
   Runs Buildifier formatting check if the affected files include
   *.bazel or *.bzl files.
+
+  Args:
+    input_api: API to read CL contents.
+    output_api: API to generate presubmit errors/warning to return.
+
+  Returns:
+    List of presubmit errors.
   """
   file_paths = []
   for affected_file in input_api.AffectedFiles(include_deletes=False):
     affected_file_path = affected_file.LocalPath()
     if not affected_file_path.endswith(('.bzl', '.bazel')):
       continue
-    if "third_party" in affected_file_path or "gen" in affected_file_path:
+    if 'third_party' in affected_file_path or 'gen' in affected_file_path:
       continue
     file_paths.append(affected_file_path)
   if not file_paths:
     return []  # Check passed.
 
   def ExplainBuildifierError(e):
+    del e  # Right now only one error string can be output.
     return [
         output_api.PresubmitNotifyResult(
             ('You can download buildifier from '
@@ -110,11 +132,12 @@ def CheckBuildifier(input_api, output_api):
     return error
 
   def HandleBuildifierResult(stdout, stderr, retcode):
+    del stderr  # This only parses stdout, as nothing failed.
     if retcode == 4:  # check mode failed (reformat is needed).
       return [
           output_api.PresubmitError(
-              ("Found incorrectly formatted *.bzl or *.bazel files. "
-               "Run `buildifier` to update them."), stdout.splitlines())
+              ('Found incorrectly formatted *.bzl or *.bazel files. '
+               'Run `buildifier` to update them.'), stdout.splitlines())
       ]
 
   return _RunTool(input_api,

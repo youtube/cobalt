@@ -97,7 +97,8 @@ CreateJavaInputAndAAudioOutputAudioDeviceModule(JNIEnv* env,
                             &output_parameters);
   // Create ADM from AudioRecord and OpenSLESPlayer.
   auto audio_input = std::make_unique<jni::AudioRecordJni>(
-      env, input_parameters, jni::kLowLatencyModeDelayEstimateInMilliseconds,
+      env, webrtc_env, input_parameters,
+      jni::kLowLatencyModeDelayEstimateInMilliseconds,
       jni::AudioRecordJni::CreateJavaWebRtcAudioRecord(env, j_context,
                                                        j_audio_manager));
 
@@ -126,7 +127,8 @@ scoped_refptr<AudioDeviceModule> CreateJavaAudioDeviceModule(
                             &output_parameters);
   // Create ADM from AudioRecord and AudioTrack.
   auto audio_input = std::make_unique<jni::AudioRecordJni>(
-      env, input_parameters, jni::kHighLatencyModeDelayEstimateInMilliseconds,
+      env, webrtc_env, input_parameters,
+      jni::kHighLatencyModeDelayEstimateInMilliseconds,
       jni::AudioRecordJni::CreateJavaWebRtcAudioRecord(env, j_context,
                                                        j_audio_manager));
   auto audio_output = std::make_unique<jni::AudioTrackJni>(
@@ -182,7 +184,8 @@ CreateJavaInputAndOpenSLESOutputAudioDeviceModule(JNIEnv* env,
                             &output_parameters);
   // Create ADM from AudioRecord and OpenSLESPlayer.
   auto audio_input = std::make_unique<jni::AudioRecordJni>(
-      env, input_parameters, jni::kLowLatencyModeDelayEstimateInMilliseconds,
+      env, webrtc_env, input_parameters,
+      jni::kLowLatencyModeDelayEstimateInMilliseconds,
       jni::AudioRecordJni::CreateJavaWebRtcAudioRecord(env, j_context,
                                                        j_audio_manager));
 

@@ -45,7 +45,7 @@ void FontSizePrefsAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
-jlong JNI_FontSizePrefs_Init(
+static jlong JNI_FontSizePrefs_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const base::android::JavaParamRef<jobject>& jbrowser_context_handle) {
@@ -55,3 +55,5 @@ jlong JNI_FontSizePrefs_Init(
 }
 
 }  // namespace browser_ui
+
+DEFINE_JNI(FontSizePrefs)

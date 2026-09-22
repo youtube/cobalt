@@ -41,6 +41,8 @@ class RenderingSimulator {
     VideoTimingFactory video_timing_factory = [](Environment env) {
       return std::make_unique<VCMTiming>(&env.clock(), env.field_trials());
     };
+
+    bool reuse_streams = true;
   };
 
   // Metadata about a single rendered frame.

@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/autofill/ui_bundled/ios_chrome_payments_autofill_client.h"
 
+#import "base/functional/callback_helpers.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/mock_callback.h"
 #import "base/test/scoped_feature_list.h"
@@ -194,9 +195,8 @@ class IOSChromePaymentsAutofillClientTest : public PlatformTest {
 
  protected:
   FakeAutofillCommands* autofill_commands_;
-  raw_ptr<AutofillBottomSheetTabHelper, DanglingUntriaged>
-      bottomsheet_tab_helper_;
   std::unique_ptr<web::WebState> web_state_;
+  raw_ptr<AutofillBottomSheetTabHelper> bottomsheet_tab_helper_;
 
  private:
   web::WebTaskEnvironment task_environment_;

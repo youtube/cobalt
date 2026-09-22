@@ -525,10 +525,10 @@ BASE_FEATURE_PARAM(int,
                    "SchemaVersion",
                    2);
 BASE_FEATURE_PARAM(bool,
-                   kDeviceBoundSessionsOriginTrialFeedback,
+                   kDeviceBoundSessionsIncludeAudFieldInJwt,
                    &kDeviceBoundSessions,
-                   "OriginTrialFeedback",
-                   true);
+                   "IncludeAudFieldInJwt",
+                   false);
 
 BASE_FEATURE(kDeviceBoundSessionsFederatedRegistration,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -537,6 +537,12 @@ BASE_FEATURE_PARAM(bool,
                    &kDeviceBoundSessionsFederatedRegistration,
                    "CheckWellKnown",
                    true);
+BASE_FEATURE_PARAM(
+    bool,
+    kDeviceBoundSessionFederatedRegistrationRequireThumbprintMatch,
+    &kDeviceBoundSessionsFederatedRegistration,
+    "RequireThumbprintMatch",
+    true);
 
 BASE_FEATURE(kDeviceBoundSessionProactiveRefresh,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -571,7 +577,7 @@ BASE_FEATURE(kFurtherOptimizeParsingDataUrls, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableStaticCTAPIEnforcement, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnforceOneRfc6962CtPolicy, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDiskCacheBackendExperiment, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<DiskCacheBackend>::Option
@@ -677,6 +683,8 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kHttpCacheSkipUnusableEntry, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kReportingApiCorsOriginHeader, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -696,6 +704,10 @@ BASE_FEATURE(kRestrictAbusePorts, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kRestrictAbusePortsOnLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTLSTrustAnchorIDs, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+BASE_FEATURE(kVerifyMTCs, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kTcpSocketPoolLimitRandomization,
              base::FEATURE_DISABLED_BY_DEFAULT);

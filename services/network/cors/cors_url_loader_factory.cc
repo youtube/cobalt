@@ -247,7 +247,8 @@ CorsURLLoaderFactory::CorsURLLoaderFactory(
       is_main_frame_origin_recently_accessed_(
           params->is_main_frame_origin_recently_accessed),
       origin_access_list_(origin_access_list),
-      owner_(owner) {
+      owner_(owner),
+      network_restrictions_id_(params->network_restrictions_id) {
   TRACE_EVENT("loading", "CorsURLLoaderFactory::CorsURLLoaderFactory",
               perfetto::Flow::FromPointer(this));
   DCHECK(context_);
@@ -434,6 +435,16 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
             URLLoaderCompletionStatus(net::ERR_NETWORK_ACCESS_REVOKED));
     return;
   }
+  if (network_restrictions_id_.has_value() &&
+      !context_->IsNetworkForNonceAndUrlAllowed(*network_restrictions_id_,
+                                                resource_request.url)) {
+    // TODO(crbug.com/447954811): Perhaps change to a new error code and
+    // add console messages.
+    mojo::Remote<mojom::URLLoaderClient>(std::move(client))
+        ->OnComplete(
+            URLLoaderCompletionStatus(net::ERR_NETWORK_ACCESS_REVOKED));
+    return;
+  }
 
   if (!disable_web_security_) {
     mojo::PendingRemote<mojom::DevToolsObserver> devtools_observer;
@@ -469,10 +480,10 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
               factory_override_->ShouldSkipCorsEnabledSchemeCheck(),
           std::move(client), traffic_annotation, inner_url_loader_factory,
           factory_override_ ? nullptr : network_loader_factory_.get(),
-          origin_access_list_, GetAllowAnyCorsExemptHeaderForBrowser(),
-          *isolation_info_ptr, std::move(devtools_observer),
-          client_security_state_.get(), &url_loader_network_service_observer_,
-          cross_origin_embedder_policy_, shared_dictionary_storage,
+          origin_access_list_, *isolation_info_ptr,
+          std::move(devtools_observer), client_security_state_.get(),
+          &url_loader_network_service_observer_, cross_origin_embedder_policy_,
+          shared_dictionary_storage,
           shared_dictionary_observer_ ? shared_dictionary_observer_.get()
                                       : nullptr,
           context_, factory_cookie_setting_overrides_,
@@ -487,10 +498,10 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
               factory_override_->ShouldSkipCorsEnabledSchemeCheck(),
           std::move(client), traffic_annotation, inner_url_loader_factory,
           factory_override_ ? nullptr : network_loader_factory_.get(),
-          origin_access_list_, GetAllowAnyCorsExemptHeaderForBrowser(),
-          *isolation_info_ptr, std::move(devtools_observer),
-          client_security_state_.get(), &url_loader_network_service_observer_,
-          cross_origin_embedder_policy_, shared_dictionary_storage,
+          origin_access_list_, *isolation_info_ptr,
+          std::move(devtools_observer), client_security_state_.get(),
+          &url_loader_network_service_observer_, cross_origin_embedder_policy_,
+          shared_dictionary_storage,
           shared_dictionary_observer_ ? shared_dictionary_observer_.get()
                                       : nullptr,
           context_, factory_cookie_setting_overrides_,
@@ -852,8 +863,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       return false;
   }
 
-  if (!GetAllowAnyCorsExemptHeaderForBrowser() &&
-      !IsValidCorsExemptHeaders(*context_->cors_exempt_header_list(),
+  if (!IsValidCorsExemptHeaders(*context_->cors_exempt_header_list(),
                                 request.cors_exempt_headers)) {
     return false;
   }
@@ -952,11 +962,6 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
   // TODO(yhirano): If the request mode is "no-cors", the redirect mode should
   // be "follow".
   return true;
-}
-
-bool CorsURLLoaderFactory::GetAllowAnyCorsExemptHeaderForBrowser() const {
-  return process_id_ == mojom::kBrowserProcessId &&
-         context_->allow_any_cors_exempt_header_for_browser();
 }
 
 mojo::PendingRemote<mojom::DevToolsObserver>

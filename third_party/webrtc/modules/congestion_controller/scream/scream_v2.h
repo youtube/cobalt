@@ -12,6 +12,7 @@
 #define MODULES_CONGESTION_CONTROLLER_SCREAM_SCREAM_V2_H_
 
 #include <algorithm>
+#include <optional>
 
 #include "api/environment/environment.h"
 #include "api/transport/network_types.h"
@@ -38,8 +39,19 @@ class ScreamV2 {
   ~ScreamV2() = default;
 
   void SetTargetBitrateConstraints(DataRate min, DataRate max);
-  // Returns target send rate given feedback.
-  DataRate OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
+
+  void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
+  // Returns true if data in fligth is larger than max_data_in_flight()
+  bool OnSentPacket(const SentPacket& msg);
+
+  DataRate target_rate() const { return target_rate_; }
+  TimeDelta rtt() const { return delay_based_congestion_control_.rtt(); }
+
+  // Returns current data in flight if send window is full.
+  std::optional<DataSize> congestion_window() const;
+
+  // Max data in flight before the send window is full.
+  DataSize max_data_in_flight() const;
 
   // Target for the upper limit of the number of bytes that can be in
   // flight (transmitted but not yet acknowledged)
@@ -50,7 +62,8 @@ class ScreamV2 {
 
  private:
   void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
-  void UpdateRefWindowAndTargetRate(const TransportPacketsFeedback& msg);
+  void UpdateRefWindow(const TransportPacketsFeedback& msg);
+  void UpdateTargetRate(const TransportPacketsFeedback& msg);
 
   // Ratio between `max_segment_size` and `ref_window_`.
   double ref_window_mss_ratio() const {
@@ -84,7 +97,7 @@ class ScreamV2 {
   DataRate min_target_bitrate_ = DataRate::Zero();
   DataRate target_rate_ = DataRate::Zero();
 
-  // Upper limit on the number of bytes that can be in
+  // Upper limit on the number of bytes that should be in
   // flight (transmitted but not yet acknowledged)
   DataSize ref_window_;
   // Reference window inflection point. I.e, `ref_window_` when congestion was
@@ -110,6 +123,8 @@ class ScreamV2 {
   // Last received feedback that contained a congestion event that may have
   // caused a reaction.
   Timestamp last_reaction_to_congestion_time_ = Timestamp::MinusInfinity();
+
+  Timestamp drain_queue_start_ = Timestamp::MinusInfinity();
 
   DelayBasedCongestionControl delay_based_congestion_control_;
 };

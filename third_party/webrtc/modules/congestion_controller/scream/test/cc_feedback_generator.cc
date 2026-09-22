@@ -157,12 +157,6 @@ CcFeedbackGenerator::MaybeSendFeedback(Timestamp time) {
   for (const PacketInFlightInfo& in_flight : packets_in_flight_) {
     feedback.data_in_flight += in_flight.packet_size();
   }
-  RTC_LOG(LS_VERBOSE) << "Delivering feedback at time: " << time
-                      << " #packets:" << feedback.packet_feedbacks.size()
-                      << " #ce:" << CountCeMarks(feedback)
-                      << " #lost: " << feedback.LostWithSendInfo().size()
-                      << " data_in_flight: " << feedback.data_in_flight;
-
   feedback.feedback_time = time;
   last_feedback_time_ = time;
   return feedback;

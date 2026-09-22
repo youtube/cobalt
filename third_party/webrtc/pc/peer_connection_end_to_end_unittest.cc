@@ -44,7 +44,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/physical_socket_server.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
@@ -71,8 +70,7 @@ namespace {
 
 constexpr int kMaxWait = 25000;
 
-class PeerConnectionEndToEndBaseTest : public sigslot::has_slots<>,
-                                       public ::testing::Test {
+class PeerConnectionEndToEndBaseTest : public ::testing::Test {
  public:
   typedef std::vector<scoped_refptr<DataChannelInterface>> DataChannelList;
 
@@ -106,10 +104,12 @@ class PeerConnectionEndToEndBaseTest : public sigslot::has_slots<>,
                                   audio_decoder_factory2));
     PeerConnectionTestWrapper::Connect(caller_.get(), callee_.get());
 
-    caller_->SignalOnDataChannel.connect(
-        this, &PeerConnectionEndToEndBaseTest::OnCallerAddedDataChanel);
-    callee_->SignalOnDataChannel.connect(
-        this, &PeerConnectionEndToEndBaseTest::OnCalleeAddedDataChannel);
+    caller_->SubscribeOnDataChannel([this](DataChannelInterface* channel) {
+      OnCallerAddedDataChanel(channel);
+    });
+    callee_->SubscribeOnDataChannel([this](DataChannelInterface* channel) {
+      OnCalleeAddedDataChannel(channel);
+    });
   }
 
   void CreatePcs(scoped_refptr<AudioEncoderFactory> audio_encoder_factory,

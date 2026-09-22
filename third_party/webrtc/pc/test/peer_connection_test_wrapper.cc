@@ -114,15 +114,20 @@ class FuzzyMatchedVideoEncoderFactory : public VideoEncoderFactory {
 
 void PeerConnectionTestWrapper::Connect(PeerConnectionTestWrapper* caller,
                                         PeerConnectionTestWrapper* callee) {
-  caller->SignalOnIceCandidateReady.connect(
-      callee, &PeerConnectionTestWrapper::AddIceCandidate);
-  callee->SignalOnIceCandidateReady.connect(
-      caller, &PeerConnectionTestWrapper::AddIceCandidate);
-
-  caller->SignalOnSdpReady.connect(callee,
-                                   &PeerConnectionTestWrapper::ReceiveOfferSdp);
-  callee->SignalOnSdpReady.connect(
-      caller, &PeerConnectionTestWrapper::ReceiveAnswerSdp);
+  caller->SubscribeOnIceCandidateReady([callee](const std::string& mid,
+                                                int index,
+                                                const std::string& candidate) {
+    callee->AddIceCandidate(mid, index, candidate);
+  });
+  callee->SubscribeOnIceCandidateReady([caller](const std::string& mid,
+                                                int index,
+                                                const std::string& candidate) {
+    caller->AddIceCandidate(mid, index, candidate);
+  });
+  caller->SubscribeOnSdpReady(
+      [callee](const std::string& sdp) { callee->ReceiveOfferSdp(sdp); });
+  callee->SubscribeOnSdpReady(
+      [caller](const std::string& sdp) { caller->ReceiveAnswerSdp(sdp); });
 }
 
 void PeerConnectionTestWrapper::AwaitNegotiation(
@@ -302,8 +307,10 @@ void PeerConnectionTestWrapper::AwaitSetRemoteDescription(
 void PeerConnectionTestWrapper::ListenForRemoteIceCandidates(
     scoped_refptr<PeerConnectionTestWrapper> remote_wrapper) {
   remote_wrapper_ = remote_wrapper;
-  remote_wrapper_->SignalOnIceCandidateReady.connect(
-      this, &PeerConnectionTestWrapper::OnRemoteIceCandidate);
+  remote_wrapper_->SubscribeOnIceCandidateReady(
+      [this](const std::string& mid, int index, const std::string& candidate) {
+        OnRemoteIceCandidate(mid, index, candidate);
+      });
 }
 
 void PeerConnectionTestWrapper::AwaitAddRemoteIceCandidates() {
@@ -351,13 +358,13 @@ void PeerConnectionTestWrapper::OnAddTrack(
 
 void PeerConnectionTestWrapper::OnIceCandidate(const IceCandidate* candidate) {
   std::string sdp = candidate->ToString();
-  SignalOnIceCandidateReady(candidate->sdp_mid(), candidate->sdp_mline_index(),
+  NotifyOnIceCandidateReady(candidate->sdp_mid(), candidate->sdp_mline_index(),
                             sdp);
 }
 
 void PeerConnectionTestWrapper::OnDataChannel(
     scoped_refptr<DataChannelInterface> data_channel) {
-  SignalOnDataChannel(data_channel.get());
+  NotifyOnDataChannel(data_channel.get());
 }
 
 void PeerConnectionTestWrapper::OnSuccess(SessionDescriptionInterface* desc) {
@@ -371,7 +378,7 @@ void PeerConnectionTestWrapper::OnSuccess(SessionDescriptionInterface* desc) {
 
   SetLocalDescription(desc->GetType(), sdp);
 
-  SignalOnSdpReady(sdp);
+  NotifyOnSdpReady(sdp);
 }
 
 void PeerConnectionTestWrapper::CreateOffer(

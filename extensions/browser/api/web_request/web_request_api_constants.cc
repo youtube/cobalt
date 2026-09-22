@@ -51,6 +51,12 @@ const char kAuthCredentialsKey[] = "authCredentials";
 const char kUsernameKey[] = "username";
 const char kPasswordKey[] = "password";
 const char kInitiatorKey[] = "initiator";
+const char kSecurityInfoKey[] = "securityInfo";
+const char kCertificatesKey[] = "certificates";
+const char kFingerprintKey[] = "fingerprint";
+const char kRawDerKey[] = "rawDER";
+const char kSha256Key[] = "sha256";
+const char kStateKey[] = "state";
 
 const char kOnBeforeRedirectEvent[] = "webRequest.onBeforeRedirect";
 const char kOnBeforeSendHeadersEvent[] = "webRequest.onBeforeSendHeaders";
@@ -77,5 +83,14 @@ const char kInvalidHeaderKeyCombination[] =
 const char kInvalidHeader[] = "Invalid header specification '*'.";
 const char kInvalidHeaderName[] = "Invalid header name.";
 const char kInvalidHeaderValue[] = "Header '*' has an invalid value.";
+const char kSecurityInfoAPINotAvailable[] =
+    "ExtraInfoSpec.securityInfo is only allowed in extensions or Controlled "
+    "Frame";
+const char kSecurityInfoFlagAbsentInExtensions[] =
+    "ExtraInfoSpec.securityInfo is allowed only with WebRequestSecurityInfo "
+    "developer flag";
+const char kSecurityInfoFlagAbsentInControlledFrame[] =
+    "ExtraInfoSpec.securityInfo is allowed only with "
+    "controlled_frame_security_info developer flag";
 
 }  // namespace extension_web_request_api_constants

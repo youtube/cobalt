@@ -38,6 +38,7 @@
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
+#include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_contextual_inputs.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_platform.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
@@ -92,6 +93,8 @@ using FileUploadStatusTuple = std::tuple<base::UnguessableToken,
                                          std::optional<FileUploadErrorType>>;
 using CreateSearchUrlRequestInfo =
     ComposeboxQueryController::CreateSearchUrlRequestInfo;
+using CreateClientToAimRequestInfo =
+    ComposeboxQueryController::CreateClientToAimRequestInfo;
 
 using base::test::EqualsProto;
 
@@ -481,9 +484,10 @@ TEST_F(ComposeboxQueryControllerTest, UploadFileRequestFailure) {
                     /*expected_status=*/FileUploadStatus::kUploadFailed,
                     /*expected_error_type=*/FileUploadErrorType::kServerError);
 
-  // Assert: The suggest inputs are cleared.
-  EXPECT_FALSE(controller().suggest_inputs().has_search_session_id());
-  EXPECT_FALSE(controller().suggest_inputs().has_encoded_request_id());
+  // Assert: The suggest inputs are empty.
+  auto suggest_inputs = controller().CreateSuggestInputs({file_token});
+  EXPECT_FALSE(suggest_inputs->has_search_session_id());
+  EXPECT_FALSE(suggest_inputs->has_encoded_request_id());
 }
 
 TEST_F(ComposeboxQueryControllerTest,
@@ -573,37 +577,35 @@ TEST_F(ComposeboxQueryControllerTest, UploadImageFileRequestSuccess) {
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             0);
   // Check that the routing info is in the vsrid.
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .cell_address(),
             kTestCellAddress);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .server_address(),
             kTestServerAddress);
 
-  EXPECT_EQ(controller().suggest_inputs().search_session_id(),
-            kTestSearchSessionId);
-  EXPECT_TRUE(controller()
-                  .suggest_inputs()
-                  .send_gsession_vsrid_for_contextual_suggest());
+  auto suggest_inputs = controller().CreateSuggestInputs({file_token});
+  EXPECT_EQ(suggest_inputs->search_session_id(), kTestSearchSessionId);
+  EXPECT_TRUE(suggest_inputs->send_gsession_vsrid_for_contextual_suggest());
 }
 
 TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
@@ -664,17 +666,17 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             0);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(controller()
                 .last_sent_file_upload_request()
@@ -708,13 +710,13 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .cell_address(),
             kTestCellAddress);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .server_address(),
             kTestServerAddress);
 }
@@ -797,17 +799,17 @@ TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             0);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(controller()
                 .last_sent_file_upload_request()
@@ -841,13 +843,13 @@ TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .cell_address(),
             kTestCellAddress);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->routing_info()
+                .routing_info()
                 .server_address(),
             kTestServerAddress);
 }
@@ -947,6 +949,7 @@ TEST_F(
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -1075,17 +1078,17 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(file_upload_request->objects_request()
                 .request_context()
@@ -1170,6 +1173,7 @@ TEST_F(ComposeboxQueryControllerTest,
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -1244,17 +1248,17 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(file_upload_request->objects_request()
                 .request_context()
@@ -1685,6 +1689,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -1732,6 +1737,52 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
   EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
 }
 
+TEST_F(ComposeboxQueryControllerTest, CreateClientToAimRequestWithUploadedPdf) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the ClientToAimRequest.
+  std::unique_ptr<CreateClientToAimRequestInfo> client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  client_to_aim_request_info->query_text = "hello";
+  client_to_aim_request_info->query_text_source =
+      lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT;
+  client_to_aim_request_info->file_tokens.push_back(file_token);
+  client_to_aim_request_info->query_start_time = kTestQueryStartTime;
+  std::optional<lens::ClientToAimMessage> client_to_aim_request =
+      controller().CreateClientToAimRequest(
+          std::move(client_to_aim_request_info));
+
+  // Assert: The ClientToAimRequest is populated correctly.
+  ASSERT_TRUE(client_to_aim_request.has_value());
+  ASSERT_EQ(client_to_aim_request->submit_query()
+                .payload()
+                .lens_image_query_data(0)
+                .request_id()
+                .media_type(),
+            lens::LensOverlayRequestId::MEDIA_TYPE_PDF);
+  EXPECT_EQ(client_to_aim_request->submit_query().payload().query_text(),
+            "hello");
+  EXPECT_EQ(client_to_aim_request->submit_query().payload().query_text_source(),
+            lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT);
+  EXPECT_EQ(client_to_aim_request->submit_query()
+                .payload()
+                .lens_image_query_data(0)
+                .search_session_id(),
+            kTestSearchSessionId);
+}
+
 TEST_F(ComposeboxQueryControllerTest,
        QuerySubmittedWithUploadedPdfStandardSearch) {
   // Act: Start the session.
@@ -1755,6 +1806,7 @@ TEST_F(ComposeboxQueryControllerTest,
   search_url_request_info->query_text = "hello";
   search_url_request_info->search_url_type =
       ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->file_tokens.push_back(file_token);
   search_url_request_info->query_start_time = kTestQueryStartTime;
   GURL search_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
@@ -1809,6 +1861,7 @@ TEST_F(ComposeboxQueryControllerTest,
   search_url_request_info_no_query_text->search_url_type =
       ComposeboxQueryController::SearchUrlType::kStandard;
   search_url_request_info_no_query_text->query_start_time = kTestQueryStartTime;
+  search_url_request_info_no_query_text->file_tokens.push_back(file_token);
   GURL no_query_text_url = controller().CreateSearchUrl(
       std::move(search_url_request_info_no_query_text));
 
@@ -1825,6 +1878,105 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_TRUE(net::GetValueForKeyInQuery(
       no_query_text_url, kSearchModeQueryParameterKey, &udm_value_26));
   EXPECT_EQ(udm_value_26, kUnimodalUdmQueryParameterValue);
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       InteractionQuerySubmittedWithUploadedPdf) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query. The destination URL can
+  // only be created after the cluster info is received.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->lens_overlay_selection_type =
+      lens::LensOverlaySelectionType::REGION_SEARCH;
+  search_url_request_info->image_crop = lens::ImageCrop();
+  search_url_request_info->image_crop->mutable_zoomed_crop()
+      ->mutable_crop()
+      ->set_coordinate_type(lens::CoordinateType::NORMALIZED);
+  search_url_request_info->image_crop->mutable_zoomed_crop()->set_zoom(1);
+  search_url_request_info->image_crop->mutable_zoomed_crop()->set_parent_height(
+      25);
+  search_url_request_info->file_tokens.push_back(file_token);
+
+  search_url_request_info->client_logs = lens::LensOverlayClientLogs();
+
+  // Runloop for when the interaction request is sent.
+  base::RunLoop run_loop;
+  controller().AddEndpointFetcherCreatedCallback(
+      base::BindLambdaForTesting([&]() { run_loop.Quit(); }));
+
+  GURL search_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
+
+  // Check that an interaction request was created.
+  run_loop.Run();
+  auto interaction_request = controller().last_sent_interaction_request();
+  ASSERT_TRUE(interaction_request.has_value());
+  EXPECT_TRUE(interaction_request->has_interaction_request());
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(search_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::REGION_SEARCH);
+  EXPECT_TRUE(vsint.has_zoomed_crop());
+  EXPECT_EQ(vsint.zoomed_crop().zoom(), 1);
+  EXPECT_EQ(vsint.zoomed_crop().parent_height(), 25);
+  EXPECT_EQ(vsint.zoomed_crop().crop().coordinate_type(),
+            lens::CoordinateType::NORMALIZED);
+
+  // Assert: Lens request id is added to multimodal pdf queries.
+  std::string vsrid_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
+                                         &vsrid_value));
+  EXPECT_FALSE(vsrid_value.empty());
+  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
+            DecodeRequestIdFromVsrid(vsrid_value).media_type());
+
+  // Assert: Visual input type is set to pdf for multimodal pdf queries.
+  std::string vit_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kVisualInputTypeParameterKey, &vit_value));
+  EXPECT_EQ(vit_value, "pdf");
+
+  // Assert: Gsession id is added to multimodal pdf queries.
+  std::string gsession_id_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSessionIdQueryParameterKey, &gsession_id_value));
+  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
+
+  // Check that the timestamps are attached to the url.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  std::string cud_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the udm value is set to 24 (multimodal search).
+  std::string udm_value_24;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSearchModeQueryParameterKey, &udm_value_24));
+  EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
 }
 
 #if !BUILDFLAG(IS_IOS)
@@ -1853,6 +2005,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -1946,6 +2099,7 @@ TEST_F(ComposeboxQueryControllerTest,
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -1973,23 +2127,26 @@ TEST_F(ComposeboxQueryControllerTest, DeleteFile_Success) {
   WaitForClusterInfo();
 
   // Act: Start the file upload flow.
-  const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(file_token,
+  const base::UnguessableToken first_file_token =
+      base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(first_file_token,
                          /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+  WaitForFileUpload(first_file_token, lens::MimeType::kPdf);
 
   // Check that file is in cache.
-  EXPECT_TRUE(controller().GetFileInfoForTesting(file_token));
+  EXPECT_TRUE(controller().GetFileInfoForTesting(first_file_token));
 
   // Check that the request id is set correctly in the suggest inputs.
-  EXPECT_EQ(controller().suggest_inputs().encoded_request_id(),
-            lens::Base64EncodeRequestId(*controller()
-                                             .GetFileInfoForTesting(file_token)
-                                             ->GetRequestIdForTesting()));
-  EXPECT_EQ(controller().suggest_inputs().contextual_visual_input_type(),
-            "pdf");
+  auto first_suggest_inputs =
+      controller().CreateSuggestInputs({first_file_token});
+  EXPECT_EQ(
+      first_suggest_inputs->encoded_request_id(),
+      lens::Base64EncodeRequestId(controller()
+                                      .GetFileInfoForTesting(first_file_token)
+                                      ->GetRequestIdForTesting()));
+  EXPECT_EQ(first_suggest_inputs->contextual_visual_input_type(), "pdf");
 
   // Act: Start the second file upload flow.
   const base::UnguessableToken second_file_token =
@@ -1998,19 +2155,18 @@ TEST_F(ComposeboxQueryControllerTest, DeleteFile_Success) {
                          /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(second_file_token, lens::MimeType::kPdf,
-                    FileUploadStatus::kUploadSuccessful,
-                    /*expected_error_type=*/std::nullopt,
-                    /*expect_suggest_signals_ready=*/false);
+  WaitForFileUpload(second_file_token, lens::MimeType::kPdf);
 
   // Check that file is in cache.
   EXPECT_TRUE(controller().GetFileInfoForTesting(second_file_token));
 
-  // Check that the suggest inputs are clearned now that there are two files in
-  // the request.
-  EXPECT_EQ(controller().suggest_inputs().encoded_request_id(), "");
+  // Check that the suggest inputs are clearne if there are two files in
+  // the request, since multiple context suggest is not supported.
+  auto second_suggest_inputs =
+      controller().CreateSuggestInputs({first_file_token, second_file_token});
+  EXPECT_EQ(second_suggest_inputs->encoded_request_id(), "");
 
-  EXPECT_EQ(controller().suggest_inputs().search_session_id(), "");
+  EXPECT_EQ(second_suggest_inputs->search_session_id(), "");
 
   // Delete file.
   const bool deleted = controller().DeleteFile(second_file_token);
@@ -2021,12 +2177,14 @@ TEST_F(ComposeboxQueryControllerTest, DeleteFile_Success) {
 
   // Check that the request id in the suggest inputs is set correctly to the
   // first file's request id.
-  EXPECT_EQ(controller().suggest_inputs().encoded_request_id(),
-            lens::Base64EncodeRequestId(*controller()
-                                             .GetFileInfoForTesting(file_token)
-                                             ->GetRequestIdForTesting()));
-  EXPECT_EQ(controller().suggest_inputs().contextual_visual_input_type(),
-            "pdf");
+  auto third_suggest_inputs =
+      controller().CreateSuggestInputs({first_file_token});
+  EXPECT_EQ(
+      third_suggest_inputs->encoded_request_id(),
+      lens::Base64EncodeRequestId(controller()
+                                      .GetFileInfoForTesting(first_file_token)
+                                      ->GetRequestIdForTesting()));
+  EXPECT_EQ(third_suggest_inputs->contextual_visual_input_type(), "pdf");
 }
 
 TEST_F(ComposeboxQueryControllerTest, DeleteFile_Failed) {
@@ -2102,6 +2260,7 @@ TEST_F(ComposeboxQueryControllerTest,
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -2136,6 +2295,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithLnsSurfaceAndNoImage) {
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -2176,10 +2336,7 @@ TEST_F(ComposeboxQueryControllerTest,
                          /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(second_file_token, lens::MimeType::kPdf,
-                    FileUploadStatus::kUploadSuccessful,
-                    /*expected_error_type=*/std::nullopt,
-                    /*expect_suggest_signals_ready=*/false);
+  WaitForFileUpload(second_file_token, lens::MimeType::kPdf);
 
   auto second_file_upload_request =
       controller().last_sent_file_upload_request();
@@ -2201,32 +2358,32 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(first_file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(second_file_token)
                 ->GetRequestIdForTesting()
-                ->sequence_id(),
+                .sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(first_file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(second_file_token)
                 ->GetRequestIdForTesting()
-                ->image_sequence_id(),
+                .image_sequence_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(first_file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(second_file_token)
                 ->GetRequestIdForTesting()
-                ->long_context_id(),
+                .long_context_id(),
             1);
   EXPECT_EQ(first_file_upload_request->objects_request()
                 .request_context()
@@ -2281,6 +2438,8 @@ TEST_F(ComposeboxQueryControllerTest,
       std::make_unique<CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = "hello";
   search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(first_file_token);
+  search_url_request_info->file_tokens.push_back(second_file_token);
   GURL aim_url =
       controller().CreateSearchUrl(std::move(search_url_request_info));
 
@@ -2320,19 +2479,19 @@ TEST_F(ComposeboxQueryControllerTest,
       controller()
           .GetFileInfoForTesting(first_file_token)
           ->GetRequestIdForTesting()
-          ->uuid();
+          .uuid();
   auto first_file_request_id =
-      *controller()
-           .GetFileInfoForTesting(first_contextual_input_is_first_file
-                                      ? first_file_token
-                                      : second_file_token)
-           ->GetRequestIdForTesting();
+      controller()
+          .GetFileInfoForTesting(first_contextual_input_is_first_file
+                                     ? first_file_token
+                                     : second_file_token)
+          ->GetRequestIdForTesting();
   auto second_file_request_id =
-      *controller()
-           .GetFileInfoForTesting(first_contextual_input_is_first_file
-                                      ? second_file_token
-                                      : first_file_token)
-           ->GetRequestIdForTesting();
+      controller()
+          .GetFileInfoForTesting(first_contextual_input_is_first_file
+                                     ? second_file_token
+                                     : first_file_token)
+          ->GetRequestIdForTesting();
 
   EXPECT_THAT(contextual_inputs.inputs(0).request_id(),
               EqualsProto(first_file_request_id));

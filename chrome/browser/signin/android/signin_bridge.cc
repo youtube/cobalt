@@ -17,12 +17,14 @@
 
 using base::android::JavaParamRef;
 
-void SigninBridge::StartAddAccountFlow(ui::WindowAndroid* window,
+void SigninBridge::StartAddAccountFlow(TabAndroid* tab,
                                        const std::string& prefilled_email,
                                        const GURL& continue_url) {
-  DCHECK(window);
+  if (!tab) {
+    return;
+  }
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_SigninBridge_startAddAccountFlow(env, window->GetJavaObject(),
+  Java_SigninBridge_startAddAccountFlow(env, tab->GetJavaObject(),
                                         prefilled_email, continue_url);
 }
 
@@ -46,3 +48,5 @@ void SigninBridge::OpenAccountPickerBottomSheet(
   Java_SigninBridge_openAccountPickerBottomSheet(env, tab->GetJavaObject(),
                                                  continue_url);
 }
+
+DEFINE_JNI(SigninBridge)

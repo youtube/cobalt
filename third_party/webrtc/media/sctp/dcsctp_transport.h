@@ -150,6 +150,9 @@ class DcSctpTransport : public SctpTransportInternal,
   std::function<void()> on_connected_callback_ RTC_GUARDED_BY(network_thread_);
   DataChannelSink* data_channel_sink_ RTC_GUARDED_BY(network_thread_) = nullptr;
 
+  std::optional<std::vector<uint8_t>> local_init_;
+  std::optional<std::vector<uint8_t>> remote_init_;
+
   static dcsctp::DcSctpOptions CreateDcSctpOptions(
       const SctpOptions& options,
       const FieldTrialsView& field_trials);

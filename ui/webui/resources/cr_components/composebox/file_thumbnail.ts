@@ -1,8 +1,11 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/icons.html.js';
+import './composebox_tab_favicon.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
@@ -57,8 +60,16 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
     this.fire('delete-file', {uuid: this.file.uuid});
   }
 
-  get deleteFileButtonTitle(): string {
+  protected get deleteFileButtonTitle_(): string {
     return loadTimeData.getStringF('composeboxDeleteFileTitle', this.file.name);
+  }
+
+  protected get formattedUrl_(): string|null {
+    if (!this.file?.url) {
+      return null;
+    }
+    const link = new URL(this.file.url.url);
+    return (link.host + link.pathname).replace(/\/$/, '');
   }
 }
 

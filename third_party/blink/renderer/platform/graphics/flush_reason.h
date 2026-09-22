@@ -10,41 +10,24 @@ namespace blink {
 // Reasons for requesting that recorded PaintOps be flushed. Used in code
 // loosely related to 2d canvas rendering contexts.
 enum class FlushReason {
-  // Use at call sites that never require flushing recorded paint ops
-  // For example when requesting WebGL or WebGPU snapshots. Does not
-  // impede vector printing.
-  kNone = 0,
-
-  // Used in C++ unit tests
-  kTesting = 1,
-
-  // Call site may be flushing paint ops, but they're for a use case
-  // unrelated to Canvas rendering contexts. Does not impede vector printing.
-  kNon2DCanvas = 2,
-
   // Canvas contents were cleared. This makes the canvas vector printable
   // again.
-  kClear = 3,
-
-  // `OffscreenCanvas` dispatched a frame to the compositor as part of the
-  // regular animation frame presentation flow.
-  // Should not happen while printing.
-  kOffscreenCanvasPushFrame = 4,
+  kClear = 0,
 
   // The canvas element dispatched a frame to the compositor
   // This inhibits vector printing.
-  kCanvasPushFrame = 5,
+  kCanvasPushFrame = 1,
 
   // The canvas element dispatched a frame to the compositor while printing
   // was in progress.
   // This does not prevent vector printing as long as the current frame is
   // clear.
-  kCanvasPushFrameWhilePrinting = 6,
+  kCanvasPushFrameWhilePrinting = 2,
 
   // The canvas is being printed.
-  kPrinting = 7,
+  kPrinting = 3,
 
-  kOther = 8,
+  kOther = 4,
 
   kMaxValue = kOther,
 };

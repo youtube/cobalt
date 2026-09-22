@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -208,17 +207,9 @@ class AutofillAgent : public content::RenderFrameObserver,
       FieldRendererId field_id,
       const std::string& presentation_token) override;
 
-  // Called after updating the last interacted element in FormTracker because of
-  // `reason`. It is always the case that `form` or `element` are non-null. If
-  // `form_element` is non-null, then `element` (if non-null) is owned by
-  // `form_element`, otherwise `element` is unowned and is surely non-null.
-  // TODO(crbug.com/40281981): Remove.
-  void OnProvisionallySaveForm(const blink::WebFormElement& form,
-                               const blink::WebFormControlElement& element,
-                               FormTracker::SaveFormReason reason);
-  void OnFormSubmission(
-      mojom::SubmissionSource source,
-      std::optional<blink::WebFormElement> submitted_form_element);
+  // Fires Mojo messages for a given form submission.
+  void FireHostSubmitEvents(const FormData& form_data,
+                            mojom::SubmissionSource source);
 
   // Instructs `form_tracker_` to track the autofilled `element`.
   void TrackAutofilledElement(const blink::WebFormControlElement& element);
@@ -231,6 +222,13 @@ class AutofillAgent : public content::RenderFrameObserver,
   void UpdateStateForTextChange(const blink::WebFormControlElement& element,
                                 FieldPropertiesFlags flag,
                                 const SynchronousFormCache& form_cache);
+
+  // TODO(crbug.com/376628389): Remove.
+  void OnTextFieldValueChanged(const blink::WebFormControlElement& element,
+                               const SynchronousFormCache& form_cache);
+  void OnSelectControlSelectionChanged(
+      const blink::WebFormControlElement& element,
+      const SynchronousFormCache& form_cache);
 
   bool IsPrerendering() const;
 
@@ -299,10 +297,6 @@ class AutofillAgent : public content::RenderFrameObserver,
   // document is loaded.
   void Reset();
 
-  // Fires Mojo messages for a given form submission.
-  void FireHostSubmitEvents(const FormData& form_data,
-                            mojom::SubmissionSource source);
-
   // Tries to show the given `passwords_request` for the given fields and update
   // `is_popup_possibly_visible` accordingly. Returns true if the password agent
   // handles the request.
@@ -336,6 +330,7 @@ class AutofillAgent : public content::RenderFrameObserver,
       const blink::WebFormControlElement& element) override;
   void FormElementReset(const blink::WebFormElement& form) override;
   void PasswordFieldReset(const blink::WebInputElement& element) override;
+  void OnDevToolsSessionConnectionChanged(bool attached) override;
   void EmitFormIssuesToDevtools() override;
 
   // Starts observing the caret in the given element. Previous observers are
@@ -355,13 +350,6 @@ class AutofillAgent : public content::RenderFrameObserver,
 
   void HandleFocusChangeComplete(bool focused_node_was_last_clicked,
                                  const SynchronousFormCache& form_cache);
-
-  // TODO(crbug.com/376628389): Remove.
-  void OnTextFieldValueChanged(const blink::WebFormControlElement& element,
-                               const SynchronousFormCache& form_cache);
-  void OnSelectControlSelectionChanged(
-      const blink::WebFormControlElement& element,
-      const SynchronousFormCache& form_cache);
 
   void DidChangeScrollOffsetImpl(FieldRendererId element_id);
 
@@ -419,49 +407,11 @@ class AutofillAgent : public content::RenderFrameObserver,
   // Hides any currently showing Autofill popup.
   void HidePopup();
 
-  // Returns an approximation of the submitted form. The candidates are:
-  // - `provisionally_saved_form_` , because it may be the last-known complete
-  //   state of the form (i.e., the form or some fields in the form may have
-  //   been removed afterwards).
-  // - `last_interacted_form_`'s current `FormData`, because this corresponds to
-  //   the last form element the user interacted with.
-  // - `submitted_form_element`'s current `FormData`, because the caller
-  //    specified that this is the form element that was submitted, regardless
-  //    of autofill's tracking.
-  // When `submitted_form_element` is provided the function makes sure
-  // that the returned form corresponds to that DOM element.
-  // `source` is the type of submission requesting the submitted form.
-  std::optional<FormData> GetSubmittedForm(
-      mojom::SubmissionSource source,
-      std::optional<blink::WebFormElement> submitted_form_element);
-
-  void ResetLastInteractedElements();
-  // A form_id means that the user last interacted with a FormElement.
-  // A field_id means that the user last interacted with a formless control.
-  void UpdateLastInteractedElement(
-      std::variant<FormRendererId, FieldRendererId> element_id);
-
-  // Called when current form is no longer submittable, submitted_forms_ is
-  // cleared in this method.
-  void OnFormNoLongerSubmittable();
-
   // Helpers for SelectFieldOptionsChanged() and
   // DataListOptionsChanged(), which get called after a timer that is restarted
   // when another event of the same type started.
   void BatchSelectOptionChange(FieldRendererId element_id);
   void BatchDataListOptionChange(FieldRendererId element_id);
-
-  FormRef last_interacted_form() const {
-    return form_tracker_->last_interacted_form();
-  }
-
-  // TODO(crbug.com/40281981): Remove.
-  std::optional<FormData>& provisionally_saved_form() {
-    return form_tracker_->provisionally_saved_form();
-  }
-  const std::optional<FormData>& provisionally_saved_form() const {
-    return form_tracker_->provisionally_saved_form();
-  }
 
   // Stores immutable configuration this agent was created with. It contains
   // features and settings that are specific to the client using this agent.
@@ -481,19 +431,6 @@ class AutofillAgent : public content::RenderFrameObserver,
   std::vector<std::pair<FieldRendererId, blink::WebAutofillState>>
       previewed_elements_;
 
-  // When dealing with an unowned form, we keep track of the unowned fields
-  // the user has modified so we can determine when submission occurs.
-  // An additional sufficient condition for the form submission detection is
-  // that the form has been autofilled.
-  std::set<FieldRendererId> formless_elements_user_edited_;
-  bool formless_elements_were_autofilled_ = false;
-
-  // For each form, identified by its renderer ID, keeps track of the sources of
-  // observed submissions, so that we avoid firing duplicate submission signals
-  // to the driver. See `AutofillAgent::FireHostSubmitEvent` for more details.
-  base::flat_map<FormRendererId, DenseSet<mojom::SubmissionSource>>
-      submitted_forms_;
-
   // Whether the Autofill popup is possibly visible.  This is tracked as a
   // performance improvement, so that the IPC channel isn't flooded with
   // messages to close the Autofill popup when it can't possibly be showing.
@@ -503,8 +440,7 @@ class AutofillAgent : public content::RenderFrameObserver,
 
   // This is never null, it is created at construction time and is not changed
   // until destruction time.
-  std::unique_ptr<FormTracker> form_tracker_ =
-      std::make_unique<FormTracker>(unsafe_render_frame(), *this);
+  std::unique_ptr<FormTracker> form_tracker_;
 
   mojo::AssociatedReceiver<mojom::AutofillAgent> receiver_{this};
 

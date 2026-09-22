@@ -1755,7 +1755,7 @@ void V8FileLogger::CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                                   Address pc, int fp_to_sp_delta) {
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+  Deoptimizer::DeoptInfo info = Deoptimizer::ComputeDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
@@ -2136,18 +2136,14 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
+      // We have to skip over a special case here: Wasm functions created by
+      // instantiation attempts that failed to complete have inaccessible
+      // WasmFunctionData. They are also unreachable, but since we're walking
+      // the entire heap here, we may still find them if no GC has cleaned them
+      // up yet. See crbug.com/385341243 and the associated fix for context.
+      if (sfi->HasUnpublishedTrustedData(isolate)) continue;
+
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
-#if V8_ENABLE_WEBASSEMBLY
-        // We have to skip over a special case here: Wasm functions created
-        // by instantiation attempts that failed to complete have inaccessible
-        // WasmFunctionData. They are also unreachable, but since we're walking
-        // the entire heap here, we may still find them if no GC has cleaned
-        // them up yet.
-        if (sfi->HasWasmFunctionData(isolate) &&
-            sfi->HasUnpublishedTrustedData(isolate)) {
-          continue;
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
       }
     } else if (IsJSFunction(obj)) {
@@ -2272,7 +2268,7 @@ void V8FileLogger::LogAllMaps() {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsAnyHole(obj) || !IsMap(obj)) continue;
+    if (!IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     MapCreate(map);
     MapDetails(map);

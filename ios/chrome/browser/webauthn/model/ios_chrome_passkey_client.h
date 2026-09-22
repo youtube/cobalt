@@ -8,12 +8,15 @@
 #import "base/memory/weak_ptr.h"
 #import "components/webauthn/ios/ios_passkey_client.h"
 
+class PasskeyKeychainProvider;
+class ProfileIOS;
+
 namespace web {
 class WebState;
 }  // namespace web
 
 // Chrome side implementation of the IOSPasskeyClient interface.
-class IOSChromePasskeyClient : public IOSPasskeyClient {
+class IOSChromePasskeyClient : public webauthn::IOSPasskeyClient {
  public:
   IOSChromePasskeyClient(web::WebState* web_state);
   ~IOSChromePasskeyClient() override;
@@ -22,10 +25,21 @@ class IOSChromePasskeyClient : public IOSPasskeyClient {
   bool PerformUserVerification() override;
   void FetchKeys(webauthn::ReauthenticatePurpose purpose,
                  webauthn::KeysFetchedCallback callback) override;
-  void ShowSuggestionBottomSheet() override;
+  void ShowSuggestionBottomSheet(RequestInfo request_info) override;
+  void ShowCreationBottomSheet(RequestInfo request_info) override;
   void AllowPasskeyCreationInfobar(bool allowed) override;
+  password_manager::WebAuthnCredentialsDelegate*
+  GetWebAuthnCredentialsDelegateForDriver(
+      IOSPasswordManagerDriver* driver) override;
 
  private:
+  // Pointer to the associated ProfileIOS. Must outlive
+  // IOSChromePasskeyClient.
+  raw_ptr<ProfileIOS> profile_;
+
+  // Provider that manages passkey vault keys.
+  std::unique_ptr<PasskeyKeychainProvider> passkey_keychain_provider_;
+
   // Weak WebState.
   base::WeakPtr<web::WebState> web_state_;
 };

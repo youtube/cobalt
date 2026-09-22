@@ -24,6 +24,7 @@ public class TestAwNavigationListener implements AwNavigationListener {
     private final List<AwPage> mPagesWithLoadEventFired = new ArrayList<AwPage>();
     private final List<AwPage> mPagesWithDOMContentLoadEventFired = new ArrayList<AwPage>();
     private final List<Long> mFirstContentfulPaintLoadTimes = new ArrayList<Long>();
+    private final List<PerformanceMark> mPerformanceMarks = new ArrayList<PerformanceMark>();
 
     public TestAwNavigationListener() {}
 
@@ -75,6 +76,10 @@ public class TestAwNavigationListener implements AwNavigationListener {
             return null;
         }
         return mFirstContentfulPaintLoadTimes.get(mFirstContentfulPaintLoadTimes.size() - 1);
+    }
+
+    @Nullable List<PerformanceMark> getPerformanceMarks() {
+        return mPerformanceMarks;
     }
 
     @Override
@@ -145,5 +150,20 @@ public class TestAwNavigationListener implements AwNavigationListener {
     @Override
     public void onFirstContentfulPaint(AwPage page, long loadTimeUs) {
         mFirstContentfulPaintLoadTimes.add(loadTimeUs);
+    }
+
+    @Override
+    public void onPerformanceMark(AwPage page, String markName, long markTimeMs) {
+        mPerformanceMarks.add(new PerformanceMark(markName, markTimeMs));
+    }
+
+    public static class PerformanceMark {
+        public String markName;
+        public long markTimeMs;
+
+        public PerformanceMark(String name, long timeMs) {
+            markName = name;
+            markTimeMs = timeMs;
+        }
     }
 }

@@ -74,7 +74,6 @@ source_set("browser_tests") {
       "optimization_guide_internals/optimization_guide_internals_browsertest.cc",
       "password_manager/password_manager_browsertest.cc",
       "password_manager_internals/password_manager_internals_browsertest.cc",
-      "privacy_sandbox/base_dialog_browsertest.cc",
       "privacy_sandbox/internals/privacy_sandbox_internals_browsertest.cc",
       "privacy_sandbox/internals/private_state_tokens/private_state_tokens_browsertest.cc",
       "privacy_sandbox/internals/related_website_sets/related_website_sets_browsertest.cc",
@@ -97,6 +96,10 @@ source_set("browser_tests") {
       "//chrome/browser/signin:signin_promo",
       "//chrome/browser/subscription_eligibility",
     ]
+
+    if (enable_glic) {
+      deps += [ "//chrome/browser/glic" ]
+    }
 
     if (is_chrome_branded) {
       sources += [ "media_router/cast_feedback_ui_browsertest.cc" ]
@@ -423,7 +426,8 @@ generate_grd("build_chai_grdp") {
   out_grd = "$target_gen_dir/chai_resources.grdp"
   input_files_base_dir =
       rebase_path("//third_party/node/node_modules/chai", "//")
-  input_files = [ "chai.js" ]
+  input_files = [ "index.js" ]
+  resource_path_rewrites = [ "index.js|chai.js" ]
 }
 
 generate_grd("build_mocha_grdp") {

@@ -16,7 +16,6 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
@@ -27,7 +26,7 @@ namespace {
 
 using ::testing::NotNull;
 
-struct AsyncTCPSocketObserver : public sigslot::has_slots<> {
+struct AsyncTCPSocketObserver {
   void OnReadyToSend(AsyncPacketSocket* socket) { ready_to_send = true; }
 
   bool ready_to_send = false;

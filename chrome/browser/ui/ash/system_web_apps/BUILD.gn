@@ -39,9 +39,6 @@ static_library("system_web_apps") {
     "//content/public/browser",
     "//ui/base",
     "//ui/display",
-
-    # TODO(crbug.com/385152937): Remove this once we've removed ScalableIphDelegateImpl.
-    "//chrome/browser/ash/scalable_iph",
   ]
 
   # TODO(crbug.com/40251081): Remove these deps. Needed only to allow circular includes.
@@ -59,7 +56,6 @@ static_library("system_web_apps") {
     "//chrome/browser/ash/system_web_apps/apps/camera_app",
     "//chrome/browser/ash/system_web_apps/apps/media_app",
     "//chrome/browser/chromeos/app_mode",
-    "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/views/borealis",
     "//chrome/browser/ui/web_applications:launch_utils",
     "//chrome/browser/ui/webui/ash/diagnostics_dialog",
@@ -84,8 +80,5 @@ static_library("system_web_apps") {
     "//chrome/browser/ui/views/borealis",
     "//chrome/browser/ui/webui/ash/diagnostics_dialog",
     "//chrome/browser/ui/webui/ash/settings/pages/files",
-
-    # TODO(crbug.com/385152937): Remove this once we've removed ScalableIphDelegateImpl.
-    "//chrome/browser/ash/scalable_iph",
   ]
 }

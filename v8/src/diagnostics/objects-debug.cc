@@ -147,8 +147,7 @@ void Object::ObjectVerify(Tagged<Object> obj, Isolate* isolate) {
     Cast<HeapObject>(obj)->HeapObjectVerify(isolate);
   }
   PtrComprCageBase cage_base(isolate);
-  CHECK(SafeIsAnyHole(obj) || !IsConstructor(obj, cage_base) ||
-        IsCallable(obj, cage_base));
+  CHECK(!IsConstructor(obj, cage_base) || IsCallable(obj, cage_base));
 }
 
 void Object::VerifyPointer(Isolate* isolate, Tagged<Object> p) {
@@ -194,17 +193,6 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject(*this));
-
-  if (SafeIsAnyHole(Tagged(*this))) {
-    ReadOnlyRoots roots(isolate);
-#define COMPARE_ROOTS_VALUE(_, Value, __) \
-  if (*this == roots.Value()) {           \
-    return;                               \
-  }
-    HOLE_LIST(COMPARE_ROOTS_VALUE);
-#undef COMPARE_ROOTS_VALUE
-    UNREACHABLE();
-  }
 
   PtrComprCageBase cage_base(isolate);
   Object::VerifyPointer(isolate, map(cage_base));
@@ -396,7 +384,6 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Tagged<Object> p) {
   // If you crashed here and {isolate->is_shared()}, there is a bug causing the
   // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), Cast<HeapObject>(p)));
-  if (SafeIsAnyHole(p)) return;
   CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsInstructionStream(p));
 }
 
@@ -455,8 +442,10 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     auto o = wrapper();
     Object::VerifyPointer(isolate, o);
     CHECK(IsBytecodeWrapper(o));
-    // Our wrapper must point back to us.
-    CHECK_EQ(o->bytecode(isolate), *this);
+    if (o->has_bytecode()) {
+      // If the wrapper is fully initialized, it must point back to us.
+      CHECK_EQ(o->bytecode(isolate), *this);
+    }
   }
   {
     // Use the raw accessor here as source positions may not be available.
@@ -1335,9 +1324,6 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSBoundFunctionVerify(*this, isolate);
   CHECK(IsCallable(*this));
   CHECK_EQ(IsConstructor(*this), IsConstructor(bound_target_function()));
-  // Ensure that the function's meta map belongs to the same native context
-  // as the target function (i.e. meta maps are the same).
-  CHECK_EQ(map()->map(), bound_target_function()->map()->map());
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
@@ -1450,6 +1436,12 @@ bool ShouldVerifySharedFunctionInfoFunctionIndex(
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
   ReadOnlyRoots roots(isolate);
+
+  // As we're iterating the heap, we might see inconsistent (and unreachable)
+  // SFIs that reference unpublished trusted objects. This can for example
+  // happen in case Wasm module instantiation fails, in which case we
+  // "unpublish" the trusted objects as they'd be inconsistent.
+  if (HasUnpublishedTrustedData(isolate)) return;
 
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(value)) {
@@ -1978,9 +1970,21 @@ void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
   }
 }
 
+void AccessCheckInfo::AccessCheckInfoVerify(Isolate* isolate) {
+  Object::VerifyPointer(isolate, callback());
+  Object::VerifyPointer(isolate, named_interceptor());
+  Object::VerifyPointer(isolate, indexed_interceptor());
+  Object::VerifyPointer(isolate, data());
+}
+
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
   CHECK(IsEphemeronHashTable(table()) || IsUndefined(table(), isolate));
+}
+
+void ScriptOrModule::ScriptOrModuleVerify(Isolate* isolate) {
+  Object::VerifyPointer(isolate, resource_name());
+  Object::VerifyPointer(isolate, host_defined_options());
 }
 
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
@@ -2009,9 +2013,65 @@ void JSWeakSet::JSWeakSetVerify(Isolate* isolate) {
   CHECK(IsEphemeronHashTable(table()) || IsUndefined(table(), isolate));
 }
 
+void CallbackTask::CallbackTaskVerify(Isolate* isolate) {
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, callback());
+  Object::VerifyPointer(isolate, data());
+}
+
 void CallableTask::CallableTaskVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::CallableTaskVerify(*this, isolate);
-  CHECK(IsCallable(callable()));
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, callable());
+  Object::VerifyPointer(isolate, context());
+}
+
+void Microtask::MicrotaskVerify(Isolate* isolate) {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Object::VerifyPointer(isolate, continuation_preserved_embedder_data());
+#endif
+}
+
+void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, argument());
+  Object::VerifyPointer(isolate, context());
+  Object::VerifyPointer(isolate, handler());
+  Object::VerifyPointer(isolate, promise_or_capability());
+}
+
+void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify(
+    Isolate* isolate) {
+  PromiseReactionJobTaskVerify(isolate);
+}
+
+void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskVerify(
+    Isolate* isolate) {
+  PromiseReactionJobTaskVerify(isolate);
+}
+
+void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskVerify(
+    Isolate* isolate) {
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, context());
+  Object::VerifyPointer(isolate, promise_to_resolve());
+  Object::VerifyPointer(isolate, thenable());
+  Object::VerifyPointer(isolate, then());
+}
+
+void PromiseCapability::PromiseCapabilityVerify(Isolate* isolate) {
+  Object::VerifyPointer(isolate, promise());
+  Object::VerifyPointer(isolate, resolve());
+  Object::VerifyPointer(isolate, reject());
+}
+
+void PromiseReaction::PromiseReactionVerify(Isolate* isolate) {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Object::VerifyPointer(isolate, continuation_preserved_embedder_data());
+#endif
+  Object::VerifyPointer(isolate, next());
+  Object::VerifyPointer(isolate, reject_handler());
+  Object::VerifyPointer(isolate, fulfill_handler());
+  Object::VerifyPointer(isolate, promise_or_capability());
 }
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
@@ -2479,11 +2539,13 @@ void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
 }
 
 void EnumCache::EnumCacheVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::EnumCacheVerify(*this, isolate);
-  Heap* heap = isolate->heap();
-  if (*this == ReadOnlyRoots(heap).empty_enum_cache()) {
-    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(), keys());
-    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(), indices());
+  Object::VerifyPointer(isolate, keys());
+  Object::VerifyPointer(isolate, indices());
+
+  ReadOnlyRoots roots(isolate);
+  if (this == roots.empty_enum_cache()) {
+    CHECK_EQ(roots.empty_fixed_array(), keys());
+    CHECK_EQ(roots.empty_fixed_array(), indices());
   }
 }
 
@@ -2498,16 +2560,39 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   }
 }
 
+void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(flags_.load()));
+  CHECK(IsFixedArrayBase(constant_elements_.load()));
+  Object::VerifyPointer(isolate, constant_elements_.load());
+}
+
 void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kArgumentsCountOffset)));
-  Object::VerifyPointer(isolate, static_properties_template());
-  Object::VerifyPointer(isolate, static_elements_template());
-  Object::VerifyPointer(isolate, static_computed_properties());
-  CHECK(IsFixedArray(static_computed_properties()));
-  Object::VerifyPointer(isolate, instance_properties_template());
-  Object::VerifyPointer(isolate, instance_elements_template());
-  Object::VerifyPointer(isolate, instance_computed_properties());
-  CHECK(IsFixedArray(instance_computed_properties()));
+  CHECK(IsSmi(arguments_count_.load()));
+  Object::VerifyPointer(isolate, static_properties_template_.load());
+  Object::VerifyPointer(isolate, static_elements_template_.load());
+  Object::VerifyPointer(isolate, static_computed_properties_.load());
+  CHECK(IsFixedArray(static_computed_properties_.load()));
+  Object::VerifyPointer(isolate, instance_properties_template_.load());
+  Object::VerifyPointer(isolate, instance_elements_template_.load());
+  Object::VerifyPointer(isolate, instance_computed_properties_.load());
+  CHECK(IsFixedArray(instance_computed_properties_.load()));
+}
+
+void PropertyDescriptorObject::PropertyDescriptorObjectVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(flags_.load()));
+  Object::VerifyPointer(isolate, value_.load());
+  Object::VerifyPointer(isolate, get_.load());
+  Object::VerifyPointer(isolate, set_.load());
+}
+
+void TemplateObjectDescription::TemplateObjectDescriptionVerify(
+    Isolate* isolate) {
+  Object::VerifyPointer(isolate, raw_strings_.load());
+  CHECK(IsFixedArray(raw_strings_.load()));
+  Object::VerifyPointer(isolate, cooked_strings_.load());
+  CHECK(IsFixedArray(cooked_strings_.load()));
 }
 
 void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
@@ -2522,7 +2607,7 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
     Object::VerifyPointer(isolate, o);
     CHECK(IsString(o));
   }
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+  CHECK(IsSmi(flags_.load()));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2786,7 +2871,16 @@ void UncompiledDataWithPreparseDataAndJob::
 }
 
 void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::CallSiteInfoVerify(*this, isolate);
+  CHECK(IsSmi(flags_.load()));
+  CHECK(IsSmi(code_offset_or_source_position_.load()));
+  Object::VerifyPointer(isolate, receiver_or_instance_.load());
+  Object::VerifyPointer(isolate, function_.load());
+  Object::VerifyPointer(isolate, parameters_.load());
+  CHECK(IsFixedArray(parameters_.load()));
+
+  Tagged<Object> code = code_object_.load_maybe_empty(isolate, kAcquireLoad);
+  CHECK(IsCode(code) || IsBytecodeArray(code) || code == Smi::zero());
+
 #if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), IsWasmInstanceObject(receiver_or_instance()));

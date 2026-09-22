@@ -65,7 +65,7 @@ RtpTransmissionManager::RtpTransmissionManager(
     UsagePattern* usage_pattern,
     PeerConnectionObserver* observer,
     LegacyStatsCollectorInterface* legacy_stats,
-    std::function<void()> on_negotiation_needed)
+    absl::AnyInvocable<void()> on_negotiation_needed)
     : env_(env),
       is_unified_plan_(is_unified_plan),
       context_(context),
@@ -73,7 +73,7 @@ RtpTransmissionManager::RtpTransmissionManager(
       usage_pattern_(usage_pattern),
       observer_(observer),
       legacy_stats_(legacy_stats),
-      on_negotiation_needed_(on_negotiation_needed),
+      on_negotiation_needed_(std::move(on_negotiation_needed)),
       weak_ptr_factory_(this) {}
 
 void RtpTransmissionManager::Close() {

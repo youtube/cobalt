@@ -119,6 +119,7 @@ interface AnimationTrigger
     attribute @@toStringTag
     method addAnimation
     method constructor
+    method getAnimations
     method removeAnimation
 interface AsyncDisposableStack
     attribute @@toStringTag
@@ -2406,7 +2407,6 @@ interface Element : Node
     getter computedRole
     getter containerTiming
     getter containerTimingIgnore
-    getter containerTimingNesting
     getter currentCSSZoom
     getter currentPatch
     getter elementTiming
@@ -2501,6 +2501,7 @@ interface Element : Node
     method setHTMLUnsafe
     method setPointerCapture
     method startViewTransition
+    method streamAppendHTMLUnsafe
     method toggleAttribute
     method webkitMatchesSelector
     method webkitRequestFullScreen
@@ -2562,7 +2563,6 @@ interface Element : Node
     setter className
     setter containerTiming
     setter containerTimingIgnore
-    setter containerTimingNesting
     setter elementTiming
     setter headingOffset
     setter headingReset
@@ -3085,6 +3085,7 @@ interface GPUComputePassEncoder
     method popDebugGroup
     method pushDebugGroup
     method setBindGroup
+    method setImmediates
     method setPipeline
     method writeTimestamp
     setter label
@@ -3190,6 +3191,7 @@ interface GPURenderBundleEncoder
     method popDebugGroup
     method pushDebugGroup
     method setBindGroup
+    method setImmediates
     method setIndexBuffer
     method setPipeline
     method setVertexBuffer
@@ -3213,6 +3215,7 @@ interface GPURenderPassEncoder
     method pushDebugGroup
     method setBindGroup
     method setBlendConstant
+    method setImmediates
     method setIndexBuffer
     method setPipeline
     method setScissorRect
@@ -3272,6 +3275,7 @@ interface GPUSupportedLimits
     getter maxComputeWorkgroupsPerDimension
     getter maxDynamicStorageBuffersPerPipelineLayout
     getter maxDynamicUniformBuffersPerPipelineLayout
+    getter maxImmediateSize
     getter maxInterStageShaderVariables
     getter maxSampledTexturesPerShaderStage
     getter maxSamplersPerShaderStage
@@ -3354,6 +3358,14 @@ interface GamepadHapticActuator
     method constructor
     method playEffect
     method reset
+interface GamepadRawInputChangeEvent : GamepadEvent
+    attribute @@toStringTag
+    getter axesChanged
+    getter buttonsPressed
+    getter buttonsReleased
+    getter buttonsValueChanged
+    getter touchesChanged
+    method constructor
 interface GamepadTouch
     attribute @@toStringTag
     getter position
@@ -3543,6 +3555,7 @@ interface HTMLBodyElement : HTMLElement
     getter onfocus
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter onhashchange
     getter onlanguagechange
     getter onload
@@ -3577,6 +3590,7 @@ interface HTMLBodyElement : HTMLElement
     setter onfocus
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter onhashchange
     setter onlanguagechange
     setter onload
@@ -3646,6 +3660,7 @@ interface HTMLCanvasElement : HTMLElement
     method configureHighDynamicRange
     method constructor
     method getContext
+    method getElementTransform
     method toBlob
     method toDataURL
     method transferControlToOffscreen
@@ -4111,6 +4126,7 @@ interface HTMLFrameSetElement : HTMLElement
     getter onfocus
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter onhashchange
     getter onlanguagechange
     getter onload
@@ -4141,6 +4157,7 @@ interface HTMLFrameSetElement : HTMLElement
     setter onfocus
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter onhashchange
     setter onlanguagechange
     setter onload
@@ -6871,8 +6888,6 @@ interface OrientationSensor : Sensor
     method populateMatrix
 interface Origin
     static method from
-    static method fromURL
-    static method parse
     attribute @@toStringTag
     getter opaque
     method constructor
@@ -7854,6 +7869,7 @@ interface RtcTransport
     getter fingerprint
     getter fingerprintDigestAlgorithm
     getter onicecandidate
+    getter onwritablechange
     method addRemoteCandidate
     method constructor
     method getReceivedPackets
@@ -7861,6 +7877,7 @@ interface RtcTransport
     method setRemoteDtlsParameters
     method writable
     setter onicecandidate
+    setter onwritablechange
 interface RtcTransportIceCandidate
     attribute @@toStringTag
     getter address
@@ -9280,6 +9297,7 @@ interface ShadowRoot : DocumentFragment
     method getSelection
     method setHTML
     method setHTMLUnsafe
+    method streamAppendHTMLUnsafe
     setter adoptedStyleSheets
     setter fullscreenElement
     setter innerHTML
@@ -12238,6 +12256,7 @@ namespace console
     getter onformdata
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter ongotpointercapture
     getter onhashchange
     getter oninput
@@ -12462,6 +12481,7 @@ namespace console
     setter onformdata
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter ongotpointercapture
     setter onhashchange
     setter oninput

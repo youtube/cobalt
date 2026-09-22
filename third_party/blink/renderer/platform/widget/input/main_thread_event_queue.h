@@ -5,10 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_INPUT_MAIN_THREAD_EVENT_QUEUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_INPUT_MAIN_THREAD_EVENT_QUEUE_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 
-#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -191,12 +191,14 @@ class PLATFORM_EXPORT MainThreadEventQueue
   struct MainThreadOnly {
     bool blocking_touch_start_not_consumed = false;
     bool should_unblock_touch_moves = false;
+    int64_t touch_sequence_start_dequeued_count = 0;
   } main_thread_only_;
   MainThreadOnly& GetMainThreadOnly();
 
   // Contains data that are read and written on the compositor thread only.
   struct CompositorThreadOnly {
     bool last_touch_start_forced_nonblocking_due_to_fling = false;
+    int64_t touch_sequence_start_enqueued_count = 0;
   } compositor_thread_only_;
   CompositorThreadOnly& GetCompositorThreadOnly();
 
@@ -223,6 +225,9 @@ class PLATFORM_EXPORT MainThreadEventQueue
     // The optional only has a value set during an active scroll.
     std::optional<bool> gsu_acked_as_consumed_ = std::nullopt;
     base::TimeTicks last_async_touch_move_timestamp_;
+    // The value of `enqueued_touch_sequence_start_count` for which the
+    // compositor thread can unblock touch moves for.
+    int64_t unblock_touch_sequence_start_count_ = -1;
   };
 
   // Lock used to serialize |shared_state_|.

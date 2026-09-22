@@ -5,6 +5,7 @@
 #include "chrome/browser/ai/ai_language_model.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -12,7 +13,7 @@
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
@@ -55,6 +56,10 @@ ml::Token ConvertToToken(blink::mojom::AILanguageModelPromptRole role) {
       return ml::Token::kUser;
     case blink::mojom::AILanguageModelPromptRole::kAssistant:
       return ml::Token::kModel;
+    case blink::mojom::AILanguageModelPromptRole::kToolCall:
+      return ml::Token::kToolCall;
+    case blink::mojom::AILanguageModelPromptRole::kToolResponse:
+      return ml::Token::kToolResponse;
   }
 }
 
@@ -667,8 +672,10 @@ AILanguageModel::GetLanguageModelInstanceInfo() {
   }
 
   uint32_t max_tokens = GetMaxTokens(model_client_.get());
+  uint32_t total_tokens =
+      context_->initial_tokens() + context_->current_tokens();
   return blink::mojom::AILanguageModelInstanceInfo::New(
-      max_tokens, max_tokens - context_->max_tokens(),
+      max_tokens, total_tokens,
       blink::mojom::AILanguageModelSamplingParams::New(
           session_params_->top_k, session_params_->temperature),
       std::move(input_types).extract());
@@ -710,7 +717,9 @@ void AILanguageModel::InitializeGetInputSizeComplete(
 
   // `context_` will track how many tokens are remaining after the initial
   // prompts. The initial prompts cannot be evicted.
-  context_ = std::make_unique<Context>(max_tokens - *token_count);
+  auto initial_tokens = *token_count;
+  context_ = std::make_unique<Context>(max_tokens - initial_tokens);
+  context_->set_initial_tokens(initial_tokens);
 
   if (input) {
     if (logger_ && logger_->ShouldEnableDebugLogs()) {
@@ -718,7 +727,7 @@ void AILanguageModel::InitializeGetInputSizeComplete(
           optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
           logger_.get())
           << "Adding initial context to the model of "
-          << base::NumberToString(*token_count) << " tokens:\n"
+          << base::NumberToString(initial_tokens) << " tokens:\n"
           << optimization_guide::OnDeviceInputToString(*input);
     }
     auto safety_input = CreateStringMessage(*input);
@@ -912,8 +921,10 @@ void AILanguageModel::OnPromptOutputComplete() {
     // ConvertToInputForExecute().
     current_session_->Append(MakeAppendOptions(std::move(model_output)), {});
   }
+  uint32_t total_tokens =
+      context_->initial_tokens() + context_->current_tokens();
   responder->OnCompletion(
-      blink::mojom::ModelExecutionContextInfo::New(context_->current_tokens()));
+      blink::mojom::ModelExecutionContextInfo::New(total_tokens));
   if (model_client_) {
     model_client_->solution().ReportHealthyCompletion();
   }

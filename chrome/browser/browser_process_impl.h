@@ -34,6 +34,7 @@
 #include "media/media_buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/network/public/cpp/network_quality_tracker.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/upgrade_detector/build_state.h"
@@ -74,7 +75,7 @@ class GCMDriver;
 namespace os_crypt_async {
 class KeyProvider;
 class OSCryptAsync;
-}
+}  // namespace os_crypt_async
 
 namespace policy {
 class ChromeBrowserPolicyConnector;
@@ -106,6 +107,9 @@ class BrowserProcessImpl : public BrowserProcess,
   BrowserProcessImpl& operator=(const BrowserProcessImpl&) = delete;
 
   ~BrowserProcessImpl() override;
+
+  ui::UnownedUserDataHost& GetUnownedUserDataHost() override;
+  const ui::UnownedUserDataHost& GetUnownedUserDataHost() const override;
 
   // Called to complete initialization.
   void Init();
@@ -201,8 +205,6 @@ class BrowserProcessImpl : public BrowserProcess,
 #endif
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
-  subresource_filter::RulesetService*
-  fingerprinting_protection_ruleset_service() override;
 
   StartupData* startup_data() override;
 
@@ -385,10 +387,6 @@ class BrowserProcessImpl : public BrowserProcess,
   std::unique_ptr<subresource_filter::RulesetService>
       subresource_filter_ruleset_service_;
 
-  bool created_fingerprinting_protection_ruleset_service_ = false;
-  std::unique_ptr<subresource_filter::RulesetService>
-      fingerprinting_protection_ruleset_service_;
-
   bool shutting_down_ = false;
 
   bool tearing_down_ = false;
@@ -475,6 +473,9 @@ class BrowserProcessImpl : public BrowserProcess,
   std::unique_ptr<base::android::ApplicationStatusListener> app_state_listener_;
 #endif
 
+  ui::UnownedUserDataHost unowned_user_data_host_;
+
+  // This must be destroyed before UnownedUserDataHost.
   std::unique_ptr<GlobalFeatures> features_;
 
   // Observes application-wide events and logs them to breadcrumbs. Null if

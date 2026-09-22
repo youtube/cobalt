@@ -39,6 +39,8 @@ class MockStreamingProcessor : public StreamingProcessor {
   explicit MockStreamingProcessor(MockStreamingResult* result)
       : result_(result) {}
 
+  void InitializeIsolateSpecificInfo(Isolate*) override {}
+
   bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) override {
     Decoder decoder(bytes.begin(), bytes.end());
     uint32_t magic_word = decoder.consume_u32("wasm magic", ITracer::NoTrace);
@@ -89,7 +91,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   void OnAbort() override {}
 
   bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                   base::Vector<const uint8_t> wire_bytes) override {
+                   base::OwnedVector<const uint8_t>& wire_bytes) override {
     return false;
   }
 

@@ -11,11 +11,12 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/android/token_android.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
-#include "chrome/browser/tab/restore_id_associator.h"
-#include "chrome/browser/tab/restore_id_associator_builder.h"
+#include "chrome/browser/tab/restore_entity_tracker.h"
+#include "chrome/browser/tab/storage_id.h"
 #include "chrome/browser/tab/storage_id_mapping.h"
 #include "chrome/browser/tab/storage_loaded_data.h"
 #include "chrome/browser/tab/tab_group_collection_data.h"
@@ -36,8 +37,8 @@ using TabCanonicalizer =
 
 // Constructs an associater using the specified callbacks. This indirection is
 // required to minimize OS-specific coupling.
-using AssociatorBuilderFactory = base::RepeatingCallback<std::unique_ptr<
-    RestoreIdAssociatorBuilder>(OnTabAssociation, OnCollectionAssociation)>;
+using RestoreEntityTrackerFactory = base::RepeatingCallback<std::unique_ptr<
+    RestoreEntityTracker>(OnTabAssociation, OnCollectionAssociation)>;
 
 class TabStateStorageService : public KeyedService,
                                public base::SupportsUserData,
@@ -46,16 +47,26 @@ class TabStateStorageService : public KeyedService,
   using LoadDataCallback =
       base::OnceCallback<void(std::unique_ptr<StorageLoadedData>)>;
 
-  explicit TabStateStorageService(
-      std::unique_ptr<TabStateStorageBackend> tab_backend,
-      std::unique_ptr<TabStoragePackager> packager,
-      TabCanonicalizer tab_canonicalizer,
-      AssociatorBuilderFactory builder_factory);
+  TabStateStorageService(const base::FilePath& profile_path,
+                         std::unique_ptr<TabStoragePackager> packager,
+                         TabCanonicalizer tab_canonicalizer,
+                         RestoreEntityTrackerFactory builder_factory);
   ~TabStateStorageService() override;
 
+  // Boosts the priority of the database operations to USER_BLOCKING until all
+  // current pending operations are complete. This should be used when it is
+  // critical to save user data.
+  void BoostPriority();
+
   // StorageIdMapping:
-  int GetStorageId(const TabCollection* collection) override;
-  int GetStorageId(const TabInterface* tab) override;
+  StorageId GetStorageId(const TabCollection* collection) override;
+  StorageId GetStorageId(const TabInterface* tab) override;
+
+  // Schedules a task to be run after all currently pending operations are
+  // complete. Primarily useful if you want to wait to ensure events prior to
+  // calling this method are flushed to the database. There is no guarantee
+  // that future operations will complete prior to the callback being invoked.
+  void WaitForAllPendingOperations(base::OnceClosure on_idle);
 
   void Save(const TabInterface* tab);
   void Save(const TabCollection* collection);
@@ -71,11 +82,13 @@ class TabStateStorageService : public KeyedService,
   void Remove(const TabCollection* collection,
               const TabCollection* prev_parent);
 
-  void LoadAllNodes(std::string window_tag,
+  void LoadAllNodes(const std::string& window_tag,
                     bool is_off_the_record,
                     LoadDataCallback callback);
 
   void ClearState();
+
+  void ClearWindow(const std::string& window_tag);
 
   // Returns a Java object of the type TabStateStorageService. This is
   // implemented in tab_state_storage_service_android.cc
@@ -83,23 +96,20 @@ class TabStateStorageService : public KeyedService,
       TabStateStorageService* tab_state_storage_service);
 
  private:
-  void OnAllNodesLoaded(LoadDataCallback callback,
-                        std::vector<NodeState> entries);
+  void OnTabCreated(StorageId storage_id, const TabInterface* tab);
+  void OnCollectionCreated(StorageId storage_id,
+                           const TabCollection* collection);
 
-  void OnTabCreated(int storage_id, const TabInterface* tab);
-  void OnCollectionCreated(int storage_id, const TabCollection* collection);
-
-  std::unique_ptr<TabStateStorageBackend> tab_backend_;
+  TabStateStorageBackend tab_backend_;
   std::unique_ptr<TabStoragePackager> packager_;
 
   TabCanonicalizer tab_canonicalizer_;
-  AssociatorBuilderFactory builder_factory_;
+  RestoreEntityTrackerFactory tracker_factory_;
 
   // Storage ids need to be unique across tabs and collections, but the handles
   // do not have this guarantee. Track them separately.
-  int next_storage_id_ = 1;
-  absl::flat_hash_map<int32_t, int> tab_handle_to_storage_id_;
-  absl::flat_hash_map<int32_t, int> collection_handle_to_storage_id_;
+  absl::flat_hash_map<int32_t, StorageId> tab_handle_to_storage_id_;
+  absl::flat_hash_map<int32_t, StorageId> collection_handle_to_storage_id_;
 
   base::WeakPtrFactory<TabStateStorageService> weak_ptr_factory_{this};
 };

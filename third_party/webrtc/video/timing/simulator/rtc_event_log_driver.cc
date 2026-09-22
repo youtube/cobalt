@@ -35,10 +35,12 @@
 namespace webrtc::video_timing_simulator {
 
 RtcEventLogDriver::RtcEventLogDriver(
+    const Config& config,
     const ParsedRtcEventLog* absl_nonnull parsed_log,
     absl::string_view field_trials_string,
     RtcEventLogDriver::StreamInterfaceFactory stream_factory)
-    : time_controller_(
+    : config_(config),
+      time_controller_(
           std::make_unique<GlobalSimulatedTimeController>(Timestamp::Zero())),
       env_(CreateEnvironment(
           std::make_unique<webrtc::FieldTrials>(field_trials_string),
@@ -140,11 +142,19 @@ void RtcEventLogDriver::OnLoggedVideoRecvConfig(
     RTC_LOG(LS_INFO) << "OnLoggedVideoRecvConfig for ssrc=" << ssrc
                      << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
     if (auto it = streams_.find(ssrc); it != streams_.end()) {
-      RTC_LOG(LS_WARNING) << "Video receive stream for ssrc=" << ssrc
-                          << " already existed. Overwriting it."
-                          << " (simulated_ts=" << env_.clock().CurrentTime()
-                          << ")";
-      it->second->Close();
+      if (config_.reuse_streams) {
+        RTC_LOG(LS_WARNING)
+            << "Video receive stream for ssrc=" << ssrc
+            << " already existed. Reusing it."
+            << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
+        return;
+      } else {
+        RTC_LOG(LS_WARNING)
+            << "Video receive stream for ssrc=" << ssrc
+            << " already existed. Overwriting it."
+            << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
+        it->second->Close();
+      }
     }
     std::unique_ptr<StreamInterface> stream = stream_factory_(env_, ssrc);
     RTC_DCHECK(stream);

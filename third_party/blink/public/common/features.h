@@ -17,7 +17,6 @@
 #include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/features_generated.h"
-#include "third_party/blink/public/common/forcedark/forcedark_switches.h"
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -658,8 +657,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kFledgeTruncateSelectableBuyerAndSellerReportingIdsToKAnonLimit);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceWebContentsDarkMode);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(ForceDarkInversionMethod,
-                                               kForceDarkInversionMethodParam);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     int,
     kForceDarkForegroundLightnessThresholdParam);
@@ -1689,8 +1686,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kSecPurposePrefetchHeaderRelPrefetch);
 // for the host of a requested URL.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kSendCnameAliasesToSubresourceFilterFromRenderer);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerUpdateDelay);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kSetIntervalWithoutClamp);
 

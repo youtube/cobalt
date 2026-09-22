@@ -15,7 +15,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
-#include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
@@ -80,12 +80,6 @@ LensComposeboxOmniboxClient::~LensComposeboxOmniboxClient() = default;
 
 metrics::OmniboxEventProto::PageClassification
 LensComposeboxOmniboxClient::GetPageClassification(bool is_prefetch) const {
-  // TODO(crbug.com/456528226): - multimodal suggestions are for teamfood only
-  // so the incorrect classification is fine for now.
-  if (lens::features::GetLensAimSuggestionsType() ==
-      lens::features::LensAimSuggestionsType::kMultimodal) {
-    return metrics::OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX;
-  }
   return metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX;
 }
 

@@ -47,6 +47,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorFromHexInfo;
@@ -104,7 +105,8 @@ public class TopInsetCoordinatorUnitTest {
         when(mNonNtpTab2.isNativePage()).thenReturn(false);
         when(mNonNtpTab2.getNativePage()).thenReturn(null);
 
-        mNtpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
+        mNtpCustomizationConfigManager = new NtpCustomizationConfigManager();
+        NtpCustomizationConfigManager.setInstanceForTesting(mNtpCustomizationConfigManager);
         mTopInsetCoordinator =
                 new TopInsetCoordinator(
                         mContext, mTabSupplier, mInsetObserver, mLayoutStateProviderSupplier);
@@ -118,6 +120,7 @@ public class TopInsetCoordinatorUnitTest {
     @After
     public void tearDown() {
         mNtpCustomizationConfigManager.resetForTesting();
+        NtpCustomizationUtils.resetSharedPreferenceForTesting();
         mTopInsetCoordinator.destroy();
     }
 
@@ -217,6 +220,8 @@ public class TopInsetCoordinatorUnitTest {
         landscapeMatrix.setScale(2f, 9f);
         BackgroundImageInfo imageInfo = new BackgroundImageInfo(portraitMatrix, landscapeMatrix);
 
+        mNtpCustomizationConfigManager.setBackgroundImageTypeForTesting(
+                NtpBackgroundImageType.IMAGE_FROM_DISK);
         mNtpCustomizationConfigManager.notifyBackgroundImageChanged(
                 bitmap,
                 imageInfo,

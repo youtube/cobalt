@@ -361,6 +361,13 @@ using signin_metrics::PromoAction;
 // Presents the extra screen with `identity` pre-selected.
 - (void)presentPostSigninManagerCoordinatorWithIdentity:
     (id<SystemIdentity>)identity {
+  if (_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    // Due to asynchronicity, it can occurs that the users already got
+    // signed-in.
+    [self runCompletionWithSigninResult:SigninCoordinatorResultInterrupted
+                     completionIdentity:nil];
+    return;
+  }
   CHECK([self isStarted], base::NotFatalUntil::M144);
   // The new UIViewController is presented on top of the currently displayed
   // view controller.
@@ -374,20 +381,26 @@ using signin_metrics::PromoAction;
                                 continuationProvider:_continuationProvider];
 
   __weak AddAccountSigninCoordinator* weakSelf = self;
-  self.postSigninManagerCoordinator.signinCompletion = ^(
-      SigninCoordinatorResult signinResult,
-      id<SystemIdentity> signinCompletionIdentity) {
-    [weakSelf
-        postSigninManagerCoordinatorDoneWithResult:signinResult
-                          signinCompletionIdentity:signinCompletionIdentity];
-  };
+  self.postSigninManagerCoordinator.signinCompletion =
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult signinResult,
+        id<SystemIdentity> signinCompletionIdentity) {
+        [weakSelf postSigninManagerCoordinatorDoneWithCoordinator:coordinator
+                                                           result:signinResult
+                                         signinCompletionIdentity:
+                                             signinCompletionIdentity];
+      };
   [self.postSigninManagerCoordinator start];
 }
 
-- (void)postSigninManagerCoordinatorDoneWithResult:
-            (SigninCoordinatorResult)result
-                          signinCompletionIdentity:
-                              (id<SystemIdentity>)resultIdentity {
+- (void)postSigninManagerCoordinatorDoneWithCoordinator:
+            (SigninCoordinator*)coordinator
+                                                 result:
+                                                     (SigninCoordinatorResult)
+                                                         result
+                               signinCompletionIdentity:
+                                   (id<SystemIdentity>)resultIdentity {
+  CHECK_EQ(self.postSigninManagerCoordinator, coordinator,
+           base::NotFatalUntil::M151);
   [self stopPostSigninManagerCoordinatorAnimated:NO];
   if (result != SigninCoordinatorResultSuccess) {
     [self addAccountDoneWithSigninResult:result identity:resultIdentity];

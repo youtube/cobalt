@@ -9,7 +9,7 @@
 #import "base/time/time.h"
 #import "build/branding_buildflags.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_constants.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/public/tab_resumption_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_eg_utils.h"
@@ -71,7 +71,7 @@ const char kThreeSecondsTreshold[] = "3";
   config.additional_args.push_back("--mock-shopping-service=is-eligible,"
                                    "has-empty-price-tracked-bookmarks-results");
 
-  if ([self isRunningTest:@selector(testShowTabGroupInGridOnStart)] ||
+  if ([self isRunningTest:@selector(FLAKY_testShowTabGroupInGridOnStart)] ||
       [self isRunningTest:@selector
             (testDoNotShowTabGroupInGridOnStartInIncognitoMode)]) {
     config.features_enabled_and_params.push_back(
@@ -218,7 +218,11 @@ const char kThreeSecondsTreshold[] = "3";
 
 // Tests that the tab group in grid view is opened if Chrome is activated in the
 // right time interval.
-- (void)testShowTabGroupInGridOnStart {
+// TODO(crbug.com/462071614): Re-enable flaky test. This test is flaky due
+// to devices possibly running under Stage Manager, hence the app never goes
+// in the background. These tests expect the app to be backgrounding, and
+// fail.
+- (void)FLAKY_testShowTabGroupInGridOnStart {
   [ChromeEarlGreyUI openTabGrid];
 
   // Create a tab group with an item at 0.

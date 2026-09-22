@@ -53,7 +53,6 @@
 #include "rtc_base/network_constants.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
@@ -154,8 +153,7 @@ void CheckStunKeepaliveIntervalOfAllReadyPorts(
 
 namespace webrtc {
 
-class BasicPortAllocatorTestBase : public ::testing::Test,
-                                   public sigslot::has_slots<> {
+class BasicPortAllocatorTestBase : public ::testing::Test {
  public:
   BasicPortAllocatorTestBase()
       : vss_(new VirtualSocketServer()),

@@ -15,6 +15,8 @@
 #include <pipewire/pipewire.h>
 #include <spa/buffer/buffer.h>
 #include <spa/buffer/meta.h>
+#include <spa/debug/types.h>
+#include <spa/param/format-types.h>
 #include <spa/param/format.h>
 #include <spa/param/param.h>
 #include <spa/param/video/format-utils.h>
@@ -53,6 +55,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
+#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
@@ -163,7 +166,7 @@ class SharedScreenCastStreamPrivate {
   pw_core_events pw_core_events_ = {};
   pw_stream_events pw_stream_events_ = {};
 
-  struct spa_video_info_raw spa_video_format_;
+  struct spa_video_info_raw spa_video_format_ = {};
 
   void ProcessBuffer(pw_buffer* buffer);
   bool ProcessMemFDBuffer(pw_buffer* buffer,
@@ -221,6 +224,8 @@ void SharedScreenCastStreamPrivate::OnCoreInfo(void* data,
   RTC_DCHECK(stream);
 
   stream->pw_server_version_ = PipeWireVersion::Parse(info->version);
+  RTC_LOG(LS_INFO) << "PipeWire server version: "
+                   << stream->pw_server_version_.ToStringView();
 }
 
 void SharedScreenCastStreamPrivate::OnCoreDone(void* data,
@@ -244,6 +249,9 @@ void SharedScreenCastStreamPrivate::OnStreamStateChanged(
   SharedScreenCastStreamPrivate* that =
       static_cast<SharedScreenCastStreamPrivate*>(data);
   RTC_DCHECK(that);
+
+  RTC_LOG(LS_INFO) << "PipeWire stream state: "
+                   << pw_stream_state_as_string(state);
 
   switch (state) {
     case PW_STREAM_STATE_ERROR:
@@ -270,11 +278,25 @@ void SharedScreenCastStreamPrivate::OnStreamParamChanged(
       static_cast<SharedScreenCastStreamPrivate*>(data);
   RTC_DCHECK(that);
 
-  RTC_LOG(LS_INFO) << "PipeWire stream format changed.";
+  uint32_t media_subtype;
+  uint32_t media_type;
+  int result;
+
   if (!format || id != SPA_PARAM_Format) {
     return;
   }
 
+  result = spa_format_parse(format, &media_type, &media_subtype);
+  if (result < 0) {
+    return;
+  }
+
+  if (media_type != SPA_MEDIA_TYPE_video ||
+      media_subtype != SPA_MEDIA_SUBTYPE_raw) {
+    return;
+  }
+
+  that->spa_video_format_ = {};
   spa_format_video_raw_parse(format, &that->spa_video_format_);
 
   if (that->observer_ && that->spa_video_format_.max_framerate.denom) {
@@ -283,36 +305,44 @@ void SharedScreenCastStreamPrivate::OnStreamParamChanged(
         that->spa_video_format_.max_framerate.denom);
   }
 
-  auto width = that->spa_video_format_.size.width;
-  auto height = that->spa_video_format_.size.height;
-  auto stride = SPA_ROUND_UP_N(width * kBytesPerPixel, 4);
-  auto size = height * stride;
-
-  that->stream_size_ = DesktopSize(width, height);
-
-  uint8_t buffer[2048] = {};
-  auto builder = spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
-
-  // Setup buffers and meta header for new format.
-
   // When SPA_FORMAT_VIDEO_modifier is present we can use DMA-BUFs as
   // the server announces support for it.
   // See https://github.com/PipeWire/pipewire/blob/master/doc/dma-buf.dox
   const bool has_modifier =
-      spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier);
+      spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier) != nullptr;
   that->modifier_ =
       has_modifier ? that->spa_video_format_.modifier : DRM_FORMAT_MOD_INVALID;
-  std::vector<const spa_pod*> params;
+  that->stream_size_ = DesktopSize(that->spa_video_format_.size.width,
+                                   that->spa_video_format_.size.height);
+
+  if (RTC_LOG_CHECK_LEVEL(LS_INFO)) {
+    StringBuilder sb;
+    sb << "PipeWire stream format changed:\n";
+    sb << "    Format: " << that->spa_video_format_.format << " ("
+       << spa_debug_type_find_name(spa_type_video_format,
+                                   that->spa_video_format_.format)
+       << ")\n";
+    if (has_modifier) {
+      sb << "    Modifier: " << that->modifier_ << "\n";
+    }
+    sb << "    Size: " << that->spa_video_format_.size.width << " x "
+       << that->spa_video_format_.size.height << "\n";
+    sb << "    Framerate: " << that->spa_video_format_.framerate.num << "/"
+       << that->spa_video_format_.framerate.denom;
+    RTC_LOG(LS_INFO) << sb.str();
+  }
+
   const int buffer_types = has_modifier
                                ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd)
                                : (1 << SPA_DATA_MemFd);
 
+  uint8_t buffer[2048] = {};
+  auto builder = spa_pod_builder{buffer, sizeof(buffer)};
+  std::vector<const spa_pod*> params;
   params.push_back(reinterpret_cast<spa_pod*>(spa_pod_builder_add_object(
       &builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
-      SPA_PARAM_BUFFERS_size, SPA_POD_Int(size), SPA_PARAM_BUFFERS_stride,
-      SPA_POD_Int(stride), SPA_PARAM_BUFFERS_buffers,
-      SPA_POD_CHOICE_RANGE_Int(8, 1, 32), SPA_PARAM_BUFFERS_dataType,
-      SPA_POD_CHOICE_FLAGS_Int(buffer_types))));
+      SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(8, 1, 32),
+      SPA_PARAM_BUFFERS_dataType, SPA_POD_CHOICE_FLAGS_Int(buffer_types))));
   params.push_back(reinterpret_cast<spa_pod*>(spa_pod_builder_add_object(
       &builder, SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta, SPA_PARAM_META_type,
       SPA_POD_Id(SPA_META_Header), SPA_PARAM_META_size,
@@ -456,6 +486,8 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
   }
 
   pw_client_version_ = PipeWireVersion::Parse(pw_get_library_version());
+  RTC_LOG(LS_INFO) << "PipeWire client version: "
+                   << pw_client_version_.ToStringView();
 
   // Initialize event handlers, remote end and stream-related.
   pw_core_events_.version = PW_VERSION_CORE_EVENTS;
@@ -543,11 +575,9 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
     if (pw_stream_connect(pw_stream_, PW_DIRECTION_INPUT, pw_stream_node_id_,
                           PW_STREAM_FLAG_AUTOCONNECT, params.data(),
                           params.size()) != 0) {
-      RTC_LOG(LS_ERROR) << "Could not connect receiving stream.";
+      RTC_LOG(LS_ERROR) << "Could not connect receiving stream";
       return false;
     }
-
-    RTC_LOG(LS_INFO) << "PipeWire remote opened.";
   }
   return true;
 }

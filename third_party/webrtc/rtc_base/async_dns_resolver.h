@@ -57,9 +57,9 @@ class RTC_EXPORT AsyncDnsResolver : public AsyncDnsResolverInterface {
 
  private:
   class State;
-  scoped_refptr<State> state_;       // To check for "this" going away
+  scoped_refptr<State> state_;  // To check for the target task queue going away
   AsyncDnsResolverResultImpl result_;
-  absl::AnyInvocable<void()> callback_;
+  absl::AnyInvocable<void() &&> callback_;
   ScopedTaskSafety safety_;  // To check for client going away. Must be last.
 };
 

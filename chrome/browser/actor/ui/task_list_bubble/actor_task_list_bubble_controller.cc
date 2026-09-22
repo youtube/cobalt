@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble.h"
@@ -42,6 +43,10 @@ ActorTaskListBubbleController::~ActorTaskListBubbleController() = default;
 
 #if BUILDFLAG(ENABLE_GLIC)
 void ActorTaskListBubbleController::ShowBubble(views::View* anchor_view) {
+  if (!browser_->IsActive()) {
+    // Only show the bubble in the active window.
+    return;
+  }
   auto task_id_to_state = tabs::GlicActorTaskIconManagerFactory::GetForProfile(
                               browser_->GetProfile())
                               ->GetActorTaskListBubbleRows();
@@ -70,8 +75,14 @@ ActorTaskListBubbleController::CreateRowButtonParamsForTaskState(
   };
 }
 
-void ActorTaskListBubbleController::OnStateUpdate(
-    const actor::TaskId& task_id) {
+void ActorTaskListBubbleController::OnStateUpdate(actor::TaskId task_id) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ActorTaskListBubbleController::OnStateUpdateImpl,
+                     weak_ptr_factory_.GetWeakPtr(), task_id));
+}
+
+void ActorTaskListBubbleController::OnStateUpdateImpl(actor::TaskId task_id) {
   if (auto* browser_view = BrowserElementsViews::From(browser_)) {
     TabStripActionContainer* tab_strip_action_container =
         browser_view->GetViewAs<TabStripActionContainer>(
@@ -113,7 +124,9 @@ void ActorTaskListBubbleController::GetOnTaskRowClickCallback(
   // Regardless of tab navigation, remove the row and close the bubble when
   // done.
   icon_manager->RemoveRowFromTaskListBubble(task_id);
-  bubble_widget_->Close();
+  if (bubble_widget_) {
+    bubble_widget_->Close();
+  }
 #endif
 }
 

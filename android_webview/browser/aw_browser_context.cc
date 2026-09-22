@@ -21,7 +21,6 @@
 #include "android_webview/browser/aw_content_browser_client.h"
 #include "android_webview/browser/aw_contents_origin_matcher.h"
 #include "android_webview/browser/aw_download_manager_delegate.h"
-#include "android_webview/browser/aw_form_database_service.h"
 #include "android_webview/browser/aw_origin_matched_header.h"
 #include "android_webview/browser/aw_permission_manager.h"
 #include "android_webview/browser/aw_quota_manager_bridge.h"
@@ -223,9 +222,6 @@ AwBrowserContext::AwBrowserContext(std::string name,
   visitedlink_writer_ =
       std::make_unique<visitedlink::VisitedLinkWriter>(this, this, false);
   visitedlink_writer_->Init();
-
-  form_database_service_ =
-      std::make_unique<AwFormDatabaseService>(context_storage_path_);
 
   EnsureResourceContextInitialized();
   prefetch_manager_ = std::make_unique<AwPrefetchManager>(this);
@@ -596,28 +592,32 @@ void AwBrowserContext::ConfigureNetworkContextParams(
   context_params->check_clear_text_permitted =
       AwContentBrowserClient::get_check_cleartext_permitted();
 
-  if (base::FeatureList::IsEnabled(features::kWebViewQuicConnectionTimeout)) {
-    context_params->quic_idle_connection_timeout_seconds =
-        features::kWebViewQuicConnectionTimeoutSeconds.Get();
-  }
+  // A longer QUIC idle connection timeout (updated from the default 60s) has
+  // shown to be beneficial to page load performance and connection reuse for
+  // Android apps using WebView, based on experiments ran in 2025.
+  //
+  // TODO(crbug.com/446163651): Remove this override if/when the Chromium-wide
+  // default for QUIC's idle connection timeout is updated.
+  context_params->quic_idle_connection_timeout_seconds = 300;
 
   // Add proxy settings
   AwProxyConfigMonitor::GetInstance()->AddProxyToNetworkContextParams(
       context_params);
 }
 
-base::android::ScopedJavaLocalRef<jobject> JNI_AwBrowserContext_GetDefaultJava(
-    JNIEnv* env) {
+static base::android::ScopedJavaLocalRef<jobject>
+JNI_AwBrowserContext_GetDefaultJava(JNIEnv* env) {
   AwBrowserContext* default_context = AwBrowserContext::GetDefault();
   CHECK(default_context);
   return default_context->GetJavaBrowserContext();
 }
 
-std::string JNI_AwBrowserContext_GetDefaultContextName(JNIEnv* env) {
+static std::string JNI_AwBrowserContext_GetDefaultContextName(JNIEnv* env) {
   return AwBrowserContextStore::kDefaultContextName;
 }
 
-std::string JNI_AwBrowserContext_GetDefaultContextRelativePath(JNIEnv* env) {
+static std::string JNI_AwBrowserContext_GetDefaultContextRelativePath(
+    JNIEnv* env) {
   return AwBrowserContextStore::kDefaultContextPath;
 }
 
@@ -660,13 +660,14 @@ void AwBrowserContext::SetExtraHeadersForUrl(const GURL& url,
 }
 
 // static
-jboolean JNI_AwBrowserContext_IsValidHttpHeaderName(JNIEnv* env,
-                                                    std::string& header_name) {
+static jboolean JNI_AwBrowserContext_IsValidHttpHeaderName(
+    JNIEnv* env,
+    std::string& header_name) {
   return net::HttpUtil::IsValidHeaderName(header_name);
 }
 
 // static
-jboolean JNI_AwBrowserContext_IsValidHttpHeaderValue(
+static jboolean JNI_AwBrowserContext_IsValidHttpHeaderValue(
     JNIEnv* env,
     std::string& header_value) {
   return net::HttpUtil::IsValidHeaderValue(header_value);
@@ -914,3 +915,5 @@ AwBrowserContext::CreateURLLoaderFactory() {
 }
 
 }  // namespace android_webview
+
+DEFINE_JNI(AwBrowserContext)

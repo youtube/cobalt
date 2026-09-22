@@ -31,6 +31,10 @@ class MockPaymentsWindowDelegate : public PaymentsWindowDelegate {
   MockPaymentsWindowDelegate() = default;
 
   MOCK_METHOD(void, OnDidFinishNavigationForBnpl, (const GURL&), (override));
+  MOCK_METHOD(void,
+              OnWebContentsObservationStarted,
+              (content::WebContents&),
+              (override));
   MOCK_METHOD(void, WebContentsDestroyed, (), (override));
 };
 
@@ -135,6 +139,16 @@ TEST_F(AndroidPaymentsWindowManagerTest, InitBnplFlow) {
                                        true, 1);
 }
 
+// Test that OnWebContentsObservationStarted disables payments autofill.
+TEST_F(AndroidPaymentsWindowManagerTest,
+       OnWebContentsObservationStarted_DisablesPaymentsAutofill) {
+  EXPECT_TRUE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
+
+  window_manager().OnWebContentsObservationStarted(*web_contents());
+
+  EXPECT_FALSE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
+}
+
 // Test that destroying web contents after the flow state has already been reset
 // does not cause a crash.
 TEST_F(AndroidPaymentsWindowManagerTest, WebContentsDestroyed_NoOngoingFlow) {
@@ -215,7 +229,8 @@ TEST_F(AndroidPaymentsWindowManagerTest,
             intermediate_url);
 
   EXPECT_CALL(*mock_controller,
-              OnDismissed(testing::IsNull(), /*dismissed_by_user=*/true));
+              OnDismissed(testing::IsNull(), /*dismissed_by_user=*/true,
+                          /*should_reshow=*/true));
 
   // Simulate destruction of the tab.
   window_manager().WebContentsDestroyed();
@@ -237,7 +252,8 @@ TEST_F(
       test_api(window_manager()).GetMostRecentUrlNavigation().is_empty());
 
   EXPECT_CALL(*mock_controller,
-              OnDismissed(testing::IsNull(), /*dismissed_by_user=*/true));
+              OnDismissed(testing::IsNull(), /*dismissed_by_user=*/true,
+                          /*should_reshow=*/true));
 
   // Simulate destruction of the tab.
   window_manager().WebContentsDestroyed();

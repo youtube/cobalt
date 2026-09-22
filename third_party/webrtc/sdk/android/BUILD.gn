@@ -1311,12 +1311,14 @@ if (current_os == "linux" || is_android) {
       "../../api:sequence_checker",
       "../../api/audio:audio_device",
       "../../api/environment",
+      "../../api/units:timestamp",
       "../../modules/audio_device:audio_device_buffer",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:platform_thread",
       "../../rtc_base:timeutils",
       "../../system_wrappers:metrics",
+      "//third_party/abseil-cpp/absl/strings:string_view",
       "//third_party/jni_zero",
     ]
   }

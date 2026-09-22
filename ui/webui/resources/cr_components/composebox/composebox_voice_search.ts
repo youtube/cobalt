@@ -177,7 +177,7 @@ export class ComposeboxVoiceSearchElement extends
   private onSpeechStart_() {
     this.resetIdleTimer_();
     this.state_ = State.SPEECH_RECEIVED;
-    // TODO(crbug.com/457421071): Start animation here.
+    this.fire('speech-received');
   }
 
 
@@ -194,25 +194,27 @@ export class ComposeboxVoiceSearchElement extends
 
     const speechResult = results[e.resultIndex];
     assert(speechResult);
-    // Process final results.
+    // Process final results if is fully final.
     if (!!speechResult && speechResult.isFinal) {
       this.finalResult_ = speechResult[0]!.transcript;
       this.onFinalResult_();
       return;
     }
 
-    // Process interim results.
+    // Process interim results based on confidence.
     for (let j = 0; j < results.length; j++) {
       const resultList = results[j]!;
-      const result = resultList[0];
+      const result = resultList[0];  // best guess
       assert(result);
 
       if (result.confidence > RECOGNITION_CONFIDENCE_THRESHOLD) {
-        this.finalResult_ += result.transcript;
+        this.finalResult_ += result.transcript;  // Displayed
       } else {
         this.interimResult_ += result.transcript;
       }
     }
+    this.transcript_ = this.finalResult_ + this.interimResult_;
+    this.fire('transcript-update', this.transcript_);
   }
 
   private onEnd_() {
@@ -224,12 +226,13 @@ export class ComposeboxVoiceSearchElement extends
       case State.AUDIO_RECEIVED:
       case State.SPEECH_RECEIVED:
       case State.RESULT_RECEIVED:
-        this.fire('on-voice-search-cancel');
+        this.fire('voice-search-cancel');
         return;
       case State.ERROR_RECEIVED:
         // All other errors should close voice search.
         if (this.error_ !== Error.NOT_ALLOWED) {
-          this.fire('on-voice-search-cancel');
+          this.resetState_();
+          this.fire('voice-search-cancel');
         }
         return;
       case State.RESULT_FINAL:
@@ -256,16 +259,25 @@ export class ComposeboxVoiceSearchElement extends
       return;
     }
     this.state_ = State.RESULT_FINAL;
-    this.fire('on-voice-search-final-result', this.finalResult_);
+    this.fire('voice-search-final-result', this.finalResult_);
   }
 
   protected onCloseClick_() {
     this.voiceRecognition_.abort();
-    this.fire('on-voice-search-cancel');
+    this.resetState_();
+    this.fire('voice-search-cancel');
+  }
+
+  private resetState_() {
+    this.state_ = State.UNINITIALIZED;
+    this.finalResult_ = '';
+    this.interimResult_ = '';
+    this.error_ = null;
+    this.errorMessage_ = '';
   }
 
   protected onLinkClick_() {
-    this.fire('on-voice-search-cancel');
+    this.fire('voice-search-cancel');
   }
 }
 

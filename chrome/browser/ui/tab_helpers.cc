@@ -169,15 +169,12 @@
 #include "chrome/browser/content_settings/request_desktop_site_web_contents_observer_android.h"
 #include "chrome/browser/facilitated_payments/ui/chrome_facilitated_payments_client.h"
 #include "chrome/browser/fast_checkout/fast_checkout_tab_helper.h"
-#include "chrome/browser/fingerprinting_protection/chrome_fingerprinting_protection_web_contents_helper_factory.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_tab_helper.h"
 #include "chrome/browser/plugins/plugin_observer_android.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_android.h"
 #include "components/facilitated_payments/core/features/features.h"
-#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
-#include "components/ip_protection/common/ip_protection_status.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/sensitive_content/android/android_sensitive_content_client.h"
 #include "components/sensitive_content/features.h"
@@ -365,19 +362,6 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
         web_contents, "SensitiveContent.Chrome.");
   }
 
-  if (fingerprinting_protection_filter::features::
-          IsFingerprintingProtectionEnabledForIncognitoState(
-              profile->IsIncognitoProfile())) {
-    CreateFingerprintingProtectionWebContentsHelper(
-        web_contents, profile->GetPrefs(),
-        HostContentSettingsMapFactory::GetForProfile(profile),
-        profile->IsIncognitoProfile());
-  }
-
-  // Only create the IpProtectionStatus if the User Bypass feature is enabled.
-  if (net::features::kIpPrivacyEnableUserBypass.Get()) {
-    ip_protection::IpProtectionStatus::CreateForWebContents(web_contents);
-  }
   // Create the HttpAuthCacheStatus to start observing resource load
   // completions.
   HttpAuthCacheStatus::HttpAuthCacheStatus::CreateForWebContents(web_contents);

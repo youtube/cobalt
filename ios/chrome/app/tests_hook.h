@@ -8,6 +8,8 @@
 #import <memory>
 #import <optional>
 
+#import "base/containers/span.h"
+
 class PrefService;
 class ProfileIOS;
 class ProfileOAuth2TokenServiceDelegate;
@@ -128,6 +130,10 @@ bool DelayAppLaunchPromos();
 // of identifiers that contains identifiers of UIScene that are active.
 bool NeverPurgeDiscardedSessionsData();
 
+// Returns true if the UI should be minimal for testing (after loading a
+// simple UILabel into the first UIWindow).
+bool LoadMinimalAppUI();
+
 // Returns a policy provider that should be installed as the platform policy
 // provider when testing. May return nullptr.
 policy::ConfigurationPolicyProvider* GetOverriddenPlatformPolicyProvider();
@@ -209,7 +215,7 @@ feature_engagement::FeatureActivation FETDemoModeOverride();
 // If the given argv contains `-EGTestWipeProfile`, deletes the
 // contents of the `Library` directory at the start of `main()`. This
 // simulates launching the application with a fresh profile.
-void WipeProfileIfRequested(int argc, char* argv[]);
+void WipeProfileIfRequested(base::span<const char* const> args);
 
 // Delay before which the "Turn on AutoFill" button shown in Password Settings
 // can be re-enabled. If the value is 0, the default value from Password

@@ -135,7 +135,7 @@ functions must do nothing on `NULL` input.
 
 If a variable is the length of a pointer value, it has the suffix
 `_len`. An output parameter is named `out` or has an `out_` prefix. For
-instance, For instance:
+instance:
 
     uint8_t *out,
     size_t *out_len,

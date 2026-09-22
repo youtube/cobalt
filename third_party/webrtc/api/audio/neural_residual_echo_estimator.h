@@ -17,6 +17,7 @@
 #include "api/audio/echo_canceller3_config.h"
 
 namespace webrtc {
+class Block;
 
 // Interface for a neural residual echo estimator module injected into the echo
 // canceller.
@@ -40,7 +41,7 @@ class NeuralResidualEchoEstimator {
   //   * S2: Linear echo estimate
   //   * Y2: Microphone input
   //   * E2: Output of linear stage
-  virtual void Estimate(ArrayView<const float> x,
+  virtual void Estimate(const Block& render,
                         ArrayView<const std::array<float, 64>> y,
                         ArrayView<const std::array<float, 64>> e,
                         ArrayView<const std::array<float, 65>> S2,

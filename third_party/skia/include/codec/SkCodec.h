@@ -212,11 +212,11 @@ public:
      *      If the PNG does not contain unknown chunks, the SkPngChunkReader
      *      will not be used or modified.
      */
-    static std::unique_ptr<SkCodec> MakeFromData(sk_sp<SkData>,
+    static std::unique_ptr<SkCodec> MakeFromData(sk_sp<const SkData>,
                                                  SkSpan<const SkCodecs::Decoder> decoders,
                                                  SkPngChunkReader* = nullptr);
     // deprecated
-    static std::unique_ptr<SkCodec> MakeFromData(sk_sp<SkData>, SkPngChunkReader* = nullptr);
+    static std::unique_ptr<SkCodec> MakeFromData(sk_sp<const SkData>, SkPngChunkReader* = nullptr);
 
     virtual ~SkCodec();
 
@@ -848,12 +848,6 @@ protected:
             XformFormat srcFormat,
             std::unique_ptr<SkStream>,
             SkEncodedOrigin = kTopLeft_SkEncodedOrigin);
-
-    void setSrcXformFormat(XformFormat pixelFormat);
-
-    XformFormat getSrcXformFormat() const {
-        return fSrcXformFormat;
-    }
 
     virtual bool onGetGainmapCodec(SkGainmapInfo*, std::unique_ptr<SkCodec>*) { return false; }
     virtual bool onGetGainmapInfo(SkGainmapInfo*) { return false; }

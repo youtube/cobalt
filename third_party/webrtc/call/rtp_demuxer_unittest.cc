@@ -1003,6 +1003,36 @@ TEST_F(RtpDemuxerTest, RoutedByPayloadTypeIfAmbiguousSinkRemoved) {
   EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
 }
 
+TEST_F(RtpDemuxerTest, MatchAnySinkReceivesAllPackets) {
+  MockRtpPacketSink match_any_sink;
+  auto match_any_criteria = RtpDemuxerCriteria::MatchAny();
+  AddSink(match_any_criteria, &match_any_sink);
+
+  // Packet that should go to the match_any sink.
+  auto generic_packet = CreatePacketWithSsrc(456);
+  EXPECT_CALL(match_any_sink, OnRtpPacket(SamePacketAs(*generic_packet)))
+      .Times(1);
+  EXPECT_TRUE(demuxer_.OnRtpPacket(*generic_packet));
+}
+
+TEST_F(RtpDemuxerTest, AddingSpecificSinkFailsIfMatchAnyExists) {
+  MockRtpPacketSink match_any_sink;
+  auto match_any_criteria = RtpDemuxerCriteria::MatchAny();
+  ASSERT_TRUE(AddSink(match_any_criteria, &match_any_sink));
+
+  MockRtpPacketSink specific_sink;
+  EXPECT_FALSE(AddSinkOnlySsrc(123, &specific_sink));
+}
+
+TEST_F(RtpDemuxerTest, AddingMatchAnySinkFailsIfSpecificSinkExists) {
+  MockRtpPacketSink specific_sink;
+  ASSERT_TRUE(AddSinkOnlySsrc(123, &specific_sink));
+
+  MockRtpPacketSink match_any_sink;
+  auto match_any_criteria = RtpDemuxerCriteria::MatchAny();
+  EXPECT_FALSE(AddSink(match_any_criteria, &match_any_sink));
+}
+
 TEST_F(RtpDemuxerTest, RoutedByPayloadTypeLatchesSsrc) {
   constexpr uint8_t payload_type = 30;
   constexpr uint32_t ssrc = 10;

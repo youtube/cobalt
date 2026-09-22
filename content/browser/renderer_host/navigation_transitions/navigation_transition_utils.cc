@@ -4,6 +4,7 @@
 
 #include "content/browser/renderer_host/navigation_transitions/navigation_transition_utils.h"
 
+#include "base/android/android_info.h"
 #include "base/android/scoped_hardware_buffer_handle.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -192,7 +193,6 @@ void CacheScreenshotImpl(base::WeakPtr<NavigationControllerImpl> controller,
 void CacheScreenshotFromSharedImageProvider(
     base::WeakPtr<NavigationControllerImpl> controller,
     base::WeakPtr<NavigationRequest> navigation_request,
-    scoped_refptr<viz::RasterContextProvider> raster_context_provider,
     NavigationTransitionData::UniqueId screenshot_id,
     bool is_copied_from_embedder,
     int copy_output_request_sequence,
@@ -218,8 +218,7 @@ void CacheScreenshotFromSharedImageProvider(
 
   auto screenshot = std::make_unique<NavigationEntryScreenshot>(
       std::move(shared_image_provider), screenshot_id,
-      supports_etc_non_power_of_two, std::move(raster_context_provider),
-      bound_screenshot_callback);
+      supports_etc_non_power_of_two, bound_screenshot_callback);
   NavigationEntryScreenshotCache* cache =
       controller->GetNavigationEntryScreenshotCache();
   cache->SetScreenshot(std::move(navigation_request), std::move(screenshot),
@@ -258,18 +257,25 @@ void CacheScreenshotSharedImageImpl(
   }
 
   CacheScreenshotFromSharedImageProvider(
-      controller, navigation_request, raster_context_provider, screenshot_id,
-      is_copied_from_embedder, copy_output_request_sequence,
-      supports_etc_non_power_of_two,
+      controller, navigation_request, screenshot_id, is_copied_from_embedder,
+      copy_output_request_sequence, supports_etc_non_power_of_two,
       NavigationEntryScreenshot::SharedImageHolder::Create(
-          std::move(shared_image), std::move(release_callback)));
+          std::move(raster_context_provider), std::move(shared_image),
+          std::move(release_callback)));
+}
+
+bool EnableNativePageScreenshotIntoHardwareBuffer() {
+  // LINT.IfChange(min_supported_version)
+  const auto min_supported_version = base::android::android_info::SDK_VERSION_S;
+  // LINT.ThenChange(//chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java:minSupportedVersion)
+  return base::android::android_info::sdk_int() >= min_supported_version &&
+         base::FeatureList::IsEnabled(
+             features::kBackForwardTransitionsNativePageSharedImage);
 }
 
 void CacheScreenshotHardwareBufferImpl(
     base::WeakPtr<NavigationControllerImpl> controller,
     base::WeakPtr<NavigationRequest> navigation_request,
-    scoped_refptr<viz::RasterContextProvider> raster_context_provider,
-    gfx::ColorSpace color_space,
     NavigationTransitionData::UniqueId screenshot_id,
     int copy_output_request_sequence,
     bool supports_etc_non_power_of_two,
@@ -286,6 +292,12 @@ void CacheScreenshotHardwareBufferImpl(
     int entry_index =
         NavigationTransitionUtils::FindEntryIndexForNavigationTransitionID(
             controller.get(), screenshot_id);
+    auto& screenshot_callback = GetTestScreenshotCallback();
+    if (screenshot_callback) {
+      SkBitmap override_unused;
+      std::move(screenshot_callback)
+          .Run(entry_index, {}, false, override_unused);
+    }
     NavigationEntryImpl* entry = controller->GetEntryAtIndex(entry_index);
     if (entry) {
       entry->navigation_transition_data().set_cache_hit_or_miss_reason(
@@ -295,11 +307,11 @@ void CacheScreenshotHardwareBufferImpl(
   }
 
   CacheScreenshotFromSharedImageProvider(
-      controller, navigation_request, raster_context_provider, screenshot_id,
+      controller, navigation_request, screenshot_id,
       /*is_copied_from_embedder=*/true, copy_output_request_sequence,
       supports_etc_non_power_of_two,
       NavigationEntryScreenshot::HardwareBufferHolder::Create(
-          raster_context_provider, color_space, std::move(hardware_buffer),
+          controller->delegate(), std::move(hardware_buffer),
           std::move(release_callback)));
 }
 
@@ -568,26 +580,13 @@ bool NavigationTransitionUtils::
   int request_sequence = last_committed_entry->navigation_transition_data()
                              .copy_output_request_sequence();
   bool copied_via_delegate;
-  if (base::FeatureList::IsEnabled(
-          features::kBackForwardTransitionsNativePageSharedImage)) {
-    auto context_provider = GetRasterContextProviderOrSetMissReason(
-        rwhv, navigation_request, last_committed_entry);
-    if (!context_provider) {
-      return false;
-    }
-    auto display = rwhv->GetNativeView()
-                       ->GetWindowAndroid()
-                       ->GetDisplayWithWindowColorSpace();
-    auto color_space = display.GetColorSpaces().GetOutputColorSpace(
-        gfx::ContentColorUsage::kSRGB, /*needs_alpha=*/false);
-
+  if (EnableNativePageScreenshotIntoHardwareBuffer()) {
     copied_via_delegate =
         navigation_request.GetDelegate()->MaybeCopyContentAreaAsHardwareBuffer(
             base::BindOnce(
                 &CacheScreenshotHardwareBufferImpl,
                 navigation_controller.GetWeakPtr(),
-                navigation_request.GetWeakPtr(), std::move(context_provider),
-                color_space,
+                navigation_request.GetWeakPtr(),
                 last_committed_entry->navigation_transition_data().unique_id(),
                 request_sequence,
                 SupportsETC1NonPowerOfTwo(navigation_request)));

@@ -20,6 +20,7 @@
 
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_feature_extractor.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 #include "rtc_base/checks.h"
@@ -165,29 +166,30 @@ TEST_P(NeuralResidualEchoEstimatorImplTest,
       S2[0][j] = block_counter * kFftLengthBy2Plus1 + j + 29;
       Y2[0][j] = block_counter * kFftLengthBy2Plus1 + j + 31;
     }
-    estimator.Estimate(x, y, e, S2, Y2, E2, R2, R2_unbounded);
+    Block render_block(1, 1);
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      render_block.View(/*band=*/0, /*ch=*/0)[j] = x[j];
+    }
+    estimator.Estimate(render_block, y, e, S2, Y2, E2, R2, R2_unbounded);
   }
 
   // Check that old buffer content is shifted down properly.
   for (int i = 0; i < model_constants.frame_size - model_constants.step_size;
        ++i) {
     SCOPED_TRACE(testing::Message() << "i=" << i);
-    EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_mic_[i],
-                    model_constants.step_size + i + 2311);
     EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_linear_aec_output_[i],
                     model_constants.step_size + i + 2333);
     EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_aec_ref_[i],
                     model_constants.step_size + i + 2339);
   }
-  // Check that new buffer content matches the input data.
+  // Check that new buffer content matches the input data. This time with
+  // scaling as the scaling is applied when new data is buffered.
   for (int i = model_constants.frame_size - model_constants.step_size;
        i < model_constants.frame_size; ++i) {
-    SCOPED_TRACE(testing::Message() << "i=" << i);
     constexpr float kScaling = 1.0f / 32768;
+    SCOPED_TRACE(testing::Message() << "i=" << i);
     int input_index =
         i - (model_constants.frame_size - model_constants.step_size);
-    EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_mic_[i],
-                    kScaling * (input_index + 13));
     EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_linear_aec_output_[i],
                     kScaling * (input_index + 17));
     EXPECT_FLOAT_EQ(mock_model_runner_ptr->input_aec_ref_[i],
@@ -238,7 +240,11 @@ TEST_P(NeuralResidualEchoEstimatorImplTest, OutputMaskIsApplied) {
       .WillOnce(testing::Return(true));
 
   for (int b = 0; b < blocks_per_model_step; ++b) {
-    estimator.Estimate(x, y, e, S2, Y2, E2, R2, R2_unbounded);
+    Block render_block(1, 1);
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      render_block.View(/*band=*/0, /*ch=*/0)[j] = x[j];
+    }
+    estimator.Estimate(render_block, y, e, S2, Y2, E2, R2, R2_unbounded);
   }
 
   // Check that the mocked output mask is applied.
@@ -293,7 +299,11 @@ TEST(NeuralResidualEchoEstimatorWithRealModelTest,
       std::fill(R2[ch].begin(), R2[ch].end(), 1234.0f);
       std::fill(R2_unbounded[ch].begin(), R2_unbounded[ch].end(), 1234.0f);
     }
-    estimator.Estimate(x, y, e, S2, Y2, E2, R2, R2_unbounded);
+    Block render_block(1, 1);
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      render_block.View(/*band=*/0, /*ch=*/0)[j] = x[j];
+    }
+    estimator.Estimate(render_block, y, e, S2, Y2, E2, R2, R2_unbounded);
 
     // Check that the output is populated.
     for (int ch = 0; ch < kNumCaptureChannels; ++ch) {

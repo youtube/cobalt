@@ -18,6 +18,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
+#include "chrome/common/read_anything/read_anything.mojom-data-view.h"
 #include "chrome/common/read_anything/read_anything_util.h"
 #include "chrome/renderer/accessibility/ax_tree_distiller.h"
 #include "chrome/renderer/accessibility/phrase_segmentation/dependency_parser_model.h"
@@ -132,6 +133,10 @@ class MockReadAnythingUntrustedPageHandler
               (override));
   MOCK_METHOD(void, OnReadAloudAudioStateChange, (bool playing), (override));
   MOCK_METHOD(void, LogExtensionState, (), (override));
+  MOCK_METHOD(void,
+              OnDistillationStatus,
+              (read_anything::mojom::DistillationStatus, int word_count),
+              (override));
 
   mojo::PendingRemote<read_anything::mojom::UntrustedPageHandler>
   BindNewPipeAndPassRemote() {
@@ -435,25 +440,46 @@ TEST_F(ReadAnythingAppControllerTest,
   read_aloud_model().SetSpeechPlaying(false);
   base::HistogramTester histogram_tester;
 
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
 
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
 
   read_aloud_model().SetSpeechPlaying(true);
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
   histogram_tester.ExpectUniqueSample(
       ReadAloudAppModel::kSpeechStopSourceHistogramName,
       ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode, 1);
 }
 
+TEST_F(ReadAnythingAppControllerTest,
+       OnReadingModeHidden_DoesNotLogIfTabActive) {
+  read_aloud_model().SetSpeechPlaying(true);
+  base::HistogramTester histogram_tester;
+
+  controller().OnReadingModeHidden(false);
+
+  EXPECT_EQ(0, histogram_tester.GetTotalSum(
+                   ReadAloudAppModel::kSpeechStopSourceHistogramName));
+}
+
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsSeen) {
   base::HistogramTester histogram_tester;
   controller().UpdateWordsSeen(123);
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
+
+  histogram_tester.ExpectUniqueSample(
+      ReadAnythingAppController::kWordsSeenHistogramName, 123, 1);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnReadingModeHidden_LogsWordsSeenIfTabNotActive) {
+  base::HistogramTester histogram_tester;
+  controller().UpdateWordsSeen(123);
+  controller().OnReadingModeHidden(false);
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsSeenHistogramName, 123, 1);
@@ -461,7 +487,7 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsSeen) {
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsSeen) {
   controller().UpdateWordsSeen(123);
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
 
   EXPECT_EQ(0, model().words_seen());
 }
@@ -469,7 +495,17 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsSeen) {
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsHeard) {
   base::HistogramTester histogram_tester;
   controller().UpdateWordsHeard(123);
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
+
+  histogram_tester.ExpectUniqueSample(
+      ReadAnythingAppController::kWordsHeardHistogramName, 123, 1);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnReadingModeHidden_LogsWordsHeardIfTabNotActive) {
+  base::HistogramTester histogram_tester;
+  controller().UpdateWordsHeard(123);
+  controller().OnReadingModeHidden(false);
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsHeardHistogramName, 123, 1);
@@ -481,7 +517,7 @@ TEST_F(ReadAnythingAppControllerTest,
   base::HistogramTester histogram_tester;
   controller().UpdateWordsHeard(123);
 
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
 
   histogram_tester.ExpectTotalCount(
       ReadAnythingAppController::kWordsHeardHistogramName, 0);
@@ -489,7 +525,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsHeard) {
   controller().UpdateWordsHeard(123);
-  controller().OnReadingModeHidden();
+  controller().OnReadingModeHidden(true);
 
   EXPECT_EQ(0, model().words_heard());
 }
@@ -2639,217 +2675,6 @@ TEST_F(ReadAnythingAppControllerTest, DisplayNodes_WithMultipleTrees) {
   EXPECT_EQ(sentence2, controller().GetTextContent(kId2));
 }
 
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_OpeningPunctuationIgnored) {
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"[2]";
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::TextNode(kId2, sentence2);
-
-  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  // The first segment was returned correctly.
-  ExpectNodesMapToEntireText(next_segments, {kId1}, {sentence1});
-
-  // The parenthetical expression is returned as a single separate segment.
-  next_segments = MoveToNextGranularityAndGetSegments();
-  ExpectNodesMapToEntireText(next_segments, {kId2}, {sentence2});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_OpeningPunctuationIncludedWhenEntireNode) {
-  // Simulate breaking up the brackets across a link.
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"[";
-  std::u16string sentence3 = u"2";
-  std::u16string sentence4 = u"]";
-  ui::AXTreeUpdate update;
-  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
-  test::SetUpdateTreeID(&update, id_1);
-
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::TextNode(kId2, sentence2);
-  ui::AXNodeData static_text3 = test::TextNode(kId3, sentence3);
-  ui::AXNodeData static_text4 = test::TextNode(kId4, sentence4);
-
-  static constexpr ui::AXNodeID kSuperscriptId = 13;
-  ui::AXNodeData superscript = test::GenericContainerNode(kSuperscriptId);
-  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
-  superscript.child_ids = {kId2, kId3, kId4};
-
-  ui::AXNodeData root;
-  static constexpr ui::AXNodeID kRootId = 10;
-  root.id = kRootId;
-  root.child_ids = {kId1, superscript.id};
-  update.root_id = root.id;
-
-  update.nodes = {std::move(root),         std::move(static_text1),
-                  std::move(superscript),  std::move(static_text2),
-                  std::move(static_text3), std::move(static_text4)};
-  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
-  AccessibilityEventReceived({std::move(update)});
-  controller().OnAXTreeDistilled(
-      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4});
-  controller().InitAXPositionWithNode(kId1);
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  // The first segment was returned correctly.
-  ExpectNodesMapToEntireText(next_segments, {kId1}, {sentence1});
-
-  // The next segment contains the entire bracketed statement '[2]' with both
-  // opening and closing brackets so neither bracket is read out-of-context.
-  next_segments = MoveToNextGranularityAndGetSegments();
-  ExpectNodesMapToEntireText(next_segments, {kId2, kId3, kId4},
-                             {sentence2, sentence3, sentence4});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_SuperscriptCombinedWithCurrentSegment) {
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"2";
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
-
-  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  ExpectNodesMapToEntireText(next_segments, {kId1, kId2},
-                             {sentence1, sentence2});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_SuperscriptWithBracketsCombinedWithCurrentSegment) {
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"[2]";
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
-
-  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  ExpectNodesMapToEntireText(next_segments, {kId1, kId2},
-                             {sentence1, sentence2});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_SuperscriptIncludedWhenEntireNode) {
-  // Simulate breaking up the brackets across a link.
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"[";
-  std::u16string sentence3 = u"2";
-  std::u16string sentence4 = u"]";
-  ui::AXTreeUpdate update;
-  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
-  test::SetUpdateTreeID(&update, id_1);
-
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
-  ui::AXNodeData static_text3 = test::SuperscriptNode(kId3, sentence3);
-  ui::AXNodeData static_text4 = test::SuperscriptNode(kId4, sentence4);
-
-  ui::AXNodeData superscript;
-  static constexpr ui::AXNodeID kSuperscriptId = 13;
-  superscript.id = kSuperscriptId;
-  superscript.role = ax::mojom::Role::kSuperscript;
-  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
-  superscript.child_ids = {kId2, kId3, kId4};
-
-  ui::AXNodeData root;
-  static constexpr ui::AXNodeID kRootId = 10;
-  root.id = kRootId;
-  root.child_ids = {kId1, kSuperscriptId};
-  update.root_id = kRootId;
-
-  update.nodes = {std::move(root),         std::move(static_text1),
-                  std::move(superscript),  std::move(static_text2),
-                  std::move(static_text3), std::move(static_text4)};
-  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
-  AccessibilityEventReceived({std::move(update)});
-  controller().OnAXTreeDistilled(
-      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4});
-  controller().InitAXPositionWithNode(kId1);
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  // The first sentence and its superscript are returned as one segment.
-  ExpectNodesMapToEntireText(next_segments, {kId1, kId2, kId3, kId4},
-                             {sentence1, sentence2, sentence3, sentence4});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
-TEST_F(ReadAnythingAppControllerTest,
-       GetCurrentText_SuperscriptIncludedWhenEntireNodeAndMoreTextAfterScript) {
-  // Simulate breaking up the brackets across a link.
-  std::u16string sentence1 = u"And I am almost there.";
-  std::u16string sentence2 = u"[";
-  std::u16string sentence3 = u"2";
-  std::u16string sentence4 = u"]";
-  std::u16string sentence5 = u"People gon' come here from everywhere.";
-  ui::AXTreeUpdate update;
-  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
-  test::SetUpdateTreeID(&update, id_1);
-
-  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
-  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
-  ui::AXNodeData static_text3 = test::SuperscriptNode(kId3, sentence3);
-  ui::AXNodeData static_text4 = test::SuperscriptNode(kId4, sentence4);
-
-  ui::AXNodeData superscript;
-  static constexpr ui::AXNodeID kSuperscriptId = 13;
-  superscript.id = kSuperscriptId;
-  superscript.role = ax::mojom::Role::kSuperscript;
-  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
-  superscript.child_ids = {kId2, kId3, kId4};
-
-  ui::AXNodeData static_text5 = test::TextNode(kId5, sentence5);
-
-  ui::AXNodeData root;
-  static constexpr ui::AXNodeID kRootId = 10;
-  root.id = kRootId;
-  root.child_ids = {kId1, kSuperscriptId, kId5};
-  update.root_id = kRootId;
-
-  update.nodes = {std::move(root),         std::move(static_text1),
-                  std::move(superscript),  std::move(static_text2),
-                  std::move(static_text3), std::move(static_text4),
-                  std::move(static_text5)};
-  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
-  AccessibilityEventReceived({std::move(update)});
-  controller().OnAXTreeDistilled(
-      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4, kId5});
-  controller().InitAXPositionWithNode(kId1);
-
-  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
-
-  ExpectNodesMapToEntireText(next_segments, {kId1, kId2, kId3, kId4},
-                             {sentence1, sentence2, sentence3, sentence4});
-
-  next_segments = MoveToNextGranularityAndGetSegments();
-  ExpectNodesMapToEntireText(next_segments, {kId5}, {sentence5});
-
-  // Nodes are empty at the end of the new tree.
-  MoveToNextAndAssertEmpty();
-}
-
 TEST_F(ReadAnythingAppControllerTest, GetCurrentText_EmptyTree) {
   // If InitAXPosition hasn't been called, GetCurrentText should return nothing.
   EXPECT_THAT(GetCurrentTextSegments(), IsEmpty());
@@ -3052,6 +2877,20 @@ TEST_F(ReadAnythingAppControllerTest,
   EXPECT_EQ(0, model().words_heard());
 }
 
+TEST_F(ReadAnythingAppControllerTest,
+       OnActiveAXTreeIDChanged_SendsDistilledWordCount) {
+  auto const id = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count = 1234;
+
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, word_count))
+      .Times(1);
+
+  controller().OnDistilled(word_count);
+  controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
+  task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection +
+                                  base::Seconds(1));
+}
+
 class ReadAnythingAppControllerV8SegmentationTest
     : public ReadAnythingAppControllerTest {
  public:
@@ -3063,6 +2902,144 @@ class ReadAnythingAppControllerV8SegmentationTest
         {features::kReadAnythingReadAloudTSTextSegmentation});
   }
 };
+
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_SuperscriptIncludedWhenEntireNodeAndMoreTextAfterScript) {
+  // Simulate breaking up the brackets across a link.
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"[";
+  std::u16string sentence3 = u"2";
+  std::u16string sentence4 = u"]";
+  std::u16string sentence5 = u"People gon' come here from everywhere.";
+  ui::AXTreeUpdate update;
+  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
+  test::SetUpdateTreeID(&update, id_1);
+
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
+  ui::AXNodeData static_text3 = test::SuperscriptNode(kId3, sentence3);
+  ui::AXNodeData static_text4 = test::SuperscriptNode(kId4, sentence4);
+
+  ui::AXNodeData superscript;
+  static constexpr ui::AXNodeID kSuperscriptId = 13;
+  superscript.id = kSuperscriptId;
+  superscript.role = ax::mojom::Role::kSuperscript;
+  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
+  superscript.child_ids = {kId2, kId3, kId4};
+
+  ui::AXNodeData static_text5 = test::TextNode(kId5, sentence5);
+
+  ui::AXNodeData root;
+  static constexpr ui::AXNodeID kRootId = 10;
+  root.id = kRootId;
+  root.child_ids = {kId1, kSuperscriptId, kId5};
+  update.root_id = kRootId;
+
+  update.nodes = {std::move(root),         std::move(static_text1),
+                  std::move(superscript),  std::move(static_text2),
+                  std::move(static_text3), std::move(static_text4),
+                  std::move(static_text5)};
+  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
+  AccessibilityEventReceived({std::move(update)});
+  controller().OnAXTreeDistilled(
+      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4, kId5});
+  controller().InitAXPositionWithNode(kId1);
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  ExpectNodesMapToEntireText(next_segments, {kId1, kId2, kId3, kId4},
+                             {sentence1, sentence2, sentence3, sentence4});
+
+  next_segments = MoveToNextGranularityAndGetSegments();
+  ExpectNodesMapToEntireText(next_segments, {kId5}, {sentence5});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
+
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_SuperscriptIncludedWhenEntireNode) {
+  // Simulate breaking up the brackets across a link.
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"[";
+  std::u16string sentence3 = u"2";
+  std::u16string sentence4 = u"]";
+  ui::AXTreeUpdate update;
+  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
+  test::SetUpdateTreeID(&update, id_1);
+
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
+  ui::AXNodeData static_text3 = test::SuperscriptNode(kId3, sentence3);
+  ui::AXNodeData static_text4 = test::SuperscriptNode(kId4, sentence4);
+
+  ui::AXNodeData superscript;
+  static constexpr ui::AXNodeID kSuperscriptId = 13;
+  superscript.id = kSuperscriptId;
+  superscript.role = ax::mojom::Role::kSuperscript;
+  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
+  superscript.child_ids = {kId2, kId3, kId4};
+
+  ui::AXNodeData root;
+  static constexpr ui::AXNodeID kRootId = 10;
+  root.id = kRootId;
+  root.child_ids = {kId1, kSuperscriptId};
+  update.root_id = kRootId;
+
+  update.nodes = {std::move(root),         std::move(static_text1),
+                  std::move(superscript),  std::move(static_text2),
+                  std::move(static_text3), std::move(static_text4)};
+  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
+  AccessibilityEventReceived({std::move(update)});
+  controller().OnAXTreeDistilled(
+      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4});
+  controller().InitAXPositionWithNode(kId1);
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  // The first sentence and its superscript are returned as one segment.
+  ExpectNodesMapToEntireText(next_segments, {kId1, kId2, kId3, kId4},
+                             {sentence1, sentence2, sentence3, sentence4});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
+
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_SuperscriptWithBracketsCombinedWithCurrentSegment) {
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"[2]";
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
+
+  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  ExpectNodesMapToEntireText(next_segments, {kId1, kId2},
+                             {sentence1, sentence2});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
+
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_SuperscriptCombinedWithCurrentSegment) {
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"2";
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::SuperscriptNode(kId2, sentence2);
+
+  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  ExpectNodesMapToEntireText(next_segments, {kId1, kId2},
+                             {sentence1, sentence2});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
 
 TEST_F(ReadAnythingAppControllerV8SegmentationTest,
        GetCurrentText_IncludesListMarkers) {
@@ -4034,6 +4011,79 @@ TEST_F(ReadAnythingAppControllerV8SegmentationTest,
   MoveToNextAndAssertEmpty();
 }
 
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_OpeningPunctuationIgnored) {
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"[2]";
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::TextNode(kId2, sentence2);
+
+  SendUpdateAndDistillNodes({std::move(static_text1), std::move(static_text2)});
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  // The first segment was returned correctly.
+  ExpectNodesMapToEntireText(next_segments, {kId1}, {sentence1});
+
+  // The parenthetical expression is returned as a single separate segment.
+  next_segments = MoveToNextGranularityAndGetSegments();
+  ExpectNodesMapToEntireText(next_segments, {kId2}, {sentence2});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
+
+TEST_F(ReadAnythingAppControllerV8SegmentationTest,
+       GetCurrentText_OpeningPunctuationIncludedWhenEntireNode) {
+  // Simulate breaking up the brackets across a link.
+  std::u16string sentence1 = u"And I am almost there.";
+  std::u16string sentence2 = u"[";
+  std::u16string sentence3 = u"2";
+  std::u16string sentence4 = u"]";
+  ui::AXTreeUpdate update;
+  ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
+  test::SetUpdateTreeID(&update, id_1);
+
+  ui::AXNodeData static_text1 = test::TextNode(kId1, sentence1);
+  ui::AXNodeData static_text2 = test::TextNode(kId2, sentence2);
+  ui::AXNodeData static_text3 = test::TextNode(kId3, sentence3);
+  ui::AXNodeData static_text4 = test::TextNode(kId4, sentence4);
+
+  static constexpr ui::AXNodeID kSuperscriptId = 13;
+  ui::AXNodeData superscript = test::GenericContainerNode(kSuperscriptId);
+  superscript.AddStringAttribute(ax::mojom::StringAttribute::kHtmlTag, "<p>");
+  superscript.child_ids = {kId2, kId3, kId4};
+
+  ui::AXNodeData root;
+  static constexpr ui::AXNodeID kRootId = 10;
+  root.id = kRootId;
+  root.child_ids = {kId1, superscript.id};
+  update.root_id = root.id;
+
+  update.nodes = {std::move(root),         std::move(static_text1),
+                  std::move(superscript),  std::move(static_text2),
+                  std::move(static_text3), std::move(static_text4)};
+  controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
+  AccessibilityEventReceived({std::move(update)});
+  controller().OnAXTreeDistilled(
+      id_1, {kRootId, kId1, kSuperscriptId, kId2, kId3, kId4});
+  controller().InitAXPositionWithNode(kId1);
+
+  std::vector<ReadAloudTextSegment> next_segments = GetCurrentTextSegments();
+
+  // The first segment was returned correctly.
+  ExpectNodesMapToEntireText(next_segments, {kId1}, {sentence1});
+
+  // The next segment contains the entire bracketed statement '[2]' with both
+  // opening and closing brackets so neither bracket is read out-of-context.
+  next_segments = MoveToNextGranularityAndGetSegments();
+  ExpectNodesMapToEntireText(next_segments, {kId2, kId3, kId4},
+                             {sentence2, sentence3, sentence4});
+
+  // Nodes are empty at the end of the new tree.
+  MoveToNextAndAssertEmpty();
+}
+
 class ReadAnythingAppControllerScreen2xDataCollectionModeTest
     : public ReadAnythingAppControllerTest {
  public:
@@ -4077,6 +4127,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // Distill() is not called immediately.
   EXPECT_CALL(*distiller_, Distill).Times(0);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(0);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(0);
   SetScreenAIServiceReady();
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
   Mock::VerifyAndClearExpectations(distiller_);
@@ -4088,6 +4139,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // distiller_->Distill().
   EXPECT_CALL(*distiller_, Distill).Times(1);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(1);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   SetScreenAIServiceReady();
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
   task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection +
@@ -4099,6 +4151,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
        DistillsAfterDelayScreenAIServiceReady) {
   // When the AXTreeID changes, and 30s pass, the controller calls
   // distiller_->Distill() once the screenAI service is ready.
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
   task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection +
                                   base::Seconds(1));
@@ -4115,6 +4168,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // distiller_->Distill() as the screenAI service is not ready.
   EXPECT_CALL(*distiller_, Distill).Times(0);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(0);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
   task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection +
                                   base::Seconds(1));
@@ -4141,6 +4195,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // page load completion.
   EXPECT_CALL(*distiller_, Distill).Times(0);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(0);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   SetScreenAIServiceReady();
   ui::AXEvent load_complete(0, ax::mojom::Event::kLoadComplete);
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
@@ -4166,6 +4221,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // delayed for another 10s.
   EXPECT_CALL(*distiller_, Distill).Times(0);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(0);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   SetScreenAIServiceReady();
   controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId, false);
   task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection -
@@ -4199,6 +4255,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // the controller does not call distiller_->Distill().
   EXPECT_CALL(*distiller_, Distill).Times(0);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(0);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   SetScreenAIServiceReady();
 
   ui::AXEvent load_complete(0, ax::mojom::Event::kLoadComplete);
@@ -4236,6 +4293,7 @@ TEST_F(ReadAnythingAppControllerScreen2xDataCollectionModeTest,
   // unstable, the controller does not calls distiller_->Distill() after 30s.
   EXPECT_CALL(*distiller_, Distill).Times(1);
   EXPECT_CALL(page_handler_, OnScreenshotRequested).Times(1);
+  EXPECT_CALL(page_handler_, OnDistillationStatus).Times(1);
   SetScreenAIServiceReady();
 
   ui::AXEvent load_complete(0, ax::mojom::Event::kLoadComplete);

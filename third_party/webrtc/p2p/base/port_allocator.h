@@ -510,7 +510,7 @@ class RTC_EXPORT PortAllocator {
       const IceParameters* ice_credentials = nullptr) const;
 
   // Discard any remaining pooled sessions.
-  void DiscardCandidatePool();
+  virtual void DiscardCandidatePool();
 
   // Clears the address and the related address fields of a local candidate to
   // avoid IP leakage. This is applicable in several scenarios:

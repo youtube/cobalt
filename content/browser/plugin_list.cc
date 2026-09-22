@@ -72,22 +72,10 @@ PluginList* PluginList::Singleton() {
   return g_singleton.Pointer();
 }
 
-void PluginList::RefreshPlugins() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  list_is_stale_ = true;
-}
-
-void PluginList::RegisterInternalPlugin(const WebPluginInfo& info,
-                                        bool add_at_beginning) {
+void PluginList::RegisterInternalPlugin(const WebPluginInfo& info) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (add_at_beginning) {
-    // Newer registrations go earlier in the list so they can override the MIME
-    // types of older registrations.
-    internal_plugins_.insert(internal_plugins_.begin(), info);
-  } else {
-    internal_plugins_.push_back(info);
-  }
+  internal_plugins_.insert(internal_plugins_.begin(), info);
 }
 
 void PluginList::UnregisterInternalPlugin(const base::FilePath& path) {
@@ -116,10 +104,6 @@ PluginList::PluginList() {
 void PluginList::LoadPlugins() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (!list_is_stale_) {
-    return;
-  }
-
   std::vector<base::FilePath> seen_plugin_paths;
   plugins_list_.clear();
   for (const WebPluginInfo& plugin_info : internal_plugins_) {
@@ -135,8 +119,6 @@ void PluginList::LoadPlugins() {
     }
     plugins_list_.push_back(plugin_info);
   }
-
-  list_is_stale_ = false;
 }
 
 const std::vector<WebPluginInfo>& PluginList::GetPlugins() {
@@ -150,7 +132,7 @@ const std::vector<WebPluginInfo>& PluginList::GetPluginsForTesting() const {
   return plugins_list_;
 }
 
-bool PluginList::GetPluginInfoArray(
+void PluginList::GetPluginInfoArray(
     const GURL& url,
     const std::string& mime_type,
     std::vector<WebPluginInfo>* info,
@@ -159,7 +141,6 @@ bool PluginList::GetPluginInfoArray(
   DCHECK(mime_type == base::ToLowerASCII(mime_type));
   DCHECK(info);
 
-  bool is_stale = list_is_stale_;
   info->clear();
   if (actual_mime_types) {
     actual_mime_types->clear();
@@ -189,7 +170,7 @@ bool PluginList::GetPluginInfoArray(
   std::string path = url.GetPath();
   std::string::size_type last_dot = path.rfind('.');
   if (last_dot == std::string::npos || !mime_type.empty()) {
-    return is_stale;
+    return;
   }
 
   std::string extension =
@@ -206,7 +187,6 @@ bool PluginList::GetPluginInfoArray(
       }
     }
   }
-  return is_stale;
 }
 
 PluginList::~PluginList() = default;

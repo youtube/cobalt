@@ -34,21 +34,17 @@ namespace blink {
 // const char H5vcc::kSupplementName[] = "H5vcc";
 
 // static
-const unsigned H5vcc::kSupplementIndex =
-    static_cast<unsigned>(LocalDOMWindow::Supplements::kH5vcc);
-
-// static
 H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
-  H5vcc* h5vcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
+  H5vcc* h5vcc = window.GetH5vcc();
   if (!h5vcc && window.GetExecutionContext()) {
     h5vcc = MakeGarbageCollected<H5vcc>(window);
-    ProvideTo(window, h5vcc);
+    window.SetH5vcc(h5vcc);
   }
   return h5vcc;
 }
 
 H5vcc::H5vcc(LocalDOMWindow& window)
-    : Supplement<LocalDOMWindow>(window),
+    : local_dom_window_(window),
       crash_log_(MakeGarbageCollected<CrashLog>(window)),
       accessibility_(MakeGarbageCollected<H5vccAccessibility>(window)),
       experiments_(MakeGarbageCollected<H5vccExperiments>(window)),
@@ -73,8 +69,8 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(settings_);
   visitor->Trace(updater_);
   visitor->Trace(native_stability_);
-  Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
+  visitor->Trace(local_dom_window_);
 }
 
 }  // namespace blink

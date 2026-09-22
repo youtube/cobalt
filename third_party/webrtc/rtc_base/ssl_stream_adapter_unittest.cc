@@ -50,7 +50,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/stream.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "test/create_test_field_trials.h"
@@ -406,8 +405,7 @@ class BufferQueueStream : public StreamInterface {
 constexpr int kBufferCapacity = 1;
 constexpr size_t kDefaultBufferSize = 2048;
 
-class SSLStreamAdapterTestBase : public ::testing::Test,
-                                 public sigslot::has_slots<> {
+class SSLStreamAdapterTestBase : public ::testing::Test {
  public:
   SSLStreamAdapterTestBase(absl::string_view client_cert_pem,
                            absl::string_view client_private_key_pem,

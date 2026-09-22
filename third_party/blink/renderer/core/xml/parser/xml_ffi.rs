@@ -7,7 +7,7 @@ mod entities;
 use std::io::Cursor;
 use xml::{
     attribute::OwnedAttribute,
-    common::{Position, TextPosition, XmlVersion},
+    common::{Position, TextPosition},
     namespace::{Namespace, NS_XMLNS_URI, NS_XML_URI},
     reader::{
         EventReader as XmlEventReader,
@@ -85,12 +85,7 @@ fn process_next_event(read_state: &mut XmlReadState) {
             read_state.last_event_position = Some(read_state.event_reader.position());
             match event {
                 StartDocument { version, encoding, standalone } => {
-                    // TODO(drott): Replace with as_str()
-                    // compare https://github.com/kornelski/xml-rs/pull/54
-                    let version: &str = match version {
-                        XmlVersion::Version10 => "1.0",
-                        XmlVersion::Version11 => "1.1",
-                    };
+                    let version: &str = version.as_str();
 
                     let buffer = read_state.event_reader.source().get_ref();
                     let xml_declaration_view = read_state.last_event_position.and_then(|pos| {
@@ -187,8 +182,17 @@ fn process_next_event(read_state: &mut XmlReadState) {
                 EndDocument => {
                     read_state.parser_callbacks.as_mut().EndDocument();
                 }
-                Doctype { syntax } => {
-                    read_state.parser_callbacks.as_mut().DocType(&syntax);
+                Doctype { .. } => {
+                    // It's safe to unwrap here. `doctype_ids()` after a `Doctype`
+                    // event only fails if there's no doctype name, which would have
+                    // resulted in a parser error earlier.
+                    // See: https://github.com/kornelski/xml-rs/blob/main/src/reader/parser.rs#L162
+                    let ids = read_state.event_reader.doctype_ids().unwrap();
+                    read_state.parser_callbacks.as_mut().DocType(
+                        ids.name(),
+                        ids.public_id().unwrap_or(""),
+                        ids.system_id().unwrap_or(""),
+                    );
                 }
             }
         }
@@ -372,7 +376,7 @@ mod ffi {
         fn Characters(self: Pin<&mut XmlCallbacks>, characters: &str);
         fn CData(self: Pin<&mut XmlCallbacks>, data: &str);
         fn Comment(self: Pin<&mut XmlCallbacks>, comment: &str);
-        fn DocType(self: Pin<&mut XmlCallbacks>, full_doctype: &str);
+        fn DocType(self: Pin<&mut XmlCallbacks>, name: &str, public_id: &str, system_id: &str);
         fn EndDocument(self: Pin<&mut XmlCallbacks>);
     }
 

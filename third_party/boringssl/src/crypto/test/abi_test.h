@@ -475,7 +475,7 @@ int abi_test_get_and_clear_direction_flag(void);
 int abi_test_set_direction_flag(void);
 #endif  // OPENSSL_X86_64 || OPENSSL_X86
 
-}  // extern "C"
+}  // extern C
 #endif  // SUPPORTS_ABI_TEST
 
 

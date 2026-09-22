@@ -10,19 +10,30 @@
 #include <optional>
 
 #include "base/check_is_test.h"
+#include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/dom_distiller/tab_utils.h"
 #include "chrome/browser/language/language_model_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/read_anything/read_anything_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_service.h"
+#include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_web_view.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_page_handler.h"
@@ -60,7 +71,9 @@ ReadAnythingSidePanelControllerGlue::ReadAnythingSidePanelControllerGlue(
 ReadAnythingSidePanelController::ReadAnythingSidePanelController(
     tabs::TabInterface* tab,
     SidePanelRegistry* side_panel_registry)
-    : tab_(tab), side_panel_registry_(side_panel_registry) {
+    : PageActionObserver(kActionSidePanelShowReadAnything),
+      tab_(tab),
+      side_panel_registry_(side_panel_registry) {
   CHECK(!side_panel_registry_->GetEntryForKey(
       SidePanelEntry::Key(SidePanelEntry::Id::kReadAnything)));
 
@@ -81,6 +94,11 @@ ReadAnythingSidePanelController::ReadAnythingSidePanelController(
       base::BindRepeating(&ReadAnythingSidePanelController::TabForegrounded,
                           weak_factory_.GetWeakPtr())));
   Observe(tab_->GetContents());
+  if (features::IsReadAnythingOmniboxChipEnabled() &&
+      base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
+    RegisterAsPageActionObserver(
+        *tab_->GetTabFeatures()->page_action_controller());
+  }
 
   // We do not know if the current tab is in the process of loading a page.
   // Assume that a page just finished loading to populate initial state.
@@ -89,7 +107,7 @@ ReadAnythingSidePanelController::ReadAnythingSidePanelController(
 }
 
 ReadAnythingSidePanelController::~ReadAnythingSidePanelController() {
-  if (web_view_) {
+  if (web_view_ && web_view_->contents_wrapper()) {
     web_view_->contents_wrapper()->web_contents()->RemoveUserData(
         ReadAnythingSidePanelControllerGlue::UserDataKey());
   }
@@ -130,6 +148,26 @@ void ReadAnythingSidePanelController::RemoveObserver(
 void ReadAnythingSidePanelController::OnEntryShown(SidePanelEntry* entry) {
   CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kReadAnything);
 
+  if (iph_response_timer_ && iph_response_timer_->IsRunning()) {
+    iph_response_timer_->Stop();
+    RecordOpenedAfterPromo();
+  }
+
+  std::optional<SidePanelOpenTrigger> open_trigger = entry->last_open_trigger();
+  std::optional<ReadAnythingOpenTrigger> read_anything_trigger =
+      open_trigger.has_value()
+          ? read_anything::SidePanelToReadAnythingOpenTrigger(
+                open_trigger.value())
+          : std::optional<ReadAnythingOpenTrigger>();
+  if (features::IsReadAnythingOmniboxChipEnabled() &&
+      base::FeatureList::IsEnabled(features::kPageActionsMigration) &&
+      read_anything_trigger.has_value() &&
+      GetCurrentPageActionState().showing) {
+    // TODO(crbug.com/447418049): Also log this when immersive mode shows.
+    base::UmaHistogramEnumeration(
+        "Accessibility.ReadAnything.EntryPointAfterOmnibox",
+        read_anything_trigger.value());
+  }
   // Hide the omnibox entrypoint now that RM is already showing.
   // TODO(crbug.com/447418049): Also hide the omnibox entrypoint when the
   // immersive overlay shows.
@@ -155,10 +193,6 @@ void ReadAnythingSidePanelController::OnEntryShown(SidePanelEntry* entry) {
       ukm::builders::Accessibility_ReadAnything_SidePanel builder(source_id);
       builder.SetShown(true);
 
-      // Get the trigger from the entry object
-      std::optional<SidePanelOpenTrigger> open_trigger =
-          entry->last_open_trigger();
-
       if (open_trigger.has_value()) {
         builder.SetEntryPoint(static_cast<int64_t>(open_trigger.value()));
       }
@@ -166,7 +200,8 @@ void ReadAnythingSidePanelController::OnEntryShown(SidePanelEntry* entry) {
     }
   }
 
-  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate, true);
+  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate, true,
+                    read_anything_trigger);
 }
 
 void ReadAnythingSidePanelController::OnEntryHidden(SidePanelEntry* entry) {
@@ -196,22 +231,50 @@ void ReadAnythingSidePanelController::OnEntryHidden(SidePanelEntry* entry) {
   if (service) {
     service->OnReadAnythingSidePanelEntryHidden();
   }
-  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate,
-                    false);
+  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate, false,
+                    std::optional<ReadAnythingOpenTrigger>());
+}
+
+void ReadAnythingSidePanelController::OnEntryWillHide(
+    SidePanelEntry* entry,
+    SidePanelEntryHideReason reason) {
+  if (reason == SidePanelEntryHideReason::kSidePanelClosed) {
+    ReturnWebUIToController();
+  }
+}
+
+void ReadAnythingSidePanelController::ReturnWebUIToController() {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    return;
+  }
+  if (!web_view_ || !web_view_->contents_wrapper()) {
+    return;
+  }
+  web_view_->contents_wrapper()->web_contents()->RemoveUserData(
+      ReadAnythingSidePanelControllerGlue::UserDataKey());
+  auto* controller = ReadAnythingController::From(tab_);
+  CHECK(controller);
+  controller->TransferWebUiOwnership(web_view_->TakeContentsWrapper());
 }
 
 std::unique_ptr<views::View>
 ReadAnythingSidePanelController::CreateContainerView(
     SidePanelEntryScope& scope) {
   // If there was an old WebView, clear the reference.
-  if (web_view_) {
+  if (web_view_ && web_view_->contents_wrapper()) {
     web_view_->contents_wrapper()->web_contents()->RemoveUserData(
         ReadAnythingSidePanelControllerGlue::UserDataKey());
   }
 
-  auto web_view = std::make_unique<ReadAnythingSidePanelWebView>(
-      tab_->GetBrowserWindowInterface()->GetProfile(), scope);
-
+  std::unique_ptr<ReadAnythingSidePanelWebView> web_view;
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    web_view = std::make_unique<ReadAnythingSidePanelWebView>(
+        tab_->GetBrowserWindowInterface()->GetProfile(), scope,
+        ReadAnythingController::From(tab_)->GetOrCreateWebUIWrapper());
+  } else {
+    web_view = std::make_unique<ReadAnythingSidePanelWebView>(
+        tab_->GetBrowserWindowInterface()->GetProfile(), scope);
+  }
   ReadAnythingSidePanelControllerGlue::CreateForWebContents(
       web_view->contents_wrapper()->web_contents(), this);
   web_view_ = web_view->GetWeakPtr();
@@ -254,12 +317,12 @@ void ReadAnythingSidePanelController::TabWillDetach(
   if (!tab_->IsActivated()) {
     return;
   }
-  auto* coordinator =
-      tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_coordinator();
+  auto* const side_panel_ui =
+      tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_ui();
   // TODO(https://crbug.com/360163254): BrowserWithTestWindowTest currently does
   // not create a SidePanelCoordinator. This block will be unnecessary once that
   // changes.
-  if (!coordinator) {
+  if (!side_panel_ui) {
     // TODO(webium): create a SidePanelCoordinator for WebUIBrowser.
     // This is a temporary solution to avoid a crash.
     if (!webui_browser::IsWebUIBrowserEnabled()) {
@@ -269,11 +332,13 @@ void ReadAnythingSidePanelController::TabWillDetach(
   }
 
   SidePanelEntry::Key read_anything_key(SidePanelEntry::Id::kReadAnything);
-  if (coordinator->IsSidePanelEntryShowing(read_anything_key)) {
+  if (side_panel_ui->IsSidePanelEntryShowing(read_anything_key)) {
     SidePanelEntry* const entry =
         side_panel_registry_->GetEntryForKey(read_anything_key);
     CHECK(entry);
-    coordinator->Close(/*suppress_animations=*/true, entry->type());
+    side_panel_ui->Close(entry->type(),
+                         SidePanelEntryHideReason::kSidePanelClosed,
+                         /*suppress_animations=*/true);
   }
 }
 
@@ -291,8 +356,10 @@ void ReadAnythingSidePanelController::CheckIfGoodCandidateForReadingMode() {
 
   // Readability will callback with whether or not the current contents are a
   // good candidate for distillation.
-  // TODO(crbug.com/c/455640523): Show this entrypoint max 3 times in 3 days if
-  // it's not clicked.
+  candidate_check_triggered_time_ms_ = base::TimeTicks::Now();
+  if (page_dwell_timer_) {
+    page_dwell_timer_->Stop();
+  }
   RunReadabilityHeuristicsOnWebContents(
       tab_->GetContents(),
       base::BindOnce(&ReadAnythingSidePanelController::OnReadabilityResult,
@@ -300,8 +367,61 @@ void ReadAnythingSidePanelController::CheckIfGoodCandidateForReadingMode() {
 }
 
 void ReadAnythingSidePanelController::OnReadabilityResult(bool should_show) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() ||
+      (!tab_->IsActivated() && should_show)) {
+    return;
+  }
+
+  base::TimeDelta time_since_page_shown_ =
+      base::TimeTicks::Now() - candidate_check_triggered_time_ms_;
+  // Always hide the omnibox immediately when it should be hidden. Use a delay
+  // to show the omnibox to ensure the user intends to consume this page.
+  if (!should_show ||
+      time_since_page_shown_.InMilliseconds() >= kShowPageActionDelayMs) {
+    UpdateOmniboxEntryPoint(should_show);
+  } else if (should_show) {
+    auto timer_length =
+        base::Milliseconds(kShowPageActionDelayMs) - time_since_page_shown_;
+    if (!page_dwell_timer_) {
+      page_dwell_timer_ = std::make_unique<base::RetainingOneShotTimer>();
+    }
+    page_dwell_timer_->Start(
+        FROM_HERE, timer_length,
+        base::BindRepeating(
+            &ReadAnythingSidePanelController::UpdateOmniboxEntryPoint,
+            base::Unretained(this), should_show));
+  }
+}
+
+void ReadAnythingSidePanelController::UpdateOmniboxEntryPoint(
+    bool should_show) {
+  // Don't show the entrypoint if the tab is no longer active.
+  if (!features::IsReadAnythingOmniboxChipEnabled() ||
+      (!tab_->IsActivated() && should_show)) {
+    return;
+  }
+
   read_anything::ReadAnythingEntryPointController::UpdatePageActionVisibility(
-      should_show, tab_->GetBrowserWindowInterface());
+      should_show, tab_->GetBrowserWindowInterface(),
+      base::BindOnce(&ReadAnythingSidePanelController::OnShowPromoResult,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void ReadAnythingSidePanelController::OnShowPromoResult(
+    user_education::FeaturePromoResult result) {
+  if (result == user_education::FeaturePromoResult::Success()) {
+    iph_response_timer_ = std::make_unique<base::OneShotTimer>();
+    iph_response_timer_->Start(
+        FROM_HERE, base::Seconds(kOmniboxIPHResponseTimeoutSecs),
+        base::BindOnce(&ReadAnythingSidePanelController::RecordOpenedAfterPromo,
+                       base::Unretained(this)));
+  }
+}
+
+void ReadAnythingSidePanelController::RecordOpenedAfterPromo() {
+  base::UmaHistogramBoolean(
+      "Accessibility.ReadAnything.OpenedAfterOmniboxIPH",
+      IsReadAnythingEntryShowing(tab_->GetBrowserWindowInterface()));
 }
 
 void ReadAnythingSidePanelController::PrimaryPageChanged(content::Page& page) {
@@ -310,6 +430,13 @@ void ReadAnythingSidePanelController::PrimaryPageChanged(content::Page& page) {
   loading_ = true;
   distillable_ = IsActivePageDistillable();
   UpdateIphVisibility();
+
+  // If the user navigated to a new page, stop any pending IPH response timer,
+  // since they are likely not interested in opening RM after seeing the IPH.
+  if (iph_response_timer_ && iph_response_timer_->IsRunning()) {
+    iph_response_timer_->Stop();
+    RecordOpenedAfterPromo();
+  }
 }
 
 void ReadAnythingSidePanelController::UpdateIphVisibility() {

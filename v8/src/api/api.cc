@@ -2918,7 +2918,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   i::Tagged<i::Object> message = ToObject(message_obj_);
-  DCHECK(IsAnyHole(message) || IsJSMessageObject(message));
+  DCHECK(IsJSMessageObject(message) || IsTheHole(message, i_isolate_));
   if (HasCaught() && !IsTheHole(message, i_isolate_)) {
     return v8::Utils::MessageToLocal(i::direct_handle(message, i_isolate_));
   } else {
@@ -2995,7 +2995,7 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   InternalEscapableScope scope(i_isolate);
   i::DirectHandle<i::Object> stack_trace(self->stack_trace(), i_isolate);
-  if (IsAnyHole(*stack_trace) || !IsStackTraceInfo(*stack_trace)) return {};
+  if (!IsStackTraceInfo(*stack_trace)) return {};
   return scope.Escape(
       Utils::StackTraceToLocal(i::Cast<i::StackTraceInfo>(stack_trace)));
 }
@@ -3880,18 +3880,6 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
   return i::Isolate::Current();
 }
-
-namespace api_internal {
-i::Address ConvertToJSGlobalProxyIfNecessary(i::Address holder_ptr) {
-  i::Tagged<i::HeapObject> holder =
-      i::Cast<i::HeapObject>(i::Tagged<i::Object>(holder_ptr));
-
-  if (i::IsJSGlobalObject(holder)) {
-    return i::Cast<i::JSGlobalObject>(holder)->global_proxy().ptr();
-  }
-  return holder_ptr;
-}
-}  // namespace api_internal
 
 bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
   return i::GetShouldThrow(i_isolate, Nothing<i::ShouldThrow>()) ==
@@ -6899,8 +6887,6 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
       return false;
     }
 
-    if (IsAnyHole(obj)) return true;
-
     i::DisallowGarbageCollection no_gc;
     i::InstanceType obj_type = obj->map()->instance_type();
 
@@ -8709,9 +8695,9 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 
 CompiledWasmModule::CompiledWasmModule(
     std::shared_ptr<internal::wasm::NativeModule> native_module,
-    const char* source_url, size_t url_length)
+    std::string source_url)
     : native_module_(std::move(native_module)),
-      source_url_(source_url, url_length) {
+      source_url_(std::move(source_url)) {
   CHECK_NOT_NULL(native_module_);
 }
 
@@ -8757,7 +8743,7 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   size_t length;
   std::unique_ptr<char[]> cstring = url->ToCString(&length);
   return CompiledWasmModule(std::move(obj->shared_native_module()),
-                            cstring.get(), length);
+                            {cstring.get(), length});
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -9093,16 +9079,24 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
     const char* source;
+    bool is_shared;
     if (i::IsJSTypedArray(*self)) {
       i::Tagged<i::JSTypedArray> array = i::Cast<i::JSTypedArray>(*self);
+      is_shared = array->buffer()->is_shared();
       source = reinterpret_cast<char*>(array->DataPtr());
     } else {
       DCHECK(i::IsJSDataView(*self) || i::IsJSRabGsabDataView(*self));
       i::Tagged<i::JSDataViewOrRabGsabDataView> data_view =
           i::Cast<i::JSDataViewOrRabGsabDataView>(*self);
+      is_shared = data_view->buffer()->is_shared();
       source = reinterpret_cast<char*>(data_view->data_pointer());
     }
-    memcpy(dest, source, bytes_to_copy);
+    if (is_shared) {
+      base::Relaxed_Memcpy(reinterpret_cast<char*>(dest), source,
+                           bytes_to_copy);
+    } else {
+      memcpy(dest, source, bytes_to_copy);
+    }
   }
   return bytes_to_copy;
 }
@@ -10275,9 +10269,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   // On 32-bit systems backing_store_bytes() might overflow size_t temporarily
   // due to concurrent array buffer sweeping.
   heap_statistics->external_memory_ =
-      i_isolate->heap()->backing_store_bytes() < SIZE_MAX
-          ? static_cast<size_t>(i_isolate->heap()->backing_store_bytes())
-          : SIZE_MAX;
+      base::saturated_cast<size_t>(i_isolate->heap()->backing_store_bytes());
   heap_statistics->peak_malloced_memory_ =
       i_isolate->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
@@ -10307,25 +10299,25 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::SetCurrentIsolateScope set_current_isolate(i_isolate);
 
-  if (!i::Heap::IsValidAllocationSpace(static_cast<i::AllocationSpace>(index)))
+  const auto maybe_space = i::Heap::TryGetAllocationSpaceFromIndex(index);
+  if (!maybe_space) {
     return false;
+  }
+  const i::AllocationSpace allocation_space = maybe_space.value();
 
   i::Heap* heap = i_isolate->heap();
-
   heap->FreeMainThreadLinearAllocationAreas();
 
-  i::AllocationSpace allocation_space = static_cast<i::AllocationSpace>(index);
   space_statistics->space_name_ = i::ToString(allocation_space);
-
   if (allocation_space == i::RO_SPACE) {
-    // RO_SPACE memory is shared across all isolates and accounted for
-    // elsewhere.
+    // Read-only space is shard across all isolates. Its statistics can be
+    // retrieved using `V8::GetSharedMemoryStatistics()`.
     space_statistics->space_size_ = 0;
     space_statistics->space_used_size_ = 0;
     space_statistics->space_available_size_ = 0;
     space_statistics->physical_space_size_ = 0;
   } else {
-    i::Space* space = heap->space(static_cast<int>(index));
+    i::Space* space = heap->space(allocation_space);
     space_statistics->space_size_ = space ? space->CommittedMemory() : 0;
     space_statistics->space_used_size_ = space ? space->SizeOfObjects() : 0;
     space_statistics->space_available_size_ = space ? space->Available() : 0;

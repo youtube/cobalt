@@ -160,6 +160,8 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
       },
       entrypointName: {type: String},
+      transcript_: {type: String},
+      receivedSpeech_: {type: Boolean},
     };
   }
 
@@ -169,6 +171,8 @@ export class ComposeboxElement extends I18nMixinLit
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
   accessor entrypointName: string = '';
+  protected composeboxNoFlickerSuggestionsFix_: boolean =
+      loadTimeData.getBoolean('composeboxNoFlickerSuggestionsFix');
   // If isCollapsible is set to true, the composebox will be a pill shape until
   // it gets focused, at which point it will expand. If false, defaults to the
   // expanded state.
@@ -200,12 +204,14 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor errorScrimVisible_: boolean = false;
   protected accessor contextFilesSize_: number = 0;
+  protected accessor transcript_: string = '';
+  protected accessor receivedSpeech_: boolean = false;
   protected lastQueriedInput_: string = '';
   protected showVoiceSearchInSteadyComposebox_: boolean =
       loadTimeData.getBoolean('steadyComposeboxShowVoiceSearch');
   protected showVoiceSearchInExpandedComposebox_: boolean =
       loadTimeData.getBoolean('expandedComposeboxShowVoiceSearch');
-  protected dragAndDropHandler: DragAndDropHandler;
+  protected dragAndDropHandler_: DragAndDropHandler;
   private showTypedSuggest_: boolean =
       loadTimeData.getBoolean('composeboxShowTypedSuggest');
   private showTypedSuggestWithContext_: boolean =
@@ -223,6 +229,10 @@ export class ComposeboxElement extends I18nMixinLit
       loadTimeData.getBoolean('composeboxContextDragAndDropEnabled');
   protected accessor inVoiceSearchMode_: boolean = false;
   private selectedMatch_: AutocompleteMatch|null = null;
+  // Whether the composebox is actively waiting for an autocomplete response. If
+  // this is false, that means at least one response has been received (even if
+  // the response was empty or had an error).
+  private haveReceivedAutcompleteResponse_: boolean = false;
 
   constructor() {
     super();
@@ -230,7 +240,7 @@ export class ComposeboxElement extends I18nMixinLit
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
-    this.dragAndDropHandler =
+    this.dragAndDropHandler_ =
         new DragAndDropHandler(this, this.dragAndDropEnabled_);
   }
 
@@ -332,8 +342,8 @@ export class ComposeboxElement extends I18nMixinLit
       } else if (!this.lastQueriedInput_) {
         // This is for cases when focus leaves the matches/input.
         // If there was already text in the input do not clear it.
-        this.input_ = '';
-        this.submitEnabled_ = false;
+        this.clearInput();
+        this.submitEnabled_ = this.contextFilesSize_ > 0;
       } else {
         // For typed queries reset the input back to typed value when
         // focus leaves the match.
@@ -378,9 +388,14 @@ export class ComposeboxElement extends I18nMixinLit
     this.animationState = GlowAnimationState.NONE;
     // Wait for the style change for NONE to commit. This ensures the browser
     // detects a state change when we switch to EXPANDING.
-    requestAnimationFrame(() => {
-      this.animationState = GlowAnimationState.EXPANDING;
-    });
+
+    // If the composebox is not submittable or it is already expanded, do not
+    // trigger the animation.
+    if(this.expanding_ && !this.submitEnabled_) {
+      requestAnimationFrame(() => {
+        this.animationState = GlowAnimationState.EXPANDING;
+      });
+    }
   }
 
   setText(text: string) {
@@ -392,7 +407,7 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   closeDropdown() {
-    this.clearAutocompleteMatches_();
+    this.clearAutocompleteMatches();
   }
 
   getSmartComposeForTesting() {
@@ -486,6 +501,16 @@ export class ComposeboxElement extends I18nMixinLit
 
   protected onFileValidationError_(e: CustomEvent<{errorMessage: string}>) {
     this.$.errorScrim.setErrorMessage(e.detail.errorMessage);
+  }
+
+  protected onTranscriptUpdate_(e: CustomEvent<string>) {
+    // Update property that is sent to searchAnimatedGlow binding.
+    this.transcript_ = e.detail;
+  }
+
+  protected onSpeechReceived_() {
+    // Update property that is sent to searchAnimatedGlow binding.
+    this.receivedSpeech_ = true;
   }
 
   protected async deleteContext_(e: CustomEvent<{uuid: UnguessableToken}>) {
@@ -630,21 +655,41 @@ export class ComposeboxElement extends I18nMixinLit
 
   protected openAimVoiceSearch_() {
     this.inVoiceSearchMode_ = true;
+    this.animationState = GlowAnimationState.LISTENING;
     this.$.voiceSearch.start();
   }
 
   protected onVoiceSearchClose_() {
     this.inVoiceSearchMode_ = false;
+    this.animationState = GlowAnimationState.NONE;
+    this.receivedSpeech_ = false;
   }
 
   protected onCancelClick_() {
-    if (this.input_.trim().length > 0 || this.contextFilesSize_ > 0) {
+    if (this.hasContent_()) {
+      this.resetModes();
       this.clearAllInputs();
       this.focusInput();
       this.queryAutocomplete(/* clearMatches= */ true);
     } else {
       this.closeComposebox_();
     }
+  }
+
+  handleEscapeKeyLogic(): void {
+    if (!this.composeboxCloseByEscape_ && this.hasContent_()) {
+      this.resetModes();
+      this.clearAllInputs();
+      this.focusInput();
+      this.queryAutocomplete(/* clearMatches= */ true);
+    } else {
+      this.closeComposebox_();
+    }
+  }
+
+  private hasContent_(): boolean {
+    return this.inDeepSearchMode_ || this.inCreateImageMode_ ||
+        this.input_.trim().length > 0 || this.contextFilesSize_ > 0;
   }
 
   protected onLensClick_() {
@@ -707,9 +752,19 @@ export class ComposeboxElement extends I18nMixinLit
     this.input_ = inputElement.value;
     // `clearMatches` is true if input is empty stop any in progress providers
     // before requerying for on-focus (zero-suggest) inputs. The searchbox
-    // doesn't allow zero-suggest requests to be made while the ACController is
-    // not done.
-    this.queryAutocomplete(/* clearMatches= */ this.input_ === '');
+    // doesn't allow zero-suggest requests to be made while the ACController
+    // is not done.
+    if (this.composeboxNoFlickerSuggestionsFix_) {
+      // If the composebox no flickering fix is enabled, stop the ACController
+      // from querying for suggestions when the input is empty, but don't clear
+      // the matches so the dropdown doesn't close.
+      if (this.input_ === '') {
+        this.searchboxHandler_.stopAutocomplete(/*clearResult=*/ true);
+      }
+      this.queryAutocomplete(/* clearMatches= */ false);
+    } else {
+      this.queryAutocomplete(/* clearMatches= */ this.input_ === '');
+    }
   }
 
   protected onKeydown_(e: KeyboardEvent) {
@@ -755,14 +810,8 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     if (e.key === 'Escape') {
-      if (!this.composeboxCloseByEscape_ &&
-          (this.input_.trim().length > 0 || this.contextFilesSize_ > 0)) {
-        this.clearAllInputs();
-        this.focusInput();
-        this.queryAutocomplete(/* clearMatches= */ true);
-      } else {
-        this.closeComposebox_();
-      }
+      this.handleEscapeKeyLogic();
+      e.stopPropagation();
       e.preventDefault();
       return;
     }
@@ -873,13 +922,16 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   setSearchContext(context: SearchContextStub|null) {
-    if (!context) {
-      return;
+    if (context) {
+      if (context.input.length > 0) {
+        this.input_ = context.input;
+      }
+      this.$.context.setStateFromSearchContext(context);
     }
-    if (context.input.length > 0) {
-      this.input_ = context.input;
+    // Query for ZPS even if there's no context.
+    if (this.showZps) {
+      this.queryAutocomplete(/* clearMatches= */ false);
     }
-    this.$.context.setStateFromSearchContext(context);
   }
 
   private closeComposebox_() {
@@ -944,7 +996,7 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onMatchClick_() {
-    this.clearAutocompleteMatches_();
+    this.clearAutocompleteMatches();
   }
 
   protected onSelectedMatchIndexChanged_(e: CustomEvent<{value: number}>) {
@@ -956,7 +1008,7 @@ export class ComposeboxElement extends I18nMixinLit
   /**
    * Clears the autocomplete result on the page and on the autocomplete backend.
    */
-  private clearAutocompleteMatches_() {
+  clearAutocompleteMatches() {
     this.showDropdown_ = false;
     this.result_ = null;
     this.$.matches.unselect();
@@ -971,6 +1023,28 @@ export class ComposeboxElement extends I18nMixinLit
         this.lastQueriedInput_.trimStart() !== result.input) {
       return;
     }
+
+    // TODO(crbug.com/460888279): This is a temporary, merge safe fix. Ideally,
+    // the ACController is not sending multiple responses for a single query,
+    // especially when the matches is empty. Remove this logic once a long term
+    // fix is found.
+    if (this.composeboxNoFlickerSuggestionsFix_ && this.showTypedSuggest_ &&
+        !this.haveReceivedAutcompleteResponse_) {
+      // The first autcomplete response for ZPS contains no matches, since
+      // composebox doesn't support ZPS from local providers (ex. history
+      // suggestion). Similarly, since composebox doesn't support local
+      // providers, typed suggest first response returns a single verbatim
+      // match, which doesn't show in the dropdown. To prevent closing the
+      // dropdown before the actual response from the suggest server is
+      // received, add the previous non-verbatim matches to this first response.
+      if (this.result_ && this.result_.matches.length > 0 &&
+          result.matches.length <= 1) {
+        result.matches.push(...this.result_.matches.filter(
+            match => match.type !== 'search-what-you-typed'));
+      }
+      this.haveReceivedAutcompleteResponse_ = true;
+    }
+    this.haveReceivedAutcompleteResponse_ = true;
     this.result_ = result;
     const hasMatches = this.result_.matches.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
@@ -1061,6 +1135,12 @@ export class ComposeboxElement extends I18nMixinLit
     const ghostHeight = smartCompose!.scrollHeight;
     const maxHeight = 190;
     this.$.input.style.height = `${Math.min(ghostHeight, maxHeight)}px`;
+    // If smart compose goes to two lines. The tab chip will be cut off as it
+    // has a height of 28px. Add 4px to show the whole tab chip.
+    if (ghostHeight > 48) {
+      this.$.input.style.minHeight = `68px`;
+      smartCompose!.style.minHeight = `68px`;
+    }
 
     // If the height of the input + smart complete hint is greater than the max
     // height, scroll the smart compose as the input will already scroll. Note
@@ -1078,19 +1158,24 @@ export class ComposeboxElement extends I18nMixinLit
   // matches.
   private queryAutocomplete(clearMatches: boolean) {
     if (clearMatches) {
-      this.clearAutocompleteMatches_();
+      this.clearAutocompleteMatches();
     }
     this.lastQueriedInput_ = this.input_;
+    this.haveReceivedAutcompleteResponse_ = false;
     this.searchboxHandler_.queryAutocomplete(this.input_, false);
   }
 
   clearAllInputs() {
-    this.input_ = '';
+    this.clearInput();
     this.$.context.resetContextFiles();
     this.contextFilesSize_ = 0;
     this.smartComposeInlineHint_ = '';
     this.searchboxHandler_.clearFiles();
     this.submitEnabled_ = false;
+  }
+
+  clearInput() {
+    this.input_ = '';
   }
 
   getInputText(): string {

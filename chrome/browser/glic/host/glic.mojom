@@ -83,7 +83,6 @@ enum WebUiState {
   // Web view is displayed.
   kReady = 8,
   // Glic is unresponsive. Currently this will show the same UI as kError.
-  // TODO(crbug.com/394162784): create an unresponsive UI.
   kUnresponsive = 9,
   // Sign in panel is displayed.
   kSignIn = 10,
@@ -336,6 +335,8 @@ struct WebClientInitialState {
   bool enable_get_tab_by_id;
   // Whether kGlicOpenPasswordManagerSettingsPageApi is enabled.
   bool enable_open_password_manager_settings_page;
+  // Whether kGlicLoadAndExtractContent is enabled.
+  bool enable_load_and_extract_content;
 };
 
 // Options for getting tab context.
@@ -1092,10 +1093,12 @@ struct ContextData {
 // Part of an additional context object.
 union AdditionalContextPart {
   ContextData data;
+  // The four items below can be contained by TabContext and are deprecated.
   Screenshot screenshot;
   WebPageData web_page_data;
   AnnotatedPageData annotated_page_data;
   PdfDocumentData pdf_document_data;
+  TabContext tab_context;
 };
 
 // An additional context object.

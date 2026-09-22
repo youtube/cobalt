@@ -52,9 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RunWith(AndroidJUnit4.class)
 @Batch(Batch.UNIT_TESTS)
 public class ProxyTest {
-    // TODO(https://crbug.com/421344207): Set to the correct value once the translation layer for
-    // the proxy APIs from Android to Chromium is present.
-    private static final int HTTPENGINE_PROXY_API_SDK_EXTENSION = Integer.MAX_VALUE;
+    private static final int HTTPENGINE_PROXY_API_SDK_EXTENSION = 21;
 
     @Rule public final CronetTestRule mTestRule = CronetTestRule.withManualEngineStartup();
 
@@ -203,7 +201,11 @@ public class ProxyTest {
         urlRequestBuilder.build().start();
         callback.blockForDone();
         assertThat(callback.getResponseInfoWithChecks()).hasHttpStatusCodeThat().isEqualTo(200);
-        assertThat(callback.getResponseInfoWithChecks()).hasProxyServerThat().isEqualTo(":0");
+        // This cannot be tested when HttpEngine is used under the hood:
+        // android.net.http.UrlResponseInfo does not expose the proxy used for a request.
+        if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+            assertThat(callback.getResponseInfoWithChecks()).hasProxyServerThat().isEqualTo(":0");
+        }
     }
 
     @Test
@@ -243,7 +245,11 @@ public class ProxyTest {
         urlRequestBuilder.build().start();
         callback.blockForDone();
         assertThat(callback.getResponseInfoWithChecks()).hasHttpStatusCodeThat().isEqualTo(200);
-        assertThat(callback.getResponseInfoWithChecks()).hasProxyServerThat().isEqualTo(":0");
+        // This cannot be tested when HttpEngine is used under the hood:
+        // android.net.http.UrlResponseInfo does not expose the proxy used for a request.
+        if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+            assertThat(callback.getResponseInfoWithChecks()).hasProxyServerThat().isEqualTo(":0");
+        }
         Mockito.verify(proxyCallback, never()).onBeforeRequest(any());
         Mockito.verify(proxyCallback, never()).onResponseReceived(any(), anyInt());
     }
@@ -674,8 +680,16 @@ public class ProxyTest {
         assertThat(callback.mError).isInstanceOf(NetworkException.class);
         NetworkException networkException = (NetworkException) callback.mError;
         assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
-        assertThat(networkException.getCronetInternalErrorCode())
-                .isEqualTo(NetError.ERR_TUNNEL_CONNECTION_FAILED);
+        // This cannot be tested when HttpEngine is used under the hood:
+        // android.net.http.NetworkException does not expose internal error codes.
+        if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.NetworkException does not expose internal error codes.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(networkException.getCronetInternalErrorCode())
+                        .isEqualTo(NetError.ERR_TUNNEL_CONNECTION_FAILED);
+            }
+        }
     }
 
     @Test
@@ -795,7 +809,7 @@ public class ProxyTest {
             assertThat(callback.mError).isNull();
             assertThat(callback.getResponseInfoWithChecks()).hasHttpStatusCodeThat().isEqualTo(200);
             // The exact values of these headers is not that important. We are just confirming we
-            // don't receive the tunnel response heeaders here.
+            // don't receive the tunnel response headers here.
             assertThat(callback.getResponseInfoWithChecks())
                     .hasHeadersListThat()
                     .containsExactlyElementsIn(
@@ -810,9 +824,13 @@ public class ProxyTest {
                                             "multi-header-name", "header-value1"),
                                     new AbstractMap.SimpleImmutableEntry<>(
                                             "multi-header-name", "header-value2")));
-            assertThat(callback.getResponseInfoWithChecks())
-                    .hasProxyServerThat()
-                    .isEqualTo("localhost:" + proxyServer.getPort());
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.UrlResponseInfo does not expose the proxy used for a request.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(callback.getResponseInfoWithChecks())
+                        .hasProxyServerThat()
+                        .isEqualTo("localhost:" + proxyServer.getPort());
+            }
             assertThat(callback.mResponseAsString).isEqualTo(NativeTestServer.SUCCESS_BODY);
             Mockito.verify(proxyCallback, times(1)).onBeforeRequest(any());
             ArgumentCaptor<List<Pair<String, String>>> argumentCaptor =
@@ -827,6 +845,103 @@ public class ProxyTest {
                                     new Pair<>("Connection", "close"),
                                     new Pair<>("Content-Length", "0"),
                                     new Pair<>("Content-Type", "")));
+        }
+    }
+
+    @Test
+    @SmallTest
+    @IgnoreFor(
+            implementations = {CronetImplementation.AOSP_PLATFORM, CronetImplementation.FALLBACK},
+            reason =
+                    "This feature flag has not reached platform Cronet yet. Fallback provides no"
+                            + " ProxyOptions support.",
+            requiredSdkExtensionForPlatform = HTTPENGINE_PROXY_API_SDK_EXTENSION)
+    // Mockito fails on Marshmallow with NoClassDefFoundError:
+    // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
+    public void testCallback_bidiStream_isSuccessfullyProxied() throws Exception {
+        try (NativeTestServer proxyServer = mNativeTestServer) {
+            assertThat(
+                            Http2TestServer.startHttp2TestServer(
+                                    mTestRule.getTestFramework().getContext()))
+                    .isTrue();
+            proxyServer.enableConnectProxy(Arrays.asList(Http2TestServer.getEchoMethodUrl()));
+            proxyServer.start();
+            Proxy.HttpConnectCallback proxyCallback =
+                    Mockito.mock(Proxy.HttpConnectCallback.class, Mockito.CALLS_REAL_METHODS);
+            doAnswer(
+                            invocation -> {
+                                Proxy.HttpConnectCallback.Request request =
+                                        invocation.getArgument(0);
+                                request.proceed(Collections.emptyList());
+                                return null;
+                            })
+                    .when(proxyCallback)
+                    .onBeforeRequest(any());
+            Mockito.doReturn(Proxy.HttpConnectCallback.RESPONSE_ACTION_PROCEED)
+                    .when(proxyCallback)
+                    .onResponseReceived(anyList(), anyInt());
+            mTestRule
+                    .getTestFramework()
+                    .applyEngineBuilderPatch(
+                            (builder) ->
+                                    builder.setProxyOptions(
+                                            ProxyOptions.fromProxyList(
+                                                    Arrays.asList(
+                                                            Proxy.createHttpProxy(
+                                                                    /* scheme= */ Proxy.SCHEME_HTTP,
+                                                                    /* host= */ "localhost",
+                                                                    /* port= */ proxyServer
+                                                                            .getPort(),
+                                                                    Executors
+                                                                            .newSingleThreadExecutor(),
+                                                                    /* callback= */ proxyCallback)))));
+            ExperimentalCronetEngine cronetEngine = mTestRule.getTestFramework().startEngine();
+            TestBidirectionalStreamCallback callback = new TestBidirectionalStreamCallback();
+            BidirectionalStream stream =
+                    cronetEngine
+                            .newBidirectionalStreamBuilder(
+                                    Http2TestServer.getEchoMethodUrl(),
+                                    callback,
+                                    callback.getExecutor())
+                            .setHttpMethod("GET")
+                            .build();
+            stream.start();
+            callback.blockForDone();
+            assertThat(stream.isDone()).isTrue();
+            assertThat(callback.mError).isNull();
+            assertThat(callback.getResponseInfoWithChecks()).hasHttpStatusCodeThat().isEqualTo(200);
+            // The exact values of these headers is not that important. We are just confirming we
+            // don't receive the tunnel response headers here.
+            assertThat(callback.getResponseInfoWithChecks())
+                    .hasHeadersListThat()
+                    .containsExactlyElementsIn(
+                            Arrays.asList(
+                                    new AbstractMap.SimpleImmutableEntry<>(":status", "200")));
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.UrlResponseInfo does not expose the proxy used for a request.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                // TODO(https://crbug.com/460426595): Change this to check for the correct proxy
+                // server value once BidirectionalStream correctly reports proxy servers.
+                assertThat(callback.getResponseInfoWithChecks()).hasProxyServerThat().isNull();
+            }
+
+            assertThat(callback.mResponseAsString).isEqualTo("GET");
+            Mockito.verify(proxyCallback, times(1)).onBeforeRequest(any());
+            ArgumentCaptor<List<Pair<String, String>>> argumentCaptor =
+                    ArgumentCaptor.forClass(List.class);
+            Mockito.verify(proxyCallback, times(1))
+                    .onResponseReceived(argumentCaptor.capture(), eq(200));
+            // The exact values of these headers is not that important. We are just confirming we
+            // don't receive the actual response headers here.
+            assertThat(argumentCaptor.getValue())
+                    .containsExactlyElementsIn(
+                            Arrays.asList(
+                                    new Pair<>("Connection", "close"),
+                                    new Pair<>("Content-Length", "0"),
+                                    new Pair<>("Content-Type", "")));
+        } finally {
+            Http2TestServer.shutdownHttp2TestServer();
         }
     }
 
@@ -896,8 +1011,12 @@ public class ProxyTest {
             assertThat(callback.mError).isInstanceOf(NetworkException.class);
             NetworkException networkException = (NetworkException) callback.mError;
             assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
-            assertThat(networkException.getCronetInternalErrorCode())
-                    .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.NetworkException does not expose internal error codes.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(networkException.getCronetInternalErrorCode())
+                        .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
+            }
         }
     }
 
@@ -976,8 +1095,12 @@ public class ProxyTest {
             assertThat(callback.mError).isInstanceOf(NetworkException.class);
             NetworkException networkException = (NetworkException) callback.mError;
             assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
-            assertThat(networkException.getCronetInternalErrorCode())
-                    .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.NetworkException does not expose internal error codes.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(networkException.getCronetInternalErrorCode())
+                        .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_RESPONSE);
+            }
         }
     }
 
@@ -1258,8 +1381,12 @@ public class ProxyTest {
             assertThat(callback.mError).isInstanceOf(NetworkException.class);
             NetworkException networkException = (NetworkException) callback.mError;
             assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
-            assertThat(networkException.getCronetInternalErrorCode())
-                    .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_REQUEST);
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.NetworkException does not expose internal error codes.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(networkException.getCronetInternalErrorCode())
+                        .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_REQUEST);
+            }
             Mockito.verify(proxyCallback, times(1)).onBeforeRequest(any());
             Mockito.verify(proxyCallback, never()).onResponseReceived(anyList(), anyInt());
         }
@@ -1494,8 +1621,12 @@ public class ProxyTest {
             assertThat(callback.mError).isInstanceOf(NetworkException.class);
             NetworkException networkException = (NetworkException) callback.mError;
             assertThat(networkException.getErrorCode()).isEqualTo(NetworkException.ERROR_OTHER);
-            assertThat(networkException.getCronetInternalErrorCode())
-                    .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_REQUEST);
+            // This cannot be tested when HttpEngine is used under the hood:
+            // android.net.http.NetworkException does not expose internal error codes.
+            if (mTestRule.implementationUnderTest() != CronetImplementation.AOSP_PLATFORM) {
+                assertThat(networkException.getCronetInternalErrorCode())
+                        .isEqualTo(NetError.ERR_PROXY_DELEGATE_CANCELED_CONNECT_REQUEST);
+            }
             Mockito.verify(proxyCallback, times(1)).onBeforeRequest(any());
             Mockito.verify(proxyCallback, never()).onResponseReceived(anyList(), anyInt());
         }

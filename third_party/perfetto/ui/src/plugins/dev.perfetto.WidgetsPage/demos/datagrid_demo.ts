@@ -117,6 +117,7 @@ export function renderDataGrid(app: App): m.Children {
         aggregation: false,
         showResetButton: false,
         demoToolbarItems: false,
+        showExportButtons: false,
       },
       noPadding: true,
     }),
@@ -166,10 +167,16 @@ export function renderDataGrid(app: App): m.Children {
                 title: 'Duration',
                 aggregation: aggregation ? 'SUM' : undefined,
               },
-              {name: 'state', title: 'State'},
+              {
+                name: 'state',
+                title: 'State',
+              },
               {name: 'thread_name', title: 'Thread'},
               {name: 'ucpu', title: 'CPU'},
-              {name: 'io_wait', title: 'IO Wait'},
+              {
+                name: 'io_wait',
+                title: 'IO Wait',
+              },
             ],
           });
         } else {

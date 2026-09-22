@@ -148,30 +148,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Kiosk.Extensions.InstallDuration" units="ms"
-    expires_after="2025-06-15">
-  <owner>yixie@chromium.org</owner>
-  <owner>chromeos-kiosk-eng@google.com</owner>
-  <summary>
-    Records the duration for Kiosk launcher to wait for forced extensions to
-    install.
-  </summary>
-</histogram>
-
-<histogram name="Kiosk.Extensions.InstallError.{InstallSource}"
-    enum="ExtensionInstallationFailureReason" expires_after="2025-06-15">
-  <owner>yixie@chromium.org</owner>
-  <owner>chromeos-kiosk-eng@google.com</owner>
-  <summary>
-    Records the reason for a Kiosk forced {InstallSource} extension install
-    error. (Chrome OS only)
-  </summary>
-  <token key="InstallSource">
-    <variant name="OffStore" summary="non-Web-Store"/>
-    <variant name="WebStore" summary="Web Store"/>
-  </token>
-</histogram>
-
 <histogram name="Kiosk.Extensions.InstallTimedOut" enum="BooleanYesNo"
     expires_after="2026-05-10">
   <owner>yixie@chromium.org</owner>
@@ -241,16 +217,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     ChromeOS only. Records the percentage of RAM in use during Kiosk session. Is
     recorded once per hour.
-  </summary>
-</histogram>
-
-<histogram name="Kiosk.SecondaryApps.InstallSuccessful" enum="BooleanYesNo"
-    expires_after="2025-06-15">
-  <owner>yixie@chromium.org</owner>
-  <owner>chromeos-kiosk-eng@google.com</owner>
-  <summary>
-    Records whether secondary apps are installed successfully in a Chrome App
-    Kiosk. Only recorded once per Kiosk session which has secondary apps.
   </summary>
 </histogram>
 

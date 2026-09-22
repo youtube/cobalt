@@ -38,6 +38,7 @@ class DtlsTransport : public DtlsTransportInterface {
   // The Information() function can be called from a different thread,
   // such as the signalling thread.
   explicit DtlsTransport(std::unique_ptr<DtlsTransportInternal> internal);
+  explicit DtlsTransport(DtlsTransportInternal* internal);
 
   scoped_refptr<IceTransportInterface> ice_transport() override;
 
@@ -51,12 +52,12 @@ class DtlsTransport : public DtlsTransportInterface {
 
   DtlsTransportInternal* internal() {
     RTC_DCHECK_RUN_ON(owner_thread_);
-    return internal_dtls_transport_.get();
+    return internal_dtls_transport_;
   }
 
   const DtlsTransportInternal* internal() const {
     RTC_DCHECK_RUN_ON(owner_thread_);
-    return internal_dtls_transport_.get();
+    return internal_dtls_transport_;
   }
 
  protected:
@@ -78,8 +79,9 @@ class DtlsTransport : public DtlsTransportInterface {
   Thread* owner_thread_;
   mutable Mutex lock_;
   DtlsTransportInformation info_ RTC_GUARDED_BY(lock_);
-  std::unique_ptr<DtlsTransportInternal> internal_dtls_transport_
+  std::unique_ptr<DtlsTransportInternal> owned_internal_dtls_transport_
       RTC_GUARDED_BY(owner_thread_);
+  DtlsTransportInternal* internal_dtls_transport_ RTC_GUARDED_BY(owner_thread_);
   const scoped_refptr<IceTransportWithPointer> ice_transport_;
 };
 

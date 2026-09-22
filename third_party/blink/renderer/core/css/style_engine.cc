@@ -34,8 +34,10 @@
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
 #include "base/hash/hash.h"
+#include "base/rand_util.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
+#include "third_party/blink/renderer/core/css/cascade_layered.h"
 #include "third_party/blink/renderer/core/css/check_pseudo_has_cache_scope.h"
 #include "third_party/blink/renderer/core/css/container_query_data.h"
 #include "third_party/blink/renderer/core/css/container_query_evaluator.h"
@@ -66,6 +68,7 @@
 #include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
 #include "third_party/blink/renderer/core/css/style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_feature_values.h"
+#include "third_party/blink/renderer/core/css/style_rule_view_transition.h"
 #include "third_party/blink/renderer/core/css/style_sheet_collection.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/css/vision_deficiency.h"
@@ -308,9 +311,7 @@ const HeapVector<Member<StyleSheet>>& StyleEngine::StyleSheetsForStyleSheetList(
     TreeScope& tree_scope) {
   DCHECK(document_);
   StyleSheetCollection& collection = EnsureStyleSheetCollectionFor(tree_scope);
-  if (document_->IsActive()) {
-    collection.UpdateStyleSheetList();
-  }
+  collection.UpdateStyleSheetList();
   return collection.StyleSheetsForStyleSheetList();
 }
 
@@ -696,13 +697,12 @@ void StyleEngine::UpdateActiveStyleSheets() {
   // Now create the actual RuleSets.
   if (ShouldUpdateDocumentStyleSheetCollection()) {
     document_style_sheet_collection_->FinishUpdateActiveStyleSheets(
-        medium, document_style_sheet_collection_->Mixins());
+        document_style_sheet_collection_->Mixins());
   }
   if (ShouldUpdateShadowTreeStyleSheetCollection()) {
     for (TreeScope* tree_scope : dirty_tree_scopes_) {
       StyleSheetCollection& collection = *StyleSheetCollectionFor(*tree_scope);
       collection.FinishUpdateActiveStyleSheets(
-          EnsureMediaQueryEvaluator(),
           EffectiveMixinsForTreeScope(*tree_scope));
       if (!collection.HasStyleSheetCandidateNodes() &&
           !tree_scope->HasAdoptedStyleSheets()) {
@@ -768,9 +768,10 @@ void StyleEngine::MarkPositionTryStylesDirty(
     const HeapHashSet<Member<RuleSet>>& changed_rule_sets) {
   for (RuleSet* rule_set : changed_rule_sets) {
     CHECK(rule_set);
-    for (StyleRulePositionTry* try_rule : rule_set->PositionTryRules()) {
-      if (try_rule) {
-        dirty_position_try_names_.insert(try_rule->Name());
+    for (const CascadeLayered<StyleRulePositionTry>& try_rule :
+         rule_set->PositionTryRules()) {
+      if (try_rule.value) {
+        dirty_position_try_names_.insert(try_rule.value->Name());
       }
     }
   }
@@ -993,7 +994,7 @@ RuleSet* StyleEngine::RuleSetForSheet(CSSStyleSheet& sheet,
 }
 
 RuleSet* StyleEngine::CreateUnconnectedRuleSet(CSSStyleSheet& sheet,
-                                               const MixinMap& mixins) {
+                                               const MixinMap& mixins) const {
   if (!sheet.MatchesMediaQueries(EnsureMediaQueryEvaluator())) {
     return nullptr;
   }
@@ -2685,9 +2686,9 @@ void StyleEngine::UpdateViewTransitionOptIn() {
   // TODO(https://crbug.com/1463966): This will likely need to change to a
   // CSSValueList if we want to support multiple tokens as a trigger.
   Vector<String> types;
-  if (view_transition_rule_) {
-    types = view_transition_rule_->GetTypes();
-    if (const CSSValue* value = view_transition_rule_->GetNavigation()) {
+  if (view_transition_rule_.value) {
+    types = view_transition_rule_.value->GetTypes();
+    if (const CSSValue* value = view_transition_rule_.value->GetNavigation()) {
       cross_document_enabled =
           To<CSSIdentifierValue>(value)->GetValueID() == CSSValueID::kAuto;
     }
@@ -3245,7 +3246,8 @@ bool StyleEngine::UpdateRootFontRelativeUnits(
   bool root_font_glyphs_changed =
       !old_root_style ||
       (UsesGlyphRelativeUnits() &&
-       old_root_style->GetFont() != new_root_style->GetFont());
+       !base::ValuesEquivalent<Font>(old_root_style->GetFont(),
+                                     new_root_style->GetFont()));
   bool root_line_height_changed =
       !old_root_style ||
       (UsesLineHeightUnits() &&
@@ -3396,12 +3398,12 @@ bool StyleEngine::AddUserFontFaceRules(const RuleSet& rule_set) {
     return false;
   }
 
-  const HeapVector<Member<StyleRuleFontFace>> font_face_rules =
+  const HeapVector<CascadeLayered<StyleRuleFontFace>> font_face_rules =
       rule_set.FontFaceRules();
   for (auto& font_face_rule : font_face_rules) {
     if (FontFace* font_face = FontFace::Create(document_, font_face_rule,
                                                true /* is_user_style */)) {
-      font_selector_->GetFontFaceCache()->Add(font_face_rule, font_face);
+      font_selector_->GetFontFaceCache()->Add(font_face_rule.value, font_face);
     }
   }
   if (resolver_ && font_face_rules.size()) {
@@ -3411,15 +3413,16 @@ bool StyleEngine::AddUserFontFaceRules(const RuleSet& rule_set) {
 }
 
 void StyleEngine::AddUserKeyframeRules(const RuleSet& rule_set) {
-  const HeapVector<Member<StyleRuleKeyframes>> keyframes_rules =
+  const HeapVector<CascadeLayered<StyleRuleKeyframes>> keyframes_rules =
       rule_set.KeyframesRules();
   for (unsigned i = 0; i < keyframes_rules.size(); ++i) {
     AddUserKeyframeStyle(keyframes_rules[i]);
   }
 }
 
-void StyleEngine::AddUserKeyframeStyle(StyleRuleKeyframes* rule) {
-  AtomicString animation_name(rule->GetName());
+void StyleEngine::AddUserKeyframeStyle(
+    const CascadeLayered<StyleRuleKeyframes>& rule) {
+  AtomicString animation_name(rule.value->GetName());
 
   KeyframesRuleMap::iterator it = keyframes_rule_map_.find(animation_name);
   if (it == keyframes_rule_map_.end() ||
@@ -3429,18 +3432,18 @@ void StyleEngine::AddUserKeyframeStyle(StyleRuleKeyframes* rule) {
 }
 
 bool StyleEngine::UserKeyframeStyleShouldOverride(
-    const StyleRuleKeyframes* new_rule,
-    const StyleRuleKeyframes* existing_rule) const {
-  if (new_rule->IsVendorPrefixed() != existing_rule->IsVendorPrefixed()) {
-    return existing_rule->IsVendorPrefixed();
+    const CascadeLayered<StyleRuleKeyframes>& new_rule,
+    const CascadeLayered<StyleRuleKeyframes>& existing_rule) const {
+  if (new_rule.value->IsVendorPrefixed() !=
+      existing_rule.value->IsVendorPrefixed()) {
+    return existing_rule.value->IsVendorPrefixed();
   }
-  return !user_cascade_layer_map_ || user_cascade_layer_map_->CompareLayerOrder(
-                                         existing_rule->GetCascadeLayer(),
-                                         new_rule->GetCascadeLayer()) <= 0;
+  return CascadeLayerMap::CompareLayerOrder(user_cascade_layer_map_,
+                                            existing_rule, new_rule) <= 0;
 }
 
 void StyleEngine::AddViewTransitionRules(const ActiveStyleSheetVector& sheets) {
-  view_transition_rule_.Clear();
+  view_transition_rule_ = CascadeLayered<StyleRuleViewTransition>();
 
   for (const ActiveStyleSheet& active_sheet : sheets) {
     RuleSet* rule_set = active_sheet.second;
@@ -3452,10 +3455,11 @@ void StyleEngine::AddViewTransitionRules(const ActiveStyleSheetVector& sheets) {
         document_->GetScopedStyleResolver()
             ? document_->GetScopedStyleResolver()->GetCascadeLayerMap()
             : nullptr;
-    for (auto& rule : rule_set->ViewTransitionRules()) {
-      if (!view_transition_rule_ || !layer_map ||
-          layer_map->CompareLayerOrder(view_transition_rule_->GetCascadeLayer(),
-                                       rule->GetCascadeLayer()) <= 0) {
+    for (const CascadeLayered<StyleRuleViewTransition>& rule :
+         rule_set->ViewTransitionRules()) {
+      if (!view_transition_rule_.value ||
+          CascadeLayerMap::CompareLayerOrder(layer_map, view_transition_rule_,
+                                             rule) <= 0) {
         view_transition_rule_ = rule;
       }
     }
@@ -3479,21 +3483,18 @@ void StyleEngine::AddFontPaletteValuesRules(const RuleSet& rule_set) {
 void StyleEngine::AddPropertyRules(AtRuleCascadeMap& cascade_map,
                                    const RuleSet& rule_set,
                                    bool is_user_style) {
-  const HeapVector<Member<StyleRuleProperty>> property_rules =
-      rule_set.PropertyRules();
-  for (unsigned i = 0; i < property_rules.size(); ++i) {
-    StyleRuleProperty* rule = property_rules[i];
-    AtomicString name(rule->GetName());
+  for (const CascadeLayered<StyleRuleProperty>& rule :
+       rule_set.PropertyRules()) {
+    AtomicString name(rule.value->GetName());
 
     PropertyRegistration* registration =
         PropertyRegistration::MaybeCreateForDeclaredProperty(GetDocument(),
-                                                             name, *rule);
+                                                             name, *rule.value);
     if (!registration) {
       continue;
     }
 
-    auto priority =
-        cascade_map.GetPriority(is_user_style, rule->GetCascadeLayer());
+    auto priority = cascade_map.GetPriority(is_user_style, rule.layer);
     if (!cascade_map.AddAndCascade(name, priority)) {
       continue;
     }
@@ -3514,7 +3515,8 @@ StyleRuleKeyframes* StyleEngine::KeyframeStylesForAnimation(
     return nullptr;
   }
 
-  return it->value.Get();
+  const CascadeLayered<StyleRuleKeyframes>& layered_rule = it->value;
+  return layered_rule.value;
 }
 
 StyleRuleFontPaletteValues* StyleEngine::FontPaletteValuesForNameAndFamily(
@@ -4415,12 +4417,22 @@ void StyleEngine::SetPageColorSchemes(const CSSValue* color_scheme) {
     return;
   }
 
+  ColorSchemeFlags page_color_schemes_old = page_color_schemes_;
   if (auto* value_list = DynamicTo<CSSValueList>(color_scheme)) {
     page_color_schemes_ = StyleBuilderConverter::ExtractColorSchemes(
         GetDocument(), *value_list, nullptr /* color_schemes */);
   } else {
     page_color_schemes_ =
         static_cast<ColorSchemeFlags>(ColorSchemeFlag::kNormal);
+  }
+  if (page_color_schemes_ != page_color_schemes_old) {
+    // Affects the color schemes available on the initial style
+    // (the color-scheme property), even if it doesn't affect
+    // _preferred_ color scheme (which would also force clearing
+    // the MPC, via UpdatePlatformColors()).
+    if (resolver_) {
+      resolver_->InvalidateMatchedPropertiesCache();
+    }
   }
   DCHECK(GetDocument().documentElement());
   // MarkAllElementsForStyleRecalc is necessary since the page color schemes
@@ -4645,7 +4657,7 @@ StyleEngine::FindFunctionAcrossScopes(const AtomicString& name,
   // User origin.
   auto iter = user_function_rule_map_.find(AtomicString(name));
   if (iter != user_function_rule_map_.end()) {
-    return {iter->value.Get(), nullptr};
+    return {iter->value.value, nullptr};
   }
   return {nullptr, nullptr};
 }
@@ -4690,6 +4702,7 @@ void StyleEngine::Trace(Visitor* visitor) const {
   visitor->Trace(anchored_element_dirty_set_);
   visitor->Trace(user_rule_set_groups_);
   visitor->Trace(functional_media_query_results_);
+  visitor->Trace(random_base_value_cache_);
   FontSelectorClient::Trace(visitor);
 }
 
@@ -4886,6 +4899,25 @@ void StyleEngine::RevisitStyleSheetForInspector(
   if (features) {
     RevisitStyleRulesForInspector(*features, contents->ChildRules());
   }
+}
+
+double StyleEngine::GetCachedRandomBaseValue(
+    RandomValueSharing random_value_sharing,
+    const Element* element,
+    AtomicString property_name,
+    size_t property_value_index) {
+  if (random_value_sharing.IsFixed()) {
+    return random_value_sharing.GetFixed();
+  }
+  RandomCachingKey* random_caching_key = RandomCachingKey::Create(
+      random_value_sharing, element, property_name, property_value_index);
+  auto it = random_base_value_cache_.find(random_caching_key);
+  if (it != random_base_value_cache_.end()) {
+    return it->value;
+  }
+  double value = base::RandDouble();
+  random_base_value_cache_.insert(random_caching_key, value);
+  return value;
 }
 
 }  // namespace blink

@@ -48,10 +48,8 @@ class ScreamNetworkController : public NetworkControllerInterface {
 
  private:
   NetworkControlUpdate CreateFirstUpdate(Timestamp now);
-  NetworkControlUpdate CreateUpdate(Timestamp now,
-                                    DataRate target_rate,
-                                    TimeDelta rtt);
-  PacerConfig CreatePacerConfig(DataRate target_rate);
+  NetworkControlUpdate CreateUpdate(Timestamp now, DataRate target_rate);
+  std::optional<PacerConfig> MaybeCreatePacerConfig(DataRate target_rate);
 
   Environment env_;
   const ScreamV2Parameters params_;
@@ -65,6 +63,12 @@ class ScreamNetworkController : public NetworkControllerInterface {
   StreamsConfig streams_config_;
 
   Timestamp last_padding_interval_started_;
+
+  // Values last reported in a NetworkControlUpdate. Used for finding out if an
+  // update needs to be reported.
+  DataRate reported_target_rate_;
+  DataRate reported_padding_rate_;
+  DataRate reported_pacing_rate_;
 };
 
 }  // namespace webrtc

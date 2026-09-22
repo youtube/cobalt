@@ -54,8 +54,10 @@ PipeWireVersion PipeWireVersion::Parse(const absl::string_view& version) {
     return {};
   }
 
-  return {
-      .major = major.value(), .minor = minor.value(), .micro = micro.value()};
+  return {.major = major.value(),
+          .minor = minor.value(),
+          .micro = micro.value(),
+          .full_version = std::string(version)};
 }
 
 bool PipeWireVersion::operator>=(const PipeWireVersion& other) {
@@ -74,6 +76,10 @@ bool PipeWireVersion::operator<=(const PipeWireVersion& other) {
 
   return std::tie(major, minor, micro) <=
          std::tie(other.major, other.minor, other.micro);
+}
+
+absl::string_view PipeWireVersion::ToStringView() const {
+  return full_version;
 }
 
 spa_pod* BuildFormat(spa_pod_builder* builder,

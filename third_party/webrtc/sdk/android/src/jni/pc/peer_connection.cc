@@ -296,8 +296,6 @@ void JavaToNativeRTCConfiguration(
   rtc_config->network_preference =
       JavaToNativeNetworkPreference(jni, j_network_preference);
   rtc_config->sdp_semantics = JavaToNativeSdpSemantics(jni, j_sdp_semantics);
-  rtc_config->active_reset_srtp_params =
-      Java_RTCConfiguration_getActiveResetSrtpParams(jni, j_rtc_config);
   rtc_config->crypto_options = JavaToNativeCryptoOptions(jni, j_crypto_options);
   rtc_config->offer_extmap_allow_mixed =
       Java_RTCConfiguration_getOfferExtmapAllowMixed(jni, j_rtc_config);

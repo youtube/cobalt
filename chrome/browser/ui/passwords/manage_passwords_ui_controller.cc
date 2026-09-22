@@ -31,7 +31,6 @@
 #include "chrome/browser/password_manager/password_change/password_change_hats.h"
 #include "chrome/browser/password_manager/password_change_service_factory.h"
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
-#include "chrome/browser/promos/promos_types.h"
 #include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/bubble_manager.h"
@@ -53,6 +52,8 @@
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "chrome/browser/ui/passwords/passwords_leak_dialog_delegate.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
+#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/promos/ios_promos_utils.h"
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/singleton_tabs.h"
@@ -71,6 +72,8 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/save_password_progress_logger.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
+#include "components/desktop_to_mobile_promos/features.h"
+#include "components/desktop_to_mobile_promos/promos_types.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
@@ -527,6 +530,10 @@ void ManagePasswordsUIController::OnCredentialLeak(
     if (password_change_service->GetPasswordChangeDelegate(web_contents())) {
       return;
     }
+
+    base::UmaHistogramBoolean(
+        "PasswordManager.PasswordChange.UserHasPasswordSavedOnAPCLaunch",
+        !GetCurrentForms().empty());
 
     password_change_service->OfferPasswordChangeUi(
         std::move(details.credentials), web_contents());
@@ -1198,7 +1205,18 @@ void ManagePasswordsUIController::MaybeShowIOSPasswordPromo() {
     return;
   }
 
-  ios_promos_utils::VerifyIOSPromoEligibility(IOSPromoType::kPassword, browser);
+  if (MobilePromoOnDesktopTypeEnabled(
+          MobilePromoOnDesktopPromoType::kAutofillPromo)) {
+    IOSPromoTriggerService* service =
+        IOSPromoTriggerServiceFactory::GetForProfile(browser->GetProfile());
+    if (service) {
+      service->NotifyPromoShouldBeShown(
+          desktop_to_mobile_promos::PromoType::kPassword);
+    }
+  } else {
+    ios_promos_utils::VerifyIOSPromoEligibility(
+        desktop_to_mobile_promos::PromoType::kPassword, browser);
+  }
 }
 
 void ManagePasswordsUIController::RelaunchChrome() {

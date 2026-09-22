@@ -40,6 +40,8 @@ const char kAskGeminiChipUseSnackbar[] = "AskGeminiChipUseSnackbar";
 
 const char kAskGeminiChipIgnoreCriteria[] = "AskGeminiChipIgnoreCriteria";
 
+const char kAskGeminiChipPrepopulateFloaty[] = "AskGeminiChipPrepopulateFloaty";
+
 bool IsAskGeminiChipEnabled() {
   return base::FeatureList::IsEnabled(kAskGeminiChip);
 }
@@ -52,6 +54,11 @@ bool IsAskGeminiChipIgnoreCriteria() {
 bool IsAskGeminiSnackbarEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
       kAskGeminiChip, kAskGeminiChipUseSnackbar, false);
+}
+
+bool IsAskGeminiChipPrepopulateFloatyEnabled() {
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kAskGeminiChip, kAskGeminiChipPrepopulateFloaty, false);
 }
 
 BASE_FEATURE(kGeminiCrossTab, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -277,4 +284,16 @@ BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiEligibilityAblationEnabled() {
   return base::FeatureList::IsEnabled(kGeminiEligibilityAblation);
+}
+
+BASE_FEATURE(kGeminiLive, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiLiveEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiLive);
+}
+
+BASE_FEATURE(kGeminiPersonalization, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiPersonalizationEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiPersonalization);
 }

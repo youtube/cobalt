@@ -328,6 +328,14 @@ const base::FeatureParam<bool> kNtpNextShowStaticTextParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowStaticTextParam",
     false);
+const base::FeatureParam<bool> kNtpNextShowDeepDiveSuggestionsParam(
+    &ntp_features::kNtpNextFeatures,
+    "NtpNextShowDeepDiveSuggestionsParam",
+    false);
+const base::FeatureParam<bool> kNtpNextShowSimplificationUIParam(
+    &ntp_features::kNtpNextFeatures,
+    "NtpNextShowSimplificationUIParam",
+    false);
 const base::FeatureParam<int> kMaxTilesBeforeShowMore{
     &ntp_features::kNtpNextFeatures, "max_tiles_before_show_more", 5};
 const base::FeatureParam<bool> kAddTabUploadDelayOnActionChipClick(

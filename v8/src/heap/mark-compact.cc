@@ -354,12 +354,15 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   DCHECK(evacuation_candidates_.empty());
 
   // Bailouts for completely disabled compaction.
-  if (!v8_flags.compact ||
-      (mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack() &&
-       !v8_flags.compact_with_stack) ||
-      (v8_flags.gc_experiment_less_compaction &&
-       !heap_->ShouldReduceMemory()) ||
-      heap_->isolate()->serializer_enabled()) {
+  if (!v8_flags.compact || heap_->isolate()->serializer_enabled()) {
+    return false;
+  }
+
+  // For --no-compact-with-stack we can bail out for atomic GCs with a stack
+  // present. For non-atomic GCs the final atomic pause could still be triggered
+  // from a task.
+  if (!v8_flags.compact_with_stack && mode == StartCompactionMode::kAtomic &&
+      heap_->IsGCWithStack()) {
     return false;
   }
 
@@ -2169,7 +2172,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
       client->shared_external_pointer_space();
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table, shared_space);
-  client_heap->external_string_table_.IterateAll(&external_string_visitor);
+  client_heap->external_string_table_.Iterate(&external_string_visitor);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -3090,10 +3093,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
-    ExternalStringTableCleanerVisitor<ExternalStringTableCleaningMode::kAll>
-        external_visitor(heap_);
-    heap_->external_string_table_.IterateAll(&external_visitor);
-    heap_->external_string_table_.CleanUpAll();
+    ExternalStringTableCleanerVisitor external_visitor(heap_);
+    heap_->external_string_table_.Iterate(&external_visitor);
+    heap_->external_string_table_.CleanUp();
   }
 
   {
@@ -4409,14 +4411,6 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
   if (map_word.IsForwardingAddress()) {
     Tagged<String> new_string =
         Cast<String>(map_word.ToForwardingAddress(old_string));
-
-    if (IsExternalString(new_string)) {
-      MutablePageMetadata::MoveExternalBackingStoreBytes(
-          ExternalBackingStoreType::kExternalString,
-          PageMetadata::FromAddress((*p).ptr()),
-          PageMetadata::FromHeapObject(new_string),
-          Cast<ExternalString>(new_string)->ExternalPayloadSize());
-    }
     return new_string;
   }
 
@@ -5641,7 +5635,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
     // Update pointers from external string table.
-    heap_->UpdateReferencesInExternalStringTable(
+    heap_->external_string_table_.UpdateReferences(
         &UpdateReferenceInExternalStringTableEntry);
 
     // Update pointers in string forwarding table.
