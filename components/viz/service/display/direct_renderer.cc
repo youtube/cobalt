@@ -366,8 +366,12 @@ void DirectRenderer::DrawFrame(
       needs_full_frame_redraw = true;
     }
 #else
-    // The entire surface has to be redrawn if reshape is requested.
-    needs_full_frame_redraw = true;
+    // The entire surface has to be redrawn if reshape is requested, unless the
+    // primary output surface plane was removed by overlay processing.
+    if (current_frame()->output_surface_plane ||
+        !output_surface_->capabilities().renderer_allocates_images) {
+      needs_full_frame_redraw = true;
+    }
 #endif
   }
 
@@ -386,9 +390,15 @@ void DirectRenderer::DrawFrame(
     DrawRenderPassAndExecuteCopyRequests(pass.get());
   }
 
+  const bool output_surface_plane_removed =
+      !current_frame()->output_surface_plane &&
+      output_surface_->capabilities().renderer_allocates_images &&
+      root_render_pass->copy_requests.empty();
+
   bool skip_drawing_root_render_pass =
-      current_frame()->root_damage_rect.IsEmpty() && use_partial_swap_ &&
-      !needs_full_frame_redraw;
+      output_surface_plane_removed ||
+      (current_frame()->root_damage_rect.IsEmpty() && use_partial_swap_ &&
+       !needs_full_frame_redraw);
 
   // If partial swap is not used, and the frame can not be skipped, the whole
   // frame has to be redrawn.

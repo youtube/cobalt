@@ -83,6 +83,8 @@
 #include "ui/android/window_android.h"
 #include "ui/display/display.h"
 #include "ui/display/display_transform.h"
+#include "ui/gfx/android/android_surface_control_compat.h"
+#include "ui/gl/android/scoped_java_surface_control.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/ca_layer_params.h"
 #include "ui/gfx/swap_result.h"
@@ -327,6 +329,16 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
 
   window_ = std::move(window);
   // Register first, SetVisible() might create a LayerTreeFrameSink.
+#if BUILDFLAG(IS_COBALT)
+  if (can_be_used_with_surface_control && host_input_token &&
+      gfx::SurfaceControl::SupportsSurfacelessControl()) {
+    surface_handle_ = tracker->AddSurfaceForNativeWidget(
+        gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
+            host_input_token, /*release_on_destroy=*/false)));
+    SetVisible(true);
+    return surface_handle_;
+  }
+#endif
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),
                          can_be_used_with_surface_control, host_input_token));

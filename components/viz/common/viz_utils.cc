@@ -34,7 +34,15 @@ namespace viz {
 
 #if BUILDFLAG(IS_ANDROID)
 bool PreferRGB565ResourcesForDisplay() {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt sets --enable-low-end-device-mode for JS/Skia cache limits, which
+  // makes SysInfo::AmountOfPhysicalMemoryMB() report a simulated 512MB even on
+  // 2GB-4GB Android TV devices. Never downgrade TV display surfaces to RGB565
+  // or block Android SurfaceControl based on this simulated 512MB value.
+  return false;
+#else
   return base::SysInfo::AmountOfPhysicalMemoryMB() <= 512;
+#endif
 }
 #endif
 

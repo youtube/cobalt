@@ -18,12 +18,18 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/overlay_transform_utils.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace viz {
 namespace {
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 BASE_FEATURE(kAndroidSurfaceControlSingleOnTOp,
              "AndroidSurfaceControlSingleOnTOp",
              base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 gfx::RectF ClipFromOrigin(gfx::RectF input) {
   if (input.x() < 0.f) {
@@ -53,6 +59,10 @@ OverlayProcessorSurfaceControl::OverlayProcessorSurfaceControl() {
   prioritization_config_.changing_threshold = false;
   prioritization_config_.damage_rate_threshold = false;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  strategies_.push_back(
+      std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+#else
   strategies_.push_back(std::make_unique<OverlayStrategyUnderlay>(
       this, OverlayStrategyUnderlay::OpaqueMode::AllowTransparentCandidates));
   if (base::FeatureList::IsEnabled(kAndroidSurfaceControlSingleOnTOp)) {
@@ -61,6 +71,7 @@ OverlayProcessorSurfaceControl::OverlayProcessorSurfaceControl() {
     // off sorting and just attempt the strategies in insertion order.
     prioritization_config_.power_gain_sort = false;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 OverlayProcessorSurfaceControl::~OverlayProcessorSurfaceControl() = default;

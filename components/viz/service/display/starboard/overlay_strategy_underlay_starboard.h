@@ -60,11 +60,17 @@ class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
       OverlayProcessorInterface::OutputSurfaceOverlayPlane*
           output_surface_plane) override;
 
+  bool RemoveOutputSurfaceAsOverlay() override;
+
   OverlayStrategy GetUMAEnum() const override;
 
  private:
   // Keep track if an overlay is being used on the previous frame.
   bool is_using_overlay_ = false;
+  // True when video underlay is active and there are zero visible UI quads
+  // remaining in the root render pass, allowing the primary UI surface plane
+  // to be omitted (1-Surface Mode).
+  bool is_single_plane_mode_ = false;
 };
 
 }  // namespace viz

@@ -9,8 +9,11 @@ import static dev.cobalt.shell.Shell.TAG;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.os.Build;
+import android.view.AttachedSurfaceControl;
 import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.SurfaceControl;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.Window;
@@ -81,7 +84,7 @@ public class ContentViewRenderView extends FrameLayout {
                     width,
                     height,
                     holder.getSurface(),
-                    /* hostInputToken= */ null);
+                    mSurfaceBridge.getSurfaceControl());
             if (mWebContents != null) {
               ContentViewRenderViewJni.get()
                   .onPhysicalBackingSizeChanged(
@@ -190,6 +193,7 @@ public class ContentViewRenderView extends FrameLayout {
         .setOverlayVideoMode(mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
   }
 
+
   /**
    * Takes ownership of the Activity's Window surface. This allows direct rendering to the window
    * surface instead of a child SurfaceView.
@@ -200,6 +204,7 @@ public class ContentViewRenderView extends FrameLayout {
   private static class WindowSurfaceBridge {
     private Window mWindow;
     private SurfaceHolder mWindowSurfaceHolder;
+    private SurfaceControl mSurfaceControl;
 
     /**
      * The pending PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
@@ -218,6 +223,48 @@ public class ContentViewRenderView extends FrameLayout {
       }
       Activity activity = windowAndroid.getActivity().get();
       return activity != null ? activity.getWindow() : null;
+    }
+
+    private void ensureSurfaceControl() {
+      if (mSurfaceControl != null || mWindow == null) {
+        return;
+      }
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        return;
+      }
+
+      AttachedSurfaceControl rootSurfaceControl = mWindow.getRootSurfaceControl();
+      if (rootSurfaceControl == null && mWindow.peekDecorView() != null) {
+        rootSurfaceControl = mWindow.peekDecorView().getRootSurfaceControl();
+      }
+      if (rootSurfaceControl == null) {
+        Log.w(TAG, "ContentViewRenderView: AttachedSurfaceControl rootSurfaceControl is null");
+        return;
+      }
+
+      SurfaceControl surfaceControl =
+          new SurfaceControl.Builder().setName("CobaltWindowSurfaceControl").build();
+      SurfaceControl.Transaction transaction =
+          rootSurfaceControl.buildReparentTransaction(surfaceControl);
+      if (transaction == null) {
+        Log.w(TAG, "ContentViewRenderView: buildReparentTransaction returned null");
+        surfaceControl.release();
+        return;
+      }
+
+      transaction.setVisibility(surfaceControl, true).apply();
+      mSurfaceControl = surfaceControl;
+      Log.i(TAG, "ContentViewRenderView: Attached CobaltWindowSurfaceControl to Window");
+    }
+
+    private void releaseSurfaceControl() {
+      if (mSurfaceControl != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          new SurfaceControl.Transaction().reparent(mSurfaceControl, null).apply();
+        }
+        mSurfaceControl.release();
+        mSurfaceControl = null;
+      }
     }
 
     private void registerStartupListener() {
@@ -279,9 +326,13 @@ public class ContentViewRenderView extends FrameLayout {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
               mWindowSurfaceHolder = holder;
+              ensureSurfaceControl();
               if (!mIsNativeStarted) {
                 mPendingTasks.add(
-                    () -> surfaceCallback.surfaceChanged(holder, format, width, height));
+                    () -> {
+                      ensureSurfaceControl();
+                      surfaceCallback.surfaceChanged(holder, format, width, height);
+                    });
                 return;
               }
               surfaceCallback.surfaceChanged(holder, format, width, height);
@@ -292,11 +343,11 @@ public class ContentViewRenderView extends FrameLayout {
               mWindowSurfaceHolder = null;
               mPendingTasks.clear();
 
-              if (!mIsSurfaceCreatedDispatched) {
-                return;
+              if (mIsSurfaceCreatedDispatched) {
+                mIsSurfaceCreatedDispatched = false;
+                surfaceCallback.surfaceDestroyed(holder);
               }
-              mIsSurfaceCreatedDispatched = false;
-              surfaceCallback.surfaceDestroyed(holder);
+              releaseSurfaceControl();
             }
 
             @Override
@@ -309,6 +360,7 @@ public class ContentViewRenderView extends FrameLayout {
 
             private void handleSurfaceCreated(SurfaceHolder holder) {
               Log.i(TAG, "ContentViewRenderView: Surface created");
+              ensureSurfaceControl();
               applyPendingSurfaceFormat();
               surfaceCallback.surfaceCreated(holder);
               mIsSurfaceCreatedDispatched = true;
@@ -322,11 +374,16 @@ public class ContentViewRenderView extends FrameLayout {
       } else {
         Log.w(TAG, "ContentViewRenderView: disconnect() is called w/o connect().");
       }
+      releaseSurfaceControl();
       mWindow = null;
       mWindowSurfaceHolder = null;
       mPendingSurfaceFormat = null;
       mPendingTasks.clear();
       mIsSurfaceCreatedDispatched = false;
+    }
+
+    private SurfaceControl getSurfaceControl() {
+      return mSurfaceControl;
     }
 
     private void setFormat(int format) {

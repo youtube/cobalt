@@ -760,6 +760,7 @@ bool IsAndroidSurfaceControlEnabled() {
   if (!gfx::SurfaceControl::IsSupported())
     return false;
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // We can use surface control only with AImageReader.
   if (!base::android::EnableAndroidImageReader()) {
     return false;
@@ -768,6 +769,7 @@ bool IsAndroidSurfaceControlEnabled() {
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())
     return false;
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // On WebView we require thread-safe media to use SurfaceControl
   if (IsUsingThreadSafeMediaForWebView()) {

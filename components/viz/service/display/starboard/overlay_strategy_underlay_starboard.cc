@@ -141,6 +141,16 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     LOG(INFO) << (found_underlay ? "Overlay activated" : "Overlay deactivated");
   }
 
+  const bool single_plane_mode = found_underlay && content_rect.IsEmpty();
+  if (is_single_plane_mode_ != single_plane_mode) {
+    is_single_plane_mode_ = single_plane_mode;
+    LOG(INFO)
+        << (single_plane_mode
+                ? "Single-plane video passthrough activated (UI plane removed)"
+                : "Single-plane video passthrough deactivated (UI plane "
+                  "restored)");
+  }
+
   if (found_underlay) {
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
       OverlayCandidate candidate;
@@ -189,6 +199,10 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
   if (output_surface_plane) {
     output_surface_plane->enable_blending = true;
   }
+}
+
+bool OverlayStrategyUnderlayStarboard::RemoveOutputSurfaceAsOverlay() {
+  return is_single_plane_mode_;
 }
 
 OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {

@@ -138,10 +138,15 @@ void GLSurfaceEGLSurfaceControl::Present(
 void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
     SwapCompletionCallback completion_callback,
     PresentationCallback present_callback) {
-  // The transaction is initialized on the first ScheduleOverlayPlane call. If
-  // we don't have a transaction at this point, it means the scheduling the
-  // overlay plane failed. Simply report a swap failure to lose the context and
-  // recreate the surface.
+  if (!surface_lost_ && !pending_transaction_) {
+    // When the primary output surface plane is removed (e.g., single-plane
+    // video underlay passthrough) and zero SurfaceControl overlay planes are
+    // scheduled this frame, ScheduleOverlayPlane() is not called. Initialize
+    // pending_transaction_ here so the cleanup loop below detaches the buffer
+    // and hides ChromeChildSurface.
+    pending_transaction_.emplace();
+  }
+
   if (!pending_transaction_ || surface_lost_) {
     LOG(ERROR) << "CommitPendingTransaction failed because surface is lost";
 
@@ -176,6 +181,8 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
       surface_state.hardware_buffer = nullptr;
     }
     if (surface_state.visibility) {
+      LOG(INFO) << "GLSurfaceEGLSurfaceControl: Hiding ChromeChildSurface "
+                   "(buffer detached, 1-Surface Mode active)";
       pending_transaction_->SetVisibility(*surface_state.surface, false);
       surface_state.visibility = false;
     }
@@ -258,6 +265,8 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
 
   // Make the surface visible if its hidden or uninitialized..
   if (uninitialized || !surface_state.visibility) {
+    LOG(INFO) << "GLSurfaceEGLSurfaceControl: Showing ChromeChildSurface "
+                 "(UI plane visible)";
     pending_transaction_->SetVisibility(*surface_state.surface, true);
     surface_state.visibility = true;
   }
