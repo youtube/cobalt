@@ -123,13 +123,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Enable memory saving mode with little v8 performance tradeoff.
        "--optimize-for-size "
-       // Set initial old space size to 16MB and max old space size to 512MB.
-       "--initial-old-space-size=16 "
-       "--max-old-space-size=512 "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
-      // Limit GPU memory available to 64MB.
-      {blink::switches::kForceGpuMemAvailableMb, "64"},
   };
   return kCobaltSwitchDefaults;
 }

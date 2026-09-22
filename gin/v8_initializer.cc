@@ -23,6 +23,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/feature_visitor.h"
+#include "base/features.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
@@ -413,6 +414,20 @@ void SetFeatureFlags() {
     SetV8FlagsFormatted("--high-end-android-physical-memory-threshold=%i",
                         features::kV8HighEndAndroidMemoryThreshold.Get());
   }
+#if BUILDFLAG(IS_COBALT)
+  // FeatureParam::Get() returns the declared default when the feature is
+  // disabled, so there's no need to check FeatureList::IsEnabled() here.
+  int max_old_space_mb = base::features::kCobaltV8MaxOldSpaceSizeMb.Get();
+  if (max_old_space_mb > 0) {
+    SetV8FlagsFormatted("--max-old-space-size=%i", max_old_space_mb);
+  }
+
+  int initial_old_space_mb =
+      base::features::kCobaltV8InitialOldSpaceSizeMb.Get();
+  if (initial_old_space_mb > 0) {
+    SetV8FlagsFormatted("--initial-old-space-size=%i", initial_old_space_mb);
+  }
+#endif
   SetV8FlagsIfOverridden(features::kV8IdleGcOnContextDisposal,
                          "--idle-gc-on-context-disposal",
                          "--no-idle-gc-on-context-disposal");

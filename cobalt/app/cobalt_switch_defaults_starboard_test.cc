@@ -116,16 +116,6 @@ TEST(CobaltSwitchDefaultsTest, GfxAngleOverride) {
   // for running in Forge environments.
 }
 
-TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
-  const auto input_argv = std::to_array<const char*>({"PROGRAM"});
-  const int input_argc = static_cast<int>(input_argv.size());
-  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
-
-  std::string gpu_mem =
-      GetSwitchValue(cmd_line_pxr, blink::switches::kForceGpuMemAvailableMb);
-  EXPECT_EQ(std::string("64"), gpu_mem);
-}
-
 TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const auto input_argv = std::to_array<const char*>({"PROGRAM"});
   const int input_argc = static_cast<int>(input_argv.size());
