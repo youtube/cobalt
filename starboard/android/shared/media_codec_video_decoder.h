@@ -166,6 +166,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
+  void TeardownCodecAndReset();
+  void ResetDecoderState();
 
   bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;

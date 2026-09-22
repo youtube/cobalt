@@ -1265,19 +1265,34 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   // which we do not need if flush the codec.
   if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
       !media_decoder_->Flush()) {
-    TeardownCodec();
-    if (reset_delay_usec_ > 0) {
-      usleep(reset_delay_usec_);
-    }
-
-    // Note that |input_buffer_written_| may not be strictly accurate after
-    // Flush() since it counts all buffers written since codec initialization.
-    // This is acceptable because it is used to estimate pre-roll frames, and
-    // retaining its accumulated value correctly signals that we are past the
-    // initial pre-roll phase after a Flush().
-    input_buffer_written_ = 0;
-    video_fps_ = 0;
+    TeardownCodecAndReset();
+    return;
   }
+  ResetDecoderState();
+}
+
+void MediaCodecVideoDecoder::TeardownCodecAndReset() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  TeardownCodec();
+  if (reset_delay_usec_ > 0) {
+    usleep(reset_delay_usec_);
+  }
+
+  // Note that |input_buffer_written_| may not be strictly accurate after
+  // Flush() since it counts all buffers written since codec initialization.
+  // This is acceptable because it is used to estimate pre-roll frames, and
+  // retaining its accumulated value correctly signals that we are past the
+  // initial pre-roll phase after a Flush().
+  input_buffer_written_ = 0;
+  video_fps_ = 0;
+
+  ResetDecoderState();
+}
+
+void MediaCodecVideoDecoder::ResetDecoderState() {
+  SB_CHECK(BelongsToCurrentThread());
+
   CancelPendingJobs();
 
   // TODO(b/291959069): After flush |media_decoder_|, the output buffers
