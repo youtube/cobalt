@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
@@ -172,6 +173,12 @@ constexpr bool kEnableScanningByDefault = false;
 BASE_EXPORT size_t
 TraceStackFramePointers(const void** out_trace,
                         size_t max_depth,
+                        size_t skip_initial,
+                        bool enable_scanning = kEnableScanningByDefault);
+
+// Wrapper to the above function to match upstream //base.
+BASE_EXPORT size_t
+TraceStackFramePointers(span<const void*> out_trace,
                         size_t skip_initial,
                         bool enable_scanning = kEnableScanningByDefault);
 
