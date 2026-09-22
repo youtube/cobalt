@@ -1,107 +1,198 @@
 # Application Preload
 
-Preloading allows Cobalt to start and initialize in the background without
-displaying any user interface. This enables a "background-to-foreground"
-transition that appears instantaneous to the user when they eventually choose to
-launch the application.
+Preloading allows Cobalt to start and initialize in the background (`Concealed`
+state) without displaying any user interface. This enables a
+"background-to-foreground" transition that appears instantaneous to the user
+when they eventually choose to launch the application. For an overview of the
+full Starboard state machine and platform contract, see
+[Application Lifecycle and Platform Interface](lifecycle.md).
 
-## For Web Designers
+## Table of Contents
 
-When an application is preloaded, it starts in a **hidden** state. Standard Web
-APIs correctly reflect this state:
+- [Starboard Platform Interface](#starboard-platform-interface)
+  - [1. Starting in Preload Mode (`kSbEventTypePreload` & `SbEventStartData`)](#1-starting-in-preload-mode-ksbeventtypepreload--sbeventstartdata)
+  - [2. Deferred Graphics & Splash Screen Resources](#2-deferred-graphics--splash-screen-resources)
+  - [3. Waking to Foreground (`kSbEventTypeFocus` & Deep Links)](#3-waking-to-foreground-ksbeventtypefocus--deep-links)
+  - [4. Bounding Preload Execution & Linux Reference Signals (`suspend_signals.cc`)](#4-bounding-preload-execution--linux-reference-signals-suspend_signalscc)
+- [Web Application Behavior](#web-application-behavior)
+  - [Best Practices](#best-practices)
+- [Verification and Testing](#verification-and-testing)
+  - [Unit Testing](#unit-testing)
+  - [Integration Testing](#integration-testing)
 
--   `document.visibilityState` will be `"hidden"`.
--   `document.hidden` will be `true`.
+## Starboard Platform Interface
+
+Preloading is managed through the Starboard Platform Interface
+([`starboard/event.h`](../../starboard/event.h) and
+[`starboard/system.h`](../../starboard/system.h)).
+
+```mermaid
+sequenceDiagram
+  participant Platform as Platform / Window Manager
+  participant Cobalt as Cobalt (SbEventHandle)
+  participant WebApp as Web Application
+
+  Platform->>Cobalt: kSbEventTypePreload (with SbEventStartData*)
+  Note over Cobalt,WebApp: Enters CONCEALED (launch=preload, hidden, no EGLSurface)
+  opt Optional Time Budget Expired
+    Platform->>Cobalt: kSbEventTypeFreeze
+    Note over Cobalt: Flushes storage, suspends execution (FROZEN)
+  end
+  opt User Launches via Deep Link (Voice / Content Tile)
+    Platform->>Cobalt: kSbEventTypeLink (const char* url)
+    Note over Cobalt,WebApp: Delivers deep link (does NOT change lifecycle state)
+  end
+  Platform->>Cobalt: kSbEventTypeFocus
+  Note over Cobalt,WebApp: Cobalt sequences (Unfreeze ->) Reveal -> Focus -> STARTED
+```
+
+### 1. Starting in Preload Mode (`kSbEventTypePreload` & `SbEventStartData`)
+
+-   **Dispatching `kSbEventTypePreload`:** To launch Cobalt in preload mode, the
+    platform dispatches `kSbEventTypePreload` as the initial event to
+    `SbEventHandle()` instead of `kSbEventTypeStart`. This initializes Cobalt in
+    the **Concealed** (hidden background) state.
+-   **`SbEventStartData` Requirement:** Like `kSbEventTypeStart`,
+    `kSbEventTypePreload` requires `event->data` to point to a valid
+    `SbEventStartData` structure (`argument_count`, `argument_values`, and
+    optional initial `link`). Passing `event->data = NULL` causes Cobalt to boot
+    with `argc = 0`, dropping all command-line flags and startup URLs.
+-   **`starboard::QueueApplication` Integration:**
+    In the shared Starboard application framework
+    ([`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)),
+    `Application::CreateInitialEvent()` automatically populates
+    `SbEventStartData` for both `kSbEventTypePreload` and `kSbEventTypeStart`.
+    In `Application::RunLoop()`, `IsPreloadImmediate()` is evaluated before
+    `IsStartImmediate()`:
+
+```cpp
+class MyPlatformApplication : public starboard::QueueApplication {
+  // ...
+  bool IsStartImmediate() override { return !HasPreloadSwitch(); }
+  bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
+};
+```
+
+`Application::HasPreloadSwitch()` returns `true` if the `--preload` command-line
+switch (`kPreloadSwitch`) was passed, causing `RunLoop()` to call
+`DispatchPreload()` and send `kSbEventTypePreload`.
+
+### 2. Deferred Graphics & Splash Screen Resources
+
+While preloaded in the **Concealed** state:
+-   **Graphics Deferral:** Cobalt keeps the native `SbWindow` handle unmapped /
+    hidden and defers allocating `EGLSurface` framebuffers and hardware decoder
+    resources (`SbPlayer`) until the application is revealed (`kSbEventTypeReveal`
+    or `kSbEventTypeFocus`).
+-   **Splash Screen Skip:** Cobalt skips creating the splash screen
+    `WebContents` when launched via `kSbEventTypePreload`, further reducing the
+    background memory footprint.
+
+### 3. Waking to Foreground (`kSbEventTypeFocus` & Deep Links)
+
+-   **Foregrounding (`Concealed` / `Frozen` -> `Started`):**
+    To bring a preloaded application to the foreground, the platform dispatches
+    `kSbEventTypeFocus` (or calls `SbSystemRequestFocus()`). Cobalt
+    automatically sequences the required intermediate transitions (`Unfreeze` ->
+    `Reveal` -> `Focus`) so that the window is revealed, `EGLSurface` resources
+    are created, and input focus is granted.
+-   **Waking with a Deep Link (`kSbEventTypeLink`):**
+    If the user launches the preloaded application via a content tile, voice
+    search, or remote shortcut pointing to a specific URL (see
+    [Cobalt Deep Links](deep_links.md)):
+    1.  The platform dispatches `kSbEventTypeLink` with `event->data` set to the
+        null-terminated `const char*` URL string (or calls
+        `starboard::Application::Get()->Link(url)`).
+    2.  **Important:** `kSbEventTypeLink` **has no lifecycle transition
+        side-effect**—it delivers the deep link to the web application, but does
+        **not** reveal or focus the application on its own.
+    3.  To make the application visible and interactive when delivering the deep
+        link, the platform **must also dispatch `kSbEventTypeFocus`** (or
+        `kSbEventTypeReveal` followed by `kSbEventTypeFocus`).
+
+### 4. Bounding Preload Execution & Linux Reference Signals (`suspend_signals.cc`)
+
+-   **Freezing After Preload (`Concealed` -> `Frozen`):**
+    If the platform grants a limited time budget for background preloading, it
+    can dispatch `kSbEventTypeFreeze` (or call `SbSystemRequestFreeze()`) once
+    the budget expires. When `SbEventHandle(kSbEventTypeFreeze)` returns, all
+    cookies/storage are flushed to disk and background execution is suspended in
+    the **Frozen** state.
+-   **Linux Reference Signal Mappings (`starboard/shared/signal/suspend_signals.cc`):**
+    On Linux reference platforms, lifecycle transitions can be triggered via
+    POSIX signals:
+    -   `SIGCONT` -> `SbSystemRequestFocus()` (wakes a preloaded/frozen instance
+        to **Started**).
+    -   `SIGUSR1` -> `SbSystemRequestFreeze()` (transitions to **Frozen** and,
+        in `starboard/shared/signal/system_request_freeze.cc`, suspends OS
+        threads via `raise(SIGSTOP)` once `Freeze` completes).
+    -   `SIGPWR` / `SIGTERM` -> `SbSystemRequestStop(0)` (cleanly transitions to
+        **Stopped** and exits).
+    -   **Stopping from `Frozen` (`SIGPWR` before `SIGCONT`):** When
+        `suspend_signals.cc` is used and the process is halted by `SIGSTOP` in
+        the **Frozen** state, stopping the application directly from **Frozen**
+        requires sending **`SIGPWR` before `SIGCONT`**. Sending `SIGPWR` first
+        ensures `SbSystemRequestStop(0)` is queued before `SIGCONT`
+        (`SbSystemRequestFocus()`), allowing the application to exit directly
+        from **Frozen** to **Stopped** without briefly foregrounding first.
+
+## Web Application Behavior
+
+When an application is preloaded (`kSbEventTypePreload`), it starts in the
+**Concealed** state and standard Web APIs reflect this hidden state:
+
+-   `document.visibilityState` is `"hidden"`.
+-   `document.hidden` is `true`.
+-   `document.hasFocus()` is `false`.
+-   The query parameter `launch=preload` is automatically appended to the initial
+    application URL (`window.location.search` includes `launch=preload`),
+    allowing the web application to detect that it was launched in background
+    preload mode.
 
 ### Best Practices
 
--   Avoid starting audio playback or heavy graphical animations while in the
-    hidden state.
--   Listen for the `visibilitychange` event on the `document` object to detect
-    when the application transitions from preloaded to visible.
+-   Avoid starting audio or video playback or heavy graphical animations while in
+    the hidden state.
+-   Listen for `visibilitychange` and `focus` events on `document` / `window` to
+    detect when the application transitions from preloaded (`Concealed`) to
+    visible (`Blurred`) and interactive (`Started`).
 
-## For Device Manufacturers (Starboard Porters)
+## Verification and Testing
 
-Preloading is managed through the Starboard lifecycle.
-
--   **Startup:** To start in preload mode, the Starboard implementation should
-    send the `kSbEventTypePreload` event instead of `kSbEventTypeStart`.
-    -   In the shared Starboard application framework (`starboard/shared/starboard/application.cc`),
-        the `--preload` command-line flag is recognized via the `kPreloadSwitch` constant.
-    -   If a platform implementation's `Application::IsPreloadImmediate()` returns true
-        (typically by checking `HasPreloadSwitch()`), the application will
-        automatically call `DispatchPreload()`.
-    -   `DispatchPreload()` then creates and dispatches the `kSbEventTypePreload`
-        initial event, which is the signal to the application that it should
-        initialize in a hidden state.
--   **Revelation:** To bring a preloaded application to the foreground, the
-    platform should send a `kSbEventTypeReveal` signal.
-    -   On Linux-based platforms, this is often triggered by sending a `SIGCONT`
-        signal to the process.
-    -   An example of this mapping can be found in `starboard/shared/signal/suspend_signals.cc`,
-        where `SIGCONT` is handled by requesting a focus change.
-    -   The shared Starboard application logic in `starboard/shared/starboard/application.cc`
-        automatically injects a `kSbEventTypeReveal` event if a focus request is
-        received while the application is in the preloaded (concealed) state.
--   **Resource Management:** Cobalt defers the creation of the native window and
-    associated graphics resources until the first `Reveal` signal is received.
-    This minimizes the memory and CPU footprint of the application while it
-    resides in the background.
--   **Splash Screen:** The creation of the splash screen's `WebContents` is also
-    skipped when the application is preloaded, further reducing the background
-    footprint.
-
-## For Cobalt Developers
-
-The "preload" signal is converted into a generic "visibility" state as soon as
-it enters the application layer.
-
-### Implementation Flow
-
-1.  **Entry Point:** `AppLifecycleDelegate::HandleEvent` (called by `SbEventHandle`)
-    receives `kSbEventTypePreload`.
-2.  **State Propagation:** The delegate calls `Run()`, which initializes an
-    `is_visible` boolean (set to `false`) that is passed through the constructor
-    chain: `CobaltMainDelegate` -> `CobaltContentBrowserClient` ->
-    `CobaltBrowserMainParts` -> `ShellBrowserMainParts`.
-3.  **Initialization:** `ShellBrowserMainParts::PreMainMessageLoopRun` calls
-    `Shell::Initialize`, passing the visibility state.
-4.  **Splash Screen Skip:** `Shell::CreateNewWindow` checks the visibility state
-    and skips creating the splash screen `WebContents` if the application is
-    initially hidden.
-5.  **Platform Delegate:** `Shell::Initialize` passes the state to
-    `ShellPlatformDelegate::Initialize`. Each platform implementation (e.g.,
-    Aura, Views) stores this in a member variable.
-6.  **Deferred Resource Creation:** `CreatePlatformWindow` checks `IsVisible()`
-    (or `IsConcealed()`) and defers creating the `NativeWindow` and `Widget` if
-    the application is not yet visible.
-7.  **Revelation:** When `kSbEventTypeReveal` is received, `Shell::OnReveal()` is
-    triggered. This calls `ShellPlatformDelegate::RevealShell`, which creates
-    the deferred window resources and calls `WasShown()` on the `WebContents`,
-    triggering the `visibilitychange` event for the web application.
+For a deep dive into Cobalt's internal multi-process implementation of
+`kSbEventTypePreload` (`AppEventDelegate`, `AppEventRunner`,
+`ShellBrowserMainParts`, and `CobaltLifecycleManager`), see
+[Cobalt Multi-Process Lifecycle Coordination Internals](lifecycle_internals.md).
 
 ### Unit Testing
 
-Application lifecycle and visibility transitions are covered by the following
-unit tests in the `cobalt_unittests` binary:
+Application preload and lifecycle transitions are covered by unit tests in
+`cobalt_unittests` and `cobalt_shell_unittests`:
 
--   **`AppLifecycleDelegateTest`** (`cobalt/app/app_lifecycle_delegate_unittest.cc`):
-    Verifies that Starboard events (Start, Preload, Reveal, Stop) are correctly
-    interpreted and translated into Cobalt actions.
+-   **`AppEventDelegateTest`** (`cobalt/app/app_event_delegate_unittest.cc`):
+    Verifies that Starboard events (`Start`, `Preload`, `Reveal`, `Conceal`,
+    `Freeze`, `Unfreeze`, `Blur`, `Focus`, `Stop`, `Link`) are sequenced into
+    valid linear state transitions.
+-   **`AppEventRunnerTest`** (`cobalt/app/app_event_runner_unittest.cc`):
+    Verifies `AppEventRunner` execution for `OnStart` (including
+    `SbEventStartData` and `Preload`), `OnReveal`, `OnConceal`, `OnFreeze`,
+    `OnUnfreeze`, `OnBlur`, `OnFocus`, and `OnStop`.
 -   **`LifecycleTest`** (`cobalt/shell/browser/lifecycle_unittest.cc`): Verifies
-    correct window creation and visibility state propagation during startup,
-    revelation, and redundant signals.
+    window creation and visibility state propagation during preload, revelation,
+    and redundant signals.
 -   **`SplashScreenTest`** (`cobalt/shell/browser/splash_screen_unittest.cc`):
-    Includes tests for ensuring the splash screen is skipped during preloading.
+    Verifies that splash screen creation is skipped during preloading.
 
 ### Integration Testing
 
-A robust integration test is provided in `cobalt/tools/test_preload.sh`. This
-test:
+An end-to-end integration test is provided in `cobalt/tools/test_preload.sh`:
 
-1.  Launches Cobalt in preload mode.
-2.  Uses the Chrome DevTools Protocol (CDP) to verify that
-    `document.visibilityState` is initially `"hidden"`.
-3.  Sends a `SIGCONT` signal to reveal the application.
-4.  Verifies via CDP that `document.visibilityState` transitions to `"visible"`.
-5.  Sends a `SIGPWR` signal to verify clean shutdown.
+1.  Launches Cobalt in preload mode (`--preload`).
+2.  Uses the Chrome DevTools Protocol (CDP) to verify that:
+    -   `document.visibilityState` is initially `"hidden"`.
+    -   `document.hasFocus()` is initially `false`.
+    -   `window.location.search.includes('launch=preload')` is `true`.
+3.  Sends `SIGCONT` to reveal and focus the application.
+4.  Verifies via CDP that `document.visibilityState` transitions to `"visible"`
+    and `document.hasFocus()` transitions to `true`.
+5.  Sends `SIGPWR` to verify clean shutdown.

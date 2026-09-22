@@ -1,240 +1,410 @@
-# Application Lifecycle
+# Application Lifecycle and Platform Interface
 
-In order to meet common needs of applications running on CE devices, Cobalt
-implements a well-defined web application lifecycle, managing resources and
-notifying the application as appropriate.
+Cobalt implements a strict, linear application lifecycle built on the
+**Starboard Platform Interface** (`starboard/event.h` and `starboard/system.h`).
+This interface defines the contract between the underlying device platform (OS
+and window manager), the Cobalt browser runtime, and the web application for
+managing visibility, input focus, hardware graphics resources, background
+execution, and termination.
 
-## Summary of changes in Cobalt 22
+For a deep dive into Cobalt's internal multi-process state machine and Mojo
+synchronization across browser and renderer threads, see
+[Cobalt Multi-Process Lifecycle Coordination Internals](lifecycle_internals.md).
 
-The application lifecycle has some changes from Cobalt 22:
+## Table of Contents
 
-### States:
+- [Lifecycle State Machine](#lifecycle-state-machine)
+- [Platform Event and Resource Contract](#platform-event-and-resource-contract)
+  - [SbEventHandle vs. SbSystemRequest](#sbeventhandle-vs-sbsystemrequest)
+  - [Living Room Scenario Mapping](#living-room-scenario-mapping)
+- [Implementing the Platform Interface](#implementing-the-platform-interface)
+  - [1. Startup and Preloading (`SbEventStartData` & `QueueApplication`)](#1-startup-and-preloading-sbeventstartdata--queueapplication)
+  - [2. Deep Links (`SbEventStartData::link` & `kSbEventTypeLink`)](#2-deep-links-sbeventstartdatalink--ksbeventtypelink)
+  - [3. Foregrounding, Backgrounding, and Reference Signal Mappings](#3-foregrounding-backgrounding-and-reference-signal-mappings)
+- [Lifecycle States Reference](#lifecycle-states-reference)
+  - [Started](#started)
+  - [Blurred](#blurred)
+  - [Concealed](#concealed)
+  - [Frozen](#frozen)
+  - [Stopped](#stopped)
 
-* The *Paused* state is renamed to *Blurred*.
-* The *Suspended* state is replaced by *Concealed* and *Frozen*.
-* The *Preloading* state is removed, and *Concealed* is used instead.
-  Note: The corresponding attribute value 'prerender' for
-  document.visibilityState is also removed.
+## Lifecycle State Machine
 
-The new *Concealed* state is used for applications that are not visible but may
-use CPU or network resources. This state is used to both replace the
-*Preloading* state, and as an intermediate state between *Blurred* and
-*Frozen*.
+The lifecycle progresses linearly across five states after initial launch
+(`INITIAL`). A platform can dispatch the event for the target state it wants to
+reach, and Cobalt automatically ensures that any intermediate states are
+sequenced in linear progression:
 
-The *Frozen* state most closely resembles the previous *Suspended* state,
-during which applications do not have network access.
+```mermaid
+graph TD
+  %%{init: {"flowchart": {"htmlLabels": false}, "themeVariables": {"edgeLabelBackground": "transparent"}} }%%
 
-### State Changes:
+  %% Nodes Definitions
+  Launcher[INITIAL]
 
-* The *Pause* event is renamed to *Blur*.
-* The *Unpause* event is renamed to *Focus*.
-* The *Suspend* event is replaced by *Conceal* and *Freeze*.
-* The *Resume* event is replaced by *Unfreeze* and *Reveal*.
+  subgraph Foreground["Foreground (Visible)"]
+    Started[STARTED <br/> Focused]
+    Blurred[BLURRED <br/> Unfocused]
+  end
 
-Most platforms should only need to replace 'Pause' with 'Blur', 'Unpause' with
-'Focus', 'Suspend' with 'Freeze', and 'Resume' with 'Reveal'.
+  subgraph Background["Background (Invisible)"]
+    Concealed[CONCEALED <br/> Running]
+    Frozen[FROZEN <br/> Suspended]
+  end
+  Stopped[STOPPED <br/> Terminated]
 
-Since there is no longer a special *Preloading* state, applications should no
-longer use the *Start* event when a preloaded application is brought to the
-foreground. Instead, the same event(s) used for backgrounded applications
-(*Concealed* or *Frozen*) should be used.
+  %% Apply Styles
+  style Launcher fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Started fill:#C8E6C9,stroke:#388E3C,stroke-width:2px;
+  style Blurred fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px;
+  style Concealed fill:#E1BEE7,stroke:#7B1FA2,stroke-width:2px;
+  style Frozen fill:#B3E5FC,stroke:#0288D1,stroke-width:2px;
+  style Stopped fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px;
+  style Foreground fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
+  style Background fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
 
-### Application 'Backgrounding' and 'Foregrounding'.
+  %% Transition Edges (Acyclic Double-Headed Column to force clean vertical layout)
+  Launcher -->|"Start"| Started
+  Launcher -->|"Preload"| Concealed
 
-To signal that the application is being 'backgrounded', the use of *Suspend*
-should be replaced with *Freeze*.
+  Started <-->|"↓ Blur (↑ Focus)"| Blurred
+  Blurred <-->|"↓ Conceal (↑ Reveal)"| Concealed
+  Concealed <-->|"↓ Freeze (↑ Unfreeze)"| Frozen
+  Frozen -->|"Stop (Shutdown)"| Stopped
+```
 
-To signal that the application is being 'foregrounded', the use of *Unpause*
-should be replaced with *Focus*.
+## Platform Event and Resource Contract
 
-Note: If a platform is using *Resume* (*Reveal*) to signal that an application
-is being 'foregrounded', then that may result in unexpected application
-behavior, unless a subsequent *Unpause* (*Focus*) is also used when the
-application receives input focus.
+Platform lifecycle events (`SbEventType`), startup data (`SbEventStartData`),
+and `SbEventHandle()` are declared in
+[`starboard/event.h`](../../starboard/event.h), and `SbSystemRequest*()`
+functions are declared in [`starboard/system.h`](../../starboard/system.h):
 
-More details about lifecycle states and state changes can be found in
-`src/starboard/event.h`.
+```c
+// From starboard/event.h:
+typedef enum SbEventType {
+  kSbEventTypePreload,
+  kSbEventTypeStart,
+  kSbEventTypeBlur,
+  kSbEventTypeFocus,
+  kSbEventTypeConceal,
+  kSbEventTypeReveal,
+  kSbEventTypeFreeze,
+  kSbEventTypeUnfreeze,
+  kSbEventTypeStop,
+  kSbEventTypeLink,
+  // ...
+} SbEventType;
 
-### Deprecated `SbEventType` values.
+typedef struct SbEventStartData {
+  char** argument_values;
+  int argument_count;
+  const char* link;
+} SbEventStartData;
 
-The `SbEventType` enum is defined in `src/starboard/event.h`.
+SB_IMPORT void SbEventHandle(const SbEvent* event);
 
-* The `kSbEventTypePause` value is renamed to `kSbEventTypeBlur`.
-* The `kSbEventTypeUnpause` value is renamed to `kSbEventTypeFocus`.
-* The `kSbEventTypeSuspend` value is replaced by `kSbEventTypeConceal` and
-  `kSbEventTypeFreeze`.
-* The `kSbEventTypeResume` value is replaced by `kSbEventTypeUnfreeze` and
-  `kSbEventTypeReveal`.
+// From starboard/system.h:
+SB_EXPORT void SbSystemRequestBlur();
+SB_EXPORT void SbSystemRequestFocus();
+SB_EXPORT void SbSystemRequestConceal();
+SB_EXPORT void SbSystemRequestReveal();
+SB_EXPORT void SbSystemRequestFreeze();
+SB_EXPORT void SbSystemRequestStop(int error_level);
+```
 
-The corresponding helper functions in
-`starboard::shared::starboard::Application` (implemented in
-`starboard/shared/starboard/application.cc`) that inject events with these
-values have been updated correspondingly:
+### SbEventHandle vs. SbSystemRequest
 
-* The `Pause()` method is renamed to `Blur()`.
-* The `Unpause()` method is renamed to `Focus()`.
-* The `Suspend()` method is replaced by `Conceal()` and
-  `Freeze()`.
-* The `Resume()` method is replaced by `Unfreeze()` and
-  `Reveal()`.
+`SbEventHandle()` and `SbSystemRequest*()` operate in opposite directions across
+the Starboard boundary and have distinct return-time contracts:
 
-Platforms that inject events themselves should be updated to use renamed event
-type values, and platforms that use the helper functions should be updated to
-call the corresponding renamed helper functions.
+1.  **`SbEventHandle(const SbEvent*)` — Platform → Cobalt (System-Initiated Event Delivery):**
+    -   **Who calls it:** Implemented by Cobalt (`SB_IMPORT`) and called by the
+        platform whenever the OS or window manager transitions the application.
+    -   **Calling Thread:** `kSbEventTypeStart` (or `kSbEventTypePreload`),
+        `kSbEventTypeFreeze`, and `kSbEventTypeStop` **must** be invoked from the
+        same thread (the main thread), because `Start`/`Preload` binds Cobalt's
+        main task runner to the calling thread, and `Freeze` and `Stop`
+        synchronously wait on (and `Stop` tears down) that thread's task
+        environment. Other events (`Blur`, `Focus`, `Conceal`, `Reveal`,
+        `Unfreeze`, `Link`) are thread-safe and may be called from any thread.
+        Platforms using `starboard::Application` / `starboard::QueueApplication`
+        can safely invoke `Application::Get()->Blur()`, `Conceal()`, `Freeze()`,
+        `Unfreeze()`, `Reveal()`, `Focus()`, `Stop()`, or `Link()` from **any**
+        thread, as `QueueApplication` dispatches all `SbEventHandle()` calls on
+        the main thread.
+    -   **Linear Progression Handled by Cobalt:** The platform can dispatch the
+        `SbEventType` for the target state it wants to reach, and Cobalt
+        automatically sequences any required intermediate transitions in linear
+        order (`Started <-> Blurred <-> Concealed <-> Frozen -> Stopped`).
+    -   **Return-Time State Contract:** When `SbEventHandle()` returns for
+        `kSbEventTypeFreeze` or `kSbEventTypeStop` (or when the
+        `EventHandledCallback` passed to `Application::Conceal(context, cb)` /
+        `Freeze(context, cb)` fires), **Cobalt has synchronously completed the
+        transition to that target state**. Only **after** `SbEventHandle()`
+        returns may the platform revoke graphics access (`Conceal`/`Freeze`) or
+        suspend/terminate the OS process (`Freeze`/`Stop`). Because each
+        synchronous transition step waits for internal acknowledgments (up to a
+        2-second timeout per step), platform lifecycle watchdogs should allow at
+        least ~2–4 seconds before force-killing the process.
 
-### Deprecated `SbSystemRequest` functions.
+2.  **`SbSystemRequest*()` — Cobalt → Platform (Application-Initiated Requests & Platform Triggers):**
+    -   **When Cobalt calls them:** Cobalt never changes its own lifecycle state
+        directly and never calls `SbSystemRequest*()` *during* a state
+        transition. Instead, while running in **Started**, Cobalt calls
+        **`SbSystemRequestConceal()`** or **`SbSystemRequestStop(error_level)`**
+        *before* any transition begins when the application itself wants to
+        minimize or exit (for example, when the user backs out of the web app
+        via `h5vcc.system` exit strategies or cancels a fatal platform error
+        dialog). Cobalt currently never calls `SbSystemRequestBlur()`,
+        `SbSystemRequestFocus()`, `SbSystemRequestReveal()`, or
+        `SbSystemRequestFreeze()` in production use.
+    -   **What platforms use them for:**
+        -   *Handling self-minimize / self-exit (`Conceal` & `Stop`):* Because
+            an in-app exit is initiated by JavaScript rather than an OS hardware
+            key, the platform's implementation of `SbSystemRequestConceal()` or
+            `SbSystemRequestStop()` notifies the native OS window manager / TV
+            launcher to background or close the app and queues the corresponding
+            `SbEvent`(s) (`Application::Get()->Conceal()` / `Stop()`) to be
+            dispatched back to `SbEventHandle()`.
+        -   *Platform-internal thread/signal entry points (`Focus`, `Blur`, `Reveal`, `Freeze`):*
+            Platforms also use `SbSystemRequest*()` as thread-safe C entry
+            points from OS signal handlers or listener threads (such as
+            `SIGCONT` and `SIGUSR1` in
+            `starboard/shared/signal/suspend_signals.cc`, or checking
+            `loader_app::IsPendingRestart()` and registering a post-freeze
+            `SIGSTOP` callback in
+            `starboard/shared/signal/system_request_freeze.cc`).
+    -   **Return-Time State Contract:** `SbSystemRequest*()` only queues the
+        request with the platform/event loop and **returns immediately**. When
+        `SbSystemRequest*()` returns, **Cobalt's state has not changed yet** and
+        it may continue running and processing earlier queued events. Neither
+        Cobalt nor the platform may assume the state transition has occurred
+        until the resulting `SbEvent` is dequeued, dispatched to
+        `SbEventHandle()`, and `SbEventHandle()` returns.
 
-The `SbSystemRequest` functions are declared in `src/starboard/system.h`
+| Lifecycle State | Entry `SbEventType` (`SbEventHandle`) | `SbSystemRequest` Function | Platform Window, Graphics & Media (`SbWindow` / `EGLSurface` / `SbPlayer`) | Web Visibility & Focus |
+| :--- | :--- | :--- | :--- | :--- |
+| **Started** | `kSbEventTypeStart`<br>`kSbEventTypeFocus` | `SbSystemRequestFocus` | `SbWindow` visible & active; `EGLSurface` and `SbPlayer` active; receives input events (`kSbEventTypeInput`) | `visibilityState: "visible"`<br>`hasFocus(): true` |
+| **Blurred** | `kSbEventTypeBlur`<br>`kSbEventTypeReveal` | `SbSystemRequestBlur`<br>`SbSystemRequestReveal` | `SbWindow` visible; `EGLSurface` retained for fast refocus; input disabled | `visibilityState: "visible"`<br>`hasFocus(): false` |
+| **Concealed** | `kSbEventTypePreload`<br>`kSbEventTypeConceal`<br>`kSbEventTypeUnfreeze` | `SbSystemRequestConceal` | `SbWindow` kept alive in memory; `EGLSurface` destroyed (`eglDestroySurface`) and GPU resources released; background CPU/network allowed | `visibilityState: "hidden"`<br>`hasFocus(): false` |
+| **Frozen** | `kSbEventTypeFreeze` | `SbSystemRequestFreeze` | All GPU, `EGLSurface`, and `SbPlayer` decoder instances released; persistent storage flushed to disk; execution suspended | `visibilityState: "hidden"`<br>`hasFocus(): false` |
+| **Stopped** | `kSbEventTypeStop` | `SbSystemRequestStop` | `SbWindow` destroyed (`SbWindowDestroy`), all threads joined, and process exits | N/A (Terminated) |
 
-* The `SbSystemRequestPause` event is renamed to `SbSystemRequestBlur`
-* The `SbSystemRequestUnpause` event is renamed to `SbSystemRequestFocus`
-* The `SbSystemRequestSuspend` event is replaced by `SbSystemRequestConceal`
-  and `SbSystemRequestFreeze`
-* The `SbSystemRequestResume` event is replaced by `SbSystemRequestUnfreeze`
-  and `SbSystemRequestReveal`
+### Living Room Scenario Mapping
 
-## Application States
+| TV / Device Scenario | Direction | Starboard Event / Function | Resulting State |
+| :--- | :--- | :--- | :--- |
+| **Normal App Launch** | Platform → Cobalt | `kSbEventTypeStart` (with `SbEventStartData*`) | `Started` |
+| **Boot / Background Warmup (Preload)** | Platform → Cobalt | `kSbEventTypePreload` (with `SbEventStartData*`) | `Concealed` |
+| **System Overlay / Dialog / Volume Toast** | Platform → Cobalt | `kSbEventTypeBlur` (and `kSbEventTypeFocus` when dismissed) | `Blurred` → `Started` |
+| **Home Button / App Switch (Background Running)** | Platform → Cobalt | `kSbEventTypeConceal` (Cobalt automatically sequences `Blur` → `Conceal`) | `Concealed` |
+| **Standby / Suspend-to-RAM / Low-Power Background** | Platform → Cobalt | `kSbEventTypeFreeze` (Cobalt automatically sequences `Blur` → `Conceal` → `Freeze`) | `Frozen` |
+| **Wake Preloaded or Backgrounded App to Foreground** | Platform → Cobalt | `kSbEventTypeFocus` (Cobalt automatically sequences `Unfreeze` → `Reveal` → `Focus`) | `Started` |
+| **Wake with Deep Link (Voice Search / Content Tile)** | Platform → Cobalt | `kSbEventTypeLink` (`const char*` URL) **+** `kSbEventTypeFocus` | `Started` (navigated to link) |
+| **User Exits App via Back Button on Home Screen** | Cobalt → Platform | Cobalt calls `SbSystemRequestConceal()` (minimize) or `SbSystemRequestStop(0)` (close); platform then notifies window manager and dispatches `Conceal` or `Stop` | `Concealed` or `Stopped` |
+| **Graceful Process Shutdown** | Platform → Cobalt | `kSbEventTypeStop` (Cobalt automatically sequences `Blur` → `Conceal` → `Freeze` → `Stop`) | `Stopped` |
 
-Starboard Application State | Page Visibility State | Window Focused
-:-------------------------- | :-------------------- | :-------------
-*Started*                   | visible               | true
-*Blurred*                   | visible               | false
-*Concealed*                 | hidden                | false
-*Frozen*                    | hidden                | false
+## Implementing the Platform Interface
 
-When transitioning between *Concealed* and *Frozen*, the document.onfreeze and
-document.onresume events from the Page LifeCycle Web API will be dispatched.
+### 1. Startup and Preloading (`SbEventStartData` & `QueueApplication`)
 
-### Started
+When launching Cobalt, the platform dispatches either `kSbEventTypeStart`
+(foreground launch into **Started**) or `kSbEventTypePreload` (background launch
+into **Concealed**; see [Application Preload](preload.md)).
 
-The application is running, visible, and interactive. The normal foreground
-application state. May be the start state, or can be entered from *Blurred*.
+-   **`SbEventStartData` Requirement for Both `Start` and `Preload`:**
+    Both `kSbEventTypeStart` and `kSbEventTypePreload` require `event->data` to
+    point to a populated `SbEventStartData` structure containing command-line
+    `argument_count`, `argument_values`, and an optional initial `link` URL. If
+    `event->data` is `NULL` on `kSbEventTypePreload` or `kSbEventTypeStart`,
+    Cobalt receives `argc = 0` and drops all command-line flags and startup
+    URLs.
+-   **`starboard::QueueApplication` Startup Hooks:**
+    When subclassing `starboard::QueueApplication`
+    ([`starboard/shared/starboard/queue_application.h`](../../starboard/shared/starboard/queue_application.h)),
+    `Application::CreateInitialEvent()` automatically constructs and populates
+    `SbEventStartData` for both `kSbEventTypePreload` and `kSbEventTypeStart`.
+    In `Application::RunLoop()`, `IsPreloadImmediate()` is checked **before**
+    `IsStartImmediate()`:
 
-May only transition to *Blurred*. In Linux desktop, this happens anytime the
-top-level Cobalt X11 window loses focus. Linux transition back to *Started*
-when the top-level Cobalt X11 window gains focus again.
-
-### Blurred
-
-The application may be fully visible, partially visible, or completely
-obscured, but it has lost input focus, so will receive no input events. It has
-been allowed to retain all its resources for a very quick return to *Started*,
-and the application is still running. May be entered from or transition to
-*Started* or *Concealed* at any time.
-
-### Concealed
-
-The application is not visible and will receive no input, but is running. Can
-be entered as the start state. May be entered from or transition to *Blurred*
-or *Frozen* at any time. The application may be terminated in this state
-without notification.
-
-Upon entering, all graphics resources will be revoked until revealed, so the
-application should expect all images to be lost, and all caches to be cleared.
-
-#### Expectations for the web application
-
-The application should **shut down** playback, releasing resources. On resume,
-all resources need to be reloaded, and playback should be reinitialized where
-it left off, or at the nearest key frame.
-
-### Frozen
-
-The application is not visible and will receive no input, and, once *Frozen*,
-will not run any code. May be entered from or transition to *Concealed* at any
-time. The application may be terminated in this state without notification.
-
-Upon entering, all graphics and media resources will be revoked until resumed,
-so the application should expect all images to be lost, all caches to be
-cleared, and all network requests to be aborted.
-
-#### Expectations for the porter
-
-Currently, Cobalt does not manually stop JavaScript execution when it goes into
-the *Frozen* state. In Linux desktop, it expects that a `SIGSTOP` will be
-raised, causing all the threads not to get any more CPU time until resumed.
-This will be fixed in a future version of Cobalt.
-
-### Application Startup Expectations for the porter
-
-The starboard application lifecycle, with descriptions of the states and the
-state changes can be found in `src/starboard/event.h`.
-
-For applications that can be preloaded, the platform should send
-`kSbEventTypePreload` as the first Starboard event instead of
-`kSbEventTypeStart`. Subclasses of
-`src/starboard/shared/starboard/application.cc` can opt-in to use the already
-implemented support for the `--preload` command-line switch.
-
-If started with `kSbEventTypePreload`, the platform can at any time send
-`kSbEventTypeFocus` when the application brought to the foreground.
-In Linux desktop (linux-x64x11), this can be done by sending a `SIGCONT` to the
-process that is in the *Preloading* state (see
-`starboard/shared/signal/suspend_signals.cc`)
-
-If the platform wants to only give applications a certain amount of time to
-preload, they can send `SbSystemRequestFreeze` to halt preloading and move to
-the *Frozen* state. In Linux desktop, this can be done by sending SIGUSR1 to
-the process that is in the *Preloading* state.
-
-## Implementing the Application Lifecycle (for the porter)
-
-The platform Starboard implementation **must always** send events in the
-prescribed order - meaning, for example, that it should never send a
-`kSbEventTypeConceal` event unless in the *Blurred* state.
-
-Most porters will want to subclass either `starboard::shared::Application` (in
-`src/starboard/shared/starboard/application.cc`) or
-`starboard::shared::QueueApplication` (in
-`src/starboard/shared/starboard/queue_application.cc`), as these are reference
-classes that rigorously implement the Starboard application lifecycle. They are
-optional, and platforms can directly dispatch events to SbEventHandle(), but it
-is then up to them to ensure that events are **always** sent in the correct
-state as specified in the Starboard documentation.
-
-`starboard::shared::Application` (in
-`starboard/shared/starboard/application.cc`) guarantees the correct ordering by
-implementing a small state machine that ignores invalid application state
-transitions, and inserts any necessary transitions to make them valid. For
-example, you can call `starboard::shared::Application::Conceal()`, and if you
-are in *Blurred*, it will just dispatch a `kSbEventTypeConceal` event. But if
-you call `Conceal()` in the *Started* state, it will first dispatch
-`kSbEventTypeBlur`, followed by a `kSbEventTypeConceal` event. If you call
-`Conceal()` in the *Concealed* state, it just does nothing.
-
-This behavior can be ensured by only dispatching events to SbEventHandle()
-using `Application::DispatchAndDelete()` either directly, or indirectly such
-as by using `Application::RunLoop()` with the default implementation of
-`Application::DispatchNextEvent()`.
-
-To control starting up in the *Concealed* state for preloading, `Application`
-subclasses must override two functions:
-
-``` c++
-class MyApplication : public shared::starboard::QueueApplication {
-  // [ ... ]
-  bool IsStartImmediate() override;
-  bool IsPreloadImmediate() override;
-  // [ ... ]
+```cpp
+// In starboard::Application::RunLoop():
+if (IsPreloadImmediate()) {
+  DispatchPreload(CurrentMonotonicTime());
+} else if (IsStartImmediate()) {
+  DispatchStart(CurrentMonotonicTime());
 }
 ```
 
-To start up in the *Concealed* state, `IsStartImmediate()` should return
-`false` and `IsPreloadImmediate()` should return `true`.
+Because `Application::IsStartImmediate()` defaults to `true`, a platform
+subclass of `starboard::QueueApplication` can enable `--preload` support using
+`Application::HasPreloadSwitch()`, which is implemented to return `true` if the
+`--preload` switch (`kPreloadSwitch`) was on the command-line:
 
-To start up in the *Starting* state (which is the default), `IsStartImmediate()`
-should return `true` and `IsPreloadImmediate()` will not be called.
-
-To delay starting up until some later event, `IsStartImmediate()` and
-`IsPreloadImmediate()` should both return `false`. No initial event will be
-automatically sent to the application, and it is then up to the porter to
-dispatch a `kSbEventTypeStart` or `kSbEventTypePreload` event as the first
-event. This is useful if you need to wait for an asynchronous system activity to
-complete before starting Cobalt.
-
-To support the `--preload` command-line argument:
-
-``` c++
+```cpp
+class MyPlatformApplication : public starboard::QueueApplication {
+  // ...
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
+};
 ```
+
+-   **Immediate Preload (`Concealed`):** `IsPreloadImmediate()` returns `true`
+    (e.g., when `HasPreloadSwitch()` returns `true` because `--preload` was
+    passed on the command-line). `RunLoop()` calls `DispatchPreload()` to send
+    `kSbEventTypePreload` with `SbEventStartData`, and Cobalt appends
+    `launch=preload` to the initial application URL.
+-   **Immediate Foreground Start (Default):** `IsPreloadImmediate()` returns
+    `false` and `IsStartImmediate()` returns `true`. `RunLoop()` calls
+    `DispatchStart()` to send `kSbEventTypeStart` with `SbEventStartData`.
+-   **Deferred Asynchronous Start:** Both `IsPreloadImmediate()` and
+    `IsStartImmediate()` return `false`. No initial event is dispatched
+    automatically; the platform implementation calls `DispatchStart()` or
+    `DispatchPreload()` once asynchronous platform initialization completes.
+
+### 2. Deep Links (`SbEventStartData::link` & `kSbEventTypeLink`)
+
+Platforms can pass a target content URL (deep link) to Cobalt either at initial
+launch or while the application is already running (see
+[Cobalt Deep Links](deep_links.md) for full details on the Web API and delivery
+semantics):
+
+1.  **At Initial Launch (`kSbEventTypeStart` or `kSbEventTypePreload`):**
+    Set `SbEventStartData::link` to the null-terminated deep link URL string
+    (or call `starboard::Application::Get()->SetStartLink(url)` before
+    `DispatchStart()` / `DispatchPreload()`).
+2.  **While Running in Any State (`Concealed`, `Frozen`, `Blurred`, or `Started`):**
+    Dispatch `kSbEventTypeLink` with `event->data` pointing to a null-terminated
+    `const char*` deep link string (or call
+    `starboard::Application::Get()->Link(url)`).
+    -   **No Lifecycle Transition Side-Effect:** `kSbEventTypeLink` **only**
+        delivers the deep link URL to the web application
+        (`window.h5vcc.runtime.ondeeplink` / `addEventListener('deeplink', ...)`);
+        it **does not** change Cobalt's lifecycle state or foreground the
+        application on its own.
+    -   **Foregrounding with a Deep Link:** When a deep link is meant to bring a
+        preloaded (`Concealed`) or suspended (`Frozen`) Cobalt instance to the
+        foreground, the platform **must separately dispatch `kSbEventTypeFocus`**
+        (or `kSbEventTypeReveal` followed by `kSbEventTypeFocus`) alongside
+        `kSbEventTypeLink`. *(Note: If a platform instead sends a redundant
+        `kSbEventTypeStart` with a non-empty `SbEventStartData::link` after
+        startup, Cobalt automatically converts `data->link` into a
+        `kSbEventTypeLink` event and transitions the application to
+        **Started**.)*
+
+### 3. Foregrounding, Backgrounding, and Reference Signal Mappings
+
+-   **Foregrounding from Preload or Background (`Concealed` / `Frozen` -> `Started`):**
+    To bring a preloaded or backgrounded application to the foreground, the
+    platform dispatches `kSbEventTypeFocus` (or calls `SbSystemRequestFocus()`),
+    and Cobalt automatically sequences `Unfreeze` / `Reveal` before `Focus`. On
+    Linux reference platforms (`starboard/shared/signal/suspend_signals.cc`),
+    sending `SIGCONT` to the process invokes `SbSystemRequestFocus()`.
+-   **Bounding Preload Execution (`Concealed` -> `Frozen`):**
+    If the platform only grants a limited time budget for background preloading,
+    it can dispatch `kSbEventTypeFreeze` (or call `SbSystemRequestFreeze()`) to
+    suspend the preloaded application into the **Frozen** state. On Linux
+    reference platforms, sending `SIGUSR1` to the process triggers
+    `SbSystemRequestFreeze()`, which suspends OS threads with `SIGSTOP` once the
+    `Freeze` transition completes (`FreezeDone`).
+-   **Graceful Termination (`-> Stopped`):**
+    To cleanly shut down the application, the platform dispatches
+    `kSbEventTypeStop` (or calls `SbSystemRequestStop(0)`), and Cobalt
+    automatically sequences any intermediate transitions (`Blur` -> `Conceal` ->
+    `Freeze` -> `Stop`) before exiting. On Linux reference platforms, sending
+    `SIGPWR` or `SIGTERM` triggers `SbSystemRequestStop(0)`.
+    -   **Stopping from `Frozen` when using `suspend_signals.cc` (`SIGPWR` before `SIGCONT`):**
+        Because `starboard/shared/signal/system_request_freeze.cc` halts OS
+        process execution with `raise(SIGSTOP)` after entering **Frozen**,
+        stopping a `SIGSTOP`-suspended process directly from **Frozen** requires
+        sending **`SIGPWR` before `SIGCONT`**. When the kernel delivers both
+        pending signals upon waking, `SIGPWR` (`SbSystemRequestStop`) is queued
+        ahead of `SIGCONT` (`SbSystemRequestFocus`), ensuring Cobalt transitions
+        directly from **Frozen** to **Stopped** without briefly foregrounding
+        (`Unfreeze` -> `Reveal` -> `Focus`) first.
+
+## Lifecycle States Reference
+
+### Started
+
+The application is running in the foreground, visible, and has active input
+focus (`document.visibilityState === "visible"`, `document.hasFocus() === true`).
+
+-   **Platform Contract:** The native `SbWindow` and `EGLSurface` graphics
+    surfaces are mapped and active. The platform routes keyboard, pointer, and
+    remote control input events (`kSbEventTypeInput`) to the application.
+-   **Transitions:** Entered on initial launch via `kSbEventTypeStart` or from
+    **Blurred** via `kSbEventTypeFocus`. Transitions to **Blurred** via
+    `kSbEventTypeBlur` (for example, when the top-level window loses focus or a
+    system overlay appears).
+
+### Blurred
+
+The application remains visible (`document.visibilityState === "visible"`), or
+partially obscured by a system dialog/overlay, but has lost input focus
+(`document.hasFocus() === false`).
+
+-   **Platform Contract:** The application does not receive input events, but
+    retains its native `SbWindow` and `EGLSurface` so it can return to
+    **Started** immediately without reallocating graphics surfaces. Cobalt
+    initiates an asynchronous flush of Cookies and LocalStorage when entering
+    **Blurred** and waits for renderer frame blur acknowledgment.
+-   **Web Application Signals:** The `blur` event is dispatched on `window` /
+    `document` upon entering **Blurred**, and `focus` is dispatched when
+    returning to **Started**.
+-   **Transitions:** Entered from **Started** (`kSbEventTypeBlur`) or
+    **Concealed** (`kSbEventTypeReveal`). Transitions to **Started**
+    (`kSbEventTypeFocus`) or **Concealed** (`kSbEventTypeConceal`).
+
+### Concealed
+
+The application is hidden in the background (`document.visibilityState ===
+"hidden"`, `document.hasFocus() === false`) and receives no input, but remains
+running with reduced resource usage.
+
+-   **Platform Contract:** Cobalt destroys the `EGLSurface` (`eglDestroySurface`)
+    and releases GPU framebuffer/texture resources back to the OS while keeping
+    the native `SbWindow` handle alive in memory for fast revelation. Memory
+    reclamation is triggered to minimize background RAM footprint. Only after
+    `SbEventHandle()` returns may the platform revoke graphics access. The OS
+    may terminate the process in this state without prior notification if
+    system memory is constrained.
+-   **Web Application Signals:** The `visibilitychange` event is dispatched on
+    `document` (`document.visibilityState` becomes `"hidden"`). The web
+    application stops media playback (`SbPlayer`) and releases heavy resources;
+    on subsequent `Reveal` (`visibilitychange` to `"visible"`), resources and
+    playback are reinitialized.
+-   **Transitions:** Entered at startup via `kSbEventTypePreload`, from
+    **Blurred** via `kSbEventTypeConceal`, or from **Frozen** via
+    `kSbEventTypeUnfreeze`. Transitions to **Blurred** (`kSbEventTypeReveal`) or
+    **Frozen** (`kSbEventTypeFreeze`).
+
+### Frozen
+
+The application is hidden in the background (`document.visibilityState ===
+"hidden"`, `document.hasFocus() === false`), receives no input, and is
+suspended.
+
+-   **Platform Contract:** Cobalt freezes page execution, releases all GPU,
+    `EGLSurface`, and `SbPlayer` hardware media decoder resources, suspends
+    background services (including the Evergreen updater), and synchronously
+    flushes all persistent storage (Cookies and LocalStorage in
+    `kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
+    before `SbEventHandle(kSbEventTypeFreeze)` returns. Once
+    `SbEventHandle(kSbEventTypeFreeze)` returns, the platform may revoke
+    graphics access, suspend OS threads (e.g., `SIGSTOP`), or forcefully
+    terminate the process at any time without data loss.
+-   **Web Application Signals:** The Page Lifecycle `freeze` event
+    (`document.onfreeze`) is dispatched when entering **Frozen**, and `resume`
+    (`document.onresume`) is dispatched when transitioning back to
+    **Concealed** via `kSbEventTypeUnfreeze`.
+-   **Transitions:** Entered from **Concealed** (`kSbEventTypeFreeze`).
+    Transitions to **Concealed** (`kSbEventTypeUnfreeze`) or **Stopped**
+    (`kSbEventTypeStop`).
+
+### Stopped
+
+The application cleanly shuts down the browser runtime, destroys the `SbWindow`
+(`SbWindowDestroy`), joins all browser and renderer threads, flushes `stdio`
+streams, and exits (`kSbEventTypeStop`, entered from **Frozen**).
