@@ -1341,7 +1341,7 @@ void MediaCodecVideoDecoder::PerformCodecTransition() {
   buffers.swap(pending_transition_buffers_);
   const bool write_end_of_stream = transition_eos_pending_;
 
-  ResetInternal(/*skip_flush=*/true);
+  TeardownCodecAndReset();
 
   if (!buffers.empty()) {
     WriteInputBuffers(buffers);
