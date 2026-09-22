@@ -1980,7 +1980,9 @@ BASE_FEATURE(kMixedContentAutoupgrade,
 BASE_FEATURE(kMemoryCacheStrongReference,
              "MemoryCacheStrongReference",
 // Finch study showed no improvement on Android for strong memory cache.
-#if BUILDFLAG(IS_ANDROID)
+// Starboard (Cobalt) opts out for the same reason, and to keep the memory
+// footprint down on constrained TV devices.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT
