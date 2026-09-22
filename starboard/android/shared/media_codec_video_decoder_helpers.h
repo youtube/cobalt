@@ -26,7 +26,10 @@
 
 namespace starboard {
 
-bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities);
+class ExperimentalFeatures;
+
+bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
+                               const std::string& max_video_capabilities);
 
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,

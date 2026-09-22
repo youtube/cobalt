@@ -20,6 +20,8 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -32,6 +34,7 @@ import android.view.InputDevice;
 import android.view.Surface;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.ExoPlayerManager;
@@ -45,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -132,6 +136,7 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+  private static volatile Boolean sWasLowMemoryKilledForTesting;
   private final Natives mNatives = BaseStarboardBridgeJni.get();
 
   /**
@@ -154,7 +159,7 @@ public class BaseStarboardBridge {
     mAudioOutputManager = new AudioOutputManager(appContext);
     mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = null;
-    mResourceOverlay = null;
+    mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = null;
     mIsAmatiDevice = false;
     mNativeApp = 0;
@@ -465,7 +470,7 @@ public class BaseStarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(int errorType, long data, String url) {}
+  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {}
 
   @CalledByNative
   public boolean isPlatformErrorShowing() {
@@ -1061,4 +1066,48 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
+
+  @CalledByNative
+  public boolean getWasLowMemoryKilled() {
+    if (sWasLowMemoryKilledForTesting != null) {
+      return sWasLowMemoryKilledForTesting;
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      return false;
+    }
+    if (mAppContext == null) {
+      return false;
+    }
+    ActivityManager am = (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
+    if (am == null) {
+      return false;
+    }
+    return ApiHelperForR.getWasLowMemoryKilled(am);
+  }
+
+  @RequiresApi(Build.VERSION_CODES.R)
+  private static final class ApiHelperForR {
+    private ApiHelperForR() {}
+
+    static boolean getWasLowMemoryKilled(ActivityManager am) {
+      try {
+        // Query the latest process exit reason for this package (pid <= 0).
+        List<ApplicationExitInfo> reasons =
+            am.getHistoricalProcessExitReasons(
+                /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
+        if (reasons == null || reasons.isEmpty() || reasons.get(0) == null) {
+          return false;
+        }
+        return reasons.get(0).getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
+      } catch (RuntimeException e) {
+        Log.w(TAG, "Failed to get historical process exit reasons", e);
+        return false;
+      }
+    }
+  }
+
+  @VisibleForTesting
+  public static void setWasLowMemoryKilledForTesting(@Nullable Boolean wasKilled) {
+    sWasLowMemoryKilledForTesting = wasKilled;
+  }
 }

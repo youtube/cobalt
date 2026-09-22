@@ -15,8 +15,11 @@
 #ifndef COBALT_BROWSER_METRICS_COBALT_MEMORY_METRICS_EMITTER_H_
 #define COBALT_BROWSER_METRICS_COBALT_MEMORY_METRICS_EMITTER_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -67,6 +70,17 @@ class CobaltMemoryMetricsEmitter
     const EmitTo target;
     const MetricRange range;
   };
+
+  struct VirtualAddressSpaceMetrics {
+    uint64_t largest_free_gap_mb = 0;
+    uint64_t total_unmapped_va_mb = 0;
+    int fragmentation_ratio_pct = 0;
+    size_t vma_count = 0;
+  };
+
+  static std::optional<VirtualAddressSpaceMetrics>
+  CalculateVirtualAddressSpaceMetricsForTesting(
+      const std::string& maps_content);
 
   CobaltMemoryMetricsEmitter();
 

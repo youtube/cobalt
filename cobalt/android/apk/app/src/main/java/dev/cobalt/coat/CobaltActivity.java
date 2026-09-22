@@ -115,6 +115,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private volatile boolean mHasHiddenSplashScreen = false;
 
+  public boolean hasHiddenSplashScreen() {
+    return mHasHiddenSplashScreen;
+  }
+
   private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private long mLastRetryTimestampMs = 0L;
 
@@ -142,6 +146,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         }
       };
   private boolean mWasDisplayOn = true;
+  private static boolean sIsMemoryPressureInitialized = false;
 
   @VisibleForTesting
   static void appendMetaDataArgs(@NonNull List<String> args, @Nullable Bundle metaData) {
@@ -192,7 +197,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
-    StartupGuard.getInstance().setStartupMilestone(1);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
 
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
@@ -204,10 +209,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
-    StartupGuard.getInstance().setStartupMilestone(2);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
-    StartupGuard.getInstance().setStartupMilestone(3);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_LIBRARY_LOADER_INIT);
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
@@ -220,7 +225,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       mStartDeepLink = "";
     }
 
-    StartupGuard.getInstance().setStartupMilestone(4);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_STARBOARD_BRIDGE_INIT);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
@@ -237,7 +242,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
-    StartupGuard.getInstance().setStartupMilestone(7);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_STARBOARD_BRIDGE_INIT);
 
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
@@ -279,7 +284,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       StartupGuard.getInstance().disarm();
     }
 
-    StartupGuard.getInstance().setStartupMilestone(8);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_WINDOW_CONFIGURED);
     // TODO(b/377025559): Bring back WebTests launch capability
     if (useStarboardLifeCycle()) {
       AppEventBridge.handleStartEvent(
@@ -488,10 +493,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     setupStartupGuard();
     createContent(savedInstanceState);
     if (!NetworkChangeNotifier.isInitialized()) {
-      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
-      MemoryPressureUma.initializeForBrowser();
       NetworkChangeNotifier.init();
       NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    }
+    if (!sIsMemoryPressureInitialized) {
+      MemoryPressureUma.initializeForBrowser();
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+      sIsMemoryPressureInitialized = true;
     }
 
     if (!mIsCobaltUsingAndroidOverlay) {
@@ -502,7 +510,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
-    StartupGuard.getInstance().setStartupMilestone(9);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_START);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
@@ -558,7 +566,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    StartupGuard.getInstance().setStartupMilestone(10);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -604,7 +612,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
-    StartupGuard.getInstance().setStartupMilestone(11);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_PAUSE);
   }
 
   @Override
@@ -678,7 +686,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onResume() {
     super.onResume();
-    StartupGuard.getInstance().setStartupMilestone(12);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
     checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -690,7 +698,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       CobaltContentBrowserClient.dispatchFocus();
     }
-    StartupGuard.getInstance().setStartupMilestone(13);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
   }
 
   @Override
@@ -716,19 +724,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     super.onDestroy();
   }
 
-  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
-    return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
-  }
-
   public void onSplashScreenHidden() {
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
-    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
-      return;
-    }
     if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
     }
@@ -759,7 +760,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       unregisterNetworkRecoveryObserver();
       return;
     }
-    if (!isAutoRetryOnNetworkRecoveryEnabled() || !NetworkChangeNotifier.isOnline()) {
+    if (!NetworkChangeNotifier.isOnline()) {
       return;
     }
     WebContents webContents = getActiveWebContents();

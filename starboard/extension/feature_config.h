@@ -169,12 +169,6 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-
-// Set the following variable to true to reduce android thread stack size.
-STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
-                  "ReduceAndroidThreadStackSize",
-                  false)
-
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
